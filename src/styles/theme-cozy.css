@@ -1764,6 +1764,141 @@ body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"] {
 }
 
 /* ============================================================
+ * SETTINGS MODAL — full readability pass
+ * Settings has its own ss-* classes scattered through legacy +
+ * settings-page.js. Force parchment + dark text everywhere.
+ * ============================================================ */
+#settings-modal .modal-card,
+#settings-modal #settings-body {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  color: #3d2817 !important;
+  border: 1px solid #b8893e !important;
+}
+#settings-modal *,
+#settings-body * {
+  color: #3d2817 !important;
+}
+#settings-modal h1,
+#settings-modal h2,
+#settings-modal h3,
+#settings-modal h4,
+#settings-modal summary,
+#settings-modal legend,
+#settings-modal .modal-title,
+#settings-body summary,
+#settings-body h1,
+#settings-body h2,
+#settings-body h3,
+#settings-body h4,
+#settings-body legend {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  letter-spacing: .04em;
+}
+/* Section labels (.ss-label) — dark + readable */
+#settings-body .ss-label {
+  color: #3d2817 !important;
+  font-weight: 700 !important;
+  font-size: 13px;
+}
+/* Hints + meta (.ss-hint, .ss-meta) — readable but slightly muted */
+#settings-body .ss-hint,
+#settings-body .ss-meta,
+#settings-body .ss-card-meta {
+  color: #6a4823 !important;
+  font-style: normal !important;
+}
+/* Card titles inside settings (.ss-card-title) */
+#settings-body .ss-card-title {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em;
+}
+/* Cards / rows / sections inside the settings body — parchment surface */
+#settings-body .ss-card,
+#settings-body .ss-row,
+#settings-body details,
+#settings-body details > div {
+  background: rgba(255,247,224,.55) !important;
+  border-color: var(--line) !important;
+  color: #3d2817 !important;
+}
+#settings-body .ss-card {
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 6px;
+}
+/* Inputs / selects / textareas inside settings */
+#settings-body input,
+#settings-body select,
+#settings-body textarea {
+  background: #fff7e0 !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line) !important;
+}
+/* Toggle pills / range sliders */
+#settings-body .ss-toggle,
+#settings-body .ss-pill {
+  background: rgba(255,247,224,.7) !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line) !important;
+}
+#settings-body .ss-toggle.on,
+#settings-body .ss-pill.on,
+#settings-body .ss-toggle.active,
+#settings-body .ss-pill.active {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+}
+#settings-body .ss-toggle.on *,
+#settings-body .ss-pill.on *,
+#settings-body .ss-toggle.active *,
+#settings-body .ss-pill.active * {
+  color: #fff8e2 !important;
+}
+/* Buttons inside settings */
+#settings-body .btn {
+  background: linear-gradient(180deg, #faedc4, #ecd5a0) !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line-strong) !important;
+}
+#settings-body .btn.btn-danger {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+}
+#settings-body .btn.btn-danger * {
+  color: #fff8e2 !important;
+}
+#settings-body .btn.btn-primary {
+  background: linear-gradient(180deg, #d4a24c, #b8893e) !important;
+  color: #2a1a0c !important;
+  border-color: #8a5e2a !important;
+  font-weight: 700;
+}
+/* The collapsible <details> section heads */
+#settings-body details > summary {
+  background: linear-gradient(180deg, #e8d4a0, #d8b878) !important;
+  color: #5c2d08 !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 6px;
+  padding: 10px 14px !important;
+  font-family: var(--f-display) !important;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+/* Save backup list rows */
+#settings-body .ss-backup-list,
+#settings-body .ss-backup-list * {
+  color: #3d2817 !important;
+}
+#settings-body .ss-backup-list > div {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line) !important;
+}
+
+/* ============================================================
  * INVENTORY RIGHT SIDEBAR — HERO / WEAPON STYLES / BONUSES /
  * ACTIVE STYLE. The numbers are rendered with hardcoded
  * var(--gold-2) inline styles. Force them dark + readable.

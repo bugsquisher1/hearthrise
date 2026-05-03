@@ -1,0 +1,48 @@
+# ============================================================
+# Hearthrise — .gitignore
+# ============================================================
+# Excludes raw asset libraries (purchased icon packs, source PSDs,
+# zips, etc.) from version control + deploys. Only files actually
+# referenced by the game ship to production.
+# ============================================================
+
+# Raw asset libraries (Itch.io / Poneti packs — not loaded at runtime)
+icons2/
+icons3/
+icons4/
+
+# Local-only legacy monoliths superseded by src/ + index.html
+.legacy/
+hearthbound.html
+hearthbound-v2.html
+hearthbound-phaseA.html
+hearthrise-phaseA.html
+style-lanes.html
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Node (in case any tooling sneaks in)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Local environment + secrets (keep examples in .env.example if needed)
+.env
+.env.local
+*.local
+
+# Build output / scratch
+dist/
+build/
+*.log
+
+# Document working files (the .docx + .xlsx live in repo for reference,
+# but ignore Office lock files)
+~$*

@@ -1,0 +1,116 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Icon audit contact sheet</title>
+<style>
+  body{margin:0;padding:16px;background:#1a1f2e;color:#e8eaef;font:13px/1.4 system-ui}
+  h1{font-size:14px;color:#f3d181;margin:24px 0 8px}
+  .pack{margin-bottom:20px}
+  .pack-name{color:#f3d181;font-weight:700;margin-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(12,64px);gap:4px}
+  .cell{position:relative;width:64px;height:64px;background:#0f1420;border:1px solid #2a3340;border-radius:4px;display:flex;align-items:center;justify-content:center}
+  .cell img{width:100%;height:100%;object-fit:contain}
+  .cell .lbl{position:absolute;bottom:2px;left:2px;font-size:8px;color:#88bff5;background:rgba(0,0,0,.6);padding:0 3px;border-radius:2px;font-family:monospace}
+</style>
+</head><body>
+<h1 id="title">Loading…</h1>
+<div id="root"></div>
+<script>
+const PACKS = [
+  // Icon packs we'll need to map game items into.
+  {name:'48-mining-rpg-icons', sub:'shadow', count:48},
+  {name:'48-mineral-rpg-icons', sub:'shadow', count:48},
+  {name:'sword-rpg-icons', sub:'shadow', count:48},
+  {name:'sword-rpg-game-icon-set', sub:'background', count:50},
+  {name:'48-dagger-rpg-icons', sub:'shadow', count:48},
+  {name:'50-rpg-axe-icons', sub:'background', count:50},
+  {name:'mace-rpg-game-icons', sub:'shadow', count:48},
+  {name:'rpg-crushing-weapon-icons', sub:'shadow', count:48},
+  {name:'spear-rpg-game-icons', sub:'shadow', count:48},
+  {name:'50-rpg-lance-icons', sub:'background', count:50},
+  {name:'50-rpg-staff-icons', sub:'background', count:50},
+  {name:'bow-and-crossbow-vector-icons', sub:'shadow', count:48},
+  {name:'bow-and-crossbow-icons', sub:'shadow', count:48},
+  {name:'rpg-helmet-icons', sub:'background', count:50},
+  {name:'50-rpg-armor-icons', sub:'background', count:50},
+  {name:'cuirass-rpg-icon-pack', sub:'shadow', count:48},
+  {name:'50-rpg-glove-icons', sub:'background', count:50},
+  {name:'50-rpg-jewelry-icons', sub:'background', count:50},
+  {name:'rings-and-jewelry-game-icons', sub:'shadow', count:48},
+  {name:'50-shields-rpg-icon-pack', sub:'background', count:50},
+  {name:'belt-game-icons', sub:'shadow', count:48},
+  {name:'rpg-belt-icons', sub:'shadow', count:48},
+  {name:'rpg-greaves-icons', sub:'shadow', count:48},
+  {name:'trousers-rpg-icon-pack', sub:'shadow', count:48},
+  {name:'rpg-fishing-game-icons', sub:'shadow', count:48},
+  {name:'rpg-vegetable-game-icons', sub:'background', count:50},
+  {name:'fruit-and-vegetable-rpg-icons', sub:'shadow', count:48},
+  {name:'rpg-fruit-icons', sub:'shadow', count:48},
+  {name:'48-rpg-farming-game-icons', sub:'shadow', count:48},
+  {name:'rpg-farming-icons', sub:'shadow', count:48},
+  {name:'berries-and-seeds-icons', sub:'background', count:50},
+  {name:'berries-loot-vector-rpg-icon-pack', sub:'shadow', count:48},
+  {name:'48-food-game-icons', sub:'shadow', count:48},
+  {name:'rpg-medieval-food-icons', sub:'background', count:50},
+  {name:'48-magic-potion-rpg-icons', sub:'shadow', count:48},
+  {name:'48-magic-artifact-rpg-icons', sub:'shadow', count:48},
+  {name:'48-magic-rune-rpg-icons-pack/runes+bricks', sub:'shadow', count:48},
+  {name:'48-scroll-rpg-icons', sub:'shadow', count:48},
+  {name:'magic-book-game-icons', sub:'shadow', count:48},
+  {name:'rpg-elixir-icons', sub:'shadow', count:48},
+  {name:'elixir-vector-icons', sub:'shadow', count:48},
+  {name:'rpg-gems-vector-icons', sub:'shadow', count:48},
+  {name:'skull-and-bone-rpg-icons', sub:'shadow', count:48},
+  {name:'monster-rpg-256x256-icons', sub:'shadow', count:48},
+  {name:'the-rpg-monster-hand-game-icons', sub:'background', count:50},
+  {name:'spider-vector-icons', sub:'shadow', count:48},
+  {name:'rpg-spider-loot-icons', sub:'background', count:50},
+  {name:'rpg-undead-loot-icons', sub:'background', count:50},
+  {name:'undead-avatar-icons-pixel-art', sub:'', count:30},
+  {name:'rpg-demon-loot-icons', sub:'shadow', count:48},
+  {name:'rpg-demon-loot-icons-1', sub:'shadow', count:48},
+  {name:'rpg-dragon-egg-icons', sub:'shadow', count:48},
+  {name:'dragon-loot-vector-rpg-icons', sub:'shadow', count:48},
+  {name:'rpg-kobold-loot-icons', sub:'background', count:50},
+  {name:'goblin-skills-icon-pack', sub:'shadow', count:48},
+  {name:'fairy-loot-game-icons', sub:'shadow', count:48},
+  {name:'rpg-monster-loot-icons', sub:'shadow', count:48},
+  {name:'gnome-loot-game-icons', sub:'shadow', count:48},
+  {name:'claw-loot-vector-game-icons', sub:'shadow', count:48},
+  {name:'fantasy-rpg-loot-icons-512x512', sub:'background', count:50},
+  {name:'earthly-loot-rpg-icon-pack', sub:'shadow', count:48},
+  {name:'rpg-loot-vector-icons', sub:'shadow', count:48},
+  {name:'loot-vector-icons-pack', sub:'shadow', count:48},
+  {name:'crafting-material-vector-icons', sub:'shadow', count:48},
+  {name:'resources-and-craft-vector-icons', sub:'shadow', count:48},
+  {name:'battle-loot-vector-rpg-icons', sub:'shadow', count:48},
+  {name:'pirate-loot-vector-rpg-icons', sub:'shadow', count:48},
+  {name:'48-pirate-rpg-icons', sub:'shadow', count:48},
+  {name:'boss-loot-vector-icons', sub:'shadow', count:48},
+  {name:'chest-and-treasure-game-icon-set', sub:'shadow', count:48},
+  {name:'treasure-and-chest-icons', sub:'background', count:50},
+  {name:'weapon-achievement-vector-rpg-icons', sub:'', count:48},
+  {name:'50-rpg-loot-game-icons', sub:'background', count:50},
+];
+
+const root = document.getElementById('root');
+const titleEl = document.getElementById('title');
+let renderedPacks = 0;
+
+PACKS.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'pack';
+  const path = 'raw-bundle/' + p.name + (p.sub ? '/' + p.sub : '');
+  div.innerHTML = `<div class="pack-name">${p.name}${p.sub?'/'+p.sub:''}</div>
+    <div class="grid" id="grid-${p.name.replace(/[^a-z0-9]/gi,'_')}"></div>`;
+  root.appendChild(div);
+  const grid = div.querySelector('.grid');
+  for(let i=1; i<=p.count; i++){
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.innerHTML = `<img src="${path}/${i}.png" alt="" loading="lazy" onerror="this.style.opacity=.2"><span class="lbl">${i}</span>`;
+    grid.appendChild(c);
+  }
+  renderedPacks++;
+});
+titleEl.textContent = `Icon audit — ${PACKS.length} packs, ${PACKS.reduce((s,p)=>s+p.count,0)} icons`;
+</script>
+</body></html>

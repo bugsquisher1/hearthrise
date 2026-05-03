@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Hearthrise">
+<meta name="description" content="Hearthrise — idle homestead RPG. Mobile + Steam + online.">
+<title>Hearthrise — Idle Homestead</title>
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🏡</text></svg>">
+<!-- PWA manifest is inlined below at runtime so this works as a single file -->
+
+<!-- moved style#0 (style-0) -->
+  <link rel="stylesheet" href="src/styles/legacy.css">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=93">
+  <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=93">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ─── SIDEBAR (desktop) ─── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=93" alt="Hearthrise — Idle Homestead" />
+    </div>
+    <button class="nav-btn active" data-tab="profile"><span class="ic">👤</span><span class="lbl">Profile</span></button>
+    <button class="nav-btn" data-tab="character"><span class="ic">🧙</span><span class="lbl">Character</span></button>
+
+    <div class="nav-group-label">Adventure</div>
+    <button class="nav-btn" data-tab="combat"><span class="ic">⚔️</span><span class="lbl">Combat</span></button>
+    <button class="nav-btn" data-tab="bounty"><span class="ic">🎯</span><span class="lbl">Bounty Board</span></button>
+    <button class="nav-btn" data-tab="skills"><span class="ic">⛏️</span><span class="lbl">Activities</span></button>
+
+    <div class="nav-group-label">Economy</div>
+    <button class="nav-btn" data-tab="inventory"><span class="ic">🎒</span><span class="lbl">Inventory</span></button>
+    <button class="nav-btn" data-tab="shop"><span class="ic">💎</span><span class="lbl">Store</span></button>
+
+    <div class="nav-group-label">Homestead</div>
+    <button class="nav-btn" data-tab="farming"><span class="ic">🌾</span><span class="lbl">Farm</span></button>
+    <button class="nav-btn" data-tab="house"><span class="ic">🏠</span><span class="lbl">House</span></button>
+    <button class="nav-btn" data-tab="social"><span class="ic">🏆</span><span class="lbl">Social</span></button>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-foot" id="net-status"><span class="dot off"></span><span>Offline</span></div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <main class="main">
+    <!-- topbar -->
+    <header class="topbar">
+      <div class="player">
+        <div class="player-avatar"><img src="icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/BoldWarrior_nb.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <div style="min-width:0">
+          <div class="player-name" id="player-name">Adventurer</div>
+          <div class="row tiny muted" style="gap:6px">
+            <span id="clan-tag" class="clan-tag hide"></span>
+            <span id="status-pill" class="status-pill off"><span class="dot"></span><span>Offline play</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="top-stats">
+        <div class="t-stat" title="Combat level"><span class="ic">⚔️</span><span id="top-combat">3</span><span class="lab">CL</span></div>
+        <div class="t-stat" title="Total level"><span class="ic">📊</span><span id="top-total">19</span><span class="lab">TL</span></div>
+        <div class="t-stat gold" title="Gold"><span class="ic">🪙</span><span id="top-gold">500</span><span class="lab">Gold</span></div>
+        <div class="t-stat gem" id="top-gem-btn" title="Gems — premium currency"><span class="ic">💎</span><span id="top-gems">0</span><span class="lab">Gems</span></div>
+        <div class="streak-badge" title="Daily login streak"><span class="flame">🔥</span><span id="top-streak-count">1</span></div><div class="notif-bell-wrap"><button class="icon-btn notif-bell" id="btn-notif" title="Notifications">🔔<span class="nb-dot hide" id="nb-dot">0</span></button></div><button class="icon-btn" id="btn-save" title="Save game">💾</button>
+        <button class="icon-btn" id="btn-settings" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- ── PROFILE ── -->
+    <section class="panel active" id="panel-profile">
+      <div class="card dash-user" id="dash-user">
+        <div class="card-head">
+          <div class="card-title">Profile</div>
+          <span class="card-sub" id="dash-user-sub">Lv 3</span>
+        </div>
+        <div class="card-body" id="dash-user-body"></div>
+      </div>
+      <div class="card dash-active" id="dash-active">
+        <div class="card-head">
+          <div class="card-title">Current Activity</div>
+          <span class="card-sub" id="dash-active-sub">Idle</span>
+        </div>
+        <div class="card-body" id="dash-active-body"></div>
+      </div>
+      <div class="card dash-objectives" id="dash-objectives">
+        <div class="card-head">
+          <div class="card-title">Objectives</div>
+          <span class="card-sub" id="dash-obj-sub">Daily</span>
+        </div>
+        <div class="card-body" id="dash-objectives-body"></div>
+      </div>
+      <div class="card dash-skills" id="dash-skills">
+        <div class="card-head">
+          <div class="card-title">Skills</div>
+          <span class="card-sub" id="dash-skills-sub">Total: 19</span>
+        </div>
+        <div class="card-body" id="dash-skills-body"></div>
+      </div>
+      <div class="card dash-homestead" id="dash-homestead">
+        <div class="card-head">
+          <div class="card-title">Homestead</div>
+          <span class="card-sub">Farm + House</span>
+        </div>
+        <div class="card-body" id="dash-homestead-body"></div>
+      </div>
+    </section>
+
+    <!-- ── CHARACTER (skills + calculators) ── -->
+    <section class="panel" id="panel-character"></section>
+
+    <!-- ── COMBAT ── -->
+    <section class="panel" id="panel-combat">
+      <div class="card combat-picker">
+        <div class="card-head">
+          <div class="card-title">Monsters</div>
+          <span class="card-sub" id="combat-picker-sub">Tier 1</span>
+        </div>
+        <div class="chips" id="tier-chips">
+          <button class="chip active" data-tier="1">Tier 1</button>
+          <button class="chip" data-tier="2">Tier 2</button>
+          <button class="chip" data-tier="3">Tier 3</button>
+          <button class="chip" data-tier="4">Tier 4</button>
+          <button class="chip" data-tier="5">Tier 5</button>
+          <button class="chip" data-tier="6">Tier 6</button>
+        </div>
+        <div class="card-body" id="monster-list"></div>
+      </div>
+      <div class="card combat-arena">
+        <div class="card-head">
+          <div class="card-title">Arena</div>
+          <button class="btn btn-sm btn-danger" id="combat-stop" style="display:none">Stop</button>
+        </div>
+        <div class="card-body" id="combat-area"><div class="empty"><span class="em-icon">⚔️</span>Pick a monster on the left to begin.</div></div>
+      </div>
+      <div class="card combat-loadout">
+        <div class="card-head">
+          <div class="card-title">Loadout</div>
+          <button class="btn btn-sm" id="combat-gear-btn">Gear</button>
+        </div>
+        <div class="card-body" id="loadout-panel"></div>
+      </div>
+    </section>
+
+    <!-- ── SKILLS ── -->
+    <section class="panel" id="panel-skills">
+      <div class="card layout-2col-a">
+        <div class="card-head"><div class="card-title">All Skills</div></div>
+        <div class="card-body" id="skills-list"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head"><div class="card-title" id="skill-detail-title">Skill</div></div>
+        <div class="card-body" id="skill-detail"><div class="empty"><span class="em-icon">📊</span>Tap a skill to train it.</div></div>
+      </div>
+    </section>
+
+    <!-- ── INVENTORY ── -->
+    <section class="panel" id="panel-inventory">
+      <div class="card layout-2col-a" id="inv-stats-card">
+        <div class="card-head"><div class="card-title">Equipment</div></div>
+        <div class="card-body" id="equip-panel"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head">
+          <div class="card-title">Inventory</div>
+          <div class="chips" style="margin:0">
+            <button class="chip active" data-inv="bag">Bag</button>
+            <button class="chip" data-inv="bank">Bank</button>
+          </div>
+        </div>
+        <div class="card-body" id="inv-panel"></div>
+      </div>
+    </section>
+
+    <!-- ── FARMING ── -->
+    <section class="panel" id="panel-farming">
+      <div class="card layout-2col-a">
+        <div class="card-head"><div class="card-title">Plots</div></div>
+        <div class="card-body" id="farm-panel"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head"><div class="card-title">Crops</div></div>
+        <div class="card-body" id="crops-guide"></div>
+      </div>
+    </section>
+
+    <!-- ── HOUSE ── -->
+    <section class="panel" id="panel-house">
+      <div class="card layout-2col-a">
+        <div class="card-head"><div class="card-title">Homestead</div></div>
+        <div class="chips">
+          <button class="chip active" data-house="rooms">Rooms</button>
+          <button class="chip" data-house="plot">Plot</button>
+          <button class="chip" data-house="themes">Themes</button>
+        </div>
+        <div class="card-body" id="house-panel"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head"><div class="card-title">Bonuses</div></div>
+        <div class="card-body" id="house-bonus"></div>
+      </div>
+    </section>
+
+    <!-- ── SOCIAL ── -->
+    <section class="panel" id="panel-social">
+      <div class="card layout-2col-a">
+        <div class="card-head">
+          <div class="card-title">Leaderboard</div>
+          <span class="card-sub" id="lb-sub">This week</span>
+        </div>
+        <div class="chips">
+          <button class="chip active" data-lb="total">Total Lv</button>
+          <button class="chip" data-lb="combat">Combat</button>
+          <button class="chip" data-lb="gold">Gold</button>
+        </div>
+        <div class="card-body" id="leaderboard"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head"><div class="card-title">Clan + Friends</div></div>
+        <div class="card-body" id="social-panel"></div>
+      </div>
+    </section>
+
+    <!-- ── SHOP / STORE ── -->
+    <section class="panel" id="panel-shop">
+      <div class="card layout-2col-a">
+        <div class="card-head"><div class="card-title">Premium Store</div><span class="card-sub">Real-money packs</span></div>
+        <div class="card-body" id="iap-panel"></div>
+      </div>
+      <div class="card layout-2col-b">
+        <div class="card-head"><div class="card-title">In-Game Shop</div></div>
+        <div class="chips">
+          <button class="chip active" data-shop="seeds">🌱 Seeds</button>
+          <button class="chip" data-shop="equip">⚔️ Equipment</button>
+          <button class="chip" data-shop="cosmetics">🎨 Cosmetics</button>
+        </div>
+        <div class="card-body" id="shop-panel"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- bottom nav (mobile only via CSS) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-btn active" data-tab="profile"><span class="ic">👤</span><span>Home</span></button><button class="bn-btn" data-tab="character"><span class="ic">🧙</span><span>Character</span></button>
+  <button class="bn-btn" data-tab="combat"><span class="ic">⚔️</span><span>Combat</span></button>
+  <button class="bn-btn" data-tab="skills"><span class="ic">📊</span><span>Skills</span></button>
+  <button class="bn-btn" data-tab="farming"><span class="ic">🌾</span><span>Farm</span></button>
+  <button class="bn-btn more" data-tab="more"><span class="ic">⋯</span><span>More</span></button>
+</nav>
+
+<!-- mobile "more" sheet -->
+<div class="modal" id="more-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">More</div>
+      <button class="btn btn-sm" data-close-modal="more-modal">Close</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+      <button class="btn tap" data-tab="inventory">🎒 Items</button>
+      <button class="btn tap" data-tab="house">🏠 House</button>
+      <button class="btn tap" data-tab="social">🏆 Social</button>
+      <button class="btn tap btn-gem" data-tab="shop">💎 Store</button>
+      <button class="btn tap" id="btn-save-mobile">💾 Save</button>
+      <button class="btn tap" id="btn-settings-mobile">⚙️ Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="modal" id="settings-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ Settings</div>
+      <button class="btn btn-sm" data-close-modal="settings-modal">Close</button>
+    </div>
+    <div id="settings-body"></div>
+  </div>
+</div>
+
+<!-- IAP confirm -->
+<div class="modal" id="iap-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">Confirm Purchase</div>
+      <button class="btn btn-sm" data-close-modal="iap-modal">Cancel</button>
+    </div>
+    <div id="iap-modal-body"></div>
+  </div>
+</div>
+
+<div class="notifs" id="notifs"></div>
+
+<!-- ===================================================================
+     SCRIPTS
+     ===================================================================
+-->
+<!-- moved script#0 (script-0) -->
+<!-- moved style#1 (style-1) -->
+<!-- moved script#1 (script-1) -->
+
+<!-- moved script#2 (script-2) -->
+<!-- moved style#2 (style-2) -->
+<!-- moved script#3 (script-3) -->
+<!-- moved style#3 (style-3) -->
+<!-- moved script#4 (script-4) -->
+<!-- moved script#5 (script-5) -->
+<!-- moved script#6 (script-6) -->
+<!-- moved style#4 (style-4) -->
+<!-- moved script#7 (script-7) -->
+<!-- moved style#5 (style-5) -->
+<!-- moved script#8 (script-8) -->
+<!-- moved style#6 (style-6) -->
+<!-- moved script#9 (script-9) -->
+
+<!-- ====== COMBAT STYLES v2 (window-attached, called from edited combatTick) ====== -->
+<!-- moved style#7 (style-7) -->
+<!-- moved script#10 (script-10) -->
+<!-- ====== END COMBAT STYLES v2 ====== -->
+
+<!-- ====== HEARTHBOUND LANE 1 STARDEW ====== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Fredoka:wght@500;600;700&family=Cinzel:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- moved style#8 (lane1-stardew) -->
+
+<!-- ====== LANE 1 LEGIBILITY OVERRIDES ====== -->
+<!-- moved style#9 (lane1-legibility) -->
+<!-- ====== END LANE 1 LEGIBILITY OVERRIDES ====== -->
+
+<!-- ====== HOMESTEAD WIDGET LAYOUT ====== -->
+<!-- moved style#10 (hmstead-widget) -->
+<!-- ====== END HOMESTEAD WIDGET LAYOUT ====== -->
+
+<!-- ====== COZY DARK + TOGGLE ====== -->
+<!-- moved style#11 (cozy-dark-theme) -->
+
+<!-- moved script#11 (theme-controller) -->
+<!-- ====== END COZY DARK + TOGGLE ====== -->
+
+<!-- ====== PONETI ICON LOADER ====== -->
+<!-- moved style#12 (poneti-icons) -->
+<!-- moved script#12 (script-12) --><!-- ====== END PONETI ICON LOADER ====== -->
+
+<!-- ====== PONETI v2: skills + monsters + popover ====== -->
+<!-- moved style#13 (poneti-v2-css) -->
+
+<!-- moved script#13 (poneti-v2-js) -->
+<!-- ====== END PONETI v2 ====== -->
+
+<!-- ====== PONETI v3: extend monster paint + avatar ====== -->
+<!-- moved style#14 (poneti-v3-css) -->
+<!-- moved script#14 (poneti-v3-js) -->
+<!-- ====== END PONETI v3 ====== -->
+
+<!-- ====== CHARACTER PAGE + STYLE-RELOC ====== -->
+<!-- moved style#15 (character-page-css) -->
+
+<!-- moved script#15 (character-page-js) -->
+<!-- ====== END CHARACTER PAGE ====== -->
+<!-- ====== UI OVERHAUL: retention features ====== -->
+<!-- moved style#16 (ui-overhaul-css) -->
+
+<!-- moved script#16 (ui-overhaul-js) -->
+<!-- ====== END UI OVERHAUL ====== -->
+<!-- ====== 5 DEFERRED RETENTION FEATURES ====== -->
+<!-- moved style#17 (five-feat-css) -->
+
+<!-- moved script#17 (five-feat-js) -->
+<!-- ====== END 5 DEFERRED FEATURES ====== -->
+<!-- ====== ARTISAN SYSTEMS (cooking/smithing/crafting/prayer) ====== --><!-- moved script#18 (artisans-js) --><!-- ====== END ARTISAN SYSTEMS ====== -->
+
+<!-- moved script#19 (goldfix-js) -->
+
+<!-- ====== WELCOME BACK v2 — rich session summary ====== -->
+<!-- moved style#18 (welcome-v2-css) -->
+
+<!-- moved script#20 (welcome-v2-js) -->
+<!-- ====== END WELCOME BACK v2 ====== -->
+<!-- ====== PHASE A.1: FULL RECIPE SET ====== -->
+<!-- moved script#21 (phase-a1-recipes) -->
+<!-- ====== END PHASE A.1 ====== -->
+<!-- ====== ACTIVITY MUTEX (one at a time) ====== -->
+<!-- moved script#22 (activity-mutex) -->
+<!-- ====== END ACTIVITY MUTEX ====== -->
+<!-- ====== UI REWORK V2 ====== -->
+<!-- moved style#19 (ui-rework-v2-css) -->
+
+<!-- moved script#23 (ui-rework-v2-js) -->
+<!-- ====== END UI REWORK V2 ====== -->
+<!-- ====== UI REWORK V3 ====== -->
+<!-- moved style#20 (ui-rework-v3-css) -->
+
+<!-- moved script#24 (ui-rework-v3-js) -->
+<!-- ====== END UI REWORK V3 ====== -->
+<!-- ====== INVENTORY REBUILD V4 ====== -->
+<!-- moved style#21 (inv-rebuild-v4-css) -->
+
+<!-- moved script#25 (inv-rebuild-v4-js) -->
+<!-- ====== END INVENTORY REBUILD V4 ====== -->
+<!-- ====== INVENTORY DRAG-AND-DROP ====== -->
+<!-- moved style#22 (dragdrop-css) -->
+
+<!-- moved script#26 (dragdrop-js) -->
+<!-- ====== END INVENTORY DRAG-AND-DROP ====== -->
+
+<!-- ====== ACTIVITIES GRID v1 ====== -->
+
+<!-- moved style#23 (activities-grid-css) -->
+
+<!-- moved script#27 (activities-grid-js) -->
+
+<!-- ====== END ACTIVITIES GRID v1 ====== -->
+
+<!-- ====== PAINTERLY POLISH v1 ====== -->
+
+<!-- moved style#24 (painterly-polish-css) -->
+
+<!-- moved script#28 (painterly-polish-js) -->
+
+<!-- ======
+<!-- ====== SMOKE TEST HARNESS v1 ====== -->
+
+<!-- moved script#29 (smoke-test-js) -->
+
+<!-- ====== END SMOKE TEST HARNESS v1 ====== -->
+<!-- ====== COMPANIONS A: DATA ====== -->
+<!-- moved script#30 (companions-data) -->
+<!-- ====== END COMPANIONS A ====== -->
+<!-- ====== COMPANIONS B: HOOKS ====== -->
+<!-- moved script#31 (companions-hooks) -->
+<!-- ====== END COMPANIONS B ====== -->
+<!-- ====== COMPANIONS C: UI ====== -->
+<!-- moved style#25 (companions-ui-css) -->
+
+<!-- moved script#32 (companions-ui-js) -->
+<!-- ====== END COMPANIONS C ====== -->
+
+<!-- ====== VISUAL POLISH v1 ====== -->
+
+<!-- moved style#26 (visual-polish-v1) -->
+
+<!-- ====== VISUAL POLISH v2 ====== -->
+
+<!-- moved style#27 (visual-polish-v2) -->
+
+<!-- moved script#33 (visual-polish-v2-js) -->
+
+<!-- ====== END VISUAL POLISH v2 ====== -->
+
+<!-- ====== CHARACTER REBUILD v1 ====== -->
+
+<!-- moved style#28 (character-rebuild-css) -->
+
+<!-- moved script#34 (character-rebuild-js) -->
+<!-- ====== END CHARACTER REBUILD v1 ====== -->
+
+<!-- ====== COMPANIONS D: ACQUISITION ====== -->
+
+<!-- moved script#35 (companions-acquisition-js) -->
+<!-- ====== END COMPANIONS D ====== -->
+<!-- ====== BUFF QUEUE v1 ====== -->
+
+<!-- moved style#29 (buff-queue-css) -->
+
+<!-- moved script#36 (buff-queue-js) -->
+
+<!-- ====== END BUFF QUEUE v1 ====== -->
+
+<!-- ====== FIX: stopSkill re-renders activities ====== -->
+<!-- moved script#37 (script-37) -->
+<!-- ====== END FIX: stopSkill re-renders activities ====== -->
+
+<!-- ====== BUNDLE ICONS v1 ====== -->
+<!-- moved script#38 (bundle-icons-js) -->
+<!-- ====== END BUNDLE ICONS v1 ====== -->
+
+<!-- ====== FIX: View other skills while training ====== -->
+<!-- moved script#39 (script-39) -->
+<!-- ====== END FIX: View other skills ====== -->
+
+<!-- ====== FIX: Profile layout collision ====== -->
+<!-- moved style#30 (profile-layout-fix) -->
+<!-- ====== END FIX: Profile layout collision ====== -->
+
+<!-- ====== FIX: Quests promotion + hide placeholders ====== -->
+<!-- moved style#31 (quests-promotion-css) -->
+<!-- moved script#40 (script-40) -->
+<!-- ====== END FIX: Quests promotion ====== -->
+
+<!-- ====== HEARTH HALL PAYWALL WIRING ====== -->
+<!-- moved script#41 (script-41) -->
+
+  <!-- Cache-busting query gets rewritten on each save by outputs/bump_cache.py.
+       Bumped: 1714710000 -->
+  <!-- observability.js MUST load first so window.captureException + window.onerror
+       handlers are wired up before any other script can throw. -->
+  <!-- build-info loads as a module (exports BUILD constant) -->
+  <script type="module" src="src/build-info.js?v=93"></script>
+  <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
+  <script src="src/theme-picker.js?v=93"></script>
+  <script src="src/observability.js?v=93"></script>
+  <script src="src/save-migrations.js?v=93"></script>
+  <script src="src/legacy.js?v=93"></script>
+  <script src="src/admin.js?v=93"></script>
+  <script src="src/item-ux.js?v=93"></script>
+  <script src="src/dungeons.js?v=93"></script>
+  <script src="src/dungeon-scavenger.js?v=93"></script>
+  <script src="src/multi-character.js?v=93"></script>
+  <script src="src/market.js?v=93"></script>
+  <!-- Chat: filter loads first (no deps), then the dock. -->
+  <script src="src/chat-filter.js?v=93"></script>
+  <script src="src/chat.js?v=93"></script>
+  <script src="src/settings-page.js?v=93"></script>
+  <script src="src/ftue.js?v=93"></script>
+  <script src="src/mobile.js?v=93"></script>
+  <!-- Beta-tester loop tighteners -->
+  <script src="src/quests-topbar-button.js?v=93"></script>
+  <script src="src/nav-consolidation.js?v=93"></script>
+  <script src="src/icon-swap.js?v=93"></script>
+  <script src="src/bug-report.js?v=93"</script>
+  <script src="src/welcome-modal.js?v=93"></script>
+  <script src="src/network-status.js?v=93"></script>
+  <script src="src/error-boundary.js?v=93"></script>
+  <script type="module" src="src/main.js?v=93"></script>
+</body>
+</html>

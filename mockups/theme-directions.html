@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hearthrise — Theme Directions</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 24px;
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+  h1 + p { margin: 0 0 24px; color: #999; font-size: 14px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  .theme {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #333;
+  }
+  .theme-head {
+    padding: 14px 18px;
+    background: #222;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .theme-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .theme-head .ref {
+    font-size: 11px;
+    color: #888;
+    font-family: 'Courier New', monospace;
+  }
+  .theme-body {
+    height: 460px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* ─────────────── Shared UI structure ─────────────── */
+  .ui {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .ui-top {
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+  }
+  .ui-top .player {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ui-top .av {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .ui-top .name { font-weight: 600; font-size: 13px; }
+  .ui-top .sub { font-size: 11px; opacity: .7; }
+  .ui-top .stats {
+    display: flex; gap: 12px; font-size: 11px;
+  }
+  .ui-top .stat { display: flex; gap: 4px; align-items: center; }
+  .ui-top .stat .ic { font-size: 12px; }
+  .ui-body {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 12px;
+  }
+  .card {
+    border-radius: 8px;
+    padding: 12px;
+    border-width: 1px;
+    border-style: solid;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card .ttl {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .card .row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px;
+    padding: 4px 0;
+  }
+  .card .bar {
+    height: 5px; border-radius: 3px; overflow: hidden;
+  }
+  .card .bar-fill {
+    height: 100%;
+  }
+  .chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-width: 1px;
+    border-style: solid;
+  }
+  .btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-style: solid;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn.primary { font-weight: 700; }
+  .inv-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .inv-tile {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border-width: 1px;
+    border-style: solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  /* ═══════════════ THEME 1: COZY / STARDEW ═══════════════ */
+  .t1 .ui { background: #f4e4bc; color: #3d2817; }
+  .t1 .ui-top { background: #e8d4a0; border-bottom-color: #c2a560; }
+  .t1 .av { background: #5a7c3d; color: #f4e4bc; }
+  .t1 .ui-top .stat .ic { filter: hue-rotate(20deg); }
+  .t1 .card { background: #faf0d4; border-color: #c2a560; box-shadow: inset 0 0 0 1px rgba(255,255,255,.5); }
+  .t1 .ttl { color: #5a7c3d; }
+  .t1 .bar { background: #d8c280; }
+  .t1 .bar-fill { background: linear-gradient(90deg, #5a7c3d, #7a9c5d); }
+  .t1 .chip { background: #5a7c3d; color: #f4e4bc; border-color: #4a6c2d; }
+  .t1 .chip.warn { background: #d49b4a; border-color: #b47b2a; color: #3d2817; }
+  .t1 .btn { background: #faf0d4; border-color: #c2a560; color: #3d2817; }
+  .t1 .btn.primary { background: #d49b4a; border-color: #b47b2a; color: #3d2817; }
+  .t1 .inv-tile { background: #f0e0b0; border-color: #c2a560; }
+
+  /* ═══════════════ THEME 2: MODERN MINIMAL / IDLE CLANS ═══════════════ */
+  .t2 .ui { background: #0d1421; color: #e8eef5; }
+  .t2 .ui-top { background: #0a0f1a; border-bottom-color: #1c2940; }
+  .t2 .av { background: #1c2940; color: #4fb3bf; border: 1px solid #2a3a55; }
+  .t2 .card { background: #141b2c; border-color: #1c2940; }
+  .t2 .ttl { color: #4fb3bf; }
+  .t2 .bar { background: #1c2940; }
+  .t2 .bar-fill { background: #4fb3bf; }
+  .t2 .chip { background: transparent; color: #4fb3bf; border-color: #4fb3bf; }
+  .t2 .chip.warn { color: #f2bd3f; border-color: #f2bd3f; }
+  .t2 .btn { background: transparent; border-color: #2a3a55; color: #e8eef5; }
+  .t2 .btn.primary { background: #4fb3bf; border-color: #4fb3bf; color: #0d1421; }
+  .t2 .inv-tile { background: #141b2c; border-color: #1c2940; }
+  .t2 .sub { color: #7a8a9c; }
+
+  /* ═══════════════ THEME 3: MEDIEVAL UTILITY / RUNESCAPE ═══════════════ */
+  .t3 .ui { background: #2b2620; color: #d4c8a0; font-family: 'Courier New', 'Lucida Console', monospace; }
+  .t3 .ui-top { background: #1f1a14; border-bottom-color: #5c4a2e; }
+  .t3 .av { background: #8b6f3d; color: #1f1a14; border: 2px solid #b8893e; image-rendering: pixelated; }
+  .t3 .card { background: #d4b896; border-color: #5c4a2e; color: #1f1a14; box-shadow: inset 0 0 0 2px #b89e6c; border-radius: 4px; }
+  .t3 .ttl { color: #5c2e1f; }
+  .t3 .bar { background: #8b6f3d; border: 1px solid #1f1a14; }
+  .t3 .bar-fill { background: #8b2e1f; }
+  .t3 .chip { background: #b8893e; color: #1f1a14; border-color: #5c4a2e; border-radius: 2px; font-family: monospace; }
+  .t3 .chip.warn { background: #8b2e1f; color: #d4c8a0; border-color: #5c1c14; }
+  .t3 .btn { background: #5c4a2e; border-color: #1f1a14; color: #d4c8a0; border-radius: 2px; font-family: monospace; }
+  .t3 .btn.primary { background: #b8893e; border-color: #5c4a2e; color: #1f1a14; }
+  .t3 .inv-tile { background: #d4b896; border: 2px inset #b89e6c; border-radius: 0; image-rendering: pixelated; }
+
+  /* ═══════════════ THEME 4: PAINTERLY / TIBIA / DIABLO ═══════════════ */
+  .t4 .ui { background: #1a0f1f; color: #d4c0b0; }
+  .t4 .ui-top {
+    background: linear-gradient(180deg, #2a1828 0%, #1a0f1f 100%);
+    border-bottom: 2px solid #6b4824;
+  }
+  .t4 .av {
+    background: radial-gradient(circle at 30% 30%, #c89844, #6b4824);
+    color: #1a0f1f;
+    border: 2px solid #e0b85f;
+    box-shadow: 0 0 0 1px #1a0f1f, 0 2px 6px rgba(0,0,0,.4);
+  }
+  .t4 .name { color: #e0b85f; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .t4 .card {
+    background: linear-gradient(180deg, #2a1828 0%, #1f1018 100%);
+    border: 1px solid #6b4824;
+    box-shadow: inset 0 1px 0 rgba(224,184,95,.2), 0 2px 8px rgba(0,0,0,.5);
+    border-radius: 4px;
+  }
+  .t4 .ttl { color: #e0b85f; text-shadow: 0 1px 2px rgba(0,0,0,.6); letter-spacing: 1px; }
+  .t4 .bar { background: rgba(0,0,0,.4); border: 1px solid #6b4824; }
+  .t4 .bar-fill { background: linear-gradient(90deg, #8b1f2e, #c83040); box-shadow: 0 0 4px rgba(200,48,64,.5); }
+  .t4 .chip {
+    background: linear-gradient(180deg, #6b4824, #4a2f15);
+    color: #e0b85f;
+    border-color: #8b6324;
+    box-shadow: inset 0 1px 0 rgba(224,184,95,.3);
+  }
+  .t4 .chip.warn { background: linear-gradient(180deg, #8b1f2e, #5c1320); border-color: #b03040; color: #f4d4a0; }
+  .t4 .btn {
+    background: linear-gradient(180deg, #2a1828, #1f1018);
+    border-color: #6b4824;
+    color: #d4c0b0;
+  }
+  .t4 .btn.primary {
+    background: linear-gradient(180deg, #c89844, #8b6324);
+    border-color: #e0b85f;
+    color: #1a0f1f;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .t4 .inv-tile {
+    background: linear-gradient(180deg, #1f1018, #0d0810);
+    border-color: #6b4824;
+    box-shadow: inset 0 0 8px rgba(0,0,0,.6);
+  }
+</style>
+</head>
+<body>
+
+<h1>Hearthrise — Theme Direction Mockups</h1>
+<p>Same UI elements rendered in each direction. Pick the one that feels closest to what you want — we'll refine the palette from there.</p>
+
+<div class="grid">
+
+<!-- ═══════════════ THEME 1: COZY ═══════════════ -->
+<div class="theme t1">
+  <div class="theme-head">
+    <h2>1 · Cozy / Stardew</h2>
+    <span class="ref">parchment + forest green + rust</span>
+  </div>
+  <div class="theme-body">
+    <div class="ui">
+      <div class="ui-top">
+        <div class="player">
+          <div class="av">🌾</div>
+          <div>
+            <div class="name">Adventurer</div>
+            <div class="sub">Lv 4 · Total 37</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="ic">🪙</span><span>50,304</span></div>
+          <div class="stat"><span class="ic">⚔️</span><span>4 CL</span></div>
+          <div class="stat"><span class="ic">🔥</span><span>1</span></div>
+        </div>
+      </div>
+      <div class="ui-body">
+        <div class="card">
+          <div class="ttl">Skills</div>
+          <div class="row"><span>🌳 Woodcutting</span><span>Lv 12</span></div>
+          <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+          <div class="row"><span>🎣 Fishing</span><span>Lv 8</span></div>
+          <div class="bar"><div class="bar-fill" style="width:34%"></div></div>
+          <div class="row"><span>⚔️ Combat</span><span>Lv 4</span></div>
+          <div class="bar"><div class="bar-fill" style="width:18%"></div></div>
+        </div>
+        <div class="card">
+          <div class="ttl">Loadout</div>
+          <div class="inv-tiles">
+            <div class="inv-tile">⚔️</div>
+            <div class="inv-tile">🛡️</div>
+            <div class="inv-tile">🏹</div>
+            <div class="inv-tile">💎</div>
+            <div class="inv-tile">🥕</div>
+            <div class="inv-tile">🍞</div>
+            <div class="inv-tile">🍄</div>
+            <div class="inv-tile">🪵</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <span class="chip">Equipped</span>
+            <span class="chip warn">Low HP</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:auto">
+            <button class="btn">Inspect</button>
+            <button class="btn primary">Fight</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ THEME 2: MODERN MINIMAL ═══════════════ -->
+<div class="theme t2">
+  <div class="theme-head">
+    <h2>2 · Modern minimal / Idle Clans</h2>
+    <span class="ref">deep navy + teal accent</span>
+  </div>
+  <div class="theme-body">
+    <div class="ui">
+      <div class="ui-top">
+        <div class="player">
+          <div class="av">A</div>
+          <div>
+            <div class="name">Adventurer</div>
+            <div class="sub">Lv 4 · Total 37</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="ic">●</span><span>50,304</span></div>
+          <div class="stat"><span class="ic">●</span><span>4 CL</span></div>
+          <div class="stat"><span class="ic">●</span><span>1</span></div>
+        </div>
+      </div>
+      <div class="ui-body">
+        <div class="card">
+          <div class="ttl">Skills</div>
+          <div class="row"><span>Woodcutting</span><span>Lv 12</span></div>
+          <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+          <div class="row"><span>Fishing</span><span>Lv 8</span></div>
+          <div class="bar"><div class="bar-fill" style="width:34%"></div></div>
+          <div class="row"><span>Combat</span><span>Lv 4</span></div>
+          <div class="bar"><div class="bar-fill" style="width:18%"></div></div>
+        </div>
+        <div class="card">
+          <div class="ttl">Loadout</div>
+          <div class="inv-tiles">
+            <div class="inv-tile">⚔</div>
+            <div class="inv-tile">🛡</div>
+            <div class="inv-tile">▲</div>
+            <div class="inv-tile">◆</div>
+            <div class="inv-tile">●</div>
+            <div class="inv-tile">■</div>
+            <div class="inv-tile">○</div>
+            <div class="inv-tile">◯</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <span class="chip">Equipped</span>
+            <span class="chip warn">Low HP</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:auto">
+            <button class="btn">Inspect</button>
+            <button class="btn primary">Fight</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ THEME 3: MEDIEVAL UTILITY ═══════════════ -->
+<div class="theme t3">
+  <div class="theme-head">
+    <h2>3 · Medieval utility / RuneScape</h2>
+    <span class="ref">stone + parchment + brass</span>
+  </div>
+  <div class="theme-body">
+    <div class="ui">
+      <div class="ui-top">
+        <div class="player">
+          <div class="av">⚔</div>
+          <div>
+            <div class="name">ADVENTURER</div>
+            <div class="sub">LV 4 / TL 37</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>50,304 GP</span></div>
+          <div class="stat"><span>CL 4</span></div>
+          <div class="stat"><span>STR 1</span></div>
+        </div>
+      </div>
+      <div class="ui-body">
+        <div class="card">
+          <div class="ttl">SKILLS</div>
+          <div class="row"><span>Woodcutting</span><span>Lv 12</span></div>
+          <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+          <div class="row"><span>Fishing</span><span>Lv 8</span></div>
+          <div class="bar"><div class="bar-fill" style="width:34%"></div></div>
+          <div class="row"><span>Combat</span><span>Lv 4</span></div>
+          <div class="bar"><div class="bar-fill" style="width:18%"></div></div>
+        </div>
+        <div class="card">
+          <div class="ttl">LOADOUT</div>
+          <div class="inv-tiles">
+            <div class="inv-tile">🗡</div>
+            <div class="inv-tile">🛡</div>
+            <div class="inv-tile">🏹</div>
+            <div class="inv-tile">💍</div>
+            <div class="inv-tile">🍖</div>
+            <div class="inv-tile">🍺</div>
+            <div class="inv-tile">⚒</div>
+            <div class="inv-tile">📜</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <span class="chip">EQUIPPED</span>
+            <span class="chip warn">LOW HP</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:auto">
+            <button class="btn">INSPECT</button>
+            <button class="btn primary">FIGHT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ THEME 4: PAINTERLY ═══════════════ -->
+<div class="theme t4">
+  <div class="theme-head">
+    <h2>4 · Painterly / Tibia / Diablo</h2>
+    <span class="ref">deep purple + ornate gold + crimson</span>
+  </div>
+  <div class="theme-body">
+    <div class="ui">
+      <div class="ui-top">
+        <div class="player">
+          <div class="av">⚜</div>
+          <div>
+            <div class="name">Adventurer</div>
+            <div class="sub" style="color:#a08868">Lv 4 · Total 37</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat" style="color:#e0b85f"><span>◈ 50,304</span></div>
+          <div class="stat" style="color:#e0b85f"><span>⚔ 4</span></div>
+          <div class="stat" style="color:#e0b85f"><span>★ 1</span></div>
+        </div>
+      </div>
+      <div class="ui-body">
+        <div class="card">
+          <div class="ttl">SKILLS</div>
+          <div class="row"><span>Woodcutting</span><span style="color:#e0b85f">Lv 12</span></div>
+          <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+          <div class="row"><span>Fishing</span><span style="color:#e0b85f">Lv 8</span></div>
+          <div class="bar"><div class="bar-fill" style="width:34%"></div></div>
+          <div class="row"><span>Combat</span><span style="color:#e0b85f">Lv 4</span></div>
+          <div class="bar"><div class="bar-fill" style="width:18%"></div></div>
+        </div>
+        <div class="card">
+          <div class="ttl">LOADOUT</div>
+          <div class="inv-tiles">
+            <div class="inv-tile">⚔</div>
+            <div class="inv-tile">🛡</div>
+            <div class="inv-tile">🏹</div>
+            <div class="inv-tile">💎</div>
+            <div class="inv-tile">🍖</div>
+            <div class="inv-tile">🧪</div>
+            <div class="inv-tile">📿</div>
+            <div class="inv-tile">⚜</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <span class="chip">EQUIPPED</span>
+            <span class="chip warn">LOW HP</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:auto">
+            <button class="btn">Inspect</button>
+            <button class="btn primary">Fight</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div style="max-width:1600px;margin:24px auto 0;padding:14px 18px;background:#222;border-radius:8px;font-size:13px;line-height:1.6;color:#bbb">
+  <strong style="color:#fff">How to read these:</strong> these are color/typography directions only — the icons shown are placeholder emoji. Real implementation would use one of your bought icon packs (we'll inventory your <code>icons2/3/4</code> folders next). Click around inside each card to feel the personality. Once you pick a direction, I'll generate 3 tighter palette variants and we'll lock the final one before I touch any of the real CSS.
+</div>
+
+</body>
+</html>

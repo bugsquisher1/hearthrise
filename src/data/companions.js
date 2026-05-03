@@ -1,0 +1,28 @@
+// Companion definitions
+
+export const COMPANIONS = {
+  fox:       {n:'Fox',          icon:'🦊', role:'utility', bonus:{xpB:.02, strB:1}, source:'starter',
+              proc:{trigger:'combatHit', chance:.05, effect:'gold', amount:1, label:'+1 gold'}},
+  wolf_pup:  {n:'Wolf Pup',     icon:'🐺', role:'combat',  bonus:{strB:3, atkB:1},  source:'drop:small_wolf',
+              proc:{trigger:'kill',      chance:.03, effect:'doubleDrop',          label:'Double drop!'}},
+  sparrow:   {n:'Sparrow',      icon:'🐦', role:'gather',  bonus:{gatherSpeed:.05},  source:'shop:5000',
+              proc:{trigger:'gather',    chance:.02, effect:'instant',              label:'Instant!'}},
+  bunny:     {n:'Bunny',        icon:'🐰', role:'gather',  bonus:{farmYield:.10},    source:'quest:harvest100',
+              proc:{trigger:'harvest',   chance:.10, effect:'doubleYield',          label:'Double crop!'}},
+  honeybee:  {n:'Honeybee',     icon:'🐝', role:'artisan', bonus:{cookSpeed:.08},    source:'shop:8000:cooking25',
+              proc:{trigger:'cook',      chance:.05, effect:'refundIngredients',    label:'Free meal!'}},
+  badger:    {n:'Badger',       icon:'🦡', role:'combat',  bonus:{strB:5, defB:2},   source:'drop:bear',
+              proc:null},
+  hawk:      {n:'Hawk',         icon:'🦅', role:'gather',  bonus:{rareDrop:.10},     source:'drop:panther',
+              proc:{trigger:'kill',      chance:.01, effect:'guaranteedRare',       label:'Rare drop!'}},
+  whelp:     {n:'Whelp',        icon:'🐉', role:'combat',  bonus:{strB:8, crit:.03}, source:'hatch:dragon_egg',
+              proc:{trigger:'combatHit', chance:.02, effect:'fireDot',              label:'Fire breath!'}},
+  scorpion:  {n:'Scorpion',     icon:'🦂', role:'combat',  bonus:{atkB:5, crit:.05}, source:'drop:shadow_creeper',
+              proc:null},
+  raccoon:   {n:'Raccoon',      icon:'🦝', role:'utility', bonus:{goldBonus:.05},    source:'shop:25000',
+              proc:{trigger:'kill',      chance:.20, effect:'extraGold', amount:5, label:'+5 gold'}},
+  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{prayerXp:.10},     source:'shop:50:prayer50',
+              proc:null},
+  tortoise:  {n:'Tortoise',     icon:'🐢', role:'combat',  bonus:{defB:10, hpRegen:2}, source:'drop:ancient_bear',
+              proc:null},
+};

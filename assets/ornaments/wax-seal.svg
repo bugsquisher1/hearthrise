@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Red wax seal embossed with H">
+  <defs>
+    <radialGradient id="wax" cx="40%" cy="35%" r="65%">
+      <stop offset="0%"  stop-color="#d44a3a"/>
+      <stop offset="55%" stop-color="#a02a1c"/>
+      <stop offset="100%" stop-color="#5a1208"/>
+    </radialGradient>
+  </defs>
+  <!-- Drip-shaped seal — irregular star/scallop edge that real wax has -->
+  <path d="M50 6 L58 14 L68 10 L70 22 L82 24 L78 36 L88 44 L80 54 L86 66 L74 70 L74 82 L62 80 L56 90 L46 84 L36 90 L30 80 L18 82 L18 70 L8 66 L14 54 L6 44 L16 36 L12 24 L24 22 L26 10 L36 14 Z"
+        fill="url(#wax)" stroke="#3a0c04" stroke-width="0.8"/>
+  <!-- Embossed ring inside the seal -->
+  <circle cx="50" cy="48" r="26" fill="none" stroke="#3a0c04" stroke-width="0.6" opacity=".55"/>
+  <circle cx="50" cy="48" r="22" fill="none" stroke="#7a1c10" stroke-width="0.5" opacity=".7"/>
+  <!-- The "H" for Hearthrise, embossed (debossed darker, highlight light) -->
+  <g font-family="'Cinzel',serif" font-weight="700" font-size="32" text-anchor="middle">
+    <text x="50" y="60" fill="#3a0c04" opacity=".85">H</text>
+    <text x="49.5" y="59.5" fill="#e87a6c" opacity=".25">H</text>
+  </g>
+  <!-- Subtle highlight on top-left of seal (specular) -->
+  <ellipse cx="36" cy="28" rx="10" ry="6" fill="#f08070" opacity=".3"/>
+</svg>

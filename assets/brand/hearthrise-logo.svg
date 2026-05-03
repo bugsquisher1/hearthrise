@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 200" role="img" aria-label="Hearthrise crest: a cottage with a chimney beneath a rising sun, framed by a heater shield and crossed wheat sheaves, with the Hearthrise wordmark beneath">
+<defs>
+<radialGradient id="sunglow" cx="50%" cy="40%" r="50%">
+<stop offset="0%" stop-color="#f8d28a"/>
+<stop offset="60%" stop-color="#e8b860"/>
+<stop offset="100%" stop-color="#c8862a"/>
+</radialGradient>
+</defs>
+<g transform="translate(90, 18)">
+<path d="M-44 0 Q-44 -2 -42 -2 L42 -2 Q44 -2 44 0 L42 60 Q40 86 0 110 Q-40 86 -42 60 Z" fill="#3d2417"/>
+<path d="M-40 2 Q-40 0 -38 0 L38 0 Q40 0 40 2 L38.5 58 Q36.5 82 0 105 Q-36.5 82 -38.5 58 Z" fill="#f3deaa" stroke="#3d2417" stroke-width="0.7"/>
+<path d="M-37 4 Q-37 2 -35 2 L35 2 Q37 2 37 4 L35.5 56" fill="none" stroke="#c8862a" stroke-width="0.6" opacity="0.6"/>
+<path d="M-38.5 38 Q-30 36 -22 38 Q-12 39 0 38 Q12 37 22 38 Q30 39 38.5 38 L38.5 60 Q36 82 0 105 Q-36 82 -38.5 60 Z" fill="#7d8d3a" opacity="0.45"/>
+<path d="M-38.5 38 Q-30 36 -22 38 Q-12 39 0 38 Q12 37 22 38 Q30 39 38.5 38" fill="none" stroke="#3d2417" stroke-width="0.7"/>
+<circle cx="0" cy="20" r="14" fill="url(#sunglow)"/>
+<circle cx="0" cy="20" r="14" fill="none" stroke="#3d2417" stroke-width="0.8"/>
+<g stroke="#c8862a" stroke-width="1" stroke-linecap="round">
+<line x1="0" y1="0" x2="0" y2="4"/>
+<line x1="-10" y1="6" x2="-13" y2="2"/>
+<line x1="10" y1="6" x2="13" y2="2"/>
+<line x1="-15" y1="14" x2="-19" y2="13"/>
+<line x1="15" y1="14" x2="19" y2="13"/>
+<line x1="-12" y1="28" x2="-15" y2="32"/>
+<line x1="12" y1="28" x2="15" y2="32"/>
+</g>
+<g transform="translate(0, 56)">
+<path d="M-18 8 L0 -8 L18 8 Z" fill="#5a3018"/>
+<path d="M-17 8 L0 -7 L17 8 Z" fill="#7a4222" stroke="#3d2417" stroke-width="0.7" stroke-linejoin="round"/>
+<path d="M-16 -2 L-13 -5 L-13 3 L-16 3 Z" fill="#5a3018" stroke="#3d2417" stroke-width="0.6"/>
+<rect x="-15" y="8" width="30" height="14" fill="#c8a878" stroke="#3d2417" stroke-width="0.8"/>
+<line x1="-15" y1="13" x2="15" y2="13" stroke="#8a6e3a" stroke-width="0.5"/>
+<line x1="-15" y1="18" x2="15" y2="18" stroke="#8a6e3a" stroke-width="0.5"/>
+<rect x="-3" y="14" width="6" height="8" fill="#3d2417"/>
+<circle cx="1.8" cy="18" r="0.4" fill="#c8862a"/>
+<rect x="-12" y="11" width="4" height="3" fill="#f8d28a" stroke="#3d2417" stroke-width="0.5"/>
+<rect x="8" y="11" width="4" height="3" fill="#f8d28a" stroke="#3d2417" stroke-width="0.5"/>
+<g fill="#e8e3d4" opacity="0.85">
+<ellipse cx="-13" cy="-5" rx="2.5" ry="1.6"/>
+<ellipse cx="-15" cy="-10" rx="3" ry="2"/>
+<ellipse cx="-12" cy="-15" rx="3.5" ry="2.2"/>
+<ellipse cx="-15" cy="-20" rx="4" ry="2.4" opacity="0.55"/>
+</g>
+</g>
+<g transform="translate(-26, 86) rotate(-22)">
+<line x1="0" y1="0" x2="0" y2="-22" stroke="#7a5a28" stroke-width="1.4"/>
+<g stroke="#c8862a" stroke-width="0.9" fill="none" stroke-linecap="round">
+<path d="M0 -8 Q-3 -10 -4 -7"/>
+<path d="M0 -8 Q3 -10 4 -7"/>
+<path d="M0 -14 Q-3 -16 -4 -13"/>
+<path d="M0 -14 Q3 -16 4 -13"/>
+<path d="M0 -20 Q-3 -22 -4 -19"/>
+<path d="M0 -20 Q3 -22 4 -19"/>
+</g>
+</g>
+<g transform="translate(26, 86) rotate(22)">
+<line x1="0" y1="0" x2="0" y2="-22" stroke="#7a5a28" stroke-width="1.4"/>
+<g stroke="#c8862a" stroke-width="0.9" fill="none" stroke-linecap="round">
+<path d="M0 -8 Q-3 -10 -4 -7"/>
+<path d="M0 -8 Q3 -10 4 -7"/>
+<path d="M0 -14 Q-3 -16 -4 -13"/>
+<path d="M0 -14 Q3 -16 4 -13"/>
+<path d="M0 -20 Q-3 -22 -4 -19"/>
+<path d="M0 -20 Q3 -22 4 -19"/>
+</g>
+</g>
+</g>
+<line x1="20" y1="146" x2="160" y2="146" stroke="#c8862a" stroke-width="0.7" opacity="0.6"/>
+<text x="90" y="172" text-anchor="middle" font-family="'Cinzel', 'Cormorant Garamond', serif" font-size="22" font-weight="700" letter-spacing="3" fill="#5c2d08">HEARTHRISE</text>
+<text x="90" y="190" text-anchor="middle" font-family="'Cinzel', serif" font-size="8" font-weight="600" letter-spacing="6" fill="#7a4623">IDLE HOMESTEAD</text>
+<text x="74" y="184" text-anchor="middle" font-family="serif" font-size="10" fill="#c8862a">✦</text>
+<text x="106" y="184" text-anchor="middle" font-family="serif" font-size="10" fill="#c8862a">✦</text>
+</svg>

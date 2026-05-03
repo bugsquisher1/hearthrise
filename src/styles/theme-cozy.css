@@ -1,0 +1,2142 @@
+/* ============================================================
+ * src/styles/theme-cozy.css
+ *
+ * The new theme system. Loaded LAST in index.html so it wins
+ * specificity battles against legacy.css and the historical
+ * inline <style> blocks.
+ *
+ * Three themes:
+ *   • cozy-light (DEFAULT, no data-theme attr) — warm parchment,
+ *       forest green, gold accents. Matches "idle homestead"
+ *       brand. Soft, friendly, mobile-friendly contrast.
+ *   • cozy-dark (data-theme="cozy-dark") — warm-dark variant
+ *       for night sessions. NOT the old cold-navy default;
+ *       a chocolate-brown background with parchment text +
+ *       gold accents that feel like a hearth-lit interior.
+ *   • classic (data-theme="classic") — RuneScape/Tibia-utility
+ *       direction, behind a Settings → Display toggle. Stays
+ *       behind a beta gate until friends-test data tells us
+ *       whether to invest in polishing it.
+ *
+ * Architecture: every selector targets a CSS variable that
+ * legacy.css already references (--bg-0, --ink, --gold, etc.),
+ * so layout stays intact and only the palette swaps.
+ *
+ * Add new selectors at the BOTTOM of this file, never inside
+ * legacy.css. Treat legacy.css as frozen for theme purposes.
+ * ============================================================ */
+
+/* ─── Default = Cozy Light ─── */
+:root,
+body[data-theme="cozy-light"] {
+  /* Typography — break out of the "AI default" Inter/Roboto trap:
+     • Cinzel for display — wide-set engraved serif, reads as
+       "carved into a homestead sign." Already preloaded.
+     • Quicksand for body — soft humanist, warmer than Inter.
+     • Caveat as the accent / hand-written voice for special
+       moments (welcome modal title, key callouts). */
+  --f-display:  'Cinzel', 'Cormorant Garamond', 'Georgia', serif;
+  --f-ui:       'Quicksand', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --f-accent:   'Caveat', 'Patrick Hand', cursive;
+
+  /* Surfaces — parchment ramp */
+  --bg-0:        #f4e4bc;             /* outermost wash */
+  --bg-1:        #ede0b8;             /* sidebar surface */
+  --bg-2:        #faf0d4;             /* card surface */
+  --bg-3:        #fff7e0;             /* elevated surface (modal) */
+  --bg-card:     linear-gradient(180deg,#fff7e0,#faf0d4);
+
+  /* Lines + borders */
+  --line:        rgba(122,94,58,.20);
+  --line-soft:   rgba(122,94,58,.10);
+  --line-strong: rgba(122,94,58,.45);
+
+  /* Text */
+  --ink:         #3d2817;             /* primary — dark cocoa */
+  --ink-2:       #7a5e3a;             /* secondary — muted brown */
+  --ink-3:       #a5896a;             /* hint */
+
+  /* Accents */
+  --gold:        #c8862a;             /* rust gold — primary accent */
+  --gold-2:      #e0a64a;             /* lighter gold for highlights */
+  --gold-bg:     rgba(200,134,42,.14);
+
+  --aqua:        #4f8b7a;              /* sage teal — used for info chips */
+  --aqua-2:      #6fa896;
+  --aqua-bg:     rgba(79,139,122,.14);
+
+  --green:       #5a7c3d;              /* forest green — XP/skill bars */
+  --green-bg:    rgba(90,124,61,.14);
+
+  --red:         #a04830;              /* rust red — danger/warn */
+  --red-bg:      rgba(160,72,48,.14);
+
+  --purple:      #7a5b9a;              /* dusty lavender */
+  --purple-bg:   rgba(122,91,154,.14);
+
+  --gem:         #5b8fa8;              /* dusty blue — premium */
+  --gem-bg:      rgba(91,143,168,.14);
+
+  /* Layout — keep existing */
+  color-scheme: light;
+}
+
+/* ─── Cozy Dark — warm hearth, NOT cold navy ─── */
+body[data-theme="cozy-dark"] {
+  --bg-0:        #2a1f15;              /* deep warm chocolate */
+  --bg-1:        #36281b;              /* sidebar */
+  --bg-2:        #3f2f20;              /* card */
+  --bg-3:        #4a3825;              /* elevated */
+  --bg-card:     linear-gradient(180deg,#3f2f20,#2f2317);
+
+  --line:        rgba(232,184,96,.18);
+  --line-soft:   rgba(255,235,200,.05);
+  --line-strong: rgba(232,184,96,.40);
+
+  --ink:         #f4e4bc;
+  --ink-2:       #c8b088;
+  --ink-3:       #8a7656;
+
+  --gold:        #e0b85f;
+  --gold-2:      #f3d181;
+  --gold-bg:     rgba(224,184,95,.14);
+
+  --aqua:        #6fa896;
+  --aqua-2:      #8cc4b0;
+  --aqua-bg:     rgba(111,168,150,.18);
+
+  --green:       #7da563;
+  --green-bg:    rgba(125,165,99,.18);
+
+  --red:         #d56a4f;
+  --red-bg:      rgba(213,106,79,.18);
+
+  --purple:      #a685c4;
+  --purple-bg:   rgba(166,133,196,.18);
+
+  --gem:         #7fb8d8;
+  --gem-bg:      rgba(127,184,216,.18);
+
+  color-scheme: dark;
+}
+
+/* ─── Classic — medieval utility, behind beta toggle ─── */
+body[data-theme="classic"] {
+  --bg-0:        #2b2620;              /* dark stone */
+  --bg-1:        #1f1a14;              /* sidebar */
+  --bg-2:        #d4b896;              /* parchment cards */
+  --bg-3:        #e0c8a4;
+  --bg-card:     #d4b896;
+
+  --line:        #5c4a2e;
+  --line-soft:   rgba(92,74,46,.18);
+  --line-strong: #b8893e;
+
+  --ink:         #1f1a14;              /* dark text on parchment */
+  --ink-2:       #4a3a22;
+  --ink-3:       #7a6643;
+
+  --gold:        #b8893e;              /* brass */
+  --gold-2:      #d4a55a;
+  --gold-bg:     rgba(184,137,62,.18);
+
+  --aqua:        #5a7c8b;
+  --aqua-2:      #7898a8;
+  --aqua-bg:     rgba(90,124,139,.18);
+
+  --green:       #5e7d2a;
+  --green-bg:    rgba(94,125,42,.18);
+
+  --red:         #8b2e1f;
+  --red-bg:      rgba(139,46,31,.18);
+
+  --purple:      #6a4a78;
+  --purple-bg:   rgba(106,74,120,.18);
+
+  --gem:         #4a6f8b;
+  --gem-bg:      rgba(74,111,139,.18);
+
+  --r-sm:        4px;
+  --r:           6px;
+  --r-lg:        8px;
+
+  --f-display:   'Cinzel','Times New Roman',serif;
+  --f-ui:        'Courier New','Lucida Console',monospace;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+ * Surface overrides for COZY LIGHT (default).
+ *
+ * legacy.css hardcodes the body / sidebar / topbar gradients
+ * directly (not via CSS variables), so theme variables alone
+ * don't reach them. These rules override the hardcoded values
+ * with parchment-friendly equivalents. Using `html:not([data-theme])`
+ * + `html[data-theme="cozy-light"]` selectors so we're more
+ * specific than legacy.css's bare `body{...}` rule.
+ * ============================================================ */
+
+/* Body — atmospheric "implied landscape" gradient. Reads as if
+   there's a hazy view behind everything: warm distant haze (sky),
+   golden far hills, olive mid-grass, deep forest shadow.
+   Soft multi-stop transitions so it feels like atmosphere,
+   not bands of color.
+
+   A subtle radial warmth in the upper-right suggests a low sun
+   without ever drawing one. */
+html:not([data-theme]) body,
+html body[data-theme="cozy-light"] {
+  background:
+    /* faint sun glow — upper-right, fades to nothing */
+    radial-gradient(ellipse 80% 50% at 75% 5%,
+      rgba(232, 178, 96, .35) 0%,
+      rgba(232, 178, 96, 0) 60%),
+    /* main vertical landscape gradient */
+    linear-gradient(180deg,
+      #9c6f38 0%,        /* warm distant haze (sky) */
+      #8a673a 14%,       /* sunset glow */
+      #75663c 28%,       /* haze meeting far hills */
+      #62633a 42%,       /* far hill olive */
+      #4e5e2a 56%,       /* mid grass — golden green */
+      #3a4e1c 70%,       /* forest grass */
+      #243214 86%,       /* deep grass shadow */
+      #14180a 100%       /* foreground darkness */
+    );
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+
+/* ─── Sidebar (carved-plaque treatment to match character-sheet body) ─── */
+html:not([data-theme]) .sidebar,
+body[data-theme="cozy-light"] .sidebar {
+  background: linear-gradient(180deg, #e8d4a0 0%, #ddc28a 50%, #d8b878 100%);
+  border-right: 2px solid #b8893e;
+  /* Subtle gold inner rule + drop shadow into the main column */
+  box-shadow:
+    inset -2px 0 0 rgba(255,247,224,.4),
+    2px 0 6px rgba(60,40,16,.18);
+  position: relative;
+}
+/* Vertical decorative rule near the right edge of the sidebar */
+html:not([data-theme]) .sidebar::after,
+body[data-theme="cozy-light"] .sidebar::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: 4px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold) 12%, var(--gold) 88%, transparent);
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* Brand block — full Hearthrise crest replaces the small emoji+text */
+html:not([data-theme]) .brand,
+body[data-theme="cozy-light"] .brand {
+  border-bottom: 1px solid var(--line-strong);
+  position: relative;
+  padding: 8px 4px 14px !important;
+  margin-bottom: 10px;
+  display: block !important;
+  text-align: center;
+}
+html:not([data-theme]) .brand-crest,
+body[data-theme="cozy-light"] .brand-crest {
+  display: block;
+  width: 100%;
+  max-width: 124px;
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 1px 0 rgba(255,247,224,.5));
+}
+
+/* Sidebar must scroll when nav exceeds viewport — was overflow:hidden,
+   which clipped the bottom items behind the brand crest. */
+html:not([data-theme]) .sidebar,
+body[data-theme="cozy-light"] .sidebar {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+/* Hide the nav entries we're consolidating into other tabs:
+   • Dungeons → entry point inside Combat panel
+   • Store    → entry point inside Market panel */
+.nav-btn[data-tab="dungeons"],
+.nav-btn[data-tab="shop"] { display: none !important; }
+.bn-btn[data-tab="dungeons"],
+.bn-btn[data-tab="shop"] { display: none !important; }
+
+/* SVG icon sizing — swapped via src/icon-swap.js. The .ic wrapper
+   stays the same (legacy size 22×22 in nav, 14-18px in topbar);
+   the inner <img.hr-svg-ic> just fills it. */
+.hr-svg-ic {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+}
+.nav-btn .ic.hr-icon-host,
+.bn-btn .ic.hr-icon-host {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.t-stat .ic.hr-icon-host {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.streak-badge .flame.hr-icon-host {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn .hr-icon-host {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+}
+.icon-btn .hr-icon-host .hr-svg-ic {
+  width: 100%;
+  height: 100%;
+}
+/* Active wax-red nav: lighten the icon slightly so it pops on the
+   red bg without inverting (which destroyed the parchment-fill icons). */
+.nav-btn.active .ic.hr-icon-host .hr-svg-ic {
+  filter: drop-shadow(0 0 2px rgba(255,247,224,.6));
+}
+html:not([data-theme]) .brand::after,
+body[data-theme="cozy-light"] .brand::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
+  opacity: 0.65;
+}
+html:not([data-theme]) .brand-name,
+body[data-theme="cozy-light"] .brand-name {
+  font-family: var(--f-display);
+  color: #5c2d08;
+  font-size: 16px;
+  letter-spacing: .08em;
+  text-shadow: 0 1px 0 rgba(255,247,224,.5);
+}
+html:not([data-theme]) .brand-name small,
+body[data-theme="cozy-light"] .brand-name small {
+  color: #7a4623;
+  letter-spacing: .22em;
+  font-size: 8px;
+  font-family: var(--f-display);
+  font-weight: 600;
+}
+html:not([data-theme]) .brand-mark,
+body[data-theme="cozy-light"] .brand-mark {
+  filter: drop-shadow(0 1px 0 rgba(255,247,224,.4));
+}
+
+/* Group labels (ADVENTURE / ECONOMY / HOMESTEAD) — Cinzel small caps,
+   matching HEARTHRISE wordmark color + weight so they read clearly. */
+html:not([data-theme]) .sidebar .nav-group-label,
+body[data-theme="cozy-light"] .sidebar .nav-group-label,
+html:not([data-theme]) .nav-group-label,
+body[data-theme="cozy-light"] .nav-group-label {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  font-size: 11px !important;
+  letter-spacing: .22em !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  margin: 14px 6px 6px !important;
+  padding-bottom: 4px;
+  position: relative;
+  opacity: 1 !important;
+  text-shadow: 0 1px 0 rgba(255,247,224,.6);
+}
+html:not([data-theme]) .nav-group-label::after,
+body[data-theme="cozy-light"] .nav-group-label::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 8px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+  opacity: .55;
+}
+
+/* Nav buttons — parchment surface */
+html:not([data-theme]) .nav-btn,
+body[data-theme="cozy-light"] .nav-btn {
+  color: #4a2810 !important;
+  background: transparent;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: background .15s, color .15s, border-color .15s, transform .12s;
+}
+html:not([data-theme]) .nav-btn:hover,
+body[data-theme="cozy-light"] .nav-btn:hover {
+  background: rgba(255,247,224,.55) !important;
+  color: #2a1a0c !important;
+  border-color: rgba(184,137,62,.25);
+}
+html:not([data-theme]) .nav-btn .ic,
+body[data-theme="cozy-light"] .nav-btn .ic {
+  filter: drop-shadow(0 1px 0 rgba(255,247,224,.3));
+}
+
+/* ACTIVE nav button — wax-stamp red with cream text + gold trim */
+html:not([data-theme]) .nav-btn.active,
+body[data-theme="cozy-light"] .nav-btn.active {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+  box-shadow:
+    inset 3px 0 0 #e0b85f,
+    inset 0 1px 0 rgba(255,255,255,.2),
+    0 2px 4px rgba(60,40,16,.25) !important;
+  font-family: var(--f-display);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+html:not([data-theme]) .nav-btn.active .lbl,
+body[data-theme="cozy-light"] .nav-btn.active .lbl {
+  font-family: var(--f-display);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+html:not([data-theme]) .nav-btn.active .ic,
+body[data-theme="cozy-light"] .nav-btn.active .ic {
+  filter: none;
+  /* slight glow on active icon */
+  text-shadow: 0 0 6px rgba(255,247,224,.4);
+}
+
+/* Sidebar foot (offline / online indicator) */
+html:not([data-theme]) .nav-foot,
+body[data-theme="cozy-light"] .nav-foot {
+  border-top: 1px solid var(--line-strong) !important;
+  color: #5c3d12 !important;
+  font-family: var(--f-display);
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+html:not([data-theme]) .nav-foot .dot,
+body[data-theme="cozy-light"] .nav-foot .dot {
+  background: var(--green) !important;
+  box-shadow: 0 0 6px var(--green);
+}
+html:not([data-theme]) .nav-foot .dot.off,
+body[data-theme="cozy-light"] .nav-foot .dot.off {
+  background: #a5896a !important;
+  box-shadow: none;
+}
+
+/* Topbar */
+html:not([data-theme]) .topbar,
+body[data-theme="cozy-light"] .topbar {
+  background: linear-gradient(90deg, #ede0b8, #e8d4a0);
+  border-bottom: 1px solid var(--line-strong);
+}
+html:not([data-theme]) .player-avatar,
+body[data-theme="cozy-light"] .player-avatar {
+  background: linear-gradient(135deg, var(--gold-bg), rgba(95,124,61,.10));
+  border: 1px solid rgba(200,134,42,.22);
+}
+html:not([data-theme]) .player-name,
+body[data-theme="cozy-light"] .player-name { color: var(--ink); }
+html:not([data-theme]) .t-stat,
+body[data-theme="cozy-light"] .t-stat {
+  background: rgba(255,247,224,.55);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+html:not([data-theme]) .t-stat .lab,
+body[data-theme="cozy-light"] .t-stat .lab {
+  color: var(--ink-2);
+}
+html:not([data-theme]) .icon-btn,
+body[data-theme="cozy-light"] .icon-btn {
+  color: var(--ink-2);
+  background: rgba(255,247,224,.4);
+  border: 1px solid var(--line);
+}
+html:not([data-theme]) .icon-btn:hover,
+body[data-theme="cozy-light"] .icon-btn:hover {
+  background: var(--gold-bg);
+  color: var(--gold);
+}
+
+/* Bottom nav (mobile) */
+html:not([data-theme]) .bottom-nav,
+body[data-theme="cozy-light"] .bottom-nav {
+  background: linear-gradient(180deg, #e8d4a0, #ede0b8);
+  border-top: 1px solid var(--line-strong);
+}
+html:not([data-theme]) .bn-btn,
+body[data-theme="cozy-light"] .bn-btn { color: var(--ink-2); }
+html:not([data-theme]) .bn-btn.active,
+body[data-theme="cozy-light"] .bn-btn.active { color: var(--gold); }
+
+/* Cards — parchment fill with a darker "header band" up top, gold
+   inner trim, and a warm drop-shadow so they read like book pages
+   pinned to a noticeboard, not flat <div>s. */
+html:not([data-theme]) .card,
+body[data-theme="cozy-light"] .card {
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(255,247,224,.6) inset,            /* inner cream highlight */
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 4px 16px -4px rgba(60,40,16,.18);              /* warm drop shadow */
+  position: relative;
+  overflow: hidden;
+}
+/* Card head — darker parchment band, gold underline, decorative
+   flourish before the title. */
+html:not([data-theme]) .card-head,
+body[data-theme="cozy-light"] .card-head {
+  background: linear-gradient(180deg, #e8d4a0, #ddc88c);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 9px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+/* Decorative gold underline on the band */
+html:not([data-theme]) .card-head::after,
+body[data-theme="cozy-light"] .card-head::after {
+  content: "";
+  position: absolute;
+  left: 14px; right: 14px; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+/* Title in the band — Cinzel, with a small flourish character */
+html:not([data-theme]) .card-head .card-title,
+body[data-theme="cozy-light"] .card-head .card-title {
+  font-family: var(--f-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: #5c3d12;
+  text-transform: uppercase;
+}
+html:not([data-theme]) .card-head .card-title::before,
+body[data-theme="cozy-light"] .card-head .card-title::before {
+  content: "❦ ";
+  color: var(--gold);
+  margin-right: 4px;
+  font-size: 12px;
+}
+html:not([data-theme]) .card-head .card-sub,
+body[data-theme="cozy-light"] .card-head .card-sub {
+  color: #7a5a2a;
+  font-weight: 600;
+  font-size: 11px;
+  font-family: var(--f-ui);
+}
+/* Card body padding (legacy uses padding on .card; offset for the band) */
+html:not([data-theme]) .card .card-body,
+body[data-theme="cozy-light"] .card .card-body {
+  padding: 14px;
+}
+/* Standalone .card-title used outside .card-head still reads */
+html:not([data-theme]) .card-title,
+body[data-theme="cozy-light"] .card-title { color: var(--ink); font-weight: 700; }
+html:not([data-theme]) .card-sub,
+body[data-theme="cozy-light"] .card-sub { color: var(--ink-2); }
+
+/* Scrollbars on parchment — make the thumb actually visible */
+html:not([data-theme]) ::-webkit-scrollbar-thumb,
+body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb {
+  background: rgba(122,94,58,.25);
+}
+html:not([data-theme]) ::-webkit-scrollbar-thumb:hover,
+body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(122,94,58,.45);
+}
+
+/* Status pill ('Offline · sign in to sync') */
+html:not([data-theme]) .status-pill,
+body[data-theme="cozy-light"] .status-pill {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+/* Quests + dock-line elements that span the topbar */
+html:not([data-theme]) #quests-strip,
+body[data-theme="cozy-light"] #quests-strip {
+  background: linear-gradient(90deg, var(--bg-2), var(--bg-3));
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+/* Activity bar — overrides both legacy.css gradient AND
+ * audit-overrides.css's `.activity-bar.v2 { background: ... !important }`
+ * so we need !important too to win. */
+html:not([data-theme]) .activity-bar,
+body[data-theme="cozy-light"] .activity-bar,
+html:not([data-theme]) .activity-bar.v2,
+body[data-theme="cozy-light"] .activity-bar.v2 {
+  background: linear-gradient(180deg, rgba(255,247,224,.85), rgba(237,224,184,.65)) !important;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+html:not([data-theme]) .activity-bar.idle,
+html:not([data-theme]) .activity-bar.v2.idle,
+body[data-theme="cozy-light"] .activity-bar.idle,
+body[data-theme="cozy-light"] .activity-bar.v2.idle {
+  background: rgba(237,224,184,.55) !important;
+}
+html:not([data-theme]) .activity-bar.idle .ab-name,
+body[data-theme="cozy-light"] .activity-bar.idle .ab-name {
+  color: var(--ink-2);
+}
+html:not([data-theme]) .ab-name,
+body[data-theme="cozy-light"] .ab-name {
+  color: var(--ink);
+}
+html:not([data-theme]) .ab-icon,
+body[data-theme="cozy-light"] .ab-icon {
+  background: linear-gradient(135deg, var(--green-bg), rgba(95,124,61,.06));
+  border: 1px solid rgba(95,124,61,.32);
+}
+html:not([data-theme]) .ab-progress,
+body[data-theme="cozy-light"] .ab-progress {
+  background: rgba(122,94,58,.18);
+}
+html:not([data-theme]) .ab-progress > i,
+body[data-theme="cozy-light"] .ab-progress > i {
+  background: linear-gradient(90deg, var(--green), #7a9c5d);
+}
+html:not([data-theme]) .ab-meta,
+body[data-theme="cozy-light"] .ab-meta {
+  color: var(--ink-2);
+}
+html:not([data-theme]) .ab-meta b,
+body[data-theme="cozy-light"] .ab-meta b {
+  color: var(--gold);
+}
+
+/* ============================================================
+ * COZY LIGHT — text-color readability sweep
+ * Replaces all "color: var(--gold|--gold-2)" text uses with
+ * dark ink unless the text genuinely is meant to feel like a
+ * highlight (currency values, level numbers, key stat readouts).
+ * ============================================================ */
+
+/* Sidebar group labels ("ADVENTURE", "ECONOMY", "HOMESTEAD") */
+html:not([data-theme]) .nav-group-label,
+body[data-theme="cozy-light"] .nav-group-label {
+  color: var(--ink-3) !important;
+  letter-spacing: .12em;
+  font-weight: 700;
+  font-size: 10px;
+}
+
+/* Profile dashboard sub-titles + key headers */
+html:not([data-theme]) .dash-user-sub,
+html:not([data-theme]) #dash-user-sub,
+html:not([data-theme]) #dash-skills-sub,
+html:not([data-theme]) #dash-active-sub,
+html:not([data-theme]) #dash-obj-sub,
+body[data-theme="cozy-light"] .dash-user-sub,
+body[data-theme="cozy-light"] #dash-user-sub,
+body[data-theme="cozy-light"] #dash-skills-sub,
+body[data-theme="cozy-light"] #dash-active-sub,
+body[data-theme="cozy-light"] #dash-obj-sub { color: var(--ink-2); }
+
+/* All "Live" / "Tier 1" / etc. badges in card heads */
+html:not([data-theme]) .card-head .card-sub,
+body[data-theme="cozy-light"] .card-head .card-sub {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+/* Stat-card values — dark for readability, gold only for the gold tile */
+html:not([data-theme]) .stat-val,
+html:not([data-theme]) .stat-num,
+body[data-theme="cozy-light"] .stat-val,
+body[data-theme="cozy-light"] .stat-num { color: var(--ink); font-weight: 800; }
+
+html:not([data-theme]) .stat-label,
+html:not([data-theme]) .stat-lbl,
+body[data-theme="cozy-light"] .stat-label,
+body[data-theme="cozy-light"] .stat-lbl { color: var(--ink-2); }
+
+/* Buttons (Achievements, Bestiary, LIFETIME STATS, Last Session) */
+html:not([data-theme]) .btn,
+body[data-theme="cozy-light"] .btn {
+  background: rgba(255,247,224,.6);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+html:not([data-theme]) .btn:hover,
+body[data-theme="cozy-light"] .btn:hover {
+  background: rgba(255,247,224,.95);
+  border-color: var(--gold);
+  color: var(--ink);
+}
+html:not([data-theme]) .btn.btn-primary,
+html:not([data-theme]) .btn-primary,
+body[data-theme="cozy-light"] .btn.btn-primary,
+body[data-theme="cozy-light"] .btn-primary {
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  color: #2a1a0c;
+  border-color: var(--gold);
+  font-weight: 700;
+}
+html:not([data-theme]) .btn.btn-danger,
+html:not([data-theme]) .btn-danger,
+body[data-theme="cozy-light"] .btn.btn-danger,
+body[data-theme="cozy-light"] .btn-danger {
+  background: var(--red-bg);
+  color: var(--red);
+  border-color: var(--red);
+}
+
+/* Gold + gem stats in topbar (these SHOULD stay gold/gem-colored
+   because they encode meaning, but use the deeper ramp shade for
+   contrast on parchment) */
+html:not([data-theme]) .t-stat.gold .ic,
+body[data-theme="cozy-light"] .t-stat.gold .ic { color: var(--gold); }
+html:not([data-theme]) .t-stat.gem .ic,
+body[data-theme="cozy-light"] .t-stat.gem .ic { color: var(--gem); }
+html:not([data-theme]) .t-stat .lab,
+body[data-theme="cozy-light"] .t-stat .lab {
+  color: var(--ink-3);
+  font-weight: 700;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+/* Quests strip ("QUESTS · No active quests") + click-to-open hint */
+html:not([data-theme]) #quests-strip *,
+body[data-theme="cozy-light"] #quests-strip * { color: var(--ink-2); }
+html:not([data-theme]) #quests-strip .qs-label,
+body[data-theme="cozy-light"] #quests-strip .qs-label { color: var(--ink); font-weight: 700; }
+
+/* Companion name (e.g. "Fox (Lv 2)") on profile dashboard */
+html:not([data-theme]) .companion-name,
+html:not([data-theme]) .comp-name,
+body[data-theme="cozy-light"] .companion-name,
+body[data-theme="cozy-light"] .comp-name { color: var(--ink); font-weight: 700; }
+
+html:not([data-theme]) .companion-role,
+html:not([data-theme]) .comp-role,
+body[data-theme="cozy-light"] .companion-role,
+body[data-theme="cozy-light"] .comp-role { color: var(--ink-2); }
+
+/* General fallback: ANY element using var(--gold-2) for color
+   that lands on parchment becomes hard to read. Replace top-level
+   uses where they appear as TEXT (not borders/bg). The pattern
+   we use for card headers, badges, etc. */
+html:not([data-theme]) .card-head .card-title,
+body[data-theme="cozy-light"] .card-head .card-title {
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+/* Brand "HEARTHRISE / IDLE HOMESTEAD" in sidebar — keep gold but use
+   the deeper warm gold so it doesn't hurt to read */
+html:not([data-theme]) .brand-name,
+body[data-theme="cozy-light"] .brand-name { color: #8c5d1a; }
+html:not([data-theme]) .brand-name small,
+body[data-theme="cozy-light"] .brand-name small { color: var(--ink-3); }
+
+/* ============================================================
+ * PROFILE: CHARACTER SHEET REDESIGN
+ *
+ * Treats the entire #panel-profile as ONE big parchment character
+ * sheet, not a 5-card dashboard. Inner cards become sections of
+ * the sheet — no individual borders, no card heads, separated by
+ * ornamental gold rules. A wax seal sits bottom-right and four
+ * corner flourishes frame the page.
+ *
+ * Why this approach: the original markup has 5 .card children
+ * (#dash-user, #dash-active, #dash-objectives, #dash-skills,
+ * #dash-homestead). Replacing that markup would break the engine's
+ * render loop. Instead we suppress the card chrome via CSS and
+ * unify them visually.
+ * ============================================================ */
+
+/* Scope all panel-sheet styles to .active so we don't override
+   legacy's `.panel { display: none }` for inactive tabs. */
+html:not([data-theme]) #panel-profile.active,
+body[data-theme="cozy-light"] #panel-profile.active {
+  /* The sheet itself: thick parchment with gold double-border, drop
+     shadow so it floats on the homestead landscape, ornamental
+     corners painted via background-image (one SVG, mirrored 4×). */
+  position: relative;
+  margin: 16px;
+  padding: 56px 64px 80px;
+  background:
+    /* corner flourishes — top-left, top-right (mirrored), bottom-left (mirrored), bottom-right (rotated 180) */
+    url("../../assets/ornaments/corner-flourish.svg") top    left    / 64px 64px no-repeat,
+    url("../../assets/ornaments/corner-flourish.svg") top    right   / 64px 64px no-repeat,
+    url("../../assets/ornaments/corner-flourish.svg") bottom left    / 64px 64px no-repeat,
+    url("../../assets/ornaments/corner-flourish.svg") bottom right   / 64px 64px no-repeat,
+    /* parchment fill */
+    linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%);
+  /* Mirror the corner SVGs via filter so each corner reads correctly */
+  border: 1px solid #b8893e;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,247,224,.7),
+    inset 0 0 0 6px transparent,
+    inset 0 0 0 7px rgba(184,137,62,.3),     /* gold inner rule */
+    0 4px 18px rgba(60,40,16,.22),
+    0 2px 4px rgba(60,40,16,.12);
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-areas:
+    "user user"
+    "left right"
+    "left bottom"
+    "ribbon ribbon";
+  gap: 24px 36px;
+  min-height: calc(100vh - 200px);
+}
+
+/* Mirror the SVG flourishes per corner using transforms on
+   pseudo-elements. The bg-image approach above lays the same SVG
+   four times; we overlay rotated copies via ::before/::after. */
+html:not([data-theme]) #panel-profile::before,
+body[data-theme="cozy-light"] #panel-profile::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 64px; height: 64px;
+  background: url("../../assets/ornaments/corner-flourish.svg") center/contain no-repeat;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+html:not([data-theme]) #panel-profile::after,
+body[data-theme="cozy-light"] #panel-profile::after {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 64px; height: 64px;
+  background: url("../../assets/ornaments/corner-flourish.svg") center/contain no-repeat;
+  transform: scaleY(-1);
+  pointer-events: none;
+}
+/* Bottom-right corner gets the wax seal instead of a flourish */
+html:not([data-theme]) #panel-profile.active,
+body[data-theme="cozy-light"] #panel-profile.active {
+  background-image:
+    url("../../assets/ornaments/corner-flourish.svg"),
+    url("../../assets/ornaments/corner-flourish.svg"),
+    url("../../assets/ornaments/wax-seal.svg"),
+    linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%);
+  background-position: top left, top right, bottom right 24px, center;
+  background-size: 64px 64px, 64px 64px, 86px 86px, cover;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+}
+/* Adjust ::before/::after to handle remaining corners */
+html:not([data-theme]) #panel-profile::before,
+body[data-theme="cozy-light"] #panel-profile::before {
+  top: 0; right: 0;
+  transform: scaleX(-1);
+}
+html:not([data-theme]) #panel-profile::after,
+body[data-theme="cozy-light"] #panel-profile::after {
+  bottom: 0; left: 0;
+  transform: scaleY(-1);
+}
+
+/* Suppress the card chrome on every dashboard child — the panel
+   IS the card now. Children are sections of the sheet. */
+html:not([data-theme]) #panel-profile .card,
+body[data-theme="cozy-light"] #panel-profile .card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+html:not([data-theme]) #panel-profile .card-head,
+body[data-theme="cozy-light"] #panel-profile .card-head {
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 0 0 4px 0 !important;
+}
+html:not([data-theme]) #panel-profile .card-head::after,
+body[data-theme="cozy-light"] #panel-profile .card-head::after {
+  /* Replace the gold underline with a wider ornamental rule */
+  background: linear-gradient(90deg, transparent 0%, var(--gold) 30%, var(--gold) 70%, transparent 100%) !important;
+  height: 1px !important;
+  bottom: -2px !important;
+  left: 0 !important;
+  right: 0 !important;
+  opacity: .65;
+}
+html:not([data-theme]) #panel-profile .card-head .card-title,
+body[data-theme="cozy-light"] #panel-profile .card-head .card-title {
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .22em;
+  color: #6a3e0c;
+}
+html:not([data-theme]) #panel-profile .card-head .card-title::before,
+body[data-theme="cozy-light"] #panel-profile .card-head .card-title::before {
+  /* Slightly different ornament for the sheet sections */
+  content: "✦ ";
+  color: var(--gold);
+  margin-right: 4px;
+}
+html:not([data-theme]) #panel-profile .card-body,
+body[data-theme="cozy-light"] #panel-profile .card-body {
+  padding: 8px 0 0 0 !important;
+}
+
+/* Grid placement of the dashboard children */
+html:not([data-theme]) #panel-profile #dash-user,
+body[data-theme="cozy-light"] #panel-profile #dash-user { grid-area: user; }
+html:not([data-theme]) #panel-profile #dash-active,
+body[data-theme="cozy-light"] #panel-profile #dash-active { grid-area: right; }
+html:not([data-theme]) #panel-profile #dash-objectives,
+body[data-theme="cozy-light"] #panel-profile #dash-objectives { grid-area: bottom; }
+html:not([data-theme]) #panel-profile #dash-skills,
+body[data-theme="cozy-light"] #panel-profile #dash-skills { grid-area: left; }
+html:not([data-theme]) #panel-profile #dash-homestead,
+body[data-theme="cozy-light"] #panel-profile #dash-homestead { grid-area: ribbon; }
+
+/* Top section: name + portrait — make it the calligraphic title block */
+html:not([data-theme]) #panel-profile #dash-user .card-head,
+body[data-theme="cozy-light"] #panel-profile #dash-user .card-head {
+  display: none !important;        /* don't show "PROFILE" — we'll let the player name BE the title */
+}
+html:not([data-theme]) #panel-profile #dash-user-body,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body {
+  text-align: center;
+  position: relative;
+  padding-bottom: 18px;
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, transparent 0%, var(--gold) 50%, transparent 100%) 1;
+}
+/* When the engine renders the user body, it normally shows
+   "Adventurer / Offline play / Sign in / 4 stat tiles / companion".
+   We use sibling selectors to push the layout into a header look. */
+
+/* ─── Activity card (top header) → title block ─── */
+html:not([data-theme]) #panel-profile #dash-user-body .activity-card,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card {
+  background: transparent !important;
+  border: none !important;
+  display: grid !important;
+  grid-template-columns: 88px 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas: "portrait title signin" "portrait subtitle signin";
+  gap: 4px 18px;
+  padding: 0 0 18px 0 !important;
+  align-items: center;
+}
+/* Player avatar — gold-rimmed portrait frame */
+html:not([data-theme]) #panel-profile .activity-card .avatar,
+html:not([data-theme]) #panel-profile .activity-card > :first-child,
+body[data-theme="cozy-light"] #panel-profile .activity-card .avatar,
+body[data-theme="cozy-light"] #panel-profile .activity-card > :first-child {
+  grid-area: portrait;
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fff4d2, #d4a55a) !important;
+  border: 3px double #b8893e !important;
+  box-shadow: 0 0 0 2px #fff8e2, 0 4px 10px rgba(60,40,16,.25);
+  font-size: 44px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+/* The name "Adventurer" — calligraphic title */
+html:not([data-theme]) #panel-profile .activity-card .ac-name,
+html:not([data-theme]) #panel-profile .activity-card > div:nth-child(2) > :first-child,
+body[data-theme="cozy-light"] #panel-profile .activity-card .ac-name,
+body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :first-child {
+  grid-area: title;
+  font-family: var(--f-display);
+  font-size: 32px !important;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #5c2d08 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.4);
+  margin: 0;
+  line-height: 1.05;
+}
+/* Subtitle line — Quicksand at readable size + dark color, NOT Caveat */
+html:not([data-theme]) #panel-profile .activity-card .ac-sub,
+html:not([data-theme]) #panel-profile .activity-card > div:nth-child(2) > :nth-child(2),
+body[data-theme="cozy-light"] #panel-profile .activity-card .ac-sub,
+body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :nth-child(2) {
+  grid-area: subtitle;
+  font-family: var(--f-ui);
+  font-size: 13px !important;
+  color: #5c3d12 !important;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: .04em;
+  margin: 0;
+}
+/* Sign In button — wax-stamp style on the right */
+html:not([data-theme]) #panel-profile .activity-card .btn,
+html:not([data-theme]) #panel-profile .activity-card button,
+body[data-theme="cozy-light"] #panel-profile .activity-card .btn,
+body[data-theme="cozy-light"] #panel-profile .activity-card button {
+  grid-area: signin;
+  align-self: center;
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border: 2px solid #5a1208 !important;
+  font-family: var(--f-display) !important;
+  font-size: 11px !important;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  padding: 10px 18px !important;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3);
+}
+html:not([data-theme]) #panel-profile .activity-card .btn:hover,
+html:not([data-theme]) #panel-profile .activity-card button:hover,
+body[data-theme="cozy-light"] #panel-profile .activity-card .btn:hover,
+body[data-theme="cozy-light"] #panel-profile .activity-card button:hover {
+  filter: brightness(1.1);
+}
+
+/* Title block ornamental rule beneath */
+html:not([data-theme]) #panel-profile #dash-user-body .activity-card::after,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card::after {
+  content: "";
+  grid-column: 1 / -1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin-top: 14px;
+}
+
+/* ─── KPI row → ledger rows with leader dots ─── */
+html:not([data-theme]) #panel-profile #dash-user-body .kpi-row,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 36px !important;
+  margin: 18px 0 8px;
+}
+html:not([data-theme]) #panel-profile #dash-user-body .kpi,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi {
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: baseline !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px dotted rgba(122,94,58,.4) !important;
+  position: relative;
+}
+/* SPAN (label) on the left, B (value) on the right */
+html:not([data-theme]) #panel-profile #dash-user-body .kpi span,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi span {
+  order: 1 !important;
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: #6a3e0c;
+  text-transform: uppercase;
+}
+html:not([data-theme]) #panel-profile #dash-user-body .kpi b,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi b {
+  order: 2 !important;
+  font-family: var(--f-display);
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+
+/* ─── Companion card → small inline tile, no progress bar ─── */
+html:not([data-theme]) #panel-profile .companion-card,
+body[data-theme="cozy-light"] #panel-profile .companion-card {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 6px;
+  padding: 10px 14px !important;
+  margin: 18px 0 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 12px;
+  width: auto !important;
+  max-width: 320px;
+}
+html:not([data-theme]) #panel-profile .companion-card .cc-icon,
+body[data-theme="cozy-light"] #panel-profile .companion-card .cc-icon {
+  font-size: 28px;
+  width: 36px;
+  flex-shrink: 0;
+}
+html:not([data-theme]) #panel-profile .companion-card .cc-info,
+body[data-theme="cozy-light"] #panel-profile .companion-card .cc-info {
+  display: flex;
+  flex-direction: column;
+}
+html:not([data-theme]) #panel-profile .companion-card .cc-name,
+body[data-theme="cozy-light"] #panel-profile .companion-card .cc-name {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  letter-spacing: .04em;
+}
+html:not([data-theme]) #panel-profile .companion-card .cc-meta,
+body[data-theme="cozy-light"] #panel-profile .companion-card .cc-meta {
+  font-family: var(--f-ui);
+  font-size: 11px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+/* Kill the full-width progress bar — Tyler's explicit ask */
+html:not([data-theme]) #panel-profile .companion-card .cc-bar,
+body[data-theme="cozy-light"] #panel-profile .companion-card .cc-bar {
+  display: none !important;
+}
+
+/* Buttons row at the bottom of profile (Achievements, Bestiary,
+   LIFETIME STATS, Last Session Summary) — ribbon under the sheet */
+html:not([data-theme]) #panel-profile .feat-buttons,
+html:not([data-theme]) #panel-profile .stats-btn-trigger,
+body[data-theme="cozy-light"] #panel-profile .feat-buttons,
+body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger {
+  margin-top: 12px;
+}
+html:not([data-theme]) #panel-profile .btn,
+body[data-theme="cozy-light"] #panel-profile .btn {
+  background: linear-gradient(180deg, #faedc4, #ecd5a0);
+  border: 1px solid var(--line-strong);
+  color: #3d2817;
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+}
+html:not([data-theme]) #panel-profile .btn:hover,
+body[data-theme="cozy-light"] #panel-profile .btn:hover {
+  background: linear-gradient(180deg, #fff4d2, #f0d8a0);
+  border-color: var(--gold);
+}
+
+/* All four profile-bottom buttons (ACHIEVEMENTS / BESTIARY /
+   LIFETIME STATS / LAST SESSION SUMMARY) — force EXACTLY the same
+   height + padding + box-sizing so they line up perfectly. Uses
+   .feat-buttons descendant + .stats-btn-trigger as a catch-all. */
+html:not([data-theme]) #panel-profile .feat-buttons .btn,
+html:not([data-theme]) #panel-profile .stats-btn-trigger,
+body[data-theme="cozy-light"] #panel-profile .feat-buttons .btn,
+body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger {
+  background: linear-gradient(180deg, #faedc4, #ecd5a0) !important;
+  background-color: transparent !important;
+  border: 1px solid var(--line-strong) !important;
+  color: #3d2817 !important;
+  font-family: var(--f-display) !important;
+  font-size: 11px !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  padding: 0 22px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset !important;
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+/* The feat-buttons row gets consistent gap */
+html:not([data-theme]) #panel-profile .feat-buttons,
+body[data-theme="cozy-light"] #panel-profile .feat-buttons {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap;
+  align-items: center;
+}
+html:not([data-theme]) #panel-profile .stats-btn-trigger:hover,
+body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger:hover {
+  background: linear-gradient(180deg, #fff4d2, #f0d8a0) !important;
+  border-color: var(--gold) !important;
+}
+
+/* Active Effects section — make it look like a sub-block, not a card */
+html:not([data-theme]) #panel-profile #dash-active .card-head .card-title,
+body[data-theme="cozy-light"] #panel-profile #dash-active .card-head .card-title {
+  /* Keep the Active Effects label visible — it serves as a section heading */
+  display: inline-block;
+}
+html:not([data-theme]) #panel-profile h4,
+body[data-theme="cozy-light"] #panel-profile h4 {
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: #6a3e0c;
+  margin: 16px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dotted rgba(184,137,62,.4);
+  text-transform: uppercase;
+}
+
+/* FOOD BUFFS / HOUSE BUFFS section headers — darker for readability */
+html:not([data-theme]) .eff-section-h,
+body[data-theme="cozy-light"] .eff-section-h {
+  color: #4a2810 !important;
+  font-family: var(--f-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: .15em !important;
+}
+
+/* The "No food buffs active. Cook buff foods to add bonuses." paragraph
+   below each section header — also too faded by default */
+html:not([data-theme]) .eff-panel .ss-empty,
+html:not([data-theme]) .eff-panel .eff-empty,
+html:not([data-theme]) .eff-panel p,
+body[data-theme="cozy-light"] .eff-panel .ss-empty,
+body[data-theme="cozy-light"] .eff-panel .eff-empty,
+body[data-theme="cozy-light"] .eff-panel p {
+  color: var(--ink-2) !important;
+  font-style: normal !important;
+}
+
+/* ─── Topbar Quests button (replaces .global-quests-strip) ───
+   Hide the original full-width strip; the new wax-stamp red
+   button injected by quests-topbar-button.js sits in .top-stats
+   next to the Combat stat. */
+.global-quests-strip { display: none !important; }
+
+#hr-quests-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f);
+  color: #fff8e2;
+  border: 2px solid #5a1208;
+  border-radius: 4px;
+  font-family: var(--f-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3);
+  transition: filter .12s, transform .12s;
+}
+#hr-quests-btn:hover { filter: brightness(1.12); }
+#hr-quests-btn:active { transform: translateY(1px); }
+#hr-quests-btn .hr-q-count {
+  background: rgba(255,247,224,.95);
+  color: #8b2a1f;
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-family: var(--f-ui);
+  min-width: 18px;
+  text-align: center;
+}
+#hr-quests-btn.no-active .hr-q-count {
+  background: rgba(0,0,0,.18);
+  color: #fff8e2;
+}
+
+/* Center any "Sign in" button inside the user header so it sits like a callout */
+html:not([data-theme]) #panel-profile #dash-user-body .btn-primary,
+body[data-theme="cozy-light"] #panel-profile #dash-user-body .btn-primary {
+  display: inline-block;
+  margin: 12px auto 8px;
+}
+
+/* Companion card inside profile — small inline strip rather than
+   a full-width tile. */
+html:not([data-theme]) #panel-profile .companion-row,
+html:not([data-theme]) #panel-profile [data-companion],
+body[data-theme="cozy-light"] #panel-profile .companion-row,
+body[data-theme="cozy-light"] #panel-profile [data-companion] {
+  background: rgba(255,247,224,.6);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-top: 14px;
+}
+
+/* On smaller widths, collapse the grid */
+@media (max-width: 1100px) {
+  html:not([data-theme]) #panel-profile.active,
+  body[data-theme="cozy-light"] #panel-profile.active {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "user"
+      "left"
+      "right"
+      "bottom"
+      "ribbon";
+    padding: 40px 28px 60px;
+  }
+}
+
+/* ============================================================
+ * UNIVERSAL PANEL SHEET — all OTHER panels (combat, inventory,
+ * skills, farm, house, social, shop, character, dungeons, bounty)
+ * get the same parchment-sheet frame as Profile, but keep their
+ * existing internal multi-card layouts.
+ * ============================================================ */
+html:not([data-theme]) .panel.active:not(#panel-profile),
+body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
+  position: relative;
+  margin: 16px;
+  padding: 32px 40px 48px;
+  background-color: #f4e4bc;
+  background-image:
+    url("../../assets/ornaments/corner-flourish.svg"),
+    url("../../assets/ornaments/corner-flourish.svg"),
+    linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%);
+  background-position: top left, top right, center;
+  background-size: 56px 56px, 56px 56px, cover;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  border: 1px solid #b8893e;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,247,224,.7),
+    inset 0 0 0 7px rgba(184,137,62,.3),
+    0 4px 18px rgba(60,40,16,.22),
+    0 2px 4px rgba(60,40,16,.12);
+}
+/* Mirror the top-right corner SVG */
+html:not([data-theme]) .panel.active:not(#panel-profile)::before,
+body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 56px; height: 56px;
+  background: url("../../assets/ornaments/corner-flourish.svg") center/contain no-repeat;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+/* Bottom-left flourish + bottom-right wax seal */
+html:not([data-theme]) .panel.active:not(#panel-profile)::after,
+body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::after {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 56px; height: 56px;
+  background: url("../../assets/ornaments/corner-flourish.svg") center/contain no-repeat;
+  transform: scaleY(-1);
+  pointer-events: none;
+}
+
+/* Suppress the "PANEL" outer chrome on inner cards inside non-profile
+   panels — let the cards themselves carry the smaller card-bands.
+   Cards still keep their borders + shadows for separation, just
+   styled cohesively. */
+html:not([data-theme]) .panel.active:not(#panel-profile) .card,
+body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card {
+  background: rgba(255,247,224,.55);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 2px 6px rgba(122,94,58,.10);
+}
+
+/* Smaller padding for non-profile panels on narrower screens */
+@media (max-width: 900px) {
+  html:not([data-theme]) .panel.active:not(#panel-profile),
+  body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
+    padding: 24px 18px 36px;
+  }
+}
+
+/* ============================================================
+ * Per-tab interior darkness overrides
+ *
+ * legacy.css ships dark navy gradients on `.combat-arena` and
+ * `.combat-style-block` (and similar). Override their background-
+ * image so they read as parchment too. Also catch the common
+ * `rgba(0,0,0,.X)` darkening overlays inside cards.
+ * ============================================================ */
+
+/* Combat arena (the big "Pick a monster" area).
+   The #panel-combat ID + .active selector in legacy beats simple
+   class chains, so we mirror its specificity and use !important.
+   Also nuke the ::before / ::after pseudo overlays which paint a
+   dark image + dark gradient on top of the arena. */
+html:not([data-theme]) #panel-combat.active .combat-arena,
+body[data-theme="cozy-light"] #panel-combat.active .combat-arena {
+  background-image: none !important;
+  background-color: rgba(255,247,224,.55) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+html:not([data-theme]) #panel-combat.active .combat-arena::before,
+html:not([data-theme]) #panel-combat.active .combat-arena::after,
+body[data-theme="cozy-light"] #panel-combat.active .combat-arena::before,
+body[data-theme="cozy-light"] #panel-combat.active .combat-arena::after {
+  display: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  content: none !important;
+}
+html:not([data-theme]) #panel-combat.active .combat-empty,
+body[data-theme="cozy-light"] #panel-combat.active .combat-empty {
+  background: transparent !important;
+  color: var(--ink-2) !important;
+}
+
+/* Combat style picker block at top — force parchment AND dark
+   readable text on every descendant. */
+html:not([data-theme]) .combat-style-block,
+body[data-theme="cozy-light"] .combat-style-block,
+html:not([data-theme]) #panel-combat .combat-style-block,
+body[data-theme="cozy-light"] #panel-combat .combat-style-block {
+  background-image: none !important;
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 6px;
+}
+html:not([data-theme]) .combat-style-block *,
+body[data-theme="cozy-light"] .combat-style-block * {
+  color: #3d2817 !important;
+}
+html:not([data-theme]) .combat-style-block b,
+html:not([data-theme]) .combat-style-block strong,
+body[data-theme="cozy-light"] .combat-style-block b,
+body[data-theme="cozy-light"] .combat-style-block strong {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+html:not([data-theme]) .combat-style-block .style-btn,
+body[data-theme="cozy-light"] .combat-style-block .style-btn {
+  background: rgba(255,247,224,.7) !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line-strong) !important;
+  opacity: 1 !important;
+}
+html:not([data-theme]) .combat-style-block .style-btn.active,
+body[data-theme="cozy-light"] .combat-style-block .style-btn.active {
+  background: linear-gradient(180deg,#d44a3a,#8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 3px rgba(60,40,16,.3) !important;
+}
+html:not([data-theme]) .combat-style-block .style-btn.active *,
+body[data-theme="cozy-light"] .combat-style-block .style-btn.active * {
+  color: #fff8e2 !important;
+}
+
+/* Combat style chips — wax red for active to match design language */
+html:not([data-theme]) .panel.active .chip.active,
+body[data-theme="cozy-light"] .panel.active .chip.active,
+html:not([data-theme]) .combat-style-block .style-btn.active,
+body[data-theme="cozy-light"] .combat-style-block .style-btn.active {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 3px rgba(60,40,16,.3) !important;
+}
+
+/* Stat boxes inside #combat-area — replace dark inset with parchment */
+#combat-area .calc > div,
+#combat-area .row.between {
+  background: rgba(255,247,224,.7) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+}
+
+/* "Suggested for your level" container + every monster row inside.
+   Match #panel-combat specificity so we beat any internal styles. */
+html:not([data-theme]) #panel-combat .combat-arena [class*="suggest"],
+html:not([data-theme]) #panel-combat .combat-arena [class*="recommend"],
+html:not([data-theme]) #panel-combat .combat-arena .ce-tip,
+html:not([data-theme]) #panel-combat .combat-arena .ce-mob,
+html:not([data-theme]) #panel-combat #combat-area > div,
+body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"],
+body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="recommend"],
+body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-tip,
+body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob,
+body[data-theme="cozy-light"] #panel-combat #combat-area > div {
+  background: rgba(255,247,224,.7) !important;
+  border: 1px solid var(--line-strong) !important;
+  color: #3d2817 !important;
+  border-radius: 6px;
+}
+html:not([data-theme]) #panel-combat .combat-arena [class*="suggest"] *,
+html:not([data-theme]) #panel-combat .combat-arena .ce-mob *,
+html:not([data-theme]) #panel-combat #combat-area > div *,
+body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"] *,
+body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob *,
+body[data-theme="cozy-light"] #panel-combat #combat-area > div * {
+  color: #3d2817 !important;
+}
+html:not([data-theme]) #panel-combat .combat-arena h2,
+html:not([data-theme]) #panel-combat .combat-arena h3,
+html:not([data-theme]) #panel-combat .combat-arena h4,
+html:not([data-theme]) #panel-combat .combat-arena .label,
+body[data-theme="cozy-light"] #panel-combat .combat-arena h2,
+body[data-theme="cozy-light"] #panel-combat .combat-arena h3,
+body[data-theme="cozy-light"] #panel-combat .combat-arena h4,
+body[data-theme="cozy-light"] #panel-combat .combat-arena .label {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  letter-spacing: .12em !important;
+}
+
+/* Loadout slot labels (Hel/Nec/Cap/Bod/Amm/Bel/Pan/Rin etc) */
+html:not([data-theme]) .loadout-slot small,
+html:not([data-theme]) .equip-slot small,
+html:not([data-theme]) .inv-slot small,
+html:not([data-theme]) .eq-slot small,
+body[data-theme="cozy-light"] .loadout-slot small,
+body[data-theme="cozy-light"] .equip-slot small,
+body[data-theme="cozy-light"] .inv-slot small,
+body[data-theme="cozy-light"] .eq-slot small {
+  color: #3d2817 !important;
+  background: rgba(255,247,224,.85) !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.5);
+}
+
+/* ============================================================
+ * READABILITY SLEDGEHAMMER
+ *
+ * Walked the UI as a user. Many text elements are still washed
+ * out because legacy CSS uses var(--ink-3) (#a5896a / hint level)
+ * or low-contrast hardcoded grays. The character-sheet UI demands
+ * consistently dark text on parchment surfaces.
+ *
+ * These rules force readable text + parchment surfaces on every
+ * element inside an active panel. If you find an element that
+ * SHOULD stay muted (e.g. genuinely hint-level), add an
+ * exception class.
+ * ============================================================ */
+
+/* All paragraphs, spans, divs, tds, lis inside panels — force
+   readable cocoa unless they're already on a colored bg (chips,
+   active buttons, etc.) */
+html:not([data-theme]) .panel.active,
+html:not([data-theme]) .panel.active p,
+html:not([data-theme]) .panel.active li,
+html:not([data-theme]) .panel.active td,
+html:not([data-theme]) .panel.active label,
+body[data-theme="cozy-light"] .panel.active,
+body[data-theme="cozy-light"] .panel.active p,
+body[data-theme="cozy-light"] .panel.active li,
+body[data-theme="cozy-light"] .panel.active td,
+body[data-theme="cozy-light"] .panel.active label {
+  color: #3d2817;
+}
+
+/* All elements using --ink-3 (the muted hint color) inside panels
+   get bumped up one shade so they're actually readable. The
+   --ink-3 default is #a5896a which fades on parchment. */
+html:not([data-theme]) .panel.active [style*="--ink-3"],
+html:not([data-theme]) .panel.active .muted,
+html:not([data-theme]) .panel.active .hint,
+html:not([data-theme]) .panel.active .ss-meta,
+html:not([data-theme]) .panel.active .meta,
+body[data-theme="cozy-light"] .panel.active [style*="--ink-3"],
+body[data-theme="cozy-light"] .panel.active .muted,
+body[data-theme="cozy-light"] .panel.active .hint,
+body[data-theme="cozy-light"] .panel.active .ss-meta,
+body[data-theme="cozy-light"] .panel.active .meta {
+  color: #6a4823 !important;
+}
+
+/* Headers / labels inside panels: deeper warm brown for clear hierarchy */
+html:not([data-theme]) .panel.active h1,
+html:not([data-theme]) .panel.active h2,
+html:not([data-theme]) .panel.active h3,
+html:not([data-theme]) .panel.active h4,
+html:not([data-theme]) .panel.active h5,
+html:not([data-theme]) .panel.active legend,
+html:not([data-theme]) .panel.active .label,
+body[data-theme="cozy-light"] .panel.active h1,
+body[data-theme="cozy-light"] .panel.active h2,
+body[data-theme="cozy-light"] .panel.active h3,
+body[data-theme="cozy-light"] .panel.active h4,
+body[data-theme="cozy-light"] .panel.active h5,
+body[data-theme="cozy-light"] .panel.active legend,
+body[data-theme="cozy-light"] .panel.active .label {
+  color: #5c2d08 !important;
+}
+
+/* Catch ANY element with a hardcoded dark navy/gray rgba background
+   inside an active panel and force it to parchment. We can't detect
+   colors via CSS, but we can target common dark-bg patterns by
+   inverting the most likely culprits — anything that uses inline
+   `style="background:rgba(0,0,0..."` we override via attribute
+   selector. */
+html:not([data-theme]) .panel.active [style*="background:rgba(0"],
+html:not([data-theme]) .panel.active [style*="background: rgba(0"],
+html:not([data-theme]) .panel.active [style*="background:#0"],
+html:not([data-theme]) .panel.active [style*="background:#1"],
+html:not([data-theme]) .panel.active [style*="background-color:rgba(0"],
+body[data-theme="cozy-light"] .panel.active [style*="background:rgba(0"],
+body[data-theme="cozy-light"] .panel.active [style*="background: rgba(0"],
+body[data-theme="cozy-light"] .panel.active [style*="background:#0"],
+body[data-theme="cozy-light"] .panel.active [style*="background:#1"],
+body[data-theme="cozy-light"] .panel.active [style*="background-color:rgba(0"] {
+  background: rgba(255,247,224,.65) !important;
+  color: #3d2817 !important;
+}
+
+/* Tables inside panels — readable rows */
+html:not([data-theme]) .panel.active table,
+html:not([data-theme]) .panel.active table td,
+html:not([data-theme]) .panel.active table th,
+body[data-theme="cozy-light"] .panel.active table,
+body[data-theme="cozy-light"] .panel.active table td,
+body[data-theme="cozy-light"] .panel.active table th {
+  color: #3d2817 !important;
+  background: transparent !important;
+}
+html:not([data-theme]) .panel.active table th,
+body[data-theme="cozy-light"] .panel.active table th {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+html:not([data-theme]) .panel.active table tr:nth-child(even) td,
+body[data-theme="cozy-light"] .panel.active table tr:nth-child(even) td {
+  background: rgba(255,247,224,.4) !important;
+}
+
+/* "+0%" / "+5% combat XP" / similar stat-line lozenges (House/Bonuses) */
+html:not([data-theme]) .panel.active .stat-row,
+html:not([data-theme]) .panel.active .bonus-row,
+html:not([data-theme]) .panel.active [class*="-row"],
+body[data-theme="cozy-light"] .panel.active .stat-row,
+body[data-theme="cozy-light"] .panel.active .bonus-row,
+body[data-theme="cozy-light"] .panel.active [class*="-row"] {
+  color: #3d2817;
+}
+html:not([data-theme]) .panel.active .stat-row b,
+html:not([data-theme]) .panel.active .stat-row strong,
+html:not([data-theme]) .panel.active .bonus-row b,
+html:not([data-theme]) .panel.active [class*="-val"],
+html:not([data-theme]) .panel.active [class*="-amount"],
+body[data-theme="cozy-light"] .panel.active .stat-row b,
+body[data-theme="cozy-light"] .panel.active .stat-row strong,
+body[data-theme="cozy-light"] .panel.active .bonus-row b,
+body[data-theme="cozy-light"] .panel.active [class*="-val"],
+body[data-theme="cozy-light"] .panel.active [class*="-amount"] {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+
+/* HERO panel + WEAPON STYLES + BONUSES + ACTIVE STYLE side blocks
+   in inventory + character panels. Force their numbers readable. */
+html:not([data-theme]) .panel.active .hero-summary *,
+html:not([data-theme]) .panel.active .weapon-styles *,
+html:not([data-theme]) .panel.active .bonuses *,
+html:not([data-theme]) .panel.active .active-style *,
+html:not([data-theme]) .panel.active [class*="hero-card"] *,
+html:not([data-theme]) .panel.active [class*="weapon-style"] *,
+html:not([data-theme]) .panel.active .style-stats *,
+body[data-theme="cozy-light"] .panel.active .hero-summary *,
+body[data-theme="cozy-light"] .panel.active .weapon-styles *,
+body[data-theme="cozy-light"] .panel.active .bonuses *,
+body[data-theme="cozy-light"] .panel.active .active-style *,
+body[data-theme="cozy-light"] .panel.active [class*="hero-card"] *,
+body[data-theme="cozy-light"] .panel.active [class*="weapon-style"] *,
+body[data-theme="cozy-light"] .panel.active .style-stats * {
+  color: #3d2817 !important;
+}
+html:not([data-theme]) .panel.active .hero-summary b,
+html:not([data-theme]) .panel.active .weapon-styles b,
+html:not([data-theme]) .panel.active .bonuses b,
+html:not([data-theme]) .panel.active .style-stats b,
+body[data-theme="cozy-light"] .panel.active .hero-summary b,
+body[data-theme="cozy-light"] .panel.active .weapon-styles b,
+body[data-theme="cozy-light"] .panel.active .bonuses b,
+body[data-theme="cozy-light"] .panel.active .style-stats b {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+
+/* Bestiary / Achievements / Lifetime Stats / Last Session modals
+   — they're not inside .panel but they use the same chrome */
+.stats-modal,
+.lifetime-stats,
+.welcome-overlay,
+.ach-overlay,
+.acq-overlay,
+.mon-detail {
+  color: #3d2817;
+}
+.stats-modal *:not(button):not(input):not(select),
+.lifetime-stats *:not(button):not(input):not(select),
+.welcome-overlay *:not(button):not(input):not(select),
+.ach-overlay *:not(button):not(input):not(select),
+.acq-overlay *:not(button):not(input):not(select),
+.mon-detail *:not(button):not(input):not(select) {
+  color: #3d2817;
+}
+
+/* Activity bar text / labels readable on parchment */
+html:not([data-theme]) .activity-bar,
+html:not([data-theme]) .activity-bar *,
+body[data-theme="cozy-light"] .activity-bar,
+body[data-theme="cozy-light"] .activity-bar * {
+  color: #3d2817 !important;
+}
+html:not([data-theme]) .activity-bar b,
+body[data-theme="cozy-light"] .activity-bar b {
+  color: #5c2d08 !important;
+}
+
+/* "+5% combat XP" / "42 members" / clan/friend descriptions on Social */
+html:not([data-theme]) #panel-social *,
+body[data-theme="cozy-light"] #panel-social * {
+  color: #3d2817;
+}
+html:not([data-theme]) #panel-social .card-title,
+html:not([data-theme]) #panel-social h3,
+html:not([data-theme]) #panel-social h4,
+body[data-theme="cozy-light"] #panel-social .card-title,
+body[data-theme="cozy-light"] #panel-social h3,
+body[data-theme="cozy-light"] #panel-social h4 {
+  color: #5c2d08 !important;
+}
+
+/* Mock-data and similar small sub-labels */
+html:not([data-theme]) .panel.active .card-sub,
+body[data-theme="cozy-light"] .panel.active .card-sub {
+  color: #6a4823 !important;
+  font-weight: 600;
+}
+
+/* House Bonuses "+0%" giant numbers — readable + dark not gold */
+html:not([data-theme]) #panel-house .bonus-val,
+html:not([data-theme]) #panel-house [class*="bonus"] b,
+html:not([data-theme]) #panel-house [class*="bonus"] strong,
+body[data-theme="cozy-light"] #panel-house .bonus-val,
+body[data-theme="cozy-light"] #panel-house [class*="bonus"] b,
+body[data-theme="cozy-light"] #panel-house [class*="bonus"] strong {
+  color: #5c2d08 !important;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+/* Final fallback: any element in a panel that has color: var(--ink-3),
+   var(--gold-2), var(--aqua-2) gets replaced by the readable cocoa */
+html:not([data-theme]) .panel.active [style*="color:var(--ink-3)"],
+html:not([data-theme]) .panel.active [style*="color: var(--ink-3)"],
+body[data-theme="cozy-light"] .panel.active [style*="color:var(--ink-3)"],
+body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"] {
+  color: #6a4823 !important;
+}
+
+/* ============================================================
+ * INVENTORY RIGHT SIDEBAR — HERO / WEAPON STYLES / BONUSES /
+ * ACTIVE STYLE. The numbers are rendered with hardcoded
+ * var(--gold-2) inline styles. Force them dark + readable.
+ * ============================================================ */
+html:not([data-theme]) #panel-inventory > * > *:last-child *,
+html:not([data-theme]) #panel-inventory aside *,
+body[data-theme="cozy-light"] #panel-inventory > * > *:last-child *,
+body[data-theme="cozy-light"] #panel-inventory aside * {
+  color: #3d2817 !important;
+}
+/* Stat numbers (the big bold ones) */
+html:not([data-theme]) #panel-inventory b,
+html:not([data-theme]) #panel-inventory strong,
+body[data-theme="cozy-light"] #panel-inventory b,
+body[data-theme="cozy-light"] #panel-inventory strong {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+/* Section headers in the right sidebar (HERO / WEAPON STYLES /
+   BONUSES / ACTIVE STYLE) */
+html:not([data-theme]) #panel-inventory .card-title,
+html:not([data-theme]) #panel-inventory h3,
+html:not([data-theme]) #panel-inventory h4,
+html:not([data-theme]) #panel-inventory legend,
+body[data-theme="cozy-light"] #panel-inventory .card-title,
+body[data-theme="cozy-light"] #panel-inventory h3,
+body[data-theme="cozy-light"] #panel-inventory h4,
+body[data-theme="cozy-light"] #panel-inventory legend {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  letter-spacing: .12em !important;
+}
+/* Specifically: any element with class containing "stat" or "lv" or
+   "value" gets the dark treatment */
+html:not([data-theme]) #panel-inventory [class*="stat"] *,
+html:not([data-theme]) #panel-inventory [class*="lv"] *,
+html:not([data-theme]) #panel-inventory [class*="value"] *,
+html:not([data-theme]) #panel-inventory [class*="num"] *,
+body[data-theme="cozy-light"] #panel-inventory [class*="stat"] *,
+body[data-theme="cozy-light"] #panel-inventory [class*="lv"] *,
+body[data-theme="cozy-light"] #panel-inventory [class*="value"] *,
+body[data-theme="cozy-light"] #panel-inventory [class*="num"] * {
+  color: #3d2817 !important;
+}
+/* The big numbers (combat lv 5, total lv 39, HP 10/10) */
+html:not([data-theme]) #panel-inventory [class*="big"],
+html:not([data-theme]) #panel-inventory [class*="lg"],
+body[data-theme="cozy-light"] #panel-inventory [class*="big"],
+body[data-theme="cozy-light"] #panel-inventory [class*="lg"] {
+  color: #5c2d08 !important;
+  font-weight: 800 !important;
+}
+
+/* Same treatment for character panel */
+html:not([data-theme]) #panel-character *,
+body[data-theme="cozy-light"] #panel-character * {
+  color: #3d2817;
+}
+html:not([data-theme]) #panel-character b,
+html:not([data-theme]) #panel-character strong,
+html:not([data-theme]) #panel-character h1,
+html:not([data-theme]) #panel-character h2,
+html:not([data-theme]) #panel-character h3,
+html:not([data-theme]) #panel-character h4,
+html:not([data-theme]) #panel-character .card-title,
+body[data-theme="cozy-light"] #panel-character b,
+body[data-theme="cozy-light"] #panel-character strong,
+body[data-theme="cozy-light"] #panel-character h1,
+body[data-theme="cozy-light"] #panel-character h2,
+body[data-theme="cozy-light"] #panel-character h3,
+body[data-theme="cozy-light"] #panel-character h4,
+body[data-theme="cozy-light"] #panel-character .card-title {
+  color: #5c2d08 !important;
+}
+
+/* Stat tiles in the top-right of Character / Profile (5/39/50.3K/7).
+   They're rendered with var(--gold-2) on a dark bg. Force parchment. */
+html:not([data-theme]) #panel-character [class*="tile"],
+html:not([data-theme]) #panel-character [class*="stat-card"],
+html:not([data-theme]) #panel-profile [class*="tile"]:not(.inv-tile),
+body[data-theme="cozy-light"] #panel-character [class*="tile"],
+body[data-theme="cozy-light"] #panel-character [class*="stat-card"],
+body[data-theme="cozy-light"] #panel-profile [class*="tile"]:not(.inv-tile) {
+  background: rgba(255,247,224,.65) !important;
+  border: 1px solid var(--line-strong) !important;
+  color: #3d2817 !important;
+}
+html:not([data-theme]) #panel-character [class*="tile"] *,
+body[data-theme="cozy-light"] #panel-character [class*="tile"] * {
+  color: #3d2817 !important;
+}
+
+/* Soften all rgba(0,0,0,.X) icon-cell + slot insets inside panels.
+   These are tiny squares (item icons, skill icons, etc) that read
+   as too-dark on the parchment. Convert them to a warm-tan fill. */
+html:not([data-theme]) .panel.active .csk-icon,
+html:not([data-theme]) .panel.active .csk-bar,
+html:not([data-theme]) .panel.active .eq-strip .eq-slot,
+html:not([data-theme]) .panel.active .fighter .portrait,
+html:not([data-theme]) .panel.active .inv-slot,
+html:not([data-theme]) .panel.active .equip-slot,
+html:not([data-theme]) .panel.active .loadout-slot,
+body[data-theme="cozy-light"] .panel.active .csk-icon,
+body[data-theme="cozy-light"] .panel.active .csk-bar,
+body[data-theme="cozy-light"] .panel.active .eq-strip .eq-slot,
+body[data-theme="cozy-light"] .panel.active .fighter .portrait,
+body[data-theme="cozy-light"] .panel.active .inv-slot,
+body[data-theme="cozy-light"] .panel.active .equip-slot,
+body[data-theme="cozy-light"] .panel.active .loadout-slot {
+  background-color: rgba(232,210,164,.55) !important;
+  border-color: var(--line) !important;
+}
+
+/* Hero / weapon-styles / bonuses sidebar boxes (inventory + character) */
+html:not([data-theme]) .panel.active .hero-summary,
+html:not([data-theme]) .panel.active .weapon-styles,
+html:not([data-theme]) .panel.active .bonuses,
+html:not([data-theme]) .panel.active .active-style,
+html:not([data-theme]) .panel.active [class*="hero-card"],
+html:not([data-theme]) .panel.active [class*="weapon-style-row"],
+body[data-theme="cozy-light"] .panel.active .hero-summary,
+body[data-theme="cozy-light"] .panel.active .weapon-styles,
+body[data-theme="cozy-light"] .panel.active .bonuses,
+body[data-theme="cozy-light"] .panel.active .active-style,
+body[data-theme="cozy-light"] .panel.active [class*="hero-card"],
+body[data-theme="cozy-light"] .panel.active [class*="weapon-style-row"] {
+  background: rgba(255,247,224,.5) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 6px;
+  color: var(--ink) !important;
+}
+
+/* ============================================================
+ * COZY LIGHT — component fine-tuning
+ * (kept separate so it's easy to spot what's structural vs polish)
+ * ============================================================ */
+
+/* Light theme: softer button hover */
+body[data-theme="cozy-light"] .btn:hover,
+:root .btn:hover {
+  background: var(--gold-bg);
+  border-color: var(--line-strong);
+}
+
+/* Topbar gets a parchment seal feel in light mode */
+body[data-theme="cozy-light"] .topbar,
+:root .topbar {
+  background: linear-gradient(180deg,#ede0b8,#e0d0a0);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* Sidebar — slightly recessed parchment */
+body[data-theme="cozy-light"] .sidebar,
+:root .sidebar {
+  background: #ede0b8;
+  border-right: 1px solid var(--line);
+}
+
+body[data-theme="cozy-light"] .nav-btn,
+:root .nav-btn {
+  color: var(--ink-2);
+}
+body[data-theme="cozy-light"] .nav-btn.active,
+:root .nav-btn.active {
+  background: var(--gold-bg);
+  color: var(--ink);
+  border-left: 3px solid var(--gold);
+}
+
+/* Bottom nav (mobile) */
+body[data-theme="cozy-light"] .bottom-nav,
+:root .bottom-nav {
+  background: linear-gradient(180deg,#e8d4a0,#ede0b8);
+  border-top: 1px solid var(--line-strong);
+}
+body[data-theme="cozy-light"] .bn-btn.active,
+:root .bn-btn.active {
+  color: var(--gold);
+}
+
+/* Chips: pill shape with parchment fill */
+body[data-theme="cozy-light"] .chip,
+:root .chip {
+  background: var(--bg-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+body[data-theme="cozy-light"] .chip.active,
+:root .chip.active {
+  background: var(--green);
+  color: #faf0d4;
+  border-color: var(--green);
+}
+
+/* Skill bars — use the green ramp */
+body[data-theme="cozy-light"] .bar-fill,
+body[data-theme="cozy-light"] .progress-bar > div,
+:root .bar-fill,
+:root .progress-bar > div {
+  background: linear-gradient(90deg, var(--green), #7a9c5d);
+}
+
+/* HP bar — keep red */
+body[data-theme="cozy-light"] .hp-fill,
+:root .hp-fill {
+  background: linear-gradient(90deg, var(--red), #c46850);
+}
+
+/* Modals — full parchment */
+body[data-theme="cozy-light"] .modal-card,
+:root .modal-card {
+  background: var(--bg-3);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 24px rgba(60,40,20,.25);
+}
+
+/* Inputs */
+body[data-theme="cozy-light"] input,
+body[data-theme="cozy-light"] select,
+body[data-theme="cozy-light"] textarea,
+:root input,
+:root select,
+:root textarea {
+  background: #fff7e0;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+body[data-theme="cozy-light"] input:focus,
+body[data-theme="cozy-light"] select:focus,
+body[data-theme="cozy-light"] textarea:focus,
+:root input:focus,
+:root select:focus,
+:root textarea:focus {
+  border-color: var(--gold);
+  outline: 2px solid var(--gold-bg);
+  outline-offset: 0;
+}
+
+/* Status pill — make sure offline/online states are visible on parchment */
+body[data-theme="cozy-light"] .status-pill,
+:root .status-pill {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+body[data-theme="cozy-light"] .status-pill.on,
+:root .status-pill.on {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: var(--green);
+}
+
+/* Activity bar / topbar gold/gem stats — keep contrast */
+body[data-theme="cozy-light"] .t-stat.gold,
+:root .t-stat.gold {
+  color: var(--gold);
+  font-weight: 700;
+}
+body[data-theme="cozy-light"] .t-stat.gem,
+:root .t-stat.gem {
+  color: var(--gem);
+}
+
+/* Notifications, dock, etc. */
+body[data-theme="cozy-light"] .notif,
+:root .notif {
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(60,40,20,.18);
+}
+
+/* Bug-report + chat dock buttons read on parchment */
+body[data-theme="cozy-light"] #hr-bug-btn,
+:root #hr-bug-btn {
+  background: rgba(255,247,224,.95);
+  color: var(--gold);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 1px 4px rgba(60,40,20,.18);
+}
+
+/* ============================================================
+ * Cozy Dark refinements (warm-dark only — rules above for
+ * cozy-light don't apply, but legacy.css :root still does
+ * — so dark just needs minor accent corrections).
+ * ============================================================ */
+
+body[data-theme="cozy-dark"] .topbar {
+  background: linear-gradient(180deg,#36281b,#2a1f15);
+  border-bottom: 1px solid var(--line);
+}
+body[data-theme="cozy-dark"] .sidebar {
+  background: #36281b;
+  border-right: 1px solid var(--line);
+}
+body[data-theme="cozy-dark"] .nav-btn.active {
+  background: var(--gold-bg);
+  color: var(--ink);
+  border-left: 3px solid var(--gold);
+}
+body[data-theme="cozy-dark"] .modal-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+}
+body[data-theme="cozy-dark"] .bar-fill,
+body[data-theme="cozy-dark"] .progress-bar > div {
+  background: linear-gradient(90deg, var(--green), #9bbf78);
+}
+
+/* ============================================================
+ * Classic (RuneScape direction) — minimal pass for the toggle
+ * preview. Polishing is post-beta if data shows demand.
+ * ============================================================ */
+
+body[data-theme="classic"] .topbar {
+  background: #1f1a14;
+  border-bottom: 2px solid var(--gold);
+  font-family: var(--f-ui);
+}
+body[data-theme="classic"] .sidebar {
+  background: #1f1a14;
+  border-right: 2px solid var(--gold);
+}
+body[data-theme="classic"] .nav-btn { color: var(--gold-2); }
+body[data-theme="classic"] .nav-btn.active {
+  background: var(--gold);
+  color: #1f1a14;
+}
+body[data-theme="classic"] .card {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 2px solid var(--line);
+  box-shadow: inset 0 0 0 2px #b89e6c;
+  border-radius: var(--r);
+}
+body[data-theme="classic"] .chip {
+  background: var(--gold);
+  color: #1f1a14;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-family: var(--f-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+body[data-theme="classic"] .btn {
+  background: #5c4a2e;
+  color: var(--gold-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-family: var(--f-ui);
+}
+body[data-theme="classic"] .btn:hover { background: #6c5a3e; }
+body[data-theme="classic"] .btn.btn-primary {
+  background: var(--gold);
+  color: #1f1a14;
+  font-weight: 700;
+}
+body[data-theme="classic"] .bar-fill,
+body[data-theme="classic"] .progress-bar > div {
+  background: var(--red);
+}
+body[data-theme="classic"] .modal-card {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 2px solid var(--gold);
+  box-shadow: inset 0 0 0 2px #b89e6c;
+}
+
+/* ============================================================
+ * Hide the old "Day/Night" floating button — it's been
+ * replaced by the Settings → Display theme picker. Old code
+ * still creates it for now; we hide it here without ripping
+ * the legacy code out (do that in Phase 3.5).
+ * ============================================================ */
+.lane1-toggle { display: none !important; }

@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Hearthrise homestead silhouette: distant hills, cottage with chimney, wheat fields">
+  <!-- Sky: warm golden-hour wash -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#f7e6c0"/>
+      <stop offset="55%"  stop-color="#f0d49a"/>
+      <stop offset="100%" stop-color="#e6bc78"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#fff4cc" stop-opacity=".95"/>
+      <stop offset="100%" stop-color="#fff4cc" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="wheat" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+      <path d="M7 14 L7 8 M5 10 Q7 8 9 10 M4 12 Q7 9 10 12" stroke="#a87a36" stroke-width="0.7" fill="none" opacity=".55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="600" fill="url(#sky)"/>
+
+  <!-- Soft sun glow (low, behind hills) -->
+  <ellipse cx="1180" cy="380" rx="420" ry="140" fill="url(#sun)"/>
+  <circle cx="1180" cy="320" r="58" fill="#fff4cc" opacity=".85"/>
+
+  <!-- Distant mountains, faded -->
+  <path d="M0 380 L120 320 L220 360 L340 280 L460 340 L600 290 L720 360 L880 310 L1020 350 L1180 290 L1340 340 L1480 300 L1600 340 L1600 600 L0 600 Z"
+        fill="#c9a474" opacity=".45"/>
+
+  <!-- Mid-ground rolling hills -->
+  <path d="M0 440 Q200 400 400 430 Q600 460 800 420 Q1000 385 1200 430 Q1400 470 1600 430 L1600 600 L0 600 Z"
+        fill="#9c7a3e" opacity=".55"/>
+
+  <!-- Treeline silhouette -->
+  <g fill="#5e6a32" opacity=".75">
+    <ellipse cx="80"   cy="442" rx="34" ry="42"/>
+    <ellipse cx="130"  cy="448" rx="28" ry="34"/>
+    <ellipse cx="220"  cy="438" rx="40" ry="46"/>
+    <ellipse cx="290"  cy="446" rx="26" ry="32"/>
+    <ellipse cx="380"  cy="440" rx="36" ry="42"/>
+    <ellipse cx="1380" cy="438" rx="38" ry="44"/>
+    <ellipse cx="1450" cy="445" rx="28" ry="34"/>
+    <ellipse cx="1520" cy="440" rx="34" ry="40"/>
+  </g>
+
+  <!-- Foreground field with wheat texture -->
+  <path d="M0 470 Q300 450 600 472 Q900 496 1200 470 Q1400 455 1600 472 L1600 600 L0 600 Z"
+        fill="#7d8d3a"/>
+  <path d="M0 470 Q300 450 600 472 Q900 496 1200 470 Q1400 455 1600 472 L1600 600 L0 600 Z"
+        fill="url(#wheat)"/>
+
+  <!-- ── Cottage (centered, slightly right of center) ── -->
+  <g transform="translate(720,340)">
+    <!-- Roof shadow -->
+    <path d="M-110 60 L0 -10 L110 60 Z" fill="#3b2516"/>
+    <!-- Roof main -->
+    <path d="M-105 58 L0 -6 L105 58 Z" fill="#5e3a1f"/>
+    <!-- Walls -->
+    <rect x="-90" y="58" width="180" height="80" fill="#c9a878"/>
+    <!-- Wood plank shading -->
+    <line x1="-90" y1="80" x2="90" y2="80" stroke="#a48049" stroke-width="1.5" opacity=".6"/>
+    <line x1="-90" y1="100" x2="90" y2="100" stroke="#a48049" stroke-width="1.5" opacity=".6"/>
+    <line x1="-90" y1="120" x2="90" y2="120" stroke="#a48049" stroke-width="1.5" opacity=".6"/>
+    <!-- Door -->
+    <rect x="-15" y="92" width="30" height="46" fill="#3b2516"/>
+    <circle cx="9" cy="115" r="1.5" fill="#e5b860"/>
+    <!-- Windows with warm glow -->
+    <rect x="-72" y="78" width="22" height="20" fill="#f8d28a"/>
+    <rect x="-72" y="78" width="22" height="20" fill="none" stroke="#3b2516" stroke-width="2"/>
+    <line x1="-61" y1="78" x2="-61" y2="98" stroke="#3b2516" stroke-width="1.5"/>
+    <line x1="-72" y1="88" x2="-50" y2="88" stroke="#3b2516" stroke-width="1.5"/>
+    <rect x="50" y="78" width="22" height="20" fill="#f8d28a"/>
+    <rect x="50" y="78" width="22" height="20" fill="none" stroke="#3b2516" stroke-width="2"/>
+    <line x1="61" y1="78" x2="61" y2="98" stroke="#3b2516" stroke-width="1.5"/>
+    <line x1="50" y1="88" x2="72" y2="88" stroke="#3b2516" stroke-width="1.5"/>
+    <!-- Chimney -->
+    <rect x="40" y="-30" width="20" height="50" fill="#3b2516"/>
+    <rect x="38" y="-32" width="24" height="6" fill="#2a1808"/>
+    <!-- Smoke curls -->
+    <g fill="#e8e3d4" opacity=".75">
+      <ellipse cx="50" cy="-44" rx="9" ry="6"/>
+      <ellipse cx="58" cy="-58" rx="11" ry="7"/>
+      <ellipse cx="48" cy="-74" rx="14" ry="8"/>
+      <ellipse cx="60" cy="-92" rx="16" ry="9" opacity=".55"/>
+    </g>
+  </g>
+
+  <!-- Fence to the left of cottage -->
+  <g stroke="#5e3a1f" stroke-width="2.5" fill="none">
+    <line x1="510" y1="486" x2="510" y2="468"/>
+    <line x1="528" y1="486" x2="528" y2="468"/>
+    <line x1="546" y1="486" x2="546" y2="468"/>
+    <line x1="564" y1="486" x2="564" y2="468"/>
+    <line x1="582" y1="486" x2="582" y2="468"/>
+    <line x1="600" y1="486" x2="600" y2="468"/>
+    <line x1="500" y1="476" x2="608" y2="476"/>
+    <line x1="500" y1="484" x2="608" y2="484"/>
+  </g>
+
+  <!-- Birds (V-shapes) drifting near the sun -->
+  <g stroke="#5e3a1f" stroke-width="1.5" fill="none" opacity=".65">
+    <path d="M1080 220 q4 -4 8 0 q4 -4 8 0"/>
+    <path d="M1240 240 q3 -3 6 0 q3 -3 6 0"/>
+    <path d="M1340 200 q4 -4 8 0 q4 -4 8 0"/>
+  </g>
+
+  <!-- Foreground tree on left for parallax weight -->
+  <g transform="translate(180,440)">
+    <rect x="-4" y="0" width="8" height="34" fill="#3b2516"/>
+    <ellipse cx="0" cy="-16" rx="42" ry="48" fill="#5e6a32"/>
+    <ellipse cx="-18" cy="-30" rx="22" ry="26" fill="#6f7a3b" opacity=".7"/>
+    <ellipse cx="20" cy="-26" rx="20" ry="24" fill="#6f7a3b" opacity=".7"/>
+  </g>
+
+  <!-- Lantern post on right -->
+  <g transform="translate(1380,440)">
+    <rect x="-2" y="0" width="4" height="44" fill="#3b2516"/>
+    <rect x="-10" y="-14" width="20" height="16" fill="#3b2516"/>
+    <rect x="-7" y="-11" width="14" height="10" fill="#f8d28a"/>
+  </g>
+</svg>

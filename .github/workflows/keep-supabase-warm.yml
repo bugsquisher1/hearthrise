@@ -1,0 +1,49 @@
+# ============================================================
+# .github/workflows/keep-supabase-warm.yml
+#
+# Pings the Supabase REST endpoint once a day to prevent the free-tier
+# project from auto-pausing after 7 days of inactivity. Free GitHub
+# Actions runs even on private repos (2,000 free min/month — we use ~1).
+#
+# After the repo is on GitHub:
+#   1. Go to repo → Settings → Secrets → Actions
+#   2. Add secret SUPABASE_URL = https://nezapsylztqbbwuwembx.supabase.co
+#   3. Add secret SUPABASE_ANON_KEY = your anon key
+#   4. The job runs automatically every day at 11:00 UTC.
+#
+# To test it manually: Actions tab → Keep Supabase Warm → Run workflow.
+# ============================================================
+name: Keep Supabase Warm
+
+on:
+  schedule:
+    # Daily at 11:00 UTC (avoids the 03:00 UTC trim-job window)
+    - cron: '0 11 * * *'
+  workflow_dispatch: {}  # also runnable manually from the Actions UI
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit Supabase REST endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Secrets not configured — skipping. Set SUPABASE_URL and SUPABASE_ANON_KEY in repo Settings → Secrets."
+            exit 0
+          fi
+          # Simple count query against a known view — keeps RLS happy and counts as activity
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/lb_total_level?select=id&limit=1")
+          echo "Ping status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✓ Supabase warm"
+            exit 0
+          else
+            echo "✗ Unexpected status $STATUS"
+            exit 1
+          fi

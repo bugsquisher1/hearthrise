@@ -99,9 +99,10 @@ async function pullAndMaybeRestore() {
 
 // ── Public actions ──
 
-export async function signUp(email, password) {
+export async function signUp(email, password, metadata) {
   if (!supabase) throw new Error('Auth not configured');
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const opts = metadata ? { email, password, options: { data: metadata } } : { email, password };
+  const { data, error } = await supabase.auth.signUp(opts);
   if (error) throw error;
   return data;
 }

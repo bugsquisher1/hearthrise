@@ -65,6 +65,9 @@
     var inviteRow = isSignUp
       ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px;text-transform:uppercase;letter-spacing:1px" />'
       : '';
+    var nameRow = isSignUp
+      ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
+      : '';
     overlay.innerHTML = ''
       + '<form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
       +   '<h3 style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
@@ -72,6 +75,7 @@
               ? 'Closed beta — you\'ll need an invite code from Tyler. Your local progress will move to the cloud automatically.'
               : 'Sync your save, join clans, climb leaderboards.') + '</p>'
       +   inviteRow
+      +   nameRow
       +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
       +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
       +   '<div style="display:flex;gap:8px;margin-top:4px">'

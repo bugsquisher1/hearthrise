@@ -773,88 +773,143 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 
 /* ============================================================
  * b114 — Landscape side-rail nav
+ * b115 — Visual polish (parchment rail, slim topbar, layout fix)
  * ============================================================
  * The horizontal bottom nav eats ~40px of the precious ~380px
  * landscape height. Rotated into a vertical left rail it eats
- * ~60px of horizontal (which is plentiful at 800-900px wide)
+ * ~64px of horizontal (which is plentiful at 800-900px wide)
  * and gives content the full vertical screen.
  *
- * Implementation: pure CSS, no DOM changes. Same .bottom-nav
- * element, same buttons — just `flex-direction: column` and
- * positioned on the left edge instead of the bottom. The .app
- * grid gets padded left to make room.
- *
- * Triggers on landscape phones AND tablets in landscape (≤1024
- * width AND ≤540 height) so iPad-mini-in-landscape gets it too.
+ * b115 polish: parchment background to match the cozy theme
+ * instead of dark cocoa, slimmer topbar (32px), proper z-stacking
+ * so the rail sits above the panel, and explicit layout boundaries
+ * so the topbar doesn't bleed behind the rail.
  * ============================================================ */
 @media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
-  /* Side rail — was bottom-nav, now left edge column */
+  /* Side rail — parchment-themed (matches the panel sheet) */
   .bottom-nav {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     bottom: 0 !important;
     right: auto !important;
-    width: calc(60px + var(--safe-l, 0px)) !important;
+    width: calc(64px + var(--safe-l, 0px)) !important;
     height: 100vh !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
-    padding: 8px 4px 8px calc(4px + var(--safe-l, 0px)) !important;
-    gap: 4px !important;
+    padding: 6px 4px 6px calc(4px + var(--safe-l, 0px)) !important;
+    gap: 3px !important;
     border-top: none !important;
-    border-right: 1px solid #b8893e;
-    background: linear-gradient(90deg, rgba(60,40,16,.98), rgba(40,25,12,.95)) !important;
-    backdrop-filter: blur(8px);
-    box-shadow: 2px 0 8px rgba(0,0,0,.3);
+    border-right: 2px solid #b8893e !important;
+    /* Parchment gradient — vertical, fades from cream at top to
+     * slightly darker at bottom. Keeps theme consistent. */
+    background: linear-gradient(180deg, #fff8e2 0%, #f4e4bc 50%, #e8d5a3 100%) !important;
+    box-shadow: 2px 0 12px rgba(60,40,16,.25);
     z-index: 100;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
   }
+  .bottom-nav::-webkit-scrollbar { display: none; }
+
   .bn-btn, .bottom-nav button {
     flex: 0 0 auto !important;
     width: 100% !important;
     min-width: 0 !important;
-    min-height: 48px !important;
-    padding: 6px 4px !important;
+    min-height: 46px !important;
+    padding: 5px 4px !important;
     font-size: 9px !important;
     flex-direction: column;
-    gap: 2px;
-    border-radius: 4px;
+    gap: 1px;
+    border-radius: 5px;
+    color: #5c2d08 !important;       /* dark cocoa on parchment */
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    font-family: 'Cinzel', serif !important;
+    font-weight: 600 !important;
+    letter-spacing: .04em;
   }
   .bn-btn .ic, .bottom-nav button .ic {
     font-size: 18px !important;
     margin-bottom: 0 !important;
+    line-height: 1;
   }
-  /* Active rail item — wax-stamp red */
+  .bn-btn:hover, .bottom-nav button:hover {
+    background: rgba(184,137,62,.15) !important;
+  }
+  /* Active rail item — wax-stamp red, like every other primary action */
   .bn-btn.active {
-    background: linear-gradient(180deg, #d44a3a, #8b2a1f);
+    background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
     color: #fff8e2 !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    border-color: #5a1208 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3) !important;
   }
 
-  /* Push everything else right so the rail doesn't overlap */
-  .app, #app, .main, .topbar, .panel.active, #activity-bar {
-    padding-left: calc(60px + var(--safe-l, 0px)) !important;
+  /* Push the entire layout right so the rail doesn't overlap.
+   * Apply to .app (the grid) — its children inherit the offset. */
+  .app, #app {
+    padding-left: calc(64px + var(--safe-l, 0px)) !important;
   }
-  /* Activity bar stays at top but with slimmer profile */
-  #activity-bar {
-    height: 28px !important;
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-    font-size: 11px !important;
-  }
-  /* Topbar — slim strip; gets the .bottom-nav-removed bottom space back */
+  /* Topbar — slim strip, no extra padding-left because .app already padded */
   .topbar {
-    height: 36px !important;
-    min-height: 36px !important;
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 2px 8px !important;
+    gap: 4px !important;
   }
-  /* Panel uses the full vertical now (no bottom-nav at the bottom) */
+  .topbar h1, .topbar .player-name { font-size: 12px !important; }
+  /* Stats row — tighter so QUESTS / DUNGEONS don't overflow */
+  .top-stats { gap: 2px !important; }
+  .t-stat {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    min-height: 24px !important;
+  }
+  .qbtn, .topbar button {
+    min-height: 26px !important;
+    padding: 2px 6px !important;
+    font-size: 10px !important;
+  }
+
+  /* Activity bar — slim 26px strip, sits flush under topbar */
+  #activity-bar {
+    height: 26px !important;
+    min-height: 26px !important;
+    padding: 2px 8px !important;
+    font-size: 10px !important;
+  }
+
+  /* Panel — fills the rest. No bottom-bar = no bottom padding reserved. */
   .panel.active {
-    padding-bottom: max(8px, var(--safe-b, 0px)) !important;
+    padding: 6px 8px max(6px, var(--safe-b, 0px)) !important;
   }
-  /* Chat-pill / floating UI stays out of the way */
+
+  /* DUNGEONS button — was overflowing right. Constrain to inline width. */
+  #panel-combat #hr-dungeons-link {
+    width: auto !important;
+    max-width: 140px !important;
+    margin: 0 0 0 8px !important;
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+    position: static !important;
+  }
+  /* Combat sub-tab strip + DUNGEONS share a single row in landscape */
+  #panel-combat .cmb-mob-tabs {
+    margin: -6px -8px 6px !important;
+    padding: 4px !important;
+  }
+
+  /* Chat pill stays hidden, but if user opens chat from More menu, the
+   * full dock should respect the side-rail offset too. */
   #chat-dock.mini { display: none !important; }
+  #chat-dock.full {
+    left: calc(64px + var(--safe-l, 0px)) !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: 100vh !important;
+  }
 }
 
 /* ============================================================

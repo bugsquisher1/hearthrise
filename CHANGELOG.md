@@ -4,6 +4,26 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 115 — 2026-05-04 (landscape visual polish)
+
+Tyler's first b114 read: "clunky, no parchment background on left nav." Six issues spotted in the iframe screenshot:
+
+1. Side rail dark cocoa, didn't match theme
+2. Topbar still too tall — eating reclaimed vertical
+3. DUNGEONS button overflowed to the right
+4. Buttons clustered at top of rail, bottom empty
+5. Topbar email clipped behind rail boundary
+6. Activity bar barely visible
+
+This patch fixes all six.
+
+- 🟫 **Side rail is parchment** (cream→amber gradient) with 2px gold border. Cocoa text, Cinzel font, hover state, wax-stamp red active. Matches the rest of the cozy theme — feels like part of the game, not an injected sidebar.
+- 📏 **Topbar 32px** (was 36) with tighter stats row
+- 🛡️ **DUNGEONS button** width-capped at 140px so it stops sprawling
+- 📐 Activity bar 26px slim
+- 🔧 Layout offset moved to `.app` level so children inherit cleanly — topbar no longer bleeds behind the rail
+- 💬 Full chat dock (when opened from More menu) respects side-rail offset
+
 ## v0.9.1-beta build 114 — 2026-05-04 (landscape side-rail nav)
 
 The real landscape answer (b113 was the baseline; this is the structural fix).

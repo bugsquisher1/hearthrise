@@ -4381,94 +4381,20 @@ window._itemPath = window._itemPath || {};
 (function(){
 "use strict";
 
-/* ─── Extend _itemPath with the remaining 31 trophies ─── */
+/* b125 cleanup: removed ~90 lines of `icons3/...` path assignments
+ * for items / skills / monsters. None of those PNGs ship — only the
+ * curated `assets/icons-bundle/` subset was deployed. The icons3 maps
+ * just created broken-image squares that were partly papered over by
+ * the LOCAL_*_ICON overrides at the bottom of this file.
+ *
+ * Initialize the maps as empty so downstream consumers see undefined
+ * for unmapped keys and fall through to the emoji glyph. The
+ * applyLocalIcons() IIFE below populates the entries we actually
+ * have art for. */
 window._itemPath = window._itemPath || {};
-  window._itemPath['alpha_fang'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['ancient_claw'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['ancient_fragment'] = 'icons3/ProfessionIcons/LootIcons/Loot_27_rune.png';
-  window._itemPath['bear_claw'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['brute_plate'] = 'icons3/ProfessionIcons/ResourceIcons/Res_07_ironbar.png';
-  window._itemPath['captain_medal'] = 'icons3/ProfessionIcons/LootIcons/Loot_01_coins.png';
-  window._itemPath['cracked_spellstone'] = 'icons3/ProfessionIcons/ResourceIcons/Res_109_brokenCrystal.png';
-  window._itemPath['dark_sigil'] = 'icons3/ProfessionIcons/LootIcons/Loot_28_rune.png';
-  window._itemPath['death_steel'] = 'icons3/ProfessionIcons/ResourceIcons/Res_07_ironbar.png';
-  window._itemPath['dire_fang'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['grave_dust'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['hell_ember'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['hollow_sigil'] = 'icons3/ProfessionIcons/LootIcons/Loot_29_rune.png';
-  window._itemPath['night_fang'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['plague_ichor'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['razor_claw'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['rat_tail'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['shadow_thread'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['silk_thread'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['small_fang'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['spider_eye'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['sticky_core'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['swarm_heart'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['venom_sac'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['void_chitin'] = 'icons3/ProfessionIcons/LootIcons/Loot_183_claw.png';
-  window._itemPath['void_core'] = 'icons3/ProfessionIcons/ResourceIcons/Res_109_brokenCrystal.png';
-  window._itemPath['war_crown'] = 'icons3/ProfessionIcons/LootIcons/Loot_01_coins.png';
-  window._itemPath['warlord_badge'] = 'icons3/ProfessionIcons/LootIcons/Loot_01_coins.png';
-  window._itemPath['wraith_veil'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['goblin_totem'] = 'icons3/ProfessionIcons/LootIcons/Loot_27_rune.png';
-  window._itemPath['fox_companion'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_01_nobg.png';
 window._itemSVG = window._itemSVG || {};
-Object.keys(window._itemPath).forEach(function(id){
-  window._itemSVG[id] = '<img src="' + window._itemPath[id] + '" class="poneti-icon" alt="" loading="lazy" />';
-});
-
-/* ─── Skill icon map ─── */
 window._skillIcon = {};
-  window._skillIcon['attack'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_01.png';
-  window._skillIcon['strength'] = 'icons3/WeaponIcons/WeaponIconsVol1/Hammer_03.png';
-  window._skillIcon['defense'] = 'icons3/MedievalIcons/WeponMedieval/KnightShield.png';
-  window._skillIcon['hitpoints'] = 'icons3/ProfessionIcons/ResourceIcons/Res_84_heart.png';
-  window._skillIcon['prayer'] = 'icons3/ProfessionIcons/LootIcons/Loot_51_cross.png';
-  window._skillIcon['magic'] = 'icons3/SkillsIcons/Bonus/Skill2_Nobg/wand1_shot_nobg.png';
-  window._skillIcon['ranged'] = 'icons3/WeaponIcons/WeaponIconsVol1/Bow_01.png';
-  window._skillIcon['bountyHunter'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_22_scroll.png';
-  window._skillIcon['woodcutting'] = 'icons3/ProfessionIcons/LootIcons/Loot_09_axe.png';
-  window._skillIcon['mining'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_18_pickaxe.png';
-  window._skillIcon['fishing'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Monster_fish_nb.png';
-  window._skillIcon['farming'] = 'icons3/ProfessionIcons/LootIcons/Loot_109_wheat.png';
-  window._skillIcon['cooking'] = 'icons3/BuildingMaterials/CampfireCauldron.png';
-  window._skillIcon['crafting'] = 'icons3/BuildingMaterials/DoubleEdgeSaw.png';
-  window._skillIcon['smithing'] = 'icons3/BuildingMaterials/Anvil.png';
-
-/* ─── Monster icon map ─── */
 window._monsterIcon = {};
-  window._monsterIcon['slime'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Creatures_01_nobg.png';
-  window._monsterIcon['rat'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_01_nobg.png';
-  window._monsterIcon['goblin'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/CryingDemon_nb.png';
-  window._monsterIcon['weak_skeleton'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/HadesServant_nb.png';
-  window._monsterIcon['small_wolf'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_02_nobg.png';
-  window._monsterIcon['giant_bat'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Bat_nb.png';
-  window._monsterIcon['hobgoblin'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Demon_01_nobg.png';
-  window._monsterIcon['wolf'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_05_nobg.png';
-  window._monsterIcon['skeleton'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/HadesServant_nb.png';
-  window._monsterIcon['dark_wizard'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Cultist_nb.png';
-  window._monsterIcon['venom_spider'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Creatures_05_nobg.png';
-  window._monsterIcon['goblin_brute'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/DemonicTentacles_nb.png';
-  window._monsterIcon['dire_wolf'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_07_nobg.png';
-  window._monsterIcon['zombie'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Devourer_nb.png';
-  window._monsterIcon['warlock'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Cultist_nb.png';
-  window._monsterIcon['plague_swarm'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Creatures_07_nobg.png';
-  window._monsterIcon['goblin_warlord'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Demon_01_nobg.png';
-  window._monsterIcon['bear'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_03_nobg.png';
-  window._monsterIcon['wraith'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/CryingDemon_nb.png';
-  window._monsterIcon['lesser_demon'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Demon_01_nobg.png';
-  window._monsterIcon['shadow_creeper'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/DemonicTentacles_nb.png';
-  window._monsterIcon['warband_captain'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/BoldWarrior_nb.png';
-  window._monsterIcon['panther'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_04_nobg.png';
-  window._monsterIcon['death_knight'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/DarkLord_nb.png';
-  window._monsterIcon['archmage'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/FrostMage_nb.png';
-  window._monsterIcon['void_parasite'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Creatures_09_nobg.png';
-  window._monsterIcon['war_king'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/DarkLord_nb.png';
-  window._monsterIcon['ancient_bear'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Animals_08_nobg.png';
-  window._monsterIcon['lich'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Cultist_nb.png';
-  window._monsterIcon['dragon'] = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/Creatures_03_nobg.png';
 
 /* ─── DOM walkers — replace emoji with <img> after each render ─── */
 function paintSkillIcons(){
@@ -9422,20 +9348,18 @@ var BUNDLE_MONSTER_ICON = {
    Total recommended spend: ~$20–40 on Itch.io.
    ──────────────────────────────────────────────────────────────────── */
 
-// Apply mappings — overwrite existing entries with bundle paths
+// b125 cleanup: BUNDLE_*_ICON maps point at `assets/raw-bundle/...`
+// which is NOT shipped — those paths 404 in production. The
+// applyLocalIcons() IIFE below maps the curated subset we DO ship to
+// `assets/icons-bundle/...`. Anything not in the curated subset falls
+// through to the emoji glyph from the data file (m.icon).
+//
+// The BUNDLE_*_ICON literals stay above as the canonical "shopping
+// list" of art we want once the raw packs are shipped. For now we
+// don't apply them — they'd just create broken-image squares.
 window._skillIcon   = window._skillIcon   || {};
 window._itemPath    = window._itemPath    || {};
 window._monsterIcon = window._monsterIcon || {};
-
-Object.keys(BUNDLE_SKILL_ICON).forEach(function(k){
-  window._skillIcon[k] = encPath(BUNDLE_SKILL_ICON[k]);
-});
-Object.keys(BUNDLE_ITEM_ICON).forEach(function(k){
-  window._itemPath[k] = encPath(BUNDLE_ITEM_ICON[k]);
-});
-Object.keys(BUNDLE_MONSTER_ICON).forEach(function(k){
-  window._monsterIcon[k] = encPath(BUNDLE_MONSTER_ICON[k]);
-});
 
 // ============================================================
 // Bundle availability probe (b101) → local-icons override (b103)

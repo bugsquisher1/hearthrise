@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 125 — 2026-05-04 (cleanup pass: dead icons + old SW snapshots)
+
+Cleanup sweep to cut bug surface, since "code rot" was making bug-hunting harder than it should be. No new features, no behavior changes — just deletes.
+
+- 🗑 **Removed ~90 lines of dead `icons3/...` path assignments** in `src/legacy.js` (lines 4380–4471). They populated `_itemPath`, `_skillIcon`, `_monsterIcon` with paths to icon folders that aren't shipped on the deploy. The `applyLocalIcons()` IIFE at the bottom of the file maps the curated subset we DO ship to `assets/icons-bundle/...`. Anything not in the curated subset falls through to the emoji glyph from the data file (`m.icon`), which is the desired behaviour.
+- 🗑 **Stopped applying broken `BUNDLE_*_ICON` paths.** `BUNDLE_SKILL_ICON` / `BUNDLE_ITEM_ICON` / `BUNDLE_MONSTER_ICON` literals are kept as the canonical "shopping list" of art we want to buy from Itch, but we no longer push their `assets/raw-bundle/...` paths into the runtime maps because that folder isn't deployed.
+- 📁 **Moved 23 old snapshot HTML files** (`hearthbound-phaseA-*.html`, `hearthrise-phaseA-*.html`, `hearthbound-v2.html`, etc.) from the deploy root into `.legacy/snapshots/`. Each one shipped its own service worker that could re-register on a stuck device if a user landed on a stale URL. Cleaner deploy folder + one less haunting vector.
+
+Net: ~150 lines deleted from `legacy.js`, deploy root is now just `index.html` + two harmless dev tool pages (`icon-mapping-preview.html`, `style-lanes.html` — neither registers a SW).
+
 ## v0.9.1-beta build 124 — 2026-05-04 (universal SW kill-switch + duplicate prof-toolbar hide)
 
 Tyler hit "Auth not configured" again on a stuck device. Console traced errors to `legacy.js?v=111` even though deployed HTML is v=124 — the b111+ service worker on his device cached old HTML and is still serving it instead of fetching fresh. b119's kill-switch only triggered for the original `hearthbound-v2` legacy cache, which means anyone whose SW cached a build between b110 and b123 stayed stuck.

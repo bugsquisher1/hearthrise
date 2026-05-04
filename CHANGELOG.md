@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 108 — 2026-05-04 (mobile feel pass + PWA polish)
+
+Tyler reported it's a "shit experience" on a real phone in browser. The iframe audit only proves CSS works at 380px; doesn't catch the actual touch / keyboard / safe-area / lag issues. This pass attacks those.
+
+- 👆 **Tap delay killed everywhere** — `touch-action: manipulation` globally + on every interactive element. The 200-300ms iOS tap-lag responsible for "feels slow" is gone.
+- 🎯 **Tap targets ≥44px on every interactive element** (Apple HIG minimum). Bottom-nav buttons 52px, monster/bounty cards 56px, Accept/Build/Buy buttons 40px, combat-style picker 48px, paper-doll slots 56px. Phones can actually hit things now.
+- 📱 **Safe-area-insets respected** for iPhone home indicator + notch. Bottom nav extends with `env(safe-area-inset-bottom)`, topbar pads with `env(safe-area-inset-top)`. No more home indicator chopping the nav.
+- ⌨️ **Soft keyboard no longer covers chat input** — new `src/mobile-keyboard.js` module toggles `body.kb-open` on focus + scrolls the field above the keyboard. Uses `visualViewport` API on newer browsers for precise detection.
+- 🌬 **Visual breathing room** — bigger base font on phones (14 / 1.45 line-height), more panel padding, more card spacing.
+- 🍯 **Wax-red tap highlight** instead of the default blue iOS Safari flash — matches the rest of the cozy theme.
+- 🏠 **PWA install polished** — manifest now uses the real Hearthrise crest icon (was emoji), `theme_color` + `background_color` switched to cozy palette so the install splash + status bar match the in-game UI. "Add to Home Screen" produces a proper-looking app.
+
 ## v0.9.1-beta build 107 — 2026-05-04 (mobile follow-ups)
 
 Two issues caught when re-walking the iframe mobile audit after b106 deployed.

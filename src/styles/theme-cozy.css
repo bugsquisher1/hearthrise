@@ -765,6 +765,137 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 }
 
 /* ============================================================
+ * b108 — General mobile polish (real-phone "feels like an app")
+ * ============================================================
+ * Five universal-suspect issues on real mobile browsers:
+ *   #1 tap targets too small (Apple HIG: 44×44 minimum)
+ *   #4 300ms tap delay (touch-action: manipulation)
+ *   #5 bottom safe-area-inset (iPhone home indicator)
+ *   #6 soft keyboard covering inputs
+ *   #8 visual cramping (fonts/padding bumped up)
+ * ============================================================ */
+
+/* #4 — Kill the 300ms tap delay everywhere. iOS Safari adds it on
+ * any clickable element unless touch-action says otherwise. This
+ * single rule is responsible for 80% of "feels laggy on mobile". */
+html {
+  touch-action: manipulation;
+}
+button, a, [role="button"], .btn, .nav-btn, .bn-btn,
+.bounty-option, .skill-tile, .activity-card, .iap-card,
+.combat-style-buttons > *, .csb-btn, .shop-row,
+.monster-row, .invc-tile, .td-slot {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(212, 74, 58, .25); /* wax-red flash */
+}
+
+/* #5 — Safe-area padding for iPhone home indicator + notch */
+:root {
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+@media (max-width: 540px) {
+  .bottom-nav {
+    padding-bottom: var(--safe-b) !important;
+    height: calc(60px + var(--safe-b)) !important;
+  }
+  .topbar {
+    padding-top: max(8px, var(--safe-t)) !important;
+  }
+  /* So content above the bottom nav isn't hidden behind it. */
+  .main, #app .main, .panel.active {
+    padding-bottom: calc(60px + var(--safe-b) + 8px) !important;
+  }
+}
+
+/* #1 — Tap targets ≥44px on key interactive elements */
+@media (max-width: 540px) {
+  .bn-btn,
+  .bottom-nav button {
+    min-height: 52px !important;
+    min-width: 56px !important;
+    padding: 8px 6px !important;
+    font-size: 10px !important;
+  }
+  .bn-btn .ic {
+    font-size: 22px !important;
+    margin-bottom: 2px;
+  }
+  /* Topbar pills (Quests, stats, gear) */
+  .topbar button,
+  .topbar .t-stat,
+  .topbar .qbtn {
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+  }
+  /* Monster cards / bounty cards / shop rows */
+  .bounty-option,
+  .monster-row,
+  .shop-row {
+    min-height: 56px !important;
+    padding: 10px 12px !important;
+  }
+  /* Accept / Build / Buy buttons inside cards */
+  .bounty-option button,
+  .shop-row button,
+  .iap-card button,
+  .btn-sm {
+    min-height: 40px !important;
+    padding: 8px 14px !important;
+    font-size: 12px !important;
+  }
+  /* Combat-style picker buttons */
+  .csb-btn,
+  .combat-style-buttons > * {
+    min-height: 48px !important;
+    padding: 10px 8px !important;
+  }
+  /* Activity tiles (left sidebar in Activities) */
+  .activity-card,
+  .skill-tile {
+    min-height: 64px !important;
+  }
+  /* Inventory paper-doll slots */
+  .td-doll .td-slot {
+    min-height: 56px !important;
+  }
+}
+
+/* #8 — Reduce visual cramping. Bigger base text + breathing room. */
+@media (max-width: 540px) {
+  body {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .panel.active {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .card {
+    margin-bottom: 12px !important;
+  }
+  /* Bestiary / Achievements / similar grid items */
+  .iap-grid,
+  .ach-grid {
+    gap: 10px !important;
+  }
+}
+
+/* #6 — Soft-keyboard handling: when chat input or any text field
+ * is focused on phone, keep it visible above the keyboard. */
+@media (max-width: 540px) {
+  body.kb-open #chat-dock.full {
+    bottom: 0 !important;
+    height: 50vh !important;
+  }
+  body.kb-open .panel.active {
+    padding-bottom: 50vh !important;
+  }
+}
+
+/* ============================================================
  * Phone-specific (<=400px) — extra-tight tuning
  * ============================================================ */
 @media (max-width: 400px) {

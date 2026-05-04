@@ -1885,15 +1885,21 @@ function installPwa(){
   const manifest={
     name:'Hearthrise — Idle Homestead',
     short_name:'Hearthrise',
-    description:'Idle MMO homestead. Fight, farm, gather.',
+    description:'Idle homestead RPG — fight, farm, craft, build a home.',
     start_url:'./',
     display:'fullscreen',
     orientation:'any',
-    background_color:'#070b10',
-    theme_color:'#0b1117',
+    // b108: switched from old dark navy to cozy parchment palette so the
+    // installed-PWA splash screen + status bar match the in-game UI.
+    background_color:'#fff8e2',     // parchment cream
+    theme_color:'#5c2d08',           // cocoa
+    categories:['games','entertainment'],
     icons:[
-      {src:'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" fill="#0b1117"/><text y="148" font-size="148" x="22">🏡</text></svg>'),sizes:'192x192',type:'image/svg+xml'},
-      {src:'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0b1117"/><text y="400" font-size="400" x="60">🏡</text></svg>'),sizes:'512x512',type:'image/svg+xml'},
+      // Real Hearthrise crest instead of emoji square. Available on the
+      // deploy at assets/brand/hearthrise-logo.svg.
+      {src:'assets/brand/hearthrise-logo.svg', sizes:'any', type:'image/svg+xml', purpose:'any'},
+      {src:'assets/brand/hearthrise-logo.svg', sizes:'192x192', type:'image/svg+xml'},
+      {src:'assets/brand/hearthrise-logo.svg', sizes:'512x512', type:'image/svg+xml'},
     ],
   };
   const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});

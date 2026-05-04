@@ -519,8 +519,12 @@ function processOfflineCombat(maxHrs){
     const mDmg = Math.random() < mr.accuracy ? rand(1, mr.maxHit) : 0;
     G.playerHp = Math.max(0, G.playerHp - mDmg);
 
-    // Auto-eat
-    if(G.playerHp < G.playerMaxHp * (G.autoEatPct || 0.5) && G.foodSlot && (G.inventory[G.foodSlot]||0) > 0){
+    // b134: route auto-eat through HearthriseAuto so config is unified.
+    // Falls back to the legacy inline path if HearthriseAuto isn't loaded
+    // (defensive — production always has it via index.html script order).
+    if(window.HearthriseAuto && typeof window.HearthriseAuto.maybeAutoEat === 'function'){
+      if(window.HearthriseAuto.maybeAutoEat()) foodEaten++;
+    } else if(G.playerHp < G.playerMaxHp * (G.autoEatPct || 0.5) && G.foodSlot && (G.inventory[G.foodSlot]||0) > 0){
       const fd = ITEMS[G.foodSlot];
       if(fd && fd.heals){
         G.playerHp = Math.min(G.playerMaxHp, G.playerHp + fd.heals);
@@ -809,7 +813,16 @@ function addXp(sk,amt){
   const old=levelFromXp(G.skills[sk]||0);
   G.skills[sk]=(G.skills[sk]||0)+gain;
   const nw=levelFromXp(G.skills[sk]);
-  if(nw>old){if(sk==='hitpoints')G.playerMaxHp=nw;notify(`🎉 ${SKILLS_DEF[sk]?.name||sk} ${nw}!`,'levelup');refreshAll();}
+  if(nw>old){
+    if(sk==='hitpoints')G.playerMaxHp=nw;
+    notify(`🎉 ${SKILLS_DEF[sk]?.name||sk} ${nw}!`,'levelup');
+    refreshAll();
+    // b134: train-to-level auto-stop. The engine self-disables after
+    // firing so re-starting the same skill won't immediately stop again.
+    if(window.HearthriseAuto && typeof window.HearthriseAuto.maybeStopTraining === 'function'){
+      window.HearthriseAuto.maybeStopTraining();
+    }
+  }
 }
 function addItem(id,qty=1,track=true){if(!ITEMS[id])return;G.inventory[id]=(G.inventory[id]||0)+qty;if(track)trackCollection(id,qty);}
 function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];}
@@ -1124,7 +1137,13 @@ function combatTick(){
   log.push(mDmg>0?`🩸 ${m.name} hits you for ${mDmg}`:`🛡️ ${m.name} misses!`);
   /* Defense XP now comes from active combat style (e.g. sword 'defensive' or 'controlled'),
      not passively from being hit. Old passive grant removed per combat-style spec. */
-  if(G.playerHp<G.playerMaxHp*G.autoEatPct&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
+  // b134: auto-eat goes through HearthriseAuto.maybeAutoEat() — config
+  // lives on G.autoActions.eat. The engine handles HP threshold check,
+  // food selection (configured or best-in-bag), heal, decrement, log push.
+  // Defensive fallback to legacy inline behaviour if the API hasn't loaded yet.
+  if(window.HearthriseAuto && typeof window.HearthriseAuto.maybeAutoEat === 'function'){
+    window.HearthriseAuto.maybeAutoEat();
+  } else if(G.playerHp<G.playerMaxHp*G.autoEatPct&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
     const fd=ITEMS[G.foodSlot];
     if(fd?.heals){G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);removeItem(G.foodSlot,1);G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;log.push(`🍖 Auto-ate ${fd.n} (+${fd.heals})`);}
   }
@@ -1519,7 +1538,7 @@ function renderCombat(){
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
     <div class="row between" style="margin-top:9px;gap:8px;flex-wrap:wrap">
       <label class="row tiny muted" style="gap:6px">Auto-eat:
-        <select onchange="G.foodSlot=this.value||null;notify(this.value?'Food set':'Auto-eat off','info')" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
+        <select onchange="G.foodSlot=this.value||null;if(window.HearthriseAuto)window.HearthriseAuto.setEat({foodId:this.value||null,enabled:!!this.value});notify(this.value?'Auto-eat: '+(window.ITEMS[this.value]?.n||this.value):'Auto-eat off','info')" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
           <option value="">None</option>
           ${foods.map(([id])=>`<option value="${id}" ${G.foodSlot===id?'selected':''}>${ITEMS[id].icon} ${ITEMS[id].n} (x${G.inventory[id]})</option>`).join('')}
         </select>

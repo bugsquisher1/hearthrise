@@ -120,8 +120,17 @@
       apply: function(save){
         // Auto-action engine config (Batch A scaffold; B/C wire engines)
         if(save.autoActions == null){
+          // b134 forward-compat: backfill from the pre-roadmap auto-eat
+          // fields so existing players' setups carry over. If foodSlot
+          // was set, treat it as their explicit choice + flip enabled.
+          var legacyFoodId   = (typeof save.foodSlot === 'string') ? save.foodSlot : null;
+          var legacyEatPct   = (typeof save.autoEatPct === 'number') ? save.autoEatPct : 0.5;
           save.autoActions = {
-            eat:         { enabled: false, threshold: 0.5, foodId: null },
+            eat:         {
+              enabled:   !!legacyFoodId,
+              threshold: legacyEatPct,
+              foodId:    legacyFoodId,
+            },
             trainGoal:   { enabled: false, skillId: null, targetLevel: null },
             farmReplant: { enabled: false, cropId: null },
           };

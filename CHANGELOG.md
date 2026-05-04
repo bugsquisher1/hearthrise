@@ -4,6 +4,25 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 134 — 2026-05-04 (Batch B — auto-eat + train-to-level)
+
+First user-visible features off the b133 foundations. Two idle-game essentials:
+
+- 🍖 **#7 Auto-eat at HP threshold.** `HearthriseAuto.maybeAutoEat()` is called from the live combat tick AND offline catch-up. Reads config from `G.autoActions.eat` ({enabled, threshold, foodId}). When HP fraction ≤ threshold, eats one food (configured `foodId`, or falls back to the highest-`heals` food in bag), heals, decrements inventory, pushes a log line. The pre-roadmap inline auto-eat code was redirected through this engine — single source of truth. Existing food-slot dropdown in the loadout panel now syncs both `G.foodSlot` (legacy) and `G.autoActions.eat` (new).
+- 🎯 **#15 Train-to-level-X auto-stop.** `HearthriseAuto.maybeStopTraining()` hooks into `addXp()`'s level-up branch. When the active skill matches the configured goal AND the new level meets/exceeds the target, the skill auto-stops with a `🎯 Cooking Lv 8 reached — auto-stopped` toast. The engine self-disables after firing so re-starting the same skill doesn't immediately stop again. New "Stop at Lv [_]" checkbox + number input live in the activity-detail header for each skill.
+- 🗄 **Migration v3→v4 extended** to backfill `G.autoActions.eat` from the legacy `G.foodSlot` / `G.autoEatPct` fields. Existing players' setups carry over: if they had a food slot set, auto-eat is automatically enabled with that food at their previous threshold.
+
+**Discoverability:** auto-eat surfaced in the existing loadout food picker, train-goal surfaced in the activity panel header. Both can be enabled/disabled inline without going to settings.
+
+**5 new regression tests:**
+- maybeAutoEat heals + decrements food when below threshold
+- maybeAutoEat is a no-op when disabled
+- maybeAutoEat falls back to best food in bag when no foodId set
+- maybeStopTraining stops active skill at goal level + self-disables
+- maybeStopTraining ignores non-matching skill (Cooking goal doesn't stop Mining)
+
+**Architecture note:** `combatTick`'s inline auto-eat path is preserved as a defensive fallback (in case `HearthriseAuto` hasn't loaded yet — script-order safety). When the new engine is present, it takes priority. The legacy `G.foodSlot` / `G.autoEatPct` fields are kept in sync for backward compat with the existing UI; a future cleanup batch can deprecate them.
+
 ## v0.9.1-beta build 133 — 2026-05-04 (Batch A — enhancement roadmap foundations)
 
 Tyler approved a 34-item enhancement roadmap + a new design ask: housing-gated farm progression where the upgrade currency drops from gameplay (bounty completions + tier-2+ mob kills, tradable on the market). Full plan lives in [`ROADMAP.md`](./ROADMAP.md). 11 batches, A through K. This build is **Batch A — foundations only, no user-visible features**. Sets up the plumbing every later batch needs so we don't have to retrofit it.

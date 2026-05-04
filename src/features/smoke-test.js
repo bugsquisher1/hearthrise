@@ -1167,6 +1167,129 @@ const TESTS = [
       window.G.dropLog = snap;
     }
   }),
+
+  // ── b134 — Batch B (auto-eat + train-to-level engines) ──
+
+  // b134: maybeAutoEat() consumes a food + heals when HP is below
+  // threshold. Disabled-by-default config: setEat first, then trigger.
+  () => tryRun('b134: maybeAutoEat heals + decrements food when below threshold', () => {
+    if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeAutoEat !== 'function') return;
+    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
+    const snap = snapshotG();
+    const eatBefore = window.HearthriseAuto.getEat();
+    try {
+      // Set up: low HP, food in bag, auto-eat enabled
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;          // 30% — below default 50% threshold
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.cooked_shrimp = 5;
+      window.G.combatLog = window.G.combatLog || [];
+      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+      const preHp = window.G.playerHp, preQty = window.G.inventory.cooked_shrimp;
+      const ate = window.HearthriseAuto.maybeAutoEat();
+      assert(ate === true, 'maybeAutoEat should return true when triggered');
+      assert(window.G.playerHp > preHp, 'playerHp should increase, was ' + preHp + ' now ' + window.G.playerHp);
+      assert(window.G.inventory.cooked_shrimp === preQty - 1,
+        'cooked_shrimp should decrement by 1, before=' + preQty + ' after=' + window.G.inventory.cooked_shrimp);
+    } finally {
+      window.HearthriseAuto.setEat(eatBefore);
+      restoreG(snap);
+    }
+  }),
+
+  // b134: maybeAutoEat() does nothing when disabled.
+  () => tryRun('b134: maybeAutoEat is a no-op when eat.enabled = false', () => {
+    if (!window.HearthriseAuto) return;
+    const snap = snapshotG();
+    const eatBefore = window.HearthriseAuto.getEat();
+    try {
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.cooked_shrimp = 5;
+      window.HearthriseAuto.setEat({ enabled: false, foodId: 'cooked_shrimp' });
+      const ate = window.HearthriseAuto.maybeAutoEat();
+      assert(ate === false, 'maybeAutoEat should return false when disabled, got ' + ate);
+      assert(window.G.playerHp === 3, 'playerHp should NOT change when disabled');
+    } finally {
+      window.HearthriseAuto.setEat(eatBefore);
+      restoreG(snap);
+    }
+  }),
+
+  // b134: maybeAutoEat() falls back to "best food in bag" when no foodId set.
+  () => tryRun('b134: maybeAutoEat picks best food when foodId not set', () => {
+    if (!window.HearthriseAuto || !window.ITEMS) return;
+    // Need at least 2 different healing foods to test selection.
+    const eligible = Object.keys(window.ITEMS).filter(id => window.ITEMS[id] && window.ITEMS[id].heals);
+    if (eligible.length < 1) return;
+    const snap = snapshotG();
+    const eatBefore = window.HearthriseAuto.getEat();
+    try {
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;
+      window.G.inventory = {};
+      // Give them only one food — so "best" must pick it.
+      const foodId = eligible[0];
+      window.G.inventory[foodId] = 1;
+      window.G.combatLog = [];
+      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: null });
+      const ate = window.HearthriseAuto.maybeAutoEat();
+      assert(ate === true, 'maybeAutoEat should fall back to best-in-bag, got false');
+    } finally {
+      window.HearthriseAuto.setEat(eatBefore);
+      restoreG(snap);
+    }
+  }),
+
+  // b134: maybeStopTraining() stops the active skill when target level is reached.
+  () => tryRun('b134: maybeStopTraining stops skill at goal level', () => {
+    if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeStopTraining !== 'function') return;
+    if (typeof window.startSkill !== 'function' || typeof window.levelFromXp !== 'function') return;
+    const snap = snapshotG();
+    const goalBefore = window.HearthriseAuto.getTrainGoal();
+    try {
+      // Start mining + set goal Lv 2 + give just enough XP to reach Lv 2
+      window.G.skills = window.G.skills || {};
+      const prevXp = window.G.skills.mining || 0;
+      window.startSkill('mining', 'copper_rock', 1500);
+      assert(window.G.activeSkill === 'mining', 'activeSkill should be mining');
+      // Calibrate XP needed for Lv 2 — bump it past whatever lvFromXp(...) === 2 needs
+      window.G.skills.mining = 100; // enough for at least Lv 2 in any reasonable curve
+      const lv = window.levelFromXp(window.G.skills.mining);
+      window.HearthriseAuto.setTrainGoal({ enabled: true, skillId: 'mining', targetLevel: Math.min(lv, 2) });
+      const stopped = window.HearthriseAuto.maybeStopTraining();
+      assert(stopped === true, 'maybeStopTraining should return true when goal met, got ' + stopped);
+      assert(!window.G.activeSkill, 'activeSkill should be cleared after auto-stop, got ' + window.G.activeSkill);
+      // Self-disable check
+      const after = window.HearthriseAuto.getTrainGoal();
+      assert(after.enabled === false, 'trainGoal.enabled should self-disable after firing');
+    } finally {
+      window.HearthriseAuto.setTrainGoal(goalBefore);
+      if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
+      restoreG(snap);
+    }
+  }),
+
+  // b134: maybeStopTraining is a no-op for the wrong skill (training Mining
+  // shouldn't stop because the player set a Cooking goal).
+  () => tryRun('b134: maybeStopTraining ignores non-matching skill', () => {
+    if (!window.HearthriseAuto || typeof window.startSkill !== 'function') return;
+    const snap = snapshotG();
+    const goalBefore = window.HearthriseAuto.getTrainGoal();
+    try {
+      window.startSkill('mining', 'copper_rock', 1500);
+      // Goal is Cooking, but we're mining
+      window.HearthriseAuto.setTrainGoal({ enabled: true, skillId: 'cooking', targetLevel: 1 });
+      const stopped = window.HearthriseAuto.maybeStopTraining();
+      assert(stopped === false, 'maybeStopTraining should not fire for mismatched skill');
+      assert(window.G.activeSkill === 'mining', 'mining should still be active');
+    } finally {
+      window.HearthriseAuto.setTrainGoal(goalBefore);
+      if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
+      restoreG(snap);
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

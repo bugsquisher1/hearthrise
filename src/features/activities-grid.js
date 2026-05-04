@@ -33,11 +33,31 @@ function buildHead(skillId) {
   const iconHtml = window._skillIcon?.[skillId]
     ? `<img src="${window._skillIcon[skillId]}" alt="" style="width:36px;height:36px;object-fit:contain;image-rendering:pixelated" />`
     : `<span class="ah-icon">${s.icon}</span>`;
+
+  // b134: train-to-level goal control. Reads + writes G.autoActions.trainGoal
+  // via HearthriseAuto. Active only when goal.skillId matches THIS skill.
+  // Engine self-disables after firing (in addXp() level-up branch).
+  const goal = (window.HearthriseAuto && window.HearthriseAuto.getTrainGoal()) || { enabled: false };
+  const isMyGoal = !!(goal.enabled && goal.skillId === skillId);
+  const goalLv = isMyGoal && goal.targetLevel ? goal.targetLevel : (lv + 5);
+  const goalControl = lv >= 99 ? '' : `
+    <div class="ah-traingoal" style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)">
+      <label><input type="checkbox" ${isMyGoal ? 'checked' : ''}
+        onchange="if(window.HearthriseAuto){window.HearthriseAuto.setTrainGoal({enabled:this.checked, skillId:'${skillId}', targetLevel:Math.max(${lv + 1}, parseInt(document.getElementById('hr-goal-${skillId}').value,10) || ${lv + 1})});if(this.checked)window.notify?.('Stop ${s.name} at Lv '+document.getElementById('hr-goal-${skillId}').value,'info');}"
+        style="margin:0"
+      /> Stop at Lv</label>
+      <input id="hr-goal-${skillId}" type="number" min="${lv + 1}" max="99" value="${goalLv}"
+        onchange="if(window.HearthriseAuto && document.querySelector('.ah-traingoal input[type=checkbox]').checked){window.HearthriseAuto.setTrainGoal({skillId:'${skillId}', targetLevel:Math.max(${lv + 1}, parseInt(this.value,10) || ${lv + 1}), enabled:true});}"
+        style="width:50px;padding:2px 4px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:4px;color:var(--ink);font-size:11px"
+      />
+    </div>`;
+
   return `<div class="act-head">${iconHtml}
     <div class="ah-meta">
       <div class="ah-row1"><span class="ah-name">${s.name}</span><span class="ah-lvl">Level: ${lv}</span></div>
       <div class="ah-xp">Experience: ${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() : ' MAX'}</div>
       <div class="ah-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      ${goalControl}
     </div>
   </div>`;
 }

@@ -1443,15 +1443,23 @@ function renderProfile(){
       // 3) offline / no auth at all
       const liveSess = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
       const liveUser = liveSess && liveSess.user;
-      const acctName = liveUser
-        ? (liveUser.user_metadata?.display_name || (liveUser.email||'').split('@')[0] || 'Adventurer')
-        : (G.account ? G.account.displayName : null);
+      // b139 (QA §2.1.1): prefer G.playerName when set — it's the player's
+      // chosen name. Fall back to user_metadata.display_name for fresh
+      // cloud users, then to email-username only as last resort. Showing
+      // "themphill22+1" (email local-part) was the visible bug.
+      const customName = (typeof G.playerName === 'string' && G.playerName && G.playerName !== 'Adventurer') ? G.playerName : null;
+      const acctName = customName
+        || (liveUser ? (liveUser.user_metadata?.display_name || (liveUser.email||'').split('@')[0] || 'Adventurer') : null)
+        || (G.account ? G.account.displayName : null)
+        || G.playerName;
       const isOnline = !!(liveUser || G.account);
       const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline play · sign in to sync');
-      // b138 #5: inline rename pencil. Click → prompt → setDisplayName.
-      // Hidden when signed in to a cloud account (renaming there flows
-      // through Settings → Account so it stays in sync with Supabase).
-      const canRename = !liveUser && !G.account;
+      // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
+      // for ALL players, including cloud-signed-in. setDisplayName updates
+      // G.playerName which the cloud sync layer round-trips through
+      // user_metadata. Hiding it from cloud users defeated the whole
+      // point of the feature for the most likely user.
+      const canRename = true;
       const renameBtn = canRename
         ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:12px;opacity:.7">✏️</button>`
         : '';
@@ -1520,8 +1528,10 @@ function renderProfile(){
   if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
-  /* b138 #2: Today's progress card — XP/gold/kills/etc since local midnight.
-     Defensive against missing launchpad: show static fallback. */
+  /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
+     Layout note: the default `.kpi-row` is `repeat(2, 1fr)` which with
+     5-6 cells overflows the card body and forces internal scroll. We
+     override with a 3-column grid so 6 cells fit cleanly in 2 rows. */
   const todayBody = document.getElementById('dash-today-body');
   const todaySub = document.getElementById('dash-today-sub');
   if(todayBody){
@@ -1537,7 +1547,7 @@ function renderProfile(){
         {b: d.harvested.toLocaleString(),       s:'Harvested'},
       ];
       if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'📜 Deeds'});
-      todayBody.innerHTML = `<div class="kpi-row">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
+      todayBody.innerHTML = `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
       if(todaySub){
         const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
         todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
@@ -6821,14 +6831,18 @@ window.buildTibiaDoll = function(){
     slot.onclick = function(){
       if(def && typeof unequip === 'function') unequip(s);
     };
+    // b139 (QA §2.3.1 / §2.6.1): drop the 3-char truncated `<small>` slot
+    // labels (Hel / Nec / Cap / Bod / Bel / Com) which read as random
+    // strings rather than slot names. The slot icon + `title` tooltip
+    // already convey which slot it is. Cleaner visual; no info loss.
     if(def && path){
-      slot.innerHTML = '<img src="'+path+'" alt="" draggable="false" /><small>'+(EQUIP_SLOT_META[s]?.label||s).slice(0,3)+'</small>';
+      slot.innerHTML = '<img src="'+path+'" alt="" draggable="false" />';
       slot.setAttribute('draggable','true');
     } else if(def){
-      slot.innerHTML = (def.icon||'·')+'<small>'+(EQUIP_SLOT_META[s]?.label||s).slice(0,3)+'</small>';
+      slot.innerHTML = (def.icon||'·');
       slot.setAttribute('draggable','true');
     } else {
-      slot.innerHTML = (EQUIP_SLOT_META[s]?.icon||'·')+'<small>'+(EQUIP_SLOT_META[s]?.label||s).slice(0,3)+'</small>';
+      slot.innerHTML = (EQUIP_SLOT_META[s]?.icon||'·');
     }
     doll.appendChild(slot);
   });

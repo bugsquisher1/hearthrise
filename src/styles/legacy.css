@@ -2363,11 +2363,13 @@ body[data-theme="dark"] .lane1-toggle{
 .wbv-claim:hover{background:linear-gradient(180deg,#fdd779,#f9c54e)}
 
 /* ===== block 19: ui-rework-v2-css ===== */
-/* ─── Farm plot cells: shrink + auto-fit grid ─── */
+/* ─── Farm plot cells: shrink + 4-column layout (b139 QA §2.8.1) ─── */
+/* Was `auto-fit minmax(46px, 1fr)` which collapsed 8 plots into 1 row on
+ * wide viewports; now caps at 4 per row so the grid is always 2x4. */
 #panel-farming .farm-grid,
 #panel-farming .plot-grid,
 .farm-mini{
-  grid-template-columns:repeat(auto-fit,minmax(46px,1fr)) !important;
+  grid-template-columns:repeat(4,minmax(46px,1fr)) !important;
   gap:4px !important;
 }
 .farm-tile{

@@ -1630,6 +1630,97 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  // ════════════════════════════════════════════════════════════
+  // b139 — QA sweep fix batch
+  // ════════════════════════════════════════════════════════════
+
+  // b139 §1.1: the 26 previously-missing items must exist in window.ITEMS.
+  // If this fails, we've regressed the items.js ↔ legacy.js drift fix.
+  () => tryRun('b139: Phase A.1 items present in window.ITEMS', () => {
+    const required = [
+      'raw_wolf_meat','raw_panther_meat','raw_bear_meat',
+      'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
+      'roasted_carrot','roasted_pumpkin','vegetable_stew',
+      'bear_claw_pie','hunters_feast','dragon_stew','lich_soul_soup','void_banquet',
+      'bronze_bar','steel_bar','rune_bar',
+      'chief_blade_recipe','captain_recipe','alpha_pattern',
+      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note',
+      'soul_recipe','marrow_cookbook','field_cookbook',
+    ];
+    const missing = required.filter(id => !window.ITEMS || !window.ITEMS[id]);
+    assert(missing.length === 0,
+      'expected all 26 Phase A.1 items present, missing: ' + missing.join(','));
+    // Non-zero values where expected
+    assert(window.ITEMS.bronze_bar.v > 0, 'bronze_bar.v should be > 0');
+    assert(window.ITEMS.steel_bar.v > 0, 'steel_bar.v should be > 0');
+    assert(window.ITEMS.rune_bar.v > 0, 'rune_bar.v should be > 0');
+  }),
+
+  // b139 §1.1: ITEMS divergence count should be 0 (or negligible) now.
+  // This is the integrity check itself running explicitly. Catches the
+  // moment someone adds an item to legacy.js without mirroring it.
+  () => tryRun('b139: ITEMS divergence between legacy + ESM is zero', () => {
+    const legacy = window.__LEGACY_INLINE_ITEMS;
+    const esm = window.ITEMS;
+    if (!legacy || !esm) return; // skip on builds without snapshot
+    const legacyKeys = Object.keys(legacy);
+    const onlyLegacy = legacyKeys.filter(k => !esm[k]);
+    assert(onlyLegacy.length === 0,
+      onlyLegacy.length + ' items still legacy-only: ' + onlyLegacy.slice(0,5).join(',') + (onlyLegacy.length>5?',…':''));
+  }),
+
+  // b139 §1.1: the smelting + cooking + gated recipe chains are reachable
+  // from window.ARTISAN_RECIPES. The actual fix is in src/data/recipes.js.
+  () => tryRun('b139: Phase A.1 recipes registered in ARTISAN_RECIPES', () => {
+    const r = window.ARTISAN_RECIPES || {};
+    const findRecipe = (skill, id) =>
+      (r[skill] || []).some(rec => rec.id === id);
+    const checks = [
+      ['smithing','smelt_bronze'],
+      ['smithing','smelt_steel'],
+      ['smithing','smelt_rune'],
+      ['cooking','cook_wolf_meat'],
+      ['cooking','cook_bear_meat'],
+      ['cooking','cook_veg_stew'],
+      ['smithing','forge_chief_blade'],
+      ['smithing','forge_captain_blade'],
+      ['crafting','craft_alpha_cloak'],
+    ];
+    const missing = checks.filter(([s,id]) => !findRecipe(s, id));
+    assert(missing.length === 0,
+      'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
+  }),
+
+  // b139 §2.1.2: rename pencil should NOT be hidden for cloud-signed-in
+  // users. The fix changed `canRename = !liveUser && !G.account` to just
+  // `canRename = true`. Verify by rendering Profile and checking the
+  // pencil button exists in the dash-user body.
+  () => tryRun('b139: Profile rename pencil renders for all account states', () => {
+    if (typeof window.renderProfile !== 'function') return;
+    try { window.renderProfile(); } catch (e) {}
+    const body = document.getElementById('dash-user-body');
+    if (!body) return; // panel not in DOM yet — skip
+    const pencil = body.querySelector('button[onclick*="setDisplayName"]');
+    assert(pencil != null,
+      'expected rename pencil button in dash-user-body, none found');
+  }),
+
+  // b139 §2.3.1 / §2.6.1: paper-doll equipment slots no longer render
+  // 3-character truncated labels (Hel/Nec/Cap/Bod/Bel/Com).
+  () => tryRun('b139: paper-doll empty slots have no truncated label small', () => {
+    if (typeof window.refreshAllDolls !== 'function') return;
+    try { window.refreshAllDolls(); } catch (e) {}
+    const empties = document.querySelectorAll('.td-slot.empty');
+    if (!empties.length) return; // no doll rendered yet — skip
+    let hadTrunc = false;
+    empties.forEach(s => {
+      const small = s.querySelector('small');
+      if (small && /^[A-Z][a-z]{2}$/.test((small.textContent || '').trim())) hadTrunc = true;
+    });
+    assert(!hadTrunc,
+      'paper-doll empty slot still has 3-char truncated label (e.g. Hel/Nec/Cap)');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

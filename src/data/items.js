@@ -125,6 +125,48 @@ export const ITEMS={
      with the inline ITEMS const in src/legacy.js. */
   farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
 
+  /* ── Phase A.1 items mirrored from legacy.js (b139 — QA sweep §1.1)
+     These were defined in legacy.js's NEW_ITEMS block but missing from
+     this ESM module. Because main.js does `Object.assign(window, {ITEMS})`
+     AFTER legacy.js runs, the ESM ITEMS overwrote the legacy version and
+     these were silently undefined at runtime — breaking every recipe that
+     produced one of them (smelt_bronze, smelt_steel, smelt_rune, all
+     cooked meats, all buff foods, all gated recipe scrolls). The
+     data-integrity check (src/utils/data-integrity.js) flagged this on
+     every boot once the b137 fix made the check actually work. Now in
+     sync. Keep both this file and legacy.js's NEW_ITEMS aligned until
+     legacy.js's block is deleted. */
+  raw_wolf_meat:    {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
+  raw_panther_meat: {n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
+  raw_bear_meat:    {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},
+  cooked_wolf_meat:    {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:6,  cookedFrom:'raw_wolf_meat'},
+  cooked_panther_meat: {n:'Cooked Panther Meat', icon:'🥩', v:22, heals:9,  cookedFrom:'raw_panther_meat'},
+  cooked_bear_meat:    {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:13, cookedFrom:'raw_bear_meat'},
+  // Tier 2 buff foods
+  roasted_carrot:  {n:'Roasted Carrot', icon:'🥕', v:12,  heals:5,  buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
+  roasted_pumpkin: {n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:22, buff:{type:'farm_yield',   magnitude:5,  durationMs:600000}},
+  vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, buff:{type:'all_xp',       magnitude:3,  durationMs:900000}},
+  // Tier 3 buff foods
+  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, buff:{type:'damage',          magnitude:5,  durationMs:600000}},
+  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, buff:{type:'monster_respawn', magnitude:15, durationMs:900000}},
+  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, buff:{type:'combat_xp',       magnitude:10, durationMs:1200000}},
+  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, buff:{type:'gold_find',       magnitude:50, durationMs:300000}},
+  void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
+  // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
+  bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
+  steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
+  rune_bar:   {n:'Rune Bar',   icon:'🔷', v:1200},
+  // Recipe scrolls — drop from named bosses, single-use unlocks for gated recipes
+  chief_blade_recipe:   {n:"Chief's Blade Recipe",      icon:'📜', v:0, recipe:'chief_blade'},
+  captain_recipe:       {n:"Captain's Ribblade Recipe", icon:'📜', v:0, recipe:'captains_ribblade'},
+  alpha_pattern:        {n:'Alpha Cloak Pattern',       icon:'📜', v:0, recipe:'alpha_cloak'},
+  spellstone_diagram:   {n:'Spellstone Diagram',        icon:'📜', v:0, recipe:'spellstone_ring'},
+  dragon_marrow_recipe: {n:'Dragon Marrow Recipe',      icon:'📜', v:0, recipe:'dragonbone_spear'},
+  gemcutter_note:       {n:"Gemcutter's Note",          icon:'📜', v:0, recipe:'dragon_gem_earrings'},
+  soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
+  marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
+  field_cookbook:       {n:'Field Cookbook',            icon:'📜', v:0, recipe:'hunters_feast'},
+
   /* ── Bind-on-Pickup housing blueprints ─────────────────────────
      These drop from daily quests / monster drops / dungeons / raids.
      They unlock the corresponding room upgrade tier when consumed.

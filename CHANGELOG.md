@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 139 — 2026-05-04 (QA sweep fix batch — function over polish)
+
+First fruit of the QA engineering sweep. The b137 data-integrity check (which I'd just unbroken in this session) immediately flagged a structural bug that had been latent for many builds: 26 items defined in `src/legacy.js`'s Phase A.1 NEW_ITEMS block were missing from `src/data/items.js`. Because main.js does `Object.assign(window, {ITEMS})` AFTER legacy.js runs, the ESM ITEMS overwrote the legacy version and 26 entries became `undefined` at runtime. Recipes that produced or consumed them silently failed — meaning the entire smelting (bronze/steel/rune bars), cooked-meat (wolf/panther/bear), buff-food (vegetable_stew, hunters_feast, dragon_stew, lich_soul_soup, void_banquet, bear_claw_pie), and gated-recipe-scroll chains were dead. This batch heals all of that.
+
+- 🔧 **§1.1 P0 — Mirrored 26 missing items into `src/data/items.js`** with a header comment explaining the drift cause + how to keep both files aligned.
+- 🔧 **§1.1 P0 — Mirrored Phase A.1 recipes into `src/data/recipes.js`.** Cooking gained 13 new recipes (combat-meat chain + buff foods + gated tier-3). Smithing gained `smelt_bronze` + `smelt_steel` + `smelt_rune` and the gated chief/captain forges; existing forge_steel_*/forge_rune_* recipes were updated to consume the new bars (was using `iron_bar+coal` as a steel substitute). Crafting gained carved bows/staves, tailored leather, jewelry, and the gated alpha cloak. **34 → 47 recipes total.**
+- 🔧 **§2.1.1 + §2.1.2 P1 — Profile display name + rename pencil for cloud users.** Cloud-signed-in players were seeing `themphill22+1` (email username) as their public display name AND the rename pencil from Batch D was hidden for them. Now: Profile prefers `G.playerName` when set, falls back to `user_metadata.display_name` then email-username only as a last resort. Rename pencil is available for all account states, and `setDisplayName` updates `G.playerName` so cloud sync round-trips it.
+- 🔧 **§2.3.1 + §2.6.1 P1 — Dropped the truncated 3-char paper-doll labels** (`Hel/Nec/Cap/Bod/Bel/Com` etc.) on Combat and Inventory slots. They read as random strings rather than slot names; the slot icon + tooltip already convey the meaning.
+- 🔧 **§2.8.1 P1 — Farm plots now render 2×4 instead of 1×8** on wide viewports. The old `.farm-mini` rule used `auto-fit minmax(46px,1fr)` with `!important`, which overrode my Batch C inline `repeat(4,1fr)`. Pinned to `repeat(4, ...)` directly in the CSS so plots are always 2 rows of 4, regardless of viewport width.
+- 🔧 **§2.1.3 P2 — Today's Progress card now uses a 3-column grid** instead of the default 2-column `.kpi-row`. Six KPIs (XP, Gold, Kills, Gathered, Harvested, Deeds) fit cleanly in 2 rows of 3 instead of forcing internal scroll.
+- 🧪 **5 new regression tests:** Phase A.1 items present in window.ITEMS, ITEMS divergence count = 0, Phase A.1 recipes registered in ARTISAN_RECIPES, Profile rename pencil renders for all account states, paper-doll empty slots have no truncated `<small>` label.
+- 📋 **`QA_FINDINGS.md`** added — full audit log with severity/surface/triage tags so the next sweep can pick up where this one left off. P3 polish nits are all logged for a future polish-only batch (per Tyler: function over polish for this round).
+
+**Architecture note:** Per Tyler's principle "Single source of truth," `src/data/items.js` and `src/data/recipes.js` are now authoritative. The Phase A.1 NEW_ITEMS / NEW_RECIPES blocks in legacy.js are still present but their `if(!ITEMS[k])` and `if(!has(skill, id))` guards mean they're now no-ops (the ESM versions get there first). They can be deleted in a follow-up cleanup batch once we verify nothing else references the local consts.
+
 ## v0.9.1-beta build 138 — 2026-05-04 (Batch D — Profile launchpad)
 
 The Profile is the first thing every player sees on each session, and it was mostly read-only. Batch D turns it into a launchpad — players can resume what they were doing, see today's progress at a glance, know exactly what they're working towards next, and rename themselves without diving into Settings.

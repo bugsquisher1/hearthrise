@@ -1954,7 +1954,7 @@ body.in-combat #combat-area {
 }
 
 /* Mobile tweaks for market */
-@media (max-width: 540px){
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px){
   .mk-toolbar { flex-direction: column; align-items: stretch; }
   .mk-toolbar #mk-sort { min-width: 0; width: 100%; }
   .mk-stats { font-size: 10px; gap: 6px; }
@@ -2136,7 +2136,7 @@ body.in-combat #combat-area {
   filter: none;
 }
 
-@media (max-width: 540px){
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px){
   #buy-modal .bm-stat-row { grid-template-columns: 1fr; gap: 6px; }
   #buy-modal .bm-qty-row { flex-direction: column; align-items: stretch; }
   #buy-modal #bm-qty { width: 100%; }
@@ -2370,7 +2370,7 @@ body.in-combat #combat-area {
 }
 
 /* ===== <= 540px : phone (most users) ===== */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* Topbar: ensure stats don't overflow — allow 2-row wrap */
   .topbar { flex-wrap: wrap; row-gap: 6px; }
   .top-stats { flex-wrap: wrap; row-gap: 4px; max-width: 100%; }
@@ -2504,7 +2504,7 @@ body.in-combat #combat-area {
    prevent the bottom nav from covering the input. We use the
    `ios-keyboard` class added by JS on focus events (set up in
    legacy.js boot if present). ===== */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body.ios-keyboard .bottom-nav { display: none !important; }
   body.ios-keyboard .panel { padding-bottom: 16px !important; }
 }
@@ -2830,7 +2830,7 @@ body.in-combat #combat-area {
 #chat-name-menu button:hover { background: rgba(243,209,129,.12); color: #f3d181; }
 
 /* Mobile: full-screen chat instead of floating dock */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   #chat-dock.full {
     right: 0 !important;
     bottom: 0 !important;
@@ -3053,7 +3053,7 @@ body.in-combat #combat-area {
 }
 
 /* Mobile tweaks */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .settings-section > summary { padding: 14px; min-height: 44px; }
   .ss-row { flex-wrap: wrap; }
   .ss-label { flex-basis: 100%; }

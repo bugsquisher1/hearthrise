@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 113 — 2026-05-04 (landscape baseline + UX plan)
+
+After Tyler discovered he'd been playing in landscape (which our portrait-only media queries didn't match), this push makes landscape phones a first-class orientation rather than a broken one.
+
+**This push is a baseline, not the final answer.** Senior PM read: rather than shipping one giant landscape redesign and risking regressions, we phase it across b113 → b116 with verification gates between each push. Plan is documented in `UX_PLAN.md`.
+
+- 🔄 **Mobile rules now fire in landscape too.** Every `@media (max-width: 540px)` block now also matches `(max-height: 540px) and (max-width: 900px)`. Sub-tabs, dense lists, chat-as-tab, all the b110-b112 work — fires in both orientations.
+- 📐 **Landscape-specific chrome compaction.** Topbar 40px (was 60), bottom nav 40px (was 60), sub-tab strip 32px (was 56). Activity bar 28px. Card padding 4-6px. Reclaims most of the vertical bleed in the cramped 380px landscape height.
+- 📋 **`UX_PLAN.md`** ships with the push, capturing the b113→b116 phased plan to senior-quality landscape (side-rail nav, two-column content, verification gates).
+
+**Open issue (planned for b114):** landscape still uses the horizontal bottom nav, which eats ~40px of vertical when ergonomically a left side rail would work better in landscape. Not addressed in b113 because rotating the nav is a real DOM/layout change with regression risk and we want to verify b113 is stable first.
+
 ## v0.9.1-beta build 112 — 2026-05-04 (Profile bleed-through hotfix)
 
 🚨 **The reason "nothing looked different" on your phone after b110 + b111.**

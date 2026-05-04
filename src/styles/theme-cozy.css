@@ -608,7 +608,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
  *   #5 Topbar player name ellipsis instead of mid-word clip
  *   #6 Combat-style block stacks DUNGEONS below the title
  * ============================================================ */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* #5 — Player name ellipsis */
   .topbar h1,
   .topbar .player-name,
@@ -772,6 +772,97 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 }
 
 /* ============================================================
+ * b113 — Landscape-phone tightening
+ * ============================================================
+ * After expanding all the mobile media queries to also fire in
+ * landscape, the chrome (topbar + sub-tab strip + bottom nav) was
+ * eating ~40% of the ~380px landscape height. This block aggressively
+ * compacts the chrome only when we're in landscape on a phone,
+ * giving the actual game content most of the screen.
+ * ============================================================ */
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 900px) {
+  /* Topbar — single short row, no wrap */
+  .topbar {
+    padding: 2px 6px !important;
+    flex-wrap: nowrap !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .top-stats { flex-wrap: nowrap !important; }
+  .t-stat {
+    padding: 2px 5px !important;
+    font-size: 10px !important;
+    min-height: 26px !important;
+  }
+  .topbar h1, .topbar .player-name { font-size: 13px !important; }
+
+  /* Activity bar — compact strip */
+  #activity-bar {
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+    min-height: 28px !important;
+  }
+
+  /* Bottom nav — shorter, smaller */
+  .bottom-nav {
+    height: calc(40px + var(--safe-b, 0px)) !important;
+  }
+  .bn-btn, .bottom-nav button {
+    min-height: 36px !important;
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+  }
+  .bn-btn .ic { font-size: 14px !important; margin-bottom: 0 !important; }
+
+  /* Sub-tab strips — slimmer */
+  .cmb-mob-tabs, .inv-mob-tabs, .act-mob-strip {
+    padding: 3px 4px !important;
+    margin: -8px -8px 4px !important;
+  }
+  .cmb-mob-tabs .cmt-btn,
+  .inv-mob-tabs .imt-btn,
+  .act-mob-strip .ams-btn {
+    min-height: 32px !important;
+    padding: 3px 6px !important;
+    font-size: 9px !important;
+  }
+  .cmb-mob-tabs .cmt-btn .cmt-ic,
+  .inv-mob-tabs .imt-btn .imt-ic { font-size: 12px !important; }
+  .act-mob-strip .ams-btn .ams-ic { font-size: 14px !important; }
+
+  /* Panels — minimal padding to give content the most room */
+  .panel.active {
+    padding: 4px 6px calc(40px + var(--safe-b, 0px) + 4px) !important;
+  }
+  .card { margin-bottom: 4px !important; padding: 6px 8px !important; }
+  .card-head, .card-body { padding: 4px 8px !important; }
+
+  /* Combat picker monsters — denser rows so more fit on the short screen */
+  #panel-combat .monster-row {
+    padding: 4px 8px !important;
+    min-height: 40px !important;
+  }
+  #panel-combat .monster-row > img,
+  #panel-combat .monster-row > .icon-fallback {
+    width: 28px !important; height: 28px !important;
+    flex-basis: 28px !important;
+  }
+
+  /* House / activity tiles — compact */
+  #panel-house .shop-row .si {
+    flex: 0 0 36px !important;
+    width: 36px !important; height: 36px !important;
+  }
+  #panel-house .shop-row .si img {
+    width: 36px !important; height: 36px !important;
+  }
+  #panel-house .shop-row {
+    padding: 4px 8px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ============================================================
  * b111 — Mobile rebuild pt 2 (Inventory + Activities)
  * ============================================================
  * Same data-mobile-sub pattern as Combat (b110) applied to:
@@ -782,7 +873,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 
 /* Inventory sub-tab strip — hidden by default, mobile-only */
 .inv-mob-tabs { display: none; }
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .inv-mob-tabs {
     display: flex !important;
     position: sticky;
@@ -853,7 +944,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 
 /* Activities skill strip — horizontal-scroll across the top */
 .act-mob-strip { display: none; }
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .act-mob-strip {
     display: flex !important;
     position: sticky;
@@ -931,7 +1022,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 .cmb-mob-tabs {
   display: none;
 }
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .cmb-mob-tabs {
     display: flex !important;
     position: sticky;
@@ -1023,7 +1114,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
     color: #7a4623;
   }
   /* Hide bounty-style verbose chips on mobile bounty board too */
-  @media (max-width: 540px) {
+  @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
     .bounty-option {
       padding: 8px 10px !important;
       min-height: 60px !important;
@@ -1060,7 +1151,7 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
  * way too much scrolling overall. b108 over-padded everything.
  * b109 walks that back to a denser, less-floaty layout.
  * ============================================================ */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* CHAT PILL — was sitting at bottom:16px directly on top of the
    * 60px+safe-b bottom nav. Lift it above the nav so it stops
    * blocking taps and stops looking like a stuck-on overlay. */
@@ -1269,7 +1360,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
 }
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .bottom-nav {
     padding-bottom: var(--safe-b) !important;
     height: calc(60px + var(--safe-b)) !important;
@@ -1284,7 +1375,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 }
 
 /* #1 — Tap targets ≥44px on key interactive elements */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .bn-btn,
   .bottom-nav button {
     min-height: 52px !important;
@@ -1337,7 +1428,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 }
 
 /* #8 — Reduce visual cramping. Bigger base text + breathing room. */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body {
     font-size: 14px;
     line-height: 1.45;
@@ -1358,7 +1449,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* #6 — Soft-keyboard handling: when chat input or any text field
  * is focused on phone, keep it visible above the keyboard. */
-@media (max-width: 540px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body.kb-open #chat-dock.full {
     bottom: 0 !important;
     height: 50vh !important;

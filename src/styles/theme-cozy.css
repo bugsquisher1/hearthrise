@@ -3833,3 +3833,171 @@ body[data-theme="classic"] .modal-card {
  * the legacy code out (do that in Phase 3.5).
  * ============================================================ */
 .lane1-toggle { display: none !important; }
+
+/* ============================================================
+ * b122: SENIOR QA + UI/UX MOBILE SWEEP
+ *
+ * Applies to portrait phones (≤540w) AND landscape phones
+ * (height ≤540 AND width ≤900) so testers on either rotation
+ * get the same polish.
+ *
+ * Fixes:
+ *  - Hide wax seal background on Profile (overlapped content)
+ *  - Profile feat-buttons → 2x2 grid on portrait
+ *  - Character page panels → single column (kill right-side bleed)
+ *  - Topbar → ultra-compact one-row layout
+ *  - Combat FOES sub-tab DUNGEONS button → wraps cleanly
+ *  - Inventory buttons get wax-stamp red theme
+ * ============================================================ */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  /* --- Wax seal off on mobile (was bottom-right ornament that
+         covered Lifetime Stats + Save Status cards on small
+         viewports) --- */
+  html:not([data-theme]) #panel-profile.active,
+  body[data-theme="cozy-light"] #panel-profile.active {
+    background-image:
+      url("../../assets/ornaments/corner-flourish.svg"),
+      url("../../assets/ornaments/corner-flourish.svg"),
+      linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%) !important;
+    background-position: top left, top right, center !important;
+    background-size: 48px 48px, 48px 48px, cover !important;
+    background-repeat: no-repeat, no-repeat, no-repeat !important;
+  }
+  /* Smaller corner flourishes too — they were 64px squares
+     eating useful real estate on a 380px panel */
+  html:not([data-theme]) #panel-profile::before,
+  html:not([data-theme]) #panel-profile::after,
+  body[data-theme="cozy-light"] #panel-profile::before,
+  body[data-theme="cozy-light"] #panel-profile::after {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  /* --- Profile feat-buttons row → 2x2 grid on portrait,
+         single horizontal scroll-row in landscape --- */
+  #panel-profile .feat-buttons,
+  #panel-profile .profile-toolbar,
+  #panel-profile .profile-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  #panel-profile .feat-buttons > *,
+  #panel-profile .profile-toolbar > *,
+  #panel-profile .profile-actions > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 12px !important;
+    padding: 10px 6px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* --- Character page: single column, no right-side bleed --- */
+  #panel-character,
+  #panel-character > *,
+  #panel-character .grid,
+  #panel-character [class*="char-"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #panel-character .char-grid,
+  #panel-character .char-row,
+  #panel-character > .grid,
+  #panel-character .char-cols,
+  #panel-character .character-grid {
+    grid-template-columns: 1fr !important;
+    display: grid !important;
+    gap: 12px !important;
+  }
+  #panel-character .card,
+  #panel-character .panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* --- Topbar ultra-compact: hide non-essentials, shrink pills --- */
+  .topbar,
+  #topbar {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    padding: 4px 6px !important;
+    min-height: 0 !important;
+  }
+  .topbar .currency,
+  .topbar [class*="gold"],
+  .topbar [class*="gem"],
+  .topbar .topbar-pill {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    line-height: 1.2 !important;
+  }
+  .topbar .player-name,
+  .topbar .username,
+  .topbar [class*="-name"] {
+    max-width: 90px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  /* Kill any orphan dark squares (broken icon sources) in topbar */
+  .topbar img:not([src]),
+  .topbar img[src=""],
+  .topbar .icon-broken { display: none !important; }
+
+  /* --- Combat: FOES sub-tab DUNGEONS button --- */
+  #panel-combat .sub-tab-bar,
+  #panel-combat [data-mobile-sub] .header,
+  #panel-combat .panel-head {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #panel-combat .btn-dungeon,
+  #panel-combat [onclick*="ungeon"],
+  #panel-combat button:has(> .em-icon) {
+    flex: 0 1 auto !important;
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+    white-space: nowrap !important;
+  }
+
+  /* --- Inventory action buttons → wax-stamp red --- */
+  #panel-inventory .btn,
+  #panel-inventory .filter-btn,
+  #panel-inventory .inv-action,
+  #panel-inventory [data-inv-action] {
+    background: linear-gradient(180deg, #b6483a 0%, #8a3329 100%) !important;
+    color: #fff8e2 !important;
+    border: 1px solid #6c2a22 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+  #panel-inventory .btn:hover,
+  #panel-inventory .filter-btn:hover {
+    filter: brightness(1.08) !important;
+  }
+  #panel-inventory .btn.active,
+  #panel-inventory .filter-btn.active {
+    background: linear-gradient(180deg, #d35a4a 0%, #a83d31 100%) !important;
+    box-shadow: inset 0 0 0 2px #f5c249, 0 1px 2px rgba(0,0,0,0.2) !important;
+  }
+  /* Keep the "secondary" muted ones legible — only theme primaries */
+  #panel-inventory .btn.btn-ghost,
+  #panel-inventory .btn.btn-secondary {
+    background: rgba(0,0,0,0.04) !important;
+    color: #3d2817 !important;
+    border: 1px solid rgba(0,0,0,0.18) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Portrait-only: 2x2 grid; landscape gets a horizontal scroll */
+@media (max-height: 540px) and (max-width: 900px) and (orientation: landscape) {
+  #panel-profile .feat-buttons,
+  #panel-profile .profile-toolbar,
+  #panel-profile .profile-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}

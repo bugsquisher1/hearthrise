@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 122 — 2026-05-04 (mobile QA + UI/UX sweep, pass 1)
+
+Tyler ran a senior-tester pass and found the mobile experience nowhere near ship-ready. First batch of fixes:
+
+- 🪙 **Skill tile icons fixed.** Every skill in Activities was rendering as a broken-image square because `_skillIcon` pointed at `assets/raw-bundle/...` paths that aren't in the deploy. Cleared the map so each skill falls back to its emoji glyph (matches the cozy theme anyway). Real curated PNGs land in a later build.
+- 🟧 **Topbar avatar fixed.** Player avatar was a 404 dark square (`icons3/.../BoldWarrior_nb.png` not deployed). Swapped for `assets/icons-bundle/monsters/Warrior_nb.png` with an `onerror` fallback to ⚔️ emoji.
+- 🟪 **Wax seal off on mobile.** Profile's bottom-right wax-seal ornament covered the Lifetime Stats + Save Status cards on portrait phones. Hidden under the mobile media query (still ships on desktop).
+- 📐 **Profile feat-buttons in a 2×2 grid** on portrait, 4-across on landscape. Was a vertical stack eating half the viewport.
+- 🧱 **Character page kills right-side bleed.** `#panel-character`'s grid is forced to a single column with `max-width:100%` and `box-sizing:border-box` everywhere on mobile.
+- 📏 **Topbar compact.** One-row layout, smaller pills, name truncates to 90px, hidden empty `<img>` orphans.
+- 🛡 **Combat FOES sub-tab DUNGEONS button** wraps cleanly without overflowing the title row.
+- 🔴 **Inventory action buttons** themed wax-stamp red so they read as primary actions instead of disabled-looking ghosts. Ghost/secondary buttons preserved.
+
+Pass 2 (landscape) and Pass 3 (interaction polish) still to come.
+
 ## v0.9.1-beta build 121 — 2026-05-04 (screenshot ignores the modal itself)
 
 b120 shipped screenshots inline in Discord — but they captured the bug-report modal that was on top of the screen, defeating the point. Tyler wants to see what's BEHIND the modal, not the form he just filled out.

@@ -9526,6 +9526,14 @@ Object.keys(BUNDLE_MONSTER_ICON).forEach(function(k){
   window._roomIcon = LOCAL_ROOM_ICON;
   window._plotBuildingIcon = LOCAL_PLOT_ICON;
 
+  // b122: Skill icons. BUNDLE_SKILL_ICON points at assets/raw-bundle/...
+  // which is NOT shipped (only assets/icons-bundle/ is). Every skill
+  // tile was 404'ing and rendering as a broken-image square. Until we
+  // curate proper hand-painted skill icons into icons-bundle/, clear
+  // _skillIcon entirely so the renderer falls through to each skill's
+  // emoji glyph (matches the rest of the cozy theme anyway).
+  window._skillIcon = {};
+
   // b105: monster avatars — 31 hand-picked from icons3 character pack.
   // Each maps a game monster id to a hand-painted character/creature
   // illustration. Where the pack didn't have an exact match (rat, panther,

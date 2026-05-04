@@ -4,6 +4,37 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 110 — 2026-05-04 (Idle Clans-style mobile rebuild — pt 1: Combat)
+
+First of three structural rebuilds to make the mobile experience feel like Idle Clans (and other dense, tabbed mobile idle games) instead of a desktop site squeezed into a phone.
+
+This push targets the **Combat panel** + chat-as-tab + dense lists. Next pushes (b111, b112) restructure Inventory/Activities and the rest.
+
+- ⚔️ **Combat sub-tab strip on mobile**: `Style | Foes | Arena` across the top of the panel. Only one section is visible at a time. New `src/combat-mobile-tabs.js` injects the bar; CSS in theme-cozy.css gates section visibility via `data-mobile-sub`. Replaces the 1500px-tall vertical scroll with a focused single-pane view.
+- 💬 **Chat moved into the More menu** on mobile (was a floating pill that overlapped gameplay). Tap More → 💬 Chat → dock opens fullscreen. Floating pill is hidden on phone via CSS. New `src/mobile-more-chat.js` wires the button.
+- 👹 **Dense monster list rows** — was 200px+ "cards" with verbose chips, now ~56px rows: tiny icon, name, weakness, tier badge. Same screen now shows ~12 monsters where it used to show 3.
+- 📐 **Bounty cards densified** to match — 60px rows with compact reward + weakness text.
+- 🔁 **Folded in the b109 polish** — chat pill no longer overlaps nav, density restored from b108's over-correction, profile overlap killed, bottom nav 48px tap targets, topbar compacted.
+
+## v0.9.1-beta build 109 — 2026-05-04 (real-phone fixes)
+
+Tested on a real phone after b108 deployed. Reports:
+- "Chat button is in the way"
+- "Combat screen is not visible"
+- "Way too much scrolling"
+- "Profile page has a ton of overlap"
+
+Cause: b108 over-corrected on padding/font/tap-target sizes — everything got bigger so the page got taller, and the chat pill at `bottom: 16px+safe-b` sat directly on top of the new 60px+safe-b bottom nav.
+
+This patch walks b108 back to a denser layout while keeping tap targets above Apple's 44px minimum.
+
+- 💬 **Chat pill lifted above bottom nav** (was overlapping). Smaller, more transparent, with backdrop blur — feels like a quiet utility, not a primary CTA.
+- 📐 **Density restored.** Base font 13px (was 14), panel padding 8px (was 12), card padding 10px (was 14), card margin-bottom 8px (was 12). Page is shorter, less scrolling.
+- ⚔️ **Combat panel compressed.** Hidden the "Style: Accurate · Trains: Attack / Accuracy skill: attack..." descriptive text on mobile — it's redundant once you've picked a style. Combat-style buttons now in a tight 4-up grid with no labels. "Suggested for your level" hidden on mobile because the full monster picker covers the same purpose.
+- 👤 **Profile overlap fixes.** Last card has 80px bottom margin so it doesn't sit under the chat pill. feat-buttons back to single-column stacked (was 2-col but labels truncated). Active Effects copy compacted.
+- 📱 **Topbar + bottom nav compacted.** Bottom nav 48px tap targets (was 52, still over Apple's 44 minimum) saves 4px of vertical real estate × every screen.
+- 🔁 **Full chat dock when expanded** now flush left/right and sits above the bottom nav, not floating in space.
+
 ## v0.9.1-beta build 108 — 2026-05-04 (mobile feel pass + PWA polish)
 
 Tyler reported it's a "shit experience" on a real phone in browser. The iframe audit only proves CSS works at 380px; doesn't catch the actual touch / keyboard / safe-area / lag issues. This pass attacks those.

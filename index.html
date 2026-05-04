@@ -15,9 +15,9 @@
 
 <!-- moved style#0 (style-0) -->
   <link rel="stylesheet" href="src/styles/legacy.css">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=108">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=110">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=108">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=110">
 </head>
 <body>
 <div class="app" id="app">
@@ -25,7 +25,7 @@
   <!-- ─── SIDEBAR (desktop) ─── -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=108" alt="Hearthrise — Idle Homestead" />
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=110" alt="Hearthrise — Idle Homestead" />
     </div>
     <button class="nav-btn active" data-tab="profile"><span class="ic">👤</span><span class="lbl">Profile</span></button>
     <button class="nav-btn" data-tab="character"><span class="ic">🧙</span><span class="lbl">Character</span></button>
@@ -267,6 +267,7 @@
       <button class="btn tap" data-tab="house">🏠 House</button>
       <button class="btn tap" data-tab="social">🏆 Social</button>
       <button class="btn tap btn-gem" data-tab="shop">💎 Store</button>
+      <button class="btn tap" id="btn-chat-mobile">💬 Chat</button>
       <button class="btn tap" id="btn-save-mobile">💾 Save</button>
       <button class="btn tap" id="btn-settings-mobile">⚙️ Settings</button>
     </div>
@@ -503,35 +504,37 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=108"></script>
+  <script type="module" src="src/build-info.js?v=110"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=108"></script>
-  <script src="src/observability.js?v=108"></script>
-  <script src="src/save-migrations.js?v=108"></script>
-  <script src="src/legacy.js?v=108"></script>
-  <script src="src/admin.js?v=108"></script>
-  <script src="src/item-ux.js?v=108"></script>
-  <script src="src/dungeons.js?v=108"></script>
-  <script src="src/dungeon-scavenger.js?v=108"></script>
-  <script src="src/multi-character.js?v=108"></script>
-  <script src="src/market.js?v=108"></script>
+  <script src="src/theme-picker.js?v=110"></script>
+  <script src="src/observability.js?v=110"></script>
+  <script src="src/save-migrations.js?v=110"></script>
+  <script src="src/legacy.js?v=110"></script>
+  <script src="src/admin.js?v=110"></script>
+  <script src="src/item-ux.js?v=110"></script>
+  <script src="src/dungeons.js?v=110"></script>
+  <script src="src/dungeon-scavenger.js?v=110"></script>
+  <script src="src/multi-character.js?v=110"></script>
+  <script src="src/market.js?v=110"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=108"></script>
-  <script src="src/chat.js?v=108"></script>
-  <script src="src/settings-page.js?v=108"></script>
-  <script src="src/ftue.js?v=108"></script>
-  <script src="src/mobile.js?v=108"></script>
+  <script src="src/chat-filter.js?v=110"></script>
+  <script src="src/chat.js?v=110"></script>
+  <script src="src/settings-page.js?v=110"></script>
+  <script src="src/ftue.js?v=110"></script>
+  <script src="src/mobile.js?v=110"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=108"></script>
-  <script src="src/nav-consolidation.js?v=108"></script>
-  <script src="src/icon-swap.js?v=108"></script>
-  <script src="src/activity-bar-clickable.js?v=108"></script>
-  <script src="src/post-signup-welcome.js?v=108"></script>
-  <script src="src/mobile-keyboard.js?v=108"></script>
-  <script src="src/bug-report.js?v=108"</script>
-  <script src="src/welcome-modal.js?v=108"></script>
-  <script src="src/network-status.js?v=108"></script>
-  <script src="src/error-boundary.js?v=108"></script>
-  <script type="module" src="src/main.js?v=108"></script>
+  <script src="src/quests-topbar-button.js?v=110"></script>
+  <script src="src/nav-consolidation.js?v=110"></script>
+  <script src="src/icon-swap.js?v=110"></script>
+  <script src="src/activity-bar-clickable.js?v=110"></script>
+  <script src="src/post-signup-welcome.js?v=110"></script>
+  <script src="src/mobile-keyboard.js?v=110"></script>
+  <script src="src/combat-mobile-tabs.js?v=110"></script>
+  <script src="src/mobile-more-chat.js?v=110"></script>
+  <script src="src/bug-report.js?v=110"</script>
+  <script src="src/welcome-modal.js?v=110"></script>
+  <script src="src/network-status.js?v=110"></script>
+  <script src="src/error-boundary.js?v=110"></script>
+  <script type="module" src="src/main.js?v=110"></script>
 </body>
 </html>

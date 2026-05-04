@@ -1104,16 +1104,25 @@ const TESTS = [
     // increments the kill count + accumulates drops.
     const snap = JSON.parse(JSON.stringify(window.HearthriseDropLog.getAllStats()));
     try {
+      // Reset monster slate so the test is deterministic regardless of
+      // earlier kills polluting the entry. b135: also captures kill
+      // counts as PRIMITIVES before mutating, since getMonsterStats
+      // returns the live reference (not a snapshot).
+      delete window.G.dropLog['__test_monster__'];
       window.HearthriseDropLog.recordKill('__test_monster__', { test_drop: 2, other: 1 });
       const stats = window.HearthriseDropLog.getMonsterStats('__test_monster__');
       assert(stats, 'recordKill did not create entry');
-      assert(stats.kills >= 1, 'kills should be >=1, got ' + stats.kills);
-      assert(stats.drops.test_drop === 2, 'drops.test_drop should be 2');
+      const killsAfterFirst = stats.kills;          // capture as primitive
+      const dropsAfterFirst = stats.drops.test_drop; // capture as primitive
+      assert(killsAfterFirst === 1, 'first kills should be 1, got ' + killsAfterFirst);
+      assert(dropsAfterFirst === 2, 'drops.test_drop should be 2, got ' + dropsAfterFirst);
       // Calling again should accumulate, not overwrite.
       window.HearthriseDropLog.recordKill('__test_monster__', { test_drop: 3 });
       const after = window.HearthriseDropLog.getMonsterStats('__test_monster__');
-      assert(after.kills === stats.kills + 1, 'kills should increment');
-      assert(after.drops.test_drop === 5, 'drops.test_drop should accumulate to 5, got ' + after.drops.test_drop);
+      assert(after.kills === killsAfterFirst + 1,
+        'kills should increment to ' + (killsAfterFirst + 1) + ', got ' + after.kills);
+      assert(after.drops.test_drop === dropsAfterFirst + 3,
+        'drops.test_drop should accumulate to ' + (dropsAfterFirst + 3) + ', got ' + after.drops.test_drop);
     } finally {
       // Clean up: restore original drop log so we don't pollute the player's record.
       window.G.dropLog = snap;

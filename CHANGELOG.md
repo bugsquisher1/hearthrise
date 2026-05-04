@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 135 — 2026-05-04 (b133 test hotfix — green-bar discipline)
+
+The b133 drop-log regression test that landed in b133 had a bug *in the test itself*: it asserted `after.kills === stats.kills + 1` but `stats` and `after` are both live references to the same entry on `G.dropLog`, so by the time the assertion ran, `stats.kills` already reflected the post-second-call value. Implementation was always correct; the test was wrong.
+
+Why it slipped through earlier verifies: the test depends on running order — depending on what kill state `__test_monster__` had from previous suite runs, the equation `2 === 2 + 1` only fails on a fresh state. b134's verify caught it.
+
+- 🧪 **Fixed** by capturing `stats.kills` and `stats.drops.test_drop` as primitives before the second `recordKill`, plus deleting the synthetic monster entry first so the test is deterministic regardless of prior runs.
+
+This is hotfix-sized so it ships standalone before Batch C — keeps the suite green commit-to-commit per the engineering principles.
+
 ## v0.9.1-beta build 134 — 2026-05-04 (Batch B — auto-eat + train-to-level)
 
 First user-visible features off the b133 foundations. Two idle-game essentials:

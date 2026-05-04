@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 119 — 2026-05-04 (SW kill-switch + renderProfile null guard)
+
+Tyler reported "auth not configured" on the live site. Console showed an error torrent: `TypeError: Cannot set properties of null (setting 'textContent') at renderProfile (legacy.js?v=111:1297)`. Two issues:
+
+1. **Old service worker still alive.** Errors stack-trace to `legacy.js?v=111` even though the deployed HTML is at v=118 across all script tags. The pre-b111 SW (cache name `hearthbound-v2`, cache-first strategy) is still intercepting requests in installed browsers and serving stale JS — including the SW reference itself, so it can't update itself.
+
+2. **`renderProfile` crashing on null DOM.** When `onAuthStateChange` fires before the Profile panel template is in the DOM, `getElementById('dash-user-sub')` returns null → `.textContent =` throws → error boundary captures it → infinite re-render loop because the auth listener also re-fires on render.
+
+Fixes:
+
+- 💀 **SW kill-switch** added as the very first inline `<script>` in `<head>`. Runs before any SW can intercept. Detects old `hearthbound-v2` cache, deletes it, unregisters the SW, reloads once. `sessionStorage` flag prevents reload loops. Idempotent — does nothing if no old cache exists. After this self-heals, the b111+ network-first SW takes over and future updates propagate normally.
+- 🛡️ **Null guards in `renderProfile`** for `dash-user-sub` and `dash-user-body`. If either is missing, bail early instead of crashing. Stops the auth-listener-driven render loop.
+
+After this build deploys, anyone stuck on a pre-b111 SW will auto-recover on next page visit. New installs use the b111+ SW from the start.
+
 ## v0.9.1-beta build 118 — 2026-05-04 (Discord webhook live)
 
 Tyler set up the Hearthrise Discord server (Info / Community / Feedback categories with 8 channels). Created the `#bug-reports` channel + "Hearthrise Bug Bot" webhook. Webhook URL pasted into `DISCORD_WEBHOOK_URL` in `bug-report.js` — bug reports now flow directly to Discord.

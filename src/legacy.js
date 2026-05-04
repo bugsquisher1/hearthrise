@@ -1294,8 +1294,15 @@ function renderProfile(){
   generateDailyTasks(false);
   /* user card */
   const cl=getCombatLevel(),tl=getTotalLevel();
-  document.getElementById('dash-user-sub').textContent=`Lv ${cl} · Total ${tl}`;
-  document.getElementById('dash-user-body').innerHTML=`
+  // b119: defensive null guards — these elements only exist when the
+  // Profile panel template has rendered. onAuthStateChange can fire
+  // before the DOM is built, which crashed renderProfile in a loop on
+  // older builds (v=111) and broke the auth UI.
+  const subEl = document.getElementById('dash-user-sub');
+  const bodyEl = document.getElementById('dash-user-body');
+  if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
+  subEl.textContent = `Lv ${cl} · Total ${tl}`;
+  bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
       // 1) live Supabase session takes precedence (the actual cloud login)

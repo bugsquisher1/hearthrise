@@ -2,6 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* b119: pre-b111 service worker kill-switch.
+ * Older builds (b108-b110) shipped a service worker with cache name
+ * 'hearthbound-v2' and a cache-first fetch strategy. That SW caches
+ * every asset and never refetches — meaning users on those builds
+ * never see updates, ever, no matter how many times the cache buster
+ * bumps. The b111+ SW fixes this for new installs but can't dislodge
+ * the old SW from existing ones (the old SW intercepts the HTML
+ * request and serves stale, including the SW reference itself).
+ *
+ * This inline script (which the browser runs BEFORE any cached SW
+ * intercepts a fetch) checks for old caches and unregisters the SW
+ * if found. One-time reload restores normal fresh fetches. After that
+ * the b111+ SW takes over. Idempotent — uses sessionStorage flag to
+ * prevent reload loops. */
+(function(){
+  if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+  if (sessionStorage.getItem('hr-sw-purged') === '1') return;
+  caches.keys().then(function(keys){
+    var hasOld = keys.some(function(k){ return k === 'hearthbound-v2' || k === 'hearthbound-v1'; });
+    if (!hasOld) return;
+    Promise.all([
+      // Kill all old caches
+      Promise.all(keys.map(function(k){ return caches.delete(k); })),
+      // Unregister all SWs so the next page load re-registers fresh
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        return Promise.all(regs.map(function(r){ return r.unregister(); }));
+      }),
+    ]).then(function(){
+      sessionStorage.setItem('hr-sw-purged', '1');
+      console.info('[hr-sw-killswitch] purged old caches + SW; reloading once');
+      location.reload();
+    });
+  }).catch(function(){});
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,9 +51,9 @@
 
 <!-- moved style#0 (style-0) -->
   <link rel="stylesheet" href="src/styles/legacy.css">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=118">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=119">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=118">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=119">
 </head>
 <body>
 <div class="app" id="app">
@@ -25,7 +61,7 @@
   <!-- ─── SIDEBAR (desktop) ─── -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=118" alt="Hearthrise — Idle Homestead" />
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=119" alt="Hearthrise — Idle Homestead" />
     </div>
     <button class="nav-btn active" data-tab="profile"><span class="ic">👤</span><span class="lbl">Profile</span></button>
     <button class="nav-btn" data-tab="character"><span class="ic">🧙</span><span class="lbl">Character</span></button>
@@ -504,39 +540,39 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=118"></script>
+  <script type="module" src="src/build-info.js?v=119"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=118"></script>
-  <script src="src/observability.js?v=118"></script>
-  <script src="src/save-migrations.js?v=118"></script>
-  <script src="src/legacy.js?v=118"></script>
-  <script src="src/admin.js?v=118"></script>
-  <script src="src/item-ux.js?v=118"></script>
-  <script src="src/dungeons.js?v=118"></script>
-  <script src="src/dungeon-scavenger.js?v=118"></script>
-  <script src="src/multi-character.js?v=118"></script>
-  <script src="src/market.js?v=118"></script>
+  <script src="src/theme-picker.js?v=119"></script>
+  <script src="src/observability.js?v=119"></script>
+  <script src="src/save-migrations.js?v=119"></script>
+  <script src="src/legacy.js?v=119"></script>
+  <script src="src/admin.js?v=119"></script>
+  <script src="src/item-ux.js?v=119"></script>
+  <script src="src/dungeons.js?v=119"></script>
+  <script src="src/dungeon-scavenger.js?v=119"></script>
+  <script src="src/multi-character.js?v=119"></script>
+  <script src="src/market.js?v=119"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=118"></script>
-  <script src="src/chat.js?v=118"></script>
-  <script src="src/settings-page.js?v=118"></script>
-  <script src="src/ftue.js?v=118"></script>
-  <script src="src/mobile.js?v=118"></script>
+  <script src="src/chat-filter.js?v=119"></script>
+  <script src="src/chat.js?v=119"></script>
+  <script src="src/settings-page.js?v=119"></script>
+  <script src="src/ftue.js?v=119"></script>
+  <script src="src/mobile.js?v=119"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=118"></script>
-  <script src="src/nav-consolidation.js?v=118"></script>
-  <script src="src/icon-swap.js?v=118"></script>
-  <script src="src/activity-bar-clickable.js?v=118"></script>
-  <script src="src/post-signup-welcome.js?v=118"></script>
-  <script src="src/mobile-keyboard.js?v=118"></script>
-  <script src="src/combat-mobile-tabs.js?v=118"></script>
-  <script src="src/mobile-more-chat.js?v=118"></script>
-  <script src="src/inventory-mobile-tabs.js?v=118"></script>
-  <script src="src/activities-mobile-tabs.js?v=118"></script>
-  <script src="src/bug-report.js?v=118"</script>
-  <script src="src/welcome-modal.js?v=118"></script>
-  <script src="src/network-status.js?v=118"></script>
-  <script src="src/error-boundary.js?v=118"></script>
-  <script type="module" src="src/main.js?v=118"></script>
+  <script src="src/quests-topbar-button.js?v=119"></script>
+  <script src="src/nav-consolidation.js?v=119"></script>
+  <script src="src/icon-swap.js?v=119"></script>
+  <script src="src/activity-bar-clickable.js?v=119"></script>
+  <script src="src/post-signup-welcome.js?v=119"></script>
+  <script src="src/mobile-keyboard.js?v=119"></script>
+  <script src="src/combat-mobile-tabs.js?v=119"></script>
+  <script src="src/mobile-more-chat.js?v=119"></script>
+  <script src="src/inventory-mobile-tabs.js?v=119"></script>
+  <script src="src/activities-mobile-tabs.js?v=119"></script>
+  <script src="src/bug-report.js?v=119"</script>
+  <script src="src/welcome-modal.js?v=119"></script>
+  <script src="src/network-status.js?v=119"></script>
+  <script src="src/error-boundary.js?v=119"></script>
+  <script type="module" src="src/main.js?v=119"></script>
 </body>
 </html>

@@ -4857,6 +4857,12 @@ function getGoalsForToday(){
     return DAILY_GOAL_POOL.find(function(p){return p.id===id;});
   }).filter(Boolean);
 }
+// b130: explicit window assignment so the Quests modal renderer in
+// the wrapped IIFE below can find it. Same fix pattern as b127's
+// hoursTillUTCMidnight — function declarations don't reach window
+// from inside nested IIFEs.
+window.getGoalsForToday = getGoalsForToday;
+
 function readSource(path){
   if(!G) return 0;
   var parts = path.split('.');
@@ -9495,7 +9501,24 @@ console.log('[Bundle Icons v1] applied:',
     var origOpen = window.openSkillDetail;
     window.openSkillDetail = function(id){
       window.__viewedSkillId = id;
-      return origOpen.apply(this, arguments);
+      var ret = origOpen.apply(this, arguments);
+      // b130: On mobile (single-column layout), the skill-detail panel
+      // renders BELOW the skills-list. Clicking a tile gave no visible
+      // feedback — players didn't realise the detail had loaded
+      // hundreds of pixels down. Auto-scroll the detail into view on
+      // narrow viewports so the click is acknowledged.
+      try {
+        if (window.innerWidth <= 540 || (window.innerHeight <= 540 && window.innerWidth <= 900)) {
+          var d = document.getElementById('skill-detail');
+          if (d && typeof d.scrollIntoView === 'function') {
+            // rAF to let the renderSkillDetail innerHTML complete first.
+            requestAnimationFrame(function(){
+              try { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
+            });
+          }
+        }
+      } catch(e){}
+      return ret;
     };
 
     var origRender = window.renderSkillDetail;

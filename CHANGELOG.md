@@ -4,6 +4,29 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 130 — 2026-05-04 (user-story playthroughs — round 2: quests + mobile)
+
+Continued the playthrough series. Two more real bugs surfaced + fixed.
+
+- 📜 **Daily quests modal showed "No daily quests" forever** even when `G.dailyGoals.picks` had 3 picked goal IDs. The modal calls `window.getGoalsForToday()` to expand picks → goal objects, but the function was a top-level declaration in `legacy.js` that never reached `window` from inside the modal IIFE. Same exact failure mode as `hoursTillUTCMidnight` from b127 — ironically, fixed by literally the same one-liner: `window.getGoalsForToday = getGoalsForToday;`.
+- 📱 **Mobile skill tile click had zero visible feedback.** On desktop, `#skill-detail` renders side-by-side with the skills sidebar. On mobile (single-column), the detail stacks BELOW the sidebar — clicking Woodcutting renders the tree tiles 460+ pixels down, off-screen. Players thought the tile didn't work. **Fix:** when `openSkillDetail` runs at `innerWidth ≤ 540` (or landscape phone), `requestAnimationFrame` + `scrollIntoView({behavior:'smooth'})` brings the detail into view immediately.
+
+**Regression tests added** for both — `getGoalsForToday` exposed on window, and `openSkillDetail` doesn't throw when called.
+
+**Other findings catalogued during this round (queued for follow-up rounds):**
+
+Mobile (Story 1–5 walks):
+- M.4 / M.7: Topbar currencies clip at the right edge on narrow viewports — only "50" visible from "500 GOLD"
+- M.6: "Pick a monster on the left to begin." text — there is no "left" on mobile (single column)
+- M.3: "DUNGEONS" red button cuts in half between Combat sub-tabs and content
+- Activity tile product icons missing on first render (already noted desktop, confirmed mobile)
+- "QUESTS 0" pill takes a lot of horizontal space in the topbar on mobile
+
+Desktop (Story 4 + 5):
+- 4.1 Daily quest claim flow needs end-to-end verification once quests render (now that getGoalsForToday is wired)
+- 5.1 Store hidden in sidebar on purpose — accessed via Market panel — but the entry point in Market should be more prominent
+- 5.5 Buy flow works cleanly: gold debits, inventory increments, topbar updates, toast fires
+
 ## v0.9.1-beta build 129 — 2026-05-04 (user-story playthroughs — round 1)
 
 Tyler asked for "play the game with intent" instead of "verify the panel rendered." First pass on desktop turned up real bugs the smoke test was never going to catch. Two fixes shipped here, full findings list queued for follow-up rounds.

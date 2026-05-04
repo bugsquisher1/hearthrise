@@ -131,8 +131,20 @@
   function me(){
     var G = window.G || {};
     var profile = window.HearthriseProfile && window.HearthriseProfile.profile;
-    var name = (G.playerName || (profile && profile.displayName)) || 'Adventurer';
-    var id = (profile && profile.id) || ('local-' + (profile?.activeSlot ?? 0));
+    // Prefer the live Supabase session user id — it's a real UUID and the
+    // chat_messages table requires it. Fall back to profile.id (also a UUID
+    // if synced) or finally a local placeholder for offline-only sessions.
+    // Without this, signed-in users posted `local-0` to a uuid column and
+    // Supabase 400'd the insert ("invalid input syntax for type uuid").
+    var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
+    var liveUser = liveSession && liveSession.user;
+    var name = (liveUser && (liveUser.user_metadata && liveUser.user_metadata.display_name || (liveUser.email||'').split('@')[0]))
+            || G.playerName
+            || (profile && profile.displayName)
+            || 'Adventurer';
+    var id = (liveUser && liveUser.id)
+          || (profile && profile.id)
+          || ('local-' + (profile && profile.activeSlot != null ? profile.activeSlot : 0));
     return { id: id, name: name };
   }
   function clanOf(){ return (window.G && window.G.clanName) ? window.G.clanName : null; }

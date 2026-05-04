@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 104 — 2026-05-04 (chat fix)
+
+- 💬 **Chat send was 400'ing for everyone signed in.** The `from_id` column on `chat_messages` is a UUID, but the chat code was sending `"local-0"` (a local fallback) instead of the actual Supabase user UUID. Now reads the live session user.id when present, with a graceful fallback to legacy local IDs only when offline.
+
 ## v0.9.1-beta build 103 — 2026-05-03 (asset cherry-pick)
 
 First batch of real hand-painted icons shipped to the live deploy.

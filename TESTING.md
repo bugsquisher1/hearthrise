@@ -117,7 +117,15 @@ If you ship a change that isn't in CI yet, run the suite manually on the live de
 
 ## When to add a new test
 
-> Whenever you fix a bug. No exceptions.
+> **Whenever you fix a bug OR ship a new feature. No exceptions.**
+
+Two trigger conditions:
+
+**1. Bug fixes** — every fix gets a regression test in the same commit. The test should fail without the fix and pass with it. That's how we know the fix is real instead of "the symptom went away on this branch but the underlying mechanism is still broken." Section 4 of the suite (the b119–b125 regression block) is the model.
+
+**2. New features** — every new feature gets at least one happy-path E2E test in the same commit it ships. The test exercises the feature the way a player would: open the panel, click the button, verify the state changed. Section 5 of the suite (player actions: mining, equip, combat, farm, market, etc.) is the model.
+
+The "extra time" rule: budget 10–20% of every feature's build time for its tests. A 2-hour feature gets ~15 min of test work. A full-day feature gets ~1 hour. Tests written *during* the feature take a fraction of the time of tests written later (you already have the API surface and edge cases in your head). Tests written *after* a regression are always the most expensive — you're rebuilding context plus paying interest on the bug.
 
 The pattern:
 

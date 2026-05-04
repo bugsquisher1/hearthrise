@@ -13,9 +13,10 @@ Tyler called out that the smoke test isn't being maintained — bugs we already 
 - 🖱 **Interactive click coverage.** Tests now click every bottom-nav tab, every sidebar nav, topbar buttons, profile feat-buttons, all 6 combat tier chips, sample monster rows, skill rows, activity tiles, inventory sub-tabs, house tabs, farm plots, bounty rows, stable cards, market sort/search, bug-report 🐛 button, and settings tabs. Catches "X stopped firing on click" silently.
 - 🎮 **Player-action E2E tests.** Real loops: gain XP from a skill tick, equip + unequip a weapon, start + stop combat, plant + harvest a farm plot, upgrade a house room, create + cancel a market listing, purchase a listing, claim a daily quest, save + reload roundtrip, smelt a copper bar, equip + unequip a companion, join + leave a clan. Every test snapshots `G` and restores at the end — running the full suite 100x leaves the player's save byte-for-byte identical.
 - 🗑 **Deleted ~85 more lines of dead `icons3/` paths** in `legacy.js` lines 4293–4378 (the "Poneti v1" block) — the smoke test's bundle-path assertion surfaced these. b125 missed this block; b126 catches it via the test that flagged it.
-- 📜 **`TESTING.md`** — workflow doc explaining how to run the suite, when to run it (before every push touching render paths), and the iron rule: every bug fix gets a test in the same commit. Sketches a GitHub Action for headless CI as the next step.
+- 📜 **`TESTING.md`** — workflow doc. Explains how to run the suite, when to run it, and the iron rule: every bug fix AND every new feature ships with a test in the same commit. Sketches a GitHub Action for headless CI as the next step.
+- 🤖 **`CLAUDE.md`** — project rules auto-loaded in every Claude session in this workspace. The testing rule, build/ship workflow, asset rules, and mobile-CSS gotchas all live there so future sessions don't have to be reminded. Closes the loop on "Claude keeps forgetting to add tests."
 
-Net: full coverage of every interactive surface in the game. Run `Ctrl+Shift+T` or click the floating 🧪 Test button to execute.
+Net: full coverage of every interactive surface in the game, plus the discipline to keep it that way. Run `Ctrl+Shift+T` or click the floating 🧪 Test button to execute.
 
 ## v0.9.1-beta build 125 — 2026-05-04 (cleanup pass: dead icons + old SW snapshots)
 

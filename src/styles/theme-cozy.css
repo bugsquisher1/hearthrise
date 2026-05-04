@@ -772,6 +772,92 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 }
 
 /* ============================================================
+ * b114 — Landscape side-rail nav
+ * ============================================================
+ * The horizontal bottom nav eats ~40px of the precious ~380px
+ * landscape height. Rotated into a vertical left rail it eats
+ * ~60px of horizontal (which is plentiful at 800-900px wide)
+ * and gives content the full vertical screen.
+ *
+ * Implementation: pure CSS, no DOM changes. Same .bottom-nav
+ * element, same buttons — just `flex-direction: column` and
+ * positioned on the left edge instead of the bottom. The .app
+ * grid gets padded left to make room.
+ *
+ * Triggers on landscape phones AND tablets in landscape (≤1024
+ * width AND ≤540 height) so iPad-mini-in-landscape gets it too.
+ * ============================================================ */
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
+  /* Side rail — was bottom-nav, now left edge column */
+  .bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    width: calc(60px + var(--safe-l, 0px)) !important;
+    height: 100vh !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    padding: 8px 4px 8px calc(4px + var(--safe-l, 0px)) !important;
+    gap: 4px !important;
+    border-top: none !important;
+    border-right: 1px solid #b8893e;
+    background: linear-gradient(90deg, rgba(60,40,16,.98), rgba(40,25,12,.95)) !important;
+    backdrop-filter: blur(8px);
+    box-shadow: 2px 0 8px rgba(0,0,0,.3);
+    z-index: 100;
+  }
+  .bn-btn, .bottom-nav button {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    padding: 6px 4px !important;
+    font-size: 9px !important;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 4px;
+  }
+  .bn-btn .ic, .bottom-nav button .ic {
+    font-size: 18px !important;
+    margin-bottom: 0 !important;
+  }
+  /* Active rail item — wax-stamp red */
+  .bn-btn.active {
+    background: linear-gradient(180deg, #d44a3a, #8b2a1f);
+    color: #fff8e2 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* Push everything else right so the rail doesn't overlap */
+  .app, #app, .main, .topbar, .panel.active, #activity-bar {
+    padding-left: calc(60px + var(--safe-l, 0px)) !important;
+  }
+  /* Activity bar stays at top but with slimmer profile */
+  #activity-bar {
+    height: 28px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    font-size: 11px !important;
+  }
+  /* Topbar — slim strip; gets the .bottom-nav-removed bottom space back */
+  .topbar {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+  /* Panel uses the full vertical now (no bottom-nav at the bottom) */
+  .panel.active {
+    padding-bottom: max(8px, var(--safe-b, 0px)) !important;
+  }
+  /* Chat-pill / floating UI stays out of the way */
+  #chat-dock.mini { display: none !important; }
+}
+
+/* ============================================================
  * b113 — Landscape-phone tightening
  * ============================================================
  * After expanding all the mobile media queries to also fire in

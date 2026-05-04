@@ -4,6 +4,19 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 114 — 2026-05-04 (landscape side-rail nav)
+
+The real landscape answer (b113 was the baseline; this is the structural fix).
+
+- 📱 **Bottom nav rotates into a left side rail in landscape.** Same DOM, same buttons — just `flex-direction: column` and positioned on the left edge. Reclaims the ~40px of vertical the horizontal bottom-nav was eating. Wax-stamp red active-state preserved.
+- 📐 **Topbar slim** — 36px in landscape (was 40px), pushed right to clear the rail.
+- 🎯 **Activity bar slim** — 28px strip at top.
+- 🔋 **Content gets the full vertical screen** — panels no longer reserve bottom space for nav.
+- 🎨 **Side rail uses cocoa gradient** with gold border, matches the parchment-RPG palette.
+- 📱 Triggers on landscape phones AND tablets ≤1024px wide so iPad-mini-in-landscape and similar fall in.
+
+Verification gate before b115: real-phone test in landscape — content area should now feel spacious (~70% of horizontal × 100% of vertical), not cramped.
+
 ## v0.9.1-beta build 113 — 2026-05-04 (landscape baseline + UX plan)
 
 After Tyler discovered he'd been playing in landscape (which our portrait-only media queries didn't match), this push makes landscape phones a first-class orientation rather than a broken one.

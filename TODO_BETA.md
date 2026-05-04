@@ -9,6 +9,27 @@ P2 = polish, P3 = nice-to-have) and a **Repro** if non-obvious.
 
 ---
 
+## Feature requests / future work
+
+### P3 — Draggable modals
+- **Where:** any modal (Settings, Bestiary, Achievements, Lifetime Stats, Bug Report, future modals)
+- **What:** let the user grab a modal's title bar and drag it around the screen — common desktop UX pattern, useful when a modal covers content the player wants to read.
+- **Scope:** desktop only (mobile modals are typically full-screen and shouldn't move). Add a small `data-draggable="true"` opt-in attribute on `.modal-card` titlebar elements; one shared utility module wires up pointerdown/pointermove/pointerup handlers.
+- **Constraint:** position should respect viewport bounds (don't let user drag a modal off-screen). Reset to centered on next open.
+- **Implementation sketch:**
+  ```js
+  // src/draggable-modals.js
+  document.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('.modal-head[data-draggable]');
+    if (!handle) return;
+    const card = handle.closest('.modal-card');
+    // ... track dx/dy, apply transform: translate, clamp to viewport
+  });
+  ```
+- **Why P3:** quality-of-life, not blocking gameplay. Add when we have a moment between bigger pushes.
+
+---
+
 ## Live-site walkthrough findings (build 94 → 101)
 
 Walked the live site after Tyler's first push. Build was at `v=94`, which means

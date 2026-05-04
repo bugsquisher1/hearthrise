@@ -103,8 +103,13 @@
       var email = (form.email.value || '').trim();
       var password = form.password.value || '';
       var invite = isSignUp ? ((form.invite && form.invite.value || '').trim().toUpperCase()) : null;
+      var displayName = isSignUp ? ((form.displayName && form.displayName.value || '').trim()) : null;
       if(!email || !password){ status.textContent = 'Email and password required.'; return; }
-      if(isSignUp && !invite){ status.textContent = 'Beta invite code required.'; return; }
+      if(isSignUp){
+        if(!invite){ status.textContent = 'Beta invite code required.'; return; }
+        if(!displayName){ status.textContent = 'Pick a name.'; return; }
+        if(displayName.length < 2){ status.textContent = 'Name too short.'; return; }
+      }
       status.style.color = '#9aa3b0';
       status.textContent = isSignUp ? 'Creating account…' : 'Signing in…';
       try {
@@ -116,17 +121,36 @@
             status.textContent = validated.reason || 'Invalid invite code.';
             return;
           }
-          await auth.signUp(email, password);
-          // Note: claim happens after first sign-in (when auth.uid() is available).
-          // Stash the code so the post-signin claim step picks it up.
-          try { localStorage.setItem('hearthrise:pending-invite', invite); } catch(e){}
+          // Pass display_name as user metadata — picked up by the
+          // handle_new_user trigger to set profiles.display_name on
+          // first row creation.
+          await auth.signUp(email, password, { display_name: displayName });
+          // Stash the invite code + display name for post-signin pickup
+          try {
+            localStorage.setItem('hearthrise:pending-invite', invite);
+            localStorage.setItem('hearthrise:pending-name', displayName);
+          } catch(e){}
+          // Set the in-game player name immediately so the offline guest
+          // session reflects the chosen name even before email confirm.
+          if(window.G){
+            window.G.playerName = displayName;
+            if(typeof window.saveLocal === 'function') window.saveLocal();
+            if(typeof window.render === 'function') window.render();
+          }
           status.style.color = '#5fcc7c';
           status.textContent = '✓ Check your inbox for a confirmation email.';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 2200);
         } else {
           await auth.signIn(email, password);
-          // Claim a pending invite if there is one
+          // Claim a pending invite + apply pending name if there is one
           await claimPendingInvite();
+          var pendingName = null;
+          try { pendingName = localStorage.getItem('hearthrise:pending-name'); } catch(e){}
+          if(pendingName && window.G){
+            window.G.playerName = pendingName;
+            if(typeof window.saveLocal === 'function') window.saveLocal();
+            try { localStorage.removeItem('hearthrise:pending-name'); } catch(e){}
+          }
           status.style.color = '#5fcc7c';
           status.textContent = '✓ Signed in. Syncing your save…';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 800);

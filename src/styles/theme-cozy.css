@@ -1899,6 +1899,504 @@ body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"] {
 }
 
 /* ============================================================
+ * UNIVERSAL MODAL / OVERLAY READABILITY
+ *
+ * Every popover / modal / flyout / overlay used in the game
+ * gets parchment surfaces + readable cocoa text. Catches all
+ * common offender classes. Add new ones here as we find them.
+ * ============================================================ */
+
+/* All modal cards */
+.modal-card,
+.stats-modal-card,
+.lifetime-stats-card,
+.welcome-card,
+.welcome-back-card,
+.ach-card,
+.acq-card,
+.mon-detail-card,
+.item-detail,
+.item-flyout,
+.tooltip-card,
+.notif,
+.acq-overlay > div,
+.mon-detail > div,
+.welcome-overlay > div,
+.stats-modal > div,
+.ach-overlay > div,
+.lifetime-stats > div {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  border: 1px solid #b8893e !important;
+  color: #3d2817 !important;
+  box-shadow: 0 8px 24px rgba(60,40,16,.4) !important;
+}
+/* Force readable text on every descendant of any modal/overlay */
+.modal-card *,
+.stats-modal *,
+.lifetime-stats *,
+.welcome-overlay *,
+.ach-overlay *,
+.acq-overlay *,
+.mon-detail *,
+.item-detail *,
+.item-flyout *,
+.tooltip-card * {
+  color: #3d2817;
+}
+/* But NOT button text on wax-red / colored buttons */
+.modal-card button.btn-danger,
+.modal-card button.btn-danger *,
+.stats-modal button.btn-danger,
+.stats-modal button.btn-danger *,
+.welcome-overlay button.btn-danger,
+.welcome-overlay button.btn-danger * {
+  color: #fff8e2 !important;
+}
+/* Headers in modals */
+.modal-card h1,
+.modal-card h2,
+.modal-card h3,
+.modal-card h4,
+.modal-card .modal-title,
+.stats-modal h1,
+.stats-modal h2,
+.stats-modal h3,
+.stats-modal h4,
+.lifetime-stats h1,
+.lifetime-stats h2,
+.lifetime-stats h3,
+.lifetime-stats h4,
+.welcome-overlay h1,
+.welcome-overlay h2,
+.welcome-overlay h3,
+.welcome-overlay h4,
+.welcome-overlay .welcome-title,
+.ach-overlay h1,
+.ach-overlay h2,
+.ach-overlay h3,
+.ach-overlay h4,
+.acq-overlay h1,
+.acq-overlay h2,
+.acq-overlay h3,
+.acq-overlay h4,
+.mon-detail h1,
+.mon-detail h2,
+.mon-detail h3,
+.mon-detail h4,
+.item-detail h1,
+.item-detail h2,
+.item-detail h3,
+.item-detail h4 {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+  letter-spacing: .04em;
+}
+/* Numbers / values inside modals — pop them */
+.modal-card b,
+.stats-modal b,
+.lifetime-stats b,
+.welcome-overlay b,
+.ach-overlay b,
+.mon-detail b,
+.item-detail b {
+  color: #5c2d08 !important;
+  font-weight: 700;
+}
+/* Inputs inside modals */
+.modal-card input,
+.modal-card select,
+.modal-card textarea,
+.stats-modal input,
+.stats-modal select {
+  background: #fff7e0 !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line) !important;
+}
+/* Modal close buttons */
+.modal-card .stats-close,
+.modal-card .modal-close,
+.stats-modal .stats-close,
+.welcome-overlay .welcome-close {
+  color: #3d2817 !important;
+  background: rgba(255,247,224,.7) !important;
+  border: 1px solid var(--line) !important;
+}
+/* Backdrop / overlay outer (the dark transparent layer) */
+.modal,
+.modal::before,
+.modal-overlay,
+.welcome-overlay,
+.stats-modal,
+.lifetime-stats,
+.ach-overlay,
+.acq-overlay,
+.mon-detail {
+  background: rgba(40,25,12,.55) !important;
+}
+
+/* ============================================================
+ * FTUE (first-time user tutorial) — parchment + cocoa
+ * ============================================================ */
+.hr-ftue,
+.hr-ftue-overlay,
+.ftue-tooltip,
+.ftue-card {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  color: #3d2817 !important;
+  border: 1px solid #b8893e !important;
+  box-shadow: 0 8px 24px rgba(60,40,16,.4) !important;
+}
+.hr-ftue *,
+.hr-ftue-overlay *,
+.ftue-tooltip *,
+.ftue-card * {
+  color: #3d2817 !important;
+}
+.hr-ftue h1,
+.hr-ftue h2,
+.hr-ftue h3,
+.ftue-tooltip h1,
+.ftue-tooltip h2,
+.ftue-tooltip h3,
+.ftue-card h1,
+.ftue-card h2,
+.ftue-card h3 {
+  color: #5c2d08 !important;
+  font-family: var(--f-display) !important;
+}
+.ftue-button,
+.ftue-next,
+.hr-ftue button {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border: 2px solid #5a1208 !important;
+  font-family: var(--f-display) !important;
+}
+
+/* ============================================================
+ * UNTOUCHED TABS — Bounty Board, Stable, Skills detail, Market,
+ * Dungeons, Shop. Apply same readability rules to ALL panels
+ * (not just :active). Catches dynamically-loaded panel content.
+ * ============================================================ */
+html:not([data-theme]) .panel,
+html:not([data-theme]) .panel *,
+body[data-theme="cozy-light"] .panel,
+body[data-theme="cozy-light"] .panel * {
+  color: #3d2817;
+}
+html:not([data-theme]) .panel h1,
+html:not([data-theme]) .panel h2,
+html:not([data-theme]) .panel h3,
+html:not([data-theme]) .panel h4,
+html:not([data-theme]) .panel .card-title,
+body[data-theme="cozy-light"] .panel h1,
+body[data-theme="cozy-light"] .panel h2,
+body[data-theme="cozy-light"] .panel h3,
+body[data-theme="cozy-light"] .panel h4,
+body[data-theme="cozy-light"] .panel .card-title {
+  color: #5c2d08 !important;
+}
+
+/* Bounty Board specifically — bounty cards, target text */
+#panel-bounty .bounty-card,
+#panel-bounty [class*="bounty-row"],
+#panel-bounty [class*="bounty-card"] {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+#panel-bounty * {
+  color: #3d2817 !important;
+}
+#panel-bounty b,
+#panel-bounty strong {
+  color: #5c2d08 !important;
+}
+
+/* Stable / companions tab */
+#panel-stable .companion-card,
+#panel-stable [class*="comp-card"],
+#panel-stable [class*="companion"] {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+#panel-stable * {
+  color: #3d2817 !important;
+}
+#panel-stable b,
+#panel-stable strong {
+  color: #5c2d08 !important;
+}
+
+/* Skills detail panel inside Activities — skill tile rows */
+#panel-skills #skill-detail,
+#panel-skills #skill-detail *,
+#panel-skills .activity-tile,
+#panel-skills .activity-tile * {
+  color: #3d2817 !important;
+}
+#panel-skills .activity-tile {
+  background: rgba(255,247,224,.55) !important;
+  border: 1px solid var(--line) !important;
+}
+#panel-skills .activity-tile.active {
+  background: linear-gradient(180deg,#d44a3a,#8b2a1f) !important;
+  color: #fff8e2 !important;
+  border-color: #5a1208 !important;
+}
+#panel-skills .activity-tile.active * {
+  color: #fff8e2 !important;
+}
+
+/* Market tab — listings, search, analytics */
+#panel-market * {
+  color: #3d2817 !important;
+}
+#panel-market b,
+#panel-market strong {
+  color: #5c2d08 !important;
+}
+#panel-market [class*="listing"],
+#panel-market [class*="market-row"],
+#panel-market [class*="market-card"],
+#panel-market form,
+#panel-market fieldset,
+#panel-market section {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line) !important;
+}
+#panel-market input,
+#panel-market select {
+  background: #fff7e0 !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line) !important;
+}
+/* "List an item" form — was rendering with an olive-green default
+   background that broke the parchment look. Force parchment. */
+#panel-market [class*="list-form"],
+#panel-market [class*="market-form"],
+#panel-market [class*="post-listing"],
+#panel-market #market-list-form {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 6px;
+  padding: 14px !important;
+}
+
+/* Shop / Premium store tab */
+#panel-shop * {
+  color: #3d2817 !important;
+}
+#panel-shop b,
+#panel-shop strong {
+  color: #5c2d08 !important;
+}
+#panel-shop [class*="iap-card"],
+#panel-shop [class*="store-card"],
+#panel-shop [class*="shop-card"],
+#panel-shop [class*="sku"] {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+
+/* Dungeons tab */
+#panel-dungeons * {
+  color: #3d2817 !important;
+}
+#panel-dungeons b,
+#panel-dungeons strong {
+  color: #5c2d08 !important;
+}
+#panel-dungeons [class*="dungeon-card"],
+#panel-dungeons [class*="key-card"] {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+
+/* Combat panel WITH monster selected — the fight UI */
+#panel-combat .fighter,
+#panel-combat .fighter *,
+#panel-combat [class*="hp-bar"],
+#panel-combat [class*="combat-info"] {
+  color: #3d2817;
+}
+#panel-combat .fighter {
+  background: rgba(255,247,224,.6) !important;
+  border: 1px solid var(--line) !important;
+}
+#panel-combat .fighter b {
+  color: #5c2d08 !important;
+}
+
+/* Activity bar items / quest strip — all readable */
+.activity-bar *,
+#global-quests-strip *,
+#quests-strip * {
+  color: #3d2817 !important;
+}
+.activity-bar b,
+#global-quests-strip b,
+#quests-strip b {
+  color: #5c2d08 !important;
+}
+
+/* Item flyout / detail popovers */
+.inv-flyout,
+.inv-flyout *,
+.item-detail-flyout,
+.item-detail-flyout *,
+.tooltip,
+.tooltip * {
+  color: #3d2817 !important;
+}
+.inv-flyout,
+.item-detail-flyout,
+.tooltip {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  border: 1px solid #b8893e !important;
+  box-shadow: 0 4px 12px rgba(60,40,16,.3) !important;
+}
+
+/* Chat dock body — readable on parchment too */
+.chat-dock,
+.chat-dock * {
+  color: #3d2817;
+}
+.chat-dock {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  border: 1px solid #b8893e !important;
+}
+.chat-dock .chat-msg b,
+.chat-dock .msg-author {
+  color: #5c2d08 !important;
+}
+
+/* ============================================================
+ * QA POLISH PASS — fixes from playtest
+ * ============================================================ */
+
+/* Broken-image fallback glyphs were rendering in soft gold at 70%
+   opacity on parchment, making them disappear. Force dark cocoa
+   + full opacity so they actually read as the placeholder they are. */
+.icon-fallback {
+  color: #3d2817 !important;
+  opacity: 1 !important;
+  font-size: 22px !important;
+  text-shadow: 0 1px 0 rgba(255,247,224,.5);
+}
+
+/* Bounty board monster icons — when the painted img is sized too
+   large it forces the monster name onto a second line. Constrain
+   to a small inline-block. */
+.bounty-option .row.between b img,
+.bounty-option b img,
+.bounty-card b img {
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin-right: 4px;
+}
+.bounty-option .row.between b,
+.bounty-option b,
+.bounty-card b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+}
+
+/* Activities skill tile icons — make the fallback glyphs prominent
+   so the tile doesn't read as empty when the bundle PNG 404s. */
+.skill-tile .sicon,
+.activity-tile .sicon,
+[class*="skill-tile"] .sicon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+.skill-tile .sicon img,
+.activity-tile .sicon img {
+  max-width: 36px;
+  max-height: 36px;
+  object-fit: contain;
+}
+.skill-tile .sicon .icon-fallback,
+.activity-tile .sicon .icon-fallback {
+  font-size: 28px !important;
+  color: #5c2d08 !important;
+  opacity: 1 !important;
+}
+
+/* Loadout / inventory paper-doll slot labels (those gray pills
+   under each slot showing slot type abbreviations). Currently
+   showing as empty/illegible. Force dark text + visible bg. */
+.loadout-slot small,
+.equip-slot small,
+.inv-slot small,
+.eq-slot small,
+.td-slot small,
+[class*="td-slot"] small {
+  color: #3d2817 !important;
+  background: rgba(255,247,224,.9) !important;
+  font-weight: 700 !important;
+  font-size: 9px !important;
+  letter-spacing: .04em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  text-shadow: none !important;
+}
+
+/* FTUE Step 1 has a Skip button that's dark-on-dark. Force it
+   to a readable parchment+cocoa style. The hr-ftue module
+   uses inline styles so we need !important. */
+.hr-ftue button:not(.ftue-next),
+.ftue-skip,
+.hr-ftue [class*="skip"],
+.hr-ftue button[data-act="skip"] {
+  background: rgba(255,247,224,.85) !important;
+  color: #3d2817 !important;
+  border: 1px solid var(--line) !important;
+  font-family: var(--f-display) !important;
+  font-size: 11px !important;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+/* Make sure FTUE primary button (Take the tour / Got it / Next)
+   stays in the wax-stamp red style */
+.hr-ftue button.ftue-next,
+.hr-ftue button[data-act="next"],
+.hr-ftue button[data-act="primary"] {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border: 2px solid #5a1208 !important;
+  font-family: var(--f-display) !important;
+  font-size: 11px !important;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+/* Activity bar's skill icon (the small skill icon in the activity
+   bar, e.g. ⛏️ when mining) — when fallback fires here, ensure it
+   sits correctly inside the .ab-icon ring. */
+.ab-icon .icon-fallback {
+  font-size: 18px !important;
+  color: #5c2d08 !important;
+}
+
+/* Skill detail panel skill icons in Activities — same broken-img
+   issue. Force the inner image / fallback to fit the slot. */
+.activities-grid img,
+#skills-list img,
+#skill-detail img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ============================================================
  * INVENTORY RIGHT SIDEBAR — HERO / WEAPON STYLES / BONUSES /
  * ACTIVE STYLE. The numbers are rendered with hardcoded
  * var(--gold-2) inline styles. Force them dark + readable.

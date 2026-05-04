@@ -4513,23 +4513,37 @@ console.log('Poneti v2 loaded:', Object.keys(window._skillIcon).length, 'skills,
   }
   function paintBountyMonsters(){
     document.querySelectorAll('.bounty-option').forEach(function(el){
-      // bounty-option text contains "(monster name)" — match by name. Better:
-      // The bounty board renders ${m?.icon} ${m?.name} as the b heading.
-      // We can extract the monster ID by name lookup.
-      if(el.querySelector('img')) return;
+      // Skip if the row already has an img OR has been touched by
+      // image-fallback (which swaps broken imgs with .icon-fallback
+      // spans). Re-painting on top of those produces broken HTML
+      // because our regex strips the opening `<span` tag.
+      if(el.querySelector('img, .icon-fallback')) return;
       var b = el.querySelector('b');
       if(!b) return;
+      // Same defense at the b level
+      if(b.querySelector('img, .icon-fallback')) return;
       var name = b.textContent.trim();
+      // Strip any HTML-attribute fragments that leaked in from a
+      // previous broken paint (defensive — older tabs may have
+      // corrupted DOM until reload).
+      name = name.replace(/class="[^"]*"|style="[^"]*"/g,'').replace(/^>\s*/,'').trim();
       // strip leading emoji
       name = name.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u,'').trim();
       if(typeof MONSTERS==='undefined') return;
       var mId = Object.keys(MONSTERS).find(function(k){ return MONSTERS[k].name === name; });
       if(!mId) return;
       var path = window._monsterIcon && window._monsterIcon[mId];
-      if(!path) return;
-      // Replace the leading emoji with an img
+      if(!path) {
+        // No icon mapping — restore a clean emoji + name so any
+        // earlier corruption is wiped.
+        var m = MONSTERS[mId];
+        b.textContent = (m && m.icon ? m.icon + ' ' : '') + name;
+        return;
+      }
+      // Replace the leading emoji with an img — only the FIRST whitespace-bounded
+      // token (the emoji), keeping everything after intact.
       var html = b.innerHTML;
-      html = html.replace(/^([^\s]+)\s+/, '<img src="'+path+'" alt="" />&nbsp;');
+      html = html.replace(/^([^\s<]+)\s+/, '<img src="'+path+'" alt="" />&nbsp;');
       b.innerHTML = html;
     });
   }

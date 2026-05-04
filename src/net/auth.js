@@ -52,6 +52,13 @@ export async function setupAuth(config) {
       // Sync stays in offline mode (events buffer to localStorage)
     }
     renderAuthUi();
+    // Trigger a full panel re-render so the Profile sheet's
+    // "Offline play / Sign in" subtitle + button update to
+    // reflect the new session state.
+    try {
+      if (typeof window.render === 'function') window.render();
+      if (typeof window.renderProfile === 'function') window.renderProfile();
+    } catch {}
   });
 
   if (session) enableLiveSync();

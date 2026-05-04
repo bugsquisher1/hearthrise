@@ -1,0 +1,8 @@
+name = "hearthrise-bug-bridge"
+main = "bug-report-bridge.js"
+compatibility_date = "2026-05-01"
+
+# Secrets (set via `wrangler secret put`):
+#   DISCORD_WEBHOOK_URL  — Discord channel webhook
+#   GITHUB_REPO          — e.g. "bugsquisher1/hearthrise"
+#   GITHUB_PAT           — fine-grained PAT with issues:write on the repo

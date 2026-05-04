@@ -944,16 +944,11 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
     min-height: 28px !important;
   }
 
-  /* Bottom nav — shorter, smaller */
-  .bottom-nav {
-    height: calc(40px + var(--safe-b, 0px)) !important;
-  }
-  .bn-btn, .bottom-nav button {
-    min-height: 36px !important;
-    padding: 2px 4px !important;
-    font-size: 8px !important;
-  }
-  .bn-btn .ic { font-size: 14px !important; margin-bottom: 0 !important; }
+  /* NOTE: bottom-nav + bn-btn rules removed in b115 because b114 now
+   * rotates the bottom-nav into a left side rail in landscape and owns
+   * its own height / button sizing. Leaving these here was setting
+   * height to 40px and overriding b114's height:100vh, which collapsed
+   * the rail to a tiny strip with only the first button visible. */
 
   /* Sub-tab strips — slimmer */
   .cmb-mob-tabs, .inv-mob-tabs, .act-mob-strip {

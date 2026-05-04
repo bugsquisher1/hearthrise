@@ -4,6 +4,30 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 117 — 2026-05-04 (bug-report pipeline + screenshot capture)
+
+The "test on phone via RDP" pain solved.
+
+- 📸 **Screenshot capture in bug reports.** `html2canvas` (loaded from CDN, no bundle bloat) renders the current viewport to a JPEG; included in the report payload. Embedded inline in the Copy-to-clipboard markdown. Visible in Discord embeds + GitHub Issues.
+- 🌉 **Cloudflare Worker bug-report bridge.** New file `cloudflare-workers/bug-report-bridge.js`. Single endpoint that fans out to **Discord channel + GitHub Issues** in parallel. Holds Discord webhook URL + GitHub PAT as Cloudflare secrets so they never touch the public web client.
+- 📝 **`BUG_REPORT_PIPELINE.md`** — step-by-step setup guide. ~25 min one-time wiring: Discord channel + webhook → GitHub PAT → Cloudflare Workers signup → `wrangler deploy` → secrets → paste worker URL into `bug-report.js`.
+
+After Tyler completes the setup, the testing loop becomes:
+
+> Phone → 🐛 → Send → Discord notification on phone (Tyler sees) + GitHub Issue created (Claude reads via WebFetch)
+
+Every report has the screenshot inline, viewable on either side. Claude can comment on issues, label them, close them as fixed. Persistent shared source of truth for bugs across co-pilot sessions.
+
+The legacy direct-Discord and Supabase paths still work as redundant fallbacks. If `BRIDGE_URL` is left blank in `bug-report.js`, the game uses the old paths transparently.
+
+## v0.9.1-beta build 116 — 2026-05-04 (landscape side-rail height hotfix)
+
+After b115 deployed, the side rail was visible at the top with HOME / Profile button rendered correctly — but no other buttons. iframe DOM inspection showed all 6 buttons existed (Home/Character/Combat/Skills/Farm/More at y=6, 64, 122, 180, 238, 296) but the nav container was only 60px tall with `overflow: auto`, so 5 of 6 buttons were below the fold and required scrolling.
+
+Cause: my own b113 block in `theme-cozy.css` had `.bottom-nav { height: calc(40px + safe-b) !important }` from when the nav was still horizontal. b113 came AFTER b114 in the file, so b113's height override won via cascade order. Self-inflicted regression.
+
+Fix: removed the obsolete bottom-nav height + bn-btn sizing rules from the b113 block. b114's `height: 100vh` now wins. All 6 rail buttons are visible top-to-bottom in landscape.
+
 ## v0.9.1-beta build 115 — 2026-05-04 (landscape visual polish)
 
 Tyler's first b114 read: "clunky, no parchment background on left nav." Six issues spotted in the iframe screenshot:

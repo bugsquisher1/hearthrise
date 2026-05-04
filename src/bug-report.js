@@ -2,25 +2,30 @@
 // src/bug-report.js
 //
 // One-click bug reporter for beta testers. Renders a tiny "🐛 Report
-// bug" button into the topbar. On click, captures:
+// bug" button. On click, captures:
 //
 //   • Build version (from build-info.js)
 //   • Recent console errors (last 50, intercepted at boot)
 //   • Current tab + active activity
-//   • Lightweight game state snapshot (~no PII, no save dump)
+//   • Lightweight game state snapshot (no PII, no save dump)
 //   • User-typed description
+//   • SCREENSHOT of the current viewport (b117) via html2canvas
 //
-// Sends to:
-//   1. Discord webhook (if HearthriseBugReport.webhookUrl is set)
-//   2. Supabase `bug_reports` table (always, if signed in)
-//   3. localStorage queue (last resort, retried on next load)
+// Sends to (in order, fan-out via Cloudflare Worker if BRIDGE_URL set):
+//   1. Bridge worker → Discord channel + GitHub Issue (preferred)
+//   2. Discord webhook directly (fallback)
+//   3. Supabase `bug_reports` table (if signed in)
+//   4. localStorage queue (last resort, retried on next load)
 //
-// Tyler: paste a Discord webhook URL into the constant below.
-// To create one: Discord server → Channel settings → Integrations
-// → Webhooks → New Webhook → "Copy Webhook URL".
+// Setup: see BUG_REPORT_PIPELINE.md
 // ============================================================
 
-const DISCORD_WEBHOOK_URL = ''; // ← paste yours here, or set window.HearthriseBugReport.webhookUrl at runtime
+// Bridge worker URL — Cloudflare Worker that forwards to Discord + GitHub.
+// When configured, this single endpoint replaces the Discord-only path:
+// game → BRIDGE_URL → Discord channel + GitHub Issue (with screenshot inline).
+// Until Tyler deploys his worker, leave blank; the legacy paths still work.
+const BRIDGE_URL = ''; // ← paste your Cloudflare Worker URL here
+const DISCORD_WEBHOOK_URL = ''; // ← OR paste a raw Discord webhook URL here
 
 const MAX_CONSOLE_BUFFER = 50;
 const QUEUE_KEY = 'hearthrise:bug-queue';
@@ -83,6 +88,50 @@ function gameStateSnapshot() {
 function buildVersionString() {
   return (window.HearthriseBuild && window.HearthriseBuild.buildString && window.HearthriseBuild.buildString())
       || 'unknown-build';
+}
+
+// Capture a screenshot of the current viewport via html2canvas (CDN).
+// Returns a base64 JPEG data URL or null on failure. Doesn't throw —
+// bug reporting must keep working even if screenshot capture fails.
+async function captureScreenshot() {
+  try {
+    // Dynamic import keeps html2canvas (~50KB) out of the main bundle.
+    const mod = await import('https://cdn.skypack.dev/html2canvas');
+    const h2c = mod.default || mod;
+    // scale: 0.5 cuts resolution in half — usable detail at ~25% file size.
+    // Mobile bug reports especially benefit from smaller payloads.
+    const canvas = await h2c(document.body, {
+      scale: 0.5,
+      logging: false,
+      backgroundColor: null,
+      useCORS: true,
+      // Skip pseudo-elements + bg images that often cause CORS errors —
+      // we want a screenshot, not a perfect render.
+      imageTimeout: 1500,
+      removeContainer: true,
+    });
+    // 0.7 quality JPEG keeps file size ~30-80KB at 0.5 scale.
+    return canvas.toDataURL('image/jpeg', 0.7);
+  } catch (err) {
+    console.warn('[bug-report] screenshot capture failed:', err.message);
+    return null;
+  }
+}
+
+// Send to the bridge worker — single endpoint, fans out to Discord + GitHub.
+async function sendBridge(payload) {
+  const url = (window.HearthriseBugReport && window.HearthriseBugReport.bridgeUrl) || BRIDGE_URL;
+  if (!url) return { ok: false, skipped: true };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 }
 
 async function sendDiscord(payload) {
@@ -167,6 +216,11 @@ async function flushQueue() {
 }
 
 async function submit({ summary, description }) {
+  // Capture screenshot first — must happen before the modal closes
+  // (otherwise we'd screenshot the closing modal, which is meaningless).
+  // Fail-soft: if capture errors, payload.screenshot stays null.
+  const screenshot = await captureScreenshot();
+
   const payload = {
     summary: summary || '(no summary)',
     description: description || '',
@@ -175,12 +229,23 @@ async function submit({ summary, description }) {
        || (window.G && window.G.playerName) || 'guest',
     state: gameStateSnapshot(),
     errors: consoleBuffer.slice(-20),
+    screenshot,
     ts: new Date().toISOString(),
   };
-  const [a, b] = await Promise.all([sendDiscord(payload), sendSupabase(payload)]);
-  const ok = a.ok || b.ok;
-  if (!ok && !(a.skipped && b.skipped)) enqueue(payload);
-  return { ok, discord: a, supabase: b };
+  // Fan-out: bridge worker first (covers Discord + GitHub in one POST),
+  // then the legacy direct paths as fallbacks. If bridge succeeds the
+  // others are still useful as redundancy but not required.
+  const [bridge, discord, supabase] = await Promise.all([
+    sendBridge(payload),
+    sendDiscord(payload),
+    sendSupabase(payload),
+  ]);
+  const ok = bridge.ok || discord.ok || supabase.ok;
+  if (!ok && !(bridge.skipped && discord.skipped && supabase.skipped)) {
+    // Don't queue the screenshot — too large for localStorage in volume.
+    enqueue({ ...payload, screenshot: null });
+  }
+  return { ok, bridge, discord, supabase };
 }
 
 // ── UI ────────────────────────────────────────────────────────
@@ -225,8 +290,11 @@ function openModal() {
   overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
   overlay.querySelector('[data-act="copy"]').addEventListener('click', async () => {
     // Build a Markdown-formatted dump the user can paste anywhere.
-    // Discord webhook + Supabase aren't required — useful when neither
-    // is configured or when the user wants to attach a screenshot first.
+    // Captures a screenshot (b117) and embeds it as a base64 data URL —
+    // works when pasted into anything that renders markdown (GitHub
+    // Issues, our chat, etc.). Discord and similar will show the link.
+    status.textContent = 'Capturing…';
+    const screenshot = await captureScreenshot();
     const payload = {
       summary: form.summary.value.trim() || '(no summary)',
       description: form.description.value.trim() || '',
@@ -235,6 +303,7 @@ function openModal() {
          || (window.G && window.G.playerName) || 'guest',
       state: gameStateSnapshot(),
       errors: consoleBuffer.slice(-20),
+      screenshot,
       ts: new Date().toISOString(),
     };
     const md = ''
@@ -243,7 +312,9 @@ function openModal() {
       + '**Build:** `' + payload.build + '`  \n'
       + '**Player:** ' + payload.user + '  \n'
       + '**Tab:** ' + (payload.state.activeTab || '—') + '  \n'
+      + '**Viewport:** ' + (payload.state.viewport || '—') + '  \n'
       + '**Time:** ' + payload.ts + '\n\n'
+      + (screenshot ? '![screenshot](' + screenshot + ')\n\n' : '_(screenshot capture failed)_\n\n')
       + '<details><summary>State</summary>\n\n```json\n'
       + JSON.stringify(payload.state, null, 2)
       + '\n```\n\n</details>\n\n'
@@ -297,6 +368,8 @@ window.HearthriseBugReport = {
   open: openModal,
   submit,
   webhookUrl: DISCORD_WEBHOOK_URL,
+  bridgeUrl: BRIDGE_URL,
+  captureScreenshot,
   flushQueue,
 };
 

@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 123 — 2026-05-04 (b122 cascade hotfix)
+
+After verifying b122 on the deployed iframe, the feat-buttons stayed as a vertical stack and the topbar still wrapped to two rows. Diagnosed: an earlier `html:not([data-theme]) #panel-profile .feat-buttons { display: flex !important }` rule (specificity 0,1,2,1) was outranking the b122 mobile rule (specificity 0,1,1,0). My `display: grid !important` from b122 lost to a more-specific theme rule.
+
+- 🎯 **Re-emit feat-buttons grid + topbar nowrap with theme-prefixed selectors** so specificity ties and last-loaded wins. Covers `.feat-buttons`, `.profile-toolbar`, `.profile-actions`, `.prof-toolbar`.
+- 📜 **Topbar now horizontally scrolls on portrait** when stats overflow — better than wrapping. Stats labels (CL, TL, GOLD, GEMS) hidden on portrait, restored on landscape. Avatar shrunk to 28px.
+
 ## v0.9.1-beta build 122 — 2026-05-04 (mobile QA + UI/UX sweep, pass 1)
 
 Tyler ran a senior-tester pass and found the mobile experience nowhere near ship-ready. First batch of fixes:

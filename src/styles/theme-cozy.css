@@ -4001,3 +4001,91 @@ body[data-theme="classic"] .modal-card {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
+
+/* ============================================================
+ * b123: cascade specificity hotfix
+ *
+ * b122's plain `#panel-profile .feat-buttons` rule (specificity
+ * 0,1,1,0) was outranked by an existing theme-cozy rule
+ * `html:not([data-theme]) #panel-profile .feat-buttons` (0,1,2,1)
+ * which forced display:flex !important. Result: feat-buttons
+ * stayed in a vertical stack on mobile.
+ *
+ * Same problem for the topbar: `.top-stats` flex-wrap was set
+ * by another higher-specificity rule and my `.topbar` rule
+ * couldn't reach the inner stats container.
+ *
+ * Fix: re-apply the same mobile rules but with the matching
+ * theme-prefix selectors so specificity ties (last one wins).
+ * ============================================================ */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  /* Feat-buttons grid — themed selectors */
+  html:not([data-theme]) #panel-profile .feat-buttons,
+  html:not([data-theme]) #panel-profile .profile-toolbar,
+  html:not([data-theme]) #panel-profile .profile-actions,
+  html:not([data-theme]) #panel-profile .prof-toolbar,
+  body[data-theme="cozy-light"] #panel-profile .feat-buttons,
+  body[data-theme="cozy-light"] #panel-profile .profile-toolbar,
+  body[data-theme="cozy-light"] #panel-profile .profile-actions,
+  body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+    flex-wrap: initial !important;
+    margin: 12px 0 !important;
+  }
+  html:not([data-theme]) #panel-profile .feat-buttons > *,
+  html:not([data-theme]) #panel-profile .profile-toolbar > *,
+  html:not([data-theme]) #panel-profile .profile-actions > *,
+  html:not([data-theme]) #panel-profile .prof-toolbar > *,
+  body[data-theme="cozy-light"] #panel-profile .feat-buttons > *,
+  body[data-theme="cozy-light"] #panel-profile .profile-toolbar > *,
+  body[data-theme="cozy-light"] #panel-profile .profile-actions > *,
+  body[data-theme="cozy-light"] #panel-profile .prof-toolbar > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Topbar inner stats container — kill the wrap */
+  .topbar .top-stats,
+  header.topbar .top-stats,
+  html:not([data-theme]) .topbar .top-stats,
+  body[data-theme="cozy-light"] .topbar .top-stats {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    min-width: 0 !important;
+  }
+  .topbar .top-stats::-webkit-scrollbar { display: none !important; }
+  .topbar .top-stats > * {
+    flex: 0 0 auto !important;
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+  }
+  .topbar .t-stat .lab { display: none !important; } /* labels eat space; numbers + icon are enough */
+  .topbar .t-stat { gap: 2px !important; }
+  .topbar .player { flex: 0 0 auto !important; min-width: 0 !important; }
+  .topbar .player-avatar { width: 28px !important; height: 28px !important; }
+  .topbar .player-name { font-size: 13px !important; }
+
+  /* Hide low-priority topbar widgets to keep it on one row */
+  .topbar #status-pill,
+  .topbar .streak-badge .flame ~ * { /* keeps flame, hides number on very tight phones */ }
+  /* Notification + save + settings buttons stay (they're action buttons) */
+
+  /* Landscape phones can fit a tiny bit more — undo overflow scroll */
+}
+@media (max-height: 540px) and (max-width: 900px) and (orientation: landscape) {
+  .topbar .top-stats { overflow-x: visible !important; }
+  .topbar .t-stat .lab { display: inline !important; }
+}

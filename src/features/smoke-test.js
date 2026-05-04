@@ -1028,6 +1028,37 @@ const TESTS = [
       // The scroll is best-effort; assertion is just that the call didn't blow up.
     } finally { detail.scrollIntoView = orig; window.showTab('profile'); }
   }),
+
+  // b132: on mobile, low-priority topbar widgets (Total Level, streak,
+  // notif bell, save, settings) hide so the essentials fit without
+  // horizontal scroll clipping.
+  () => tryRun('b132: low-priority topbar widgets hidden on mobile', () => {
+    if (window.innerWidth > 540) return;
+    const ids = ['btn-notif', 'btn-save', 'btn-settings'];
+    let visible = 0;
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && el.offsetWidth > 0) visible++;
+    }
+    assert(visible === 0,
+      visible + ' of ' + ids.length + ' low-priority topbar buttons still visible on mobile (should be hidden, accessed via MORE menu)');
+  }),
+
+  // b132: on mobile, the quests modal qm-body should collapse to single
+  // column. The 280px right sidebar (QUEST INFO) is hidden so the
+  // quest list gets the full width.
+  () => tryRun('b132: quest modal single-column on mobile', () => {
+    if (window.innerWidth > 540) return;
+    if (typeof window.openQuestsModal !== 'function') return;
+    window.openQuestsModal();
+    const body = document.querySelector('#quests-modal-overlay .qm-body');
+    if (!body) { if (window.closeQuestsModal) window.closeQuestsModal(); return; }
+    const cs = getComputedStyle(body);
+    const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length;
+    if (window.closeQuestsModal) window.closeQuestsModal();
+    assert(cols <= 1,
+      'qm-body should be single-column on mobile, got ' + cols + ' columns');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

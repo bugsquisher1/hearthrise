@@ -4080,10 +4080,18 @@ body[data-theme="classic"] .modal-card {
   .topbar .player-avatar { width: 28px !important; height: 28px !important; }
   .topbar .player-name { font-size: 13px !important; }
 
-  /* Hide low-priority topbar widgets to keep it on one row */
+  /* b132: hide low-priority topbar widgets so the essentials
+     (avatar + Quests + CL + Gold + Gems) actually fit without
+     horizontal scroll. Save / Settings / Notifications all live
+     in the MORE menu on mobile already. */
   .topbar #status-pill,
-  .topbar .streak-badge .flame ~ * { /* keeps flame, hides number on very tight phones */ }
-  /* Notification + save + settings buttons stay (they're action buttons) */
+  .topbar .streak-badge,
+  .topbar #btn-notif,
+  .topbar #btn-save,
+  .topbar #btn-settings,
+  .topbar [title="Total level"] {
+    display: none !important;
+  }
 
   /* Landscape phones can fit a tiny bit more — undo overflow scroll */
 }
@@ -4174,4 +4182,48 @@ body[data-theme="cozy-light"] .qm-close:hover {
   background: #b6483a !important;
   border-color: #6c2a22 !important;
   color: #fff8e2 !important;
+}
+
+/* ============================================================
+ * b132: Quests modal mobile layout
+ *
+ * On mobile the quests modal has THREE problems documented in the
+ * playthrough:
+ *   - .qm-body's right sidebar (280px QUEST INFO) wastes half the
+ *     viewport, leaving the quest list cramped
+ *   - quest titles wrap mid-word ("Cook 5\ndishes") because the
+ *     reward column eats too much width
+ *   - the QUEST INFO summary card can overlap the quest list
+ *     scroll area
+ *
+ * Fix: collapse to single column, stack info + reward vertically
+ * inside each quest card, hide the side QUEST INFO panel.
+ * ============================================================ */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  .qm-body {
+    grid-template-columns: 1fr !important;
+    overflow: visible !important;
+  }
+  /* Hide the right sidebar (QUEST INFO summary) entirely on mobile.
+     Header counts already show daily/weekly badges. */
+  .qm-body > :nth-child(2) {
+    display: none !important;
+  }
+  .qm-quest {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+  .qm-quest .qm-q-info { flex: 1 1 100% !important; min-width: 0 !important; }
+  .qm-quest .qm-q-name {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+  }
+  .qm-quest .qm-q-reward {
+    flex: 0 0 auto !important;
+    text-align: left !important;
+    margin-top: 4px !important;
+  }
+  .qm-quest .qm-q-claim { margin-left: auto !important; }
 }

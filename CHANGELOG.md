@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 132 — 2026-05-04 (user-story playthroughs — round 4: mobile polish)
+
+Cleared three of the queued mobile findings from b131's playthrough notes.
+
+- 📊 **Topbar declutter on mobile.** Total Level, streak badge, status pill, notif bell, Save button, Settings button — all hidden under 540px viewport width. Players still get them via the MORE menu (where Save / Settings already live). The visible topbar is now: avatar + name + Quests pill + CL + Gold + Gems. Fits without clipping.
+- 📜 **Quests modal collapses to single column on mobile.** The `.qm-body` grid was `1fr 280px` (quest list + summary sidebar) which on a 380px screen left the quest list cramped and titles wrapped mid-word. Mobile rule: `grid-template-columns: 1fr`, hide the sidebar entirely (the daily/weekly badge counts in the modal header already convey that info), and stack each quest card's reward column below the name instead of beside it. Titles now read normally.
+- 🔍 **Market search persistence — investigated, not a bug.** "log" persisted across sessions because the market intentionally saves search/sort state to `localStorage:hearthrise:market:ui`. That's standard marketplace UX — players want their last search to stick. Striking the finding.
+
+**Regression tests added** for the topbar declutter (no notif/save/settings visible at ≤540px) and quest modal columns (qm-body should be ≤1 grid column on mobile).
+
 ## v0.9.1-beta build 131 — 2026-05-04 (user-story playthroughs — round 3: mobile polish)
 
 Continuing the mobile playthrough. Two more focused fixes for stuff a real player would hit on first launch.

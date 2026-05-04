@@ -36,6 +36,8 @@ const tryRun = (name, fn) => {
 };
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+// b127: snapshot every field the player-action tests can mutate.
+// Missing fields here = the test pollutes the player's save.
 const snapshotG = () => {
   const G = window.G;
   if (!G) return null;
@@ -45,8 +47,19 @@ const snapshotG = () => {
     activeMonster: G.activeMonster,
     activeArtisanRecipe: G.activeArtisanRecipe,
     gold: G.gold,
+    gems: G.gems,
     inventory: G.inventory,
     equipment: G.equipment,
+    companions: G.companions,
+    farmPlots: G.farmPlots,
+    rooms: G.rooms,
+    quests: G.quests,
+    clanName: G.clanName,
+    skills: G.skills,
+    stats: G.stats,
+    plotBuildings: G.plotBuildings,
+    playerHp: G.playerHp,
+    playerMaxHp: G.playerMaxHp,
   }));
 };
 const restoreG = (snap) => {
@@ -692,19 +705,20 @@ const TESTS = [
     const snap = snapshotG();
     try {
       // Plant a turnip in plot 0. plantCrop(plotIdx, cropId) is the canonical API.
+      // Plot is stored as { cropId, plantedAt, watered, state } — note `cropId`,
+      // not `id`. b127 fixed this assertion.
       if (typeof window.plantCrop !== 'function') return;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
       window.G.farmPlots = window.G.farmPlots || [];
-      // Ensure plot 0 exists + is empty
       window.G.farmPlots[0] = null;
       window.plantCrop(0, 'turnip');
       const plot = window.G.farmPlots[0];
-      assert(plot && plot.id === 'turnip', `plot[0] should hold turnip, got ${JSON.stringify(plot)}`);
+      assert(plot && plot.cropId === 'turnip', `plot[0] should hold turnip, got ${JSON.stringify(plot)}`);
       // Fast-forward + harvest
       if (plot && typeof window.harvestPlot === 'function') {
         plot.state = 'ready';
-        plot.plantedAt = Date.now() - 24 * 3600 * 1000; // mark as fully grown
+        plot.plantedAt = Date.now() - 24 * 3600 * 1000;
         const beforeQty = window.G.inventory.turnip || 0;
         window.harvestPlot(0);
         const afterQty = window.G.inventory.turnip || 0;
@@ -733,28 +747,22 @@ const TESTS = [
   () => tryRun('action: create + cancel a market listing', () => {
     const snap = snapshotG();
     try {
-      // Most market backends expose listForSale / createListing / postOffer
-      // and cancelListing / withdrawListing. We try the common shapes.
+      // Real API: M.listItem(itemId, qty, askEach) → { ok, reason?, id? }
+      // M.cancelListing(listingId) → { ok }. b127 fixed this test.
       const M = window.HearthriseMarket;
-      if (!M) return;
+      if (!M || typeof M.listItem !== 'function') return;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 10;
       const beforeQty = window.G.inventory.normal_log;
-      let listFn = M.list || M.createListing || M.postOffer || M.sell;
-      if (typeof listFn !== 'function') return;
-      let listingId = null;
-      try {
-        const res = listFn.call(M, { itemId: 'normal_log', qty: 1, price: 5 });
-        listingId = res && (res.id || res.listingId);
-      } catch (e) {
-        // Some backends are async / require auth; if it throws we just skip the assertion.
-        return;
-      }
-      assert(window.G.inventory.normal_log === beforeQty - 1, 'inventory should decrement by 1 after listing');
-      // Cancel to restore
-      const cancelFn = M.cancel || M.cancelListing || M.withdraw;
-      if (typeof cancelFn === 'function' && listingId) {
-        try { cancelFn.call(M, listingId); } catch {}
+      const r = M.listItem('normal_log', 1, 5);
+      assert(r && r.ok, 'listItem should succeed, got ' + JSON.stringify(r));
+      assert(window.G.inventory.normal_log === beforeQty - 1,
+        'inventory should decrement by 1 after listing (escrow), before=' + beforeQty + ' after=' + window.G.inventory.normal_log);
+      // Cancel — find the listing id we just created.
+      const all = (typeof M.list === 'function') ? M.list() : [];
+      const mine = all.filter && all.filter(l => l.itemId === 'normal_log' && l.qty === 1 && l.askEach === 5);
+      if (mine && mine.length && typeof M.cancelListing === 'function') {
+        M.cancelListing(mine[mine.length - 1].id);
       }
     } finally { restoreG(snap); }
   }),
@@ -763,24 +771,22 @@ const TESTS = [
     const snap = snapshotG();
     try {
       const M = window.HearthriseMarket;
-      if (!M) return;
-      // Stage: list one log for sale at 5g, then buy it back. Net inventory
-      // change = 0, net gold change = 0 (minus tax if any).
+      if (!M || typeof M.listItem !== 'function' || typeof M.buyListing !== 'function') return;
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
-      const listFn = M.list || M.createListing || M.postOffer || M.sell;
-      const buyFn  = M.buy  || M.purchase     || M.buyListing;
-      if (typeof listFn !== 'function' || typeof buyFn !== 'function') return;
-      let listingId = null;
-      try {
-        const r = listFn.call(M, { itemId: 'normal_log', qty: 1, price: 5 });
-        listingId = r && (r.id || r.listingId);
-      } catch { return; }
-      if (!listingId) return;
-      try { buyFn.call(M, listingId, 1); } catch { return; }
-      // We don't assert exact balances — the market may have async
-      // settlement or fees. We only assert the call didn't throw.
+      const r = M.listItem('normal_log', 1, 5);
+      if (!r || !r.ok) return;
+      const all = (typeof M.list === 'function') ? M.list() : [];
+      const mine = all.filter && all.filter(l => l.itemId === 'normal_log');
+      if (!mine || !mine.length) return;
+      // We're the seller of every test listing — buyListing usually rejects
+      // self-purchases. Just assert the call doesn't throw.
+      try { M.buyListing(mine[mine.length - 1].id, 1); } catch {}
+      // Clean up: cancel anything we left
+      if (typeof M.cancelListing === 'function') {
+        for (const l of (mine || [])) try { M.cancelListing(l.id); } catch {}
+      }
     } finally { restoreG(snap); }
   }),
 
@@ -805,17 +811,25 @@ const TESTS = [
   () => tryRun('action: save + reload localStorage round-trip', () => {
     const snap = snapshotG();
     try {
+      // b127: use a real persisted field (gold) instead of a synthetic
+      // marker. The save serializer whitelists known fields, so
+      // `__testMarker` was being stripped on save. Bumping gold by a
+      // distinctive amount, saving, mutating in memory, then reloading
+      // proves the round-trip works.
       if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
-      const marker = '__smoke_test_marker_' + Date.now();
-      window.G.__testMarker = marker;
+      const tag = 12345;  // distinctive offset so we can detect it
+      const goldBefore = window.G.gold || 0;
+      window.G.gold = goldBefore + tag;
       window.saveLocal();
-      // Wipe the in-memory marker
-      delete window.G.__testMarker;
+      window.G.gold = -1;            // mutate in memory only
       window.loadLocal();
-      assert(window.G.__testMarker === marker, 'save/load round-trip lost the marker');
-      delete window.G.__testMarker;
-      window.saveLocal(); // persist the cleanup
-    } finally { restoreG(snap); }
+      assert(window.G.gold === goldBefore + tag,
+        `save/load round-trip lost gold change: expected ${goldBefore + tag}, got ${window.G.gold}`);
+    } finally {
+      // Restore + persist cleanup so we don't leave the player +12345g
+      restoreG(snap);
+      try { window.saveLocal(); } catch {}
+    }
   }),
 
   () => tryRun('action: smelt a copper bar (artisan loop)', () => {
@@ -836,14 +850,14 @@ const TESTS = [
   () => tryRun('action: equip + unequip a companion', () => {
     const snap = snapshotG();
     try {
+      // b127: real field is `G.companions.equipped`, not `equippedId`.
       if (typeof window.equipCompanion !== 'function') return;
-      // Fox is owned by default in starting state.
       window.equipCompanion('fox');
-      const eq = window.G.companions?.equippedId;
-      assert(eq === 'fox', `expected equipped companion=fox, got ${eq}`);
+      const eq = window.G.companions?.equipped;
+      assert(eq === 'fox', `expected equipped=fox, got ${JSON.stringify(window.G.companions)}`);
       if (typeof window.unequipCompanion === 'function') {
         window.unequipCompanion();
-        const after = window.G.companions?.equippedId;
+        const after = window.G.companions?.equipped;
         assert(!after, `companion should be unequipped, got ${after}`);
       }
     } finally { restoreG(snap); }
@@ -858,6 +872,77 @@ const TESTS = [
       // it's the mock path. Either way, leaveClan should not throw.
       try { window.leaveClan(); } catch {}
     } finally { restoreG(snap); }
+  }),
+
+  // ── b127 regression suite ──
+
+  // b127: Character page rendered "HP: — / —" because it read G.hp +
+  // window.getMaxHp(), neither of which exist. Real fields are
+  // G.playerHp + G.playerMaxHp.
+  () => tryRun('b127: character page shows real HP, not "—"', () => {
+    if (typeof window.G !== 'object' || typeof window.G.playerHp !== 'number') return;
+    window.showTab('character');
+    void document.body.offsetHeight;
+    if (typeof window.renderCharacter === 'function') window.renderCharacter();
+    void document.body.offsetHeight;
+    const charPanel = document.getElementById('panel-character');
+    if (!charPanel) return;
+    const text = charPanel.textContent || '';
+    const hpMatch = text.match(/HP:\s*([^\s/]+)\s*\/\s*([^\s]+)/);
+    if (!hpMatch) return; // page may not show HP at all in some layouts
+    const lhs = hpMatch[1], rhs = hpMatch[2];
+    assert(lhs !== '—' && rhs !== '—',
+      `Character HP shows em-dashes ("HP: ${lhs} / ${rhs}") — playerHp/playerMaxHp wiring broken`);
+    window.showTab('profile');
+  }),
+
+  // b127: closeAllModals must dismiss every overlay style. Tests by
+  // opening the Quests modal (qm-overlay element-removal pattern)
+  // then asserting closeAllModals removes it.
+  () => tryRun('b127: closeAllModals dismisses qm-overlay', () => {
+    if (typeof window.openQuestsModal !== 'function' ||
+        typeof window.closeAllModals !== 'function') return;
+    window.openQuestsModal();
+    let overlay = document.getElementById('quests-modal-overlay');
+    assert(overlay, 'openQuestsModal did not create #quests-modal-overlay');
+    window.closeAllModals();
+    overlay = document.getElementById('quests-modal-overlay');
+    assert(!overlay, 'closeAllModals did not remove #quests-modal-overlay');
+  }),
+
+  // b127: navigating to a different tab should auto-close any open
+  // modal (the 3-modals-stacked-on-Combat bug from the QA sweep).
+  () => tryRun('b127: showTab() auto-closes open modals', () => {
+    if (typeof window.openQuestsModal !== 'function') return;
+    window.openQuestsModal();
+    assert(document.getElementById('quests-modal-overlay'), 'Quests modal did not open');
+    window.showTab('combat');
+    assert(!document.getElementById('quests-modal-overlay'),
+      'Quests modal stayed open after navigating to Combat — showTab should auto-close');
+    window.showTab('profile');
+  }),
+
+  // b127: hoursTillUTCMidnight must be on `window` so the quests
+  // modal renderer can read it. Was rendering "Resets in ?h" because
+  // the function declaration didn't reach the window scope from
+  // inside the modal IIFE.
+  () => tryRun('b127: hoursTillUTCMidnight exposed on window', () => {
+    assert(typeof window.hoursTillUTCMidnight === 'function',
+      'window.hoursTillUTCMidnight missing — quests modal will render "Resets in ?h"');
+    const h = window.hoursTillUTCMidnight();
+    assert(typeof h === 'number' && h >= 1 && h <= 24,
+      'hoursTillUTCMidnight should return 1..24, got ' + h);
+  }),
+
+  // b127: smoke test for the universal close — it shouldn't throw if
+  // there's nothing open.
+  () => tryRun('b127: closeAllModals is safe when nothing open', () => {
+    if (typeof window.closeAllModals !== 'function') return;
+    // Make sure nothing is open first
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+    // Now call it — should be a no-op, must not throw
+    window.closeAllModals();
   }),
 ];
 

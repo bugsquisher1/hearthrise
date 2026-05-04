@@ -4091,3 +4091,67 @@ body[data-theme="classic"] .modal-card {
   .topbar .top-stats { overflow-x: visible !important; }
   .topbar .t-stat .lab { display: inline !important; }
 }
+
+/* ============================================================
+ * b127: Quests modal cozy-light theming
+ *
+ * The Quests overlay (`.qm-overlay` / `.qm-modal`) was hard-coded
+ * to a dark-navy gradient in legacy.css regardless of theme. On
+ * cozy-light it stuck out visually like a different game. These
+ * overrides re-skin it to match the parchment + cocoa + gold
+ * palette the rest of the UI uses.
+ * ============================================================ */
+html:not([data-theme]) .qm-modal,
+body[data-theme="cozy-light"] .qm-modal {
+  background: linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%) !important;
+  border: 2px solid var(--gold) !important;
+  color: #3d2817 !important;
+  box-shadow: 0 24px 64px rgba(80, 50, 20, 0.30), 0 0 80px rgba(245, 194, 73, 0.20) !important;
+}
+html:not([data-theme]) .qm-overlay,
+body[data-theme="cozy-light"] .qm-overlay {
+  background: rgba(40, 25, 12, 0.55) !important;
+}
+html:not([data-theme]) .qm-tabs,
+body[data-theme="cozy-light"] .qm-tabs {
+  background: rgba(245, 226, 175, 0.55) !important;
+  border-bottom: 1px solid rgba(120, 85, 40, 0.25) !important;
+}
+html:not([data-theme]) .qm-tab,
+body[data-theme="cozy-light"] .qm-tab {
+  color: #5c3d12 !important;
+}
+html:not([data-theme]) .qm-tab:hover,
+body[data-theme="cozy-light"] .qm-tab:hover { color: #3d2817 !important; }
+html:not([data-theme]) .qm-tab.active,
+body[data-theme="cozy-light"] .qm-tab.active {
+  color: #b6483a !important;
+  border-bottom-color: #b6483a !important;
+  background: rgba(255, 244, 215, 0.7) !important;
+}
+html:not([data-theme]) .qm-quest,
+body[data-theme="cozy-light"] .qm-quest {
+  background: rgba(255, 248, 226, 0.7) !important;
+  border: 1px solid rgba(120, 85, 40, 0.25) !important;
+  color: #3d2817 !important;
+}
+html:not([data-theme]) .qm-quest .qm-q-name,
+body[data-theme="cozy-light"] .qm-quest .qm-q-name { color: #3d2817 !important; }
+html:not([data-theme]) .qm-quest .qm-q-desc,
+body[data-theme="cozy-light"] .qm-quest .qm-q-desc { color: #6c4a20 !important; }
+html:not([data-theme]) .qm-quest .qm-q-icon,
+body[data-theme="cozy-light"] .qm-quest .qm-q-icon {
+  background: rgba(245, 226, 175, 0.6) !important;
+}
+html:not([data-theme]) .qm-close,
+body[data-theme="cozy-light"] .qm-close {
+  background: rgba(255, 244, 215, 0.6) !important;
+  border: 1px solid rgba(120, 85, 40, 0.35) !important;
+  color: #5c3d12 !important;
+}
+html:not([data-theme]) .qm-close:hover,
+body[data-theme="cozy-light"] .qm-close:hover {
+  background: #b6483a !important;
+  border-color: #6c2a22 !important;
+  color: #fff8e2 !important;
+}

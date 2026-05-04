@@ -1250,8 +1250,42 @@ function notify(text,type='info'){
    UI ROUTING
    ════════════════════════════════════════════════ */
 let activeTab='profile';
+/* b127: unified modal close. Three different modal patterns evolved
+ * over time and don't share a close mechanism. This is the single
+ * place to dismiss every kind of overlay so navigation, escape key,
+ * and "X" buttons all behave consistently. */
+function closeAllModals(){
+  // Pattern A: .modal.show (settings, more, monster preview, etc.)
+  document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
+  // Pattern B: .ach-overlay.show (achievements, bestiary)
+  document.querySelectorAll('.ach-overlay.show').forEach(o=>o.classList.remove('show'));
+  // Pattern C: .stats-modal.show (lifetime stats)
+  document.querySelectorAll('.stats-modal.show').forEach(o=>o.classList.remove('show'));
+  // Pattern D: #quests-modal-overlay — element-removal pattern
+  if(typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+  // Pattern E: legacy fixed-position dim layers tagged by id
+  ['settings-modal','more-modal','session-modal','wbv-modal']
+    .forEach(id=>{var el=document.getElementById(id); if(el) el.classList.remove('show');});
+  // Restore body scroll if a modal locked it
+  document.body.style.overflow='';
+}
+window.closeAllModals = closeAllModals;
+// Esc key dismisses all modals (except the bug-report modal — that has
+// its own close to preserve form input).
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var bug = document.getElementById('hr-bug-modal');
+    if(bug && bug.classList.contains('show')) return; // let bug-report handle its own
+    closeAllModals();
+  }
+});
+
 function showTab(tab){
   if(tab==='more'){document.getElementById('more-modal').classList.add('show');return;}
+  // b127: dismiss every modal before changing panel — fixes the
+  // bug where opening Quests + then clicking Profile would leave
+  // the Quests overlay floating on top of every subsequent panel.
+  closeAllModals();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn,.bn-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   const panel=document.getElementById('panel-'+tab);if(!panel)return;
@@ -4845,6 +4879,11 @@ function renderDailyGoals(host){
 function hoursTillUTCMidnight(){
   var d = new Date(); return Math.max(1, 24 - d.getUTCHours());
 }
+// b127: explicit window assignment. Function declarations at the top
+// of legacy.js don't always reach `window` from inside the quests-modal
+// IIFE, so the renderer fell through to the '?' fallback and rendered
+// "Resets in ?h" forever.
+window.hoursTillUTCMidnight = hoursTillUTCMidnight;
 
 /* ─── Character page: Combat Stats Breakdown + Equipped Loadout ─── */
 window._renderCharacterExtras = function(){
@@ -5343,30 +5382,11 @@ console.log('5 retention features loaded');
   Object.keys(added).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = added[k]; });
 })();
 
-/* ─── Poneti icon paths for the new items ─── */
-(function(){
-  if(!window._itemPath) window._itemPath = {};
-  var P = 'icons3';
-  var paths = {
-    cooked_shrimp:  P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-    cooked_trout:   P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-    cooked_lobster: P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-    cooked_shark:   P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-    copper_bar:     P+'/ProfessionIcons/ResourceIcons/Res_02_cooperbar.png',
-    iron_bar:       P+'/ProfessionIcons/ResourceIcons/Res_07_ironbar.png',
-    gold_bar:       P+'/ProfessionIcons/ResourceIcons/Res_03_goldenbar.png',
-    mithril_bar:    P+'/ProfessionIcons/ResourceIcons/Res_01_silverbar.png',
-    normal_plank:   P+'/ProfessionIcons/ResourceIcons/Res_04_wood.png',
-    oak_plank:      P+'/ProfessionIcons/ResourceIcons/Res_04_wood.png',
-    willow_plank:   P+'/ProfessionIcons/ResourceIcons/Res_04_wood.png',
-    maple_plank:    P+'/ProfessionIcons/ResourceIcons/Res_04_wood.png',
-    yew_plank:      P+'/ProfessionIcons/ResourceIcons/Res_04_wood.png',
-  };
-  Object.keys(paths).forEach(function(k){
-    window._itemPath[k] = paths[k];
-    if(window._itemSVG) window._itemSVG[k] = '<img src="'+paths[k]+'" class="poneti-icon" alt="" loading="lazy" />';
-  });
-})();
+/* b127: Removed icons3/* paths for cooked fish + bars + planks.
+ * Bars and planks are properly mapped in LOCAL_ITEM_ICON at the
+ * applyLocalIcons() IIFE near the bottom of this file. Cooked-fish
+ * items fall back to their emoji glyph (🦐 🐟 🦞 🦈) which matches
+ * the cozy theme. The smoke test asserts no icons3/* leakage. */
 
 /* ─── ARTISAN recipe tables ─── */
 window.ARTISAN_RECIPES = {
@@ -5887,44 +5907,13 @@ var NEW_ITEMS = {
 };
 Object.keys(NEW_ITEMS).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = NEW_ITEMS[k]; });
 
-/* ─── Poneti icon paths for new items ──────────────────── */
-var P = 'icons3';
-var ICONS = {
-  raw_wolf_meat:        P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png',
-  raw_panther_meat:     P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png',
-  raw_bear_meat:        P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png',
-  cooked_wolf_meat:     P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-  cooked_panther_meat:  P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-  cooked_bear_meat:     P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-  roasted_carrot:       P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_12_carrot.png',
-  wheat_bread:          P+'/ProfessionIcons/LootIcons/Loot_109_wheat.png',
-  tomato_soup:          P+'/ProfessionIcons/LootIcons/Soup.png',
-  roasted_pumpkin:      P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_20_mushrooms.png',
-  vegetable_stew:       P+'/ProfessionIcons/LootIcons/Soup.png',
-  bear_claw_pie:        P+'/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_02_chicken_ready.png',
-  hunters_feast:        P+'/ProfessionIcons/LootIcons/Soup.png',
-  dragon_stew:          P+'/ProfessionIcons/LootIcons/Soup.png',
-  lich_soul_soup:       P+'/ProfessionIcons/LootIcons/Soup.png',
-  void_banquet:         P+'/ProfessionIcons/LootIcons/Soup.png',
-  bronze_bar:           P+'/ProfessionIcons/ResourceIcons/Res_02_cooperbar.png',
-  steel_bar:            P+'/ProfessionIcons/ResourceIcons/Res_07_ironbar.png',
-  rune_bar:             P+'/ProfessionIcons/ResourceIcons/Res_05_magicbar.png',
-  chief_blade_recipe:   P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_28_redscroll.png',
-  captain_recipe:       P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_28_redscroll.png',
-  alpha_pattern:        P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_23_greenscroll.png',
-  spellstone_diagram:   P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_25_bluescroll.png',
-  dragon_marrow_recipe: P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_28_redscroll.png',
-  gemcutter_note:       P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_24_purplescroll.png',
-  soul_recipe:          P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_32_deathscroll.png',
-  marrow_cookbook:      P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_26_orangescroll.png',
-  field_cookbook:       P+'/ProfessionIcons/ProfessionAndCraftIcons/Enchantment/Enchantment_22_scroll.png',
-};
+/* b127: Removed icons3/* paths for raw meats + recipe scrolls + the
+ * three extra bars (bronze_bar / steel_bar / rune_bar). All these
+ * items have emoji glyphs in their ITEMS data and render fine with
+ * the fallback. Bronze / steel / rune bars are also in
+ * LOCAL_ITEM_ICON if we ship art for them later. */
 window._itemPath = window._itemPath || {};
 window._itemSVG = window._itemSVG || {};
-Object.keys(ICONS).forEach(function(k){
-  window._itemPath[k] = ICONS[k];
-  window._itemSVG[k] = '<img src="'+ICONS[k]+'" class="poneti-icon" alt="" loading="lazy" />';
-});
 
 /* ─── Phase A.1: ARTISAN_RECIPES additions ─────────────── */
 window.ARTISAN_RECIPES = window.ARTISAN_RECIPES || {cooking:[], smithing:[], crafting:[], prayer:[]};

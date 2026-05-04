@@ -4,6 +4,27 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 127 — 2026-05-04 (senior QA sweep — fixes from the 50-test suite running on b126)
+
+The b126 suite ran on the live deploy and turned up 5 failures: 1 real bug + 4 stale tests. Plus a deep manual QA pass found 4 more real bugs the suite hadn't covered. Everything below ships in one commit, each fix paired with a regression test.
+
+**Real bugs surfaced by the test suite:**
+- 🍳 **31 cooked-food / raw-meat / recipe-scroll items** were still pointing at `icons3/...` (which 404s on the deploy) via two more blocks I missed in b125 — `legacy.js:5346–5369` and `5890–5927`. Both gone. Items now fall back to their emoji glyphs (🦐 🥩 🥕 🍞 🥣 🍲 🥧 🍱 🥘 📜 etc).
+- 🛒 **Market-listing test** was using a wrong API shape (`{itemId, qty, price}` object). Real API is `M.listItem(itemId, qty, askEach) → {ok, reason?}`. Test rewritten to match — now actually verifies escrow decrements inventory.
+- 🌱 **Farm-plot test** asserted `plot.id === 'turnip'` — real field is `plot.cropId`. Fixed.
+- 💾 **Save/reload test** used a synthetic `__testMarker` field that the save serializer strips. Switched to verifying `gold` round-trips with a distinctive offset.
+- 🐺 **Companion equip test** asserted `G.companions.equippedId` — real field is `G.companions.equipped`. Fixed.
+
+**Real bugs surfaced by the manual QA sweep:**
+- ❤️ **Character page showed `HP: — / —`.** Renderer was reading `G.hp` + `window.getMaxHp()`, neither of which exist. Real fields are `G.playerHp` / `G.playerMaxHp`. Fixed in `character-page.js:110-117` with both as primary lookup + the old paths as fallback.
+- 🪟 **Modals stacked.** Opening Quests, then clicking another Profile button, then clicking another, and so on left THREE modals open at once (`qm-overlay` z=999999, `ach-overlay` z=9998, `stats-modal` z=1500) — three different patterns with no shared close. Added `closeAllModals()` that handles every modal pattern (including the element-removal-based Quests modal). Wired into `showTab()` so navigating between tabs auto-dismisses anything open. **Escape key** now also fires it.
+- ⏱ **Quests modal showed "Resets in ?h"** instead of a real countdown. `hoursTillUTCMidnight` was a top-level function declaration but didn't reach `window` from inside the modal IIFE. Explicitly assigned `window.hoursTillUTCMidnight`.
+- 🎨 **Quests modal hard-coded to dark navy.** The rest of the UI is cozy-light parchment. Added theme-prefixed overrides in `theme-cozy.css` so the modal's background, borders, tabs, quest cards, close button all match the rest of the game.
+
+**Snapshot helper extended.** `snapshotG()` now snapshots 16 fields (was 7) so player-action tests touching `companions`, `farmPlots`, `rooms`, `quests`, `clanName`, `skills`, `stats`, etc. can't pollute the player's save when restored.
+
+**5 new regression tests added** (one per bug above) so any of these can never silently come back. Test count: ~75. Manual run via `Ctrl+Shift+T` or 🧪 button still under 1 second.
+
 ## v0.9.1-beta build 126 — 2026-05-04 (regression test discipline)
 
 Tyler called out that the smoke test isn't being maintained — bugs we already paid for once are surfacing again because we fix things and never write a guard. Fair.

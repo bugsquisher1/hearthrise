@@ -107,8 +107,15 @@ function buildHeroCard() {
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   const gold = G.gold || 0;
   const kills = G.stats?.kills || 0;
-  const hp = typeof G.hp === 'number' ? G.hp : '—';
-  const maxHp = typeof window.getMaxHp === 'function' ? window.getMaxHp() : '—';
+  // b127: actual fields are G.playerHp / G.playerMaxHp. Earlier code
+  // read G.hp + getMaxHp() which don't exist, so the page rendered
+  // "HP: — / —". Fall back through G.hp + getMaxHp() for forward
+  // compat in case the canonical field names ever change.
+  const hp = (typeof G.playerHp === 'number') ? G.playerHp
+           : (typeof G.hp === 'number') ? G.hp : '—';
+  const maxHp = (typeof G.playerMaxHp === 'number') ? G.playerMaxHp
+              : (typeof window.getMaxHp === 'function') ? window.getMaxHp()
+              : '—';
   const topSkill = (() => {
     const entries = Object.entries(G.skills || {});
     if (!entries.length) return '—';

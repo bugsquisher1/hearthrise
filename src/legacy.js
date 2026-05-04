@@ -4290,91 +4290,21 @@ console.log('Combat styles v2 loaded. weaponType:', window.getWeaponType(), 'sty
   window.resetTheme = function(){ try{ localStorage.removeItem('hb_theme'); }catch(_){} location.reload(); };
 })();
 
-// ===== block 12: script-12 =====
+// ===== block 12: script-12 — Poneti v1 icon paths (DELETED b126) =====
+// This block used to assign ~75 weapon/armor/resource paths under
+// `icons3/...` which is NOT shipped on the deploy. The smoke test
+// caught it (`bronze_sword should point at bundle, got icons3/...`).
+// applyLocalIcons() at the bottom of this file is the single source
+// of truth for icon paths now.
 (function(){
   "use strict";
-window._itemPath = window._itemPath || {};
-  window._itemPath['bronze_sword'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_01.png';
-  window._itemPath['iron_sword'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_03.png';
-  window._itemPath['steel_sword'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_07.png';
-  window._itemPath['rune_sword'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_15.png';
-  window._itemPath['chief_blade'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_10.png';
-  window._itemPath['captains_ribblade'] = 'icons3/WeaponIcons/WeaponIconsVol1/Sword_12.png';
-  window._itemPath['apprentice_staff'] = 'icons3/WeaponIcons/WeaponIconsVol1/staff_1.png';
-  window._itemPath['oak_staff'] = 'icons3/WeaponIcons/WeaponIconsVol1/staff_5.png';
-  window._itemPath['shortbow'] = 'icons3/WeaponIcons/WeaponIconsVol1/Bow_01.png';
-  window._itemPath['longbow'] = 'icons3/WeaponIcons/WeaponIconsVol1/Bow_05.png';
-  window._itemPath['iron_arrows'] = 'icons3/WeaponIcons/WeaponIconsVol1/Arrow_01.png';
-  window._itemPath['stone_maul'] = 'icons3/WeaponIcons/WeaponIconsVol1/Hammer_01.png';
-  window._itemPath['iron_warhammer'] = 'icons3/WeaponIcons/WeaponIconsVol1/Hammer_05.png';
-  window._itemPath['iron_helm'] = 'icons3/ArmorIcons/BasicArmor_Icons/Helm_07_footman.png';
-  window._itemPath['steel_helm'] = 'icons3/ArmorIcons/BasicArmor_Icons/Helm_43_knight.png';
-  window._itemPath['iron_platebody'] = 'icons3/ArmorIcons/BasicArmor_Icons/Chest_14_milita.png';
-  window._itemPath['steel_platebody'] = 'icons3/ArmorIcons/BasicArmor_Icons/Chest_71_knight.png';
-  window._itemPath['leather_boots'] = 'icons3/ArmorIcons/BasicArmor_Icons/Boots_01_common.png';
-  window._itemPath['leather_gloves'] = 'icons3/ArmorIcons/BasicArmor_Icons/Gloves_05_archer.png';
-  window._itemPath['bronze_belt'] = 'icons3/ArmorIcons/BasicArmor_Icons/Belt_01.png';
-  window._itemPath['traveler_cape'] = 'icons3/ArmorIcons/BasicArmor_Icons/Back_01.png';
-  window._itemPath['alpha_cloak'] = 'icons3/ArmorIcons/BasicArmor_Icons/Back_14_fur.png';
-  window._itemPath['copper_ring'] = 'icons3/ArmorIcons/RingAndNeck_Icons/Ring_01.png';
-  window._itemPath['hunter_necklace'] = 'icons3/ArmorIcons/RingAndNeck_Icons/Neck_b_01.png';
-  window._itemPath['bones'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['big_bones'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['dragon_bones'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['bone_chips'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['wolf_pelt'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['troll_hide'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['bear_pelt'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['shadow_pelt'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['magic_essence'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['rune_frag'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['ancient_rune'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['dragon_gem'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['ruby'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['slime_gel'] = 'icons3/ProfessionIcons/ResourceIcons/Res_103_magicpotion.png';
-  window._itemPath['goblin_ear'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['bat_wing'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['vamp_dust'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['demon_shard'] = 'icons3/ProfessionIcons/ResourceIcons/Res_05_magicbar.png';
-  window._itemPath['dragon_scale'] = 'icons3/ProfessionIcons/LootIcons/Claws.png';
-  window._itemPath['lich_soul'] = 'icons3/ProfessionIcons/LootIcons/Loot_07_trash.png';
-  window._itemPath['normal_log'] = 'icons3/ProfessionIcons/ResourceIcons/Res_04_wood.png';
-  window._itemPath['oak_log'] = 'icons3/ProfessionIcons/ResourceIcons/Res_04_wood.png';
-  window._itemPath['willow_log'] = 'icons3/ProfessionIcons/ResourceIcons/Res_04_wood.png';
-  window._itemPath['maple_log'] = 'icons3/ProfessionIcons/ResourceIcons/Res_04_wood.png';
-  window._itemPath['yew_log'] = 'icons3/ProfessionIcons/ResourceIcons/Res_04_wood.png';
-  window._itemPath['copper_ore'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_15_nativecopper.png';
-  window._itemPath['iron_ore'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_05_ironore.png';
-  window._itemPath['coal'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_03_hardstone.png';
-  window._itemPath['gold_ore'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_08_goldore.png';
-  window._itemPath['mithril_ore'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Mining/Mining_14_manastoune.png';
-  window._itemPath['shrimp'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png';
-  window._itemPath['trout'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png';
-  window._itemPath['lobster'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png';
-  window._itemPath['shark'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_01_chicken.png';
-  window._itemPath['turnip'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_10_turnip.png';
-  window._itemPath['carrot'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_12_carrot.png';
-  window._itemPath['wheat'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_11_cabbage.png';
-  window._itemPath['potato'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_09_onion.png';
-  window._itemPath['tomato'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_15_tomatos.png';
-  window._itemPath['pumpkin'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Cooking_fishing/Cooking_20_mushrooms.png';
-  window._itemPath['turnip_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemPath['carrot_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemPath['wheat_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemPath['potato_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemPath['tomato_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemPath['pumpkin_seed'] = 'icons3/ProfessionIcons/ProfessionAndCraftIcons/Herbalism/Herbalism_15_herb.png';
-  window._itemSVG = window._itemSVG || {};
-  Object.keys(window._itemPath).forEach(function(id){
-    var path = window._itemPath[id];
-    window._itemSVG[id] = '<img src="' + path + '" class="poneti-icon" alt="" loading="lazy" />';
-  });
+  window._itemPath = window._itemPath || {};
+  window._itemSVG  = window._itemSVG  || {};
   setTimeout(function(){
     if(typeof renderInvNew === 'function') renderInvNew();
     if(typeof renderMonsterList === 'function') renderMonsterList();
     if(typeof renderLoadout === 'function') renderLoadout();
   }, 200);
-  console.log('Poneti icons loaded:', Object.keys(window._itemPath).length);
 })();
 
 // ===== block 13: poneti-v2-js =====

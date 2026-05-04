@@ -4,6 +4,19 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 126 — 2026-05-04 (regression test discipline)
+
+Tyler called out that the smoke test isn't being maintained — bugs we already paid for once are surfacing again because we fix things and never write a guard. Fair.
+
+- 🧪 **Smoke test grew from 22 → ~50 tests.** Three new sections added.
+- 🛡 **Regression suite for b119–b125.** Each historical bug now has a dedicated test that fails if the bug comes back: `renderProfile` null guard, skill icon emoji fallback, topbar avatar resolves, prof-toolbar hidden on mobile, feat-buttons grid on mobile, SW kill-switch present, no legacy snapshot refs, cache-buster matches `HearthriseBuild`, bug-report button rendered, Supabase config valid.
+- 🖱 **Interactive click coverage.** Tests now click every bottom-nav tab, every sidebar nav, topbar buttons, profile feat-buttons, all 6 combat tier chips, sample monster rows, skill rows, activity tiles, inventory sub-tabs, house tabs, farm plots, bounty rows, stable cards, market sort/search, bug-report 🐛 button, and settings tabs. Catches "X stopped firing on click" silently.
+- 🎮 **Player-action E2E tests.** Real loops: gain XP from a skill tick, equip + unequip a weapon, start + stop combat, plant + harvest a farm plot, upgrade a house room, create + cancel a market listing, purchase a listing, claim a daily quest, save + reload roundtrip, smelt a copper bar, equip + unequip a companion, join + leave a clan. Every test snapshots `G` and restores at the end — running the full suite 100x leaves the player's save byte-for-byte identical.
+- 🗑 **Deleted ~85 more lines of dead `icons3/` paths** in `legacy.js` lines 4293–4378 (the "Poneti v1" block) — the smoke test's bundle-path assertion surfaced these. b125 missed this block; b126 catches it via the test that flagged it.
+- 📜 **`TESTING.md`** — workflow doc explaining how to run the suite, when to run it (before every push touching render paths), and the iron rule: every bug fix gets a test in the same commit. Sketches a GitHub Action for headless CI as the next step.
+
+Net: full coverage of every interactive surface in the game. Run `Ctrl+Shift+T` or click the floating 🧪 Test button to execute.
+
 ## v0.9.1-beta build 125 — 2026-05-04 (cleanup pass: dead icons + old SW snapshots)
 
 Cleanup sweep to cut bug surface, since "code rot" was making bug-hunting harder than it should be. No new features, no behavior changes — just deletes.

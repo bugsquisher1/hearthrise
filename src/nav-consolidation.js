@@ -75,6 +75,9 @@
 
   // Also inject a "Back to Market" button on Store + a "Back to Combat"
   // button on Dungeons so users have an obvious return path.
+  // b131: hidden on mobile — the button overlapped the "PREMIUM STORE"
+  // title at narrow widths, AND on mobile the entry point is MORE menu
+  // (not Market), so the label was misleading anyway.
   function injectShopBackLink() {
     const shopPanel = document.getElementById('panel-shop');
     if (!shopPanel || shopPanel.querySelector('#hr-shop-back')) return;
@@ -95,6 +98,12 @@
     btn.addEventListener('click', () => {
       if (typeof window.showTab === 'function') window.showTab('market');
     });
+    // b131: hide on narrow viewports
+    function applyMobileVisibility(){
+      btn.style.display = (window.innerWidth <= 540) ? 'none' : '';
+    }
+    applyMobileVisibility();
+    window.addEventListener('resize', applyMobileVisibility);
     shopPanel.style.position = 'relative';
     shopPanel.appendChild(btn);
   }
@@ -105,6 +114,7 @@
     btn.id = 'hr-dungeons-back';
     btn.type = 'button';
     btn.innerHTML = '← Back to Combat';
+    // Same mobile-hide treatment as the shop back button (b131).
     btn.style.cssText = ''
       + 'position:absolute; top:14px; right:14px; z-index:5;'
       + 'padding:6px 14px;'

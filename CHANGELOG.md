@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 131 — 2026-05-04 (user-story playthroughs — round 3: mobile polish)
+
+Continuing the mobile playthrough. Two more focused fixes for stuff a real player would hit on first launch.
+
+- 🗺 **"Pick a monster on the left to begin." was wrong on mobile.** On mobile the combat layout has FOES as a sub-tab, not a left column. The empty-state text now reads `"Pick a monster from FOES to begin."` when `innerWidth ≤ 540`, otherwise the original "left" text.
+- 🛍 **"← Back to Market" button overlapped the "PREMIUM STORE" title on mobile.** Title text and back button shared the same horizontal slot. On mobile, players reach Store via MORE → Store anyway (not Market), so the button was misleading there. Hidden on `innerWidth ≤ 540`; mobile players use bottom-nav / MORE menu to navigate. Same treatment for the "← Back to Combat" button on the Dungeons panel.
+
+**Findings still queued for next round** (catalogued during this walk, not in this commit because the fix is bigger than a one-liner):
+
+- Quest cards on mobile wrap titles mid-word ("Cook 5\ndishes") — card layout assumes wider viewport
+- QUEST INFO summary overlaps the quest list scroll area when both visible
+- Topbar currency pills clip past the right edge — only "50" visible from "500 GOLD" — horizontal-scroll fallback isn't kicking in
+- Premium Store card stack pushes the In-Game Shop section below the fold; needs a sub-tab strip
+- Market panel preserves "log" search across sessions — should clear on tab open
+
 ## v0.9.1-beta build 130 — 2026-05-04 (user-story playthroughs — round 2: quests + mobile)
 
 Continued the playthrough series. Two more real bugs surfaced + fixed.

@@ -4947,7 +4947,10 @@ window._renderCombatEmpty = function(){
     return {id:kv[0], m:m, diff:diff, unlocked:cl>=req};
   }).filter(function(p){return p.unlocked;}).sort(function(a,b){return a.diff-b.diff;}).slice(0,3);
   if(!picks.length) return;
-  var html = '<div class="combat-empty"><div class="empty"><span class="em-icon">⚔️</span>Pick a monster on the left to begin.</div>'+
+  // b131: text adapts to layout. On mobile (single column with FOES sub-tab),
+  // there is no "left" — monsters are above. Pick the right hint.
+  var pickHint = (window.innerWidth <= 540) ? 'Pick a monster from FOES to begin.' : 'Pick a monster on the left to begin.';
+  var html = '<div class="combat-empty"><div class="empty"><span class="em-icon">⚔️</span>'+pickHint+'</div>'+
     '<div class="ce-tip"><h4>Suggested for your level</h4>'+
     picks.map(function(p){
       var path = window._monsterIcon && window._monsterIcon[p.id];

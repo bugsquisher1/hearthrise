@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 120 — 2026-05-04 (Discord screenshots inline)
+
+Bug reports were capturing screenshots (b117) but the direct Discord webhook path was sending JSON-only embeds, so the image never appeared in the message. Tyler asked to see it inline.
+
+- 📸 **`sendDiscord` now uses multipart FormData** when a screenshot is present. Image attaches as `screenshot.jpg`, embed's `image.url` is set to `attachment://screenshot.jpg`, Discord renders it inline below the metadata fields.
+- 🟫 **Webhook author renamed** to `Hearthrise Bug Bot`, embed color changed to wax-stamp red `0xd44a3a` to match the in-game theme.
+- 🆕 **Viewport added** as an inline field — useful for mobile-vs-desktop bug triage.
+- 🛟 No-screenshot fallback preserved (JSON-only embed) for cases where html2canvas fails.
+
 ## v0.9.1-beta build 119 — 2026-05-04 (SW kill-switch + renderProfile null guard)
 
 Tyler reported "auth not configured" on the live site. Console showed an error torrent: `TypeError: Cannot set properties of null (setting 'textContent') at renderProfile (legacy.js?v=111:1297)`. Two issues:

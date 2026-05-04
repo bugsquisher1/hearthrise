@@ -142,26 +142,63 @@ async function sendBridge(payload) {
   }
 }
 
+// Convert a data: URL into a Blob for FormData attachment.
+function dataUrlToBlob(dataUrl) {
+  const [head, b64] = dataUrl.split(',');
+  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
 async function sendDiscord(payload) {
   const url = (window.HearthriseBugReport && window.HearthriseBugReport.webhookUrl) || DISCORD_WEBHOOK_URL;
   if (!url) return { ok: false, skipped: true };
+
+  const embed = {
+    title: '🐛 ' + (payload.summary || 'Bug report'),
+    description: payload.description || '(no description)',
+    color: 0xd44a3a,
+    fields: [
+      { name: 'Build',    value: '`' + payload.build + '`', inline: true },
+      { name: 'Player',   value: payload.user || 'guest',    inline: true },
+      { name: 'Tab',      value: String(payload.state.activeTab || '—'), inline: true },
+      { name: 'Viewport', value: String(payload.state.viewport || '—'), inline: true },
+      { name: 'State',    value: '```json\n' + JSON.stringify(payload.state, null, 2).slice(0, 900) + '\n```' },
+      { name: 'Recent errors', value: payload.errors.length
+          ? '```\n' + payload.errors.map(e => `[${e.level}] ${e.msg}`).join('\n').slice(0, 900) + '\n```'
+          : '_(none)_' },
+    ],
+    timestamp: new Date().toISOString(),
+  };
+
+  // b120: when we have a screenshot, attach it via multipart form-data and
+  // reference it in the embed's image field so Discord renders it inline.
+  // Without this, the screenshot was being captured but never appeared in
+  // the channel — Tyler asked specifically to see it in the message.
+  if (payload.screenshot && payload.screenshot.startsWith('data:image/')) {
+    embed.image = { url: 'attachment://screenshot.jpg' };
+    const body = {
+      username: 'Hearthrise Bug Bot',
+      embeds: [embed],
+      attachments: [{ id: 0, filename: 'screenshot.jpg', description: 'Bug report screenshot' }],
+    };
+    const fd = new FormData();
+    fd.append('payload_json', JSON.stringify(body));
+    fd.append('files[0]', dataUrlToBlob(payload.screenshot), 'screenshot.jpg');
+    try {
+      const res = await fetch(url, { method: 'POST', body: fd });
+      return { ok: res.ok, status: res.status };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // No screenshot — fall back to JSON-only embed.
   const body = {
-    username: 'Hearthrise Beta Bot',
-    embeds: [{
-      title: '🐛 ' + (payload.summary || 'Bug report'),
-      description: payload.description || '(no description)',
-      color: 0xe88a8a,
-      fields: [
-        { name: 'Build',  value: '`' + payload.build + '`', inline: true },
-        { name: 'Player', value: payload.user || 'guest',     inline: true },
-        { name: 'Tab',    value: String(payload.state.activeTab || '—'), inline: true },
-        { name: 'State',  value: '```json\n' + JSON.stringify(payload.state, null, 2).slice(0, 900) + '\n```' },
-        { name: 'Recent errors', value: payload.errors.length
-            ? '```\n' + payload.errors.map(e => `[${e.level}] ${e.msg}`).join('\n').slice(0, 900) + '\n```'
-            : '_(none)_' },
-      ],
-      timestamp: new Date().toISOString(),
-    }],
+    username: 'Hearthrise Bug Bot',
+    embeds: [embed],
   };
   try {
     const res = await fetch(url, {

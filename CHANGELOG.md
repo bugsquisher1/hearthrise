@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 112 — 2026-05-04 (Profile bleed-through hotfix)
+
+🚨 **The reason "nothing looked different" on your phone after b110 + b111.**
+
+A CSS rule I wrote way back in b109 was missing its `.active` scope:
+
+```css
+#panel-profile { display: block !important; }   /* old — wrong */
+#panel-profile.active { display: block !important; }   /* b112 — correct */
+```
+
+That single missing `.active` was forcing the Profile panel to render on top of every other tab on mobile. Combat / Inventory / Skills with their new sub-tab strips were ALL there, working — just hidden behind a permanently-visible Profile panel. The Achievements / Bestiary / Lifetime Stats buttons + player name showing on every tab in the iframe screenshots was the giveaway.
+
+This single character fix should make b110 + b111 visible on phones for the first time. After this push deploys + the b111 service-worker fix actually takes effect (one more home-shortcut reset required), every future build auto-updates.
+
 ## v0.9.1-beta build 111 — 2026-05-04 (mobile rebuild pt 2 + service-worker fix)
 
 Two big things in this push.

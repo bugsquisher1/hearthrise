@@ -704,15 +704,22 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
    * (main content + Active Effects sidebar) doesn't stack on mobile,
    * so the sidebar floats off the right edge ("FO... HC... wid..."
    * fragments visible past the parchment). Force a single column
-   * and let Active Effects flow underneath the main content. */
-  #panel-profile {
+   * and let Active Effects flow underneath the main content.
+   *
+   * b112 HOTFIX: scope this to `.active` only. The previous rule
+   * (no `.active`) was forcing Profile to display:block on EVERY
+   * tab, so Profile content rendered on top of Combat / Inventory /
+   * Skills / etc. and hid the new sub-tabs. This is why Tyler's
+   * phone "looked the same after b110/b111" — the new mobile UIs
+   * were there, just buried under a permanently-visible Profile. */
+  #panel-profile.active {
     grid-template-columns: 1fr !important;
     display: block !important;
   }
-  #panel-profile #active-effects-card,
-  #panel-profile .active-effects-side,
-  #panel-profile aside,
-  #panel-profile .col-side {
+  #panel-profile.active #active-effects-card,
+  #panel-profile.active .active-effects-side,
+  #panel-profile.active aside,
+  #panel-profile.active .col-side {
     width: 100% !important;
     max-width: 100% !important;
     margin-left: 0 !important;

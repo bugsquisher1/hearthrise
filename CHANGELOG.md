@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 121 — 2026-05-04 (screenshot ignores the modal itself)
+
+b120 shipped screenshots inline in Discord — but they captured the bug-report modal that was on top of the screen, defeating the point. Tyler wants to see what's BEHIND the modal, not the form he just filled out.
+
+- 🚫 **html2canvas `ignoreElements`** filters out: `#hr-bug-modal` (the form), `#hr-bug-btn` (the floating 🐛), `#chat-dock` (when open), `#more-modal` (the mobile More sheet). The screenshot now shows the actual game state the user was reporting on.
+
 ## v0.9.1-beta build 120 — 2026-05-04 (Discord screenshots inline)
 
 Bug reports were capturing screenshots (b117) but the direct Discord webhook path was sending JSON-only embeds, so the image never appeared in the message. Tyler asked to see it inline.

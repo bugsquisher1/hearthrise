@@ -101,6 +101,11 @@ function buildVersionString() {
 // Capture a screenshot of the current viewport via html2canvas (CDN).
 // Returns a base64 JPEG data URL or null on failure. Doesn't throw —
 // bug reporting must keep working even if screenshot capture fails.
+//
+// b121: filter out the bug-report modal itself + the 🐛 button so the
+// screenshot shows what the user was actually looking at, not the modal
+// they just opened. Also filter the chat dock if it's open — those float
+// over content and aren't usually what the report is about.
 async function captureScreenshot() {
   try {
     // Dynamic import keeps html2canvas (~50KB) out of the main bundle.
@@ -117,6 +122,14 @@ async function captureScreenshot() {
       // we want a screenshot, not a perfect render.
       imageTimeout: 1500,
       removeContainer: true,
+      // Exclude floating UI that obscures the actual game state.
+      ignoreElements: function(el) {
+        if (!el || !el.id) return false;
+        return el.id === 'hr-bug-modal'
+            || el.id === 'hr-bug-btn'
+            || el.id === 'chat-dock'
+            || el.id === 'more-modal';
+      },
     });
     // 0.7 quality JPEG keeps file size ~30-80KB at 0.5 scale.
     return canvas.toDataURL('image/jpeg', 0.7);

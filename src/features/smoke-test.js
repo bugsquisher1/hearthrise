@@ -944,6 +944,23 @@ const TESTS = [
     // Now call it — should be a no-op, must not throw
     window.closeAllModals();
   }),
+
+  // b128: loadLocal must mutate G in place — earlier it did
+  // `G = {...G, ...migrated}` which orphaned `window.G` as a stale
+  // reference. Every feature that reads window.G post-load was getting
+  // pre-load data. The save/load round-trip test caught it via gold
+  // not restoring; this test pins the underlying invariant.
+  () => tryRun('b128: loadLocal preserves window.G reference identity', () => {
+    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const refBefore = window.G;
+      window.saveLocal();
+      window.loadLocal();
+      assert(window.G === refBefore,
+        'window.G changed identity across loadLocal — every feature holding a reference is now stale');
+    } finally { restoreG(snap); }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

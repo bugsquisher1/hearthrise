@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 128 — 2026-05-04 (real save/load bug uncovered by the suite)
+
+The b127 suite ran on the live deploy and dropped from 5 fails → 1 fail. That last failure was the save/load round-trip test, and digging in surfaced an actual correctness bug that's been latent forever:
+
+- 💥 **`loadLocal()` orphaned `window.G`.** The function was doing `G = {...G, ...migrated}` — creating a brand new object and reassigning the module-scoped `let G`. But `window.G` was bound to the *old* object once at boot (line 2093), so after any runtime `loadLocal()` call, `window.G` pointed at stale data. Every feature that reads `window.G` (the bug-report module, smoke test, auth listeners, anything in a separate file) saw pre-load state. Fixed by switching to `Object.assign(G, migrated)` — same merge semantics, but mutates G in place so window.G stays valid.
+
+This is the kind of bug that's almost impossible to catch by playing the game (loadLocal usually runs once at boot, before window.G is exposed) but trivially reproduces under test. Exactly why we wrote the suite.
+
+- 🧪 **New regression test** — `b128: loadLocal preserves window.G reference identity` — pins the invariant directly so the issue can never silently come back via a future cleanup.
+
+Expected suite result on b128: 73/73 passing.
+
 ## v0.9.1-beta build 127 — 2026-05-04 (senior QA sweep — fixes from the 50-test suite running on b126)
 
 The b126 suite ran on the live deploy and turned up 5 failures: 1 real bug + 4 stale tests. Plus a deep manual QA pass found 4 more real bugs the suite hadn't covered. Everything below ships in one commit, each fix paired with a regression test.

@@ -368,6 +368,12 @@ function saveLocal(){
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(G));}catch(e){console.warn('save failed',e);}
 }
 function loadLocal(){
+  // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
+  // which silently breaks every caller that reads `window.G` — they keep
+  // a reference to the *old* object while the module-scoped `G` points
+  // at a new one. The smoke-test save/load round-trip caught this:
+  // after loadLocal(), window.G.gold still held the pre-load mutation.
+  // Object.assign keeps the same reference, so window.G stays correct.
   let raw=localStorage.getItem(SAVE_KEY);
   if(!raw){
     /* migrate from v1 if present */
@@ -376,7 +382,7 @@ function loadLocal(){
       const d=JSON.parse(raw);
       // run versioned migrations on the v1 save before merge
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      G={...G,...migrated};
+      Object.assign(G, migrated);
       notify('Save migrated from v1','info');
     }catch(e){}
   }else{
@@ -385,7 +391,7 @@ function loadLocal(){
       // run versioned migrations BEFORE merge so old shapes are
       // upgraded against a clean object, not against current G defaults
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      G={...G,...migrated};
+      Object.assign(G, migrated);
     }catch(e){console.warn(e);}
   }
   ensureRetentionState();

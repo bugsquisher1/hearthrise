@@ -3,38 +3,74 @@
 <head>
 <meta charset="utf-8">
 <script>
-/* b119: pre-b111 service worker kill-switch.
- * Older builds (b108-b110) shipped a service worker with cache name
- * 'hearthbound-v2' and a cache-first fetch strategy. That SW caches
- * every asset and never refetches — meaning users on those builds
- * never see updates, ever, no matter how many times the cache buster
- * bumps. The b111+ SW fixes this for new installs but can't dislodge
- * the old SW from existing ones (the old SW intercepts the HTML
- * request and serves stale, including the SW reference itself).
+/* b124: UNIVERSAL service-worker + cache reset.
  *
- * This inline script (which the browser runs BEFORE any cached SW
- * intercepts a fetch) checks for old caches and unregisters the SW
- * if found. One-time reload restores normal fresh fetches. After that
- * the b111+ SW takes over. Idempotent — uses sessionStorage flag to
- * prevent reload loops. */
+ * Symptom we keep seeing in the wild: console errors trace to
+ * `legacy.js?v=111` (or some other old build) even though the
+ * deployed HTML has `?v=124`. That means an old service worker
+ * is intercepting the HTML request and serving cached HTML with
+ * stale <script src="...?v=111"> tags.
+ *
+ * The b119 kill-switch only fired for the original `hearthbound-v2`
+ * cache. It misses the b111+ SW caches (`hearthrise-110`, `-111`,
+ * etc) that ALSO got stuck. This new version triggers whenever any
+ * cache key doesn't match the build the page was served from.
+ *
+ * BUILD comes from the cache-buster on our own <link>/<script> tags.
+ * If any cache name doesn't equal `hearthrise-<BUILD>` AND isn't
+ * empty, blow away every cache + unregister every SW + reload once.
+ * sessionStorage flag prevents reload loops.
+ *
+ * Manual reset: append `?reset-sw=1` to the URL — same behavior,
+ * even if no mismatch is detected. */
 (function(){
   if (!('serviceWorker' in navigator) || !('caches' in window)) return;
-  if (sessionStorage.getItem('hr-sw-purged') === '1') return;
-  caches.keys().then(function(keys){
-    var hasOld = keys.some(function(k){ return k === 'hearthbound-v2' || k === 'hearthbound-v1'; });
-    if (!hasOld) return;
+  var purged = sessionStorage.getItem('hr-sw-purged') === '1';
+
+  // Read the current build from any of our versioned tags. Same logic
+  // the SW uses to derive its cache name.
+  var BUILD = (function(){
+    var tags = document.querySelectorAll('link[href*="?v="], script[src*="?v="]');
+    for (var i = 0; i < tags.length; i++){
+      var a = tags[i].href || tags[i].src || '';
+      var m = a.match(/\?v=(\d+)/);
+      if (m) return m[1];
+    }
+    return '0';
+  })();
+  var EXPECTED = 'hearthrise-' + BUILD;
+  var manual = /[?&]reset-sw=1\b/.test(location.search);
+
+  function nuke(reason){
     Promise.all([
-      // Kill all old caches
-      Promise.all(keys.map(function(k){ return caches.delete(k); })),
-      // Unregister all SWs so the next page load re-registers fresh
+      caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }),
       navigator.serviceWorker.getRegistrations().then(function(regs){
         return Promise.all(regs.map(function(r){ return r.unregister(); }));
       }),
     ]).then(function(){
       sessionStorage.setItem('hr-sw-purged', '1');
-      console.info('[hr-sw-killswitch] purged old caches + SW; reloading once');
-      location.reload();
+      console.info('[hr-sw-killswitch] purged caches + SW (' + reason + '); reloading once');
+      // Strip the manual flag if present so the reload doesn't loop on it
+      var clean = location.pathname + location.search.replace(/[?&]reset-sw=1\b/, '').replace(/^&/, '?') + location.hash;
+      location.replace(clean || location.pathname);
+    }).catch(function(e){
+      console.warn('[hr-sw-killswitch] purge failed:', e);
     });
+  }
+
+  if (manual && !purged) { nuke('manual ?reset-sw=1'); return; }
+  if (purged) return;
+
+  caches.keys().then(function(keys){
+    if (!keys.length) return;                     // nothing cached → nothing to fix
+    var stale = keys.some(function(k){
+      return k !== EXPECTED && (
+        /^hearthrise-/.test(k) || /^hearthbound-/.test(k)
+      );
+    });
+    if (stale) nuke('stale cache(s): ' + keys.join(', ') + ' (expected ' + EXPECTED + ')');
   }).catch(function(){});
 })();
 </script>
@@ -51,9 +87,9 @@
 
 <!-- moved style#0 (style-0) -->
   <link rel="stylesheet" href="src/styles/legacy.css">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=123">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=124">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=123">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=124">
 </head>
 <body>
 <div class="app" id="app">
@@ -61,7 +97,7 @@
   <!-- ─── SIDEBAR (desktop) ─── -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=123" alt="Hearthrise — Idle Homestead" />
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=124" alt="Hearthrise — Idle Homestead" />
     </div>
     <button class="nav-btn active" data-tab="profile"><span class="ic">👤</span><span class="lbl">Profile</span></button>
     <button class="nav-btn" data-tab="character"><span class="ic">🧙</span><span class="lbl">Character</span></button>
@@ -89,7 +125,7 @@
     <!-- topbar -->
     <header class="topbar">
       <div class="player">
-        <div class="player-avatar"><img src="assets/icons-bundle/monsters/Warrior_nb.png?v=123" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <div class="player-avatar"><img src="assets/icons-bundle/monsters/Warrior_nb.png?v=124" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
@@ -540,39 +576,39 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=123"></script>
+  <script type="module" src="src/build-info.js?v=124"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=123"></script>
-  <script src="src/observability.js?v=123"></script>
-  <script src="src/save-migrations.js?v=123"></script>
-  <script src="src/legacy.js?v=123"></script>
-  <script src="src/admin.js?v=123"></script>
-  <script src="src/item-ux.js?v=123"></script>
-  <script src="src/dungeons.js?v=123"></script>
-  <script src="src/dungeon-scavenger.js?v=123"></script>
-  <script src="src/multi-character.js?v=123"></script>
-  <script src="src/market.js?v=123"></script>
+  <script src="src/theme-picker.js?v=124"></script>
+  <script src="src/observability.js?v=124"></script>
+  <script src="src/save-migrations.js?v=124"></script>
+  <script src="src/legacy.js?v=124"></script>
+  <script src="src/admin.js?v=124"></script>
+  <script src="src/item-ux.js?v=124"></script>
+  <script src="src/dungeons.js?v=124"></script>
+  <script src="src/dungeon-scavenger.js?v=124"></script>
+  <script src="src/multi-character.js?v=124"></script>
+  <script src="src/market.js?v=124"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=123"></script>
-  <script src="src/chat.js?v=123"></script>
-  <script src="src/settings-page.js?v=123"></script>
-  <script src="src/ftue.js?v=123"></script>
-  <script src="src/mobile.js?v=123"></script>
+  <script src="src/chat-filter.js?v=124"></script>
+  <script src="src/chat.js?v=124"></script>
+  <script src="src/settings-page.js?v=124"></script>
+  <script src="src/ftue.js?v=124"></script>
+  <script src="src/mobile.js?v=124"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=123"></script>
-  <script src="src/nav-consolidation.js?v=123"></script>
-  <script src="src/icon-swap.js?v=123"></script>
-  <script src="src/activity-bar-clickable.js?v=123"></script>
-  <script src="src/post-signup-welcome.js?v=123"></script>
-  <script src="src/mobile-keyboard.js?v=123"></script>
-  <script src="src/combat-mobile-tabs.js?v=123"></script>
-  <script src="src/mobile-more-chat.js?v=123"></script>
-  <script src="src/inventory-mobile-tabs.js?v=123"></script>
-  <script src="src/activities-mobile-tabs.js?v=123"></script>
-  <script src="src/bug-report.js?v=123"</script>
-  <script src="src/welcome-modal.js?v=123"></script>
-  <script src="src/network-status.js?v=123"></script>
-  <script src="src/error-boundary.js?v=123"></script>
-  <script type="module" src="src/main.js?v=123"></script>
+  <script src="src/quests-topbar-button.js?v=124"></script>
+  <script src="src/nav-consolidation.js?v=124"></script>
+  <script src="src/icon-swap.js?v=124"></script>
+  <script src="src/activity-bar-clickable.js?v=124"></script>
+  <script src="src/post-signup-welcome.js?v=124"></script>
+  <script src="src/mobile-keyboard.js?v=124"></script>
+  <script src="src/combat-mobile-tabs.js?v=124"></script>
+  <script src="src/mobile-more-chat.js?v=124"></script>
+  <script src="src/inventory-mobile-tabs.js?v=124"></script>
+  <script src="src/activities-mobile-tabs.js?v=124"></script>
+  <script src="src/bug-report.js?v=124"</script>
+  <script src="src/welcome-modal.js?v=124"></script>
+  <script src="src/network-status.js?v=124"></script>
+  <script src="src/error-boundary.js?v=124"></script>
+  <script type="module" src="src/main.js?v=124"></script>
 </body>
 </html>

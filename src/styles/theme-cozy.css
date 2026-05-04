@@ -4019,15 +4019,19 @@ body[data-theme="classic"] .modal-card {
  * theme-prefix selectors so specificity ties (last one wins).
  * ============================================================ */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
-  /* Feat-buttons grid — themed selectors */
+  /* b124: keep .prof-toolbar HIDDEN on mobile — it's the desktop
+     duplicate. The visible mobile container is .feat-buttons. */
+  html:not([data-theme]) #panel-profile .prof-toolbar,
+  body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
+    display: none !important;
+  }
+  /* Feat-buttons grid — themed selectors so specificity ties */
   html:not([data-theme]) #panel-profile .feat-buttons,
   html:not([data-theme]) #panel-profile .profile-toolbar,
   html:not([data-theme]) #panel-profile .profile-actions,
-  html:not([data-theme]) #panel-profile .prof-toolbar,
   body[data-theme="cozy-light"] #panel-profile .feat-buttons,
   body[data-theme="cozy-light"] #panel-profile .profile-toolbar,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions,
-  body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
+  body[data-theme="cozy-light"] #panel-profile .profile-actions {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
@@ -4038,11 +4042,9 @@ body[data-theme="classic"] .modal-card {
   html:not([data-theme]) #panel-profile .feat-buttons > *,
   html:not([data-theme]) #panel-profile .profile-toolbar > *,
   html:not([data-theme]) #panel-profile .profile-actions > *,
-  html:not([data-theme]) #panel-profile .prof-toolbar > *,
   body[data-theme="cozy-light"] #panel-profile .feat-buttons > *,
   body[data-theme="cozy-light"] #panel-profile .profile-toolbar > *,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions > *,
-  body[data-theme="cozy-light"] #panel-profile .prof-toolbar > * {
+  body[data-theme="cozy-light"] #panel-profile .profile-actions > * {
     width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;

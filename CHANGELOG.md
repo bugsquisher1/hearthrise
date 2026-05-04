@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 124 — 2026-05-04 (universal SW kill-switch + duplicate prof-toolbar hide)
+
+Tyler hit "Auth not configured" again on a stuck device. Console traced errors to `legacy.js?v=111` even though deployed HTML is v=124 — the b111+ service worker on his device cached old HTML and is still serving it instead of fetching fresh. b119's kill-switch only triggered for the original `hearthbound-v2` legacy cache, which means anyone whose SW cached a build between b110 and b123 stayed stuck.
+
+- 💥 **Universal SW kill-switch.** Inline `<script>` in `<head>` now reads the current build from any `?v=` tag on the page (`hearthrise-<BUILD>`), then checks `caches.keys()`. If ANY cache exists that doesn't match the expected name (and isn't empty), it deletes every cache, unregisters every SW, and reloads once. sessionStorage flag prevents reload loops. Works for all past stuck builds, not just b108-b110.
+- 🔄 **Manual reset escape hatch.** Append `?reset-sw=1` to the URL on any stuck device — kill-switch runs unconditionally, strips the flag from URL, reloads. Use this when a friend phones to say "the game won't load."
+- 🪟 **Hide duplicate `.prof-toolbar` on mobile.** b123's grid rule accidentally un-hid the desktop-only `.prof-toolbar` Profile container — players saw both `.feat-buttons` (Achievements/Bestiary/Last Session/Lifetime) AND `.prof-toolbar` (Objectives/Achievements/Bestiary/Lifetime) stacked. Mobile rule now keeps `.prof-toolbar { display: none }` and only sizes `.feat-buttons`.
+
 ## v0.9.1-beta build 123 — 2026-05-04 (b122 cascade hotfix)
 
 After verifying b122 on the deployed iframe, the feat-buttons stayed as a vertical stack and the topbar still wrapped to two rows. Diagnosed: an earlier `html:not([data-theme]) #panel-profile .feat-buttons { display: flex !important }` rule (specificity 0,1,2,1) was outranking the b122 mobile rule (specificity 0,1,1,0). My `display: grid !important` from b122 lost to a more-specific theme rule.

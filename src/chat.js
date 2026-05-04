@@ -692,9 +692,19 @@
     block:       blockPlayer,
     unblock:     unblockPlayer,
     setBackend: function(impl){
+      // Tear down old subscriptions before swapping. Without this the
+      // new backend has empty _listeners, so neither send-echoes nor
+      // realtime pushes from other users would render — symptom: you
+      // type a message, network 201s, but the dock stays empty until
+      // the next manual fetch.
+      try { unsubFns.forEach(function(u){ try{ u && u(); }catch(e){} }); } catch(e){}
+      unsubFns = [];
       backend = impl;
       cache = {};                // drop the local cache
-      renderActive();
+      // Re-subscribe to the same default channels on the new backend.
+      subscribeAllChannels();
+      // Re-load the active channel from the new backend.
+      loadCache(state.active).then(function(){ renderActive(); });
     },
     getSettings: function(){ return Object.assign({}, settings); },
     setSetting:  function(k, v){
@@ -703,15 +713,9 @@
     },
   };
 
-  // ── Boot ───────────────────────────────────────────────────
-  function boot(){
-    buildDock();
-    // Preload the default channel so it shows instantly on first expand
-    loadCache(state.active).then(function(){
-      renderActive();
-      updatePlaceholder();
-    });
-    // Subscribe to all default channels for live updates
+  // Subscribe to every DEFAULT_CHANNELS id on the current `backend`.
+  // Extracted so setBackend() can re-subscribe after a hot-swap.
+  function subscribeAllChannels(){
     DEFAULT_CHANNELS.forEach(function(ch){
       var unsub = backend.subscribe(ch.id, function(newMsgs){
         cache[ch.id] = cache[ch.id] || [];
@@ -749,6 +753,17 @@
       });
       unsubFns.push(unsub);
     });
+  }
+
+  // ── Boot ───────────────────────────────────────────────────
+  function boot(){
+    buildDock();
+    // Preload the default channel so it shows instantly on first expand
+    loadCache(state.active).then(function(){
+      renderActive();
+      updatePlaceholder();
+    });
+    subscribeAllChannels();
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 400); });

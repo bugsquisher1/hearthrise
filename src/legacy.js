@@ -1653,14 +1653,14 @@ function renderHouse(){
       const lv=G.rooms[id]||0,max=r.levels.length;
       const next=r.levels[lv];
       const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
-      return `<div class="shop-row"><span class="si" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
+      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
     }).join('');
   } else if(houseTab==='plot'){
     el.innerHTML=Object.entries(PLOT_BUILDINGS).map(([id,b])=>{
       const have=G.plotBuildings.filter(x=>x.id===id).length;
       const at=have>=b.max;
       const can=Object.entries(b.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v);
-      return `<div class="shop-row"><span class="si" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} · ${Object.entries(b.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
+      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} · ${Object.entries(b.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
@@ -4577,6 +4577,7 @@ console.log('Poneti v2 loaded:', Object.keys(window._skillIcon).length, 'skills,
         img.loading = 'lazy';
         // Tell image-fallback the right glyph if this 404s
         img.setAttribute('data-fb-glyph', monster.icon || '🎯');
+        img.title = name;
         img.style.cssText = 'width:1.1em;height:1.1em;vertical-align:-3px;margin-right:6px';
         b.appendChild(img);
         b.appendChild(document.createTextNode(name));
@@ -6535,7 +6536,11 @@ window.buildTibiaDoll = function(){
     var path = id && window._itemPath && window._itemPath[id];
     var slot = document.createElement('div');
     slot.className = 'td-slot td-' + s + (def?'':' empty');
-    slot.title = def ? (def.n+' (click to unequip)') : (EQUIP_SLOT_META[s]?.label || s);
+    // b105: include slot name in tooltip when equipped, so hovering a
+    // filled slot still reveals which body location it covers (the
+    // `<small>` label gets visually crowded by the item icon).
+    var slotLabel = EQUIP_SLOT_META[s]?.label || s;
+    slot.title = def ? (slotLabel + ': ' + def.n + ' (click to unequip)') : slotLabel;
     slot.onclick = function(){
       if(def && typeof unequip === 'function') unequip(s);
     };
@@ -9415,10 +9420,47 @@ Object.keys(BUNDLE_MONSTER_ICON).forEach(function(k){
   window._roomIcon = LOCAL_ROOM_ICON;
   window._plotBuildingIcon = LOCAL_PLOT_ICON;
 
-  // Clear monster bundle entries — those still 404 (no monster art shipped
-  // in b103). Emoji fallback is the right behavior. Skip the loud probe
-  // approach since we know definitively there's no monster art on disk.
-  window._monsterIcon = {};
+  // b105: monster avatars — 31 hand-picked from icons3 character pack.
+  // Each maps a game monster id to a hand-painted character/creature
+  // illustration. Where the pack didn't have an exact match (rat, panther,
+  // bear, dire_wolf, etc.) we used the closest-tone Animals_*.png.
+  var LOCAL_MONSTER_ICON = {
+    slime:           'assets/icons-bundle/monsters/Monster_Slime_nb.png',
+    rat:             'assets/icons-bundle/monsters/Animals_01_nobg.png',
+    goblin:          'assets/icons-bundle/monsters/goblin_01_nobg.png',
+    weak_skeleton:   'assets/icons-bundle/monsters/Monster_FrostSkeleton_nb.png',
+    small_wolf:      'assets/icons-bundle/monsters/Animals_02_nobg.png',
+    giant_bat:       'assets/icons-bundle/monsters/Bat_nb.png',
+    hobgoblin:       'assets/icons-bundle/monsters/goblin_02_nobg.png',
+    wolf:            'assets/icons-bundle/monsters/Animals_05_nobg.png',
+    skeleton:        'assets/icons-bundle/monsters/Monster_SkeletonDemon_nb.png',
+    dark_wizard:     'assets/icons-bundle/monsters/Cultist_nb.png',
+    venom_spider:    'assets/icons-bundle/monsters/Monster_Spider_nb.png',
+    goblin_brute:    'assets/icons-bundle/monsters/goblin_04_nobg.png',
+    dire_wolf:       'assets/icons-bundle/monsters/Animals_07_nobg.png',
+    zombie:          'assets/icons-bundle/monsters/Monster_Zombie_nb.png',
+    warlock:         'assets/icons-bundle/monsters/DarkLord_nb.png',
+    plague_swarm:    'assets/icons-bundle/monsters/Monster_Plague_nb.png',
+    goblin_warlord:  'assets/icons-bundle/monsters/goblin_05_nobg.png',
+    bear:            'assets/icons-bundle/monsters/Animals_06_nobg.png',
+    wraith:          'assets/icons-bundle/monsters/Monster_Ghost_nb.png',
+    lesser_demon:    'assets/icons-bundle/monsters/Demon_01_nobg.png',
+    mountain_troll:  'assets/icons-bundle/monsters/Giant_StoneGolem_nb.png',
+    shadow_creeper:  'assets/icons-bundle/monsters/DemonicTentacles_nb.png',
+    warband_captain: 'assets/icons-bundle/monsters/Warrior_nb.png',
+    panther:         'assets/icons-bundle/monsters/Animals_08_nobg.png',
+    death_knight:    'assets/icons-bundle/monsters/Monster_DarkRider_nb.png',
+    archmage:        'assets/icons-bundle/monsters/ElfMage_nb.png',
+    void_parasite:   'assets/icons-bundle/monsters/Monster_Worm_nb.png',
+    war_king:        'assets/icons-bundle/monsters/Duke_nb.png',
+    ancient_bear:    'assets/icons-bundle/monsters/Animals_09_nobg.png',
+    lich:            'assets/icons-bundle/monsters/Monster_SkeletonKing_nb.png',
+    dragon:          'assets/icons-bundle/monsters/Monster_WarDragon_nb.png',
+  };
+  window._monsterIcon = window._monsterIcon || {};
+  Object.keys(LOCAL_MONSTER_ICON).forEach(function(k){
+    window._monsterIcon[k] = LOCAL_MONSTER_ICON[k];
+  });
 
   console.info('[icons-bundle b103] applied:',
     Object.keys(LOCAL_ITEM_ICON).length, 'items,',

@@ -136,6 +136,15 @@ export function isSignedIn() {
   return !!session?.access_token;
 }
 
+// Expose the shared Supabase client so other backends (chat, market, etc.)
+// can reuse it instead of each calling createClient() and tripping the
+// "Multiple GoTrueClient instances detected" warning. Returns null until
+// setupAuth() has finished — callers should fall through to createClient
+// in that case.
+export function getClient() {
+  return supabase;
+}
+
 // ── UI: replace the topbar Sign In button with a real flow ──
 
 function renderAuthUi() {
@@ -208,7 +217,7 @@ function showAuthModal() {
 }
 
 // Expose for legacy callers
-window.HearthriseAuth = { setupAuth, signUp, signIn, signOut, getSession, isSignedIn };
+window.HearthriseAuth = { setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient };
 
 // Auto-render banner state once on load (in case the user is already signed in)
 if (document.readyState === 'loading') {

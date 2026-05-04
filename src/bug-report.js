@@ -210,8 +210,9 @@ function openModal() {
       <p style="margin:0;font-size:12px;color:#9aa3b0">Thanks for testing! We'll auto-attach your build version, current tab, and recent errors. Don't include passwords or anything private.</p>
       <input name="summary" placeholder="One-line summary (e.g. 'inventory empty after combat')" required maxlength="120" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />
       <textarea name="description" placeholder="What happened? What did you expect? Steps to reproduce?" rows="5" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
-      <div style="display:flex;gap:8px">
-        <button type="submit" style="flex:1;padding:8px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Send report</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="submit" style="flex:1;min-width:120px;padding:8px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Send report</button>
+        <button type="button" data-act="copy" title="Copy report to clipboard so you can paste into Discord/email/etc" style="padding:8px 12px;background:#2a3142;color:#f3d181;border:1px solid #3a4252;border-radius:4px;cursor:pointer;font-weight:600">📋 Copy</button>
         <button type="button" data-act="cancel" style="padding:8px 14px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer">Cancel</button>
       </div>
       <div data-status style="font-size:11px;color:#9aa3b0;min-height:14px;text-align:center"></div>
@@ -222,6 +223,49 @@ function openModal() {
   function close(){ overlay.remove(); }
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-act="copy"]').addEventListener('click', async () => {
+    // Build a Markdown-formatted dump the user can paste anywhere.
+    // Discord webhook + Supabase aren't required — useful when neither
+    // is configured or when the user wants to attach a screenshot first.
+    const payload = {
+      summary: form.summary.value.trim() || '(no summary)',
+      description: form.description.value.trim() || '',
+      build: buildVersionString(),
+      user: (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()?.user?.email)
+         || (window.G && window.G.playerName) || 'guest',
+      state: gameStateSnapshot(),
+      errors: consoleBuffer.slice(-20),
+      ts: new Date().toISOString(),
+    };
+    const md = ''
+      + '## 🐛 ' + payload.summary + '\n\n'
+      + (payload.description ? payload.description + '\n\n' : '')
+      + '**Build:** `' + payload.build + '`  \n'
+      + '**Player:** ' + payload.user + '  \n'
+      + '**Tab:** ' + (payload.state.activeTab || '—') + '  \n'
+      + '**Time:** ' + payload.ts + '\n\n'
+      + '<details><summary>State</summary>\n\n```json\n'
+      + JSON.stringify(payload.state, null, 2)
+      + '\n```\n\n</details>\n\n'
+      + '<details><summary>Recent errors (' + payload.errors.length + ')</summary>\n\n```\n'
+      + (payload.errors.length ? payload.errors.map(e => '[' + e.level + '] ' + e.msg).join('\n') : '(none)')
+      + '\n```\n\n</details>\n';
+    try {
+      await navigator.clipboard.writeText(md);
+      status.style.color = '#5fcc7c';
+      status.textContent = '✓ Copied to clipboard — paste anywhere.';
+    } catch (err) {
+      // Clipboard API requires a secure context + user gesture; fall back
+      // to selecting the text in a hidden textarea.
+      const ta = document.createElement('textarea');
+      ta.value = md; ta.style.cssText = 'position:fixed;top:-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); status.textContent = '✓ Copied (legacy mode).'; }
+      catch { status.textContent = 'Copy failed — your browser blocked clipboard access.'; }
+      ta.remove();
+    }
+  });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     status.textContent = 'Sending…';

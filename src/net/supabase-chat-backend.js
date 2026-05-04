@@ -58,6 +58,15 @@ class SupabaseChatBackend {
 
   async _client() {
     if (this._supabase) return this._supabase;
+    // b105: reuse the auth.js-owned client when possible. Two GoTrueClient
+    // instances on the same storage key emit a warning + can produce
+    // undefined behavior under concurrent auth ops. Sharing keeps it single.
+    const shared = (window.HearthriseAuth && window.HearthriseAuth.getClient && window.HearthriseAuth.getClient());
+    if (shared) {
+      this._supabase = shared;
+      return this._supabase;
+    }
+    // Fallback: auth.js hasn't finished setupAuth yet. Create our own.
     const cfg = getCfg();
     if (!cfg) throw new Error('Supabase not configured');
     const mod = await import('https://cdn.skypack.dev/@supabase/supabase-js');

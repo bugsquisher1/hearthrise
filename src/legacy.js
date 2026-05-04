@@ -7174,9 +7174,13 @@ function tileForGather(action, skillId){
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
   var speed = (typeof getBonus==='function') ? getBonus('gatherSpeed') : 0;
   var ms = Math.max(500, Math.floor(action.ms*(1-speed)));
+  // b129: locked tiles toast their req level instead of dead-clicking
+  var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
     ? "stopSkill()"
-    : (unlocked ? "startSkill('"+skillId+"','"+action.id+"',"+action.ms+")" : "");
+    : (unlocked
+        ? "startSkill('"+skillId+"','"+action.id+"',"+action.ms+")"
+        : "notify('Requires "+skillName+" Lv "+action.req+"','kill')");
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '
@@ -7201,9 +7205,13 @@ function tileForArtisan(recipe, skillId){
   var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;
   /* stopSkill is wrapped to also clear artisan intervals (line 7382) */
+  // b129: locked artisan tiles toast req level
+  var skillName2 = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
     ? "stopSkill()"
-    : (unlocked ? "window.startArtisan('"+skillId+"','"+recipe.id+"')" : "");
+    : (unlocked
+        ? "window.startArtisan('"+skillId+"','"+recipe.id+"')"
+        : "notify('Requires "+skillName2+" Lv "+recipe.req+"','kill')");
   var inputs = recipe.inputs || (recipe.input ? (function(){var o={};o[recipe.input]=recipe.inputQty||1;return o;})() : {});
   var inputsLine = Object.entries(inputs).map(function(kv){
     var d = ITEMS[kv[0]]; return (kv[1]>1?kv[1]+'x ':'')+(d?d.n.split(' ')[0]:kv[0]);

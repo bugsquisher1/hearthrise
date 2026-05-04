@@ -4093,6 +4093,26 @@ body[data-theme="classic"] .modal-card {
 }
 
 /* ============================================================
+ * b129: skill / monster icon emoji visibility
+ *
+ * legacy.css forces `font-size:0 !important` on .sicon, .icon,
+ * and .mi assuming the icon is always rendered as an <img> child.
+ * When the bundle path map (_skillIcon / _monsterIcon) is empty
+ * — which is the b122+ default for skills — the renderer puts the
+ * emoji glyph directly in the span as text. font-size:0 hid it.
+ *
+ * Fix: if there's no <img> child, restore the emoji font-size.
+ * `:has()` is widely supported in modern browsers (2023+).
+ * ============================================================ */
+.skill-tile .sicon:not(:has(img)),
+.skill-card .sicon:not(:has(img)),
+.skill-card .icon:not(:has(img)),
+.monster-row .mi:not(:has(img)) {
+  font-size: 24px !important;
+  line-height: 1 !important;
+}
+
+/* ============================================================
  * b127: Quests modal cozy-light theming
  *
  * The Quests overlay (`.qm-overlay` / `.qm-modal`) was hard-coded

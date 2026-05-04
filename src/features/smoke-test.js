@@ -961,6 +961,42 @@ const TESTS = [
         'window.G changed identity across loadLocal — every feature holding a reference is now stale');
     } finally { restoreG(snap); }
   }),
+
+  // ── b129 regression suite (user-story playthrough fixes) ──
+
+  // b129: skill tile emoji glyphs were invisible because legacy.css forced
+  // font-size:0 !important on .sicon, assuming an <img> child. With
+  // _skillIcon empty (b122+), the emoji span had nothing to display.
+  () => tryRun('b129: skill tile emoji glyphs render', () => {
+    window.showTab('skills');
+    if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
+    void document.body.offsetHeight;
+    const tile = document.querySelector('#skills-list .skill-tile .sicon');
+    if (!tile) return;
+    const cs = getComputedStyle(tile);
+    assert(parseFloat(cs.fontSize) > 0,
+      'skill tile .sicon font-size is 0 — emoji glyph invisible. Got ' + cs.fontSize);
+    window.showTab('profile');
+  }),
+
+  // b129: locked activity tile click should toast a "Requires Lv X" hint
+  // instead of silently doing nothing. We can't reliably trigger toasts
+  // in test, but we can verify the onclick attribute is no longer empty.
+  () => tryRun('b129: locked activity tiles have feedback onclick', () => {
+    window.showTab('skills');
+    if (typeof window.openSkillDetail === 'function') window.openSkillDetail('smithing');
+    void document.body.offsetHeight;
+    const lockedTiles = document.querySelectorAll('#skill-detail .act-tile.locked');
+    if (lockedTiles.length === 0) return; // no locked tiles in this state
+    let dead = 0;
+    for (const t of lockedTiles) {
+      const oc = t.getAttribute('onclick') || '';
+      if (!oc.trim()) dead++;
+    }
+    assert(dead === 0,
+      dead + ' of ' + lockedTiles.length + ' locked tiles have empty onclick — players get no feedback');
+    window.showTab('profile');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

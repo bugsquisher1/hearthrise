@@ -49,7 +49,14 @@ function tileForGather(action, skillId) {
   const qty = window.G.inventory?.[action.prod] || 0;
   const speed = typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0;
   const ms = Math.max(500, Math.floor(action.ms * (1 - speed)));
-  const click = active ? 'stopSkill()' : (unlocked ? `startSkill('${skillId}','${action.id}',${action.ms})` : '');
+  // b129: locked tiles toast their level requirement instead of silently
+  // doing nothing — players need feedback, not a dead click.
+  const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
+  const click = active
+    ? 'stopSkill()'
+    : (unlocked
+        ? `startSkill('${skillId}','${action.id}',${action.ms})`
+        : `notify('Requires ${skillName} Lv ${action.req}','kill')`);
   const qtyClass = qty > 0 ? 'at-qty' : 'at-qty muted';
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
@@ -70,7 +77,13 @@ function tileForArtisan(recipe, skillId) {
   const outId = recipe.output;
   const outDef = window.ITEMS?.[outId];
   const qty = window.G.inventory?.[outId] || 0;
-  const click = active ? 'stopSkill()' : (unlocked ? `window.startArtisan('${skillId}','${recipe.id}')` : '');
+  // b129: locked artisan tiles toast required level too.
+  const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
+  const click = active
+    ? 'stopSkill()'
+    : (unlocked
+        ? `window.startArtisan('${skillId}','${recipe.id}')`
+        : `notify('Requires ${skillName} Lv ${recipe.req}','kill')`);
   const inputs = recipe.inputs || (recipe.input ? { [recipe.input]: recipe.inputQty || 1 } : {});
   const inputsLine = Object.entries(inputs).map(([id, q]) => {
     const d = window.ITEMS?.[id];

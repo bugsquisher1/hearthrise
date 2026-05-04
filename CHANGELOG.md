@@ -4,6 +4,26 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 129 — 2026-05-04 (user-story playthroughs — round 1)
+
+Tyler asked for "play the game with intent" instead of "verify the panel rendered." First pass on desktop turned up real bugs the smoke test was never going to catch. Two fixes shipped here, full findings list queued for follow-up rounds.
+
+**Bugs surfaced + fixed:**
+
+- 🪓 **Skill tile emoji icons were invisible.** `legacy.css:2108` forces `font-size:0 !important` on `.sicon` (and `.icon`, `.mi`) on the assumption that an `<img>` child would always be present. After the b122 cleanup that emptied `_skillIcon` to fall back on emoji glyphs, the spans had nothing to render. **Fix:** new `theme-cozy.css` rule using `:has()` to keep `font-size:24px` when the span has no `<img>` child. Restores the 🪓 ⛏ 🎣 etc. emoji glyphs across Profile dashboard, Activities sidebar, monster rows.
+- 💀 **Locked activity tiles dead-clicked.** Clicking a recipe / tree / rock you don't have the level for did absolutely nothing — no toast, no tooltip, no feedback. Players assumed the tile was broken. **Fix:** locked tiles now toast `"Requires Smithing Lv 5"` (with the actual skill name + req level). Patched in three call sites: `activities-grid.js` (gather + artisan tiles) and the legacy.js duplicates.
+
+**Regression tests added** for both — locked-tile onclick can't be empty, `.sicon` font-size can't be 0.
+
+**Findings queued for follow-up rounds (not in this commit):**
+
+Profile orientation: no FTUE for first-time players, "THEMPHILL22+1" placeholder name shows publicly, "Pick an activity" hint isn't a button, `Active Effects` empty states have no CTAs.
+Activities: tree product icons missing on initial render (appear after first start), "Qty: 0" badge unlabeled, smithing recipes not sorted by level requirement.
+Combat: monster preview numbers (`95% hit, 1-1 dmg, TTK 20.2s`) don't match live combat (`72%, 1-4 dmg, 339 kills/hr`), preview modal fade-in transient leaks the underlying UI, equipment slot 3-letter labels (`Hel`, `Wea`, `Glo`) look like junk, "Suggested for your level" duplicates monster-list content.
+Save: smoke test pollution leaked +12,345 gold into the player save before the b128 fix landed (cleaned manually).
+
+Mobile playthrough not yet done.
+
 ## v0.9.1-beta build 128 — 2026-05-04 (real save/load bug uncovered by the suite)
 
 The b127 suite ran on the live deploy and dropped from 5 fails → 1 fail. That last failure was the save/load round-trip test, and digging in surfaced an actual correctness bug that's been latent forever:

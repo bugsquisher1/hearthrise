@@ -329,9 +329,21 @@
           +   '<div class="ss-card-meta">Cloud features aren\'t live in this build. Your save lives on this device.</div>'
           + '</div>');
     }
-    var cloudMeta = G.cloudSyncedAt
-      ? 'Last synced: ' + new Date(G.cloudSyncedAt).toLocaleString()
-      : 'Never synced.';
+    // Cloud sync status copy. Three states:
+    //   • Have a recorded sync timestamp → show it
+    //   • Live session, no sync yet → "Auto-syncing — waiting for first round-trip"
+    //   • No session at all → "Offline (sign in to enable)"
+    // Previously the "Never synced." string was shown even while signed in
+    // and auto-syncing every 30s, which directly contradicted the auth
+    // banner above and made it look like cloud was broken.
+    var cloudMeta;
+    if (G.cloudSyncedAt) {
+      cloudMeta = 'Last synced: ' + new Date(G.cloudSyncedAt).toLocaleString();
+    } else if (liveSession && liveSession.user) {
+      cloudMeta = 'Auto-syncing every 30s — waiting for first round-trip.';
+    } else {
+      cloudMeta = 'Offline. Sign in above to enable cloud sync.';
+    }
 
     // ── Cloud setup (Supabase credentials) ──
     // Only shown for self-hosters / dev forks. Actual players never see

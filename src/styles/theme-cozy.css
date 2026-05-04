@@ -551,7 +551,52 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
   content: "❦ ";
   color: var(--gold);
   margin-right: 4px;
-  font-size: 12px;
+  font-size: .9em;
+}
+
+/* ============================================================
+ * Market — re-skin off-theme buttons to match parchment palette
+ * (added 2026-05-03 b101 hot patch)
+ * ============================================================ */
+
+/* "List" button — was bright Idle-Clans green; now wax-stamp red */
+#panel-market .mk-form-row button,
+#panel-market #mk-list-btn {
+  background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
+  color: #fff8e2 !important;
+  border: 2px solid #5a1208 !important;
+  font-family: 'Cinzel', serif !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: .18em !important;
+  text-transform: uppercase !important;
+  padding: 8px 18px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3) !important;
+}
+#panel-market .mk-form-row button:hover,
+#panel-market #mk-list-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* "Premium Store" pill on Market — was dark navy/teal; now parchment with
+ * a gold accent on the gem icon. Subtle but on-theme. */
+#hr-store-link {
+  background: linear-gradient(180deg, #fff8e2, #e8d5a3) !important;
+  color: #5c2d08 !important;
+  border: 2px solid #b8893e !important;
+  font-family: 'Cinzel', serif !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 4px rgba(60,40,16,.25) !important;
+}
+#hr-store-link:hover {
+  background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
+  filter: brightness(1.02);
+}
+#hr-store-link > span {
+  color: #c9a35c !important; /* gold gem accent */
+  filter: drop-shadow(0 1px 0 rgba(60,40,16,.4));
+}e: 12px;
 }
 html:not([data-theme]) .card-head .card-sub,
 body[data-theme="cozy-light"] .card-head .card-sub {

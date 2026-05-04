@@ -1296,14 +1296,27 @@ function renderProfile(){
   const cl=getCombatLevel(),tl=getTotalLevel();
   document.getElementById('dash-user-sub').textContent=`Lv ${cl} · Total ${tl}`;
   document.getElementById('dash-user-body').innerHTML=`
-    <div class="activity-card">
+    ${(()=>{
+      // Auth-state resolution for the Profile dashboard:
+      // 1) live Supabase session takes precedence (the actual cloud login)
+      // 2) legacy guest G.account record
+      // 3) offline / no auth at all
+      const liveSess = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
+      const liveUser = liveSess && liveSess.user;
+      const acctName = liveUser
+        ? (liveUser.user_metadata?.display_name || (liveUser.email||'').split('@')[0] || 'Adventurer')
+        : (G.account ? G.account.displayName : null);
+      const isOnline = !!(liveUser || G.account);
+      const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline play · sign in to sync');
+      return `<div class="activity-card">
       <div class="ac-icon">🧙</div>
       <div style="flex:1;min-width:0">
-        <b>${escapeHtml(G.playerName)}</b>
-        <span>${G.account?'Online · '+G.account.displayName:'Offline play · sign in to sync'}</span>
+        <b>${escapeHtml(acctName || G.playerName)}</b>
+        <span>${subtitle}</span>
       </div>
-      ${G.account?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}
-    </div>
+      ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}
+    </div>`;
+    })()}
     <div class="kpi-row">
       <div class="kpi"><b>${cl}</b><span>Combat</span></div>
       <div class="kpi"><b>${tl}</b><span>Total Level</span></div>
@@ -1628,19 +1641,26 @@ function openSeedPicker(i){
 let houseTab='rooms';
 function renderHouse(){
   const el=document.getElementById('house-panel');if(!el)return;
+  // Helper: render a hand-painted building image if we have one for this id,
+  // otherwise the legacy emoji glyph. b103 ships ~10 building images.
+  const _bldImg = (id, fallbackIcon, mapName) => {
+    const path = (window[mapName] || {})[id];
+    if (path) return `<img src="${path}" alt="" loading="lazy" data-fb-glyph="${fallbackIcon}" style="width:42px;height:42px;object-fit:contain;display:block" />`;
+    return `<span style="font-size:32px;line-height:42px">${fallbackIcon}</span>`;
+  };
   if(houseTab==='rooms'){
     el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
       const lv=G.rooms[id]||0,max=r.levels.length;
       const next=r.levels[lv];
       const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
-      return `<div class="shop-row"><span class="si">${r.icon}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
+      return `<div class="shop-row"><span class="si" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
     }).join('');
   } else if(houseTab==='plot'){
     el.innerHTML=Object.entries(PLOT_BUILDINGS).map(([id,b])=>{
       const have=G.plotBuildings.filter(x=>x.id===id).length;
       const at=have>=b.max;
       const can=Object.entries(b.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v);
-      return `<div class="shop-row"><span class="si">${b.icon}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} · ${Object.entries(b.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
+      return `<div class="shop-row"><span class="si" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} · ${Object.entries(b.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
@@ -8338,8 +8358,13 @@ function buildHeroCard(){
   var tl = (typeof getTotalLevel === 'function') ? getTotalLevel() : '?';
   var gold = G.gold || 0;
   var kills = (G.stats && G.stats.kills) || 0;
-  var hp = (typeof G.hp === 'number') ? G.hp : '—';
-  var maxHp = (typeof getMaxHp === 'function') ? getMaxHp() : '—';
+  // The actual HP state lives on G.playerHp / G.playerMaxHp (set in
+  // ensureSave + bumped on hitpoints level-up). Earlier code here was
+  // reading G.hp / getMaxHp() which never existed, so the Character
+  // sheet always showed "— / —". Inventory hero panel reads the same
+  // pair correctly — keep these aligned.
+  var hp = (typeof G.playerHp === 'number') ? G.playerHp : 10;
+  var maxHp = (typeof G.playerMaxHp === 'number') ? G.playerMaxHp : 10;
   var topSkill = (function(){
     var entries = Object.entries(G.skills||{});
     if(!entries.length) return '—';
@@ -9300,6 +9325,106 @@ Object.keys(BUNDLE_ITEM_ICON).forEach(function(k){
 Object.keys(BUNDLE_MONSTER_ICON).forEach(function(k){
   window._monsterIcon[k] = encPath(BUNDLE_MONSTER_ICON[k]);
 });
+
+// ============================================================
+// Bundle availability probe (b101) → local-icons override (b103)
+//
+// The `assets/raw-bundle/` paths above 404 on the public deploy
+// (those raw packs aren't committed). The probe used to clear the
+// maps so emoji rendered cleanly. b103 supersedes that with a real
+// fix: ship a small curated set of hand-painted PNGs under
+// `assets/icons-bundle/` and override the bundle paths for the
+// game IDs we have actual art for. Anything unmapped continues to
+// fall through to the emoji glyph (m.icon) as before.
+//
+// Curated subfolders under assets/icons-bundle/ (b103 first batch):
+//   buildings/ — 57 hand-painted homestead structures
+//   resources/ — 169 hand-painted materials (logs, bars, stones)
+//   medieval/  — 30 hand-painted crafting tools (anvil, sword)
+//
+// To add more, copy more icons3 subfolders into the bundle dir and
+// add entries to the LOCAL_*_ICON maps below.
+// ============================================================
+(function applyLocalIcons(){
+  // Items we ship art for — keys match game item IDs in ITEMS / MONSTERS / SKILLS.
+  // If a key is missing here the renderer falls through to the emoji (m.icon).
+  var LOCAL_ITEM_ICON = {
+    // Wood
+    normal_log:  'assets/icons-bundle/resources/Res_124_woodlog.png',
+    oak_log:     'assets/icons-bundle/resources/Res_124_woodlog.png',
+    willow_log:  'assets/icons-bundle/resources/Res_124_woodlog.png',
+    maple_log:   'assets/icons-bundle/resources/Res_124_woodlog.png',
+    yew_log:     'assets/icons-bundle/resources/Res_124_woodlog.png',
+    normal_plank:'assets/icons-bundle/resources/Res_04_wood.png',
+    oak_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
+    willow_plank:'assets/icons-bundle/resources/Res_04_wood.png',
+    maple_plank: 'assets/icons-bundle/resources/Res_04_wood.png',
+    yew_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
+    // Bars + ore
+    copper_ore:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
+    iron_ore:    'assets/icons-bundle/resources/Res_07_ironbar.png',
+    silver_ore:  'assets/icons-bundle/resources/Res_01_silverbar.png',
+    gold_ore:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
+    copper_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
+    iron_bar:    'assets/icons-bundle/resources/Res_07_ironbar.png',
+    silver_bar:  'assets/icons-bundle/resources/Res_01_silverbar.png',
+    gold_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
+    mithril_bar: 'assets/icons-bundle/resources/Res_05_magicbar.png',
+    rune_bar:    'assets/icons-bundle/resources/Res_06_magicbar.png',
+    stone:       'assets/icons-bundle/resources/Res_08_stones.png',
+    mushroom:    'assets/icons-bundle/resources/Res_125_mushroom.png',
+    dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',
+    // Misc craft items
+    anvil:       'assets/icons-bundle/medieval/BlacksmithInstruments.png'
+  };
+
+  // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,
+  // garden, trophy, cellar). We render these with a custom icon attribute
+  // on the room card. b103 maps each to a hand-painted building.
+  var LOCAL_ROOM_ICON = {
+    kitchen: 'assets/icons-bundle/buildings/House_01_nobg.png',
+    forge:   'assets/icons-bundle/buildings/Building_02_blacksmith_nobg.png',
+    library: 'assets/icons-bundle/buildings/Building_18_tower_nobg.png',
+    garden:  'assets/icons-bundle/buildings/Windmill_01_nobg.png',
+    trophy:  'assets/icons-bundle/buildings/Building_20_citadel_nobg.png',
+    cellar:  'assets/icons-bundle/buildings/Building_07_house_nobg.png'
+  };
+
+  // Plot buildings on the Farm
+  var LOCAL_PLOT_ICON = {
+    farm_plot:   'assets/icons-bundle/buildings/Farm_01_nobg.png',
+    toolshed:    'assets/icons-bundle/buildings/Building_06_house_nobg.png',
+    watchtower:  'assets/icons-bundle/buildings/Tower_01_nobg.png'
+    // scarecrow intentionally omitted — no scarecrow art in pack, emoji fits
+  };
+
+  // Apply: override window._itemPath for known IDs. Item-render code
+  // already prefers _itemPath over emoji.
+  window._itemPath = window._itemPath || {};
+  Object.keys(LOCAL_ITEM_ICON).forEach(function(k){
+    window._itemPath[k] = LOCAL_ITEM_ICON[k];
+  });
+  // Rebuild _itemSVG for the items we just overrode
+  window._itemSVG = window._itemSVG || {};
+  Object.keys(LOCAL_ITEM_ICON).forEach(function(k){
+    var p = LOCAL_ITEM_ICON[k];
+    window._itemSVG[k] = '<img src="'+p+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
+  });
+
+  // Expose the room/plot maps so renderHouse / renderFarm can read them.
+  window._roomIcon = LOCAL_ROOM_ICON;
+  window._plotBuildingIcon = LOCAL_PLOT_ICON;
+
+  // Clear monster bundle entries — those still 404 (no monster art shipped
+  // in b103). Emoji fallback is the right behavior. Skip the loud probe
+  // approach since we know definitively there's no monster art on disk.
+  window._monsterIcon = {};
+
+  console.info('[icons-bundle b103] applied:',
+    Object.keys(LOCAL_ITEM_ICON).length, 'items,',
+    Object.keys(LOCAL_ROOM_ICON).length, 'rooms,',
+    Object.keys(LOCAL_PLOT_ICON).length, 'plot buildings');
+})();
 
 // Rebuild _itemSVG which is consumed by older render paths
 window._itemSVG = window._itemSVG || {};

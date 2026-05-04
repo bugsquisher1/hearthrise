@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 118 — 2026-05-04 (Discord webhook live)
+
+Tyler set up the Hearthrise Discord server (Info / Community / Feedback categories with 8 channels). Created the `#bug-reports` channel + "Hearthrise Bug Bot" webhook. Webhook URL pasted into `DISCORD_WEBHOOK_URL` in `bug-report.js` — bug reports now flow directly to Discord.
+
+This is a temporary configuration until the Cloudflare Worker is deployed (waiting on Tyler's GitHub access). The URL is currently in the public JS bundle. Risk: scraper-driven channel spam. Mitigation: regenerate webhook URL in Discord if abused.
+
+After Worker deploy, the URL moves to a Cloudflare secret and the constant goes back to empty.
+
 ## v0.9.1-beta build 117 — 2026-05-04 (bug-report pipeline + screenshot capture)
 
 The "test on phone via RDP" pain solved.

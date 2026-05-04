@@ -23,9 +23,17 @@
 // Bridge worker URL — Cloudflare Worker that forwards to Discord + GitHub.
 // When configured, this single endpoint replaces the Discord-only path:
 // game → BRIDGE_URL → Discord channel + GitHub Issue (with screenshot inline).
-// Until Tyler deploys his worker, leave blank; the legacy paths still work.
-const BRIDGE_URL = ''; // ← paste your Cloudflare Worker URL here
-const DISCORD_WEBHOOK_URL = ''; // ← OR paste a raw Discord webhook URL here
+// Until the worker is deployed, leave blank; the direct Discord path below
+// is the active route.
+const BRIDGE_URL = ''; // ← paste Cloudflare Worker URL here once deployed
+
+// Direct Discord webhook URL — TEMPORARY until BRIDGE_URL is configured.
+// This URL is in the public JS bundle, so it's scrapable. Risk profile:
+//   • Worst case: someone scrapes + spams the #bug-reports channel
+//   • Mitigation: regenerate the webhook URL in Discord (30 seconds)
+// Once the bridge worker is deployed, the URL moves to a Cloudflare secret
+// and this constant goes back to ''.
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1500768393299759277/R6nNNFABoL3FeYj3tA9XimwCKW6m1oaYv0LHQYaqEezsdzcSiAouKyYe2Brm8Uzyu5k0';
 
 const MAX_CONSOLE_BUFFER = 50;
 const QUEUE_KEY = 'hearthrise:bug-queue';

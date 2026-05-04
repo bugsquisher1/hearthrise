@@ -765,6 +765,152 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 }
 
 /* ============================================================
+ * b111 — Mobile rebuild pt 2 (Inventory + Activities)
+ * ============================================================
+ * Same data-mobile-sub pattern as Combat (b110) applied to:
+ *   • Inventory: Bag / Equip / Saved sub-tabs
+ *   • Activities (Skills): horizontal-scroll skill strip across top
+ * Sub-strips hidden on desktop, shown only at ≤540px.
+ * ============================================================ */
+
+/* Inventory sub-tab strip — hidden by default, mobile-only */
+.inv-mob-tabs { display: none; }
+@media (max-width: 540px) {
+  .inv-mob-tabs {
+    display: flex !important;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    gap: 4px;
+    padding: 6px 4px;
+    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
+    border-bottom: 1px solid #b8893e;
+    backdrop-filter: blur(6px);
+    margin: -8px -8px 8px;
+  }
+  .inv-mob-tabs .imt-btn {
+    flex: 1 1 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 4px;
+    background: rgba(255,255,255,.5);
+    border: 1px solid #c9a35c;
+    border-radius: 6px;
+    color: #5c2d08;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .inv-mob-tabs .imt-btn .imt-ic { font-size: 16px; }
+  .inv-mob-tabs .imt-btn.active {
+    background: linear-gradient(180deg, #d44a3a, #8b2a1f);
+    color: #fff8e2;
+    border-color: #5a1208;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* Show only the section matching the active inventory sub-tab.
+   * The inventory layout has three logical zones: bag column,
+   * equipment column (paper-doll + hero stats), loadout column. */
+  #panel-inventory[data-mobile-sub="bag"] .invc-equip-col,
+  #panel-inventory[data-mobile-sub="bag"] .invc-loadout-col,
+  #panel-inventory[data-mobile-sub="bag"] .loadout-section,
+  #panel-inventory[data-mobile-sub="bag"] .hero-stats {
+    display: none !important;
+  }
+  #panel-inventory[data-mobile-sub="equip"] .invc-bag-col,
+  #panel-inventory[data-mobile-sub="equip"] .bag-section,
+  #panel-inventory[data-mobile-sub="equip"] .invc-loadout-col,
+  #panel-inventory[data-mobile-sub="equip"] .loadout-section {
+    display: none !important;
+  }
+  #panel-inventory[data-mobile-sub="loadouts"] .invc-bag-col,
+  #panel-inventory[data-mobile-sub="loadouts"] .bag-section,
+  #panel-inventory[data-mobile-sub="loadouts"] .invc-equip-col,
+  #panel-inventory[data-mobile-sub="loadouts"] .hero-stats,
+  #panel-inventory[data-mobile-sub="loadouts"] .td-doll {
+    display: none !important;
+  }
+
+  /* Tighten bag tile grid to 5 columns on mobile (was responsive auto-fill) */
+  #panel-inventory .bag-grid,
+  #panel-inventory .invc-bag,
+  #panel-inventory .inv-bag {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 4px !important;
+  }
+}
+
+/* Activities skill strip — horizontal-scroll across the top */
+.act-mob-strip { display: none; }
+@media (max-width: 540px) {
+  .act-mob-strip {
+    display: flex !important;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    gap: 4px;
+    padding: 6px 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
+    border-bottom: 1px solid #b8893e;
+    backdrop-filter: blur(6px);
+    margin: -8px -8px 8px;
+    scrollbar-width: none;
+  }
+  .act-mob-strip::-webkit-scrollbar { display: none; }
+  .act-mob-strip .ams-btn {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 10px;
+    min-width: 56px;
+    background: rgba(255,255,255,.5);
+    border: 1px solid #c9a35c;
+    border-radius: 6px;
+    color: #5c2d08;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    min-height: 48px;
+    scroll-snap-align: start;
+  }
+  .act-mob-strip .ams-btn .ams-ic { font-size: 18px; }
+  .act-mob-strip .ams-btn.active {
+    background: linear-gradient(180deg, #d44a3a, #8b2a1f);
+    color: #fff8e2;
+    border-color: #5a1208;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* Hide the desktop-style skill list sidebar on mobile — the strip
+   * replaces it. Show only the right-column detail. */
+  #panel-skills .activities-sidebar,
+  #panel-skills .skill-list-col,
+  #panel-skills aside.skill-list {
+    display: none !important;
+  }
+  #panel-skills .skill-detail,
+  #panel-skills .activity-detail-col {
+    width: 100% !important;
+  }
+  /* Skill nodes (Normal Tree, Oak, etc.) — denser rows */
+  #panel-skills .skill-node,
+  #panel-skills .activity-tile {
+    padding: 8px 10px !important;
+    min-height: 60px !important;
+  }
+}
+
+/* ============================================================
  * b110 — Idle-Clans-style structural rebuild for mobile
  * ============================================================
  * Combat panel gets a sub-tab strip (Style / Foes / Arena), only

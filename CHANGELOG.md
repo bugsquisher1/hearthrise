@@ -4,6 +4,30 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 111 — 2026-05-04 (mobile rebuild pt 2 + service-worker fix)
+
+Two big things in this push.
+
+### 1. Service worker rewrite (P0 — fixes the "phone shows old version" bug)
+
+Previous service worker used a fixed cache name (`hearthbound-v2`) and "cache-first" strategy. Translation: once the SW cached a file, it served the cached version forever. Pushing new builds did nothing for installed PWAs until the user manually deleted + reinstalled the home shortcut. That's why b110 looked unchanged on Tyler's phone home shortcut.
+
+New strategy:
+- Cache name now includes the build version (e.g. `hearthrise-111`). Each build → new cache → old caches purged on activate.
+- App shell (HTML/JS/CSS) = network-first. Fresh fetch on every load when online; cache fallback only when offline.
+- Static assets (PNG/SVG/font) = cache-first because they're URL-versioned.
+- `skipWaiting()` + `clients.claim()` so updates take effect on the next page load with no manual reset.
+
+After this build deploys, all future pushes will propagate to phones automatically within ~30s of opening the app.
+
+### 2. Mobile rebuild pt 2 — Inventory + Activities
+
+Same Idle-Clans-style sub-tab pattern Combat got in b110, applied to two more panels.
+
+- 🎒 **Inventory sub-tabs**: `Bag | Equip | Saved` strip. Bag shows just the item grid (5-col on mobile), Equip shows the paper-doll + hero stats, Saved shows loadouts. New `src/inventory-mobile-tabs.js`.
+- ⛏️ **Activities skill strip**: 9 skills as a horizontal-scroll strip across the top (Wood / Mine / Fish / Farm / Cook / Craft / Smith / Prayer / Magic). Tap to focus. The selected skill's detail view fills the rest of the screen. Replaces the desktop sidebar+detail layout that was eating ~60% of the panel on mobile. New `src/activities-mobile-tabs.js`.
+- Skill nodes (Normal Tree, Oak, etc.) and bag tiles densified to phone-friendly sizes.
+
 ## v0.9.1-beta build 110 — 2026-05-04 (Idle Clans-style mobile rebuild — pt 1: Combat)
 
 First of three structural rebuilds to make the mobile experience feel like Idle Clans (and other dense, tabbed mobile idle games) instead of a desktop site squeezed into a phone.

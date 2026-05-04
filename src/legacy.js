@@ -1906,25 +1906,118 @@ function installPwa(){
   const url=URL.createObjectURL(blob);
   const link=document.createElement('link');link.rel='manifest';link.href=url;document.head.appendChild(link);
 
-  /* register service worker (only if served over http/https) */
+  /* register service worker (only if served over http/https)
+   *
+   * b111: rewrote the strategy. The old SW used a fixed cache name
+   * (`hearthbound-v2`) and "cache-first" for everything, which meant
+   * any file the SW had ever seen got served from cache forever —
+   * pushing a new build did nothing for installed PWAs until the user
+   * manually deleted + reinstalled the home shortcut.
+   *
+   * New strategy:
+   *  • Cache name = `hearthrise-${BUILD}` derived from the cache-buster
+   *    on this page's <script> tags. New build → new cache name → old
+   *    caches purged on activate.
+   *  • App shell (HTML/JS/CSS) = network-first. Try fetch; on success,
+   *    update cache + serve. On failure, fall back to cache (offline).
+   *  • Static assets (images/fonts) = cache-first. They're versioned
+   *    by URL anyway, so cache hits are safe.
+   *  • skipWaiting() + clients.claim() so the new SW takes control
+   *    immediately without requiring a page close. */
   if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
-    const swCode=`
-      const CACHE='hearthbound-v2';
-      self.addEventListener('install',e=>self.skipWaiting());
-      self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
-      self.addEventListener('fetch',e=>{
-        if(e.request.method!=='GET')return;
-        e.respondWith(
-          caches.open(CACHE).then(c=>
-            c.match(e.request).then(hit=>hit||fetch(e.request).then(res=>{
-              try{c.put(e.request,res.clone());}catch{}return res;
-            }).catch(()=>caches.match('./')))
-          )
+    /* Extract the active build version from any of our versioned <script>
+     * tags. e.g. legacy.js?v=111 → "111". Fallback "0" if not found. */
+    const verMatch = (function(){
+      const scripts = document.querySelectorAll('script[src*="?v="]');
+      for (const s of scripts){
+        const m = s.src.match(/\?v=(\d+)/);
+        if (m) return m[1];
+      }
+      return '0';
+    })();
+    const swCode = `
+      const BUILD = '${verMatch}';
+      const CACHE = 'hearthrise-' + BUILD;
+      const SHELL = ['./','./index.html'];
+
+      function isShell(req){
+        const u = new URL(req.url);
+        if (u.origin !== self.location.origin) return false;
+        const p = u.pathname;
+        return p === '/' || p.endsWith('/') || p.endsWith('.html')
+            || p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.json');
+      }
+      function isStatic(req){
+        const u = new URL(req.url);
+        if (u.origin !== self.location.origin) return false;
+        const p = u.pathname;
+        return p.endsWith('.png') || p.endsWith('.jpg') || p.endsWith('.jpeg')
+            || p.endsWith('.svg') || p.endsWith('.webp') || p.endsWith('.woff2')
+            || p.endsWith('.woff') || p.endsWith('.ttf');
+      }
+
+      self.addEventListener('install', e => {
+        // Pre-cache the app shell so cold-start works offline.
+        e.waitUntil(
+          caches.open(CACHE).then(c => c.addAll(SHELL).catch(()=>{}))
         );
+        self.skipWaiting();
+      });
+
+      self.addEventListener('activate', e => {
+        // Purge any old hearthrise-* caches from previous builds.
+        e.waitUntil((async () => {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => {
+            if (k !== CACHE && (k.startsWith('hearthrise-') || k === 'hearthbound-v2')) {
+              return caches.delete(k);
+            }
+          }));
+          await self.clients.claim();
+        })());
+      });
+
+      self.addEventListener('fetch', e => {
+        const req = e.request;
+        if (req.method !== 'GET') return;
+
+        if (isShell(req)) {
+          // Network-first for app shell — try fresh, fall back to cache offline.
+          e.respondWith((async () => {
+            try {
+              const res = await fetch(req);
+              try { (await caches.open(CACHE)).put(req, res.clone()); } catch {}
+              return res;
+            } catch {
+              const cached = await caches.match(req);
+              if (cached) return cached;
+              return caches.match('./');
+            }
+          })());
+          return;
+        }
+
+        if (isStatic(req)) {
+          // Cache-first for images/fonts — versioned by URL, safe to cache.
+          e.respondWith((async () => {
+            const cached = await caches.match(req);
+            if (cached) return cached;
+            try {
+              const res = await fetch(req);
+              try { (await caches.open(CACHE)).put(req, res.clone()); } catch {}
+              return res;
+            } catch {
+              return new Response('', { status: 504 });
+            }
+          })());
+          return;
+        }
+
+        // Anything else (cross-origin Supabase, CDN imports): pass through.
       });
     `;
-    const swBlob=new Blob([swCode],{type:'text/javascript'});
-    const swUrl=URL.createObjectURL(swBlob);
+    const swBlob = new Blob([swCode], {type:'text/javascript'});
+    const swUrl  = URL.createObjectURL(swBlob);
     navigator.serviceWorker.register(swUrl).catch(()=>{});
   }
 

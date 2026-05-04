@@ -1142,16 +1142,27 @@ function killMonster(m){
   G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+1;
   const log=G.combatLog;if(gp>0)log.push(`💰 Looted ${gp} gold!`);
   const dropMult=getWeaknessInfo(m).dropMult;
+  // b133: accumulate the drops that actually rolled so we can record
+  // them in HearthriseDropLog at the end. We only record what dropped,
+  // not the full loot table.
+  const _droppedThisKill = {};
   m.drops.forEach(d=>{
     const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult);
     if(Math.random()<chance){
       addItem(d.id,1);
+      _droppedThisKill[d.id] = (_droppedThisKill[d.id] || 0) + 1;
       const itemName=ITEMS[d.id]?.n||d.id;
       const rare=d.ch<=0.05;
       if(rare){G.stats.rareDrops=(G.stats.rareDrops||0)+1;log.push(`<span class="rare">✨ RARE: ${itemName}</span>`);notify(`✨ Rare: ${itemName}!`,'levelup');}
       else log.push(`📦 ${itemName}`);
     }
   });
+  // b133: feed the drop log. Indexed by the active monster id (which
+  // is the canonical key — m.name is for display only). Safe even if
+  // HearthriseDropLog hasn't loaded yet (defensive guard).
+  if(window.HearthriseDropLog && typeof window.HearthriseDropLog.recordKill === 'function'){
+    window.HearthriseDropLog.recordKill(G.activeMonster, _droppedThisKill);
+  }
   /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc. */
   {
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;

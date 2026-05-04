@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 133 — 2026-05-04 (Batch A — enhancement roadmap foundations)
+
+Tyler approved a 34-item enhancement roadmap + a new design ask: housing-gated farm progression where the upgrade currency drops from gameplay (bounty completions + tier-2+ mob kills, tradable on the market). Full plan lives in [`ROADMAP.md`](./ROADMAP.md). 11 batches, A through K. This build is **Batch A — foundations only, no user-visible features**. Sets up the plumbing every later batch needs so we don't have to retrofit it.
+
+**Architecture-first.** API contracts written in comment blocks BEFORE feature code. Other batches must call through these APIs, not poke the underlying state directly. Single source of truth per system.
+
+- 📜 **`ROADMAP.md`** added — single source of truth for the roadmap, principles, sequencing, housing-gate spec, auto-action engine spec, drop-log spec, and the items NOT in scope (so we don't accidentally re-add them).
+- 🤖 **`src/features/auto-actions.js`** — new module exposing `window.HearthriseAuto`. Holds the config for auto-eat (Batch B), train-to-level (Batch B), and farm auto-replant (Batch C). Engine hooks (`maybeAutoEat`, `maybeStopTraining`, `maybeReplant`) are b133 stubs returning `false` — Batch B/C fill them in. Persistence is debounced into `saveLocal()` so settings survive reload.
+- 📊 **`src/features/drop-log.js`** — new module exposing `window.HearthriseDropLog`. Records every monster kill + which drops actually rolled. Wired into `legacy.js`'s `killMonster` so it captures real combat data starting now. Batch F (b138) will render this in the monster preview modal.
+- 🗄 **Schema v3 → v4 migration** in `src/save-migrations.js` — adds `G.autoActions`, `G.dropLog`, and `G.plotLevels` (the housing-gate counter Batch C will use) with safe defaults. Existing saves load unchanged. Idempotent: re-running the migration is a no-op.
+- 🧪 **5 new regression tests** asserting the API surface, round-trip persistence, drop-log accumulation, migration applied, and `killMonster` integration without throws.
+
+**No visible behavior change in this build.** Smoke test should pass green. Next session: Batch B (b134) — auto-eat at HP threshold + train-to-level auto-stop.
+
 ## v0.9.1-beta build 132 — 2026-05-04 (user-story playthroughs — round 4: mobile polish)
 
 Cleared three of the queued mobile findings from b131's playthrough notes.

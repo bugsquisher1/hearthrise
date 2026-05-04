@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 3;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 4;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -110,10 +110,37 @@
         save.migratedToV3At = save.migratedToV3At || Date.now();
       },
     },
+    {
+      from: 3, to: 4,
+      name: 'v3 → v4 (auto-actions + drop-log + plot-levels — Batch A foundations)',
+      // Adds the three new state objects this roadmap depends on.
+      // All defaults are SAFE (disabled / empty / level 1) — old saves
+      // resume with no behavior change. Re-running this migration is
+      // idempotent: each branch is gated by `if (save.field == null)`.
+      apply: function(save){
+        // Auto-action engine config (Batch A scaffold; B/C wire engines)
+        if(save.autoActions == null){
+          save.autoActions = {
+            eat:         { enabled: false, threshold: 0.5, foodId: null },
+            trainGoal:   { enabled: false, skillId: null, targetLevel: null },
+            farmReplant: { enabled: false, cropId: null },
+          };
+        }
+        // Per-monster drop-log table (Batch A; F renders it)
+        if(save.dropLog == null){
+          save.dropLog = {};
+        }
+        // Plot upgrade level — gates farming crop unlocks (Batch C).
+        // Default 1 means existing saves keep current Turnip-only state.
+        if(save.plotLevels == null){
+          save.plotLevels = 1;
+        }
+      },
+    },
     // Future migrations go here. Example:
     // {
-    //   from: 3, to: 4,
-    //   name: 'v3 → v4 (rename foo to bar)',
+    //   from: 4, to: 5,
+    //   name: 'v4 → v5 (rename foo to bar)',
     //   apply: function(save){
     //     if(save.foo != null && save.bar == null){
     //       save.bar = save.foo;

@@ -1059,6 +1059,114 @@ const TESTS = [
     assert(cols <= 1,
       'qm-body should be single-column on mobile, got ' + cols + ' columns');
   }),
+
+  // ── b133 — Batch A foundations (auto-actions + drop-log + migrations) ──
+
+  // b133: HearthriseAuto API exists with the expected shape. Other
+  // batches will call setEat/getTrainGoal/etc — if any of these is
+  // missing the dependent batches break.
+  () => tryRun('b133: HearthriseAuto API surface', () => {
+    assert(window.HearthriseAuto, 'HearthriseAuto missing');
+    const required = ['getEat', 'setEat', 'getTrainGoal', 'setTrainGoal',
+                      'getFarmReplant', 'setFarmReplant', 'reset',
+                      'maybeAutoEat', 'maybeStopTraining', 'maybeReplant'];
+    for (const fn of required) {
+      assert(typeof window.HearthriseAuto[fn] === 'function',
+        'HearthriseAuto.' + fn + ' missing');
+    }
+  }),
+
+  // b133: getEat returns the default shape; setEat persists.
+  () => tryRun('b133: HearthriseAuto.setEat round-trips', () => {
+    if (!window.HearthriseAuto) return;
+    const before = window.HearthriseAuto.getEat();
+    try {
+      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.3, foodId: 'cooked_shrimp' });
+      const after = window.HearthriseAuto.getEat();
+      assert(after.enabled === true, 'eat.enabled should be true');
+      assert(after.threshold === 0.3, 'eat.threshold should be 0.3');
+      assert(after.foodId === 'cooked_shrimp', 'eat.foodId should be cooked_shrimp');
+    } finally {
+      window.HearthriseAuto.setEat(before);
+    }
+  }),
+
+  // b133: HearthriseDropLog API + recordKill mutation
+  () => tryRun('b133: HearthriseDropLog API + recordKill', () => {
+    assert(window.HearthriseDropLog, 'HearthriseDropLog missing');
+    const required = ['recordKill', 'getMonsterStats', 'getAllStats', 'getMostKilled', 'reset'];
+    for (const fn of required) {
+      assert(typeof window.HearthriseDropLog[fn] === 'function',
+        'HearthriseDropLog.' + fn + ' missing');
+    }
+    // Snapshot the existing slime entry (real combat tests run earlier in
+    // the suite and will have populated this), then verify recordKill
+    // increments the kill count + accumulates drops.
+    const snap = JSON.parse(JSON.stringify(window.HearthriseDropLog.getAllStats()));
+    try {
+      window.HearthriseDropLog.recordKill('__test_monster__', { test_drop: 2, other: 1 });
+      const stats = window.HearthriseDropLog.getMonsterStats('__test_monster__');
+      assert(stats, 'recordKill did not create entry');
+      assert(stats.kills >= 1, 'kills should be >=1, got ' + stats.kills);
+      assert(stats.drops.test_drop === 2, 'drops.test_drop should be 2');
+      // Calling again should accumulate, not overwrite.
+      window.HearthriseDropLog.recordKill('__test_monster__', { test_drop: 3 });
+      const after = window.HearthriseDropLog.getMonsterStats('__test_monster__');
+      assert(after.kills === stats.kills + 1, 'kills should increment');
+      assert(after.drops.test_drop === 5, 'drops.test_drop should accumulate to 5, got ' + after.drops.test_drop);
+    } finally {
+      // Clean up: restore original drop log so we don't pollute the player's record.
+      window.G.dropLog = snap;
+    }
+  }),
+
+  // b133: schema migration v3 → v4 ran. New fields exist with safe defaults.
+  () => tryRun('b133: v3→v4 migration applied — autoActions + dropLog + plotLevels', () => {
+    assert(window.HEARTHRISE_SCHEMA_VERSION >= 4,
+      'CURRENT_SCHEMA_VERSION should be >=4, got ' + window.HEARTHRISE_SCHEMA_VERSION);
+    assert(window.G.autoActions, 'G.autoActions missing — migration v3→v4 not applied');
+    assert(window.G.autoActions.eat,
+      'G.autoActions.eat missing');
+    assert(typeof window.G.autoActions.eat.enabled === 'boolean',
+      'G.autoActions.eat.enabled should be boolean');
+    assert(window.G.dropLog && typeof window.G.dropLog === 'object',
+      'G.dropLog missing — migration v3→v4 not applied');
+    assert(typeof window.G.plotLevels === 'number',
+      'G.plotLevels should be a number — Batch C will use it; migration v3→v4 not applied');
+    assert(window.G.plotLevels >= 1,
+      'G.plotLevels default should be 1 (Turnip-only), got ' + window.G.plotLevels);
+  }),
+
+  // b133: drop-log integration with combat — killing a monster via
+  // startCombat + stopCombat shouldn't blow up, and if a kill resolves
+  // the drop log should record it. We can't reliably resolve a kill
+  // synchronously (combat ticks every 2.4s), so we just verify the
+  // hook is wired at the source-level by checking recordKill exists
+  // and killMonster reaches it without throwing.
+  () => tryRun('b133: killMonster path calls into HearthriseDropLog without throwing', () => {
+    if (typeof window.killMonster !== 'function') return;
+    const snap = JSON.parse(JSON.stringify(window.HearthriseDropLog.getAllStats()));
+    try {
+      // Manufacture a fake monster + active state, run killMonster.
+      const fakeM = { name: 'TestSlime', hp: 1, gp: [0,0], drops: [], xp: 0 };
+      const prevActive = window.G.activeMonster;
+      window.G.activeMonster = '__test_synthetic__';
+      window.G.combatLog = window.G.combatLog || [];
+      window.G.stats = window.G.stats || {};
+      try {
+        window.killMonster(fakeM);
+      } catch (e) {
+        throw new Error('killMonster threw: ' + (e.message || e));
+      } finally {
+        window.G.activeMonster = prevActive;
+      }
+      const recorded = window.HearthriseDropLog.getMonsterStats('__test_synthetic__');
+      assert(recorded && recorded.kills >= 1,
+        'killMonster did not call HearthriseDropLog.recordKill');
+    } finally {
+      window.G.dropLog = snap;
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

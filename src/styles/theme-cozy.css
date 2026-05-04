@@ -644,17 +644,33 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
     line-height: 48px !important;
   }
 
-  /* #3 — Combat: ensure the monster-picker column is visible */
+  /* #3 — Combat: ensure the monster-picker column is visible
+   * On desktop the picker uses a fixed-height flex column with
+   * overflow:hidden + flex:0. On mobile that collapses it to ~26px
+   * (just the card header). Force auto height + visible overflow + a
+   * sane min-height so the actual monster list/tier buttons show. */
   #panel-combat.active .combat-picker {
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
+    min-height: 240px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
     margin-bottom: 12px;
+  }
+  #panel-combat.active .combat-picker .card-body {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
   #panel-combat.active .combat-arena,
   #panel-combat.active .combat-loadout {
     width: 100% !important;
     min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
   /* Stack the side-by-side cards vertically */
   #panel-combat.active > .row,
@@ -682,6 +698,42 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
   .inv-bag,
   .bag-grid {
     grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
+  }
+
+  /* b107 — Profile right-side bleed: the 2-column layout
+   * (main content + Active Effects sidebar) doesn't stack on mobile,
+   * so the sidebar floats off the right edge ("FO... HC... wid..."
+   * fragments visible past the parchment). Force a single column
+   * and let Active Effects flow underneath the main content. */
+  #panel-profile {
+    grid-template-columns: 1fr !important;
+    display: block !important;
+  }
+  #panel-profile #active-effects-card,
+  #panel-profile .active-effects-side,
+  #panel-profile aside,
+  #panel-profile .col-side {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    position: static !important;
+    float: none !important;
+    grid-column: 1 / -1 !important;
+  }
+  /* feat-buttons row (Achievements / Bestiary / Last Session / Lifetime
+   * Stats) was 570px wide, overflowing. Wrap into a 2-column grid. */
+  #panel-profile .feat-buttons,
+  .feat-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .feat-buttons .btn,
+  .feat-buttons button {
+    width: 100% !important;
+    font-size: 11px !important;
+    padding: 8px 4px !important;
   }
 
   /* #6 — Combat-style block: stack the title row when DUNGEONS would

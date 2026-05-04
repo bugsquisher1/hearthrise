@@ -197,8 +197,39 @@
   }
 
   function maybeReplant(plotIdx){
-    // Real implementation lands in b135.
-    return false;
+    // b136: real implementation. Called from harvestPlot() AFTER the
+    // plot has been emptied. We re-plant the configured cropId if:
+    //   1. auto-replant is enabled
+    //   2. the cropId is set
+    //   3. the player has at least 1 seed of that crop
+    //   4. farming level + plot level allow it
+    // Anything else is a no-op so we don't surprise the player.
+    if(typeof plotIdx !== 'number') return false;
+    if(!window.G || !window.G.farmPlots) return false;
+    var cfg = ensureShape(); if(!cfg) return false;
+    var fr = cfg.farmReplant;
+    if(!fr || !fr.enabled || !fr.cropId) return false;
+    // The plot must currently be empty — if a regrow already filled it,
+    // skip silently so we don't try to plant on top.
+    if(window.G.farmPlots[plotIdx]) return false;
+    var crops = window.CROPS;
+    if(!crops || !crops[fr.cropId]) return false;
+    var crop = crops[fr.cropId];
+    var seedId = crop.seed;
+    var have = (window.G.inventory && window.G.inventory[seedId]) | 0;
+    if(have <= 0){
+      if(typeof window.notify === 'function') window.notify('🌱 Auto-replant: out of ' + (crop.name||fr.cropId) + ' seeds', 'kill');
+      return false;
+    }
+    if(typeof window.getLevel === 'function' && window.getLevel('farming') < crop.req) return false;
+    // Plot level gate. Defer to HearthriseFarm when present.
+    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'
+       && !window.HearthriseFarm.canPlantCrop(fr.cropId)){
+      return false;
+    }
+    if(typeof window.plantCrop !== 'function') return false;
+    window.plantCrop(plotIdx, fr.cropId);
+    return !!window.G.farmPlots[plotIdx]; // true if plantCrop succeeded
   }
 
   // ── Public API ──────────────────────────────────────────────

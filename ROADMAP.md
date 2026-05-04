@@ -24,17 +24,18 @@ These are the rules every batch in this roadmap follows. They live here AND in `
 
 | # | Batch | Build | Items | Status |
 |---|---|---|---|---|
-| A | Foundations — auto-action engine + drop log + migrations + this doc | b133 | (no user-visible features) | **in progress** |
-| B | Idle automation, combat side | b134 | #7 Auto-eat at HP threshold · #15 Train-to-level-X auto-stop | pending |
-| C | Farming + housing gate | b135 | #24 Plant all · #25 Auto-replant · #26 Plot visual variation · **Housing-gated crop progression (deed drops)** | pending |
-| D | Profile launchpad | b136 | #1 Resume last activity · #2 Today's progress · #3 Next milestone · #5 Editable display name | pending |
-| E | Inventory QoL | b137 | #19 Slot tooltips · #20 Sort/filter · #21 Compare-on-hover · #22 Bulk-sell · #23 Right-click menu | pending |
-| F | Combat enhancements | b138 | #8 Log scrollback · #9 Drop log UI · #10 Weakness filter · #11 Loadout swap · #13 Tier-6 ceremony | pending |
-| G | Activities click-switch | b139 | #14 Click-to-switch active · #18 Locked tier preview tooltip | pending |
-| H | House polish | b140 | #27 Material gathering shortcut · #28 House visual paper-doll (art-bound) · #29 Theme preview hover | pending |
-| I | Flow + retention | b141 | #30 FTUE · #31 Level-up celebration · #32 Offline auto-pop · #33 "What do you want to do?" helper | pending |
-| J | Mobile + topbar polish | b142 | #35 Unclaimed badge · #37 Swipe gestures · #38 Haptic · #39 Mobile bottom-nav badges | pending |
-| K | Social + retention | b143 | #41 Co-op XP bonus · #42 Friends online feed | pending — depends on Social backend |
+| A | Foundations — auto-action engine + drop log + migrations + this doc | b133 | (no user-visible features) | **shipped** |
+| B | Idle automation, combat side | b134 | #7 Auto-eat at HP threshold · #15 Train-to-level-X auto-stop | **shipped** |
+| — | b135 hotfix — drop-log test live-reference bug + snapshotG tightening | b135 | (test-only) | **shipped** |
+| C | Farming + housing gate | b136 | #24 Plant all · #25 Auto-replant · #26 Plot visual variation (deferred) · **Housing-gated crop progression (deed drops)** | **in progress** |
+| D | Profile launchpad | b137 | #1 Resume last activity · #2 Today's progress · #3 Next milestone · #5 Editable display name | pending |
+| E | Inventory QoL | b138 | #19 Slot tooltips · #20 Sort/filter · #21 Compare-on-hover · #22 Bulk-sell · #23 Right-click menu | pending |
+| F | Combat enhancements | b139 | #8 Log scrollback · #9 Drop log UI · #10 Weakness filter · #11 Loadout swap · #13 Tier-6 ceremony | pending |
+| G | Activities click-switch | b140 | #14 Click-to-switch active · #18 Locked tier preview tooltip | pending |
+| H | House polish | b141 | #27 Material gathering shortcut · #28 House visual paper-doll (art-bound) · #29 Theme preview hover | pending |
+| I | Flow + retention | b142 | #30 FTUE · #31 Level-up celebration · #32 Offline auto-pop · #33 "What do you want to do?" helper | pending |
+| J | Mobile + topbar polish | b143 | #35 Unclaimed badge · #37 Swipe gestures · #38 Haptic · #39 Mobile bottom-nav badges | pending |
+| K | Social + retention | b144 | #41 Co-op XP bonus · #42 Friends online feed | pending — depends on Social backend |
 
 ---
 
@@ -168,3 +169,50 @@ Items from the design pass that Tyler did NOT pick — kept here so we don't acc
 - #40 Direct gift sending
 
 If a future batch needs one of these, raise it then.
+
+---
+
+## Backlog (post-roadmap)
+
+Real engineering tasks captured outside the 11 batches. Each gets its own batch when prioritised.
+
+### Single-session enforcement (raised b135, 2026-05-04)
+
+**Problem:** A character can currently be logged in at two places at once (phone + browser, two tabs, etc). Both clients write to the same Supabase save → conflicts, lost progress, ongoing offline-tick polling stomping on each other.
+
+**Why it's not in the current 11 batches:** orthogonal to UX/feature work. Touches Supabase auth + sync layer, not Profile / Combat / Farm UI.
+
+**Approach options to evaluate:**
+1. **Heartbeat-based.** Each session pings `device_sessions` table every ~30s with a session ID. New session starts → server checks for active heartbeats < 60s old → if found, current session takes over and the existing one gets a "logged in elsewhere" toast on next sync attempt + soft-kick.
+2. **Session token.** Server issues a monotonic session token at login. Client sends it on every save / sync. If a newer token has been issued, the old one's writes are rejected — existing client sees "your session expired" and reloads.
+3. **Supabase Realtime presence.** Use the `presence` channel — when a new device joins, broadcast a kick message; old device receives, signs out gracefully.
+
+**Recommended:** Option 2 (session token). Simpler than presence channels, more authoritative than heartbeats, easy to reason about for save conflicts.
+
+**Acceptance criteria:**
+- Player signs in on Device A, then Device B → A is signed out within ~10s with a "Logged in elsewhere" notice
+- A's offline tick stops; A's pending sync is rejected (no overwrite of B's progress)
+- Reconnecting on A signs in fresh (not a forced loop)
+- Edge case: two tabs same device same browser → newer tab wins, older tab notifies
+
+**Rough effort:** M-L. Schema change to Supabase + auth.js wiring + sync.js token gating + UI for the kicked-out toast.
+
+### ESM module cache-buster gap (raised b136, 2026-05-04)
+
+**Problem:** The b124 service-worker kill-switch wipes SW caches + unregisters SWs whenever the build cache name doesn't match. It does NOT touch the browser's HTTP cache. GitHub Pages serves modules with `Cache-Control: max-age=600`, so when `main.js?v=NNN` is bumped on a release, the browser re-fetches `main.js` (cache-busted by the query) but its static imports (`./features/smoke-test.js`, etc — no query) still come from the 10-minute HTTP cache. Result: `?v=` bumps on `main.js` don't reliably propagate to ESM-imported feature files.
+
+**Symptom we hit:** b135 fixed a smoke-test bug but the LIVE page kept running the old assertion text for ~10 min after deploy, even after `?reset-sw=1` and a hard reload. Confirmed by dynamic `import('?bust=Date.now()')` getting fresh code (89/89 green) while the static-imported module was still stale.
+
+**Approaches:**
+1. **Append `?v=NNN` to every static import inside `main.js`** — explicit cache-bust per module, but needs to be regenerated each release.
+2. **Generate an importmap on deploy** that maps every module to a versioned URL. Centralised, harder to drift.
+3. **Lower max-age via meta http-equiv** or a SW that injects no-cache headers. Heavyweight + the SW has to live across releases.
+4. **Live with it.** Tyler's release cadence means a 10-min cache lag is annoying but not blocking.
+
+**Recommended:** Option 1 (versioned static imports). Cheapest fix, mirrors the pattern already used for `<script src=?v=>` tags in `index.html`. A small build step (or a sed in `bump-version.sh`) can keep imports in sync.
+
+**Acceptance criteria:**
+- `?v=NNN` bump on `main.js` causes ALL ESM-imported modules to refetch on next reload.
+- No new "stale module" reports during release verification.
+
+**Rough effort:** S. ~10 imports in `main.js` to update + a bump-script tweak.

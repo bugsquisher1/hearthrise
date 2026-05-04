@@ -4,6 +4,31 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 136 — 2026-05-04 (Batch C — farming + housing-gated crops)
+
+The big one Tyler asked for last session: crop unlocks gated by Farm Plot tier, and the upgrade currency is a drop from gameplay (NOT bind-on-pickup, tradable on market).
+
+- 🌾 **Housing-gated crop progression.** New `G.plotLevels` integer (1..5) controls which crops you can plant. Defaults to Lv 1 (Turnip-only) — matches the existing pre-deed gameplay so nothing breaks for current players. Each tier above 1 unlocks more crops:
+  - Lv 1 → Turnip
+  - Lv 2 → + Carrot, Wheat (1 deed)
+  - Lv 3 → + Potato, Tomato (3 deeds)
+  - Lv 4 → + Pumpkin (5 deeds)
+  - Lv 5 → max (8 deeds, future-proofed for new crops)
+- 📜 **Farmer's Deed (`farm_deed`)** — new tradable item, value 250g, NOT bind-on-pickup. Drops from:
+  - Tier-2+ mob kills at **0.1%**
+  - Bounty completions at **0.5%**
+  Tier-1 mobs intentionally don't drop deeds — early game stays pure-progression and bounties cover all tiers.
+- 🏗 **House → Plot tab** now shows a "Farm Plot · Lv X/5" card at the top with current deeds, the next tier's new crops, and a "Spend N Deeds" button.
+- 🌱 **Farm panel** now shows: plot level + deed count + auto-replant status, a **Plant all** button (fills empty plots with the configured/best seed), an **Auto-replant** toggle, and an Upgrade Plot deep-link. The crops guide and seed picker label locked-by-plot crops with a deep-link to the upgrade card. Locked-by-skill stays separate (existing behavior).
+- 🔁 **Auto-replant engine** (`HearthriseAuto.maybeReplant`) is now real (was a Batch C stub in b133). Hooked into `harvestPlot()` so a non-regrowing crop auto-plants the configured seed if you have one. Respects plot-level + farming-level gates.
+- 🆕 **`src/features/farm-progression.js`** — `window.HearthriseFarm` API: `getPlotLevel`, `getPlotUnlockedCrops`, `canPlantCrop`, `getDeedsRequiredForNextLevel`, `getDeedCount`, `upgradePlot`, `rollKillDeed`, `rollBountyDeed`, `MAX_LEVEL`. Single source of truth for the housing gate — `plantCrop`, `openSeedPicker`, `renderFarm`, `renderHouse` all call through this API instead of duplicating logic.
+- 🧪 **9 new regression tests:** API surface + farm_deed not-BoP, Lv 1 unlocks turnip-only, upgradePlot spends deeds + advances level, refuses without enough deeds, plantCrop respects the gate, maybeReplant plants on empty plots, maybeReplant skips locked crops, Tier-1 kills never drop deeds, plotLevels migration default holds.
+- 🗄 **`snapshotG()` extended** to include `plotLevels`, `autoActions`, and `dropLog` so Batch B/C tests no longer leak state into the player's save when the suite runs.
+
+**Architecture note:** all gating defers to `HearthriseFarm.canPlantCrop()`. If the script hasn't loaded yet (race), code falls back to "turnip-only" — same as the migration default, so behavior is consistent. The deed drop is centralised in `farm-progression.js`'s `rollKillDeed`/`rollBountyDeed` so balance changes touch one place. Farmer's Deed sits in ITEMS without `bop:true` — Tyler's explicit ask for tradability.
+
+**Backlog addition:** logged the ESM HTTP-cache gap we hit verifying b135 — see ROADMAP "ESM module cache-buster gap". Recommended fix is versioned static imports, S-sized.
+
 ## v0.9.1-beta build 135 — 2026-05-04 (b133 test hotfix — green-bar discipline)
 
 The b133 drop-log regression test that landed in b133 had a bug *in the test itself*: it asserted `after.kills === stats.kills + 1` but `stats` and `after` are both live references to the same entry on `G.dropLog`, so by the time the assertion ran, `stats.kills` already reflected the post-second-call value. Implementation was always correct; the test was wrong.

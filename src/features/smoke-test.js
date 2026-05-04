@@ -60,6 +60,11 @@ const snapshotG = () => {
     plotBuildings: G.plotBuildings,
     playerHp: G.playerHp,
     playerMaxHp: G.playerMaxHp,
+    // b136: include the new fields so Batch C tests don't pollute
+    // the player's save when they mutate G.plotLevels / autoActions / dropLog.
+    plotLevels: G.plotLevels,
+    autoActions: G.autoActions,
+    dropLog: G.dropLog,
   }));
 };
 const restoreG = (snap) => {
@@ -1298,6 +1303,181 @@ const TESTS = [
       if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
       restoreG(snap);
     }
+  }),
+
+  // ════════════════════════════════════════════════════════════
+  // b136 — Batch C: Housing-gated farm progression
+  // ════════════════════════════════════════════════════════════
+
+  // b136: HearthriseFarm API is loaded with the required surface.
+  () => tryRun('b136: HearthriseFarm API + farm_deed item exist', () => {
+    assert(window.HearthriseFarm, 'HearthriseFarm missing');
+    const required = ['getPlotLevel','getPlotUnlockedCrops','canPlantCrop',
+                      'getDeedsRequiredForNextLevel','getDeedCount','upgradePlot',
+                      'rollKillDeed','rollBountyDeed','MAX_LEVEL'];
+    for (const fn of required) {
+      assert(window.HearthriseFarm[fn] !== undefined,
+        'HearthriseFarm.' + fn + ' missing');
+    }
+    assert(window.ITEMS && window.ITEMS.farm_deed,
+      "ITEMS.farm_deed missing — Tyler's tradable deed item must exist");
+    assert(!window.ITEMS.farm_deed.bop,
+      'farm_deed must NOT be bind-on-pickup — Tyler explicitly asked for tradable on market');
+  }),
+
+  // b136: at default Plot Lv 1, only Turnip is plantable.
+  () => tryRun('b136: plot Lv 1 unlocks turnip only', () => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      window.G.plotLevels = 1;
+      const unlocked = window.HearthriseFarm.getPlotUnlockedCrops();
+      assert(Array.isArray(unlocked) && unlocked.indexOf('turnip') !== -1,
+        'turnip should be unlocked at Lv 1');
+      assert(unlocked.indexOf('carrot') === -1,
+        'carrot should be LOCKED at Lv 1, got unlocks=' + unlocked.join(','));
+      assert(window.HearthriseFarm.canPlantCrop('turnip') === true, 'canPlantCrop(turnip) should be true');
+      assert(window.HearthriseFarm.canPlantCrop('carrot') === false, 'canPlantCrop(carrot) should be false at Lv 1');
+      assert(window.HearthriseFarm.canPlantCrop('pumpkin') === false, 'canPlantCrop(pumpkin) should be false at Lv 1');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b136: upgradePlot consumes deeds and unlocks the next tier.
+  () => tryRun('b136: upgradePlot spends deeds + advances plot level', () => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      window.G.plotLevels = 1;
+      window.G.inventory.farm_deed = 5;
+      const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
+      assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
+      const ok = window.HearthriseFarm.upgradePlot();
+      assert(ok === true, 'upgradePlot should succeed');
+      assert(window.G.plotLevels === 2, 'plotLevels should be 2 after upgrade, got ' + window.G.plotLevels);
+      assert((window.G.inventory.farm_deed | 0) === 4, 'should have 5-1=4 deeds left, got ' + window.G.inventory.farm_deed);
+      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot should now be plantable at Lv 2');
+      assert(window.HearthriseFarm.canPlantCrop('wheat') === true, 'wheat should now be plantable at Lv 2');
+      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato should still be locked at Lv 2');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b136: upgradePlot rejects when player lacks deeds.
+  () => tryRun('b136: upgradePlot fails without enough deeds', () => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      window.G.plotLevels = 1;
+      window.G.inventory.farm_deed = 0;
+      const ok = window.HearthriseFarm.upgradePlot();
+      assert(ok === false, 'upgradePlot should refuse without deeds');
+      assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b136: plantCrop respects the plot-level gate.
+  () => tryRun('b136: plantCrop is gated by plot level', () => {
+    if (typeof window.plantCrop !== 'function' || !window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      window.G.plotLevels = 1;
+      // Stock seeds so the seed check passes
+      window.G.inventory.turnip_seed = 10;
+      window.G.inventory.carrot_seed = 10;
+      // Make sure farming level isn't the gate
+      window.G.skills.farming = 1000000;
+      // Empty the test slot
+      const idx = 0;
+      const before = window.G.farmPlots[idx];
+      window.G.farmPlots[idx] = null;
+      // Try planting carrot at Lv 1 — must be rejected
+      window.plantCrop(idx, 'carrot');
+      assert(window.G.farmPlots[idx] === null,
+        'carrot plant should be rejected at plot Lv 1, but plot got: ' + JSON.stringify(window.G.farmPlots[idx]));
+      // Try planting turnip — should succeed
+      window.plantCrop(idx, 'turnip');
+      const planted = window.G.farmPlots[idx];
+      assert(planted && planted.cropId === 'turnip',
+        'turnip should plant at Lv 1, got: ' + JSON.stringify(planted));
+      // Restore
+      window.G.farmPlots[idx] = before;
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b136: maybeReplant fires when enabled + seeds present + plot empty.
+  () => tryRun('b136: maybeReplant plants configured crop on empty plot', () => {
+    if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
+    const snap = snapshotG();
+    const fr = window.HearthriseAuto.getFarmReplant();
+    try {
+      window.G.plotLevels = 1;
+      window.G.inventory.turnip_seed = 5;
+      window.G.skills.farming = 1000000;
+      const idx = 0;
+      window.G.farmPlots[idx] = null;
+      window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });
+      const did = window.HearthriseAuto.maybeReplant(idx);
+      assert(did === true, 'maybeReplant should plant when conditions met, got ' + did);
+      assert(window.G.farmPlots[idx] && window.G.farmPlots[idx].cropId === 'turnip',
+        'plot should now have turnip, got ' + JSON.stringify(window.G.farmPlots[idx]));
+    } finally {
+      window.HearthriseAuto.setFarmReplant(fr);
+      restoreG(snap);
+    }
+  }),
+
+  // b136: maybeReplant respects the plot-level gate (locked crop = no-op).
+  () => tryRun('b136: maybeReplant skips locked crops', () => {
+    if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
+    const snap = snapshotG();
+    const fr = window.HearthriseAuto.getFarmReplant();
+    try {
+      window.G.plotLevels = 1; // Lv 1 — only turnip
+      window.G.inventory.carrot_seed = 5;
+      window.G.skills.farming = 1000000;
+      const idx = 0;
+      window.G.farmPlots[idx] = null;
+      window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'carrot' });
+      const did = window.HearthriseAuto.maybeReplant(idx);
+      assert(did === false, 'maybeReplant should refuse locked crop, got ' + did);
+      assert(window.G.farmPlots[idx] == null, 'plot should remain empty');
+    } finally {
+      window.HearthriseAuto.setFarmReplant(fr);
+      restoreG(snap);
+    }
+  }),
+
+  // b136: deed roll honours tier gate (Tier 1 mob = no roll).
+  () => tryRun('b136: rollKillDeed never grants for Tier 1 monsters', () => {
+    if (!window.HearthriseFarm) return;
+    const snap = snapshotG();
+    try {
+      const before = window.G.inventory.farm_deed | 0;
+      // Run many trials — Tier 1 must never grant a deed.
+      const t1 = { tier: 1, name: 'TestSlime' };
+      for (let i = 0; i < 2000; i++) {
+        window.HearthriseFarm.rollKillDeed(t1);
+      }
+      const after = window.G.inventory.farm_deed | 0;
+      assert(after === before,
+        'Tier 1 must never drop deeds, got ' + (after - before) + ' deeds in 2000 rolls');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b136: schema migration left plotLevels intact at 1 by default.
+  () => tryRun('b136: G.plotLevels is a number >=1 (migration default holds)', () => {
+    assert(typeof window.G.plotLevels === 'number',
+      'G.plotLevels should be a number; v3→v4 migration may not have run');
+    assert(window.G.plotLevels >= 1, 'plotLevels should be >= 1');
   }),
 ];
 

@@ -189,6 +189,13 @@ const ITEMS={
   tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'monster_respawn',magnitude:10,durationMs:240000}},
   wheat_bread: {n:'Wheat Bread',icon:'🍞',v:120,heals:18,foodTier:1,buff:{type:'drop_rate',magnitude:5,durationMs:180000}},
 
+  // ── Farmer's Deed (b136 — Batch C) ──
+  // Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
+  // Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
+  // Explicitly NOT bind-on-pickup — tradable on the player market.
+  // Drop hooks live in src/features/farm-progression.js (HearthriseFarm.rollKillDeed / rollBountyDeed).
+  farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
+
   // Bind-on-Pickup housing blueprints (drop from quests/monsters/dungeons)
   kitchen_blueprint_t2: {n:'Kitchen Blueprint II',icon:'📜',v:500,bop:true,rarity:'rare',tag:'housing',unlocks:'kitchen.2'},
   kitchen_blueprint_t3: {n:'Kitchen Blueprint III',icon:'📜',v:2000,bop:true,rarity:'epic',tag:'housing',unlocks:'kitchen.3'},
@@ -991,6 +998,11 @@ function completeBounty(){
   notify(`Bounty complete: +${r.marks} Marks`,'levelup');
   if(newLevel>oldLevel)notify(`🎯 Bounty Hunter ${newLevel}!`,'levelup');
   G.bountyHunter.active=null;
+  // b136: Farmer's Deed roll on bounty turn-in (0.5%). Higher than the
+  // per-kill rate because bounties take longer to complete.
+  if(window.HearthriseFarm && typeof window.HearthriseFarm.rollBountyDeed === 'function'){
+    window.HearthriseFarm.rollBountyDeed();
+  }
   if(G.bountyHunter.autoBounty>=1&&G.bountyHunter.board.length){acceptBounty(0);}
   updateTopbar();renderCombat();saveLocal();
 }
@@ -1182,6 +1194,12 @@ function killMonster(m){
   if(window.HearthriseDropLog && typeof window.HearthriseDropLog.recordKill === 'function'){
     window.HearthriseDropLog.recordKill(G.activeMonster, _droppedThisKill);
   }
+  // b136: Farmer's Deed roll for Tier 2+ kills (0.1%). Tier-1 mobs
+  // stay deed-free so early game is pure-progression. The roll itself
+  // and the addItem call live in HearthriseFarm.rollKillDeed.
+  if(window.HearthriseFarm && typeof window.HearthriseFarm.rollKillDeed === 'function'){
+    window.HearthriseFarm.rollKillDeed(m);
+  }
   /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc. */
   {
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
@@ -1251,6 +1269,22 @@ function plantCrop(plotIdx,cropId){
   const seedId=crop.seed;
   if(!hasItem(seedId)){notify('No seeds!','kill');return;}
   if(getLevel('farming')<crop.req){notify(`Farming Lv ${crop.req} required`,'kill');return;}
+  // b136: Plot-level gate. canPlantCrop returns true if cropId is in
+  // the unlocked set for the player's current Farm Plot tier. The
+  // engine is in src/features/farm-progression.js. Defensive fallback:
+  // if HearthriseFarm hasn't loaded yet (script-order race), allow
+  // turnip-only — the b133 migration sets G.plotLevels=1 so this is
+  // safe. Anything else falls through to the plot-level error.
+  if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
+    if(!window.HearthriseFarm.canPlantCrop(cropId)){
+      const lv = window.HearthriseFarm.getPlotLevel();
+      notify(`🔒 ${crop.name} needs Farm Plot Lv ${lv+1}+ (House → Plot)`,'kill');
+      return;
+    }
+  } else if(cropId !== 'turnip'){
+    notify('🔒 Crop locked — upgrade Farm Plot in House → Plot','kill');
+    return;
+  }
   removeItem(seedId,1);
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),watered:false,state:'growing'};
   G.stats.planted=(G.stats.planted||0)+1;
@@ -1269,6 +1303,11 @@ function harvestPlot(i){
   notify(`🌾 +${qty} ${crop.name}`,'loot');
   if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',watered:false};
   else G.farmPlots[i]=null;
+  // b136: auto-replant hook. Only fires when the plot is now empty
+  // (regrow path skips it because the plot is already replanted).
+  if(!G.farmPlots[i] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant === 'function'){
+    window.HearthriseAuto.maybeReplant(i);
+  }
   renderFarm();updateTopbar();
 }
 
@@ -1682,7 +1721,28 @@ function onItemTap(id){
 function renderFarm(){
   const el=document.getElementById('farm-panel');if(!el)return;
   const plotCount=Math.max(8,(G.farmPlots||[]).length);
-  el.innerHTML=`<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
+  // b136: plot-level header + plant-all + auto-replant toggle.
+  // The HearthriseFarm API drives all gating; we show a status strip
+  // so the player understands what's unlocked and where to upgrade.
+  const plotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
+  const plotMax = (window.HearthriseFarm && window.HearthriseFarm.MAX_LEVEL) || 5;
+  const deeds = (window.HearthriseFarm && window.HearthriseFarm.getDeedCount) ? window.HearthriseFarm.getDeedCount() : 0;
+  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : {enabled:false,cropId:null};
+  const replantLabel = replant.enabled ? (replant.cropId ? CROPS[replant.cropId]?.name || replant.cropId : 'last crop') : 'off';
+  const header = `
+    <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div class="tiny muted">
+        🌾 Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
+        · 📜 ${deeds} Deed${deeds===1?'':'s'}
+        · 🔁 Auto-replant: <b>${replantLabel}</b>
+      </div>
+      <div class="row gap-sm">
+        <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
+        <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
+        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Spend Farmer's Deeds in House → Plot">Upgrade Plot</button>
+      </div>
+    </div>`;
+  el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
     ${Array.from({length:plotCount}).map((_,i)=>{
       const p=G.farmPlots[i];
       if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span>＋</span><small>Empty</small></div>`;
@@ -1697,18 +1757,116 @@ function renderFarm(){
   </div>`;
 
   const cg=document.getElementById('crops-guide');
+  // b136: crops guide now shows BOTH skill-level and plot-level gates.
+  // A crop is "Unlocked" only if both pass. Locked-by-plot crops get
+  // a deep-link to House → Plot tab.
+  const canPlot = (id)=>{
+    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
+      return window.HearthriseFarm.canPlantCrop(id);
+    return id === 'turnip';
+  };
   cg.innerHTML=Object.entries(CROPS).map(([id,c])=>{
-    const lv=getLevel('farming');const unlocked=lv>=c.req;
-    return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield</span></div>${unlocked?'<span class="tag">Unlocked</span>':`<span class="muted tiny">🔒</span>`}</div>`;
+    const lv=getLevel('farming');const lvOk=lv>=c.req;const plotOk=canPlot(id);
+    let badge;
+    if(lvOk && plotOk) badge = '<span class="tag">Unlocked</span>';
+    else if(!lvOk) badge = `<span class="muted tiny">🔒 Lv ${c.req}</span>`;
+    else badge = `<span class="muted tiny" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">🔒 Plot</span>`;
+    return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield</span></div>${badge}</div>`;
   }).join('');
 }
+
+// b136: Plant all empty plots with a sensible default crop. Picks the
+// configured auto-replant crop if it's plantable, otherwise the
+// highest-tier unlocked crop the player has seeds for. Stops on the
+// first failure (out of seeds) so feedback is clear.
+window.plantAllEmpty = function plantAllEmpty(){
+  if(!G.farmPlots) return;
+  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
+  // Build the candidate list — order matters (highest tier first).
+  const order = ['pumpkin','tomato','potato','wheat','carrot','turnip'];
+  const canPlot = (id)=>{
+    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
+      return window.HearthriseFarm.canPlantCrop(id);
+    return id === 'turnip';
+  };
+  const pickCrop = ()=>{
+    if(replant && replant.enabled && replant.cropId
+       && (G.inventory[CROPS[replant.cropId]?.seed]||0) > 0
+       && getLevel('farming') >= (CROPS[replant.cropId]?.req||0)
+       && canPlot(replant.cropId)){
+      return replant.cropId;
+    }
+    for(const id of order){
+      const c = CROPS[id]; if(!c) continue;
+      if((G.inventory[c.seed]||0) <= 0) continue;
+      if(getLevel('farming') < c.req) continue;
+      if(!canPlot(id)) continue;
+      return id;
+    }
+    return null;
+  };
+  let planted = 0;
+  const total = G.farmPlots.length || 8;
+  for(let i = 0; i < total; i++){
+    if(G.farmPlots[i]) continue;
+    const pick = pickCrop();
+    if(!pick){
+      if(planted === 0) notify('No plantable seeds. Buy seeds or upgrade Farm Plot.', 'kill');
+      break;
+    }
+    plantCrop(i, pick);
+    // plantCrop bails silently if it can't place — re-check the slot.
+    if(G.farmPlots[i]) planted++;
+    else break;
+  }
+  if(planted > 0) notify(`🌾 Planted ${planted} plot${planted===1?'':'s'}`, 'loot');
+};
+
+window.toggleAutoReplant = function toggleAutoReplant(){
+  if(!window.HearthriseAuto || !window.HearthriseAuto.getFarmReplant) return;
+  const cur = window.HearthriseAuto.getFarmReplant();
+  if(cur.enabled){
+    window.HearthriseAuto.setFarmReplant({enabled:false});
+    notify('Auto-replant: off', 'info');
+  } else {
+    // Default cropId to whichever crop is currently most-planted, falling
+    // back to turnip. Picking sensibly here saves a click.
+    let pick = null;
+    const counts = {};
+    (G.farmPlots||[]).forEach(p=>{ if(p && p.cropId) counts[p.cropId] = (counts[p.cropId]||0) + 1; });
+    let best = -1;
+    Object.entries(counts).forEach(([id,n])=>{ if(n > best){ best = n; pick = id; } });
+    if(!pick) pick = 'turnip';
+    window.HearthriseAuto.setFarmReplant({enabled:true, cropId:pick});
+    notify(`Auto-replant: on (${CROPS[pick]?.name||pick})`, 'levelup');
+  }
+  if(activeTab==='farming') renderFarm();
+};
 let pendingPlot=null;
 function openSeedPicker(i){
   pendingPlot=i;
-  const seeds=Object.entries(CROPS).filter(([,c])=>(G.inventory[c.seed]||0)>0&&getLevel('farming')>=c.req);
-  if(!seeds.length){notify('No usable seeds. Visit the shop.','kill');return;}
+  // b136: split seeds into plantable vs locked-by-plot-level.
+  // - Plantable: have seeds + farming level + plot level allows.
+  // - Locked by plot: have seeds + farming level, BUT plot level too low — show with House deep-link.
+  // Anything filtered for missing seeds / farming level stays hidden.
+  const haveSeed = (c)=> (G.inventory[c.seed]||0) > 0 && getLevel('farming') >= c.req;
+  const canPlant = (id)=> {
+    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
+      return window.HearthriseFarm.canPlantCrop(id);
+    }
+    return id === 'turnip';
+  };
+  const allOwned = Object.entries(CROPS).filter(([,c])=>haveSeed(c));
+  const plantable = allOwned.filter(([id])=>canPlant(id));
+  const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
+  if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
   const m=document.getElementById('settings-modal');
-  document.getElementById('settings-body').innerHTML=`<h3 style="margin-bottom:10px">Pick a seed</h3>${seeds.map(([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`).join('')}`;
+  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
+  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${c.icon}</span><div class="info"><b>${c.name} 🔒</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
+  if(plantable.length) html += plantable.map(plantBtn).join('');
+  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">🔒 Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
+  document.getElementById('settings-body').innerHTML = html;
   m.classList.add('show');
 }
 
@@ -1733,7 +1891,33 @@ function renderHouse(){
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
     }).join('');
   } else if(houseTab==='plot'){
-    el.innerHTML=Object.entries(PLOT_BUILDINGS).map(([id,b])=>{
+    // b136: Farm Plot tier card sits above the legacy plot-building list.
+    // Spends Farmer's Deeds (which drop from Tier-2+ kills + bounties)
+    // to unlock crops by tier. Single integer level applied to all plots.
+    let plotCard = '';
+    if(window.HearthriseFarm){
+      const lv = window.HearthriseFarm.getPlotLevel();
+      const max = window.HearthriseFarm.MAX_LEVEL;
+      const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
+      const have = window.HearthriseFarm.getDeedCount();
+      const tiers = window.HearthriseFarm.getTierMap();
+      const nextTier = lv < max ? tiers[lv+1] : null;
+      const newCrops = nextTier ? nextTier.unlocks.filter(c => !tiers[lv].unlocks.includes(c)) : [];
+      const newCropsLabel = newCrops.length ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id}`).join(', ') : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
+      const canUpgrade = lv < max && have >= need;
+      plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#5fcc7c);background:rgba(95,204,124,0.05)">
+        <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:32px">🌾</span>
+        <div class="info">
+          <b>Farm Plot · Lv ${lv}/${max}</b>
+          <span>${lv >= max ? '✨ Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
+          <span class="tiny muted">📜 Have ${have} Deed${have===1?'':'s'}${lv<max?` · need ${need}`:''}</span>
+        </div>
+        ${lv < max
+          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">Spend ${need} Deed${need===1?'':'s'}</button>`
+          : '<span class="tag">MAX</span>'}
+      </div>`;
+    }
+    el.innerHTML = plotCard + Object.entries(PLOT_BUILDINGS).map(([id,b])=>{
       const have=G.plotBuildings.filter(x=>x.id===id).length;
       const at=have>=b.max;
       const can=Object.entries(b.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v);

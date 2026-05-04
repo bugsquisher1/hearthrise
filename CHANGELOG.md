@@ -4,6 +4,27 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 140 — 2026-05-04 (Batch E — Inventory QoL: right-click menu + Sell-junk)
+
+Most of Batch E was already shipped — the existing `item-ux.js` has the hover tooltip + stat compare + qty slider, and `renderInvNew()` has search / sort / filter / category chips / bulk-select / sell-selected. The two real gaps:
+1. Right-click on a singleton (e.g. equipped weapon, single armor piece) did nothing — `item-ux.js`'s qty slider only fires for stacks ≥2. Players expect a context menu.
+2. Bulk-selling junk required entering Select mode and tapping every stack individually — slow even for moderate cleanup.
+
+This build closes both:
+
+- 🖱 **#23 — Right-click context menu on every inventory tile.** New module `src/features/inv-context-menu.js` exposes `window.HearthriseInvCtx`. Right-click any bag tile or paper-doll slot (or long-press on touch) → contextual menu. Menu options are item-type-aware:
+  - **Equippable** (weapons/armor/jewelry/companions/ammo) → Equip / Inspect / Sell 1 / Sell N
+  - **Food** (anything with `heals`) → Eat / Set as auto-eat food / Inspect / Sell 1
+  - **Bones** (anything with `buryXp`) → Bury / Inspect / Sell 1 / Sell N
+  - **Equipped paper-doll slot** → Unequip / Inspect
+  - **BoP items** → no Sell options surfaced (bone keys, hearth tokens, blueprints stay safe)
+  - **Empty slot** → "Empty slot — drag an item here to equip" disabled hint
+  Closes on outside-click, Escape, or selection. Listens in capture phase to suppress item-ux.js's existing qty-slider so the player gets the new menu instead.
+- 🧹 **🧹 Sell junk button in the inventory toolbar.** `HearthriseInvCtx.sellJunk(threshold)` finds every safe-to-sell stack (excludes BoP, food, gear, recipe scrolls, blueprints, items with v≤0), shows a confirm dialog with total stacks/items/gold, then liquidates. The toolbar button shows the candidate count (e.g. "🧹 Sell junk (8)") and hides itself when the bag is clean. Threshold is per-stack-item-value capped at 50g by default; later we can let the player tune it.
+- 🧪 **5 new regression tests:** API surface + DOM menu element, options are type-aware (Equip / Eat / Bury / no-Sell-for-BoP), equipped slot offers Unequip, selectJunk respects all safety filters (BoP / food / gear / recipe scrolls), HearthriseInvCtx.open() populates the menu DOM.
+
+**Architecture note:** The new menu listens in capture phase (`addEventListener('contextmenu', fn, true)`) so it runs BEFORE item-ux.js's bubble-phase listener, then calls `stopImmediatePropagation()` to suppress the old qty slider. The "Sell N…" option still defers to item-ux's slider (or falls back to the detail flyout) — single source of truth for that UX.
+
 ## v0.9.1-beta build 139 — 2026-05-04 (QA sweep fix batch — function over polish)
 
 First fruit of the QA engineering sweep. The b137 data-integrity check (which I'd just unbroken in this session) immediately flagged a structural bug that had been latent for many builds: 26 items defined in `src/legacy.js`'s Phase A.1 NEW_ITEMS block were missing from `src/data/items.js`. Because main.js does `Object.assign(window, {ITEMS})` AFTER legacy.js runs, the ESM ITEMS overwrote the legacy version and 26 entries became `undefined` at runtime. Recipes that produced or consumed them silently failed — meaning the entire smelting (bronze/steel/rune bars), cooked-meat (wolf/panther/bear), buff-food (vegetable_stew, hunters_feast, dragon_stew, lich_soul_soup, void_banquet, bear_claw_pie), and gated-recipe-scroll chains were dead. This batch heals all of that.

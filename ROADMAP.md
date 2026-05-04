@@ -29,14 +29,15 @@ These are the rules every batch in this roadmap follows. They live here AND in `
 | — | b135 hotfix — drop-log test live-reference bug + snapshotG tightening | b135 | (test-only) | **shipped** |
 | C | Farming + housing gate | b136 | #24 Plant all · #25 Auto-replant · #26 Plot visual variation (deferred) · **Housing-gated crop progression (deed drops)** | **shipped** |
 | — | b137 hotfix — items.js farm_deed divergence + data-integrity meta-bug fix | b137 | (hotfix) | **shipped** |
-| D | Profile launchpad | b138 | #1 Resume last activity · #2 Today's progress · #3 Next milestone · #5 Editable display name | **in progress** |
-| E | Inventory QoL | b139 | #19 Slot tooltips · #20 Sort/filter · #21 Compare-on-hover · #22 Bulk-sell · #23 Right-click menu | pending |
-| F | Combat enhancements | b140 | #8 Log scrollback · #9 Drop log UI · #10 Weakness filter · #11 Loadout swap · #13 Tier-6 ceremony | pending |
-| G | Activities click-switch | b141 | #14 Click-to-switch active · #18 Locked tier preview tooltip | pending |
-| H | House polish | b142 | #27 Material gathering shortcut · #28 House visual paper-doll (art-bound) · #29 Theme preview hover | pending |
-| I | Flow + retention | b143 | #30 FTUE · #31 Level-up celebration · #32 Offline auto-pop · #33 "What do you want to do?" helper | pending |
-| J | Mobile + topbar polish | b144 | #35 Unclaimed badge · #37 Swipe gestures · #38 Haptic · #39 Mobile bottom-nav badges | pending |
-| K | Social + retention | b145 | #41 Co-op XP bonus · #42 Friends online feed | pending — depends on Social backend |
+| D | Profile launchpad | b138 | #1 Resume last activity · #2 Today's progress · #3 Next milestone · #5 Editable display name | **shipped** |
+| — | b139 — QA sweep fix batch (26 missing items + recipe chain heal + 4 P1/P2 UI fixes) | b139 | (audit cleanup) | **shipped** |
+| E | Inventory QoL | b140 | #19 Slot tooltips (pre-existing) · #20 Sort/filter (pre-existing) · #21 Compare-on-hover (pre-existing) · #22 Bulk-sell (pre-existing + new Sell-junk shortcut) · **#23 Right-click context menu (new)** | **in progress** |
+| F | Combat enhancements | b141 | #8 Log scrollback · #9 Drop log UI · #10 Weakness filter · #11 Loadout swap · #13 Tier-6 ceremony | pending |
+| G | Activities click-switch | b142 | #14 Click-to-switch active · #18 Locked tier preview tooltip | pending |
+| H | House polish | b143 | #27 Material gathering shortcut · #28 House visual paper-doll (art-bound) · #29 Theme preview hover | pending |
+| I | Flow + retention | b144 | #30 FTUE · #31 Level-up celebration · #32 Offline auto-pop · #33 "What do you want to do?" helper | pending |
+| J | Mobile + topbar polish | b145 | #35 Unclaimed badge · #37 Swipe gestures · #38 Haptic · #39 Mobile bottom-nav badges | pending |
+| K | Social + retention | b146 | #41 Co-op XP bonus · #42 Friends online feed | pending — depends on Social backend |
 
 ---
 

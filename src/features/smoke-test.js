@@ -1721,6 +1721,115 @@ const TESTS = [
     assert(!hadTrunc,
       'paper-doll empty slot still has 3-char truncated label (e.g. Hel/Nec/Cap)');
   }),
+
+  // ════════════════════════════════════════════════════════════
+  // b140 — Batch E: Inventory QoL (right-click context menu + sell-junk)
+  // ════════════════════════════════════════════════════════════
+
+  // b140 #23: HearthriseInvCtx API surface.
+  () => tryRun('b140: HearthriseInvCtx API loaded', () => {
+    assert(window.HearthriseInvCtx, 'HearthriseInvCtx missing');
+    const required = ['open','close','selectJunk','sellJunk','_buildOptions','_ctxFromTile'];
+    for (const fn of required) {
+      assert(typeof window.HearthriseInvCtx[fn] === 'function',
+        'HearthriseInvCtx.' + fn + ' missing');
+    }
+    // The menu element should exist on the DOM
+    assert(document.getElementById('inv-ctx-menu'),
+      '#inv-ctx-menu element should be in the DOM');
+  }),
+
+  // b140 #23: buildOptions yields type-aware actions.
+  // Equippable items get an "Equip" entry; food gets "Eat"; bones get "Bury".
+  () => tryRun('b140: context menu options are item-type aware', () => {
+    if (!window.HearthriseInvCtx || !window.ITEMS) return;
+    const ctx = (id) => ({ itemId: id, slot: null, source: 'bag' });
+    const labels = (opts) => opts.map(o => o.label).join('|');
+
+    // Equippable: bronze_sword should have "Equip" option
+    if (window.ITEMS.bronze_sword) {
+      const opts = window.HearthriseInvCtx._buildOptions(ctx('bronze_sword'));
+      assert(/Equip/.test(labels(opts)),
+        'bronze_sword context menu should include Equip; got: ' + labels(opts));
+    }
+    // Food: cooked_shrimp should have "Eat"
+    if (window.ITEMS.cooked_shrimp) {
+      const opts = window.HearthriseInvCtx._buildOptions(ctx('cooked_shrimp'));
+      assert(/Eat/.test(labels(opts)),
+        'cooked_shrimp context menu should include Eat; got: ' + labels(opts));
+    }
+    // Bones: should have "Bury"
+    if (window.ITEMS.bones) {
+      const opts = window.HearthriseInvCtx._buildOptions(ctx('bones'));
+      assert(/Bury/.test(labels(opts)),
+        'bones context menu should include Bury; got: ' + labels(opts));
+    }
+    // BoP item: should NOT have Sell option
+    if (window.ITEMS.bone_key) {
+      const opts = window.HearthriseInvCtx._buildOptions(ctx('bone_key'));
+      assert(!/Sell/.test(labels(opts)),
+        'BoP bone_key should NOT have Sell option; got: ' + labels(opts));
+    }
+  }),
+
+  // b140 #23: equipped-slot context shows Unequip + Inspect.
+  () => tryRun('b140: equipped paper-doll slot offers Unequip', () => {
+    if (!window.HearthriseInvCtx) return;
+    // Synthetic context: pretend slot=weapon is equipped with bronze_sword
+    const snap = snapshotG();
+    try {
+      window.G.equipment = window.G.equipment || {};
+      const orig = window.G.equipment.weapon;
+      window.G.equipment.weapon = 'bronze_sword';
+      const opts = window.HearthriseInvCtx._buildOptions({ itemId: 'bronze_sword', slot: 'weapon', source: 'equipped' });
+      const labels = opts.map(o => o.label).join('|');
+      assert(/Unequip/.test(labels), 'equipped slot should offer Unequip; got: ' + labels);
+      assert(/Inspect/.test(labels), 'equipped slot should offer Inspect; got: ' + labels);
+      window.G.equipment.weapon = orig;
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b140: selectJunk picks safe candidates only.
+  // Never selects: BoP, food, recipe scrolls, gear, items with v<=0.
+  () => tryRun('b140: selectJunk respects safety filters', () => {
+    if (!window.HearthriseInvCtx) return;
+    const snap = snapshotG();
+    try {
+      // Stub the inventory with one of each problematic class
+      window.G.inventory = {
+        bones: 5,                    // SHOULD be picked (low value, no heals, no BoP)
+        bone_key: 3,                 // BoP — must NOT be picked
+        cooked_shrimp: 4,            // food — must NOT be picked
+        bronze_sword: 1,             // gear — must NOT be picked
+        chief_blade_recipe: 1,       // recipe scroll — must NOT be picked
+      };
+      const picks = window.HearthriseInvCtx.selectJunk(50);
+      assert(picks.includes('bones'), 'bones should be selected as junk');
+      assert(!picks.includes('bone_key'),         'BoP bone_key must NOT be selected');
+      assert(!picks.includes('cooked_shrimp'),    'food cooked_shrimp must NOT be selected');
+      assert(!picks.includes('bronze_sword'),     'gear bronze_sword must NOT be selected');
+      assert(!picks.includes('chief_blade_recipe'),'recipe scroll must NOT be selected');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b140: HearthriseInvCtx.open programmatically renders the menu.
+  () => tryRun('b140: HearthriseInvCtx.open populates the menu DOM', () => {
+    if (!window.HearthriseInvCtx) return;
+    if (!window.ITEMS || !window.ITEMS.bones) return;
+    try {
+      window.HearthriseInvCtx.open('bones', 100, 100);
+      const m = document.getElementById('inv-ctx-menu');
+      assert(m && m.style.display !== 'none', 'menu should be visible after open()');
+      assert(m.querySelectorAll('.inv-ctx-item').length > 0,
+        'menu should contain items after open()');
+    } finally {
+      window.HearthriseInvCtx.close();
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

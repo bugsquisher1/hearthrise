@@ -2782,6 +2782,16 @@ function renderInvNew(){
     return `<button class="inv-filter ${isAct?'active':''}" onclick="invSetFilter('${c.id}')">${c.label}</button>`;
   }).join('');
 
+  // b140 (Batch E): toolbar gets a Sell-junk button next to Select. Hidden
+  // when there's no junk (HearthriseInvCtx.selectJunk returns empty).
+  // Threshold lives on G so the player can tweak it later.
+  const junkThreshold = (G.junkThreshold|0) || 50;
+  const junkPreview = (window.HearthriseInvCtx && window.HearthriseInvCtx.selectJunk)
+    ? window.HearthriseInvCtx.selectJunk(junkThreshold)
+    : [];
+  const junkBtnHtml = junkPreview.length
+    ? `<button class="inv-sell-junk" onclick="window.HearthriseInvCtx.sellJunk(${junkThreshold})" title="Sell every stack worth less than ${junkThreshold}g per item — never sells food, gear, or recipe scrolls">🧹 Sell junk (${junkPreview.length})</button>`
+    : '';
   const toolbarHtml = `
     <div class="inv-toolbar">
       <div class="inv-search">
@@ -2795,6 +2805,7 @@ function renderInvNew(){
         <option value="qty" ${window._invSort==='qty'?'selected':''}>Quantity</option>
       </select>
       <button class="inv-select-toggle ${window._invSelectMode?'active':''}" onclick="invToggleSelectMode()">${window._invSelectMode?'✓ Selecting':'Select'}</button>
+      ${junkBtnHtml}
     </div>
     <div class="inv-filters">${filtersHtml}</div>`;
 

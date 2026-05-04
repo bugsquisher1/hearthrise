@@ -7,7 +7,7 @@
  *
  * Symptom we keep seeing in the wild: console errors trace to
  * `legacy.js?v=111` (or some other old build) even though the
- * deployed HTML has `?v=139`. That means an old service worker
+ * deployed HTML has `?v=140`. That means an old service worker
  * is intercepting the HTML request and serving cached HTML with
  * stale <script src="...?v=111"> tags.
  *
@@ -87,9 +87,9 @@
 
 <!-- moved style#0 (style-0) -->
   <link rel="stylesheet" href="src/styles/legacy.css">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=139">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=140">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=139">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=140">
 </head>
 <body>
 <div class="app" id="app">
@@ -97,7 +97,7 @@
   <!-- ─── SIDEBAR (desktop) ─── -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=139" alt="Hearthrise — Idle Homestead" />
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=140" alt="Hearthrise — Idle Homestead" />
     </div>
     <button class="nav-btn active" data-tab="profile"><span class="ic">👤</span><span class="lbl">Profile</span></button>
     <button class="nav-btn" data-tab="character"><span class="ic">🧙</span><span class="lbl">Character</span></button>
@@ -125,7 +125,7 @@
     <!-- topbar -->
     <header class="topbar">
       <div class="player">
-        <div class="player-avatar"><img src="assets/icons-bundle/monsters/Warrior_nb.png?v=139" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <div class="player-avatar"><img src="assets/icons-bundle/monsters/Warrior_nb.png?v=140" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
@@ -591,46 +591,50 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=139"></script>
+  <script type="module" src="src/build-info.js?v=140"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=139"></script>
-  <script src="src/observability.js?v=139"></script>
-  <script src="src/save-migrations.js?v=139"></script>
+  <script src="src/theme-picker.js?v=140"></script>
+  <script src="src/observability.js?v=140"></script>
+  <script src="src/save-migrations.js?v=140"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
-  <script src="src/features/auto-actions.js?v=139"></script>
-  <script src="src/features/drop-log.js?v=139"></script>
-  <script src="src/features/farm-progression.js?v=139"></script>
+  <script src="src/features/auto-actions.js?v=140"></script>
+  <script src="src/features/drop-log.js?v=140"></script>
+  <script src="src/features/farm-progression.js?v=140"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
-  <script src="src/features/profile-launchpad.js?v=139"></script>
-  <script src="src/legacy.js?v=139"></script>
-  <script src="src/admin.js?v=139"></script>
-  <script src="src/item-ux.js?v=139"></script>
-  <script src="src/dungeons.js?v=139"></script>
-  <script src="src/dungeon-scavenger.js?v=139"></script>
-  <script src="src/multi-character.js?v=139"></script>
-  <script src="src/market.js?v=139"></script>
+  <script src="src/features/profile-launchpad.js?v=140"></script>
+  <script src="src/legacy.js?v=140"></script>
+  <script src="src/admin.js?v=140"></script>
+  <script src="src/item-ux.js?v=140"></script>
+  <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
+       AFTER item-ux.js so its capture-phase contextmenu listener can
+       suppress item-ux's qty-slider handler. -->
+  <script src="src/features/inv-context-menu.js?v=140"></script>
+  <script src="src/dungeons.js?v=140"></script>
+  <script src="src/dungeon-scavenger.js?v=140"></script>
+  <script src="src/multi-character.js?v=140"></script>
+  <script src="src/market.js?v=140"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=139"></script>
-  <script src="src/chat.js?v=139"></script>
-  <script src="src/settings-page.js?v=139"></script>
-  <script src="src/ftue.js?v=139"></script>
-  <script src="src/mobile.js?v=139"></script>
+  <script src="src/chat-filter.js?v=140"></script>
+  <script src="src/chat.js?v=140"></script>
+  <script src="src/settings-page.js?v=140"></script>
+  <script src="src/ftue.js?v=140"></script>
+  <script src="src/mobile.js?v=140"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=139"></script>
-  <script src="src/nav-consolidation.js?v=139"></script>
-  <script src="src/icon-swap.js?v=139"></script>
-  <script src="src/activity-bar-clickable.js?v=139"></script>
-  <script src="src/post-signup-welcome.js?v=139"></script>
-  <script src="src/mobile-keyboard.js?v=139"></script>
-  <script src="src/combat-mobile-tabs.js?v=139"></script>
-  <script src="src/mobile-more-chat.js?v=139"></script>
-  <script src="src/inventory-mobile-tabs.js?v=139"></script>
-  <script src="src/activities-mobile-tabs.js?v=139"></script>
-  <script src="src/bug-report.js?v=139"</script>
-  <script src="src/welcome-modal.js?v=139"></script>
-  <script src="src/network-status.js?v=139"></script>
-  <script src="src/error-boundary.js?v=139"></script>
-  <script type="module" src="src/main.js?v=139"></script>
+  <script src="src/quests-topbar-button.js?v=140"></script>
+  <script src="src/nav-consolidation.js?v=140"></script>
+  <script src="src/icon-swap.js?v=140"></script>
+  <script src="src/activity-bar-clickable.js?v=140"></script>
+  <script src="src/post-signup-welcome.js?v=140"></script>
+  <script src="src/mobile-keyboard.js?v=140"></script>
+  <script src="src/combat-mobile-tabs.js?v=140"></script>
+  <script src="src/mobile-more-chat.js?v=140"></script>
+  <script src="src/inventory-mobile-tabs.js?v=140"></script>
+  <script src="src/activities-mobile-tabs.js?v=140"></script>
+  <script src="src/bug-report.js?v=140"</script>
+  <script src="src/welcome-modal.js?v=140"></script>
+  <script src="src/network-status.js?v=140"></script>
+  <script src="src/error-boundary.js?v=140"></script>
+  <script type="module" src="src/main.js?v=140"></script>
 </body>
 </html>

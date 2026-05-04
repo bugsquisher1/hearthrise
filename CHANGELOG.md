@@ -4,6 +4,29 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 138 — 2026-05-04 (Batch D — Profile launchpad)
+
+The Profile is the first thing every player sees on each session, and it was mostly read-only. Batch D turns it into a launchpad — players can resume what they were doing, see today's progress at a glance, know exactly what they're working towards next, and rename themselves without diving into Settings.
+
+- ▶️ **#1 Resume last activity.** Stopping a skill or combat now records `G.lastActivity` (kind + id + timestamp). When the Profile's "Current Activity" card has nothing live, a green "Resume training: Mining" / "Resume fighting: Slime" banner appears with a single Resume button. Re-entering a tab and starting something new clears the banner — no friction for players who switched intentionally.
+- 📊 **#2 Today's progress card.** New `dash-today` card sits between Profile and Current Activity. Shows XP gained, gold earned, kills, gathered, harvested, and deeds dropped — all since local midnight. Baseline is captured automatically on the day's first interaction. "Quiet day so far" sub-text when nothing's happened yet.
+- 🎯 **#3 Next milestone card.** New `dash-milestone` card highlights the closest finish line: either the skill nearest its next level, or the most-progressed open quest. Click it to jump to that skill's detail panel or open the quests modal. Gives sessions a clear focus.
+- ✏️ **#5 Editable display name.** Pencil icon next to the player name on the Profile card. Click → prompt → set. Hidden when signed in to a cloud account (those names sync via Settings → Account so the cloud profile stays canonical). Names are clamped to 24 chars; whitespace-only names rejected.
+- 🆕 **`src/features/profile-launchpad.js`** — `window.HearthriseLaunchpad` API: `recordStop`, `getResumePayload`, `resume`, `ensureDailySnapshot`, `getTodayDelta`, `getNextMilestone`, `setDisplayName`. Single source of truth — `renderProfile`, `stopSkill`, and `stopCombat` all call through this API, no state-poking.
+- 🗄 **Schema v4 → v5 migration** in `src/save-migrations.js` — adds `G.lastActivity` (defaults to null) and `G.daily.snapshot` (initialised to today's current numbers so existing players don't see a giant "Today" delta on first reload — they correctly start from zero). Idempotent.
+- 🧪 **8 new regression tests:** API surface, recordStop writes lastActivity, getResumePayload null-without-activity, returns valid payload for known skill, hides while activity is live, getTodayDelta tracks gold/kills + clamps spent-gold to zero, getNextMilestone returns a target, setDisplayName clamps to 24 chars + rejects whitespace.
+
+**Architecture note:** stopSkill/stopCombat capture `G.activeSkill`/`G.activeMonster` BEFORE nulling them so the launchpad gets the right id. The launchpad's getResumePayload self-hides when something's already running, so the Resume banner never competes with a live activity.
+
+## v0.9.1-beta build 137 — 2026-05-04 (b136 hotfix — items.js divergence + data-integrity meta-bug)
+
+The b136 deploy was incomplete: `farm_deed` got added to the inline `ITEMS` const inside `src/legacy.js` but NOT to `src/data/items.js`. `main.js` does `window.ITEMS = ESM_ITEMS` after legacy.js runs, so the ESM version wins — and it didn't have `farm_deed`. Live result: `window.ITEMS.farm_deed` was `undefined`, the b136 smoke test for that field would have failed, and the deed-drop hooks would silently fail when they tried to grant the item.
+
+- 📜 **`farm_deed` added to `src/data/items.js`** — the ESM source of truth. Mirrors the legacy.js entry exactly.
+- 🛡 **Fixed the data-integrity check itself.** It was comparing `window.ITEMS` to the imported `ESM_ITEMS` — but by the time the check ran, main.js had already overwritten `window.ITEMS` with `ESM_ITEMS`, so it was comparing the ESM module to itself. Always reported "in sync." This is exactly why the b136 divergence shipped silently. Fix: legacy.js now publishes its inline ITEMS as `window.__LEGACY_INLINE_ITEMS` before main.js runs, and the integrity check now compares the snapshot against the ESM module — actually catching divergence.
+
+If you've already loaded the b136 deploy, the b137 cache buster + service-worker killswitch will pull fresh files on the next reload. The data-integrity check will now log a console warning + Sentry capture if any future ITEMS divergence ships.
+
 ## v0.9.1-beta build 136 — 2026-05-04 (Batch C — farming + housing-gated crops)
 
 The big one Tyler asked for last session: crop unlocks gated by Farm Plot tier, and the upgrade currency is a drop from gameplay (NOT bind-on-pickup, tradable on market).

@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 4;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 5;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -143,6 +143,41 @@
         // Default 1 means existing saves keep current Turnip-only state.
         if(save.plotLevels == null){
           save.plotLevels = 1;
+        }
+      },
+    },
+    {
+      from: 4, to: 5,
+      name: 'v4 → v5 (profile launchpad — Batch D foundations)',
+      // Adds two state fields the Profile launchpad consumes:
+      //   - lastActivity: tracks the most recently stopped skill or combat
+      //     so the "Resume" card on Profile knows what to offer. null
+      //     means there's nothing to resume — totally fine for new saves.
+      //   - daily.snapshot: baseline numbers captured at midnight so
+      //     Today's Progress can compute deltas (xp/gold/kills since
+      //     local midnight). Initialised to today's current values so
+      //     existing players don't see a giant "today's gain" on first
+      //     reload — they correctly start from zero.
+      apply: function(save){
+        if(save.lastActivity == null) save.lastActivity = null;
+        if(!save.daily) save.daily = { lastReset: null, tasks: [] };
+        if(save.daily.snapshot == null){
+          var dayKey = (new Date()).toDateString();
+          var skills = save.skills || {};
+          var totalXp = 0;
+          var sk = Object.keys(skills);
+          for(var i = 0; i < sk.length; i++) totalXp += (skills[sk[i]] | 0);
+          var stats = save.stats || {};
+          var inv = save.inventory || {};
+          save.daily.snapshot = {
+            dayKey: dayKey,
+            xpTotal:       totalXp,
+            gold:          save.gold | 0,
+            kills:         stats.kills | 0,
+            gathered:      stats.gathered | 0,
+            harvested:     stats.harvested | 0,
+            deedsDropped:  inv.farm_deed | 0,
+          };
         }
       },
     },

@@ -65,6 +65,10 @@ const snapshotG = () => {
     plotLevels: G.plotLevels,
     autoActions: G.autoActions,
     dropLog: G.dropLog,
+    // b138: launchpad — Batch D's tests touch lastActivity + daily.snapshot.
+    lastActivity: G.lastActivity,
+    daily: G.daily,
+    playerName: G.playerName,
   }));
 };
 const restoreG = (snap) => {
@@ -1478,6 +1482,153 @@ const TESTS = [
     assert(typeof window.G.plotLevels === 'number',
       'G.plotLevels should be a number; v3→v4 migration may not have run');
     assert(window.G.plotLevels >= 1, 'plotLevels should be >= 1');
+  }),
+
+  // ════════════════════════════════════════════════════════════
+  // b138 — Batch D: Profile launchpad
+  // ════════════════════════════════════════════════════════════
+
+  // b138: HearthriseLaunchpad API surface.
+  () => tryRun('b138: HearthriseLaunchpad API loaded', () => {
+    assert(window.HearthriseLaunchpad, 'HearthriseLaunchpad missing');
+    const required = ['recordStop','getResumePayload','resume','ensureDailySnapshot',
+                      'getTodayDelta','getNextMilestone','setDisplayName'];
+    for (const fn of required) {
+      assert(typeof window.HearthriseLaunchpad[fn] === 'function',
+        'HearthriseLaunchpad.' + fn + ' missing');
+    }
+    // schema v5 ran
+    assert(window.HEARTHRISE_SCHEMA_VERSION >= 5,
+      'CURRENT_SCHEMA_VERSION should be >=5, got ' + window.HEARTHRISE_SCHEMA_VERSION);
+  }),
+
+  // b138: recordStop populates G.lastActivity correctly.
+  () => tryRun('b138: recordStop writes lastActivity', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    try {
+      window.G.lastActivity = null;
+      window.HearthriseLaunchpad.recordStop('skill', 'mining');
+      assert(window.G.lastActivity, 'lastActivity should exist after recordStop');
+      assert(window.G.lastActivity.kind === 'skill', 'kind should be skill');
+      assert(window.G.lastActivity.id === 'mining', 'id should be mining');
+      assert(typeof window.G.lastActivity.stoppedAt === 'number', 'stoppedAt should be a number');
+      // Bad inputs are no-ops
+      window.HearthriseLaunchpad.recordStop('garbage', 'mining');
+      assert(window.G.lastActivity.kind === 'skill', 'invalid kind should be ignored');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b138: getResumePayload returns null when no lastActivity.
+  () => tryRun('b138: getResumePayload returns null without lastActivity', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    try {
+      window.G.lastActivity = null;
+      window.G.activeSkill = null;
+      window.G.activeMonster = null;
+      const p = window.HearthriseLaunchpad.getResumePayload();
+      assert(p === null, 'expected null payload, got ' + JSON.stringify(p));
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b138: getResumePayload returns a working payload for a known skill.
+  () => tryRun('b138: getResumePayload returns skill payload', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    try {
+      window.G.lastActivity = { kind: 'skill', id: 'mining', stoppedAt: Date.now() };
+      window.G.activeSkill = null;
+      window.G.activeMonster = null;
+      const p = window.HearthriseLaunchpad.getResumePayload();
+      assert(p, 'expected payload, got null');
+      assert(p.kind === 'skill', 'kind mismatch');
+      assert(p.id === 'mining', 'id mismatch');
+      assert(typeof p.action === 'function', 'action should be a function');
+      assert(typeof p.label === 'string' && p.label.length > 0, 'label should be non-empty');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b138: getResumePayload hides itself when something is already running.
+  () => tryRun('b138: getResumePayload hides while activity is live', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    try {
+      window.G.lastActivity = { kind: 'skill', id: 'mining', stoppedAt: Date.now() };
+      window.G.activeSkill = 'cooking'; // already running something else
+      const p = window.HearthriseLaunchpad.getResumePayload();
+      assert(p === null, 'should hide when activeSkill is set, got ' + JSON.stringify(p));
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b138: getTodayDelta computes correct deltas after baseline + actions.
+  () => tryRun('b138: getTodayDelta tracks gold + kills since snapshot', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    try {
+      // Force a fresh snapshot for today
+      window.G.daily = window.G.daily || {};
+      window.G.daily.snapshot = null;
+      // Set a clean baseline
+      window.G.gold = 1000;
+      window.G.stats = window.G.stats || {};
+      window.G.stats.kills = 5;
+      window.HearthriseLaunchpad.ensureDailySnapshot();
+      // Now mutate
+      window.G.gold = 1250;
+      window.G.stats.kills = 7;
+      const d = window.HearthriseLaunchpad.getTodayDelta();
+      assert(d.goldEarned === 250, 'goldEarned should be 250, got ' + d.goldEarned);
+      assert(d.kills === 2, 'kills should be 2, got ' + d.kills);
+      // Negative deltas (e.g. spent gold) clamp to 0 — fairness for the player
+      window.G.gold = 500;
+      const d2 = window.HearthriseLaunchpad.getTodayDelta();
+      assert(d2.goldEarned === 0, 'spent-gold case should clamp to 0, got ' + d2.goldEarned);
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
+  // b138: getNextMilestone returns SOMETHING for any populated save.
+  () => tryRun('b138: getNextMilestone returns a target', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const m = window.HearthriseLaunchpad.getNextMilestone();
+    // Either a skill or a quest — but on a real save it should never be null
+    // (every player has skills below 99 OR active quests).
+    assert(m !== null, 'expected a milestone, got null');
+    assert(m.label && typeof m.label === 'string', 'milestone.label should be a string');
+    assert(typeof m.pct === 'number' && m.pct >= 0 && m.pct <= 1,
+      'milestone.pct should be 0..1, got ' + m.pct);
+  }),
+
+  // b138: setDisplayName clamps + persists.
+  () => tryRun('b138: setDisplayName updates G.playerName + clamps length', () => {
+    if (!window.HearthriseLaunchpad) return;
+    const snap = snapshotG();
+    const orig = window.G.playerName;
+    try {
+      const ok = window.HearthriseLaunchpad.setDisplayName('TestHero');
+      assert(ok === true, 'setDisplayName should return true on success');
+      assert(window.G.playerName === 'TestHero', 'playerName should be TestHero, got ' + window.G.playerName);
+      // Empty / whitespace rejected
+      const ok2 = window.HearthriseLaunchpad.setDisplayName('   ');
+      assert(ok2 === false, 'whitespace name should be rejected');
+      // Long name clamped to 24 chars
+      window.HearthriseLaunchpad.setDisplayName('A'.repeat(100));
+      assert(window.G.playerName.length === 24,
+        'name should be clamped to 24 chars, got ' + window.G.playerName.length);
+    } finally {
+      window.G.playerName = orig;
+      restoreG(snap);
+    }
   }),
 ];
 

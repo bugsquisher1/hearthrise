@@ -223,6 +223,16 @@ const ITEMS={
   dragonsbane_key: {n:'Dragonsbane Key',  icon:'🗡️', v:0, bop:true, rarity:'legendary',tag:'key', unlocks:'ancient_wyrm'},
 };
 
+// b137: publish the legacy inline ITEMS under a distinct global so the
+// boot-time integrity check can compare it against src/data/items.js.
+// main.js later overwrites window.ITEMS with the ESM version, but the
+// snapshot here preserves what legacy.js originally defined. Any divergence
+// between the two surfaces — items added to one and not the other — fires
+// a console warning + Sentry capture from src/utils/data-integrity.js.
+if (typeof window !== 'undefined') {
+  try { window.__LEGACY_INLINE_ITEMS = ITEMS; } catch (e) {}
+}
+
 const TREES=[
   {id:'normal_tree',name:'Normal Tree',icon:'🌳',req:1,xp:25,ms:3000,prod:'normal_log',qty:[1,2]},
   {id:'oak_tree',name:'Oak Tree',icon:'🌳',req:15,xp:38,ms:4000,prod:'oak_log',qty:[1,2]},
@@ -1118,7 +1128,15 @@ function startCombat(mId){
   combatTick();
   renderCombat();renderMonsterList();
 }
-function stopCombat(){if(combatInterval){clearInterval(combatInterval);combatInterval=null;}G.activeMonster=null;renderCombat();renderMonsterList();}
+function stopCombat(){
+  // b138: launchpad Resume hook — see stopSkill() above.
+  if(G.activeMonster && window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.recordStop === 'function'){
+    window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);
+  }
+  if(combatInterval){clearInterval(combatInterval);combatInterval=null;}
+  G.activeMonster=null;
+  renderCombat();renderMonsterList();
+}
 function combatTick(){
   if(!G.activeMonster)return;
   const m=MONSTERS[G.activeMonster];
@@ -1227,6 +1245,12 @@ function startSkill(type,targetId,ms){
   renderSkillsList();renderSkillDetail(type);
 }
 function stopSkill(){
+  // b138: capture lastActivity BEFORE we null G.activeSkill so the
+  // launchpad's Resume card knows what to re-offer. Skipping monsters
+  // here on purpose — stopCombat handles its side.
+  if(G.activeSkill && window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.recordStop === 'function'){
+    window.HearthriseLaunchpad.recordStop('skill', G.activeSkill);
+  }
   if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
   if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
@@ -1424,10 +1448,17 @@ function renderProfile(){
         : (G.account ? G.account.displayName : null);
       const isOnline = !!(liveUser || G.account);
       const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline play · sign in to sync');
+      // b138 #5: inline rename pencil. Click → prompt → setDisplayName.
+      // Hidden when signed in to a cloud account (renaming there flows
+      // through Settings → Account so it stays in sync with Supabase).
+      const canRename = !liveUser && !G.account;
+      const renameBtn = canRename
+        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:12px;opacity:.7">✏️</button>`
+        : '';
       return `<div class="activity-card">
       <div class="ac-icon">🧙</div>
       <div style="flex:1;min-width:0">
-        <b>${escapeHtml(acctName || G.playerName)}</b>
+        <b>${escapeHtml(acctName || G.playerName)}${renameBtn}</b>
         <span>${subtitle}</span>
       </div>
       ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}
@@ -1464,7 +1495,20 @@ function renderProfile(){
       <div class="bar xp" style="margin:4px 0 8px"><i style="width:${pct.toFixed(1)}%"></i></div>
       <button class="btn btn-block btn-danger" onclick="stopSkill()">Stop</button>`;
   } else {
-    activityHtml=`
+    // b138 #1: Resume last activity. If we have a recent stop, surface
+    // a one-click resume button above the generic launchers.
+    let resumeHtml = '';
+    if(window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.getResumePayload === 'function'){
+      const payload = window.HearthriseLaunchpad.getResumePayload();
+      if(payload){
+        resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#5fcc7c);background:rgba(95,204,124,0.06)">
+          <div class="ac-icon">${payload.icon}</div>
+          <div style="flex:1;min-width:0"><b>${escapeHtml(payload.label)}</b><span class="tiny muted">Pick up where you left off</span></div>
+          <button class="btn btn-sm btn-primary" onclick="window.HearthriseLaunchpad.resume()">Resume</button>
+        </div>`;
+      }
+    }
+    activityHtml=resumeHtml + `
       <div class="empty"><span class="em-icon">💤</span>No active task. Pick something to do.</div>
       <div class="kpi-row" style="margin-top:6px">
         <button class="btn tap" onclick="showTab('combat')">⚔️ Combat</button>
@@ -1475,6 +1519,59 @@ function renderProfile(){
   }
   if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
+
+  /* b138 #2: Today's progress card — XP/gold/kills/etc since local midnight.
+     Defensive against missing launchpad: show static fallback. */
+  const todayBody = document.getElementById('dash-today-body');
+  const todaySub = document.getElementById('dash-today-sub');
+  if(todayBody){
+    const d = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getTodayDelta)
+      ? window.HearthriseLaunchpad.getTodayDelta()
+      : null;
+    if(d){
+      const cells = [
+        {b: '+'+d.xpGained.toLocaleString(),    s:'XP'},
+        {b: '+'+d.goldEarned.toLocaleString(),  s:'Gold'},
+        {b: d.kills.toLocaleString(),           s:'Kills'},
+        {b: d.gathered.toLocaleString(),        s:'Gathered'},
+        {b: d.harvested.toLocaleString(),       s:'Harvested'},
+      ];
+      if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'📜 Deeds'});
+      todayBody.innerHTML = `<div class="kpi-row">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
+      if(todaySub){
+        const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
+        todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
+      }
+    } else {
+      todayBody.innerHTML = '<div class="empty"><span class="em-icon">📊</span>Stats start tomorrow</div>';
+    }
+  }
+
+  /* b138 #3: Next milestone card — closest skill or quest. */
+  const milestoneBody = document.getElementById('dash-milestone-body');
+  const milestoneSub = document.getElementById('dash-milestone-sub');
+  if(milestoneBody){
+    const m2 = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getNextMilestone)
+      ? window.HearthriseLaunchpad.getNextMilestone()
+      : null;
+    if(m2){
+      const pct = Math.floor((m2.pct||0) * 100);
+      const togo = Math.max(0, (m2.target|0) - (m2.current|0));
+      milestoneBody.innerHTML = `
+        <div class="activity-card" style="cursor:pointer" onclick="(${(m2.deepLink||function(){}).toString()})()">
+          <div class="ac-icon">${m2.icon}</div>
+          <div style="flex:1;min-width:0">
+            <b>${escapeHtml(m2.label)}</b>
+            <span>${togo.toLocaleString()} ${m2.kind==='skill'?'XP':''} to go · ${pct}%</span>
+            <div class="bar xp" style="margin-top:4px"><i style="width:${pct}%"></i></div>
+          </div>
+        </div>`;
+      if(milestoneSub) milestoneSub.textContent = m2.kind === 'skill' ? 'Skill' : 'Quest';
+    } else {
+      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">🎯</span>All milestones cleared</div>';
+      if(milestoneSub) milestoneSub.textContent = '—';
+    }
+  }
 
   /* objectives */
   const all=[...(G.daily?.tasks||[]),...(G.quests||[])];

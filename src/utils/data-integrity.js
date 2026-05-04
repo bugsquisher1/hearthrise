@@ -23,7 +23,16 @@ const RUN_DELAY_MS = 1500;        // wait for legacy.js to finish populating
 
 function once() {
   if (typeof window === 'undefined') return;
-  const legacyItems = window.ITEMS;
+  // b137: main.js overwrites window.ITEMS with the ESM module before this
+  // check runs, so reading window.ITEMS would compare ESM to itself and
+  // always report "in sync" (which is exactly the bug we hit shipping
+  // farm_deed in b136 — added it to legacy.js but missed src/data/items.js,
+  // ESM won, the live ITEMS had no farm_deed, and this check passed
+  // anyway). legacy.js now publishes its inline ITEMS snapshot under
+  // __LEGACY_INLINE_ITEMS before main.js runs, so we compare against that.
+  // Fall back to window.ITEMS if the snapshot isn't there (e.g. older
+  // legacy.js cached from a previous build).
+  const legacyItems = window.__LEGACY_INLINE_ITEMS || window.ITEMS;
   if (!legacyItems || typeof legacyItems !== 'object') {
     // legacy.js hasn't run yet — try again in a tick
     setTimeout(once, 500);

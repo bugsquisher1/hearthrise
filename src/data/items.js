@@ -117,6 +117,14 @@ export const ITEMS={
     buff:{type:'drop_rate', magnitude:5, durationMs:180000},
   },
 
+  /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────
+     Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
+     Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
+     Explicitly NOT bind-on-pickup — tradable on the player market.
+     Drop hooks live in src/features/farm-progression.js. Keep this in sync
+     with the inline ITEMS const in src/legacy.js. */
+  farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
+
   /* ── Bind-on-Pickup housing blueprints ─────────────────────────
      These drop from daily quests / monster drops / dungeons / raids.
      They unlock the corresponding room upgrade tier when consumed.

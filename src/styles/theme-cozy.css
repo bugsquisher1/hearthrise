@@ -596,6 +596,138 @@ body[data-theme="cozy-light"] .card-head .card-title::before {
 #hr-store-link > span {
   color: #c9a35c !important; /* gold gem accent */
   filter: drop-shadow(0 1px 0 rgba(60,40,16,.4));
+}
+
+/* ============================================================
+ * b106 — Mobile (<=540px) layout fixes
+ * From the iframe-based mobile audit. Six issues fixed:
+ *   #1 chat dock force-minimized on mobile (handled in chat.js)
+ *   #2 House building icons stay 48×48 in mobile shop-rows
+ *   #3 Combat monster picker stays visible at narrow widths
+ *   #4 Inventory paper-doll: 3-column grid that fits 380px
+ *   #5 Topbar player name ellipsis instead of mid-word clip
+ *   #6 Combat-style block stacks DUNGEONS below the title
+ * ============================================================ */
+@media (max-width: 540px) {
+  /* #5 — Player name ellipsis */
+  .topbar h1,
+  .topbar .player-name,
+  .topbar #player-name,
+  #dash-user-sub,
+  .activity-card b,
+  .cr-name,
+  .ss-card-title {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* #2 — House: don't let the building icon collapse to 0 width
+   * when .shop-row goes vertical. Force a 48px reserved column. */
+  #panel-house .shop-row .si {
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    align-self: flex-start;
+  }
+  #panel-house .shop-row .si img {
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+  #panel-house .shop-row .si span {
+    font-size: 28px !important;
+    line-height: 48px !important;
+  }
+
+  /* #3 — Combat: ensure the monster-picker column is visible */
+  #panel-combat.active .combat-picker {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-bottom: 12px;
+  }
+  #panel-combat.active .combat-arena,
+  #panel-combat.active .combat-loadout {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  /* Stack the side-by-side cards vertically */
+  #panel-combat.active > .row,
+  #panel-combat.active > .grid {
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  /* #4 — Inventory paper-doll: 3-column responsive grid */
+  .td-doll {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .td-doll .td-slot {
+    aspect-ratio: 1 / 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: auto !important;
+  }
+  /* Inventory bag tile grid — let it use the full width too */
+  .invc-bag,
+  .inv-bag,
+  .bag-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
+  }
+
+  /* #6 — Combat-style block: stack the title row when DUNGEONS would
+   * collide with "COMBAT STYLE — 1H SWORD" at narrow widths. */
+  .combat-style-block,
+  #panel-combat .combat-style-block {
+    flex-wrap: wrap !important;
+  }
+  .combat-style-block .csb-head,
+  .combat-style-block > .row {
+    flex-wrap: wrap !important;
+    gap: 6px;
+  }
+  .combat-style-block h4,
+  .combat-style-block .csb-title,
+  .combat-style-block > .row > div:first-child {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The Dungeons button injected by nav-consolidation.js sits absolute
+   * on desktop; on mobile let it flow into the header normally. */
+  #panel-combat #hr-dungeons-link {
+    position: static !important;
+    width: 100%;
+    margin: 4px 0;
+  }
+}
+
+/* ============================================================
+ * Phone-specific (<=400px) — extra-tight tuning
+ * ============================================================ */
+@media (max-width: 400px) {
+  /* Topbar stats: shrink slightly so 5 indicators fit */
+  .top-stats .t-stat {
+    padding: 2px 4px !important;
+    font-size: 11px !important;
+  }
+  /* House icon down a hair to keep room for label + cost */
+  #panel-house .shop-row .si,
+  #panel-house .shop-row .si img {
+    width: 44px !important;
+    height: 44px !important;
+    flex-basis: 44px !important;
+  }
 }e: 12px;
 }
 html:not([data-theme]) .card-head .card-sub,

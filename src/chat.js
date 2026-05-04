@@ -93,6 +93,15 @@
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e){}
   }
   var settings = loadSettings();
+  // b106: on mobile widths, force the dock to start minimized regardless
+  // of any saved preference. The dock is full-screen-overlay on phones,
+  // so an expanded default would cover the entire game on first load —
+  // which is what mobile testers reported as "the game is broken."
+  // Users can still expand by tapping the Chat pill; their preference
+  // resaves to localStorage normally after that.
+  if (typeof window !== 'undefined' && window.innerWidth <= 540) {
+    settings.minimized = true;
+  }
 
   // ── Block list ──────────────────────────────────────────────
   function loadBlocked(){

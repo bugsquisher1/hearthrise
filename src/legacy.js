@@ -4512,39 +4512,58 @@ console.log('Poneti v2 loaded:', Object.keys(window._skillIcon).length, 'skills,
     });
   }
   function paintBountyMonsters(){
+    // Rewritten v=101: previous innerHTML.replace() approach interacted
+    // badly with image-fallback.js (which swaps broken <img> for
+    // <span class="icon-fallback">). When a re-render hit while the
+    // span existed, regex string surgery on innerHTML produced
+    // corrupted markup that ended up rendered as literal text.
+    //
+    // New approach: pure DOM API. Read with textContent (always plain
+    // text), rebuild children with createElement/appendChild. No string
+    // regex on HTML, no surprise interactions with image-fallback.
+    if(typeof MONSTERS==='undefined') return;
     document.querySelectorAll('.bounty-option').forEach(function(el){
-      // Skip if the row already has an img OR has been touched by
-      // image-fallback (which swaps broken imgs with .icon-fallback
-      // spans). Re-painting on top of those produces broken HTML
-      // because our regex strips the opening `<span` tag.
-      if(el.querySelector('img, .icon-fallback')) return;
       var b = el.querySelector('b');
       if(!b) return;
-      // Same defense at the b level
-      if(b.querySelector('img, .icon-fallback')) return;
-      var name = b.textContent.trim();
-      // Strip any HTML-attribute fragments that leaked in from a
-      // previous broken paint (defensive — older tabs may have
-      // corrupted DOM until reload).
-      name = name.replace(/class="[^"]*"|style="[^"]*"/g,'').replace(/^>\s*/,'').trim();
-      // strip leading emoji
-      name = name.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u,'').trim();
-      if(typeof MONSTERS==='undefined') return;
+      // Idempotency: once we've painted this <b>, don't re-touch it.
+      // A re-render destroys + recreates .bounty-option, so the flag
+      // disappears with it — fresh DOM gets re-painted next pass.
+      if(b.dataset.painted === '1') return;
+
+      // Read via textContent (plain text, ignores HTML markup) so we
+      // can recover even from previously-corrupted DOM.
+      var raw = (b.textContent || '').trim();
+      // Strip any HTML-attribute fragments that may have leaked in
+      // from corrupted older renders (defensive — wipes legacy junk).
+      var name = raw
+        .replace(/class="[^"]*"|style="[^"]*"/g,'')
+        .replace(/^>\s*/,'')
+        .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u,'')
+        .trim();
+      if(!name) return;
+
       var mId = Object.keys(MONSTERS).find(function(k){ return MONSTERS[k].name === name; });
       if(!mId) return;
+      var monster = MONSTERS[mId];
       var path = window._monsterIcon && window._monsterIcon[mId];
-      if(!path) {
-        // No icon mapping — restore a clean emoji + name so any
-        // earlier corruption is wiped.
-        var m = MONSTERS[mId];
-        b.textContent = (m && m.icon ? m.icon + ' ' : '') + name;
-        return;
+
+      // Clear children + rebuild cleanly
+      while (b.firstChild) b.removeChild(b.firstChild);
+
+      if (path) {
+        var img = document.createElement('img');
+        img.src = path;
+        img.alt = '';
+        img.loading = 'lazy';
+        // Tell image-fallback the right glyph if this 404s
+        img.setAttribute('data-fb-glyph', monster.icon || '🎯');
+        img.style.cssText = 'width:1.1em;height:1.1em;vertical-align:-3px;margin-right:6px';
+        b.appendChild(img);
+        b.appendChild(document.createTextNode(name));
+      } else {
+        b.appendChild(document.createTextNode((monster.icon || '🎯') + ' ' + name));
       }
-      // Replace the leading emoji with an img — only the FIRST whitespace-bounded
-      // token (the emoji), keeping everything after intact.
-      var html = b.innerHTML;
-      html = html.replace(/^([^\s<]+)\s+/, '<img src="'+path+'" alt="" />&nbsp;');
-      b.innerHTML = html;
+      b.dataset.painted = '1';
     });
   }
   function paintAllV3(){ paintFighters(); paintBountyMonsters(); }

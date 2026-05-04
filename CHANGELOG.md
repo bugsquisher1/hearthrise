@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 101 — 2026-05-03 (hot patch)
+
+Bug-fix patch caught during the first live-site walkthrough.
+
+- 🐛 **Bounty Board raw-HTML finally fixed for real.** The old regex-on-innerHTML approach fought with `image-fallback.js` and produced corrupted markup like `class="icon-fallback" style=...> Field Rat`. Rewrote `paintBountyMonsters` to use proper DOM API (createElement + appendChild) — the failure mode can't recur.
+- 🚪 Click the idle activity bar in the topbar to jump straight to Activities. New-player quality-of-life.
+- 👋 First-time-after-signup welcome modal — fires once per account, names the player, points at Activities.
+- 🛒 Market "List an item" form had an olive-green background; now matches parchment.
+- 📋 Added `TODO_BETA.md` with prioritized post-beta backlog.
+
 ## v0.9.1-beta — 2026-05-03
 
 **Hearthrise looks like a real game now.** Massive UI rebuild to match the homestead-RPG vibe.

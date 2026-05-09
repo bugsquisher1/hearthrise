@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 141 — 2026-05-09 (Beta launch prep — disclaimer + admin gating)
+
+Cheap-but-high-leverage things that need to land before the beta cohort hits the live URL. None of these are gameplay changes — they're "make the live deploy presentable and feedback-collecting" plumbing.
+
+- 🌱 **First-time beta disclaimer modal** (`src/beta-banner.js` → `window.HearthriseBetaBanner`). New players see a one-time modal explaining: this is beta, things will break, your save lives in your browser, here's the Discord. Returning players (anyone with kills/gathered/harvested > 0) are auto-acked silently — they shouldn't be greeted as new arrivals. Admin players never see it. Esc or "I understand" closes it forever for that browser. Discord invite is sourced from the same `DISCORD_INVITE` placeholder as `src/settings-page.js` — Tyler updates it in two spots when the real invite is ready.
+- 🧪 **Smoke-test 🧪 button is now admin-only.** The floating dev button at bottom-left was visible to everyone, looked confusing, read as "is something wrong?" to a non-tester. Gated behind `localStorage.hearthrise:admin === '1'` (the same flag `src/admin.js` uses). Ctrl+Shift+T still works for everyone, so beta testers can still trigger the suite when asked.
+- 🧹 **Hearthbound rename audit clean.** Grep'd all of `src/`, `assets/`, and `index.html` — zero stale references. Smoke test now asserts `window.HearthriseBuild` and `document.title` contain no "Hearthbound" so a future regression can't sneak the old name back.
+- 🧪 **4 new regression tests:** BetaBanner API + DOM hookup, ack flag round-trips through localStorage, smoke-test button gate (soft check), no Hearthbound brand drift in build identity.
+
+**Beta launch checklist remaining (see my pre-beta list in conversation):** real-device mobile pass (still needs Tyler's phone), new-account signup→save round-trip verification, FTUE walkthrough on a clean save, content-depth pass for Tier 4-6, Sentry sample-rate audit. None of these block today's b141 — they're upcoming batches.
+
 ## v0.9.1-beta build 140 — 2026-05-04 (Batch E — Inventory QoL: right-click menu + Sell-junk)
 
 Most of Batch E was already shipped — the existing `item-ux.js` has the hover tooltip + stat compare + qty slider, and `renderInvNew()` has search / sort / filter / category chips / bulk-select / sell-selected. The two real gaps:

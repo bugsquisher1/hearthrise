@@ -93,6 +93,15 @@
     document.addEventListener('keydown', keyHandler);
   }
 
+  function ftueWillFire(){
+    // b143: FTUE renders ~1-2s after boot. Our 1.5s check used to win
+    // the race and our banner painted before FTUE had a DOM presence,
+    // resulting in stacked modals. If the FTUE-completed flag isn't set,
+    // FTUE is about to take over — defer entirely.
+    try { return localStorage.getItem('hearthrise:ftue:completed') !== '1'; }
+    catch (e) { return false; }
+  }
+
   function maybeShow(){
     if(alreadyAcked()) return;
     if(isAdmin()) return;
@@ -105,6 +114,11 @@
         return;
       }
     } catch(_){}
+    // b143: defer for FTUE entirely. The FTUE tour covers "welcome to the
+    // game" already; stacking our banner on top adds confusion. After the
+    // player completes (or skips) FTUE, the flag flips and we can show on
+    // the NEXT reload.
+    if(ftueWillFire()) return;
     if(modalAlreadyOpen()){
       // Try again in 2s — let the other modal close first
       setTimeout(maybeShow, 2000);

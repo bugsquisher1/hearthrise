@@ -86,7 +86,7 @@
       target: 'button[data-tab="inventory"]',
       placement: 'right',
       title: 'Your items live here',
-      body: 'Drag items onto the equipment doll to wear them. Right-click any item to bury bones, eat food, plant seeds, smelt ore, or sell. Hover to compare gear.',
+      body: 'Drag items onto the equipment doll to wear them. Right-click any item to equip, eat, bury bones, inspect, or sell. Hover to compare gear vs what you have on.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },

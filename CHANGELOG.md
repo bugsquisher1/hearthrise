@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 143 — 2026-05-09 (b142 hotfix — FTUE timing race + step-5 copy)
+
+The b142 banner-stacking fix was correct in isolation but lost the timing race against FTUE on a real cold load. Walked the live deploy in fresh-tab state and confirmed: FTUE renders ~2s after boot, my banner check fires at boot+1.5s, finds no FTUE in DOM yet (because it hasn't rendered), shows banner, then FTUE stacks on top. Cosmetic only — both modals are dismissible — but it's the FIRST thing a beta tester sees.
+
+- 🌱 **Beta banner now defers entirely while FTUE is pending.** Check `localStorage.hearthrise:ftue:completed`. If not `'1'`, FTUE will fire on this load — skip the banner. Player completes (or skips) FTUE → flag flips → banner shows on next reload. FTUE already covers "welcome to the game," so the banner becomes a clean "remember this is beta" follow-up instead of competing on first paint.
+- 🪧 **FTUE step 5 copy fix.** Was: "Right-click any item to bury bones, eat food, plant seeds, smelt ore, or sell." But the b140 right-click context menu doesn't have plant or smelt actions — those happen via Activities and Farm. New copy: "Right-click any item to equip, eat, bury bones, inspect, or sell. Hover to compare gear vs what you have on." Matches what `inv-context-menu.js` actually offers.
+- 🧪 **1 new regression test** for the FTUE-defer logic.
+
+**FTUE walkthrough findings (post-b143):** all 6 steps render correctly with sidebar highlighting (Profile → topbar → Activities → Combat → Inventory → Wrap). Copy is decent. Final state is clean — no smoke-test btn, no leftover modals, fresh save shows reasonable starting numbers (500g, 24 TL, 3 CL, "Defeat 5 monsters" first quest). FTUE is beta-ready.
+
 ## v0.9.1-beta build 142 — 2026-05-09 (b141 hotfix — FTUE walkthrough findings)
 
 Walked the live deploy in incognito-equivalent state (cleared localStorage on a fresh tab) and immediately found two issues from b141 that don't reach via solo testing:

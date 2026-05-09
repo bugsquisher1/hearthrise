@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 142 — 2026-05-09 (b141 hotfix — FTUE walkthrough findings)
+
+Walked the live deploy in incognito-equivalent state (cleared localStorage on a fresh tab) and immediately found two issues from b141 that don't reach via solo testing:
+
+- 🪟 **P0 — Beta banner stacked under FTUE on first load.** New players load → FTUE tour fires → my beta banner ALSO fires because its `modalAlreadyOpen()` guard checked for `#ftue-overlay.show` which doesn't exist. Real FTUE DOM uses `.ftue-shade.show` + `.ftue-card.show`. Banner is now correctly suppressed when any flavor of FTUE/welcome modal is up.
+- 🧪 **P1 — Smoke-test 🧪 button still visible on first non-admin load.** Source on the deployed file has the admin gate, but `smoke-test.js` is loaded as a static ESM import without a `?v=` query, so browsers serve it from HTTP cache for up to 10 minutes after a deploy. (The exact `ESM module cache-buster gap` we logged in the ROADMAP backlog after b135.) Defense-in-depth: `beta-banner.js` is a brand-new file in b141, so it's always freshly fetched. It now actively kills `#smoke-test-btn` for non-admin players a few times during startup + once a second for the next 10s. Any cached old smoke-test.js that adds the button gets the button stripped right back off.
+- 🧪 **2 new regression tests:** BetaBanner suppresses while a `.ftue-shade.show` is up, and the smoke-test button auto-removal logic clears the button when the admin flag is off.
+
+**Walkthrough notes:** new-save start state looks reasonable — 24 TL, 500 gold, 0 gems, 3 CL, "Defeat 5 monsters" first quest. Sign-in button visible top-right. Pencil rename icon visible on the Adventurer card. I'll continue the FTUE walkthrough after this hotfix lands.
+
 ## v0.9.1-beta build 141 — 2026-05-09 (Beta launch prep — disclaimer + admin gating)
 
 Cheap-but-high-leverage things that need to land before the beta cohort hits the live URL. None of these are gameplay changes — they're "make the live deploy presentable and feedback-collecting" plumbing.

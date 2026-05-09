@@ -37,7 +37,17 @@
     catch (e) { return false; }
   }
   function modalAlreadyOpen(){
-    return !!document.querySelector('.modal.show, #wbv-overlay.show, .ach-overlay.show, #ftue-overlay.show, #welcome-modal.show');
+    // b142: FTUE was being missed by the original selector. The actual
+    // FTUE DOM uses `.ftue-shade.show` (the dim layer) and `.ftue-card.show`
+    // (the floating card), neither matched `#ftue-overlay.show`. Same for
+    // the cloud welcome modal which uses `#wbv-overlay.show`. The result
+    // was the beta banner stacked UNDER the FTUE on first load, looking
+    // bad and confusing. Now we cover the real selectors.
+    return !!document.querySelector(
+      '.modal.show, #wbv-overlay.show, .ach-overlay.show, ' +
+      '.ftue-shade.show, .ftue-card.show, ' +
+      '#welcome-modal.show'
+    );
   }
 
   function ack(){
@@ -102,6 +112,37 @@
     }
     show();
   }
+
+  // b142: Defensive smoke-test button guard.
+  //
+  // We hid the floating 🧪 button behind an admin-only gate in
+  // src/features/smoke-test.js for b141, but smoke-test.js is loaded as
+  // a static ESM import without a `?v=` query, so browsers serve it
+  // from HTTP cache for up to 10 minutes after a deploy. Result: even
+  // on b141, players whose browsers cached the b140 module still see
+  // the button. (See ROADMAP backlog "ESM module cache-buster gap".)
+  //
+  // beta-banner.js is brand-new in b141 and freshly fetched on every
+  // build, so we use it as a defense-in-depth guard: periodically check
+  // for #smoke-test-btn in the DOM and remove it if the player isn't
+  // admin. Cheap, idempotent, runs forever in case some other code
+  // path adds it back later.
+  function killStrayDevBtn(){
+    if(isAdmin()) return;
+    var btn = document.getElementById('smoke-test-btn');
+    if(btn && btn.parentNode) btn.parentNode.removeChild(btn);
+  }
+  // Run a few times during startup (smoke-test.js adds the button on a
+  // 500ms timeout), then once a second for the next 10s in case of
+  // late re-renders, then stop.
+  setTimeout(killStrayDevBtn, 600);
+  setTimeout(killStrayDevBtn, 1200);
+  setTimeout(killStrayDevBtn, 2500);
+  var ticks = 0;
+  var iv = setInterval(function(){
+    killStrayDevBtn();
+    if(++ticks >= 10) clearInterval(iv);
+  }, 1000);
 
   // Boot deferred so we don't compete with the changelog/welcome modals.
   function boot(){ setTimeout(maybeShow, 1500); }

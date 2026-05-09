@@ -4,6 +4,22 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 144 — 2026-05-09 (Beta launch prep — observability hygiene + audit doc)
+
+Code-only audit pass on cloud / observability / PWA paths in prep for Friday beta. Found a few P0/P1 things — most need Tyler manually (Sentry DSN paste, Supabase RLS verification, real-device PWA install). Fixed the items that don't need his dashboard access, bundled findings into `BETA_PREP.md`.
+
+- 🛠 **Observability release tag is now dynamic.** Was hardcoded `'hearthrise@0.4.0'` (stale by 5 minor versions). Now derived from `window.HearthriseBuild.version` + commit suffix → `'hearthrise@0.9.0-beta+<sha>'`. Stays in sync forever, no more manual bumps.
+- 🛠 **Environment auto-detected from `BUILD.channel`.** `dev` / `beta` / `production` flow through to Sentry tags automatically. Was always `'dev'`. Now matches build-info.js.
+- 🛠 **`tracesSampleRate` configurable via `HEARTHRISE_OBSERVABILITY`.** Was hardcoded 0.05 in Sentry.init; ignored any override. Now reads from CONFIG. Default still 0.1 in DEFAULTS but Tyler can override per-environment.
+- 📋 **`BETA_PREP.md`** added — audit findings + 8 manual tests Tyler needs to run before launch (RLS verification, real-device PWA install, signup round-trip, etc.). Things I literally can't do because they need real accounts / phones / Supabase dashboard access.
+
+**Things still on Tyler's plate (per BETA_PREP.md):**
+1. Paste a real Sentry DSN into `src/observability.js` line ~31 — without this, beta crashes go uncaptured.
+2. Replace `DISCORD_INVITE` placeholder in `src/beta-banner.js` and `src/settings-page.js` with the real invite URL.
+3. Verify Row-Level Security policies on every Supabase table players write to.
+4. Real-device PWA install test on iPhone + Android.
+5. Throwaway-email signup → save → reload → restore round-trip.
+
 ## v0.9.1-beta build 143 — 2026-05-09 (b142 hotfix — FTUE timing race + step-5 copy)
 
 The b142 banner-stacking fix was correct in isolation but lost the timing race against FTUE on a real cold load. Walked the live deploy in fresh-tab state and confirmed: FTUE renders ~2s after boot, my banner check fires at boot+1.5s, finds no FTUE in DOM yet (because it hasn't rendered), shows banner, then FTUE stacks on top. Cosmetic only — both modals are dismissible — but it's the FIRST thing a beta tester sees.

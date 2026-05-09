@@ -27,16 +27,33 @@
 (function(){
   'use strict';
 
+  // b144 (beta launch prep): release pulled from window.HearthriseBuild
+  // dynamically so we don't drift between this file and build-info.js.
+  // Environment auto-detected from BUILD.channel ('dev' | 'beta' | 'live').
+  // Sentry DSN still requires manual paste — Tyler creates a Sentry
+  // project + drops the DSN into HEARTHRISE_OBSERVABILITY before launch.
+  var __build = (typeof window !== 'undefined') ? window.HearthriseBuild : null;
+  var __releaseTag = __build && __build.version
+    ? ('hearthrise@' + __build.version + (__build.commit ? '+' + __build.commit.slice(0,7) : ''))
+    : 'hearthrise@unknown';
+  var __envFromChannel = (__build && __build.channel)
+    ? (__build.channel === 'live' ? 'production' : __build.channel)  // 'dev' | 'beta' | 'production'
+    : 'dev';
   var DEFAULTS = {
-    sentryDsn: null,                 // paste your Sentry DSN here
+    sentryDsn: null,                 // ⬅ Tyler: paste your real Sentry DSN here before launch (or set window.HEARTHRISE_OBSERVABILITY = {sentryDsn:'...'} pre-load)
     sentryCdnUrl: 'https://browser.sentry-cdn.com/7.119.0/bundle.tracing.min.js',
     analyticsEndpoint: null,         // null = no remote sink yet (still buffers locally)
-    release: 'hearthrise@0.4.0',
-    environment: 'dev',
+    release: __releaseTag,           // tracks BUILD.version automatically
+    environment: __envFromChannel,   // tracks BUILD.channel automatically
     flushIntervalMs: 30000,          // flush analytics every 30s
     bufferCap: 500,                  // localStorage buffer cap
     enableInProd: true,
     enableInDev: true,
+    // b144: Sentry tracesSampleRate defaults to 0.1 (10%) so we don't blow
+    // through the free tier's quota on a beta cohort. Pure error-capture
+    // stays at 100% — only the perf-trace data is sampled. Flip to 1.0 if
+    // you upgrade to a paid plan.
+    tracesSampleRate: 0.1,
   };
   var CONFIG = Object.assign({}, DEFAULTS, (window.HEARTHRISE_OBSERVABILITY || {}));
 
@@ -82,7 +99,9 @@
           dsn: CONFIG.sentryDsn,
           release: CONFIG.release,
           environment: CONFIG.environment,
-          tracesSampleRate: 0.05,
+          // b144: read from CONFIG so HEARTHRISE_OBSERVABILITY override works.
+          // Default in DEFAULTS is 0.1 (10%); bump to 1.0 if you have a paid Sentry plan.
+          tracesSampleRate: (typeof CONFIG.tracesSampleRate === 'number') ? CONFIG.tracesSampleRate : 0.05,
           beforeSend: function(ev){
             // Tag every event with current player context.
             var ctx = commonContext();

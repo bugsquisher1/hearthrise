@@ -6441,16 +6441,34 @@ if(typeof MONSTERS !== 'undefined'){
   if(MONSTERS.bear)       MONSTERS.bear.drops.push({id:'raw_bear_meat', ch:0.6});
   if(MONSTERS.ancient_bear) MONSTERS.ancient_bear.drops.push({id:'raw_bear_meat', ch:0.8});
 
-  /* Recipe scroll drops from named bosses */
+  /* Recipe scroll drops from named bosses.
+   *
+   * b145 (beta launch prep — content reachability audit):
+   *   The active drops are ONLY the recipe scrolls whose unlock chains
+   *   are fully wired — output item exists in ITEMS, recipe exists in
+   *   ARTISAN_RECIPES. The three commented-out drops below
+   *   (spellstone_diagram, dragon_marrow_recipe, gemcutter_note) are
+   *   "Phase B" content — their target items (spellstone_ring,
+   *   dragonbone_spear, dragon_gem_earrings) aren't defined yet, and
+   *   their recipes don't exist either. Dropping the scrolls gives
+   *   players a confusing dead-end ("I have a Spellstone Diagram but
+   *   nothing happens"). Suppress the drops until the items ship.
+   *
+   *   When ready: define the 3 items in src/data/items.js, add their
+   *   recipes to src/data/recipes.js (with `gated:'<scroll_id>'`),
+   *   then un-comment the drops below. Smoke test will catch any
+   *   missed wiring via the divergence guard.
+   */
   if(MONSTERS.goblin_warlord)   MONSTERS.goblin_warlord.drops.push({id:'chief_blade_recipe', ch:0.05});
   if(MONSTERS.warband_captain)  MONSTERS.warband_captain.drops.push({id:'captain_recipe', ch:0.03});
   if(MONSTERS.ancient_bear)     MONSTERS.ancient_bear.drops.push({id:'alpha_pattern', ch:0.02});
-  if(MONSTERS.lich)             MONSTERS.lich.drops.push({id:'spellstone_diagram', ch:0.01});
   if(MONSTERS.lich)             MONSTERS.lich.drops.push({id:'soul_recipe', ch:0.01});
-  if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'dragon_marrow_recipe', ch:0.01});
-  if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'gemcutter_note', ch:0.005});
   if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'marrow_cookbook', ch:0.005});
   if(MONSTERS.plague_swarm)     MONSTERS.plague_swarm.drops.push({id:'field_cookbook', ch:0.02});
+  // ─── Phase B drops (suppressed in b145 — re-enable when items + recipes ship) ───
+  // if(MONSTERS.lich)             MONSTERS.lich.drops.push({id:'spellstone_diagram', ch:0.01});
+  // if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'dragon_marrow_recipe', ch:0.01});
+  // if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'gemcutter_note', ch:0.005});
 }
 
 /* ─── Recipe scroll auto-unlock on pickup ─── */

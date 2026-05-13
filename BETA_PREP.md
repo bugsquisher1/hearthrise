@@ -68,7 +68,28 @@ These need real accounts / real devices / your Supabase dashboard. They're cheap
 | 7 | In-game bug-report → Discord | Live site | Click 🐞 button, fill out, submit; verify it appears in your Discord #bug-reports |
 | 8 | Beta banner → Discord button | Live site, fresh state | Complete FTUE, reload, click "Join Discord" on banner; verify it goes to your real invite |
 
+## §6 — Tier 4-6 content reachability (b145)
+
+Walked the gated content chain for every recipe scroll that drops in production. Each scroll has a `recipe:` field naming what it unlocks; the recipe should exist in `ARTISAN_RECIPES`, and the recipe's `output:` should exist in `ITEMS`.
+
+| Scroll | Drops from | Recipe exists? | Output item exists? | Status |
+|---|---|---|---|---|
+| `chief_blade_recipe` | goblin_warlord T4 (5%) | ✅ `forge_chief_blade` | ✅ `chief_blade` | Wired |
+| `captain_recipe` | warband_captain T5 (3%) | ✅ `forge_captain_blade` | ✅ `captains_ribblade` | Wired |
+| `alpha_pattern` | ancient_bear T6 (2%) | ✅ `craft_alpha_cloak` | ✅ `alpha_cloak` | Wired |
+| `soul_recipe` | lich T6 boss (1%) | ✅ `cook_lich_soup` | ✅ `lich_soul_soup` | Wired |
+| `marrow_cookbook` | dragon T6 boss (0.5%) | ✅ `cook_dragon_stew` | ✅ `dragon_stew` | Wired |
+| `field_cookbook` | plague_swarm T4 (2%) | ✅ `cook_hunters_feast` | ✅ `hunters_feast` | Wired |
+| `spellstone_diagram` | lich T6 boss (1%) | ❌ no recipe | ❌ no `spellstone_ring` item | **Orphan — drop suppressed in b145** |
+| `dragon_marrow_recipe` | dragon T6 boss (1%) | ❌ no recipe | ❌ no `dragonbone_spear` item | **Orphan — drop suppressed in b145** |
+| `gemcutter_note` | dragon T6 boss (0.5%) | ❌ no recipe | ❌ no `dragon_gem_earrings` item | **Orphan — drop suppressed in b145** |
+
+**Resolution shipped in b145:** the three orphan drops are now commented out in `src/legacy.js` (~line 6448-6451). Players still get the OTHER 6 scrolls and can complete those craft chains end-to-end. The 3 suppressed scrolls are clearly tagged "Phase B drops — re-enable when items + recipes ship" with a pointer to where to wire them when content lands. All three were boss-only drops at ≤1% so the impact is minimal — most players would never see them anyway, but the ones who did would have hit a dead-end.
+
+**Direct boss drops verified:** `chief_blade` weapon also drops from war_king T6 (1.2%), and `captains_ribblade` drops from death_knight T5 (1.2%) — so even without the recipe scroll, the gated weapons are reachable via combat. `alpha_cloak` drops from ancient_bear T6 (1%) directly. The recipe-scroll path is the deterministic alternative; the direct drops are the lottery. Both intact.
+
 ## Reminders
 
 - Discord invite placeholder still says `https://discord.gg/your-invite-here` in TWO files: `src/beta-banner.js` and `src/settings-page.js`. Replace before launch.
-- Sentry DSN paste in `src/observability.js` line ~33.
+- Sentry DSN paste in `src/observability.js` line ~31.
+- 3 Phase B orphan items waiting to ship (post-beta): `spellstone_ring`, `dragonbone_spear`, `dragon_gem_earrings`. Add to `src/data/items.js` + corresponding recipes to `src/data/recipes.js`, then un-comment the matching drop pushes in `src/legacy.js`.

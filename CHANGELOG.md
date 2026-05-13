@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 145 — 2026-05-09 (Tier 4-6 content reachability fix — 3 orphan drops suppressed)
+
+Walked the gated-content chain for every recipe scroll that drops in production. 6 of 9 scrolls are fully wired (chief_blade_recipe, captain_recipe, alpha_pattern, soul_recipe, marrow_cookbook, field_cookbook). The other 3 are orphans:
+
+- `spellstone_diagram` (drops from lich T6 boss @ 1%) — unlocks `spellstone_ring`, which is **not defined in ITEMS**, and the recipe doesn't exist in ARTISAN_RECIPES.
+- `dragon_marrow_recipe` (drops from dragon T6 boss @ 1%) — unlocks `dragonbone_spear`, same problem.
+- `gemcutter_note` (drops from dragon T6 boss @ 0.5%) — unlocks `dragon_gem_earrings`, same problem.
+
+A player who killed the dragon and got `gemcutter_note` would inspect it (sees "Gemcutter's Note — recipe: dragon_gem_earrings") and… nothing happens. Pure dead-end. All three were on Tyler's "Phase B" list per a comment we found, but the drops shipped without the items.
+
+- 🧹 **Suppressed the 3 orphan drops** in `src/legacy.js` (~line 6448) with a clear "re-enable when items + recipes ship" comment. The 6 wired scrolls still drop normally, so players can complete those craft chains end-to-end.
+- 📋 **Updated `BETA_PREP.md` §6** with the full reachability table + remaining Phase B work list.
+
+**Sanity check:** the gated weapons (chief_blade, captains_ribblade, alpha_cloak) ALSO drop directly from their corresponding T5-6 mobs at 1-1.2%, so the recipe-scroll path is the deterministic crafting alternative; direct drops are the lottery. Both paths are intact for the 6 wired scrolls.
+
 ## v0.9.1-beta build 144 — 2026-05-09 (Beta launch prep — observability hygiene + audit doc)
 
 Code-only audit pass on cloud / observability / PWA paths in prep for Friday beta. Found a few P0/P1 things — most need Tyler manually (Sentry DSN paste, Supabase RLS verification, real-device PWA install). Fixed the items that don't need his dashboard access, bundled findings into `BETA_PREP.md`.

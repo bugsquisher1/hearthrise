@@ -4308,3 +4308,55 @@ body[data-theme="hearthlight"] .nav-btn .ic { filter: none !important; }
 body[data-theme="hearthlight"] .nav-foot { color: var(--ink-3) !important; }
 body[data-theme="hearthlight"] .brand-name,
 body[data-theme="hearthlight"] .brand-name small { color: var(--gold-2) !important; text-shadow: none !important; }
+
+/* ============================================================
+ * Hearthlight content surfaces (b153) — dark cards / tiles / modals +
+ * light text, so the whole screen matches the dark shell. Scoped to
+ * Hearthlight only → Cozy Day is 100% untouched. Override-style (not
+ * pure tokenization) because Cozy uses many one-off shades; converting
+ * those to tokens without shifting Cozy is a later cleanup pass.
+ * Verified live in-browser (Home/Profile) before commit.
+ * ============================================================ */
+body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#2f2418,#221a12); }
+
+/* main panel — drop the cream parchment-frame background image */
+body[data-theme="hearthlight"] .panel.active { background: none !important; color: var(--ink); }
+
+/* card / modal / hero surfaces → warm-dark */
+body[data-theme="hearthlight"] .card,
+body[data-theme="hearthlight"] .modal-card,
+body[data-theme="hearthlight"] .ss-card,
+body[data-theme="hearthlight"] .cr-card,
+body[data-theme="hearthlight"] .cr-hero,
+body[data-theme="hearthlight"] .bounty-card,
+body[data-theme="hearthlight"] .activity-card { background: var(--bg-card) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+
+/* stat tiles / pills / neutral buttons → slightly raised dark */
+body[data-theme="hearthlight"] .kpi,
+body[data-theme="hearthlight"] .t-stat,
+body[data-theme="hearthlight"] .tile,
+body[data-theme="hearthlight"] .cr-hero-stat,
+body[data-theme="hearthlight"] .invc-hero-stat,
+body[data-theme="hearthlight"] .icon-btn,
+body[data-theme="hearthlight"] .stats-btn-trigger,
+body[data-theme="hearthlight"] .feat-buttons .btn,
+body[data-theme="hearthlight"] .feat-buttons button { background: var(--bg-2) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+body[data-theme="hearthlight"] .tb-btn { background: linear-gradient(180deg,#2f2418,#221a12) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !important; border-color: var(--line) !important; color: var(--ink) !important; }
+
+/* text — headers gold, body light, hints muted (accent colours untouched) */
+body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
+body[data-theme="hearthlight"] .panel.active .card-title,
+body[data-theme="hearthlight"] .panel.active [class*="-title"],
+body[data-theme="hearthlight"] .panel.active [class*="-name"],
+body[data-theme="hearthlight"] .panel.active .card-head,
+body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
+body[data-theme="hearthlight"] .panel.active b,
+body[data-theme="hearthlight"] .panel.active strong,
+body[data-theme="hearthlight"] .panel.active p,
+body[data-theme="hearthlight"] .panel.active li,
+body[data-theme="hearthlight"] .panel.active td { color: var(--ink) !important; }
+body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]) { color: var(--ink); }
+body[data-theme="hearthlight"] .panel.active .card-sub,
+body[data-theme="hearthlight"] .panel.active .muted,
+body[data-theme="hearthlight"] .panel.active small { color: var(--ink-3) !important; }

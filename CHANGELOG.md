@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 153 — 2026-08-07 (Revamp — Home content goes dark, Hearthlight is coherent)
+
+The one that makes Hearthlight actually look like a finished theme instead of a dark-frame-on-cream-guts mismatch. Converted the Home/Profile content: cards, stat tiles, the milestone card, the top pills, the achievement buttons, and modals now go warm-dark with light text and gold headers under Hearthlight. Iterated live in-browser until it read cleanly.
+
+- 🎨 **Home is fully Hearthlight now** — dark cards, gold name + section headers, readable stats, dark modals. No more cream guts under a dark frame.
+- 🔒 **Cozy Day still 100% untouched** — every rule is scoped to `[data-theme="hearthlight"]`, so the default look and your testers see zero change.
+- Honest note: this slice is override-style (Hearthlight-scoped) rather than pure token conversion, because Cozy leans on many one-off shades. Converting those to shared tokens (so it's DRY) is a later cleanup — the look is right now, the tidy-up comes after.
+
+**Next:** Combat, Activities, and the other screens get the same treatment; then the wordmark straggler + a token-tidy pass.
+
 ## v0.9.1-beta build 152 — 2026-08-07 (Revamp — sidebar nav readable on the dark shell)
 
 Follow-on to b151. With the sidebar now warm-dark under Hearthlight, its nav text needed to keep up. Nav button text is tokenized (`var(--ink)`) so it reads on any ground; the bespoke bits (group labels, the HEARTHRISE wordmark, the foot) keep their exact cozy browns for Cozy and get readable gold/light values under Hearthlight only.

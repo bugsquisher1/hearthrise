@@ -2009,6 +2009,39 @@ const TESTS = [
       else localStorage.setItem(KEY, orig);
     }
   }),
+
+  // b146: cloud-save was silently 404ing for MONTHS. auth.js pointed the
+  // snapshot endpoint at `game_snapshots` — a table that doesn't exist; the
+  // real table is `game_saves`. On top of that the payload sent no `slot`
+  // (a NOT NULL column) and used a plain insert that would 409 on the
+  // `unique (user_id, slot)` constraint after the first save. Result: no
+  // player's progress ever reached the cloud via the snapshot path. These two
+  // tests guard the request contract (pure builder) AND the live wiring.
+  () => tryRun('b146: snapshot request upserts into game_saves with slot', () => {
+    const S = window.HearthriseSync;
+    assert(S && typeof S.buildSnapshotRequest === 'function', 'HearthriseSync.buildSnapshotRequest not exported');
+    const req = S.buildSnapshotRequest(
+      { snapshotEndpoint: 'https://example.supabase.co/rest/v1/game_saves' },
+      'user-abc', { totalLevel: 5 }, 1700000000000
+    );
+    assert(/\/rest\/v1\/game_saves\?/.test(req.url), 'snapshot must target game_saves, got ' + req.url);
+    assert(/on_conflict=user_id,slot/.test(req.url), 'snapshot must upsert on (user_id,slot), got ' + req.url);
+    assert(/merge-duplicates/.test((req.headers && req.headers.Prefer) || ''), 'snapshot must use resolution=merge-duplicates');
+    assert(req.body && req.body.slot === 0, 'snapshot body must include slot (NOT NULL col), got ' + JSON.stringify(req.body && req.body.slot));
+    assert(req.body && 'user_id' in req.body && 'snapshot' in req.body, 'snapshot body must include user_id + snapshot');
+  }),
+
+  // b146: guard the live wiring set by auth.js. Only asserts when a cloud
+  // session is active (signed in); stays quiet in offline / signed-out mode.
+  () => tryRun('b146: live cloud config targets game_saves not game_snapshots', () => {
+    const S = window.HearthriseSync;
+    const cfg = S && S.getConfig && S.getConfig();
+    if (!cfg || !cfg.snapshotEndpoint) return; // offline / signed out — nothing wired yet
+    assert(cfg.snapshotEndpoint.indexOf('game_snapshots') < 0,
+      'snapshotEndpoint still points at the non-existent game_snapshots table: ' + cfg.snapshotEndpoint);
+    assert(/\/game_saves$/.test(cfg.snapshotEndpoint),
+      'snapshotEndpoint must end with /game_saves, got ' + cfg.snapshotEndpoint);
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

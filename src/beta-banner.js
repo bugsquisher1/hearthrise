@@ -26,7 +26,7 @@
   var ACK_KEY = 'hearthrise:beta-ack';
   // Tyler — paste your real Discord invite URL here when ready.
   // Same convention as src/settings-page.js so you only update in two places.
-  var DISCORD_INVITE = 'https://discord.gg/your-invite-here';
+  var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
 
   function alreadyAcked(){
     try { return localStorage.getItem(ACK_KEY) === '1'; }

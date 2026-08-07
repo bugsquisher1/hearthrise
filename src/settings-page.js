@@ -373,7 +373,7 @@
       + '</div>';
 
     // ── Beta tester block — discord, bug report, build version, what's new ──
-    var DISCORD_INVITE = 'https://discord.gg/your-invite-here'; // Tyler: replace with real invite
+    var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
     var build = (window.HearthriseBuild && window.HearthriseBuild.buildString && window.HearthriseBuild.buildString()) || 'unknown';
     var beta = ''
       + '<div class="ss-card" style="display:block">'

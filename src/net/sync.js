@@ -94,7 +94,32 @@ async function flush() {
   }
 }
 
-/** Periodically snapshot full game state to the server (idempotent overwrite). */
+/**
+ * Pure builder for the snapshot upsert request. Exported so the smoke test can
+ * assert the b146 contract without a live network: correct table (via cfg's
+ * snapshotEndpoint — must be game_saves, NOT the non-existent game_snapshots),
+ * a `slot` value (NOT NULL on the table), and upsert-on-conflict semantics
+ * (game_saves has `unique (user_id, slot)`, so a plain insert 409s every save
+ * after the first).
+ */
+export function buildSnapshotRequest(cfg, userId, snap, nowMs) {
+  // `slot` is NOT NULL on game_saves. Single-character today = slot 0; the
+  // leaderboard views also join on slot = 0. Parameterise when multi-char ships.
+  const slot = (cfg && cfg.slot != null) ? cfg.slot : 0;
+  const headers = {
+    'Content-Type': 'application/json',
+    // resolution=merge-duplicates + on_conflict turns POST into an upsert.
+    'Prefer': 'resolution=merge-duplicates,return=minimal',
+  };
+  return {
+    url: `${cfg.snapshotEndpoint}?on_conflict=user_id,slot`,
+    method: 'POST',
+    headers,
+    body: { user_id: userId, slot, snapshot: snap, saved_at: new Date(nowMs).toISOString() },
+  };
+}
+
+/** Periodically snapshot full game state to the server (idempotent upsert). */
 async function snapshotIfDue() {
   if (!config?.snapshotEndpoint) return;
   const now = Date.now();
@@ -106,23 +131,19 @@ async function snapshotIfDue() {
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
   if (!navigator.onLine) return;
 
-  const headers = { 'Content-Type': 'application/json' };
-  if (config.authToken) {
-    const tok = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
-    if (tok) headers['Authorization'] = `Bearer ${tok}`;
-  }
-  if (config.apiKey) {
-    headers['apikey'] = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
-  }
   const userId = config.userId
     ? (typeof config.userId === 'function' ? config.userId() : config.userId)
     : null;
+  const req = buildSnapshotRequest(config, userId, snap, now);
+  if (config.authToken) {
+    const tok = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
+    if (tok) req.headers['Authorization'] = `Bearer ${tok}`;
+  }
+  if (config.apiKey) {
+    req.headers['apikey'] = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
+  }
   try {
-    await fetch(config.snapshotEndpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ user_id: userId, snapshot: snap, saved_at: new Date(now).toISOString() }),
-    });
+    await fetch(req.url, { method: req.method, headers: req.headers, body: JSON.stringify(req.body) });
   } catch (e) {
     console.warn('[sync] snapshot failed:', e.message);
   }
@@ -140,7 +161,8 @@ export async function pullLatest() {
       if (tok) headers['Authorization'] = `Bearer ${tok}`;
     }
     if (config.apiKey) headers['apikey'] = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
-    const res = await fetch(`${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&order=saved_at.desc&limit=1`, { headers });
+    const slot = (config.slot != null) ? config.slot : 0;
+    const res = await fetch(`${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`, { headers });
     if (!res.ok) return null;
     const rows = await res.json();
     return rows?.[0]?.snapshot || null;
@@ -178,8 +200,13 @@ export function setupSync(opts = {}) {
   console.log('[Cloud Sync]', config.endpoint ? 'configured: ' + config.endpoint : 'offline mode (no endpoint)');
 }
 
-// Expose for manual use during dev / migration
-window.HearthriseSync = { setupSync, flush, snapshotIfDue, pullLatest };
+// Expose for manual use during dev / migration. getConfig is read-only-ish
+// (returns a shallow copy) so tests + debugging can inspect the live wiring —
+// e.g. assert snapshotEndpoint targets game_saves, not game_snapshots.
+window.HearthriseSync = {
+  setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest,
+  getConfig: () => (config ? { ...config } : null),
+};
 
 // Default: kick off in offline mode so the buffer + snapshot start populating
 // the moment any module fires emit(). When you add Supabase config later,

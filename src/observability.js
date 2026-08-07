@@ -40,7 +40,7 @@
     ? (__build.channel === 'live' ? 'production' : __build.channel)  // 'dev' | 'beta' | 'production'
     : 'dev';
   var DEFAULTS = {
-    sentryDsn: null,                 // ⬅ Tyler: paste your real Sentry DSN here before launch (or set window.HEARTHRISE_OBSERVABILITY = {sentryDsn:'...'} pre-load)
+    sentryDsn: 'https://f19b6d8040e335fa3f7d3aafdd6f6d72@o4511870588944384.ingest.us.sentry.io/4511870595039232',  // beta crash reporting (public DSN — safe to commit)
     sentryCdnUrl: 'https://browser.sentry-cdn.com/7.119.0/bundle.tracing.min.js',
     analyticsEndpoint: null,         // null = no remote sink yet (still buffers locally)
     release: __releaseTag,           // tracks BUILD.version automatically

@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 146 — 2026-08-07 (P0 cloud-save fix + beta launch blockers)
+
+Picking the beta prep back up. Cleared the code-side launch blockers from `BETA_PREP.md` — and while verifying the live auth stack, found a **P0 bug that has been silently eating every player's cloud save.**
+
+- 🚨 **P0 — Cloud saves were 404ing into the void.** `auth.js` pointed the snapshot endpoint at a table called `game_snapshots`, but the table created by `SUPABASE_SETUP.md` (and used by the leaderboard) is named **`game_saves`**. Every 60-second cloud save POSTed to a non-existent table and got a 404 — no player's progress ever reached the cloud via the snapshot path. Local saves still worked, so it was invisible in solo testing. Two more latent bugs in the same path, found by reading the real table schema:
+  - The payload never sent `slot`, which is a `NOT NULL` column → the insert would have failed even with the right table name.
+  - It used a plain insert, but `game_saves` has `unique (user_id, slot)` → every save after the first would 409. Now upserts via `resolution=merge-duplicates` + `on_conflict=user_id,slot`.
+  - 🧪 Extracted a pure `buildSnapshotRequest()` and added **2 regression tests** guarding the table name, the `slot` field, and upsert semantics so this can't silently regress again.
+- 🛠 **Sentry crash reporting is live.** Pasted the real project DSN into `src/observability.js`. Beta crashes now report to Sentry, tagged with build/environment and player context (active skill, gold, kills). Was `null` before — every crash would have been lost.
+- 🔗 **Real Discord invite wired in.** Replaced the `discord.gg/your-invite-here` placeholder in `src/beta-banner.js` and `src/settings-page.js` with the live invite. The beta banner "Join Discord" button and the settings-page link now go somewhere real.
+- ✅ **Verified live auth stack health** on the deploy: Supabase client bootstraps, the Skypack CDN import (the flagged "signup could break globally" P1 risk) resolves fine, signup form renders, and `profiles` being anon-readable is intentional (documented in SUPABASE_SETUP.md for leaderboard/chat names).
+
+**Still on Tyler before inviting testers:** confirm the cloud-save fix end-to-end (sign in → play 1 min → reload → progress persists), verify Supabase RLS on `game_saves`/`game_events`, and run one full signup round-trip. PWA install treated as a known limitation, not a blocker.
+
 ## v0.9.1-beta build 145 — 2026-05-09 (Tier 4-6 content reachability fix — 3 orphan drops suppressed)
 
 Walked the gated-content chain for every recipe scroll that drops in production. 6 of 9 scrolls are fully wired (chief_blade_recipe, captain_recipe, alpha_pattern, soul_recipe, marrow_cookbook, field_cookbook). The other 3 are orphans:

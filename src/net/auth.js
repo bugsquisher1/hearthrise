@@ -69,7 +69,7 @@ function enableLiveSync() {
   if (!authConfig || !session) return;
   setupSync({
     endpoint: `${authConfig.url}/rest/v1/game_events`,
-    snapshotEndpoint: `${authConfig.url}/rest/v1/game_snapshots`,
+    snapshotEndpoint: `${authConfig.url}/rest/v1/game_saves`,
     apiKey: authConfig.anonKey,
     authToken: () => session?.access_token,
     userId: () => session?.user?.id,

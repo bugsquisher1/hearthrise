@@ -82,26 +82,25 @@
       '<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#e9d9b8" d="' + d + '"/></svg></span>';
   }
 
-  // Swap emoji skill icons for medallions once paths are ready, then repaint.
-  function applyToSkills() {
-    if (!window.SKILLS_DEF) return;
-    var changed = false;
-    for (var id in SRC) {
-      if (paths[id] && window.SKILLS_DEF[id]) {
-        var mv = medallion(id, 34);
-        if (mv && window.SKILLS_DEF[id].icon !== mv) { window.SKILLS_DEF[id].icon = mv; changed = true; }
-      }
-    }
-    if (changed) repaint();
-  }
-  function repaint() {
-    try {
-      var t = window.activeTab;
-      if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
-      if (typeof window.renderProfile === 'function') window.renderProfile();
-      if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render();
-      if (typeof window.showTab === 'function' && t) window.showTab(t);
-    } catch (e) {}
+  // DOM sweep — the same pattern the game uses (paintSkillIcons): find each
+  // skill tile, read its skill id from the onclick, and drop our medallion into
+  // its icon slot. Runs after renders + on a light interval, so it survives
+  // re-renders and never fights the legacy paint pass (that one no-ops because
+  // _skillIcon is empty).
+  function paintSkills() {
+    if (!Object.keys(paths).length) return;
+    ensureStyle();
+    document.querySelectorAll('.skill-tile, .skill-card').forEach(function (el) {
+      var oc = el.getAttribute('onclick') || '';
+      var m = oc.match(/openSkillDetail\('([^']+)'\)/) || oc.match(/showSkill\('([^']+)'\)/);
+      if (!m) return;
+      var id = m[1];
+      if (!paths[id]) return;
+      var iconEl = el.querySelector('.sicon, .icon');
+      if (!iconEl || iconEl.querySelector('.hr-med')) return;   // missing or already ours
+      var mv = medallion(id, 34);
+      if (mv) iconEl.innerHTML = mv;
+    });
   }
 
   async function fetchAll() {
@@ -121,20 +120,25 @@
     }
     saveCache();
     loaded = true;
-    applyToSkills();
+    paintSkills();
   }
 
   loadCache();
-  // apply cached immediately (instant on repeat loads), then refresh from network
-  if (Object.keys(paths).length) { setTimeout(applyToSkills, 400); }
+  // paint from cache immediately (instant on repeat loads), refresh from network,
+  // and keep painting after re-renders.
+  if (Object.keys(paths).length) setTimeout(paintSkills, 300);
   if (document.readyState !== 'loading') fetchAll();
   else document.addEventListener('DOMContentLoaded', fetchAll);
+  setInterval(paintSkills, 1200);
 
-  window.HearthriseIcons = {
+  // NOTE: renamed off HearthriseIcons — that global belongs to icon-swap.js
+  // (nav/topbar PNG swaps). Ours is the game-icons medallion set.
+  window.HearthriseIconSet = {
     medallion: medallion,
     has: function (k) { return !!paths[k]; },
     path: function (k) { return paths[k] || null; },
-    ready: function () { return loaded; }
+    ready: function () { return loaded; },
+    repaint: paintSkills
   };
   console.log('[icon-set] loaded');
 })();

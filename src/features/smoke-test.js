@@ -2042,6 +2042,41 @@ const TESTS = [
     assert(/\/game_saves$/.test(cfg.snapshotEndpoint),
       'snapshotEndpoint must end with /game_saves, got ' + cfg.snapshotEndpoint);
   }),
+
+  // b147: totalLevel was missing from the cloud snapshot. G has no `totalLevel`
+  // field (it's summed from skills by getTotalLevel()), so two things broke:
+  //   1. game_saves.total_level (a generated col reading snapshot->>'totalLevel')
+  //      was always null → the leaderboard couldn't rank anyone.
+  //   2. auth.js's sign-in restore gate compared snap.totalLevel vs
+  //      G.totalLevel — both undefined → 0 > 0 = false → cloud restore NEVER
+  //      fired, so cross-device / fresh-login progress silently failed to load.
+  // Guard the dependency (getTotalLevel) and that the request carries totalLevel.
+  () => tryRun('b147: getTotalLevel exists and returns a number', () => {
+    assert(typeof window.getTotalLevel === 'function', 'getTotalLevel() missing — snapshot totalLevel + restore gate depend on it');
+    const tl = window.getTotalLevel();
+    assert(typeof tl === 'number' && tl >= 0, 'getTotalLevel() must return a non-negative number, got ' + tl);
+  }),
+
+  // b147: the snapshot request must carry totalLevel through to the stored
+  // snapshot (that's what the generated column + restore gate read).
+  () => tryRun('b147: snapshot request carries totalLevel into the body', () => {
+    const S = window.HearthriseSync;
+    const req = S.buildSnapshotRequest(
+      { snapshotEndpoint: 'https://example.supabase.co/rest/v1/game_saves' },
+      'user-abc', { gold: 100, totalLevel: 26 }, 1700000000000
+    );
+    assert(req.body && req.body.snapshot && req.body.snapshot.totalLevel === 26,
+      'stored snapshot must include totalLevel (drives leaderboard col + restore gate), got ' + JSON.stringify(req.body && req.body.snapshot));
+  }),
+
+  // b147: when signed in, the live sync config must feed a totalLevel provider
+  // so snapshotIfDue can stamp it. Skips cleanly when signed out.
+  () => tryRun('b147: live sync config provides a totalLevel source', () => {
+    const S = window.HearthriseSync;
+    const cfg = S && S.getConfig && S.getConfig();
+    if (!cfg || !cfg.snapshotEndpoint) return; // signed out — nothing wired yet
+    assert(cfg.totalLevel != null, 'sync config missing totalLevel provider — total_level col will be null + restore gate breaks');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

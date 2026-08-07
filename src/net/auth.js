@@ -73,6 +73,9 @@ function enableLiveSync() {
     apiKey: authConfig.anonKey,
     authToken: () => session?.access_token,
     userId: () => session?.user?.id,
+    // G has no stored totalLevel — it's summed from skills. Feed it in so the
+    // snapshot carries it (populates game_saves.total_level + the restore gate).
+    totalLevel: () => (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0),
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
@@ -84,9 +87,13 @@ async function pullAndMaybeRestore() {
   try {
     const snap = await pullLatest();
     if (!snap) return;
-    // Conflict resolution: take whichever has the higher totalLevel +
-    // most recent saveAt. This is a v1 stub; refine later.
-    const localTotalLv = window.G && (window.G.totalLevel || 0);
+    // Conflict resolution: take whichever has the higher totalLevel.
+    // This is a v1 stub; refine later. NOTE: G has no stored `totalLevel` — it's
+    // computed from skills via getTotalLevel(). Using G.totalLevel (undefined)
+    // made this gate always 0 > 0 = false, so cloud restore NEVER fired and
+    // cross-device / fresh-login progress silently failed to load.
+    const localTotalLv = (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
+      || (window.G && window.G.totalLevel) || 0;
     const cloudTotalLv = snap.totalLevel || 0;
     if (cloudTotalLv > localTotalLv) {
       const ok = confirm(

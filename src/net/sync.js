@@ -127,6 +127,15 @@ async function snapshotIfDue() {
   lastSnapshotAt = now;
   const snap = snapshot(window.G);
   if (!snap) return;
+  // Stamp totalLevel INTO the snapshot. `game_saves.total_level` is a generated
+  // column that reads `snapshot->>'totalLevel'`, and the sign-in restore gate in
+  // auth.js compares snap.totalLevel — but G has no totalLevel field (it's
+  // computed from skills via getTotalLevel()). Without this the column is always
+  // null AND cloud restore never fires (0 > 0). See config.totalLevel provider.
+  if (config.totalLevel != null) {
+    const tl = typeof config.totalLevel === 'function' ? config.totalLevel() : config.totalLevel;
+    if (tl != null) snap.totalLevel = tl;
+  }
   // Always cache locally for offline-load
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
   if (!navigator.onLine) return;

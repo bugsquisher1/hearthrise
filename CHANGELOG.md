@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 147 — 2026-08-07 (Cloud restore fix — saves now actually load back)
+
+b146 fixed cloud saves *writing*; live-testing the round-trip in a real signed-in session surfaced why it still felt like "nothing saves": **the cloud snapshot was never restored on sign-in.** Two symptoms, one root cause.
+
+- 🚨 **Cloud restore never fired.** The sign-in restore gate in `auth.js` compares `snap.totalLevel` (cloud) against `G.totalLevel` (local) and restores if cloud is higher. But **`G` has no `totalLevel` field** — the in-game "Total Level" is summed from your skills by `getTotalLevel()`, never stored on `G`. So both sides read `undefined → 0`, the gate was permanently `0 > 0 = false`, and the cloud save was fetched then silently discarded. Cross-device play and fresh-login restore both failed. Fixed the gate to compute local level via `getTotalLevel()`.
+- 🏆 **Leaderboard `total_level` was always null.** Same missing field: `game_saves.total_level` is a generated column reading `snapshot->>'totalLevel'`, which was never in the snapshot. The snapshot now stamps `totalLevel` at save time (via a provider wired through the sync config), so the column populates and the leaderboard can finally rank.
+- ✅ **Verified end-to-end in a live signed-in session:** save writes the full 14-key state (HTTP 200), `total_level` generates correctly (26), and `pullLatest()` reads it back. 🧪 **+3 regression tests.**
+
 ## v0.9.1-beta build 146 — 2026-08-07 (P0 cloud-save fix + beta launch blockers)
 
 Picking the beta prep back up. Cleared the code-side launch blockers from `BETA_PREP.md` — and while verifying the live auth stack, found a **P0 bug that has been silently eating every player's cloud save.**

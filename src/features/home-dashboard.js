@@ -38,13 +38,17 @@
     // background / border, so the legacy sheets' broad !important rules can't
     // leak cozy values into this component. Token VALUES still come from the
     // active theme — so it's cream on Cozy, warm-dark on Hearthlight, for free.
-    var R = '#' + ROOT_ID + ' ';
+    // Two-ID prefix (#panel-profile #hd-root): the legacy theme has broad
+    // always-on rules like `#panel-x [class*="tile"] { ... !important }` that
+    // match our .hd-* classes and outrank a single-ID selector. Two IDs beat
+    // any one-ID theme rule regardless of its class count.
+    var R = '#panel-profile #' + ROOT_ID + ' ';
     return [
       '#panel-profile.active:has(#' + ROOT_ID + ') > .card,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .feat-buttons,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .prof-toolbar,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .dash-grid{display:none !important}',
-      '#' + ROOT_ID + '{display:block;max-width:1120px;margin:0 auto;padding:6px 4px 24px;font-family:var(--f-ui);color:var(--ink) !important}',
+      '#panel-profile #' + ROOT_ID + '{display:block;max-width:1120px;margin:0 auto;padding:6px 4px 24px;font-family:var(--f-ui);color:var(--ink) !important}',
 
       R + '.hd-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}',
       R + '.hd-who{display:flex;align-items:center;gap:13px;min-width:0}',

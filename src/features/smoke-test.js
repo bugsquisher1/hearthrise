@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=149' directly.
+// modularised, will import { G } from '../state/game.js?v=150' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=149';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=149';
+import { on } from '../net/events.js?v=150';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=150';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2100,6 +2100,23 @@ const TESTS = [
     if (!cfg || !cfg.snapshotEndpoint) return; // signed out
     assert(typeof cfg.onAuthError === 'function', 'sync config missing onAuthError — expired tokens won\'t refresh');
     assert(typeof cfg.onSyncFailure === 'function', 'sync config missing onSyncFailure — save failures stay invisible');
+  }),
+
+  // b150: hearthlight theme (the revamp preview) is registered and applies its
+  // deep-dark ground token without disturbing the default. Restores after.
+  () => tryRun('b150: hearthlight theme registers + applies', () => {
+    const T = window.HearthriseTheme;
+    if (!T || !T.list) return; // theme system not present
+    assert(T.list().some(function(t){ return t.id === 'hearthlight'; }), 'hearthlight not in theme list');
+    const prev = (T.getTheme && T.getTheme()) || 'cozy-light';
+    try {
+      T.set('hearthlight');
+      assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');
+      const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
+      assert(bg === '#1c1610', 'hearthlight --bg-0 should be #1c1610, got "' + bg + '"');
+    } finally {
+      T.set(prev); // never leave the tester on a different theme than they picked
+    }
   }),
 ];
 

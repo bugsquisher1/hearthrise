@@ -29,9 +29,10 @@
   const LEGACY_KEY = 'hb_theme';
 
   const THEMES = [
-    { id: 'cozy-light', label: 'Cozy Day',   desc: 'Warm parchment, forest green, gold' },
-    { id: 'cozy-dark',  label: 'Cozy Night', desc: 'Hearth-lit chocolate + parchment text' },
-    { id: 'classic',    label: 'Classic',    desc: 'Stone + brass utility (beta)' },
+    { id: 'cozy-light',  label: 'Cozy Day',    desc: 'Warm parchment, forest green, gold' },
+    { id: 'cozy-dark',   label: 'Cozy Night',  desc: 'Hearth-lit chocolate + parchment text' },
+    { id: 'hearthlight', label: 'Hearthlight', desc: 'Candle-lit hall — deep warm dark + gilt (revamp preview)' },
+    { id: 'classic',     label: 'Classic',     desc: 'Stone + brass utility (beta)' },
   ];
 
   function readSaved() {

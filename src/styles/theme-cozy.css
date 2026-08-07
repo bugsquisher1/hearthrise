@@ -4227,3 +4227,56 @@ body[data-theme="cozy-light"] .qm-close:hover {
   }
   .qm-quest .qm-q-claim { margin-left: auto !important; }
 }
+
+/* ============================================================
+ * ─── Hearthlight (b150) — the revamp direction ───
+ * A candle-lit homestead ledger: deep roasted-oak grounds so
+ * content actually pops, gilt gold as the unifying accent, and
+ * the semantic colors pushed to saturated "guild seals" (green =
+ * gathering, red = forge/combat, gem = arcane). Same tokens the
+ * whole app already references, so this reskins every screen with
+ * zero layout changes. Opt-in via Settings → Display or
+ * HearthriseTheme.set('hearthlight'); default stays Cozy Day.
+ * ============================================================ */
+body[data-theme="hearthlight"] {
+  /* Surfaces — roasted oak ramp, parchment reserved for raised bits */
+  --bg-0:        #1c1610;              /* outermost — near-black warm */
+  --bg-1:        #241c14;              /* sidebar / carved wood rail */
+  --bg-2:        #2b2118;              /* card / panel */
+  --bg-3:        #33271a;              /* elevated (modal) */
+  --bg-card:     linear-gradient(180deg,#2f2418,#221a12);
+
+  /* Lines — faint gilt */
+  --line:        rgba(205,162,74,.22);
+  --line-soft:   rgba(243,232,214,.06);
+  --line-strong: rgba(205,162,74,.46);
+
+  /* Text — warm off-white ramp, high contrast on the dark ground */
+  --ink:         #f3e8d6;
+  --ink-2:       #cdba9c;
+  --ink-3:       #9c876a;
+
+  /* Gilt gold — the unifying accent */
+  --gold:        #cda24a;
+  --gold-2:      #e6c982;
+  --gold-bg:     rgba(205,162,74,.15);
+
+  /* Guild seals — semantic colors turned up */
+  --green:       #93b35c;              /* gathering / skills / XP */
+  --green-bg:    rgba(147,179,92,.16);
+
+  --red:         #d64a3a;              /* forge / combat / danger */
+  --red-bg:      rgba(214,74,58,.16);
+
+  --aqua:        #62a892;              /* hearth-adjacent teal — info */
+  --aqua-2:      #83c4ad;
+  --aqua-bg:     rgba(98,168,146,.16);
+
+  --purple:      #a487d8;              /* dusk lavender */
+  --purple-bg:   rgba(164,135,216,.18);
+
+  --gem:         #7d8ede;              /* arcane blue — gems / premium */
+  --gem-bg:      rgba(125,142,222,.18);
+
+  color-scheme: dark;
+}

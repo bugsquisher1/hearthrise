@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 150 — 2026-08-07 (Hearthlight — the visual revamp begins, opt-in)
+
+Phase 1 of the UX/UI revamp. A new **Hearthlight** theme — the candle-lit "hearthlight" direction from the design pitch: deep roasted-oak grounds so content actually pops, gilt gold as the unifying accent, and the skill/combat/economy colors turned up into proper "guild seals." It's a full reskin that touches every screen at once, because the whole app already runs on CSS tokens — Hearthlight just redefines them.
+
+- 🎨 **New theme: Hearthlight** (Settings → Display, or the theme picker). Warm-dark, high-contrast — the fix for the washed-out cream-on-cream look.
+- 🔒 **Opt-in and non-destructive.** The default stays **Cozy Day**; nothing changes for anyone until they pick Hearthlight. Layout is untouched — only the palette swaps.
+- 🧪 **1 regression test** — hearthlight is registered and applies its ground token, then restores the tester's theme.
+
+This is the foundation. Next phases (the world-map home, the "every card is a door" routing, the dungeon/raid screen, the rise-to-jarl progression) build on top of it. Try it and tell me where the palette wants tuning.
+
 ## v0.9.1-beta build 149 — 2026-08-07 (Don't lose progress when the login token expires)
 
 Surfaced while verifying the save fix: Supabase access tokens expire (~1 hour), and when one did, cloud saves **failed silently** — `snapshotIfDue`/`flush` caught the error and only logged a warning, so a long play session's progress could stop reaching the cloud with zero signal to the player. (Local save was fine, so no data was lost — it just wasn't syncing.)

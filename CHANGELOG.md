@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 148 — 2026-08-07 (Fix the ESM cache gap — deploys now propagate instantly)
+
+Infrastructure fix. While verifying the b147 save fix in a live session, hit the exact "ESM module cache-buster gap" that's been sitting in the ROADMAP backlog — and it's nastier than it sounded: it made a correct, deployed fix *look* broken for ~10 minutes, and it would do the same to every beta tester after every update.
+
+- 🧩 **Root cause:** `index.html` cache-busts its `<script>` tags with `?v=NNN`, but `src/main.js` and the whole module graph under `net/ features/ utils/ data/` used **bare relative imports** (`import './net/sync.js'`) with no version. GitHub Pages serves those with `Cache-Control: max-age=600`, so for up to 10 minutes after a deploy the browser runs a **mix of fresh and stale modules**. That's why the b147 `sync.js` fix wasn't taking effect even though the page reported b147.
+- 🛠 **Fix:** every static + dynamic ESM import specifier in `src/**/*.js` now carries `?v=148` (46 specifiers across 13 files). A `?v=` bump on a release now propagates through the entire module graph on the next load — no stale-module window.
+- 🤖 **`bump-version.sh`** added so this self-maintains: one command bumps `build-info.js`, `index.html`, AND every module import in lockstep, then verifies nothing was left behind and fails loudly if it finds a bare import. `CLAUDE.md` updated — the cache-buster now lives in three places, not two.
+
+No gameplay changes. This is purely "make deploys reliable," which matters a lot once beta testers are updating on their own.
+
 ## v0.9.1-beta build 147 — 2026-08-07 (Cloud restore fix — saves now actually load back)
 
 b146 fixed cloud saves *writing*; live-testing the round-trip in a real signed-in session surfaced why it still felt like "nothing saves": **the cloud snapshot was never restored on sign-in.** Two symptoms, one root cause.

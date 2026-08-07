@@ -19,7 +19,8 @@ Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
 
 ## Build + ship workflow
 
-- Cache buster lives in two places that must agree: `src/build-info.js` (`BUILD.cache`) and every `?v=NNN` in `index.html`. Bump both on every release.
+- Cache buster lives in **three** places that must agree: `src/build-info.js` (`BUILD.cache`), every `?v=NNN` in `index.html`, and every `?v=NNN` on ESM import specifiers in `src/**/*.js` (added in b148 — static imports like `import './net/sync.js?v=NNN'` are fetched WITHOUT inheriting index.html's version, so a stale one runs old code for ~10 min after deploy). **Just run `./bump-version.sh <NNN>`** — it bumps all three in lockstep and verifies. Then bump the date in build-info.js + add a CHANGELOG entry by hand.
+- Don't add a bare relative ESM import (`from './x.js'` with no `?v=`) — the bump script + smoke test expect every module import to carry a version. `bump-version.sh` fails loudly if it finds an unversioned one.
 - Service worker derives its cache name from the `?v=` it sees on script tags (`hearthrise-<NNN>`). The b124 universal kill-switch in `<head>` purges any cache whose name doesn't match the current build — don't reintroduce a fixed cache name.
 - After bumping, give Tyler the literal git push command. He runs git himself.
 

@@ -26,6 +26,20 @@ Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
 
 ---
 
+## Architecture direction (locked 2026-08-07)
+
+Goal: scale in content **and ship to Steam + mobile from one web core.** Approach: **incremental refactor-in-place — never a rewrite.** Keep the live beta green. Proof-of-model: Melvor Idle (a web idle-RPG) shipped to Steam (desktop wrapper) and iOS/Android (mobile wrapper) from one web codebase. Steam = Electron/Tauri wrapper; mobile = Capacitor wrapper. The web stack is not the blocker — the monolith + CSS debt are.
+
+Migrate toward four layers, strangler-fig, one domain at a time (combat, skills, farm, world/map, dungeon — this is roadmap task #129):
+1. **Data** — content as data (`src/data/*.js`). Grow by adding data, not code.
+2. **Logic** — idle ticks, combat, economy as pure, DOM-free, testable functions. Reusable across platforms.
+3. **Render/UI** — a component layer that reads design **tokens only**.
+4. **Platform seams** — storage / cloud save / notifications / purchases / achievements behind interfaces, so Steam & mobile swap implementations without touching game logic.
+
+**HARD RULE — no hardcoded colors.** Every color comes from a CSS token (defined per theme in `theme-cozy.css`). The old cozy theme baked ~58 cream gradients straight into components; that debt is exactly why the Hearthlight theme (b150) only partially applied. Converting hardcoded → token IS the visual revamp, done screen-by-screen — cozy-light must look unchanged, Hearthlight must go dark. When you touch any component, convert its colors to tokens as you go.
+
+---
+
 ## What lives where
 
 - `src/legacy.js` — the ~9k-line monolith. Phase 3.5 (split into ESM modules) is still pending — task #129 in the task list.

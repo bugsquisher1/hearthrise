@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 151 — 2026-08-07 (Revamp Phase 1b — app shell tokenized)
+
+First real slice of paying down the CSS debt that blocks the revamp. The app shell — **body background, sidebar, top bar** — was painting hardcoded cream gradients straight in the component rules, so no theme but Cozy could ever change them. Those are now driven by **shell tokens** (`--app-bg`, `--sidebar-bg`, `--topbar-bg`) defined per theme.
+
+- 🧱 **Shell surfaces are token-driven.** Cozy Day keeps the exact same values (verified pixel-identical — zero change for anyone on the default). Hearthlight's shell now correctly goes warm-dark. Cozy Night and Classic got proper dark shell values too (fixing a latent "cream sidebar on a dark theme" bug).
+- ♻️ This is the pattern for the whole revamp: convert hardcoded colors → tokens, one area at a time, Cozy verified unchanged + the new theme verified correct at each step. No layout touched; default look untouched.
+
+**Next slices:** sidebar nav text/icons (readable on the dark shell), then the content panels/cards screen-by-screen (Home → Combat → Activities → …).
+
 ## v0.9.1-beta build 150 — 2026-08-07 (Hearthlight — the visual revamp begins, opt-in)
 
 Phase 1 of the UX/UI revamp. A new **Hearthlight** theme — the candle-lit "hearthlight" direction from the design pitch: deep roasted-oak grounds so content actually pops, gilt gold as the unifying accent, and the skill/combat/economy colors turned up into proper "guild seals." It's a full reskin that touches every screen at once, because the whole app already runs on CSS tokens — Hearthlight just redefines them.

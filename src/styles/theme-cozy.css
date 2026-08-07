@@ -46,6 +46,14 @@ body[data-theme="cozy-light"] {
   --bg-3:        #fff7e0;             /* elevated surface (modal) */
   --bg-card:     linear-gradient(180deg,#fff7e0,#faf0d4);
 
+  /* Shell surfaces (b151) — tokenized so themes drive them, not hardcoded
+     values in component rules. These MUST match the old cozy look exactly. */
+  --sidebar-bg:  linear-gradient(180deg, #e8d4a0 0%, #ddc28a 50%, #d8b878 100%);
+  --topbar-bg:   linear-gradient(90deg, #ede0b8, #e8d4a0);
+  --app-bg:
+    radial-gradient(ellipse 80% 50% at 75% 5%, rgba(232,178,96,.35) 0%, rgba(232,178,96,0) 60%),
+    linear-gradient(180deg, #9c6f38 0%, #8a673a 14%, #75663c 28%, #62633a 42%, #4e5e2a 56%, #3a4e1c 70%, #243214 86%, #14180a 100%);
+
   /* Lines + borders */
   --line:        rgba(122,94,58,.20);
   --line-soft:   rgba(122,94,58,.10);
@@ -88,6 +96,9 @@ body[data-theme="cozy-dark"] {
   --bg-2:        #3f2f20;              /* card */
   --bg-3:        #4a3825;              /* elevated */
   --bg-card:     linear-gradient(180deg,#3f2f20,#2f2317);
+  --sidebar-bg:  linear-gradient(180deg, #36281b, #2a1f15);
+  --topbar-bg:   linear-gradient(90deg, #3a2b1d, #2f2317);
+  --app-bg:      radial-gradient(ellipse 80% 50% at 75% 5%, rgba(224,184,95,.10) 0%, rgba(224,184,95,0) 60%), linear-gradient(180deg, #2a1f15, #1f1710);
 
   --line:        rgba(232,184,96,.18);
   --line-soft:   rgba(255,235,200,.05);
@@ -127,6 +138,9 @@ body[data-theme="classic"] {
   --bg-2:        #d4b896;              /* parchment cards */
   --bg-3:        #e0c8a4;
   --bg-card:     #d4b896;
+  --sidebar-bg:  linear-gradient(180deg, #1f1a14, #171310);
+  --topbar-bg:   linear-gradient(90deg, #2b2620, #211d18);
+  --app-bg:      linear-gradient(180deg, #2b2620, #201c17);
 
   --line:        #5c4a2e;
   --line-soft:   rgba(92,74,46,.18);
@@ -187,22 +201,8 @@ body[data-theme="classic"] {
    without ever drawing one. */
 html:not([data-theme]) body,
 html body[data-theme="cozy-light"] {
-  background:
-    /* faint sun glow — upper-right, fades to nothing */
-    radial-gradient(ellipse 80% 50% at 75% 5%,
-      rgba(232, 178, 96, .35) 0%,
-      rgba(232, 178, 96, 0) 60%),
-    /* main vertical landscape gradient */
-    linear-gradient(180deg,
-      #9c6f38 0%,        /* warm distant haze (sky) */
-      #8a673a 14%,       /* sunset glow */
-      #75663c 28%,       /* haze meeting far hills */
-      #62633a 42%,       /* far hill olive */
-      #4e5e2a 56%,       /* mid grass — golden green */
-      #3a4e1c 70%,       /* forest grass */
-      #243214 86%,       /* deep grass shadow */
-      #14180a 100%       /* foreground darkness */
-    );
+  /* landscape gradient now lives in the --app-bg token (b151) */
+  background: var(--app-bg);
   background-attachment: fixed;
   color: var(--ink);
   font-family: var(--f-ui);
@@ -211,7 +211,7 @@ html body[data-theme="cozy-light"] {
 /* ─── Sidebar (carved-plaque treatment to match character-sheet body) ─── */
 html:not([data-theme]) .sidebar,
 body[data-theme="cozy-light"] .sidebar {
-  background: linear-gradient(180deg, #e8d4a0 0%, #ddc28a 50%, #d8b878 100%);
+  background: var(--sidebar-bg);
   border-right: 2px solid #b8893e;
   /* Subtle gold inner rule + drop shadow into the main column */
   box-shadow:
@@ -456,7 +456,7 @@ body[data-theme="cozy-light"] .nav-foot .dot.off {
 /* Topbar */
 html:not([data-theme]) .topbar,
 body[data-theme="cozy-light"] .topbar {
-  background: linear-gradient(90deg, #ede0b8, #e8d4a0);
+  background: var(--topbar-bg);
   border-bottom: 1px solid var(--line-strong);
 }
 html:not([data-theme]) .player-avatar,
@@ -4278,5 +4278,21 @@ body[data-theme="hearthlight"] {
   --gem:         #7d8ede;              /* arcane blue — gems / premium */
   --gem-bg:      rgba(125,142,222,.18);
 
+  /* Shell surfaces — warm-dark, candle-lit */
+  --sidebar-bg:  linear-gradient(180deg, #241c14, #1a130d);
+  --topbar-bg:   linear-gradient(90deg, #2b2118, #221a12);
+  --app-bg:
+    radial-gradient(ellipse 80% 55% at 78% 4%, rgba(224,123,57,.16) 0%, rgba(224,123,57,0) 62%),
+    linear-gradient(180deg, #241c14 0%, #1f1810 46%, #17110b 78%, #100c07 100%);
+
   color-scheme: dark;
+}
+
+/* Body background is set via the --app-bg token for every theme (b151), so a
+   new theme never falls back to the old cold-navy legacy default. */
+html body[data-theme="hearthlight"] {
+  background: var(--app-bg);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--f-ui);
 }

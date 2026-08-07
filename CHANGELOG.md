@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 154 — 2026-08-07 (Home, rebuilt for real — the pitch, not a recolor)
+
+The recolor-the-old-layout approach was never going to look like the pitch. So Home is **rebuilt** as a new component (`src/features/home-dashboard.js`) — the actual pitch layout: header + legible pills, an illuminated "next milestone" hero with a CTA, **actionable quests where every card is a door** (Catch fish → *Go fish →* opens Activities→Fishing; Earn gold → *Sell →* opens Market; etc.), today tiles, resume, and buffs.
+
+- 🏗 **First screen of the new component layer.** Styled with **design tokens only**, so it renders correctly in *both* themes automatically — cream on Cozy Day, warm-dark on Hearthlight — with zero per-theme overrides. This is the "build it right once" approach; no more whack-a-mole.
+- 🚪 **Every card routes to where you act** — quests, milestone, resume, "cook something" all deep-link to the right screen (routes verified against the real tab IDs: skills/farming/market/combat).
+- 🔧 **Non-destructive + reversible.** Renders into `#panel-profile` and hides the legacy cards only when it's active. ON by default this weekend (solo); instant off-switch: `localStorage.setItem('hearthrise:home-v2','0')`.
+
+**Next:** react to Home, then rebuild Combat / Activities the same way.
+
 ## v0.9.1-beta build 153 — 2026-08-07 (Revamp — Home content goes dark, Hearthlight is coherent)
 
 The one that makes Hearthlight actually look like a finished theme instead of a dark-frame-on-cream-guts mismatch. Converted the Home/Profile content: cards, stat tiles, the milestone card, the top pills, the achievement buttons, and modals now go warm-dark with light text and gold headers under Hearthlight. Iterated live in-browser until it read cleanly.

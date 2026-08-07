@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 152 — 2026-08-07 (Revamp — sidebar nav readable on the dark shell)
+
+Follow-on to b151. With the sidebar now warm-dark under Hearthlight, its nav text needed to keep up. Nav button text is tokenized (`var(--ink)`) so it reads on any ground; the bespoke bits (group labels, the HEARTHRISE wordmark, the foot) keep their exact cozy browns for Cozy and get readable gold/light values under Hearthlight only.
+
+- 🧭 Sidebar nav, group labels, wordmark, and foot are legible in both themes. Cozy Day unchanged; Hearthlight's whole left rail is now coherent.
+- Same discipline as b151 — tokens where a token already fits, a scoped override only where Cozy uses a one-off shade.
+
+**Next:** the Home content panels/cards (the big cream area), then Combat.
+
 ## v0.9.1-beta build 151 — 2026-08-07 (Revamp Phase 1b — app shell tokenized)
 
 First real slice of paying down the CSS debt that blocks the revamp. The app shell — **body background, sidebar, top bar** — was painting hardcoded cream gradients straight in the component rules, so no theme but Cozy could ever change them. Those are now driven by **shell tokens** (`--app-bg`, `--sidebar-bg`, `--topbar-bg`) defined per theme.

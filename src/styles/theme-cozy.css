@@ -381,7 +381,7 @@ body[data-theme="cozy-light"] .nav-group-label::after {
 /* Nav buttons — parchment surface */
 html:not([data-theme]) .nav-btn,
 body[data-theme="cozy-light"] .nav-btn {
-  color: #4a2810 !important;
+  color: var(--ink) !important;
   background: transparent;
   font-family: var(--f-ui);
   font-weight: 600;
@@ -392,9 +392,9 @@ body[data-theme="cozy-light"] .nav-btn {
 }
 html:not([data-theme]) .nav-btn:hover,
 body[data-theme="cozy-light"] .nav-btn:hover {
-  background: rgba(255,247,224,.55) !important;
-  color: #2a1a0c !important;
-  border-color: rgba(184,137,62,.25);
+  background: var(--gold-bg) !important;
+  color: var(--ink) !important;
+  border-color: var(--line-strong);
 }
 html:not([data-theme]) .nav-btn .ic,
 body[data-theme="cozy-light"] .nav-btn .ic {
@@ -4296,3 +4296,15 @@ html body[data-theme="hearthlight"] {
   color: var(--ink);
   font-family: var(--f-ui);
 }
+/* Hearthlight sidebar nav — the cozy browns are kept exact for Cozy; these
+   readable-on-dark values only apply under Hearthlight (b151). nav-btn already
+   uses var(--ink) from the shared rule, so only the bespoke bits need help. */
+body[data-theme="hearthlight"] .nav-group-label,
+body[data-theme="hearthlight"] .sidebar .nav-group-label {
+  color: var(--gold-2) !important;
+  text-shadow: none !important;
+}
+body[data-theme="hearthlight"] .nav-btn .ic { filter: none !important; }
+body[data-theme="hearthlight"] .nav-foot { color: var(--ink-3) !important; }
+body[data-theme="hearthlight"] .brand-name,
+body[data-theme="hearthlight"] .brand-name small { color: var(--gold-2) !important; text-shadow: none !important; }

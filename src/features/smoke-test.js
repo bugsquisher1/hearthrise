@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=148' directly.
+// modularised, will import { G } from '../state/game.js?v=149' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=148';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=148';
+import { on } from '../net/events.js?v=149';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=149';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2076,6 +2076,30 @@ const TESTS = [
     const cfg = S && S.getConfig && S.getConfig();
     if (!cfg || !cfg.snapshotEndpoint) return; // signed out — nothing wired yet
     assert(cfg.totalLevel != null, 'sync config missing totalLevel provider — total_level col will be null + restore gate breaks');
+  }),
+
+  // b149: expired-token hardening. A save that failed on an expired JWT used to
+  // be swallowed silently, so a long session's cloud progress could vanish with
+  // no signal. sync now classifies auth errors (to refresh+retry) and surfaces
+  // failures. Guard the classifier so the retry trigger can't regress.
+  () => tryRun('b149: isAuthError classifies expired-token responses', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.isAuthError === 'function', 'HearthriseSync.isAuthError not exported');
+    assert(S.isAuthError(401, '') === true, '401 should be an auth error');
+    assert(S.isAuthError(403, '') === true, '403 should be an auth error');
+    assert(S.isAuthError(400, '{"code":"PGRST303","message":"JWT expired"}') === true, 'PGRST303/JWT expired should be an auth error');
+    assert(S.isAuthError(200, '') === false, '200 is not an auth error');
+    assert(S.isAuthError(500, 'internal') === false, '500 (non-auth) should not trigger a token refresh');
+  }),
+
+  // b149: when signed in, the sync config must wire the refresh + health hooks
+  // so expired tokens self-heal and failures reach the UI. Skips when signed out.
+  () => tryRun('b149: live sync config wires auth-error + sync-health hooks', () => {
+    const S = window.HearthriseSync;
+    const cfg = S && S.getConfig && S.getConfig();
+    if (!cfg || !cfg.snapshotEndpoint) return; // signed out
+    assert(typeof cfg.onAuthError === 'function', 'sync config missing onAuthError — expired tokens won\'t refresh');
+    assert(typeof cfg.onSyncFailure === 'function', 'sync config missing onSyncFailure — save failures stay invisible');
   }),
 ];
 

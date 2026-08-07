@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=148';
+import { setupSync, pullLatest } from './sync.js?v=149';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -26,7 +26,12 @@ export async function setupAuth(config) {
   // Dynamic import so this module loads even when supabase-js isn't available
   try {
     const mod = await import('https://cdn.skypack.dev/@supabase/supabase-js');
-    supabase = mod.createClient(config.url, config.anonKey);
+    // Explicit auth options so we don't rely on library defaults: keep the
+    // access token auto-refreshing in the background (tokens expire ~1h) and
+    // persisted, so long play sessions don't silently stop syncing (b149).
+    supabase = mod.createClient(config.url, config.anonKey, {
+      auth: { autoRefreshToken: true, persistSession: true },
+    });
   } catch (e) {
     console.warn('[Auth] failed to load supabase-js:', e.message);
     return;
@@ -76,6 +81,27 @@ function enableLiveSync() {
     // G has no stored totalLevel — it's summed from skills. Feed it in so the
     // snapshot carries it (populates game_saves.total_level + the restore gate).
     totalLevel: () => (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0),
+    // b149 — token expiry hardening. If a save fails on an expired token, sync
+    // asks us to refresh + retries once; and we surface sync health to the UI
+    // so a player knows when their progress isn't reaching the cloud.
+    onAuthError: async () => {
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        if (data?.session) {
+          session = data.session;
+          localStorage.setItem(LOCAL_KEY, JSON.stringify(session));
+        }
+      } catch (e) { console.warn('[Auth] token refresh failed:', e.message); }
+    },
+    onSyncFailure: () => {
+      if (typeof window.notify === 'function') window.notify('⚠️ Reconnecting… your progress is saved locally.', 'kill');
+      const pill = document.getElementById('status-pill') || document.getElementById('hr-auth-banner');
+      if (pill) pill.textContent = '🟠 Reconnecting…';
+    },
+    onSyncRecovered: () => {
+      if (typeof window.notify === 'function') window.notify('✅ Back online — progress synced.', 'info');
+      renderAuthUi();
+    },
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });

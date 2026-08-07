@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 149 — 2026-08-07 (Don't lose progress when the login token expires)
+
+Surfaced while verifying the save fix: Supabase access tokens expire (~1 hour), and when one did, cloud saves **failed silently** — `snapshotIfDue`/`flush` caught the error and only logged a warning, so a long play session's progress could stop reaching the cloud with zero signal to the player. (Local save was fine, so no data was lost — it just wasn't syncing.)
+
+- 🔑 **Auto-refresh + retry on expired token.** The Supabase client is now created with explicit `autoRefreshToken`/`persistSession`, and if a save still fails on an auth error, sync asks the auth layer to refresh the token and **retries once** with the fresh token. Applies to both the snapshot save and the event flush.
+- 📣 **Sync failures are now visible.** When saves can't reach the cloud, you get a "⚠️ Reconnecting… your progress is saved locally" toast + a status-pill change; when it recovers, a "✅ Back online — progress synced" confirmation. No more silent failure.
+- 🧪 **+2 regression tests** (the `isAuthError` classifier + the live config wiring the refresh/health hooks). `isAuthError` extracted as a pure, tested helper.
+- 🐛 Fixed a self-bug in `bump-version.sh` (a clean bump exited non-zero because a "no leftovers" grep returned empty under `set -e`).
+
 ## v0.9.1-beta build 148 — 2026-08-07 (Fix the ESM cache gap — deploys now propagate instantly)
 
 Infrastructure fix. While verifying the b147 save fix in a live session, hit the exact "ESM module cache-buster gap" that's been sitting in the ROADMAP backlog — and it's nastier than it sounded: it made a correct, deployed fix *look* broken for ~10 minutes, and it would do the same to every beta tester after every update.

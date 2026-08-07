@@ -49,14 +49,19 @@ sed -i "s/?v=${old}/?v=${new}/g" index.html
 find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old}/?v=${new}/g"
 
 # --- Verify nothing was left behind ---
-stale_html="$(grep -oE "\?v=${old}\b" index.html | wc -l | tr -d ' ')"
-stale_js="$(grep -roE "\?v=${old}\b" src --include='*.js' | wc -l | tr -d ' ')"
+# NOTE: grep exits 1 when it finds nothing, which is the SUCCESS case here, so
+# each grep is guarded with `|| true` — otherwise `set -e -o pipefail` would kill
+# the script on a clean bump (the b149 self-bug this script hit on its first run).
+stale_html="$({ grep -oE "\?v=${old}\b" index.html || true; } | wc -l | tr -d ' ')"
+stale_js="$({ grep -roE "\?v=${old}\b" src --include='*.js' || true; } | wc -l | tr -d ' ')"
 # Any relative .js import that has NO ?v= at all is a NEW gap — flag it.
-missing="$(grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' | grep -vE '\?v=' | wc -l | tr -d ' ')"
+missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' || true; } | { grep -vE '\?v=' || true; } | wc -l | tr -d ' ')"
+new_html="$({ grep -oE "\?v=${new}\b" index.html || true; } | wc -l | tr -d ' ')"
+new_js="$({ grep -roE "\?v=${new}\b" src --include='*.js' || true; } | wc -l | tr -d ' ')"
 
 echo "  build-info.cache : $(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js)"
-echo "  index.html ?v=${new} : $(grep -oE "\?v=${new}\b" index.html | wc -l | tr -d ' ') tags"
-echo "  src ?v=${new}        : $(grep -roE "\?v=${new}\b" src --include='*.js' | wc -l | tr -d ' ') import specifiers"
+echo "  index.html ?v=${new} : ${new_html} tags"
+echo "  src ?v=${new}        : ${new_js} import specifiers"
 echo "  leftover ?v=${old}   : html=${stale_html} js=${stale_js} (want 0/0)"
 echo "  unversioned relative imports : ${missing} (want 0)"
 

@@ -42,14 +42,32 @@
     cooking: '--gold', crafting: '--gold', smithing: '--gold', gold: '--gold'
   };
 
-  var paths = {};        // key -> path 'd'
+  // monster id -> game-icons name (creatures, all in the crimson ring)
+  var MON = {
+    slime: 'lorc/gooey-daemon', venom_spider: 'lorc/hanging-spider', plague_swarm: 'lorc/wasp-sting',
+    warband_captain: 'lorc/barbute', wraith: 'lorc/spectre', shadow_creeper: 'lorc/spectre',
+    death_knight: 'lorc/visored-helm', lich: 'lorc/crowned-skull',
+    small_wolf: 'lorc/wolf-head', wolf: 'lorc/wolf-head', dire_wolf: 'lorc/wolf-head',
+    dark_wizard: 'lorc/pointy-hat', warlock: 'lorc/hood', archmage: 'lorc/wizard-staff',
+    lesser_demon: 'lorc/daemon-skull', void_parasite: 'lorc/daemon-skull', war_king: 'lorc/crowned-skull',
+    dragon: 'lorc/dragon-head', rat: 'delapouite/rat', giant_bat: 'delapouite/bat',
+    goblin: 'delapouite/goblin-head', hobgoblin: 'delapouite/orc-head', goblin_brute: 'delapouite/orc-head',
+    goblin_warlord: 'delapouite/orc-head', weak_skeleton: 'lorc/skull-crack', skeleton: 'lorc/skeleton-inside',
+    zombie: 'delapouite/shambling-zombie', bear: 'delapouite/bear-head', ancient_bear: 'delapouite/bear-head',
+    panther: 'lorc/cat'
+  };
+
+  var paths = {};        // skill/currency key -> path 'd'
+  var monPaths = {};     // monster id -> path 'd'
   var loaded = false;
 
   function loadCache() {
     try { var raw = localStorage.getItem(CACHE_KEY); if (raw) paths = JSON.parse(raw) || {}; } catch (e) {}
+    try { var rawM = localStorage.getItem(CACHE_KEY + ':mon'); if (rawM) monPaths = JSON.parse(rawM) || {}; } catch (e) {}
   }
   function saveCache() {
     try { localStorage.setItem(CACHE_KEY, JSON.stringify(paths)); } catch (e) {}
+    try { localStorage.setItem(CACHE_KEY + ':mon', JSON.stringify(monPaths)); } catch (e) {}
   }
 
   function extractPath(svgText) {
@@ -103,33 +121,66 @@
     });
   }
 
-  async function fetchAll() {
-    var keys = Object.keys(SRC);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      if (paths[key]) continue;                         // cached
-      var names = SRC[key];
-      for (var j = 0; j < names.length; j++) {
-        try {
-          var res = await fetch(GH + names[j] + '.svg');
-          if (!res.ok) continue;
-          var d = extractPath(await res.text());
-          if (d) { paths[key] = d; break; }
-        } catch (e) { /* try next */ }
-      }
+  // Monster medallions — same sweep, crimson ring, on the combat monster rows.
+  function medallionMon(id, px) {
+    var d = monPaths[id]; if (!d) return null;
+    ensureStyle();
+    return '<span class="hr-med" style="--sz:' + (px || 40) + 'px;--ring:var(--red,#d64a3a)">' +
+      '<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#e9d9b8" d="' + d + '"/></svg></span>';
+  }
+  function monIdByName(nm) {
+    if (!window.MONSTERS) return null;
+    nm = (nm || '').trim().toLowerCase();
+    for (var id in window.MONSTERS) { if ((window.MONSTERS[id].name || '').toLowerCase() === nm) return id; }
+    return null;
+  }
+  function paintMonsters() {
+    if (!Object.keys(monPaths).length || !window.MONSTERS) return;
+    ensureStyle();
+    // combat monster rows have no inline onclick, so resolve the id from the
+    // name label; fall back to an onclick if a variant provides one.
+    document.querySelectorAll('.monster-row, .mon-row').forEach(function (el) {
+      var iconEl = el.querySelector('.mi, .mon-icon, .m-icon');
+      if (!iconEl || iconEl.querySelector('.hr-med')) return;
+      var id = null;
+      var oc = el.getAttribute('onclick') || '';
+      var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
+      if (m) id = m[1];
+      if (!id) { var nmEl = el.querySelector('.mn, .mon-name, .m-name'); if (nmEl) id = monIdByName(nmEl.textContent); }
+      if (!id || !monPaths[id]) return;
+      var mv = medallionMon(id, 40);
+      if (mv) iconEl.innerHTML = mv;
+    });
+  }
+  function paintAll() { paintSkills(); paintMonsters(); }
+
+  async function fetchOne(names) {
+    for (var j = 0; j < names.length; j++) {
+      try {
+        var res = await fetch(GH + names[j] + '.svg');
+        if (!res.ok) continue;
+        var d = extractPath(await res.text());
+        if (d) return d;
+      } catch (e) { /* try next */ }
     }
+    return null;
+  }
+  async function fetchAll() {
+    var k;
+    for (k in SRC) { if (!paths[k]) { var ds = await fetchOne(SRC[k]); if (ds) paths[k] = ds; } }
+    for (k in MON) { if (!monPaths[k]) { var dm = await fetchOne([MON[k]]); if (dm) monPaths[k] = dm; } }
     saveCache();
     loaded = true;
-    paintSkills();
+    paintAll();
   }
 
   loadCache();
   // paint from cache immediately (instant on repeat loads), refresh from network,
   // and keep painting after re-renders.
-  if (Object.keys(paths).length) setTimeout(paintSkills, 300);
+  if (Object.keys(paths).length || Object.keys(monPaths).length) setTimeout(paintAll, 300);
   if (document.readyState !== 'loading') fetchAll();
   else document.addEventListener('DOMContentLoaded', fetchAll);
-  setInterval(paintSkills, 1200);
+  setInterval(paintAll, 1200);
 
   // NOTE: renamed off HearthriseIcons — that global belongs to icon-swap.js
   // (nav/topbar PNG swaps). Ours is the game-icons medallion set.
@@ -138,7 +189,7 @@
     has: function (k) { return !!paths[k]; },
     path: function (k) { return paths[k] || null; },
     ready: function () { return loaded; },
-    repaint: paintSkills
+    repaint: paintAll
   };
   console.log('[icon-set] loaded');
 })();

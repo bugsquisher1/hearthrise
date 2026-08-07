@@ -105,6 +105,9 @@
       R + '.hd-mini{padding:15px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:var(--bg-2) !important;border:1px solid var(--line) !important}',
       R + '.hd-mini b{color:var(--ink) !important;font-family:var(--f-display);font-size:15px;font-weight:600}',
+      /* nested/classless text inside minis (buffs blurb, resume subtitle) kept
+         readable — accent links carry data-hd so they keep their colour */
+      R + '.hd-mini div:not([data-hd]),' + R + '.hd-mini span:not([data-hd]){color:var(--ink-2) !important}',
       R + '.hd-mini .go{margin-left:auto}'
     ].join('\n');
   }

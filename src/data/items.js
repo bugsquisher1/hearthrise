@@ -364,7 +364,15 @@ export const ITEMS={
 
      Icons are the last-resort emoji glyph every item carries; the real art is
      an Art/Asset hand-off (assets/icons-bundle/), and until it lands
-     itemGlyphKey() answers with a gilt uiChest/uiOre glyph, not the emoji. */
+     itemGlyphKey() answers with a gilt uiChest/uiOre glyph, not the emoji.
+
+     Asset pass (b224): three of the four got a genuinely fitting painted icon
+     promoted from _archive/reserve-art (wired in LOCAL_ITEM_ICON, bottom of
+     legacy.js) — a squared aged plank for the beam, a baked loaf for the
+     ration, a cast-iron cog for the fitting. `keystone` stays on its gilt
+     atlas glyph: nothing in reserve-art reads as a carved/cut masonry block
+     (only raw ore-pile chunks and polished gems exist there) — a good glyph
+     beats a wrong painting. */
   timber_beam:  {n:'Timber Beam',  icon:'🪵', v:300,  tier:2, tag:'castle'},
   iron_fitting: {n:'Iron Fitting', icon:'🔩', v:480,  tier:2, tag:'castle'},
   field_ration: {n:'Field Ration', icon:'🥖', v:90,   tier:1, tag:'castle'},

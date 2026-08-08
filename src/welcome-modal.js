@@ -33,15 +33,26 @@
   }
 
   function parseFirstSection(md) {
+    // Normalize line endings first — a CRLF checkout/serve made the regex miss
+    // every heading and dump the ENTIRE file (maintenance preamble included)
+    // into the modal.
+    md = md.replace(/\r\n?/g, '\n');
     // Find the first `## ` heading and grab everything until the next `## ` heading.
     const re = /^##\s+(.+?)\n([\s\S]*?)(?=\n##\s+|\n*$)/m;
     const m = md.match(re);
-    if (!m) return { title: 'What\'s new', body: md };
+    // Never fall back to the raw file — it starts with the format documentation,
+    // which is not player content.
+    if (!m) return null;
     return { title: m[1].trim(), body: m[2].trim() };
   }
 
   // Tiny markdown → HTML for our limited syntax (** bold **, * bullets *, blank lines).
   function mdToHtml(md) {
+    // CHANGELOG entries may use emoji as list markers for human readers; the
+    // in-game modal must render none (0-emoji rule), so strip pictographs here.
+    // NB: Extended_Pictographic includes ASCII `*`/`#`/digits (keycap bases) —
+    // keep anything below U+2000 or the markdown itself gets eaten.
+    md = md.replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, c => c.codePointAt(0) < 0x2000 ? c : '').replace(/^([-*]\s+)\s+/gm, '$1');
     const esc = (s) => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]);
     const lines = md.split('\n');
     const out = [];
@@ -114,6 +125,7 @@
       if (!res.ok) { markSeen(cur); return; }
       const md = await res.text();
       const section = parseFirstSection(md);
+      if (!section) { markSeen(cur); return; } // malformed changelog — never show raw file
       render({ title: section.title, body: section.body, version: cur });
       markSeen(cur);
     } catch (e) {
@@ -124,6 +136,8 @@
 
   // Public manual trigger (Settings → "Show what's new")
   window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.removeItem(SEEN_KEY); } catch{} maybeShow(); } };
+  // Test seam (smoke suite asserts CRLF parsing + emoji stripping)
+  window.__hrWelcomeParse = { parseFirstSection, mdToHtml };
 
   // Run on DOM ready, slight delay so FTUE / build-info finish booting first
   function boot() { setTimeout(maybeShow, 1500); }

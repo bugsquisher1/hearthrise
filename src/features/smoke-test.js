@@ -3335,6 +3335,26 @@ const TESTS = [
       } catch (e) {}
     }
   }),
+
+  // b219: the What's New modal fetched CHANGELOG.md and, when the parse regex
+  // missed (CRLF line endings — `.` can't cross `\r`), fell back to rendering
+  // the ENTIRE raw file: maintenance preamble, `#`/`##` markdown and all.
+  // Guard: CRLF input parses to the first section only, malformed input
+  // yields null (never the raw file), and rendered HTML strips pictographs.
+  () => tryRun('b219: whats-new parser survives CRLF and never leaks the raw file', () => {
+    const P = window.__hrWelcomeParse;
+    if (!P) throw new Error('__hrWelcomeParse test seam missing');
+    const crlf = '# Hearthrise — Changelog\r\n\r\npreamble not for players\r\n\r\n## v9.9 build 999 — 2099-01-01 (Test)\r\n\r\n- 🔤 **bullet** one\r\n\r\n## v9.8 old — 2098-01-01\r\n\r\n- old\r\n';
+    const sec = P.parseFirstSection(crlf);
+    assert(sec, 'CRLF changelog failed to parse');
+    assert(/^v9\.9/.test(sec.title), 'wrong section picked: ' + (sec && sec.title));
+    assert(!/preamble/.test(sec.body) && !/old/.test(sec.body), 'section body leaked neighbouring content');
+    assert(P.parseFirstSection('no headings here at all') === null, 'malformed changelog must yield null, not the raw file');
+    const html = P.mdToHtml(sec.body);
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    assert(!EMOJI.test(html), 'rendered whats-new HTML still contains pictographs');
+    assert(/<strong>bullet<\/strong>/.test(html), 'markdown bold lost in render');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

@@ -4,6 +4,7 @@
 **Author: Game Designer · 2026-08-08 · Status: SPEC (buildable blueprint, no code changed)**
 **Tyler's direction (binding):** a clan analogue of world events — clans fight **tiered group bosses**.
 **Reads with:** `docs/design/clan-overhaul.md` (#10) and `docs/design/world-event-cadence.md` (#15/#14). This is the third leg of one Wave-3 package, not a bolt-on.
+**Amended 2026-08-08 for clan-overhaul v2** — §10 reconciles this spec with the source design doc's *Siege*, and §3.3/§5.4 gain the War Room and blueprint interlocks. Read §10 first if you are here from the castle spec.
 
 ---
 
@@ -91,15 +92,25 @@ This one formula does three jobs at once:
 
 ### 3.3 The tier ladder
 
-Tier availability is gated by `castle_tier` (the Great Hall, `clan-overhaul.md` §4.2) and clan level. Pool values are tuned against the measured strike table in §2.2, targeting a kill when ~70% of the roster strikes ~5 of 7 days.
+Tier availability is gated by `castle_tier` (the Great Hall, `clan-overhaul.md` §5) **and by the War Room building level** (`clan-overhaul.md` §7). Pool values are tuned against the measured strike table in §2.2, targeting a kill when ~70% of the roster strikes ~5 of 7 days.
 
-| Tier | Hunt name | `castle_tier` req | Clan lvl req | Expected member CL | `TIER_BASE` | `TIER_PER_MEMBER` | Pool @ n=10 |
+```
+max_hunt_tier = min( castle_tier , 1 + floor(war_room_level / 3) )
+```
+
+**Clan `level` is no longer a gate.** `clan-overhaul.md` v2 §2.3 found that `clan_contribute`'s ×4 ladder puts clan level 10 at 655,360,000 gold — an unreachable number that would have frozen the Hunt at Tier I forever. The castle's **Standing** currency and the War Room replace it.
+
+| Tier | Hunt name | `castle_tier` req | War Room lvl req | Expected member CL | `TIER_BASE` | `TIER_PER_MEMBER` | Pool @ n=10 |
 |---|---|---|---|---|---|---|---|
-| **I** | **Warband Hunt** | 0 (Camp) | 1 | 30-45 | 5,000 | 3,000 | 35,000 |
-| **II** | **Keep Hunt** | 2 (Keep) | 3 | 46-60 | 15,000 | 7,500 | 90,000 |
-| **III** | **Fortress Hunt** | 3 (Fortress) | 5 | 61-75 | 30,000 | 12,500 | 155,000 |
-| **IV** | **Citadel Hunt** | 4 (Citadel) | 7 | 76-90 | 50,000 | 16,000 | 210,000 |
-| **V** | **Crown Hunt** | 5 (Castle) | 9 | 90+ | 80,000 | 21,000 | 290,000 |
+| **I** | **Warband Hunt** | 1 (Wayside Camp) | 0 | 30-45 | 5,000 | 3,000 | 35,000 |
+| **II** | **Keep Hunt** | 2 (Palisade) | 3 | 46-60 | 15,000 | 7,500 | 90,000 |
+| **III** | **Fortress Hunt** | 3 (Timber Hold) | 6 | 61-75 | 30,000 | 12,500 | 155,000 |
+| **IV** | **Citadel Hunt** | 4 (Stone Bailey) | 9 | 76-90 | 50,000 | 16,000 | 210,000 |
+| **V** | **Crown Hunt** | 5 (Fortified Keep) | 12 *(Phase C)* | 90+ | 80,000 | 21,000 | 290,000 |
+
+Tier names for `castle_tier` follow clan-overhaul v2 §5 (Wayside Camp → Palisade → Timber Hold → Stone Bailey → Fortified Keep); the Hunt names are unchanged. War Room level 12 requires castle tier 6, so **Tier V is Phase C content** — Phase A tops out at the Citadel Hunt.
+
+**The reciprocal gate:** castle tiers 4 and 5 each require a **Hunt clear at the matching tier within the last 4 weeks** (§10.2). So the Hunt is not optional content bolted to the side of the castle — it is load-bearing in both directions.
 
 Worked check, Tier II, 10 mid members: pool 90,000; expected weekly output `10 × 5 × 2,900 × 0.7 = 101,500` → **downed with ~11% headroom.** Tier V, 40 max-level members: pool 920,000; expected `40 × 5 × 8,000 × 0.7 = 1,120,000` → downed with ~18% headroom. Every tier is a real fight that a committed clan wins.
 
@@ -192,6 +203,8 @@ chest × band × min(0.6, total_damage / pool_hp)
 claimable in a 24-hour grace window after the week rolls. An idle game cannot punish a clan for one bad week of attendance; but the kill is still clearly better (full value **plus** the signature drop), so it remains the goal.
 
 ### 5.4 Chest by tier (full share, ×band)
+
+*Amended: §10.4 adds a **clan Standing** column to this table — the Hunt's permanent contribution to the castle. Standing is paid flat, once per kill, not per claimer.*
 
 | Tier | Gold | Gems | Materials | Signature drop on kill |
 |---|---|---|---|---|
@@ -289,17 +302,93 @@ Additive. `clan_raids` gains columns; the client-side PATCH claim is replaced by
 
 ## 9. Cross-spec dependencies and conflicts (for `CONFLICTS.md`)
 
-1. **`clan-overhaul.md` §5.2 needs re-tuning.** The weekly objective *"Break the Siege — raid boss damage: 500,000"* was written against the flat 250,000 pool. Against a Tier I pool of 35,000 it asks for **fifteen bosses' worth of damage**. Retarget to `1.5 × the declared Hunt's pool_hp`, computed at declaration.
-2. **`raidPower` is a new `getBonus` key** (`clan-overhaul.md` §4.3) that `raids.js simulateStrike` must consume. Already flagged; restated because the tier ladder's climbability depends on it.
-3. **The perk-stacking re-scope** (`clan-overhaul.md` §7) must land in the same wave. Hunt rewards are sized against current income; a simultaneous +57% `allXP` stack would invalidate the tuning in §5.4.
+1. ~~**`clan-overhaul.md` §5.2 needs re-tuning.**~~ **RESOLVED in clan-overhaul v2 §9.2.** The objective *"Break the Siege — 500,000 raid damage"* was written against the flat 250,000 pool; against a Tier I pool of 35,000 it asked for fifteen bosses. It is now the **Tavern Board's weekly task**, targeted at `1.5 × the declared Hunt's pool_hp`, computed at declaration. Weekly clan objectives as a separate system no longer exist — the Board absorbed them.
+2. **`raidPower` is a new `getBonus` key** (`clan-overhaul.md` v2 §7) that `raids.js simulateStrike` must consume. Already flagged; restated because the tier ladder's climbability depends on it. In v2 it comes from the **War Room building** (+1%/lvl → +10% at L10), not a "wing".
+3. **The perk-stacking re-scope** (`clan-overhaul.md` v2 §8.3) must land in the same wave. Hunt rewards are sized against current income; a simultaneous +72% `allXP` stack would invalidate the tuning in §5.4. (v2 recomputed the unmanaged ceiling as **+72%**, not +57% — v1 omitted the Great Hall's own contribution.)
 4. **The Events panel is a shared dependency.** `world-event-cadence.md` §7.2 moves the raid card out of `#panel-dungeons`. If #15/#14 and #16 ship in different waves, the Hunt card lands in a panel that no longer has a nav entry — the exact bug #14 exists to fix. **Ship them together.**
 5. **The three live exploits in §2.4 are in production today** and are independent of this spec. They should be fixed on their own schedule if Wave 3 slips — particularly the P1 unlimited-strike hole.
-6. **Signature materials require recipes.** Six new boss materials must land with b215-armour-tier recipes in the same commit, or they become the 26th through 31st recipe-less vendor-trash drops.
+6. **Signature materials require recipes.** Six new boss materials must land with b215-armour-tier recipes in the same commit, or they become the 35th through 40th recipe-less vendor-trash drops. *(Recount: `clan-overhaul.md` v2 §4.4 measured the live orphan set at **34**, not ~25, and routed all 34 into castle demands. Adding six unrouted boss materials would immediately reopen a problem that spec just closed — so the six either get armour recipes or get a castle route. Either is acceptable; neither is optional.)*
+7. **The War Room is a Phase-A castle building** (`clan-overhaul.md` v2 §7). Without it the Hunt has no declaration surface and no tier ceiling above I. **#16 cannot ship before castle buildings exist.**
+8. **`clan_raids.downed_at` is now read by the castle**, for the tier-4/5 blueprint gate (§10.2). It exists today; it must not be dropped or reset by any Hunt migration.
 
 ---
 
-## 10. Hand-offs
+## 10. The Siege, reconciled — one combat pillar, not two
 
-- **Systems:** §7 in full; the P1 day-guard is the highest-priority item on this page and is independent of everything else.
+Tyler's source design doc ("The Clan Seat") specifies a **weekly Siege**: waves of attackers assault the castle Walls over a 60-minute window, defenders take four live roles (Wall Crew, Tower Crew, Sally Force, Quartermaster), and clearing it drops the **Blueprints that gate Castle Tiers**. That is a second weekly clan-combat loop competing with the Hunt for the same one strike-shaped click per day.
+
+**Ruling: the Hunt is the clan's combat pillar. The Siege is absorbed into it — as a gate, a modifier and a name — and is never a parallel system.**
+
+### 10.1 Why the Hunt wins the collision
+
+1. **There is no live shared combat instance.** `simulateStrike` (`raids.js:73-85`) runs 120 ticks of `getPlayerCombatRolls` *offline, for one player*. Four synchronous defender roles need a real-time server-side fight that does not exist and is not on any roadmap. Shipping the roles as UI over an offline simulation would be a fake, and the Final Directive forbids fakes.
+2. **A 60-minute fixed window excludes part of every roster.** §4.1 already settled this for rallies: world events survive fixed slots by pairing them 12h apart and letting you skip one — *a clan cannot skip its own clan.*
+3. **One attention budget.** Two weekly clan-boss loops would both feel undersubscribed, which is how a small clan dies (§1).
+
+### 10.2 What survives, translated
+
+| Source-doc Siege element | Hearthrise translation | Phase |
+|---|---|---|
+| **Blueprints gate Castle Tiers** | **Castle tiers 4 and 5 require a Hunt clear at the matching tier within the last 4 weeks** — Tier II for the Stone Bailey, Tier III for the Fortified Keep. `clan_raids.downed_at` already exists, so the gate costs one `where` clause. The Hunt becomes **mandatory but never scheduled** — exactly the property §4.1 argued for. | **A** |
+| Waves assault the Walls | The **Hold the Gate** modifier, attached by the declaring officer. Each UTC day the Hunt lives, the boss removes `siege_damage` from the castle's **Bulwark** pool. If the Bulwark empties before the boss does, the hold drops to **Strained** for one week — reusing `clan-overhaul.md` §10's existing upkeep state rather than inventing a punishment. Reward for holding: **chest × 1.35**. | **B** (needs the Walls district) |
+| Wall / Tower / Sally / Quartermaster roles | **Rejected.** §10.1. | — |
+| Curtain Walls, Gatehouse, Watchtowers, Barbican | Walls-district buildings: raise the Bulwark pool, reduce `siege_damage`. | **B** |
+| "Spoils of War" research (+25% siege materials) | Archives research branch. | **B** |
+| Relics for Legendary Benches | Rejected with stations (`clan-overhaul.md` v2 §14.5). | — |
+
+The word **Siege** survives as the modifier's name, so nothing of the flavour is lost: *a Hunt with Hold the Gate attached is the Siege.*
+
+### 10.3 The interlock, stated once
+
+- **War Room level** sets the Hunt tier ceiling (§3.3). A clan that never builds it is stuck on Tier I Hunts, and therefore stuck at castle tier 3.
+- **`raidPower`** from the War Room multiplies `simulateStrike` (§7 client work). Without it the building buffs nothing.
+- **Hunt chests pay Standing** into the castle (§10.4), and **castle tiers 4-5 require Hunt kills** (§10.2). The loop closes in both directions — which is what makes this one system rather than two features sharing a table.
+- The **Tavern Board's weekly task** is the Hunt damage objective, at `1.5 × pool_hp` (`clan-overhaul.md` v2 §9.2).
+- The **Faltering / Killing Blow / First Blood** lines (§4.1) post to clan chat and to the castle panel's "This week" strip.
+
+### 10.4 Hunt chests pay Standing
+
+One column added to the §5.4 chest table. Standing is the clan-pooled, never-decaying castle currency (`clan-overhaul.md` v2 §3), so this is the Hunt's permanent contribution to the hold:
+
+| Tier | Gold | Gems | Materials | **Clan Standing (per kill, flat)** |
+|---|---|---|---|---|
+| **I** Warband | 7,000 | 12 | 4× tier-2/3 mats | **1,200** |
+| **II** Keep | 14,000 | 20 | 6× tier-3/4 mats | **3,000** |
+| **III** Fortress | 28,000 | 30 | 8× tier-4/5 mats | **7,000** |
+| **IV** Citadel | 50,000 | 45 | 10× tier-5/6 mats | **15,000** |
+| **V** Crown | 90,000 | 60 | 12× tier-6 mats | **32,000** |
+| *Solo Lone Hunt* | 2,800 | 5 | 2× tier-2 mats | — |
+
+Standing is **flat per kill, not per contributor** — it is the hold's achievement, not a payout, so it cannot be farmed by stuffing the roster (which also raises the pool, §3.2). A partial-credit week (§5.3) pays Standing × the same `min(0.6, damage/pool_hp)` factor.
+
+Sanity check against `clan-overhaul.md` v2 §5.1: an active 10-member clan generates ~20,000 Standing/week, of which a Tier II kill is 3,000 — **15%.** Meaningful, and nowhere near enough to skip the economy. Correct weighting: the Hunt is a gate and a bonus, never the main road.
+
+### 10.5 Extra server work created by this section
+
+```sql
+-- 10.5a clan_hunt_declare (§7.2) gains p_hold_gate boolean default false (Phase B)
+--       and validates p_tier <= least(castle_tier, 1 + floor(war_room_level / 3)),
+--       reading war_room_level from clans.upgrades->>'war_room'.
+
+-- 10.5b clan_raid_claim (§7.4): when the boss is downed, additionally
+--         update public.clans set standing = standing + tier_standing(tier)
+--       exactly ONCE per (clan_id, week_key). Guard on a new
+--         clan_raids.standing_paid boolean not null default false
+--       flipped in the same statement — never per claimer, or a 40-member
+--       clan pays itself 40× the Standing for one kill.
+
+-- 10.5c clan_tier_up (clan-overhaul v2 §12.2) reads:
+--         exists (select 1 from public.clan_raids
+--                  where clan_id = p_clan_id and tier >= v_required
+--                    and downed_at > now() - interval '28 days')
+```
+
+Test coverage to add to §8: **(10)** a downed Tier II Hunt pays 3,000 Standing once, not once per claimer; **(11)** a castle tier-4 attempt with no Hunt clear in 28 days is refused; **(12)** a Tier III declaration at War Room level 5 is refused, and allowed at 6.
+
+---
+
+## 11. Hand-offs
+
+- **Systems:** §7 and §10.5 in full; the P1 day-guard is the highest-priority item on this page and is independent of everything else.
 - **Art Director:** six boss portraits, the Hunt card in the Events panel, the "This week" strip in the clan castle panel. No emoji.
-- **Game Designer (me):** owns `TIER_BASE` / `TIER_PER_MEMBER` (§3.3), the band thresholds (§5.2), and the chest table (§5.4). First re-tune after one full week of live Hunt data. If clans are clearing too early the lever is `TIER_PER_MEMBER`, not the chest — difficulty should scale with the clan, and reward should stay predictable.
+- **Game Designer (me):** owns `TIER_BASE` / `TIER_PER_MEMBER` (§3.3), the band thresholds (§5.2), the chest table (§5.4) and the Standing column (§10.4). First re-tune after one full week of live Hunt data. If clans are clearing too early the lever is `TIER_PER_MEMBER`, not the chest — difficulty should scale with the clan, and reward should stay predictable.

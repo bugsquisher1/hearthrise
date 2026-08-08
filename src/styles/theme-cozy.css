@@ -4536,3 +4536,35 @@ body[data-theme="hearthlight"] input.search,
 body[data-theme="hearthlight"] .topbar input {
   background: var(--bg-2) !important; color: var(--ink) !important; border-color: var(--line) !important;
 }
+
+/* ============================================================
+   b213 (phase 2): combat empty-state / "Suggested for your level"
+   — the always-on cozy rules above paint these cream even on the
+   dark theme (html:not([data-theme]) matches forever because the
+   theme attribute lives on <body>). Restore dark surfaces here;
+   same specificity, later in source, so these win on hearthlight.
+   ============================================================ */
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-tip,
+body[data-theme="hearthlight"] #panel-combat .combat-arena [class*="suggest"],
+body[data-theme="hearthlight"] #panel-combat #combat-area > div {
+  background: var(--bg-1, #141a26) !important;
+  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob {
+  background: rgba(0,0,0,.28) !important;
+  border: 1px solid var(--line-soft, rgba(122,94,58,.22)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob *,
+body[data-theme="hearthlight"] #panel-combat .combat-arena [class*="suggest"] *,
+body[data-theme="hearthlight"] #panel-combat #combat-area > div * {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-tip h4 {
+  color: var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob .muted,
+body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob .tiny {
+  color: var(--ink-3, #a5896a) !important;
+}

@@ -5415,11 +5415,20 @@ window._renderCombatEmpty = function(){
   // b131: text adapts to layout. On mobile (single column with FOES sub-tab),
   // there is no "left" — monsters are above. Pick the right hint.
   var pickHint = (window.innerWidth <= 540) ? 'Pick a monster from FOES to begin.' : 'Pick a monster on the left to begin.';
-  var html = '<div class="combat-empty"><div class="empty"><span class="em-icon">⚔️</span>'+pickHint+'</div>'+
+  /* b213 (phase 2): crossed-swords glyph instead of the ⚔️ emoji, and the
+     same crimson creature medallions the monster picker uses — the old
+     _monsterIcon PNGs here were mismatched (a blue dragon for Field Rat). */
+  var IS = window.HearthriseIconSet;
+  var swordP = IS && IS.path && IS.path('navCombat');
+  var swordIco = swordP
+    ? '<span class="em-icon"><svg viewBox="0 0 512 512" style="width:34px;height:34px;opacity:.5"><path fill="currentColor" d="'+swordP+'"/></svg></span>'
+    : '<span class="em-icon">⚔️</span>';
+  var html = '<div class="combat-empty"><div class="empty">'+swordIco+pickHint+'</div>'+
     '<div class="ce-tip"><h4>Suggested for your level</h4>'+
     picks.map(function(p){
+      var med = IS && IS.medallionMon && IS.medallionMon(p.id, 34);
       var path = window._monsterIcon && window._monsterIcon[p.id];
-      var img = path ? '<img src="'+path+'" />' : '<span style="font-size:24px">'+p.m.icon+'</span>';
+      var img = med || (path ? '<img src="'+path+'" />' : '<span style="font-size:24px">'+p.m.icon+'</span>');
       return '<div class="ce-mob" onclick="startCombat(\''+p.id+'\')">' +
         img + '<div style="flex:1"><b>'+p.m.name+'</b><div class="muted tiny">Tier '+p.m.tier+' · HP '+p.m.hp+' · '+p.m.xp+' XP</div></div></div>';
     }).join('') + '</div></div>';

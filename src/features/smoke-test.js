@@ -1124,10 +1124,14 @@ const TESTS = [
     try { btn.click(); } catch (e) { throw new Error('🐛 button threw: ' + e.message); }
     const modal = document.getElementById('hr-bug-modal');
     if (modal) {
-      // close it again so the form doesn't sit open during the rest of the suite
-      const closer = modal.querySelector('[data-close], .close, button');
+      // b213: close via the real Cancel control. The old querySelector
+      // ('button') grabbed the FIRST button — "Send report" — which
+      // submitted the empty form and left the modal (plus a browser
+      // validation bubble) sitting open after every suite run.
+      const closer = modal.querySelector('[data-act="cancel"], [data-close], .close');
       if (closer) try { closer.click(); } catch {}
-      modal.classList.remove('show');
+      const still = document.getElementById('hr-bug-modal');
+      if (still) still.remove();
     }
   }),
 
@@ -1152,6 +1156,11 @@ const TESTS = [
     assert(top && top.offsetHeight > 0, 'topbar disappeared after click suite');
     const profile = document.getElementById('panel-profile');
     assert(profile && profile.classList.contains('active'), 'profile panel did not re-activate');
+    // b213: re-render the topbar from restored G — the b138 setDisplayName
+    // test's 'AAAA…' name stayed painted in the DOM after restoreG put
+    // G.playerName back (restore fixes state, not stale renders).
+    if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch {}
+    if (typeof window.renderProfile === 'function') try { window.renderProfile(); } catch {}
   }),
 
   // ─────────────────────────────────────────────────────────────
@@ -2152,6 +2161,11 @@ const TESTS = [
     } finally {
       window.G.playerName = orig;
       restoreG(snap);
+      // b213: setDisplayName paints the topbar + saves — repaint and re-save
+      // from the RESTORED name, or the 'AAAA…' test string stays in the
+      // topbar (and on disk) after every suite run.
+      if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch {}
+      if (typeof window.saveLocal === 'function') try { window.saveLocal(); } catch {}
     }
   }),
 

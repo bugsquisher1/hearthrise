@@ -305,6 +305,7 @@
   // (nav/topbar PNG swaps). Ours is the game-icons medallion set.
   window.HearthriseIconSet = {
     medallion: medallion,
+    medallionMon: medallionMon,
     has: function (k) { return !!paths[k]; },
     path: function (k) { return paths[k] || null; },
     ready: function () { return loaded; },

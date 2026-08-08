@@ -42,6 +42,19 @@ function renderMonsterList() {
   el.innerHTML = list || '<div class="empty">No monsters in this tier.</div>';
 }
 
+/* b213 (phase 2): the tier is saved on G, but the chips' active state was
+   static markup — after a reload the list showed the saved tier while the
+   "Tier 1" chip stayed highlighted, and the first chip click looked like it
+   did nothing. Sync the chips (and sub-label) to the real tier. */
+function syncTierChips() {
+  const tier = (window.G && window.G.currentCombatTier) || 1;
+  document.querySelectorAll('#tier-chips .chip').forEach((c) => {
+    c.classList.toggle('active', parseInt(c.dataset.tier || '1', 10) === tier);
+  });
+  const sub = document.getElementById('combat-picker-sub');
+  if (sub) sub.textContent = `Tier ${tier}`;
+}
+
 function setupTierChips() {
   document.querySelectorAll('#tier-chips .chip').forEach((c) => {
     c.addEventListener('click', () => {
@@ -70,6 +83,7 @@ export function setupCombatRender() {
       if (name === 'combat') {
         setTimeout(() => {
           if (!chipsWired) { setupTierChips(); chipsWired = true; }
+          syncTierChips();
           renderMonsterList();
         }, 30);
       }

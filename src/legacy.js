@@ -9821,6 +9821,23 @@ window._monsterIcon = window._monsterIcon || {};
     dragon_bones:  'assets/icons-bundle/painted/items/dragon_bones.png',
     ruby:          'assets/icons-bundle/painted/items/ruby.png',
     dragon_gem:    'assets/icons-bundle/painted/items/dragon_gem.png',
+    // b202: painted TOOL icons (SYS-3 ladder — no emoji in the item grid).
+    // Picks/rods share a base per type; rarity borders convey the tier.
+    bronze_axe:      'assets/icons-bundle/painted/gear/bronze_axe.png',
+    iron_axe:        'assets/icons-bundle/painted/gear/iron_axe.png',
+    steel_axe:       'assets/icons-bundle/painted/gear/steel_axe.png',
+    mithril_axe:     'assets/icons-bundle/painted/gear/mithril_axe.png',
+    rune_axe:        'assets/icons-bundle/painted/gear/rune_axe.png',
+    bronze_pickaxe:  'assets/icons-bundle/painted/gear/bronze_pickaxe.png',
+    iron_pickaxe:    'assets/icons-bundle/painted/gear/iron_pickaxe.png',
+    steel_pickaxe:   'assets/icons-bundle/painted/gear/steel_pickaxe.png',
+    mithril_pickaxe: 'assets/icons-bundle/painted/gear/mithril_pickaxe.png',
+    rune_pickaxe:    'assets/icons-bundle/painted/gear/rune_pickaxe.png',
+    willow_rod:      'assets/icons-bundle/painted/gear/willow_rod.png',
+    oak_rod:         'assets/icons-bundle/painted/gear/oak_rod.png',
+    maple_rod:       'assets/icons-bundle/painted/gear/maple_rod.png',
+    yew_rod:         'assets/icons-bundle/painted/gear/yew_rod.png',
+    runewood_rod:    'assets/icons-bundle/painted/gear/runewood_rod.png',
     // all crop seeds share one painted seed icon
     turnip_seed:   'assets/icons-bundle/painted/items/seed.png',
     carrot_seed:   'assets/icons-bundle/painted/items/seed.png',

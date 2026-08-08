@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=201' directly.
+// modularised, will import { G } from '../state/game.js?v=203' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=201';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=201';
+import { on } from '../net/events.js?v=203';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=203';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -280,6 +280,32 @@ const TESTS = [
       assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
     } finally {
       G.inventory = savedInv;
+    }
+  }),
+  () => tryRun('b202: pets — skill/boss sources parse, forced roll unlocks, owned pets skip', () => {
+    const P = window.HearthrisePets;
+    assert(P, 'HearthrisePets present');
+    const skillPets = P._parse('skill'), bossPets = P._parse('boss');
+    assert(skillPets.length >= 8, 'expected 8+ skilling pets, got ' + skillPets.length);
+    assert(bossPets.length >= 2, 'expected 2+ boss pets, got ' + bossPets.length);
+    skillPets.concat(bossPets).forEach(p => {
+      assert(window.COMPANIONS[p.petId], 'pet def missing: ' + p.petId);
+      assert(p.n >= 200, p.petId + ' should be HARD to get (n>=200), got ' + p.n);
+    });
+    const G = window.G;
+    const saved = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
+    try {
+      G.companions = { ownedIds: [], equipped: null, xp: {} };
+      // forced win (rng → 0) unlocks the woodcutting pet
+      assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should unlock beaver');
+      assert(G.companions.ownedIds.includes('beaver'), 'beaver should be owned after unlock');
+      // owned pets never re-roll
+      assert(P.rollSkillPet('woodcutting', () => 0) === false, 'owned pet must not unlock twice');
+      // forced loss (rng → 1) never unlocks
+      assert(P.rollBossPet('lich', () => 0.999999) === false, 'losing roll should not unlock');
+      assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should unlock lichling');
+    } finally {
+      if (saved === undefined) delete G.companions; else G.companions = saved;
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

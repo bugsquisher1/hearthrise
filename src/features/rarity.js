@@ -37,7 +37,7 @@
   };
 
   // Only these item types carry a rarity border. Everything else -> null.
-  var GEAR_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };
+  var GEAR_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1, tool: 1 };
 
   function rarityByValue(v) {
     v = v || 0;

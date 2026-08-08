@@ -28,7 +28,16 @@ const XP_TABLE=[0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2
    "every skill to 99": levelFromXp could never return 99 (13,034,431 xp showed
    as level 98), and the skill header read "13,034,431 / NaN" because
    XP_TABLE[98] was undefined. The cap is reachable now. */
+/* b222: publish the table on window. `const` at the top level of a classic
+   script lives in the global LEXICAL scope, which is NOT window — so every
+   module that reached for `window.XP_TABLE` silently got undefined and fell
+   back. That was not theoretical: renown.js's lvlFromXp returned 1 for every
+   skill, so the meta-spine scored a fresh save's 24 total levels as 15 (a
+   verified 220 Renown instead of 310), and admin.js's set-level tool short-
+   circuited on `if(!window.XP_TABLE) return;`. Found while building the Throne
+   leaderboard, whose score IS computeRenown. One assignment fixes all three. */
 function levelFromXp(xp){for(let i=XP_TABLE.length-1;i>=0;i--)if(xp>=XP_TABLE[i])return Math.min(i+1,99);return 1}
+window.XP_TABLE=XP_TABLE;
 function xpToNext(xp){const lv=levelFromXp(xp);if(lv>=99)return 0;return XP_TABLE[lv]-xp}
 function xpPct(xp){const lv=levelFromXp(xp);if(lv>=99)return 1;const a=XP_TABLE[lv-1],b=XP_TABLE[lv];return(xp-a)/(b-a)}
 
@@ -2537,19 +2546,33 @@ function buyTheme(id){
 let lbMode='total';
 async function renderSocial(){
   const lbEl=document.getElementById('leaderboard');if(!lbEl)return;
-  lbEl.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Fetching ranks…</div>';
-  const r=await NetClient.leaderboard(lbMode);
-  if(r.ok){
-    /* b213 QA: the b206 leaderboard override fetches the REAL Supabase view
-       even when signed out (anon key) and flags it r.live — don't stamp real
-       player rows "Mock data". */
-    document.getElementById('lb-sub').textContent=(r.live||(NetClient.online()&&G.account))?'Live':'Mock data';
-    /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
-    const rankBadge=(n)=>{
-      const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
-      return c?`<b style="color:${c};font-family:var(--f-display);font-size:14px">${n}</b>`:String(n);
-    };
-    lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
+  /* b222 (#11): the leaderboard half of this panel now belongs to
+     src/features/leaderboards.js — 21 boards, a two-level picker, and the
+     pinned "your rank + the rivals either side" block that this render never
+     had. Delegating rather than duplicating also retires the last consumer of
+     NetClient's eight fabricated players: that mock could only ever have shown
+     the signed-out player invented rivals, which the Final Directive forbids.
+     The legacy path below is kept ONLY as the no-module fallback. */
+  if(window.HearthriseLeaderboards && typeof window.HearthriseLeaderboards.render==='function'){
+    window.HearthriseLeaderboards.wire();
+    const p=window.HearthriseLeaderboards.render();
+    if(p&&p.catch)p.catch(()=>{});
+  } else {
+    lbEl.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Fetching ranks…</div>';
+    const r=await NetClient.leaderboard(lbMode);
+    if(r.ok){
+      /* b213 QA: the b206 leaderboard override fetches the REAL Supabase view
+         even when signed out (anon key) and flags it r.live — don't stamp real
+         player rows "Mock data". */
+      const sub=document.getElementById('lb-sub');
+      if(sub)sub.textContent=(r.live||(NetClient.online()&&G.account))?'Live':'Mock data';
+      /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
+      const rankBadge=(n)=>{
+        const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
+        return c?`<b style="color:${c};font-family:var(--f-display);font-size:14px">${n}</b>`:String(n);
+      };
+      lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
+    }
   }
   /* clan + friends */
   const cl=document.getElementById('social-panel');
@@ -2565,7 +2588,19 @@ async function renderSocial(){
     <div style="margin-top:10px;display:flex;gap:6px"><input type="text" id="clan-input" placeholder="Or create your own clan" style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px"><button class="btn btn-primary" onclick="joinClan(document.getElementById('clan-input').value)">Create</button></div>`;
   }
 }
-function setLbMode(m){lbMode=m;document.querySelectorAll('[data-lb]').forEach(c=>c.classList.toggle('active',c.dataset.lb===m));renderSocial();}
+/* b222: kept as the legacy entry point (deep links + the old chip markup). The
+   three old mode names map onto the new board ids so an old call still lands
+   on the board it meant. */
+function setLbMode(m){
+  lbMode=m;
+  document.querySelectorAll('[data-lb]').forEach(c=>c.classList.toggle('active',c.dataset.lb===m));
+  const LB=window.HearthriseLeaderboards;
+  if(LB&&typeof LB.selectBoard==='function'){
+    const id={total:'total_level',combat:'combat_level',gold:'wealth'}[m];
+    if(id){LB.selectCategory(LB.BOARDS[id].cat);LB.selectBoard(id);return;}
+  }
+  renderSocial();
+}
 function joinClan(name){if(!name||name.length<3){notify('Need at least 3 chars','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();updateTopbar();}
 function leaveClan(){G.clanName=null;renderSocial();updateTopbar();}
 /* b206 (SYS-10): redeem a tradable Hearth Token for gems. The other exit for

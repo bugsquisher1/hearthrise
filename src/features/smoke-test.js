@@ -7,7 +7,7 @@
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=221';
+import { on, snapshot } from '../net/events.js?v=221';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=221';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
@@ -4605,6 +4605,317 @@ const TESTS = [
     } finally {
       window.G.bountyHunter.active = prevActive || null;
       window.G.bountyHunter.board = prevBoard;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // ── b222 regression suite (backlog #11 — leaderboards) ──────────────────
+  //    The contract these guard: every board answers "where am I?", the board
+  //    namespace matches the migration byte-for-byte, an un-migrated server
+  //    degrades to boards it can serve honestly, the three derived snapshot
+  //    fields survive a save→load round trip, and ranking never pays out.
+
+  // The server contract. A response that is not the RPC's own {ok:boolean,…}
+  // envelope is a REFUSAL, never an empty board — telling a player nobody is
+  // ranked because their token expired is a lie the UI would have no way back
+  // from. Same lesson as reduceClaim in muster.js, and for the same reason.
+  () => tryRun('b222: the leaderboard reducer separates an answer from a refusal', () => {
+    const LB = window.HearthriseLeaderboards;
+    assert(LB && LB._reduceBoard, 'leaderboards module missing');
+    const R = LB._reduceBoard;
+
+    const ok = R(200, {
+      ok: true, board: 'renown', refreshed_at: '2026-08-08T10:00:00Z', total: 412,
+      top: [{ rank: 1, id: 'a', name: 'Aldric', clan: 'Ash', score: 142300, saved_at: null }],
+      rank: 412,
+      near: [{ rank: 411, id: 'b', name: 'Above', score: 640 },
+             { rank: 412, id: 'me', name: 'Me', score: 602 },
+             { rank: 413, id: 'c', name: 'Below', score: 380 }]
+    });
+    assert(ok.action === 'accept', 'a well-formed answer must be accepted');
+    assert(ok.total === 412 && ok.rank === 412, 'total/rank must survive');
+    assert(ok.top.length === 1 && ok.near.length === 3, 'rows must survive');
+    assert(ok.top[0].name === 'Aldric' && ok.top[0].score === 142300, 'row fields must survive');
+
+    // Un-migrated server — both PostgREST shapes.
+    assert(R(404, null).action === 'unsupported', '404 must read as un-migrated');
+    assert(R(400, { code: 'PGRST202' }).action === 'unsupported', 'PGRST202 must read as un-migrated');
+    // A refusal from the RPC itself.
+    assert(R(200, { ok: false, error: 'unknown_board' }).action === 'fail', 'ok:false must fail');
+    // Anything that is not the envelope.
+    assert(R(401, { message: 'JWT expired' }).action === 'fail', 'an auth error must fail, not empty');
+    assert(R(200, null).action === 'fail', 'a null body must fail');
+    assert(R(200, [{ rank: 1 }]).action === 'fail', 'an array body must fail');
+    // Garbage rows are dropped, never rendered as "Adventurer 0" ghosts.
+    const junk = R(200, { ok: true, total: 1, top: [null, 7, { rank: 2, score: 5 }], near: 'nope' });
+    assert(junk.top.length === 1 && junk.top[0].name === 'Adventurer', 'malformed rows must be filtered');
+    assert(Array.isArray(junk.near) && junk.near.length === 0, 'a non-array near must normalise to []');
+  }),
+
+  // The whole point of the feature: a sub-top-25 player sees themselves and the
+  // one rival on each side. And when they ARE in the top 25 the block is
+  // suppressed, because repeating three rows already on screen is noise.
+  () => tryRun('b222: the self block pins you and your two rivals at any rank', () => {
+    const LB = window.HearthriseLeaderboards;
+    const mk = (n) => ({ rank: n, id: 'u' + n, name: 'P' + n, score: 1000 - n });
+    const top = [1, 2, 3, 4, 5].map(mk);
+
+    // Outside the honour roll → the pinned block is exactly above/you/below.
+    const far = LB._buildView({ top, rank: 412, total: 900, near: [mk(411), mk(412), mk(413)] }, 'u412');
+    assert(far.inTop === false, 'rank 412 is not in a top-5 roll');
+    assert(far.block.length === 3, 'expected the rival above, you, and the rival below');
+    assert(far.block[1].rank === 412, 'you must be the middle row of the block');
+
+    // Inside the honour roll → suppressed, and the row up top carries the mark.
+    const near = LB._buildView({ top, rank: 3, total: 900, near: [mk(2), mk(3), mk(4)] }, 'u3');
+    assert(near.inTop === true, 'rank 3 IS in the roll');
+    assert(near.block.length === 0, 'the block must not duplicate a visible row');
+
+    // Rank 1 has no rival above — two rows, not a hole.
+    const first = LB._buildView({ top: [], rank: 1, total: 900, near: [mk(1), mk(2)] }, 'u1');
+    assert(first.block.length === 2, 'rank 1 must still render its own row plus the chaser');
+
+    // Signed out → no block at all, and nothing invented.
+    const anon = LB._buildView({ top, rank: null, total: 900, near: [] }, null);
+    assert(anon.rank === null && anon.block.length === 0, 'an anonymous view must claim no rank');
+
+    // And the rendered block actually contains the rank numbers + the marker.
+    const html = LB._boardHtml('total_level', far);
+    assert(html.indexOf('Your standing') >= 0, 'the block needs its fold caption');
+    assert(html.indexOf('#412') >= 0, 'the summary must name the rank');
+    assert((html.match(/lb-row you/g) || []).length === 1, 'exactly one row is you');
+  }),
+
+  // The board namespace is shared with supabase/migrations/2026-08-08-leaderboards.sql
+  // (hr_lb_boards / hr_lb_skills). A skill renamed on one side and not the
+  // other produces a board that silently returns nothing, so both sides assert
+  // the same numbers: 6 + 15 = 21.
+  () => tryRun('b222: the board namespace matches the migration — 21 boards, 15 skills', () => {
+    const LB = window.HearthriseLeaderboards;
+    const ids = Object.keys(LB.BOARDS);
+    assert(ids.length === 21, 'expected 21 boards, got ' + ids.length);
+
+    const skillBoards = ids.filter((i) => i.indexOf('skill:') === 0).map((i) => i.slice(6)).sort();
+    const defs = Object.keys(window.SKILLS_DEF).sort();
+    assert(skillBoards.length === 15, 'expected 15 skill boards, got ' + skillBoards.length);
+    assert(skillBoards.join(',') === defs.join(','),
+      'skill boards must be exactly SKILLS_DEF — got ' + skillBoards.join(',') + ' vs ' + defs.join(','));
+    assert(ids.indexOf('skill:bountyHunter') >= 0, 'the camelCase skill id must survive');
+
+    // The flagship exists and belongs to its own category.
+    assert(LB.BOARDS.renown && LB.BOARDS.renown.cat === 'throne', 'Renown must be the Throne board');
+    // Every board declares a category that the picker actually offers.
+    const cats = LB.CATEGORIES.map((c) => c.id);
+    ids.forEach((id) => assert(cats.indexOf(LB.BOARDS[id].cat) >= 0, id + ' has an orphan category'));
+  }),
+
+  // Client-first: this module ships before the migration is applied. Degraded,
+  // it must offer ONLY the boards the pre-existing view can answer — not dead
+  // chips, and not a "coming soon" note, which is a roadmap shown to a player.
+  () => tryRun('b222: an un-migrated server offers only the boards it can answer', () => {
+    const LB = window.HearthriseLeaderboards;
+
+    const legacyCats = LB._categoriesFor('legacy').map((c) => c.id);
+    assert(legacyCats.indexOf('throne') < 0, 'Throne needs snapshot.renown — hide it until then');
+    assert(legacyCats.indexOf('skills') < 0, 'per-skill boards need the migration');
+    assert(legacyCats.indexOf('clans') < 0, 'the clan board needs the migration');
+    assert(legacyCats.indexOf('overall') >= 0 && legacyCats.indexOf('combat') >= 0,
+      'the three pre-existing boards must survive un-migrated');
+    assert(LB._boardsIn('overall', 'legacy').join(',') === 'total_level,wealth', 'degraded Overall');
+    assert(LB._boardsIn('combat', 'legacy').join(',') === 'combat_level', 'degraded Combat');
+
+    const fullCats = LB._categoriesFor('full').map((c) => c.id);
+    assert(fullCats.length === 5, 'migrated, all five categories are offered');
+    assert(LB._boardsIn('skills', 'full').length === 15, 'migrated, all 15 skill boards appear');
+
+    // A selection is always resolved onto a board that exists — this is what
+    // stops a player who picked "Mining" pre-migration from staring at a board
+    // that is not there, and what lets the picker grow when the migration lands.
+    const a = LB._resolveSelection('legacy', 'skills', 'skill:mining');
+    assert(a.cat === 'overall' && a.board === 'total_level', 'unavailable selection must fall back');
+    const b = LB._resolveSelection('full', 'skills', 'skill:mining');
+    assert(b.cat === 'skills' && b.board === 'skill:mining', 'a valid selection must be kept');
+    const c = LB._resolveSelection('full', 'skills', 'skill:nonsense');
+    assert(c.cat === 'skills' && c.board === 'skill:attack', 'a junk board falls back inside its category');
+  }),
+
+  // §3.2 hand-off: the Throne board cannot exist unless the client writes the
+  // renown integer into the snapshot it already uploads. Same for combatLevel
+  // (which the leaderboard view has read since b205 with nothing ever writing
+  // it) and bossKills (which the server cannot compute — it has no MONSTERS).
+  () => tryRun('b222: renown, combatLevel and bossKills are stamped and survive save→load', () => {
+    const S = window.HearthriseSync;
+    assert(S && S.derivedSnapshotFields, 'sync must expose the derived-field seam');
+
+    const fake = {
+      G: { skills: { mining: 100 }, gold: 5, bestiary: { dragon: { kills: 3 }, rat: { kills: 90 } } },
+      MONSTERS: { dragon: { boss: true }, rat: {} },
+      getTotalLevel: () => 240,
+      getCombatLevel: () => 77,
+      HearthriseRenown: { compute: () => 15731.9 }
+    };
+    const d = S.derivedSnapshotFields(null, fake);
+    assert(d.totalLevel === 240, 'totalLevel must still be stamped (b146 contract)');
+    assert(d.combatLevel === 77, 'combatLevel must be stamped — the Combat board sorted on null before this');
+    assert(d.renown === 15731, 'renown must be stamped, floored to an integer');
+    assert(d.bossKills === 3, 'bossKills must count bosses only, not the 90 rats');
+
+    // Absent data is ABSENT, never a fabricated zero — a player with no
+    // bestiary must not appear on the Bosses board ranked above nobody.
+    const bare = S.derivedSnapshotFields(null, { G: { skills: {} }, MONSTERS: {} });
+    assert(!('bossKills' in bare), 'no bestiary → no bossKills field');
+    assert(!('renown' in bare), 'no renown module → no renown field');
+
+    // An explicit config provider wins over the globals, and a throwing
+    // provider degrades to omission instead of taking the save down with it.
+    const cfgd = S.derivedSnapshotFields({ renown: () => 42, combatLevel: () => { throw new Error('x'); } }, fake);
+    assert(cfgd.renown === 42, 'a config provider must win');
+    assert(!('combatLevel' in cfgd), 'a throwing provider must omit, not throw');
+
+    // Round trip: the fields survive the exact request body the uploader sends,
+    // and JSON.parse(JSON.stringify(...)) — which is what Postgres stores and
+    // pullLatest() hands back.
+    const snap = Object.assign(snapshot(window.G) || {}, S.derivedSnapshotFields(null, window));
+    assert(typeof snap.renown === 'number', 'the live snapshot must carry renown');
+    assert(typeof snap.combatLevel === 'number', 'the live snapshot must carry combatLevel');
+    const req = S.buildSnapshotRequest({ snapshotEndpoint: '/x', slot: 0 }, 'u1', snap, Date.now());
+    const restored = JSON.parse(JSON.stringify(req.body)).snapshot;
+    assert(restored.renown === snap.renown, 'renown must survive save→load');
+    assert(restored.combatLevel === snap.combatLevel, 'combatLevel must survive save→load');
+    assert(restored.totalLevel === snap.totalLevel, 'totalLevel must still survive save→load');
+  }),
+
+  // The bug the Throne board found. `const` at the top level of a classic
+  // script is global-LEXICAL, not window — so `window.XP_TABLE` was undefined
+  // and renown.js scored every skill as level 1. A fresh save's 24 total levels
+  // scored as 15, i.e. 220 Renown instead of 310. The flagship board's score
+  // was wrong for every player in the game.
+  () => tryRun('b222: window.XP_TABLE is published, so Renown scores the real total level', () => {
+    assert(Array.isArray(window.XP_TABLE), 'window.XP_TABLE must exist for cross-module consumers');
+    assert(window.XP_TABLE.length === 99, 'the table must reach level 99');
+    assert(window.XP_TABLE[98] === 13034431, 'the level-99 threshold must be intact');
+
+    const R = window.HearthriseRenown;
+    assert(R && R.compute, 'renown module missing');
+    const probe = { skills: { mining: 13034431, cooking: 0 }, stats: {}, gold: 0 };
+    // With a working table this is 99 + 1 = 100 levels and one maxed skill;
+    // with the broken one it collapsed to 2 levels and zero maxed skills.
+    const score = R.compute(probe);
+    assert(score >= 100 * R.WEIGHTS.totalLevel + R.WEIGHTS.skill99,
+      'a 99 must score as a 99 — got ' + score);
+  }),
+
+  // The Throne board reads as a hierarchy, not a spreadsheet: the third column
+  // is the rank title from the renown ladder (leaderboards.md §4).
+  () => tryRun('b222: the Throne board shows rank titles, and each board reads in its own units', () => {
+    const LB = window.HearthriseLeaderboards;
+    const R = window.HearthriseRenown;
+    const king = R.RANKS[R.RANKS.length - 1];
+
+    assert(LB._contextText('renown', { score: king.min + 10 }) === king.title,
+      'the top of the ladder must read as its title');
+    assert(LB._contextText('renown', { score: 0 }) === R.RANKS[0].title, 'rank 0 has a title too');
+
+    assert(LB._scoreText('total_level', 1842) === 'Lv 1,842', 'total level reads as a level');
+    assert(LB._scoreText('combat_level', 115) === 'CL 115', 'combat level reads as CL');
+    assert(LB._scoreText('wealth', 2500000) === '2,500,000g', 'wealth reads as gold');
+    assert(LB._scoreText('skill:mining', 13034431) === 'Lv 99', 'a skill board reads as a level');
+    assert(LB._contextText('skill:mining', { score: 13034431 }) === '13,034,431 xp', 'with xp beside it');
+    // Clan Power is one composite integer so clans share the rank machinery —
+    // it must decode back into the two numbers a player understands.
+    assert(LB._scoreText('clan_power', 4 * 1000000000 + 250000) === 'Castle 4', 'castle tier decodes');
+    assert(LB._contextText('clan_power', { score: 4 * 1000000000 + 250000 }) === '250,000g', 'treasury decodes');
+  }),
+
+  // Final Directive: rank is prestige, never payment. There is no claim, no
+  // ledger and no currency anywhere in this feature — and rendering a board
+  // must not move a single coin.
+  () => tryRun('b222: ranking pays nothing — no claim path, no currency, no token', () => {
+    const LB = window.HearthriseLeaderboards;
+    const api = Object.keys(LB).join(' ');
+    assert(!/claim|grant|reward|payout|token/i.test(api),
+      'the leaderboard API must expose no reward path — got ' + api);
+
+    const src = [LB._boardHtml, LB._rowHtml, LB._buildView, LB._reduceBoard]
+      .map((f) => String(f)).join('\n');
+    assert(!/hearth_token|addItem|G\.gold|G\.gems/i.test(src),
+      'no render path may touch currency or inventory');
+
+    const goldBefore = window.G.gold, gemsBefore = window.G.gems;
+    const view = LB._buildView({
+      top: [{ rank: 1, id: 'a', name: 'Aldric', score: 142300 }], rank: 1, total: 1, near: []
+    }, 'a');
+    const html = LB._boardHtml('renown', view);
+    assert(html.indexOf('Hearth Token') < 0 && html.indexOf('gems') < 0, 'no currency in the board');
+    assert(window.G.gold === goldBefore && window.G.gems === gemsBefore, 'rendering must move nothing');
+
+    // Rank 1 earns a cosmetic title. It is honest because the rank behind it
+    // came from the server, and it is the ONLY thing ranking grants.
+    assert(LB._crownFor('renown') === 'the Throne', 'the flagship crown');
+    assert(LB._crownFor('skill:mining') === 'Grandmaster Mining', 'per-skill crowns are named');
+    assert(html.indexOf('the Throne') >= 0, 'rank 1 wears its title on the board');
+  }),
+
+  // b217 art rules: no emoji anywhere in the board, in any state, including the
+  // empty and un-ranked ones.
+  () => tryRun('b222: no emoji in the leaderboard DOM, in any state', () => {
+    const LB = window.HearthriseLeaderboards;
+    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    const mk = (n) => ({ rank: n, id: 'u' + n, name: 'P' + n, score: 1000 - n });
+
+    const states = {
+      empty: LB._buildView({ top: [], rank: null, total: 0, near: [] }, null),
+      anon: LB._buildView({ top: [mk(1), mk(2)], rank: null, total: 2, near: [] }, null),
+      inTop: LB._buildView({ top: [mk(1), mk(2)], rank: 1, total: 2, near: [mk(1), mk(2)] }, 'u1'),
+      far: LB._buildView({ top: [mk(1)], rank: 412, total: 900, near: [mk(411), mk(412), mk(413)] }, 'u412')
+    };
+    const offenders = [];
+    Object.keys(states).forEach((name) => {
+      Object.keys(LB.BOARDS).forEach((board) => {
+        const div = document.createElement('div');
+        div.innerHTML = LB._boardHtml(board, states[name]);
+        const w = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+        let n;
+        while ((n = w.nextNode())) if (EMO.test(n.nodeValue)) offenders.push(board + '/' + name + ': ' + n.nodeValue.trim());
+      });
+    });
+    assert(offenders.length === 0, 'emoji in the board — ' + offenders.slice(0, 4).join(' | '));
+
+    // Every state says something true; none of them is blank.
+    assert(LB._boardHtml('renown', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
+    assert(LB._boardHtml('renown', states.anon).indexOf('Sign in') >= 0 ||
+           LB._boardHtml('renown', states.anon).indexOf('not ranked') >= 0,
+      'an anonymous board must point at the action that puts you on it');
+  }),
+
+  // The Social panel must never again paint NetClient's eight invented players.
+  // The delegation is what retires that mock; this is the tripwire on it.
+  () => tryRun('b222: the Social panel renders real ranks, never the invented eight', () => {
+    const prevTab = window.activeTab;
+    try {
+      assert(window.HearthriseLeaderboards, 'the module must own the board');
+      window.showTab('social');
+      const el = document.getElementById('leaderboard');
+      assert(el, '#leaderboard missing');
+      const txt = el.textContent || '';
+      ['DragonSlayer99', 'IronMan2024', 'FarmQueen', 'CozyCrafter', 'GoblinHunter',
+       'TealKnight', 'PumpkinKing', 'AshvaleAria'].forEach((n) => {
+        assert(txt.indexOf(n) < 0, 'fabricated player on the board: ' + n);
+      });
+      // The two picker rows exist for the module to paint into.
+      assert(document.getElementById('lb-cats'), 'the category row is missing');
+      assert(document.getElementById('lb-boards'), 'the board row is missing');
+      assert(document.querySelectorAll('#panel-social [data-lb]').length === 0,
+        'the three hardcoded mode chips must be gone');
+
+      // The legacy entry point still lands on the board it meant.
+      window.setLbMode('gold');
+      assert(window.HearthriseLeaderboards.current().board === 'wealth',
+        'setLbMode("gold") must select the Wealth board');
+      window.setLbMode('total');
+      assert(window.HearthriseLeaderboards.current().board === 'total_level',
+        'setLbMode("total") must select Total Level');
+    } finally {
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),

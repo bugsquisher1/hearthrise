@@ -450,6 +450,108 @@ const TESTS = [
       G.inventory = savedInv; G.gold = savedGold;
     }
   }),
+  () => tryRun('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
+    // Regression: three systems read G.lastSeen and all granted —
+    // processOffline() (100% rate) plus _applyCatchup() and applyRichCatchup()
+    // (50% each), with G.lastSeen never refreshed between them. Every
+    // returning gatherer banked ~2-3x their offline yield. The two catch-up
+    // paths are now display-only; only processOffline may grant.
+    if (typeof window.processOffline !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      G.inventory = {};
+      G.lastSeen = Date.now() - 2 * 3600 * 1000;      // 2h away
+      window.processOffline();
+      const afterOffline = (G.inventory.normal_log || 0);
+      assert(afterOffline > 0, 'processOffline should grant the offline haul');
+      // The catch-up calculators may still RUN (they feed the welcome modal)
+      // but must not add anything on top.
+      if (typeof window._catchupCalc === 'function') {
+        const rewards = window._catchupCalc();
+        assert(rewards === null || typeof rewards === 'object', 'calcCatchup still returns a summary');
+      }
+      assert((G.inventory.normal_log || 0) === afterOffline,
+        'catch-up calculation must not grant items on top of processOffline');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b214: manual dungeon run consumes its entry key', () => {
+    // Regression: startManualRun paid gold/tokens but never spent d.cost.key,
+    // so one farmed key ran the dungeon forever.
+    const D = window.DUNGEONS;
+    if (!D || typeof window.startManualDungeonRun !== 'function') return;
+    const entry = Object.entries(D).find(([, d]) => d.phases && d.cost && d.cost.key);
+    if (!entry) return;
+    const [id, d] = entry;
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
+      G.gold = (G.gold || 0) + 100000;
+      G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
+      const before = G.inventory[d.cost.key];
+      window.startManualDungeonRun(id);
+      const after = G.inventory[d.cost.key] || 0;
+      // close the run overlay the call opened
+      const ov = document.getElementById('dgn-run-overlay');
+      if (ov) ov.classList.remove('open');
+      assert(after === before - 1,
+        'manual run must consume 1 ' + d.cost.key + ' (before ' + before + ', after ' + after + ')');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {
+    // hearth_token is the IAP-only bond (1 -> 150 gems). Every dungeon used to
+    // drop it at chance 1.0, minting real-money currency from PvE.
+    const D = window.DUNGEONS;
+    if (!D) return;
+    Object.entries(D).forEach(([id, d]) => {
+      (d.loot || []).forEach(l => {
+        assert(l.id !== 'hearth_token',
+          'dungeon ' + id + ' must not drop hearth_token (premium currency is IAP-mint-only)');
+      });
+    });
+  }),
+
+  () => tryRun('b213: market listing row escapes a hostile seller name (stored-XSS guard)', () => {
+    // Regression: seller display names come from OTHER players in the live
+    // Supabase market and were interpolated raw into innerHTML — a name like
+    // <img src=x onerror=...> would run in every viewer's browser and could
+    // steal the Supabase JWT from localStorage. The render must HTML-escape it.
+    const M = window.HearthriseMarket;
+    if (!M || typeof M.list !== 'function') return;
+    const KEY = 'hearthrise:market:listings';
+    const saved = localStorage.getItem(KEY);
+    const evil = '<img src=x onerror="window.__mktXss=1">';
+    try {
+      window.__mktXss = 0;
+      // sellerId must NOT start with 'npc-' — those are filtered as seeds.
+      localStorage.setItem(KEY, JSON.stringify([{
+        id: 'XSS-TEST', sellerId: 'user-hostile-xss', sellerName: evil,
+        itemId: 'normal_log', qty: 1, askEach: 5, postedAt: Date.now(),
+      }]));
+      window.showTab('market');
+      const panel = document.getElementById('panel-market');
+      const html = panel ? panel.innerHTML : '';
+      // The security assertions hold unconditionally: the payload must never
+      // appear as live markup, and must never execute.
+      assert(html.indexOf('onerror="window.__mktXss') === -1,
+        'hostile seller name rendered as LIVE html — stored XSS in the market');
+      assert(window.__mktXss === 0, 'injected script executed — stored XSS in the market');
+      // If the row did render this pass, the name must be escaped. (Render is
+      // debounced behind the tab hook, so absence of a row isn't a failure.)
+      if (html.indexOf('mk-row') !== -1) {
+        assert(html.indexOf('&lt;img') !== -1, 'seller name should render HTML-escaped');
+      }
+    } finally {
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      try { window.showTab('profile'); } catch {}
+      delete window.__mktXss;
+    }
+  }),
   () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, solo pool state', () => {
     const R = window.HearthriseRaids;
     assert(R && R.BOSSES.length >= 3, 'raid bosses present');

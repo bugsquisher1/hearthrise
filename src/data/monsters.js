@@ -28,6 +28,9 @@ export const MONSTERS={
   bear:{name:'Bear',icon:'🐻',tier:4,family:'Beast',weaponWeak:'ranged',hp:140,atk:34,def:16,xp:275,gp:[42,95],drops:[{id:'bear_pelt',ch:.75},{id:'bear_claw',ch:.35},{id:'big_bones',ch:1}]},
   wraith:{name:'Wraith',icon:'👻',tier:4,family:'Undead',weaponWeak:'magic',hp:112,atk:38,def:20,xp:310,gp:[55,115],drops:[{id:'grave_dust',ch:.7},{id:'wraith_veil',ch:.2},{id:'ancient_rune',ch:.04}]},
   lesser_demon:{name:'Lesser Demon',icon:'😈',tier:4,family:'Mythic',weaponWeak:'neutral',hp:150,atk:40,def:18,xp:340,gp:[60,140],drops:[{id:'demon_shard',ch:.4},{id:'rune_frag',ch:.3},{id:'hell_ember',ch:.025}]},
+  /* b214: was defined ONLY in legacy.js's inline MONSTERS const — every ESM
+     reader (combat-render imports this module) saw undefined for it. */
+  mountain_troll:{name:'Mountain Troll',icon:'🧌',tier:4,family:'Beast',weaponWeak:'ranged',hp:165,atk:36,def:22,xp:305,gp:[50,108],drops:[{id:'troll_hide',ch:.7},{id:'big_bones',ch:1},{id:'bear_pelt',ch:.18},{id:'iron_warhammer',ch:.012}]},
 
   /* Tier 5 — mythic threats */
   shadow_creeper:{name:'Shadow Creeper',icon:'🕸️',tier:5,family:'Vermin',weaponWeak:'magic',hp:190,atk:48,def:26,xp:475,gp:[90,190],drops:[{id:'shadow_thread',ch:.45},{id:'silk_thread',ch:.6},{id:'void_chitin',ch:.018}]},

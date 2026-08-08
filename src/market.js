@@ -804,7 +804,7 @@
         '<div class="mk-icon">' + iconHtml + '</div>' +
         '<div class="mk-info">' +
           '<div class="mk-name">' + (item ? item.n : l.itemId) + '<span class="mk-qty">×' + l.qty + '</span></div>' +
-          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + l.sellerName + '</b> · ' + ttlH + 'h left</div>' +
+          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b> · ' + ttlH + 'h left</div>' +
           statsLine +
         '</div>' +
         '<div class="mk-action">' + actionBtn + '</div>' +

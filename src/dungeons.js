@@ -39,7 +39,6 @@
         { id: 'big_bones', qty: [10, 30], chance: 1.0 },
         { id: 'grave_dust', qty: [1, 3], chance: .85 },
         { id: 'kitchen_blueprint_t2', qty: [1, 1], chance: .12 },
-        { id: 'hearth_token', qty: [1, 3], chance: 1.0 },
       ],
       phases: [
         { type:'gather', label:'Gather torches', icon:'🔦', target: 8, durationS: 25,
@@ -63,7 +62,6 @@
         { id: 'goblin_totem', qty: [3, 8], chance: 1.0 },
         { id: 'warlord_badge', qty: [1, 2], chance: .35 },
         { id: 'forge_blueprint_t2', qty: [1, 1], chance: .15 },
-        { id: 'hearth_token', qty: [2, 5], chance: 1.0 },
       ],
       phases: [
         { type:'gather', label:'Sneak past patrols', icon:'👁️', target: 10, durationS: 30,
@@ -84,7 +82,6 @@
         { id: 'magic_essence', qty: [5, 12], chance: 1.0 },
         { id: 'cracked_spellstone', qty: [1, 3], chance: .60 },
         { id: 'library_blueprint_t2', qty: [1, 1], chance: .15 },
-        { id: 'hearth_token', qty: [3, 8], chance: 1.0 },
       ],
       phases: [
         { type:'puzzle', label:'Decipher the codex', icon:'📖',
@@ -112,7 +109,6 @@
         { id: 'kitchen_blueprint_t3', qty: [1, 1], chance: .10 },
         { id: 'forge_blueprint_t3', qty: [1, 1], chance: .10 },
         { id: 'trophy_blueprint_t2', qty: [1, 1], chance: .25 },
-        { id: 'hearth_token', qty: [10, 20], chance: 1.0 },
       ],
       phases: [
         { type:'gather', label:'Scale the walls', icon:'🧗', target: 15, durationS: 40,
@@ -135,7 +131,6 @@
         { id: 'void_core', qty: [1, 2], chance: .35 },
         { id: 'void_essence', qty: [1, 1], chance: .25 },
         { id: 'library_blueprint_t3', qty: [1, 1], chance: .10 },
-        { id: 'hearth_token', qty: [15, 30], chance: 1.0 },
       ],
     },
 
@@ -153,7 +148,6 @@
         { id: 'dragon_gem', qty: [1, 1], chance: .30 },
         { id: 'dragon_relic', qty: [1, 1], chance: .15 },
         { id: 'trophy_blueprint_t3', qty: [1, 1], chance: .10 },
-        { id: 'hearth_token', qty: [40, 80], chance: 1.0 },
       ],
     },
   };
@@ -720,6 +714,14 @@
     }
     // Pay cost
     if(d.cost.gold) window.G.gold -= d.cost.gold;
+    /* b214 (exploit fix): consume the entry KEY, exactly as runDungeon() does.
+       This was missing — manual phase-runs charged gold/tokens but never spent
+       the key, so a single farmed key ran the dungeon forever (cooldown aside),
+       which combined with guaranteed token drops to mint premium currency. */
+    if(d.cost.key){
+      if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
+      else window.G.inventory[d.cost.key] = Math.max(0, (window.G.inventory[d.cost.key]||0) - 1);
+    }
     if(d.cost.hearth_token){
       if(typeof window.removeItem === 'function') window.removeItem('hearth_token', d.cost.hearth_token);
       else window.G.inventory.hearth_token = Math.max(0, (window.G.inventory.hearth_token||0) - d.cost.hearth_token);

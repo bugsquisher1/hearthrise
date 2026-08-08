@@ -18,6 +18,7 @@
 // ============================================================
 
 import { ITEMS as ESM_ITEMS } from '../data/items.js?v=213';
+import { MONSTERS as ESM_MONSTERS } from '../data/monsters.js?v=213';
 
 const RUN_DELAY_MS = 1500;        // wait for legacy.js to finish populating
 
@@ -39,36 +40,45 @@ function once() {
     return;
   }
 
-  const legacyKeys = new Set(Object.keys(legacyItems));
-  const esmKeys    = new Set(Object.keys(ESM_ITEMS || {}));
+  // b214: check MONSTERS too. This module only ever compared ITEMS, which is
+  // precisely why `mountain_troll` shipped defined in legacy.js but missing
+  // from src/data/monsters.js — every ESM reader saw `undefined` for it and
+  // nothing warned. Each data set gets the same legacy-vs-ESM comparison.
+  const SETS = [
+    { name: 'ITEMS',    legacy: legacyItems,                    esm: ESM_ITEMS,
+      hint: 'Items defined in legacy.js but missing from src/data/items.js will be undefined at runtime after main.js runs Object.assign. Reconcile before next push.' },
+    { name: 'MONSTERS', legacy: window.__LEGACY_INLINE_MONSTERS, esm: ESM_MONSTERS,
+      hint: 'Monsters defined in legacy.js but missing from src/data/monsters.js are undefined for every ESM reader (combat-render imports the module directly).' },
+  ];
 
-  const onlyInLegacy = [];
-  const onlyInEsm    = [];
-  legacyKeys.forEach(k => { if (!esmKeys.has(k)) onlyInLegacy.push(k); });
-  esmKeys.forEach(k => { if (!legacyKeys.has(k)) onlyInEsm.push(k); });
+  SETS.forEach(set => {
+    if (!set.legacy || typeof set.legacy !== 'object') return;  // snapshot not published yet
+    const legacyKeys = new Set(Object.keys(set.legacy));
+    const esmKeys    = new Set(Object.keys(set.esm || {}));
 
-  // After main.js does Object.assign(window, { ITEMS }), the ESM
-  // values overwrite legacy keys with the same name. So `onlyInLegacy`
-  // is the more dangerous direction — items defined in legacy but not
-  // ESM will be replaced by `undefined` after the assign.
-  if (onlyInLegacy.length || onlyInEsm.length) {
-    const summary = {
-      legacyOnly: onlyInLegacy,
-      esmOnly: onlyInEsm,
-      hint: 'Items defined in legacy.js but missing from src/data/items.js will be undefined at runtime after main.js runs Object.assign. Reconcile before next push.',
-    };
-    console.warn('[data-integrity] ITEMS divergence detected:', summary);
-    if (typeof window.captureException === 'function') {
-      try {
-        window.captureException(
-          new Error('ITEMS divergence: ' + onlyInLegacy.length + ' legacy-only, ' + onlyInEsm.length + ' esm-only'),
-          { source: 'data-integrity', summary }
-        );
-      } catch (e) {}
+    const onlyInLegacy = [];
+    const onlyInEsm    = [];
+    legacyKeys.forEach(k => { if (!esmKeys.has(k)) onlyInLegacy.push(k); });
+    esmKeys.forEach(k => { if (!legacyKeys.has(k)) onlyInEsm.push(k); });
+
+    // After main.js does Object.assign(window, { ... }), the ESM values
+    // overwrite legacy keys with the same name. So `onlyInLegacy` is the
+    // more dangerous direction — those become undefined for ESM readers.
+    if (onlyInLegacy.length || onlyInEsm.length) {
+      const summary = { legacyOnly: onlyInLegacy, esmOnly: onlyInEsm, hint: set.hint };
+      console.warn('[data-integrity] ' + set.name + ' divergence detected:', summary);
+      if (typeof window.captureException === 'function') {
+        try {
+          window.captureException(
+            new Error(set.name + ' divergence: ' + onlyInLegacy.length + ' legacy-only, ' + onlyInEsm.length + ' esm-only'),
+            { source: 'data-integrity', summary }
+          );
+        } catch (e) {}
+      }
+    } else {
+      console.log('[data-integrity] ' + set.name + ' in sync ✓ (' + legacyKeys.size + ')');
     }
-  } else {
-    console.log('[data-integrity] ITEMS in sync ✓ (' + legacyKeys.size + ' items)');
-  }
+  });
 }
 
 // Boot deferred so legacy.js has a chance to finish populating.

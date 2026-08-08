@@ -248,6 +248,10 @@ const ITEMS={
 // a console warning + Sentry capture from src/utils/data-integrity.js.
 if (typeof window !== 'undefined') {
   try { window.__LEGACY_INLINE_ITEMS = ITEMS; } catch (e) {}
+  /* b214: same snapshot for MONSTERS so the integrity check can compare it
+     against src/data/monsters.js (mountain_troll was legacy-only and no
+     warning fired, because the check only ever looked at ITEMS). */
+  try { window.__LEGACY_INLINE_MONSTERS = MONSTERS; } catch (e) {}
 }
 
 const TREES=[
@@ -5812,7 +5816,13 @@ function injectFriendsStub(){
   setTimeout(function(){
     var rewards = calcCatchup();
     if(!rewards) return;
-    window._applyCatchup(rewards);
+    /* b214 (correctness fix): DO NOT grant here. processOffline() in
+       loadLocal() is the single source of truth for offline rewards and
+       already replayed the active skill at full rate. This block used to
+       ALSO call _applyCatchup() — and a third system (applyRichCatchup)
+       granted again — so every gathering player banked ~2-3x their offline
+       yield on each login (G.lastSeen isn't refreshed between them). The
+       calcCatchup() numbers are now display-only for the welcome modal. */
     // Augment the welcome modal if it appears
     var pollUntilModal = setInterval(function(){
       var rows = document.getElementById('welcome-rows');
@@ -6323,7 +6333,9 @@ window._renderWelcomeV2 = renderModal;
     if(!s) return;
     G.lastWelcome = Date.now();
     G.lastSessionSummary = s;
-    applyRichCatchup(s);
+    /* b214 (correctness fix): display-only — see the note by calcCatchup's
+       caller above. processOffline() already granted; this second grant was
+       double-paying every returning gatherer. renderModal shows the estimate. */
     renderModal(s);
   }, 1800);
 })();

@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 219 — 2026-08-08 (A hearth worth coming home to)
+
+- 🌄 **The Home screen is a place now.** The top of Home is a dusk vista of your own holding — and it grows with you, from a lone tent at the campfire to a full castle with your banner up. Below it, "Your holding" shows exactly what your next property tier costs, and "The realm" surfaces today's and this week's world events (previously buried in a ticker behind the chat button).
+- 🔔 **Notifications you can actually read.** Full-size text, they stay up long enough to read (longer messages stay longer), bursts queue up instead of erasing each other, repeats collapse into a counter ("+1 Logs ×6"), hover pauses them, click dismisses. And they position themselves clear of the chat button — measured, every time.
+- 💬 **The chat button moves.** Drag it anywhere; it snaps to an edge and remembers its spot.
+- 🛡️ **Raid fairness, server-enforced.** The once-per-day raid strike, chest eligibility, and claim-once are now enforced by the server, not the honor system. Four holes closed — including one where the first striker of the week could declare a 1-HP boss.
+- 🧹 Odds and ends: the daily-reward popup no longer prints raw code, the beta-welcome card matches the theme, and the "What's new" popup (this one!) can never again show you the changelog's plumbing.
+- 🧪 188 tests green (+11 new regression guards).
+
 ## v0.9.2-beta build 218 — 2026-08-08 (Readable — bigger text, a real logo, tabs that stay put)
 
 First batch from the new dev-team process: the three things most in the way of just playing.

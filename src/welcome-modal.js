@@ -37,13 +37,23 @@
     // every heading and dump the ENTIRE file (maintenance preamble included)
     // into the modal.
     md = md.replace(/\r\n?/g, '\n');
-    // Find the first `## ` heading and grab everything until the next `## ` heading.
-    const re = /^##\s+(.+?)\n([\s\S]*?)(?=\n##\s+|\n*$)/m;
-    const m = md.match(re);
+    // Line-based scan: the old regex used a `(?=\n##\s+|\n*$)` lookahead whose
+    // multiline `$` matched at the first blank line, so the captured body was
+    // always EMPTY. Plain loop, no cleverness.
+    const lines = md.split('\n');
+    let title = null; const body = [];
+    for (const line of lines) {
+      if (/^##\s+/.test(line)) {
+        if (title !== null) break;            // next section — stop
+        title = line.replace(/^##\s+/, '').trim();
+        continue;
+      }
+      if (title !== null) body.push(line);
+    }
     // Never fall back to the raw file — it starts with the format documentation,
     // which is not player content.
-    if (!m) return null;
-    return { title: m[1].trim(), body: m[2].trim() };
+    if (title === null) return null;
+    return { title, body: body.join('\n').trim() };
   }
 
   // Tiny markdown → HTML for our limited syntax (** bold **, * bullets *, blank lines).
@@ -135,7 +145,10 @@
   }
 
   // Public manual trigger (Settings → "Show what's new")
-  window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.removeItem(SEEN_KEY); } catch{} maybeShow(); } };
+  // force(): removing the key made maybeShow() take the "first-ever load" skip
+  // branch — Settings → "Show what's new" never showed anything. Set a stale
+  // sentinel instead so the "already saw this build" check misses.
+  window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
   // Test seam (smoke suite asserts CRLF parsing + emoji stripping)
   window.__hrWelcomeParse = { parseFirstSection, mdToHtml };
 

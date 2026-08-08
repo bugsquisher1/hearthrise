@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 218 — 2026-08-08 (Readable — bigger text, a real logo, tabs that stay put)
+
+First batch from the new dev-team process: the three things most in the way of just playing.
+
+- 🔤 **Everything is bigger.** Body text goes from 14px to 16px, and every label, row title, and stat scales with it — the whole type ramp moved together, so the hierarchy you know is unchanged, just legible from a normal sitting distance.
+- 🛡️ **Hearthrise has a real logo.** The old crest was drawn for a light background — on the dark sidebar its brown lettering was nearly invisible. The new mark is built for the dark: a rising-sun shield emblem over HEARTHRISE in gilt capitals. On narrow windows it collapses to the emblem alone.
+- 📌 **Inventory tabs stay where you put them.** Switching the equipment panel to Stats or Companion used to get yanked back to Equipment seconds later — every resource you gathered rebuilt the panel and reset it. Your chosen tab now survives.
+- 🐾 **The Companion tab is about your companion.** It used to show a lone slot icon next to *your* stat sheet. It now shows your companion's name, level, XP progress, and the bonuses it actually grants — or points you to the Stable if you haven't befriended one.
+- 🧪 177/177 tests green (two new regression tests guard the tab fixes).
+
 ## v0.9.2-beta build 217 — 2026-08-08 (Art Direction — it looks like a game now)
 
 A full art-direction pass over every screen. The goal was blunt: stop looking generated. Most of what changed was structural, not decorative.

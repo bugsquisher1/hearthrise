@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=217';
-import { emit } from '../net/events.js?v=217';
+import { COMPANIONS } from '../data/companions.js?v=218';
+import { emit } from '../net/events.js?v=218';
 
 // XP curve: cumulative XP needed to reach level L. Smooth growth, ~50K at L30.
 export function companionXpToReach(L) {

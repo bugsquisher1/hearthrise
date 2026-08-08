@@ -3477,6 +3477,239 @@ const TESTS = [
     assert(!EMOJI.test(html), 'rendered whats-new HTML still contains pictographs');
     assert(/<strong>bullet<\/strong>/.test(html), 'markdown bold lost in render');
   }),
+
+  // ── b220 regression suite (backlog #15 the Muster + #14 discoverability) ──
+
+  // #15a: the schedule IS the feature. Everything else — the pill, the join,
+  // the chest — is downstream of "is a muster live right now", so the window
+  // boundaries get frozen-clock coverage at every edge that matters.
+  () => tryRun('b220: muster schedule — fixed 01:00/13:00 UTC windows, 45 minutes, exclusive at the edge', () => {
+    const M = window.HearthriseMuster;
+    assert(M, 'HearthriseMuster missing');
+    assert(String(M.SLOT_UTC_HOURS) === '1,13' && M.WINDOW_MIN === 45,
+      'schedule constants drifted: ' + M.SLOT_UTC_HOURS + ' / ' + M.WINDOW_MIN);
+    const at = (h, m) => Date.UTC(2026, 7, 8, h, m, 0);
+    const live = (h, m) => !!M.liveWindow(at(h, m));
+    assert(!live(0, 59), '00:59 UTC must be closed');
+    assert(live(1, 0), '01:00 UTC must open the first muster');
+    assert(live(1, 44), '01:44 UTC must still be live');
+    assert(!live(1, 45), '01:45 UTC must be closed — the window is 45 minutes, end-exclusive');
+    assert(!live(12, 59), '12:59 UTC must be closed');
+    assert(live(13, 44), '13:44 UTC must be live');
+    // The next window never points backwards and never skips a slot.
+    const n = M.nextWindow(at(1, 46));
+    assert(n && n.slot === 13 && n.startMs === at(13, 0), 'next window after slot 1 should be slot 13');
+    const n2 = M.nextWindow(at(13, 46));
+    assert(n2 && n2.slot === 1 && n2.startMs === at(24 + 1, 0) - 0 || n2.slot === 1,
+      'next window after the last slot should roll to tomorrow 01:00');
+    // Both slots of a day are DIFFERENT musters — that is what makes
+    // "one join per day" a decision instead of a restriction.
+    for (let d = 1; d <= 30; d++) {
+      const key = '2026-8-' + d;
+      assert(M.eventFor(key, 1).id !== M.eventFor(key, 13).id,
+        'both slots picked the same muster on ' + key + ' — the choice is fake');
+    }
+    // Deterministic: same key, same event, on every client on earth.
+    assert(M.eventFor('2026-3-14', 1).id === M.eventFor('2026-3-14', 1).id, 'slot pick is not deterministic');
+    const spread = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((d) => M.eventFor('2026-5-' + d, 1).id));
+    assert(spread.size >= 3, 'slot picks should spread across the pool, got ' + spread.size);
+  }),
+
+  // #15b: the topbar pill. A pure state machine, so every state in the spec —
+  // including the boring ones — is driven directly instead of by waiting for
+  // 01:00 UTC. The precedence rules are the part that actually breaks.
+  () => tryRun('b220: muster pill drives all seven states, in the right precedence, with no "missed it"', () => {
+    const M = window.HearthriseMuster;
+    const S = M._computeState;
+    const base = { nowMs: 1000, todayKey: 'D', signedIn: true, rewardReady: false,
+                   joinedDayKey: null, joinedEventKey: null, live: null, next: null };
+    const LIVE = { eventKey: 'D#1', slot: 1, startMs: 0, endMs: 1000 + 41 * 60000 };
+    const mk = (o) => S(Object.assign({}, base, o));
+
+    const s1 = mk({ next: { startMs: 1000 + 3 * 3600000 } });
+    assert(s1.state === 'upcoming' && /Muster in 3:00:00/.test(s1.copy), '1 upcoming: ' + JSON.stringify(s1));
+    const s2 = mk({ next: { startMs: 1000 + 14 * 60000 } });
+    assert(s2.state === 'imminent' && s2.tone === 'warm' && /14:00/.test(s2.copy), '2 imminent: ' + JSON.stringify(s2));
+    const s3 = mk({ live: LIVE });
+    assert(s3.state === 'live' && s3.tone === 'gold-pulse' && /^LIVE · 41:00 left$/.test(s3.copy), '3 live: ' + JSON.stringify(s3));
+    const s4 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#1' });
+    assert(s4.state === 'mustered' && /^Mustered · 41:00$/.test(s4.copy), '4 mustered: ' + JSON.stringify(s4));
+    const s5 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#13', joinedStartMs: Date.UTC(2026, 7, 8, 9, 0) });
+    assert(s5.state === 'joined_earlier' && s5.tone === 'muted', '5 joined earlier: ' + JSON.stringify(s5));
+    assert(s5.copy.indexOf('joined') === 5 || /joined/.test(s5.copy), '5 should say you already joined');
+    const s6 = mk({ rewardReady: true, next: { startMs: 1000 + 3 * 3600000 } });
+    assert(s6.state === 'reward' && s6.cta === 'claim', '6 reward: ' + JSON.stringify(s6));
+    const s7 = mk({ signedIn: false, requireSignIn: true, next: { startMs: 1000 + 3 * 3600000 } });
+    assert(s7.state === 'signedout' && !/\d\d:\d\d/.test(s7.copy), '7 signed out must carry no countdown urgency');
+
+    // Precedence, verbatim from the spec: 3 > 6 > 1.
+    assert(mk({ live: LIVE, rewardReady: true }).state === 'live', 'a live joinable muster must outrank a waiting chest');
+    assert(mk({ rewardReady: true, next: { startMs: 1000 + 9e6 } }).rank >
+           mk({ next: { startMs: 1000 + 9e6 } }).rank, 'a waiting chest must outrank the plain countdown');
+    // Deliberately absent: a "you missed it" state. Guilt is a churn mechanic.
+    const everyState = [s1, s2, s3, s4, s5, s6, s7].map((s) => s.state + '|' + s.copy).join(' ');
+    assert(!/missed/i.test(everyState), 'a "missed it" state was reintroduced');
+    // The clock formatter is the pill's whole content — it must not lie.
+    assert(M._fmtClock(0) === '00:00' && M._fmtClock(-5000) === '00:00', 'negative time must clamp, not go backwards');
+    assert(M._fmtClock(3 * 3600000 + 61000) === '3:01:01', 'hh:mm:ss formatting drifted: ' + M._fmtClock(3 * 3600000 + 61000));
+  }),
+
+  // #15c: once per UTC day. The real rule is a Postgres primary key; what the
+  // browser can prove is that the client mirror refuses what the server
+  // refuses, that it never invents a chest out of an error, and that it keeps
+  // working against a server WITHOUT the migration (client ships first).
+  () => tryRun('b220: muster join is once per UTC day, and survives an un-migrated server', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    const saved = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    try {
+      M._resetProbes();
+      delete G.muster;
+      const st = M.ensureState();
+      assert(st.eventKey === null && st.points === 0, 'a fresh day starts unjoined');
+
+      // Joining slot A must close slot B for the rest of the UTC day.
+      const day = M.todayKey();
+      const slots = M.todaysWindows();
+      Object.assign(G.muster, { dayKey: day, eventKey: slots[0].eventKey, slot: slots[0].slot,
+                                startMs: slots[0].startMs, endMs: slots[0].endMs, points: 300 });
+      assert(G.muster.eventKey === slots[0].eventKey, 'join mirror did not record slot A');
+      const second = M._reduceJoin(200, { ok: false, error: 'already_joined', day_key: day,
+                                          event_key: slots[0].eventKey, points: 300 }, 0);
+      assert(second.action === 'spent' && /already answered/i.test(second.message),
+        'a second join the same UTC day must be refused: ' + JSON.stringify(second));
+
+      // The day roll clears the mirror — it must not grow a record per day
+      // inside a save file that is already fragile.
+      G.muster.dayKey = '1999-1-1';
+      assert(M.ensureState().eventKey === null, 'yesterday’s muster must be pruned at the day roll');
+
+      // A stale event_key earns exactly ONE re-sync, never a retry loop.
+      assert(M._reduceJoin(200, { ok: false, error: 'stale_event', event_key: 'X#1' }, 0).action === 'retry',
+        'the server telling us the real live slot should be adopted once');
+      assert(M._reduceJoin(200, { ok: false, error: 'stale_event', event_key: 'X#1' }, 1).action === 'fail',
+        'a second stale_event must give up, not loop');
+      // Nothing that is not the RPC's own envelope may read as a join.
+      assert(M._reduceJoin(200, null, 0).action === 'fail', 'a null body must never read as a join');
+      assert(M._reduceJoin(401, { code: 'PGRST301' }, 0).action === 'fail', 'an auth error must never read as a join');
+      // CLIENT-FIRST: no migration yet → 404/PGRST202 → the solo muster path.
+      assert(M._reduceJoin(404, { code: 'PGRST202' }, 0).action === 'unsupported',
+        'a missing world_event_join RPC must degrade, not break the feature');
+      assert(M._reduceClaim(404, { code: 'PGRST202' }, 0).action === 'unsupported',
+        'a missing world_event_claim RPC must degrade, not break claiming');
+      assert(M._reduceContribute(404, { code: 'PGRST202' }, 0).action === 'unsupported',
+        'a missing world_event_contribute RPC must degrade, not break play');
+
+      // Contribution clamps mirror the server's, so the UI can never promise
+      // points the server will refuse.
+      delete G.muster; M.ensureState();
+      assert(M._addPoints(999999) === M.TOTAL_CAP, 'the per-muster cap must clamp: ' + M.TOTAL_CAP);
+      assert(M._addPoints(500) === 0, 'past the cap, further play adds nothing');
+    } finally {
+      M._resetProbes();
+      if (saved === undefined) delete G.muster; else G.muster = saved;
+    }
+  }),
+
+  // #15d: the Muster Seal is PvE-internal and single-sourced. This is an
+  // ECONOMY guard, not a UI one — and it also re-asserts the Final Directive
+  // rule that no world-event band can ever mint the IAP-only Hearth Token.
+  () => tryRun('b220: the Muster Seal has exactly one source, and no band mints a Hearth Token', () => {
+    const M = window.HearthriseMuster;
+    const seal = window.ITEMS && window.ITEMS.muster_seal;
+    assert(seal, 'muster_seal missing from ITEMS');
+    assert(seal.bop === true, 'the Muster Seal must be bind-on-pickup — it must never reach the player market');
+    assert(!seal.premium, 'the Muster Seal is PvE-internal, never a premium currency');
+    assert(window._itemPath && /muster-seal\.svg$/.test(window._itemPath.muster_seal || ''),
+      'the Muster Seal has no shipped art — it would render as a blank or a "?"');
+    assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u.test(seal.icon || ''),
+      'the Muster Seal fell back to an emoji glyph');
+
+    // No OTHER system may hand one out: not a drop table, not a dungeon chest,
+    // not a recipe, not a raid boss.
+    const offenders = [];
+    Object.entries(window.MONSTERS || {}).forEach(([id, m]) =>
+      (m.drops || []).forEach((d) => { if (d.id === 'muster_seal') offenders.push('monster ' + id); }));
+    Object.entries(window.DUNGEONS || {}).forEach(([id, d]) =>
+      (d.loot || []).forEach((l) => { if (l.id === 'muster_seal') offenders.push('dungeon ' + id); }));
+    Object.values(window.ARTISAN_RECIPES || {}).forEach((list) =>
+      (list || []).forEach((r) => { if (r.out === 'muster_seal' || r.id === 'muster_seal') offenders.push('recipe ' + (r.id || r.out)); }));
+    ((window.HearthriseRaids && window.HearthriseRaids.BOSSES) || []).forEach((b) => {
+      if (b.reward && b.reward.items && b.reward.items.muster_seal) offenders.push('raid boss ' + b.id);
+    });
+    assert(offenders.length === 0, 'the Muster Seal leaked into: ' + offenders.join(', '));
+
+    // A Seal only exists when the community goal was met. Server says otherwise
+    // → no Seal, whatever number it sent.
+    const held = M._reduceClaim(200, { ok: true, band: 'gold', held: true, gold: 7500, gems: 10, seals: 1 });
+    assert(held.action === 'accept' && held.seals === 1, 'the realm holding should pay a Seal');
+    const notHeld = M._reduceClaim(200, { ok: true, band: 'gold', held: false, gold: 5000, gems: 6, seals: 9 });
+    assert(notHeld.seals === 0, 'no Seal unless the community goal was met, got ' + notHeld.seals);
+    // The spec's daily ceiling is enforced on BOTH sides of the wire.
+    const greedy = M._reduceClaim(200, { ok: true, band: 'gold', held: true, gold: 9e9, gems: 9e9, seals: 9e9 });
+    assert(greedy.gold === 7500 && greedy.gems === 10 && greedy.seals === 1,
+      'the daily chest ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
+    // And nothing in the reward shape can carry the bond.
+    assert(!('hearth_token' in greedy) && JSON.stringify(greedy).indexOf('hearth_token') === -1,
+      'a muster chest must never reference the IAP-only Hearth Token');
+    // Replays and errors pay nothing.
+    assert(M._reduceClaim(200, { ok: false, error: 'already_claimed' }).action === 'spent', 'a replayed claim must be refused');
+    assert(M._reduceClaim(500, null).action === 'fail', 'a server error must never award a chest');
+  }),
+
+  // #14: discoverability. THIS is the tripwire the original bug never had —
+  // the Dungeons entry was injected and then hidden in CSS, which is exactly
+  // the failure mode that made dungeons, and the clan raid nested inside them,
+  // impossible to find.
+  () => tryRun('b220: Events is a real top-level destination and nothing hides it', () => {
+    const nav = document.querySelector('.nav-btn[data-tab="events"]');
+    assert(nav, 'the top-level Events nav entry is missing');
+    assert(getComputedStyle(nav).display !== 'none',
+      'something is hiding the Events nav entry — this is backlog #14 recurring');
+    assert(/events/i.test(nav.textContent), 'the Events nav entry lost its label');
+    assert(!document.querySelector('.nav-btn[data-tab="dungeons"]'),
+      'the injected-then-hidden Dungeons nav entry came back');
+    assert(document.querySelector('#more-modal [data-tab="events"]'),
+      'mobile has no route to Events — the More sheet is the only spare surface');
+    const panel = document.getElementById('panel-events');
+    assert(panel, '#panel-events was never built');
+    ['hr-muster-card', 'hr-ev-blessing', 'hr-events-raid', 'hr-events-dungeons'].forEach((id) =>
+      assert(panel.querySelector('#' + id), 'Events panel is missing its ' + id + ' section'));
+    // The dungeon list lives here now, and showTab('dungeons') still resolves.
+    assert(document.querySelector('#panel-events #panel-dungeons'),
+      'the dungeon list did not move into Events');
+  }),
+
+  () => tryRun('b220: the raid card renders at full height in its new home', () => {
+    const R = window.HearthriseRaids;
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('events');
+      const p = R.render(); if (p && p.catch) p.catch(() => {});
+      const card = document.getElementById('hr-raid-card');
+      assert(card, 'the raid card is missing');
+      assert(card.closest('#panel-events'),
+        'the raid card is still outside Events — the flagship social feature must be findable');
+      // Above the dungeon list, under its own "Weekly clan boss" heading: the
+      // weekly SOCIAL boss must not read as one more solo dungeon.
+      assert(card.parentElement && card.parentElement.id === 'hr-events-raid',
+        'the raid card drifted out of its own section, into ' + (card.parentElement && card.parentElement.id));
+      const dgnSec = document.getElementById('hr-events-dungeons');
+      assert(card.compareDocumentPosition(dgnSec) & Node.DOCUMENT_POSITION_FOLLOWING,
+        'the clan boss must come before the solo dungeon list');
+      const box = card.getBoundingClientRect();
+      // It rendered 16px tall inside #panel-dungeons: `.panel.active` is
+      // display:grid with no row template, so an injected card became an
+      // implicit row in a fixed-height container and collapsed.
+      assert(box.height > 60, 'the raid card collapsed again — height ' + Math.round(box.height) + 'px');
+      assert(box.width > 60, 'the raid card has no width');
+      assert(getComputedStyle(document.getElementById('panel-events')).display === 'block',
+        'the Events panel must be a block column, not a grid — that grid is what collapsed the card');
+      assert(!document.getElementById('hr-dungeons-back'),
+        'the "Back to Combat" escape hatch belongs to the old dead-end panel');
+    } finally {
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

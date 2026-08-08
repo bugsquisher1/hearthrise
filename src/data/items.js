@@ -308,6 +308,25 @@ export const ITEMS={
     n:'Hearth Token', icon:'🪙', v:25000, premium:true,
     rarity:'currency', tag:'currency',
   },
+  /* b220 (#15): the Muster Seal is the world-event currency. It is the
+     DELIBERATE opposite of the Hearth Token — earned only by playing, capped
+     at one per UTC day by the muster's own join rule, and bind-on-pickup so it
+     can never reach the player market and become a second gold bridge. The
+     headline value of a world event lives here rather than in gems, so events
+     stay desirable without inflating the currency that is also sold for money.
+     Its ONLY source is HearthriseMuster's claim path (a guard test asserts no
+     drop table, recipe, shop or chest can mint it). Never a Hearth Token. */
+  muster_seal: {
+    /* `icon` is the LAST-RESORT glyph for the handful of legacy render sites
+       that build HTML from `ITEMS[id].icon` instead of `_itemPath` (the item
+       detail card, the market row). Every other item answers those with an
+       emoji; this one answers with its real art, because nothing in Hearthrise
+       renders emoji as art. Same convention `window._itemSVG` already uses. */
+    n:'Muster Seal',
+    icon:'<img src="assets/icons-bundle/medieval/muster-seal.svg" alt="" draggable="false" style="width:100%;height:100%;max-width:38px;max-height:38px;object-fit:contain;display:inline-block;vertical-align:-.15em" />',
+    v:0, bop:true,
+    rarity:'currency', tag:'currency', musterOnly:true,
+  },
 
   /* ── Bind-on-Pickup dungeon keys ──
      Replace gold entry costs. Drop from monsters whose family/tier match

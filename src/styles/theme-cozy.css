@@ -263,11 +263,14 @@ body[data-theme="cozy-light"] .sidebar {
 }
 
 /* Hide the nav entries we're consolidating into other tabs:
-   • Dungeons → entry point inside Combat panel
-   • Store    → entry point inside Market panel */
-.nav-btn[data-tab="dungeons"],
+   • Store → entry point inside Market panel
+
+   b220 (#14): the `dungeons` rules are GONE, and so is the button they hid.
+   Injecting a nav entry (src/dungeons.js) and then hiding it in CSS is what
+   made dungeons — and the weekly clan raid nested inside their panel — the
+   least discoverable content in the game. Dungeons are now a section of the
+   real top-level `Events` destination, which no rule may hide. */
 .nav-btn[data-tab="shop"] { display: none !important; }
-.bn-btn[data-tab="dungeons"],
 .bn-btn[data-tab="shop"] { display: none !important; }
 
 /* SVG icon sizing — swapped via src/icon-swap.js. The .ic wrapper

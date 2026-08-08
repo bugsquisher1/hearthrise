@@ -207,7 +207,7 @@
     profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
     skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
     house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable',
-    market: 'navMarket', dungeons: 'navDungeons'
+    market: 'navMarket', dungeons: 'navDungeons', events: 'uiEvent'
   };
   function paintNav() {
     document.querySelectorAll('.nav-btn[data-tab], .bn-btn[data-tab]').forEach(function (btn) {

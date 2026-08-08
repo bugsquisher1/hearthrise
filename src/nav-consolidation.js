@@ -34,11 +34,15 @@
     btn.id = 'hr-dungeons-link';
     btn.type = 'button';
     btn.className = 'btn btn-sm';
-    const gly = (window.HR && window.HR.icon) ? (window.HR.icon('navDungeons', 14, 'currentColor') || '') : '';
-    btn.innerHTML = gly + '<span>Dungeons</span>';
-    btn.title = 'Enter the Dungeons';
+    // b220 (#14): dungeons are no longer a destination of their own — they are
+    // a section of the top-level Events panel, alongside the muster and the
+    // weekly clan boss. The shortcut stays (the old path must keep working) but
+    // it now says where it actually goes.
+    const gly = (window.HR && window.HR.icon) ? (window.HR.icon('uiEvent', 14, 'currentColor') || '') : '';
+    btn.innerHTML = gly + '<span>Events</span>';
+    btn.title = 'Dungeons, the weekly clan boss and today’s muster';
     btn.addEventListener('click', () => {
-      if (typeof window.showTab === 'function') window.showTab('dungeons');
+      if (typeof window.showTab === 'function') window.showTab('events');
     });
     const ribbon = combatPanel.querySelector('.combat-style-block');
     if (ribbon) { btn.style.marginLeft = 'auto'; ribbon.appendChild(btn); }
@@ -95,6 +99,11 @@
     shopPanel.appendChild(btn);
   }
   function injectDungeonsBackLink() {
+    // b220 (#14): with Events as a real top-level entry the dungeon list is no
+    // longer a dead-end sub-panel reached only from Combat, so a "← Back to
+    // Combat" escape hatch is now misleading furniture. Skip it once Events
+    // exists; the branch stays for the (impossible) case where it does not.
+    if (document.getElementById('panel-events')) return;
     const dPanel = document.getElementById('panel-dungeons');
     if (!dPanel || dPanel.querySelector('#hr-dungeons-back')) return;
     const btn = document.createElement('button');

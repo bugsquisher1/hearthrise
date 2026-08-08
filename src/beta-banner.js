@@ -67,21 +67,32 @@
       'display:flex;align-items:center;justify-content:center;padding:20px;'+
       'opacity:0;transition:opacity .25s ease';
     var card = document.createElement('div');
+    /* b219: was a hardcoded cream card (#fdf3d8 on #2a1a08) left over from the
+       retired cozy-light theme, so the first thing a new player saw under
+       Hearthlight was a bright parchment rectangle in an otherwise dark game.
+       Colours now come from theme tokens, per the no-hardcoded-colour rule. */
     card.style.cssText =
-      'max-width:480px;background:#fdf3d8;color:#2a1a08;border:1px solid #c9a040;'+
-      'border-radius:14px;padding:22px 24px;box-shadow:0 18px 48px rgba(0,0,0,.55);'+
+      'max-width:480px;background:linear-gradient(180deg,var(--bg-2,#262019),var(--bg-1,#16120d));'+
+      'color:var(--ink,#ece1cc);border:1px solid var(--line-strong,rgba(201,162,74,.55));'+
+      'border-radius:var(--r-lg,5px);padding:22px 24px;box-shadow:0 18px 48px rgba(0,0,0,.55);'+
       'font-family:inherit;line-height:1.45';
+    /* b219 (backlog #12/Art Director): the copy rendered literal emoji
+       (a seedling in the heading, a ladybug for the bug button, a speech
+       balloon on the Discord link). Emoji-as-art is banned project-wide —
+       and the button it was pointing at hasn't used an emoji since b213, so
+       the ladybug was also just wrong. Plain words + the game's own line-art
+       glyph carry it instead. */
     card.innerHTML =
-      '<h2 style="margin:0 0 10px;font-size:22px">🌱 Welcome to Hearthrise</h2>'+
-      '<p style="margin:0 0 12px;font-size:14px"><b>This is a beta build.</b> Things will break, balance will change, and your save may need to be reset between major updates. Thanks for playing early — your feedback shapes the game.</p>'+
-      '<ul style="margin:0 0 14px;padding-left:18px;font-size:13px">'+
-      '  <li>Found a bug? Use the <b>🐞 Report</b> button in the topbar — it goes straight to the dev Discord.</li>'+
+      '<h2 style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Welcome to Hearthrise</h2>'+
+      '<p style="margin:0 0 12px;font-size:var(--t-small,14px)"><b>This is a beta build.</b> Things will break, balance will change, and your save may need to be reset between major updates. Thanks for playing early — your feedback shapes the game.</p>'+
+      '<ul style="margin:0 0 14px;padding-left:18px;font-size:var(--t-small,14px)">'+
+      '  <li>Found a bug? Use the <b>Report</b> button in the bottom-right corner — it goes straight to the dev Discord.</li>'+
       '  <li>Have ideas, want to chat, or just say hi? Join the Discord below.</li>'+
       '  <li>Saves live in your browser. Sign in via Settings → Account if you want cloud sync across devices.</li>'+
       '</ul>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
-      '  <a class="btn" target="_blank" rel="noopener" href="'+DISCORD_INVITE+'" style="background:#5865f2;color:white;border:none;padding:8px 14px;border-radius:6px;font-weight:700;text-decoration:none;font-size:13px">💬 Join Discord</a>'+
-      '  <button class="btn btn-primary" onclick="window._ackBetaBanner()" style="background:#c9a040;color:#2a1a08;border:none;padding:8px 14px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer">I understand — let me play</button>'+
+      '  <a class="btn" target="_blank" rel="noopener" href="'+DISCORD_INVITE+'" style="background:transparent;color:var(--ink-2,#c4b79e);border:1px solid var(--line,rgba(201,162,74,.3));padding:8px 14px;border-radius:var(--r,3px);font-weight:700;text-decoration:none;font-size:var(--t-small,13px)">Join the Discord</a>'+
+      '  <button class="btn btn-primary" onclick="window._ackBetaBanner()" style="background:var(--gold,#c9a24a);color:#221803;border:1px solid var(--gold-2,#e3c77e);padding:8px 14px;border-radius:var(--r,3px);font-weight:700;font-size:var(--t-small,13px);cursor:pointer">I understand — let me play</button>'+
       '</div>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);

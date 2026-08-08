@@ -659,6 +659,10 @@
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
   <script src="src/features/profile-launchpad.js?v=218"></script>
   <script src="src/legacy.js?v=218"></script>
+  <!-- b219 (#7): the toast queue. Loads right after legacy.js — notify() in
+       legacy.js delegates to it and falls back to its own minimal render if
+       this ever fails to load, so order is a preference, not a hard dep. -->
+  <script src="src/features/toasts.js?v=218"></script>
   <script src="src/admin.js?v=218"></script>
   <!-- b158: scenic backdrop + glass panels (atmosphere) -->
   <script src="src/features/backdrop.js?v=218"></script>

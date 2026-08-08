@@ -36,6 +36,15 @@ const tryRun = (name, fn) => {
 };
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+// b219: the game tick runs THROUGH the suite, and earlier tests leave combat
+// or gathering active — so a genuine "Defeated Slime" toast can land in
+// #notifs in the middle of a toast test. Locate a test's own toast by a
+// unique marker instead of grabbing whatever is first in the DOM.
+const findToasts = (mark) =>
+  [...document.querySelectorAll('#notifs .notif:not(.leaving)')]
+    .filter((n) => n.textContent.indexOf(mark) >= 0);
+const findToast = (mark) => findToasts(mark)[0] || null;
+
 // b127: snapshot every field the player-action tests can mutate.
 // Missing fields here = the test pollutes the player's save.
 const snapshotG = () => {
@@ -3119,6 +3128,211 @@ const TESTS = [
       window._tdPane = prevPane;
       if (snap) window.G.companions = JSON.parse(snap);
       if (window.G.equipment) window.G.equipment.companion = eqSnap;
+    }
+  }),
+
+  // ── b219 regression suite (backlog #7 + #8 + beta-modal emoji) ──
+
+  // b219 (#7a): toasts rendered at 13.5px — below the b218 readable body
+  // floor (--t-body: 16px) — which is the literal "too small to read"
+  // report. Guard: a live toast must render at body size or larger.
+  //
+  // NOTE for anyone extending these: the game tick keeps running during the
+  // suite, and earlier tests leave combat/gathering active — so a real
+  // "Defeated Slime" toast can land in #notifs mid-test. Never assert on
+  // `querySelector('#notifs .notif')`; always find YOUR toast by its marker.
+  () => tryRun('b219: toast text is at least body size (not micro)', () => {
+    if (!window.HearthriseToasts) throw new Error('HearthriseToasts missing — toast queue did not load');
+    window.HearthriseToasts.clear();
+    try {
+      window.notify('ToastProbeSize readability check', 'info');
+      const el = findToast('ToastProbeSize');
+      assert(el, 'notify() produced no toast element');
+      const px = parseFloat(getComputedStyle(el).fontSize);
+      assert(px >= 15, 'toast font-size is ' + px + 'px — below the readable body floor');
+    } finally { window.HearthriseToasts.clear(); }
+  }),
+
+  // b219 (#7b): every toast dismissed after a flat 3500ms, so the long
+  // messages (the save-recovery copy is 96 chars) were gone before they
+  // could be read. Duration now scales with length and never dips under 4s.
+  () => tryRun('b219: toast duration >= 4s and scales with text length', () => {
+    const T = window.HearthriseToasts;
+    if (!T || typeof T.durationFor !== 'function') throw new Error('HearthriseToasts.durationFor missing');
+    const short = T.durationFor('+3 Oak Log');
+    const long = T.durationFor('Your save data could not be read, so a fresh start was loaded. Open Settings.');
+    assert(short >= 4000, 'short toast lasts only ' + short + 'ms (floor is 4000ms)');
+    assert(long > short, 'a 76-char toast (' + long + 'ms) should outlast a 10-char one (' + short + 'ms)');
+    assert(long <= 12000, 'toast duration should stay capped, got ' + long + 'ms');
+  }),
+
+  // b219 (#7c): the old code hard-capped the stack with
+  // `while(children.length>5) children[0].remove()`, destroying toasts on
+  // arrival during a combat burst. They queue now: never more than
+  // MAX_VISIBLE on screen, and the overflow waits instead of vanishing.
+  () => tryRun('b219: toast burst queues instead of overwriting', () => {
+    const T = window.HearthriseToasts;
+    if (!T) throw new Error('HearthriseToasts missing');
+    T.clear();
+    try {
+      const max = T.config.MAX_VISIBLE;
+      for (let i = 0; i < 9; i++) window.notify('ToastProbeQueue ' + i, 'info');
+      const st = T.state();
+      assert(st.visible === max, 'expected ' + max + ' visible toasts, got ' + st.visible);
+      assert(st.pending === 9 - max, 'expected ' + (9 - max) + ' queued, got ' + st.pending + ' (toasts were dropped, not queued)');
+      assert(st.dropped === 0, 'a 9-toast burst should not drop anything, dropped ' + st.dropped);
+      assert(findToasts('ToastProbeQueue').length === max,
+        'rendered probe toasts should match the visible cap');
+    } finally { T.clear(); }
+  }),
+
+  // b219 (#7d): an idle game repeats itself ("Defeated Wolf" every few
+  // seconds). Identical messages coalesce into one row with a counter
+  // instead of each stealing a slot and racing the others off screen.
+  () => tryRun('b219: repeated toasts coalesce into a count', () => {
+    const T = window.HearthriseToasts;
+    if (!T) throw new Error('HearthriseToasts missing');
+    T.clear();
+    try {
+      for (let i = 0; i < 5; i++) window.notify('ToastProbeRepeat defeated', 'kill');
+      const rows = findToasts('ToastProbeRepeat');
+      assert(rows.length === 1, 'five identical toasts should occupy one row, got ' + rows.length);
+      const badge = rows[0].querySelector('.notif-count');
+      assert(badge && badge.textContent === 'x5',
+        'the x5 counter is not rendered (got ' + (badge && badge.textContent) + ')');
+      assert(getComputedStyle(badge).display !== 'none', 'the repeat counter is hidden');
+    } finally { T.clear(); }
+  }),
+
+  // b219 (#7e + #8): THE bug. The toast column, the chat pill and the
+  // bug-report button all lived in the bottom-right corner, and the chat
+  // pill (z-index 10000) sat on top of the toasts (z-index 1000) — so the
+  // newest notification was literally behind the chat button. The queue now
+  // measures its neighbours and lifts clear of them. Guard: with a toast up,
+  // the toast column must not intersect the chat dock or the bug button.
+  () => tryRun('b219: toast column is never covered by the chat button', () => {
+    const T = window.HearthriseToasts;
+    if (!T) throw new Error('HearthriseToasts missing');
+    T.clear();
+    try {
+      window.notify('Overlap probe', 'info');
+      T.layout();
+      const col = document.getElementById('notifs');
+      const cr = col.getBoundingClientRect();
+      assert(cr.width > 0 && cr.height > 0, 'toast column has no box');
+      ['#chat-dock', '#hr-bug-btn'].forEach((sel) => {
+        const ob = document.querySelector(sel);
+        if (!ob) return;
+        const r = ob.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return;
+        const hit = !(cr.right <= r.left + 1 || r.right <= cr.left + 1
+                   || cr.bottom <= r.top + 1 || r.bottom <= cr.top + 1);
+        assert(!hit, 'toast column overlaps ' + sel
+          + ' — toast rect ' + JSON.stringify({ t: cr.top | 0, b: cr.bottom | 0, l: cr.left | 0, r: cr.right | 0 })
+          + ' vs ' + JSON.stringify({ t: r.top | 0, b: r.bottom | 0, l: r.left | 0, r: r.right | 0 }));
+      });
+    } finally { T.clear(); }
+  }),
+
+  // b219 (found while verifying #7): claiming the daily reward printed ~700
+  // characters of raw <svg> path data into the toast corner — the call site
+  // handed notify() a string built for innerHTML, and toasts render with
+  // textContent. Two guards: the reward toast must be plain text, and the
+  // toast renderer must strip tags from ANY caller rather than show source.
+  () => tryRun('b219: daily-reward toast is plain text, not raw SVG markup', () => {
+    const D = window.HearthriseDaily;
+    if (!D || typeof D.rewardFor !== 'function') throw new Error('HearthriseDaily missing');
+    const T = window.HearthriseToasts;
+    if (!T) throw new Error('HearthriseToasts missing');
+    T.clear();
+    try {
+      window.notify('ToastProbeMarkup: <svg viewBox="0 0 512 512"><path d="M264 4 95z"/></svg> 500', 'levelup');
+      const el = findToast('ToastProbeMarkup');
+      assert(el, 'no toast rendered');
+      const txt = el.textContent;
+      assert(txt.indexOf('<') < 0 && txt.toLowerCase().indexOf('viewbox') < 0,
+        'toast leaked markup into the visible text: ' + JSON.stringify(txt.slice(0, 80)));
+      assert(/^ToastProbeMarkup:\s*500/.test(txt),
+        'toast lost its actual message while stripping tags: ' + JSON.stringify(txt));
+    } finally { T.clear(); }
+  }),
+
+  // b219 (#8): the chat pill was nailed to bottom-right with no escape, so
+  // it covered whatever sat under it. It is draggable now, and the position
+  // must SURVIVE (persisted through the platform storage seam) — a position
+  // that resets on reload is not a fix.
+  () => tryRun('b219: chat dock position persists and re-applies', () => {
+    if (!window.Chat || typeof window.Chat.setPosition !== 'function') {
+      throw new Error('Chat.setPosition missing — dock is not repositionable');
+    }
+    const dock = document.getElementById('chat-dock');
+    assert(dock, '#chat-dock not in the DOM');
+    const prev = window.Chat.getPosition();
+    try {
+      window.Chat.setPosition(0.1, 0.2);
+      const saved = window.HearthriseStorage
+        ? window.HearthriseStorage.get('hearthrise:chat:dockpos')
+        : localStorage.getItem('hearthrise:chat:dockpos');
+      assert(saved, 'dock position was not persisted');
+      const parsed = JSON.parse(saved);
+      assert(Math.abs(parsed.fx - 0.1) < 1e-6 && Math.abs(parsed.fy - 0.2) < 1e-6,
+        'persisted dock position is wrong: ' + saved);
+      assert(window.Chat.getPosition() !== null, 'Chat.getPosition() lost the position it just set');
+      if (window.innerWidth > 540 && dock.classList.contains('mini')) {
+        assert(dock.style.left && dock.style.top,
+          'a custom dock position should be applied as left/top, not left on the default corner');
+        // "Movable" must not let the pill create the same problem somewhere
+        // else: the topbar (gold/gems/quests/settings) and the activity strip
+        // are off-limits, so the top-left extreme is clamped below them.
+        window.Chat.setPosition(0, 0);
+        const pill = dock.getBoundingClientRect();
+        ['.topbar', '.activity-bar'].forEach((sel) => {
+          const chrome = document.querySelector(sel);
+          if (!chrome) return;
+          const c = chrome.getBoundingClientRect();
+          if (c.height <= 0) return;
+          assert(pill.top >= c.bottom,
+            'chat pill dragged to the top-left corner covers ' + sel
+            + ' (pill top ' + (pill.top | 0) + ' vs ' + sel + ' bottom ' + (c.bottom | 0) + ')');
+        });
+      }
+      // ...and resetting must put it back on the default corner cleanly.
+      window.Chat.resetPosition();
+      assert(window.Chat.getPosition() === null, 'resetPosition() did not clear the saved position');
+      assert(!dock.style.left, 'resetPosition() left a stale inline left offset');
+    } finally {
+      if (prev) window.Chat.setPosition(prev.fx, prev.fy); else window.Chat.resetPosition();
+    }
+  }),
+
+  // b219 (beta modal): the first screen a new player sees rendered literal
+  // emoji in its copy (a seedling in the heading, a ladybug for the Report
+  // button, a speech balloon on the Discord link). Emoji-as-art is banned
+  // project-wide. Guard the rendered DOM, not the source.
+  () => tryRun('b219: beta welcome modal renders zero emoji', () => {
+    const B = window.HearthriseBetaBanner;
+    if (!B || typeof B.show !== 'function') throw new Error('HearthriseBetaBanner missing');
+    const existing = document.getElementById('beta-banner-overlay');
+    const wasOpen = !!existing;
+    const acked = (() => { try { return localStorage.getItem('hearthrise:beta-ack'); } catch (e) { return null; } })();
+    try {
+      B.show();
+      const overlay = document.getElementById('beta-banner-overlay');
+      assert(overlay, 'beta banner did not render');
+      const text = overlay.textContent || '';
+      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{231A}-\u{23FF}]/u;
+      const hit = text.match(EMOJI);
+      assert(!hit, 'beta welcome modal still renders emoji: "' + (hit && hit[0]) + '"');
+    } finally {
+      if (!wasOpen) {
+        const o = document.getElementById('beta-banner-overlay');
+        if (o && o.parentNode) o.parentNode.removeChild(o);
+      }
+      // B.show() is side-effect-free, but ack state is restored defensively.
+      try {
+        if (acked === null) localStorage.removeItem('hearthrise:beta-ack');
+        else localStorage.setItem('hearthrise:beta-ack', acked);
+      } catch (e) {}
     }
   }),
 ];

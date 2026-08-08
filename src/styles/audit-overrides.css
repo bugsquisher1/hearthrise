@@ -54,17 +54,24 @@
   z-index: 99999;
 }
 
-/* zone-toasts: bottom-right corner, queues upward. */
+/* zone-toasts: bottom-right corner, queues upward.
+   b219 (backlog #7): the offsets below are a RESTING position only — the
+   toast queue (src/features/toasts.js) measures the other bottom-right
+   chrome (#chat-dock, #hr-bug-btn) at runtime and overwrites `bottom` /
+   `right` inline so the column always clears them. Toasts also outrank the
+   chat dock (z-index 10000) now: geometry keeps them apart, and if the
+   geometry ever fails, on top beats invisible. Modals (>= 99980) still win
+   over both. */
 .notifs {
   position: fixed;
-  right: max(12px, var(--safe-b, 0px));
+  right: max(12px, var(--safe-r, 0px));
   bottom: max(12px, calc(12px + var(--safe-b, 0px)));
-  z-index: 1000;
+  z-index: 10050;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
   pointer-events: none;
-  max-width: min(320px, calc(100vw - 24px));
+  max-width: min(380px, calc(100vw - 24px));
 }
 
 /* zone-popups: top-right vertical strip, slides in from right.
@@ -2803,6 +2810,11 @@ body.in-combat #combat-area {
   font-weight: 700;
   cursor: pointer;
   transition: filter 120ms ease;
+  /* b219: holds an inline SVG glyph now (was a dingbat character), so it
+     needs to centre a box rather than a text baseline. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 #chat-send:hover { filter: brightness(1.1); }
 

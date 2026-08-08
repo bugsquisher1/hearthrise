@@ -100,6 +100,18 @@
     if (rw.gems) p.push(amountHtml('gems', rw.gems, 'gems'));
     return p.join('  ');
   }
+  /* b219: rewardText() returns MARKUP (inline <svg> glyphs) for the claim
+     button. It was also being handed to notify(), which renders with
+     textContent — so claiming the daily reward printed ~700 characters of
+     raw SVG path data into the corner as a toast. It was always broken;
+     the b219 toast (body-size type, length-scaled dwell) just stopped it
+     being small and brief enough to miss. Toasts get plain text. */
+  function rewardPlain(rw) {
+    var p = [];
+    if (rw.gold) p.push(fmt(rw.gold) + ' Gold');
+    if (rw.gems) p.push(fmt(rw.gems) + ' Gems');
+    return p.join(', ');
+  }
 
   function ensureStyle() {
     if (document.getElementById('hr-daily-css')) return;
@@ -151,7 +163,9 @@
     scrim.addEventListener('click', function (e) {
       if (e.target.closest && e.target.closest('[data-dl-claim]')) {
         var rw = claim(G);
-        if (rw && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardText(rw), 'gold');
+        /* 'levelup' is the gold toast treatment; 'gold' was never a real
+           toast type, so this toast had no tone at all. */
+        if (rw && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
         scrim.remove();
         try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (er) {}
       } else if (e.target === scrim) { scrim.remove(); }

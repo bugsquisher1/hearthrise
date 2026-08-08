@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8000"],
       "port": 8000
+    },
+    {
+      "name": "hearthrise-coord",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8125"],
+      "port": 8125
     }
   ]
 }

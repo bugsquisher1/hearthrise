@@ -4,6 +4,9 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `19595db` · Wave 0 Art — readable type scale + Hearthrise wordmark (#1, #2) · Art Director
+~x1.13 proportional scale across all 3 sheets (body 14->16px, ~700 declarations, hierarchy preserved) + `--t-*` ramp raised. Header brand replaced: inline-SVG shield emblem + gilt Cinzel "HEARTHRISE" lockup (old crest was dark-brown-on-black, near-zero contrast). **Verified:** smoke 177/177 post-merge, Coordinator re-verified rendered screens + narrow-viewport brand collapse on :8125. Local only — not pushed.
+
 ### 2026-08-08 · `8878ba8` · Wave 0 Systems — inventory sub-tab persistence + companion stats (#3, #4) · Systems Engineer
 Doll sub-tab (Equipment|Stats|Companion) no longer snaps back to Equipment on activity-driven re-renders (`window._tdPane` persisted, restored on rebuild). Companion sub-tab now shows the companion's own name/level/XP-bar/bonuses/proc instead of a bare slot icon. +2 regression tests. **Verified:** smoke 177/177, cache-buster OK, before/after browser repro, console clean. Local only — not pushed.
 

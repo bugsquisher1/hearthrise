@@ -4,9 +4,9 @@ _What each agent is doing right now. Update when you start, change scope, or fin
 
 | Agent | Task | Files being modified | Depends on | Possible conflicts | Status | Updated |
 |---|---|---|---|---|---|---|
-| Coordinator | Backlog triage + Wave 0 dispatch/integration | `.claude/**` | — | none | in progress | 2026-08-08 |
+| Coordinator | Wave 0 complete — all merged + verified; awaiting Tyler's ship decision, then Wave 1 | `.claude/**` | — | none | in progress | 2026-08-08 |
 | Systems Engineer | **#3** inventory tab snap-back bug; **#4** companion stats binding | `src/legacy.js`, `src/styles/theme-cozy.css`, `src/features/smoke-test.js` | — | — | **done** — both fixed, merged to main `8878ba8`, 177/177 | 2026-08-08 |
-| Art Director | **#1** global readable text scale; **#2** logo redesign | `src/styles/*.css`, `index.html` header (worktree) | — | keep out of `legacy.js` render logic (Systems owns it this wave) | in progress (worktree) | 2026-08-08 |
+| Art Director | **#1** global readable text scale; **#2** logo redesign | `src/styles/*.css`, `index.html` | — | — | **done** — merged to main `19595db`, 177/177, Coordinator visually verified | 2026-08-08 |
 | Game Designer | Design specs (no code): **#10** clan overhaul, **#11** leaderboards, **#12** crafting/cooking taxonomy | `docs/design/*.md` only | — | none (docs only) | **done** — `4d54eb3` on main; 4 items filed in CONFLICTS.md | 2026-08-08 |
 | Asset Director | idle (on deck for #2 wordmark, #5/#6 scene art) | — | Art briefs | — | idle | 2026-08-08 |
 | QA Engineer | idle (verifies Wave 0 at integration) | — | Wave 0 output | — | idle | 2026-08-08 |

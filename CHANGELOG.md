@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 220 — 2026-08-08 (The Muster, honest farming, and a tidy workshop)
+
+- 📯 **The Muster.** Twice a day (01:00 and 13:00 UTC) a 45-minute world event opens — join one per day, rally your contribution, and claim a chest when the window closes. The two daily slots are always *different* events, so picking your slot is a real choice. A countdown pill in the top bar always shows what's coming; there's no "you missed it" nagging, ever.
+- 🗺️ **Events has a home.** A new Events tab gathers world events, the weekly clan raid, and every dungeon in one place — no more hunting through Combat for the raid card (which, it turns out, had been rendering 16 pixels tall).
+- 🌱 **Watering is now optional.** Crops always finish on their own — watering opens a 2-hour double-speed window instead of being a hard requirement. Auto-replanted crops used to stall *forever*, invisibly; every stuck plot un-sticks itself on first load. The harvest daily now scales with your actual farm too.
+- ⚒️ **The workshop is organized.** Smithing, crafting, and cooking are grouped into categories — and cooking is split into Provisions (healing) and Feasts & Draughts (buffs). Auto-eat now eats *real food*: it had been preferring raw shrimp over cooked shark since forever, and it will never burn your feast items.
+- 🧰 Also: the "More" menu buttons that silently did nothing now work, and event names no longer render as emoji.
+- 🧪 206 tests green (+18 new regression guards).
+
 ## v0.9.2-beta build 219 — 2026-08-08 (A hearth worth coming home to)
 
 - 🌄 **The Home screen is a place now.** The top of Home is a dusk vista of your own holding — and it grows with you, from a lone tent at the campfire to a full castle with your banner up. Below it, "Your holding" shows exactly what your next property tier costs, and "The realm" surfaces today's and this week's world events (previously buried in a ticker behind the chat button).

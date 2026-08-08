@@ -6849,6 +6849,31 @@ console.log('UI rework v2 loaded');
 document.body.classList.add('has-prof-toolbar');
 
 /* ═══ Tibia paper-doll builder ═══════════════════════════ */
+// b190: monochrome line-glyphs for EMPTY equipment slots. The old colorful
+// emoji placeholders (⛑️📿💎…) clashed hard with the painted dark theme —
+// "stupid little icons." These are faint gilt strokes that read as slot
+// hints without fighting the art. Styled via .td-slot.empty svg in CSS.
+function slotGlyphSVG(slot){
+  var P = {
+    helmet:  '<path d="M5 14a7 7 0 0 1 14 0v2H5z"/><path d="M5 16h14M10 16v-3M14 16v-3"/>',
+    necklace:'<path d="M6 5a6 6 0 0 0 12 0"/><path d="M12 11l2 3-2 2-2-2z"/>',
+    earrings:'<circle cx="9" cy="8" r="1.3"/><path d="M9 9v2"/><path d="M9 11l1.4 2-1.4 2-1.4-2z"/><circle cx="15" cy="8" r="1.3"/><path d="M15 9v2"/><path d="M15 11l1.4 2-1.4 2-1.4-2z"/>',
+    cape:    '<path d="M8 4l4 3 4-3 1 16H7z"/><path d="M12 7v13"/>',
+    weapon:  '<path d="M15 4l5 5-9 9"/><path d="M4 20l3.5-3.5M6.5 13.5l4 4M8.5 15.5l-3 3"/>',
+    ammo:    '<path d="M5 19L18 6"/><path d="M14 6h4v4"/><path d="M5 19l4-1-3-3z"/>',
+    ring1:   '<circle cx="12" cy="15" r="5"/><path d="M9.5 9l2.5-3 2.5 3"/>',
+    ring2:   '<circle cx="12" cy="15" r="5"/><path d="M9.5 9l2.5-3 2.5 3"/>',
+    body:    '<path d="M7 5l5 2 5-2 1 5-3 1.5V19H9v-7.5L6 10z"/>',
+    gloves:  '<path d="M8 20v-6a1.4 1.4 0 0 1 2.8 0M10.8 14V9.5M10.8 12.5a1.4 1.4 0 0 1 2.8 0M13.6 12.5a1.4 1.4 0 0 1 2.8 0V17a3 3 0 0 1-3 3H8"/>',
+    belt:    '<rect x="4" y="10" width="16" height="4" rx="1"/><rect x="10" y="9" width="4" height="6" rx="1"/>',
+    pants:   '<path d="M7 4h10l-1.2 16h-3L12 11l-.8 9h-3z"/>',
+    boots:   '<path d="M10 4v9l-3.5 2.5V20h9v-3c0-3.5-2.5-3-2.5-7V4z"/>',
+    companion:'<circle cx="12" cy="15.5" r="3"/><circle cx="7.5" cy="11" r="1.5"/><circle cx="16.5" cy="11" r="1.5"/><circle cx="9.8" cy="7.5" r="1.4"/><circle cx="14.2" cy="7.5" r="1.4"/>'
+  };
+  var d = P[slot] || '<circle cx="12" cy="12" r="6"/>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+}
+
 window.buildTibiaDoll = function(){
   if(typeof EQUIP_SLOTS === 'undefined' || typeof EQUIP_SLOT_META === 'undefined') return null;
   var doll = document.createElement('div');
@@ -6878,7 +6903,8 @@ window.buildTibiaDoll = function(){
       slot.innerHTML = (def.icon||'·');
       slot.setAttribute('draggable','true');
     } else {
-      slot.innerHTML = (EQUIP_SLOT_META[s]?.icon||'·');
+      // b190: faint gilt line-glyph instead of a colorful emoji placeholder
+      slot.innerHTML = slotGlyphSVG(s);
     }
     doll.appendChild(slot);
   });

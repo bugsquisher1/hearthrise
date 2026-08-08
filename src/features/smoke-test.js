@@ -655,6 +655,157 @@ const TESTS = [
       ':root --bg-0 must not be the cream light value (got ' + rootBg + ')');
   }),
 
+  // ── b222 · CSS substrate guards ────────────────────────────────────────────
+  // The b216 guard above catches ONE shape of always-true selector
+  // (`html:not([data-theme])`) in ONE file. b222 found three more shapes that
+  // shape misses, in every sheet. Each of these fails the moment the pattern
+  // comes back; together they are the contract that keeps board-and-shop.css
+  // (and any future in-world screen) free of !important arms races.
+  () => tryRun('b222: no always-true `:root <descendant>` rules in any sheet', () => {
+    // `:root` is <html>; the theme attribute lives on <body>. So a rule like
+    // `:root .topbar {…}` matches under EVERY theme. theme-cozy.css carried 25
+    // of them as the second half of `body[data-theme="cozy-light"] X, :root X`
+    // pairs, quietly painting the retired light theme's component layer beneath
+    // Hearthlight (the active nav item wore the light fill AND a real 3px
+    // border-left that defeated b217's inset spine). `:root` is for TOKEN
+    // BLOCKS ONLY — `:root { --x: … }` and `:root, body[data-theme=…] { --x }`
+    // are fine because they have no descendant part.
+    const bad = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      const file = (sheet.href || '').split('/').pop().split('?')[0];
+      if (!file) continue;                                    // injected <style> — not ours to police
+      let rules; try { rules = Array.from(sheet.cssRules); } catch { continue; }
+      const walk = (list) => list.forEach((r) => {
+        if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }
+        if (!r.selectorText) return;
+        r.selectorText.split(',').forEach((sel) => {
+          const s = sel.trim();
+          // `:root` followed by anything that is not the end of the selector
+          if (/^:root(\s|\s*>)\s*\S/.test(s)) bad.push(file + ' :: ' + s.slice(0, 70));
+        });
+      });
+      walk(rules);
+    }
+    assert(bad.length === 0,
+      bad.length + ' always-true `:root <descendant>` rule(s) are back — they match in EVERY theme: ' + bad.slice(0, 3).join(' | '));
+  }),
+
+  () => tryRun('b222: no selector chains two <body> elements deep', () => {
+    // The b216 rescoping pass prefixed `body[data-theme="cozy-light"] ` onto
+    // several COMMENTS. A comment is whitespace to the CSS tokenizer, so the
+    // prefix glued itself onto the selector after it and produced
+    //   `body[data-theme="cozy-light"] body[data-theme="hearthlight"] #panel-profile *`
+    // — two <body> elements in one descendant chain, which can never match.
+    // That silently removed #panel-profile from the b174 readability blanket
+    // for five builds. A selector that can never match is a bug either way:
+    // either the rule is dead, or the thing it was meant to style is unstyled.
+    const bad = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      const file = (sheet.href || '').split('/').pop().split('?')[0];
+      if (!file) continue;
+      let rules; try { rules = Array.from(sheet.cssRules); } catch { continue; }
+      const walk = (list) => list.forEach((r) => {
+        if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }
+        if (!r.selectorText) return;
+        r.selectorText.split(/,(?![^(]*\))/).forEach((sel) => {
+          const s = sel.trim();
+          // count `body` compounds that are separated by a combinator
+          const bodies = (s.match(/(^|[\s>+~])body\b/g) || []).length;
+          if (bodies > 1) bad.push(file + ' :: ' + s.slice(0, 90));
+          if (/(^|[\s>+~])html\b[^,]*[\s>+~]html\b/.test(s)) bad.push(file + ' :: ' + s.slice(0, 90));
+        });
+      });
+      walk(rules);
+    }
+    assert(bad.length === 0,
+      bad.length + ' impossible selector chain(s) (two <body>/<html> in one descendant chain): ' + bad.slice(0, 2).join(' | '));
+  }),
+
+  () => tryRun('b222: the b174 blankets stay out of in-world surfaces', () => {
+    // THE invariant that lets board-and-shop.css style parchment and lit counter
+    // wood with ordinary declarations. theme-cozy.css's readability layer forces
+    // `color: var(--ink) !important` across whole panels; that is right for a
+    // dark UI card and wrong for a surface lit by its own picture, where cream
+    // ink lands on cream paper (measured 2:1 on the shop's price tags before
+    // b222). The blankets now carve these roots out. If a new blanket forgets
+    // the carve-out, this fails BEFORE anyone starts stacking ids to fight it.
+    //
+    // Uses a synthetic fixture rather than navigating, so the check is the same
+    // whichever screen the suite happens to be on.
+    const prevTheme = document.body.getAttribute('data-theme');
+    document.body.setAttribute('data-theme', 'hearthlight');
+    const fixture = document.createElement('div');
+    fixture.innerHTML =
+      '<section id="panel-bounty" class="panel active"><div class="bb-board">' +
+        '<article class="bb-notice"><p class="bb-task"><b>x</b></p><span class="bb-kind">x</span>' +
+        '<div class="bb-pay"><span class="hr-inline"><span class="hr-amt">1</span></span></div>' +
+        '<small class="muted">x</small></article></div></section>' +
+      '<section id="panel-shop" class="panel active">' +
+        '<div class="sc-scene"><span>x</span></div>' +
+        '<div class="sc-counter"><div class="shop-row"><div class="info"><b>x</b><span>x</span></div>' +
+          '<span class="price"><span class="hr-amt">1</span></span></div><div class="sc-sep">x</div></div>' +
+        '<div class="iap-card"><div class="iap-icon"><span class="hr-glyph"></span></div>' +
+          '<div class="desc">x</div><div class="iap-price"><small>x</small></div></div>' +
+      '</section>';
+    document.body.appendChild(fixture);
+    try {
+      const els = Array.from(fixture.querySelectorAll('*'));
+      const offenders = [];
+      for (const sheet of Array.from(document.styleSheets)) {
+        const file = (sheet.href || '').split('/').pop().split('?')[0];
+        if (!file || file === 'board-and-shop.css') continue;   // the sheet that OWNS these surfaces
+        let rules; try { rules = Array.from(sheet.cssRules); } catch { continue; }
+        const walk = (list) => list.forEach((r) => {
+          if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }
+          if (!r.selectorText || !r.style) return;
+          if (r.style.getPropertyPriority('color') !== 'important') return;
+          for (const el of els) {
+            let hit = false;
+            try { hit = el.matches(r.selectorText); } catch { return; }
+            if (hit) {
+              offenders.push(file + ' :: ' + r.selectorText.slice(0, 80) + '  →  ' +
+                el.tagName.toLowerCase() + '.' + (el.getAttribute('class') || ''));
+              return;
+            }
+          }
+        });
+        walk(rules);
+      }
+      assert(offenders.length === 0,
+        offenders.length + ' !important colour rule(s) reach into an in-world surface — add the root to the b222 carve-out list in theme-cozy.css instead of stacking ids: ' +
+        offenders.slice(0, 3).join(' | '));
+    } finally {
+      fixture.remove();
+      if (prevTheme === null) document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', prevTheme);
+    }
+  }),
+
+  () => tryRun('b222: board-and-shop.css does not stack panel ids', () => {
+    // Stacked ids (`#panel-shop#panel-shop#panel-shop`) are pure specificity
+    // theatre — they buy nothing except the ability to out-shout a blanket, and
+    // they hide the fact that a blanket is reaching somewhere it should not.
+    // b222 took 35 of them down to exactly one, which is documented at its own
+    // line. If this count grows, fix the blanket, not the specificity.
+    let sheet = null;
+    for (const s of Array.from(document.styleSheets)) {
+      if ((s.href || '').indexOf('board-and-shop') >= 0) { sheet = s; break; }
+    }
+    if (!sheet) return;
+    let rules; try { rules = Array.from(sheet.cssRules); } catch { return; }
+    const stacked = [];
+    const walk = (list) => list.forEach((r) => {
+      if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }
+      if (!r.selectorText) return;
+      r.selectorText.split(/,(?![^(]*\))/).forEach((sel) => {
+        if (/(#panel-[a-z-]+)\1/.test(sel.trim())) stacked.push(sel.trim().slice(0, 90));
+      });
+    });
+    walk(rules);
+    assert(stacked.length <= 1,
+      stacked.length + ' stacked-id selector(s) in board-and-shop.css (b222 left exactly 1): ' + stacked.slice(0, 3).join(' | '));
+  }),
+
   () => tryRun('b215: level 99 is actually reachable (XP table has all 99 rungs)', () => {
     // Regression: XP_TABLE was missing the level-98 threshold (11,805,606), so
     // it held 98 entries. levelFromXp() could never return 99 — the cap the

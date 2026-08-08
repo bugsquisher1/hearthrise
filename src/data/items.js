@@ -338,6 +338,38 @@ export const ITEMS={
     rarity:'currency', tag:'currency', musterOnly:true,
   },
 
+  /* ══════════════════════════════════════════════════════════════════
+     b222 — CASTLE STORES (clan-overhaul.md v2 §4.3)
+
+     The four goods the Clan Seat's Storehouse accepts. They exist because of
+     the spec's second pillar: **the castle refuses raw gathered materials.**
+     Logs, ore, fish and crops are never accepted — they must be refined
+     first, which means a gatherer permanently needs a crafter.
+
+     `tag:'castle'` is the ONE field everything derives from:
+       • the artisan taxonomy's "Castle Stores" lane (recipes.js
+         recipeCategory) — derived, never authored per-recipe,
+       • the Storehouse deposit filter (server-side, once the migration runs).
+
+     `tier` is the material tier from gear-tiers.js MATERIAL_TIERS and is read
+     by the contribution formula (§3.4: CP = ceil(v/10) × tier_mult × demand).
+     It is NOT a gear tier — these carry no `type`, so nothing equips them.
+
+     None of them heal or buff, so foodClassOf() returns null and they can
+     never pollute Provisions / Feasts & Draughts or be eaten by auto-eat.
+
+     No `rarity`: every other bulk material in Hearthrise (iron_bar, slime_gel,
+     yew_plank) is border-less, and a legendary frame on a stack of 200
+     building blocks would read as loot rather than as stores.
+
+     Icons are the last-resort emoji glyph every item carries; the real art is
+     an Art/Asset hand-off (assets/icons-bundle/), and until it lands
+     itemGlyphKey() answers with a gilt uiChest/uiOre glyph, not the emoji. */
+  timber_beam:  {n:'Timber Beam',  icon:'🪵', v:300,  tier:2, tag:'castle'},
+  iron_fitting: {n:'Iron Fitting', icon:'🔩', v:480,  tier:2, tag:'castle'},
+  field_ration: {n:'Field Ration', icon:'🥖', v:90,   tier:1, tag:'castle'},
+  keystone:     {n:'Keystone',     icon:'🧱', v:3000, tier:5, tag:'castle'},
+
   /* ── Bind-on-Pickup dungeon keys ──
      Replace gold entry costs. Drop from monsters whose family/tier match
      the dungeon (set in MONSTERS.drops). Untradeable. */

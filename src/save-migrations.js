@@ -216,9 +216,13 @@
       //   watered:false → waterings:[]           the crop starts finishing. If it
       //                                          is already past its grow time it
       //                                          goes ready on the next 5s tick.
-      // `watered` is deliberately left in place — b220 dual-writes it as
-      // "has an active window" so a rollback to b219 does not brick saves.
-      // Delete the field in the build AFTER b220.
+      // `watered` is READ here and nowhere else. b220 also dual-wrote it as
+      // "has an active window" so a rollback to b219 would not brick saves;
+      // b222 deleted that write (b220 and b221 both shipped, so the rollback
+      // target is long gone, and a write-only field is state that drifts).
+      // This migration must KEEP reading it: pre-b220 saves still carry it,
+      // and it is the only thing that tells us whether to retro-credit a
+      // window. Do not delete this read.
       apply: function(save){
         if(!Array.isArray(save.farmPlots)) return;
         var now = Date.now();

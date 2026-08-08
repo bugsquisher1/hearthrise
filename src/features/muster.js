@@ -1017,16 +1017,23 @@
   }
 
   // Contribution: wrap the counter the game already fires everywhere.
+  //
+  // b222: routed through window.wrapUpdateDaily('muster', …) — the named
+  // wrapper chain (legacy.js SEAM 4). The chain owns the idempotency roster
+  // now (updateDaily.__wrappedBy), so castle Labour can wrap the same seam
+  // under its own name without either system inventing a private global that
+  // the other cannot see. The retry-until-defined loop stays: script order
+  // does not guarantee legacy.js has run. The local flag stays too, so a
+  // double boot() short-circuits BEFORE the chain throws.
   function wireCounters() {
-    var orig = window.updateDaily;
-    if (typeof orig !== 'function') { setTimeout(wireCounters, 200); return; }
     if (window.__musterCountersHooked) return;
+    if (typeof window.wrapUpdateDaily !== 'function' || typeof window.updateDaily !== 'function') {
+      setTimeout(wireCounters, 200); return;
+    }
     window.__musterCountersHooked = true;
-    window.updateDaily = function (type, amt) {
-      var r = orig.apply(this, arguments);
-      try { addPoints(pointsFor(type, amt == null ? 1 : amt)); } catch (e) {}
-      return r;
-    };
+    window.wrapUpdateDaily('muster', function (type, amt) {
+      addPoints(pointsFor(type, amt));
+    });
   }
 
   function boot() {

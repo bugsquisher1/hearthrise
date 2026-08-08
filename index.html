@@ -722,6 +722,12 @@
        clans.js (which wraps renderSocial for the clan half) and renown.js
        (whose rank ladder supplies the Throne board's titles). -->
   <script src="src/features/leaderboards.js?v=221"></script>
+  <!-- b222 #10 Wave 3a: the Clan Seat FOUNDATION — pure formulas + RPC
+       reducers only (docs/design/clan-overhaul.md v2). No UI, no panel, no
+       fetch; inert until supabase/migrations/2026-08-08-clan-seat.sql is run
+       and the castle modals land. Loads after clans.js so it can never be
+       mistaken for the panel's dependency. -->
+  <script src="src/features/clan-seat.js?v=221"></script>
   <script src="src/item-ux.js?v=221"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can

@@ -210,6 +210,8 @@
       // Legacy shape: a boolean flag. `true` retro-credits one window from
       // planting (strictly better for the player); `false` becomes "dry",
       // which un-sticks the plot instead of stalling it forever.
+      // b222: nothing WRITES `watered` any more — this is its last reader, and
+      // it stays because pre-b220 saves and old cloud snapshots still carry it.
       plot.waterings = plot.watered ? [plot.plantedAt] : [];
     }
     if(plot.waterings.length > MAX_WATERINGS){

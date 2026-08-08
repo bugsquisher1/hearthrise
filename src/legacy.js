@@ -536,6 +536,13 @@ function loadLocal(){
   }
 }
 function processOffline(){
+  /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
+     whether or not you left an activity running — that is the whole point of
+     Rested XP. It reads its own watermark (G.restedAt), never G.lastSeen, so
+     it cannot participate in the b214 double-pay pattern where processOffline
+     and the catch-up systems all re-read one unrefreshed timestamp. Calling
+     processOffline() twice banks charges exactly once. */
+  accrueRestedXp(Date.now());
   const elapsed=(Date.now()-G.lastSeen)/3600000;
   if(elapsed<0.05) return;
   if(!G.activeSkill && !G.activeMonster && !G.activeArtisanRecipe) return;
@@ -637,7 +644,7 @@ function processOfflineCombat(maxHrs){
 
     // Kill: award gold + drops, respawn the same monster, continue
     if(G.monsterHp <= 0){
-      const gp = rand(m.gp[0], m.gp[1]);
+      const gp = applyGoldFind(rand(m.gp[0], m.gp[1]));   // b222 SEAM 1
       G.gold = (G.gold||0) + gp;
       G.stats = G.stats || {};
       G.stats.kills = (G.stats.kills||0) + 1;
@@ -967,10 +974,94 @@ function getBonus(key){
   }
   return t;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   b222 (SEAM 1) — goldFind, finally consumed.
+
+   `goldFind` has been a declared-but-unread getBonus key since the buff
+   registry shipped: BUFFS_DEF maps the `gold_find` buff type to it (Lich Soul
+   Soup promises +50% for 5 minutes) and clan-overhaul v2 §7 hangs the castle
+   Treasury perk on it (+0.5%/lvl → +5%). Nothing ever read it, so both were
+   broken promises — the player ate a 1,100g soup and got nothing.
+
+   ONE choke-point, so a third source can never be wired half-way. Applied to
+   MONSTER GOLD DROPS only: gold find is loot, not income. Vendor sales, quest
+   and daily rewards, bounty payouts and chests are all designed payouts whose
+   numbers are the Designer's, and multiplying them here would silently re-tune
+   six systems at once.
+
+   Clamped at ≥ 0 so a future negative contributor can never make a kill pay
+   negative gold, and floored so gold stays an integer.
+   ════════════════════════════════════════════════════════════════ */
+function goldFindMult(){
+  return 1 + Math.max(0, getBonus('goldFind') || 0);
+}
+function applyGoldFind(base){
+  const n = Number(base) || 0;
+  if(n <= 0) return 0;
+  return Math.floor(n * goldFindMult());
+}
+window.goldFindMult = goldFindMult;
+window.applyGoldFind = applyGoldFind;
+
+/* ════════════════════════════════════════════════════════════════
+   b222 (SEAM 3) — Rested XP bank.
+
+   `G.restedXp` is a bank of CHARGES. One charge is spent by the next XP grant
+   and multiplies it by the rested potency; the potency itself is
+   `getBonus('restedXp')`, which is 0 today, so the bank is inert until the
+   castle Tavern's Common Room (clan-overhaul v2 §9.4) grants it. Potency lives
+   in getBonus rather than on the bank because that is where every other perk
+   in the game lives, and a second bonus channel is how power budgets drift.
+
+   ACCRUAL IS WATERMARKED, NOT ELAPSED-BASED. `G.restedAt` is the exact instant
+   already paid for. Charges = floor((now − restedAt) / CHARGE_MS), and
+   restedAt advances by exactly the whole charges granted — so calling
+   accrueRestedXp() twice grants nothing the second time. This is deliberate
+   defence against the b214 offline DOUBLE-PAY class of bug, where processOffline
+   and two catch-up systems each read the same unrefreshed `G.lastSeen` and paid
+   the same hours two and three times over. A watermark cannot be double-read:
+   the second reader sees an already-advanced clock.
+   ════════════════════════════════════════════════════════════════ */
+const RESTED_CHARGE_MS = 6 * 60 * 1000;   // 1 charge per 6 minutes offline (§9.4)
+const RESTED_CAP       = 80;              // 8 hours banked, hard cap (§9.4)
+function ensureRestedState(now){
+  if(typeof G.restedXp !== 'number' || !isFinite(G.restedXp) || G.restedXp < 0) G.restedXp = 0;
+  if(G.restedXp > RESTED_CAP) G.restedXp = RESTED_CAP;
+  /* A fresh save starts its clock NOW — never at epoch, or a brand-new player
+     would log in holding a full bank they did not earn. */
+  if(typeof G.restedAt !== 'number' || !isFinite(G.restedAt) || G.restedAt > now) G.restedAt = now;
+}
+function accrueRestedXp(now){
+  now = (typeof now === 'number' && isFinite(now)) ? now : Date.now();
+  ensureRestedState(now);
+  const charges = Math.floor((now - G.restedAt) / RESTED_CHARGE_MS);
+  if(charges <= 0) return 0;
+  G.restedAt += charges * RESTED_CHARGE_MS;      // advance by what we PAID, not to now
+  const before = G.restedXp;
+  G.restedXp = Math.min(RESTED_CAP, before + charges);
+  return G.restedXp - before;                     // what was actually banked
+}
+/* Spend one charge, returning the multiplier bonus it is worth (0 = nothing
+   spent). A charge is never burned when it would be worth nothing — that is
+   what keeps the seam genuinely inert today. */
+function spendRestedCharge(){
+  if(!(G.restedXp > 0)) return 0;
+  const potency = Math.max(0, getBonus('restedXp') || 0);
+  if(potency <= 0) return 0;
+  G.restedXp -= 1;
+  return potency;
+}
+window.accrueRestedXp = accrueRestedXp;
+window.restedXpCharges = function(){ return (typeof G !== 'undefined' && G.restedXp) || 0; };
+window.RESTED_CHARGE_MS = RESTED_CHARGE_MS;
+window.RESTED_CAP = RESTED_CAP;
+
 function addXp(sk,amt){
   const bonus=getBonus('allXP')+getEquipmentStats().xpB;
   const cb=['attack','strength','defense','hitpoints'].includes(sk)?getBonus('combatXP'):0;
-  const gain=Math.floor(amt*(1+bonus+cb));
+  const rested=amt>0?spendRestedCharge():0;
+  const gain=Math.floor(amt*(1+bonus+cb+rested));
   const old=levelFromXp(G.skills[sk]||0);
   G.skills[sk]=(G.skills[sk]||0)+gain;
   const nw=levelFromXp(G.skills[sk]);
@@ -1333,6 +1424,52 @@ function updateDaily(type,amt=1){
     }
   });
 }
+/* ════════════════════════════════════════════════════════════════
+   b222 (SEAM 4) — the updateDaily wrapper chain, with names.
+
+   updateDaily() is the single seam that already sees EVERY player action
+   (kill_any / gather / harvest / cooked / smithed / crafted), which makes it
+   the natural feed for any contribution meter. The Muster wraps it today
+   (muster.js), and castle Labour (clan-overhaul v2 §6.3) will wrap it next —
+   CONFLICTS #6 flags the collision: each wrapper needs its own idempotency
+   flag or a boot retry double-counts, and a second system copying the first
+   one's `window.__xHooked` global would silently no-op instead of wiring.
+
+   A private per-system boolean is the pattern that produces exactly that bug,
+   because nothing can see it. So the chain carries its OWN roster:
+   `updateDaily.__wrappedBy` is a Set of system names, copied forward on every
+   wrap. Double-wrapping under the same name THROWS — loudly, at boot, in
+   development — rather than silently doubling a player's contribution.
+
+   Wrapping order is irrelevant provided each layer registers its name. One
+   action feeding both the Muster bar and a Work Order is intended: they are
+   different rewards for the same hour of play, not double-dipping.
+   ════════════════════════════════════════════════════════════════ */
+function wrapUpdateDaily(name, after){
+  if(typeof name !== 'string' || !name) throw new Error('wrapUpdateDaily: a system name is required');
+  if(typeof after !== 'function') throw new Error('wrapUpdateDaily: after() must be a function');
+  const base = window.updateDaily;
+  if(typeof base !== 'function') return false;      // caller retries until defined
+  const owners = base.__wrappedBy instanceof Set ? base.__wrappedBy : new Set();
+  if(owners.has(name)) throw new Error('wrapUpdateDaily: "'+name+'" has already wrapped updateDaily');
+  const wrapped = function(type, amt){
+    const r = base.apply(this, arguments);
+    /* The observer must never break the counter it observes: a throwing
+       Work-Order flush cannot be allowed to eat a daily-task tick. */
+    try { after(type, amt == null ? 1 : amt); } catch(e){}
+    return r;
+  };
+  wrapped.__wrappedBy = new Set(owners);
+  wrapped.__wrappedBy.add(name);
+  window.updateDaily = wrapped;
+  return true;
+}
+window.wrapUpdateDaily = wrapUpdateDaily;
+window.updateDailyWrappers = function(){
+  const f = window.updateDaily;
+  return (f && f.__wrappedBy instanceof Set) ? Array.from(f.__wrappedBy) : [];
+};
+
 function updateQuest(type,amt=1,meta={}){
   ensureRetentionState();
   G.quests.forEach(q=>{
@@ -1419,7 +1556,7 @@ function combatTick(){
   renderCombat();updateTopbar();
 }
 function killMonster(m){
-  const gp=rand(m.gp[0],m.gp[1]);G.gold+=gp;G.stats.kills=(G.stats.kills||0)+1;
+  const gp=applyGoldFind(rand(m.gp[0],m.gp[1]));G.gold+=gp;G.stats.kills=(G.stats.kills||0)+1;   // b222 SEAM 1
   // Per-foe kill counter — drives the activity bar's "this fight" number.
   // Reset by startCombat() when the player picks a different monster.
   G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+1;
@@ -1546,11 +1683,15 @@ function startFarmCheck(){
       if(!p)return;
       const crop=CROPS[p.cropId];if(!crop)return;
       if(p.state==='ready')return;
-      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready',watered:false};changed=true;notify(`🌾 ${crop.name} ready!`,'loot');return;}
-      /* Keep the legacy `watered` boolean meaning "has an active window" so a
-         rollback to b219 reads a sane value. Purely derived — never a source. */
-      const active=plotWindowMs(p)>0;
-      if(!!p.watered!==active){p.watered=active;changed=true;}
+      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready'};changed=true;notify(`🌾 ${crop.name} ready!`,'loot');return;}
+      /* b222: the derived `watered` mirror is GONE. b220 dual-wrote it purely
+         so a rollback to b219 would read a sane value; b220 shipped, b221
+         shipped, and a write-only field that no reader consumes is the exact
+         shape of state that drifts and then gets trusted by accident. The one
+         surviving reader is the legacy-save migration
+         (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
+         `watered` INTO `waterings[]` and must stay — old saves still carry it.
+         Nothing writes it any more; `waterings[]` is the only source. */
     });
     if(changed&&activeTab==='farming')renderFarm();
     if(changed&&activeTab==='profile')renderProfile();
@@ -1650,8 +1791,8 @@ function plantCrop(plotIdx,cropId){
   removeItem(seedId,1);
   /* b220: a new plot is DRY and that is now correct — it grows at the base
      rate and matures on its own. That is what makes auto-replant work
-     unattended. `watered` is the derived rollback-compat mirror. */
-  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],watered:false,state:'growing'};
+     unattended. b222: the `watered` mirror is no longer written. */
+  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   G.stats.planted=(G.stats.planted||0)+1;
   addXp('farming',2);renderFarm();
 }
@@ -1664,7 +1805,7 @@ function applyWatering(i){
   const A=farmApi();
   const ws=(Array.isArray(p.waterings)?p.waterings.slice():[]);
   ws.push(Date.now());
-  G.farmPlots[i]={...p,waterings:ws,watered:true};
+  G.farmPlots[i]={...p,waterings:ws};   // b222: no `watered` mirror
   addXp('farming',(A&&A.waterXp)?A.waterXp(p):1);
   return true;
 }
@@ -1703,7 +1844,7 @@ function harvestPlot(i){
   notify(`🌾 +${qty} ${crop.name}`,'loot');
   /* b220: a regrow restarts dry — and now that dry crops actually finish,
      that is a fresh cycle rather than the permanent stall it used to be. */
-  if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],watered:false};
+  if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[]};   // b222: no `watered` mirror
   else G.farmPlots[i]=null;
   // b136: auto-replant hook. Only fires when the plot is now empty
   // (regrow path skips it because the plot is already replanted).
@@ -10361,6 +10502,50 @@ function ensureBuffState(){
   if(!Array.isArray(G.buffs)) G.buffs = [];
 }
 
+/* ════════════════════════════════════════════════════════════════
+   b222 (SEAM 2) — the timed-buff scaling choke-point.
+
+   clan-overhaul v2 §9.1: the castle Tavern's Hearth lengthens food buffs by
+   +4% per Tavern level and strengthens them by +2% per level (→ +40% / +20% at
+   L10). applyBuff() had no hook for either, and the obvious "just multiply at
+   the call site" fix would have meant editing every future caller — eatFood,
+   the Feast, the Cellar draws, world-event blessings — and getting one wrong.
+
+   So: ONE registry, consulted once, inside applyBuff. Scalers are NAMED, which
+   makes registration idempotent (re-registering the same name replaces rather
+   than compounds — a boot retry can never double a player's buff durations).
+   Composition is multiplicative across scalers.
+
+   Default is exactly 1.0 × 1.0: with nothing registered this is a no-op, and a
+   regression test asserts both the identity default and that a stubbed scaler
+   moves duration AND magnitude.
+
+   Scale is applied at APPLICATION time, not at tick time. A buff you drank
+   under a level-10 Tavern keeps the length it was poured with, even if the
+   Tavern is later dimmed by unpaid upkeep — the alternative silently shortens
+   an effect the player is already watching count down.
+   ════════════════════════════════════════════════════════════════ */
+const BUFF_SCALERS = Object.create(null);
+window.registerBuffScaler = function(name, fn){
+  if(typeof name !== 'string' || !name) throw new Error('registerBuffScaler: a name is required');
+  if(typeof fn !== 'function') throw new Error('registerBuffScaler: fn must be a function');
+  BUFF_SCALERS[name] = fn;
+  return true;
+};
+window.unregisterBuffScaler = function(name){ delete BUFF_SCALERS[name]; };
+// → {duration, magnitude} multipliers for this buff. Never returns < 0.
+window.buffScaleFor = function(buff){
+  let duration = 1, magnitude = 1;
+  for(const name in BUFF_SCALERS){
+    let s = null;
+    try { s = BUFF_SCALERS[name](buff); } catch(e){ s = null; }
+    if(!s || typeof s !== 'object') continue;
+    if(typeof s.duration === 'number' && isFinite(s.duration) && s.duration >= 0) duration *= s.duration;
+    if(typeof s.magnitude === 'number' && isFinite(s.magnitude) && s.magnitude >= 0) magnitude *= s.magnitude;
+  }
+  return { duration: duration, magnitude: magnitude };
+};
+
 // ── Public API ──
 
 // Add a buff to the queue. If a buff of the same TYPE is already active,
@@ -10369,20 +10554,25 @@ window.applyBuff = function(buff){
   ensureBuffState();
   if(!buff || !buff.type || !BUFFS_DEF[buff.type]) return false;
   const def = BUFFS_DEF[buff.type];
+  /* b222 SEAM 2 — scale before the queue ever sees it, so the merge branch
+     below extends by the SCALED duration too. */
+  const scale = window.buffScaleFor(buff);
+  const dur = Math.round((buff.durationMs||0) * scale.duration);
+  const mag = (buff.magnitude||0) * scale.magnitude;
   const existing = G.buffs.find(b => b.type === buff.type);
   if(existing){
-    existing.remainingMs = (existing.remainingMs||0) + (buff.durationMs||0);
-    existing.magnitude = Math.max(existing.magnitude||0, buff.magnitude||0);
+    existing.remainingMs = (existing.remainingMs||0) + dur;
+    existing.magnitude = Math.max(existing.magnitude||0, mag);
   } else {
     G.buffs.push({
       type: buff.type,
-      magnitude: buff.magnitude||0,
-      remainingMs: buff.durationMs||0,
+      magnitude: mag,
+      remainingMs: dur,
       addedAt: Date.now(),
     });
   }
   if(typeof window.renderActiveEffects === 'function') window.renderActiveEffects();
-  if(window.HearthriseEvents) window.HearthriseEvents.emit('buffApply', {type:buff.type, magnitude:buff.magnitude});
+  if(window.HearthriseEvents) window.HearthriseEvents.emit('buffApply', {type:buff.type, magnitude:mag, durationMs:dur});
   return true;
 };
 

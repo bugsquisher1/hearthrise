@@ -377,12 +377,12 @@
     var build = (window.HearthriseBuild && window.HearthriseBuild.buildString && window.HearthriseBuild.buildString()) || 'unknown';
     var beta = ''
       + '<div class="ss-card" style="display:block">'
-      +   '<div class="ss-card-title">🧪 Beta tester tools</div>'
+      +   '<div class="ss-card-title">Beta tester tools</div>'
       +   '<div class="ss-card-meta">Found a bug? See something off? Send it our way.</div>'
       +   '<div class="ss-row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
-      +     '<button class="btn btn-sm" id="set-bug-report">🐛 Report bug</button>'
-      +     '<button class="btn btn-sm" id="set-show-changelog">📜 What\'s new</button>'
-      +     '<a class="btn btn-sm" href="' + esc(DISCORD_INVITE) + '" target="_blank" rel="noopener" style="text-decoration:none">💬 Discord</a>'
+      +     '<button class="btn btn-sm" id="set-bug-report">Report bug</button>'
+      +     '<button class="btn btn-sm" id="set-show-changelog">What\'s new</button>'
+      +     '<a class="btn btn-sm" href="' + esc(DISCORD_INVITE) + '" target="_blank" rel="noopener" style="text-decoration:none">Discord</a>'
       +   '</div>'
       +   '<div class="ss-hint" style="margin-top:8px">Build <code>' + esc(build) + '</code></div>'
       + '</div>';
@@ -412,13 +412,13 @@
     backups.sort();
     return ''
       + '<div class="ss-row"><div class="ss-label">Save now</div>'
-      +   '<button class="btn btn-sm" id="set-save-now">💾 Save</button>'
+      +   '<button class="btn btn-sm" id="set-save-now">Save</button>'
       + '</div>'
       + '<div class="ss-row"><div class="ss-label">Export save</div>'
       +   '<button class="btn btn-sm" id="set-export">⬇️ Download JSON</button>'
       + '</div>'
       + '<div class="ss-row"><div class="ss-label">Import save</div>'
-      +   '<button class="btn btn-sm" id="set-import">📂 From file…</button>'
+      +   '<button class="btn btn-sm" id="set-import">From file…</button>'
       + '</div>'
       + '<div class="ss-row"><div class="ss-label">Save backups</div>'
       +   '<div class="ss-meta">' + (backups.length ? backups.length + ' available' : 'none') + '</div>'
@@ -802,12 +802,12 @@
     }
     body.innerHTML = ''
       + '<div class="settings-page">'
-      +   renderSection(true,  '🔊 Audio',          audioHtml())
-      +   renderSection(false, '🖥️ Display',        displayHtml())
-      +   renderSection(false, '🎮 Gameplay',       gameplayHtml())
-      +   renderSection(false, '💬 Chat & Privacy', chatHtml())
-      +   renderSection(false, '👤 Account',         accountHtml())
-      +   renderSection(false, '💾 Data',            dataHtml())
+      +   renderSection(true,  'Audio',          audioHtml())
+      +   renderSection(false, 'Display',        displayHtml())
+      +   renderSection(false, 'Gameplay',       gameplayHtml())
+      +   renderSection(false, 'Chat & Privacy', chatHtml())
+      +   renderSection(false, 'Account',         accountHtml())
+      +   renderSection(false, 'Data',            dataHtml())
       + '</div>';
     bindControls(body);
     m.classList.add('show');

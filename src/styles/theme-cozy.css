@@ -4592,3 +4592,102 @@ body[data-theme="hearthlight"] #panel-market .mk-list-form select {
   border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
   color: var(--ink, #e9e2cf) !important;
 }
+
+/* b213 (phase 2): generic modal sheet — the cozy cream gradient still won on
+   .modal-card (settings, monster preview, quests, IAP…), leaving parchment
+   dialogs floating over a dark game. One dark sheet for every modal. */
+body[data-theme="hearthlight"] .modal .modal-card,
+body[data-theme="hearthlight"] .modal-card {
+  background: linear-gradient(180deg, #1c2434, #141a26) !important;
+  border: 1px solid var(--gold-2, #cda24a) !important;
+  color: var(--ink, #e9e2cf) !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 40px -18px var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] .modal-card h1,
+body[data-theme="hearthlight"] .modal-card h2,
+body[data-theme="hearthlight"] .modal-card h3,
+body[data-theme="hearthlight"] .modal-card .modal-title {
+  color: var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] .modal-card .ss-section,
+body[data-theme="hearthlight"] .modal-card .ss-card,
+body[data-theme="hearthlight"] .modal-card .ss-row {
+  background: rgba(255,255,255,.04) !important;
+  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] .modal-card .ss-section-head {
+  background: rgba(205,162,74,.12) !important;
+  color: var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] .modal-card .ss-label,
+body[data-theme="hearthlight"] .modal-card .ss-card-title {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] .modal-card .ss-meta,
+body[data-theme="hearthlight"] .modal-card .ss-card-meta {
+  color: var(--ink-3, #a5896a) !important;
+}
+body[data-theme="hearthlight"] .modal-card input,
+body[data-theme="hearthlight"] .modal-card select,
+body[data-theme="hearthlight"] .modal-card textarea {
+  background: var(--bg-2, #1a2130) !important;
+  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+
+/* b213 (phase 2): the settings modal carries an ID-scoped cream rule
+   (#settings-modal .modal-card) that outranks the class-level dark sheet
+   above — match its ID weight. Plus the sibling sheet classes. */
+body[data-theme="hearthlight"] #settings-modal .modal-card,
+body[data-theme="hearthlight"] #settings-modal #settings-body,
+body[data-theme="hearthlight"] .stats-modal-card,
+body[data-theme="hearthlight"] .lifetime-stats-card,
+body[data-theme="hearthlight"] .welcome-card,
+body[data-theme="hearthlight"] .welcome-back-card,
+body[data-theme="hearthlight"] .ach-card,
+body[data-theme="hearthlight"] .acq-card,
+body[data-theme="hearthlight"] .qm-modal {
+  background: linear-gradient(180deg, #1c2434, #141a26) !important;
+  border-color: var(--gold-2, #cda24a) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-section-head {
+  background: rgba(205,162,74,.12) !important;
+  color: var(--gold-2, #cda24a) !important;
+  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-row,
+body[data-theme="hearthlight"] #settings-modal .ss-card {
+  background: rgba(255,255,255,.04) !important;
+  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-label,
+body[data-theme="hearthlight"] #settings-modal .ss-card-title,
+body[data-theme="hearthlight"] #settings-modal label,
+body[data-theme="hearthlight"] #settings-modal .ss-section-title {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-meta,
+body[data-theme="hearthlight"] #settings-modal .ss-card-meta {
+  color: var(--ink-3, #a5896a) !important;
+}
+
+/* b213 (phase 2): settings section BODIES — the .ss-body / .settings-section
+   surfaces stayed cream with cocoa text inside the now-dark sheet. The gilt
+   section-header bars stay as-is (they read well on dark). */
+body[data-theme="hearthlight"] #settings-modal .ss-body,
+body[data-theme="hearthlight"] #settings-modal .settings-section {
+  background: rgba(255,255,255,.03) !important;
+  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-body *,
+body[data-theme="hearthlight"] #settings-modal .ss-row * {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #settings-modal .ss-body .ss-meta,
+body[data-theme="hearthlight"] #settings-modal .ss-body .ss-card-meta,
+body[data-theme="hearthlight"] #settings-modal .ss-body .muted {
+  color: var(--ink-3, #a5896a) !important;
+}

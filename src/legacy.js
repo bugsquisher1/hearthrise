@@ -7153,7 +7153,10 @@ function renderInvFancy(){
               var id = kv[0], qty = kv[1];
               var def = ITEMS[id];
               var canEquip = def && (def.type || def.slot);
-              return '<div class="invc-tile" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')">'+
+              // b189: rarity border for gear (gray→green→blue→purple→gold→red)
+              var rr = window.RARITY ? window.RARITY.classFor(id, def) : '';
+              var tileCls = 'invc-tile' + (rr ? ' rr-frame ' + rr : '');
+              return '<div class="'+tileCls+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')">'+
                 itemImg(id)+
                 '<span class="invc-qty">'+fmtQty(qty)+'</span>'+
               '</div>';

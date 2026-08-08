@@ -2626,20 +2626,21 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 .invc-tile{
   position:relative;aspect-ratio:1;
-  background:linear-gradient(180deg,rgba(56,199,182,.12),rgba(56,199,182,.04));
-  border:1px solid rgba(56,199,182,.25);border-radius:5px;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(0,0,0,.16));
+  border:1px solid rgba(255,255,255,.09);border-radius:8px;
   overflow:hidden;cursor:pointer;transition:all .12s;
-  display:flex;align-items:flex-start;justify-content:center;padding:3px;
+  display:flex;align-items:center;justify-content:center;padding:4px;
 }
-.invc-tile:hover{border-color:var(--gold-2);transform:translate(-1px,-1px);box-shadow:0 0 6px rgba(243,209,129,.3)}
+.invc-tile:hover{border-color:var(--gold-2);transform:translate(-1px,-1px);box-shadow:0 0 8px rgba(243,209,129,.28)}
 .invc-tile img{width:100%;height:75%;object-fit:contain;pointer-events:none}
 .invc-tile .invc-emoji{font-size:24px;line-height:1}
+/* b189: dark qty badge (was a cream wood-grain bar that clashed with the dark theme) */
 .invc-tile .invc-qty{
   position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(180deg,#b88555 0%,#8a5a2e 100%);
-  color:#fff5d6;font-size:9px;font-weight:800;
-  text-align:center;padding:1px 0;
-  text-shadow:1px 1px 0 #5b2618;
+  background:linear-gradient(180deg,rgba(12,10,8,0),rgba(8,6,4,.9));
+  color:var(--gold-2,#e3c77e);font-size:9px;font-weight:800;
+  text-align:center;padding:6px 0 2px;
+  text-shadow:0 1px 2px rgba(0,0,0,.9);
   letter-spacing:.02em;
 }
 

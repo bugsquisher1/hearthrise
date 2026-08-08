@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=216' directly.
+// modularised, will import { G } from '../state/game.js?v=217' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=216';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=216';
+import { on } from '../net/events.js?v=217';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=217';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -411,6 +411,55 @@ const TESTS = [
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
       G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.lastOfflineSummary = saved.summary;
+    }
+  }),
+  () => tryRun('b217: onboarding chain guides preparation before combat', () => {
+    const G = window.G;
+    const saved = { quests: JSON.parse(JSON.stringify(G.quests || [])) };
+    try {
+      G.quests = [];
+      window.ensureRetentionState();
+      const ids = (G.quests || []).map(q => q.id);
+      const iGather = ids.indexOf('gatherer');
+      const iCook   = ids.indexOf('first_cook');
+      const iFight  = ids.indexOf('first_blood');
+      assert(iGather !== -1 && iCook !== -1 && iFight !== -1,
+        'onboarding chain must contain gatherer + first_cook + first_blood, got ' + ids.join(','));
+      assert(iGather < iFight && iCook < iFight,
+        'prep quests (gather, cook) must come BEFORE combat (first_blood) so new players are guided to prepare');
+      const cook = G.quests.find(q => q.id === 'first_cook');
+      assert(cook && cook.type === 'cooked', 'first_cook must be a cooking quest');
+    } finally {
+      G.quests = saved.quests;
+    }
+  }),
+  () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
+    const G = window.G;
+    const saved = {
+      quests: JSON.parse(JSON.stringify(G.quests || [])),
+      daily: JSON.parse(JSON.stringify(G.daily || {})),
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})),
+      activeSkill: G.activeSkill, target: G.skillTargetId
+    };
+    try {
+      // Guard the fix: the LIVE window.doArtisanAction must feed updateDaily +
+      // updateQuest for cooking — before b217 it updated only G.stats, so daily
+      // "Cook N" tasks and the onboarding cook quest were un-completable.
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
+      G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
+      G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
+      G.daily = G.daily || {};
+      G.daily.lastReset = new Date().toDateString();
+      G.daily.tasks = [{ id: 'daily_cook', type: 'cooked', label: 'Cook 12 items', goal: 12, progress: 0, reward: 400, done: false }];
+      for (let i = 0; i < 3; i++) window.doArtisanAction('cooking', 'cook_shrimp');
+      assert(G.quests[0].progress === 3, 'cooking must progress the onboarding cook quest, got ' + G.quests[0].progress);
+      assert(G.daily.tasks[0].progress === 3, 'cooking must progress the daily cook task, got ' + G.daily.tasks[0].progress);
+    } finally {
+      G.quests = saved.quests; G.daily = saved.daily; G.inventory = saved.inv;
+      G.rooms = saved.rooms; G.skills = saved.skills;
+      G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
     }
   }),
   () => tryRun('b206: clans — perk ladder is cumulative + offline hours wired', () => {

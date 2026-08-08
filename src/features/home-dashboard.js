@@ -55,92 +55,142 @@
       '#panel-profile.active:has(#' + ROOT_ID + '){display:block !important}',
       '#panel-profile #' + ROOT_ID + '{display:block;max-width:1120px;margin:0 auto;padding:6px 4px 24px;font-family:var(--f-ui);color:var(--ink) !important}',
 
-      R + '.hd-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}',
-      R + '.hd-who{display:flex;align-items:center;gap:13px;min-width:0}',
-      R + '.hd-ava{width:52px;height:52px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;font-size:26px;background:var(--bg-2) !important;border:1px solid var(--line-strong) !important}',
-      R + '.hd-name{font-family:var(--f-display);font-size:22px;line-height:1.1;color:var(--ink) !important;display:flex;align-items:center;gap:6px}',
-      R + '.hd-sub{font-size:12.5px;color:var(--green) !important;font-weight:600}',
-      R + '.hd-sub.off{color:var(--ink-3) !important}',
-      R + '.hd-rename{background:none !important;border:0;cursor:pointer;opacity:.6;font-size:13px;padding:2px}',
+      /* ── b217 art direction ───────────────────────────────────────────────
+         Home was seventeen bordered rounded boxes of identical weight: five
+         stat pills that duplicated the topbar verbatim, six hero/quest cards,
+         three "Today" tiles and three mini cards. Squinting at it produced a
+         uniform grey field with no focal point, and the right column ran out
+         of content two-thirds of the way down, leaving ~700px of unexplained
+         black.
+
+         Rebuilt around one idea: the LEFT column is what to DO, the RIGHT
+         column is how you're DOING. Grouping comes from small-caps headings
+         over an incised rule; only the claimable reward is allowed to be a lit
+         object, because it is the only thing on the screen that is urgent. */
+
+      R + '.hd-top{display:flex;align-items:center;gap:16px;margin:2px 0 22px}',
+      R + '.hd-who{display:flex;align-items:center;gap:15px;min-width:0}',
+      R + '.hd-ava{width:60px;height:60px;border-radius:var(--r);flex:0 0 auto;overflow:hidden;',
+      'background:var(--bg-2) !important;border:1px solid var(--line-strong) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,232,190,.14),0 2px 6px -2px rgba(0,0,0,.7)}',
+      R + '.hd-name{font-family:var(--f-display);font-size:27px;font-weight:600;line-height:1.08;color:var(--ink) !important;display:flex;align-items:center;gap:8px}',
+      R + '.hd-sub{font-size:13px;color:var(--ink-3) !important;margin-top:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}',
+      R + '.hd-sub b{font-family:var(--f-label);color:var(--gold-2) !important;font-weight:700;letter-spacing:.02em}',
+      R + '.hd-sub .sep{opacity:.4}',
+      R + '.hd-rename{background:none !important;border:0;cursor:pointer;opacity:.45;padding:2px;line-height:0}',
       R + '.hd-rename:hover{opacity:1}',
-      R + '.hd-pills{display:flex;gap:9px;flex-wrap:wrap}',
-      R + '.hd-pill{display:flex;align-items:center;gap:8px;background:var(--bg-2) !important;border:1px solid var(--line) !important;border-radius:11px;padding:8px 13px}',
-      R + '.hd-pill em{font-style:normal;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3) !important;font-weight:700}',
-      R + '.hd-pill b{font-family:var(--f-display);font-size:16px;color:var(--ink) !important;font-variant-numeric:tabular-nums}',
-      R + '.hd-pill.gold b{color:var(--gold-2) !important}',
-      R + '.hd-pill.gem b{color:var(--gem) !important}',
 
-      R + '.hd-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start}',
-      '@media(max-width:820px){' + R + '.hd-grid{grid-template-columns:1fr}}',
-      R + '.hd-col{display:flex;flex-direction:column;gap:14px;min-width:0}',
-      R + '.hd-h{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 2px}',
-      R + '.hd-h h3{margin:0;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3) !important;font-weight:700;font-family:var(--f-ui)}',
-      R + '.hd-h a{font-size:12px;color:var(--gold) !important;font-weight:600;text-decoration:none;cursor:pointer}',
+      R + '.hd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;align-items:start}',
+      '@media(max-width:900px){' + R + '.hd-grid{grid-template-columns:1fr;gap:22px}}',
+      R + '.hd-col{display:flex;flex-direction:column;gap:22px;min-width:0}',
 
-      R + '.hd-card{background:var(--bg-card) !important;border:1px solid var(--line) !important;border-radius:14px;box-shadow:0 10px 26px -18px rgba(0,0,0,.5)}',
+      /* Section heading — small caps over a fading incised rule. This is the
+         ONLY grouping device on the screen; no section gets a box. */
+      R + '.hd-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;',
+      'padding-bottom:6px;margin-bottom:11px;position:relative}',
+      R + '.hd-h::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;',
+      'background:linear-gradient(90deg,var(--line-strong),rgba(201,162,74,.10) 62%,transparent)}',
+      R + '.hd-h h3{margin:0;font-family:var(--f-label);font-size:13px;letter-spacing:.02em;',
+      'color:var(--gold-2) !important;font-weight:700;text-transform:none}',
+      R + '.hd-h a{font-size:12.5px;color:var(--ink-3) !important;font-weight:600;text-decoration:none;cursor:pointer}',
+      R + '.hd-h a:hover{color:var(--gold-2) !important}',
 
-      R + '.hd-mile{display:flex;align-items:center;gap:16px;padding:18px;position:relative;overflow:hidden}',
-      R + '.hd-mile-badge{flex:0 0 60px;height:60px;border-radius:50%;display:grid;place-items:center;font-size:28px;background:var(--bg-2) !important;border:2px solid var(--gold) !important;box-shadow:0 0 0 4px var(--gold-bg)}',
+      /* Rows sit on the world. A hairline separates them; no card, no radius. */
+      R + '.hd-card{background:transparent !important;border:0 !important;border-radius:0;box-shadow:none}',
+      R + '.hd-rows{display:flex;flex-direction:column}',
+      R + '.hd-rows > .hd-card + .hd-card{border-top:1px solid rgba(236,225,204,.075) !important}',
+
+      R + '.hd-mile{display:flex;align-items:center;gap:15px;padding:13px 4px;position:relative}',
+      /* Struck-metal disc, not a gold ring around a floating glyph. */
+      R + '.hd-mile-badge{flex:0 0 46px;height:46px;border-radius:50%;display:grid;place-items:center;',
+      'background:radial-gradient(circle at 38% 28%,#2e2418,#15100a 78%) !important;',
+      'border:1px solid rgba(201,162,74,.5) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55)}',
       R + '.hd-mile-body{flex:1;min-width:0}',
-      R + '.hd-mile-title{font-family:var(--f-display);font-size:20px;color:var(--ink) !important}',
-      R + '.hd-mile-sub{font-size:12px;color:var(--ink-3) !important;margin:2px 0 9px;font-variant-numeric:tabular-nums}',
-      // Renown meta-spine hero (the destination — most prominent card on Home)
-      R + '.hd-renown{cursor:pointer;transition:border-color .15s,box-shadow .15s}',
-      R + '.hd-renown:hover{border-color:var(--gold) !important;box-shadow:0 0 0 3px var(--gold-bg)}',
-      R + '.hd-renown .hd-mile-badge{font-size:30px}',
-      R + '.hd-rn-eyebrow{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--gold-2) !important;font-weight:700;margin-bottom:1px}',
-      R + '.hd-rn-claimdot{font-size:11px;background:var(--gold) !important;color:var(--bg-0) !important;border-radius:99px;padding:2px 8px;font-weight:700;vertical-align:middle;margin-left:6px;white-space:nowrap}',
-      // Daily reward claim card (shown only when a reward is waiting)
-      R + '.hd-daily{cursor:pointer;background:color-mix(in srgb,var(--gold) 10%,var(--bg-2)) !important;border-color:var(--gold) !important}',
-      R + '.hd-daily:hover{box-shadow:0 0 0 3px var(--gold-bg)}',
-      R + '.hd-daily .hd-mile-badge{animation:hd-daily-pulse 1.8s ease-in-out infinite}',
-      '@keyframes hd-daily-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}',
+      /* Cinzel is a titling face. Setting a TASK in it ("Defeat 5 monsters")
+         renders a sentence as engraved capitals, which shouts louder than the
+         section heading above it and doesn't match the identical quest rows
+         directly below. Tasks are sentences; only names and ranks are titles. */
+      R + '.hd-mile-title{font-size:15.5px;font-weight:600;color:var(--ink) !important;line-height:1.25}',
+      R + '.hd-mile.is-title .hd-mile-title{font-family:var(--f-display);font-size:17px;font-weight:600;letter-spacing:.01em}',
+      R + '.hd-mile-sub{font-size:12.5px;color:var(--ink-3) !important;margin:3px 0 8px;font-variant-numeric:tabular-nums}',
+      R + '.hd-rn-eyebrow{font-family:var(--f-label);font-size:11.5px;letter-spacing:.02em;',
+      'color:var(--ink-3) !important;font-weight:700;margin-bottom:2px}',
+      R + '.hd-rn-claimdot{font-family:var(--f-label);font-size:11px;background:var(--gold) !important;',
+      'color:#1b1305 !important;border-radius:2px;padding:2px 7px;font-weight:700;vertical-align:middle;margin-left:8px;white-space:nowrap}',
 
-      R + '.hd-bar{height:9px;border-radius:6px;background:rgba(0,0,0,.28) !important;overflow:hidden}',
+      /* THE one lit object on the screen. A claimable reward is the only thing
+         that is genuinely urgent, so it is the only thing that glows. */
+      R + '.hd-daily{cursor:pointer;padding:15px 16px;border-radius:var(--r) !important;',
+      'background:linear-gradient(115deg,rgba(201,162,74,.20),rgba(201,162,74,.07) 58%,rgba(201,162,74,.02)) !important;',
+      'border:1px solid rgba(201,162,74,.55) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,240,205,.16),0 0 22px -12px rgba(201,162,74,.8);transition:box-shadow .18s}',
+      R + '.hd-daily:hover{box-shadow:inset 0 1px 0 rgba(255,240,205,.22),0 0 26px -8px rgba(201,162,74,.9)}',
+      R + '.hd-daily .hd-mile-badge{border-color:rgba(227,199,126,.75) !important;animation:hd-daily-pulse 2.6s ease-in-out infinite}',
+      R + '.hd-daily .hd-mile-title{color:var(--gold-2) !important}',
+      '@keyframes hd-daily-pulse{0%,100%{box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 0 rgba(201,162,74,.34)}' +
+        '50%{box-shadow:inset 0 1px 0 rgba(255,232,190,.13),inset 0 -2px 4px rgba(0,0,0,.55),0 0 0 7px rgba(201,162,74,0)}}',
+
+      /* Gauge, not a hairline. Recessed channel + lit fill. */
+      R + '.hd-bar{height:7px;border-radius:1px;background:rgba(0,0,0,.42) !important;overflow:hidden;',
+      'box-shadow:inset 0 1px 2px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,232,190,.05)}',
       'html:not([data-theme]) ' + R + '.hd-bar,body[data-theme="cozy-light"] ' + R + '.hd-bar{background:rgba(90,60,20,.14) !important}',
-      R + '.hd-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent,var(--green)),color-mix(in srgb,var(--accent,var(--green)) 55%,#fff)) !important}',
+      R + '.hd-bar i{display:block;height:100%;border-radius:0;',
+      'background:linear-gradient(180deg,color-mix(in srgb,var(--accent,var(--green)) 82%,#fff2cf),var(--accent,var(--green))) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}',
 
-      R + '.hd-quest{display:flex;align-items:center;gap:13px;padding:14px;position:relative;overflow:hidden}',
-      R + '.hd-quest::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--green))}',
-      R + '.hd-qic{flex:0 0 44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:21px;background:var(--bg-2) !important;border:1px solid var(--line) !important}',
+      /* Quest row. The 4px coloured spine is gone — it was applying oxblood,
+         moss and gilt to rows that differ only in which skill they route to,
+         which spent the game's whole colour vocabulary on decoration. */
+      R + '.hd-quest{display:flex;align-items:center;gap:13px;padding:12px 4px;position:relative}',
+      R + '.hd-quest:hover{background:rgba(255,236,200,.028) !important}',
+      R + '.hd-qic{flex:0 0 34px;height:34px;display:grid;place-items:center;opacity:.85}',
       R + '.hd-qbody{flex:1;min-width:0}',
-      R + '.hd-qtitle{font-family:var(--f-display);font-size:16px;color:var(--ink) !important}',
-      /* b216: was space-between, which flung the progress and the reward to
-         opposite ends of a 620px card with dead air between them. They're one
-         thought — read them as a pair. */
-      R + '.hd-qmeta{display:flex;justify-content:flex-start;gap:12px;align-items:baseline;margin:5px 0 7px}',
-      R + '.hd-qmeta .p{font-size:12px;color:var(--ink-2) !important;font-weight:600;font-variant-numeric:tabular-nums}',
-      R + '.hd-qmeta .r{font-size:12px;color:var(--gold-2) !important;font-weight:600}',
+      R + '.hd-qtitle{font-size:15.5px;font-weight:600;color:var(--ink) !important;line-height:1.25}',
+      R + '.hd-qmeta{display:flex;justify-content:flex-start;gap:10px;align-items:baseline;margin:4px 0 7px}',
+      R + '.hd-qmeta .p{font-size:12px;color:var(--ink-3) !important;font-weight:600;font-variant-numeric:tabular-nums}',
+      R + '.hd-qmeta .r{font-size:12px;color:var(--gold-2) !important;font-weight:600;display:inline-flex;align-items:center;gap:4px}',
 
-      /* b216: was `align-self:stretch`, which made every CTA as tall as its
-         card — an 80px gold slab wrapping a 13.5px label. Buttons now have a
-         real button height and sit centred against the card. */
-      R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 16px;border:1px solid transparent;border-radius:9px;cursor:pointer;font:600 13.5px/1 var(--f-ui);white-space:nowrap;color:#20160c !important;background:linear-gradient(180deg,var(--gold-2),var(--gold)) !important;box-shadow:0 4px 12px -7px var(--gold);transition:filter .12s,transform .12s}',
+      /* Buttons follow the global hierarchy: gilt = primary, quiet = the rest.
+         Every row used to ship a filled gold slab, so nothing was primary. */
+      R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:34px;display:inline-flex;align-items:center;',
+      'justify-content:center;gap:6px;padding:0 15px;border-radius:var(--r);cursor:pointer;',
+      'font:700 13px/1 var(--f-ui);white-space:nowrap;',
+      'color:#221803 !important;border:1px solid #e6cd93 !important;',
+      'background:linear-gradient(180deg,#d9b361 0%,#c09539 52%,#a67c28 100%) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,246,220,.55),inset 0 -2px 3px rgba(90,60,8,.4),0 2px 5px -2px rgba(0,0,0,.7);',
+      'transition:filter .12s,transform .06s}',
       R + '.hd-cta:active{transform:translateY(1px)}',
-      R + '.hd-cta:hover{filter:brightness(1.06)}',
-      /* b216: the raw accent was used as the label colour, but these tokens are
-         tuned as SURFACE colours — oxblood --red on a dark card measured 2.85:1.
-         Blending the accent toward parchment keeps the colour coding and makes
-         it legible, whatever accent the quest row sets inline. */
-      R + '.hd-cta.ghost{background:transparent !important;color:color-mix(in srgb,var(--accent,var(--green)) 55%,var(--ink)) !important;border:1px solid color-mix(in srgb,var(--accent,var(--green)) 46%,transparent) !important;box-shadow:none}',
-      R + '.hd-cta.ghost:hover{color:color-mix(in srgb,var(--accent,var(--green)) 30%,var(--ink)) !important;background:color-mix(in srgb,var(--accent,var(--green)) 12%,transparent) !important}',
+      R + '.hd-cta:hover{filter:brightness(1.07)}',
+      /* Secondary, not invisible. These are the actual affordance on every
+         quest row — at --ink-3 on near-black they read as disabled text. */
+      R + '.hd-cta.ghost{color:var(--ink-2) !important;font-weight:600;',
+      'border:1px solid var(--line) !important;',
+      'background:linear-gradient(180deg,rgba(255,236,200,.075),rgba(255,236,200,.018) 55%,rgba(0,0,0,.1)) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,240,210,.09),0 1px 0 rgba(0,0,0,.45)}',
+      R + '.hd-cta.ghost:hover{color:var(--gold-2) !important;border-color:rgba(201,162,74,.45) !important;',
+      'background:linear-gradient(180deg,rgba(255,236,200,.13),rgba(255,236,200,.04)) !important}',
 
-      R + '.hd-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}',
-      /* b213 (phase 2): the cozy sheet's always-on `[class*="tile"]` rules
-         painted the Today row cream-on-dark (washed-out strip with unreadable
-         numbers). Repeated-id prefix beats their specificity for good. */
+      /* "Today" — three numbers, not three boxes. Separated by rules so they
+         read as one instrument panel instead of three unrelated cards. */
+      R + '.hd-tiles{display:grid;grid-template-columns:repeat(3,1fr)}',
       '#panel-profile#panel-profile #hd-root .hd-tiles{background:transparent !important;border:0 !important;padding:0 !important}',
-      '#panel-profile#panel-profile #hd-root .hd-tile{background:var(--bg-2) !important;border:1px solid var(--line) !important;border-radius:12px;padding:13px}',
-      '#panel-profile#panel-profile #hd-root .hd-tile b{font-family:var(--f-display);font-size:22px;color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',
-      '#panel-profile#panel-profile #hd-root .hd-tile span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3) !important;font-weight:700}',
+      '#panel-profile#panel-profile #hd-root .hd-tile{background:transparent !important;border:0 !important;',
+      'border-left:1px solid var(--line-soft) !important;border-radius:0;padding:2px 0 2px 13px}',
+      '#panel-profile#panel-profile #hd-root .hd-tile:first-child{border-left:0 !important;padding-left:0}',
+      '#panel-profile#panel-profile #hd-root .hd-tile b{font-family:var(--f-display);font-size:23px;font-weight:600;',
+      'color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',
+      '#panel-profile#panel-profile #hd-root .hd-tile span{font-family:var(--f-label);font-size:11.5px;letter-spacing:.02em;',
+      'text-transform:none;color:var(--ink-3) !important;font-weight:700;display:block;margin-top:5px}',
 
-      R + '.hd-mini{padding:15px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
-      R + '.hd-mini .mi{flex:0 0 40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:var(--bg-2) !important;border:1px solid var(--line) !important}',
-      R + '.hd-mini b{color:var(--ink) !important;font-family:var(--f-display);font-size:15px;font-weight:600}',
-      /* nested/classless text inside minis (buffs blurb, resume subtitle) kept
-         readable — accent links carry data-hd so they keep their colour */
+      R + '.hd-mini{padding:10px 4px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
+      R + '.hd-mini .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.8}',
+      R + '.hd-mini b{color:var(--ink) !important;font-size:14.5px;font-weight:700}',
       R + '.hd-mini div:not([data-hd]),' + R + '.hd-mini span:not([data-hd]){color:var(--ink-2) !important}',
-      R + '.hd-mini .go{margin-left:auto}'
+      R + '.hd-mini .go{margin-left:auto}',
+      /* An inline link inside a supporting line — gilt, never a raw accent. */
+      R + '.hd-link{color:var(--gold-2) !important;font-weight:600;cursor:pointer}',
+      R + '.hd-link:hover{color:var(--gold) !important;text-decoration:underline;text-underline-offset:3px}'
     ].join('\n');
   }
 
@@ -233,26 +283,27 @@
       : G.activeSkill ? (window.SKILLS_DEF && window.SKILLS_DEF[G.activeSkill] && window.SKILLS_DEF[G.activeSkill].name) : null;
 
     var html = '';
-    // ── header ──
+    // ── header ────────────────────────────────────────────────────────────
+    // The five stat pills that used to live here (Total Lv / Combat / Gold /
+    // Gems / Log) are gone: all of them are already pinned in the topbar, 40px
+    // above, permanently. Two of them even disagreed with the topbar because
+    // they read different sources. Identity + rank is what belongs on a
+    // profile header; the numbers belong in one place.
+    var rankLine = '';
+    try {
+      var _rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
+      if (_rn) rankLine = '<b>' + esc(_rn.rank.name) + '</b><span class="sep">·</span>' + num(_rn.renown) + ' Renown';
+    } catch (e) {}
     html += '<div class="hd-top">';
-    html += '<div class="hd-who"><div class="hd-ava" style="overflow:hidden;padding:0">' +
+    html += '<div class="hd-who"><div class="hd-ava">' +
       '<img src="assets/icons-bundle/painted/npc/player.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
     html += '<div class="hd-name">' + esc(playerName()) +
-      '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 13, '✎', 'var(--ink-3)') + '</button></div>';
-    html += '<div class="hd-sub' + (isOnline() ? '' : ' off') + '">' + (isOnline() ? '● Online · cloud save active' : 'Offline play · sign in to sync') + '</div>';
+      '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
+    html += '<div class="hd-sub">' + rankLine +
+      (rankLine ? '<span class="sep">·</span>' : '') +
+      (isOnline() ? 'Online · cloud save active' : 'Offline play · sign in to sync') + '</div>';
     html += '</div></div>';
-    html += '<div class="hd-pills">';
-    html += '<div class="hd-pill"><em>Total Lv</em><b>' + tl + '</b></div>';
-    html += '<div class="hd-pill"><em>Combat</em><b>' + cl + '</b></div>';
-    html += '<div class="hd-pill gold"><em>Gold</em><b>' + num(G.gold) + '</b></div>';
-    html += '<div class="hd-pill gem"><em>Gems</em><b>' + num(G.gems || 0) + '</b></div>';
-    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
-      try {
-        var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
-        html += '<div class="hd-pill" data-hd="collection" style="cursor:pointer"><em>' + gly('uiQuests', 11, '', 'var(--ink-3)') + ' Log</em><b>' + _clp + '%</b></div>';
-      } catch (e) {}
-    }
-    html += '</div></div>';
+    html += '</div>';
 
     // ── grid ──
     html += '<div class="hd-grid"><div class="hd-col">';
@@ -265,112 +316,143 @@
         var dlt = [];
         if (dlrw.gold) dlt.push(gly('gold', 13, '', 'var(--gold-2)') + ' ' + num(dlrw.gold) + (gly('gold', 1) ? '' : ' gold'));
         if (dlrw.gems) dlt.push(gly('gems', 13, '', 'var(--gem)') + ' ' + num(dlrw.gems) + (gly('gems', 1) ? '' : ' gems'));
-        html += '<div class="hd-card hd-mile hd-daily" data-hd="daily">' +
-          '<div class="hd-mile-badge">' + gly('gold', 26, '🎁') + '</div>' +
+        html += '<div class="hd-card hd-mile hd-daily is-title" data-hd="daily">' +
+          '<div class="hd-mile-badge">' + gly('uiGift', 22, '', '#f0dfb8') + '</div>' +
           '<div class="hd-mile-body">' +
             '<div class="hd-rn-eyebrow">Daily reward · Day ' + DL.cycleDay(G) + '</div>' +
-            '<div class="hd-mile-title" style="color:var(--gold)">Reward ready!</div>' +
+            '<div class="hd-mile-title">Reward ready</div>' +
             '<div class="hd-mile-sub">' + dlt.join(' · ') + ' waiting to claim</div>' +
           '</div>' +
-          '<button class="hd-cta">Claim →</button>' +
+          '<button class="hd-cta">Claim</button>' +
         '</div>';
       } catch (e) { /* daily optional */ }
     }
 
-    // Renown meta-spine hero — the account-wide destination, first thing on Home
+    // ── LEFT: what to do ──────────────────────────────────────────────────
+    // Milestone + quests are one list ("Next up"), not four separate hero
+    // cards competing for the same job. Renown moved to the status rail: it
+    // is a measure of how you're doing, not an action.
+    html += '<div><div class="hd-h"><h3>Next up</h3><a data-hd="allquests">All quests →</a></div><div class="hd-rows">';
+    var anyNext = false;
+    if (mile) {
+      anyNext = true;
+      var mpct = Math.round((mile.pct || 0) * 100);
+      var isQuest = mile.kind === 'quest';
+      html += '<div class="hd-card hd-mile">' +
+        '<div class="hd-mile-badge">' + gly('bountyHunter', 22, '', '#e6d6b4') + '</div>' +
+        '<div class="hd-mile-body">' +
+        '<div class="hd-mile-title">' + esc(mile.label) + '</div>' +
+        '<div class="hd-mile-sub">' + num(mile.current) + ' / ' + num(mile.target) + ' · ' + mpct + '%</div>' +
+        '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + mpct + '%"></i></div>' +
+        '</div>' +
+        '<button class="hd-cta" data-hd="mile">' + (isQuest ? 'View' : 'Train') + '</button>' +
+        '</div>';
+    }
+    if (tasks.length) {
+      anyNext = true;
+      tasks.forEach(function (t, i) {
+        var r = questRoute(t.label);
+        var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
+        // Rewards are plain numbers in the data ("400"). Pairing them with the
+        // gold glyph is what makes a number read as currency instead of as a
+        // second progress figure sitting next to "0 / 50".
+        var reward = t.reward != null ? String(t.reward) : (t.rewardText || '');
+        var rewardHtml = reward
+          ? (/^\d[\d,]*$/.test(reward.trim())
+              ? gly('gold', 13, '', 'var(--gold-2)') + '<span>' + esc(reward) + '</span>'
+              : '<span>' + esc(reward) + '</span>')
+          : '';
+        html += '<div class="hd-card hd-quest">' +
+          '<div class="hd-qic">' + gly(r.key, 22, '', 'var(--ink-2)') + '</div>' +
+          '<div class="hd-qbody">' +
+          '<div class="hd-qtitle">' + esc(t.label) + '</div>' +
+          '<div class="hd-qmeta"><span class="p">' + num(t.progress || 0) + ' / ' + num(t.goal || 0) + '</span>' +
+          (rewardHtml ? '<span class="r">' + rewardHtml + '</span>' : '') + '</div>' +
+          '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + pct + '%"></i></div>' +
+          '</div>' +
+          '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '">' + r.verb + '</button>' +
+          '</div>';
+      });
+    }
+    if (!anyNext) {
+      html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiCheck', 20, '', 'var(--green)') +
+        '</div><div>All daily quests done — new ones at reset.</div></div>';
+    }
+    html += '</div></div>';
+
+    html += '</div><div class="hd-col">';
+
+    // ── RIGHT: how you're doing ───────────────────────────────────────────
+    // This rail used to hold three items and then ~700px of nothing. It now
+    // carries the four things a player checks between actions.
+
+    // Right now / jump back in — first, because "what am I doing" is the
+    // question an idle game has to answer on sight.
+    html += '<div><div class="hd-h"><h3>Right now</h3></div>';
+    if (activeName) {
+      html += '<div class="hd-card hd-mini"><div class="mi">' +
+        (G.activeMonster ? gly('navCombat', 20, '', 'var(--red)') : gly(G.activeSkill || 'smithing', 20, '', 'var(--green)')) + '</div>' +
+        '<div><b>' + esc(activeName) + '</b><div style="font-size:12px;color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
+        '<button class="hd-cta ghost go" data-hd="active">Open</button></div>';
+    } else if (resume) {
+      html += '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, '', 'var(--ink-2)') + '</div>' +
+        '<div><b>' + esc(resume.label) + '</b><div style="font-size:12px;color:var(--ink-3)">Idle — nothing running</div></div>' +
+        '<button class="hd-cta ghost go" data-hd="resume">Resume</button></div>';
+    } else {
+      html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
+        '<div>Idle — pick a skill or a monster to start earning.</div></div>';
+    }
+    html += '</div>';
+
+    // Renown — the long game. Status, so it lives in the status rail.
     var RN = window.HearthriseRenown;
     if (RN && RN.getState) {
       try {
         var rs = RN.getState(G);
         var claimN = (RN.getClaimable ? RN.getClaimable(G) : []).length;
         var rpct = Math.round((rs.progress || 0) * 100);
-        var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' Renown to ' + esc(rs.next.name));
-        html += '<div class="hd-card hd-mile hd-renown" data-hd="renown">' +
-          '<div class="hd-mile-badge">' + gly('totalLvl', 26, '👑') + '</div>' +
-          '<div class="hd-mile-body">' +
-            '<div class="hd-rn-eyebrow">Renown · Rise to the Throne</div>' +
-            '<div class="hd-mile-title" style="color:var(--gold)">' + esc(rs.rank.name) +
-              (claimN ? '<span class="hd-rn-claimdot">' + claimN + ' reward' + (claimN > 1 ? 's' : '') + ' ready</span>' : '') + '</div>' +
-            '<div class="hd-mile-sub">' + num(rs.renown) + ' Renown · ' + nextTxt + '</div>' +
-            '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + rpct + '%"></i></div>' +
-          '</div>' +
-          '<button class="hd-cta">View →</button>' +
-        '</div>';
+        var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' to ' + esc(rs.next.name));
+        html += '<div><div class="hd-h"><h3>Rise to the throne</h3><a data-hd="renown">Ladder →</a></div>' +
+          '<div class="hd-card hd-mile is-title" data-hd="renown" style="cursor:pointer;padding-left:0">' +
+            '<div class="hd-mile-badge">' + gly('totalLvl', 22, '', '#e6d6b4') + '</div>' +
+            '<div class="hd-mile-body">' +
+              '<div class="hd-mile-title">' + esc(rs.rank.name) +
+                (claimN ? '<span class="hd-rn-claimdot">' + claimN + ' ready</span>' : '') + '</div>' +
+              '<div class="hd-mile-sub">' + num(rs.renown) + ' Renown · ' + nextTxt + '</div>' +
+              '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + rpct + '%"></i></div>' +
+            '</div>' +
+          '</div></div>';
       } catch (e) { /* renown optional */ }
     }
-
-    // milestone hero
-    if (mile) {
-      var mpct = Math.round((mile.pct || 0) * 100);
-      var isQuest = mile.kind === 'quest';
-      html += '<div class="hd-card hd-mile">' +
-        '<div class="hd-mile-badge">' + gly('bountyHunter', 26, esc(mile.icon || '🎯')) + '</div>' +
-        '<div class="hd-mile-body">' +
-        '<div class="hd-mile-title">' + esc(mile.label) + '</div>' +
-        '<div class="hd-mile-sub">' + num(mile.current) + ' / ' + num(mile.target) + ' · ' + mpct + '% · next milestone</div>' +
-        '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + mpct + '%"></i></div>' +
-        '</div>' +
-        '<button class="hd-cta" data-hd="mile">' + (isQuest ? 'View →' : 'Train →') + '</button>' +
-        '</div>';
-    }
-
-    // quests — actionable
-    html += '<div><div class="hd-h"><h3>Today’s quests</h3><a data-hd="allquests">All quests →</a></div><div class="hd-col">';
-    if (tasks.length) {
-      tasks.forEach(function (t, i) {
-        var r = questRoute(t.label);
-        var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
-        var reward = t.reward ? esc(t.reward) : (t.rewardText ? esc(t.rewardText) : '');
-        html += '<div class="hd-card hd-quest" style="--accent:' + r.accent + '">' +
-          '<div class="hd-qic">' + gly(r.key, 22, r.icon) + '</div>' +
-          '<div class="hd-qbody">' +
-          '<div class="hd-qtitle">' + esc(t.label) + '</div>' +
-          '<div class="hd-qmeta"><span class="p">' + num(t.progress || 0) + ' / ' + num(t.goal || 0) + '</span>' +
-          (reward ? '<span class="r">' + reward + '</span>' : '') + '</div>' +
-          '<div class="hd-bar" style="--accent:' + r.accent + '"><i style="width:' + pct + '%"></i></div>' +
-          '</div>' +
-          '<button class="hd-cta ghost" style="--accent:' + r.accent + '" data-hd="q" data-i="' + i + '">' + r.verb + ' →</button>' +
-          '</div>';
-      });
-    } else {
-      html += '<div class="hd-card hd-mini"><div class="mi" style="color:var(--green);font-weight:800">✓</div><div>All daily quests done — nice. New ones at reset.</div></div>';
-    }
-    html += '</div></div>';
-
-    html += '</div><div class="hd-col">';
 
     // today tiles
     var xp = today && (today.xp != null ? today.xp : today.totalXp);
     var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
     var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
     html += '<div><div class="hd-h"><h3>Today</h3></div><div class="hd-tiles">' +
-      '<div class="hd-tile"><b>' + (xp != null ? '+' + num(xp) : '—') + '</b><span>XP</span></div>' +
+      '<div class="hd-tile"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP</span></div>' +
       '<div class="hd-tile"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
       '<div class="hd-tile"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
       '</div></div>';
 
-    // resume / current
-    if (activeName) {
-      html += '<div><div class="hd-h"><h3>Right now</h3></div>' +
-        '<div class="hd-card hd-mini"><div class="mi">' + (G.activeMonster ? gly('navCombat', 20, '⚔️') : gly(G.activeSkill || 'smithing', 20, '🛠️')) + '</div>' +
-        '<div><b>' + esc(activeName) + '</b><div style="font-size:12px;color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
-        '<button class="hd-cta ghost" style="--accent:var(--gold)" data-hd="active">Open →</button></div></div>';
-    } else if (resume) {
-      html += '<div><div class="hd-h"><h3>Jump back in</h3></div>' +
-        '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, esc(resume.icon || '')) + '</div>' +
-        '<div><b>' + esc(resume.label) + '</b></div>' +
-        '<button class="hd-cta ghost" style="--accent:var(--green)" data-hd="resume">Resume →</button></div></div>';
-    }
-
-    // buffs
+    // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     var hasFood = G.foodSlot || (G.buffs && G.buffs.length);
-    html += '<div><div class="hd-h"><h3>Buffs</h3></div>' +
-      '<div class="hd-card hd-mini">' + (hasFood
-        ? '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>Active buffs running.</div>'
-        /* b216: raw --red as link text on a dark card was 2.85:1. Mixed toward
-           parchment like the other accent links. */
-        : '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>No food buffs active. <span style="color:color-mix(in srgb,var(--red) 50%,var(--ink));font-weight:600;cursor:pointer" data-hd="cook">Cook something →</span></div>') +
-      '</div></div>';
+    html += '<div><div class="hd-h"><h3>Upkeep</h3></div><div class="hd-rows">';
+    html += '<div class="hd-card hd-mini"><div class="mi">' + gly('cooking', 20, '', 'var(--ink-2)') + '</div>' +
+      (hasFood
+        ? '<div>Food buff active.</div>'
+        : '<div>No food buff. <span class="hd-link" data-hd="cook">Cook something →</span></div>') +
+      '</div>';
+    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
+      try {
+        var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
+        html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +
+          '<div class="mi">' + gly('uiBook', 20, '', 'var(--ink-2)') + '</div>' +
+          '<div>Collection log</div>' +
+          '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '%</b></div>';
+      } catch (e) {}
+    }
+    html += '</div></div>';
 
     html += '</div></div>';
 

@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=216';
+import { setupSync, pullLatest } from './sync.js?v=217';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -183,12 +183,17 @@ export function getClient() {
 function renderAuthUi() {
   const banner = document.getElementById('status-pill') || document.getElementById('hr-auth-banner');
   if (banner) {
+    /* b217: this wrote the whole pill as textContent with a 🟢/⚪ emoji in
+       front — which also blew away the styled `.dot` span the markup ships,
+       replacing a themed status light with a system pictograph. Set the LABEL
+       and let the class drive the light. */
+    const label = banner.querySelector('span:last-child') || banner;
     if (session?.user) {
-      banner.textContent = '🟢 ' + (session.user.email || 'Online');
-    } else if (authConfig) {
-      banner.textContent = '⚪ Offline · sign in to sync';
+      banner.classList.remove('off');
+      label.textContent = session.user.email || 'Online';
     } else {
-      banner.textContent = '⚪ Offline play';
+      banner.classList.add('off');
+      label.textContent = authConfig ? 'Offline · sign in to sync' : 'Offline play';
     }
   }
   // Replace the "Sign in" button on the profile dashboard if it exists

@@ -180,7 +180,10 @@
     var canHire = G.workers.hired.length < s;
     host.innerHTML =
       '<div style="border-top:1px solid var(--line-soft);margin-top:10px;padding-top:8px">' +
-        '<div class="tiny" style="text-transform:uppercase;letter-spacing:.06em;color:var(--gold-2);font-weight:700;margin-bottom:2px">Workers — ' + G.workers.hired.length + '/' + s + '</div>' +
+        /* b217: was uppercase + .06em tracking on a 11px tiny — the treatment
+           the rest of the game uses for section headings is the small-caps
+           face, so this one read as a different design. */
+        '<div class="hr-label" style="margin-bottom:4px">Workers ' + G.workers.hired.length + '/' + s + '</div>' +
         (s === 0 ? '<div class="tiny muted">Upgrade to a Homestead to hire your first worker.</div>' : '') +
         rows +
         (s > 0 && canHire

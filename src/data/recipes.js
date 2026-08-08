@@ -13,7 +13,7 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=216';
+import { GEAR_RECIPES } from './gear-tiers.js?v=217';
 
 const BASE_RECIPES = {
   cooking: [

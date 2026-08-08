@@ -23,12 +23,12 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=216';
-import { MONSTERS } from './data/monsters.js?v=216';
-import { ITEMS } from './data/items.js?v=216';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=216';
-import { ARTISAN_RECIPES } from './data/recipes.js?v=216';
-import { COMPANIONS } from './data/companions.js?v=216';
+import { SKILLS_DEF } from './data/skills.js?v=217';
+import { MONSTERS } from './data/monsters.js?v=217';
+import { ITEMS } from './data/items.js?v=217';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=217';
+import { ARTISAN_RECIPES } from './data/recipes.js?v=217';
+import { COMPANIONS } from './data/companions.js?v=217';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -80,29 +80,29 @@ Object.assign(window, {
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=216';
-import './net/sync.js?v=216';
-import './net/auth.js?v=216';
-import './net/supabase-bootstrap.js?v=216';
+import './net/events.js?v=217';
+import './net/sync.js?v=217';
+import './net/auth.js?v=217';
+import './net/supabase-bootstrap.js?v=217';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=216';
-import './utils/dom.js?v=216';
-import './utils/safe.js?v=216';
-import './utils/profile.js?v=216';
-import './utils/data-integrity.js?v=216';
-import './utils/image-fallback.js?v=216';
+import './config.js?v=217';
+import './utils/dom.js?v=217';
+import './utils/safe.js?v=217';
+import './utils/profile.js?v=217';
+import './utils/data-integrity.js?v=217';
+import './utils/image-fallback.js?v=217';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=216';
-import { setupCompanions } from './features/companions.js?v=216';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=216';
-import { setupCharacterPage } from './features/character-page.js?v=216';
-import { setupCombatRender } from './features/combat-render.js?v=216';
+import { setupSmokeTest } from './features/smoke-test.js?v=217';
+import { setupCompanions } from './features/companions.js?v=217';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=217';
+import { setupCharacterPage } from './features/character-page.js?v=217';
+import { setupCombatRender } from './features/combat-render.js?v=217';
 
 // Boot diagnostics
 const counts = {

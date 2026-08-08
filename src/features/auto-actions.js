@@ -71,6 +71,14 @@
     }
     if(!aa.trainGoal)   aa.trainGoal   = Object.assign({}, DEFAULTS.trainGoal);
     if(!aa.farmReplant) aa.farmReplant = Object.assign({}, DEFAULTS.farmReplant);
+    // b217: auto-eat is now a purchased trait (bought with gold in the Store).
+    // Grandfather anyone who already had it enabled (or a legacy foodSlot) so we
+    // never revoke a working feature from an existing save. Fresh players start
+    // with eat.enabled=false, so they are NOT grandfathered — they buy it.
+    if(aa.eat && aa.eat.enabled && !(window.G.traits && window.G.traits.auto_eat)){
+      window.G.traits = window.G.traits || {};
+      window.G.traits.auto_eat = true;
+    }
     return aa;
   }
 
@@ -137,6 +145,10 @@
     var cfg = ensureShape(); if(!cfg) return false;
     var eat = cfg.eat;
     if(!eat || !eat.enabled) return false;
+    // b217: auto-eat is a purchased trait — unbypassable gate. Until bought in
+    // the Store, combat healing is manual (the player clicks food). ensureShape()
+    // above grandfathers pre-b217 saves that already had auto-eat on.
+    if(!(window.G.traits && window.G.traits.auto_eat)) return false;
     var hp = window.G.playerHp, maxHp = window.G.playerMaxHp;
     if(typeof hp !== 'number' || typeof maxHp !== 'number' || maxHp <= 0) return false;
     if(hp <= 0) return false;                    // already dead — respawn handles itself

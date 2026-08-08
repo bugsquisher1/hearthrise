@@ -52,7 +52,9 @@
       title: 'Welcome to Hearthrise',
       body: 'A cozy idle RPG where you train skills, fight monsters, and build a homestead. Want a quick 60-second tour of the basics?',
       primary: 'Take the tour',
-      secondary: 'Skip — I know what I\'m doing',
+      // b217: was "Skip — I know what I'm doing", which wrapped to two lines
+      // and made the secondary taller than the primary sitting beside it.
+      secondary: 'Not now',
       onSecondary: function(){ endFTUE(true); },
     },
     {
@@ -132,33 +134,54 @@
     styleEl = document.createElement('style');
     styleEl.id = 'ftue-styles';
     styleEl.textContent = ''
-      + '.ftue-root{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:inherit}'
-      + '.ftue-shade{position:absolute;inset:0;background:rgba(8,12,18,0.62);transition:opacity 250ms ease;opacity:0;pointer-events:auto}'
+      // b217: this whole sheet was a cold grey-blue (#1d2531 card, #3a4555
+      // border, #a4adba label) that appears nowhere else in the game. It is
+      // the FIRST surface a new player sees, so it was setting the visual
+      // expectation for a game it doesn't belong to. Retuned to the warm stone
+      // + gilt language, and the action row rebuilt: "skip" is tertiary text
+      // on the left, the two real choices sit right with matching heights
+      // (the secondary used to wrap to two lines and stand taller than the
+      // primary next to it).
+      + '.ftue-root{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:var(--f-ui,inherit)}'
+      + '.ftue-shade{position:absolute;inset:0;background:rgba(6,5,3,0.72);transition:opacity 250ms ease;opacity:0;pointer-events:auto}'
       + '.ftue-shade.show{opacity:1}'
-      + '.ftue-spot{position:absolute;border-radius:14px;box-shadow:0 0 0 9999px rgba(8,12,18,0.62), 0 0 0 3px rgba(255,210,120,0.85), 0 0 32px rgba(255,210,120,0.55);transition:all 250ms ease;pointer-events:none}'
-      + '.ftue-card{position:absolute;max-width:340px;background:linear-gradient(180deg,#1d2531,#171d27);color:#e8eaef;border:1px solid #3a4555;border-radius:12px;padding:14px 16px 12px;box-shadow:0 18px 48px rgba(0,0,0,0.55),0 2px 8px rgba(0,0,0,0.4);pointer-events:auto;opacity:0;transform:translateY(8px) scale(0.98);transition:opacity 220ms ease,transform 220ms ease}'
+      + '.ftue-spot{position:absolute;border-radius:4px;box-shadow:0 0 0 9999px rgba(6,5,3,0.72), 0 0 0 2px rgba(227,199,126,0.9), 0 0 28px rgba(201,162,74,0.45);transition:all 250ms ease;pointer-events:none}'
+      + '.ftue-card{position:absolute;max-width:376px;'
+      +   'background:radial-gradient(120% 80% at 50% -10%,rgba(201,162,74,.10),transparent 62%),linear-gradient(180deg,#262019,#16120d);'
+      +   'color:#ece1cc;border:1px solid rgba(201,162,74,.55);border-radius:5px;padding:20px 22px 18px;'
+      +   'box-shadow:inset 0 1px 0 rgba(255,240,205,.13),0 24px 60px -20px rgba(0,0,0,.85);'
+      +   'pointer-events:auto;opacity:0;transform:translateY(8px) scale(0.98);transition:opacity 220ms ease,transform 220ms ease}'
       + '.ftue-card.show{opacity:1;transform:translateY(0) scale(1)}'
       + '.ftue-card.center{left:50%;top:50%;transform:translate(-50%,calc(-50% + 8px))}'
       + '.ftue-card.center.show{transform:translate(-50%,-50%)}'
       + '.ftue-pip{position:absolute;width:0;height:0;border:8px solid transparent}'
-      + '.ftue-card[data-pip="below"] .ftue-pip{top:-16px;left:24px;border-bottom-color:#1d2531}'
-      + '.ftue-card[data-pip="above"] .ftue-pip{bottom:-16px;left:24px;border-top-color:#171d27}'
-      + '.ftue-card[data-pip="right"] .ftue-pip{left:-16px;top:24px;border-right-color:#1d2531}'
-      + '.ftue-card[data-pip="left"]  .ftue-pip{right:-16px;top:24px;border-left-color:#171d27}'
-      + '.ftue-step{font-size:11px;color:#a4adba;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}'
-      + '.ftue-title{font-size:16px;font-weight:700;color:#fff;margin:0 0 6px}'
-      + '.ftue-body{font-size:13.5px;line-height:1.45;color:#cfd5de;margin:0 0 12px}'
-      + '.ftue-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center}'
-      + '.ftue-btn{font:inherit;font-size:13px;padding:7px 14px;border-radius:8px;border:1px solid #4a5667;background:#2a3340;color:#e8eaef;cursor:pointer;transition:background 120ms ease,transform 80ms ease}'
-      + '.ftue-btn:hover{background:#37414f}'
+      + '.ftue-card[data-pip="below"] .ftue-pip{top:-16px;left:24px;border-bottom-color:#241e17}'
+      + '.ftue-card[data-pip="above"] .ftue-pip{bottom:-16px;left:24px;border-top-color:#16120d}'
+      + '.ftue-card[data-pip="right"] .ftue-pip{left:-16px;top:24px;border-right-color:#241e17}'
+      + '.ftue-card[data-pip="left"]  .ftue-pip{right:-16px;top:24px;border-left-color:#16120d}'
+      + '.ftue-step{font-family:var(--f-label,inherit);font-size:11.5px;color:#9d8b70;letter-spacing:0.02em;margin-bottom:6px}'
+      + '.ftue-title{font-family:var(--f-display,Georgia,serif);font-size:21px;font-weight:600;letter-spacing:.01em;color:#f2e6ca;margin:0 0 8px;line-height:1.18}'
+      + '.ftue-body{font-size:14px;line-height:1.5;color:#c4b79e;margin:0 0 18px}'
+      + '.ftue-actions{display:flex;gap:9px;justify-content:flex-end;align-items:stretch}'
+      + '.ftue-btn{font:600 13px/1 var(--f-ui,inherit);min-height:36px;padding:0 16px;border-radius:3px;'
+      +   'display:inline-flex;align-items:center;justify-content:center;text-align:center;'
+      +   'border:1px solid rgba(201,162,74,.20);'
+      +   'background:linear-gradient(180deg,rgba(255,236,200,.075),rgba(255,236,200,.018) 55%,rgba(0,0,0,.10));'
+      +   'box-shadow:inset 0 1px 0 rgba(255,240,210,.09),0 1px 0 rgba(0,0,0,.45);'
+      +   'color:#c4b79e;cursor:pointer;transition:color 120ms ease,border-color 120ms ease,background 120ms ease,transform 80ms ease}'
+      + '.ftue-btn:hover{color:#ece1cc;border-color:rgba(201,162,74,.42)}'
       + '.ftue-btn:active{transform:translateY(1px)}'
-      + '.ftue-btn.primary{background:linear-gradient(180deg,#f0b860,#d99c40);color:#1a1610;border-color:#b88533;font-weight:600}'
-      + '.ftue-btn.primary:hover{background:linear-gradient(180deg,#f5c570,#e0a44a)}'
-      + '.ftue-btn.skip{background:transparent;border-color:transparent;color:#8a92a0;padding:7px 8px}'
-      + '.ftue-btn.skip:hover{background:#2a3340;color:#cfd5de}'
+      + '.ftue-btn.primary{background:linear-gradient(180deg,#d9b361 0%,#c09539 52%,#a67c28 100%);color:#221803;border-color:#e6cd93;font-weight:700;'
+      +   'box-shadow:inset 0 1px 0 rgba(255,246,220,.55),inset 0 -2px 3px rgba(90,60,8,.4),0 2px 5px -2px rgba(0,0,0,.7)}'
+      + '.ftue-btn.primary:hover{background:linear-gradient(180deg,#eaca7d 0%,#d3ab4f 52%,#b98d33 100%);color:#221803}'
+      // Tertiary escape hatch, pushed to the far left so it never competes
+      // with the two real choices.
+      + '.ftue-btn.skip{background:none;border-color:transparent;box-shadow:none;color:#8f7d63;padding:0 6px;margin-right:auto;font-weight:500}'
+      + '.ftue-btn.skip:hover{color:#c4b79e;background:none}'
       + '@media (max-width: 540px){'
       +   '.ftue-card{max-width:calc(100vw - 32px);left:16px !important;right:16px;width:auto}'
       +   '.ftue-card.center{left:50% !important;right:auto;width:auto;max-width:calc(100vw - 32px)}'
+      +   '.ftue-actions{flex-wrap:wrap}'
       + '}';
     document.head.appendChild(styleEl);
   }

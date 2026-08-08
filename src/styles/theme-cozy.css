@@ -70,7 +70,7 @@ body[data-theme="cozy-light"] {
   --gold-bg:     rgba(200,134,42,.14);
 
   --aqua:        #4f8b7a;              /* sage teal — used for info chips */
-  --aqua-2:      #6fa896;
+  --aqua-2:      #8f8a72;
   --aqua-bg:     rgba(79,139,122,.14);
 
   --green:       #5a7c3d;              /* forest green — XP/skill bars */
@@ -112,8 +112,8 @@ body[data-theme="cozy-dark"] {
   --gold-2:      #f3d181;
   --gold-bg:     rgba(224,184,95,.14);
 
-  --aqua:        #6fa896;
-  --aqua-2:      #8cc4b0;
+  --aqua:        #8f8a72;
+  --aqua-2:      #b3a98c;
   --aqua-bg:     rgba(111,168,150,.18);
 
   --green:       #7da563;
@@ -2556,21 +2556,8 @@ body[data-theme="cozy-light"] #combat-area .row.between {
 
 /* "Suggested for your level" container + every monster row inside.
    Match #panel-combat specificity so we beat any internal styles. */
-body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"],
-body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="recommend"],
-body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-tip,
-body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob,
-body[data-theme="cozy-light"] #panel-combat #combat-area > div,
-body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"],
-body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="recommend"],
-body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-tip,
-body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob,
-body[data-theme="cozy-light"] #panel-combat #combat-area > div {
-  background: rgba(255,247,224,.7) !important;
-  border: 1px solid var(--line-strong) !important;
-  color: #3d2817 !important;
-  border-radius: 6px;
-}
+/* b217: light-theme twin of the rule above — same catch-all, same problem.
+   Retired with the markup it targeted. */
 body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"] *,
 body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob *,
 body[data-theme="cozy-light"] #panel-combat #combat-area > div *,
@@ -4573,7 +4560,7 @@ body[data-theme="hearthlight"] {
   --red-bg:      rgba(178,58,44,.16);
 
   --aqua:        #5c8f89;              /* weathered teal — info */
-  --aqua-2:      #7fb0a8;
+  --aqua-2:      #a89a80;
   --aqua-bg:     rgba(92,143,137,.15);
 
   --steel:       #7a8791;              /* forged steel — gear / cool accent */
@@ -4634,25 +4621,54 @@ body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a16
    background kill. */
 body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
 
-/* card / modal / hero surfaces → warm-dark */
+/* b217: this block used to force `background: var(--bg-card) !important;
+   border: 1px solid var(--line) !important` onto every surface-ish class in
+   the game. It is the single rule most responsible for the wall-of-cards
+   read — and because it is !important on a theme-scoped selector, no amount
+   of later styling could undo it, which is why several passes at "make it
+   look less generated" never changed anything.
+
+   Surfaces are now owned by art-direction.css, which draws them by MEANING:
+   a section gets a heading and a rule, a pressable object gets a raised
+   face, a container of objects gets a recessed well. What survives here is
+   the text colour, which still has to outrank the unscoped light-theme
+   rules further down this file. */
 body[data-theme="hearthlight"] .card,
 body[data-theme="hearthlight"] .modal-card,
 body[data-theme="hearthlight"] .ss-card,
 body[data-theme="hearthlight"] .cr-card,
 body[data-theme="hearthlight"] .cr-hero,
 body[data-theme="hearthlight"] .bounty-card,
-body[data-theme="hearthlight"] .activity-card { background: var(--bg-card) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+body[data-theme="hearthlight"] .activity-card { color: var(--ink) !important; }
 
-/* stat tiles / pills / neutral buttons → slightly raised dark */
+/* Containment is kept only where the thing IS an object: a modal is a
+   physical panel over the world, and bounty/activity cards are pressable
+   tiles the player picks from a set. */
+body[data-theme="hearthlight"] .modal-card,
+body[data-theme="hearthlight"] .ss-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--line) !important;
+}
+
 body[data-theme="hearthlight"] .kpi,
-body[data-theme="hearthlight"] .t-stat,
 body[data-theme="hearthlight"] .tile,
 body[data-theme="hearthlight"] .cr-hero-stat,
 body[data-theme="hearthlight"] .invc-hero-stat,
-body[data-theme="hearthlight"] .icon-btn,
 body[data-theme="hearthlight"] .stats-btn-trigger,
 body[data-theme="hearthlight"] .feat-buttons .btn,
-body[data-theme="hearthlight"] .feat-buttons button { background: var(--bg-2) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+body[data-theme="hearthlight"] .feat-buttons button { color: var(--ink) !important; }
+/* Stat readouts are recessed slates, not raised buttons — they aren't
+   pressable, and drawing them like buttons is why every screen looked like a
+   toolbar. */
+body[data-theme="hearthlight"] .kpi,
+body[data-theme="hearthlight"] .tile,
+body[data-theme="hearthlight"] .cr-hero-stat,
+body[data-theme="hearthlight"] .invc-hero-stat {
+  background: rgba(0,0,0,.28) !important;
+  border: 1px solid rgba(236,225,204,.05) !important;
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.55);
+}
 body[data-theme="hearthlight"] .tb-btn { background: linear-gradient(180deg,#2f2418,#221a12) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
 body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !important; border-color: var(--line) !important; color: var(--ink) !important; }
 
@@ -4663,11 +4679,14 @@ body[data-theme="hearthlight"] .panel.active [class*="-title"],
 body[data-theme="hearthlight"] .panel.active [class*="-name"],
 body[data-theme="hearthlight"] .panel.active .card-head,
 body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
-/* b197: card-head is a restrained GILT band, not the bright cream/gold bar
-   that leaked from the cozy theme. Subtle gold wash + gilt underline. */
+/* b217: the gilt wash band + full-width underline made every card-head look
+   like a table header, and there are ~30 of them across the game. A heading
+   should read as a heading, not as chrome: art-direction.css gives it small
+   caps over a rule that fades out, which is an incised line rather than a
+   border. (Kept the b197 selector so the light-theme band doesn't return.) */
 body[data-theme="hearthlight"] .card-head {
-  background: linear-gradient(180deg, rgba(201,162,74,.10), rgba(201,162,74,.02)) !important;
-  border-bottom: 1px solid var(--line) !important;
+  background: none !important;
+  border-bottom: 0 !important;
 }
 body[data-theme="hearthlight"] .card-head .card-title,
 body[data-theme="hearthlight"] .card-head .card-title::before,
@@ -4841,16 +4860,13 @@ body[data-theme="hearthlight"] .topbar input {
    theme attribute lives on <body>). Restore dark surfaces here;
    same specificity, later in source, so these win on hearthlight.
    ============================================================ */
-body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-tip,
-body[data-theme="hearthlight"] #panel-combat .combat-arena [class*="suggest"],
+/* b217: `#combat-area > div` was a catch-all that matched the arena's whole
+   empty-state wrapper, painting an OPAQUE --bg-1 across the entire arena — so
+   the painted dungeon stage behind it never showed, on any build. The .ce-tip
+   / .ce-mob / [class*=suggest] selectors targeted the "Suggested for your
+   level" list, which is gone (it duplicated the monster picker two columns to
+   the left). Only the text colour is still needed. */
 body[data-theme="hearthlight"] #panel-combat #combat-area > div {
-  background: var(--bg-1, #141a26) !important;
-  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
-  color: var(--ink, #e9e2cf) !important;
-}
-body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob {
-  background: rgba(0,0,0,.28) !important;
-  border: 1px solid var(--line-soft, rgba(122,94,58,.22)) !important;
   color: var(--ink, #e9e2cf) !important;
 }
 body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob *,
@@ -4895,7 +4911,7 @@ body[data-theme="hearthlight"] #panel-market .mk-list-form select {
    dialogs floating over a dark game. One dark sheet for every modal. */
 body[data-theme="hearthlight"] .modal .modal-card,
 body[data-theme="hearthlight"] .modal-card {
-  background: linear-gradient(180deg, #1c2434, #141a26) !important;
+  background: linear-gradient(180deg, #221c15, #17130e) !important;
   border: 1px solid var(--gold-2, #cda24a) !important;
   color: var(--ink, #e9e2cf) !important;
   box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 40px -18px var(--gold-2, #cda24a) !important;
@@ -4945,7 +4961,7 @@ body[data-theme="hearthlight"] .welcome-back-card,
 body[data-theme="hearthlight"] .ach-card,
 body[data-theme="hearthlight"] .acq-card,
 body[data-theme="hearthlight"] .qm-modal {
-  background: linear-gradient(180deg, #1c2434, #141a26) !important;
+  background: linear-gradient(180deg, #221c15, #17130e) !important;
   border-color: var(--gold-2, #cda24a) !important;
   color: var(--ink, #e9e2cf) !important;
 }
@@ -5049,24 +5065,28 @@ body[data-theme="hearthlight"] .btn-gold[disabled] {
    theme needs its own frame or every screen reads as flat content floating on
    the backdrop. Tokens only — no literals.
    ============================================================ */
+/* b217: this was a 10px-radius rounded rectangle with a gilt hairline and a
+   corner flourish pasted on TWO of its four corners — so the outermost element
+   on every screen was itself a card, wrapping the wall of cards inside it, and
+   the one decorative motif in the game was applied asymmetrically.
+
+   The panel is the ground the screen stands on, not an object sitting on the
+   world. It keeps a surface (b216 was right that the backdrop bleeding through
+   muddied the content) but reads as material: near-square, no outer rule, lit
+   along the top edge and falling off toward the bottom, the way a stone floor
+   under a high window would. */
 body[data-theme="hearthlight"] .panel.active {
   position: relative;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border: 0;
+  border-radius: var(--r);
   background:
-    url("../../assets/ornaments/corner-flourish.svg") top    left    / 54px 54px no-repeat,
-    url("../../assets/ornaments/corner-flourish.svg") bottom right   / 54px 54px no-repeat,
-    /* b216: near-opaque. At .62/.72 the backdrop's castle silhouette read
-       through the gaps between cards as a grey smudge. The scene still frames
-       the app around the panel — it just doesn't muddy the content. */
-    linear-gradient(180deg, rgba(30,25,19,.955), rgba(17,14,10,.975));
+    radial-gradient(120% 70% at 50% -8%, rgba(201,162,74,.055), transparent 62%),
+    linear-gradient(180deg, rgba(32,27,20,.965), rgba(15,12,9,.985));
   box-shadow:
-    inset 0 0 0 1px var(--line-soft),
+    inset 0 1px 0 rgba(255,240,205,.07),
+    inset 0 0 90px -30px rgba(0,0,0,.9),
     0 10px 34px -18px rgba(0,0,0,.85);
 }
-/* The flourish SVG is drawn for parchment — dim it so it reads as a quiet gilt
-   embellishment on dark rather than a bright sticker. */
-body[data-theme="hearthlight"] .panel.active { background-blend-mode: soft-light, soft-light, normal; }
 
 /* ============================================================
    b216 — ACCENT TEXT READABILITY
@@ -5100,18 +5120,11 @@ body[data-theme="hearthlight"] .t-stat .gem {
    Filled = dark ink; outlined = accent ink. One rule instead of per-component
    patches.
    ============================================================ */
-/* Repeated-id prefix so this beats the panel-scoped rules (#panel-combat
-   .chip.active etc.) that would otherwise re-inherit parchment ink. */
-body[data-theme="hearthlight"] .chip.active,
-body[data-theme="hearthlight"] #panel-combat .chip.active,
-body[data-theme="hearthlight"] #panel-house .chip.active,
-body[data-theme="hearthlight"] #panel-social .chip.active,
-body[data-theme="hearthlight"] #panel-inventory .chip.active,
-body[data-theme="hearthlight"] #panel-skills .chip.active,
-body[data-theme="hearthlight"] #panel-shop .chip.active,
-body[data-theme="hearthlight"] #panel-shop#panel-shop .chip.active,
-body[data-theme="hearthlight"] #panel-market .chip.active,
-body[data-theme="hearthlight"] #panel-bounty .chip.active,
+/* b217: the chip selectors are GONE from this list. Chips are no longer a
+   filled moss-green pill — they are tabs with a translucent gilt wash and a
+   2px gilt underline, so #1c1610 ink on them rendered near-black on near-black
+   and the selected tier's label vanished entirely. This rule now covers only
+   the controls that really are filled light surfaces. */
 body[data-theme="hearthlight"] .ribbon,
 body[data-theme="hearthlight"] #panel-shop .ribbon,
 body[data-theme="hearthlight"] #panel-shop [class*="iap-card"] .ribbon,
@@ -5121,16 +5134,24 @@ body[data-theme="hearthlight"] .hd-rn-claimdot {
   font-weight: 700;
   text-shadow: none !important;
 }
-/* Primary action = the wax-stamp red of the palette, not the pre-"Forge &
-   Stone" teal that legacy.css still ships (#2ea79d). Its own light text is
-   correct against this darker fill. */
-body[data-theme="hearthlight"] .btn-primary {
-  background: linear-gradient(180deg, var(--red), #8b2a1f) !important;
-  border-color: #5a1208 !important;
-  color: #fdf3e2 !important;
+/* b217: this made EVERY primary action in the game oxblood red — "Upgrade
+   Property", "Buy", "Claim", "Build". Red is the danger role. When the most
+   aspirational button on the Homestead screen is painted the same colour as
+   "Delete character", the colour stops meaning anything and the screen reads
+   as a warning. Primary is struck gilt (art-direction.css §6); red is reserved
+   for destructive actions via .btn-danger.
+   The rule that replaced the retired teal is still needed — legacy.css ships
+   `.btn-primary{background:linear-gradient(#c09539,#218a82)}` — so it stays,
+   pointed at the right colour. */
+body[data-theme="hearthlight"] .btn-primary,
+body[data-theme="hearthlight"] .btn-gold {
+  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%) !important;
+  border-color: #e6cd93 !important;
+  color: #221803 !important;
 }
-body[data-theme="hearthlight"] .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #c4483a, var(--red)) !important;
+body[data-theme="hearthlight"] .btn-primary:hover:not(:disabled),
+body[data-theme="hearthlight"] .btn-gold:hover:not(:disabled) {
+  background: linear-gradient(180deg, #eaca7d 0%, #d3ab4f 52%, #b98d33 100%) !important;
 }
 /* XP bars used the same retired teal as their start colour. */
 body[data-theme="hearthlight"] .bar.xp > i {
@@ -5355,29 +5376,54 @@ body[data-theme="hearthlight"] .td-tab span { display: none; }
   body[data-theme="hearthlight"] .td-tab span { display: inline; }
 }
 
-/* b216: FTUE buttons — the parchment definitions are now light-theme-only, so
-   the tour needs its own dark face. Primary = wax-stamp red (the game's
-   primary action), secondary = quiet outline. */
+/* b217: FTUE surface + buttons.
+   b216 gave the tour a cold navy card (#262019) and a filled red primary,
+   described in its own comment as "the game's primary action". Both were
+   wrong, and this is the first screen a new player ever sees:
+     • Navy belongs to no theme in this game. Everything else is warm stone.
+     • Red is the danger role. Using it for "Take the tour" spends the one
+       colour reserved for irreversible actions on a welcome prompt, and
+       trains the player to ignore it everywhere else.
+   Now: warm stone card with a gilt hairline, gilt primary, quiet secondary.
+   The button hierarchy comes from art-direction.css; these only supply the
+   FTUE-specific class names. */
 body[data-theme="hearthlight"] .ftue-btn,
 body[data-theme="hearthlight"] .ftue-button,
 body[data-theme="hearthlight"] .hr-ftue button {
-  background: rgba(255,255,255,.06) !important;
+  background: linear-gradient(180deg, rgba(255,236,200,.075), rgba(255,236,200,.018) 55%, rgba(0,0,0,.10)) !important;
+  color: var(--ink-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r);
+  box-shadow: inset 0 1px 0 rgba(255,240,210,.09), 0 1px 0 rgba(0,0,0,.45);
+}
+body[data-theme="hearthlight"] .ftue-btn:hover,
+body[data-theme="hearthlight"] .hr-ftue button:hover {
   color: var(--ink) !important;
-  border: 1px solid var(--line-strong) !important;
-  border-radius: 8px;
+  border-color: rgba(201,162,74,.4) !important;
 }
 body[data-theme="hearthlight"] .ftue-btn.primary,
 body[data-theme="hearthlight"] .ftue-next {
-  background: linear-gradient(180deg, #b5412f, #7d2418) !important;
-  color: #fdf3e2 !important;
-  border-color: #5a1208 !important;
+  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%) !important;
+  color: #221803 !important;
+  border-color: #e6cd93 !important;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,246,220,.55), inset 0 -2px 3px rgba(90,60,8,.4), 0 2px 5px -2px rgba(0,0,0,.7);
+}
+body[data-theme="hearthlight"] .ftue-btn.skip {
+  background: none !important;
+  border-color: transparent !important;
+  box-shadow: none;
+  color: var(--ink-3) !important;
 }
 body[data-theme="hearthlight"] .ftue-card,
 body[data-theme="hearthlight"] .ftue-tooltip {
-  background: linear-gradient(180deg, #232b3a, #161b26) !important;
-  border: 1px solid var(--gold-2) !important;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(201,162,74,.10), transparent 62%),
+    linear-gradient(180deg, #262019, #16120d) !important;
+  border: 1px solid rgba(201,162,74,.55) !important;
+  border-radius: var(--r-lg) !important;
   color: var(--ink) !important;
+  box-shadow: inset 0 1px 0 rgba(255,240,205,.13), 0 24px 60px -20px rgba(0,0,0,.85) !important;
 }
 body[data-theme="hearthlight"] .ftue-card *,
 body[data-theme="hearthlight"] .ftue-tooltip * { color: var(--ink) !important; }

@@ -174,9 +174,18 @@
       var have = k === 'gold' ? (G.gold || 0) : ((G.inventory || {})[k] || 0);
       var name = k === 'gold' ? 'Gold' : ((window.ITEMS && window.ITEMS[k] && window.ITEMS[k].n) || k);
       var ok = have >= need;
-      return '<span style="display:inline-flex;gap:4px;align-items:center;margin:2px 8px 2px 0;font-size:12px;' +
-        'color:' + (ok ? 'var(--green)' : 'var(--ink-3)') + '">' +
-        (ok ? '✓' : '·') + ' ' + name + ' <b>' + Math.min(have, need) + '/' + need + '</b></span>';
+      /* b217: this rendered as "✓ Gold 400/400 · Normal Log 0/30" — a raw
+         text checkmark, a middle dot standing in for "not met", and three
+         requirements run together in one sentence. A requirement list is a
+         CHECKLIST: one row per line, the material's own art, and a met/unmet
+         state you can read at a glance without parsing the numbers. */
+      var art = (typeof window.itemArt === 'function' && k !== 'gold')
+        ? window.itemArt(k, 20)
+        : ((window.HR && window.HR.icon) ? (window.HR.icon('gold', 16, 'currentColor') || '') : '');
+      return '<span class="hh-req' + (ok ? ' is-met' : '') + '">' +
+        '<span class="hh-req-art">' + art + '</span>' +
+        '<span class="hh-req-name">' + name + '</span>' +
+        '<b>' + Math.min(have, need) + ' / ' + need + '</b></span>';
     }).join('');
   }
 
@@ -214,7 +223,16 @@
           '<div class="tiny muted">' + pips + '</div></div>' +
         '</div>' +
         '<div class="tiny muted" style="margin-bottom:8px">' + cur.desc + '</div>' +
-        '<div class="tiny" style="margin-bottom:8px;color:var(--ink-2)">Plots <b>' + maxPlots() + '</b> · Workers <b>' + workerSlots() + '</b> · Offline cap <b>+' + offlineBonusHours() + 'h</b>' + (isCastle() ? ' · <b style="color:var(--gold-2)">+5% all XP</b>' : '') + '</div>' +
+        /* b217: was one run-on line — "Plots 2 · Workers 0 · Offline cap +0h".
+           These are the property's three stats; showing them as a labelled
+           strip lets a player compare current vs next without re-reading a
+           sentence. */
+        '<div class="hh-stats">' +
+          '<div class="hh-stat"><b>' + maxPlots() + '</b><span>Plots</span></div>' +
+          '<div class="hh-stat"><b>' + workerSlots() + '</b><span>Workers</span></div>' +
+          '<div class="hh-stat"><b>+' + offlineBonusHours() + 'h</b><span>Offline cap</span></div>' +
+          (isCastle() ? '<div class="hh-stat"><b>+5%</b><span>All XP</span></div>' : '') +
+        '</div>' +
         (nxt
           ? '<div style="border-top:1px solid var(--line-soft);padding-top:8px">' +
               '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + ', +' + nxt.offlineHours + 'h offline</div>' +

@@ -4,6 +4,23 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 217 — 2026-08-08 (Art Direction — it looks like a game now)
+
+A full art-direction pass over every screen. The goal was blunt: stop looking generated. Most of what changed was structural, not decorative.
+
+- 🖼️ **No emoji renders anywhere in the game.** There were ~1,400 in the source and about two dozen actually reaching the screen — the entire premium store's product art, every inventory filter, all six crop seeds, the Character page's section headings, the status bar, the browser tab icon. Every renderer now resolves an icon from the game's own set, and the fallback is a gilt glyph rather than a system pictograph, so a future missing icon can't reintroduce one.
+- ⚙️ **The icon set ships with the game.** It used to be fetched from GitHub at runtime: first session showed emoji until the network answered, offline players never got icons at all. All 164 icons are baked into the build and draw on the first frame.
+- 🃏 **The wall of cards is gone.** Every group of content was a rounded box with a gold border — twenty per screen, all the same weight, so nothing stood out. Sections are now a heading over an incised rule; a box is reserved for things you press or grids that hold objects.
+- 🔤 **New typeface.** Body text was Quicksand, a rounded sans inherited from the retired light theme. It's now Alegreya Sans, which shares Cinzel's classical bones, with real small caps for labels and tabular figures so numbers stop jittering.
+- 🎨 **Colour means something again.** Red was the primary-action colour *and* the danger colour — "Upgrade Property", "Buy" and "Take the tour" were all painted the same as a destructive action. Gilt is now the only interactive accent; oxblood is danger only; moss is XP; sapphire is real-money currency.
+- ⚔️ **The arena is a place.** It was an empty navy rectangle — its "painted battle background" pointed at a folder that isn't in the deploy, and an opaque overlay covered the one that is. Your champion now stands in a lit dungeon stage with the recommended foe as a real call to action, instead of a duplicate of the monster list two columns to the left.
+- 🌳 **Materials read as materials.** All five log tiers rendered the same sprite (a plank, not a log), and every ore rendered its own smelted bar. Ores use the proper ore art, and the wood ladder is tinted per species — pale sapwood through near-black yew.
+- 🌾 **Farm plots are tilled ground** rather than dashed rectangles containing the word "Empty", and the crop list shows each crop's painted art.
+- 🧰 **Screens stop hiding things.** Content was scrolling inside invisible boxes: the store's second row of packs was cut through the middle, the crop guide lost its last three crops, and the House screen printed its section headings on top of each other. Stacked screens scroll as a page now.
+- 🔍 **Depth.** Measured across the finished screens, 92% of every pixel sat inside a 32-value band — nothing read as being in front of anything else. Surfaces were re-spaced so the world sits behind the panel and objects sit on it; inventory slots read as recessed wells and filled tiles lift out of them.
+- 📱 The mobile tab strip's selected tab was a filled red slab; it's gilt like everything else selected.
+- 🧪 170/170 tests green.
+
 ## v0.9.2-beta build 216 — 2026-08-08 (One Palette — the colours finally match)
 
 The mismatched colours had a single root cause, and this build removes it rather than papering over it again.

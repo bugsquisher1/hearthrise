@@ -4,9 +4,9 @@
 // Imports: SKILLS_DEF, ITEMS, ARTISAN_RECIPES, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=216';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=216';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=216';
+import { SKILLS_DEF } from '../data/skills.js?v=217';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=217';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=217';
 
 function deriveClass() {
   const G = window.G;
@@ -150,7 +150,7 @@ function buildSlotsCard() {
   const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const cls = deriveClass();
   return `<div class="cr-slots">
-    <div class="cr-section-title">🛡️ Your Heroes</div>
+    <div class="cr-section-title">${crGlyph('uiShield')}Your Heroes</div>
     <div class="cr-slots-grid">
       <div class="cr-slot active">
         <span class="cr-slot-badge">Active</span>
@@ -160,29 +160,36 @@ function buildSlotsCard() {
       </div>
       <div class="cr-slot locked">
         <span class="cr-slot-badge">Locked</span>
-        <div class="cr-slot-portrait">🔒</div>
+        <div class="cr-slot-portrait">${crGlyph('uiLock', 26)}</div>
         <div class="cr-slot-name">Hero Slot 2</div>
         <div class="cr-slot-meta">Hearth Hall premium</div>
       </div>
       <div class="cr-slot locked">
         <span class="cr-slot-badge">Locked</span>
-        <div class="cr-slot-portrait">🔒</div>
+        <div class="cr-slot-portrait">${crGlyph('uiLock', 26)}</div>
         <div class="cr-slot-name">Hero Slot 3</div>
         <div class="cr-slot-meta">Hearth Hall premium</div>
       </div>
     </div>
     <div class="cr-paywall-hint">
-      <span>💎</span>
+      <span>${crGlyph('gems', 16)}</span>
       <div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>
       <button onclick="window.openHearthHallStore && window.openHearthHallStore()">Learn more</button>
     </div>
   </div>`;
 }
 
+/* b217: section titles carried raw emoji (🛡 🗡 🏹 🔮 📈 ⚔) and the locked
+ * hero slots rendered a full-colour 🔒. Seven system pictographs on the one
+ * screen that shows off the painted character portrait. All resolve through
+ * the shipped icon set now. */
+const crGlyph = (key, px) =>
+  (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
+
 function buildCombatCard() {
   const lv = (id) => (typeof window.getLevel === 'function' ? window.getLevel(id) : 0);
   const styleCard = (title, icon, lvAtk, lvStr, lvDef, st) =>
-    `<div class="cr-card"><div class="cr-section-title">${icon} ${title}</div>
+    `<div class="cr-card"><div class="cr-section-title">${icon}${title}</div>
       <div class="cr-style-stats">
         <div class="cr-stat-row"><span>Attack</span><b>Lv ${lvAtk}</b><span class="cr-bonus">+${st.atk}</span></div>
         <div class="cr-stat-row"><span>Strength</span><b>Lv ${lvStr}</b><span class="cr-bonus">+${st.str}</span></div>
@@ -191,29 +198,29 @@ function buildCombatCard() {
       </div>
     </div>`;
   return `<div class="cr-row">
-    ${styleCard('Melee', '🗡️', lv('attack'), lv('strength'), lv('defense'), getEquipmentBonusFor('melee'))}
-    ${styleCard('Ranged', '🏹', lv('ranged'), lv('ranged'), lv('defense'), getEquipmentBonusFor('ranged'))}
-    ${styleCard('Magic', '🔮', lv('magic'), lv('magic'), lv('defense'), getEquipmentBonusFor('magic'))}
+    ${styleCard('Melee', crGlyph('uiSword'), lv('attack'), lv('strength'), lv('defense'), getEquipmentBonusFor('melee'))}
+    ${styleCard('Ranged', crGlyph('uiBow'), lv('ranged'), lv('ranged'), lv('defense'), getEquipmentBonusFor('ranged'))}
+    ${styleCard('Magic', crGlyph('uiStaff'), lv('magic'), lv('magic'), lv('defense'), getEquipmentBonusFor('magic'))}
   </div>`;
 }
 
 function buildRatesCard() {
   const rates = gatherRates();
   if (!rates.length) {
-    return `<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div>
+    return `<div class="cr-card"><div class="cr-section-title">${crGlyph('uiTrend')}Active Rates</div>
       <div style="color:var(--ink-3);font-size:12px">Train a skill to see your rates.</div></div>`;
   }
   const rows = rates.map((r) => {
     const skillIcon = window._skillIcon?.[r.id]
       ? `<img src="${window._skillIcon[r.id]}" class="cr-rate-icon" alt="" />`
-      : `<span class="cr-rate-icon">${r.icon}</span>`;
+      : `<span class="cr-rate-icon">${crGlyph(r.id, 18)}</span>`;
     return `<div class="cr-rate-row">${skillIcon}
       <span class="cr-rate-name">${SKILLS_DEF[r.id]?.name || r.id}</span>
       <span class="cr-rate-val">${fmt(r.xpHr)} xp/hr</span>
       <span class="cr-rate-meta">via ${r.action}</span>
     </div>`;
   }).join('');
-  return `<div class="cr-card"><div class="cr-section-title">📈 Best Rates by Skill</div>
+  return `<div class="cr-card"><div class="cr-section-title">${crGlyph('uiTrend')}Best Rates by Skill</div>
     <div class="cr-rate-table">${rows}</div></div>`;
 }
 
@@ -232,7 +239,7 @@ function buildEquipSummaryCard() {
     }
   }
   const maxSlots = EQUIP_SLOTS?.length || 13;
-  return `<div class="cr-card"><div class="cr-section-title">⚔️ Equipment</div>
+  return `<div class="cr-card"><div class="cr-section-title">${crGlyph('uiSword')}Equipment</div>
     <div class="cr-stat-row"><span>Slots filled</span><b>${equipped} / ${maxSlots}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +STR</span><b>+${totalBonus.str}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +ATK</span><b>+${totalBonus.atk}</b><span></span></div>

@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=216';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=216';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=216';
+import { SKILLS_DEF } from '../data/skills.js?v=217';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=217';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=217';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 const fmtQty = (n) => {
@@ -19,7 +19,12 @@ const fmtQty = (n) => {
 
 function actIconHtml(prod, fallbackEmoji) {
   const path = prod && window._itemPath && window._itemPath[prod];
-  if (path) return `<img src="${path}" alt="" loading="lazy" draggable="false" />`;
+  if (path) {
+    // b217: tier tint (see window.itemTintClass) so ladders that share one
+    // sprite still read as five different materials.
+    const tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
+    return `<img class="${tint}" src="${path}" alt="" loading="lazy" draggable="false" />`;
+  }
   return `<span class="at-emoji">${fallbackEmoji || '❓'}</span>`;
 }
 
@@ -58,8 +63,8 @@ function buildHead(skillId) {
 
   return `<div class="act-head">${iconHtml}
     <div class="ah-meta">
-      <div class="ah-row1"><span class="ah-name">${s.name}</span><span class="ah-lvl">Level: ${lv}</span></div>
-      <div class="ah-xp">Experience: ${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() : ' MAX'}</div>
+      <div class="ah-row1"><span class="ah-name">${s.name}</span><span class="ah-lvl"><em>Level</em>${lv}</span></div>
+      <div class="ah-xp">${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() + ' XP' : ' XP · MAX'}</div>
       <div class="ah-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
       ${goalControl}
     </div>
@@ -81,17 +86,27 @@ function tileForGather(action, skillId) {
     : (unlocked
         ? `startSkill('${skillId}','${action.id}',${action.ms})`
         : `notify('Requires ${skillName} Lv ${action.req}','kill')`);
-  const qtyClass = qty > 0 ? 'at-qty' : 'at-qty muted';
+  /* b217: the tile put its name at the top, two grey meta lines under it, then
+     a big gap, then the icon floating at the BOTTOM, then a "Qty: 0" pill in
+     the corner — so the subject of the card was the last thing you reached and
+     the tile was mostly empty space. Icon leads (it's a material; the art is
+     the identity), name under it, one meta line, and the level requirement is
+     only shown when it actually gates you. "Qty: 0" is not information — the
+     count appears only when you own some. */
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
-    ${active ? '<span class="at-stop">Active · click to stop</span>' : ''}
-    <div class="at-name">${action.name || action.id}</div>
-    <div class="at-meta">Level requirement: <b>${action.req}</b></div>
-    <div class="at-meta">${action.xp} XP / ${fmtSec(ms)}</div>
     <div class="at-icon">${actIconHtml(action.prod, action.icon)}</div>
-    <div class="${qtyClass}">Qty: ${fmtQty(qty)}</div>
+    <div class="at-name">${action.name || action.id}</div>
+    <div class="at-meta">${action.xp} XP · ${fmtSec(ms)}</div>
+    ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
+    ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${action.req}</div>`}
+    ${active ? '<span class="at-stop">Active</span>' : ''}
     ${unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : ''}
   </div>`;
+}
+
+function lockGlyph() {
+  return (window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 12, 'currentColor') || '') : '';
 }
 
 function tileForArtisan(recipe, skillId) {
@@ -113,16 +128,15 @@ function tileForArtisan(recipe, skillId) {
     const d = window.ITEMS?.[id];
     return (q > 1 ? q + 'x ' : '') + (d ? d.n.split(' ')[0] : id);
   }).join(' + ');
-  const qtyClass = qty > 0 ? 'at-qty' : 'at-qty muted';
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
     data-prod="${outId}" onclick="${click}" title="${(recipe.name || '').replace(/"/g, '&quot;')}">
-    ${active ? '<span class="at-stop">Active · click to stop</span>' : ''}
+    <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '')}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
-    <div class="at-meta">Level requirement: <b>${recipe.req}</b></div>
-    <div class="at-meta">${recipe.xp} XP / ${fmtSec(recipe.ms || 3000)}</div>
-    <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '❓')}</div>
-    <div class="at-meta" style="font-size:10px;opacity:.85">${inputsLine}</div>
-    <div class="${qtyClass}">Qty: ${fmtQty(qty)}</div>
+    <div class="at-meta">${recipe.xp} XP · ${fmtSec(recipe.ms || 3000)}</div>
+    <div class="at-inputs">${inputsLine}</div>
+    ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
+    ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${recipe.req}</div>`}
+    ${active ? '<span class="at-stop">Active</span>' : ''}
     ${unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : ''}
   </div>`;
 }
@@ -179,7 +193,9 @@ function renderSkillDetail(id) {
   window._actLastRender = { skillId: id, activeKey };
 
   const titleEl = document.getElementById('skill-detail-title');
-  if (titleEl) titleEl.textContent = s.icon + ' ' + s.name;
+  // b217: was `s.icon + ' ' + s.name` — an emoji plus a name already shown
+  // in the identity block below. Headings label the region, not the content.
+  if (titleEl) titleEl.textContent = 'Train';
 
   const head = buildHead(id);
   let tiles = '';
@@ -229,16 +245,27 @@ function renderSkillsList() {
       const lv = window.getLevel(id);
       const pct = Math.floor(window.xpPct(xp) * 100);
       const active = window.G.activeSkill === id ? 'active' : '';
+      /* b217: the tile stacked icon / "Lv 1" / bar / name vertically in a
+         185px square, which left ~60px of dead space per tile and — worse —
+         set "Lv 1" at 14px bold while the skill's own NAME was 10px grey. The
+         stat was louder than the thing it described, across sixteen tiles.
+         Now a row: medallion, name as the subject, level as a right-aligned
+         figure, bar underneath. Denser, and the hierarchy is the right way up. */
+      // b217: see the matching note in legacy.js — the emoji branch was the
+      // live path, since no skill has a PNG mapped.
       const iconHtml = window._skillIcon?.[id]
         ? `<img src="${window._skillIcon[id]}" alt="" loading="lazy" />`
-        : `<span class="sicon">${s.icon}</span>`;
+        : `<span class="sicon">${(window.HearthriseIconSet?.medallion?.(id, 30)) || ''}</span>`;
       return `<button class="skill-tile ${active}" onclick="openSkillDetail('${id}')">
-        ${iconHtml}<span class="slv">Lv ${lv}</span>
-        <div class="bar xp"><i style="width:${pct}%"></i></div>
-        <span class="snm">${s.name}</span>
+        <span class="st-ic">${iconHtml}</span>
+        <span class="st-body">
+          <span class="snm">${s.name}</span>
+          <span class="bar xp"><i style="width:${pct}%"></i></span>
+        </span>
+        <span class="slv">${lv}</span>
       </button>`;
     }).join('');
-    return `<div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:8px 0 5px;font-weight:700">${label}</div>
+    return `<div class="skill-cat">${label}</div>
       <div class="skill-board">${rows}</div>`;
   }).join('');
   el.innerHTML = html;

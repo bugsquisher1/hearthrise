@@ -352,16 +352,22 @@ if (typeof window !== 'undefined') {
    PREMIUM STORE / IAP CATALOG
    Real product SKUs the store routes to platform billing.
    ════════════════════════════════════════════════ */
+/* b217: every product's art was a raw emoji — 🪙 💎 🏆 👑 🚫 ⏰ 🎁 🏛,
+   drawn by the system font in full Apple/Windows colour on a warm-black
+   medieval store page. Two different packs even shared the same 💎, so
+   "Starter Gems" and "Traveler Pack" were visually identical. This is the
+   storefront: it is the one screen where looking generated costs real money.
+   Products now carry a `glyph` key resolved through the shipped icon set. */
 const IAP_CATALOG=[
-  {sku:'hearth_tokens_3',type:'currency',icon:'🪙',title:'Hearth Tokens ×3',desc:'Tradable premium bonds — sell on the player market for gold, or redeem for 150 gems each.',price:'$6.99',tokens:3,style:'gold',ribbon:'Tradable'},
-  {sku:'gems_starter',type:'currency',icon:'💎',title:'Starter Gems',desc:'250 gems — kick off your homestead with cosmetics and slots.',price:'$4.99',gems:250,style:'gem'},
-  {sku:'gems_traveler',type:'currency',icon:'💎',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
-  {sku:'gems_hero',type:'currency',icon:'🏆',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
-  {sku:'gems_legend',type:'currency',icon:'👑',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
-  {sku:'remove_ads',type:'entitlement',icon:'🚫',title:'Remove Ads',desc:'Permanent. Removes interstitials and rewarded prompts.',price:'$2.99',ent:'noAds',style:'gem'},
-  {sku:'offline_boost',type:'entitlement',icon:'⏰',title:'Lifetime Offline+',desc:'Raises offline cap from 12h to 16h, forever.',price:'$6.99',ent:'offlinePlus',style:'gem'},
-  {sku:'starter_bundle',type:'bundle',icon:'🎁',title:'Starter Bundle',desc:'500 gems + Forest Lodge theme + 200k gold pouch.',price:'$7.99',gems:500,gold:200000,unlocks:['forest'],style:'gold'},
-  {sku:'hearth_hall_premium',type:'subscription',icon:'🏛️',title:'Hearth Hall Premium',desc:'3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
+  {sku:'hearth_tokens_3',type:'currency',glyph:'token',title:'Hearth Tokens ×3',desc:'Tradable premium bonds — sell on the player market for gold, or redeem for 150 gems each.',price:'$6.99',tokens:3,style:'gold',ribbon:'Tradable'},
+  {sku:'gems_starter',type:'currency',glyph:'uiGem',title:'Starter Gems',desc:'250 gems — kick off your homestead with cosmetics and slots.',price:'$4.99',gems:250,style:'gem'},
+  {sku:'gems_traveler',type:'currency',glyph:'gems',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
+  {sku:'gems_hero',type:'currency',glyph:'uiChest',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
+  {sku:'gems_legend',type:'currency',glyph:'uiCrown',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
+  {sku:'remove_ads',type:'entitlement',glyph:'uiNoAds',title:'Remove Ads',desc:'Permanent. Removes interstitials and rewarded prompts.',price:'$2.99',ent:'noAds',style:'gem'},
+  {sku:'offline_boost',type:'entitlement',glyph:'uiHourglass',title:'Lifetime Offline+',desc:'Raises offline cap from 12h to 16h, forever.',price:'$6.99',ent:'offlinePlus',style:'gem'},
+  {sku:'starter_bundle',type:'bundle',glyph:'uiGift',title:'Starter Bundle',desc:'500 gems + Forest Lodge theme + 200k gold pouch.',price:'$7.99',gems:500,gold:200000,unlocks:['forest'],style:'gold'},
+  {sku:'hearth_hall_premium',type:'subscription',glyph:'uiCastle',title:'Hearth Hall Premium',desc:'3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.',price:'$4.99/mo',ent:'hearthHall',ribbon:'Premium',style:'gold'},
 ];
 
 
@@ -1147,11 +1153,33 @@ function renderBountyPanel(){
   }else{
     const rows=bh.board.map((b,i)=>{
       const m=MONSTERS[b.target];
-      return `<div class="bounty-option"><div class="row between"><b>${m?.icon||'🎯'} ${m?.name||'Unknown'}</b><span class="bounty-chip">${BOUNTY_DIFFICULTY_LABEL[b.difficulty]} ${BOUNTY_TYPE_LABEL[b.type]}</span></div><div class="tiny muted">${bountyLabel(b)}</div><div class="tiny muted">Weak: ${WEAPON_TYPES[m?.weaponWeak]||'—'}${m?.weaponWeak==='neutral'?' · Neutral loot bonus':''}</div><div class="bounty-reward">${b.rewards.gold.toLocaleString()} gold · ${b.rewards.marks} Marks · ${b.rewards.xp} BH XP</div><button class="btn btn-sm btn-gold" onclick="acceptBounty(${i})">Accept</button></div>`;
+      /* b217: `Accept` was a `btn-block`-width gilt slab — three of them, each
+         1,160px of solid gold stacked down the board, so the loudest thing on
+         the screen was repeated three times and none of them was primary. The
+         three bounties are equivalent choices; the button is a normal-sized
+         control on the row it belongs to. The reward line was also a
+         dot-separated dev string ("270 gold · 5 Marks · 38 BH XP") — it's now
+         a proper reward strip with the currency glyph. */
+      return `<div class="bounty-option">
+        <div class="bo-head">
+          <span class="bo-art">${window._monsterIcon && window._monsterIcon[b.target] ? '<img src="'+window._monsterIcon[b.target]+'" alt="" />' : ''}</span>
+          <b>${m?.name||'Unknown'}</b>
+          <span class="bounty-chip">${BOUNTY_DIFFICULTY_LABEL[b.difficulty]} ${BOUNTY_TYPE_LABEL[b.type]}</span>
+        </div>
+        <div class="bo-task">${bountyLabel(b)}</div>
+        <div class="bo-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${m?.weaponWeak==='neutral'?' · neutral loot bonus':''}</div>
+        <div class="bo-foot">
+          <div class="bounty-reward">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
+          <button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button>
+        </div>
+      </div>`;
     }).join('');
     inner=`<div class="bounty-board">${rows}</div><div class="row between" style="margin-top:8px"><span class="tiny muted">Free rerolls: ${bh.freeRerolls||0}</span><button class="btn btn-sm" onclick="rerollBountyBoard()">Reroll Board</button></div>`;
   }
-  return `<div class="bounty-card"><div class="row between"><div><div class="bounty-title">Bounty Hunter</div><div class="bounty-meta">Level ${getBountyHunterLevel()} · ${bh.completed||0} completed</div></div><div class="t-stat gold" style="margin:0"><span class="ic">🎯</span><span>${(bh.marks||0).toLocaleString()}</span><span class="lab">Marks</span></div></div>${inner}</div>`;
+  /* b217: the card header repeated the panel heading ("Bounty Hunter") and its
+     sub-line ("Level 1 · 0 completed") verbatim. Only the Marks balance is new
+     information, so only the Marks balance stays. */
+  return `<div class="bounty-card"><div class="bounty-marks">${(bh.marks||0).toLocaleString()}<em>Marks</em></div>${inner}</div>`;
 }
 /* ─── retention ─── */
 function ensureRetentionState(){
@@ -1159,9 +1187,15 @@ function ensureRetentionState(){
   if(!Array.isArray(G.daily.tasks))G.daily.tasks=[];
   if(!G.collection)G.collection={};
   if(!G.stats)G.stats={kills:0,gathered:0,harvested:0,rareDrops:0};
+  // b217: onboarding chain now GUIDES preparation before combat.
+  // Order: gather materials → cook food (so you have something to eat) →
+  // THEN fight (bring your cooked food, eat manually when low) → farm.
+  // A fresh player starts with a bronze sword equipped and 8 raw shrimp;
+  // the cook step turns those into healing food before they meet a monster.
   if(!Array.isArray(G.quests)||!G.quests.length)G.quests=[
+    {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
+    {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
     {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
-    {id:'gatherer',type:'gather',label:'Gather 25 resources',goal:25,progress:0,reward:{gold:300},done:false},
     {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
   ];
 }
@@ -1772,13 +1806,24 @@ function renderMonsterList(){
   const list=Object.entries(MONSTERS).filter(([,m])=>m.tier===selectedTier);
   el.innerHTML=list.map(([id,m])=>{
     const cl=getCombatLevel();const req=(m.tier-1)*15;const unlocked=cl>=req;const fighting=G.activeMonster===id;
+    /* b217: the second line used to be one dot-separated dev string —
+       "Vermin · Weak: sword · HP 8 · ATK 2" — which reads as a debug printout
+       and buries the two numbers a player actually compares between foes.
+       Flavour stays on the left as a sentence; HP and ATK move right into a
+       fixed tabular column so rows line up and can be scanned down. */
+    const lockGly = (window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 11, 'currentColor') || '') : '';
+    const rightSide = !unlocked
+      ? `<span class="mr-lock">${lockGly}CL ${req}</span>`
+      : fighting
+        ? '<span class="mr-fighting">Fighting</span>'
+        : `<span class="mr-stats"><i>${m.hp}<em>HP</em></i><i>${m.atk}<em>ATK</em></i></span>`;
     return `<button class="monster-row ${fighting?'fighting':''}" ${unlocked?'':'disabled'} onclick="${unlocked?`startCombat('${id}')`:''}">
       <span class="mi">${m.icon}</span>
       <div style="flex:1;min-width:0">
-        <span class="mn">${m.name}${m.boss?' <span class="tag">BOSS</span>':''}</span>
-        <span class="ms">${m.family||'Monster'} · Weak: ${WEAPON_TYPES[m.weaponWeak]||'—'} · HP ${m.hp} · ATK ${m.atk}</span>
+        <span class="mn">${m.name}${m.boss?' <span class="tag">Boss</span>':''}</span>
+        <span class="ms">${m.family||'Monster'} · weak to ${WEAPON_TYPES[m.weaponWeak]||'—'}</span>
       </div>
-      ${!unlocked?`<span class="muted tiny">🔒 CL ${req}</span>`:fighting?'<span style="color:var(--red);font-weight:700;font-size:11px">STOP</span>':''}
+      ${rightSide}
     </button>`;
   }).join('');
 }
@@ -1912,7 +1957,7 @@ function renderActivities(acts,skillId){
     return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
       <span class="mi">${a.icon}</span>
       <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${a.xp} XP · ${(a.ms/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
-      ${!unlocked?`<span class="muted tiny">🔒 Lv ${a.req}</span>`:active?'<span style="color:var(--green);font-weight:700;font-size:11px">●ACTIVE</span>':''}
+      ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
     </button>`;
   }).join('');
 }
@@ -1986,15 +2031,21 @@ function renderFarm(){
   el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
     ${Array.from({length:plotCount}).map((_,i)=>{
       const p=G.farmPlots[i];
-      if(!p && i>=farmPlotCap())return `<div class="farm-tile empty locked" onclick="showTab('house')" title="Upgrade your property to unlock this plot" style="opacity:.45;cursor:pointer"><span>·</span><small>Locked</small></div>`;
-      if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span>＋</span><small>Empty</small></div>`;
+      /* b217: an empty plot rendered as a dashed-border rectangle holding a
+         "＋" and the word "Empty". At the farm's grid size that is a 430x420
+         void per plot — a third of the screen given to two dashed boxes, which
+         is the single most prototype-looking element in the build. A plot is
+         TILLED GROUND: it gets soil (see .farm-tile.empty in art-direction),
+         a furrow pattern, and a plant affordance that reads as an action. */
+      if(!p && i>=farmPlotCap())return `<div class="farm-tile empty locked" onclick="showTab('house')" title="Upgrade your property to unlock this plot"><span class="ft-lock">${lockGlyph()}</span><small>Locked</small></div>`;
+      if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span class="ft-plant">Plant</span><small>Empty plot</small></div>`;
       const crop=CROPS[p.cropId];
       const elapsed=(Date.now()-p.plantedAt)/3600000;
       const pct=Math.min(100,Math.floor((elapsed/(crop.hours||1))*100));
       const ready=p.state==='ready';
       const lab=ready?'Ready':(p.watered?`${pct}%`:'Tap to water');
       const action=ready?`harvestPlot(${i})`:`waterPlot(${i})`;
-      return `<div class="farm-tile ${ready?'ready':''}" onclick="${action}"><span style="font-size:24px">${crop.icon}</span><small>${lab}</small></div>`;
+      return `<div class="farm-tile ${ready?'ready':''}" onclick="${action}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small>${lab}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span>`}</div>`;
     }).join('')}
   </div>`;
 
@@ -2010,10 +2061,12 @@ function renderFarm(){
   cg.innerHTML=Object.entries(CROPS).map(([id,c])=>{
     const lv=getLevel('farming');const lvOk=lv>=c.req;const plotOk=canPlot(id);
     let badge;
-    if(lvOk && plotOk) badge = '<span class="tag">Unlocked</span>';
-    else if(!lvOk) badge = `<span class="muted tiny">🔒 Lv ${c.req}</span>`;
-    else badge = `<span class="muted tiny" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">🔒 Plot</span>`;
-    return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield</span></div>${badge}</div>`;
+    /* b217: an "Unlocked" tag on every available crop is noise — available is
+       the default state and does not need a label. Only the GATE is news. */
+    if(lvOk && plotOk) badge = '';
+    else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
+    else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
+    return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield</span></div>${badge}</div>`;
   }).join('');
 }
 
@@ -2105,8 +2158,8 @@ function openSeedPicker(i){
   const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
   if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
   const m=document.getElementById('settings-modal');
-  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
-  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${c.icon}</span><div class="info"><b>${c.name} 🔒</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
+  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Upgrade Farm Plot in House → Plot</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
   if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">🔒 Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
@@ -2124,15 +2177,18 @@ function renderHouse(){
   // otherwise the legacy emoji glyph. b103 ships ~10 building images.
   const _bldImg = (id, fallbackIcon, mapName) => {
     const path = (window[mapName] || {})[id];
-    if (path) return `<img src="${path}" alt="" loading="lazy" data-fb-glyph="${fallbackIcon}" style="width:42px;height:42px;object-fit:contain;display:block" />`;
-    return `<span style="font-size:32px;line-height:42px">${fallbackIcon}</span>`;
+    if (path) return `<img src="${path}" alt="" loading="lazy" style="width:42px;height:42px;object-fit:contain;display:block" />`;
+    /* b217: fell back to the room's emoji (🪚 ⛪ …) for the handful of
+       buildings with no painted art yet. A gilt glyph keeps the row in one
+       visual language instead of dropping a system pictograph into it. */
+    return _hrGly('uiHome', 30);
   };
   if(houseTab==='rooms'){
     el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
       const lv=G.rooms[id]||0,max=r.levels.length;
       const next=r.levels[lv];
       const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
-      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' · '+Object.entries(next.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
+      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' &nbsp;'+Object.entries(next.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
     }).join('');
   } else if(houseTab==='plot'){
     // b136: Farm Plot tier card sits above the legacy plot-building list.
@@ -2165,13 +2221,13 @@ function renderHouse(){
       const have=G.plotBuildings.filter(x=>x.id===id).length;
       const at=have>=b.max;
       const can=Object.entries(b.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v);
-      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} · ${Object.entries(b.cost).map(([k,v])=>`${v} ${k==='gold'?'🪙':(ITEMS[k]?.icon||'')}`).join(' ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
+      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
       const owned=G.ownedThemes.includes(t.id);
       const active=G.houseTheme===t.id;
-      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${t.icon}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?`${t.price} 💎`:`${t.price}🪙`):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
+      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${t.icon}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
     }).join('')}</div>`;
   }
 
@@ -2288,6 +2344,22 @@ window.redeemHearthToken=redeemHearthToken;
    RENDER — Shop / IAP store
    ──────────────────────────────────────────────── */
 let shopTab='seeds';
+/* b217: store-card art. Falls back to a plain gilt disc rather than an emoji —
+   a missing icon should look deliberate, not like a different design system
+   leaked in. */
+function _iapGlyph(p){
+  var g = (window.HR && window.HR.icon) ? window.HR.icon(p.glyph, 34, 'currentColor') : null;
+  return g || '';
+}
+/* What you actually receive, with the currency glyph rather than 💎 / 🪙. */
+function _iapContents(p){
+  if(!window.HR || !window.HR.amount) return '';
+  var parts = [];
+  if(p.gems) parts.push(window.HR.amount('gems', p.gems.toLocaleString(), 13, '--gem'));
+  if(p.gold) parts.push(window.HR.amount('gold', p.gold.toLocaleString(), 13, '--gold-2'));
+  if(p.tokens) parts.push(window.HR.amount('token', p.tokens, 13, '--gold-2'));
+  return parts.length ? '<small>'+parts.join('')+'</small>' : '';
+}
 function renderShop(){
   /* IAP side (always visible) */
   document.getElementById('iap-panel').innerHTML=`
@@ -2295,25 +2367,25 @@ function renderShop(){
       ${IAP_CATALOG.map(p=>`
         <div class="iap-card ${p.style||''}">
           ${p.ribbon?`<div class="ribbon">${p.ribbon}</div>`:''}
-          <div class="iap-icon">${p.icon}</div>
+          <div class="iap-icon">${_iapGlyph(p)}</div>
           <h3>${p.title}</h3>
           <div class="desc">${p.desc}</div>
-          <div class="row between" style="margin-top:auto">
-            <div class="iap-price">${p.price}<small>${p.gems?p.gems+' 💎':''}${p.gold?' · '+p.gold.toLocaleString()+' 🪙':''}</small></div>
-            <button class="btn btn-gem btn-sm" onclick="IAP.buy('${p.sku}')">Buy</button>
+          <div class="iap-foot">
+            <div class="iap-price">${p.price}${_iapContents(p)}</div>
+            <button class="btn btn-primary btn-sm" onclick="IAP.buy('${p.sku}')">Buy</button>
           </div>
         </div>`).join('')}
     </div>
     ${(G.inventory?.hearth_token||0)>0?`
-    <div class="activity-card" style="margin-top:12px"><div class="ac-icon">🪙</div><div style="flex:1"><b>Hearth Tokens: ${G.inventory.hearth_token}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150💎</button></div>`:''}
+    <div class="activity-card" style="margin-top:12px"><div class="ac-icon">🪙</div><div style="flex:1"><b>Hearth Tokens: ${G.inventory.hearth_token}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150 gems</button></div>`:''}
     <div class="muted tiny" style="margin-top:14px">Purchases route to the platform you're running on (Steamworks / App Store / Play Store / Stripe). Receipts are validated server-side before granting items. Detected: <b>${IAP.detectPlatform()}</b>.</div>`;
 
   /* in-game shop side */
   const el=document.getElementById('shop-panel');if(!el)return;
   if(shopTab==='seeds'){
-    el.innerHTML=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;return `<div class="shop-row"><span class="si">${d.icon}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">🪙 ${s.cost}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
+    el.innerHTML=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
   } else if(shopTab==='equip'){
-    el.innerHTML=EQUIP_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;const stats=[d.atkB?`+${d.atkB} ATK`:'',d.defB?`+${d.defB} DEF`:'',d.strB?`+${d.strB} STR`:''].filter(Boolean).join(' · ');return `<div class="shop-row"><span class="si">${d.icon}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}</span></div><span class="price">🪙 ${s.cost.toLocaleString()}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',1,${s.cost})">Buy</button></div>`;}).join('');
+    el.innerHTML=EQUIP_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;const stats=[d.atkB?`+${d.atkB} ATK`:'',d.defB?`+${d.defB} DEF`:'',d.strB?`+${d.strB} STR`:''].filter(Boolean).join(' · ');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',1,${s.cost})">Buy</button></div>`;}).join('');
   } else {
     /* cosmetics — gem-priced */
     const cosmetics=[
@@ -2322,12 +2394,39 @@ function renderShop(){
       {id:'pet_phoenix',name:'Phoenix Pet',icon:'🦅',price:1200,desc:'Idle phoenix companion (cosmetic).'},
       {id:'emote_pack',name:'Emote Pack',icon:'😎',price:300,desc:'12 chat emotes for clan chat.'},
     ];
-    el.innerHTML=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=(G.gems||0)>=c.price;return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">💎 ${c.price}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="muted tiny" style="margin-top:10px">Need 💎? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
+    el.innerHTML=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=(G.gems||0)>=c.price;return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="muted tiny" style="margin-top:10px">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
   }
 }
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
 function buyShopItem(id,qty,cost){if(G.gold<cost){notify('Not enough gold','kill');return;}G.gold-=cost;addItem(id,qty);notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();}
 function buyCosmetic(id,price){if((G.gems||0)<price){notify('Need 💎. Tap "Get Gems".','kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
+/* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
+   early game is manual eating (click food in combat); players buy the
+   convenience once they're established. Gate lives in
+   HearthriseAuto.maybeAutoEat() so it can't be bypassed via the settings
+   toggle. Data-driven so more QoL traits can be added later. */
+const TRAITS={
+  auto_eat:{name:'Auto-Eat',cost:5000,glyph:'meat',desc:'Automatically eat food in combat when your HP drops low. Set the threshold in Settings → Gameplay.'},
+};
+function hasTrait(id){return !!(G.traits&&G.traits[id]);}
+window.hasTrait=hasTrait;
+function buyTrait(id){
+  const t=TRAITS[id];if(!t)return;
+  if(hasTrait(id)){notify('Already unlocked','info');return;}
+  if((G.gold||0)<t.cost){notify('Not enough gold','kill');return;}
+  G.gold-=t.cost;
+  G.traits=G.traits||{};
+  G.traits[id]=true;
+  // Buying auto-eat turns it on so it works immediately; threshold stays default.
+  if(id==='auto_eat'&&window.HearthriseAuto&&typeof window.HearthriseAuto.setEat==='function'){
+    window.HearthriseAuto.setEat({enabled:true});
+  }
+  notify(`Unlocked ${t.name}!`,'levelup');
+  if(typeof saveLocal==='function')saveLocal();
+  if(typeof updateTopbar==='function')updateTopbar();
+  if(typeof renderShop==='function')renderShop();
+}
+window.buyTrait=buyTrait;
 
 /* ────────────────────────────────────────────────
    SETTINGS modal
@@ -3344,12 +3443,13 @@ window._itemSVG = {
 })();
 
 /* Items the player can buy with Bounty Marks */
+/* b217: emoji art (🔁 ⚡ 🎲 💰 🦸) swapped for glyph keys from the shipped set. */
 const BOUNTY_SHOP = [
-  {id:'reroll_token',  name:'Reroll Token',     icon:'🔁', cost:5,  desc:'Refresh the bounty board once.', repeatable:true},
-  {id:'auto_bounty_1', name:'Auto-Accept I',    icon:'⚡', cost:80, desc:'Auto-accept the next bounty after each turn-in.', flag:'autoBounty', value:1},
-  {id:'free_reroll_2', name:'+1 Free Reroll/day',icon:'🎲', cost:50, desc:'Adds one free reroll per day.', flag:'extraRerolls', incr:true},
-  {id:'mark_pouch',    name:'Hunter\'s Pouch',  icon:'💰', cost:200,desc:'+10% gold from bounty turn-ins forever.', flag:'goldBoost', value:0.10},
-  {id:'cosmetic_cape', name:'Hunter Cloak',     icon:'🦸', cost:300,desc:'Cosmetic cloak unlock (Hearth Hall slot).', flag:'cosmeticCloak', value:true},
+  {id:'reroll_token',  name:'Reroll Token',      glyph:'uiScroll',    cost:5,  desc:'Refresh the bounty board once.', repeatable:true},
+  {id:'auto_bounty_1', name:'Auto-Accept I',     glyph:'uiSpark',     cost:80, desc:'Auto-accept the next bounty after each turn-in.', flag:'autoBounty', value:1},
+  {id:'free_reroll_2', name:'+1 Free Reroll/day',glyph:'uiClock',     cost:50, desc:'Adds one free reroll per day.', flag:'extraRerolls', incr:true},
+  {id:'mark_pouch',    name:'Hunter\'s Pouch',   glyph:'uiCoinStack', cost:200,desc:'+10% gold from bounty turn-ins forever.', flag:'goldBoost', value:0.10},
+  {id:'cosmetic_cape', name:'Hunter Cloak',      glyph:'uiCape',      cost:300,desc:'Cosmetic cloak unlock (Hearth Hall slot).', flag:'cosmeticCloak', value:true},
 ];
 
 function spendMarks(itemId){
@@ -3386,11 +3486,11 @@ function renderBountyTab(){
   const board = document.getElementById('bounty-board-body');
   if(board){
     /* Header KPIs + the existing renderBountyPanel HTML */
-    const kpiRow = `<div class="bh-stats">
-      <div class="kpi"><b>${lv}</b><span>BH Level</span></div>
-      <div class="kpi"><b>${marks}</b><span>Marks</span></div>
-      <div class="kpi"><b>${completed}</b><span>Completed</span></div>
-    </div>`;
+    /* b217: this KPI row is gone. "Lv 1 · 0 Marks · 0 completed" was already
+       printed in the panel sub-heading immediately above it, and AGAIN in the
+       bounty card's own header immediately below it — the same three numbers
+       three times inside 200 vertical pixels. */
+    const kpiRow = '';
     /* Build an unlock summary so player sees what's coming */
     const types = (typeof getUnlockedBountyTypes === 'function') ? getUnlockedBountyTypes() : ['cull'];
     const diff = (typeof getBountyDifficultyUnlocks === 'function') ? getBountyDifficultyUnlocks() : {};
@@ -3406,9 +3506,9 @@ function renderBountyTab(){
       {lv:60, label:'Auto-Bounty II', on:!!diff.autoBounty2},
       {lv:75, label:'Elite',          on:!!diff.elite},
     ];
-    const unlockHtml = `<div class="muted tiny" style="margin-top:14px;text-transform:uppercase;letter-spacing:.08em;font-weight:700">Unlocks</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">
-      ${unlocks.map(u=>`<span style="font-size:10px;padding:3px 9px;border-radius:99px;background:${u.on?'rgba(63,185,80,.12)':'rgba(255,255,255,.04)'};border:1px solid ${u.on?'rgba(63,185,80,.32)':'var(--line-soft)'};color:${u.on?'#a6e0aa':'var(--ink-3)'};font-weight:700">Lv ${u.lv} · ${u.label}${u.on?' ✓':''}</span>`).join('')}
+    const unlockHtml = `<div class="bh-unlocks-h">Unlocks</div>
+      <div class="bh-unlocks">
+      ${unlocks.map(u=>`<span class="bh-unlock${u.on?' is-on':''}"><em>${u.lv}</em>${u.label}</span>`).join('')}
       </div>`;
     /* Pull ChatGPT's renderBountyPanel HTML */
     const boardHtml = (typeof renderBountyPanel === 'function') ? renderBountyPanel() : '<div class="empty">Bounty system not ready.</div>';
@@ -3421,7 +3521,7 @@ function renderBountyTab(){
       const owned = G.bountyHunter?.upgrades?.[it.flag] && !it.repeatable;
       const can = (G.bountyHunter?.marks || 0) >= it.cost;
       return `<div class="bounty-shop-row">
-        <span class="si" style="font-size:22px">${it.icon}</span>
+        <span class="si">${(window.HR && window.HR.icon) ? (window.HR.icon(it.glyph, 22, 'currentColor') || '') : ''}</span>
         <div class="info"><b>${it.name}</b><span>${it.desc}</span></div>
         <span class="price">🎯 ${it.cost}</span>
         <button class="btn btn-sm ${owned?'':can?'btn-primary':''}" ${owned||!can?'disabled':''} onclick="spendMarks('${it.id}')">${owned?'Owned':'Buy'}</button>
@@ -3504,13 +3604,14 @@ function closeMonDetail(){
 function openMonsterDetail(monsterId){
   const m = MONSTERS[monsterId]; if(!m) return;
   const el = document.getElementById('mon-detail-overlay');
-  const styleIcon = {melee:'⚔️',sword:'⚔️',hammer:'🔨',ranged:'🏹',magic:'🔮',neutral:'⚪'};
+  /* b217: emoji -> glyph keys from the shipped icon set. */
+  const styleIcon = {melee:'uiSword',sword:'uiSword',hammer:'uiHammer',ranged:'uiBow',magic:'uiStaff',neutral:'uiShield'};
   const weaponLabel = (typeof WEAPON_TYPES === 'object' && WEAPON_TYPES[m.weaponWeak]) ? WEAPON_TYPES[m.weaponWeak] : (m.weaponWeak || '—');
   const tags = [];
   if(m.tier) tags.push(`<span style="background:rgba(229,189,108,.10);color:#f3d181;border:1px solid rgba(229,189,108,.32)">Tier ${m.tier}</span>`);
   if(m.family) tags.push(`<span style="background:rgba(255,255,255,.05);color:var(--ink-2);border:1px solid var(--line-soft)">${m.family}</span>`);
-  if(m.weaponWeak && m.weaponWeak!=='neutral') tags.push(`<span class="weak-tag">${styleIcon[m.weaponWeak]||''} weak: ${weaponLabel}</span>`);
-  if(m.weaponWeak==='neutral') tags.push(`<span class="weak-tag">⚪ neutral · +15% drops</span>`);
+  if(m.weaponWeak && m.weaponWeak!=='neutral') tags.push(`<span class="weak-tag">${_hrGly(styleIcon[m.weaponWeak], 13)} weak: ${weaponLabel}</span>`);
+  if(m.weaponWeak==='neutral') tags.push(`<span class="weak-tag">${_hrGly('uiShield', 13)} neutral · +15% drops</span>`);
   if(m.resist) tags.push(`<span class="resist-tag">resists: ${m.resist}</span>`);
 
   /* Loot table — sort by chance descending; mark rare highlights for ≤5% drops */
@@ -3693,7 +3794,7 @@ console.log('Combat life: loaded');
   // Compact pill: icon + activity name + meta (Lv X · 12,345 xp/hr) + Stop.
   // No progress bar here — that lives inside the relevant activity panel.
   bar.innerHTML = `
-    <div class="ab-icon" id="ab-icon">💤</div>
+    <div class="ab-icon" id="ab-icon"></div>
     <div class="ab-info">
       <div class="ab-name" id="ab-name">Idle — pick an activity</div>
     </div>
@@ -3704,6 +3805,15 @@ console.log('Combat life: loaded');
   bar.querySelector('#ab-stop').addEventListener('click', stopCurrentActivity);
 })();
 
+/* b217: the activity bar's icon slot took a raw emoji (💤 when idle, the
+ * monster's or skill's emoji when busy) and sits under the topbar on every
+ * screen — the single most-seen pictograph in the build. This paints a gilt
+ * glyph instead, falling back to nothing rather than to an emoji. */
+function setActivityIcon(el, glyphKey, color){
+  if(!el) return;
+  var g = (window.HR && window.HR.icon) ? window.HR.icon(glyphKey, 18, color || 'currentColor') : null;
+  el.innerHTML = g || '';
+}
 function stopCurrentActivity(){
   if(G.activeMonster && typeof stopCombat === 'function'){ stopCombat(); return; }
   if(G.activeSkill && typeof stopSkill === 'function'){ stopSkill(); return; }
@@ -3759,7 +3869,7 @@ function refreshActivityBar(){
   if(G.activeMonster){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
-    if(iconEl) iconEl.textContent = m?.icon || '⚔️';
+    setActivityIcon(iconEl, 'navCombat', 'var(--red)');
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
@@ -3779,7 +3889,7 @@ function refreshActivityBar(){
   if(G.activeSkill){
     const s = SKILLS_DEF[G.activeSkill];
     bar.classList.remove('idle','combat');
-    if(iconEl) iconEl.textContent = s?.icon || '⚙️';
+    setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
     let actName = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
     if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
     const xph = _activityXpHr();
@@ -3794,10 +3904,10 @@ function refreshActivityBar(){
   /* Generic action loop (smelt/saw/forge/cook in some branches) */
   if(G.activeAction){
     const a = G.activeAction;
-    const map = {smelt:'🔥',saw:'🪚',forge:'🔨',cook:'🍳',craft:'🧵',enchant:'✨',pray:'🙏'};
+    const map = {smelt:'uiFire',saw:'uiAxe',forge:'uiAnvil',cook:'cooking',craft:'crafting',enchant:'uiSpark',pray:'prayer'};
     const labelMap = {smelt:'Smelting',saw:'Sawing',forge:'Forging',cook:'Cooking',craft:'Crafting',enchant:'Enchanting',pray:'Bury'};
     bar.classList.remove('idle','combat');
-    if(iconEl) iconEl.textContent = map[a.kind] || '⚙️';
+    setActivityIcon(iconEl, map[a.kind] || 'uiAnvil', 'var(--gold-2)');
     if(nameEl) nameEl.textContent = `${labelMap[a.kind]||a.kind} — ${(a.targetId||'').replace(/_/g,' ')}`;
     if(metaEl) metaEl.innerHTML = '';
     if(stopBtn) stopBtn.style.display = '';
@@ -3807,10 +3917,10 @@ function refreshActivityBar(){
   /* Artisan (cooking/smithing/crafting recipes) — Phase A.1 onwards uses
      this path instead of legacy activeAction. */
   if(G.activeArtisanRecipe){
-    const map = {cooking:'🍳', smithing:'🔨', crafting:'🧵', prayer:'🙏'};
+    const map = {cooking:'cooking', smithing:'smithing', crafting:'crafting', prayer:'prayer'};
     const skill = G.activeArtisanSkill || 'cooking';
     bar.classList.remove('idle','combat');
-    if(iconEl) iconEl.textContent = map[skill] || '⚙️';
+    setActivityIcon(iconEl, map[skill] || 'uiAnvil', 'var(--gold-2)');
     if(nameEl){
       const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
       nameEl.textContent = `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`;
@@ -3825,7 +3935,7 @@ function refreshActivityBar(){
   }
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
-  if(iconEl) iconEl.textContent = '💤';
+  setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
   if(nameEl) nameEl.textContent = 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';
@@ -4868,6 +4978,30 @@ window._itemSVG = window._itemSVG || {};
 window._skillIcon = {};
 window._monsterIcon = {};
 
+/* ─── b217: material tinting ───────────────────────────────────────────────
+ * Several progression ladders share one sprite because the icon pack only
+ * ships one (all wood is one log; all wood is one plank). Rendering the same
+ * image for five tiers makes a ladder look unfinished — the player levels up
+ * and nothing changes.
+ *
+ * Rather than buy or fake five sprites, tint the shared one. Wood genuinely
+ * differs by species — pale sapwood, dark oak, grey willow, red maple, deep
+ * yew — so a hue/saturation shift is honest material colour, not decoration.
+ * Items that HAVE their own art get no class and render untouched.
+ *
+ * Returns a class name for <img>; the .tint-* rules live in art-direction.css.
+ */
+window.itemTintClass = function (id) {
+  if (!id) return '';
+  if (/^oak_(log|plank)$/.test(id)) return 'tint-oak';
+  if (/^duskwood_(log|plank)$/.test(id)) return 'tint-dusk';
+  if (/^willow_(log|plank)$/.test(id)) return 'tint-willow';
+  if (/^maple_(log|plank)$/.test(id)) return 'tint-maple';
+  if (/^yew_(log|plank)$/.test(id)) return 'tint-yew';
+  if (/^runewood_(log|plank)$/.test(id)) return 'tint-rune';
+  return '';
+};
+
 /* ─── DOM walkers — replace emoji with <img> after each render ─── */
 function paintSkillIcons(){
   document.querySelectorAll('.skill-tile, .skill-card').forEach(function(el){
@@ -5035,62 +5169,20 @@ console.log('Poneti v2 loaded:', Object.keys(window._skillIcon).length, 'skills,
       el.innerHTML = '<img src="'+path+'" alt="" loading="lazy" />';
     });
   }
-  function paintBountyMonsters(){
-    // Rewritten v=101: previous innerHTML.replace() approach interacted
-    // badly with image-fallback.js (which swaps broken <img> for
-    // <span class="icon-fallback">). When a re-render hit while the
-    // span existed, regex string surgery on innerHTML produced
-    // corrupted markup that ended up rendered as literal text.
-    //
-    // New approach: pure DOM API. Read with textContent (always plain
-    // text), rebuild children with createElement/appendChild. No string
-    // regex on HTML, no surprise interactions with image-fallback.
-    if(typeof MONSTERS==='undefined') return;
-    document.querySelectorAll('.bounty-option').forEach(function(el){
-      var b = el.querySelector('b');
-      if(!b) return;
-      // Idempotency: once we've painted this <b>, don't re-touch it.
-      // A re-render destroys + recreates .bounty-option, so the flag
-      // disappears with it — fresh DOM gets re-painted next pass.
-      if(b.dataset.painted === '1') return;
+  /* b217: REMOVED — paintBountyMonsters().
+   *
+   * This existed because the bounty row template rendered the monster's EMOJI
+   * inside its <b> ("🐀 Field Rat"), so a post-render DOM sweep had to find the
+   * monster by parsing that text back out, strip the pictograph, and splice a
+   * 1.1em <img> in front of the name. It was ~50 lines of string archaeology
+   * (with its own comment about recovering from "previously-corrupted DOM")
+   * standing in for the renderer simply drawing the right thing.
+   *
+   * The row now emits the painted portrait itself, in its own .bo-art slot at
+   * a real size. Leaving the sweep in place made every bounty show the monster
+   * TWICE — once in .bo-art and once spliced into the name. */
+  function paintBountyMonsters(){ /* renderer owns this now */ }
 
-      // Read via textContent (plain text, ignores HTML markup) so we
-      // can recover even from previously-corrupted DOM.
-      var raw = (b.textContent || '').trim();
-      // Strip any HTML-attribute fragments that may have leaked in
-      // from corrupted older renders (defensive — wipes legacy junk).
-      var name = raw
-        .replace(/class="[^"]*"|style="[^"]*"/g,'')
-        .replace(/^>\s*/,'')
-        .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u,'')
-        .trim();
-      if(!name) return;
-
-      var mId = Object.keys(MONSTERS).find(function(k){ return MONSTERS[k].name === name; });
-      if(!mId) return;
-      var monster = MONSTERS[mId];
-      var path = window._monsterIcon && window._monsterIcon[mId];
-
-      // Clear children + rebuild cleanly
-      while (b.firstChild) b.removeChild(b.firstChild);
-
-      if (path) {
-        var img = document.createElement('img');
-        img.src = path;
-        img.alt = '';
-        img.loading = 'lazy';
-        // Tell image-fallback the right glyph if this 404s
-        img.setAttribute('data-fb-glyph', monster.icon || '🎯');
-        img.title = name;
-        img.style.cssText = 'width:1.1em;height:1.1em;vertical-align:-3px;margin-right:6px';
-        b.appendChild(img);
-        b.appendChild(document.createTextNode(name));
-      } else {
-        b.appendChild(document.createTextNode((monster.icon || '🎯') + ' ' + name));
-      }
-      b.dataset.painted = '1';
-    });
-  }
   function paintAllV3(){ paintFighters(); paintBountyMonsters(); }
   // Hook combat & bounty renderers
   ['renderCombat','renderBounties','renderBounty','renderBountyBoard','showTab'].forEach(function(name){
@@ -5451,32 +5543,58 @@ window._renderCombatEmpty = function(){
   if(!picks.length) return;
   // b131: text adapts to layout. On mobile (single column with FOES sub-tab),
   // there is no "left" — monsters are above. Pick the right hint.
-  var pickHint = (window.innerWidth <= 540) ? 'Pick a monster from FOES to begin.' : 'Pick a monster on the left to begin.';
-  /* b213 (phase 2): crossed-swords glyph instead of the ⚔️ emoji, and the
-     same crimson creature medallions the monster picker uses — the old
-     _monsterIcon PNGs here were mismatched (a blue dragon for Field Rat). */
+  /* b217: this used to render "Pick a monster on the left" over a stack of
+     three SUGGESTED monsters — the same Slime / Field Rat / Goblin already
+     listed in the picker two columns to the left, on the same screen. Two
+     copies of one list is the clearest kind of UI redundancy there is.
+
+     The arena is a stage, so the idle state now shows the champion standing
+     on it waiting, plus ONE recommended opponent as a real call to action.
+     That gives the largest region on the screen a subject instead of a
+     placeholder, and turns "nothing is happening" into "you're up next". */
   var IS = window.HearthriseIconSet;
-  var swordP = IS && IS.path && IS.path('navCombat');
-  var swordIco = swordP
-    ? '<span class="em-icon"><svg viewBox="0 0 512 512" style="width:34px;height:34px;opacity:.5"><path fill="currentColor" d="'+swordP+'"/></svg></span>'
-    : '<span class="em-icon">⚔️</span>';
-  var html = '<div class="combat-empty"><div class="empty">'+swordIco+pickHint+'</div>'+
-    '<div class="ce-tip"><h4>Suggested for your level</h4>'+
-    picks.map(function(p){
-      var med = IS && IS.medallionMon && IS.medallionMon(p.id, 34);
-      var path = window._monsterIcon && window._monsterIcon[p.id];
-      var img = med || (path ? '<img src="'+path+'" />' : '<span style="font-size:24px">'+p.m.icon+'</span>');
-      return '<div class="ce-mob" onclick="startCombat(\''+p.id+'\')">' +
-        img + '<div style="flex:1"><b>'+p.m.name+'</b><div class="muted tiny">Tier '+p.m.tier+' · HP '+p.m.hp+' · '+p.m.xp+' XP</div></div></div>';
-    }).join('') + '</div></div>';
+  var pickHint = (window.innerWidth <= 540) ? 'Choose a foe from FOES.' : 'Choose a foe from the list.';
+  var best = picks[0];
+  var avatar = (window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png');
+  var foeArt = '';
+  if (best) {
+    var fp = window._monsterIcon && window._monsterIcon[best.id];
+    foeArt = fp ? '<img class="ce-foe-art" src="' + fp + '" alt="" />'
+                : (IS && IS.medallionMon ? IS.medallionMon(best.id, 46) : '');
+  }
+  var html = '<div class="combat-empty">' +
+    '<div class="ce-stage">' +
+      '<img class="ce-champ" src="' + avatar + '" alt="" />' +
+      '<div class="ce-standby">Awaiting a foe</div>' +
+      '<div class="ce-hint">' + pickHint + '</div>' +
+    '</div>';
+  if (best) {
+    html += '<button class="ce-next" onclick="startCombat(\'' + best.id + '\')">' +
+      '<span class="ce-next-art">' + foeArt + '</span>' +
+      '<span class="ce-next-body">' +
+        '<span class="ce-next-lbl">Recommended</span>' +
+        '<b>' + best.m.name + '</b>' +
+        '<span class="ce-next-meta">Tier ' + best.m.tier + ' · ' + best.m.hp + ' HP · ' + best.m.xp + ' XP</span>' +
+      '</span>' +
+      '<span class="ce-next-go">Fight</span>' +
+    '</button>';
+  }
+  html += '</div>';
   area.innerHTML = html;
 };
 
-/* ─── Inventory total value ─── */
+/* ─── Inventory total value ───
+ * b217: this used to prepend a whole extra header strip to the Inventory panel
+ * ("BAG TOTAL VALUE / 95 GP" on the left, "16 items · 3 unique" on the right),
+ * sitting above the toolbar that ALSO reported the item count. Two bars, three
+ * restatements of the same two facts, ~110px of chrome before the bag.
+ * The value is now folded into the single toolbar line the panel already has,
+ * which this function keeps up to date after inventory changes. */
 window._renderInvSummary = function(){
   var panel = document.getElementById('panel-inventory');
   if(!panel || typeof ITEMS === 'undefined') return;
-  if(panel.querySelector('.inv-summary')) panel.querySelector('.inv-summary').remove();
+  var legacyBar = panel.querySelector('.inv-summary');
+  if(legacyBar) legacyBar.remove();
   var total = 0, count = 0;
   Object.entries(G.inventory||{}).forEach(function(kv){
     var id = kv[0], qty = kv[1];
@@ -5484,11 +5602,8 @@ window._renderInvSummary = function(){
     total += (ITEMS[id].v||0) * qty;
     count += qty;
   });
-  var html = '<div class="inv-summary">'+
-    '<div><div class="iv-label">Bag total value</div><div class="iv-value">'+total.toLocaleString()+' gp</div></div>'+
-    '<div class="iv-meta">'+count.toLocaleString()+' items · '+Object.keys(G.inventory||{}).filter(function(k){return G.inventory[k]>0;}).length+' unique</div>'+
-  '</div>';
-  panel.insertAdjacentHTML('afterbegin', html);
+  var slot = panel.querySelector('.invc-space');
+  if(slot) slot.textContent = count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
 };
 
 /* ─── Sidebar nav notification badges ─── */
@@ -5815,10 +5930,16 @@ function injectFriendsStub(){
   if(panel.querySelector('.friends-section')) return;
   var card = document.createElement('div');
   card.className = 'card friends-section';
+  /* b217: both empty states used to announce the ROADMAP — "Online accounts
+     arrive in beta", "Clan feed coming with the multi-character beta sprint" —
+     in italics inside a dashed box. That is a build note shown to the player:
+     it tells them the game is unfinished, on a screen where nothing is broken.
+     An empty state should describe the empty state and point at the action
+     that fills it. */
   card.innerHTML = '<h4>Friends</h4>'+
-    '<div class="friend-row coming-soon">Online accounts arrive in beta — friends list will populate from your roster then.</div>'+
+    '<div class="friend-row is-empty">No friends yet — sign in to add the players you meet.</div>'+
     '<h4 style="margin-top:14px">Clan Activity</h4>'+
-    '<div class="friend-row coming-soon">Clan feed coming with the multi-character beta sprint.</div>';
+    '<div class="friend-row is-empty">Nothing here yet. Join a clan to see what your members are up to.</div>';
   panel.appendChild(card);
 }
 
@@ -5991,7 +6112,7 @@ window.renderArtisanActivities = function(skillId){
     var status = '';
     if(!unlocked) status = '<span class="muted tiny">🔒 Lv '+r.req+'</span>';
     else if(!have) status = '<span class="muted tiny">Need '+inputName+'</span>';
-    else if(active) status = '<span style="color:var(--green);font-weight:700;font-size:11px">●ACTIVE</span>';
+    else if(active) status = '<span class="mr-active">Active</span>';
     var secondaryText = '';
     if(r.secondary){
       secondaryText = ' + ' + Object.entries(r.secondary).map(function(kv){
@@ -6052,6 +6173,9 @@ window.doArtisanAction = function(skillId, recipeId){
   if(skillId==='cooking'){
     G.stats.cooked = (G.stats.cooked||0) + 1;
     if(typeof updateDaily==='function') updateDaily('cooked', 1);
+    // b217: onboarding chain routes new players through cooking BEFORE combat
+    // (the "Cook 5 dishes" prep quest), so mirror the counter into updateQuest.
+    if(typeof updateQuest==='function') updateQuest('cooked', 1);
   }
   if(skillId==='smithing'){
     G.stats.refined = (G.stats.refined||0) + 1;
@@ -6220,9 +6344,11 @@ function fmtNum(n){
 }
 function itemImg(id){
   var path = window._itemPath && window._itemPath[id];
-  if(path) return '<img src="'+path+'" class="wbr-img" alt="" />';
-  var emoji = (typeof ITEMS!=='undefined' && ITEMS[id]) ? ITEMS[id].icon : '📦';
-  return '<span class="wbr-emoji">'+emoji+'</span>';
+  if(path){
+    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
+    return '<img src="'+path+'" class="wbr-img '+tint+'" alt="" />';
+  }
+  return '<span class="wbr-emoji">'+itemFallbackIcon(id, 24)+'</span>';
 }
 function itemName(id){
   return (typeof ITEMS!=='undefined' && ITEMS[id]) ? ITEMS[id].n : id;
@@ -6232,7 +6358,8 @@ function skillName(sk){
 }
 function skillIcon(sk){
   if(window._skillIcon && window._skillIcon[sk]) return '<img src="'+window._skillIcon[sk]+'" class="wbr-img" alt="" />';
-  return '<span class="wbr-emoji">'+((typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[sk]) ? SKILLS_DEF[sk].icon : '⭐')+'</span>';
+  var med = window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(sk, 26);
+  return med || '<span class="hr-blank-icon" aria-hidden="true"></span>';
 }
 
 function renderModal(summary){
@@ -6556,8 +6683,27 @@ window.doArtisanAction = function(skillId, recipeId){
   consumeInputs(r);
   if(r.output && typeof addItem==='function') addItem(r.output, r.outputQty || 1);
   if(typeof addXp==='function') addXp(skillId, r.xp);
-  if(skillId==='cooking') G.stats.cooked = (G.stats.cooked||0)+1;
-  if(skillId==='smithing'||skillId==='crafting') G.stats.refined = (G.stats.refined||0)+1;
+  // b217: this (the LIVE doArtisanAction) previously updated only G.stats and
+  // NOT the daily/quest trackers, so the daily "Cook/Smith/Craft N" tasks were
+  // un-completable and the onboarding "Cook 5 dishes" prep quest couldn't
+  // progress. Route the counters through updateDaily + updateQuest here.
+  if(skillId==='cooking'){
+    G.stats.cooked = (G.stats.cooked||0)+1;
+    if(typeof updateDaily==='function') updateDaily('cooked', 1);
+    if(typeof updateQuest==='function') updateQuest('cooked', 1);
+  }
+  if(skillId==='smithing'){
+    G.stats.refined = (G.stats.refined||0)+1;
+    G.stats.smithed = (G.stats.smithed||0)+1;
+    if(typeof updateDaily==='function') updateDaily('smithed', 1);
+    if(typeof updateQuest==='function') updateQuest('smithed', 1);
+  }
+  if(skillId==='crafting'){
+    G.stats.refined = (G.stats.refined||0)+1;
+    G.stats.crafted = (G.stats.crafted||0)+1;
+    if(typeof updateDaily==='function') updateDaily('crafted', 1);
+    if(typeof updateQuest==='function') updateQuest('crafted', 1);
+  }
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
   if(typeof updateTopbar==='function') updateTopbar();
 };
@@ -6616,7 +6762,7 @@ window.renderArtisanActivities = function(skillId){
     if(!unlocked) status = '<span class="muted tiny">🔒 Lv '+r.req+'</span>';
     else if(gated) status = '<span class="muted tiny">📜 Recipe locked</span>';
     else if(!hasInputs(r)) status = '<span class="muted tiny">Missing materials</span>';
-    else if(active) status = '<span style="color:var(--green);font-weight:700;font-size:11px">●ACTIVE</span>';
+    else if(active) status = '<span class="mr-active">Active</span>';
     return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
       '<span class="mi">'+r.icon+'</span>'+
       '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+r.xp+' XP · '+inputNames+(r.output?' → '+outputLabel:'')+'</span></div>'+
@@ -7398,21 +7544,119 @@ console.log('UI rework v3 loaded');
 })();
 
 // ===== block 25: inv-rebuild-v4-js =====
+
+/* ─── b217: currency + cost rendering ───────────────────────────────────────
+ * Costs and prices were written inline as emoji — `🪙 ${cost}`, `${v} 🪙`,
+ * `${price} 💎` — scattered across ~30 render sites. Besides violating the
+ * no-emoji rule, it meant gold looked different on every screen (system font,
+ * full colour, baseline-misaligned next to tabular figures). These three
+ * helpers are the single way a cost gets drawn. */
+/* b217: shorthand for a gilt glyph at a render site that used to inline an
+ * emoji. Returns '' rather than a pictograph when the atlas has no match, so
+ * a missing icon can never regress into an emoji. */
+function _hrGly(key, px){
+  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
+}
+/* Shared lock glyph — every "you can't do this yet" marker in the game used a
+ * raw 🔒 emoji. One helper so they all draw the same gilt padlock. */
+function lockGlyph(){
+  return (window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 12, 'currentColor') || '') : '';
+}
+
+/* Top-level item art. Two `itemImg` helpers already exist but both live inside
+ * IIFEs, so the monolith's own render functions (shop rows, farm rows) could
+ * not reach them and fell back to the emoji in the data. */
+function itemArt(id, px){
+  var path = window._itemPath && window._itemPath[id];
+  if(path){
+    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
+    return '<img src="'+path+'" class="hr-item-art '+tint+'" alt="" loading="lazy" draggable="false" />';
+  }
+  return itemFallbackIcon(id, px || 26);
+}
+function _gp(v){
+  var s = (typeof v === 'number') ? v.toLocaleString() : v;
+  return (window.HR && window.HR.amount) ? window.HR.amount('gold', s, 13, '--gold-2') : s + ' gp';
+}
+function _gem(v){
+  var s = (typeof v === 'number') ? v.toLocaleString() : v;
+  return (window.HR && window.HR.amount) ? window.HR.amount('gems', s, 13, '--gem') : s + ' gems';
+}
+/* One "<qty> <material>" chip for a recipe/building cost entry. */
+function _costPart(itemId, qty){
+  if(itemId === 'gold') return _gp(qty);
+  var def = (typeof ITEMS !== 'undefined') && ITEMS[itemId];
+  var path = window._itemPath && window._itemPath[itemId];
+  var art = path
+    ? '<img class="hr-cost-art ' + ((typeof window.itemTintClass === 'function') ? window.itemTintClass(itemId) : '') + '" src="' + path + '" alt="" />'
+    : '';
+  return '<span class="hr-inline hr-cost">' + art + '<span>' + qty + '</span></span>'
+    + (art ? '' : ' ' + ((def && def.n) || itemId));
+}
+
+
+/* ─── b217: the no-emoji backstop ──────────────────────────────────────────
+ * ~1,400 emoji live in the DATA tables as `icon:` fallbacks, and every item
+ * renderer fell through to them when no painted art was mapped. Deleting the
+ * data fields would leave blanks; the durable fix is to make the RENDERERS
+ * incapable of drawing an emoji, so no future data entry can leak one onto the
+ * screen either.
+ *
+ * The fallback picks a gilt glyph from the shipped icon set by inspecting what
+ * the item IS (weapon / armour / food / seed / bone / ore / log …), which
+ * gives a category-correct icon in the game's own style. Only if the atlas has
+ * nothing does it fall back to a plain gilt disc — deliberate-looking, never
+ * a system pictograph. */
+function itemGlyphKey(id, def){
+  def = def || ((typeof ITEMS !== 'undefined') && ITEMS[id]) || null;
+  if(def){
+    if(def.type === 'weapon')    return 'uiSword';
+    if(def.type === 'armor')     return 'uiBody';
+    if(def.type === 'jewelry')   return 'uiAmulet';
+    if(def.type === 'companion') return 'uiPaw';
+    if(def.heals)   return 'uiFood';
+    if(def.seed)    return 'uiSeed';
+    if(def.buryXp)  return 'uiBone';
+    if(def.recipe)  return 'uiScroll';
+  }
+  var s = String(id || '');
+  if(/_log$|_plank$|wood/.test(s))        return 'uiLog';
+  if(/_ore$|_bar$|coal|stone|ingot/.test(s)) return 'uiOre';
+  if(/seed/.test(s))                      return 'uiSeed';
+  if(/bone/.test(s))                      return 'uiBone';
+  if(/potion|brew|draught/.test(s))       return 'uiPotion';
+  if(/gem|ruby|sapphire|emerald|diamond/.test(s)) return 'uiGem';
+  if(/fish|shrimp|trout|lobster|shark/.test(s))   return 'uiFish';
+  if(/token/.test(s))                     return 'token';
+  return 'uiChest';
+}
+function itemFallbackIcon(id, px, def){
+  var g = (window.HR && window.HR.icon)
+    ? window.HR.icon(itemGlyphKey(id, def), px || 28, 'var(--ink-3)')
+    : null;
+  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
+}
+
 (function(){
 "use strict";
 
-/* ─── Category definitions ─── */
+/* ─── Category definitions ───
+ * b217: these ten filters shipped as raw emoji — a brown cardboard box, a BLUE
+ * shield, a CYAN diamond, a pink cut of meat, a green sprout. Ten system-font
+ * pictographs in five saturations belonging to no palette, in a row directly
+ * above the bag: the most obviously-generated element on the screen. Now gilt
+ * glyphs from the one icon set, so the strip reads as chrome. */
 var CATEGORIES = [
-  {id:'all',     icon:'📦', name:'All',          test:function(it){return true;}},
-  {id:'weapons', icon:'⚔️', name:'Weapons',      test:function(it){return it && it.type==='weapon';}},
-  {id:'armor',   icon:'🛡️', name:'Armor',        test:function(it){return it && it.type==='armor';}},
-  {id:'jewelry', icon:'💎', name:'Jewelry',      test:function(it){return it && it.type==='jewelry';}},
-  {id:'food',    icon:'🍖', name:'Food',         test:function(it){return it && it.heals;}},
-  {id:'mats',    icon:'🪵', name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
-  {id:'seeds',   icon:'🌱', name:'Seeds',        test:function(it){return it && it.seed;}},
-  {id:'bones',   icon:'🦴', name:'Bones',        test:function(it){return it && it.buryXp;}},
-  {id:'recipes', icon:'📜', name:'Recipes',      test:function(it){return it && it.recipe;}},
-  {id:'comp',    icon:'🐾', name:'Companions',   test:function(it){return it && it.type==='companion';}},
+  {id:'all',     glyph:'uiChest',  name:'All',          test:function(it){return true;}},
+  {id:'weapons', glyph:'uiSword',  name:'Weapons',      test:function(it){return it && it.type==='weapon';}},
+  {id:'armor',   glyph:'uiBody',   name:'Armour',       test:function(it){return it && it.type==='armor';}},
+  {id:'jewelry', glyph:'uiAmulet', name:'Jewellery',    test:function(it){return it && it.type==='jewelry';}},
+  {id:'food',    glyph:'uiFood',   name:'Food',         test:function(it){return it && it.heals;}},
+  {id:'mats',    glyph:'uiOre',    name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
+  {id:'seeds',   glyph:'uiSeed',   name:'Seeds',        test:function(it){return it && it.seed;}},
+  {id:'bones',   glyph:'uiBone',   name:'Bones',        test:function(it){return it && it.buryXp;}},
+  {id:'recipes', glyph:'uiScroll', name:'Recipes',      test:function(it){return it && it.recipe;}},
+  {id:'comp',    glyph:'uiPaw',    name:'Companions',   test:function(it){return it && it.type==='companion';}},
 ];
 
 window._invFilter = {category:'all', search:''};
@@ -7426,9 +7670,12 @@ function fmtQty(n){
 
 function itemImg(id){
   var path = window._itemPath && window._itemPath[id];
-  if(path) return '<img src="'+path+'" alt="" loading="lazy" draggable="false" />';
+  if(path){
+    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
+    return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
+  }
   var def = (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
-  return '<span class="invc-emoji">'+(def?def.icon:'?')+'</span>';
+  return '<span class="invc-emoji">'+itemFallbackIcon(id, 26, def)+'</span>';
 }
 
 /* ─── Main render ─── */
@@ -7465,13 +7712,17 @@ function renderInvFancy(){
 
   /* Build the panel */
   panel.innerHTML =
-    /* Top toolbar */
+    /* b217: the screen opened with THREE stacked chrome bars before a single
+       item — a "Bag total value" strip, this gold + item-count strip, and the
+       search row: roughly 200px of header on a 1250px screen. The gold figure
+       here also just repeated the topbar twelve pixels above it, and disagreed
+       with it. One bar now: what is in the bag, and the controls that act on
+       it. Gold lives in the topbar, permanently; it does not need a second
+       home on this screen.
+       b213 QA note kept: the old "Space: N/360" ceiling was never enforced
+       anywhere, so the honest item count stays until real storage ships. */
     '<div class="invc-topbar">'+
-      '<span class="invc-gold"><span class="invc-coin">🪙</span><span>'+totalGold.toLocaleString()+'</span></span>'+
-      /* b213 QA: the old "Space: N/360" ceiling was never enforced anywhere
-         (players routinely sat at 1000+/360, which read as a bug). Show an
-         honest item count until a real storage system ships. */
-      '<span class="invc-space">Items: '+totalCount.toLocaleString()+'</span>'+
+      '<span class="invc-space">'+totalCount.toLocaleString()+' items</span>'+
       '<div class="invc-actions">'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
         '<button onclick="window._invManage()">Manage</button>'+
@@ -7495,8 +7746,12 @@ function renderInvFancy(){
                A uniform filled grid is what makes a bag scannable — you learn
                the shape of the container, and item positions stay stable. */
             (function(html){
-              var perRow = 8;
-              var minSlots = 40;                                   // ~5 rows
+              /* b217: 40 slots laid out at ~11 columns filled four rows and
+                 then stopped, leaving the lower two thirds of the bag as a
+                 black void — which reads as "the grid failed to render", not
+                 as "the bag has room". Fill the visible container instead. */
+              var perRow = 11;
+              var minSlots = 88;                                   // ~8 rows
               var target = Math.max(minSlots, Math.ceil(visible.length / perRow) * perRow);
               for (var i = visible.length; i < target; i++) html += '<div class="invc-tile invc-slot" aria-hidden="true"></div>';
               return html;
@@ -7520,7 +7775,8 @@ function renderInvFancy(){
       '<div class="invc-cat-strip">'+
         CATEGORIES.map(function(c){
           var count = entries.filter(function(kv){return c.test(ITEMS[kv[0]]);}).length;
-          return '<button class="invc-cat-btn '+(f.category===c.id?'active':'')+'" title="'+c.name+' ('+count+')" onclick="window._invSetCat(\''+c.id+'\')">'+c.icon+'</button>';
+          var g = (window.HR && window.HR.icon) ? (window.HR.icon(c.glyph, 19, 'currentColor') || '') : '';
+          return '<button class="invc-cat-btn '+(f.category===c.id?'active':'')+'" title="'+c.name+' ('+count+')" onclick="window._invSetCat(\''+c.id+'\')">'+g+'</button>';
         }).join('')+
       '</div>'+
       '</div>'+
@@ -7539,7 +7795,7 @@ function renderInvFancy(){
       /* Stats column (4th col) */
       '<div class="invc-stats-col">'+
         '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">📊</span>Hero</h4>'+
+          '<h4><span class="h4-icon">'+_hrGly('uiHelm')+'</span>Hero</h4>'+
           '<div class="invc-hero-stats">'+
             '<div class="invc-hero-stat"><b>'+(typeof getCombatLevel==="function"?getCombatLevel():1)+'</b><span>Combat Lv</span></div>'+
             '<div class="invc-hero-stat"><b>'+(typeof getTotalLevel==="function"?getTotalLevel():1)+'</b><span>Total Lv</span></div>'+
@@ -7547,32 +7803,32 @@ function renderInvFancy(){
           '</div>'+
         '</div>'+
         '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">⚔️</span>Weapon Styles</h4>'+
+          '<h4><span class="h4-icon">'+_hrGly('navCombat')+'</span>Weapon Styles</h4>'+
           '<div class="invc-style-stats">'+
             '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">🗡️</span>'+
+              '<span class="invc-style-icon">'+_hrGly('uiSword')+'</span>'+
               '<div><div class="invc-style-name">Melee</div>'+
               '<div class="invc-style-stats-line"><span>STR <b>'+bonus.str+'</b></span><span>ACC <b>'+bonus.atk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
             '</div>'+
             '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">🏹</span>'+
+              '<span class="invc-style-icon">'+_hrGly('uiBow')+'</span>'+
               '<div><div class="invc-style-name">Ranged</div>'+
               '<div class="invc-style-stats-line"><span>STR <b>'+bonus.rangeStr+'</b></span><span>ACC <b>'+bonus.rangeAtk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
             '</div>'+
             '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">🔮</span>'+
+              '<span class="invc-style-icon">'+_hrGly('uiStaff')+'</span>'+
               '<div><div class="invc-style-name">Magic</div>'+
               '<div class="invc-style-stats-line"><span>STR <b>'+bonus.magicStr+'</b></span><span>ACC <b>'+bonus.magicAtk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
         '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">✨</span>Bonuses</h4>'+
+          '<h4><span class="h4-icon">'+_hrGly('uiSpark')+'</span>Bonuses</h4>'+
           '<div class="invc-misc-row"><span>Crit Chance</span><b>+'+((bonus.crit||0)*100).toFixed(1)+'%</b></div>'+
           (function(){ var xpB=0,spdB=0; Object.values(G.equipment||{}).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
           '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
-        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; return '<div class="invc-stat-card"><h4><span class="h4-icon">🎯</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div></div></div>'; })()+
+        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div></div></div>'; })()+
       '</div>'+
       '</div>'+
     '</div>';
@@ -7853,8 +8109,15 @@ function fmtQty(n){
 
 function actIconHtml(prod, fallbackEmoji){
   var path = prod && window._itemPath && window._itemPath[prod];
-  if(path) return '<img src="'+path+'" alt="" loading="lazy" draggable="false" />';
-  return '<span class="at-emoji">'+(fallbackEmoji||'❓')+'</span>';
+  if(path){
+    /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
+       still read as distinct materials. This is the live copy — the ESM
+       renderer in features/activities-grid.js has the same helper, but this
+       one is what actually paints the Skills screen. */
+    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
+    return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
+  }
+  return '<span class="at-emoji">'+itemFallbackIcon(prod, 34)+'</span>';
 }
 
 /* ── Patch the Skills list (left card) to filter out combat ── */
@@ -7871,17 +8134,28 @@ function patchSkillsList(){
         var id = kv[0], s = kv[1];
         var xp = G.skills[id]||0, lv = getLevel(id), pct = Math.floor(xpPct(xp)*100);
         var active = G.activeSkill===id ? 'active' : '';
+        /* b217: fell through to the skill's emoji when no PNG is mapped —
+           and no PNG is mapped for any skill, so this was the live path. The
+           gilt medallion from the shipped icon set is the real icon. */
         var iconHtml = (window._skillIcon && window._skillIcon[id])
           ? '<img src="'+window._skillIcon[id]+'" alt="" loading="lazy" />'
-          : '<span class="sicon">'+s.icon+'</span>';
+          : '<span class="sicon">'+((window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(id, 30)) || '')+'</span>';
         return '<button class="skill-tile '+active+'" onclick="openSkillDetail(\''+id+'\')">'
-          +iconHtml
-          +'<span class="slv">Lv '+lv+'</span>'
-          +'<div class="bar xp"><i style="width:'+pct+'%"></i></div>'
-          +'<span class="snm">'+s.name+'</span>'
+          /* b217: was icon / "Lv 1" / bar / name stacked in a 185px square —
+             the level set at 14px bold above the skill's own name at 10px
+             grey, so the stat outweighed the subject across sixteen tiles,
+             each carrying ~60px of dead space. Now a row with the hierarchy
+             the right way up. Kept in sync with the identical tile in
+             src/features/activities-grid.js. */
+          +'<span class="st-ic">'+iconHtml+'</span>'
+          +'<span class="st-body">'
+            +'<span class="snm">'+s.name+'</span>'
+            +'<span class="bar xp"><i style="width:'+pct+'%"></i></span>'
+          +'</span>'
+          +'<span class="slv">'+lv+'</span>'
           +'</button>';
       }).join('');
-      return '<div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:8px 0 5px;font-weight:700">'+label+'</div>'
+      return '<div class="skill-cat">'+label+'</div>'
         +'<div class="skill-board">'+rows+'</div>';
     }).join('');
     el.innerHTML = html;
@@ -7914,12 +8188,16 @@ function tileForGather(action, skillId){
     +'data-prod="'+action.prod+'" '
     +'onclick="'+click+'" '
     +'title="'+(action.name||'').replace(/"/g,'&quot;')+'">'
-    +(active ? '<span class="at-stop">Active · click to stop</span>' : '')
-    +'<div class="at-name">'+(action.name||action.id)+'</div>'
-    +'<div class="at-meta">Level requirement: <b>'+action.req+'</b></div>'
-    +'<div class="at-meta">'+action.xp+' XP / '+fmtSec(ms)+'</div>'
+    /* b217: name, then two grey meta lines, then a gap, then the icon at the
+       BOTTOM — the subject of the card was the last thing you reached, and the
+       tile was mostly empty. A material's art is its identity, so it leads.
+       "Qty: 0" is not information: the count appears once you own some. */
     +'<div class="at-icon">'+actIconHtml(action.prod, action.icon)+'</div>'
-    +'<div class="'+qtyClass+'">Qty: '+fmtQty(qty)+'</div>'
+    +'<div class="at-name">'+(action.name||action.id)+'</div>'
+    +'<div class="at-meta">'+action.xp+' XP · '+fmtSec(ms)+'</div>'
+    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
+    +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
+    +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
@@ -7949,13 +8227,13 @@ function tileForArtisan(recipe, skillId){
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
     +'title="'+(recipe.name||'').replace(/"/g,'&quot;')+'">'
-    +(active ? '<span class="at-stop">Active · click to stop</span>' : '')
+    +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '')+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    +'<div class="at-meta">Level requirement: <b>'+recipe.req+'</b></div>'
-    +'<div class="at-meta">'+recipe.xp+' XP / '+fmtSec(recipe.ms||3000)+'</div>'
-    +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '❓')+'</div>'
-    +'<div class="at-meta" style="font-size:10px;opacity:.85">'+inputsLine+'</div>'
-    +'<div class="'+qtyClass+'">Qty: '+fmtQty(qty)+'</div>'
+    +'<div class="at-meta">'+recipe.xp+' XP · '+fmtSec(recipe.ms||3000)+'</div>'
+    +'<div class="at-inputs">'+inputsLine+'</div>'
+    +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
+    +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+recipe.req+'</div>')
+    +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
@@ -7974,9 +8252,9 @@ function buildHead(skillId){
     +'<div class="ah-meta">'
       +'<div class="ah-row1">'
         +'<span class="ah-name">'+s.name+'</span>'
-        +'<span class="ah-lvl">Level: '+lv+'</span>'
+        +'<span class="ah-lvl"><em>Level</em>'+lv+'</span>'
       +'</div>'
-      +'<div class="ah-xp">Experience: '+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString():' MAX')+'</div>'
+      +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+'</div>'
       +'<div class="ah-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
     +'</div>'
   +'</div>';
@@ -7996,8 +8274,8 @@ function lightUpdate(skillId){
     if(fill) fill.style.width = pctStr;
   }
   var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
-  var ahLvl = detail.querySelector('.ah-lvl'); if(ahLvl) ahLvl.textContent = 'Level: '+lv;
-  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.textContent = 'Experience: '+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString():' MAX');
+  var ahLvl = detail.querySelector('.ah-lvl'); if(ahLvl) ahLvl.innerHTML = '<em>Level</em>'+lv;
+  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.textContent = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX');
   var ahBar = detail.querySelector('.ah-bar i'); if(ahBar) ahBar.style.width = pct.toFixed(1)+'%';
   detail.querySelectorAll('.act-tile').forEach(function(tile){
     var qe = tile.querySelector('.at-qty');
@@ -8030,7 +8308,10 @@ function patchSkillDetail(){
     window._actLastRender = {skillId:id, activeKey:activeKey};
 
     var titleEl = document.getElementById('skill-detail-title');
-    if(titleEl) titleEl.textContent = s.name; /* b213: no emoji in titles */
+    /* b217: was the skill name, repeated 40px above the identity block that
+       already states it in 21px Cinzel. A panel heading should say what the
+       REGION is, not restate its first line. */
+    if(titleEl) titleEl.textContent = 'Train';
 
     var head = buildHead(id);
     var tiles = '';
@@ -9156,7 +9437,7 @@ function buildRatesCard(){
   var rows = rates.map(function(r){
     var skillIcon = window._skillIcon && window._skillIcon[r.id]
       ? '<img src="'+window._skillIcon[r.id]+'" class="cr-rate-icon" alt="" />'
-      : '<span class="cr-rate-icon">'+r.icon+'</span>';
+      : '<span class="cr-rate-icon">'+(_hrGly(r.id, 18) || '')+'</span>';
     return '<div class="cr-rate-row">'
       + skillIcon
       + '<span class="cr-rate-name">'+(SKILLS_DEF[r.id]||{}).name+'</span>'
@@ -10031,28 +10312,55 @@ window._monsterIcon = window._monsterIcon || {};
   // Items we ship art for — keys match game item IDs in ITEMS / MONSTERS / SKILLS.
   // If a key is missing here the renderer falls through to the emoji (m.icon).
   var LOCAL_ITEM_ICON = {
-    // Wood
-    normal_log:  'assets/icons-bundle/resources/Res_124_woodlog.png',
-    oak_log:     'assets/icons-bundle/resources/Res_124_woodlog.png',
-    willow_log:  'assets/icons-bundle/resources/Res_124_woodlog.png',
-    maple_log:   'assets/icons-bundle/resources/Res_124_woodlog.png',
-    yew_log:     'assets/icons-bundle/resources/Res_124_woodlog.png',
+    /* b217 — WOOD.
+       Every log tier pointed at Res_124_woodlog.png and every plank tier at
+       Res_04_wood.png, so the Woodcutting screen showed the SAME sprite for
+       Normal / Oak / Willow / Maple / Yew. Identical art across a progression
+       ladder is the clearest "placeholder" signal a player can be given: it
+       says nothing changed when everything did.
+
+       Two fixes. First, the art was also mis-assigned — Res_124 is a sawn
+       PLANK and Res_24 is a round LOG with end-grain rings, so logs were
+       showing planks. Second, the shared sprite is now tinted per tier in CSS
+       (see itemTintClass + the .tint-* rules), which is how real wood differs
+       anyway: pale sapwood, dark oak, grey willow, red maple, deep yew. One
+       asset, five readable materials, no new art budget. */
+    normal_log:  'assets/icons-bundle/resources/Res_24_log.png',
+    oak_log:     'assets/icons-bundle/resources/Res_24_log.png',
+    willow_log:  'assets/icons-bundle/resources/Res_24_log.png',
+    maple_log:   'assets/icons-bundle/resources/Res_24_log.png',
+    yew_log:     'assets/icons-bundle/resources/Res_24_log.png',
+    duskwood_log:'assets/icons-bundle/resources/Res_24_log.png',
+    runewood_log:'assets/icons-bundle/resources/Res_24_log.png',
     normal_plank:'assets/icons-bundle/resources/Res_04_wood.png',
     oak_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
     willow_plank:'assets/icons-bundle/resources/Res_04_wood.png',
     maple_plank: 'assets/icons-bundle/resources/Res_04_wood.png',
     yew_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
-    // Bars + ore
-    copper_ore:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
-    iron_ore:    'assets/icons-bundle/resources/Res_07_ironbar.png',
-    silver_ore:  'assets/icons-bundle/resources/Res_01_silverbar.png',
-    gold_ore:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
+    duskwood_plank:'assets/icons-bundle/resources/Res_04_wood.png',
+    runewood_plank:'assets/icons-bundle/resources/Res_04_wood.png',
+    /* b217 — ORE. Every ore rendered its own smelted BAR, so a player mining
+       copper saw a finished copper ingot come out of the rock, and ore and bar
+       were indistinguishable in the inventory. The pack ships proper ore
+       chunks (Res_14–20) in the right colours; use them. */
+    copper_ore:    'assets/icons-bundle/resources/Res_15_stone.png',   // brown
+    iron_ore:      'assets/icons-bundle/resources/Res_14_stone.png',   // grey
+    silver_ore:    'assets/icons-bundle/resources/Res_18_stone.png',   // pale grey
+    gold_ore:      'assets/icons-bundle/resources/Res_20_goldmine.png',// gold-veined
+    mithril_ore:   'assets/icons-bundle/resources/Res_19_stone.png',   // blue
+    emberstone_ore:'assets/icons-bundle/resources/Res_16_stone.png',   // red
+    dawnstone_ore: 'assets/icons-bundle/resources/Res_17_stone.png',   // violet
+    coal:          'assets/icons-bundle/resources/Res_14_stone.png',
     copper_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
+    bronze_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
     iron_bar:    'assets/icons-bundle/resources/Res_07_ironbar.png',
+    steel_bar:   'assets/icons-bundle/resources/Res_01_silverbar.png',
     silver_bar:  'assets/icons-bundle/resources/Res_01_silverbar.png',
     gold_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
     mithril_bar: 'assets/icons-bundle/resources/Res_05_magicbar.png',
     rune_bar:    'assets/icons-bundle/resources/Res_06_magicbar.png',
+    ember_bar:   'assets/icons-bundle/resources/Res_06_magicbar.png',
+    dawn_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
     stone:       'assets/icons-bundle/resources/Res_08_stones.png',
     mushroom:    'assets/icons-bundle/resources/Res_125_mushroom.png',
     dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',
@@ -10089,6 +10397,17 @@ window._monsterIcon = window._monsterIcon || {};
     tomato:        'assets/icons-bundle/painted/items/tomato.png',
     pumpkin:       'assets/icons-bundle/painted/items/pumpkin.png',
     wheat:         'assets/icons-bundle/painted/items/wheat.png',
+    /* b217: SEEDS. All six seed items rendered the same 🌱 emoji, so the seed
+       shop was six identical rows and the farm's crop list showed one green
+       sprout per crop. Seeds now show the crop they grow — the standard RPG
+       convention, and it uses painted art the game already ships instead of
+       adding six new assets. */
+    turnip_seed:   'assets/icons-bundle/painted/items/turnip.png',
+    carrot_seed:   'assets/icons-bundle/painted/items/carrot.png',
+    potato_seed:   'assets/icons-bundle/painted/items/potato.png',
+    tomato_seed:   'assets/icons-bundle/painted/items/tomato.png',
+    pumpkin_seed:  'assets/icons-bundle/painted/items/pumpkin.png',
+    wheat_seed:    'assets/icons-bundle/painted/items/wheat.png',
     cooked_shrimp: 'assets/icons-bundle/painted/items/cooked_shrimp.png',
     cooked_trout:  'assets/icons-bundle/painted/items/cooked_trout.png',
     cooked_lobster:'assets/icons-bundle/painted/items/cooked_lobster.png',
@@ -10129,13 +10448,12 @@ window._monsterIcon = window._monsterIcon || {};
     maple_rod:       'assets/icons-bundle/painted/gear/maple_rod.png',
     yew_rod:         'assets/icons-bundle/painted/gear/yew_rod.png',
     runewood_rod:    'assets/icons-bundle/painted/gear/runewood_rod.png',
-    // all crop seeds share one painted seed icon
-    turnip_seed:   'assets/icons-bundle/painted/items/seed.png',
-    carrot_seed:   'assets/icons-bundle/painted/items/seed.png',
-    wheat_seed:    'assets/icons-bundle/painted/items/seed.png',
-    potato_seed:   'assets/icons-bundle/painted/items/seed.png',
-    tomato_seed:   'assets/icons-bundle/painted/items/seed.png',
-    pumpkin_seed:  'assets/icons-bundle/painted/items/seed.png'
+    /* b217: these six all pointed at ONE seed.png, and being later in the
+       object literal they overwrote the per-crop mapping added above — so the
+       seed shop was six identical rows again and the crop each seed grows was
+       unreadable. Seeds show their crop (the standard RPG convention, and it
+       uses art the game already ships). See the turnip_seed…wheat_seed block
+       further up; nothing is mapped here so that block wins. */
   };
 
   // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,

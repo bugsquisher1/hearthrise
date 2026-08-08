@@ -1,0 +1,1867 @@
+/* ============================================================
+ * art-direction.css — b217
+ *
+ * WHY THIS FILE EXISTS
+ * --------------------
+ * Hearthrise reads as a dark-mode web dashboard, not a game. The causes are
+ * structural, not incidental:
+ *
+ *   1. Every group of content is a rounded rectangle with a 1px gold border on
+ *      a gradient fill. Twenty of them per screen. Uniform containment is the
+ *      single loudest "generated UI" signal there is — it removes hierarchy by
+ *      giving everything identical visual weight.
+ *   2. The body typeface is Quicksand — a rounded geometric sans that belongs
+ *      to friendly mobile apps. It was never chosen for Hearthlight; it was
+ *      inherited from the retired cozy-light theme's :root block, because the
+ *      dark theme only ever redefined colour tokens, not type.
+ *   3. Radii are 8/12/16px. At that softness nothing reads as forged, carved,
+ *      or heavy — it reads as a component library.
+ *   4. Accent colour has no roles. Red means "primary action" (Take the tour),
+ *      "danger", "combat", and "buy". Green means "active tab" and "nature".
+ *      When a hue means four things it means nothing.
+ *
+ * WHAT THIS FILE DOES
+ * -------------------
+ * Establishes the vocabulary the rest of the UI is expected to speak, and
+ * loads LAST so it wins over the three legacy sheets without needing !important
+ * on every line. It is deliberately small: tokens, a type scale, four surface
+ * treatments, and a button hierarchy. Screen-specific work lives with its
+ * screen, not here.
+ *
+ * The rule for anything added later: containment must be EARNED. Spacing,
+ * type weight, and a heading do the grouping. A box is for things the player
+ * can act on or that hold a grid of objects.
+ * ============================================================ */
+
+/* ── 1. TYPE ─────────────────────────────────────────────────────────────
+ * Cinzel stays: an engraved Roman capital is exactly right for a medieval
+ * homestead, and it is already the display face.
+ *
+ * Body goes to Alegreya Sans — a humanist sans with calligraphic roots, so it
+ * shares Cinzel's classical skeleton instead of fighting it. Crucially it has
+ * texture: real stroke modulation, a true italic, and lining figures that hold
+ * up at 12px. Quicksand and Fredoka are dropped entirely.
+ *
+ * Alegreya Sans SC gives us genuine small caps for section labels. The old
+ * treatment was `text-transform:uppercase; letter-spacing:.06em` applied to a
+ * rounded sans — which is what a dashboard does, and it was applied to twelve
+ * different levels of the hierarchy at once, flattening all of them.
+ * ------------------------------------------------------------------------ */
+:root,
+body[data-theme="hearthlight"] {
+  --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --f-ui: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
+  --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
+
+  /* One scale, eight steps. If a size isn't on this list it shouldn't exist. */
+  --t-micro: 11px;   /* unit labels, counts */
+  --t-small: 12.5px; /* supporting text */
+  --t-body: 14px;    /* default */
+  --t-lead: 15.5px;  /* row titles, emphasis */
+  --t-h3: 13px;      /* small-caps section label */
+  --t-h2: 19px;      /* panel title */
+  --t-h1: 27px;      /* screen title */
+  --t-num: 23px;     /* hero value */
+
+  /* ── 2. SHAPE ──────────────────────────────────────────────────────────
+   * Near-square. Stone and iron have arrises, not 16px fillets. A 3px radius
+   * still knocks the harshness off a corner without reading as a web card. */
+  --r-sm: 2px;
+  --r: 3px;
+  --r-lg: 5px;
+
+  /* ── 3. COLOUR ROLES ───────────────────────────────────────────────────
+   * Every accent below has exactly one job. Nothing in the UI may use a hue
+   * for a purpose not on this list. */
+  --role-action: var(--gold);      /* interactive, selected, currency */
+  --role-danger: var(--red);       /* destructive + lethal only */
+  --role-success: var(--green);    /* XP, growth, completion */
+  --role-premium: var(--gem);      /* real-money currency only */
+  --role-quiet: var(--steel);      /* informational, disabled */
+
+  /* ── 4. SURFACES ───────────────────────────────────────────────────────
+   * Four treatments, each with a distinct meaning:
+   *   sunken — a well that holds objects (inventory slots, plots, wells)
+   *   raised — a physical thing you press (buttons, tiles)
+   *   panel  — grouped content that is dense enough to need an edge
+   *   (nothing) — the default. Most content sits directly on the world. */
+  --surf-sunken: rgba(0, 0, 0, .30);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(255, 232, 190, .045);
+  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .075), rgba(255, 236, 200, .018) 55%, rgba(0, 0, 0, .10));
+  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .10), 0 1px 0 rgba(0, 0, 0, .45);
+  --surf-panel: rgba(236, 225, 204, .022);
+
+  /* Rules. A section divider is a fading hairline, not a full-width line —
+   * it reads as an incised rule rather than a table border. */
+  --rule-fade: linear-gradient(90deg, var(--line-strong), rgba(201, 162, 74, .10) 62%, transparent);
+}
+
+/* Body type. The shell sets font-family from --f-ui, so this only needs to fix
+ * size/leading and turn on the figure behaviour the whole game depends on:
+ * every stat, price and level is a number, and proportional figures make them
+ * jitter on every tick. */
+html body[data-theme="hearthlight"],
+body {
+  font-family: var(--f-ui);
+  font-size: var(--t-body);
+  line-height: 1.42;
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-smoothing: antialiased;
+}
+/* Numbers never reflow their neighbours. */
+.stat-num, .t-stat, .hr-amt, .price, .qty, .lvl, .num,
+[class*="-num"], [class*="-val"], [class*="-count"], [class*="-qty"] {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── 5. SECTIONS ─────────────────────────────────────────────────────────
+ * `.card` is the game's universal grouping element and it was drawn as a
+ * bordered rounded box. That is what produced the wall-of-cards read.
+ *
+ * It becomes a SECTION: no border, no radius, no fill — a small-caps label
+ * over an incised rule, then content. Grouping now comes from the heading and
+ * the space around it, which is how print and real game UIs have always done
+ * it. Layout properties (flex, overflow, min-height) are untouched so nothing
+ * reflows.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 2px 0 14px;
+  overflow: visible;
+}
+body[data-theme] .card-head {
+  margin-bottom: 10px;
+  padding-bottom: 7px;
+  border-bottom: 0;
+  position: relative;
+  align-items: baseline;
+}
+body[data-theme] .card-head::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--rule-fade);
+}
+body[data-theme] .card-title {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: var(--t-h3);
+  letter-spacing: .02em;      /* small caps carry the emphasis; tracking would double it */
+  text-transform: none;        /* the SC face already delivers caps */
+  color: var(--gold-2);
+}
+body[data-theme] .card-sub {
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+body[data-theme] .card-foot { border-top: 0; padding-top: 10px; margin-top: 10px; position: relative; }
+body[data-theme] .card-foot::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--rule-fade);
+}
+
+/* The exceptions: content that genuinely needs an edge because it is a dense
+ * grid of objects or a distinct sub-surface. Opt in, never automatic. */
+body[data-theme] .hr-box {
+  background: var(--surf-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  padding: 12px;
+}
+body[data-theme] .hr-well {
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+  border-radius: var(--r-sm);
+}
+
+/* ── 6. BUTTONS ──────────────────────────────────────────────────────────
+ * Five levels. The old set had one visual weight plus a teal `.btn-primary`
+ * (#2ea79d — a leftover from a retired palette) and a `.btn-gem` in bright
+ * cyan, so importance was communicated by nothing and two accents existed
+ * that belong to no theme.
+ *
+ * Only the primary is allowed to be bright. Everything else recedes.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .btn {
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 600;
+  letter-spacing: .005em;
+  min-height: 32px;
+  padding: 6px 13px;
+  border-radius: var(--r);
+  border: 1px solid var(--line-soft);
+  background: var(--surf-raised);
+  box-shadow: var(--surf-raised-edge);
+  color: var(--ink-2);
+  transition: color .12s, border-color .12s, background .12s, transform .05s;
+}
+body[data-theme] .btn:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: rgba(201, 162, 74, .38);
+  background: linear-gradient(180deg, rgba(255, 236, 200, .12), rgba(255, 236, 200, .04));
+}
+body[data-theme] .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5); }
+body[data-theme] .btn:disabled { opacity: .38; box-shadow: none; background: none; cursor: not-allowed; }
+
+/* PRIMARY — struck gilt. One per screen region, ideally one per screen. */
+body[data-theme] .btn-primary,
+body[data-theme] .btn-gold {
+  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
+  border-color: #e6cd93;
+  color: #221803;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .55), inset 0 -2px 3px rgba(90, 60, 8, .40), 0 2px 5px -2px rgba(0, 0, 0, .7);
+}
+body[data-theme] .btn-primary:hover:not(:disabled),
+body[data-theme] .btn-gold:hover:not(:disabled) {
+  background: linear-gradient(180deg, #eaca7d 0%, #d3ab4f 52%, #b98d33 100%);
+  color: #221803;
+}
+
+/* PREMIUM — sapphire. Real-money purchases only, so the colour keeps meaning. */
+body[data-theme] .btn-gem {
+  background: linear-gradient(180deg, #5f6fc4 0%, #47559d 55%, #38447f 100%);
+  border-color: #8b98d8;
+  color: #f0f2ff;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(220, 228, 255, .35), 0 2px 5px -2px rgba(0, 0, 0, .7);
+}
+
+/* DESTRUCTIVE — oxblood, outline only. Filled red was being used for ordinary
+ * primary actions (Upgrade Property, Take the tour), which trained the player
+ * to ignore it. A destructive control should look serious, not loud. */
+body[data-theme] .btn-danger {
+  background: rgba(178, 58, 44, .12);
+  border-color: rgba(178, 58, 44, .55);
+  color: #e0917f;
+  box-shadow: none;
+}
+body[data-theme] .btn-danger:hover:not(:disabled) {
+  background: rgba(178, 58, 44, .22);
+  border-color: rgba(178, 58, 44, .8);
+  color: #f0b3a3;
+}
+
+/* QUIET — a link that happens to be a button. No chrome until hover. */
+body[data-theme] .btn-ghost {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ink-3);
+}
+body[data-theme] .btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 236, 200, .05);
+  border-color: transparent;
+  color: var(--gold-2);
+}
+body[data-theme] .btn-sm { min-height: 27px; padding: 4px 10px; font-size: var(--t-micro); }
+
+/* ── 7. CHIPS / SUB-TABS ─────────────────────────────────────────────────
+ * These are tabs, not buttons, so they read as a bar of choices with the
+ * selected one lifted — not as five pills of equal weight where the active
+ * one happens to be green (a hue with no relationship to selection).
+ * ---------------------------------------------------------------------- */
+body[data-theme] .chips { gap: 2px; border-bottom: 1px solid var(--line-soft); padding-bottom: 0; margin-bottom: 12px; }
+body[data-theme] .chip {
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 600;
+  padding: 6px 13px;
+  min-height: 30px;
+  position: relative;
+  box-shadow: none;
+}
+body[data-theme] .chip:hover { color: var(--ink-2); background: rgba(255, 236, 200, .04); }
+body[data-theme] .chip.active {
+  background: linear-gradient(180deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .04));
+  border-color: var(--line-soft);
+  color: var(--gold-2);
+}
+body[data-theme] .chip.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--gold);
+}
+
+/* ── 8. FORM CONTROLS ────────────────────────────────────────────────────
+ * A native <select> rendering in system chrome (light grey, system font) in
+ * the middle of the inventory was the single most obvious "this is a web page"
+ * tell in the build.
+ * ---------------------------------------------------------------------- */
+body[data-theme] select, input[type="text"], input[type="search"], input[type="number"], textarea {
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  color: var(--ink);
+  background: var(--surf-sunken);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  box-shadow: var(--surf-sunken-edge);
+  padding: 7px 10px;
+  min-height: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+body[data-theme] select {
+  padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%), linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+select option { background: #1a1610; color: var(--ink); }
+input::placeholder, textarea::placeholder { color: var(--ink-3); opacity: .8; }
+body[data-theme] select:focus, input:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(201, 162, 74, .55);
+  box-shadow: var(--surf-sunken-edge), 0 0 0 2px rgba(201, 162, 74, .14);
+}
+
+/* ── 9. PROGRESS ─────────────────────────────────────────────────────────
+ * Bars were 2px slivers pinned to the bottom edge of a card, where they read
+ * as a border artefact. A progress bar is gameplay information: it gets a
+ * recessed channel and a lit fill so it reads as a gauge.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .bar, .progress-bar, .xp-bar, .prog {
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+  border-radius: 1px;
+  overflow: hidden;
+  min-height: 6px;
+}
+body[data-theme] .bar-fill, .progress-bar > div, .xp-fill, .prog > i {
+  background: linear-gradient(180deg, var(--green) 0%, #6b8442 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+  border-radius: 0;
+}
+body[data-theme] .hp-fill {
+  background: linear-gradient(180deg, #c4503f 0%, #94301f 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+
+/* ── 10. TOPBAR ──────────────────────────────────────────────────────────
+ * The bar carried nine separate bordered pills: a red QUESTS button, four stat
+ * pills, a red streak badge and three icon buttons — plus a bordered avatar in
+ * cyan. Nine boxes in a 54px strip is why the chrome read as busier than the
+ * content underneath it.
+ *
+ * It becomes one bar with three groups separated by hairlines: WHO on the
+ * left, LEVELS then PURSE in the middle-right, TOOLS at the end. Only the
+ * purse gets a surface, because currency is the one thing the player scans for
+ * mid-action.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .topbar {
+  background: linear-gradient(180deg, #1c1811, #131009);
+  border-bottom: 1px solid rgba(201, 162, 74, .22);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .6), 0 6px 16px -12px rgba(0, 0, 0, .9);
+  gap: 12px;
+}
+body[data-theme] .player-avatar {
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  /* was a cyan-tinted glass chip — a hue from a retired palette */
+  background: #201b15;
+  border: 1px solid rgba(201, 162, 74, .34);
+  box-shadow: inset 0 1px 0 rgba(255, 232, 190, .12);
+}
+body[data-theme] .player-name {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: .01em;
+  color: var(--ink);
+}
+body[data-theme] .top-stats { gap: 0; align-items: center; }
+
+/* Levels — bare values with a glyph. No pill; these are ambient readouts, not
+ * controls, and four bordered capsules made them read as buttons. */
+body[data-theme] .t-stat {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 4px 11px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  gap: 6px;
+}
+body[data-theme] .t-stat .lab {
+  font-family: var(--f-label);
+  font-size: 11px;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+/* The purse is the exception: a shallow recess groups gold + gems so the two
+ * currencies read as one object the player can find without looking. */
+body[data-theme] .t-stat.gold, .t-stat.gem {
+  background: rgba(0, 0, 0, .35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .6);
+  border: 0;
+}
+body[data-theme] .t-stat.gold {
+  color: var(--gold-2);
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  padding-left: 12px;
+}
+body[data-theme] .t-stat.gem {
+  color: #93a0e0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding-right: 12px;
+  margin-right: 10px;
+}
+body[data-theme] .t-stat.gem:hover { background: rgba(82, 98, 179, .22); }
+
+body[data-theme] .icon-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  background: none;
+  border: 1px solid transparent;
+  color: var(--ink-3);
+}
+body[data-theme] .icon-btn:hover {
+  color: var(--gold-2);
+  background: rgba(255, 236, 200, .06);
+  border-color: var(--line-soft);
+}
+body[data-theme] .streak-badge {
+  background: none;
+  border: 0;
+  color: var(--ink-2);
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 0;
+}
+body[data-theme] .clan-tag {
+  background: rgba(201, 162, 74, .12);
+  color: var(--gold-2);
+  border: 1px solid rgba(201, 162, 74, .3);
+  border-radius: var(--r-sm);
+  font-family: var(--f-label);
+  letter-spacing: .02em;
+}
+
+/* Quests — the loudest thing in the chrome was a filled oxblood button
+ * reading "QUESTS 0". Red is the danger role and the count was zero: maximum
+ * visual weight on the least urgent state. It is now a quiet control whose
+ * count badge lights gilt only when something is actually waiting. */
+body[data-theme="hearthlight"] #hr-quests-btn,
+body[data-theme] #hr-quests-btn {
+  background: none;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-family: var(--f-label);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+  padding: 5px 11px;
+  box-shadow: none;
+}
+body[data-theme="hearthlight"] #hr-quests-btn:hover,
+body[data-theme] #hr-quests-btn:hover {
+  color: var(--gold-2);
+  border-color: rgba(201, 162, 74, .4);
+  background: rgba(255, 236, 200, .05);
+  filter: none;
+}
+body[data-theme="hearthlight"] #hr-quests-btn .hr-q-count,
+body[data-theme] #hr-quests-btn .hr-q-count {
+  background: var(--gold);
+  color: #1b1305;
+  border-radius: 2px;
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 6px;
+  min-width: 17px;
+}
+/* Nothing waiting → the badge recedes instead of shouting a zero. */
+body[data-theme="hearthlight"] #hr-quests-btn.no-active .hr-q-count,
+body[data-theme] #hr-quests-btn.no-active .hr-q-count {
+  background: rgba(255, 236, 200, .10);
+  color: var(--ink-3);
+}
+
+/* ── 11. HEADINGS ────────────────────────────────────────────────────────
+ * Cinzel is a titling face: it is drawn for caps at large sizes and gets muddy
+ * small. Panel headings use it; anything under ~16px uses the small-caps face
+ * instead. That is why every label in the game currently looks the same — they
+ * were all rendered in the same treatment regardless of level.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .hr-h1 {
+  font-family: var(--f-display);
+  font-size: var(--t-h1);
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--ink);
+  line-height: 1.15;
+}
+body[data-theme] .hr-h2 {
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+body[data-theme] .hr-label {
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  color: var(--gold-2);
+  letter-spacing: .02em;
+}
+/* A number the player cares about should look like it matters. */
+body[data-theme] .hr-stat {
+  font-family: var(--f-display);
+  font-size: var(--t-num);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+body[data-theme] .hr-stat-unit {
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: .03em;
+}
+
+/* ── 12. COMBAT ──────────────────────────────────────────────────────────
+ * The screen's three columns were three identical bordered boxes, each with
+ * ~400px of black under its content, and the arena — the largest region — was
+ * an empty navy rectangle holding a grey glyph and a duplicate of the monster
+ * list from two columns over.
+ *
+ * The arena is now a stage: the champion stands on it, waiting, with one
+ * recommended opponent as the call to action.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .combat-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 26px;
+  padding: 24px;
+}
+body[data-theme] .ce-stage { text-align: center; }
+/* Lit from above and standing in shadow, so the figure reads as ON the
+ * background rather than pasted over it. */
+body[data-theme] .ce-champ {
+  width: 132px; height: 132px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 162, 74, .45);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 240, 205, .12),
+    0 18px 34px -18px rgba(0, 0, 0, .95),
+    0 0 40px -14px rgba(201, 162, 74, .35);
+  filter: saturate(.92) contrast(1.04);
+}
+body[data-theme] .ce-standby {
+  font-family: var(--f-display);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 16px;
+}
+body[data-theme] .ce-hint {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+/* One opponent, presented as an object you press. */
+body[data-theme] .ce-next {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 13px 11px 11px;
+  min-width: 280px;
+  text-align: left;
+  border-radius: var(--r);
+  border: 1px solid rgba(201, 162, 74, .34);
+  background: linear-gradient(180deg, rgba(38, 32, 25, .92), rgba(22, 18, 13, .94));
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .10), 0 6px 18px -10px rgba(0, 0, 0, .9);
+  cursor: pointer;
+  transition: border-color .14s, transform .06s;
+}
+body[data-theme] .ce-next:hover { border-color: rgba(201, 162, 74, .62); }
+body[data-theme] .ce-next:active { transform: translateY(1px); }
+body[data-theme] .ce-next-art { flex: 0 0 46px; height: 46px; display: grid; place-items: center; }
+body[data-theme] .ce-foe-art {
+  width: 46px; height: 46px; object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .7));
+}
+body[data-theme] .ce-next-body { flex: 1; min-width: 0; display: block; }
+body[data-theme] .ce-next-lbl {
+  display: block;
+  font-family: var(--f-label);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+body[data-theme] .ce-next-body b { display: block; font-size: 15.5px; color: var(--ink); line-height: 1.2; }
+body[data-theme] .ce-next-meta { display: block; font-size: var(--t-micro); color: var(--ink-3); margin-top: 2px; }
+body[data-theme] .ce-next-go {
+  flex: 0 0 auto;
+  font-family: var(--f-label);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #221803;
+  padding: 7px 15px;
+  border-radius: var(--r);
+  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .5);
+}
+
+/* Monster rows — a bestiary list. Flavour left, comparable numbers right in a
+ * fixed column so the eye can run straight down them. */
+body[data-theme] .monster-row {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  margin-bottom: 0;
+  padding: 9px 8px;
+  min-height: 54px;
+}
+body[data-theme] .monster-row:hover:not(:disabled) { background: rgba(255, 236, 200, .045); border-color: rgba(236, 225, 204, .06); }
+body[data-theme] .monster-row.fighting { background: rgba(178, 58, 44, .14); box-shadow: inset 3px 0 0 var(--red); border-color: transparent; }
+body[data-theme] .monster-row .mi { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; }
+body[data-theme] .monster-row .mi img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65)); }
+body[data-theme] .monster-row .mn { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+body[data-theme] .monster-row .ms { font-size: var(--t-micro); color: var(--ink-3); font-weight: 500; }
+body[data-theme] .mr-stats { display: flex; gap: 14px; flex: 0 0 auto; }
+body[data-theme] .mr-stats i {
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+  text-align: right;
+  min-width: 30px;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .mr-stats em {
+  display: block;
+  font-style: normal;
+  font-family: var(--f-label);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+body[data-theme] .mr-lock {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--t-micro); font-weight: 600; color: var(--ink-3);
+}
+body[data-theme] .mr-fighting {
+  font-family: var(--f-label); font-size: 12px; font-weight: 700; color: #d98b78;
+}
+body[data-theme] .tag {
+  font-family: var(--f-label);
+  font-size: 10.5px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
+  background: rgba(201, 162, 74, .16); color: var(--gold-2);
+  border: 1px solid rgba(201, 162, 74, .3);
+  vertical-align: 1px;
+}
+
+/* Combat style ribbon — the four stances are a segmented control, not four
+ * buttons of equal weight next to a heading of equal weight. */
+body[data-theme] .csb-btn {
+  border-radius: 0;
+  border: 1px solid var(--line-soft);
+  border-right-width: 0;
+  background: none;
+  box-shadow: none;
+  padding: 6px 14px;
+  color: var(--ink-3);
+}
+body[data-theme] .csb-btn:first-of-type { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+body[data-theme] .csb-btn:last-of-type { border-right-width: 1px; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+body[data-theme] .csb-btn.active {
+  background: linear-gradient(180deg, rgba(201, 162, 74, .22), rgba(201, 162, 74, .07));
+  color: var(--gold-2);
+  border-color: rgba(201, 162, 74, .45);
+}
+body[data-theme] .csb-btn small { display: block; font-size: 10px; color: inherit; opacity: .72; }
+
+/* ── 13. SKILLS ──────────────────────────────────────────────────────────
+ * Two problems, both hierarchy:
+ *   • Skill tiles were 185px squares holding a 34px icon, "Lv 1" at 14px bold,
+ *     and the skill NAME at 10px grey — the stat set larger than the subject,
+ *     sixteen times over, with ~60px of dead space per tile.
+ *   • Resource tiles put the name and two grey meta lines on top and the ICON
+ *     at the bottom, disconnected from everything, with a "Qty: 0" pill in the
+ *     corner reporting that you have none of something.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .skill-cat {
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  color: var(--gold-2);
+  letter-spacing: .02em;
+  margin: 16px 0 7px;
+  padding-bottom: 5px;
+  position: relative;
+}
+body[data-theme] .skill-cat:first-child { margin-top: 2px; }
+body[data-theme] .skill-cat::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: var(--rule-fade);
+}
+body[data-theme] .skill-board { grid-template-columns: 1fr; gap: 0; }
+body[data-theme] .skill-tile {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 46px;
+  padding: 7px 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(236, 225, 204, .055);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+body[data-theme] .skill-tile:hover { background: rgba(255, 236, 200, .045); transform: none; border-color: rgba(236, 225, 204, .055); }
+/* Selection is gilt — .skill-tile.active was --aqua-2, a teal from the retired
+ * palette, which is why one tile on the Skills screen was always mint green. */
+body[data-theme] .skill-tile.active {
+  background: linear-gradient(90deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .02));
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+body[data-theme] .skill-tile .st-ic { display: grid; place-items: center; width: 34px; height: 34px; }
+body[data-theme] .skill-tile .st-ic img { width: 30px; height: 30px; object-fit: contain; }
+body[data-theme] .skill-tile .st-body { display: block; min-width: 0; }
+body[data-theme] .skill-tile .snm {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+body[data-theme] .skill-tile .bar.xp { display: block; width: 100%; height: 4px; }
+body[data-theme] .skill-tile .slv {
+  font-family: var(--f-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .skill-tile.active .slv { color: var(--gold-2); }
+
+/* Resource / recipe tiles — the material's art is the identity, so it leads. */
+body[data-theme] .act-tile {
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 14px 10px 16px;
+  gap: 0;
+  background: linear-gradient(180deg, rgba(255, 236, 200, .045), rgba(0, 0, 0, .12));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+}
+body[data-theme] .act-tile:hover {
+  border-color: rgba(201, 162, 74, .42);
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .12), 0 4px 14px -8px rgba(0, 0, 0, .9);
+}
+body[data-theme] .act-tile.active {
+  border-color: rgba(201, 162, 74, .7);
+  background: linear-gradient(180deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .03));
+  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .18);
+}
+/* The grid stretched every row to the tallest cell, so a 120px tile rendered
+ * 230px tall with the bottom half empty. Rows size to their content. */
+body[data-theme] .act-grid { align-content: start; align-items: start; }
+body[data-theme] .act-tile .at-icon {
+  flex: 0 0 auto;
+  height: 74px;
+  margin: 0 0 10px;
+}
+body[data-theme] .act-tile .at-icon img {
+  max-width: 100%; max-height: 74px;
+  /* These are painted assets, not pixel art — `image-rendering:pixelated`
+   * was hard-edging the downscale and making them look like cheap sprites. */
+  image-rendering: auto;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .6));
+}
+body[data-theme] .at-name {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+body[data-theme] .at-meta { font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .at-inputs {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  opacity: .82;
+  margin-top: 4px;
+  text-align: center;
+}
+/* A count, not a label. Only rendered when you own some. */
+body[data-theme] .at-qty {
+  top: 8px; right: 8px; bottom: auto;
+  min-width: 20px;
+  text-align: center;
+  background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(201, 162, 74, .28);
+  border-radius: var(--r-sm);
+  color: var(--gold-2);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .at-lock {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 8px;
+  font-size: var(--t-micro); font-weight: 600; color: var(--ink-3);
+}
+/* Locked was `opacity:.55 + grayscale(.3)` — a dimmed copy of the unlocked
+ * tile, which reads as "broken" rather than "not yet". A lock line and a
+ * deeper recess reads as a door you haven't opened. */
+body[data-theme] .act-tile.locked {
+  opacity: 1;
+  filter: none;
+  background: rgba(0, 0, 0, .26);
+  border-color: rgba(236, 225, 204, .05);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .55);
+}
+/* Don't grayscale locked art: `filter` is a single property, so this cancelled
+ * the per-tier material tint set below and every locked wood rendered as the
+ * same grey log — which is most of the ladder, for most of the game. Dim with
+ * opacity instead so the tint survives. */
+body[data-theme] .act-tile.locked .at-icon img { opacity: .62; }
+body[data-theme] .act-tile.locked .at-name { color: var(--ink-3); }
+/* The idle progress bar was red (#c63a3a → #e84545). Red is the danger role;
+ * chopping a tree is not a hazard. */
+body[data-theme] .at-prog { height: 3px; background: rgba(0, 0, 0, .5); }
+body[data-theme] .at-prog-fill { background: linear-gradient(90deg, var(--gold), var(--gold-2)); }
+body[data-theme] .act-tile.active .at-prog-fill { background: linear-gradient(90deg, var(--green), #b9cf8e); }
+body[data-theme] .at-stop {
+  background: var(--gold);
+  color: #1b1305;
+  font-family: var(--f-label);
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  text-transform: none;
+  border-radius: var(--r-sm);
+  font-weight: 700;
+}
+
+/* ── 14. MATERIAL TINTS ──────────────────────────────────────────────────
+ * Wood ladders share one sprite (the pack ships one log and one plank). These
+ * shift it to real species colours so five tiers read as five materials.
+ * Applied by window.itemTintClass in legacy.js.
+ * ---------------------------------------------------------------------- */
+/* Pushed well apart: at subtle settings the five tiers measured different but
+ * did not READ different side by side, which defeats the point. These are real
+ * species colours — pale sapwood, dark oak, grey willow, red maple, near-black
+ * yew, and a cold cast for the two magical woods. */
+/* Specificity note: the tint classes sit on the SAME <img> that
+ * `.act-tile .at-icon img` already styles with a drop-shadow. `filter` is one
+ * property, so the deeper selector won outright and every tier rendered
+ * untinted — the classes were in the DOM and doing nothing. Matched depth so
+ * the tint actually applies wherever the art is drawn. */
+body[data-theme] .tint-oak,
+body[data-theme] .at-icon img.tint-oak,
+body[data-theme] .invc-tile img.tint-oak,
+body[data-theme] .shop-row img.tint-oak    { filter: saturate(1.35) brightness(.66) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+body[data-theme] .tint-willow,
+body[data-theme] .at-icon img.tint-willow,
+body[data-theme] .invc-tile img.tint-willow,
+body[data-theme] .shop-row img.tint-willow { filter: saturate(.28) brightness(1.34) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+body[data-theme] .tint-maple,
+body[data-theme] .at-icon img.tint-maple,
+body[data-theme] .invc-tile img.tint-maple,
+body[data-theme] .shop-row img.tint-maple  { filter: saturate(2.1) hue-rotate(-22deg) brightness(1.02) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+body[data-theme] .tint-yew,
+body[data-theme] .at-icon img.tint-yew,
+body[data-theme] .invc-tile img.tint-yew,
+body[data-theme] .shop-row img.tint-yew    { filter: saturate(1.7) hue-rotate(-32deg) brightness(.5) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+body[data-theme] .tint-rune,
+body[data-theme] .at-icon img.tint-rune,
+body[data-theme] .invc-tile img.tint-rune,
+body[data-theme] .shop-row img.tint-rune   { filter: saturate(.7) hue-rotate(160deg) brightness(1) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+/* Duskwood is the top wood tier, so it has to be the deepest — it was sharing
+ * oak's tint and reading as a mid-tier material. */
+body[data-theme] .tint-dusk,
+body[data-theme] .at-icon img.tint-dusk,
+body[data-theme] .invc-tile img.tint-dusk,
+body[data-theme] .shop-row img.tint-dusk   { filter: saturate(.55) hue-rotate(-8deg) brightness(.42) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+
+/* Skill detail header — this is the skill's identity block, so the level is a
+ * figure, not a form-field label ("Level: 1"), and the XP bar is a gauge
+ * rather than a 6px sliver pinned under two lines of grey text. */
+body[data-theme] .act-head {
+  align-items: center;
+  gap: 15px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 236, 200, .05), rgba(0, 0, 0, .14));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+}
+body[data-theme] .act-head .ah-name {
+  font-family: var(--f-display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--ink);
+}
+body[data-theme] .act-head .ah-lvl {
+  font-family: var(--f-display);
+  font-size: 25px;
+  font-weight: 600;
+  color: var(--gold-2);
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .act-head .ah-lvl em {
+  font-family: var(--f-label);
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+body[data-theme] .act-head .ah-xp {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .act-head .ah-bar {
+  margin-top: 8px; height: 7px; border-radius: 1px;
+  background: rgba(0, 0, 0, .45);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7);
+}
+body[data-theme] .act-head .ah-bar i {
+  background: linear-gradient(180deg, #9ab76a, var(--green));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2);
+}
+
+/* ── 15. INVENTORY ───────────────────────────────────────────────────────
+ * The bag is the one place in the game that genuinely wants containment: it's
+ * a grid of objects, and a player learns its shape. So slots stay recessed and
+ * tiles stay raised — but the chrome around them loses its own boxes.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .invc-topbar {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: 4px 2px 9px;
+}
+body[data-theme] .invc-topbar .invc-space {
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--gold-2);
+}
+/* Uppercase-tracked gilt-filled buttons for "Multi-select" and "Manage" made
+ * two utility controls the loudest thing above the bag. */
+body[data-theme] .invc-topbar button {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--t-small);
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--r);
+  color: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  background: var(--surf-raised);
+  box-shadow: var(--surf-raised-edge);
+}
+body[data-theme] .invc-topbar button:hover { color: var(--ink); border-color: rgba(201, 162, 74, .4); background: linear-gradient(180deg, rgba(255,236,200,.12), rgba(255,236,200,.04)); }
+body[data-theme] .invc-topbar button.active { color: var(--gold-2); border-color: rgba(201, 162, 74, .55); background: linear-gradient(180deg, rgba(201,162,74,.2), rgba(201,162,74,.06)); }
+body[data-theme] .invc-search-row button {
+  text-transform: none; letter-spacing: 0; font-size: var(--t-small); font-weight: 600;
+  border-radius: var(--r); color: var(--ink-2);
+}
+body[data-theme] .invc-search-row input::placeholder { font-style: normal; }
+
+/* Filter strip — chrome, so no panel of its own. */
+body[data-theme] .invc-cat-strip {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  gap: 3px;
+}
+body[data-theme] .invc-cat-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--r);
+  border: 1px solid rgba(236, 225, 204, .07);
+  background: rgba(0, 0, 0, .22);
+  color: var(--ink-3);
+}
+body[data-theme] .invc-cat-btn:hover { background: rgba(255, 236, 200, .06); border-color: var(--line-soft); color: var(--ink-2); }
+body[data-theme] .invc-cat-btn.active {
+  background: linear-gradient(180deg, rgba(201, 162, 74, .2), rgba(201, 162, 74, .05));
+  border-color: rgba(201, 162, 74, .45);
+  color: var(--gold-2);
+  box-shadow: none;
+}
+
+/* The bag itself: a recessed container of raised tiles. */
+body[data-theme] .invc-bag-col {
+  background: rgba(0, 0, 0, .26);
+  border: 1px solid rgba(236, 225, 204, .05);
+  border-radius: var(--r);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6);
+  padding: 9px;
+}
+body[data-theme] .invc-tile {
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 255, 255, .07);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+}
+body[data-theme] .invc-tile:hover {
+  border-color: rgba(201, 162, 74, .55);
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .14), 0 0 0 1px rgba(201, 162, 74, .28);
+}
+/* Count badge: bottom-RIGHT and legible. It was a 9px centred label under a
+ * full-width scrim, which read as a caption rather than a stack size. */
+body[data-theme] .invc-tile .invc-qty {
+  left: auto; bottom: 2px; right: 3px;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f0e2c2;
+  text-shadow: 0 1px 2px #000, 0 0 3px #000;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 16. STORE ───────────────────────────────────────────────────────────
+ * Product cards carried system-font emoji as their art (two packs shared the
+ * same 💎), a corner ribbon in a fourth accent colour, and a "Buy" button
+ * quieter than the description text — on the one screen where looking
+ * generated costs real money.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .iap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 18px 16px 15px;
+  border-radius: var(--r);
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(255, 236, 200, .045), rgba(0, 0, 0, .16));
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .07);
+}
+body[data-theme] .iap-card.gold { border-color: rgba(201, 162, 74, .34); }
+body[data-theme] .iap-card .iap-icon {
+  height: 42px;
+  display: flex; align-items: center;
+  color: var(--gold-2);
+  margin-bottom: 8px;
+}
+body[data-theme] .iap-card.gem .iap-icon { color: #8f9de0; }
+body[data-theme] .iap-card h3 {
+  font-family: var(--f-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--ink);
+  margin: 0 0 5px;
+}
+body[data-theme] .iap-card .desc {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+/* Price + Buy were `.row.between`, which pushed a $49.99 to the far left and a
+ * tiny outlined Buy to the far right with 300px of nothing between them. */
+body[data-theme] .iap-card .iap-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+body[data-theme] .iap-card .iap-price {
+  font-family: var(--f-display);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .iap-card .iap-price small {
+  display: flex; gap: 10px;
+  font-family: var(--f-ui);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+body[data-theme] .iap-card .btn { min-height: 34px; padding: 0 18px; font-size: var(--t-small); }
+/* Ribbons were four different pill colours in four corners. One treatment. */
+body[data-theme] .iap-card .ribbon {
+  font-family: var(--f-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+  background: rgba(201, 162, 74, .16);
+  color: var(--gold-2);
+  border: 1px solid rgba(201, 162, 74, .34);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+}
+
+/* Shop rows — one line per item: art, name, stock, price, action. */
+body[data-theme] .shop-row {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  border-radius: 0;
+  padding: 9px 6px;
+  gap: 12px;
+  align-items: center;
+}
+body[data-theme] .shop-row:hover { background: rgba(255, 236, 200, .035); }
+body[data-theme] .shop-row .si { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; }
+body[data-theme] .shop-row .si img { width: 34px; height: 34px; object-fit: contain; }
+body[data-theme] .shop-row .info b { font-size: 14px; font-weight: 600; color: var(--ink); }
+body[data-theme] .shop-row .info > span { font-size: var(--t-micro); color: var(--ink-3); }
+/* Cost chips must stay inline wherever they're embedded. */
+body[data-theme] .hr-inline { display: inline-flex !important; align-items: center; white-space: nowrap; }
+body[data-theme] .hr-inline > span { display: inline !important; }
+body[data-theme] .shop-row .price { font-weight: 700; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+
+/* Inline cost chips (_gp / _gem / _costPart). */
+body[data-theme] .hr-cost-art { width: 15px; height: 15px; object-fit: contain; vertical-align: -.2em; }
+body[data-theme] .hr-cost { gap: 4px; }
+body[data-theme] .hr-blank-icon {
+  display: inline-block; width: 1.5em; height: 1.5em; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #2c2318, #16110b);
+  border: 1px solid rgba(201, 162, 74, .28);
+}
+
+/* ── 17. SCROLL OWNERSHIP ────────────────────────────────────────────────
+ * `.card-body` is `flex:1; overflow-y:auto`, so every section on a stacked
+ * screen became its own scroll container. With the card boxes removed there is
+ * nothing to mark where one region ends, so content simply vanished at an
+ * invisible edge: the Store's second row of packs was cut through the middle
+ * of the card titles, the seed list stopped mid-row, and the crop guide lost
+ * its last three crops. Nothing indicated more existed.
+ *
+ * Screens that are a vertical stack of sections scroll AS A PAGE — one
+ * scrollbar, at the panel. Screens that are a fixed multi-column workspace
+ * (Combat, Inventory) keep their internal scrollers, because there the columns
+ * are meant to stay put and scroll independently.
+ * ---------------------------------------------------------------------- */
+body[data-theme] #panel-shop.active,
+body[data-theme] #panel-farming.active,
+body[data-theme] #panel-house.active,
+body[data-theme] #panel-social.active,
+body[data-theme] #panel-market.active,
+body[data-theme] #panel-bounty.active {
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-content: start;
+  /* These panels are CSS grids with fixed equal rows (three 256px bands on
+   * House). Letting a section overflow a fixed row makes it draw straight over
+   * the next one — the House screen had "HOMESTEAD" printed across the workers
+   * line and "BONUSES" across the Forge row. Rows size to their content. */
+  grid-template-rows: none !important;
+  grid-auto-rows: min-content;
+}
+body[data-theme] #panel-market.active > *,
+body[data-theme] #panel-shop.active .card-body,
+body[data-theme] #panel-farming.active .card-body,
+body[data-theme] #panel-house.active .card-body,
+body[data-theme] #panel-social.active .card-body,
+body[data-theme] #panel-bounty.active .card-body,
+body[data-theme] #panel-shop.active .card,
+body[data-theme] #panel-farming.active .card,
+body[data-theme] #panel-house.active .card,
+body[data-theme] #panel-social.active .card,
+body[data-theme] #panel-bounty.active .card {
+  overflow: visible;
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+/* Scrollbars — the default OS bar is a light-grey web widget sitting inside a
+ * dark medieval frame. */
+body[data-theme] * { scrollbar-width: thin; scrollbar-color: rgba(201,162,74,.32) transparent; }
+body[data-theme] ::-webkit-scrollbar { width: 9px; height: 9px; }
+body[data-theme] ::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+body[data-theme] ::-webkit-scrollbar-thumb {
+  background: rgba(201,162,74,.28);
+  border-radius: 1px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+body[data-theme] ::-webkit-scrollbar-thumb:hover { background: rgba(201,162,74,.5); background-clip: content-box; }
+
+/* ── 18. FARM ────────────────────────────────────────────────────────────
+ * An empty plot was a dashed-border rectangle containing "＋ Empty". Dashed
+ * borders are wireframe notation — they say "this component isn't built yet".
+ * A plot is tilled ground: dark soil, furrows, and a plant affordance.
+ * ---------------------------------------------------------------------- */
+/* The grid is repeat(4,1fr) with aspect-ratio:1 tiles, so at a wide viewport
+ * two plots became two 420px squares — half the screen for two empty beds.
+ * Plots are a fixed, hand-sized object; they don't grow with the window. */
+body[data-theme] #panel-farming .farm-mini {
+  gap: 12px !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 168px)) !important;
+  justify-content: start;
+}
+body[data-theme] .farm-tile {
+  aspect-ratio: 1;
+  border-radius: var(--r);
+  border: 1px solid rgba(90, 66, 38, .55);
+  /* Soil: a dark loam base, furrow stripes, and light falling from above. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 226, 175, .07), transparent 34%),
+    repeating-linear-gradient(112deg,
+      rgba(0, 0, 0, .26) 0 9px,
+      rgba(255, 232, 190, .028) 9px 19px),
+    linear-gradient(180deg, #2a2016, #14100b);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 232, 190, .05);
+  gap: 8px;
+  padding: 12px;
+  transition: border-color .14s, box-shadow .14s;
+}
+body[data-theme] .farm-tile:hover { border-color: rgba(201, 162, 74, .5); }
+body[data-theme] .farm-tile.empty { border-style: solid; opacity: 1; }
+/* The plant affordance reads as an action, not as a "+" placeholder. */
+body[data-theme] .farm-tile .ft-plant {
+  font-family: var(--f-label);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #221803;
+  padding: 6px 16px;
+  border-radius: var(--r);
+  background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
+  border: 1px solid #e6cd93;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .5), 0 2px 5px -2px rgba(0, 0, 0, .8);
+  opacity: .82;
+  transition: opacity .14s, transform .06s;
+}
+body[data-theme] .farm-tile.empty:hover .ft-plant { opacity: 1; }
+body[data-theme] .farm-tile.empty:active .ft-plant { transform: translateY(1px); }
+body[data-theme] .farm-tile small {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  font-weight: 500;
+}
+body[data-theme] .farm-tile.locked {
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, .34), rgba(0, 0, 0, .5));
+  border-color: rgba(236, 225, 204, .06);
+  border-style: solid;
+}
+body[data-theme] .farm-tile .ft-lock { color: var(--ink-3); }
+body[data-theme] .farm-tile .ft-crop img { width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .75)); }
+/* A growing plot should show how far along it is without being tapped. */
+body[data-theme] .farm-tile .ft-bar {
+  display: block; width: 68%; height: 5px; border-radius: 1px;
+  background: rgba(0, 0, 0, .55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7);
+  overflow: hidden;
+}
+body[data-theme] .farm-tile .ft-bar i { display: block; height: 100%; background: linear-gradient(180deg, #9ab76a, var(--green)); }
+/* Ready = the harvest is waiting. This is the one lit state on the screen. */
+body[data-theme] .farm-tile.ready {
+  border-color: rgba(201, 162, 74, .65);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), 0 0 20px -8px rgba(201, 162, 74, .75);
+}
+body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 12.5px; }
+
+/* ── 19. HOMESTEAD ───────────────────────────────────────────────────────
+ * The property block was a paragraph of stats and a run-on requirement
+ * sentence with a text "✓" in it. Both are now structured: a stat strip you
+ * can compare against the next tier, and a real checklist.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .hh-stats { display: flex; gap: 26px; margin: 10px 0 14px; }
+/* NOT Cinzel: it is a titling face with no lowercase, so "+0h" renders as
+ * "+0H". Values that carry a unit letter use the UI face. */
+body[data-theme] .hh-stat b {
+  display: block;
+  font-family: var(--f-ui);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .hh-stat span {
+  display: block;
+  font-family: var(--f-label);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+body[data-theme] .hh-req {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+body[data-theme] .hh-req-art { width: 20px; height: 20px; display: grid; place-items: center; opacity: .75; }
+body[data-theme] .hh-req-art img { width: 20px; height: 20px; object-fit: contain; }
+body[data-theme] .hh-req-name { flex: 1; }
+body[data-theme] .hh-req b { color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 700; }
+/* Met requirements light; unmet stay quiet. Colour carries the state, so the
+ * checkmark glyph isn't needed at all. */
+body[data-theme] .hh-req.is-met { color: var(--ink-2); }
+body[data-theme] .hh-req.is-met .hh-req-art { opacity: 1; }
+body[data-theme] .hh-req.is-met b { color: #9ab76a; }
+
+/* Room rows — "Build" is the action of the row and was rendering as the
+ * dimmest element on it. */
+body[data-theme] #panel-house .shop-row .si img,
+body[data-theme] #panel-house .shop-row .si svg { width: 44px; height: 44px; object-fit: contain; }
+body[data-theme] #panel-house .shop-row .si { width: 46px; height: 46px; flex: 0 0 46px; }
+body[data-theme] #panel-house .shop-row .btn:disabled { opacity: .45; }
+
+/* ── 20. CHARACTER ───────────────────────────────────────────────────────
+ * Three problems, all of them "this is a mockup" tells:
+ *   • Locked hero slots used a 2px DASHED border — wireframe notation, which
+ *     says "unbuilt", not "unlocked later".
+ *   • The active slot and its portrait ring were moss green (#7f9a4f). Green
+ *     is the XP/growth role; selection is gilt everywhere else in the game.
+ *   • Melee / Ranged / Magic were three identical bordered cards of four
+ *     identical rows — three grey blocks of equal weight showing the same
+ *     four stats, which is a table drawn as three cards.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .cr-slots,
+body[data-theme] .cr-card {
+  background: linear-gradient(180deg, rgba(255, 236, 200, .035), rgba(0, 0, 0, .14));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .05);
+}
+body[data-theme] .cr-section-title {
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--gold-2);
+  gap: 7px;
+}
+body[data-theme] .cr-slot {
+  /* Locked is a closed door, not an unfinished component. */
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  background: rgba(0, 0, 0, .3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .5);
+}
+body[data-theme] .cr-slot.active {
+  border-color: rgba(201, 162, 74, .55);
+  background: linear-gradient(180deg, rgba(201, 162, 74, .12), rgba(0, 0, 0, .28));
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .12);
+}
+body[data-theme] .cr-slot .cr-slot-portrait {
+  border: 1px solid rgba(201, 162, 74, .3);
+  color: var(--ink-3);
+}
+body[data-theme] .cr-slot.active .cr-slot-portrait { border-color: rgba(201, 162, 74, .7); }
+body[data-theme] .cr-slot .cr-slot-name { font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
+body[data-theme] .cr-slot .cr-slot-badge {
+  font-family: var(--f-label);
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  text-transform: none;
+  border-radius: var(--r-sm);
+}
+body[data-theme] .cr-slot.active .cr-slot-badge {
+  background: rgba(201, 162, 74, .2); color: var(--gold-2); border: 1px solid rgba(201, 162, 74, .38);
+}
+body[data-theme] .cr-slot.locked .cr-slot-badge {
+  background: rgba(236, 225, 204, .07); color: var(--ink-3); border: 1px solid rgba(236, 225, 204, .1);
+}
+/* Premium is a sapphire note, not a gilt one — gilt already means "act". */
+body[data-theme] .cr-paywall-hint {
+  background: linear-gradient(90deg, rgba(82, 98, 179, .12), rgba(82, 98, 179, .02));
+  border-left: 2px solid #5262b3;
+  border-radius: var(--r-sm);
+}
+body[data-theme] .cr-paywall-hint b { color: #9aa6e4; }
+body[data-theme] .cr-paywall-hint span { color: #8f9de0; display: inline-flex; }
+body[data-theme] .cr-paywall-hint button {
+  margin-left: auto;
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--r);
+  background: linear-gradient(180deg, #5f6fc4, #47559d);
+  border: 1px solid #8b98d8;
+  color: #f0f2ff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* Stat rows */
+body[data-theme] .cr-stat-row { padding: 6px 0; border-bottom: 1px solid rgba(236, 225, 204, .05); background: none; }
+body[data-theme] .cr-stat-row:last-child { border-bottom: 0; }
+body[data-theme] .cr-stat-row > span:first-child { color: var(--ink-3); font-size: var(--t-small); }
+body[data-theme] .cr-stat-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+body[data-theme] .cr-bonus { color: #9ab76a; font-size: var(--t-micro); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Hero header stat tiles */
+body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size: 23px; font-weight: 600; }
+body[data-theme] .cr-hero-stat span {
+  font-family: var(--f-label); font-size: 11.5px; letter-spacing: .02em;
+  text-transform: none; font-weight: 700;
+}
+
+/* ── 21. BOUNTY BOARD ────────────────────────────────────────────────────
+ * The board stacked three full-width gilt "Accept" slabs — the same maximum
+ * emphasis three times, for three equivalent choices. Buttons are sized to
+ * their job and sit at the end of the row they act on.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .bounty-option {
+  background: linear-gradient(180deg, rgba(255, 236, 200, .035), rgba(0, 0, 0, .12));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  padding: 12px 14px;
+}
+body[data-theme] .bo-head { display: flex; align-items: center; gap: 10px; }
+body[data-theme] .bo-art { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; }
+body[data-theme] .bo-art img { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+body[data-theme] .bo-head b { font-size: 15.5px; font-weight: 600; color: var(--ink); flex: 1; }
+body[data-theme] .bounty-chip {
+  font-family: var(--f-label);
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: none;
+  padding: 2px 9px; border-radius: var(--r-sm);
+  background: rgba(236, 225, 204, .06); color: var(--ink-3);
+  border: 1px solid rgba(236, 225, 204, .08);
+}
+body[data-theme] .bo-task { font-size: var(--t-small); color: var(--ink-2); margin: 8px 0 2px; }
+body[data-theme] .bo-weak { font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .bo-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin-top: 11px;
+}
+body[data-theme] .bounty-reward {
+  display: flex; align-items: center; gap: 14px;
+  font-size: var(--t-small); font-weight: 600; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .bo-foot .btn { flex: 0 0 auto; min-width: 96px; }
+body[data-theme] .bounty-marks {
+  font-family: var(--f-display); font-size: 23px; font-weight: 600;
+  color: var(--gold-2); text-align: right;
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 7px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+body[data-theme] .bounty-marks em {
+  font-family: var(--f-label); font-style: normal; font-size: 11.5px;
+  font-weight: 700; color: var(--ink-3);
+}
+/* Unlock ladder — was ten inline-styled pills in a #3fb950 green that belongs
+ * to no palette, each ending in a text "✓". */
+body[data-theme] .bh-unlocks-h {
+  font-family: var(--f-label); font-size: var(--t-h3); font-weight: 700;
+  letter-spacing: .02em; color: var(--gold-2);
+  text-transform: none; margin: 18px 0 8px;
+}
+body[data-theme] .bh-unlocks { display: flex; flex-wrap: wrap; gap: 4px; }
+body[data-theme] .bh-unlock {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: var(--t-micro); font-weight: 600;
+  padding: 4px 10px; border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, .26);
+  border: 1px solid rgba(236, 225, 204, .06);
+  color: var(--ink-3);
+}
+body[data-theme] .bh-unlock em {
+  font-family: var(--f-label); font-style: normal; font-weight: 700;
+  color: var(--ink-3); opacity: .7;
+}
+body[data-theme] .bh-unlock.is-on {
+  background: linear-gradient(180deg, rgba(127, 154, 79, .16), rgba(127, 154, 79, .04));
+  border-color: rgba(127, 154, 79, .3);
+  color: #b9cf8e;
+}
+body[data-theme] .bh-unlock.is-on em { color: #9ab76a; opacity: 1; }
+/* Bounty shop rows */
+body[data-theme] .bounty-shop-row {
+  background: none; border: 0;
+  border-bottom: 1px solid rgba(236, 225, 204, .06);
+  border-radius: 0; padding: 10px 4px; gap: 12px; align-items: center;
+}
+body[data-theme] .bounty-shop-row .si { width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink-3); }
+
+/* ── 22. MARKET ──────────────────────────────────────────────────────────
+ * The action button was a saturated web-green (#7f9a4f → #2a8a48) with white
+ * text — a colour the game reserves for XP and growth, used here as "commit
+ * this transaction". Its own section headings were Cinzel uppercase with .12em
+ * tracking while every other heading in the game is small caps, so this screen
+ * read as belonging to a different product. Inputs were `font-family:monospace`.
+ * ---------------------------------------------------------------------- */
+body[data-theme] .mk-form-row button,
+body[data-theme] #mk-list-btn {
+  color: #221803;
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: var(--t-small);
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: var(--r);
+  padding: 8px 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 220, .55), inset 0 -2px 3px rgba(90, 60, 8, .4), 0 2px 5px -2px rgba(0, 0, 0, .7);
+}
+body[data-theme] .mk-form-row input {
+  font-family: var(--f-ui);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+}
+body[data-theme] .mk-list-form,
+body[data-theme] .mk-strip {
+  border-radius: var(--r);
+  /* Both boxes were sized by their container, not their content, so the rules
+   * strip ran 150px tall for one line of text and the form left 120px empty
+   * under a single row of inputs. */
+  height: auto;
+  min-height: 0;
+}
+body[data-theme] .mk-list-form h3,
+body[data-theme] .mk-block > h3 {
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--gold-2);
+}
+body[data-theme] .mk-form-hint { font-style: normal; }
+/* Empty states describe the state, not the roadmap, and don't use italics as
+ * a stand-in for "this bit isn't real yet". */
+body[data-theme] .mk-empty,
+body[data-theme] .mk-block .muted { font-style: normal; }
+
+/* ── 23. PERSISTENT CHROME ───────────────────────────────────────────────
+ * Two floating widgets sit over every screen. Both were shaped like the
+ * SaaS-support bubbles they were modelled on — a fully-rounded pill in the
+ * bottom-right corner with a drop shadow — which is the fastest way to make a
+ * game look like a web page. They keep their position (it's the right one) and
+ * lose the pill.
+ * ---------------------------------------------------------------------- */
+body[data-theme] #chat-dock-min {
+  border-radius: var(--r);
+  padding: 8px 14px;
+  font-size: var(--t-small);
+  background: linear-gradient(180deg, #2a231a, #191410);
+  border: 1px solid rgba(201, 162, 74, .3);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .09), 0 6px 18px -8px rgba(0, 0, 0, .8);
+  color: var(--ink-2);
+}
+body[data-theme] #chat-dock-min:hover { color: var(--ink); border-color: rgba(201, 162, 74, .5); transform: none; }
+body[data-theme] #chat-dock-min .cdm-icon { color: var(--gold-2); display: inline-flex; }
+body[data-theme] #chat-dock-min .cdm-badge {
+  background: var(--gold); color: #1b1305; border-radius: var(--r-sm); font-weight: 700;
+}
+
+/* Activity bar — the status strip under the topbar, on every screen. It was a
+ * 54px band holding one line of 13px text and an emoji, so the game's most
+ * persistent element was also its emptiest. */
+body[data-theme] .activity-bar.v2 {
+  min-height: 0;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .14));
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 0;
+  gap: 11px;
+}
+body[data-theme] .activity-bar.v2 .ab-icon {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  font-size: 0;
+  background: none;
+  border: 0;
+  opacity: 1;
+}
+body[data-theme] .activity-bar.v2 .ab-name {
+  font-family: var(--f-label);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--ink-2);
+}
+body[data-theme] .activity-bar.v2.idle .ab-name { color: var(--ink-3); }
+body[data-theme] .activity-bar.v2 .ab-meta { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+body[data-theme] .activity-bar.v2 .ab-lv b,
+body[data-theme] .activity-bar.v2 .ab-xph b { color: var(--gold-2); }
+body[data-theme] .activity-bar.v2 .ab-stop {
+  font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 600;
+  padding: 4px 12px; border-radius: var(--r);
+  background: rgba(178, 58, 44, .14); border: 1px solid rgba(178, 58, 44, .45); color: #e0917f;
+}
+
+/* ── 24. TONAL RANGE ─────────────────────────────────────────────────────
+ * Measured on the finished screens: 92% of all pixels fell inside luminance
+ * 16–48 out of 255, with a median of 21 and a 95th percentile of 38. That is
+ * not a moody dark theme — it is a crushed one. Every surface in the game sat
+ * within ~8 levels of every other surface, so nothing read as being in front
+ * of anything else and the eye had nothing to land on. It is the reason the
+ * screens still felt flat after the type, layout and colour work.
+ *
+ * The token ladder existed but its rungs were too close together:
+ *   bg-0 #100e0b (14) · bg-1 #17140f (20) · bg-2 #201b15 (28) · bg-3 #2a241c (36)
+ *
+ * Widened so each level is genuinely a level. The world drops darker, the
+ * panel lifts, and objects on the panel lift again — the same relationship a
+ * lit room has, which is what makes a dark screen read as a place rather than
+ * as an absence of light. Hues are unchanged; this is value only.
+ * ---------------------------------------------------------------------- */
+:root,
+body[data-theme="hearthlight"] {
+  --bg-0: #0a0806;   /* the world behind everything */
+  --bg-1: #14110c;   /* sidebar / rails */
+  --bg-2: #241d16;   /* panel + card surface */
+  --bg-3: #322920;   /* elevated: modals, hovered objects */
+  --bg-card: linear-gradient(180deg, #2a2219, #1b160f);
+
+  /* Edges have to catch light or the new levels won't be legible as levels. */
+  --line-soft: rgba(255, 236, 200, .075);
+  --line: rgba(201, 162, 74, .24);
+
+  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .10), rgba(255, 236, 200, .03) 55%, rgba(0, 0, 0, .12));
+  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .14), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(236, 225, 204, .035);
+
+  /* App background drops well below the panel so the panel reads as lifted,
+     and the ember glow up top gives the whole thing a direction of light. */
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
+    linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
+}
+
+/* The panel is the lit ground the screen stands on.
+ *
+ * First attempt at this was a 3-stop vertical fade (#241d16 → #14100b) which
+ * looked like a spotlight rather than a surface: the lower third of the
+ * Inventory bag fell into a void and its empty slots stopped being visible at
+ * all. A floor is EVEN, with a bias toward the light. The contrast a UI needs
+ * comes from the edges of the objects standing on it, not from a gradient
+ * across the ground itself. */
+body[data-theme="hearthlight"] .panel.active {
+  background:
+    radial-gradient(140% 50% at 50% -14%, rgba(201, 162, 74, .07), transparent 55%),
+    linear-gradient(180deg, #241d16 0%, #201a13 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 205, .10),
+    0 12px 40px -20px rgba(0, 0, 0, .9);
+}
+
+/* Sidebar sits BELOW the panel in the stack, so it reads as the frame rather
+ * than competing with the content. */
+body[data-theme="hearthlight"] .sidebar {
+  background: linear-gradient(180deg, #14110c, #0b0906);
+  border-right: 1px solid rgba(201, 162, 74, .18);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .7), 3px 0 18px -10px rgba(0, 0, 0, .9);
+}
+
+/* Rows and objects on the panel now have a surface to sit on, so their lift
+ * has somewhere to read from. */
+body[data-theme] .hr-box { background: rgba(255, 236, 200, .045); }
+body[data-theme] .bounty-option,
+body[data-theme] .cr-card,
+body[data-theme] .cr-slots,
+body[data-theme] .act-tile,
+body[data-theme] .iap-card,
+body[data-theme] .act-head {
+  background: linear-gradient(180deg, rgba(255, 236, 200, .07), rgba(0, 0, 0, .10));
+  border-color: rgba(255, 236, 200, .09);
+}
+body[data-theme] .invc-bag-col,
+body[data-theme] .cr-slot,
+body[data-theme] .act-tile.locked {
+  background: rgba(0, 0, 0, .34);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .7);
+}
+
+/* Empty slots have to read as slots. At a 4-value difference from the panel
+ * they read as nothing at all — the bag looked like a failed render. A well
+ * is defined by its EDGE: a dark top-inner shadow and a lit bottom lip, which
+ * is what tells the eye something is recessed. */
+body[data-theme] .invc-slot,
+body[data-theme] #panel-inventory .invc-tile.invc-slot {
+  background: rgba(0, 0, 0, .42) !important;
+  border: 1px solid rgba(0, 0, 0, .55) !important;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, .75),
+    inset 0 -1px 0 rgba(255, 236, 200, .07) !important;
+}
+body[data-theme] .invc-slot:hover {
+  border-color: rgba(201, 162, 74, .3) !important;
+  background: rgba(0, 0, 0, .3) !important;
+}
+/* A filled tile is an OBJECT sitting in the well — it lifts. */
+body[data-theme] #panel-inventory .invc-tile:not(.invc-slot) {
+  background: linear-gradient(180deg, rgba(255, 236, 200, .11), rgba(255, 236, 200, .02) 60%, rgba(0, 0, 0, .14));
+  border-color: rgba(255, 236, 200, .13);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .16), 0 1px 2px rgba(0, 0, 0, .6);
+}
+body[data-theme] .mr-active {
+  font-family: var(--f-label); font-size: 12px; font-weight: 700;
+  letter-spacing: .02em; color: #9ab76a;
+}
+body[data-theme] .weak-tag { display: inline-flex; align-items: center; gap: 5px; }
+body[data-theme] .h4-icon,
+body[data-theme] .invc-style-icon,
+body[data-theme] .cr-rate-icon { display: inline-flex; align-items: center; color: var(--gold-2); }
+
+/* ── 25. EQUIPMENT DOLL ──────────────────────────────────────────────────
+ * The doll was a fixed 3×110px grid (338px wide) placed inside Combat's 320px
+ * Loadout column, so its right-hand column — ammo, earrings, ring — was cut
+ * off the screen. It fits its container now.
+ *
+ * Empty slots were 2px DASHED outlines, the same wireframe notation used on
+ * the locked hero slots: it reads as "component not built". A slot is a
+ * recessed fitting waiting for a piece of gear.
+ * ---------------------------------------------------------------------- */
+/* The doll is FOUR columns (b216 added ammo, earrings and two rings down the
+ * right side), and its slots are positioned by explicit grid-column/grid-row,
+ * so the ROW tracks have to stay fixed or the placed cells stretch and overlap.
+ * The legacy sheet declared three 110px columns — 338px of content in Combat's
+ * 320px Loadout column, with the whole fourth column cut off the screen.
+ * Columns are fluid so it fits any container; rows stay fixed. */
+body[data-theme] .td-doll {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(6, 84px);
+  gap: 5px;
+  padding: 4px;
+  justify-content: stretch;
+}
+body[data-theme] .td-doll .td-slot {
+  border-radius: var(--r);
+  background: rgba(0, 0, 0, .42);
+  border: 1px solid rgba(0, 0, 0, .5);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(255, 236, 200, .07);
+}
+body[data-theme] .td-doll .td-slot.empty {
+  border-style: solid;
+  border-color: rgba(0, 0, 0, .5);
+  background: rgba(0, 0, 0, .42);
+}
+body[data-theme] .td-doll .td-slot:hover {
+  transform: none;
+  border-color: rgba(201, 162, 74, .45);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .6), 0 0 0 1px rgba(201, 162, 74, .22);
+}
+/* A filled slot holds an object, so it lifts out of the recess. */
+body[data-theme] .td-doll .td-slot:has(img) {
+  background: linear-gradient(180deg, rgba(255, 236, 200, .12), rgba(255, 236, 200, .02) 60%, rgba(0, 0, 0, .16));
+  border-color: rgba(255, 236, 200, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 210, .18), 0 1px 2px rgba(0, 0, 0, .6);
+}
+body[data-theme] .td-doll .td-slot .td-slot-lbl {
+  font-family: var(--f-label);
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+body[data-theme] .td-doll .td-slot.empty svg { opacity: .45; color: var(--ink-3); }
+
+/* The arena's painted background was under a vignette + a second scrim from
+ * legacy.css, stacking to roughly 90% black — the art it exists to show could
+ * not be seen at all. */
+body[data-theme] #panel-combat.active .combat-arena {
+  /* The painted stage was under a vignette plus a second scrim from
+   * legacy.css, stacking to ~90% black: the art the arena exists to show could
+   * not be seen at all. Now it reads as a place, with the darkening weighted
+   * toward the bottom where the champion and the call-to-action sit.
+   * Anchored bottom-centre so the 16:9 stage keeps its floor in a tall column
+   * instead of cropping to a slab of wall. */
+  background:
+    linear-gradient(180deg, rgba(10, 8, 5, .34) 0%, rgba(10, 8, 5, .28) 38%, rgba(8, 6, 4, .82) 100%),
+    radial-gradient(120% 78% at 50% 40%, rgba(8, 6, 4, 0), rgba(8, 6, 4, .6) 96%),
+    url('../../assets/icons-bundle/backgrounds/dungeon.jpg') center bottom / cover no-repeat !important;
+}
+body[data-theme] #panel-combat .combat-arena::after { background: none; }
+
+/* ── 26. INJECTED SHORTCUT PLACEMENT ─────────────────────────────────────
+ * The "Back to Market" / "Premium Store" shortcuts are absolutely positioned
+ * in each panel's top-right corner — the same spot the section heading's
+ * `.card-sub` occupies. On Store they printed straight over each other
+ * ("Real-money packs" through "← Back to Market"). The heading yields the
+ * corner; the control keeps it.
+ * ---------------------------------------------------------------------- */
+body[data-theme] #panel-shop.active .card-head:has(+ #iap-panel) .card-sub,
+body[data-theme] #panel-market.active > .card:first-child .card-sub,
+body[data-theme] #panel-dungeons.active .card-head .card-sub { padding-right: 150px; }
+body[data-theme] #hr-shop-back,
+body[data-theme] #hr-dungeons-back,
+body[data-theme] #hr-store-link { top: 8px; right: 10px; }
+
+/* Floating utility buttons were overlapping the last row of any list that ran
+ * to the bottom of the panel (the seed shop's Buy sat underneath the bug
+ * reporter). Give scrolling panels room to end above them. */
+body[data-theme] #panel-shop.active,
+body[data-theme] #panel-farming.active,
+body[data-theme] #panel-house.active,
+body[data-theme] #panel-social.active,
+body[data-theme] #panel-bounty.active,
+body[data-theme] #panel-market.active { padding-bottom: 78px; }
+
+/* Market blocks were sized by the panel's grid rows, not by their content: the
+ * one-line "Listings rules" strip ran 150px tall and the list form left 130px
+ * of empty box under a single row of inputs. */
+body[data-theme] #panel-market.active .mk-strip,
+body[data-theme] #panel-market.active .mk-list-form,
+body[data-theme] #panel-market.active .mk-block { height: auto; min-height: 0; overflow: visible; }
+/* "Premium Store" is a navigation shortcut, not a purchase — it was the
+ * brightest element on the Market screen in the colour reserved for real-money
+ * currency. Quiet control; the sapphire glyph keeps the association. */
+body[data-theme] #hr-store-link {
+  background: var(--surf-raised);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--surf-raised-edge);
+  color: var(--ink-2);
+}
+body[data-theme] #hr-store-link:hover { color: var(--ink); border-color: rgba(201,162,74,.4); }
+body[data-theme] #hr-store-link .hr-glyph { color: #8f9de0; }
+
+/* Mobile bottom-nav: the selected tab was a filled oxblood slab — the danger
+ * colour, on the control the player touches most. Gilt, like every other
+ * selected thing. */
+body[data-theme] .bn-btn.active,
+body[data-theme] .bottom-nav .bn-btn.active {
+  color: var(--gold-2) !important;
+  background: linear-gradient(180deg, rgba(201, 162, 74, .22), rgba(201, 162, 74, .05)) !important;
+  border-color: rgba(201, 162, 74, .4) !important;
+  box-shadow: inset 0 2px 0 var(--gold);
+}
+body[data-theme] .bn-btn .ic { color: inherit; }

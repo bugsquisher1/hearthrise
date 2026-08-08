@@ -34,7 +34,7 @@
   }
   // Castle keep silhouette centred on cx, tops around baseY.
   function castle(cx, y) {
-    return '<g fill="#06090c">' +
+    return '<g fill="#0a0806">' +
         '<rect x="' + (cx - 120) + '" y="' + (y + 40) + '" width="240" height="82"/>' +   // curtain wall
         tower(cx - 120, y + 18, 40, 104) + tower(cx + 80, y + 18, 40, 104) +               // flanking towers
         tower(cx - 32, y - 34, 64, 156) +                                                   // central keep (taller)
@@ -47,39 +47,44 @@
       '</g>';
   }
   function pines() {
-    var s = '<g fill="#05080a">', xs = [70, 150, 235, 1390, 1490, 1555];
+    var s = '<g fill="#080605">', xs = [70, 150, 235, 1390, 1490, 1555];
     xs.forEach(function (x) { s += '<path d="M' + x + ',772 l22,55 l-44,0 z M' + x + ',746 l28,52 l-56,0 z M' + x + ',722 l32,50 l-64,0 z"/>'; });
     return s + '</g>';
   }
 
   function scene() {
-    // Moody medieval dusk: overcast slate sky bleeding to a warm ember horizon
+    // b217: the values here were cold slate-blue despite the comment below
+    // saying otherwise (#0b0e11 sky, #1a2126 ridge, #c9d2dc stars). Where the
+    // scene actually shows — the margins on landscape phones, the gutters —
+    // it read as a blue photograph behind a warm-black game. Same composition,
+    // re-pitched to the stone + ember palette.
+    // Moody medieval dusk: overcast stone sky bleeding to a warm ember horizon
     // (no purple), fog on the far ridge, a lit castle keep, layered dark ridges
     // + pines. Original silhouette art — inspired by the mood of KCD/Witcher
     // dusk, not their assets.
     return '<svg width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0" aria-hidden="true">' +
       '<defs>' +
         '<linearGradient id="hrbSky" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0%" stop-color="#0b0e11"/><stop offset="38%" stop-color="#151b20"/>' +
-          '<stop offset="64%" stop-color="#27241d"/><stop offset="84%" stop-color="#46331f"/>' +
-          '<stop offset="100%" stop-color="#6b4522"/></linearGradient>' +
+          '<stop offset="0%" stop-color="#0e0c0a"/><stop offset="38%" stop-color="#191510"/>' +
+          '<stop offset="64%" stop-color="#2a2118"/><stop offset="84%" stop-color="#4a3320"/>' +
+          '<stop offset="100%" stop-color="#6f4622"/></linearGradient>' +
         '<radialGradient id="hrbGlow" cx="50%" cy="50%" r="50%">' +
           '<stop offset="0%" stop-color="rgba(240,180,110,.40)"/><stop offset="55%" stop-color="rgba(200,120,60,.13)"/>' +
           '<stop offset="100%" stop-color="rgba(200,120,60,0)"/></radialGradient>' +
         '<linearGradient id="hrbFog" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0%" stop-color="rgba(150,158,160,0)"/><stop offset="100%" stop-color="rgba(150,158,160,.10)"/></linearGradient>' +
+          '<stop offset="0%" stop-color="rgba(168,150,124,0)"/><stop offset="100%" stop-color="rgba(168,150,124,.10)"/></linearGradient>' +
       '</defs>' +
       '<rect width="1600" height="900" fill="url(#hrbSky)"/>' +
       '<ellipse cx="820" cy="720" rx="540" ry="250" fill="url(#hrbGlow)"/>' +   // hidden-sun ember glow
-      '<g fill="#c9d2dc" opacity=".32">' + stars(28) + '</g>' +
-      '<path d="M0,600 L240,562 L520,596 L820,548 L1120,600 L1400,562 L1600,600 V900 H0 Z" fill="#1a2126" opacity=".7"/>' + // far ridge
+      '<g fill="#e0d3b6" opacity=".32">' + stars(28) + '</g>' +
+      '<path d="M0,600 L240,562 L520,596 L820,548 L1120,600 L1400,562 L1600,600 V900 H0 Z" fill="#221c15" opacity=".7"/>' + // far ridge
       '<rect x="0" y="556" width="1600" height="150" fill="url(#hrbFog)"/>' +   // fog band
       castle(770, 468) +
-      '<path d="M0,690 Q380,642 760,686 T1600,684 V900 H0 Z" fill="#0f141a" opacity=".96"/>' +   // mid ridge
-      '<path d="M0,762 Q420,718 820,760 T1600,758 V900 H0 Z" fill="#080b0e"/>' +   // near ridge
+      '<path d="M0,690 Q380,642 760,686 T1600,684 V900 H0 Z" fill="#15110c" opacity=".96"/>' +   // mid ridge
+      '<path d="M0,762 Q420,718 820,760 T1600,758 V900 H0 Z" fill="#0d0a07"/>' +   // near ridge
       pines() +
       '</svg>' +
-      '<div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 26%,transparent 38%,rgba(6,8,10,.6)),linear-gradient(180deg,rgba(6,8,10,.28),rgba(6,8,10,.55))"></div>';
+      '<div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 26%,transparent 38%,rgba(8,6,5,.6)),linear-gradient(180deg,rgba(8,6,5,.28),rgba(8,6,5,.55))"></div>';
   }
 
   function css() {

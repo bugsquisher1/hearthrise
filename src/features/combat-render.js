@@ -11,7 +11,7 @@
 // Imports: MONSTERS, ITEMS
 // Exports: setupCombatRender()
 
-import { MONSTERS } from '../data/monsters.js?v=216';
+import { MONSTERS } from '../data/monsters.js?v=217';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -30,13 +30,24 @@ function renderMonsterList() {
     .filter(([, m]) => m.tier === tier)
     .map(([id, m]) => {
       const tooHigh = m.tier > Math.ceil(playerLv / 10) + 1;
-      const weakInfo = m.weaponWeak ? ` · Weak: ${m.weaponWeak}` : '';
-      return `<button class="monster-row ${tooHigh ? 'too-high' : ''}" onclick="startCombat('${id}')" title="${m.name}">
+      /* b217: the second line was one dot-separated dev string —
+         "Vermin · Weak: sword · HP 8 · ATK 2". It reads as a debug printout,
+         and it buries HP and ATK (the only two numbers a player compares
+         between foes) at the end of a sentence, at different x-positions on
+         every row. Flavour stays left; the numbers move into a fixed right
+         column so the list can be scanned straight down. */
+      const weak = m.weaponWeak ? ` · weak to ${m.weaponWeak}` : '';
+      const fighting = window.G && window.G.activeMonster === id;
+      const right = fighting
+        ? '<span class="mr-fighting">Fighting</span>'
+        : `<span class="mr-stats"><i>${m.hp}<em>HP</em></i><i>${m.atk}<em>ATK</em></i></span>`;
+      return `<button class="monster-row ${tooHigh ? 'too-high' : ''} ${fighting ? 'fighting' : ''}" onclick="startCombat('${id}')" title="${m.name}">
         <span class="mi">${getMonsterIconHtml(id)}</span>
         <div style="flex:1;min-width:0">
-          <span class="mn">${m.name}</span>
-          <span class="ms">${m.family}${weakInfo} · HP ${m.hp} · ATK ${m.atk}</span>
+          <span class="mn">${m.name}${m.boss ? ' <span class="tag">Boss</span>' : ''}</span>
+          <span class="ms">${m.family}${weak}</span>
         </div>
+        ${right}
       </button>`;
     }).join('');
   el.innerHTML = list || '<div class="empty">No monsters in this tier.</div>';

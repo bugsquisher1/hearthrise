@@ -41,7 +41,7 @@
   /* --aqua retired to a muted weathered value; teal LITERALS get purged in
      Phase 2 and the components reading --aqua get repointed to gold/steel. */
   --aqua:#5c8f89;
-  --aqua-2:#7fb0a8;
+  --aqua-2:#a89a80;
   --aqua-bg:rgba(92,143,137,.15);
 
   --green:#7f9a4f;         /* moss — nature/XP/success */
@@ -147,13 +147,20 @@ img,svg{display:block;max-width:100%}
   position:relative;
 }
 .nav-btn:hover{background:rgba(255,255,255,.045);color:var(--ink)}
+/* b217: the active spine and label were --aqua-2 (#a89a80), a teal left over
+   from the retired cold palette. It rendered a mint-green bar and mint text as
+   the single most persistent accent in the chrome, next to a gold border on
+   the same element — two accents fighting over one state. Selection is gilt,
+   like every other selected thing in the game. */
 .nav-btn.active{
-  background:linear-gradient(90deg,var(--aqua-bg),rgba(201,162,74,.04));
-  color:var(--aqua-2);
-  border-color:rgba(201,162,74,.32);
-  box-shadow:inset 3px 0 0 var(--aqua-2);
+  background:linear-gradient(90deg,rgba(201,162,74,.15),rgba(201,162,74,.02));
+  color:var(--ink);
+  border-color:transparent;
+  box-shadow:inset 3px 0 0 var(--gold);
 }
-.nav-btn .ic{font-size:19px;width:22px;text-align:center;line-height:1}
+.nav-btn.active .ic{color:var(--gold-2)}
+.nav-btn .ic{font-size:19px;width:22px;text-align:center;line-height:1;color:var(--ink-3);transition:color .12s}
+.nav-btn:hover .ic{color:var(--ink-2)}
 .nav-btn .lbl{flex:1;text-align:left}
 .nav-btn .badge{
   font-size:10px;padding:2px 6px;border-radius:99px;
@@ -178,7 +185,7 @@ img,svg{display:block;max-width:100%}
 .topbar{
   height:var(--top-h);
   padding:7px 12px;padding-top:calc(7px + var(--safe-t));
-  background:linear-gradient(90deg,#0e1922,#10202c);
+  background:linear-gradient(90deg,#17140f,#1c1811);
   border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:10px;
   flex-shrink:0;
@@ -288,8 +295,10 @@ img,svg{display:block;max-width:100%}
 .btn:hover:not(:disabled){border-color:var(--line-strong);background:rgba(255,255,255,.07)}
 .btn:active:not(:disabled){transform:translateY(1px)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-primary{background:linear-gradient(180deg,#2ea79d,#218a82);border-color:#3fcfc4;color:#001a17}
-.btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#3fcfc4,#2ea79d)}
+/* b217: the second stop was #218a82 — a leftover teal from the retired cold
+   palette, so the base primary was a gold-to-teal gradient. */
+.btn-primary{background:linear-gradient(180deg,#d9b361,#a67c28);border-color:#e6cd93;color:#221803}
+.btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#d9b361,#c09539)}
 .btn-gold{background:linear-gradient(180deg,#e2b84e,#b88c1e);border-color:#f3d181;color:#1a1100}
 .btn-gold:hover:not(:disabled){background:linear-gradient(180deg,#f3d181,#e2b84e)}
 .btn-gem{background:linear-gradient(180deg,#7dd3fc,#38bdf8);border-color:#bae6fd;color:#062032}
@@ -306,7 +315,7 @@ img,svg{display:block;max-width:100%}
 }
 .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--aqua),var(--aqua-2));transition:width .35s}
 .bar.hp > i{background:linear-gradient(90deg,#a01a1a,#ef4444)}
-.bar.xp > i{background:linear-gradient(90deg,#2ea79d,#e3c77e)}
+.bar.xp > i{background:linear-gradient(90deg,#c09539,#e3c77e)}
 .bar.gold > i{background:linear-gradient(90deg,#a3771a,#f3d181)}
 
 /* ─── PROFILE / DASHBOARD ─── */
@@ -523,7 +532,7 @@ img,svg{display:block;max-width:100%}
 .shop-row .si{font-size:24px;flex-shrink:0}
 .shop-row .info{flex:1;min-width:0}
 .shop-row .info b{display:block;font-weight:700;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.shop-row .info span{display:block;font-size:11px;color:var(--ink-3)}
+.shop-row .info > span{display:block;font-size:11px;color:var(--ink-3)}
 .shop-row .price{font-weight:800;color:var(--gold-2);font-size:13px;flex-shrink:0;text-align:right;min-width:62px}
 .shop-row .price.gem{color:var(--gem)}
 .shop-row .price.real{color:var(--ink)}
@@ -988,13 +997,13 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ===== block 2: style-2 ===== */
-.item-svg{width:80%;height:80%;display:flex;align-items:center;justify-content:center;color:#dfe9ee;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.item-svg{width:80%;height:80%;display:flex;align-items:center;justify-content:center;color:#ece1cc;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
 .item-svg svg{width:100%;height:100%}
 .item-svg .light{color:#f3d181}
 .item-svg .accent{color:#a78bfa}
 .inv-item .item-svg{margin:0 auto}
 .inv-slot .item-svg{position:absolute;inset:6px}
-.monster-row .item-svg{width:32px;height:32px;flex-shrink:0;color:#dfe9ee}
+.monster-row .item-svg{width:32px;height:32px;flex-shrink:0;color:#ece1cc}
 
 /* ===== block 3: style-3 ===== */
 /* ─── Sidebar nav grouping ─── */
@@ -1189,15 +1198,15 @@ img,svg{display:block;max-width:100%}
   border:1px solid rgba(229,189,108,.25);border-radius:8px}
 .combat-style-block h4{margin:0 0 6px;font-size:11px;letter-spacing:.12em;
   text-transform:uppercase;color:#f3d181;font-weight:800}
-.combat-style-block .csb-meta{font-size:11px;color:#9aa3b0;margin-bottom:8px;line-height:1.4}
-.combat-style-block .csb-meta b{color:#dfe9ee}
+.combat-style-block .csb-meta{font-size:11px;color:#9d8b70;margin-bottom:8px;line-height:1.4}
+.combat-style-block .csb-meta b{color:#ece1cc}
 .combat-style-buttons{display:flex;flex-wrap:wrap;gap:6px}
 .csb-btn{padding:6px 10px;font-size:11px;font-weight:700;border-radius:6px;
-  background:rgba(255,255,255,.06);color:#dfe9ee;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);color:#ece1cc;border:1px solid rgba(255,255,255,.12);
   cursor:pointer;transition:all .15s;text-align:left}
 .csb-btn:hover{background:rgba(229,189,108,.18);border-color:rgba(229,189,108,.45)}
 .csb-btn.active{background:rgba(229,189,108,.28);border-color:#f3d181;color:#fff;box-shadow:0 0 0 1px rgba(243,209,129,.4) inset}
-.csb-btn small{display:block;font-weight:500;font-size:9px;color:#9aa3b0;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.csb-btn small{display:block;font-weight:500;font-size:9px;color:#9d8b70;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
 .csb-btn.active small{color:rgba(255,255,255,.85)}
 
 /* ===== block 8: lane1-stardew ===== */
@@ -1221,8 +1230,8 @@ body[data-theme="lane1"]{
   --gold-2:#f9c54e;
   --gold-bg:rgba(249,197,78,.18);
 
-  --aqua:#6296b4;
-  --aqua-2:#8db4c9;
+  --aqua:#8a8272;
+  --aqua-2:#a49a86;
   --aqua-bg:rgba(98,150,180,.16);
 
   --green:#5e9f4a;
@@ -1605,7 +1614,7 @@ body[data-theme="lane1"] .notif b{color:#4d2613 !important}
 body[data-theme="lane1"] .notif.levelup{color:#5b2618 !important}
 body[data-theme="lane1"] .notif.kill{color:#c44a2c !important}
 body[data-theme="lane1"] .notif.loot{color:#5e9f4a !important}
-body[data-theme="lane1"] .notif.info{color:#6296b4 !important}
+body[data-theme="lane1"] .notif.info{color:#8a8272 !important}
 body[data-theme="lane1"] .inv-item,
 body[data-theme="lane1"] .inv-slot,
 body[data-theme="lane1"] .item-slot{color:#4d2613}
@@ -1738,8 +1747,8 @@ body[data-theme="dark"]{
   --gold-2:#f9c54e;
   --gold-bg:rgba(249,197,78,.14);
 
-  --aqua:#8bb8d4;
-  --aqua-2:#aaccdc;
+  --aqua:#a49a86;
+  --aqua-2:#c0b49a;
   --aqua-bg:rgba(139,184,212,.14);
 
   --green:#8bc26a;
@@ -1974,7 +1983,7 @@ body[data-theme="dark"] .notif b{color:#f9c54e}
 body[data-theme="dark"] .notif.levelup{color:#f9c54e}
 body[data-theme="dark"] .notif.kill{color:#e8746a}
 body[data-theme="dark"] .notif.loot{color:#8bc26a}
-body[data-theme="dark"] .notif.info{color:#8bb8d4}
+body[data-theme="dark"] .notif.info{color:#a49a86}
 
 /* ─── Shop rows ─── */
 body[data-theme="dark"] .shop-row,
@@ -2337,7 +2346,9 @@ body[data-theme="dark"] .lane1-toggle{
 .friends-section{margin-top:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:6px}
 .friends-section h4{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-2)}
 .friend-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px;margin-bottom:4px;opacity:.5}
-.friend-row.coming-soon{opacity:1;border:1px dashed var(--line);background:transparent;color:var(--ink-3);font-style:italic;text-align:center;justify-content:center;padding:14px}
+/* b217: dashed border + italics is the visual language of an unbuilt
+   component. An empty state is a real state — draw it like one. */
+.friend-row.coming-soon,.friend-row.is-empty{opacity:1;border:0;background:rgba(0,0,0,.22);border-radius:var(--r);color:var(--ink-3);font-style:normal;text-align:center;justify-content:center;padding:20px 14px}
 
 /* ===== block 18: welcome-v2-css ===== */
 .wbv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
@@ -2458,11 +2469,11 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
 .combat-drop-row .cdr-icon img{width:100%;height:100%;object-fit:contain}
 .combat-drop-row .cdr-name{flex:1;min-width:0;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .combat-drop-row .cdr-pct{font-weight:800;color:var(--ink)}
-.combat-drop-row.r-common{border-left-color:#9aa3b0}
+.combat-drop-row.r-common{border-left-color:#9d8b70}
 .combat-drop-row.r-uncommon{border-left-color:#7f9a4f}
 .combat-drop-row.r-uncommon .cdr-pct{color:#7f9a4f}
-.combat-drop-row.r-rare{border-left-color:#5a9adf}
-.combat-drop-row.r-rare .cdr-pct{color:#5a9adf}
+.combat-drop-row.r-rare{border-left-color:#7a8791}
+.combat-drop-row.r-rare .cdr-pct{color:#7a8791}
 .combat-drop-row.r-vrare{border-left-color:#a78bfa}
 .combat-drop-row.r-vrare .cdr-pct{color:#a78bfa}
 .combat-drop-row.r-legendary{border-left-color:#f3d181}
@@ -2551,9 +2562,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .skill-viewing-banner{
   background:rgba(98,150,180,.15);border:1px solid rgba(98,150,180,.4);
   border-radius:5px;padding:8px 12px;margin-bottom:10px;
-  font-size:11px;color:#8db4c9;display:flex;align-items:center;gap:8px;
+  font-size:11px;color:#a49a86;display:flex;align-items:center;gap:8px;
 }
-.skill-viewing-banner b{color:#aaccdc}
+.skill-viewing-banner b{color:#c0b49a}
 
 /* ─────── INVENTORY (v3 simplified): doll inline, no panel restructure ─────── */
 .inv-summary{padding:6px 10px !important;margin-bottom:6px !important}
@@ -2848,7 +2859,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   gap:8px;
   flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
 }
-.act-tile{min-height:132px}
+.act-tile{min-height:0}
 
 .act-tile{
   position:relative;
@@ -2922,21 +2933,18 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   position:relative;
   isolation:isolate;
 }
-#panel-combat .combat-arena::before{
-  content:"";
-  position:absolute;inset:0;
-  background-image:url("assets/raw-bundle/game-battle-backgrounds/game_background_3/game_background_3.png");
-  background-size:cover;background-position:center bottom;
-  opacity:.18;
-  filter:saturate(.85);
-  z-index:-1;
-  border-radius:inherit;
-  pointer-events:none;
-}
+/* b217: ::before pointed at assets/raw-bundle/…, a folder that is NOT part of
+   the deploy (CLAUDE.md), so this layer has been a 404 the whole time — the
+   arena's "painted battle background" never existed. ::after then painted a
+   cold navy scrim (rgba(15,19,32,…)) over the nothing, which is why the arena
+   read as a blue rectangle in an otherwise warm-black game. The real painted
+   background is wired in audit-overrides.css from assets/icons-bundle/
+   backgrounds/dungeon.jpg, which does ship; ::after now just deepens its
+   edges in the game's own colour. */
 #panel-combat .combat-arena::after{
   content:"";
   position:absolute;inset:0;
-  background:linear-gradient(180deg, rgba(15,19,32,.65), rgba(15,19,32,.85));
+  background:linear-gradient(180deg, rgba(14,11,7,.45), rgba(8,6,5,.80));
   z-index:-1;
   border-radius:inherit;
   pointer-events:none;
@@ -3107,13 +3115,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   display:none !important;
 }
 
-/* Combat battle background — bump opacity */
-#panel-combat .combat-arena::before{
-  opacity:.35 !important;
-  filter:saturate(.95) !important;
-}
+/* b217: paired with the ::before removal above — the navy scrim went with it. */
 #panel-combat .combat-arena::after{
-  background:linear-gradient(180deg, rgba(15,19,32,.55), rgba(15,19,32,.78)) !important;
+  background:linear-gradient(180deg, rgba(14,11,7,.38), rgba(8,6,5,.74)) !important;
 }
 
 /* ===== block 28: character-rebuild-css ===== */
@@ -3362,7 +3366,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .qm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:qm-fade .15s ease-out}
 @keyframes qm-fade{from{opacity:0}to{opacity:1}}
 .qm-modal{
-  background:linear-gradient(180deg,#1a1f2e,#13182a);
+  background:linear-gradient(180deg,#201b15,#13182a);
   border:2px solid var(--gold-2);border-radius:10px;
   width:min(960px,100%);max-height:85vh;
   display:flex;flex-direction:column;overflow:hidden;

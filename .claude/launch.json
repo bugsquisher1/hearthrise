@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8125"],
       "port": 8125
+    },
+    {
+      "name": "hearthrise-clanseat",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8149"],
+      "port": 8149
     }
   ]
 }

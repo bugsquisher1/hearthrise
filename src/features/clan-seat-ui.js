@@ -217,6 +217,20 @@
          Pre-part-2 servers do not send it, and `null` must not become 0: that
          would silently re-introduce the same lie. */
       if (_seat && _seat.my_labour_today != null) _labourToday = Math.max(0, +_seat.my_labour_today || 0);
+      /* Push the two authoritative castle fields back onto the clan row.
+         `raids.js` reads `HearthriseClans.myClan().castle_tier` and `.upgrades`
+         to derive the Hunt's tier ceiling (§11.3) — and that row is only ever
+         populated at sign-in, so without this a tier-up or a completed War Room
+         Work Order would not raise the ceiling until the next reload. The seat
+         read is the newer answer; the clan row is a cache of the older one. */
+      var row = myClanObj();
+      if (row && _seat) {
+        row.castle_tier = _seat.castle_tier;
+        row.upgrades = _seat.upgrades;
+        row.standing = _seat.standing;
+        row.treasury = _seat.treasury;
+        if (_seat.my_role) row.myRole = _seat.my_role;
+      }
       // The Common Room's potency and its server-side audit trail. See §5.
       grantRested(id).catch(function () {});
       return _seat;
@@ -1016,7 +1030,10 @@
     return { defs: extraDefs || '', wall: wall };
   }
   function roomSvg(inner, defs) {
-    return '<svg class="hr-room-svg" viewBox="0 0 ' + RW + ' ' + RH + '" preserveAspectRatio="xMidYMid slice" ' +
+    /* xMidYMax: the FLOOR is the anchor. Cropping a room from the ceiling down
+       loses a rafter; cropping it from the floor up loses the furniture, which
+       is the half that says which room this is. */
+    return '<svg class="hr-room-svg" viewBox="0 0 ' + RW + ' ' + RH + '" preserveAspectRatio="xMidYMax slice" ' +
       'aria-hidden="true" focusable="false"><defs>' +
       '<radialGradient id="hrcsRoomFire" cx="50%" cy="50%" r="50%">' +
         '<stop class="hrcs-f0" offset="0%"/><stop class="hrcs-f1" offset="100%"/></radialGradient>' +
@@ -1382,7 +1399,8 @@
               return '<option value="' + esc(o.value) + '">' + esc(o.label) + '</option>';
             }).join('') + '</select>' : '') +
             (s.qty ? '<input type="number" min="1" step="1" value="' + esc(s.qty.value == null ? 1 : s.qty.value) +
-              '" data-cs-qty="' + esc(s.qty.name) + '" aria-label="quantity">' : '') +
+              '" data-cs-qty="' + esc(s.qty.name) + '" placeholder="' + esc(s.qty.placeholder || 'Quantity') +
+              '" aria-label="' + esc(s.qty.placeholder || 'quantity') + '">' : '') +
             (s.button ? '<button class="btn btn-sm btn-primary" data-cs="' + esc(s.button.action) + '">' +
               esc(s.button.label) + '</button>' : '') +
           '</div>' +
@@ -1853,7 +1871,8 @@
           'Banking ' + n(goal) + ' in total makes the hold Lv ' + ((clan.level | 0) + 1) +
           ' &mdash; the age of the hold, which is a badge and nothing more.' });
       sections.push({ kind: 'field', title: '', select: null,
-        qty: { name: 'gold', value: '' }, button: { action: 'bank', label: 'Bank gold' } });
+        qty: { name: 'gold', value: '', placeholder: 'Gold to bank' },
+        button: { action: 'bank', label: 'Bank gold' } });
 
       sections.push({ kind: 'rows', title: 'The Storehouse',
         empty: 'The Storehouse is empty. Refine something and bring it in.',

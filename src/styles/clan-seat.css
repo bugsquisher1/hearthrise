@@ -137,9 +137,12 @@
  * viewBox scaling that `preserveAspectRatio="slice"` applies. */
 .hrcs-mortar path {
   stroke: var(--scene-rim);
-  stroke-width: 1;
+  /* 1.4 rather than 1: the hold band slices a 1600-unit viewBox into ~1100
+   * CSS pixels, so a 1px joint arrives as 0.69px and disappears into the
+   * ridge. Measured at the shipped band height, not guessed. */
+  stroke-width: 1.4;
   fill: none;
-  opacity: .3;
+  opacity: .34;
 }
 
 /* A structure has exactly three states, and each is a different KIND of mark
@@ -310,29 +313,26 @@
   flex: 0 0 auto;
   border-bottom: 1px solid var(--line);
 }
+/* The vignette is a WINDOW INTO THE ROOM, and the caption sits under it on the
+ * wall. An overlaid plate (the idiom the hold band uses, correctly, because a
+ * castle skyline is tall) would have covered the floor of every interior —
+ * which is exactly where a room keeps its furniture. */
 .hr-room-scene {
   position: relative;
-  height: 150px;
+  height: 168px;
   overflow: hidden;
   background: var(--scene-sky-0);
+  border-bottom: 1px solid var(--line-soft);
 }
 .hr-room-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.hr-room-title {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 30px 54px 10px 16px;
-  background: linear-gradient(180deg, transparent, var(--scene-scrim-1), var(--scene-scrim-2));
-}
+.hr-room-title { padding: 11px 54px 11px 16px; }
 .hr-room-title h3 {
   margin: 0;
   font-family: var(--f-display, serif);
-  font-size: 21px; font-weight: 800; line-height: 1.1;
-  color: var(--scene-gilt);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, .7);
+  font-size: 20px; font-weight: 800; line-height: 1.15;
+  color: var(--gold);
 }
-.hr-room-sub {
-  font-size: 11.5px; color: var(--scene-ink-2); margin-top: 2px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .7);
-}
+.hr-room-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
 .hr-room-x {
   position: absolute; top: 10px; right: 10px;
   width: 30px; height: 30px;
@@ -401,7 +401,19 @@
 .hr-room-wrap[data-room-theme="mill"]::before,
 .hr-room-wrap[data-room-theme="tavern"]::before { display: none; }
 
-/* ── 7. Room interior paint ────────────────────────────────────────────────*/
+/* ── 7. Room interior paint ────────────────────────────────────────────────
+ * INSIDE a room there is no sky. The hold band gets its legibility for free —
+ * black silhouettes against an ember horizon — and an interior drawn with the
+ * same two values is black on black, which is what the first pass produced.
+ *
+ * So the interiors invert the relationship: the WALL is the lighter surface
+ * (it is the thing catching the firelight) and the furniture is the silhouette
+ * in front of it. The one real light source in each room is also pushed a stop
+ * warmer than the outdoor firelight, because indoors it is doing all the work. */
+.hr-room-svg .hrcs-wall-2 { fill: var(--scene-ridge-far); }
+.hr-room-svg .hrcs-f0 { stop-color: var(--scene-litglow); }
+.hr-room-svg .hrcs-mortar path { opacity: .26; }
+.hr-room-svg .hrcs-arch path { fill: var(--scene-ridge-mid); }
 .hrcs-floor { fill: var(--scene-ridge-near); }
 .hrcs-furn, .hrcs-furn path, .hrcs-furn rect, .hrcs-furn circle, .hrcs-furn ellipse { fill: var(--scene-build); }
 .hrcs-arch path { fill: var(--scene-ridge-far); }

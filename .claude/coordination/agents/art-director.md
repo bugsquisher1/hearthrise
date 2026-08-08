@@ -9,6 +9,9 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · Product-owner validation
+Tyler on the b221 bounty board: "looks awesome." The scene-composition approach (in-world object + drawn SVG craft + readable type on scene surfaces) is now the validated standard for screen identity work — apply it to the castle panel beauty pass and any future screen that should feel like a place.
+
 ### 2026-08-08 · Wave 3a — the CSS substrate (b222)
 
 **Purpose.** Pay down the debt that taxes every new screen: the b174 `!important` blankets, the unscoped stragglers, and the inert cozy-light CSS. Structural pass, not a redesign. Files: `theme-cozy.css`, `board-and-shop.css`, `smoke-test.js` (guards only).

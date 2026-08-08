@@ -1,0 +1,625 @@
+/* ============================================================================
+ * src/styles/board-and-shop.css — b221
+ *
+ * Two screens that were named after physical places and drawn as spreadsheets:
+ *
+ *   THE BOUNTY BOARD was three bordered rows in a card. It is now a noticeboard
+ *   standing at the town gate — timber frame, plank field, a lantern hung off
+ *   the top rail, and every bounty a parchment notice nailed to the wood. The
+ *   claimed one stays up, over-stamped.
+ *
+ *   THE SHOP was a price list. It is now a shopfront: a keeper behind a lit
+ *   counter, and the wares laid out ON that counter, each on its own cloth mat
+ *   with a price tag.
+ *
+ * WHY THIS FILE EXISTS, AND WHY IT IS FULL OF !important.
+ * Both surfaces this file draws (parchment, lit counter wood) are LIGHT in both
+ * themes. theme-cozy.css carries the b174 readability blankets —
+ *   `#panel-bounty#panel-bounty *:not(...) { color: var(--ink) !important }`
+ *   `#panel-shop#panel-shop  [class*="card"] { background: var(--bg-2) !important }`
+ * — which force parchment-coloured ink and a dark plate onto anything inside
+ * these panels. That was the right call when every panel was a dark card; it is
+ * wrong for paper. `!important` cannot be outranked by specificity alone, so
+ * every contested declaration below repeats it, at three ids. When those
+ * blankets are finally deleted (documented debt in CURRENT_STATE), the extra ids
+ * and the !importants come off with them — nothing else depends on them.
+ *
+ * Type that sits ON a picture or on paper gets its OWN ink role — the rule the
+ * Home hearth band established in b219. Its background is parchment or lit wood,
+ * not the theme surface, so it must never read --ink.
+ * ========================================================================= */
+
+/* ── Tokens ────────────────────────────────────────────────────────────────
+ * Painted atmosphere is still colour, so it is still tokens. Nothing below
+ * this block may contain a literal colour except the two struck-metal button
+ * faces, which are lifted verbatim from art-direction.css §6.
+ * ------------------------------------------------------------------------ */
+:root,
+body[data-theme="hearthlight"] {
+  /* The board, as an object in the world */
+  --bb-frame-0:   #2b2119;
+  --bb-frame-1:   #191209;
+  --bb-plank-0:   #241b13;
+  --bb-plank-1:   #1a130d;
+  --bb-seam:      rgba(0,0,0,.55);
+  --bb-grain:     rgba(236,225,204,.028);
+  --bb-iron:      #100c08;
+  --bb-iron-2:    #1c150e;
+  --bb-flame:     #ffd08a;
+
+  /* Paper. Light in BOTH themes — it is paper. */
+  --bb-paper-0:   #e7d9bd;
+  --bb-paper-1:   #d5c39e;
+  --bb-paper-2:   #c3ae85;
+  --bb-fold:      rgba(96,72,40,.16);
+  --bb-ink:       #2b2117;
+  --bb-ink-2:     #55432f;
+  /* was #715c41 — 4.3:1 on the parchment mid-tone, under the readability floor */
+  --bb-ink-3:     #63503a;
+  --bb-rule:      rgba(70,50,26,.32);
+  --bb-seal:      #8e3324;
+  --bb-nail-0:    #b9ac95;
+  --bb-nail-1:    #2a2119;
+  --bb-plate:     #221803;   /* ink on a struck-brass control */
+  /* The rail sits on the timber frame, which is a mid-to-dark wood in BOTH
+     themes — so its type is light in both, like the scene ink roles. */
+  --bb-rail-ink:  #cbbc9e;
+
+  /* The shopfront */
+  --sc-wall-0:      #14100b;
+  --sc-wall-1:      #241a11;
+  --sc-wall-seam:   rgba(0,0,0,.30);
+  --sc-vig:         rgba(6,4,3,.72);
+  --sc-vig-0:       rgba(6,4,3,0);
+  --sc-window:      #6d451f;
+  --sc-window-2:    #3a2513;
+  --sc-iron:        #100c08;
+  --sc-lit:         #ffb457;
+  --sc-flame:       #ffe0a8;
+  /* Rim light. It is the only thing separating a silhouette from the wall
+     behind it — at --scene-rim's .20 alpha the keeper read as a flat blob. */
+  --sc-rimlight:    rgba(255,196,128,.60);
+  --sc-contact:     rgba(0,0,0,.40);
+  --sc-timber:      #0d0a07;
+  --sc-timber-2:    #17110b;
+  --sc-shelf:       #120d08;
+  --sc-prop:        #0d0a06;
+  --sc-prop-lit:    #6b5233;
+  --sc-figure:      #0a0806;
+  --sc-figure-2:    #241a10;   /* cloth (coif, apron) — must separate from the body */
+  --sc-comb:        #7d2d20;
+  --sc-counter-face:#130e08;
+  --sc-counter-lip: #7a5c31;
+  --sc-counter-far: #3a2b1b;
+  --sc-counter-near:#241a10;
+  --sc-counter-grain: rgba(0,0,0,.34);
+  --sc-top-0:     #2c2015;
+  --sc-top-1:     #1d150d;
+  --sc-mat:       #4a3623;
+  --sc-mat-2:     #2c2013;
+  --sc-stitch:    rgba(228,206,164,.20);
+  --sc-tag:       #d8c69f;
+  --sc-tag-ink:   #33261a;
+  /* Premium is sapphire and only sapphire (art-direction.css §6). */
+  --sc-prem-ink:  #b3bcec;
+  --sc-prem-ink2: #e2e6fc;
+  --sc-prem-line: rgba(120,136,220,.34);
+  --sc-prem-bg:   rgba(120,136,220,.09);
+  --sc-gem-tag:   #cdd4f0;
+  --sc-gem-ink:   #1e2350;
+}
+
+/* Cozy Day is the retired secondary theme, but every token must still resolve —
+   the same board and the same shop at golden hour rather than at dusk. */
+body[data-theme="cozy-light"] {
+  --bb-frame-0:   #8a6a44;
+  --bb-frame-1:   #6b4f31;
+  --bb-plank-0:   #7d5d3b;
+  --bb-plank-1:   #6a4d2f;
+  --bb-seam:      rgba(58,38,16,.42);
+  --bb-grain:     rgba(255,244,220,.10);
+  --bb-iron:      #3b2f22;
+  --bb-iron-2:    #4c3d2c;
+  --bb-flame:     #ffdda0;
+
+  --bb-paper-0:   #fdf4dd;
+  --bb-paper-1:   #f2e4c3;
+  --bb-paper-2:   #e6d5ae;
+  --bb-fold:      rgba(120,92,48,.14);
+  --bb-ink:       #3d2817;
+  --bb-ink-2:     #63492e;
+  --bb-ink-3:     #866948;
+  --bb-rule:      rgba(90,64,30,.26);
+  --bb-seal:      #a03a28;
+  --bb-nail-0:    #f0e6cf;
+  --bb-nail-1:    #4a3a28;
+  --bb-plate:     #221803;
+  --bb-rail-ink:  #fbf3e2;
+
+  --sc-wall-0:      #6d5335;
+  --sc-wall-1:      #8d6c45;
+  --sc-wall-seam:   rgba(58,38,16,.24);
+  --sc-vig:         rgba(58,38,16,.34);
+  --sc-vig-0:       rgba(58,38,16,0);
+  --sc-window:      #ffe6b4;
+  --sc-window-2:    #eec489;
+  --sc-iron:        #3b2f22;
+  --sc-lit:         #ffd977;
+  --sc-flame:       #fff3d4;
+  --sc-rimlight:    rgba(255,244,214,.72);
+  --sc-contact:     rgba(58,38,16,.28);
+  --sc-timber:      #4a3521;
+  --sc-timber-2:    #5b4229;
+  --sc-shelf:       #4a3521;
+  --sc-prop:        #4a3521;
+  --sc-prop-lit:    #d8b57c;
+  --sc-figure:      #3b2a1a;
+  --sc-figure-2:    #4d3823;
+  --sc-comb:        #a8402c;
+  --sc-counter-face:#3a2a17;
+  --sc-counter-lip: #e0bd84;
+  /* The counter keeps the SAME value range in both themes on purpose: the
+     offers laid on it read the scene ink roles (--scene-ink*), which stay light
+     in both. A golden-hour counter put cream type on tan at ~2.2:1. */
+  --sc-counter-far: #6b4d2c;
+  --sc-counter-near:#4a3620;
+  --sc-counter-grain: rgba(0,0,0,.30);
+  --sc-top-0:     #4a3620;
+  --sc-top-1:     #33240f;
+  --sc-mat:       #7d5c38;
+  --sc-mat-2:     #6a4c2c;
+  --sc-stitch:    rgba(255,244,220,.28);
+  --sc-tag:       #fdf4dd;
+  --sc-tag-ink:   #3d2817;
+  --sc-prem-ink:  #4b57a8;
+  --sc-prem-ink2: #2c3477;
+  --sc-prem-line: rgba(75,87,168,.40);
+  --sc-prem-bg:   rgba(75,87,168,.08);
+  --sc-gem-tag:   #dfe3fb;
+  --sc-gem-ink:   #23295e;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * PART A — THE BOUNTY BOARD
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* The board is a built object: a timber frame around a recessed plank field,
+   standing proud of the panel with its own contact shadow. */
+body[data-theme] #panel-bounty .bb-board {
+  position: relative;
+  padding: 40px 14px 12px;                  /* 40 = the top beam the lantern hangs from */
+  border-radius: 3px;                       /* carpentry, not a web card */
+  background: linear-gradient(180deg, var(--bb-frame-0), var(--bb-frame-1));
+  box-shadow:
+    inset 0 1px 0 rgba(255,232,190,.10),
+    inset 0 -2px 4px rgba(0,0,0,.5),
+    0 10px 22px -12px rgba(0,0,0,.85);
+}
+/* The top beam: a heavier timber across the head of the board, catching the
+   lantern on its upper edge and casting a hard line onto the planks below. */
+body[data-theme] #panel-bounty .bb-board::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 34px;
+  border-radius: 3px 3px 0 0;
+  background:
+    radial-gradient(ellipse 34% 180% at 78% 100%, rgba(255,186,110,.18), rgba(255,186,110,0) 70%),
+    linear-gradient(180deg, var(--bb-frame-0), var(--bb-frame-1) 78%, rgba(0,0,0,.55));
+  box-shadow: inset 0 1px 0 rgba(255,232,190,.13), 0 2px 5px -1px rgba(0,0,0,.7);
+  pointer-events: none;
+}
+/* The plank field, recessed behind the frame, lit from the lantern corner. */
+body[data-theme] #panel-bounty .bb-board::before {
+  content: '';
+  position: absolute; inset: 40px 14px 12px;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse 70% 90% at 92% 2%, rgba(255,186,110,.17), rgba(255,186,110,0) 60%),
+    repeating-linear-gradient(90deg,
+      var(--bb-plank-0) 0, var(--bb-plank-0) 62px,
+      var(--bb-grain) 62px, var(--bb-grain) 63px,
+      var(--bb-plank-1) 63px, var(--bb-plank-1) 124px,
+      var(--bb-seam) 124px, var(--bb-seam) 126px);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.65), inset 0 -1px 0 rgba(255,232,190,.05);
+  pointer-events: none;
+}
+/* The lantern hangs off the top rail. `.hrs-svg` is deliberately NOT used here:
+   backdrop.js gives that class `position:absolute;inset:0`, which over-constrains
+   left+right and pinned the lantern to the opposite corner. */
+body[data-theme] #panel-bounty .bb-lantern {
+  position: absolute; top: 4px; right: 22px; left: auto;
+  width: 54px; height: 70px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;                               /* hangs in front of the notices */
+}
+
+/* Notices. auto-fill so the board holds however many bounties the tier posts —
+   three today, more at the tier-2 board — without a hardcoded column count. */
+body[data-theme] #panel-bounty .bb-notices {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(202px, 1fr));
+  gap: 24px 20px;
+  padding: 20px 14px 12px;
+  align-items: start;
+}
+/* Nobody nails three notices to a board at exactly the same height. A few
+   pixels of stagger, fixed per column, is the difference between a board and
+   a table of cards. */
+body[data-theme] #panel-bounty .bb-notice:nth-child(3n+2) { margin-top: 9px; }
+body[data-theme] #panel-bounty .bb-notice:nth-child(3n)   { margin-top: 4px; }
+body[data-theme] #panel-bounty .bb-notices.is-single {
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
+  justify-items: center;
+}
+
+body[data-theme] #panel-bounty .bb-notice {
+  position: relative;
+  /* A notice is a hand-sized sheet. Uncapped, a single-column board stretched
+     one to 760px — at which width a 1deg tilt drops the far corner 15px and the
+     sheet reads as a torn banner, not a notice. */
+  max-width: 420px;
+  padding: 23px 16px 14px;
+  background:
+    radial-gradient(ellipse 60% 40% at 18% 8%, rgba(255,255,255,.34), rgba(255,255,255,0) 60%),
+    radial-gradient(ellipse 70% 50% at 88% 96%, var(--bb-fold), rgba(0,0,0,0) 62%),
+    linear-gradient(158deg, var(--bb-paper-0) 0%, var(--bb-paper-1) 62%, var(--bb-paper-2) 100%);
+  /* Hand-cut paper: a deckled edge, small enough that no content is ever near
+     the clip. Offsets are fixed, not random — this must not shimmer on repaint. */
+  clip-path: polygon(
+    0.6% 1.2%, 14% 0.2%, 28% 1.4%, 43% 0.3%, 58% 1.5%, 72% 0.4%, 86% 1.3%, 99.5% 0.5%,
+    99% 15%, 99.7% 32%, 98.8% 50%, 99.6% 68%, 99% 85%, 99.4% 99%,
+    85% 98.6%, 70% 99.6%, 55% 98.5%, 40% 99.7%, 25% 98.6%, 11% 99.5%, 0.4% 98.8%,
+    1% 84%, 0.2% 67%, 1.1% 50%, 0.3% 33%, 0.9% 16%);
+  transform: rotate(var(--bb-rot, 0deg));
+  transform-origin: var(--bb-pin, 50%) 8px;
+  filter: drop-shadow(-3px 6px 7px rgba(0,0,0,.6));
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+/* An iron nail struck through the sheet, casting away from the lantern. The
+   sheet hangs from it — hence the transform-origin above. */
+body[data-theme] #panel-bounty .bb-nail {
+  position: absolute; top: 7px; left: var(--bb-pin, 50%);
+  width: 11px; height: 11px; margin-left: -5.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, var(--bb-nail-0), var(--bb-nail-1) 72%);
+  box-shadow: 0 1px 0 rgba(255,240,210,.22), -1px 2px 2px rgba(0,0,0,.5);
+  z-index: 2;
+}
+
+/* Type on paper reads paper ink, never --ink. See this file's header for why
+   three ids and !important are both required. */
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice,
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice * { color: var(--bb-ink) !important; }
+
+body[data-theme] #panel-bounty .bb-head { display: flex; gap: 11px; align-items: flex-start; }
+/* The painted portrait is PRINTED on the notice — desaturated to ink and
+   multiplied into the paper — rather than pasted on top of it as a sticker. */
+body[data-theme] #panel-bounty .bb-cut {
+  flex: 0 0 44px; width: 44px; height: 44px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  overflow: hidden;
+  border: 1.5px solid var(--bb-rule);
+  box-shadow: inset 0 0 9px rgba(70,50,26,.30);
+  background: radial-gradient(circle at 40% 32%, rgba(255,255,255,.34), rgba(120,92,48,.10));
+}
+body[data-theme] #panel-bounty .bb-cut img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: grayscale(1) sepia(.45) brightness(1.14) contrast(1.14);
+  mix-blend-mode: multiply;
+}
+body[data-theme] #panel-bounty .bb-ident { min-width: 0; }
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-kind {
+  display: block;
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--bb-ink-3) !important;
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-kind.is-grave { color: var(--bb-seal) !important; }
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-name {
+  display: block;
+  font-family: var(--f-display);
+  font-size: 19px; font-weight: 600; line-height: 1.15;
+  color: var(--bb-ink) !important;
+  overflow-wrap: anywhere;
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-task {
+  margin: 11px 0 3px;
+  font-size: var(--t-small); line-height: 1.4;
+  color: var(--bb-ink-2) !important;
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-weak {
+  margin: 0;
+  font-size: var(--t-micro); color: var(--bb-ink-3) !important;
+}
+/* The pay line is ruled off, the way a clerk would rule a form. */
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-pay {
+  margin-top: auto; padding-top: 9px;
+  border-top: 1px solid var(--bb-rule);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px;
+  font-size: var(--t-micro); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--bb-ink-2) !important;
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-pay .hr-glyph { color: var(--bb-ink-2) !important; }
+body[data-theme] #panel-bounty .bb-foot {
+  margin-top: 12px;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+/* A gilt web button dropped on paper reads as UI pasted over art. Given an ink
+   edge and a squared corner it reads as a brass plate nailed to the sheet. */
+body[data-theme] #panel-bounty .bb-notice .btn {
+  border-radius: 3px;
+  border-color: var(--bb-ink-3);
+  box-shadow: inset 0 1px 0 rgba(255,246,220,.5), 0 1px 2px rgba(70,50,26,.4);
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn-primary { color: var(--bb-plate) !important; }
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn:not(.btn-primary) {
+  background: rgba(70,50,26,.07) !important;
+  color: var(--bb-ink-2) !important;
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn-danger {
+  background: none !important; border-color: var(--bb-seal); color: var(--bb-seal) !important;
+}
+
+/* Progress, on paper: an ink-ruled trough with a sepia fill. */
+body[data-theme] #panel-bounty .bb-prog { margin-top: 13px; }
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-prog-t {
+  display: block; margin-bottom: 5px;
+  font-size: var(--t-micro); font-weight: 700; color: var(--bb-ink-2) !important;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] #panel-bounty .bb-bar {
+  display: block; height: 8px; border-radius: 1px;
+  background: rgba(70,50,26,.14);
+  border: 1px solid var(--bb-rule);
+  overflow: hidden;
+}
+body[data-theme] #panel-bounty .bb-bar i {
+  display: block; height: 100%;
+  background: linear-gradient(180deg, #a8853f, #7d6028);
+}
+
+/* THE ONE STRONG DEVICE for a taken notice: a clerk's stamp, struck crooked,
+   sunk into the paper (multiply) rather than floating over it. */
+body[data-theme] #panel-bounty .bb-notice.is-taken {
+  filter: drop-shadow(-3px 6px 7px rgba(0,0,0,.6)) saturate(.88);
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-stamp {
+  position: absolute; top: 30px; right: 14px;
+  padding: 4px 13px 3px;
+  font-family: var(--f-display);
+  font-size: 17px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--bb-seal) !important;
+  border: 2.5px solid var(--bb-seal);
+  border-radius: 2px;
+  transform: rotate(-11deg);
+  opacity: .7;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* The bottom rail of the frame — where the board's own controls live. */
+body[data-theme] #panel-bounty .bb-rail {
+  position: relative;
+  margin-top: 7px; padding: 10px 12px 2px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-top: 1px solid rgba(236,225,204,.07);
+}
+body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-rail-t {
+  font-size: var(--t-micro); color: var(--bb-rail-ink) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * PART B — THE SHOP
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* The scene and the offers are one object. The scene's bottom edge IS the back
+   of the counter; the list below is the rest of the counter top. */
+/* Authored at 1600x200 — the band's OWN aspect. The first cut was drawn at
+   900x200 and dropped into an 8:1 strip, so `slice` cropped 100 viewBox units
+   off the top and all that survived was the keeper's shoulders. Draw for the
+   frame you have; aspect-ratio here keeps the frame and the drawing agreeing. */
+body[data-theme] #panel-shop .sc-scene {
+  position: relative;
+  aspect-ratio: 8 / 1;
+  min-height: 104px;
+  max-height: 182px;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(236,225,204,.06);
+}
+body[data-theme] #panel-shop .sc-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+body[data-theme] #panel-shop .sc-figure   { fill: var(--sc-figure); }
+body[data-theme] #panel-shop .sc-figure2  { fill: var(--sc-figure-2); }
+/* The lit edge is a STROKE along the lantern-facing contour, not an offset copy
+   of the whole silhouette — an offset copy outlines the figure on every side
+   and reads as a sticker rather than as light. */
+body[data-theme] #panel-shop .sc-rimline {
+  fill: none;
+  stroke: var(--sc-rimlight);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body[data-theme] #panel-shop .sc-comb     { fill: var(--sc-comb); }
+body[data-theme] #panel-shop .sc-prop-lit { fill: var(--sc-prop-lit); }
+
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter {
+  position: relative;
+  padding: 6px 13px 14px;
+  border-radius: 0 0 3px 3px;
+  background:
+    radial-gradient(ellipse 60% 100% at 22% 0%, rgba(255,186,110,.10), rgba(255,186,110,0) 64%),
+    linear-gradient(180deg, var(--sc-top-0), var(--sc-top-1) 88%) !important;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(236,225,204,.05);
+}
+/* Plank seams running back-to-front, so the surface reads as a table top. */
+body[data-theme] #panel-shop .sc-counter::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 0 0 3px 3px;
+  background: repeating-linear-gradient(90deg,
+    rgba(0,0,0,0) 0, rgba(0,0,0,0) 118px,
+    var(--sc-counter-grain) 118px, var(--sc-counter-grain) 119px);
+  opacity: .3;
+  pointer-events: none;
+}
+body[data-theme] #panel-shop .sc-counter > * { position: relative; }
+
+/* Each offer is laid out on the counter: a cloth mat, the ware, a price tag. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row {
+  background: none !important;
+  border: 0;
+  border-bottom: 1px solid rgba(0,0,0,.30);
+  border-radius: 0;
+  padding: 9px 4px;
+  gap: 13px;
+  align-items: center;
+}
+body[data-theme] #panel-shop .sc-counter .shop-row:last-child { border-bottom: 0; }
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row:hover { background: rgba(255,236,200,.06) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row .si {
+  width: 44px; height: 44px; flex: 0 0 44px;
+  display: grid; place-items: center;
+  border-radius: 2px;
+  background: linear-gradient(158deg, var(--sc-mat), var(--sc-mat-2));
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    inset 0 0 0 2px var(--sc-stitch),        /* stitched linen edge */
+    0 2px 3px -1px rgba(0,0,0,.6);
+}
+body[data-theme] #panel-shop .sc-counter .shop-row .si img {
+  width: 34px; height: 34px; object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.6));
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .si .hr-glyph { color: var(--gold-2) !important; }
+/* Gem-priced wares carry the premium hue on their art too, so the whole row
+   agrees about which currency it wants. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .si.is-prem .hr-glyph { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .info b {
+  font-size: 16px; font-weight: 600; color: var(--scene-ink) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .info > span {
+  font-size: var(--t-micro); color: var(--scene-ink-3) !important;
+}
+/* The price hangs off the ware as a tag — notched at the string end. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price {
+  position: relative;
+  padding: 4px 11px 4px 17px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--sc-tag), var(--sc-tag) 62%, rgba(0,0,0,.07)) !important;
+  color: var(--sc-tag-ink) !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 50%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.55);
+  white-space: nowrap;
+  min-width: 0;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price .hr-glyph { color: var(--sc-tag-ink) !important; }
+/* The tag's string hole. */
+body[data-theme] #panel-shop .sc-counter .shop-row .price::before {
+  content: '';
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(0,0,0,.45);
+}
+/* Gem-priced wares keep the sapphire role — a cosmetic is bought with the
+   premium currency and must not look like a gold purchase. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price.gem {
+  background: linear-gradient(180deg, var(--sc-gem-tag), rgba(0,0,0,.10)) !important;
+  color: var(--sc-gem-ink) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price.gem .hr-glyph { color: var(--sc-gem-ink) !important; }
+
+/* A shelf label burnt into the counter — not another card heading. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-sep {
+  margin: 17px 0 2px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0,0,0,.34);
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--scene-ink-3) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-note {
+  margin-top: 13px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--t-micro); color: var(--scene-ink-3) !important;
+}
+
+/* ── The real-money surface ────────────────────────────────────────────────
+ * Sapphire is reserved for real money (art-direction.css §6). The store's Buy
+ * buttons were struck gilt — the exact same control that spends in-game gold
+ * one card lower on the same screen. Nothing about a $49.99 charge should look
+ * like a 150g seed purchase, and nothing on the warm wooden counter should
+ * look like it takes a credit card.
+ * ---------------------------------------------------------------------- */
+/* Every card-head already carries a 3px gilt keyline; the premium one turns
+   sapphire, so the two shelves on this screen are told apart before a single
+   word is read. */
+body[data-theme] #panel-shop#panel-shop#panel-shop .card:has(> #iap-panel) .card-head {
+  border-left-color: var(--gem) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop .card:has(> #iap-panel) .card-head .card-title { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card {
+  /* cool cast — the premium shelf is lit differently from the warm shop */
+  background: linear-gradient(180deg, var(--sc-prem-bg), rgba(0,0,0,.20)) !important;
+  border-color: var(--sc-prem-line) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .iap-icon { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .ribbon {
+  background: var(--sc-prem-bg) !important;
+  color: var(--sc-prem-ink) !important;
+  border-color: var(--sc-prem-line) !important;
+}
+body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .iap-price { color: var(--sc-prem-ink2) !important; }
+body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
+
+/* ── Narrow viewports ──────────────────────────────────────────────────────
+ * Mobile is landscape-only and treated as a scaled desktop, so nothing here
+ * changes the composition — the notices simply stop being a multi-column grid
+ * before they get too narrow to read, and the scene loses some height.
+ * ---------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  /* NOT forced to one column — the mobile card is still ~740px wide, which
+     auto-fill fills with three readable notices. Forcing 1fr here produced
+     760px-wide sheets, which is what the max-width above now also guards. */
+  body[data-theme] #panel-bounty .bb-notices { gap: 20px 14px; padding: 18px 10px 10px; }
+  body[data-theme] #panel-bounty .bb-notices.is-single { grid-template-columns: 1fr; justify-items: center; }
+  body[data-theme] #panel-bounty .bb-lantern { width: 46px; height: 60px; right: 8px; }
+  body[data-theme] #panel-shop .sc-scene { min-height: 92px; max-height: 132px; }
+}
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  body[data-theme] #panel-bounty .bb-board { padding: 11px 9px 9px; }
+  body[data-theme] #panel-bounty .bb-board::before { inset: 11px 9px 9px; }
+  body[data-theme] #panel-shop .sc-counter .shop-row .si { width: 38px; height: 38px; flex: 0 0 38px; }
+  body[data-theme] #panel-shop .sc-counter .shop-row .si img { width: 29px; height: 29px; }
+}
+
+/* ── Wide counters ────────────────────────────────────────────────────────
+ * On a monitor the counter is ~1,080px and a single column of offers left a
+ * 500px void down the middle of every row — a price list with the numbers
+ * pushed to the far wall. Wares are laid out ACROSS the counter instead.
+ * ---------------------------------------------------------------------- */
+@media (min-width: 1060px) {
+  body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+    align-content: start;
+  }
+  body[data-theme] #panel-shop .sc-counter > .sc-sep,
+  body[data-theme] #panel-shop .sc-counter > .sc-note { grid-column: 1 / -1; }
+}
+
+/* Rotation is decoration; the notice is the content. */
+@media (prefers-reduced-motion: reduce) {
+  body[data-theme] #panel-bounty .bb-notice { transform: none; }
+}

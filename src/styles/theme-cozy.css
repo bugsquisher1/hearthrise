@@ -5332,6 +5332,56 @@ body[data-theme="hearthlight"] .td-pet-pane .td-companion-slot {
   width: 96px !important; height: 96px !important; aspect-ratio: auto !important;
   font-size: 40px !important;
 }
+/* b218 (backlog #4): equipped companion's own progression, shown in the doll's
+   Companion tab beneath the equip slot. Mirrors the Stable card data. */
+body[data-theme="hearthlight"] .td-companion-info {
+  width: 100%; max-width: 230px; margin: 12px auto 0; text-align: left;
+}
+body[data-theme="hearthlight"] .td-comp-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+body[data-theme="hearthlight"] .td-comp-icon { font-size: 26px; line-height: 1; }
+body[data-theme="hearthlight"] .td-comp-name {
+  color: var(--ink) !important; font: 700 13px/1.2 var(--f-ui);
+}
+body[data-theme="hearthlight"] .td-comp-lv { color: var(--gold-2) !important; font-weight: 700; }
+body[data-theme="hearthlight"] .td-comp-role {
+  color: var(--ink-3) !important; font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; margin-top: 2px;
+}
+body[data-theme="hearthlight"] .td-comp-bar {
+  height: 7px; border-radius: 4px; overflow: hidden;
+  background: rgba(0,0,0,.28); border: 1px solid var(--line-soft);
+}
+body[data-theme="hearthlight"] .td-comp-bar i {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-2));
+}
+body[data-theme="hearthlight"] .td-comp-xp {
+  color: var(--ink-3) !important; font-size: 10px; margin: 3px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme="hearthlight"] .td-comp-bonuses {
+  display: flex; flex-wrap: wrap; gap: 4px 8px;
+}
+body[data-theme="hearthlight"] .td-comp-bonus {
+  font-size: 11px; color: var(--ink-2) !important;
+}
+body[data-theme="hearthlight"] .td-comp-bonus b { color: var(--gold-2) !important; }
+body[data-theme="hearthlight"] .td-comp-proc {
+  margin-top: 8px; font-size: 10px; font-style: italic; color: var(--ink-3) !important;
+}
+body[data-theme="hearthlight"] .td-comp-empty {
+  color: var(--ink-3) !important; font-size: 12px; text-align: center; line-height: 1.7;
+}
+body[data-theme="hearthlight"] .td-comp-stable {
+  margin-top: 8px; padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--gold-bg) !important; border: 1px solid var(--line-strong) !important;
+  color: var(--gold-2) !important; font: 700 11px/1 var(--f-ui);
+  letter-spacing: .05em;
+}
+body[data-theme="hearthlight"] .td-comp-stable:hover { filter: brightness(1.1); }
+
 body[data-theme="hearthlight"] .td-bonus-btn {
   width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer;
   background: linear-gradient(180deg, var(--gold-2), var(--gold)) !important;

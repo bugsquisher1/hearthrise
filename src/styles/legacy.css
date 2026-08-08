@@ -642,7 +642,11 @@ img,svg{display:block;max-width:100%}
 /* ─── tablet (<=1180px): smaller nav, condensed dashboard ─── */
 @media (max-width:1180px){
   :root{--nav-w:64px}
-  .brand-name,.nav-btn .lbl{display:none}
+  /* b213 (phase 2): in icon-rail mode the section headers ("Adventure",
+     "Economy", "Homestead") clipped to garbage like "ADV" — hide them
+     along with the text labels. */
+  .brand-name,.nav-btn .lbl,.nav-group-label{display:none}
+  .nav-foot span:last-child{display:none}   /* rail mode: dot only, no clipped "Offl…" text */
   .nav-btn{justify-content:center;padding:6px}
   .brand{justify-content:center;padding:6px 0 10px}
   #panel-profile.active{

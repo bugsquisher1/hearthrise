@@ -48,6 +48,11 @@
       '#panel-profile.active:has(#' + ROOT_ID + ') > .feat-buttons,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .prof-toolbar,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .dash-grid{display:none !important}',
+      /* b213 (phase 2): legacy "block 30" forces the profile panel into a
+         two-column dashboard grid (450px cells). This component owns the
+         whole panel — without this reset it gets crushed into one cell and
+         renders as a broken half-width column. */
+      '#panel-profile.active:has(#' + ROOT_ID + '){display:block !important}',
       '#panel-profile #' + ROOT_ID + '{display:block;max-width:1120px;margin:0 auto;padding:6px 4px 24px;font-family:var(--f-ui);color:var(--ink) !important}',
 
       R + '.hd-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}',
@@ -109,9 +114,13 @@
       R + '.hd-cta.ghost{background:transparent !important;color:var(--accent,var(--green)) !important;border:1px solid color-mix(in srgb,var(--accent,var(--green)) 50%,transparent) !important;box-shadow:none}',
 
       R + '.hd-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}',
-      R + '.hd-tile{background:var(--bg-2) !important;border:1px solid var(--line) !important;border-radius:12px;padding:13px}',
-      R + '.hd-tile b{font-family:var(--f-display);font-size:22px;color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',
-      R + '.hd-tile span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3) !important;font-weight:700}',
+      /* b213 (phase 2): the cozy sheet's always-on `[class*="tile"]` rules
+         painted the Today row cream-on-dark (washed-out strip with unreadable
+         numbers). Repeated-id prefix beats their specificity for good. */
+      '#panel-profile#panel-profile #hd-root .hd-tiles{background:transparent !important;border:0 !important;padding:0 !important}',
+      '#panel-profile#panel-profile #hd-root .hd-tile{background:var(--bg-2) !important;border:1px solid var(--line) !important;border-radius:12px;padding:13px}',
+      '#panel-profile#panel-profile #hd-root .hd-tile b{font-family:var(--f-display);font-size:22px;color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',
+      '#panel-profile#panel-profile #hd-root .hd-tile span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3) !important;font-weight:700}',
 
       R + '.hd-mini{padding:15px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:var(--bg-2) !important;border:1px solid var(--line) !important}',
@@ -142,23 +151,33 @@
   var call = function (fn) { try { return typeof fn === 'function' ? fn() : null; } catch (e) { return null; } };
 
   // Map a quest to a place ("every card is a door").
+  /* b213 (phase 2): gilt SVG glyph from the shared icon set. Falls back to
+     the supplied emoji only until the icon paths finish their one-time
+     fetch — after that the dashboard is emoji-free (directive). */
+  function gly(key, px, fallback, color) {
+    var IS = window.HearthriseIconSet;
+    var p = key && IS && IS.path && IS.path(key);
+    if (!p) return fallback || '';
+    return '<svg viewBox="0 0 512 512" style="width:' + (px || 20) + 'px;height:' + (px || 20) + 'px;' +
+      'display:inline-block;vertical-align:middle" aria-hidden="true"><path fill="' + (color || 'var(--gold-2)') + '" d="' + p + '"/></svg>';
+  }
   function questRoute(label) {
     var l = (label || '').toLowerCase();
     var map = [
-      ['fish', { icon: '🎣', verb: 'Go fish', accent: 'var(--green)', go: function () { nav('skills'); openSkill('fishing'); } }],
-      ['cook', { icon: '🍳', verb: 'Cook', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('cooking'); } }],
-      ['wood|log|chop|tree', { icon: '🪓', verb: 'Chop', accent: 'var(--green)', go: function () { nav('skills'); openSkill('woodcutting'); } }],
-      ['min(e|ing)|ore|rock', { icon: '⛏️', verb: 'Mine', accent: 'var(--green)', go: function () { nav('skills'); openSkill('mining'); } }],
-      ['smith|smelt|bar', { icon: '⚒️', verb: 'Smith', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('smithing'); } }],
-      ['craft', { icon: '🧵', verb: 'Craft', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('crafting'); } }],
-      ['farm|plant|harvest|crop|seed', { icon: '🌾', verb: 'Farm', accent: 'var(--hearth,var(--red))', go: function () { nav('farming'); } }],
-      ['gold|sell|coin|market|trade', { icon: '🪙', verb: 'Sell', accent: 'var(--gold)', go: function () { nav('market'); } }],
-      ['kill|defeat|slay|monster|combat|fight', { icon: '⚔️', verb: 'Fight', accent: 'var(--red)', go: function () { nav('combat'); } }]
+      ['fish', { key: 'fishing', icon: '🎣', verb: 'Go fish', accent: 'var(--green)', go: function () { nav('skills'); openSkill('fishing'); } }],
+      ['cook', { key: 'cooking', icon: '🍳', verb: 'Cook', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('cooking'); } }],
+      ['wood|log|chop|tree', { key: 'woodcutting', icon: '🪓', verb: 'Chop', accent: 'var(--green)', go: function () { nav('skills'); openSkill('woodcutting'); } }],
+      ['min(e|ing)|ore|rock', { key: 'mining', icon: '⛏️', verb: 'Mine', accent: 'var(--green)', go: function () { nav('skills'); openSkill('mining'); } }],
+      ['smith|smelt|bar', { key: 'smithing', icon: '⚒️', verb: 'Smith', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('smithing'); } }],
+      ['craft', { key: 'crafting', icon: '🧵', verb: 'Craft', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('crafting'); } }],
+      ['farm|plant|harvest|crop|seed', { key: 'farming', icon: '🌾', verb: 'Farm', accent: 'var(--hearth,var(--red))', go: function () { nav('farming'); } }],
+      ['gold|sell|coin|market|trade', { key: 'gold', icon: '🪙', verb: 'Sell', accent: 'var(--gold)', go: function () { nav('market'); } }],
+      ['kill|defeat|slay|monster|combat|fight', { key: 'navCombat', icon: '⚔️', verb: 'Fight', accent: 'var(--red)', go: function () { nav('combat'); } }]
     ];
     for (var i = 0; i < map.length; i++) {
       if (new RegExp(map[i][0]).test(l)) return map[i][1];
     }
-    return { icon: '🎯', verb: 'View', accent: 'var(--gold)', go: function () { openQuests(); } };
+    return { key: 'bountyHunter', icon: '🎯', verb: 'View', accent: 'var(--gold)', go: function () { openQuests(); } };
   }
   function nav(t) { if (typeof window.showTab === 'function') window.showTab(t); }
   function openSkill(id) { if (typeof window.openSkillDetail === 'function') window.openSkillDetail(id); }
@@ -204,9 +223,10 @@
     var html = '';
     // ── header ──
     html += '<div class="hd-top">';
-    html += '<div class="hd-who"><div class="hd-ava">🧑‍🌾</div><div style="min-width:0">';
+    html += '<div class="hd-who"><div class="hd-ava" style="overflow:hidden;padding:0">' +
+      '<img src="assets/icons-bundle/painted/npc/player.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
     html += '<div class="hd-name">' + esc(playerName()) +
-      '<button class="hd-rename" title="Rename" data-hd="rename">✏️</button></div>';
+      '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 13, '✎', 'var(--ink-3)') + '</button></div>';
     html += '<div class="hd-sub' + (isOnline() ? '' : ' off') + '">' + (isOnline() ? '● Online · cloud save active' : 'Offline play · sign in to sync') + '</div>';
     html += '</div></div>';
     html += '<div class="hd-pills">';
@@ -217,7 +237,7 @@
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
       try {
         var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
-        html += '<div class="hd-pill" data-hd="collection" style="cursor:pointer"><em>📖 Log</em><b>' + _clp + '%</b></div>';
+        html += '<div class="hd-pill" data-hd="collection" style="cursor:pointer"><em>' + gly('uiQuests', 11, '', 'var(--ink-3)') + ' Log</em><b>' + _clp + '%</b></div>';
       } catch (e) {}
     }
     html += '</div></div>';
@@ -231,10 +251,10 @@
       try {
         var dlrw = DL.rewardFor(G);
         var dlt = [];
-        if (dlrw.gold) dlt.push('🪙 ' + num(dlrw.gold));
-        if (dlrw.gems) dlt.push('💎 ' + num(dlrw.gems));
+        if (dlrw.gold) dlt.push(gly('gold', 13, '', 'var(--gold-2)') + ' ' + num(dlrw.gold) + (gly('gold', 1) ? '' : ' gold'));
+        if (dlrw.gems) dlt.push(gly('gems', 13, '', 'var(--gem)') + ' ' + num(dlrw.gems) + (gly('gems', 1) ? '' : ' gems'));
         html += '<div class="hd-card hd-mile hd-daily" data-hd="daily">' +
-          '<div class="hd-mile-badge">🎁</div>' +
+          '<div class="hd-mile-badge">' + gly('gold', 26, '🎁') + '</div>' +
           '<div class="hd-mile-body">' +
             '<div class="hd-rn-eyebrow">Daily reward · Day ' + DL.cycleDay(G) + '</div>' +
             '<div class="hd-mile-title" style="color:var(--gold)">Reward ready!</div>' +
@@ -254,7 +274,7 @@
         var rpct = Math.round((rs.progress || 0) * 100);
         var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' Renown to ' + esc(rs.next.name));
         html += '<div class="hd-card hd-mile hd-renown" data-hd="renown">' +
-          '<div class="hd-mile-badge">👑</div>' +
+          '<div class="hd-mile-badge">' + gly('totalLvl', 26, '👑') + '</div>' +
           '<div class="hd-mile-body">' +
             '<div class="hd-rn-eyebrow">Renown · Rise to the Throne</div>' +
             '<div class="hd-mile-title" style="color:var(--gold)">' + esc(rs.rank.name) +
@@ -272,7 +292,7 @@
       var mpct = Math.round((mile.pct || 0) * 100);
       var isQuest = mile.kind === 'quest';
       html += '<div class="hd-card hd-mile">' +
-        '<div class="hd-mile-badge">' + esc(mile.icon || '🎯') + '</div>' +
+        '<div class="hd-mile-badge">' + gly('bountyHunter', 26, esc(mile.icon || '🎯')) + '</div>' +
         '<div class="hd-mile-body">' +
         '<div class="hd-mile-title">' + esc(mile.label) + '</div>' +
         '<div class="hd-mile-sub">' + num(mile.current) + ' / ' + num(mile.target) + ' · ' + mpct + '% · next milestone</div>' +
@@ -290,7 +310,7 @@
         var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
         var reward = t.reward ? esc(t.reward) : (t.rewardText ? esc(t.rewardText) : '');
         html += '<div class="hd-card hd-quest" style="--accent:' + r.accent + '">' +
-          '<div class="hd-qic">' + r.icon + '</div>' +
+          '<div class="hd-qic">' + gly(r.key, 22, r.icon) + '</div>' +
           '<div class="hd-qbody">' +
           '<div class="hd-qtitle">' + esc(t.label) + '</div>' +
           '<div class="hd-qmeta"><span class="p">' + num(t.progress || 0) + ' / ' + num(t.goal || 0) + '</span>' +
@@ -301,7 +321,7 @@
           '</div>';
       });
     } else {
-      html += '<div class="hd-card hd-mini"><div class="mi">✅</div><div>All daily quests done — nice. New ones at reset.</div></div>';
+      html += '<div class="hd-card hd-mini"><div class="mi" style="color:var(--green);font-weight:800">✓</div><div>All daily quests done — nice. New ones at reset.</div></div>';
     }
     html += '</div></div>';
 
@@ -320,12 +340,12 @@
     // resume / current
     if (activeName) {
       html += '<div><div class="hd-h"><h3>Right now</h3></div>' +
-        '<div class="hd-card hd-mini"><div class="mi">' + (G.activeMonster ? '⚔️' : '🛠️') + '</div>' +
+        '<div class="hd-card hd-mini"><div class="mi">' + (G.activeMonster ? gly('navCombat', 20, '⚔️') : gly(G.activeSkill || 'smithing', 20, '🛠️')) + '</div>' +
         '<div><b>' + esc(activeName) + '</b><div style="font-size:12px;color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
         '<button class="hd-cta ghost" style="--accent:var(--gold)" data-hd="active">Open →</button></div></div>';
     } else if (resume) {
       html += '<div><div class="hd-h"><h3>Jump back in</h3></div>' +
-        '<div class="hd-card hd-mini"><div class="mi">' + esc(resume.icon || '🛠️') + '</div>' +
+        '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, esc(resume.icon || '')) + '</div>' +
         '<div><b>' + esc(resume.label) + '</b></div>' +
         '<button class="hd-cta ghost" style="--accent:var(--green)" data-hd="resume">Resume →</button></div></div>';
     }
@@ -334,8 +354,8 @@
     var hasFood = G.foodSlot || (G.buffs && G.buffs.length);
     html += '<div><div class="hd-h"><h3>Buffs</h3></div>' +
       '<div class="hd-card hd-mini">' + (hasFood
-        ? '<div class="mi">🍖</div><div>Active buffs running.</div>'
-        : '<div class="mi">🍖</div><div>No food buffs active. <span style="color:var(--hearth,var(--red));font-weight:600;cursor:pointer" data-hd="cook">Cook something →</span></div>') +
+        ? '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>Active buffs running.</div>'
+        : '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>No food buffs active. <span style="color:var(--hearth,var(--red));font-weight:600;cursor:pointer" data-hd="cook">Cook something →</span></div>') +
       '</div></div>';
 
     html += '</div></div>';

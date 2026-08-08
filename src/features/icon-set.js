@@ -47,7 +47,8 @@
     uiFlame: ['lorc/small-fire'],
     /* b213 QA: topbar Quests button carried a raw 📜 the b210-212 purge
        missed — give it a proper gilt scroll glyph. */
-    uiQuests: ['lorc/scroll-unfurled', 'lorc/tied-scroll']
+    uiQuests: ['lorc/scroll-unfurled', 'lorc/tied-scroll'],
+    uiEdit: ['lorc/feather', 'delapouite/pencil', 'lorc/quill-ink']
   };
 
   // category accent per key (CSS token names)

@@ -6903,8 +6903,9 @@ window.buildTibiaDoll = function(){
       slot.innerHTML = (def.icon||'·');
       slot.setAttribute('draggable','true');
     } else {
-      // b190: faint gilt line-glyph instead of a colorful emoji placeholder
-      slot.innerHTML = slotGlyphSVG(s);
+      // b192: bigger gilt line-glyph + a slot NAME label so it's obvious what
+      // goes where (faint tiny glyphs alone were unreadable).
+      slot.innerHTML = slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(slotLabel||s)+'</span>';
     }
     doll.appendChild(slot);
   });

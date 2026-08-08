@@ -4,7 +4,7 @@ _What each agent is doing right now. Update when you start, change scope, or fin
 
 | Agent | Task | Files being modified | Depends on | Possible conflicts | Status | Updated |
 |---|---|---|---|---|---|---|
-| Coordinator | b219 shipped; Wave 2 dispatch next | `.claude/**` | — | none | in progress | 2026-08-08 |
+| Coordinator | b221 shipped; Wave 3 next (Clan Seat Phase A per clan-overhaul v2 §16, Hunt, leaderboards) | `.claude/**` | — | none | in progress | 2026-08-08 |
 | Systems Engineer | **#7** toasts + **#8** chat pill + beta-card emoji | `src/features/toasts.js` (new), `src/legacy.js`, `src/chat.js`, `src/beta-banner.js`, `src/features/daily-reward.js`, CSS | — | — | **done** — merged `8ae0680`, 185/185 (+8 tests) | 2026-08-08 |
 | Art Director | **#6** home hearth band | `home-dashboard.js`, `backdrop.js`, `theme-cozy.css` | — | — | **done** — merged, shipped b219 | 2026-08-08 |
 | Game Designer | Design specs (no code): **#13** watering/auto-replant, **#15** world-event cadence, **#16** clan boss events | `docs/design/*.md` only | — | none (docs only) | **done** — `8b764a1`; found 3 LIVE raid exploits (P1/P2/P3) + 7 cross-spec deps | 2026-08-08 |

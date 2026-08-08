@@ -6,13 +6,13 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 
 ## Build & branch
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b220)
+- **Version:** v0.9.2-beta (build b221)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
-- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) `supabase/migrations/2026-08-08-raid-hardening.sql` 2) `supabase/migrations/2026-08-08-muster.sql`. Both idempotent with self-checks; clients already shipped and feature-detect.
+- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) `2026-08-08-raid-hardening.sql` 2) `2026-08-08-muster.sql` 3) `2026-08-08-unique-names.sql`. All idempotent with self-checks; clients live and feature-detecting.
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **206/206 green, 0 runtime errors** (b220 final gate; +18 over b219).
+- **Smoke:** `node tests/run-smoke.mjs` → **221/221 green, 0 runtime errors** (b221 final gate; +15 over b220).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

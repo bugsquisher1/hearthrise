@@ -32,6 +32,12 @@ Online-only social idle-RPG, OSRS-scale north star. All skills to 99 (data-drive
 - `assets/` structure is frozen (icons-bundle paths wired ~360 places). Prefer add over rename.
 - `snapshotG` save allowlist is a manual 24-field list — fragile.
 
+## Designer ratifications owed (batch after castle panel lands)
+- Hunt: spec §8.6 test-case contradicts §5.2's 20%-of-median floor — implementer followed §5.2 (normative); ratify or re-rule.
+- Hunt-forged kit stats (6 pieces, smithing 90-95 + crafting 95 cape, one rung above Dawnsteel) — Systems-proposed on the b215 curve; ratify.
+- Undeclared-week rule: officers own first 3 UTC days, then next strike auto-founds Tier I (`c_grace_days`); ratify.
+- 18,776 vs 18,780 labour (formula pinned); 3 Phase-B reagents catalogued early; Muster guest-solo-join deviation.
+
 ## Wave 3b inputs (from 3a contracts)
 - Panel builder consumes `window.HearthriseClanSeat` (reducers under test) — do NOT re-derive in a renderer.
 - Designer rulings owed: 18,776 vs 18,780 labour discrepancy (formula pinned by test); 3 Phase-B reagents catalogued early.

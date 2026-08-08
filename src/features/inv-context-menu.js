@@ -40,7 +40,7 @@
   menu.className = 'inv-ctx-menu';
   menu.style.cssText =
     'display:none;position:fixed;z-index:99985;'+
-    'background:rgba(28,22,18,.97);border:1px solid var(--accent,#5fcc7c);'+
+    'background:rgba(28,22,18,.97);border:1px solid var(--accent,#7f9a4f);'+
     'border-radius:8px;padding:4px;min-width:180px;'+
     'box-shadow:0 8px 24px rgba(0,0,0,.4);'+
     'font-family:inherit;font-size:13px;color:#ede4cf';
@@ -210,7 +210,7 @@
     }).join('');
     // Hover highlight
     Array.prototype.forEach.call(menu.querySelectorAll('.inv-ctx-item:not(.disabled)'), function(b){
-      b.onmouseenter = function(){ b.style.background = 'rgba(95,204,124,0.15)'; };
+      b.onmouseenter = function(){ b.style.background = 'rgba(127,154,79,0.15)'; };
       b.onmouseleave = function(){ b.style.background = 'transparent'; };
       b.onclick = function(e){
         e.stopPropagation();

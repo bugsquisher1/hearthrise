@@ -1527,7 +1527,7 @@ function renderProfile(){
     if(window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.getResumePayload === 'function'){
       const payload = window.HearthriseLaunchpad.getResumePayload();
       if(payload){
-        resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#5fcc7c);background:rgba(95,204,124,0.06)">
+        resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.06)">
           <div class="ac-icon">${payload.icon}</div>
           <div style="flex:1;min-width:0"><b>${escapeHtml(payload.label)}</b><span class="tiny muted">Pick up where you left off</span></div>
           <button class="btn btn-sm btn-primary" onclick="window.HearthriseLaunchpad.resume()">Resume</button>
@@ -2030,7 +2030,7 @@ function renderHouse(){
       const newCrops = nextTier ? nextTier.unlocks.filter(c => !tiers[lv].unlocks.includes(c)) : [];
       const newCropsLabel = newCrops.length ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id}`).join(', ') : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
       const canUpgrade = lv < max && have >= need;
-      plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#5fcc7c);background:rgba(95,204,124,0.05)">
+      plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:32px">🌾</span>
         <div class="info">
           <b>Farm Plot · Lv ${lv}/${max}</b>
@@ -8075,7 +8075,7 @@ function addButton(){
   b.textContent = '🧪 Test';
   b.title = 'Run smoke test (Ctrl+Shift+T)';
   b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'+
-    'background:#3a4154;color:#dfe9ee;border:1px solid #5fcc7c;border-radius:4px;'+
+    'background:#3a4154;color:#dfe9ee;border:1px solid #7f9a4f;border-radius:4px;'+
     'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
   b.onmouseenter = function(){b.style.opacity='1';};
   b.onmouseleave = function(){b.style.opacity='.6';};
@@ -8275,7 +8275,7 @@ function showProc(label){
   try{
     var el = document.createElement('div');
     el.textContent = label;
-    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(95,204,124,.95);'+
+    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'+
       'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:12px;'+
       'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
@@ -8485,7 +8485,7 @@ function renderStable(){
       return '<span><b>'+v+'</b> '+label+'</span>';
     }).join(' &nbsp;·&nbsp; ');
 
-    var roleColor = ({combat:'#e88a8a', gather:'#7de6d4', artisan:'#f3d181', utility:'#d4a8e8', hybrid:'#9aa3b0'})[def.role] || '#9aa3b0';
+    var roleColor = ({combat:'#e88a8a', gather:'#e3c77e', artisan:'#f3d181', utility:'#d4a8e8', hybrid:'#9aa3b0'})[def.role] || '#9aa3b0';
     html += '<div class="stable-card '+(equipped?'equipped':'')+' '+(owned?'':'locked')+'">'
       + '<span class="sc-lvl">Lv '+lv+'</span>'
       + '<div class="sc-row"><span class="sc-icon">'+def.icon+'</span><div>'
@@ -8865,7 +8865,7 @@ function buildEquipSummaryCard(){
     + '<div class="cr-stat-row"><span>Total +STR</span><b>+'+totalBonus.str+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +ATK</span><b>+'+totalBonus.atk+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +DEF</span><b>+'+totalBonus.def+'</b><span></span></div>'
-    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(56,199,182,.18);border:1px solid rgba(56,199,182,.35);border-radius:5px;color:#7de6d4;cursor:pointer;font-size:11px;font-weight:700">Manage gear →</button></div>'
+    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:11px;font-weight:700">Manage gear →</button></div>'
   + '</div>';
 }
 
@@ -8944,7 +8944,7 @@ function parseSource(src){
             var t = document.createElement('div');
             t.textContent = '🎉 New companion unlocked: '+def.icon+' '+def.n+'!';
             t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
-              'background:linear-gradient(180deg,#5fcc7c,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'+
+              'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'+
               'font-weight:800;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);'+
               'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
             document.body.appendChild(t);
@@ -9005,9 +9005,9 @@ function parseSource(src){
       row.innerHTML = '<span class="si">'+def.icon+'</span>'
         + '<div class="info"><b>'+def.n+'</b><span>'+def.role+' companion'+reqText+'</span></div>'
         + (owned
-            ? '<span class="tag" style="color:#5fcc7c">Owned</span>'
+            ? '<span class="tag" style="color:#7f9a4f">Owned</span>'
             : (meetsReq
-                ? '<button class="btn btn-sm" onclick="window._buyCompanion(\''+id+'\','+price+')" style="background:#5fcc7c;color:#0f1320;font-weight:700">'+price+'g · Buy</button>'
+                ? '<button class="btn btn-sm" onclick="window._buyCompanion(\''+id+'\','+price+')" style="background:#7f9a4f;color:#0f1320;font-weight:700">'+price+'g · Buy</button>'
                 : '<span class="muted tiny">🔒 '+reqText+'</span>'
               )
           );

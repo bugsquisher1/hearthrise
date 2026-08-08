@@ -49,7 +49,7 @@
     } else if (next === 'degraded') {
       show('☁️ Cloud is slow — playing in local mode', 'rgba(232,200,120,.95)');
     } else {
-      show('✓ Back online', 'rgba(95,204,124,.95)');
+      show('✓ Back online', 'rgba(127,154,79,.95)');
       setTimeout(hide, 1800);
     }
   }

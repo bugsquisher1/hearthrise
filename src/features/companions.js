@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=196';
-import { emit } from '../net/events.js?v=196';
+import { COMPANIONS } from '../data/companions.js?v=200';
+import { emit } from '../net/events.js?v=200';
 
 // XP curve: cumulative XP needed to reach level L. Smooth growth, ~50K at L30.
 export function companionXpToReach(L) {
@@ -152,7 +152,7 @@ function showProc(label) {
   try {
     const el = document.createElement('div');
     el.textContent = label;
-    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(95,204,124,.95);'
+    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'
       + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:12px;'
       + 'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
@@ -228,7 +228,7 @@ function showCompanionUnlockedToast(def) {
     const t = document.createElement('div');
     t.textContent = `🎉 New companion unlocked: ${def.icon} ${def.n}!`;
     t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'
-      + 'background:linear-gradient(180deg,#5fcc7c,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'
+      + 'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'
       + 'font-weight:800;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);'
       + 'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
     document.body.appendChild(t);
@@ -343,7 +343,7 @@ function renderStable() {
   const sub = document.getElementById('stable-sub');
   if (sub) sub.textContent = `${G.companions.ownedIds.length}/${Object.keys(COMPANIONS).length} companions owned`;
 
-  const roleColor = { combat: '#e88a8a', gather: '#7de6d4', artisan: '#f3d181', utility: '#d4a8e8', hybrid: '#9aa3b0' };
+  const roleColor = { combat: '#e88a8a', gather: '#e3c77e', artisan: '#f3d181', utility: '#d4a8e8', hybrid: '#9aa3b0' };
   const labelMap = {
     strB: 'STR', atkB: 'ATK', defB: 'DEF', crit: 'Crit', xpB: 'XP',
     gatherSpeed: 'Gather', farmYield: 'Farm yield', cookSpeed: 'Cook speed',

@@ -45,7 +45,7 @@
     return '0';
   }
   function colorFor(delta){
-    if(delta > 0) return '#5fcc7c';
+    if(delta > 0) return '#7f9a4f';
     if(delta < 0) return '#ff8c8c';
     return 'var(--ink-3)';
   }

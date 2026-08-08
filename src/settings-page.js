@@ -137,7 +137,7 @@
             if(typeof window.saveLocal === 'function') window.saveLocal();
             if(typeof window.render === 'function') window.render();
           }
-          status.style.color = '#5fcc7c';
+          status.style.color = '#7f9a4f';
           status.textContent = '✓ Check your inbox for a confirmation email.';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 2200);
         } else {
@@ -151,7 +151,7 @@
             if(typeof window.saveLocal === 'function') window.saveLocal();
             try { localStorage.removeItem('hearthrise:pending-name'); } catch(e){}
           }
-          status.style.color = '#5fcc7c';
+          status.style.color = '#7f9a4f';
           status.textContent = '✓ Signed in. Syncing your save…';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 800);
         }

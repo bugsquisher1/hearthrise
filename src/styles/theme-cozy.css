@@ -4371,6 +4371,15 @@ body[data-theme="hearthlight"] .panel.active [class*="-title"],
 body[data-theme="hearthlight"] .panel.active [class*="-name"],
 body[data-theme="hearthlight"] .panel.active .card-head,
 body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
+/* b197: card-head is a restrained GILT band, not the bright cream/gold bar
+   that leaked from the cozy theme. Subtle gold wash + gilt underline. */
+body[data-theme="hearthlight"] .card-head {
+  background: linear-gradient(180deg, rgba(201,162,74,.10), rgba(201,162,74,.02)) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+body[data-theme="hearthlight"] .card-head .card-title,
+body[data-theme="hearthlight"] .card-head .card-title::before,
+body[data-theme="hearthlight"] .card-head .card-sub { color: var(--gold-2) !important; }
 body[data-theme="hearthlight"] .panel.active b,
 body[data-theme="hearthlight"] .panel.active strong,
 body[data-theme="hearthlight"] .panel.active p,

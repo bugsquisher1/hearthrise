@@ -4,9 +4,9 @@
 // Imports: SKILLS_DEF, ITEMS, ARTISAN_RECIPES, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=196';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=196';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=196';
+import { SKILLS_DEF } from '../data/skills.js?v=200';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=200';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=200';
 
 function deriveClass() {
   const G = window.G;
@@ -237,7 +237,7 @@ function buildEquipSummaryCard() {
     <div class="cr-stat-row"><span>Total +STR</span><b>+${totalBonus.str}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +ATK</span><b>+${totalBonus.atk}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +DEF</span><b>+${totalBonus.def}</b><span></span></div>
-    <div style="margin-top:8px"><button onclick="showTab('inventory')" style="width:100%;padding:6px;background:rgba(56,199,182,.18);border:1px solid rgba(56,199,182,.35);border-radius:5px;color:#7de6d4;cursor:pointer;font-size:11px;font-weight:700">Manage gear →</button></div>
+    <div style="margin-top:8px"><button onclick="showTab('inventory')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:11px;font-weight:700">Manage gear →</button></div>
   </div>`;
 }
 

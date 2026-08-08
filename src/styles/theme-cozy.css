@@ -4578,7 +4578,82 @@ body[data-theme="hearthlight"] {
     radial-gradient(ellipse 78% 52% at 78% 3%, rgba(224,150,80,.13) 0%, rgba(224,150,80,0) 60%),
     linear-gradient(180deg, #191510 0%, #131009 48%, #0e0b07 80%, #080605 100%);
 
+  /* ── Scene palette (b219) ────────────────────────────────────────────────
+     Painted atmosphere is still colour, so it is still tokens. These are the
+     values the Home hearth band and the global backdrop scene are drawn from
+     (src/features/backdrop.js paints SVG classes, never literals): a Forge &
+     Stone dusk — stone sky bleeding to an ember horizon, black silhouettes,
+     candlelight the only saturated thing in the picture. */
+  --scene-sky-0:     #0c0a08;   /* zenith */
+  --scene-sky-1:     #16120e;
+  --scene-sky-2:     #241d15;
+  --scene-sky-3:     #48311d;
+  --scene-sky-4:     #7d4b23;   /* ember horizon */
+  --scene-glow-1:    rgba(255,186,110,.46);
+  --scene-glow-2:    rgba(206,116,50,.13);
+  --scene-glow-0:    rgba(206,116,50,0);
+  --scene-rim:       rgba(255,190,118,.20);
+  --scene-track:     rgba(214,164,104,.10);
+  --scene-star:      #e0d3b6;
+  --scene-haze-0:    rgba(182,162,132,0);
+  --scene-haze-1:    rgba(182,162,132,.15);
+  --scene-ridge-far: #1a150f;
+  --scene-ridge-mid: #120e0a;
+  --scene-ridge-near:#0b0806;
+  --scene-tree:      #080605;
+  --scene-build:     #090705;
+  --scene-build-2:   #16100b;
+  --scene-furrow:    rgba(236,225,204,.05);
+  --scene-lit:       #ffb457;   /* candle / hearth window */
+  --scene-litglow:   rgba(255,168,74,.30);
+  --scene-firelight: rgba(255,178,92,.16);
+  --scene-fire-0:    rgba(255,178,92,0);
+  --scene-smoke:     rgba(206,190,166,.14);
+  /* Scrims that keep UI legible on top of the picture. */
+  --scene-scrim-1:   rgba(9,7,5,.20);
+  --scene-scrim-2:   rgba(9,7,5,.72);
+  /* Type that sits ON the picture gets its own ink role: its background is the
+     scene under a dark scrim, not the theme's surface, so it stays light in
+     BOTH themes. Reading --ink here put cocoa text on a sunset in Cozy Day. */
+  --scene-ink:       #f4ecda;
+  --scene-ink-2:     #d8cbb1;
+  --scene-ink-3:     #b0a186;
+  --scene-gilt:      #ecd7a0;
+
   color-scheme: dark;
+}
+
+/* Cozy Day is the retired secondary theme, but its tokens must still resolve —
+   a dusk palette under a cream UI would read as a bug. Same scene, golden
+   hour: pale sky, hazy blue-grey distance, warm mid-tones instead of black. */
+body[data-theme="cozy-light"] {
+  --scene-sky-0:     #cfd9e0;
+  --scene-sky-1:     #e2dcc9;
+  --scene-sky-2:     #f0ddb2;
+  --scene-sky-3:     #edc78c;
+  --scene-sky-4:     #e0a866;
+  --scene-glow-1:    rgba(255,240,200,.85);
+  --scene-glow-2:    rgba(255,214,140,.30);
+  --scene-glow-0:    rgba(255,214,140,0);
+  --scene-rim:       rgba(255,250,225,.55);
+  --scene-track:     rgba(120,92,48,.14);
+  --scene-star:      #ffffff;
+  --scene-haze-0:    rgba(255,252,240,0);
+  --scene-haze-1:    rgba(255,252,240,.55);
+  --scene-ridge-far: #a9a887;
+  --scene-ridge-mid: #7d7d55;
+  --scene-ridge-near:#5c5c38;
+  --scene-tree:      #4a5230;
+  --scene-build:     #5b4228;
+  --scene-build-2:   #7a5c38;
+  --scene-furrow:    rgba(60,45,20,.14);
+  --scene-lit:       #ffd977;
+  --scene-litglow:   rgba(255,217,119,.34);
+  --scene-firelight: rgba(255,214,140,.20);
+  --scene-fire-0:    rgba(255,214,140,0);
+  --scene-smoke:     rgba(255,255,255,.55);
+  --scene-scrim-1:   rgba(28,19,9,.06);
+  --scene-scrim-2:   rgba(28,19,9,.76);
 }
 
 /* Body background is set via the --app-bg token for every theme (b151), so a
@@ -4788,8 +4863,7 @@ body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-shop"]
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty .row.between > button,
 body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"],
 body[data-theme="hearthlight"] #panel-shop#panel-shop .row.between > button,
-body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button,
-body[data-theme="hearthlight"] #panel-profile #hd-root .hd-tile {
+body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button {
   background: var(--bg-2) !important; border-color: var(--line) !important;
 }
 

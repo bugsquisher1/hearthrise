@@ -53,7 +53,64 @@
          whole panel — without this reset it gets crushed into one cell and
          renders as a broken half-width column. */
       '#panel-profile.active:has(#' + ROOT_ID + '){display:block !important}',
-      '#panel-profile #' + ROOT_ID + '{display:block;max-width:1120px;margin:0 auto;padding:6px 4px 24px;font-family:var(--f-ui);color:var(--ink) !important}',
+      /* b219: the root is now full-bleed so the hearth band can reach the panel
+         edge; .hd-wrap carries the old 1120px measure for everything else. */
+      '#panel-profile #' + ROOT_ID + '{display:block;margin:0;padding:0 0 20px;font-family:var(--f-ui);color:var(--ink) !important}',
+      R + '.hd-wrap{max-width:1120px;margin:0 auto;padding:0 4px}',
+
+      /* ── b219 · THE HEARTH BAND ───────────────────────────────────────────
+         Home had no background at all: `body` and every `.panel` paint an
+         opaque surface, so the global backdrop scene (backdrop.js, b158) was
+         occluded on literally every screen — the atmosphere existed in code
+         and was invisible in the game. Rather than un-paint the shell (which
+         would drag every other panel with it), Home composes the scene INTO
+         the page: a dusk vista of the player's own holding, with identity
+         standing on the ridge in front of it.
+
+         It is a picture, so it is allowed to be a contained object — that is
+         what "containment is earned" means. It is also the only such object
+         above the fold, so it reads as the focal point instead of card #18. */
+      /* Height scales with the viewport instead of stepping at breakpoints: the
+         picture is always ~a quarter of the screen, so it stays generous on a
+         desktop monitor and never eats a landscape phone's working area. */
+      R + '.hd-hearth{position:relative;height:clamp(104px,24vh,204px);overflow:hidden;isolation:isolate;',
+      'margin:-10px -10px 22px;border-bottom:1px solid var(--line) !important;',
+      'box-shadow:0 10px 26px -22px rgba(0,0,0,.95)}',
+      /* Scrim: light hand over the sky, heavy under the identity block, so the
+         picture survives and the type still clears contrast. */
+      R + '.hd-hearth::after{content:"";position:absolute;inset:0;pointer-events:none;',
+      'background:linear-gradient(180deg,var(--scene-scrim-1) 0%,transparent 34%,var(--scene-scrim-2) 100%),',
+      'linear-gradient(90deg,var(--scene-scrim-2) 0%,transparent 44%)}',
+      R + '.hd-hearth-in{position:relative;z-index:2;height:100%;max-width:1120px;margin:0 auto;',
+      'padding:0 14px 16px;display:flex;align-items:flex-end;gap:16px}',
+
+      R + '.hd-who{display:flex;align-items:flex-end;gap:15px;min-width:0}',
+      R + '.hd-ava{width:74px;height:74px;border-radius:var(--r);flex:0 0 auto;overflow:hidden;',
+      'background:var(--bg-2) !important;border:1px solid var(--line-strong) !important;',
+      'box-shadow:inset 0 1px 0 rgba(255,232,190,.14),0 6px 16px -6px rgba(0,0,0,.95)}',
+      R + '.hd-eyebrow{font-family:var(--f-label);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;',
+      'color:var(--scene-gilt) !important;font-weight:700;margin-bottom:2px;text-shadow:0 1px 6px rgba(0,0,0,.9)}',
+      R + '.hd-name{font-family:var(--f-display);font-size:31px;font-weight:600;line-height:1.05;',
+      'color:var(--scene-ink) !important;display:flex;align-items:center;gap:8px;',
+      'text-shadow:0 2px 10px rgba(0,0,0,.9),0 1px 2px rgba(0,0,0,.9)}',
+      R + '.hd-sub{font-size:13px;color:var(--scene-ink-2) !important;margin-top:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;',
+      'text-shadow:0 1px 6px rgba(0,0,0,.85)}',
+      R + '.hd-sub b{font-family:var(--f-label);color:var(--scene-gilt) !important;font-weight:700;letter-spacing:.02em}',
+      R + '.hd-sub .sep{opacity:.4}',
+      R + '.hd-rename{background:none !important;border:0;cursor:pointer;opacity:.45;padding:2px;line-height:0}',
+      R + '.hd-rename:hover{opacity:1}',
+      /* Today's ledger rides the band's dark corner: three numbers a player
+         glances at, out of the working rail and into the picture. */
+      R + '.hd-ledger{margin-left:auto;display:flex;align-items:flex-end;gap:22px;padding-bottom:2px}',
+      R + '.hd-led{text-align:right}',
+      R + '.hd-led b{font-family:var(--f-display);font-size:22px;font-weight:600;color:var(--scene-ink) !important;',
+      'display:block;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.9)}',
+      R + '.hd-led span{font-family:var(--f-label);font-size:11px;letter-spacing:.05em;text-transform:uppercase;',
+      'color:var(--scene-ink-3) !important;font-weight:700;display:block;margin-top:5px;text-shadow:0 1px 5px rgba(0,0,0,.9)}',
+      '@media(max-width:760px){' + R + '.hd-ledger{display:none}}',
+      '@media(max-width:640px),(max-height:520px){' +
+        R + '.hd-name{font-size:23px}' + R + '.hd-ava{width:52px;height:52px}' +
+        R + '.hd-sub{font-size:12.5px}' + R + '.hd-hearth-in{padding:0 12px 11px;gap:12px}}',
 
       /* ── b217 art direction ───────────────────────────────────────────────
          Home was seventeen bordered rounded boxes of identical weight: five
@@ -67,18 +124,6 @@
          column is how you're DOING. Grouping comes from small-caps headings
          over an incised rule; only the claimable reward is allowed to be a lit
          object, because it is the only thing on the screen that is urgent. */
-
-      R + '.hd-top{display:flex;align-items:center;gap:16px;margin:2px 0 22px}',
-      R + '.hd-who{display:flex;align-items:center;gap:15px;min-width:0}',
-      R + '.hd-ava{width:60px;height:60px;border-radius:var(--r);flex:0 0 auto;overflow:hidden;',
-      'background:var(--bg-2) !important;border:1px solid var(--line-strong) !important;',
-      'box-shadow:inset 0 1px 0 rgba(255,232,190,.14),0 2px 6px -2px rgba(0,0,0,.7)}',
-      R + '.hd-name{font-family:var(--f-display);font-size:27px;font-weight:600;line-height:1.08;color:var(--ink) !important;display:flex;align-items:center;gap:8px}',
-      R + '.hd-sub{font-size:13px;color:var(--ink-3) !important;margin-top:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}',
-      R + '.hd-sub b{font-family:var(--f-label);color:var(--gold-2) !important;font-weight:700;letter-spacing:.02em}',
-      R + '.hd-sub .sep{opacity:.4}',
-      R + '.hd-rename{background:none !important;border:0;cursor:pointer;opacity:.45;padding:2px;line-height:0}',
-      R + '.hd-rename:hover{opacity:1}',
 
       R + '.hd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;align-items:start}',
       '@media(max-width:900px){' + R + '.hd-grid{grid-template-columns:1fr;gap:22px}}',
@@ -171,23 +216,28 @@
       R + '.hd-cta.ghost:hover{color:var(--gold-2) !important;border-color:rgba(201,162,74,.45) !important;',
       'background:linear-gradient(180deg,rgba(255,236,200,.13),rgba(255,236,200,.04)) !important}',
 
-      /* "Today" — three numbers, not three boxes. Separated by rules so they
-         read as one instrument panel instead of three unrelated cards. */
-      R + '.hd-tiles{display:grid;grid-template-columns:repeat(3,1fr)}',
-      '#panel-profile#panel-profile #hd-root .hd-tiles{background:transparent !important;border:0 !important;padding:0 !important}',
-      '#panel-profile#panel-profile #hd-root .hd-tile{background:transparent !important;border:0 !important;',
-      'border-left:1px solid var(--line-soft) !important;border-radius:0;padding:2px 0 2px 13px}',
-      '#panel-profile#panel-profile #hd-root .hd-tile:first-child{border-left:0 !important;padding-left:0}',
-      '#panel-profile#panel-profile #hd-root .hd-tile b{font-family:var(--f-display);font-size:23px;font-weight:600;',
-      'color:var(--ink) !important;display:block;line-height:1;font-variant-numeric:tabular-nums}',
-      '#panel-profile#panel-profile #hd-root .hd-tile span{font-family:var(--f-label);font-size:11.5px;letter-spacing:.02em;',
-      'text-transform:none;color:var(--ink-3) !important;font-weight:700;display:block;margin-top:5px}',
-
       R + '.hd-mini{padding:10px 4px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.8}',
       R + '.hd-mini b{color:var(--ink) !important;font-size:14.5px;font-weight:700}',
       R + '.hd-mini div:not([data-hd]),' + R + '.hd-mini span:not([data-hd]){color:var(--ink-2) !important}',
       R + '.hd-mini .go{margin-left:auto}',
+
+      /* ── b219 · two-line status row ───────────────────────────────────────
+         Used by "The realm" (world events) and the homestead's next tier: a
+         name, a consequence, and a right-aligned when. Same hairline-separated
+         row language as everything else — no new box types. */
+      R + '.hd-duo{display:flex;align-items:flex-start;gap:11px;padding:11px 4px}',
+      R + '.hd-duo .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.85;margin-top:1px}',
+      R + '.hd-duo .bd{flex:1;min-width:0}',
+      R + '.hd-duo .t{font-size:14.5px;font-weight:700;color:var(--ink) !important;line-height:1.2}',
+      R + '.hd-duo .s{font-size:12.5px;color:var(--ink-3) !important;margin-top:3px;line-height:1.35}',
+      R + '.hd-duo .when{flex:0 0 auto;font-family:var(--f-label);font-size:11px;letter-spacing:.05em;',
+      'text-transform:uppercase;color:var(--ink-3) !important;font-weight:700;padding-top:3px;white-space:nowrap}',
+      /* The holding's own line: cost list reads as a shopping list, tabular. */
+      R + '.hd-cost{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:12.5px;',
+      'color:var(--ink-3) !important;font-variant-numeric:tabular-nums}',
+      R + '.hd-cost i{font-style:normal;color:var(--ink-2) !important;font-weight:600}',
+      R + '.hd-cost i.short{color:var(--red) !important}',
       /* An inline link inside a supporting line — gilt, never a raw accent. */
       R + '.hd-link{color:var(--gold-2) !important;font-weight:600;cursor:pointer}',
       R + '.hd-link:hover{color:var(--gold) !important;text-decoration:underline;text-underline-offset:3px}'
@@ -245,6 +295,31 @@
   function openSkill(id) { if (typeof window.openSkillDetail === 'function') window.openSkillDetail(id); }
   function openQuests() { if (typeof window.openQuestsModal === 'function') window.openQuestsModal(); else nav('profile'); }
 
+  /* Homestead tiers and world events both carry an emoji `icon`/`glyph` in
+     their data (⛺, 🏡, 🔥, 🎪). Nothing renders emoji as art in Hearthrise, so
+     the ids are mapped onto the baked atlas here instead. */
+  var HOLDING_GLYPH = {
+    camp: 'uiCamp', homestead: 'uiHome', farmstead: 'uiBarn',
+    manor: 'uiBanner', keep: 'uiCastle', castle: 'uiCrown'
+  };
+  var EVENT_GLYPH = {
+    gather_surge: 'uiPickaxe', forge_fires: 'uiFlame', harvest_fest: 'uiWheat',
+    scholars_day: 'uiScroll', hunters_moon: 'uiBow', feast_day: 'uiPot',
+    quiet_vigil: 'prayer', grand_fair: 'uiBanner', deep_veins: 'uiOre',
+    war_drums: 'uiSword', guild_works: 'uiHammer'
+  };
+  // Item ids in an upgrade cost read as `normal_log`; the player sees names.
+  // `ITEMS[id].n` is the display name (not `.name`) — same source homestead.js
+  // reads, so Home and the House panel can never disagree about a cost.
+  function itemName(id) {
+    if (id === 'gold') return 'Gold';
+    return (window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || String(id).replace(/_/g, ' ');
+  }
+  function itemHeld(G, id) {
+    if (id === 'gold') return G.gold || 0;
+    return (G.inventory && G.inventory[id]) || 0;
+  }
+
   function playerName() {
     var G = window.G || {};
     var sess = call(function () { return window.HearthriseAuth && window.HearthriseAuth.getSession(); });
@@ -282,31 +357,53 @@
     var activeName = G.activeMonster ? (window.MONSTERS && window.MONSTERS[G.activeMonster] && window.MONSTERS[G.activeMonster].name)
       : G.activeSkill ? (window.SKILLS_DEF && window.SKILLS_DEF[G.activeSkill] && window.SKILLS_DEF[G.activeSkill].name) : null;
 
+    // Homestead standing — drives both the scene and the "Your holding" rows.
+    var HS = window.HearthriseHomestead;
+    var hsTier = 0, hsDef = null, hsNext = null;
+    try {
+      // These read window.G themselves and take no arguments — passing G in
+      // made tierDef() index TIERS by an object and silently return undefined.
+      if (HS && HS.getTier) { hsTier = HS.getTier() | 0; hsDef = HS.tierDef(); hsNext = HS.nextTier(); }
+    } catch (e) {}
+
     var html = '';
-    // ── header ────────────────────────────────────────────────────────────
-    // The five stat pills that used to live here (Total Lv / Combat / Gold /
-    // Gems / Log) are gone: all of them are already pinned in the topbar, 40px
-    // above, permanently. Two of them even disagreed with the topbar because
-    // they read different sources. Identity + rank is what belongs on a
-    // profile header; the numbers belong in one place.
+    // ── the hearth band ───────────────────────────────────────────────────
+    // Identity stands in front of the player's own holding at dusk, and the
+    // day's ledger rides the dark corner. The five stat pills that used to sit
+    // here (Total Lv / Combat / Gold / Gems / Log) stay gone — they are pinned
+    // in the topbar 40px above and two of them disagreed with it.
     var rankLine = '';
     try {
       var _rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
       if (_rn) rankLine = '<b>' + esc(_rn.rank.name) + '</b><span class="sep">·</span>' + num(_rn.renown) + ' Renown';
     } catch (e) {}
-    html += '<div class="hd-top">';
+
+    var xp = today && (today.xp != null ? today.xp : today.totalXp);
+    var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
+    var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
+
+    var scene = '';
+    try { scene = window.HearthriseBackdrop && window.HearthriseBackdrop.homesteadScene(hsTier) || ''; } catch (e) {}
+
+    html += '<div class="hd-hearth">' + scene + '<div class="hd-hearth-in">';
     html += '<div class="hd-who"><div class="hd-ava">' +
       '<img src="assets/icons-bundle/painted/npc/player.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
+    html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
     html += '<div class="hd-name">' + esc(playerName()) +
       '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
     html += '<div class="hd-sub">' + rankLine +
       (rankLine ? '<span class="sep">·</span>' : '') +
       (isOnline() ? 'Online · cloud save active' : 'Offline play · sign in to sync') + '</div>';
     html += '</div></div>';
-    html += '</div>';
+    html += '<div class="hd-ledger">' +
+      '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
+      '<div class="hd-led"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
+      '<div class="hd-led"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
+      '</div>';
+    html += '</div></div>';
 
     // ── grid ──
-    html += '<div class="hd-grid"><div class="hd-col">';
+    html += '<div class="hd-wrap"><div class="hd-grid"><div class="hd-col">';
 
     // Daily reward — top priority when a reward is waiting to be claimed
     var DL = window.HearthriseDaily;
@@ -380,6 +477,47 @@
     }
     html += '</div></div>';
 
+    // ── Your holding ──────────────────────────────────────────────────────
+    // The game is called Idle Homestead and the homestead was nowhere on Home.
+    // This is the long-arc build order: what you live in, what it grants you,
+    // and exactly what the next tier costs — with what you're short of called
+    // out, so the section is a plan rather than a boast.
+    if (hsDef) {
+      html += '<div><div class="hd-h"><h3>Your holding</h3><a data-hd="house">Homestead →</a></div><div class="hd-rows">';
+      var grants = [];
+      grants.push((HS.maxPlots ? HS.maxPlots() : hsDef.plots) + ' farm plots');
+      var ws = HS.workerSlots ? HS.workerSlots() : hsDef.workers;
+      grants.push(ws ? (ws + ' worker' + (ws === 1 ? '' : 's')) : 'no hired hands');
+      var oh = hsDef.offlineHours || 0;
+      grants.push(oh ? ('+' + oh + 'h offline cap') : 'base offline cap');
+      html += '<div class="hd-card hd-mile is-title" data-hd="house" style="cursor:pointer;padding-left:0">' +
+        '<div class="hd-mile-badge">' + gly(HOLDING_GLYPH[hsDef.id] || 'uiHome', 22, '', '#e6d6b4') + '</div>' +
+        '<div class="hd-mile-body">' +
+          '<div class="hd-mile-title">' + esc(hsDef.name) + '</div>' +
+          '<div class="hd-mile-sub">' + esc(grants.join(' · ')) + '</div>' +
+        '</div></div>';
+      if (hsNext) {
+        var costHtml = '';
+        try {
+          costHtml = Object.keys(hsNext.cost || {}).map(function (k) {
+            var need = hsNext.cost[k], have = itemHeld(G, k);
+            // Clamp to the requirement: "1,000/400 Gold" reads as a shortfall
+            // at a glance even though it is a surplus. Same as the House panel.
+            return '<span><i class="' + (have >= need ? '' : 'short') + '">' +
+              num(Math.min(have, need)) + '/' + num(need) + '</i> ' + esc(itemName(k)) + '</span>';
+          }).join('');
+        } catch (e) {}
+        html += '<div class="hd-card hd-duo">' +
+          '<div class="mi">' + gly(HOLDING_GLYPH[hsNext.id] || 'uiHome', 20, '', 'var(--ink-2)') + '</div>' +
+          '<div class="bd"><div class="t">' + esc(hsNext.name) + '</div>' +
+            '<div class="s">' + esc(hsNext.desc) + '</div>' +
+            (costHtml ? '<div class="hd-cost">' + costHtml + '</div>' : '') +
+          '</div>' +
+          '<button class="hd-cta ghost" data-hd="house">Build</button></div>';
+      }
+      html += '</div></div>';
+    }
+
     html += '</div><div class="hd-col">';
 
     // ── RIGHT: how you're doing ───────────────────────────────────────────
@@ -425,15 +563,25 @@
       } catch (e) { /* renown optional */ }
     }
 
-    // today tiles
-    var xp = today && (today.xp != null ? today.xp : today.totalXp);
-    var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
-    var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
-    html += '<div><div class="hd-h"><h3>Today</h3></div><div class="hd-tiles">' +
-      '<div class="hd-tile"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP</span></div>' +
-      '<div class="hd-tile"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
-      '<div class="hd-tile"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
-      '</div></div>';
+    // The realm — world events. They already change how fast every skill runs,
+    // but the only place they were stated was a one-line ticker pinned in the
+    // bottom-right corner behind the chat button. A modifier the player is
+    // supposed to plan around belongs where they plan.
+    var WE = window.HearthriseWorldEvents;
+    if (WE && WE.daily) {
+      try {
+        var wd = WE.daily(), ww = WE.weekly && WE.weekly();
+        var evRow = function (e, when) {
+          return '<div class="hd-card hd-duo">' +
+            '<div class="mi">' + gly(EVENT_GLYPH[e.id] || 'uiEvent', 20, '', 'var(--gold-2)') + '</div>' +
+            '<div class="bd"><div class="t">' + esc(e.name) + '</div>' +
+              '<div class="s">' + esc(e.desc) + '</div></div>' +
+            '<div class="when">' + when + '</div></div>';
+        };
+        html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
+          evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') + '</div></div>';
+      } catch (e) { /* world events optional */ }
+    }
 
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     var hasFood = G.foodSlot || (G.buffs && G.buffs.length);
@@ -454,7 +602,7 @@
     }
     html += '</div></div>';
 
-    html += '</div></div>';
+    html += '</div></div></div>';
 
     root.innerHTML = html;
     wire(root, tasks, mile, resume);
@@ -478,6 +626,7 @@
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }
+          else if (kind === 'house') { nav('house'); }
         } catch (err) { /* no-op */ }
       };
     });

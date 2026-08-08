@@ -6,12 +6,13 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 
 ## Build & branch
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b218)
-- **Remote:** in sync (`6470793` pushed 2026-08-08, Tyler's "ship it"). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). **Do not push without Tyler's go.**
+- **Version:** v0.9.2-beta (build b219)
+- **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
+- **⚠️ PENDING MANUAL STEP:** run `supabase/migrations/2026-08-08-raid-hardening.sql` in the Supabase SQL editor NOW that b219 is deployed (client shipped first by design; idempotent; ends with self-check assertions).
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **177/177 green, 0 runtime errors** (last verified 2026-08-08 post-merge on `19595db`; +2 regression tests for #3/#4). Coordinator visually verified type scale, wordmark, tab persistence, companion pane on :8125.
+- **Smoke:** `node tests/run-smoke.mjs` → **188/188 green, 0 runtime errors** (b219 final gate; +11 regression tests over b218). Coordinator visually verified home band, What's-New modal, toasts config on :8125.
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

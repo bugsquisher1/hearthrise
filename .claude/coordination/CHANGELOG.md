@@ -4,6 +4,15 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `92734b7` · **b219 SHIPPED to production** · Coordinator
+Wave 1: Home hearth band (`19595db`+`94d43c4` art), toasts/chat pill (`8ae0680`), raid hardening (`d4d3b7d`, 4 exploits closed server-side — MIGRATION MUST BE RUN, see CURRENT_STATE), Coordinator fixes to the What's-New modal (empty-body regex since forever, raw-file fallback, broken force(); `9636ac6`+ship commit). Final gate 188/188. Deployed.
+
+### 2026-08-08 · `d4d3b7d` · Wave 1b Systems — raid economy hardening (4 exploits) · Systems Engineer
+`raid_strike` day-gate server-side (client `p_week` validated, not trusted), `raid_claims` ledger PK (user_id, week_key), join-after-kill earns nothing, client PATCH policy revoked, client-supplied pool HP ignored (P4, found during work). Backward-compatible client-first ship; migration file idempotent with self-checks. +2 tests.
+
+### 2026-08-08 · `19595db`+`94d43c4` · Wave 1 Art — Home hearth band (#6) · Art Director
+Tier-aware dusk vista (camp→castle), identity on the band, Today ledger, "Your holding" + "The realm" sections replacing ~200px of void. Fixed b216-era regression: backdrop.js overrides were blurring 12 layers + flattening milestone badges. 0 emoji in #hd-root (data emoji mapped to atlas).
+
 ### 2026-08-08 · `8ae0680` · Wave 1 Systems — readable queued toasts + draggable chat pill (#7, #8) · Systems Engineer
 New `src/features/toasts.js`: body-size type, length-scaled duration (4-9s), real queue with coalescing (xN), pause-on-hover, click-dismiss, MEASURED clearance of chat pill/bug button/bottom nav. Chat pill drag-to-reposition with normalised persisted position via the storage seam. Beta card emoji removed + tokenized. Bonus fix: daily-reward toast printed raw SVG path text (pre-existing). +8 regression tests. **Verified:** 185/185 x3 runs, browser-measured non-overlap, drag persistence across reload. Local only — not pushed.
 

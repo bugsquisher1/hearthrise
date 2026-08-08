@@ -25,6 +25,9 @@ create table if not exists public.game_saves (
   total_level int generated always as ((snapshot->>'totalLevel')::int) stored,
   primary key (user_id, slot)
 );
+-- same in-place guard if game_saves pre-existed without the generated column
+alter table public.game_saves add column if not exists
+  total_level int generated always as ((snapshot->>'totalLevel')::int) stored;
 alter table public.game_saves enable row level security;
 drop policy if exists "own saves" on public.game_saves;
 create policy "own saves" on public.game_saves
@@ -50,6 +53,11 @@ create table if not exists public.profiles (
   clan_id      uuid,
   created_at   timestamptz not null default now()
 );
+-- If profiles pre-existed (older project), CREATE IF NOT EXISTS skipped the
+-- new columns — add them in place.
+alter table public.profiles add column if not exists display_name text not null default 'Adventurer';
+alter table public.profiles add column if not exists clan_id uuid;
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
 alter table public.profiles enable row level security;
 drop policy if exists "profiles readable" on public.profiles;
 create policy "profiles readable" on public.profiles for select using (true);
@@ -67,6 +75,21 @@ end $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users for each row execute function public.handle_new_user();
+
+-- ── 1b. Rebuild empty feature tables ─────────────────────────
+-- Chat / market / clans / raids were never live before this schema (the
+-- client backends were unwired), so any pre-existing versions of these
+-- tables are empty shells from old experiments with older shapes — column
+-- guards can't reconcile them all, so we rebuild them cleanly.
+-- ⚠ NEVER dropped: game_saves, game_events, profiles (real player data).
+drop table if exists public.chat_messages cascade;
+drop table if exists public.market_listings cascade;
+drop table if exists public.market_buy_offers cascade;
+drop table if exists public.market_sales cascade;
+drop table if exists public.clan_raids cascade;
+drop table if exists public.raid_contributions cascade;
+drop table if exists public.clan_members cascade;
+drop table if exists public.clans cascade;
 
 -- ── 2. Chat ───────────────────────────────────────────────────
 -- Wire channels: 'global' | 'trade' | 'clan:<clanId>' | 'whisper:<a>:<b>'
@@ -194,6 +217,7 @@ create policy "seller collects own sales" on public.market_sales
 -- both take the last unit) AND write the sale to the ledger so the seller is
 -- paid on next login. Buyer-side gold/inventory applies client-side after the
 -- ok (soft-beta limitation; full server inventory authority is the next pass).
+drop function if exists public.buy_listing(uuid, int);
 create or replace function public.buy_listing(p_listing_id uuid, p_qty int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare v_row public.market_listings;
@@ -270,6 +294,7 @@ create policy "leave as self" on public.clan_members
 
 -- Contribute gold to the clan treasury + auto-level the clan.
 -- Clan level thresholds: 10k, 50k, 200k, 800k, 3M … (×4 per level)
+drop function if exists public.clan_contribute(uuid, bigint);
 create or replace function public.clan_contribute(p_clan_id uuid, p_amount bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare v_treasury bigint; v_level int; v_next bigint;
@@ -348,6 +373,7 @@ create policy "own contribution claim" on public.raid_contributions
 -- One strike: creates the week's raid row if absent, clamps damage,
 -- decrements the shared pool, records the contribution. Server clamps
 -- p_damage hard so a tampered client can't one-shot the boss.
+drop function if exists public.raid_strike(uuid, text, text, bigint, bigint);
 create or replace function public.raid_strike(
   p_clan_id uuid, p_week text, p_boss text, p_max_hp bigint, p_damage bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$

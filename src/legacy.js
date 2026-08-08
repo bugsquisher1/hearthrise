@@ -268,7 +268,13 @@ const ROOMS={
   garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[{cost:{gold:600,wheat:20},bonus:'Yield +1',bk:'farmYield',bv:1},{cost:{gold:2500,wheat:60},bonus:'Yield +2',bk:'farmYield',bv:2},{cost:{gold:9000,pumpkin:5},bonus:'Yield +4',bk:'farmYield',bv:4}]},
   trophy:{name:'Trophy Room',icon:'🏆',desc:'+Combat XP.',levels:[{cost:{gold:2000,wolf_pelt:5},bonus:'CXP +5%',bk:'combatXP',bv:.05},{cost:{gold:8000,troll_hide:3},bonus:'CXP +12%',bk:'combatXP',bv:.12},{cost:{gold:25000,dragon_scale:2},bonus:'CXP +25%',bk:'combatXP',bv:.25}]},
   cellar:{name:'Cellar',icon:'🍷',desc:'Extra storage.',levels:[{cost:{gold:1200,normal_log:60},bonus:'+500 storage',bk:'storage',bv:500},{cost:{gold:4000,oak_log:60},bonus:'+1500',bk:'storage',bv:1500},{cost:{gold:12000,willow_log:50},bonus:'+5000',bk:'storage',bv:5000}]},
+  /* b201 (SYS-1): rooms ARE workbenches — kitchen gates cooking, forge gates
+     smithing, workshop gates crafting, shrine gates prayer. See
+     features/homestead.js (property tiers gate which rooms can be built). */
+  workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[{cost:{gold:700,normal_plank:15},bonus:'Craft +10%',bk:'craftSpeed',bv:.1},{cost:{gold:2800,oak_plank:25},bonus:'Craft +25%',bk:'craftSpeed',bv:.25},{cost:{gold:11000,willow_plank:30},bonus:'Craft +50%',bk:'craftSpeed',bv:.5}]},
+  shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[{cost:{gold:900,bones:40},bonus:'Prayer +10%',bk:'prayerSpeed',bv:.1},{cost:{gold:3500,big_bones:25},bonus:'Prayer +25%',bk:'prayerSpeed',bv:.25},{cost:{gold:13000,dragon_bones:8},bonus:'Prayer +50%',bk:'prayerSpeed',bv:.5}]},
 };
+window.ROOMS = ROOMS; /* b201: expose for features/homestead.js workbench checks */
 const PLOT_BUILDINGS={
   farm_plot:{name:'Farm Plot',icon:'🌾',cost:{gold:100,normal_log:5},desc:'Grow crops.',max:12},
   scarecrow:{name:'Scarecrow',icon:'🎃',cost:{gold:200,wheat:10},desc:'+10% yield.',max:2},
@@ -451,6 +457,10 @@ function processOffline(){
   let cap=G.entitlements?.offlinePlus?16:12;
   if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
+  }
+  /* b201 (SYS-1): property tier grants bonus offline hours (farmstead +1 … castle +4) */
+  if(window.HearthriseHomestead){
+    try{ cap += (window.HearthriseHomestead.offlineBonusHours()||0); }catch(e){}
   }
   const hrs=Math.min(elapsed,cap);
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -838,6 +848,10 @@ function getBonus(key){
   /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
   if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
+  }
+  /* b201 (SYS-1): castle capstone — the pride of the realm, +5% all XP */
+  if(key==='allXP' && window.HearthriseHomestead){
+    try{ if(window.HearthriseHomestead.isCastle()) t += 0.05; }catch(e){}
   }
   return t;
 }
@@ -1256,7 +1270,9 @@ let skillInterval=null,skillProgressInterval=null;
 function startSkill(type,targetId,ms){
   stopSkill();
   G.activeSkill=type;G.skillTargetId=targetId;G.skillMs=ms;G.skillProgress=0;
-  const speed=getBonus('gatherSpeed');
+  /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze */
+  const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
+  const speed=getBonus('gatherSpeed')+toolSpeed;
   const actualMs=Math.max(500,Math.floor(ms*(1-speed)));
   skillInterval=setInterval(()=>doSkillAction(false),actualMs);
   skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/actualMs));if(activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
@@ -2068,12 +2084,21 @@ function renderHouse(){
 function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').forEach(c=>c.classList.toggle('active',c.dataset.house===t));renderHouse();}
 function upgradeRoom(id){
   const r=ROOMS[id];const lv=G.rooms[id]||0;const nx=r.levels[lv];if(!nx)return;
+  /* b201: property tier gates which rooms exist (camp has no workbenches) */
+  if(lv===0 && window.HearthriseHomestead){
+    const gate=window.HearthriseHomestead.canBuildRoom(id);
+    if(!gate.ok){notify(gate.reason,'kill');return;}
+  }
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold'?G.gold<v:(G.inventory[k]||0)<v){notify('Not enough resources','kill');return;}}
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
   G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;notify(`${r.name} upgraded`,'levelup');refreshAll();
 }
 function buildPlot(id){
   const b=PLOT_BUILDINGS[id];const have=G.plotBuildings.filter(x=>x.id===id).length;if(have>=b.max)return;
+  /* b201: farm-plot capacity comes from the property tier (2 at camp → 12 at castle) */
+  if(id==='farm_plot' && window.HearthriseHomestead && have>=window.HearthriseHomestead.maxPlots()){
+    notify('Plot limit reached — upgrade your property for more land','kill');return;
+  }
   for(const [k,v] of Object.entries(b.cost)){if(k==='gold'?G.gold<v:(G.inventory[k]||0)<v){notify('Not enough resources','kill');return;}}
   for(const [k,v] of Object.entries(b.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
   G.plotBuildings.push({id,uid:Date.now()});
@@ -5839,7 +5864,8 @@ window.startArtisan = function(skillId, recipeId){
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
   if(typeof stopSkill === 'function') stopSkill();
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0; G.skillMs = r.ms;
-  var bonusKey = (skillId==='cooking') ? 'cookSpeed' : (skillId==='smithing' ? 'smithSpeed' : 'gatherSpeed');
+  /* b201: each artisan skill reads its own workbench-room speed bonus */
+  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
   var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
   var actualMs = Math.max(500, Math.floor(r.ms * (1 - speed)));
   window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);
@@ -6388,6 +6414,11 @@ window.startArtisan = function(skillId, recipeId){
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
+  /* b201 (SYS-1): rooms are workbenches — no kitchen, no cooking. */
+  if(window.HearthriseHomestead){
+    var wb = window.HearthriseHomestead.hasWorkbench(skillId);
+    if(!wb.ok){ if(typeof notify==='function') notify('🔨 '+wb.reason,'kill'); return; }
+  }
   if(typeof getLevel==='function' && getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
   if(!hasInputs(r)){ 
@@ -6397,7 +6428,8 @@ window.startArtisan = function(skillId, recipeId){
   }
   if(typeof stopSkill === 'function') stopSkill();
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0; G.skillMs = r.ms;
-  var bonusKey = (skillId==='cooking') ? 'cookSpeed' : (skillId==='smithing' ? 'smithSpeed' : 'gatherSpeed');
+  /* b201: each artisan skill reads its own workbench-room speed bonus */
+  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
   var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
   var actualMs = Math.max(500, Math.floor(r.ms * (1 - speed)));
   window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);

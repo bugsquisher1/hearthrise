@@ -66,6 +66,18 @@ export const ARTISAN_RECIPES = {
     // Gated forges (single-use recipe scrolls flip G.unlockedRecipes)
     {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
     {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
+    // Gathering tools (b201, SYS-3) — the OSRS tool ladder. Each tier speeds
+    // its gathering skill (see items.js toolSpeed + features/tools.js).
+    {id:'forge_bronze_axe',     name:'Forge Bronze Axe',      icon:'🪓', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_axe',      xp:40,   req:3,  ms:2500},
+    {id:'forge_iron_axe',       name:'Forge Iron Axe',        icon:'🪓', inputs:{iron_bar:2, oak_plank:1},        output:'iron_axe',        xp:140,  req:18, ms:3000},
+    {id:'forge_steel_axe',      name:'Forge Steel Axe',       icon:'🪓', inputs:{steel_bar:2, willow_plank:1},    output:'steel_axe',       xp:320,  req:38, ms:3800},
+    {id:'forge_mithril_axe',    name:'Forge Mithril Axe',     icon:'🪓', inputs:{mithril_bar:2, maple_plank:1},   output:'mithril_axe',     xp:700,  req:58, ms:4500},
+    {id:'forge_rune_axe',       name:'Forge Rune Axe',        icon:'🪓', inputs:{rune_bar:2, yew_plank:1},        output:'rune_axe',        xp:1500, req:78, ms:5500},
+    {id:'forge_bronze_pickaxe', name:'Forge Bronze Pickaxe',  icon:'⛏️', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_pickaxe',  xp:40,   req:3,  ms:2500},
+    {id:'forge_iron_pickaxe',   name:'Forge Iron Pickaxe',    icon:'⛏️', inputs:{iron_bar:2, oak_plank:1},        output:'iron_pickaxe',    xp:140,  req:18, ms:3000},
+    {id:'forge_steel_pickaxe',  name:'Forge Steel Pickaxe',   icon:'⛏️', inputs:{steel_bar:2, willow_plank:1},    output:'steel_pickaxe',   xp:320,  req:38, ms:3800},
+    {id:'forge_mithril_pickaxe',name:'Forge Mithril Pickaxe', icon:'⛏️', inputs:{mithril_bar:2, maple_plank:1},   output:'mithril_pickaxe', xp:700,  req:58, ms:4500},
+    {id:'forge_rune_pickaxe',   name:'Forge Rune Pickaxe',    icon:'⛏️', inputs:{rune_bar:2, yew_plank:1},        output:'rune_pickaxe',    xp:1500, req:78, ms:5500},
   ],
   crafting: [
     // Plank sawing
@@ -89,6 +101,12 @@ export const ARTISAN_RECIPES = {
     {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1},              output:'hunter_necklace', xp:240, req:25, ms:3500},
     // Gated crafts
     {id:'craft_alpha_cloak',      name:'Craft Alpha Cloak',       icon:'🦸', inputs:{bear_pelt:2, silk_thread:3},           output:'alpha_cloak',     xp:1200, req:60, ms:5500, gated:'alpha_pattern'},
+    // Fishing rods (b201, SYS-3 tool ladder — crafted from planks + thread)
+    {id:'carve_willow_rod',   name:'Carve Willow Rod',   icon:'🎣', inputs:{normal_plank:2, silk_thread:1},  output:'willow_rod',   xp:50,   req:3,  ms:2400},
+    {id:'carve_oak_rod',      name:'Carve Oak Rod',      icon:'🎣', inputs:{oak_plank:2, silk_thread:1},     output:'oak_rod',      xp:150,  req:18, ms:3000},
+    {id:'carve_maple_rod',    name:'Carve Maple Rod',    icon:'🎣', inputs:{willow_plank:2, silk_thread:2},  output:'maple_rod',    xp:340,  req:38, ms:3800},
+    {id:'carve_yew_rod',      name:'Carve Yew Rod',      icon:'🎣', inputs:{maple_plank:2, silk_thread:3},   output:'yew_rod',      xp:750,  req:58, ms:4500},
+    {id:'carve_runewood_rod', name:'Carve Runewood Rod', icon:'🎣', inputs:{yew_plank:3, silk_thread:4, magic_essence:2}, output:'runewood_rod', xp:1600, req:78, ms:5500},
   ],
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},

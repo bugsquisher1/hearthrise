@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=200' directly.
+// modularised, will import { G } from '../state/game.js?v=201' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=200';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=200';
+import { on } from '../net/events.js?v=201';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=201';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -200,6 +200,87 @@ const TESTS = [
       const p = ip[id];
       assert(p && /assets\/icons-bundle\/painted\/items\//.test(p), 'painted item icon missing/unshipped for ' + id + ': ' + p);
     });
+  }),
+  () => tryRun('b201: homestead tiers are sane + API present', () => {
+    const H = window.HearthriseHomestead;
+    assert(H && Array.isArray(H.TIERS) && H.TIERS.length === 6, 'HearthriseHomestead.TIERS should have 6 tiers');
+    assert(H.TIERS[0].plots === 2 && H.TIERS[5].plots === 12, 'plots should run 2 → 12');
+    assert(H.TIERS[0].workers === 0 && H.TIERS[5].workers === 6, 'workers should run 0 → 6');
+    let lastGold = 0;
+    for (let i = 1; i < H.TIERS.length; i++) {
+      const g = H.TIERS[i].cost.gold;
+      assert(g > lastGold, 'tier ' + i + ' gold cost should ascend');
+      lastGold = g;
+    }
+    assert(typeof H.getTier() === 'number', 'getTier returns a number');
+  }),
+  () => tryRun('b201: workbench gate — no kitchen, no cooking; grandfathering grants it', () => {
+    const H = window.HearthriseHomestead;
+    const G = window.G;
+    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    try {
+      // Fresh camp: no rooms, no XP → cooking must be blocked
+      G.homestead = { tier: 0 }; G.rooms = {}; G.skills = {};
+      const blocked = H.hasWorkbench('cooking');
+      assert(blocked.ok === false, 'cooking should be blocked without a kitchen');
+      // Grandfather: save with cooking XP but no homestead state → kitchen auto-granted
+      delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
+      H.ensureState();
+      assert((G.rooms.kitchen || 0) >= 1, 'existing cooking XP should grandfather a kitchen');
+      assert(H.hasWorkbench('cooking').ok === true, 'cooking should now be allowed');
+      assert(G.homestead.tier >= 1, 'grandfathered save should be at least tier 1');
+    } finally {
+      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
+    }
+  }),
+  () => tryRun('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
+    const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
+    assert(W && H, 'workers + homestead modules present');
+    const G = window.G;
+    const saved = {
+      homestead: G.homestead, workers: G.workers, gold: G.gold,
+      inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: G.skills
+    };
+    try {
+      G.homestead = { tier: 1 };                       // 1 worker slot
+      G.workers = { hired: [] }; G.gold = 10000;
+      G.skills = Object.assign({}, G.skills, { woodcutting: 100000 }); // high enough for any tree
+      const w = W.hire();
+      assert(w, 'hire should succeed with gold + a free slot');
+      assert(W.hire() === null, 'second hire should fail (slot cap 1)');
+      assert(W.assign(w.uid, 'woodcutting', 'normal_tree') === true, 'assign should succeed');
+      const xpBefore = JSON.stringify(G.skills);
+      w.lastCollect = Date.now() - 3600000;            // pretend 1h passed
+      const before = (G.inventory.normal_log || 0);
+      W.accrueAll(false);
+      const gained = (G.inventory.normal_log || 0) - before;
+      // 1h at 25% eff on a 3s action ≈ 300 ticks × ~1.5 avg qty ≈ 450 logs
+      assert(gained > 200 && gained < 700, 'worker should bank ~450 logs for 1h, got ' + gained);
+      assert(JSON.stringify(G.skills) === xpBefore, 'workers must never grant player XP');
+    } finally {
+      G.homestead = saved.homestead; G.workers = saved.workers; G.gold = saved.gold;
+      G.inventory = saved.inv; G.skills = saved.skills;
+    }
+  }),
+  () => tryRun('b201: tool ladder — best owned tool applies, recipes exist', () => {
+    const T = window.HearthriseTools;
+    assert(T, 'HearthriseTools present');
+    const G = window.G;
+    const savedInv = JSON.parse(JSON.stringify(G.inventory || {}));
+    try {
+      G.inventory = { bronze_axe: 1 };
+      assert(Math.abs(T.bestToolSpeed('woodcutting') - 0.05) < 1e-9, 'bronze axe = +5%');
+      G.inventory.rune_axe = 1;
+      assert(Math.abs(T.bestToolSpeed('woodcutting') - 0.25) < 1e-9, 'rune axe should win = +25%');
+      assert(T.bestToolSpeed('mining') === 0, 'no pickaxe owned = 0');
+      const smith = (window.ARTISAN_RECIPES.smithing || []).map(r => r.id);
+      ['forge_bronze_axe', 'forge_rune_pickaxe'].forEach(id =>
+        assert(smith.includes(id), 'smithing recipe missing: ' + id));
+      const craft = (window.ARTISAN_RECIPES.crafting || []).map(r => r.id);
+      assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
+    } finally {
+      G.inventory = savedInv;
+    }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
     assert(window._playerAvatar && /assets\/icons-bundle\/painted\//.test(window._playerAvatar), 'player avatar path bad: ' + window._playerAvatar);

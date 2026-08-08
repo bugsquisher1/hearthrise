@@ -1,6 +1,26 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
 export const ITEMS={
+  /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
+     type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
+     auto-applies to its skill (Melvor-style, no equip juggling):
+     see src/features/tools.js bestToolSpeed(). Crafted via smithing
+     (axes/picks) and crafting (rods) — recipes in data/recipes.js. */
+  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
+  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
+  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
+  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
+  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
+  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
+  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
+  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
+  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
+  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
+  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
+  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
+  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
+  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
+  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},

@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 201 — 2026-08-08 (The Homestead Update — camp to castle)
+
+The progression spine arrives. This is the beginning of the big systems push.
+
+- 🏗️ **Property tiers.** Rise from a Wanderer's Camp (2 plots, no workbenches) through Homestead, Farmstead, Manor, and Keep to **Hearthrise Castle** — each a real build with gold + crafted materials, unlocking farm plots (2→12), worker slots (0→6), bonus offline hours (+1h to +4h), and the castle's +5% all-XP crown. Manage it from the new Property card in House.
+- 🔨 **Rooms are workbenches now.** Cooking needs a Kitchen, Smithing a Forge, Crafting the new **Workshop**, Prayer the new **Shrine** — and your property tier gates which rooms you can raise. (Existing players: anything you'd already trained is grandfathered — you lose nothing.)
+- 🧺 **Workers.** Hire hands at your homestead and assign them to any gathering task you've mastered — they keep producing while you're away (up to 24h), level up over days, and never steal your XP. Their haul funds your next property tier. That's the loop.
+- 🪓 **Real tools.** Bronze→Iron→Steel→Mithril→Rune axes, pickaxes, and fishing rods — craft them at your Forge/Workshop and your best owned tool auto-applies (+5% to +25% gather speed). Tool upgrades finally matter.
+
 ## v0.9.1-beta build 188 — 2026-08-08 (Painted — the game gets a face)
 
 The whole game gets a real, cohesive art style.

@@ -4,6 +4,12 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `2f6eaa5` · Wave 3b — the Visible Clan Seat (#10 Phase A UI) · Systems Engineer
+Castle scene band (real masonry coursing, tier 1-5 growth), six clickable structures each opening a genuinely-themed room modal (hall/vault/tavern/mill/forge/warroom) per Tyler's directive; Work Orders end-to-end; Tavern feasts + Rested XP potency; perk power-budget fuse (castle share yields at +60% allXP; +10% per-key castle cap); raidPower producer wired; `HearthriseRoomModal` reuse seam (zero clan vocabulary — homestead adopts next). -2 migration: Tavern Board RPCs + widened read. 270/270.
+
+### 2026-08-08 · `3eee3bd` · Wave 3b — the tiered Hunt (#16) · Systems Engineer
+5-tier pools scaling with declared members (flat 250k replaced — never downed in production), raidPower consumed, Standing flat-per-kill, median bands + 0.6x partial, 3 new bosses + Hunt-forged kit (6 recipes above Dawnsteel), blueprint gate. b219 hardening proven intact. 261/261.
+
 ### 2026-08-08 · `92734b7` · **b219 SHIPPED to production** · Coordinator
 Wave 1: Home hearth band (`19595db`+`94d43c4` art), toasts/chat pill (`8ae0680`), raid hardening (`d4d3b7d`, 4 exploits closed server-side — MIGRATION MUST BE RUN, see CURRENT_STATE), Coordinator fixes to the What's-New modal (empty-body regex since forever, raw-file fallback, broken force(); `9636ac6`+ship commit). Final gate 188/188. Deployed.
 

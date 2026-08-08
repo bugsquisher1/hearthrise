@@ -4568,3 +4568,27 @@ body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob .muted,
 body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob .tiny {
   color: var(--ink-3, #a5896a) !important;
 }
+
+/* b213 (phase 2): market "List an item" card — cozy rules painted it cream
+   on the dark theme; restore its dark surface. */
+body[data-theme="hearthlight"] #panel-market .mk-list-form {
+  background: rgba(0,0,0,.3) !important;
+  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #panel-market .mk-list-form * {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] #panel-market .mk-list-form h3 {
+  color: var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] #panel-market .mk-list-form .mk-hint,
+body[data-theme="hearthlight"] #panel-market .mk-list-form .muted {
+  color: var(--ink-3, #a5896a) !important;
+}
+body[data-theme="hearthlight"] #panel-market .mk-list-form input,
+body[data-theme="hearthlight"] #panel-market .mk-list-form select {
+  background: var(--bg-2, #1a2130) !important;
+  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}

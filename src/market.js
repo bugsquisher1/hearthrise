@@ -730,7 +730,11 @@
     catch(e){ return { q:'', sort:'price-asc' }; }
   }
   function saveUiState(s){
-    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(s)); } catch(e){}
+    /* b213 (phase 2): persist the SORT preference but never the search
+       query — a stale filter from last session made the market open on
+       "matching 'log' (0) — No matching listings", which reads as an
+       empty market. */
+    try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ sort: s.sort })); } catch(e){}
   }
 
   function render(){
@@ -879,7 +883,11 @@
       ? 'Open listings — matching "' + escapeAttr(ui.q) + '" (' + others.length + ')'
       : 'Open listings (' + others.length + ')';
     var othersBlock = '<div class="mk-block"><h3>' + othersHeader + '</h3>' +
-      (others.length ? others.map(function(l){ return listingRow(l, false); }).join('') : '<div class="mk-empty">No matching listings.</div>') +
+      (others.length
+        ? others.map(function(l){ return listingRow(l, false); }).join('')
+        : '<div class="mk-empty">' + (ui.q
+            ? 'Nothing matches "' + escapeAttr(ui.q) + '" — try a different search.'
+            : 'No open listings right now. List something above and be first to market.') + '</div>') +
     '</div>';
     // Build a dropdown of every listable bag item — not BoP, has qty > 0,
     // and known to ITEMS so we can show its name. Sorted by name for the

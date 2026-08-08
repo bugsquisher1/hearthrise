@@ -1504,13 +1504,21 @@ function harvestPlot(i){
    render point instead of hunting emoji through a hundred call sites. The
    toast TYPE already carries the tone (kill=red, gold, levelup, info). */
 const NOTIF_EMOJI_RE=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{231A}-\u{23FF}]/gu;
+/* b219 (backlog #7): the toast queue moved to src/features/toasts.js —
+   readable type scale, length-scaled duration, real queueing, and measured
+   clearance so the chat pill / bug button can never sit on top of it.
+   This stays as the single call point (113 call sites in this file) and
+   degrades to the old minimal render if that module fails to load. */
 function notify(text,type='info'){
+  if(window.HearthriseToasts&&typeof window.HearthriseToasts.push==='function'){
+    window.HearthriseToasts.push(text,type);return;
+  }
   const el=document.getElementById('notifs');if(!el)return;
   const clean=String(text).replace(NOTIF_EMOJI_RE,'').replace(/\s{2,}/g,' ').trim();
   const d=document.createElement('div');d.className='notif '+type;d.textContent=clean||text;
   d.onclick=()=>d.remove();
   el.appendChild(d);
-  setTimeout(()=>{try{d.remove();}catch(e){}},3500);
+  setTimeout(()=>{try{d.remove();}catch(e){}},4000);
   while(el.children.length>5)el.children[0].remove();
 }
 

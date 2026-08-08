@@ -71,10 +71,13 @@
   var MAX_MSG_LEN    = 240;
   var MSG_CAP        = 200;          // per channel, FIFO
   var SEND_THROTTLE  = 800;          // ms between sends from same player
+  /* b219: the `icon` fields carried emoji that nothing has rendered since
+     b213 made the channel tabs text-only. Dead data, and dead data with an
+     emoji in it is the kind of thing that gets pasted back into live UI. */
   var DEFAULT_CHANNELS = [
-    { id:'global', label:'Global', icon:'🌐' },
-    { id:'trade',  label:'Trade',  icon:'💰' },
-    { id:'clan',   label:'Clan',   icon:'🛡️' },
+    { id:'global', label:'Global' },
+    { id:'trade',  label:'Trade'  },
+    { id:'clan',   label:'Clan'   },
   ];
 
   // ── Settings ────────────────────────────────────────────────
@@ -278,7 +281,13 @@
       +   '<div id="chat-mention-pop" style="display:none"></div>'
       +   '<div id="chat-input-bar">'
       +     '<input id="chat-input" maxlength="' + MAX_MSG_LEN + '" placeholder="Pick a tab…" autocomplete="off" />'
-      +     '<button id="chat-send" title="Send">➤</button>'
+      /* b219: was a dingbat arrow (U+27A4) — the project's own emoji filter
+         flags it, and it rendered from the system font next to the line-art
+         glyph on the pill. Same SVG vocabulary as the rest of the chrome. */
+      +     '<button id="chat-send" title="Send" aria-label="Send">'
+      +       '<svg viewBox="0 0 24 24" style="width:15px;height:15px;display:block" aria-hidden="true">'
+      +       '<path fill="currentColor" d="M2.5 21 22 12 2.5 3 2.5 10l14 2-14 2z"/></svg>'
+      +     '</button>'
       +   '</div>'
       + '</div>';
     document.body.appendChild(dockEl);
@@ -290,7 +299,14 @@
     inputEl      = document.getElementById('chat-input');
     mentionPopEl = document.getElementById('chat-mention-pop');
 
-    minEl.addEventListener('click', toggleDock);
+    minEl.addEventListener('click', function(e){
+      // A drag ends with a click event on the same element. Swallow it so
+      // repositioning the pill doesn't also open the chat panel.
+      if(suppressClick){ suppressClick = false; e.stopPropagation(); return; }
+      toggleDock();
+    });
+    dockPos = loadDockPos();
+    installDrag();
 
     document.getElementById('chat-send').addEventListener('click', onSendClick);
     inputEl.addEventListener('keydown', onInputKey);
@@ -306,6 +322,178 @@
     applyDockState();
   }
 
+  // ════════════════════════════════════════════════════════════
+  // DOCK POSITION (b219, backlog #8)
+  // ════════════════════════════════════════════════════════════
+  // The chat pill was nailed to bottom-right, which is also where the
+  // toast queue and the bug-report button live — so it covered whatever
+  // happened to be under it, on every screen, with no way out. It is now
+  // draggable and remembers where the player put it.
+  //
+  // The saved position is NORMALISED (fx/fy in 0..1 of the free space)
+  // rather than raw pixels: a pill parked bottom-right on a 2560px monitor
+  // must still be bottom-right in a 1280px window, and raw pixels would
+  // put it off-screen. Applying always re-clamps, so a shrunken viewport
+  // can never strand it.
+  //
+  // Persistence goes through the platform storage seam
+  // (window.HearthriseStorage) — the seam Steam/Capacitor swap out — not
+  // straight to localStorage. The four pre-existing chat keys still bypass
+  // it; migrating those is a separate, deliberate change.
+  var POS_KEY      = 'hearthrise:chat:dockpos';
+  var EDGE         = 12;   // minimum gap from any viewport edge
+  var SNAP         = 26;   // drop within this of an edge and it snaps flush
+  var DRAG_THRESH  = 5;    // px before a press becomes a drag, not a click
+  var dockPos      = null; // { fx, fy } or null = default corner
+  var suppressClick = false;
+  var dragging     = null;
+
+  function clamp01(n){ return n < 0 ? 0 : (n > 1 ? 1 : n); }
+
+  function loadDockPos(){
+    try {
+      var s = window.HearthriseStorage;
+      var raw = s ? s.get(POS_KEY) : localStorage.getItem(POS_KEY);
+      if(!raw) return null;
+      var p = JSON.parse(raw);
+      if(!p || typeof p.fx !== 'number' || typeof p.fy !== 'number') return null;
+      if(!isFinite(p.fx) || !isFinite(p.fy)) return null;
+      return { fx: clamp01(p.fx), fy: clamp01(p.fy) };
+    } catch(e){ return null; }
+  }
+  function saveDockPos(p){
+    try {
+      var s = window.HearthriseStorage;
+      if(s) s.setJSON(POS_KEY, p);
+      else localStorage.setItem(POS_KEY, JSON.stringify(p));
+    } catch(e){}
+  }
+  function clearDockPos(){
+    try {
+      var s = window.HearthriseStorage;
+      if(s) s.remove(POS_KEY);
+      else localStorage.removeItem(POS_KEY);
+    } catch(e){}
+  }
+
+  // Free positioning is desktop-only. On phones the expanded dock is a
+  // full-screen sheet and the mini pill is placed by the mobile media
+  // queries with !important; a stray inline left/top would fight them.
+  function freePosEnabled(){
+    return typeof window !== 'undefined' && window.innerWidth > 540;
+  }
+
+  // Tell the toast queue to re-measure — it lifts the notification column
+  // clear of whatever floating chrome is in its band, and the pill just moved.
+  function relayoutToasts(){
+    if(window.HearthriseToasts && typeof window.HearthriseToasts.layout === 'function'){
+      try { window.HearthriseToasts.layout(); } catch(e){}
+    }
+  }
+
+  function applyDockPosition(){
+    if(!dockEl) return;
+    var custom = dockPos && freePosEnabled() && dockEl.classList.contains('mini');
+    if(!custom){
+      dockEl.style.left = '';
+      dockEl.style.top = '';
+      dockEl.style.right = '';
+      dockEl.style.bottom = '';
+      relayoutToasts();
+      return;
+    }
+    var r = dockEl.getBoundingClientRect();
+    var w = r.width  || 96;
+    var h = r.height || 36;
+    var spanX = Math.max(0, window.innerWidth  - w - EDGE * 2);
+    var spanY = Math.max(0, window.innerHeight - h - EDGE * 2);
+    // setRawPosition re-clamps, so a position saved on a bigger monitor (or
+    // above chrome that has since grown) can never strand the pill.
+    setRawPosition(EDGE + dockPos.fx * spanX, EDGE + dockPos.fy * spanY, w, h);
+    relayoutToasts();
+  }
+
+  // The player may put the pill anywhere EXCEPT over the persistent top
+  // chrome — the topbar carries gold/gems/quests/settings and the activity
+  // strip is the game's status line. "Movable" is the fix for #8; letting
+  // the fix create the same problem somewhere else is not.
+  function minTop(){
+    var floor = EDGE;
+    ['.topbar', '.activity-bar'].forEach(function(sel){
+      var el = document.querySelector(sel);
+      if(!el) return;
+      var r;
+      try { r = el.getBoundingClientRect(); } catch(e){ return; }
+      if(!r || r.height <= 0) return;
+      floor = Math.max(floor, r.bottom + 6);
+    });
+    return floor;
+  }
+
+  function setRawPosition(x, y, w, h){
+    var top  = minTop();
+    var maxX = Math.max(EDGE, window.innerWidth  - w - EDGE);
+    var maxY = Math.max(top,  window.innerHeight - h - EDGE);
+    dockEl.style.right  = 'auto';
+    dockEl.style.bottom = 'auto';
+    dockEl.style.left = Math.round(Math.min(maxX, Math.max(EDGE, x))) + 'px';
+    dockEl.style.top  = Math.round(Math.min(maxY, Math.max(top,  y))) + 'px';
+  }
+
+  function commitPosition(){
+    var r = dockEl.getBoundingClientRect();
+    var w = r.width, h = r.height;
+    var x = r.left, y = r.top;
+    // Edge snap — a pill 4px off the edge looks like a mistake, not a choice.
+    var top  = minTop();
+    var maxX = window.innerWidth  - w - EDGE;
+    var maxY = window.innerHeight - h - EDGE;
+    if(x - EDGE < SNAP) x = EDGE;
+    if(maxX - x < SNAP) x = maxX;
+    if(y - top  < SNAP) y = top;
+    if(maxY - y < SNAP) y = maxY;
+    var spanX = Math.max(1, window.innerWidth  - w - EDGE * 2);
+    var spanY = Math.max(1, window.innerHeight - h - EDGE * 2);
+    dockPos = { fx: clamp01((x - EDGE) / spanX), fy: clamp01((y - EDGE) / spanY) };
+    saveDockPos(dockPos);
+    applyDockPosition();
+  }
+
+  function installDrag(){
+    if(!minEl || !window.PointerEvent) return;
+    minEl.addEventListener('pointerdown', function(e){
+      if(!freePosEnabled()) return;
+      if(e.button != null && e.button !== 0) return;
+      var r = dockEl.getBoundingClientRect();
+      dragging = { id: e.pointerId, sx: e.clientX, sy: e.clientY,
+                   ox: r.left, oy: r.top, w: r.width, h: r.height, moved: false };
+      try { minEl.setPointerCapture(e.pointerId); } catch(_){}
+    });
+    minEl.addEventListener('pointermove', function(e){
+      if(!dragging || e.pointerId !== dragging.id) return;
+      var dx = e.clientX - dragging.sx;
+      var dy = e.clientY - dragging.sy;
+      if(!dragging.moved){
+        if(Math.abs(dx) + Math.abs(dy) < DRAG_THRESH) return;
+        dragging.moved = true;
+        dockEl.classList.add('dragging');
+      }
+      e.preventDefault();
+      setRawPosition(dragging.ox + dx, dragging.oy + dy, dragging.w, dragging.h);
+    });
+    function end(e){
+      if(!dragging || (e && e.pointerId !== dragging.id)) return;
+      var moved = dragging.moved;
+      try { minEl.releasePointerCapture(dragging.id); } catch(_){}
+      dragging = null;
+      dockEl.classList.remove('dragging');
+      if(moved){ suppressClick = true; commitPosition(); }
+    }
+    minEl.addEventListener('pointerup', end);
+    minEl.addEventListener('pointercancel', end);
+    window.addEventListener('resize', function(){ applyDockPosition(); });
+  }
+
   function applyDockState(){
     if(settings.minimized){
       dockEl.classList.add('mini');
@@ -314,6 +502,7 @@
       dockEl.classList.remove('mini');
       dockEl.classList.add('full');
     }
+    applyDockPosition();
     renderTabs();
     renderActive();
     updateMiniBadge();
@@ -727,6 +916,15 @@
     openWhisper: openWhisper,
     block:       blockPlayer,
     unblock:     unblockPlayer,
+    // b219 (#8) — dock placement. `getPosition` returns null while the pill
+    // is at its default corner; `reset` puts it back there.
+    getPosition:   function(){ return dockPos ? { fx: dockPos.fx, fy: dockPos.fy } : null; },
+    setPosition:   function(fx, fy){
+      dockPos = { fx: clamp01(Number(fx) || 0), fy: clamp01(Number(fy) || 0) };
+      saveDockPos(dockPos);
+      applyDockPosition();
+    },
+    resetPosition: function(){ dockPos = null; clearDockPos(); applyDockPosition(); },
     setBackend: function(impl){
       // Tear down old subscriptions before swapping. Without this the
       // new backend has empty _listeners, so neither send-echoes nor

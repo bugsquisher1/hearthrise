@@ -1592,6 +1592,60 @@ body[data-theme] #chat-dock-min .cdm-icon { color: var(--gold-2); display: inlin
 body[data-theme] #chat-dock-min .cdm-badge {
   background: var(--gold); color: #1b1305; border-radius: var(--r-sm); font-weight: 700;
 }
+/* b219 (#8): the pill can be dragged anywhere. Signal that it's grabbable,
+ * and kill the hover lift while a drag is in progress so the pill tracks the
+ * cursor exactly instead of floating 1px above it. */
+body[data-theme] #chat-dock-min { cursor: grab; touch-action: none; user-select: none; }
+body[data-theme] #chat-dock.dragging #chat-dock-min { cursor: grabbing; transform: none; }
+body[data-theme] #chat-dock.dragging { transition: none; }
+
+/* Toasts. The bottom-right queue is the game's only unprompted voice, and it
+ * was whispering: 13.5px (below the b218 body floor), 3.5s regardless of how
+ * much it had to say, and parked underneath the chat pill. Geometry and timing
+ * are handled by src/features/toasts.js; this is the reading treatment. */
+body[data-theme] .notif {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--r);
+  font-size: var(--t-body);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  background: linear-gradient(180deg, #2a231a, #191410);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 205, .07), 0 8px 22px -10px rgba(0, 0, 0, .85);
+  color: var(--ink);
+  animation: notif-in .22s ease-out both;
+}
+body[data-theme] .notif .notif-text { min-width: 0; }
+/* Repeat counter. An idle game repeats itself constantly ("Defeated Wolf" x7);
+ * counting is honest and costs one slot instead of seven. */
+body[data-theme] .notif .notif-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .notif.leaving {
+  animation: notif-out .2s ease-in both;
+}
+/* The type keeps carrying the tone — only the left edge is tinted, so four
+ * toasts stacked together still read as one system rather than a paint chart. */
+body[data-theme] .notif.levelup { border-left: 3px solid var(--gold-2); color: var(--gold-2); }
+body[data-theme] .notif.kill    { border-left: 3px solid var(--role-danger); color: var(--ink); }
+body[data-theme] .notif.loot    { border-left: 3px solid var(--role-success); color: var(--ink); }
+body[data-theme] .notif.info    { border-left: 3px solid var(--role-quiet); color: var(--ink); }
+@keyframes notif-out {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(20%); opacity: 0; }
+}
 
 /* Activity bar — the status strip under the topbar, on every screen. It was a
  * 54px band holding one line of 13px text and an emoji, so the game's most

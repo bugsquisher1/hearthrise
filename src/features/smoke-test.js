@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=208' directly.
+// modularised, will import { G } from '../state/game.js?v=209' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=208';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=208';
+import { on } from '../net/events.js?v=209';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=209';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -404,6 +404,29 @@ const TESTS = [
       if (l) M.cancelListing(l.id);
     } finally {
       G.inventory = savedInv; G.gold = savedGold;
+    }
+  }),
+  () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, solo pool state', () => {
+    const R = window.HearthriseRaids;
+    assert(R && R.BOSSES.length >= 3, 'raid bosses present');
+    R.BOSSES.forEach(b => assert(b.reward && b.reward.gold > 0 && b.def > 0, 'boss ' + b.id + ' has real stats + reward'));
+    const b1 = R.bossOfWeek(), b2 = R.bossOfWeek();
+    assert(b1.id === b2.id, 'boss of the week is deterministic');
+    const dmg = R.simulateStrike(b1);
+    assert(dmg >= 10 && dmg <= 50000, 'strike damage clamped to server bounds, got ' + dmg);
+    const G = window.G;
+    const saved = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
+    try {
+      delete G.raids;
+      const st = R.ensureState();
+      assert(st.solo && st.solo.hp === R.SOLO_POOL_HP, 'solo pool initializes at full HP');
+      assert(st.solo.week && typeof st.claimed === 'object', 'weekly key + claim ledger present');
+      // weekly reset invariant: stale week re-rolls the pool
+      st.solo = { week: 'w-stale', hp: 5, damage: 999 };
+      const st2 = R.ensureState();
+      assert(st2.solo.week !== 'w-stale' && st2.solo.hp === R.SOLO_POOL_HP, 'stale week resets the solo pool');
+    } finally {
+      if (saved === undefined) delete G.raids; else G.raids = saved;
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

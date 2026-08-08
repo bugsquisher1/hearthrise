@@ -313,6 +313,71 @@ create trigger clan_membership_sync
   after insert or delete on public.clan_members
   for each row execute function public.sync_profile_clan();
 
+-- ── 4b. Clan raids (b209, SYS-6) ──────────────────────────────
+-- Asynchronous cooperative raids: one shared boss HP pool per clan per
+-- week; every member's strikes decrement it atomically; when it hits 0,
+-- every contributor may claim the reward chest exactly once.
+create table if not exists public.clan_raids (
+  clan_id      uuid not null references public.clans(id) on delete cascade,
+  week_key     text not null,
+  boss_id      text not null,
+  hp_remaining bigint not null,
+  max_hp       bigint not null,
+  downed_at    timestamptz,
+  primary key (clan_id, week_key)
+);
+alter table public.clan_raids enable row level security;
+drop policy if exists "raids readable" on public.clan_raids;
+create policy "raids readable" on public.clan_raids for select using (true);
+
+create table if not exists public.raid_contributions (
+  clan_id  uuid not null,
+  week_key text not null,
+  user_id  uuid not null,
+  damage   bigint not null default 0,
+  claimed  boolean not null default false,
+  primary key (clan_id, week_key, user_id)
+);
+alter table public.raid_contributions enable row level security;
+drop policy if exists "contributions readable" on public.raid_contributions;
+create policy "contributions readable" on public.raid_contributions for select using (true);
+drop policy if exists "own contribution claim" on public.raid_contributions;
+create policy "own contribution claim" on public.raid_contributions
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- One strike: creates the week's raid row if absent, clamps damage,
+-- decrements the shared pool, records the contribution. Server clamps
+-- p_damage hard so a tampered client can't one-shot the boss.
+create or replace function public.raid_strike(
+  p_clan_id uuid, p_week text, p_boss text, p_max_hp bigint, p_damage bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_hp bigint; v_downed timestamptz;
+begin
+  if p_damage is null or p_damage <= 0 then
+    return jsonb_build_object('ok', false, 'error', 'bad_damage');
+  end if;
+  if not exists (select 1 from public.clan_members
+                 where clan_id = p_clan_id and user_id = auth.uid()) then
+    return jsonb_build_object('ok', false, 'error', 'not_member');
+  end if;
+  p_damage := least(p_damage, 50000);                    -- hard server clamp per strike
+  insert into public.clan_raids (clan_id, week_key, boss_id, hp_remaining, max_hp)
+    values (p_clan_id, p_week, p_boss, p_max_hp, p_max_hp)
+    on conflict (clan_id, week_key) do nothing;
+  update public.clan_raids
+    set hp_remaining = greatest(0, hp_remaining - p_damage),
+        downed_at = case when hp_remaining - p_damage <= 0 and downed_at is null
+                         then now() else downed_at end
+    where clan_id = p_clan_id and week_key = p_week
+    returning hp_remaining, downed_at into v_hp, v_downed;
+  insert into public.raid_contributions (clan_id, week_key, user_id, damage)
+    values (p_clan_id, p_week, auth.uid(), p_damage)
+    on conflict (clan_id, week_key, user_id)
+    do update set damage = public.raid_contributions.damage + excluded.damage;
+  return jsonb_build_object('ok', true, 'hp_remaining', v_hp, 'downed', v_downed is not null);
+end $$;
+grant execute on function public.raid_strike(uuid, text, text, bigint, bigint) to authenticated;
+
 -- ── 5. Leaderboards ───────────────────────────────────────────
 -- game_saves.total_level is a generated column the client already uploads.
 create or replace view public.leaderboard as

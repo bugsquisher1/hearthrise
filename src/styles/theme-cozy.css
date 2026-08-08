@@ -4255,51 +4255,55 @@ body[data-theme="cozy-light"] .qm-close:hover {
  * HearthriseTheme.set('hearthlight'); default stays Cozy Day.
  * ============================================================ */
 body[data-theme="hearthlight"] {
-  /* Surfaces — roasted oak ramp, parchment reserved for raised bits */
-  --bg-0:        #1c1610;              /* outermost — near-black warm */
-  --bg-1:        #241c14;              /* sidebar / carved wood rail */
-  --bg-2:        #2b2118;              /* card / panel */
-  --bg-3:        #33271a;              /* elevated (modal) */
-  --bg-card:     linear-gradient(180deg,#2f2418,#221a12);
+  /* FORGE & STONE (b183) — desaturated stone/iron darks with warmth reserved for
+     candlelight + gilt, not a flat warm-brown blob. Cooler undertone in the deep
+     shadows (stone/iron), warm ember only where light falls. */
+  --bg-0:        #100e0b;              /* deepest — dark hall / near-black */
+  --bg-1:        #17140f;              /* sidebar / iron rail */
+  --bg-2:        #201b15;              /* card / panel — worn leather + stone */
+  --bg-3:        #2a241c;              /* elevated (modal) */
+  --bg-card:     linear-gradient(180deg,#26201a,#1a1610);
 
-  /* Lines — faint gilt */
-  --line:        rgba(205,162,74,.22);
-  --line-soft:   rgba(243,232,214,.06);
-  --line-strong: rgba(205,162,74,.46);
+  /* Lines — faint gilt + cool stone edge */
+  --line:        rgba(201,162,74,.20);
+  --line-soft:   rgba(236,225,204,.055);
+  --line-strong: rgba(201,162,74,.42);
 
-  /* Text — warm off-white ramp, high contrast on the dark ground */
-  --ink:         #f3e8d6;
-  --ink-2:       #cdba9c;
-  --ink-3:       #9c876a;
+  /* Text — aged parchment ramp */
+  --ink:         #ece1cc;
+  --ink-2:       #c4b79e;
+  --ink-3:       #8f7d63;
 
-  /* Gilt gold — the unifying accent */
-  --gold:        #cda24a;
-  --gold-2:      #e6c982;
-  --gold-bg:     rgba(205,162,74,.15);
+  /* Gilt gold — aged, candlelit (the unifying accent) */
+  --gold:        #c9a24a;
+  --gold-2:      #e3c77e;
+  --gold-bg:     rgba(201,162,74,.14);
 
-  /* Guild seals — semantic colors turned up */
-  --green:       #93b35c;              /* gathering / skills / XP */
-  --green-bg:    rgba(147,179,92,.16);
+  /* Semantic seals — richer, more material (oxblood / moss / steel) */
+  --green:       #7f9a4f;              /* moss — gathering / XP */
+  --green-bg:    rgba(127,154,79,.15);
 
-  --red:         #d64a3a;              /* forge / combat / danger */
-  --red-bg:      rgba(214,74,58,.16);
+  --red:         #b23a2c;              /* oxblood — combat / danger */
+  --red-bg:      rgba(178,58,44,.16);
 
-  --aqua:        #62a892;              /* hearth-adjacent teal — info */
-  --aqua-2:      #83c4ad;
-  --aqua-bg:     rgba(98,168,146,.16);
+  --aqua:        #5c8f89;              /* weathered teal — info */
+  --aqua-2:      #7fb0a8;
+  --aqua-bg:     rgba(92,143,137,.15);
 
-  --purple:      #a487d8;              /* dusk lavender */
-  --purple-bg:   rgba(164,135,216,.18);
+  --steel:       #7a8791;              /* forged steel — gear / cool accent */
 
-  --gem:         #7d8ede;              /* arcane blue — gems / premium */
-  --gem-bg:      rgba(125,142,222,.18);
+  --purple:      #6a4560;              /* deep heraldic plum (was lavender) */
+  --purple-bg:   rgba(106,69,96,.20);
 
-  /* Shell surfaces — warm-dark, candle-lit */
-  --sidebar-bg:  linear-gradient(180deg, #241c14, #1a130d);
-  --topbar-bg:   linear-gradient(90deg, #2b2118, #221a12);
+  --gem:         #5262b3;              /* sapphire — gems / premium */
+  --gem-bg:      rgba(82,98,179,.18);
+
+  /* Shell surfaces — stone-dark, candle-lit */
+  --sidebar-bg:  linear-gradient(180deg, #17140f, #100d09);
+  --topbar-bg:   linear-gradient(90deg, #201b15, #17130f);
   --app-bg:
-    radial-gradient(ellipse 80% 55% at 78% 4%, rgba(224,123,57,.16) 0%, rgba(224,123,57,0) 62%),
-    linear-gradient(180deg, #241c14 0%, #1f1810 46%, #17110b 78%, #100c07 100%);
+    radial-gradient(ellipse 78% 52% at 78% 3%, rgba(224,150,80,.13) 0%, rgba(224,150,80,0) 60%),
+    linear-gradient(180deg, #191510 0%, #131009 48%, #0e0b07 80%, #080605 100%);
 
   color-scheme: dark;
 }
@@ -4333,7 +4337,7 @@ body[data-theme="hearthlight"] .brand-name small { color: var(--gold-2) !importa
  * those to tokens without shifting Cozy is a later cleanup pass.
  * Verified live in-browser (Home/Profile) before commit.
  * ============================================================ */
-body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#2f2418,#221a12); }
+body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a1610); }
 
 /* main panel — drop the cream parchment-frame background image */
 body[data-theme="hearthlight"] .panel.active { background: none !important; color: var(--ink); }

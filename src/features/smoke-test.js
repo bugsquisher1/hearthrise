@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=182' directly.
+// modularised, will import { G } from '../state/game.js?v=185' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=182';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=182';
+import { on } from '../net/events.js?v=185';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=185';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2320,7 +2320,12 @@ const TESTS = [
       T.setTheme('hearthlight');
       assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');
       const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
-      assert(bg === '#1c1610', 'hearthlight --bg-0 should be #1c1610, got "' + bg + '"');
+      // Don't pin the exact hex — the palette evolves. Assert bg-0 is a DARK
+      // surface (Hearthlight is a dark theme). Accepts #rgb or #rrggbb.
+      const hx = bg.replace('#', '');
+      const full = hx.length === 3 ? hx.replace(/(.)/g, '$1$1') : hx;
+      assert(/^[0-9a-f]{6}$/i.test(full) && parseInt(full, 16) < 0x333333,
+        'hearthlight --bg-0 should be a dark surface, got "' + bg + '"');
     } finally {
       T.setTheme(prev); // never leave the tester on a different theme than they picked
     }

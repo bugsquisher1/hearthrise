@@ -237,6 +237,31 @@
   }
   window.runDungeon = runDungeon;
 
+  /* b213 (phase 2): gilt medallion tile icons instead of raw emoji — reuse
+     the creature/chrome paths the icon-set has already fetched. Emoji stays
+     only as the pre-cache fallback. */
+  var DGN_GLYPH = {
+    crypt_of_bones: { kind: 'mon', key: 'weak_skeleton' },
+    haunted_archive: { kind: 'ui', key: 'uiQuests' },
+    obsidian_keep: { kind: 'ui', key: 'navDungeons' },
+    voidbringer: { kind: 'mon', key: 'lesser_demon' },
+    ancient_wyrm: { kind: 'mon', key: 'dragon' }
+  };
+  function dgnGlyph(id, d){
+    var IS = window.HearthriseIconSet;
+    var map = DGN_GLYPH[id];
+    if(IS && map){
+      if(map.kind === 'mon' && IS.medallionMon){
+        var m = IS.medallionMon(map.key, 34);
+        if(m) return m;
+      } else if(IS.path && IS.path(map.key)){
+        return '<svg viewBox="0 0 512 512" style="width:30px;height:30px" aria-hidden="true">' +
+          '<path fill="var(--gold-2,#cda24a)" d="' + IS.path(map.key) + '"/></svg>';
+      }
+    }
+    return d.icon || '';
+  }
+
   // ---- Render the Dungeons tab ----
   function renderDungeons(){
     var panel = document.getElementById('panel-dungeons');
@@ -258,7 +283,11 @@
         var check = canRun(id);
         var lootHtml = (d.loot||[]).map(function(l){
           var item = window.ITEMS && window.ITEMS[l.id];
-          var icon = item && item.icon ? item.icon : '📦';
+          /* b213 (phase 2): prefer the painted item icon over the data emoji */
+          var painted = window._itemPath && window._itemPath[l.id];
+          var icon = painted
+            ? '<img src="' + painted + '" style="width:16px;height:16px;vertical-align:-3px;border-radius:3px">'
+            : (item && item.icon ? item.icon : '');
           var bopTag = item && item.bop ? '<span class="dgn-bop">BoP</span>' : '';
           return '<div class="dgn-loot" title="' + (item ? item.n : l.id) + '">' + icon + ' ' + (l.qty[0] === l.qty[1] ? l.qty[0] : l.qty[0]+'-'+l.qty[1]) + 'x ' + bopTag + '</div>';
         }).join('');
@@ -277,7 +306,7 @@
         html +=
           '<div class="dgn-card' + (check.ok ? '' : ' locked') + '">' +
             '<div class="dgn-head">' +
-              '<div class="dgn-icon">' + d.icon + '</div>' +
+              '<div class="dgn-icon">' + dgnGlyph(id, d) + '</div>' +
               '<div class="dgn-title">' +
                 '<div class="dgn-name">' + d.name + '</div>' +
                 '<div class="dgn-meta">Lv ' + d.reqLv + ' · ' + d.cooldownH + 'h cooldown</div>' +

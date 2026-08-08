@@ -166,7 +166,9 @@
       var rph = ratePerHour(w);
       var act = w.skill && actFor(w.skill, w.targetId);
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line-soft)">' +
-        '<span style="font-size:18px">🧑‍🌾</span>' +
+        ((window.HearthriseIconSet && window.HearthriseIconSet.path && window.HearthriseIconSet.path('navProfile'))
+          ? '<svg viewBox="0 0 512 512" style="width:18px;height:18px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + window.HearthriseIconSet.path('navProfile') + '"/></svg>'
+          : '<span style="font-size:18px">🧑‍🌾</span>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:12px"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
           '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + '</div>' +
@@ -178,7 +180,7 @@
     var canHire = G.workers.hired.length < s;
     host.innerHTML =
       '<div style="border-top:1px solid var(--line-soft);margin-top:10px;padding-top:8px">' +
-        '<div class="tiny" style="text-transform:uppercase;letter-spacing:.06em;color:var(--gold-2);font-weight:700;margin-bottom:2px">🧺 Workers — ' + G.workers.hired.length + '/' + s + '</div>' +
+        '<div class="tiny" style="text-transform:uppercase;letter-spacing:.06em;color:var(--gold-2);font-weight:700;margin-bottom:2px">Workers — ' + G.workers.hired.length + '/' + s + '</div>' +
         (s === 0 ? '<div class="tiny muted">Upgrade to a Homestead to hire your first worker.</div>' : '') +
         rows +
         (s > 0 && canHire

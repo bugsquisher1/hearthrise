@@ -1436,9 +1436,14 @@ function harvestPlot(i){
 }
 
 /* ─── notifications ─── */
+/* b213 (phase 2): toasts are system chrome — strip pictographs at the single
+   render point instead of hunting emoji through a hundred call sites. The
+   toast TYPE already carries the tone (kill=red, gold, levelup, info). */
+const NOTIF_EMOJI_RE=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{231A}-\u{23FF}]/gu;
 function notify(text,type='info'){
   const el=document.getElementById('notifs');if(!el)return;
-  const d=document.createElement('div');d.className='notif '+type;d.textContent=text;
+  const clean=String(text).replace(NOTIF_EMOJI_RE,'').replace(/\s{2,}/g,' ').trim();
+  const d=document.createElement('div');d.className='notif '+type;d.textContent=clean||text;
   d.onclick=()=>d.remove();
   el.appendChild(d);
   setTimeout(()=>{try{d.remove();}catch(e){}},3500);
@@ -1941,9 +1946,9 @@ function renderFarm(){
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
-        🌾 Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
-        · 📜 ${deeds} Deed${deeds===1?'':'s'}
-        · 🔁 Auto-replant: <b>${replantLabel}</b>
+        Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
+        · ${deeds} Deed${deeds===1?'':'s'}
+        · Auto-replant: <b>${replantLabel}</b>
       </div>
       <div class="row gap-sm">
         <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
@@ -2217,7 +2222,12 @@ async function renderSocial(){
        even when signed out (anon key) and flags it r.live — don't stamp real
        player rows "Mock data". */
     document.getElementById('lb-sub').textContent=(r.live||(NetClient.online()&&G.account))?'Live':'Mock data';
-    lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${u.rank<=3?['🥇','🥈','🥉'][u.rank-1]:u.rank}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat">⚔️${u.combat}</span><span class="lb-stat gold">🪙${(u.gold||0).toLocaleString()}</span></div>`).join('');
+    /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
+    const rankBadge=(n)=>{
+      const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
+      return c?`<b style="color:${c};font-family:var(--f-display);font-size:14px">${n}</b>`:String(n);
+    };
+    lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
   }
   /* clan + friends */
   const cl=document.getElementById('social-panel');

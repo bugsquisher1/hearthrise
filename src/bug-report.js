@@ -314,7 +314,10 @@ function renderButton() {
   btn.id = 'hr-bug-btn';
   btn.className = 'btn btn-sm';
   btn.title = 'Report a bug';
-  btn.textContent = '🐛';
+  /* b213 (phase 2): line-art bug glyph instead of the emoji */
+  btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px;display:block" aria-hidden="true">'
+    + '<path fill="currentColor" d="M12 4a4 4 0 0 1 4 4v1h2l2-2 1.4 1.4L19 10.8V12h3v2h-3v1.2l2.4 2.4L20 19l-2-2h-1.3A5 5 0 0 1 13 20.9V12h-2v8.9A5 5 0 0 1 7.3 17H6l-2 2-1.4-1.4L5 15.2V14H2v-2h3v-1.2L2.6 8.4 4 7l2 2h2V8a4 4 0 0 1 4-4z"/></svg>';
+  btn.title = 'Report a bug';
   // Position above the chat dock so they don't overlap.
   // Chat lives at right:12px;bottom:12px, so we sit on top of it.
   btn.style.cssText = 'position:fixed;right:12px;bottom:60px;z-index:9998;padding:6px 9px;background:rgba(20,25,40,.85);color:#f3d181;border:1px solid #2a3142;border-radius:8px;font-size:14px;cursor:pointer;backdrop-filter:blur(4px);line-height:1';
@@ -329,7 +332,7 @@ function openModal() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   overlay.innerHTML = `
     <form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:18px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">
-      <h3 style="margin:0;color:#f3d181">🐛 Report a bug</h3>
+      <h3 style="margin:0;color:#f3d181">Report a bug</h3>
       <p style="margin:0;font-size:12px;color:#9aa3b0">Thanks for testing! We'll auto-attach your build version, current tab, and recent errors. Don't include passwords or anything private.</p>
       <input name="summary" placeholder="One-line summary (e.g. 'inventory empty after combat')" required maxlength="120" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />
       <textarea name="description" placeholder="What happened? What did you expect? Steps to reproduce?" rows="5" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px;resize:vertical;font-family:inherit"></textarea>

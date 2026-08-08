@@ -267,7 +267,8 @@
     dockEl.id = 'chat-dock';
     dockEl.innerHTML = ''
       + '<div id="chat-dock-min">'
-      +   '<span class="cdm-icon">💬</span>'
+      +   '<span class="cdm-icon"><svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-2px" aria-hidden="true">'
+      +     '<path fill="currentColor" d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-4 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg></span>'
       +   '<span class="cdm-label">Chat</span>'
       +   '<span class="cdm-badge" id="chat-mini-badge" style="display:none">0</span>'
       + '</div>'
@@ -338,7 +339,8 @@
       var unread = state.unread[ch.id] || 0;
       var active = state.active === ch.id ? ' active' : '';
       html += '<button class="chat-tab' + active + '" data-channel="' + ch.id + '">'
-           +   '<span class="ct-icon">' + ch.icon + '</span>'
+           /* b213 (phase 2): text-only tabs — the emoji icons read as clutter
+              next to 6-char labels and broke the chrome's gilt icon language */
            +   '<span class="ct-label">' + ch.label + '</span>'
            +   (unread ? '<span class="ct-badge">' + unread + '</span>' : '')
            + '</button>';
@@ -423,7 +425,7 @@
     if(state.active !== channel) return;
     if(!msgs || msgs.length === 0){
       msgsEl.innerHTML = '<div class="chat-empty">'
-        + ((channel === 'clan' && !clanOf()) ? '🛡️ Join a clan to unlock this channel.' : '✨ No messages yet — be the first.')
+        + ((channel === 'clan' && !clanOf()) ? 'Join a clan to unlock this channel.' : 'No messages yet — be the first.')
         + '</div>';
       return;
     }
@@ -510,7 +512,7 @@
     var isBlocked = blocked.indexOf(playerId) !== -1;
     menu.innerHTML = ''
       + '<div class="cnm-head">' + escapeHtml(playerName) + '</div>'
-      + '<button data-act="whisper">💬 Whisper</button>'
+      + '<button data-act="whisper">Whisper</button>'
       + (isBlocked
           ? '<button data-act="unblock">✓ Unblock</button>'
           : '<button data-act="block">🚫 Block</button>')

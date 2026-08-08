@@ -377,9 +377,9 @@ function renderStable() {
       ${owned ? `
         <div class="sc-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
         <div style="font-size:10px;color:var(--ink-3)">${xp.toLocaleString()} / ${nextXp.toLocaleString()} XP</div>
-        ${def.proc ? `<div class="sc-bonuses" style="font-size:10px;font-style:italic">⚡ ${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
+        ${def.proc ? `<div class="sc-bonuses" style="font-size:10px;font-style:italic">${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
         <button class="sc-equip" onclick="${equipped ? 'window.unequipCompanion()' : `window.equipCompanion('${id}')`}">${equipped ? 'Unequip' : 'Equip'}</button>
-      ` : `<div class="sc-source">🔒 ${def.source}</div>`}
+      ` : `<div class="sc-source">Locked · ${def.source}</div>`}
     </div>`;
   }).join('');
 

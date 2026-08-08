@@ -199,11 +199,17 @@
       return '<span style="width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;' +
         'background:' + (i <= t ? 'var(--gold)' : 'rgba(255,255,255,.12)') + '"></span>';
     }).join('');
+    /* b213 (phase 2): gilt house glyph instead of emoji — the property card
+       is the House panel's hero and led the screen with 🏗️/⛺. */
+    var IS = window.HearthriseIconSet;
+    var houseIco = (IS && IS.path && IS.path('navHouse'))
+      ? '<svg viewBox="0 0 512 512" style="width:30px;height:30px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + IS.path('navHouse') + '"/></svg>'
+      : '<span style="font-size:28px">' + cur.icon + '</span>';
     var body =
-      '<div class="card-head"><div class="card-title">🏗️ Property</div><div class="card-sub">Tier ' + (t + 1) + ' / ' + TIERS.length + '</div></div>' +
+      '<div class="card-head"><div class="card-title">Property</div><div class="card-sub">Tier ' + (t + 1) + ' / ' + TIERS.length + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
-          '<span style="font-size:28px">' + cur.icon + '</span>' +
+          houseIco +
           '<div><div style="font-family:var(--f-display);font-size:15px;color:var(--gold-2)">' + cur.name + '</div>' +
           '<div class="tiny muted">' + pips + '</div></div>' +
         '</div>' +
@@ -211,11 +217,11 @@
         '<div class="tiny" style="margin-bottom:8px;color:var(--ink-2)">Plots <b>' + maxPlots() + '</b> · Workers <b>' + workerSlots() + '</b> · Offline cap <b>+' + offlineBonusHours() + 'h</b>' + (isCastle() ? ' · <b style="color:var(--gold-2)">+5% all XP</b>' : '') + '</div>' +
         (nxt
           ? '<div style="border-top:1px solid var(--line-soft);padding-top:8px">' +
-              '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.icon + ' ' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + ', +' + nxt.offlineHours + 'h offline</div>' +
+              '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + ', +' + nxt.offlineHours + 'h offline</div>' +
               '<div style="margin-bottom:8px">' + fmtCostRow(nxt.cost) + '</div>' +
               '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.upgradeProperty()">Upgrade Property</button>' +
             '</div>'
-          : '<div class="tiny" style="color:var(--gold-2)">👑 The realm is yours. (Clan castles come next.)</div>') +
+          : '<div class="tiny" style="color:var(--gold-2)">The realm is yours. (Clan castles come next.)</div>') +
         '<div id="hh-workers-host"></div>' +
       '</div>';
     host.innerHTML = body;

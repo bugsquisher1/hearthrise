@@ -21,7 +21,7 @@
 // INSERTs for any channel it has read access to under RLS.
 // ============================================================
 
-import { getSession } from './auth.js?v=204';
+import { getSession } from './auth.js?v=205';
 
 const REST_HEADERS = (cfg, session) => ({
   'apikey': cfg.anonKey,
@@ -170,11 +170,20 @@ class SupabaseChatBackend {
   }
 }
 
-// Hot-swap chat.js's backend the moment we load.
-if (window.Chat && typeof window.Chat.setBackend === 'function') {
-  const backend = new SupabaseChatBackend();
-  window.Chat.setBackend(backend);
-  console.log('[supabase-chat] live backend installed');
-} else {
-  console.warn('[supabase-chat] window.Chat not available — backend swap skipped');
-}
+// Hot-swap chat.js's backend. b205: the old one-shot check raced module
+// load order — if this ESM evaluated before chat.js's classic script set
+// window.Chat, the swap was silently skipped forever and everyone stayed
+// on the localStorage backend. Retry until Chat appears (up to 30s).
+(function installBackend(attempt) {
+  if (window.Chat && typeof window.Chat.setBackend === 'function') {
+    const backend = new SupabaseChatBackend();
+    window.Chat.setBackend(backend);
+    console.log('[supabase-chat] live backend installed' + (attempt ? ' (attempt ' + attempt + ')' : ''));
+    return;
+  }
+  if ((attempt || 0) >= 60) {
+    console.warn('[supabase-chat] window.Chat never appeared — backend swap abandoned');
+    return;
+  }
+  setTimeout(() => installBackend((attempt || 0) + 1), 500);
+})(0);

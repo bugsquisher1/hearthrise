@@ -158,6 +158,30 @@
   }
   function clanOf(){ return (window.G && window.G.clanName) ? window.G.clanName : null; }
 
+  // ── Wire-channel translation (b205) ─────────────────────────
+  // The UI keeps friendly local keys ('clan', 'whisper:<otherId>') but the
+  // Supabase schema + RLS route on canonical WIRE ids:
+  //   'clan'              → 'clan:<clanId>'            (per-clan isolation)
+  //   'whisper:<otherId>' → 'whisper:<a>:<b>' (sorted) (both parties land
+  //                          on the SAME conversation channel — the old
+  //                          one-sided id meant cross-client whispers
+  //                          never met each other)
+  // Everything else ('global', 'trade') passes through unchanged.
+  function clanWireId(){
+    var G = window.G || {};
+    var id = G.clanId || (G.clanName ? String(G.clanName).toLowerCase().replace(/[^a-z0-9]+/g, '-') : null);
+    return id ? ('clan:' + id) : 'clan:none';
+  }
+  function wireChannel(localCh){
+    if(localCh === 'clan') return clanWireId();
+    if(localCh.indexOf('whisper:') === 0){
+      var otherId = localCh.slice('whisper:'.length);
+      var mine = me().id;
+      return 'whisper:' + [String(mine), String(otherId)].sort().join(':');
+    }
+    return localCh;
+  }
+
   // ════════════════════════════════════════════════════════════
   // BACKEND INTERFACE
   // ════════════════════════════════════════════════════════════
@@ -222,7 +246,7 @@
   var cache = {};   // channelId → [msg]
   function loadCache(channel){
     if(cache[channel]) return Promise.resolve(cache[channel]);
-    return backend.fetch(channel).then(function(msgs){
+    return backend.fetch(wireChannel(channel)).then(function(msgs){
       cache[channel] = msgs;
       return msgs;
     });
@@ -514,6 +538,7 @@
     state.whispers[playerId].name = playerName;     // refresh the name
     saveState();
     renderTabs();
+    subscribeChannel('whisper:' + playerId);        // b205: realtime for this thread
     switchChannel('whisper:' + playerId);
   }
 
@@ -625,7 +650,7 @@
     // backend.send() notifies the subscriber synchronously, which is the
     // path that adds the message to cache + re-renders. We don't double-
     // push here or the message would render twice.
-    backend.send(channel, msg).then(function(){
+    backend.send(wireChannel(channel), msg).then(function(){
       if(typeof window.trackEvent === 'function') window.trackEvent('chat_send', { channel: channel, len: v.length });
     });
   }
@@ -691,7 +716,7 @@
         mentions: [],
         system: true,
       };
-      backend.send(channel, msg).then(function(){
+      backend.send(wireChannel(channel), msg).then(function(){
         cache[channel] = cache[channel] || [];
         cache[channel].push(msg);
         if(state.active === channel) renderActive();
@@ -708,6 +733,7 @@
       // the next manual fetch.
       try { unsubFns.forEach(function(u){ try{ u && u(); }catch(e){} }); } catch(e){}
       unsubFns = [];
+      subscribedKeys = {};           // allow re-subscribe on the new backend
       backend = impl;
       cache = {};                // drop the local cache
       // Re-subscribe to the same default channels on the new backend.
@@ -722,11 +748,30 @@
     },
   };
 
-  // Subscribe to every DEFAULT_CHANNELS id on the current `backend`.
-  // Extracted so setBackend() can re-subscribe after a hot-swap.
+  // Subscribe one LOCAL channel key on the current backend, translating to
+  // the canonical wire id. Inbound messages land in the local cache key.
+  var subscribedKeys = {};
+  function subscribeChannel(localId){
+    if(subscribedKeys[localId]) return;
+    subscribedKeys[localId] = true;
+    var unsub = backend.subscribe(wireChannel(localId), makeChannelHandler(localId));
+    unsubFns.push(unsub);
+  }
+
+  // Subscribe to every DEFAULT_CHANNELS id + every open whisper tab on the
+  // current `backend`. Extracted so setBackend() can re-subscribe after a
+  // hot-swap. b205: whisper tabs subscribe too — before, only the three
+  // default channels ever got realtime, so whispers never pushed.
   function subscribeAllChannels(){
-    DEFAULT_CHANNELS.forEach(function(ch){
-      var unsub = backend.subscribe(ch.id, function(newMsgs){
+    DEFAULT_CHANNELS.forEach(function(ch){ subscribeChannel(ch.id); });
+    Object.keys(state.whispers || {}).forEach(function(otherId){
+      subscribeChannel('whisper:' + otherId);
+    });
+  }
+
+  function makeChannelHandler(localKey){
+    var ch = { id: localKey };
+    return function(newMsgs){
         cache[ch.id] = cache[ch.id] || [];
         // Idempotent merge by ID — guards against double-delivery
         // from any backend implementation or future race conditions.
@@ -759,9 +804,7 @@
             }
           }
         }
-      });
-      unsubFns.push(unsub);
-    });
+    };
   }
 
   // ── Boot ───────────────────────────────────────────────────

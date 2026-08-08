@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=204' directly.
+// modularised, will import { G } from '../state/game.js?v=205' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=204';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=204';
+import { on } from '../net/events.js?v=205';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=205';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 

@@ -6717,6 +6717,24 @@ const TESTS = [
       else document.body.setAttribute('data-theme', prevTheme);
     }
   }),
+
+  // b223 P1: the three b215 endgame crops (farming 62/75/88) were absent from
+  // every plot-tier unlock list, so `canPlantCrop()` hard-refused them even at
+  // MAX plot level — farming's last 37 levels had nothing new to plant, and
+  // Emberfruit/Moonbloom cooking recipes were unreachable. Guard: every crop
+  // in CROPS is plantable at max plot level, and the endgame three sit at
+  // exactly the tiers the fix placed them.
+  () => tryRun('b223: every crop in CROPS is plantable at max plot level', () => {
+    const F = window.HearthriseFarm;
+    const map = (F && F.getTierMap) ? F.getTierMap() : null;
+    assert(map, 'farm-progression tier map not exposed');
+    const maxUnlocks = map[map.length - 1].unlocks;
+    const missing = Object.keys(window.CROPS || {}).filter(id => maxUnlocks.indexOf(id) === -1);
+    assert(missing.length === 0, 'crops unplantable at MAX plot level: ' + missing.join(', '));
+    assert(map[4].unlocks.indexOf('goldenroot') !== -1, 'goldenroot must unlock at plot Lv 4');
+    assert(map[5].unlocks.indexOf('emberfruit') !== -1 && map[5].unlocks.indexOf('moonbloom') !== -1,
+      'emberfruit + moonbloom must unlock at plot Lv 5');
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

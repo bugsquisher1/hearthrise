@@ -38,8 +38,12 @@
     { unlocks: ['turnip'],                                              cost: 0 },
     { unlocks: ['turnip','carrot','wheat'],                             cost: 1 },
     { unlocks: ['turnip','carrot','wheat','potato','tomato'],           cost: 3 },
-    { unlocks: ['turnip','carrot','wheat','potato','tomato','pumpkin'], cost: 5 },
-    { unlocks: ['turnip','carrot','wheat','potato','tomato','pumpkin'], cost: 8 }, // Lv 5 = max (currently same as Lv 4 since pumpkin is the last crop; Lv 5 future-proofs the curve)
+    // b223: the three b215 endgame crops (farming 62/75/88 skill gates of
+    // their own) were never added to any tier, so farming's last 37 levels
+    // had nothing new to plant even at MAX plot level — canPlantCrop() is a
+    // hard gate. Goldenroot lands at Lv 4; Lv 5 finally earns its 8 deeds.
+    { unlocks: ['turnip','carrot','wheat','potato','tomato','pumpkin','goldenroot'], cost: 5 },
+    { unlocks: ['turnip','carrot','wheat','potato','tomato','pumpkin','goldenroot','emberfruit','moonbloom'], cost: 8 },
   ];
   var MAX_LEVEL = TIERS.length - 1; // 5
 

@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=192' directly.
+// modularised, will import { G } from '../state/game.js?v=194' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=192';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=192';
+import { on } from '../net/events.js?v=194';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=194';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -192,6 +192,13 @@ const TESTS = [
     ['bronze_sword', 'rune_sword', 'steel_platebody', 'copper_ring'].forEach((id) => {
       const p = ip[id];
       assert(p && /assets\/icons-bundle\/painted\/gear\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+    });
+  }),
+  () => tryRun('b193: painted consumables/drops/crops wired to shipped paths', () => {
+    const ip = window._itemPath || {};
+    ['slime_gel', 'bones', 'carrot', 'cooked_shark', 'ruby', 'bat_wing', 'turnip_seed'].forEach((id) => {
+      const p = ip[id];
+      assert(p && /assets\/icons-bundle\/painted\/items\//.test(p), 'painted item icon missing/unshipped for ' + id + ': ' + p);
     });
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

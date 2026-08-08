@@ -12,6 +12,21 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-08 · SEQUENCING · #14/#15 and #16 must ship together (Game Designer)
+`world-event-cadence.md` §7.2 moves the raid card out of `#panel-dungeons` into the new Events panel — if the Hunt (#16) lands in a different wave, its card sits in a panel with no nav entry (the exact bug #14 fixes). Wave planning constraint.
+
+### 2026-08-08 · SEMANTIC · clan-overhaul §5.2 objective mistuned vs tiered pools (Game Designer, self-correction)
+"Break the Siege — 500,000 raid damage" was written against the flat 250k pool; vs a Tier I pool of 35k it demands ~15 bosses. Retarget to `1.5 × declared pool_hp` when #10/#16 build.
+
+### 2026-08-08 · DEPENDENCY · perk-stacking re-scope must land WITH Hunt chests (Game Designer)
+A simultaneous +57% allXP stack would invalidate Hunt reward tuning — land clan-perk re-scope + Hunt in the same wave.
+
+### 2026-08-08 · DEPENDENCY · six new boss signature materials need recipes at ship (Game Designer)
+Else they join the recipe-less vendor-trash list (items 26–31). Route into b215 armour tiers when #16 ships.
+
+### 2026-08-08 · DEPENDENCY · `serverSkewMs` (server-time offset) needed for topbar countdown (Game Designer → Systems)
+No current equivalent exists; without it a wrong device clock makes Join appear broken. Build with #15.
+
 ### 2026-08-08 · SEMANTIC · Perk stacking power budget (Game Designer → Systems Engineer)
 Homestead + renown + clan-level + proposed clan-wings all funnel `getBonus`; `allXP` could stack to ~+57%. Designer recommends re-scoping clan auto-level `PERKS` to baseline-only + a per-key soft cap, landed **with** the wings (clan-overhaul §7). Systems must rule on the cap mechanism before Wave 3 builds the wings.
 

@@ -183,7 +183,18 @@ function renderSkillDetail(id) {
     return;
   }
 
-  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}`;
+  // b220: the artisan category strip lives in legacy.js block 27 (the copy
+  // that actually paints the Skills screen) and is published as
+  // window.HearthriseArtisanCat so this twin renders identically rather than
+  // holding a second implementation that can drift. Selection is part of the
+  // render key so switching lanes forces a rebuild, not a lightUpdate.
+  const artCat = window.HearthriseArtisanCat || null;
+  const catSel = artCat ? artCat.selected(id) : null;
+  // Level is in the key too: lightUpdate never repaints tiles, so a level-up
+  // used to leave newly-unlocked activities greyed out until something else
+  // forced a rebuild. (Kept identical to the legacy twin in block 27.)
+  const catLv = typeof window.getLevel === 'function' ? window.getLevel(id) : 0;
+  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}|${catSel || ''}|${catLv}`;
   const detailEl = document.getElementById('skill-detail');
   const alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
   if (alreadyRendered && window._actLastRender.skillId === id && window._actLastRender.activeKey === activeKey) {
@@ -200,6 +211,7 @@ function renderSkillDetail(id) {
   const head = buildHead(id);
   let tiles = '';
   let count = 0;
+  let cats = '';
 
   const tableMap = { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS };
   if (tableMap[id]) {
@@ -214,7 +226,8 @@ function renderSkillDetail(id) {
     </div>`;
     count = 1;
   } else if (ARTISAN_RECIPES[id]) {
-    const recipes = ARTISAN_RECIPES[id];
+    const recipes = artCat ? artCat.recipesFor(id) : ARTISAN_RECIPES[id];
+    cats = artCat ? artCat.strip(id) : '';
     tiles = recipes.map((r) => tileForArtisan(r, id)).join('');
     count = recipes.length;
   } else {
@@ -231,7 +244,7 @@ function renderSkillDetail(id) {
   // today's content breaks the moment content grows; a minimum width doesn't.
   // auto-fit (not auto-fill) so a skill with 3 activities still fills the row.
   const grid = `<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">${tiles}</div>`;
-  if (detailEl) detailEl.innerHTML = head + grid;
+  if (detailEl) detailEl.innerHTML = head + cats + grid;
 }
 
 function renderSkillsList() {

@@ -142,11 +142,30 @@ This directly implements the standing design note (project memory `auto-eat-and-
 
 Raw ingredients that heal but aren't cooked (`shrimp`, `trout`, crops with `heals`) are inventory items eaten directly — they implicitly behave as `healing` and don't appear on the cooking screen; no tab needed.
 
-### 5.4 Recommended data cleanup (flag to Systems)
+### 5.4 The fish-line edge cases — RULING (b220, Game Designer)
 
-Two follow-ups so the split is honest, not cosmetic:
-1. **Auto-eat filter:** wherever auto-eat selects food, restrict to `foodClass:'healing'`. Today it may grab any food with `heals`, which would burn buff feasts. (Confirm against current auto-eat impl — it was reworked to "heal only" per memory; this makes the data enforce it.)
-2. **The fish-line incidental buffs** (`cooked_trout` all_xp, `cooked_shark` damage, etc.) blur the line — a "healing" food that also silently grants +12% damage is a stealth buff. **Recommendation:** either drop the combat/xp buffs from the pure-heal fish line and reserve those effects for `Feasts & Draughts`, or keep them but *don't surface them as the reason to cook fish*. This is a balance call I (Game Designer) own; raise in `CONFLICTS.md` if it touches combat tuning.
+The open question was: the Provisions line carries incidental buffs (`cooked_trout` +5% all-XP, `cooked_shark` +12% damage, `cooked_frostfin` +10% defence…), so a "healing" food also silently grants combat power. Two options were on the table — strip those buffs, or keep them.
+
+**Ruling: KEEP the buffs on the Provisions line. Draw the line at consumption, not at stats.**
+
+Reasoning:
+
+1. **Stripping is a combat-power change wearing a taxonomy costume.** Removing +12% damage from Cooked Shark re-tunes every fight a level-60+ player takes, and it does it as a side effect of a UI grouping task. If the fish line is over-rewarding, that is a combat-balance pass with its own evidence and its own test coverage — not a rider on a sub-tab feature.
+2. **The stealth-buff worry does not survive contact with the code.** `maybeAutoEat()` heals and decrements; it never calls `applyBuff()`. Only the deliberate "Eat" button (`eatFood()`) applies a buff. So a player who auto-eats a Cooked Shark gets 42 HP and nothing else — the buff is only ever granted when they chose to spend the item. There is no hidden power being handed out.
+3. **Stripping would make the top of the fishing ladder worse than the middle.** Cooked Shark and Moonfish Fillet are the payoff for 60–88 Fishing *and* Cooking. Reducing them to a bare number would flatten the reason to climb.
+4. **What actually needed fixing was auto-eat's food *choice*, and that is now fixed.** The old selector preferred food with no `buff` field — which, since every cooked food has one, meant it preferred **raw ingredients**: it would eat Raw Shrimp (3 HP) ahead of Cooked Shark (42 HP), and once the raws ran out it would reach for a Void Banquet. That is the real bug the split exposes, and `foodClass` resolves it: the auto-eat pool is exactly Provisions, and inside it the pick is simply the best heal.
+
+**So the boundary is:** `foodClass` decides *what auto-eat may spend*, not *what stats an item has*. Provisions = eaten for HP and safe for the engine to spend. Feasts & Draughts = spent deliberately, never by the engine. Fish keep their buffs; the Provisions tab simply presents heal-per-craft as the headline, with the buff as a secondary line on the tile.
+
+Edge cases settled by the same rule:
+
+- `baked_potato` / `wheat_bread` → **Provisions.** Cheap, high-volume, no combat effect (gather-speed and drop-rate). These are the bulk heal a mid-game player actually stocks.
+- `roasted_carrot` → **Feast**, despite healing only 5. Nobody eats a Roasted Carrot for 5 HP; it is a gather snack. Role, not magnitude.
+- `roasted_pumpkin` (22 HP) and `vegetable_stew` (24 HP) → **Feasts.** They out-heal Cooked Lobster, but they are farm/XP session food; letting auto-eat drain a stack of Vegetable Stew for HP is precisely the failure this split exists to prevent.
+- `moonbloom_elixir` → **Feast**, and named a *draught* — hence the tab is "Feasts & **Draughts**". It is the drinks category the standing design note asked for, with one member; more drinks land in it for free.
+- Raw ingredients (`shrimp`, `potato`, `goldenroot`…) carry no flag and are implicitly `healing`, so auto-eat may still use them. They never appear on the cooking screen, so tagging them would be authoring with no reader.
+
+**Implemented (b220):** `foodClassOf()` in `src/data/items.js`, enforced in `HearthriseAuto.maybeAutoEat()`, and mirrored in both UI surfaces that let a player pick auto-eat food (the combat picker and inventory tap) so nothing can promise an auto-eat that will never fire.
 
 ---
 

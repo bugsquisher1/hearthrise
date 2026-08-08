@@ -256,7 +256,9 @@
   var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
   function stripChromeEmoji() {
     document.querySelectorAll(
-      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button'
+      /* b213 (phase 2): + skill-detail card titles, which carried a raw
+         emoji before their name ("🪓 Woodcutting") */
+      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button, #panel-skills .card-title'
     ).forEach(function (el) {
       if (el.dataset.hrDeemoji) return;
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);

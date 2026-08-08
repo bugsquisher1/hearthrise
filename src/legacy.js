@@ -1851,7 +1851,7 @@ function openSkillDetail(id){openSkill=id;showTab('skills');setTimeout(()=>rende
 function renderSkillDetail(id){
   if(!id)return;const s=SKILLS_DEF[id];if(!s)return;
   const xp=G.skills[id]||0,lv=getLevel(id),pct=xpPct(xp)*100,toNext=xpToNext(xp);
-  document.getElementById('skill-detail-title').textContent=`${s.icon} ${s.name}`;
+  document.getElementById('skill-detail-title').textContent=s.name; /* b213: no emoji in titles */
   let acts='',calc=null;
   if(id==='woodcutting'){acts=renderActivities(TREES,id);calc=TREES.find(a=>a.id===G.skillTargetId)||TREES.find(a=>getLevel(id)>=a.req)||TREES[0];}
   else if(id==='mining'){acts=renderActivities(ROCKS,id);calc=ROCKS.find(a=>a.id===G.skillTargetId)||ROCKS.find(a=>getLevel(id)>=a.req)||ROCKS[0];}
@@ -7793,9 +7793,12 @@ function tileForArtisan(recipe, skillId){
 function buildHead(skillId){
   var s = SKILLS_DEF[skillId];
   var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
+  /* b213 (phase 2): gilt medallion in the detail header, same as the grid */
+  var _med = window.HearthriseIconSet && window.HearthriseIconSet.medallion
+    && window.HearthriseIconSet.medallion(skillId, 36);
   var iconHtml = (window._skillIcon && window._skillIcon[skillId])
     ? '<img src="'+window._skillIcon[skillId]+'" alt="" style="width:36px;height:36px;object-fit:contain;image-rendering:pixelated" />'
-    : '<span class="ah-icon">'+s.icon+'</span>';
+    : (_med || '<span class="ah-icon">'+s.icon+'</span>');
   return '<div class="act-head">'
     +iconHtml
     +'<div class="ah-meta">'
@@ -7857,7 +7860,7 @@ function patchSkillDetail(){
     window._actLastRender = {skillId:id, activeKey:activeKey};
 
     var titleEl = document.getElementById('skill-detail-title');
-    if(titleEl) titleEl.textContent = s.icon+' '+s.name;
+    if(titleEl) titleEl.textContent = s.name; /* b213: no emoji in titles */
 
     var head = buildHead(id);
     var tiles = '';

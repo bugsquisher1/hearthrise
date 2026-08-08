@@ -30,9 +30,13 @@ function buildHead(skillId) {
   const lv = window.getLevel(skillId);
   const pct = window.xpPct(xp) * 100;
   const toNext = window.xpToNext(xp);
+  // b213 (phase 2): the detail header carried a raw emoji glyph — use the
+  // same gilt medallion as the skills grid (emoji only pre-cache).
+  const medallion = window.HearthriseIconSet && window.HearthriseIconSet.medallion
+    && window.HearthriseIconSet.medallion(skillId, 36);
   const iconHtml = window._skillIcon?.[skillId]
     ? `<img src="${window._skillIcon[skillId]}" alt="" style="width:36px;height:36px;object-fit:contain;image-rendering:pixelated" />`
-    : `<span class="ah-icon">${s.icon}</span>`;
+    : (medallion || `<span class="ah-icon">${s.icon}</span>`);
 
   // b134: train-to-level goal control. Reads + writes G.autoActions.trainGoal
   // via HearthriseAuto. Active only when goal.skillId matches THIS skill.

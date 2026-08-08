@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 211 — 2026-08-08 (The Realm Update — the game goes multiplayer)
+
+The biggest update Hearthrise has ever shipped. Ten systems, one connected world.
+
+- 🏰 **Weekly Raids.** A rotating raid boss — *The Emberclad Tyrant*, *The Hollow Regent*, *The Maw Below* — with a **shared clan HP pool**. Strike once a day with your real combat stats (gear and style matter), watch the clan chip the boss down together, and claim the chest when it falls. Solo players get their own scaled hunt.
+- ⚜️ **Real clans.** Found or join a clan, contribute gold to the **clan castle treasury**, and level it for shared perks — bonus XP, gather speed, offline hours, artisan speed — up to the Lv 10 castle banner. Live roster with contribution rankings. Clan chat unlocks the moment you join.
+- 🏛️ **The market goes live.** List items, buy from real players, prices form for real — and **your sales pay out even while you sleep** ("Market sales while you were away: +N gold"). Race-safe: two buyers can't take the same item.
+- 💬 **Chat is real.** Global, Trade, Clan, and Whispers — realtime, cross-player, with mentions and blocking.
+- 🏆 **Live leaderboards.** Total level, combat, and wealth — ranked against every real player, clan tags included.
+- 🪙 **Hearth Tokens.** The premium bond: buy with real money (when Steam/mobile launch), **sell to other players for gold**, spend on dungeon entries, or redeem for gems. And no — the old free-gems dev exploit is gone.
+- 🌍 **World events.** Every player shares the same daily + weekly events — *Forge Fires*, *The Grand Fair*, *Hunter's Moon* — with real bonuses that touch every system.
+- 🧺 Plus everything from the Homestead Update below: camp→castle property tiers, workbenches, hired workers, the full tool ladder, and 10 new rare pets.
+- 🎨 One cohesive look: a single gilt icon language across the whole interface — no more mixed icon styles.
+- ⚙️ Under the hood: cooking/smithing now progress **offline** like everything else, and the complete multiplayer database schema ships in `supabase/schema.sql`.
+
 ## v0.9.1-beta build 201 — 2026-08-08 (The Homestead Update — camp to castle)
 
 The progression spine arrives. This is the beginning of the big systems push.

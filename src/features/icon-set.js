@@ -43,7 +43,8 @@
     /* b210 (emoji purge): dungeons nav + topbar utility buttons — names
        fetch-verified against the game-icons library */
     navDungeons: ['delapouite/dungeon-gate'],
-    uiBell: ['lorc/bell-shield'], uiSave: ['delapouite/save'], uiSettings: ['delapouite/settings-knobs', 'lorc/cog']
+    uiBell: ['lorc/bell-shield'], uiSave: ['delapouite/save'], uiSettings: ['delapouite/settings-knobs', 'lorc/cog'],
+    uiFlame: ['lorc/small-fire']
   };
 
   // category accent per key (CSS token names)
@@ -224,8 +225,20 @@
       var key = UI_BTN_MAP[id];
       if (!btn || !paths[key] || btn.querySelector('.hr-glyph')) return;
       var g = glyph(key, 17, '--gold-2');
-      if (g) btn.innerHTML = g;
+      if (!g) return;
+      // PRESERVE element children (btn-notif carries the #nb-dot unread
+      // counter) — strip stray text nodes, prepend the glyph.
+      Array.prototype.slice.call(btn.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) n.remove();
+      });
+      btn.insertAdjacentHTML('afterbegin', g);
     });
+    // streak flame badge
+    var flame = document.querySelector('.streak-badge .flame');
+    if (flame && paths.uiFlame && !flame.querySelector('.hr-glyph')) {
+      var fg = glyph('uiFlame', 15, '--red');
+      if (fg) flame.innerHTML = fg;
+    }
   }
   // 2. Chips / sub-tabs / more-modal entries carried inline emoji — strip
   //    the pictographs so those controls read as clean text chrome.

@@ -2,17 +2,16 @@
 
 _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE and after every integration. Keep it true._
 
-**Last updated:** 2026-08-08 · by Coordinator (team bootstrap)
+**Last updated:** 2026-08-08 · by Coordinator (Wave 0 — Systems integrated)
 
 ## Build & branch
-- **main HEAD:** `119a698` — `chore: repo cleanup — archive unused art, reorganize docs`
-- **Preceding:** `5ac5ab9` b217 (onboarding guides prep before combat; auto-eat is a purchased trait) · `93c83b2` b217 (art-direction pass)
-- **Version:** v0.9.2-beta (build b217)
-- **Remote:** in sync with `origin/main`. Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/).
-- **Working tree:** clean.
+- **main HEAD:** `8878ba8` — Wave 0 Systems integration (#3 sub-tab persistence, #4 companion stats). Local, **ahead of origin** by 4 commits (`06f4757` team system, `4d54eb3` design specs, `c1c71de` fixes, `8878ba8` merge).
+- **Version:** v0.9.2-beta (build b217 — Coordinator bumps build at Wave-0 ship, not per-merge)
+- **Remote:** `origin/main` at `119a698`. Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). **Do not push without Tyler's go.**
+- **Working tree:** clean. In-flight: Art Director worktree (branched at `119a698` — pre-team-system; expect add/add conflict on its log at merge, and note it had no coordination checkout).
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **175/175 green, 0 runtime errors** (last verified 2026-08-08 pre-push).
+- **Smoke:** `node tests/run-smoke.mjs` → **177/177 green, 0 runtime errors** (last verified 2026-08-08 post-merge on `8878ba8`; +2 regression tests for #3/#4).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

@@ -4,6 +4,12 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `8878ba8` · Wave 0 Systems — inventory sub-tab persistence + companion stats (#3, #4) · Systems Engineer
+Doll sub-tab (Equipment|Stats|Companion) no longer snaps back to Equipment on activity-driven re-renders (`window._tdPane` persisted, restored on rebuild). Companion sub-tab now shows the companion's own name/level/XP-bar/bonuses/proc instead of a bare slot icon. +2 regression tests. **Verified:** smoke 177/177, cache-buster OK, before/after browser repro, console clean. Local only — not pushed.
+
+### 2026-08-08 · `4d54eb3` · Wave 0 design specs (#10, #11, #12) · Game Designer
+`docs/design/{clan-overhaul,leaderboards,crafting-cooking-taxonomy}.md` — buildable blueprints for Waves 2–3. 4 semantic conflicts filed in `CONFLICTS.md`. Docs only.
+
 ### 2026-08-08 · `119a698` · Repo cleanup — archive unused art, reorganize docs · Coordinator
 Moved root docs → `docs/{design,planning,reports}/`; archived unused/superseded art + icon tooling under gitignored `_archive/`; added `ASSET_MANIFEST.md`; updated `.gitignore`. No code/gameplay change. **Verified:** move-not-delete confirmed, smoke 175/175, pushed to `origin/main`.
 

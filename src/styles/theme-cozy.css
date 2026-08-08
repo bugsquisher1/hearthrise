@@ -4511,6 +4511,14 @@ body[data-theme="hearthlight"] #panel-combat [class*="combat-loadout"],
 body[data-theme="hearthlight"] #panel-combat [class*="combat-style"] {
   background: var(--bg-1) !important; border-color: var(--line) !important;
 }
+/* b195: painted dungeon battle background in the active arena (higher
+   specificity than the .card rule above so it wins the cascade). */
+body[data-theme="hearthlight"] #panel-combat.active .combat-arena {
+  background:
+    radial-gradient(120% 80% at 50% 36%, rgba(6,6,9,.10), rgba(6,6,9,.70) 92%),
+    linear-gradient(180deg, rgba(10,9,12,.28), rgba(6,6,9,.84)),
+    url('../../assets/icons-bundle/backgrounds/dungeon.jpg') center/cover no-repeat !important;
+}
 /* Dark form inputs (were solid cream) — repeated-id to beat panel input rules */
 body[data-theme="hearthlight"] #panel-inventory#panel-inventory input,
 body[data-theme="hearthlight"] #panel-market#panel-market input,

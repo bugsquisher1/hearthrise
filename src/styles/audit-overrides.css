@@ -500,8 +500,13 @@ img[src*="assets/raw-bundle"] {
   width: 100% !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  background: linear-gradient(180deg, rgba(15,19,32,.4), rgba(15,19,32,.85)),
-              radial-gradient(ellipse at center, rgba(227,97,97,.08), transparent 60%) !important;
+  /* b195: painted dungeon battle background + vignette/scrim so fighters +
+     stats stay legible over it. Lighter in the center (fighters), darker at
+     the edges and bottom. */
+  background:
+    radial-gradient(120% 80% at 50% 36%, rgba(6,6,9,.12), rgba(6,6,9,.72) 92%),
+    linear-gradient(180deg, rgba(10,9,12,.30), rgba(6,6,9,.86)),
+    url('../../assets/icons-bundle/backgrounds/dungeon.jpg') center/cover no-repeat !important;
   border: 1px solid rgba(227,97,97,.3) !important;
   position: relative;
 }

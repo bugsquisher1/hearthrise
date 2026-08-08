@@ -7168,9 +7168,10 @@ function renderInvFancy(){
       '<input type="text" id="invc-search" placeholder="Search for an item..." value="'+(search||'').replace(/"/g,'&quot;')+'" oninput="window._invSearchInput(this.value)" />'+
       '<button onclick="window._invSearchClear()">Reset</button>'+
     '</div>'+
-    /* Main 3-col */
+    /* Main: left (categories + bag) | right (equipment + stats) */
     '<div class="invc-main">'+
-      /* Left: bag grid */
+      '<div class="invc-left">'+
+      /* Bag grid */
       '<div class="invc-bag-col">'+
         '<div class="invc-grid">'+
           (visible.length === 0 ?
@@ -7197,7 +7198,9 @@ function renderInvFancy(){
           return '<button class="invc-cat-btn '+(f.category===c.id?'active':'')+'" title="'+c.name+' ('+count+')" onclick="window._invSetCat(\''+c.id+'\')">'+c.icon+'</button>';
         }).join('')+
       '</div>'+
-      /* Right: equipment column */
+      '</div>'+
+      /* Right region: equipment doll + stat sheet */
+      '<div class="invc-right">'+
       '<div class="invc-equip-col">'+
         '<div class="invc-loadout-bar">'+
           '<select onchange="window._invLoadoutSelect(this.value)">'+
@@ -7245,6 +7248,7 @@ function renderInvFancy(){
           '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
         (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; return '<div class="invc-stat-card"><h4><span class="h4-icon">🎯</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div></div></div>'; })()+
+      '</div>'+
       '</div>'+
     '</div>';
 

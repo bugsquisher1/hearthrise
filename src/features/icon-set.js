@@ -33,7 +33,13 @@
     foraging: ['delapouite/berries-bowl'],
     gold: ['delapouite/two-coins'], gems: ['lorc/gems'],
     // UI-chrome glyphs (flat, not medallions) — cohesive topbar/nav icons
-    combatLvl: ['lorc/crossed-swords'], totalLvl: ['lorc/laurel-crown', 'delapouite/star-formation', 'lorc/laurels-trophy']
+    combatLvl: ['lorc/crossed-swords'], totalLvl: ['lorc/laurel-crown', 'delapouite/star-formation', 'lorc/laurels-trophy'],
+    // Nav glyphs (verified against the icon library)
+    navProfile: ['delapouite/person'], navCharacter: ['lorc/visored-helm'], navCombat: ['lorc/crossed-swords'],
+    navBounty: ['lorc/bullseye', 'delapouite/target-dummy'], navSkills: ['delapouite/miner'], navInventory: ['lorc/knapsack'],
+    navStore: ['delapouite/shop'], navFarm: ['lorc/wheat'], navHouse: ['delapouite/house'],
+    navSocial: ['lorc/trophy'], navMore: ['delapouite/hamburger-menu'],
+    navStable: ['lorc/paw-print', 'delapouite/dog-house', 'lorc/wolf-head'], navMarket: ['delapouite/scales', 'lorc/scales', 'delapouite/shop']
   };
 
   // category accent per key (CSS token names)
@@ -182,7 +188,26 @@
     });
   }
 
-  function paintAll() { paintSkills(); paintMonsters(); paintTopbar(); }
+  // Nav glyphs — sidebar (.nav-btn) + mobile bottom-nav (.bn-btn), matched by
+  // data-tab. Gilt glyphs replace the emoji in each button's .ic span.
+  var NAV_MAP = {
+    profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
+    skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
+    house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable', market: 'navMarket'
+  };
+  function paintNav() {
+    if (!Object.keys(paths).length) return;
+    document.querySelectorAll('.nav-btn[data-tab], .bn-btn[data-tab]').forEach(function (btn) {
+      var key = NAV_MAP[btn.getAttribute('data-tab')];
+      if (!key || !paths[key]) return;
+      var ic = btn.querySelector('.ic');
+      if (!ic || ic.querySelector('.hr-glyph')) return;
+      var g = glyph(key, 20, '--gold-2');
+      if (g) ic.innerHTML = g;
+    });
+  }
+
+  function paintAll() { paintSkills(); paintMonsters(); paintTopbar(); paintNav(); }
 
   async function fetchOne(names) {
     for (var j = 0; j < names.length; j++) {

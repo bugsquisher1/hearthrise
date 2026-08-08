@@ -370,6 +370,52 @@ export const ITEMS={
   field_ration: {n:'Field Ration', icon:'🥖', v:90,   tier:1, tag:'castle'},
   keystone:     {n:'Keystone',     icon:'🧱', v:3000, tier:5, tag:'castle'},
 
+  /* ══════════════════════════════════════════════════════════════════
+     b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
+     (docs/design/clan-boss-events.md §3.4, §5.4; CONFLICTS 2026-08-08
+     "six new boss signature materials need recipes at ship")
+
+     Each of the six tiered Hunt bosses drops ONE signature material. The spec
+     is blunt about why they cannot ship alone: "a boss material with no use is
+     worse than no drop at all, because it teaches the player that boss loot is
+     meaningless." The live orphan set was recounted at 34 in b222 and routed
+     into castle demand; adding six unrouted boss drops would reopen, in one
+     commit, the exact problem that work closed.
+
+     So all six land WITH a recipe, and the recipes are one coherent thing —
+     the HUNT-FORGED kit, six pieces sitting one rung above Dawnsteel (the top
+     of gear-tiers.js). It is the only gear in Hearthrise that cannot be reached
+     by solo play at any level, which is the point: the clan's combat pillar is
+     the only road to it.
+
+     `hollow_sigil` is the sixth signature material and already exists (it is
+     also a castle tier-bundle spoil, clan-seat.js SPOILS_ROUTES) — two sinks
+     for one drop is health, not conflict, so it is left at its historical value
+     and simply gains a recipe below.
+
+     Material tiers 6-7 feed the castle contribution curve if the Designer ever
+     catalogues them; they carry no `type`, so nothing equips them and nothing
+     eats them (foodClassOf → null).                                       */
+  slagheart_core: {n:'Slagheart Core',  icon:'🔥', v:3200, tier:6},
+  abyssal_pearl:  {n:'Abyssal Pearl',   icon:'🫧', v:3400, tier:6},
+  choirbone:      {n:'Choirbone',       icon:'🦴', v:3800, tier:6},
+  warden_seal:    {n:"Warden's Seal",   icon:'🔱', v:4400, tier:7},
+  wyrm_gilding:   {n:'Wyrm Gilding',    icon:'✨', v:5200, tier:7},
+
+  /* The Hunt-forged kit. Stats continue the ARMOUR_SLOTS curves in
+     gear-tiers.js at the same ~1.33× step Dawnsteel takes over Emberforged, so
+     the ladder stays one line rather than a bespoke spike. `rarity:'unique'` is
+     the top band in rarity.js and is explicit, so it wins over value-derived
+     mythic — these are the rarest objects in the game and should read that way.
+     `tier: 8` is one above the seven-rung material ladder; nothing indexes gear
+     tier as an array, and clan-seat's TIER_MULT clamps, so it is safe. */
+  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, rarity:'unique', tier:8},
+  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,rarity:'unique', tier:8},
+  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, rarity:'unique', tier:8},
+  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8},
+  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8},
+  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8},
+
   /* ── Bind-on-Pickup dungeon keys ──
      Replace gold entry costs. Drop from monsters whose family/tier match
      the dungeon (set in MONSTERS.drops). Untradeable. */

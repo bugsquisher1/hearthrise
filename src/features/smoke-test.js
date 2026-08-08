@@ -1050,12 +1050,17 @@ const TESTS = [
     try {
       delete G.raids;
       const st = R.ensureState();
-      assert(st.solo && st.solo.hp === R.SOLO_POOL_HP, 'solo pool initializes at full HP');
+      // b223 (§3.5): the flat SOLO_POOL_HP is obsolete. The Lone Hunt's pool is
+      // UNMEASURED until the week's first strike, which is what lets it be
+      // 5-6 strikes at CL 30 and at CL 99 alike instead of impossible below 61.
+      assert(st.solo && st.solo.max == null && st.solo.hp == null,
+        'the solo pool starts unmeasured — it calibrates to the first strike');
       assert(st.solo.week && typeof st.claimed === 'object', 'weekly key + claim ledger present');
       // weekly reset invariant: stale week re-rolls the pool
-      st.solo = { week: 'w-stale', hp: 5, damage: 999 };
+      st.solo = { week: 'w-stale', hp: 5, max: 10, damage: 999, strikes: 4 };
       const st2 = R.ensureState();
-      assert(st2.solo.week !== 'w-stale' && st2.solo.hp === R.SOLO_POOL_HP, 'stale week resets the solo pool');
+      assert(st2.solo.week !== 'w-stale' && st2.solo.max == null && st2.solo.damage === 0,
+        'stale week resets the solo pool');
     } finally {
       if (saved === undefined) delete G.raids; else G.raids = saved;
     }
@@ -1166,6 +1171,9 @@ const TESTS = [
       // Claim UI state: a downed pool offers the chest exactly until it is taken.
       const panel = document.getElementById('panel-dungeons');
       if (panel) {
+        // b223: a downed solo pool is `max` set AND `hp` at zero — an
+        // unmeasured pool (max null) is not downed, it has never been fought.
+        st.solo.max = 20000;
         st.solo.hp = 0;
         delete st.claimed[R.weekKey()];
         const p1 = R.render(); if (p1 && p1.catch) p1.catch(() => {});
@@ -1182,6 +1190,419 @@ const TESTS = [
       try { const p = R.render(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     }
   }),
+
+  // ══ b223 · THE HUNT (backlog #16) ═══════════════════════════
+  // docs/design/clan-boss-events.md §8 lists twelve required tests. Nine of
+  // them are statements about SERVER behaviour (the day gate, the anti-hop
+  // rule, the Standing-once guard) and a browser cannot prove a server rule —
+  // supabase/migrations/2026-08-08-hunt.sql carries its own DO-block self
+  // checks for those. What these guard is the half that lives here: the maths
+  // the card previews with, the ladder the client and the server must agree
+  // on, the reducers that decide whether a response is a chest, and the six
+  // signature materials that would otherwise ship as vendor trash.
+
+  () => tryRun('b223: the Hunt ladder — pools scale to the roster, exactly as specced', () => {
+    const R = window.HearthriseRaids;
+    assert(R && Array.isArray(R.HUNT_TIERS) && R.HUNT_TIERS.length === 5, 'five Hunt tiers');
+    // §3.3's own table. If these drift the server's hr_hunt_tiers must drift
+    // with them, or a clan is shown a pool it is not fighting.
+    const table = [
+      [1, 'Warband Hunt',  5000,  3000,  35000],
+      [2, 'Keep Hunt',     15000, 7500,  90000],
+      [3, 'Fortress Hunt', 30000, 12500, 155000],
+      [4, 'Citadel Hunt',  50000, 16000, 210000],
+      [5, 'Crown Hunt',    80000, 21000, 290000],
+    ];
+    table.forEach(([t, name, base, per, at10]) => {
+      const d = R.tierDef(t);
+      assert(d.name === name, 'tier ' + t + ' should be ' + name + ', got ' + d.name);
+      assert(d.base === base && d.perMember === per, 'tier ' + t + ' ladder numbers drifted');
+      assert(R.poolFor(t, 10) === at10, 'tier ' + t + ' @ n=10 should be ' + at10 + ', got ' + R.poolFor(t, 10));
+    });
+    // §8.4 — the spec's own worked assertion.
+    assert(R.poolFor(2, 5) === 52500, 'Tier II @ n=5 must be 52,500, got ' + R.poolFor(2, 5));
+    assert(R.poolFor(2, 25) === 202500, 'Tier II @ n=25 must be 202,500, got ' + R.poolFor(2, 25));
+    // §3.3's headroom check, and the whole reason the flat pool was replaced.
+    assert(R.poolFor(5, 40) === 920000, 'Tier V @ n=40 must be 920,000');
+    // The point of the whole ladder: the flat 250,000 the game shipped with is
+    // HARDER than the top Phase-A tier at a ten-member roster — it was tuned
+    // for a large endgame clan and served to everyone, which is why it has
+    // never been downed (§2.3). Every tier a real clan can declare is now
+    // easier than what they were being handed.
+    assert(R.CLAN_POOL_HP > R.poolFor(4, 10),
+      'the legacy flat pool must be harder than Tier IV at n=10 — that was the bug');
+    assert(R.poolFor(1, 10) < R.CLAN_POOL_HP / 5,
+      'a small clan must now face a pool it can actually finish');
+    // §5.5 — the clamp is self-scaling, so a new tier never needs a new number.
+    assert(R.strikeClamp(35000) === 5000, 'the clamp floor is 5,000');
+    assert(R.strikeClamp(920000) === 92000, 'the clamp is a tenth of the pool');
+    assert(R.strikeClamp(0) > 0, 'an unknown pool must still clamp');
+  }),
+
+  () => tryRun('b223: the Hunt tier ceiling is the castle, never clan level', () => {
+    const R = window.HearthriseRaids;
+    const S = window.HearthriseClanSeat;
+    // max_hunt_tier = min(castle_tier, 1 + floor(war_room/3)) — §3.3.
+    assert(R.maxHuntTier(1, 12) === 1, 'the Great Hall caps the Hunt regardless of the War Room');
+    assert(R.maxHuntTier(5, 0) === 1, 'no War Room means Tier I, however grand the hall');
+    assert(R.maxHuntTier(3, 6) === 3, 'War Room 6 + castle 3 → Tier III');
+    assert(R.maxHuntTier(4, 6) === 3, 'War Room 6 caps at Tier III even at castle 4');
+    assert(R.maxHuntTier(5, 12) === 5, 'castle 5 + War Room 12 → Tier V');
+    assert(R.maxHuntTier(0, 0) === 1, 'a founding hold still fields Tier I — never a locked door');
+    // ONE implementation, shared with the castle. Two copies of a gate is how
+    // the card and the castle panel end up disagreeing about what is legal.
+    assert(S && typeof S.maxHuntTier === 'function' && S.maxHuntTier(4, 9) === R.maxHuntTier(4, 9),
+      'the Hunt ceiling must come from HearthriseClanSeat, not a second copy');
+    // The castle is READ, never owned — an absent clan reads as the floor.
+    const st = R.castleState();
+    assert(st && st.castleTier >= 1 && st.warRoom >= 0, 'castle state reads defensively');
+    assert(R.tierCeiling() >= 1 && R.tierCeiling() <= 5, 'the ceiling is always a legal tier');
+  }),
+
+  () => tryRun('b223: contribution bands are measured against the median, not the pool', () => {
+    const R = window.HearthriseRaids;
+    // §8.6 — the spec's worked case, with the strike counts that make the
+    // median legal. Contributions of 100 / 500 / 1000 / 5000, median 750.
+    const rows = [
+      { user_id: 'a', damage: 100,  strikes: 4 },
+      { user_id: 'b', damage: 500,  strikes: 4 },
+      { user_id: 'c', damage: 1000, strikes: 4 },
+      { user_id: 'd', damage: 5000, strikes: 4 },
+    ];
+    const med = R.medianContribution(rows);
+    assert(med === 750, 'median of 100/500/1000/5000 is 750, got ' + med);
+    assert(R.bandFor(500, med, 4).key === 'full', '500 vs 750 is a Full share');
+    assert(R.bandFor(1000, med, 4).key === 'full', '1000 vs 750 is a Full share');
+    assert(R.bandFor(5000, med, 4).key === 'champion', '5000 vs 750 is a Champion');
+    /* SPEC DISCREPANCY, decided and recorded here rather than papered over:
+       §8.6 expects the 100-damage contributor to take a Partisan share, but
+       §5.2's own table puts the Partisan floor at 20% of the median, and
+       100/750 = 13%. The two cannot both be true. §5.2 is the normative rule
+       (it is the design body, with the reasoning); §8.6 is a test expectation
+       written against it. The rule wins, the expectation is corrected, and the
+       discrepancy is flagged to the Designer in the Wave-3b change contract. */
+    assert(R.bandFor(100, med, 4) === null, '100 vs 750 is 13% — below the 20% Partisan floor');
+    assert(R.bandFor(150, med, 4).key === 'partisan', 'exactly 20% of the median is a Partisan share');
+    assert(R.bandFor(300, med, 4).key === 'partisan', '300 vs 750 is a Partisan share');
+    assert(R.bandFor(10, med, 4) === null, 'below 20% of the median earns nothing');
+    // §5.2 — the minimum that kills the one-tap, and the whole reason a
+    // one-strike contributor used to earn the same chest as a seven-striker.
+    assert(R.bandFor(5000, med, 1) === null, 'one strike is not turning up — no chest');
+    assert(R.bandFor(5000, med, 2).key === 'champion', 'two strikes qualify');
+    assert(R.MIN_STRIKES_FOR_CHEST === 2, 'the strike minimum is 2');
+    // §5.2 — the median is computed over ≥3-strike members ONLY, so a swarm of
+    // one-strike alts cannot depress it to farm the Champion band.
+    const swarmed = rows.concat([
+      { user_id: 'x1', damage: 5, strikes: 1 }, { user_id: 'x2', damage: 5, strikes: 1 },
+      { user_id: 'x3', damage: 5, strikes: 1 }, { user_id: 'x4', damage: 5, strikes: 1 },
+      { user_id: 'x5', damage: 5, strikes: 1 }, { user_id: 'x6', damage: 5, strikes: 1 },
+    ]);
+    assert(R.medianContribution(swarmed) === 750,
+      'one-strike alts must not move the median, got ' + R.medianContribution(swarmed));
+    assert(R.MEDIAN_MIN_STRIKES === 3, 'the median floor is 3 strikes');
+    // A clan with no distribution to rank against: turning up IS the effort.
+    // A zero median must NEVER read as "everyone is a Champion".
+    assert(R.medianContribution([]) === 0, 'no contributors → no median');
+    assert(R.bandFor(1, 0, 2).key === 'full', 'with no median, two strikes earn a full share');
+  }),
+
+  () => tryRun('b223: partial credit has no all-or-nothing cliff, and is capped at 0.6', () => {
+    const R = window.HearthriseRaids;
+    // §8.7 — the spec's worked case.
+    assert(R.partialFactor(40000, 100000) === 0.4, '40% of the pool pays 0.4×');
+    assert(R.partialFactor(90000, 100000) === R.PARTIAL_CAP, '90% is capped at 0.6×');
+    assert(R.PARTIAL_CAP === 0.6, 'the partial cap is 0.6');
+    assert(R.partialFactor(0, 100000) === 0, 'an untouched pool pays nothing');
+    assert(R.partialFactor(5000, 0) === 0, 'a zero pool cannot be divided by');
+    // The kill must stay strictly better than the best possible partial —
+    // otherwise a clan is rewarded for stopping short.
+    const kill = R.previewScale({ damage: 1000, median: 1000, strikes: 5, downed: true });
+    const near = R.previewScale({ damage: 1000, median: 1000, strikes: 5, downed: false,
+                                 clanDamage: 99000, pool: 100000 });
+    assert(kill.scale === 1 && near.scale === 0.6 && kill.scale > near.scale,
+      'a kill must beat the best partial week');
+    assert(near.partial === true && kill.partial === false, 'the preview must say which it is');
+    // Two strikes and a Champion share, partially credited, still beats nothing.
+    const champ = R.previewScale({ damage: 5000, median: 1000, strikes: 3, downed: false,
+                                   clanDamage: 50000, pool: 100000 });
+    assert(Math.abs(champ.scale - 1.3 * 0.5) < 1e-9, 'band × factor, got ' + champ.scale);
+  }),
+
+  () => tryRun('b223: the Lone Hunt calibrates to the player, and cannot be one-tapped', () => {
+    const R = window.HearthriseRaids;
+    // §8.8 — the spec's worked assertions.
+    assert(R.soloPoolFor(1200) === 20000, 'a 1,200 first strike floors the pool at 20,000');
+    assert(R.soloPoolFor(8000) === 40000, 'an 8,000 first strike sets a 40,000 pool');
+    assert(R.soloPoolFor(60000) === R.SOLO_POOL_MAX, 'the pool is capped at 200,000');
+    assert(R.soloPoolFor(0) === R.SOLO_POOL_MIN, 'a zero reading still yields the floor');
+    // The clamp makes a one-tap arithmetically impossible at every level —
+    // this is the correction to the old "solo pool one-tap chest" note: the
+    // real bug was the opposite, honest players could not finish either pool.
+    [1200, 3000, 8000, 40000].forEach((first) => {
+      const pool = R.soloPoolFor(first);
+      const clamp = Math.floor(pool * R.SOLO_CLAMP_FRAC);
+      assert(clamp * 4 <= pool, 'no single solo strike may exceed a quarter of the pool');
+      assert(pool / clamp >= 4, 'the Lone Hunt must take at least four strikes');
+    });
+    assert(R.SOLO_SCALE === 0.4, 'solo still pays 0.4× — joining a clan is the social pull');
+  }),
+
+  () => tryRun('b223: raidPower reaches the strike — the War Room finally buffs something', () => {
+    const R = window.HearthriseRaids;
+    const saved = window.getBonus;
+    try {
+      // The key has been declared-but-unread since the buff registry shipped
+      // (CONFLICTS 2026-08-08). simulateStrike is its ONE consumer, so the
+      // perk can never be wired half-way.
+      window.getBonus = (k) => (k === 'raidPower' ? 0 : 0);
+      assert(R.raidPower() === 0 && R.raidPowerMult() === 1, 'no War Room means no multiplier');
+      window.getBonus = (k) => (k === 'raidPower' ? 0.10 : 0);
+      assert(Math.abs(R.raidPowerMult() - 1.10) < 1e-9, 'War Room L10 is +10%');
+      // A negative contributor must never make an honest strike weaker.
+      window.getBonus = () => -5;
+      assert(R.raidPowerMult() === 1, 'raidPower is clamped at >= 0');
+      // And it must actually reach the damage. Deterministic rolls so the
+      // assertion is about the multiplier, not about variance.
+      const savedRolls = window.getPlayerCombatRolls;
+      const savedRandom = Math.random;
+      try {
+        window.getPlayerCombatRolls = () => ({ accuracy: 1, maxHit: 10 });
+        Math.random = () => 0.5;                      // every tick lands 6
+        window.getBonus = () => 0;
+        const base = R.simulateStrike({ def: 55, weak: 'hammer' });
+        window.getBonus = (k) => (k === 'raidPower' ? 0.5 : 0);
+        const buffed = R.simulateStrike({ def: 55, weak: 'hammer' });
+        assert(buffed === Math.floor(base * 1.5),
+          'raidPower must scale the strike total: ' + base + ' → ' + buffed);
+        // ...but never past the clamp, at any tier.
+        const capped = R.simulateStrike({ def: 55, weak: 'hammer' }, { clamp: 100 });
+        assert(capped === 100, 'the pool-scaled clamp wins over raidPower, got ' + capped);
+      } finally {
+        if (savedRolls) window.getPlayerCombatRolls = savedRolls;
+        Math.random = savedRandom;
+      }
+    } finally {
+      if (saved) window.getBonus = saved; else delete window.getBonus;
+    }
+  }),
+
+  () => tryRun('b223: six tiered bosses, and every signature material has a recipe', () => {
+    const R = window.HearthriseRaids;
+    const ITEMS = window.ITEMS, RECIPES = window.ARTISAN_RECIPES;
+    assert(R.BOSSES.length === 6, 'six Hunt bosses, got ' + R.BOSSES.length);
+    // Every tier must have somewhere to send a declaration.
+    for (let t = 1; t <= 5; t++) {
+      assert(R.bossesForTier(t).length > 0, 'tier ' + t + ' has no legal boss');
+      const b = R.bossOfWeek(R.weekKey(), t);
+      assert(b.tiers.indexOf(t) >= 0, 'tier ' + t + ' rotated in an illegal boss: ' + b.id);
+      assert(R.bossOfWeek(R.weekKey(), t).id === b.id, 'the tier rotation must be deterministic');
+    }
+    // THE CONFLICTS REQUIREMENT (2026-08-08, Game Designer → Systems): the six
+    // signature materials must ship WITH recipes, or they become the 35th-40th
+    // recipe-less vendor-trash drops — the exact problem b222's castle routing
+    // had just closed. A routing promise nobody checks quietly becomes false.
+    const inputs = new Set();
+    Object.keys(RECIPES).forEach((skill) => {
+      (RECIPES[skill] || []).forEach((r) => {
+        if (r.input) inputs.add(r.input);
+        Object.keys(r.inputs || {}).forEach((id) => inputs.add(id));
+        Object.keys(r.secondary || {}).forEach((id) => inputs.add(id));
+      });
+    });
+    const seat = window.HearthriseClanSeat;
+    R.BOSSES.forEach((b) => {
+      assert(b.sig, b.id + ' has no signature material');
+      assert(ITEMS[b.sig], b.id + "'s signature material " + b.sig + ' is not in ITEMS');
+      const routed = seat && seat.spoilRoute && seat.spoilRoute(b.sig);
+      assert(inputs.has(b.sig) || routed,
+        b.sig + ' is vendor trash — it needs a recipe or a castle route');
+      assert(b.reward && b.reward.gold > 0 && b.def > 0, b.id + ' needs real stats + reward');
+      assert(!/^[\uD800-\uDBFF]/.test(b.glyph || ''), b.id + ' uses an emoji as art');
+    });
+    // The Hunt-forged kit is the recipe side of that promise, and it must be
+    // reachable: every input of every new recipe has to exist.
+    ['regent_helm', 'slagheart_platebody', 'abyssal_greaves',
+     'choirbone_gauntlets', 'warden_girdle', 'wyrmgilt_mantle'].forEach((id) => {
+      assert(ITEMS[id] && ITEMS[id].type === 'armor', id + ' is missing from the Hunt-forged kit');
+      assert(ITEMS[id].rarity === 'unique', id + ' should read as the rarest band');
+    });
+    Object.keys(RECIPES).forEach((skill) => {
+      (RECIPES[skill] || []).forEach((r) => {
+        Object.keys(r.inputs || {}).forEach((id) => {
+          assert(ITEMS[id], 'recipe ' + r.id + ' consumes an item that does not exist: ' + id);
+        });
+        if (r.output) assert(ITEMS[r.output], 'recipe ' + r.id + ' outputs a missing item');
+      });
+    });
+  }),
+
+  () => tryRun('b223: the Hunt chest comes from the server, and the tier decides its size', () => {
+    const R = window.HearthriseRaids;
+    // §5.4 + §10.4 — the chest table, including the Standing column that is
+    // paid FLAT PER KILL. A per-claimer Standing payment would let a 40-member
+    // clan pay itself 40× for one boss, which is why the server guards it with
+    // clan_raids.standing_paid and why the number lives in exactly one place.
+    const expected = [[1, 7000, 12, 1200], [2, 14000, 20, 3000], [3, 28000, 30, 7000],
+                      [4, 50000, 45, 15000], [5, 90000, 60, 32000]];
+    expected.forEach(([t, gold, gems, standing]) => {
+      const c = R.chestFor(t);
+      assert(c.gold === gold && c.gems === gems, 'tier ' + t + ' chest drifted');
+      assert(c.standing === standing, 'tier ' + t + ' Standing drifted');
+      assert(c.sig, 'tier ' + t + ' chest must name a signature material');
+    });
+    // Tier II sits on today's shipped chest, deliberately, so the ladder
+    // extends in both directions from a known anchor (§5.4).
+    assert(R.chestFor(2).gold === 14000, 'Tier II must stay the anchor');
+    // §5.4 — Tier V is guaranteed; Tier I never drops one; Tier II is Champion-only.
+    assert(R.chestFor(1).sigChance === 0, 'Tier I drops no signature material');
+    assert(R.chestFor(5).sigChance === 1, 'Tier V guarantees it');
+    assert(R.chestFor(2).sigChampionOnly === true, 'Tier II is Champion-only');
+    // No Hearth Tokens at any tier or band (Final Directive: IAP-only).
+    for (let t = 1; t <= 5; t++) {
+      const c = R.chestFor(t);
+      assert(!c.items.hearth_token && c.sig !== 'hearth_token',
+        'tier ' + t + ' mints a Hearth Token — the IAP bond is never PvE-minted');
+    }
+    assert(!R.soloChestFor().items.hearth_token, 'the Lone Hunt must not mint a Hearth Token');
+  }),
+
+  () => tryRun('b223: the declare contract — feature-detected, never a silent failure', () => {
+    const R = window.HearthriseRaids;
+    assert(typeof R._reduceDeclare === 'function', 'the declare reducer is missing');
+    // The migration may not have been run yet. That is 'unsupported' — "the
+    // War Room isn't built on this realm" — and it must never read as an error.
+    assert(R._reduceDeclare(404, { code: 'PGRST202' }, 0).action === 'unsupported',
+      'a missing clan_hunt_declare RPC must fall back, not break the card');
+    assert(R._reduceDeclare(200, { code: '42883' }, 0).action === 'unsupported',
+      'an undefined-function error is also "not built yet"');
+    // Every refusal gets its own honest sentence and none invite a retry loop.
+    ['not_officer', 'already_declared', 'tier_too_high', 'bad_tier', 'not_member'].forEach((e) => {
+      const d = R._reduceDeclare(200, { ok: false, error: e }, 0);
+      assert(d.action === 'fail', e + ' must refuse');
+      assert(d.message && d.message !== R._declareErrorText('__unknown__'),
+        e + ' needs its own message, not the generic one');
+    });
+    assert(R._reduceDeclare(200, { ok: false, error: 'week_mismatch', week: 'w9999' }, 0).action === 'retry',
+      'a clock disagreement re-syncs once');
+    assert(R._reduceDeclare(200, { ok: false, error: 'week_mismatch', week: 'w9999' }, 1).action === 'fail',
+      'and exactly once — never a loop');
+    assert(R._reduceDeclare(401, { code: 'PGRST301' }, 0).action === 'fail',
+      'an auth error must never read as a declaration');
+    assert(R._reduceDeclare(500, null, 0).action === 'fail', 'a server error must never declare');
+    const ok = R._reduceDeclare(200, { ok: true, tier: 3, pool_hp: 155000, members: 10, boss_id: 'maw_below' }, 0);
+    assert(ok.action === 'accept' && ok.tier === 3 && ok.pool === 155000 && ok.members === 10,
+      'a real declaration must carry the tier, the pool and the snapshotted roster');
+
+    // The strike reducer's new cases, and its OLD ones unchanged.
+    const undeclared = R._reduceStrike({ ok: false, error: 'no_hunt', tier_ceiling: 3 }, 0);
+    assert(undeclared.action === 'undeclared' && undeclared.ceiling === 3,
+      'an undeclared week must be its own state, not a generic failure');
+    const hit = R._reduceStrike({ ok: true, hp_remaining: 8000, max_hp: 90000, damage: 2900,
+                                 tier: 2, members: 10, my_damage: 5800, strikes: 2 }, 0);
+    assert(hit.action === 'accept' && hit.tier === 2 && hit.max === 90000 && hit.mine === 5800,
+      'a Hunt strike must carry its tier and the pool it was fought against');
+    // §4.1 The Faltering — derived, so an older server produces it too.
+    assert(hit.faltering === true, 'below 10% the boss is faltering');
+    assert(R._reduceStrike({ ok: true, hp_remaining: 50000, max_hp: 90000 }, 0).faltering === false,
+      'a healthy boss is not faltering');
+    // The claim reducer must carry the band, and must still refuse everything
+    // it refused in b219 — the hardening is not allowed to regress.
+    const paid = R._reduceClaim(200, { ok: true, scale: 1.3, band: 'champion', tier: 4,
+                                       median: 1000, sig: true, standing: 15000 }, 0);
+    assert(paid.action === 'accept' && paid.band === 'champion' && paid.tier === 4 && paid.sig === true,
+      'the server dictates the band, the tier and the signature roll');
+    ['too_few_strikes', 'below_band', 'joined_after_declare', 'grace_expired'].forEach((e) => {
+      const d = R._reduceClaim(200, { ok: false, error: e }, 0);
+      assert(d.action === 'fail' && d.message !== R._claimErrorText('__unknown__'),
+        e + ' needs its own honest refusal');
+    });
+    assert(R._reduceClaim(200, { ok: false, error: 'joined_after_kill' }, 0).action === 'fail',
+      'the b219 anti-chest-hop refusal must still refuse');
+    assert(R._reduceClaim(200, { ok: false, error: 'already_claimed' }, 0).action === 'spent',
+      'the b219 claim ledger must still be honoured');
+    assert(R._reduceClaim(401, { code: 'PGRST301' }, 0).action === 'fail',
+      'b219: an auth error must never award a chest');
+  }),
+
+  () => tryRun('b223: the blueprint gate and the 24h grace are derived, never stored', () => {
+    const R = window.HearthriseRaids;
+    const now = Date.UTC(2026, 7, 8);
+    const iso = (d) => new Date(now - d * 86400000).toISOString();
+    // §10.2 — castle tiers 4 and 5 require a Hunt clear at the matching tier
+    // inside 28 days. This is the client's read of the rule clan_tier_up
+    // enforces, so the castle panel can grey a button and say WHY.
+    assert(R.huntGateMet([], 0, now) === true, 'tiers with no Hunt requirement are always open');
+    assert(R.huntGateMet([], 2, now) === false, 'no clears at all cannot satisfy the gate');
+    assert(R.huntGateMet([{ tier: 2, downed_at: iso(5) }], 2, now) === true, 'a recent Tier II clear opens tier 4');
+    assert(R.huntGateMet([{ tier: 2, downed_at: iso(30) }], 2, now) === false, 'a 30-day-old clear has expired');
+    assert(R.huntGateMet([{ tier: 1, downed_at: iso(5) }], 2, now) === false, 'a Tier I clear is not a Tier II clear');
+    assert(R.huntGateMet([{ tier: 4, downed_at: iso(5) }], 2, now) === true, 'a higher clear satisfies a lower gate');
+    assert(R.huntGateMet([{ tier: 2, downed_at: null }], 2, now) === false, 'an undowned Hunt is not a clear');
+    // A pre-Hunt row carries no tier; it must read as Tier I, which is the
+    // SAFE reading — no historical row can accidentally unlock castle tier 4.
+    assert(R.huntGateMet([{ downed_at: iso(1) }], 2, now) === false,
+      'a pre-Hunt clear must not satisfy a Tier II gate');
+    // §5.3's grace window, derived from the week key on both sides.
+    const wk = R.weekKey();
+    const start = R.weekStartMs(wk);
+    assert(R.prevWeekKey(wk) === 'w' + (+wk.slice(1) - 1), 'the previous week key is arithmetic');
+    assert(R.graceOpen(start + 1000) === true, 'the grace window opens as the week rolls');
+    assert(R.graceOpen(start + R.GRACE_MS + 1000) === false, 'and closes 24h later');
+    assert(R.graceOpen(start - 1000) === false, 'it never reaches back before the boundary');
+    // The claim mirror keeps exactly two weeks: the current one and the one
+    // the grace window can still pay for. Never more — it lives in the save.
+    const G = window.G;
+    const saved = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
+    try {
+      const st = R.ensureState();
+      const cur = +R.weekKey().slice(1);
+      st.claimed['w' + (cur - 5)] = true;
+      st.claimed['w' + (cur - 1)] = true;
+      st.claimed['w' + cur] = true;
+      R.ensureState();
+      assert(!st.claimed['w' + (cur - 5)], 'stale weekly claim keys must be pruned from the save');
+      assert(st.claimed['w' + (cur - 1)] === true, 'the grace week must survive the prune');
+      assert(st.claimed['w' + cur] === true, 'the current week must survive the prune');
+    } finally {
+      if (saved === undefined) delete G.raids; else G.raids = saved;
+    }
+  }),
+
+  () => tryRun('b223: the Hunt card shows the tier, the median and a way to declare', () => {
+    const R = window.HearthriseRaids;
+    const prevTab = window.activeTab;
+    const G = window.G;
+    const savedRaids = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
+    const savedClans = window.HearthriseClans;
+    try {
+      window.showTab('events');
+      // Offline / signed-out is the DEGRADED path, and it must be a real card
+      // rather than an error: the Lone Hunt is playable with no server at all.
+      const p = R.render(); if (p && p.catch) p.catch(() => {});
+      const card = document.getElementById('hr-raid-card');
+      assert(card && card.parentElement && card.parentElement.id === 'hr-events-raid',
+        'the Hunt card must live in its own Events section');
+      assert(/Lone Hunt/.test(card.innerHTML), 'signed out, the card must offer the Lone Hunt');
+      assert(/Unmeasured/.test(card.innerHTML),
+        'an unstruck solo pool must say so, not invent a number it has not measured');
+      assert(!/NaN|undefined|\[object/.test(card.innerHTML), 'the card rendered a hole');
+      assert(card.getBoundingClientRect().height > 60,
+        'the Hunt card collapsed again — this is the b220 grid bug recurring');
+      // The tier ceiling must be readable from castle state without importing
+      // any of the castle's render code.
+      window.HearthriseClans = { myClan: () => ({ castle_tier: 4, upgrades: { war_room: 6 }, myRole: 'officer' }) };
+      assert(R.tierCeiling() === 3, 'the ceiling must follow the War Room, got ' + R.tierCeiling());
+      assert(R.canDeclare() === true, 'an officer may declare');
+      window.HearthriseClans = { myClan: () => ({ castle_tier: 4, upgrades: { war_room: 6 }, myRole: 'member' }) };
+      assert(R.canDeclare() === false, 'a rank-and-file member may not declare');
+    } finally {
+      if (savedClans) window.HearthriseClans = savedClans; else delete window.HearthriseClans;
+      if (savedRaids === undefined) delete G.raids; else G.raids = savedRaids;
+      try { const q = R.render(); if (q && q.catch) q.catch(() => {}); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
     // b221 widened this deliberately. The bug it guards is "the portrait seam
     // points at an UNSHIPPED folder and 404s" (b186 pointed it at raw-bundle),

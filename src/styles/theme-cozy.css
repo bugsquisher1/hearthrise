@@ -3132,6 +3132,22 @@ body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"] {
   border: 2px solid #5a1208 !important;
   font-family: var(--f-display) !important;
 }
+/* ftue.js renders the live tour with .ftue-btn / .ftue-actions markup that the
+   rules above don't cover. Its secondary button ships a dark navy bg (ftue.js
+   inline), but `.ftue-card *` forces cocoa text on it -> unreadable dark-on-dark.
+   The modal is intentionally always-parchment, so give the secondary buttons a
+   matching parchment face (primary keeps its gold bg, skip stays a link). */
+.ftue-card .ftue-btn:not(.primary):not(.skip),
+.ftue-actions .ftue-btn:not(.primary):not(.skip) {
+  background: #fdf1d4 !important;
+  border: 1px solid #c79a52 !important;
+  color: #3d2817 !important;
+  font-weight: 600 !important;
+}
+.ftue-card .ftue-btn:not(.primary):not(.skip):hover,
+.ftue-actions .ftue-btn:not(.primary):not(.skip):hover {
+  background: #f7e4bb !important;
+}
 
 /* ============================================================
  * UNTOUCHED TABS — Bounty Board, Stable, Skills detail, Market,
@@ -4360,3 +4376,142 @@ body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([clas
 body[data-theme="hearthlight"] .panel.active .card-sub,
 body[data-theme="hearthlight"] .panel.active .muted,
 body[data-theme="hearthlight"] .panel.active small { color: var(--ink-3) !important; }
+
+/* ============================================================
+ * HEARTHLIGHT — single-theme finalization (b174)
+ * Hearthlight is now the ONLY theme. Several legacy readability rules hardcode
+ * cocoa text + cream card backgrounds WITHOUT theme-scoping (e.g.
+ * `#panel-bounty *{color:#3d2817!important}`), so they still force light colors
+ * even here. This block makes every legacy panel dark-clean: light text on dark
+ * surfaces, gold headers/values for hierarchy. Uses #panel ids to outrank those
+ * `#panel-x *` rules. (Interim: screens get rebuilt as token components — combat
+ * next — and the dead light-theme CSS gets deleted in a cleanup pass.)
+ * ============================================================ */
+
+/* Panel text -> light (beats the unscoped `#panel-x *` cocoa) */
+body[data-theme="hearthlight"] #panel-profile *,
+body[data-theme="hearthlight"] #panel-character *,
+body[data-theme="hearthlight"] #panel-combat *,
+body[data-theme="hearthlight"] #panel-bounty *,
+body[data-theme="hearthlight"] #panel-skills *,
+body[data-theme="hearthlight"] #panel-inventory *,
+body[data-theme="hearthlight"] #panel-shop *,
+body[data-theme="hearthlight"] #panel-market *,
+body[data-theme="hearthlight"] #panel-dungeons *,
+body[data-theme="hearthlight"] #panel-stable *,
+body[data-theme="hearthlight"] #panel-farming *,
+body[data-theme="hearthlight"] #panel-house *,
+body[data-theme="hearthlight"] #panel-social * { color: var(--ink) !important; }
+
+/* Cream card / input surfaces -> dark */
+body[data-theme="hearthlight"] #panel-bounty [class*="bounty-card"],
+body[data-theme="hearthlight"] #panel-bounty [class*="bounty-row"],
+body[data-theme="hearthlight"] #panel-bounty [class*="bounty-shop"],
+body[data-theme="hearthlight"] #panel-bounty [class*="bounty-option"],
+body[data-theme="hearthlight"] #panel-bounty .row.between > button,
+body[data-theme="hearthlight"] #panel-stable [class*="companion"],
+body[data-theme="hearthlight"] #panel-stable [class*="comp-card"],
+body[data-theme="hearthlight"] #panel-market [class*="listing"],
+body[data-theme="hearthlight"] #panel-market [class*="market-row"],
+body[data-theme="hearthlight"] #panel-market [class*="market-card"],
+body[data-theme="hearthlight"] #panel-market form,
+body[data-theme="hearthlight"] #panel-market fieldset,
+body[data-theme="hearthlight"] #panel-market section,
+body[data-theme="hearthlight"] #panel-market input,
+body[data-theme="hearthlight"] #panel-market select,
+body[data-theme="hearthlight"] #panel-shop [class*="card"],
+body[data-theme="hearthlight"] #panel-shop [class*="sku"],
+body[data-theme="hearthlight"] #panel-shop [class*="iap"],
+body[data-theme="hearthlight"] #panel-shop .row.between > button,
+body[data-theme="hearthlight"] #panel-dungeons [class*="card"],
+body[data-theme="hearthlight"] #panel-dungeons [class*="key-card"],
+body[data-theme="hearthlight"] #panel-skills .activity-tile,
+body[data-theme="hearthlight"] #panel-skills .act-tile,
+body[data-theme="hearthlight"] #panel-skills .act-head {
+  background: var(--bg-2) !important;
+  border-color: var(--line) !important;
+}
+
+/* Gold headers/values for hierarchy (per-panel id beats the light blanket) */
+body[data-theme="hearthlight"] #panel-character [class*="-title"],
+body[data-theme="hearthlight"] #panel-character [class*="hero-stat"] b,
+body[data-theme="hearthlight"] #panel-bounty [class*="-title"],
+body[data-theme="hearthlight"] #panel-bounty [class*="kpi"] b,
+body[data-theme="hearthlight"] #panel-skills [class*="-title"],
+body[data-theme="hearthlight"] #panel-inventory [class*="hero-stat"] b,
+body[data-theme="hearthlight"] #panel-shop [class*="-title"],
+body[data-theme="hearthlight"] #panel-market [class*="-title"] { color: var(--gold) !important; }
+
+/* Higher-specificity catch for detail sub-panels whose cocoa/cream rules use
+   two ids (e.g. `#panel-skills #skill-detail *`). The repeated-id selector
+   (#panel-x#panel-x) reaches (2,1,1) to outrank them. Interim until rebuild. */
+body[data-theme="hearthlight"] #panel-skills#panel-skills *,
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory *,
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty *,
+body[data-theme="hearthlight"] #panel-shop#panel-shop * { color: var(--ink) !important; }
+
+/* Stray light-face buttons/tiles -> dark surfaces (2-id to win) */
+body[data-theme="hearthlight"] #panel-skills#panel-skills .act-tile,
+body[data-theme="hearthlight"] #panel-skills#panel-skills .act-head,
+body[data-theme="hearthlight"] #panel-skills#panel-skills .activity-tile,
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-option"],
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-shop"],
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty .row.between > button,
+body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"],
+body[data-theme="hearthlight"] #panel-shop#panel-shop .row.between > button,
+body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button,
+body[data-theme="hearthlight"] #panel-profile #hd-root .hd-tile {
+  background: var(--bg-2) !important; border-color: var(--line) !important;
+}
+
+/* Keep gold values readable on the now-dark hero stats (2-id to win) */
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory [class*="hero-stat"] b,
+body[data-theme="hearthlight"] #panel-skills#panel-skills [class*="-title"],
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="-title"],
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="kpi"] b { color: var(--gold) !important; }
+
+/* ============================================================
+ * COMBAT — dramatic monster presence (Phase 2, first pass, b177)
+ * Make the enemy the spectacle: a large, gilt-framed, glowing portrait so the
+ * monster art actually reads as a foe. (Hearthlight combat rework — WIP; the
+ * FORECAST stat block + battle juice come next.)
+ * ============================================================ */
+body[data-theme="hearthlight"] #panel-combat .arena{ align-items:center !important; gap:10px !important; padding:18px 8px 14px !important; }
+body[data-theme="hearthlight"] #panel-combat .fighter .portrait{ width:84px !important; height:84px !important; border-radius:14px !important; }
+body[data-theme="hearthlight"] #panel-combat .fighter.enemy .portrait{
+  width:134px !important; height:134px !important; border-radius:16px !important;
+  background:radial-gradient(circle at 50% 32%, rgba(224,166,74,.20), rgba(10,7,4,.7)) !important;
+  border:2px solid var(--gold,#e0a64a) !important;
+  box-shadow:0 0 46px -8px rgba(224,166,74,.55), inset 0 -26px 46px -22px rgba(0,0,0,.85) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .fighter.enemy .portrait img{ object-fit:contain !important; filter:drop-shadow(0 6px 10px rgba(0,0,0,.6)); }
+body[data-theme="hearthlight"] #panel-combat .fighter.enemy .fname{ font-size:18px !important; color:var(--gold,#e0a64a) !important; margin-top:8px !important; }
+body[data-theme="hearthlight"] #panel-combat .fighter .fname{ margin-top:6px; }
+body[data-theme="hearthlight"] #panel-combat .vs{ font-size:22px !important; opacity:.6; }
+
+/* Kill the remaining cream/parchment surfaces in the dark theme (b177):
+   combat arena/fighters were still on cream cards, and a couple inputs stayed
+   parchment. Convert to dark. */
+body[data-theme="hearthlight"] #panel-combat .arena,
+body[data-theme="hearthlight"] #panel-combat .fighter,
+body[data-theme="hearthlight"] #panel-combat .fighter.enemy,
+body[data-theme="hearthlight"] #panel-combat .empty { background: transparent !important; }
+body[data-theme="hearthlight"] #panel-combat .fighter .portrait {
+  background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.05), rgba(0,0,0,.45)) !important;
+  border-color: var(--line) !important;
+}
+body[data-theme="hearthlight"] #panel-combat .card,
+body[data-theme="hearthlight"] #panel-combat [class*="combat-picker"],
+body[data-theme="hearthlight"] #panel-combat [class*="combat-arena"],
+body[data-theme="hearthlight"] #panel-combat [class*="combat-loadout"],
+body[data-theme="hearthlight"] #panel-combat [class*="combat-style"] {
+  background: var(--bg-1) !important; border-color: var(--line) !important;
+}
+/* Dark form inputs (were solid cream) — repeated-id to beat panel input rules */
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory input,
+body[data-theme="hearthlight"] #panel-market#panel-market input,
+body[data-theme="hearthlight"] #panel-combat#panel-combat input,
+body[data-theme="hearthlight"] input.search,
+body[data-theme="hearthlight"] .topbar input {
+  background: var(--bg-2) !important; color: var(--ink) !important; border-color: var(--line) !important;
+}

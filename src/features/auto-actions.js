@@ -57,7 +57,18 @@
     var aa = window.G.autoActions;
     // Fill missing branches with their defaults — never overwrite
     // user-set values.
-    if(!aa.eat)         aa.eat         = Object.assign({}, DEFAULTS.eat);
+    if(!aa.eat){
+      aa.eat = Object.assign({}, DEFAULTS.eat);
+      // b163: migrate pre-setEat saves. Old auto-eat lived on G.foodSlot +
+      // G.autoEatPct (driven by the removed combatTick watchdog). If a save
+      // still has that but no unified config, carry it over so those players
+      // don't silently lose auto-eat when the watchdog is deleted.
+      if(window.G.foodSlot){
+        aa.eat.enabled = true;
+        aa.eat.foodId  = window.G.foodSlot;
+        if(typeof window.G.autoEatPct === 'number') aa.eat.threshold = window.G.autoEatPct;
+      }
+    }
     if(!aa.trainGoal)   aa.trainGoal   = Object.assign({}, DEFAULTS.trainGoal);
     if(!aa.farmReplant) aa.farmReplant = Object.assign({}, DEFAULTS.farmReplant);
     return aa;
@@ -135,18 +146,23 @@
     var foodItem = foodId && window.ITEMS ? window.ITEMS[foodId] : null;
     var qty = foodId ? ((window.G.inventory && window.G.inventory[foodId]) || 0) : 0;
     if(!foodItem || !foodItem.heals || qty <= 0){
-      // Fall back to best food in bag.
+      // Fall back to best food in bag. PREFER plain (non-buff) food so auto-eat
+      // never burns your buffed cooked food (Cooked Shrimp etc. heal AND grant a
+      // buff) for a plain heal — save those for deliberate buffing. Fall back to
+      // buff-food only if it's the ONLY food you have, so you never just die.
       var inv = window.G.inventory || {};
-      var bestId = null, bestHeals = 0;
+      var bestPlainId = null, bestPlainHeals = 0, bestAnyId = null, bestAnyHeals = 0;
       for(var id in inv){
         if(!Object.prototype.hasOwnProperty.call(inv, id)) continue;
         if((inv[id] || 0) <= 0) continue;
         var it = window.ITEMS && window.ITEMS[id];
         if(!it || !it.heals) continue;
-        if(it.heals > bestHeals){ bestId = id; bestHeals = it.heals; }
+        if(it.heals > bestAnyHeals){ bestAnyId = id; bestAnyHeals = it.heals; }
+        if(!it.buff && it.heals > bestPlainHeals){ bestPlainId = id; bestPlainHeals = it.heals; }
       }
-      if(!bestId) return false;
-      foodId = bestId; foodItem = window.ITEMS[foodId];
+      var pick = bestPlainId || bestAnyId;
+      if(!pick) return false;
+      foodId = pick; foodItem = window.ITEMS[foodId];
     }
     // Consume.
     var heals = foodItem.heals;

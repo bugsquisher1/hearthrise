@@ -79,6 +79,17 @@
       R + '.hd-mile-body{flex:1;min-width:0}',
       R + '.hd-mile-title{font-family:var(--f-display);font-size:20px;color:var(--ink) !important}',
       R + '.hd-mile-sub{font-size:12px;color:var(--ink-3) !important;margin:2px 0 9px;font-variant-numeric:tabular-nums}',
+      // Renown meta-spine hero (the destination — most prominent card on Home)
+      R + '.hd-renown{cursor:pointer;transition:border-color .15s,box-shadow .15s}',
+      R + '.hd-renown:hover{border-color:var(--gold) !important;box-shadow:0 0 0 3px var(--gold-bg)}',
+      R + '.hd-renown .hd-mile-badge{font-size:30px}',
+      R + '.hd-rn-eyebrow{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--gold-2) !important;font-weight:700;margin-bottom:1px}',
+      R + '.hd-rn-claimdot{font-size:11px;background:var(--gold) !important;color:var(--bg-0) !important;border-radius:99px;padding:2px 8px;font-weight:700;vertical-align:middle;margin-left:6px;white-space:nowrap}',
+      // Daily reward claim card (shown only when a reward is waiting)
+      R + '.hd-daily{cursor:pointer;background:color-mix(in srgb,var(--gold) 10%,var(--bg-2)) !important;border-color:var(--gold) !important}',
+      R + '.hd-daily:hover{box-shadow:0 0 0 3px var(--gold-bg)}',
+      R + '.hd-daily .hd-mile-badge{animation:hd-daily-pulse 1.8s ease-in-out infinite}',
+      '@keyframes hd-daily-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}',
 
       R + '.hd-bar{height:9px;border-radius:6px;background:rgba(0,0,0,.28) !important;overflow:hidden}',
       'html:not([data-theme]) ' + R + '.hd-bar,body[data-theme="cozy-light"] ' + R + '.hd-bar{background:rgba(90,60,20,.14) !important}',
@@ -203,10 +214,58 @@
     html += '<div class="hd-pill"><em>Combat</em><b>' + cl + '</b></div>';
     html += '<div class="hd-pill gold"><em>Gold</em><b>' + num(G.gold) + '</b></div>';
     html += '<div class="hd-pill gem"><em>Gems</em><b>' + num(G.gems || 0) + '</b></div>';
+    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
+      try {
+        var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
+        html += '<div class="hd-pill" data-hd="collection" style="cursor:pointer"><em>📖 Log</em><b>' + _clp + '%</b></div>';
+      } catch (e) {}
+    }
     html += '</div></div>';
 
     // ── grid ──
     html += '<div class="hd-grid"><div class="hd-col">';
+
+    // Daily reward — top priority when a reward is waiting to be claimed
+    var DL = window.HearthriseDaily;
+    if (DL && DL.isClaimable && DL.isClaimable(G)) {
+      try {
+        var dlrw = DL.rewardFor(G);
+        var dlt = [];
+        if (dlrw.gold) dlt.push('🪙 ' + num(dlrw.gold));
+        if (dlrw.gems) dlt.push('💎 ' + num(dlrw.gems));
+        html += '<div class="hd-card hd-mile hd-daily" data-hd="daily">' +
+          '<div class="hd-mile-badge">🎁</div>' +
+          '<div class="hd-mile-body">' +
+            '<div class="hd-rn-eyebrow">Daily reward · Day ' + DL.cycleDay(G) + '</div>' +
+            '<div class="hd-mile-title" style="color:var(--gold)">Reward ready!</div>' +
+            '<div class="hd-mile-sub">' + dlt.join(' · ') + ' waiting to claim</div>' +
+          '</div>' +
+          '<button class="hd-cta">Claim →</button>' +
+        '</div>';
+      } catch (e) { /* daily optional */ }
+    }
+
+    // Renown meta-spine hero — the account-wide destination, first thing on Home
+    var RN = window.HearthriseRenown;
+    if (RN && RN.getState) {
+      try {
+        var rs = RN.getState(G);
+        var claimN = (RN.getClaimable ? RN.getClaimable(G) : []).length;
+        var rpct = Math.round((rs.progress || 0) * 100);
+        var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' Renown to ' + esc(rs.next.name));
+        html += '<div class="hd-card hd-mile hd-renown" data-hd="renown">' +
+          '<div class="hd-mile-badge">👑</div>' +
+          '<div class="hd-mile-body">' +
+            '<div class="hd-rn-eyebrow">Renown · Rise to the Throne</div>' +
+            '<div class="hd-mile-title" style="color:var(--gold)">' + esc(rs.rank.name) +
+              (claimN ? '<span class="hd-rn-claimdot">' + claimN + ' reward' + (claimN > 1 ? 's' : '') + ' ready</span>' : '') + '</div>' +
+            '<div class="hd-mile-sub">' + num(rs.renown) + ' Renown · ' + nextTxt + '</div>' +
+            '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + rpct + '%"></i></div>' +
+          '</div>' +
+          '<button class="hd-cta">View →</button>' +
+        '</div>';
+      } catch (e) { /* renown optional */ }
+    }
 
     // milestone hero
     if (mile) {
@@ -294,7 +353,10 @@
           if (kind === 'rename') {
             var nm = prompt('Display name:', (window.G && window.G.playerName) || 'Adventurer');
             if (nm && LP().setDisplayName) { LP().setDisplayName(nm); render(); }
-          } else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
+          } else if (kind === 'collection') { if (window.HearthriseCollection) window.HearthriseCollection.open(); }
+          else if (kind === 'daily') { if (window.HearthriseDaily) window.HearthriseDaily.open(); }
+          else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }
+          else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
           else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t.label).go(); }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }

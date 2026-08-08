@@ -16,12 +16,17 @@
     const moreModal = document.getElementById('more-modal');
     if (moreModal) moreModal.classList.remove('open');
 
-    // Force the chat dock open. window.HearthriseChat exposed by chat.js.
+    // Open the chat dock via its real API. chat.js exposes window.Chat
+    // (NOT window.HearthriseChat — that name never existed; the old check
+    // here always missed and fell through to the class-swap fallback, which
+    // opens the dock visually but leaves chat.js's internal `minimized`
+    // state stale, so it could snap shut on the next render). Use the real
+    // open() so state + message render/scroll happen correctly.
     try {
-      if (window.HearthriseChat && typeof window.HearthriseChat.open === 'function') {
-        window.HearthriseChat.open();
+      if (window.Chat && typeof window.Chat.open === 'function') {
+        window.Chat.open();
       } else {
-        // Fallback: directly remove the .mini class
+        // Fallback: directly toggle the dock classes if the API isn't ready.
         const dock = document.getElementById('chat-dock');
         if (dock) {
           dock.classList.remove('mini');

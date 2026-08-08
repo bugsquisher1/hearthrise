@@ -28,24 +28,21 @@
   const KEY = 'hearthrise:theme';
   const LEGACY_KEY = 'hb_theme';
 
+  // b174: ONE theme for launch. Tyler's call — maintaining a light + dark look is
+  // wasted effort pre-launch, so Hearthlight (deep warm dark + gilt) is now the
+  // single visual theme. The retired themes are kept here (commented) so they can
+  // be re-enabled later without rebuilding the controller.
   const THEMES = [
-    { id: 'cozy-light',  label: 'Cozy Day',    desc: 'Warm parchment, forest green, gold' },
-    { id: 'cozy-dark',   label: 'Cozy Night',  desc: 'Hearth-lit chocolate + parchment text' },
-    { id: 'hearthlight', label: 'Hearthlight', desc: 'Candle-lit hall — deep warm dark + gilt (revamp preview)' },
-    { id: 'classic',     label: 'Classic',     desc: 'Stone + brass utility (beta)' },
+    { id: 'hearthlight', label: 'Hearthlight', desc: 'Candle-lit hall — deep warm dark + gilt' },
+    // { id: 'cozy-light',  label: 'Cozy Day',    desc: 'Warm parchment, forest green, gold' },
+    // { id: 'cozy-dark',   label: 'Cozy Night',  desc: 'Hearth-lit chocolate + parchment text' },
+    // { id: 'classic',     label: 'Classic',     desc: 'Stone + brass utility (beta)' },
   ];
 
   function readSaved() {
-    try {
-      const v = localStorage.getItem(KEY);
-      if (v === 'cozy-light' || v === 'cozy-dark' || v === 'classic') return v;
-    } catch {}
-    // Migrate legacy
-    try {
-      const old = localStorage.getItem(LEGACY_KEY);
-      if (old === 'dark' || old === 'cozy-dark') return 'cozy-dark';
-    } catch {}
-    return 'cozy-light';
+    // Single theme for now — always Hearthlight, regardless of any old saved
+    // choice (existing testers move to the one look too).
+    return 'hearthlight';
   }
 
   function applyTheme(id) {

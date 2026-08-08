@@ -31,7 +31,9 @@
     smithing: ['lorc/anvil-impact', 'delapouite/anvil'],
     bountyHunter: ['lorc/bullseye', 'delapouite/target-dummy'],
     foraging: ['delapouite/berries-bowl'],
-    gold: ['delapouite/two-coins'], gems: ['lorc/gems']
+    gold: ['delapouite/two-coins'], gems: ['lorc/gems'],
+    // UI-chrome glyphs (flat, not medallions) — cohesive topbar/nav icons
+    combatLvl: ['lorc/crossed-swords'], totalLvl: ['lorc/laurel-crown', 'delapouite/star-formation', 'lorc/laurels-trophy']
   };
 
   // category accent per key (CSS token names)
@@ -87,7 +89,10 @@
       // Cozy Day: lighter medallion so the parchment icon still pops
       'html:not([data-theme]) .hr-med,body[data-theme="cozy-light"] .hr-med{background:radial-gradient(circle at 38% 30%,#5a3d1e,#3f2a13)}',
       // let it sit nicely where emoji skill icons used to be
-      '.skill-tile .sicon .hr-med,.sk-icon .hr-med{--sz:34px}'
+      '.skill-tile .sicon .hr-med,.sk-icon .hr-med{--sz:34px}',
+      // Flat UI glyphs (topbar/nav) — clean gilt icons, no medallion frame
+      '.hr-glyph{display:inline-flex;align-items:center;justify-content:center;width:var(--gsz,18px);height:var(--gsz,18px);vertical-align:middle;flex:0 0 auto}',
+      '.hr-glyph svg{width:100%;height:100%;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -152,7 +157,32 @@
       if (mv) iconEl.innerHTML = mv;
     });
   }
-  function paintAll() { paintSkills(); paintMonsters(); }
+  // Flat gilt glyph (no medallion frame) for UI chrome.
+  function glyph(key, sizePx, colorVar) {
+    var d = paths[key]; if (!d) return null;
+    ensureStyle();
+    var col = 'var(' + (colorVar || '--gold') + ',#e0a64a)';
+    return '<span class="hr-glyph" style="--gsz:' + (sizePx || 18) + 'px;color:' + col + '">' +
+      '<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="' + d + '"/></svg></span>';
+  }
+
+  // Replace the topbar stat emoji with cohesive gilt glyphs. Matches by the
+  // stat's label (CL / TL / Gold / Gems) so it's robust to order.
+  var TOPBAR_MAP = { 'CL': ['combatLvl', '--gold-2'], 'TL': ['totalLvl', '--gold-2'], 'Gold': ['gold', '--gold'], 'Gems': ['gems', '--gem'] };
+  function paintTopbar() {
+    if (!Object.keys(paths).length) return;
+    document.querySelectorAll('.topbar .t-stat').forEach(function (st) {
+      var lab = st.querySelector('.lab'), ic = st.querySelector('.ic');
+      if (!lab || !ic) return;
+      var m = TOPBAR_MAP[(lab.textContent || '').trim()];
+      if (!m || !paths[m[0]]) return;
+      if (ic.querySelector('.hr-glyph')) return;   // already painted
+      var g = glyph(m[0], 17, m[1]);
+      if (g) ic.innerHTML = g;
+    });
+  }
+
+  function paintAll() { paintSkills(); paintMonsters(); paintTopbar(); }
 
   async function fetchOne(names) {
     for (var j = 0; j < names.length; j++) {

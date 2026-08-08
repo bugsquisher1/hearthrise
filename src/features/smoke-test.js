@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=161' directly.
+// modularised, will import { G } from '../state/game.js?v=180' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=161';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=161';
+import { on } from '../net/events.js?v=180';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=180';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -137,6 +137,210 @@ const TESTS = [
   }),
   () => tryRun('tabs: showTab present', () => {
     assert(typeof window.showTab === 'function', 'showTab missing');
+  }),
+  () => tryRun('b162: FTUE secondary button is readable (light face, not dark-on-dark)', () => {
+    // Regression: the live tour's secondary .ftue-btn kept ftue.js's dark navy
+    // background while `.ftue-card *` forced cocoa text on it -> ~1.1:1 contrast.
+    // Build the real FTUE nesting off-screen and assert the button face is light
+    // (so the always-cocoa text stays legible).
+    const root = document.createElement('div');
+    root.className = 'ftue-card';
+    root.style.cssText = 'position:fixed;left:-9999px;top:0';
+    root.innerHTML = '<div class="ftue-actions"><button class="ftue-btn">x</button></div>';
+    document.body.appendChild(root);
+    const cs = getComputedStyle(root.querySelector('.ftue-btn'));
+    const m = (cs.backgroundColor || '').match(/\d+/g);
+    document.body.removeChild(root);
+    assert(m, 'FTUE secondary button has no resolvable background color');
+    const p = m.map(Number);
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lum = 0.2126 * f(p[0]) + 0.7152 * f(p[1]) + 0.0722 * f(p[2]);
+    assert(lum > 0.4, 'FTUE secondary button bg should be light/parchment for readable cocoa text, got ' + cs.backgroundColor + ' (lum ' + lum.toFixed(2) + ')');
+  }),
+  () => tryRun('b168: auto-eat prefers plain food, preserves buffed food', () => {
+    const A = window.HearthriseAuto;
+    assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto.maybeAutoEat missing');
+    const G = window.G;
+    let plainId = null, buffId = null;
+    for (const id in window.ITEMS) { const it = window.ITEMS[id]; if (it.heals && !it.buff && !plainId) plainId = id; if (it.heals && it.buff && !buffId) buffId = id; }
+    if (!plainId || !buffId) return; // data lacks both kinds — nothing to assert
+    const sInv = JSON.parse(JSON.stringify(G.inventory || {}));
+    const sHp = G.playerHp, sMax = G.playerMaxHp, sAA = G.autoActions ? JSON.parse(JSON.stringify(G.autoActions)) : undefined;
+    try {
+      G.inventory = {}; G.inventory[plainId] = 5; G.inventory[buffId] = 5;
+      G.playerMaxHp = 100; G.playerHp = 10;                       // low HP → should eat
+      G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: null } };
+      assert(A.maybeAutoEat() === true, 'should auto-eat at low HP with food available');
+      assert((G.inventory[plainId] || 0) === 4, 'plain food should be the one consumed');
+      assert((G.inventory[buffId] || 0) === 5, 'buffed food should be preserved');
+    } finally {
+      G.inventory = sInv; G.playerHp = sHp; G.playerMaxHp = sMax;
+      if (sAA === undefined) delete G.autoActions; else G.autoActions = sAA;
+    }
+  }),
+  () => tryRun('b163: old foodSlot save migrates to unified auto-eat config', () => {
+    // Regression: removing the combatTick auto-eat watchdog must not strand
+    // pre-setEat players whose auto-eat lived on G.foodSlot/G.autoEatPct.
+    // ensureShape (via HearthriseAuto) carries it over to G.autoActions.eat.
+    assert(window.HearthriseAuto && typeof window.HearthriseAuto.getEat === 'function', 'HearthriseAuto.getEat missing');
+    const G = window.G;
+    const savedAA = G.autoActions, savedFS = G.foodSlot, savedPct = G.autoEatPct;
+    try {
+      delete G.autoActions;
+      G.foodSlot = 'shrimp';
+      G.autoEatPct = 0.4;
+      const eat = window.HearthriseAuto.getEat();   // triggers ensureShape → migration
+      assert(eat.enabled === true, 'migrated auto-eat should be enabled');
+      assert(eat.foodId === 'shrimp', 'migrated foodId should be shrimp, got ' + eat.foodId);
+      assert(Math.abs((eat.threshold || 0) - 0.4) < 1e-9, 'migrated threshold should be 0.4, got ' + eat.threshold);
+    } finally {
+      if (savedAA === undefined) delete G.autoActions; else G.autoActions = savedAA;
+      G.foodSlot = savedFS; G.autoEatPct = savedPct;
+    }
+  }),
+  () => tryRun('b167: Collection Log tracks completion + claims milestones', () => {
+    const C = window.HearthriseCollection;
+    assert(C && typeof C.getStats === 'function' && typeof C.claimMilestone === 'function', 'HearthriseCollection missing');
+    const G = window.G;
+    const st = C.getStats(G);
+    assert(st.mon && st.item && typeof st.overall === 'number', 'getStats shape wrong');
+    assert(st.mon.total > 0 && st.item.total > 0, 'totals should reflect MONSTERS/ITEMS');
+    assert(st.overall >= 0 && st.overall <= 1, 'overall completion must be 0..1');
+    const sBest = G.bestiary ? JSON.parse(JSON.stringify(G.bestiary)) : undefined;
+    const sCL = G.collectionLog ? JSON.parse(JSON.stringify(G.collectionLog)) : undefined;
+    const sGold = G.gold;
+    try {
+      G.bestiary = {};
+      Object.keys(window.MONSTERS).slice(0, 12).forEach(function (id) { G.bestiary[id] = { kills: 1, firstKill: 0 }; });
+      G.collectionLog = { claimed: [] };
+      assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'hunter10 should be claimable at 12 monsters');
+      const before = G.gold || 0;
+      const rw = C.claimMilestone('hunter10', G);
+      assert(rw && (G.gold || 0) > before, 'claiming a milestone should grant its reward');
+      assert(!C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'a claimed milestone should not be claimable again');
+    } finally {
+      G.gold = sGold;
+      if (sBest === undefined) delete G.bestiary; else G.bestiary = sBest;
+      if (sCL === undefined) delete G.collectionLog; else G.collectionLog = sCL;
+    }
+  }),
+  () => tryRun('b166: daily login reward claims once per day + escalates with streak', () => {
+    const D = window.HearthriseDaily;
+    assert(D && typeof D.claim === 'function' && typeof D.isClaimable === 'function', 'HearthriseDaily missing');
+    const G = window.G;
+    const sDR = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : undefined;
+    const sGold = G.gold, sStreak = G.streak ? JSON.parse(JSON.stringify(G.streak)) : undefined;
+    try {
+      G.streak = { count: 3, lastDay: 0 };
+      G.dailyReward = { lastClaimDay: 0 };            // force "new day, unclaimed"
+      assert(D.isClaimable(G), 'should be claimable when not yet claimed today');
+      assert(D.cycleDay(G) === 3, 'cycle day should track streak count (expected 3), got ' + D.cycleDay(G));
+      const rw = D.rewardFor(G);
+      assert(rw && rw.gold > 0, 'reward should include gold');
+      const before = G.gold || 0;
+      const claimed = D.claim(G);
+      assert(claimed && (G.gold || 0) > before, 'claim should grant its reward');
+      assert(!D.isClaimable(G), 'should not be claimable again the same day');
+      assert(D.claim(G) === null, 'a second same-day claim must return null');
+    } finally {
+      G.gold = sGold;
+      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+    }
+  }),
+  () => tryRun('b164: Renown ladder scores, ranks up, claims, and perks apply', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.compute === 'function' && typeof R.getState === 'function', 'HearthriseRenown missing');
+    // ladder thresholds strictly increase
+    for (let i = 1; i < R.RANKS.length; i++) assert(R.RANKS[i].min > R.RANKS[i - 1].min, 'rank thresholds must increase at ' + R.RANKS[i].id);
+    const G = window.G;
+    const rn0 = R.compute(G);
+    assert(typeof rn0 === 'number' && rn0 >= 0, 'renown should be a non-negative number');
+    const st = R.getState(G);
+    assert(st.rank && typeof st.rank.name === 'string', 'getState.rank missing');
+    assert(st.progress >= 0 && st.progress <= 1, 'progress must be 0..1');
+    // claim + perk flow — snapshot & restore everything we touch
+    const sKills = (G.stats && G.stats.kills) || 0;
+    const sRenown = G.renown ? JSON.parse(JSON.stringify(G.renown)) : undefined;
+    const sGold = G.gold;
+    try {
+      G.renown = { claimed: [], seenRank: 0 };
+      if (!G.stats) G.stats = {};
+      G.stats.kills = 60000;                 // → very high renown, top ranks reached
+      const claimables = R.getClaimable(G);
+      assert(claimables.length > 0, 'high renown should expose claimable rewards');
+      const before = G.gold || 0;
+      const granted = R.claimRank(claimables[0].id, G);
+      assert(granted && (G.gold || 0) > before, 'claiming a rank should grant its reward');
+      assert(R.getClaimable(G).length < claimables.length, 'a claimed reward should no longer be claimable');
+      const perks = R.getPerks(G);
+      assert(typeof perks.allXP === 'number' && perks.allXP > 0, 'top ranks should aggregate an allXP perk');
+      if (typeof window.getBonus === 'function') {
+        assert(window.getBonus('allXP') >= perks.allXP - 1e-9, 'renown allXP perk should flow into getBonus');
+      }
+    } finally {
+      G.stats.kills = sKills;
+      G.gold = sGold;
+      if (sRenown === undefined) delete G.renown; else G.renown = sRenown;
+    }
+  }),
+  () => tryRun('b163: platform Storage seam present + round-trips', () => {
+    // Architecture layer 4: all local persistence routes through one swappable
+    // facade so Steam/mobile can change the backend without touching game logic.
+    const S = window.HearthriseStorage;
+    assert(S && typeof S.getJSON === 'function' && typeof S.setJSON === 'function' && typeof S.remove === 'function',
+      'HearthriseStorage seam missing');
+    S.setJSON('__hr_smoke_seam__', { n: 7 });
+    const back = S.getJSON('__hr_smoke_seam__');
+    assert(back && back.n === 7, 'Storage seam round-trip failed');
+    S.remove('__hr_smoke_seam__');
+    assert(S.get('__hr_smoke_seam__') === null, 'Storage seam remove failed');
+    // saveLocal must route the real save through the seam (the platform swap
+    // point). Behavioral, not source-based — saveLocal is wrapped (multi-char),
+    // so inspecting its source would miss the underlying call. Spy passes
+    // through, so the real save still happens.
+    if (typeof window.saveLocal === 'function') {
+      const origSet = S.setJSON;
+      let sawSaveKey = false;
+      S.setJSON = function (k) { if (k === 'hearthbound-save-v2') sawSaveKey = true; return origSet.apply(S, arguments); };
+      try { window.saveLocal(); } finally { S.setJSON = origSet; }
+      assert(sawSaveKey, 'saveLocal should persist the game save through the Storage seam');
+    }
+  }),
+  () => tryRun('b162: cozy chips use a light face (no dark-tint-on-cream)', () => {
+    // Regression: .invc-hero-stat and .at-qty hardcoded rgba(0,0,0,.25/.35) dark
+    // tints (built for dark/colored grounds). On Cozy's cream cards with cocoa
+    // text that read ~1.5:1. Both now use var(--bg-2) so they invert per theme.
+    // Only meaningful on the light default — dark themes intentionally use a
+    // dark chip face with light text.
+    const theme = document.body.getAttribute('data-theme');
+    if (theme && theme !== 'cozy-light') return;
+    function lumOf(sel, html) {
+      const host = document.createElement('div');
+      host.style.cssText = 'position:fixed;left:-9999px;top:0';
+      host.innerHTML = html;
+      document.body.appendChild(host);
+      const cs = getComputedStyle(host.querySelector(sel));
+      const m = (cs.backgroundColor || '').match(/\d+/g);
+      document.body.removeChild(host);
+      if (!m) return null;
+      const p = m.map(Number);
+      const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(p[0]) + 0.7152 * f(p[1]) + 0.0722 * f(p[2]);
+    }
+    const a = lumOf('.invc-hero-stat', '<div class="invc-hero-stat"><b>1</b><span>x</span></div>');
+    const b = lumOf('.at-qty', '<div class="act-tile"><span class="at-qty muted">Qty: 0</span></div>');
+    assert(a === null || a > 0.4, '.invc-hero-stat bg should be light on Cozy (lum ' + a + ')');
+    assert(b === null || b > 0.4, '.at-qty bg should be light on Cozy (lum ' + b + ')');
+  }),
+  () => tryRun('b162: mobile chat button targets the real window.Chat API', () => {
+    // Regression: mobile-more-chat.js used to call window.HearthriseChat.open()
+    // — a global that never existed (chat.js exposes window.Chat) — so the
+    // mobile More→Chat button always missed the API and fell through to a
+    // class-swap that left chat.js's `minimized` state stale. Guard the real
+    // contract: the global the mobile button now depends on must exist.
+    assert(window.Chat && typeof window.Chat.open === 'function',
+      'window.Chat.open missing — mobile More→Chat (mobile-more-chat.js) depends on it');
   }),
   () => tryRun('tabs: each tab activates', () => {
     const tabs = ['profile', 'character', 'combat', 'bounty', 'skills', 'inventory', 'shop', 'farming', 'house', 'social'];
@@ -2108,14 +2312,17 @@ const TESTS = [
     const T = window.HearthriseTheme;
     if (!T || !T.list) return; // theme system not present
     assert(T.list().some(function(t){ return t.id === 'hearthlight'; }), 'hearthlight not in theme list');
+    // b163: API is setTheme(), not set() — the old test called T.set() which
+    // never existed, so this test had been throwing "T.set is not a function".
+    assert(typeof T.setTheme === 'function', 'HearthriseTheme.setTheme missing');
     const prev = (T.getTheme && T.getTheme()) || 'cozy-light';
     try {
-      T.set('hearthlight');
+      T.setTheme('hearthlight');
       assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');
       const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
       assert(bg === '#1c1610', 'hearthlight --bg-0 should be #1c1610, got "' + bg + '"');
     } finally {
-      T.set(prev); // never leave the tester on a different theme than they picked
+      T.setTheme(prev); // never leave the tester on a different theme than they picked
     }
   }),
 ];

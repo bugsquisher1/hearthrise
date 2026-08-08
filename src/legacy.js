@@ -382,7 +382,18 @@ let G={
    ════════════════════════════════════════════════ */
 function saveLocal(){
   G.lastSeen=Date.now();
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify(G));}catch(e){console.warn('save failed',e);}
+  // Route through the platform Storage seam (src/platform/storage.js) so Steam
+  // (electron-store) / mobile (Capacitor) can swap the backend without touching
+  // this. Falls back to localStorage directly if the seam hasn't loaded.
+  try{
+    if(window.HearthriseStorage){window.HearthriseStorage.setJSON(SAVE_KEY,G);}
+    else{localStorage.setItem(SAVE_KEY,JSON.stringify(G));}
+  }catch(e){console.warn('save failed',e);}
+}
+// One accessor for reading a raw save string, via the seam when present.
+function _readSave(key){
+  try{ return window.HearthriseStorage ? window.HearthriseStorage.get(key) : localStorage.getItem(key); }
+  catch(e){ try{ return localStorage.getItem(key); }catch(_){ return null; } }
 }
 function loadLocal(){
   // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
@@ -391,10 +402,10 @@ function loadLocal(){
   // at a new one. The smoke-test save/load round-trip caught this:
   // after loadLocal(), window.G.gold still held the pre-load mutation.
   // Object.assign keeps the same reference, so window.G stays correct.
-  let raw=localStorage.getItem(SAVE_KEY);
+  let raw=_readSave(SAVE_KEY);
   if(!raw){
     /* migrate from v1 if present */
-    raw=localStorage.getItem(LEGACY_KEY);
+    raw=_readSave(LEGACY_KEY);
     if(raw)try{
       const d=JSON.parse(raw);
       // run versioned migrations on the v1 save before merge
@@ -435,9 +446,12 @@ function processOffline(){
   const elapsed=(Date.now()-G.lastSeen)/3600000;
   if(elapsed<0.05) return;
   if(!G.activeSkill && !G.activeMonster && !G.activeArtisanRecipe) return;
-  // Offline progression cap: 12h F2P, 16h with the Offline+ entitlement.
-  // Resets every time the player logs in (lastSeen updates on save/load).
-  const cap=G.entitlements?.offlinePlus?16:12;
+  // Offline progression cap: 12h F2P, 16h with the Offline+ entitlement,
+  // plus any hours granted by your Renown rank perks. Resets every login.
+  let cap=G.entitlements?.offlinePlus?16:12;
+  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
+    try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
+  }
   const hrs=Math.min(elapsed,cap);
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
   let combatSummary = null;
@@ -821,6 +835,10 @@ function getBonus(key){
   G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.05;if(b.id==='scarecrow'&&key==='farmYield')t+=0.1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
   /* season pass bonus */
   if(G.seasonPass && Date.now()<G.seasonPass.expiresAt && key==='allXP')t+=0.1;
+  /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
+  if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
+    try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
+  }
   return t;
 }
 function addXp(sk,amt){
@@ -2177,7 +2195,7 @@ function openSettings(){
       <button class="btn tap" onclick="saveLocal();notify('Saved','info')">💾 Save now</button>
       <button class="btn tap" onclick="cloudSync()">☁️ Cloud sync</button>
       <button class="btn tap" onclick="exportSave()">⬇️ Export</button>
-      <button class="btn tap btn-danger" onclick="if(confirm('Erase save?')){localStorage.removeItem(SAVE_KEY);location.reload();}">🗑️ Reset</button>
+      <button class="btn tap btn-danger" onclick="if(confirm('Erase save?')){if(window.HearthriseStorage){window.HearthriseStorage.remove(SAVE_KEY);}else{localStorage.removeItem(SAVE_KEY);}location.reload();}">🗑️ Reset</button>
     </div>
     <div class="muted tiny" style="margin-top:8px">Last cloud sync: ${G.cloudSyncedAt?new Date(G.cloudSyncedAt).toLocaleString():'never'}.</div>
 
@@ -4629,29 +4647,14 @@ console.log('Combat styles v2 loaded. weaponType:', window.getWeaponType(), 'sty
   }
   function setTheme(name){ try{ localStorage.setItem(KEY, name); }catch(_){} applyTheme(name); }
   function init(){
-    let saved = 'cozy';
-    try{
-      const v = localStorage.getItem(KEY);
-      /* Migrate legacy values: 'lane1' or 'default' → cozy; 'cozy-dark' → dark */
-      if(v === 'dark' || v === 'cozy-dark') saved = 'dark';
-      else saved = 'cozy';
-    }catch(_){}
-    /* Strip any stale attribute set by older versions */
-    if(saved !== 'dark') document.body.removeAttribute('data-theme');
-    /* Replace any prior toggle button */
+    // b174: RETIRED. Theming is owned entirely by theme-picker.js v2, which now
+    // pins the single Hearthlight theme (data-theme="hearthlight"). This legacy
+    // day/night system used to run on boot and remove data-theme (reverting to
+    // the light look), clobbering v2. Neutralized: only clean up the old hidden
+    // toggle button; never touch data-theme. setTheme/applyTheme kept as unused
+    // stubs so nothing referencing them throws.
     const old = document.getElementById('lane1-toggle-btn');
     if(old) old.remove();
-    const btn = document.createElement('button');
-    btn.id = 'lane1-toggle-btn';
-    btn.className = 'lane1-toggle';
-    btn.textContent = saved === 'dark' ? '☀ Day' : '☾ Night';
-    btn.title = 'Toggle Day / Night theme';
-    btn.addEventListener('click', () => {
-      const cur = document.body.getAttribute('data-theme') === 'dark' ? 'cozy' : 'dark';
-      setTheme(cur);
-    });
-    document.body.appendChild(btn);
-    applyTheme(saved);
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
@@ -9165,29 +9168,16 @@ setInterval(function(){
   };
 })();
 
-// ── Hook auto-eat in combatTick to also apply buff ──
-// The existing auto-eat just heals. We replace its behavior to call eatFood().
-(function(){
-  if(typeof window.combatTick !== 'function') return;
-  // We can't easily intercept the inline auto-eat block, so we add a watchdog:
-  // before each combatTick, if HP is low and food is set, call eatFood directly
-  // (bypasses the original heal-only path). The original heal will still run too,
-  // making it a no-op (food already removed by eatFood).
-  // Simplest: hook addItem-style by wrapping combatTick and pre-eating if needed.
-  const orig = window.combatTick;
-  window.combatTick = function(){
-    try {
-      if(G && G.activeMonster && G.foodSlot && (G.inventory[G.foodSlot]||0) > 0){
-        const lowHp = (G.playerHp||0) < (G.playerMaxHp||0)*(G.autoEatPct||0.5);
-        if(lowHp){
-          window.eatFood(G.foodSlot);
-          return; // skip the original heal path; eatFood already healed + buffed
-        }
-      }
-    } catch(e){}
-    return orig.apply(this, arguments);
-  };
-})();
+// b163: REMOVED the auto-eat watchdog that used to wrap combatTick here.
+// It called eatFood(G.foodSlot) on low HP — which applies food BUFFS, not just
+// heals — and then early-`return`ed, SKIPPING the entire real combat tick (no
+// attack that tick) whenever foodSlot was set. Two bugs: (1) HP auto-eat should
+// only HEAL, never spend buff items (buff consumption is a separate, opt-in,
+// buff-expiry-driven concern — planned as a "drinks" category); (2) skipping the
+// tick was never intended. HP auto-eat now flows solely through
+// HearthriseAuto.maybeAutoEat() inside combatTick (heal-only), matching offline
+// combat. Old G.foodSlot saves are migrated to G.autoActions.eat in
+// auto-actions.js so nobody loses their auto-eat setting.
 
 // ── UI: Eat Now button on inventory food tiles ──
 function injectEatNowButtons(){

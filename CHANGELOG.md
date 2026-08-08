@@ -4,6 +4,23 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 176 — 2026-08-07 (The retention update + the game goes dark)
+
+- 🌙 **One look: Hearthlight.** The game is now a single, cohesive **dark** theme by default — deep warm shadows, gilt accents, the dusk backdrop glowing behind the panels. The old light theme is retired for launch (one look to polish, not two). This is the atmospheric, premium-idle feel the rework was aiming for; combat + monster art come next.
+
+Three big new systems that give your progress a destination, a daily habit, and a completion chase.
+
+- 👑 **Renown — Rise to the Throne.** One account-wide rank ladder (Peasant → King) fed by *everything* you do. Your rank + progress to the next sits right at the top of Home; tap it for the full 12-rank climb. Rank-ups are a moment — a celebration, a reward to claim, and a **permanent perk** (perks stack to +22% XP and +12h offline by the top). You already have Renown from your past play — log in and claim what you've earned.
+- 🎁 **Daily login reward.** A 7-day escalating cycle (Day 1 → Day 7 jackpot) that scales up each week you keep the streak. Miss a day and it restarts — but you never lose what you banked. Claim it right from Home.
+- 📖 **Collection Log.** A browsable record of every monster slain and item found, with completion % and milestone rewards. Tap any discovered monster for its **drop table**, or any item to see **where it drops** — and a little "New discovery!" toast pops the moment you find something new. Those "???" slots are a to-do list, and it all feeds your Renown.
+
+Plus polish + foundation:
+- ⚔️ **Auto-eat is smarter** — heals only (no more skipped attacks), and now **prefers plain food so it never wastes your buffed cooked meals**. Your setting carries over automatically.
+- 📜 "What's new" panel + mobile chat fixed; readability cleanups.
+- 🧱 **Under the hood:** a swappable "storage seam" — groundwork for Steam + mobile from one codebase.
+
+**Next:** more content to collect, and the mobile app-feel pass.
+
 ## v0.9.1-beta build 154 — 2026-08-07 (Home, rebuilt for real — the pitch, not a recolor)
 
 The recolor-the-old-layout approach was never going to look like the pitch. So Home is **rebuilt** as a new component (`src/features/home-dashboard.js`) — the actual pitch layout: header + legible pills, an illuminated "next milestone" hero with a CTA, **actionable quests where every card is a door** (Catch fish → *Go fish →* opens Activities→Fishing; Earn gold → *Sell →* opens Market; etc.), today tiles, resume, and buffs.

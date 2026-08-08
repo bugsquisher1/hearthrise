@@ -166,6 +166,80 @@ export function buildSnapshotRequest(cfg, userId, snap, nowMs) {
   };
 }
 
+/**
+ * Sum boss kills out of the bestiary. Exported + pure so the leaderboard
+ * contract is testable without a live G. Returns null when the save carries no
+ * bestiary at all — an ABSENT field, never a fabricated zero, because "no data"
+ * and "zero bosses killed" are different claims and the Bosses board excludes
+ * the first while ranking the second.
+ */
+export function countBossKills(G, MONSTERS) {
+  if (!G || !G.bestiary || typeof G.bestiary !== 'object' || !MONSTERS) return null;
+  let n = 0;
+  for (const id in G.bestiary) {
+    if (!Object.prototype.hasOwnProperty.call(G.bestiary, id)) continue;
+    const def = MONSTERS[id];
+    if (def && def.boss) n += (G.bestiary[id] && G.bestiary[id].kills) || 0;
+  }
+  return n;
+}
+
+/**
+ * The DERIVED fields a save snapshot must carry so the SERVER can rank it.
+ *
+ * `snapshot()` (net/events.js) is a deliberate allowlist of *stored* state, and
+ * none of these four are stored — they are all computed from it. But the
+ * leaderboard views read `snapshot->>'<field>'`, so anything the server has to
+ * sort by has to be written down at save time. This function is the one place
+ * that decision lives.
+ *
+ *   totalLevel   — pre-existing (b146). Also gates cloud restore in auth.js.
+ *   combatLevel  — b222. `public.leaderboard` has read snapshot->>'combatLevel'
+ *                  since b205 and NOTHING has ever written it: the Combat board
+ *                  ranked every player as null. This is that bug's fix.
+ *   renown       — b222. The Throne board's score (leaderboards.md §3.2). The
+ *                  ladder itself stays client-side; only the integer ships.
+ *   bossKills    — b222. The Bosses board. The server cannot compute this — it
+ *                  has no MONSTERS table and so no idea which kills were bosses.
+ *
+ * Each value comes from an explicit config provider when one is wired, else
+ * from the live globals, else it is OMITTED. A field is never guessed: a client
+ * that cannot compute renown does not appear on the Throne board, which is the
+ * honest outcome.
+ *
+ * Pure apart from the reads it is handed — exported for the regression suite.
+ */
+export function derivedSnapshotFields(cfg, win) {
+  win = win || (typeof window !== 'undefined' ? window : {});
+  const out = {};
+  const read = (name, fallback) => {
+    const p = cfg ? cfg[name] : null;
+    if (p != null) {
+      try { return typeof p === 'function' ? p() : p; } catch { return null; }
+    }
+    try { return fallback(); } catch { return null; }
+  };
+  const whole = (v) => (typeof v === 'number' && isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+  const G = win.G;
+
+  const tl = whole(read('totalLevel', () => (typeof win.getTotalLevel === 'function' ? win.getTotalLevel() : null)));
+  if (tl != null) out.totalLevel = tl;
+
+  const cl = whole(read('combatLevel', () => (typeof win.getCombatLevel === 'function' ? win.getCombatLevel() : null)));
+  if (cl != null) out.combatLevel = cl;
+
+  const rn = whole(read('renown', () => (
+    win.HearthriseRenown && typeof win.HearthriseRenown.compute === 'function'
+      ? win.HearthriseRenown.compute(G) : null
+  )));
+  if (rn != null) out.renown = rn;
+
+  const bk = whole(read('bossKills', () => countBossKills(G, win.MONSTERS)));
+  if (bk != null) out.bossKills = bk;
+
+  return out;
+}
+
 /** Periodically snapshot full game state to the server (idempotent upsert). */
 async function snapshotIfDue() {
   if (!config?.snapshotEndpoint) return;
@@ -174,15 +248,10 @@ async function snapshotIfDue() {
   lastSnapshotAt = now;
   const snap = snapshot(window.G);
   if (!snap) return;
-  // Stamp totalLevel INTO the snapshot. `game_saves.total_level` is a generated
-  // column that reads `snapshot->>'totalLevel'`, and the sign-in restore gate in
-  // auth.js compares snap.totalLevel — but G has no totalLevel field (it's
-  // computed from skills via getTotalLevel()). Without this the column is always
-  // null AND cloud restore never fires (0 > 0). See config.totalLevel provider.
-  if (config.totalLevel != null) {
-    const tl = typeof config.totalLevel === 'function' ? config.totalLevel() : config.totalLevel;
-    if (tl != null) snap.totalLevel = tl;
-  }
+  // Stamp the derived, server-sortable fields (totalLevel, combatLevel, renown,
+  // bossKills). See derivedSnapshotFields for why each one has to be written
+  // down rather than computed server-side.
+  Object.assign(snap, derivedSnapshotFields(config, window));
   // Always cache locally for offline-load
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
   if (!navigator.onLine) return;
@@ -256,6 +325,7 @@ export function setupSync(opts = {}) {
 // e.g. assert snapshotEndpoint targets game_saves, not game_snapshots.
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
+  derivedSnapshotFields, countBossKills,
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
 };

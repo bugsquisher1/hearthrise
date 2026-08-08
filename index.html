@@ -361,16 +361,18 @@
 
     <!-- ── SOCIAL ── -->
     <section class="panel" id="panel-social">
+      <!-- b222 (#11): the three static mode chips became a two-level picker —
+           a category row, then the boards inside it (fifteen of them under
+           Skills). Both rows are painted by src/features/leaderboards.js from
+           what the server can actually serve, so an un-migrated server offers
+           only the boards it can answer honestly rather than dead chips. -->
       <div class="card layout-2col-a">
         <div class="card-head">
-          <div class="card-title">Leaderboard</div>
-          <span class="card-sub" id="lb-sub">This week</span>
+          <div class="card-title">Leaderboards</div>
+          <span class="card-sub" id="lb-sub"></span>
         </div>
-        <div class="chips">
-          <button class="chip active" data-lb="total">Total Lv</button>
-          <button class="chip" data-lb="combat">Combat</button>
-          <button class="chip" data-lb="gold">Gold</button>
-        </div>
+        <div class="chips" id="lb-cats"></div>
+        <div class="chips" id="lb-boards"></div>
         <div class="card-body" id="leaderboard"></div>
       </div>
       <div class="card layout-2col-b">
@@ -716,6 +718,10 @@
        countdown pill, and the top-level Events destination. Loads AFTER
        world-events.js (shared clock) and raids.js (owns the raid card). -->
   <script src="src/features/muster.js?v=221"></script>
+  <!-- b222 #11: the 21 leaderboards + the pinned self block. Loads AFTER
+       clans.js (which wraps renderSocial for the clan half) and renown.js
+       (whose rank ladder supplies the Throne board's titles). -->
+  <script src="src/features/leaderboards.js?v=221"></script>
   <script src="src/item-ux.js?v=221"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can

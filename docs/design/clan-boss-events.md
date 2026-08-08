@@ -1,0 +1,305 @@
+# Clan Boss Events — The Tiered Hunt
+
+**Backlog #16 · P2 (big) · Owner: Game Designer + Systems · Wave 3**
+**Author: Game Designer · 2026-08-08 · Status: SPEC (buildable blueprint, no code changed)**
+**Tyler's direction (binding):** a clan analogue of world events — clans fight **tiered group bosses**.
+**Reads with:** `docs/design/clan-overhaul.md` (#10) and `docs/design/world-event-cadence.md` (#15/#14). This is the third leg of one Wave-3 package, not a bolt-on.
+
+---
+
+## 1. Recommendation up front: **extend the weekly raid, do not build a parallel system**
+
+Build **one** clan boss loop: the existing weekly raid, generalised into a **tiered ladder the clan chooses to fight**. Do not ship "clan boss events" alongside "clan raids".
+
+Three reasons, in order of weight:
+
+1. **There is only one attention budget.** A clan member has one strike-shaped click per day. Two weekly clan-boss loops would split that click, and both would feel undersubscribed — which is exactly how a small clan dies.
+2. **The infrastructure already exists and is the right shape.** `raids.js` + `schema.sql` §4b give a shared HP pool, an atomic server-clamped decrement, a per-member contribution ledger, and an idempotent claim. A tiered boss event needs precisely those four things.
+3. **The castle overhaul already assumes one loop.** `clan-overhaul.md` §4.3 defines the **War Room** wing granting `raidPower` (+4%…+20% strike damage). That perk only makes sense if there is a single raid loop for it to buff. Two loops would make it either half-useful or double-dipping.
+
+So: the weekly raid **is** the clan boss event. What changes is that it becomes **tiered, scaled to the clan, and actually winnable** — because today it is none of those things.
+
+---
+
+## 2. What exists today, and the arithmetic that condemns it
+
+### 2.1 Ground truth
+
+| Piece | Where | Value |
+|---|---|---|
+| Bosses | `raids.js:26-39` | 3, rotating weekly by `FNV1a('hr-raid-' + weekKey)` |
+| Clan pool | `raids.js:40` | `CLAN_POOL_HP = 250,000` — **flat, regardless of clan size** |
+| Solo pool | `raids.js:41` | `SOLO_POOL_HP = 30,000` |
+| Entry | `raids.js:42` | `REQ_COMBAT_LV = 30` |
+| Strike | `raids.js:73-85` | 120 ticks of real `getPlayerCombatRolls`, clamped to `[10, 50000]` |
+| Rate limit | `raids.js:93` | 1 strike per UTC day — **checked only in local `G.raids.lastStrikeDay`** |
+| Server RPC | `schema.sql:377-405` | clamps damage to 50,000, decrements the pool, ledgers contribution |
+| Claim | `raids.js:149-175` | conditional PATCH on `raid_contributions … claimed=eq.false`; **any contributor gets the full chest** |
+| Surfaced in | `raids.js:179` | `#panel-dungeons` — a panel with no navigation entry (see `world-event-cadence.md` §7.1) |
+
+### 2.2 Expected strike damage, derived from the real combat formulas
+
+`legacy.js:863-890`: `accuracy = clamp(0.55 + ((accLvl + accBonus) − bossDef) × 0.01, 0.15, 0.95)`, `maxHit = floor(dmgLvl × 0.35 + strBonus × 0.6 + 2) − floor(bossDef × 0.03)`, weakness match multiplies accuracy ×1.15 and damage ×1.20 (`legacy.js:50`). `simulateStrike` runs 120 ticks; expected damage per landed hit ≈ `maxHit / 2`.
+
+Against a def-55 boss, weakness matched:
+
+| Player band | Atk/Str lvl | Equip bonus | accuracy | maxHit | **Expected strike** |
+|---|---|---|---|---|---|
+| Entry (CL 30-45) | 40 | +25 / +20 | 0.75 | 32 | **~1,200** |
+| Mid (CL 46-60) | 55 | +45 / +45 | 0.95 | 56 | **~2,900** |
+| High (CL 61-75) | 72 | +60 / +75 | 0.95 | 85 | **~4,800** |
+| Endgame (CL 76-90) | 88 | +80 / +100 | 0.95 | 109 | **~6,300** |
+| Max (CL 90+) | 99 | +100 / +130 | 0.95 | 135 | **~8,000** |
+
+### 2.3 Therefore
+
+- **The clan raid is unwinnable for a normal clan.** A 10-member mid-level clan at *perfect* attendance produces `10 × 7 × 2,900 = 203,000` against a 250,000 pool. At a realistic 5 strikes each it is 145,000 — **58%**. The pool has never been downed and no chest has ever been claimed. The feature has been shipped and invisible since b209.
+- **The solo raid is unwinnable below CL 61.** `30,000 / 7` requires 4,286 per strike. Entry players manage 8,400 in a whole week (28%); mid players 20,300 (68%). Only high/endgame players ever finish.
+- **My own standing backlog note was half right.** I logged "solo raid pool one-tap chest (30k HP vs 50k clamp)". The 50,000 clamp is ~6× the best *honest* strike, so a one-tap is only reachable by a tampered client — it is a security hole, not a balance one. The real balance bug is the opposite: **honest players cannot finish either pool.** Correcting the record.
+- **The flat pool is the root cause.** One number cannot serve a 3-person clan and a 60-person clan. Scaling the pool to the clan is the single change that makes the content exist.
+
+### 2.4 Three live exploits found while reading (flag to Systems — these are in production now)
+
+1. **P1 — the once-per-day strike limit is client-side only.** `raids.js:93` checks `G.raids.lastStrikeDay`; `raid_strike` (`schema.sql:377`) has **no day check at all**. A tampered save or a replayed request can strike unlimited times per day, bounded only by the 50,000 damage clamp. The limit must move into the RPC.
+2. **P2 — chest-hopping.** `claim()` pays the **full** chest to anyone with a contribution row, and `clan_members` has open join/leave policies (`schema.sql:288-293`). Join a clan whose pool is nearly dead → strike once → claim full chest → leave → repeat. Fix: the claim RPC must require `clan_members.joined_at < clan_raids.declared_at`.
+3. **P3 — solo claim is purely local.** `st.claimed[wk]` lives in the save; editing it re-grants the chest. Low impact (solo rewards are local anyway) but it should be noted rather than discovered later.
+
+---
+
+## 3. The design: **The Hunt**
+
+A clan **declares a Hunt** each week — choosing which tier of boss to face. The pool scales to the roster at declaration. Every member strikes once a day. When the boss falls, everyone who genuinely fought claims a chest scaled to what they actually did.
+
+### 3.1 Why *declaring* a tier is the core mechanic
+
+A flat difficulty forces one number to fit every clan. Letting the clan pick makes difficulty a **decision the leadership argues about in clan chat** — exactly the retention argument that `clan-overhaul.md` §4.1 makes for the wing build order. A 6-person Keep clan declares Tier II and clears it. A 40-person Citadel declares Tier IV and sweats. Both had a good week.
+
+Declaration is officer/leader-only, once per UTC week, and locks for the week.
+
+### 3.2 The pool scales with the roster — which makes freeloaders visible
+
+```
+pool_hp = TIER_BASE + TIER_PER_MEMBER × members_at_declaration
+```
+
+`members_at_declaration` is snapshotted server-side when the Hunt is declared.
+
+This one formula does three jobs at once:
+- **It matches difficulty to clan size** without a difficulty slider.
+- **Alt-stuffing becomes self-defeating.** Every alt raises the pool by `TIER_PER_MEMBER` and contributes only what it can actually strike. Stuffing makes your own clan's boss harder.
+- **Freeloaders become a visible cost.** A member who never strikes still raised the pool. That is a real reason for officers to use the promote/kick tools from `clan-overhaul.md` §9 — and it is what ties #16 and #10 into one system instead of two features that happen to share a table.
+
+### 3.3 The tier ladder
+
+Tier availability is gated by `castle_tier` (the Great Hall, `clan-overhaul.md` §4.2) and clan level. Pool values are tuned against the measured strike table in §2.2, targeting a kill when ~70% of the roster strikes ~5 of 7 days.
+
+| Tier | Hunt name | `castle_tier` req | Clan lvl req | Expected member CL | `TIER_BASE` | `TIER_PER_MEMBER` | Pool @ n=10 |
+|---|---|---|---|---|---|---|---|
+| **I** | **Warband Hunt** | 0 (Camp) | 1 | 30-45 | 5,000 | 3,000 | 35,000 |
+| **II** | **Keep Hunt** | 2 (Keep) | 3 | 46-60 | 15,000 | 7,500 | 90,000 |
+| **III** | **Fortress Hunt** | 3 (Fortress) | 5 | 61-75 | 30,000 | 12,500 | 155,000 |
+| **IV** | **Citadel Hunt** | 4 (Citadel) | 7 | 76-90 | 50,000 | 16,000 | 210,000 |
+| **V** | **Crown Hunt** | 5 (Castle) | 9 | 90+ | 80,000 | 21,000 | 290,000 |
+
+Worked check, Tier II, 10 mid members: pool 90,000; expected weekly output `10 × 5 × 2,900 × 0.7 = 101,500` → **downed with ~11% headroom.** Tier V, 40 max-level members: pool 920,000; expected `40 × 5 × 8,000 × 0.7 = 1,120,000` → downed with ~18% headroom. Every tier is a real fight that a committed clan wins.
+
+For reference, today's flat 250,000 sits between Tier III and Tier IV — i.e. **the shipped raid is tuned for a 25-person endgame clan and has been served to everyone.**
+
+### 3.4 The bosses
+
+The three existing bosses are kept verbatim (they are good, and they are already original IP). Three new ones extend the ladder. Each tier rotates weekly within its own boss set, by `FNV1a('hr-hunt-' + tier + '-' + weekKey)`.
+
+| Tier | Boss | `def` | Weak to | Signature material | Flavour |
+|---|---|---|---|---|---|
+| I-II | **The Emberclad Tyrant** *(exists)* | 55 | hammer | `slagheart_core` | A furnace given a crown. Its slag-armor weeps molten iron. |
+| I-II | **The Hollow Regent** *(exists)* | 48 | magic | `hollow_sigil` | A king who outlived his own bones. The crown remembers. |
+| II-III | **The Maw Below** *(exists)* | 62 | ranged | `abyssal_pearl` | The lake was never empty. It was waiting. |
+| III-IV | **The Sunken Choir** *(new)* | 70 | magic | `choirbone` | Nine drowned cantors beneath the ice, holding one note. It has not changed in six hundred years. |
+| IV-V | **Warden of the Long Dark** *(new)* | 78 | hammer | `warden_seal` | It was set to guard a door. The door is gone. It still guards. |
+| V | **The Crownless Wyrm** *(new)* | 88 | ranged | `wyrm_gilding` | It ate the king who named it, and took nothing else. |
+
+**Signature materials are the top of the crafting ladder, not vendor trash.** My standing backlog records ~25 tier-3-6 combat drops with no recipe. These six must ship *with* recipes in the b215 armour tiers — a boss material with no use is worse than no drop at all, because it teaches the player that boss loot is meaningless. **Hard requirement, not a nice-to-have.**
+
+### 3.5 The solo Hunt, fixed
+
+Solo players keep a scaled personal pool so the content is never a locked door, but it must be neither one-tappable nor impossible.
+
+**`solo_pool = clamp(5 × your first strike of the week, 20,000, 200,000)`**, set on the first strike and frozen for the week.
+
+The pool calibrates to the player's actual measured power, so it always takes 5-6 strikes — a genuine weekly loop at every level, from CL 30 to CL 99. `SOLO_POOL_HP` becomes obsolete. Solo has **no tiers** (tiers are the clan's reward for being a clan) and keeps the existing **0.4× chest**, which is the social pull. Strike clamp for solo is `pool × 0.25`, so a one-tap is arithmetically impossible.
+
+---
+
+## 4. Cadence — how this sits against everything else
+
+Clan bosses are the **weekly** heartbeat. World events are the **daily** heartbeat. They must never demand the same click.
+
+| Loop | Cadence | The click | Where |
+|---|---|---|---|
+| Daily login reward | daily | claim | Home |
+| Daily tasks (×3) | daily | passive | Home |
+| **World-event muster** | **2 slots/day, join 1** | join + rally | Events / topbar |
+| **Clan Hunt strike** | **1/day** | strike | Events / clan panel |
+| Clan Hunt declaration | 1/week, officers | declare | clan panel |
+| Clan objectives (#10 §5) | weekly | passive | clan panel |
+| Weekly quests | weekly | passive | Home |
+
+Two deliberate clicks per day, everything else passive. That is the right density for an idle game.
+
+### 4.1 No scheduled rally window — and why that is the right call
+
+The obvious move is a fixed "rally hour" so the clan fights together. **Reject it.** A clan's members span every timezone; `world-event-cadence.md` §3.3 only makes fixed slots work by pairing them 12h apart *and* letting you skip one. A clan cannot skip its own clan. Any fixed hour permanently excludes part of the roster, which is the opposite of what a clan feature is for.
+
+Get the social moment without the clock instead:
+
+- **The Faltering.** When the pool drops below 10%, every member gets a toast and a clan-chat system line: *"The Emberclad Tyrant is faltering — 8% remains."* People convene because the boss is nearly dead, not because a calendar said so. Naturally distributed across timezones.
+- **The Killing Blow.** Whoever lands it is named in clan chat and on the clan panel for the week. One line of text; disproportionate social value.
+- **First Blood.** The first striker each week is named. Gives early-timezone members something that is theirs.
+
+`clan_raids.downed_at` already exists, so The Killing Blow is nearly free.
+
+---
+
+## 5. Contribution and rewards
+
+### 5.1 The problem being fixed
+
+`grantReward(boss, 1.0)` (`raids.js:134-147`) pays the **full chest** to anyone with a contribution row. One 10-damage strike out of a 250,000 pool earns the same as a member who struck seven times. That is the freeload hole, and combined with open join/leave it is the chest-hopping exploit in §2.4.
+
+### 5.2 Bands measured against the median, not against the pool
+
+An absolute percentage band punishes members of large clans (in a 40-person clan the average member is 2.5% of the pool; in a 10-person clan, 10%). Band against the clan's **median contributor** instead — size-independent and directly anti-freeload:
+
+| Band | Condition | Share |
+|---|---|---|
+| **Champion of the Hunt** | ≥ 150% of median | **1.3×** + signature-drop roll |
+| **Full share** | ≥ 60% of median | **1.0×** |
+| **Partisan's share** | ≥ 20% of median **and** ≥ 2 strikes | **0.6×** |
+| No chest | below that, or < 2 strikes | — |
+
+- **Minimum 2 strikes for any chest.** This alone kills the one-tap.
+- **The median is computed only over members with ≥ 3 strikes**, so a swarm of one-strike alts cannot depress it to farm the Champion band.
+- Bands, not a linear share, because a linear split would punish lower-geared members for owning worse gear — and a clan needs its newer members to feel welcome. Anyone who genuinely turned up gets a full share.
+
+### 5.3 Partial credit — no all-or-nothing cliff
+
+If the boss is not downed by the week's end, qualifying contributors still claim:
+
+```
+chest × band × min(0.6, total_damage / pool_hp)
+```
+
+claimable in a 24-hour grace window after the week rolls. An idle game cannot punish a clan for one bad week of attendance; but the kill is still clearly better (full value **plus** the signature drop), so it remains the goal.
+
+### 5.4 Chest by tier (full share, ×band)
+
+| Tier | Gold | Gems | Materials | Signature drop on kill |
+|---|---|---|---|---|
+| **I** Warband | 7,000 | 12 | 4× tier-2/3 mats | — |
+| **II** Keep | 14,000 | 20 | 6× tier-3/4 mats | 15% (Champion only) |
+| **III** Fortress | 28,000 | 30 | 8× tier-4/5 mats | 25% |
+| **IV** Citadel | 50,000 | 45 | 10× tier-5/6 mats | 40% |
+| **V** Crown | 90,000 | 60 | 12× tier-6 mats | **guaranteed** |
+| *Solo Lone Hunt* | 2,800 | 5 | 2× tier-2 mats | — |
+
+Tier II sits deliberately at today's shipped chest (`raids.js`: 10-14k gold, 25-30 gems), so the existing tuning stays the anchor and the ladder extends in both directions from a known point.
+
+Economy sanity: a Tier V Champion earns 117,000 gold and 78 gems per week. Gems ≈ 340/month for a member of a fully-built Castle clan (8,000,000 treasury — the longest goal in the game), against 500-1,000 gem cosmetic prices (`legacy.js:312-316`) and a 250-gem $4.99 starter pack. That is the ceiling of the entire game, gated behind the hardest collective achievement in it. Correct.
+
+**No Hearth Tokens at any tier or band.** (Final Directive: IAP-only, never PvE-minted.)
+
+### 5.5 Anti-freeload / anti-alt-stuffing, consolidated
+
+| Vector | Defence |
+|---|---|
+| One-tap chest | ≥ 2 strikes required; solo clamp = 25% of pool |
+| Freeloading | median-banded shares; freeloaders also raised the pool at declaration |
+| Alt-stuffing the roster | each alt adds `TIER_PER_MEMBER` to the pool; rewards are personal, so stuffing only costs the stuffer's clan |
+| Alt-stuffing the median | median computed over members with ≥ 3 strikes only |
+| Chest-hopping between clans | claim RPC requires `clan_members.joined_at < clan_raids.declared_at` |
+| Unlimited strikes (live P1) | day-key check moves into `raid_strike` |
+| Damage forgery | clamp = `max(5,000, floor(pool_hp × 0.10))` — self-scaling, so no single strike can ever do more than a tenth of any boss |
+| Solo claim replay | move the solo claim flag into the cloud save's server-validated section, or accept it as local-only and document |
+
+---
+
+## 6. Where it lives (UI)
+
+Two surfaces, one system:
+
+- **Events panel** (created by `world-event-cadence.md` §7.2): the Hunt card — boss art, tier, HP bar, `Strike (1/day)` / `Claim`, and your contribution vs the median. This is the *action* surface, and it replaces the raid card's current home in `#panel-dungeons`, a panel with no nav entry.
+- **Clan castle panel** (`clan-overhaul.md` §9): the Hunt appears in the "This week" strip alongside the top objective — boss, HP bar, and a `Declare the Hunt` control for officers when none is declared. This is the *status* surface: "what does my clan need right now."
+
+Both read the same state; neither duplicates the other's controls.
+
+**Art hand-off:** six boss portraits in "Forge & Stone", no emoji. The three new bosses need original art; the three existing ones currently render as text glyphs (`☲ ♔ ◎`) which is honest but flat for the game's flagship group content.
+
+---
+
+## 7. Server work (hand-off to Systems)
+
+Additive. `clan_raids` gains columns; the client-side PATCH claim is replaced by an RPC because band maths and the anti-hop check cannot live on the client.
+
+```sql
+-- 7.1 alter clan_raids: tier int not null default 1,
+--     declared_at timestamptz, declared_by uuid,
+--     members_at_declare int not null default 0
+
+-- 7.2 clan_hunt_declare(p_clan_id uuid, p_tier int) -> jsonb
+--     leader/officer only · once per week_key · p_tier <= tier_for(castle_tier)
+--     and clan level >= tier req · snapshot member count · compute and store
+--     pool_hp = TIER_BASE + TIER_PER_MEMBER * members · set declared_at
+
+-- 7.3 raid_strike: add the per-day guard that is missing today (P1 in §2.4).
+--     Track (clan_id, week_key, user_id, last_strike_day, strikes) on
+--     raid_contributions; reject a second strike on the same UTC day.
+--     Replace the flat 50000 clamp with max(5000, floor(pool_hp * 0.10)).
+
+-- 7.4 clan_raid_claim(p_clan_id uuid, p_week text) -> jsonb
+--     Replaces the client PATCH. Server-side:
+--       · require clan_members.joined_at < clan_raids.declared_at   (anti chest-hop)
+--       · require strikes >= 2
+--       · median over contributors with strikes >= 3 -> band
+--       · downed ? full : partial = min(0.6, damage_total/pool_hp)
+--       · idempotent flip of claimed
+--       · RETURN the reward; the client must not compute it
+
+-- 7.5 RLS: block direct client UPDATE of clan_raids.* and of
+--     raid_contributions.damage/strikes. Claims go through 7.4 only.
+--     (raid_contributions currently allows a self-UPDATE — schema.sql:369-371.)
+```
+
+**Client work:** `simulateStrike` must multiply its total by `1 + getBonus('raidPower')` (the new key from `clan-overhaul.md` §4.3 — otherwise the War Room wing buffs nothing); the Hunt card in the Events panel; the declare control in the clan panel; The Faltering / Killing Blow / First Blood notifications via the existing clan chat channel.
+
+---
+
+## 8. Test coverage required (per `CLAUDE.md`)
+
+1. **Regression — a second strike the same day is refused by the server**, not just by local state (§2.4 P1).
+2. **Regression — a one-strike contributor gets no chest**; a two-strike contributor gets Partisan's share.
+3. **Regression — chest-hop blocked**: join after `declared_at`, strike twice, claim → refused.
+4. **Pool scaling**: declare Tier II at n=5 and n=25, assert `pool_hp` = 52,500 and 202,500.
+5. **Tier gating**: a `castle_tier` 1 clan declaring Tier III → refused.
+6. **Band maths**: seed contributions of 100/500/1000/5000, assert Partisan/Full/Full/Champion against a median over ≥3-strike members.
+7. **Partial credit**: 40% of a pool at week end → chest × 0.4; 90% → chest × 0.6 (capped).
+8. **Solo pool calibration**: first strike of 1,200 → pool 20,000 (floor); first strike of 8,000 → pool 40,000; assert no single strike can exceed 25% of it.
+9. **`raidPower` reaches the strike**: seed a War Room tier, assert `simulateStrike` output rises proportionally.
+
+---
+
+## 9. Cross-spec dependencies and conflicts (for `CONFLICTS.md`)
+
+1. **`clan-overhaul.md` §5.2 needs re-tuning.** The weekly objective *"Break the Siege — raid boss damage: 500,000"* was written against the flat 250,000 pool. Against a Tier I pool of 35,000 it asks for **fifteen bosses' worth of damage**. Retarget to `1.5 × the declared Hunt's pool_hp`, computed at declaration.
+2. **`raidPower` is a new `getBonus` key** (`clan-overhaul.md` §4.3) that `raids.js simulateStrike` must consume. Already flagged; restated because the tier ladder's climbability depends on it.
+3. **The perk-stacking re-scope** (`clan-overhaul.md` §7) must land in the same wave. Hunt rewards are sized against current income; a simultaneous +57% `allXP` stack would invalidate the tuning in §5.4.
+4. **The Events panel is a shared dependency.** `world-event-cadence.md` §7.2 moves the raid card out of `#panel-dungeons`. If #15/#14 and #16 ship in different waves, the Hunt card lands in a panel that no longer has a nav entry — the exact bug #14 exists to fix. **Ship them together.**
+5. **The three live exploits in §2.4 are in production today** and are independent of this spec. They should be fixed on their own schedule if Wave 3 slips — particularly the P1 unlimited-strike hole.
+6. **Signature materials require recipes.** Six new boss materials must land with b215-armour-tier recipes in the same commit, or they become the 26th through 31st recipe-less vendor-trash drops.
+
+---
+
+## 10. Hand-offs
+
+- **Systems:** §7 in full; the P1 day-guard is the highest-priority item on this page and is independent of everything else.
+- **Art Director:** six boss portraits, the Hunt card in the Events panel, the "This week" strip in the clan castle panel. No emoji.
+- **Game Designer (me):** owns `TIER_BASE` / `TIER_PER_MEMBER` (§3.3), the band thresholds (§5.2), and the chest table (§5.4). First re-tune after one full week of live Hunt data. If clans are clearing too early the lever is `TIER_PER_MEMBER`, not the chest — difficulty should scale with the clan, and reward should stay predictable.

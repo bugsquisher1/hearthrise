@@ -209,7 +209,7 @@ const ITEMS={
   // Bind-on-Pickup raid/world-boss rewards
   dragon_relic: {n:'Dragon Relic',icon:'🐲',v:5000,bop:true,rarity:'legendary',tag:'cosmetic'},
   void_essence: {n:'Void Essence',icon:'🌌',v:3000,bop:true,rarity:'epic',tag:'crafting-mat'},
-  hearth_token: {n:'Hearth Token',icon:'🪙',v:0,bop:true,rarity:'currency',tag:'currency'},
+  hearth_token: {n:'Hearth Token',icon:'🪙',v:25000,premium:true,rarity:'currency',tag:'currency'}, /* b206: tradable bond (data/items.js is canonical) */
 
   // ── Bind-on-Pickup dungeon keys ──
   // Replace gold entry costs. Drop from monsters whose family/tier matches
@@ -306,6 +306,7 @@ const EQUIP_SLOT_META={
    Real product SKUs the store routes to platform billing.
    ════════════════════════════════════════════════ */
 const IAP_CATALOG=[
+  {sku:'hearth_tokens_3',type:'currency',icon:'🪙',title:'Hearth Tokens ×3',desc:'Tradable premium bonds — sell on the player market for gold, or redeem for 150 gems each.',price:'$6.99',tokens:3,style:'gold',ribbon:'Tradable'},
   {sku:'gems_starter',type:'currency',icon:'💎',title:'Starter Gems',desc:'250 gems — kick off your homestead with cosmetics and slots.',price:'$4.99',gems:250,style:'gem'},
   {sku:'gems_traveler',type:'currency',icon:'💎',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
   {sku:'gems_hero',type:'currency',icon:'🏆',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
@@ -461,6 +462,10 @@ function processOffline(){
   /* b201 (SYS-1): property tier grants bonus offline hours (farmstead +1 … castle +4) */
   if(window.HearthriseHomestead){
     try{ cap += (window.HearthriseHomestead.offlineBonusHours()||0); }catch(e){}
+  }
+  /* b206 (SYS-9): clan perks grant offline hours (clan Lv4 +1h, Lv7 +2h) */
+  if(window.HearthriseClans){
+    try{ cap += (window.HearthriseClans.offlineBonusHours()||0); }catch(e){}
   }
   const hrs=Math.min(elapsed,cap);
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -710,15 +715,20 @@ const IAP=(()=>{
     const confirmed=await confirmIAP(product,platform);
     if(!confirmed)return;
 
-    /* In production each branch hands off to native billing.
-       For dev / cowork preview we simulate a successful receipt. */
+    /* Each branch hands off to native billing. b206 (final directive:
+       no fake functionality): the web fallback used to mint a mock
+       receipt that the mock validator always approved — anyone could
+       call IAP.buy from devtools and mint free gems. Web now refuses
+       honestly until real checkout ships with the Steam/iOS wrappers. */
     let receipt;
     try{
       switch(platform){
         case 'steam':receipt=await window.steam.purchase(sku);break;
         case 'ios':window.webkit.messageHandlers.iap.postMessage({sku});return; /* iOS resolves via callback */
         case 'android':receipt=await new Promise(r=>window.cordova.plugins.inAppPurchase.buy(sku,r));break;
-        default:receipt={mock:true,sku,at:Date.now()};
+        default:
+          notify('Purchases open with the Steam / mobile launch — not available in the web beta.','info');
+          return;
       }
     }catch(e){notify('Purchase cancelled','kill');return;}
 
@@ -734,6 +744,7 @@ const IAP=(()=>{
   function grant(p){
     if(p.gems)G.gems=(G.gems||0)+p.gems;
     if(p.gold)G.gold=(G.gold||0)+p.gold;
+    if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
     if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
     if(p.type==='pass'){
@@ -742,6 +753,7 @@ const IAP=(()=>{
   }
   return {buy,detectPlatform,grant};
 })();
+window.IAP=IAP; /* b206: expose for platform wrappers (Steam/iOS bridges) + tests */
 
 function confirmIAP(p,platform){
   return new Promise(res=>{
@@ -2161,6 +2173,16 @@ async function renderSocial(){
 function setLbMode(m){lbMode=m;document.querySelectorAll('[data-lb]').forEach(c=>c.classList.toggle('active',c.dataset.lb===m));renderSocial();}
 function joinClan(name){if(!name||name.length<3){notify('Need at least 3 chars','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();updateTopbar();}
 function leaveClan(){G.clanName=null;renderSocial();updateTopbar();}
+/* b206 (SYS-10): redeem a tradable Hearth Token for gems. The other exit for
+   a token is the player market (sell for gold) — that's the bond economy. */
+function redeemHearthToken(){
+  if((G.inventory?.hearth_token||0)<1){notify('No Hearth Tokens','kill');return;}
+  removeItem('hearth_token',1);
+  G.gems=(G.gems||0)+150;
+  notify('🪙 → 💎 Redeemed a Hearth Token for 150 gems','levelup');
+  saveLocal();updateTopbar();renderShop();
+}
+window.redeemHearthToken=redeemHearthToken;
 
 /* ────────────────────────────────────────────────
    RENDER — Shop / IAP store
@@ -2182,6 +2204,8 @@ function renderShop(){
           </div>
         </div>`).join('')}
     </div>
+    ${(G.inventory?.hearth_token||0)>0?`
+    <div class="activity-card" style="margin-top:12px"><div class="ac-icon">🪙</div><div style="flex:1"><b>Hearth Tokens: ${G.inventory.hearth_token}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150💎</button></div>`:''}
     <div class="muted tiny" style="margin-top:14px">Purchases route to the platform you're running on (Steamworks / App Store / Play Store / Stripe). Receipts are validated server-side before granting items. Detected: <b>${IAP.detectPlatform()}</b>.</div>`;
 
   /* in-game shop side */

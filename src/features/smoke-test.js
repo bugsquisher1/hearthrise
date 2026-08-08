@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=205' directly.
+// modularised, will import { G } from '../state/game.js?v=207' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=205';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=205';
+import { on } from '../net/events.js?v=207';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=207';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -347,6 +347,41 @@ const TESTS = [
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
       G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.lastOfflineSummary = saved.summary;
+    }
+  }),
+  () => tryRun('b206: clans — perk ladder is cumulative + offline hours wired', () => {
+    const C = window.HearthriseClans;
+    assert(C, 'HearthriseClans present');
+    const p2 = C.perksFor(2), p5 = C.perksFor(5), p10 = C.perksFor(10);
+    assert(Math.abs(p2.allXP - 0.02) < 1e-9, 'Lv2 = +2% allXP, got ' + p2.allXP);
+    assert(p5.allXP > p2.allXP, 'perks must stack cumulatively');
+    assert(p10.offlineHours === 3, 'Lv10 total offline hours should be 3 (1+2), got ' + p10.offlineHours);
+    assert(p10.allXP >= 0.24, 'Lv10 cumulative allXP >= 25%, got ' + p10.allXP);
+    assert(typeof C.offlineBonusHours() === 'number', 'offlineBonusHours callable');
+    // no clan joined in tests → zero perk flows through getBonus without error
+    assert(typeof window.getBonus('allXP') === 'number', 'getBonus still numeric with clan wrapper');
+  }),
+  () => tryRun('b206: IAP — web path can no longer mint receipts (free-gem exploit closed)', () => {
+    // Source-inspection (the runner is sync; behavioral async asserts leak as
+    // unhandled rejections). The exploit was `receipt={mock:true,...}` in the
+    // web default branch — always approved by the mock validator.
+    assert(window.IAP && typeof window.IAP.buy === 'function', 'window.IAP.buy exposed');
+    const src = window.IAP.buy.toString();
+    assert(src.indexOf('mock:true') === -1, 'web branch must not mint a mock receipt');
+    assert(/not available in the web beta/.test(src), 'web branch should refuse honestly');
+    assert(window.IAP.detectPlatform() === 'web', 'test env detects web platform');
+  }),
+  () => tryRun('b206: hearth token — real tradable item + redemption math', () => {
+    assert(window.ITEMS.hearth_token && window.ITEMS.hearth_token.premium, 'hearth_token item exists + premium flag');
+    const G = window.G;
+    const saved = { gems: G.gems, inv: JSON.parse(JSON.stringify(G.inventory || {})) };
+    try {
+      G.inventory.hearth_token = 2; G.gems = 10;
+      window.redeemHearthToken();
+      assert(G.inventory.hearth_token === 1, 'redeem consumes exactly 1 token');
+      assert(G.gems === 160, 'redeem grants exactly 150 gems, got ' + G.gems);
+    } finally {
+      G.gems = saved.gems; G.inventory = saved.inv;
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

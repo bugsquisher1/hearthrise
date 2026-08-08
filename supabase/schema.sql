@@ -283,6 +283,7 @@ create or replace view public.leaderboard as
          coalesce(p.display_name, gs.snapshot->>'playerName', 'Adventurer') as name,
          gs.total_level,
          (gs.snapshot->>'combatLevel')::int as combat_level,
+         coalesce((gs.snapshot->>'gold')::bigint, 0) as gold,
          p.clan_id,
          c.name as clan_name,
          gs.saved_at

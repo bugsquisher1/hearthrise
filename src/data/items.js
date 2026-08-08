@@ -235,8 +235,13 @@ export const ITEMS={
     n:'Void Essence', icon:'🌌', v:3000, bop:true,
     rarity:'epic', tag:'crafting-mat',
   },
+  /* b206 (SYS-10): the Hearth Token is the premium BOND — bought with real
+     money via platform IAP only (never mintable client-side), TRADABLE on
+     the player market for gold (the sanctioned gold↔premium bridge), also
+     spendable as dungeon entry currency, or redeemed 1 → 150 gems. It was
+     bop:true (untradeable) — that blocked the entire bond economy. */
   hearth_token: {
-    n:'Hearth Token', icon:'🪙', v:0, bop:true,
+    n:'Hearth Token', icon:'🪙', v:25000, premium:true,
     rarity:'currency', tag:'currency',
   },
 

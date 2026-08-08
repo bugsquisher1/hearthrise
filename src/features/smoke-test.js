@@ -3067,6 +3067,60 @@ const TESTS = [
       T.setTheme(prev); // never leave the tester on a different theme than they picked
     }
   }),
+
+  // ── b218 regression suite (backlog #3 + #4) ──
+
+  // b218 (#3): the equipment doll (Equipment | Stats | Companion sub-tabs) is
+  // rebuilt from scratch on every panel re-render, which the game tick fires
+  // via updateTopbar/addItem. It used to hardcode the Equipment pane active on
+  // every rebuild, so a player who opened Stats or Companion was snapped back
+  // to Equipment within seconds. The selected pane now persists in window._tdPane
+  // and is restored on build. Guard: a rebuild must honour the persisted pane.
+  () => tryRun('b218: doll sub-tab persists across rebuild (no snap-back)', () => {
+    if (typeof window.buildTibiaDoll !== 'function') return;
+    const prev = window._tdPane;
+    try {
+      window._tdPane = 'pet';
+      const doll = window.buildTibiaDoll();
+      if (!doll) return; // EQUIP_SLOTS not ready in this env
+      const active = doll.querySelector('.td-tab.active');
+      assert(active && active.getAttribute('data-td-pane') === 'pet',
+        'rebuilt doll did not restore the persisted Companion sub-tab (snap-back regression)');
+      const gearPane = doll.querySelector('.td-doll');
+      assert(gearPane && gearPane.style.display === 'none',
+        'Equipment pane should be hidden when the Companion sub-tab is the persisted one');
+    } finally { window._tdPane = prev; }
+  }),
+
+  // b218 (#4): the Companion sub-tab used to hold ONLY the companion equip slot
+  // (a lone icon), so the companion's own level/XP/stats never appeared there —
+  // the always-on stat sheet beside the doll shows the PLAYER's stats, which is
+  // what players saw. The pane now renders the equipped companion's own
+  // progression (name, level, XP, effective bonuses) from the companions module.
+  () => tryRun('b218: Companion sub-tab shows the companion\'s own level/xp', () => {
+    if (typeof window.buildTibiaDoll !== 'function' || !window.G) return;
+    if (typeof window.equipCompanion !== 'function' || !window.COMPANIONS) return;
+    const snap = window.G.companions ? JSON.stringify(window.G.companions) : null;
+    const eqSnap = window.G.equipment ? window.G.equipment.companion : undefined;
+    const prevPane = window._tdPane;
+    try {
+      window.equipCompanion('fox');
+      window._tdPane = 'pet';
+      const doll = window.buildTibiaDoll();
+      if (!doll) return;
+      const info = doll.querySelector('.td-companion-info');
+      assert(info, 'Companion sub-tab is missing the companion info block (was empty / only the equip slot)');
+      const def = window.COMPANIONS.fox;
+      assert(def && info.textContent.indexOf(def.n) >= 0,
+        'Companion info should name the equipped companion (' + (def && def.n) + ')');
+      assert(/Lv\s*\d+/.test(info.textContent),
+        'Companion info should show the companion level (Lv N)');
+    } finally {
+      window._tdPane = prevPane;
+      if (snap) window.G.companions = JSON.parse(snap);
+      if (window.G.equipment) window.G.equipment.companion = eqSnap;
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

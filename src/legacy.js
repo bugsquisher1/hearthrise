@@ -7341,30 +7341,82 @@ window.buildTibiaDoll = function(){
   statsPane.className = 'td-stats-pane';
   statsPane.innerHTML = window.renderEquipmentStatsHTML();
 
-  /* Tabs — Equipment | Stats | Companion. */
+  /* b218 (backlog #4): the Companion tab used to hold ONLY the companion equip
+     slot — a lone icon — so the companion's own level/XP/stats were invisible
+     here; the always-on stat sheet beside the doll shows the PLAYER's stats,
+     which is what players saw when they opened this tab. Wire the equipped
+     companion's own progression into the pane. All data is authored in
+     src/data/companions.js and read through the companions ESM module's
+     window bindings (companionLevelFromXp / companionXpToReach /
+     getCompanionBonus) — no invented fields, same source the Stable renders. */
+  (function(){
+    var info = document.createElement('div');
+    info.className = 'td-companion-info';
+    var eq = (G.companions && G.companions.equipped) || null;
+    var def = eq && window.COMPANIONS ? window.COMPANIONS[eq] : null;
+    if(def && typeof window.companionLevelFromXp === 'function'){
+      var xp = (G.companions.xp && G.companions.xp[eq]) || 0;
+      var lv = window.companionLevelFromXp(xp);
+      var nextXp = window.companionXpToReach(lv + 1);
+      var thisXp = window.companionXpToReach(lv);
+      var pct = nextXp > thisXp ? Math.min(100, ((xp - thisXp) / (nextXp - thisXp)) * 100) : 100;
+      var cb = typeof window.getCompanionBonus === 'function' ? window.getCompanionBonus() : {};
+      var LBL = {strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',xpB:'XP',gatherSpeed:'Gather',farmYield:'Farm',cookSpeed:'Cook',prayerXp:'Prayer XP',rareDrop:'Rare drop',goldBonus:'Gold',hpRegen:'HP/s'};
+      var PCT = {crit:1,xpB:1,gatherSpeed:1,farmYield:1,cookSpeed:1,rareDrop:1,goldBonus:1,prayerXp:1};
+      var bonuses = Object.keys(cb).filter(function(k){return cb[k];}).map(function(k){
+        var v = PCT[k] ? '+' + (cb[k] * 100).toFixed(0) + '%' : '+' + (Math.round(cb[k] * 10) / 10);
+        return '<span class="td-comp-bonus"><b>' + v + '</b> ' + (LBL[k] || k) + '</span>';
+      }).join('');
+      info.innerHTML =
+        '<div class="td-comp-head"><span class="td-comp-icon">' + (def.icon || '') + '</span>' +
+          '<div class="td-comp-idcol"><div class="td-comp-name">' + def.n + ' <span class="td-comp-lv">Lv ' + lv + '</span></div>' +
+          '<div class="td-comp-role">' + (def.role || '') + ' companion</div></div></div>' +
+        '<div class="td-comp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+        '<div class="td-comp-xp">' + xp.toLocaleString() + ' / ' + nextXp.toLocaleString() + ' XP</div>' +
+        (bonuses ? '<div class="td-comp-bonuses">' + bonuses + '</div>' : '') +
+        (def.proc ? '<div class="td-comp-proc">' + def.proc.label + ' (' + (def.proc.chance * 100).toFixed(0) + '% on ' + def.proc.trigger + ')</div>' : '');
+    } else {
+      info.innerHTML = '<div class="td-comp-empty">No companion equipped.<br>'
+        + '<button class="td-comp-stable" onclick="window.showTab&&window.showTab(\'stable\')">Open the Stable →</button></div>';
+    }
+    companionPane.appendChild(info);
+  })();
+
+  /* Tabs — Equipment | Stats | Companion.
+     b218 (backlog #3): the doll is rebuilt from scratch on every panel
+     re-render (renderInvFancy fires on the game tick via updateTopbar/addItem;
+     renderCharacter re-runs every 2s), and each rebuild hardcoded the Equipment
+     pane active — so a player who opened Stats or Companion was snapped back to
+     Equipment within seconds. Persist the selected pane in a single session-UI
+     field (same window._* convention as _invFilter / _invMultiSelect) and
+     restore it on build so the choice survives auto-refresh. */
+  var activePane = (window._tdPane === 'stats' || window._tdPane === 'pet') ? window._tdPane : 'gear';
   var tabs = document.createElement('div');
   tabs.className = 'td-tabs';
   tabs.innerHTML =
-    '<button class="td-tab active" data-td-pane="gear" title="Equipment">'+ slotGlyphSVG('body') +'<span>Equipment</span></button>'+
-    '<button class="td-tab" data-td-pane="stats" title="Stats">'+ slotGlyphSVG('weapon') +'<span>Stats</span></button>'+
-    '<button class="td-tab" data-td-pane="pet" title="Companion">'+ slotGlyphSVG('companion') +'<span>Companion</span></button>';
-  tabs.addEventListener('click', function(e){
-    var btn = e.target.closest('[data-td-pane]'); if(!btn) return;
-    var pane = btn.getAttribute('data-td-pane');
-    tabs.querySelectorAll('.td-tab').forEach(function(b){ b.classList.toggle('active', b === btn); });
+    '<button class="td-tab'+(activePane==='gear'?' active':'')+'" data-td-pane="gear" title="Equipment">'+ slotGlyphSVG('body') +'<span>Equipment</span></button>'+
+    '<button class="td-tab'+(activePane==='stats'?' active':'')+'" data-td-pane="stats" title="Stats">'+ slotGlyphSVG('weapon') +'<span>Stats</span></button>'+
+    '<button class="td-tab'+(activePane==='pet'?' active':'')+'" data-td-pane="pet" title="Companion">'+ slotGlyphSVG('companion') +'<span>Companion</span></button>';
+  function applyPane(pane){
+    tabs.querySelectorAll('.td-tab').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-td-pane') === pane); });
     doll.style.display          = pane === 'gear'  ? '' : 'none';
     statsPane.style.display     = pane === 'stats' ? '' : 'none';
     companionPane.style.display = pane === 'pet'   ? '' : 'none';
     // Recompute on open so it always reflects what's currently worn.
     if(pane === 'stats') statsPane.innerHTML = window.renderEquipmentStatsHTML();
+  }
+  tabs.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-td-pane]'); if(!btn) return;
+    var pane = btn.getAttribute('data-td-pane');
+    window._tdPane = pane;   // persist so the next auto-refresh restores it
+    applyPane(pane);
   });
 
-  statsPane.style.display = 'none';
-  companionPane.style.display = 'none';
   wrap.appendChild(tabs);
   wrap.appendChild(doll);
   wrap.appendChild(statsPane);
   wrap.appendChild(companionPane);
+  applyPane(activePane);   // restore the persisted sub-tab on (re)build
   return wrap;
 };
 

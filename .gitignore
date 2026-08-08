@@ -8,11 +8,23 @@
 
 # Raw asset libraries (Itch.io / Poneti / CraftPix packs — not loaded at runtime).
 # The USED subset is downscaled into assets/icons-bundle/painted/ and IS shipped;
-# these raw sources stay out of the repo + deploy.
+# these raw sources stay out of the repo + deploy. As of the 2026-08-08 asset
+# pass they live under _archive/raw-packs/ (covered by the _archive/ rule below);
+# the bare names are kept so any stray copy stays ignored too.
 icons2/
 icons3/
 icons4/
+Icons/
 assets/pixel/
+
+# Quarantine / cold-storage for the asset-organization pass (2026-08-08).
+# Everything here is recoverable but intentionally OUT of the deploy:
+#   _archive/reserve-art/    — unused-but-style-compatible painted icons
+#                              (future-content material/building/monster art)
+#   _archive/pixel-packs/    — the abandoned pixel-art packs (was assets/pixel/)
+#   _archive/asset-tooling/  — icon-curation HTML/JSON/TXT dev tools
+# See _archive/README.md and ASSET_MANIFEST.md.
+_archive/
 
 # Local-only legacy monoliths superseded by src/ + index.html
 .legacy/

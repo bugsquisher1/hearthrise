@@ -4723,3 +4723,23 @@ body[data-theme="hearthlight"] .qm-modal .qm-q-name {
   color: var(--ink, #e9e2cf) !important;
   font-weight: 700;
 }
+
+/* b213 (phase 2): .btn-gold — on the dark theme the cozy cream wash made
+   gold (primary!) buttons look disabled, light-on-light. Real gilt buttons:
+   gold gradient, dark text. */
+body[data-theme="hearthlight"] .btn-gold,
+body[data-theme="hearthlight"] .btn.btn-gold {
+  background: linear-gradient(180deg, var(--gold, #f0b860), var(--gold-2, #d99c40)) !important;
+  color: #20160a !important;
+  border: 1px solid rgba(0,0,0,.25) !important;
+  font-weight: 700;
+  text-shadow: none !important;
+}
+body[data-theme="hearthlight"] .btn-gold:hover {
+  filter: brightness(1.07);
+}
+body[data-theme="hearthlight"] .btn-gold:disabled,
+body[data-theme="hearthlight"] .btn-gold[disabled] {
+  filter: grayscale(.6) brightness(.7);
+  cursor: not-allowed;
+}

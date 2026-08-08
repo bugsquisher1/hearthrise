@@ -4691,3 +4691,35 @@ body[data-theme="hearthlight"] #settings-modal .ss-body .ss-card-meta,
 body[data-theme="hearthlight"] #settings-modal .ss-body .muted {
   color: var(--ink-3, #a5896a) !important;
 }
+
+/* b213 (phase 2): quest modal internals — rows + tab strip were still cream
+   inside the now-dark sheet. */
+body[data-theme="hearthlight"] .qm-quest {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid var(--line-soft, rgba(122,94,58,.22)) !important;
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] .qm-quest *,
+body[data-theme="hearthlight"] .qm-q-info * {
+  color: var(--ink, #e9e2cf) !important;
+}
+body[data-theme="hearthlight"] .qm-quest .qm-reward,
+body[data-theme="hearthlight"] .qm-quest [class*="reward"] {
+  color: var(--gold-2, #cda24a) !important;
+}
+body[data-theme="hearthlight"] .qm-tabs,
+body[data-theme="hearthlight"] .qm-tab {
+  background: rgba(255,255,255,.04) !important;
+  color: var(--ink-2, #cbbfa4) !important;
+  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
+}
+body[data-theme="hearthlight"] .qm-tab.active {
+  background: rgba(205,162,74,.15) !important;
+  color: var(--gold-2, #cda24a) !important;
+  border-bottom: 2px solid var(--red, #c0392b) !important;
+}
+body[data-theme="hearthlight"] .qm-quest .qm-q-name,
+body[data-theme="hearthlight"] .qm-modal .qm-q-name {
+  color: var(--ink, #e9e2cf) !important;
+  font-weight: 700;
+}

@@ -550,17 +550,42 @@ const TESTS = [
     assert(!(clean.traits && clean.traits.auto_eat),
       'players who never enabled auto-eat must not be granted the trait');
   }),
-  () => tryRun('b206: clans — perk ladder is cumulative + offline hours wired', () => {
+  // b206 wrote this test against the ORIGINAL ladder (+25% allXP, +8% gather,
+  // +5% artisan, +3h offline, all earned by banking gold). b223 re-scoped that
+  // ladder to a membership BASELINE — clan-overhaul §8.3 — because with the
+  // castle on top `allXP` alone would have stacked homestead 20 + renown 22 +
+  // auto-level 25 + Great Hall 5 = +72%. The contract changed, so the test
+  // changed with it, and it now asserts the thing that is easy to lose: that
+  // the stat grants really are GONE, not merely smaller.
+  () => tryRun('b223: the clan auto-level ladder is a membership baseline, not a stat ladder', () => {
     const C = window.HearthriseClans;
     assert(C, 'HearthriseClans present');
-    const p2 = C.perksFor(2), p5 = C.perksFor(5), p10 = C.perksFor(10);
-    assert(Math.abs(p2.allXP - 0.02) < 1e-9, 'Lv2 = +2% allXP, got ' + p2.allXP);
-    assert(p5.allXP > p2.allXP, 'perks must stack cumulatively');
+    const p10 = C.perksFor(10);
+    // The two survivors, and only these two.
     assert(p10.offlineHours === 3, 'Lv10 total offline hours should be 3 (1+2), got ' + p10.offlineHours);
-    assert(p10.allXP >= 0.24, 'Lv10 cumulative allXP >= 25%, got ' + p10.allXP);
+    assert(C.perksFor(4).offlineHours === 1, 'Lv4 grants +1h offline');
+    assert(C.perksFor(6).offlineHours === 1, 'no offline is added between Lv4 and Lv7');
+    assert(C.perksFor(7).offlineHours === 3, 'Lv7 brings the total to 3h');
+    // Every throughput stat the ladder used to hand out for free is now zero at
+    // EVERY level. Banking gold buys the hold an age, not power.
+    ['allXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed', 'craftSpeed'].forEach((k) => {
+      for (let lv = 1; lv <= 10; lv++) {
+        assert(!C.perksFor(lv)[k], 'clan level ' + lv + ' must grant no ' + k + ', got ' + C.perksFor(lv)[k]);
+      }
+    });
+    // Lv10 is still an event — it is just a cosmetic one, and it still says so.
+    assert(p10.labels.some((l) => /banner/i.test(l)), 'the Lv10 banner should still be announced');
+    assert(!p10.labels.some((l) => /%/.test(l)), 'no perk label may still promise a percentage: ' + p10.labels.join(' | '));
     assert(typeof C.offlineBonusHours() === 'number', 'offlineBonusHours callable');
     // no clan joined in tests → zero perk flows through getBonus without error
     assert(typeof window.getBonus('allXP') === 'number', 'getBonus still numeric with clan wrapper');
+    // The header used to document a fourth, invented ladder ("10k, 50k, 200k,
+    // 800k, 3M"). The real one is the server's, and it is now exported.
+    // At level 4 the hold needs 640,000 banked to become level 5 — the spec's
+    // §2.3 table, and the reason level 10 (655,360,000) could never be a gate.
+    assert(C.nextTreasuryGoal(1) === 10000 && C.nextTreasuryGoal(4) === 640000
+      && C.nextTreasuryGoal(9) === 655360000,
+      'nextTreasuryGoal must mirror clan_contribute: 10000 x 4^(level-1)');
   }),
   () => tryRun('b206: IAP — web path can no longer mint receipts (free-gem exploit closed)', () => {
     // Source-inspection (the runner is sync; behavioral async asserts leak as
@@ -5684,6 +5709,563 @@ const TESTS = [
     // A large withdrawal is DELAYED and announced — not refused, not done.
     const w = C.reduceWithdraw(200, { ok: true, pending: true, ready_at: '2026-08-09T00:00:00Z', amount: 500000 });
     assert(w.action === 'accept' && w.pending === true && w.readyAt, 'a delayed withdrawal must report as pending');
+  }),
+
+  // ══════════════════════════════════════════════════════════════════
+  // b223 regression suite — THE VISIBLE CLAN SEAT (backlog #10, Wave 3b)
+  // docs/design/clan-overhaul.md v2 §16 steps 4-8. The panel, the Work Order
+  // loop, the Tavern, and the perk flow into getBonus with its power budget.
+  //
+  // Every test below stubs the seat rather than a server: the module's whole
+  // contract is "given this clan_seat_read payload, what does the player see
+  // and what does getBonus return", and that is a pure question.
+  // ══════════════════════════════════════════════════════════════════
+
+  // A maxed Phase-A hold: tier 5, every building at 10. The state the power
+  // budget is written against (§8.2).
+  () => tryRun('b223: castle perks reach getBonus, and the §8.2 audit is the real one', () => {
+    const UI = window.HearthriseClanSeatUI;
+    assert(UI, 'HearthriseClanSeatUI missing — the panel module did not load');
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    const maxed = (state) => ({
+      castle_tier: 5, standing: 900000, treasury: 0, upkeep_state: state || 'active',
+      upgrades: { treasury: 10, tavern: 10, sawmill: 10, smeltery: 10, war_room: 10 },
+      stores: {}, orders: []
+    });
+    try {
+      UI._reset();
+      const base = { craftSpeed: window.getBonus('craftSpeed'), goldFind: window.getBonus('goldFind') };
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
+      UI._setSeat(maxed(), 'test-hold');
+
+      // §8.2's table, exactly.
+      const a = UI.budgetAudit();
+      assert(near(a.keys.allXP, 0.05), 'Great Hall at tier 5 must be +5% allXP, got ' + a.keys.allXP);
+      assert(near(a.keys.goldFind, 0.05), 'Treasury 10 must be +5% goldFind, got ' + a.keys.goldFind);
+      assert(near(a.keys.craftSpeed, 0.05), 'Sawmill 10 must be +5% craftSpeed, got ' + a.keys.craftSpeed);
+      assert(near(a.keys.smithSpeed, 0.05), 'Smeltery 10 must be +5% smithSpeed, got ' + a.keys.smithSpeed);
+      assert(near(a.keys.raidPower, 0.10), 'War Room 10 must be +10% raidPower, got ' + a.keys.raidPower);
+      assert(near(a.keys.restedXp, 0.20), 'Tavern 10 must be +20% rested XP, got ' + a.keys.restedXp);
+
+      // §8.1 rule 2: no single key above +10% FROM THE CASTLE. raidPower sits
+      // exactly on the ceiling, which is what makes this a live rule.
+      assert(a.largest <= UI.CASTLE_KEY_CAP + 1e-9,
+        'a castle key exceeded the per-key cap: ' + a.largest);
+      // §8.1 rule 1: the throughput a single action can actually use is allXP +
+      // one speed key + goldFind. Well inside +25%.
+      assert(a.keys.allXP + a.keys.craftSpeed + a.keys.goldFind <= UI.CASTLE_TOTAL_CAP + 1e-9,
+        'the per-action castle throughput exceeded the budget');
+
+      // It really flows: getBonus is higher by exactly the castle's share.
+      assert(near(window.getBonus('craftSpeed') - base.craftSpeed, 0.05), 'craftSpeed did not reach getBonus');
+      assert(near(window.getBonus('goldFind') - base.goldFind, 0.05), 'goldFind did not reach getBonus');
+
+      // §10: a strained hold runs at 60%, a dormant one at 0 — and NOTHING is
+      // de-levelled either way, which is why the levels are still readable.
+      UI._setSeat(maxed('strained'), 'test-hold');
+      assert(near(UI.castlePermanent('goldFind'), 0.03), 'strained must scale perks to 60%');
+      assert(UI.buildingLevel('sawmill') === 10, 'a strained hold keeps every level it earned');
+      UI._setSeat(maxed('dormant'), 'test-hold');
+      assert(UI.castlePermanent('goldFind') === 0, 'a dormant hold grants nothing');
+      assert(UI.buildingLevel('sawmill') === 10, 'a dormant hold keeps every level it earned');
+      assert(near(window.getBonus('craftSpeed'), base.craftSpeed), 'dormant perks must leave getBonus alone');
+    } finally { UI._reset(); }
+  }),
+
+  // THE FUSE (§8.3, and the open CONFLICTS entry "Perk stacking power budget").
+  // The ruling: the cap is a fuse on PERMANENT power, applied where permanence
+  // is knowable, and the newest system yields. Temporary power — the Feast — is
+  // budgeted separately (§8.4) and is deliberately allowed above the ceiling.
+  () => tryRun('b223: homestead + renown + castle can never stack past the allXP ceiling', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    const R = window.HearthriseRenown, H = window.HearthriseHomestead;
+    const savedR = R && R.getPerks, savedH = H && H.isCastle;
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { treasury: 10, tavern: 10, sawmill: 10, smeltery: 10, war_room: 10 },
+                    stores: {}, orders: [] }, 'test-hold');
+
+      // The real ceiling, with every permanent source at ITS OWN maximum:
+      // homestead castle capstone 5 + renown High King 22 + clan ladder 0
+      // (re-scoped) + Great Hall 5 = 32%. Down from the +72% the spec found.
+      if (R) R.getPerks = () => ({ allXP: 0.22, offlineHours: 3 });
+      if (H) H.isCastle = () => true;
+      assert(near(UI.permanentAllXp(), 0.32),
+        'the real permanent ceiling should be +32%, got ' + UI.permanentAllXp());
+      assert(UI.permanentAllXp() <= UI.PERMANENT_ALLXP_CAP,
+        'the permanent stack must sit inside the ceiling');
+      // The clan ladder really contributes nothing any more.
+      assert(!window.HearthriseClans.perksFor(10).allXP, 'the clan ladder must add no allXP');
+
+      // The fuse binds on the CASTLE. Push the rest of the stack to the edge
+      // and the Great Hall gives up exactly as much as it must. (Homestead is
+      // dropped here so the 58% is the WHOLE of the non-castle stack.)
+      if (H) H.isCastle = () => false;
+      if (R) R.getPerks = () => ({ allXP: 0.58 });
+      assert(near(UI.castleBonus('allXP', true), 0.02),
+        'with 58% already banked the castle may add only 2%, got ' + UI.castleBonus('allXP', true));
+      assert(near(UI.permanentAllXp(), 0.60), 'the fuse must land the stack exactly on the cap');
+      // And it can be reduced to nothing without ever going negative or
+      // subtracting somebody else's perk.
+      if (R) R.getPerks = () => ({ allXP: 0.70 });
+      assert(UI.castleBonus('allXP', true) === 0, 'past the cap the castle adds nothing');
+      assert(near(UI.permanentAllXp(), 0.70), 'the fuse must never subtract another system\'s perk');
+
+      // THE FEAST IS EXEMPT — deliberately, and this is the test that records it.
+      if (R) R.getPerks = () => ({ allXP: 0.22 });
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [],
+                    feast_until: new Date(Date.now() + 3 * 3600000).toISOString() }, 'test-hold');
+      assert(near(UI.feastBonus('allXP'), 0.18), 'a Tavern-10 feast is +18% allXP, got ' + UI.feastBonus('allXP'));
+      assert(UI.castleBonus('allXP') > UI.castleBonus('allXP', true),
+        'the feast must reach getBonus on top of the permanent share');
+      // Last Call: the final 30 minutes double every effect (Tavern 7+).
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [],
+                    feast_until: new Date(Date.now() + 10 * 60000).toISOString() }, 'test-hold');
+      assert(near(UI.feastBonus('allXP'), 0.36), 'Last Call must double the feast, got ' + UI.feastBonus('allXP'));
+      assert(near(UI.feastBonus('craftSpeed'), 0.24), 'Last Call must double the artisan line too');
+      // A dormant hold throws no feast, whatever the timestamp says.
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'dormant',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [],
+                    feast_until: new Date(Date.now() + 10 * 60000).toISOString() }, 'test-hold');
+      assert(UI.feastBonus('allXP') === 0, 'a dormant hold cannot be feasting');
+    } finally {
+      if (R && savedR) R.getPerks = savedR;
+      if (H && savedH) H.isCastle = savedH;
+      UI._reset();
+    }
+  }),
+
+  // §6.6: 400 Labour per member per UTC day. Not an anti-cheat measure — the
+  // design. Without it one insomniac with an auto-clicker completes every Work
+  // Order and the other nine members never see the bar move.
+  () => tryRun('b223: Work Order labour is capped at 400/day and wired under its own name', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const C = window.HearthriseClanSeat;
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
+      const order = {
+        id: 'order-1', building: 'sawmill', to_level: 3, phase: 'labour',
+        materials: {}, supplied: {}, labour_done: 0, labour_target: C.labourTarget(3),
+        posted_at: new Date(Date.now() - 3600000).toISOString(),
+        floor_until: new Date(Date.now() + 600000).toISOString()
+      };
+      UI._setSeat({ castle_tier: 3, standing: 60000, treasury: 0, upkeep_state: 'active',
+                    upgrades: { sawmill: 2 }, stores: {}, orders: [order] }, 'test-hold');
+      UI._resetLabour();
+
+      // 1,500 actions cannot push a member past the cap, whatever their level:
+      // at the floor factor of 0.51 that is ~765 labour asked for and 400 given.
+      let granted = 0;
+      for (let i = 0; i < 1500; i++) granted += UI.addLabour('crafted', 1);
+      const l = UI._labour();
+      assert(l.pending <= C.DAILY_LABOUR_CAP + 1e-9,
+        'the accumulator went past the daily cap: ' + l.pending);
+      assert(granted <= C.DAILY_LABOUR_CAP + 1e-9, 'more labour was granted than the cap allows');
+      assert(l.capped === true, 'the member must be told they have hit the cap');
+      // The cap is per member per day across the WHOLE castle — a second order
+      // must not reopen it.
+      UI._setLabourToday(C.DAILY_LABOUR_CAP);
+      UI._resetLabour();
+      UI._setLabourToday(C.DAILY_LABOUR_CAP);
+      assert(UI.addLabour('crafted', 1) === 0, 'a member at their daily cap generates no more labour');
+
+      // An action type the castle does not count generates nothing, and a
+      // dormant hold freezes work entirely (§10).
+      UI._resetLabour();
+      assert(UI.addLabour('nonsense_type', 1) === 0, 'only the six real counters feed labour');
+      UI._setSeat({ castle_tier: 3, standing: 0, treasury: 0, upkeep_state: 'dormant',
+                    upgrades: { sawmill: 2 }, stores: {}, orders: [order] }, 'test-hold');
+      assert(UI.addLabour('crafted', 1) === 0, 'a dormant hold freezes Work Orders');
+
+      // CONFLICTS #6: the Muster and castle Labour both wrap updateDaily. The
+      // named chain is the whole resolution — each holds its own name, and a
+      // second wrap under the same name throws rather than double-counting.
+      const owners = window.updateDailyWrappers();
+      assert(owners.indexOf('castleLabour') >= 0, 'castle Labour must be in the wrapper roster: ' + owners);
+      assert(owners.indexOf('muster') >= 0, 'the Muster must still be in the roster: ' + owners);
+      let threw = false;
+      try { window.wrapUpdateDaily('castleLabour', () => {}); } catch (e) { threw = true; }
+      assert(threw, 'wrapping updateDaily twice under one name must throw');
+
+      // §6.2: the level factor is a 2x gap, not a 40x gap, and the skill it
+      // reads is the skill that produced the action.
+      assert(Math.abs(C.labourFactor(20) - 0.702) < 0.002, 'a level-20 member generates ~0.70');
+      assert(Math.abs(C.labourFactor(99) - 1.5) < 1e-9, 'a level-99 member generates 1.5');
+      assert(UI._skillLevelFor('cooked') === window.getLevel('cooking'), 'cooking actions read the cooking level');
+      assert(UI._skillLevelFor('smithed') === window.getLevel('smithing'), 'smithing actions read the smithing level');
+      assert(UI._skillLevelFor('kill_any') === window.getCombatLevel(), 'kills read the combat level');
+    } finally { UI._reset(); }
+  }),
+
+  // §9.4 — the Common Room. The b222 seam (G.restedXp, watermarked accrual)
+  // was inert because nothing granted a potency. The Tavern grants it, and the
+  // rest of the chain was already built.
+  () => tryRun('b223: the Tavern makes Rested XP live — potency, and a charge really burns', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const G = window.G;
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    const saved = { rested: G.restedXp, crafting: G.skills.crafting };
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'member' });
+
+      // No Tavern → the bank is real and the potency is zero, so a charge is
+      // never burned. That is the inert state, and it is correct.
+      UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+      assert(window.getBonus('restedXp') === 0, 'no Tavern must mean no potency');
+      G.restedXp = 3; G.skills.crafting = 0;
+      window.addXp('crafting', 100);
+      assert(G.restedXp === 3, 'a charge must never burn while it is worth nothing');
+      const plain = G.skills.crafting;
+
+      // Tavern 10 → +2% per level per charge.
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
+      assert(near(window.getBonus('restedXp'), 0.20), 'Tavern 10 must publish +20% rested XP');
+      assert(near(window.getBonus('restedXp'), window.HearthriseClanSeat.restedPotency(10)),
+        'the potency must come from the tested reducer, not a second copy');
+      G.skills.crafting = 0;
+      window.addXp('crafting', 100);
+      assert(G.restedXp === 2, 'exactly one charge is spent per XP grant, got bank ' + G.restedXp);
+      assert(G.skills.crafting > plain, 'a rested grant must be worth strictly more than an ordinary one');
+
+      // A strained hold pours a weaker rest; a dormant one pours none.
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'strained',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
+      assert(near(window.getBonus('restedXp'), 0.12), 'a strained hold rests at 60%');
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'dormant',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
+      assert(window.getBonus('restedXp') === 0, 'a dormant hold rests nobody');
+    } finally {
+      UI._reset();
+      G.restedXp = saved.rested; G.skills.crafting = saved.crafting;
+    }
+  }),
+
+  // §13 — the panel is a PLACE, and it is honest in every state. The failure
+  // this guards against is the one every social panel eventually commits:
+  // drawing a meter whose number it does not have.
+  () => tryRun('b223: the Clan Seat panel draws no meter it cannot fill', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const host = document.createElement('div');
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 4, treasury: 123456, myRole: 'leader' });
+
+      // 1 — un-migrated. It says so, in words, and draws nothing else.
+      UI._setSupport('unsupported');
+      UI.render(host);
+      let html = host.innerHTML;
+      assert(/not chartered on the server yet/.test(html), 'the un-migrated state must say what is missing');
+      assert(html.indexOf('hr-cs-bar') < 0, 'the un-migrated panel must draw no bars at all');
+      assert(/123,456/.test(html), 'it must still show the treasury it genuinely knows');
+      assert(/hrcs-svg/.test(html), 'the hold itself is real even before the migration');
+
+      // 2 — a live Wayside Camp. Every wing is unbuilt, and the picture says so
+      // with a dashed outline rather than a dimmer copy of a building.
+      UI._setSeat({ castle_tier: 1, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+      UI.render(host);
+      html = host.innerHTML;
+      assert(/Wayside Camp/.test(html), 'tier 1 must be named');
+      assert((html.match(/is-ghost/g) || []).length === 5, 'all five wings must be ghosted at a fresh camp');
+      assert(/12,000/.test(html), 'the next tier gate must be stated');
+      assert(/3 different members/.test(html), 'the distinct-contributor requirement must be shown honestly');
+
+      // 3 — a Timber Hold mid-build. Built wings are lit, unbuilt still ghosted.
+      UI._setSeat({ castle_tier: 3, standing: 61000, treasury: 200000, upkeep_state: 'active',
+                    upgrades: { tavern: 4, sawmill: 3 }, stores: { timber_beam: 900 },
+                    orders: [{ id: 'o1', building: 'smeltery', to_level: 1, phase: 'supply',
+                               materials: { timber_beam: 25, iron_fitting: 25 }, supplied: { timber_beam: 25 },
+                               labour_done: 0, labour_target: 800,
+                               posted_at: new Date().toISOString() }] }, 'test-hold');
+      UI.render(host);
+      html = host.innerHTML;
+      assert(/Timber Hold/.test(html), 'tier 3 must be named');
+      assert((html.match(/is-ghost/g) || []).length === 3, 'three wings are still unbuilt at this hold');
+      assert(/Lv 4/.test(html) && /Lv 3/.test(html), 'the legend must print the real levels');
+      assert(/Work Order/.test(html) && /supply/.test(html), 'an order in supply must read as supply');
+
+      // 4 — a Fortified Keep, dormant. Nothing is de-levelled; the lights are
+      // out and the panel says exactly what that costs and how to fix it.
+      UI._setSeat({ castle_tier: 5, standing: 900000, treasury: 0, upkeep_state: 'dormant',
+                    upgrades: { treasury: 10, tavern: 10, sawmill: 10, smeltery: 10, war_room: 10 },
+                    stores: {}, orders: [] }, 'test-hold');
+      UI.render(host);
+      html = host.innerHTML;
+      assert(/Fortified Keep/.test(html), 'tier 5 must be named');
+      assert(html.indexOf('is-ghost') < 0, 'a fully built keep ghosts nothing');
+      assert((html.match(/is-dorm/g) || []).length >= 5, 'a dormant hold must dim every wing');
+      assert(/dormant/.test(html), 'the upkeep state must be named when it is not Active');
+      assert(/keeps every level it has earned/.test(html), 'dormancy must promise what it promises');
+      assert(/summit of Phase A/.test(html), 'tier 5 must not invent a tier 6 gate');
+
+      // The Hunt column is a STATEMENT, not an empty boss bar — the Hunt owns
+      // that meter and it is being rebuilt elsewhere.
+      assert(/ceiling/.test(html), 'the War Room must state the Hunt tier ceiling');
+      assert(html.indexOf('boss') < 0, 'the castle must not draw the Hunt\'s own meter');
+    } finally { UI._reset(); }
+  }),
+
+  () => tryRun('b223: no emoji in the Clan Seat DOM, in any state', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    const host = document.createElement('div');
+    const offenders = [];
+    const sweep = (label, node) => {
+      const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let t;
+      while ((t = w.nextNode())) if (EMO.test(t.nodeValue)) offenders.push(label + ': ' + t.nodeValue.trim());
+    };
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 4, treasury: 1000, myRole: 'leader' });
+      UI._setSupport('unsupported');
+      UI.render(host); sweep('unsupported', host);
+      [1, 2, 3, 4, 5].forEach((tier) => {
+        ['active', 'strained', 'dormant'].forEach((state) => {
+          UI._setSeat({ castle_tier: tier, standing: 1000 * tier, treasury: 5000, upkeep_state: state,
+                        upgrades: tier >= 3 ? { tavern: tier, sawmill: 1, treasury: 2 } : {},
+                        stores: { timber_beam: 40 }, orders: [] }, 'test-hold');
+          UI.render(host);
+          sweep('tier' + tier + '/' + state, host);
+        });
+      });
+      // The modals too — they are where most of the copy lives.
+      UI._setSeat({ castle_tier: 4, standing: 250000, treasury: 900000, upkeep_state: 'active',
+                    upgrades: { treasury: 3, tavern: 7, sawmill: 2, smeltery: 2, war_room: 6 },
+                    stores: { timber_beam: 2400, iron_fitting: 100 },
+                    orders: [{ id: 'o1', building: 'sawmill', to_level: 3, phase: 'labour',
+                               materials: { timber_beam: 88 }, supplied: { timber_beam: 88 },
+                               labour_done: 900, labour_target: 1613,
+                               posted_at: new Date().toISOString(),
+                               floor_until: new Date(Date.now() - 1000).toISOString() }] }, 'test-hold');
+      UI.ROOM_IDS().forEach((room) => {
+        UI.openRoom(room);
+        const scrim = document.querySelector('.hr-room-scrim');
+        assert(scrim, 'the ' + room + ' room did not open');
+        sweep('room/' + room, scrim);
+        UI.closeModal();
+      });
+      assert(offenders.length === 0, 'emoji in the Clan Seat — ' + offenders.slice(0, 4).join(' | '));
+    } finally { UI.closeModal(); UI._reset(); }
+  }),
+
+  // §4.2 — "the castle refuses raw gathered materials", and §3.4's 0.4x-at-cap
+  // rule, which is the one the player must be WARNED about rather than
+  // discovering after being paid 40%.
+  () => tryRun('b223: the Storehouse refuses raws and recipe inputs, and previews the real rate', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const C = window.HearthriseClanSeat;
+    const G = window.G;
+    const savedInv = JSON.parse(JSON.stringify(G.inventory || {}));
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
+      G.inventory = {
+        timber_beam: 50, iron_fitting: 10, keystone: 2,     // refined castle goods — accepted
+        normal_plank: 500, iron_bar: 40, raw_shrimp: 90,    // raw / intermediate — refused
+        wraith_veil: 6, war_crown: 1,                       // routed spoils + a trophy — accepted
+        slime_gel: 200, ancient_fragment: 9                 // recipe inputs — refused, like a log
+      };
+      UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { treasury: 1 }, stores: { timber_beam: 2500 }, orders: [] }, 'test-hold');
+
+      const list = UI._depositable();
+      ['timber_beam', 'iron_fitting', 'keystone', 'wraith_veil', 'war_crown'].forEach((id) => {
+        assert(list.indexOf(id) >= 0, 'the Storehouse must accept ' + id);
+      });
+      ['normal_plank', 'iron_bar', 'raw_shrimp'].forEach((id) => {
+        assert(list.indexOf(id) < 0, 'the Storehouse must refuse the raw/intermediate ' + id);
+      });
+      // The four recipe inputs are consumed at a workbench. The server's own
+      // catalogue deliberately omits them; the client must agree, or the picker
+      // offers a deposit the server will refuse.
+      ['slime_gel', 'ancient_fragment'].forEach((id) => {
+        assert(list.indexOf(id) < 0, id + ' is a recipe input — the Storehouse must refuse it');
+      });
+
+      // The demand multiplier the picker previews, against the three cases.
+      assert(UI._demandFor('timber_beam') === 'capped',
+        'a full Storehouse must preview 0.4x, not the tier bundle rate');
+      assert(UI._demandFor('iron_fitting') === 'ordered',
+        'the next tier bundle wants Iron Fittings — that is 1.5x');
+      assert(UI._demandFor('war_crown') === 'normal', 'nothing on demand pays 1.0x');
+
+      // And the preview is the SPEC's arithmetic, from the tested module.
+      const beam = window.ITEMS.iron_fitting;
+      assert(C.cpForDeposit(beam.v, beam.tier, 'ordered', 1) === 100,
+        'an Iron Fitting on demand is 100 CP — §3.4\'s worked table');
+      assert(C.standingFor(100) === 35, '100 CP is 35 Standing');
+    } finally { G.inventory = savedInv; UI._reset(); }
+  }),
+
+  // Every structure in the hold is a door, and each door opens ITS room — not
+  // six copies of one modal with the title swapped. This is the product-owner
+  // direction of 2026-08-08, and the seam is deliberately generic so the
+  // personal homestead's rooms can adopt it unchanged.
+  () => tryRun('b223: six clickable structures, six distinct rooms, one reusable component', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const RM = window.HearthriseRoomModal;
+    assert(RM && typeof RM.open === 'function', 'the room-modal seam must be published for reuse');
+    const host = document.createElement('div');
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 4, treasury: 500000, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 4, standing: 250000, treasury: 500000, upkeep_state: 'active',
+                    upgrades: { treasury: 3, tavern: 7, sawmill: 2, smeltery: 2, war_room: 6 },
+                    stores: { timber_beam: 2400, iron_fitting: 120 }, orders: [] }, 'test-hold');
+      UI.render(host);
+
+      // Every structure in the picture carries the same door contract the
+      // buttons do, and is reachable by keyboard.
+      const rooms = UI.ROOM_IDS();
+      assert(rooms.length === 6, 'the hold has six rooms in Phase A, got ' + rooms.length);
+      rooms.forEach((id) => {
+        assert(host.querySelector('.hrcs-room[data-b="' + id + '"]'),
+          id + ' is not clickable in the picture');
+        assert(host.querySelector('.hr-cs-door[data-b="' + id + '"]'),
+          id + ' has no keyboard/mobile door');
+        const g = host.querySelector('.hrcs-room[data-b="' + id + '"]');
+        assert(g.getAttribute('role') === 'button' && g.getAttribute('tabindex') === '0',
+          id + ' must be reachable without a mouse');
+        assert(g.querySelector('.hrcs-hitbox'), id + ' needs a hit area — a dashed outline is barely clickable');
+      });
+
+      // Each room is genuinely ITS room: a distinct interior, a distinct theme,
+      // and its own information rather than a shared template.
+      const seen = {};
+      rooms.forEach((id) => {
+        const d = UI.roomDescriptor(id);
+        assert(d && d.scene && d.title, id + ' produced no descriptor');
+        assert(!seen[d.theme], 'two rooms share the theme "' + d.theme + '" — they must not look alike');
+        seen[d.theme] = true;
+        assert(!seen['scene:' + d.scene], id + ' reuses another room\'s interior');
+        seen['scene:' + d.scene] = true;
+        assert(d.sections && d.sections.length >= 2, id + ' has nothing in it');
+      });
+
+      // The five commissionable wings each carry a real upgrade ladder — the
+      // "what does the next level cost and give me" question, answered from the
+      // tested reducers rather than re-derived per room.
+      UI.BUILDINGS.forEach((b) => {
+        const d = UI.roomDescriptor(b.id);
+        const ladder = d.sections.filter((s) => s.kind === 'ladder')[0];
+        assert(ladder, b.id + ' must show an upgrade ladder');
+        assert(ladder.rows.length >= 1, b.id + ' ladder is empty');
+        const next = ladder.rows[0];
+        const cur = UI.buildingLevel(b.id);
+        assert(next.level === cur + 1, b.id + ' ladder must start at the next level');
+        const scale = window.HearthriseClanSeat.materialScale(next.level);
+        const beam = next.costs.filter((c) => c.label === window.ITEMS.timber_beam.n)[0];
+        assert(beam && beam.need === Math.ceil(b.bundle.timber_beam * scale),
+          b.id + ' bundle must scale by the tested materialScale, got ' + (beam && beam.need));
+      });
+
+      // The Great Hall is the exception that proves it: it has no ladder of its
+      // own because it IS castle_tier, and it carries the roster and the
+      // hold-wide Work Order list instead.
+      const hall = UI.roomDescriptor('great_hall');
+      assert(/Great Hall/.test(hall.title), 'the hall must name itself');
+      assert(hall.sections.some((s) => s.title === 'Those sworn to the hold'),
+        'the hall is where the hold gathers — the roster belongs in it');
+
+      // The War Room states the Hunt tier ceiling it grants (the Hunt agent's
+      // hand-off: raidPower has a consumer in simulateStrike, this is its
+      // producer, and this line is how a player learns what the room is for).
+      const war = UI.roomDescriptor('war_room');
+      assert(JSON.stringify(war.sections).indexOf('Tier ceiling') >= 0,
+        'the War Room must display the Hunt tier ceiling');
+      assert(Math.abs(UI.castlePermanent('raidPower') - 0.06) < 1e-9,
+        'War Room 6 must publish +6% raidPower for simulateStrike, got ' + UI.castlePermanent('raidPower'));
+
+      // The component itself knows nothing about clans — that is what makes it
+      // reusable by the homestead next wave.
+      const src = RM.open.toString() + RM._section.toString();
+      assert(!/clan|castle|standing/i.test(src),
+        'the room-modal component leaked a clan concept: it must stay generic');
+    } finally { UI.closeModal(); UI._reset(); }
+  }),
+
+  // The b222 substrate contract, applied to the third in-world screen. If this
+  // fails, somebody is about to start stacking ids again.
+  () => tryRun('b223: clan-seat.css owns its colours — no blanket reaches .hr-cs', () => {
+    const prevTheme = document.body.getAttribute('data-theme');
+    document.body.setAttribute('data-theme', 'hearthlight');
+    const fixture = document.createElement('div');
+    fixture.innerHTML =
+      '<section id="panel-social" class="panel active"><div class="card"><div class="card-body">' +
+        '<div class="hr-cs"><div class="hr-cs-hold"><div class="hr-cs-plate">' +
+          '<div class="hr-cs-tier">Palisade</div><div class="hr-cs-name">Testhold</div>' +
+          '<div class="hr-cs-sub">leader</div></div></div>' +
+        '<div class="hr-cs-doors"><button class="hr-cs-door is-built">' +
+          '<span class="hr-cs-door-nm">Tavern</span><span class="hr-cs-door-lv">Lv 4</span></button></div>' +
+        '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
+          '<span class="hr-cs-val"><b>1</b></span></div>' +
+        '<p class="hr-cs-foot">x</p><small class="hr-cs-note">x</small></div>' +
+      '</div></div></section>';
+    document.body.appendChild(fixture);
+    try {
+      const els = Array.from(fixture.querySelectorAll('.hr-cs, .hr-cs *'));
+      const offenders = [];
+      for (const sheet of Array.from(document.styleSheets)) {
+        const file = (sheet.href || '').split('/').pop().split('?')[0];
+        if (!file || file === 'clan-seat.css') continue;      // the sheet that OWNS this surface
+        let rules; try { rules = Array.from(sheet.cssRules); } catch { continue; }
+        const walk = (list) => list.forEach((r) => {
+          if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }
+          if (!r.selectorText || !r.style) return;
+          if (r.style.getPropertyPriority('color') !== 'important') return;
+          for (const el of els) {
+            let hit = false;
+            try { hit = el.matches(r.selectorText); } catch { return; }
+            if (hit) {
+              offenders.push(file + ' :: ' + r.selectorText.slice(0, 70));
+              return;
+            }
+          }
+        });
+        walk(rules);
+      }
+      assert(offenders.length === 0,
+        offenders.length + ' !important colour rule(s) reach into the Clan Seat — add .hr-cs to the ' +
+        'carve-out in theme-cozy.css instead of stacking ids: ' + offenders.slice(0, 3).join(' | '));
+
+      // …and the other half of the bargain: the sheet that owns it uses none of
+      // the weapons the carve-out made unnecessary.
+      let own = null;
+      for (const s of Array.from(document.styleSheets)) {
+        if ((s.href || '').indexOf('clan-seat.css') >= 0) { own = s; break; }
+      }
+      assert(own, 'clan-seat.css is not loaded — check the <link> in index.html');
+      let rules; try { rules = Array.from(own.cssRules); } catch { rules = []; }
+      const sins = [];
+      const check = (list) => list.forEach((r) => {
+        if (r.cssRules && !r.selectorText) { check(Array.from(r.cssRules)); return; }
+        if (!r.selectorText) return;
+        if (/(#panel-[a-z-]+)\1/.test(r.selectorText)) sins.push('stacked id: ' + r.selectorText.slice(0, 60));
+        if (r.style) {
+          for (let i = 0; i < r.style.length; i++) {
+            if (r.style.getPropertyPriority(r.style[i]) === 'important') {
+              sins.push('!important ' + r.style[i] + ' on ' + r.selectorText.slice(0, 50));
+            }
+          }
+        }
+      });
+      check(rules);
+      assert(sins.length === 0, 'clan-seat.css should need neither: ' + sins.slice(0, 3).join(' | '));
+    } finally {
+      fixture.remove();
+      if (prevTheme === null) document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', prevTheme);
+    }
   }),
 ];
 

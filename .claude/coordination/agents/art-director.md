@@ -9,6 +9,9 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · Standing brief — castle beauty pass (from Tyler)
+Castle blocks (stone/masonry) as the page's material language; every building clickable → a modal that feels like the INSIDE of that room (tavern warmth, vault iron, forge heat...), each carrying its upgrade ladder. Quality over speed — Tyler explicitly budgeted time for refinement. Build on the validated scene-composition craft.
+
 ### 2026-08-08 · Product-owner validation
 Tyler on the b221 bounty board: "looks awesome." The scene-composition approach (in-world object + drawn SVG craft + readable type on scene surfaces) is now the validated standard for screen identity work — apply it to the castle panel beauty pass and any future screen that should feel like a place.
 

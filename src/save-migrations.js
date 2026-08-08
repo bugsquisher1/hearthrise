@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 5;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 6;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -178,6 +178,25 @@
             harvested:     stats.harvested | 0,
             deedsDropped:  inv.farm_deed | 0,
           };
+        }
+      },
+    },
+    {
+      from: 5, to: 6,
+      name: 'v5 → v6 (auto-eat becomes a purchased trait — grandfather existing users)',
+      // b217: auto-eat is now a gold-purchased trait gated in
+      // HearthriseAuto.maybeAutoEat(). Existing players who already had it
+      // enabled (or a legacy foodSlot) must NOT lose it, so grant the trait
+      // ONCE here, on load, keyed on the save version. This runs only for
+      // pre-v6 saves — a fresh player's save is stamped at the current
+      // version and never enters this branch (and would have eat.enabled=false
+      // anyway), so new players correctly have to buy it.
+      apply: function(save){
+        if(save.traits == null) save.traits = {};
+        var hadAutoEat = (save.autoActions && save.autoActions.eat && save.autoActions.eat.enabled)
+                       || (typeof save.foodSlot === 'string' && save.foodSlot);
+        if(hadAutoEat && !save.traits.auto_eat){
+          save.traits.auto_eat = true;
         }
       },
     },

@@ -189,7 +189,9 @@ const TESTS = [
     if (!plainId || !buffId) return; // data lacks both kinds — nothing to assert
     const sInv = JSON.parse(JSON.stringify(G.inventory || {}));
     const sHp = G.playerHp, sMax = G.playerMaxHp, sAA = G.autoActions ? JSON.parse(JSON.stringify(G.autoActions)) : undefined;
+    const sTraits = JSON.parse(JSON.stringify(G.traits || {}));
     try {
+      G.traits = { auto_eat: true };                              // b217: trait unlocked so eat logic runs
       G.inventory = {}; G.inventory[plainId] = 5; G.inventory[buffId] = 5;
       G.playerMaxHp = 100; G.playerHp = 10;                       // low HP → should eat
       G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: null } };
@@ -197,7 +199,7 @@ const TESTS = [
       assert((G.inventory[plainId] || 0) === 4, 'plain food should be the one consumed');
       assert((G.inventory[buffId] || 0) === 5, 'buffed food should be preserved');
     } finally {
-      G.inventory = sInv; G.playerHp = sHp; G.playerMaxHp = sMax;
+      G.inventory = sInv; G.playerHp = sHp; G.playerMaxHp = sMax; G.traits = sTraits;
       if (sAA === undefined) delete G.autoActions; else G.autoActions = sAA;
     }
   }),
@@ -461,6 +463,66 @@ const TESTS = [
       G.rooms = saved.rooms; G.skills = saved.skills;
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
     }
+  }),
+  () => tryRun('b217: auto-eat is gated behind the purchased trait (unbypassable)', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto.maybeAutoEat missing');
+    const saved = {
+      traits: JSON.parse(JSON.stringify(G.traits || {})),
+      auto: JSON.parse(JSON.stringify(G.autoActions || {})),
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      hp: G.playerHp, maxHp: G.playerMaxHp
+    };
+    try {
+      G.traits = {};                                  // locked
+      G.autoActions = G.autoActions || {};
+      G.autoActions.eat = { enabled: true, threshold: 0.9, foodId: null };
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
+      G.playerMaxHp = 10; G.playerHp = 1;             // well below threshold
+      const ateWhileLocked = A.maybeAutoEat();
+      assert(ateWhileLocked === false && G.playerHp === 1,
+        'auto-eat must NOT fire without the trait, even when enabled + low HP');
+      G.traits.auto_eat = true;                        // unlocked
+      const ateWhenUnlocked = A.maybeAutoEat();
+      assert(ateWhenUnlocked === true && G.playerHp > 1,
+        'auto-eat must fire once the trait is unlocked');
+    } finally {
+      G.traits = saved.traits; G.autoActions = saved.auto;
+      G.inventory = saved.inv; G.playerHp = saved.hp; G.playerMaxHp = saved.maxHp;
+    }
+  }),
+  () => tryRun('b217: buyTrait spends gold + unlocks; enabled saves are grandfathered', () => {
+    const G = window.G;
+    assert(typeof window.buyTrait === 'function', 'window.buyTrait missing');
+    const saved = {
+      gold: G.gold, traits: JSON.parse(JSON.stringify(G.traits || {})),
+      auto: JSON.parse(JSON.stringify(G.autoActions || {}))
+    };
+    try {
+      G.traits = {};
+      G.gold = 100;
+      window.buyTrait('auto_eat');
+      assert(!(G.traits && G.traits.auto_eat) && G.gold === 100,
+        'buyTrait must reject when the player cannot afford it (no gold spent, no unlock)');
+      G.gold = 6000;
+      window.buyTrait('auto_eat');
+      assert(G.traits.auto_eat === true, 'buyTrait must unlock the trait when affordable');
+      assert(G.gold === 1000, 'buyTrait must deduct the 5000 cost, got gold=' + G.gold);
+    } finally {
+      G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
+    }
+  }),
+  () => tryRun('b217: migration grandfathers pre-v6 saves that already had auto-eat', () => {
+    assert(typeof window.applyMigrations === 'function', 'window.applyMigrations missing');
+    // A pre-v6 save with auto-eat enabled must come out with the trait granted.
+    const legacy = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' } } });
+    assert(legacy.traits && legacy.traits.auto_eat === true,
+      'existing players with auto-eat enabled must be grandfathered the trait on load');
+    // A pre-v6 save that never used auto-eat must NOT get it for free.
+    const clean = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
+    assert(!(clean.traits && clean.traits.auto_eat),
+      'players who never enabled auto-eat must not be granted the trait');
   }),
   () => tryRun('b206: clans — perk ladder is cumulative + offline hours wired', () => {
     const C = window.HearthriseClans;
@@ -2063,8 +2125,10 @@ const TESTS = [
     if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
     const snap = snapshotG();
     const eatBefore = window.HearthriseAuto.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     try {
-      // Set up: low HP, food in bag, auto-eat enabled
+      // Set up: low HP, food in bag, auto-eat enabled + trait unlocked (b217)
+      window.G.traits = { auto_eat: true };
       window.G.playerMaxHp = 10;
       window.G.playerHp = 3;          // 30% — below default 50% threshold
       window.G.inventory = window.G.inventory || {};
@@ -2079,6 +2143,7 @@ const TESTS = [
         'cooked_shrimp should decrement by 1, before=' + preQty + ' after=' + window.G.inventory.cooked_shrimp);
     } finally {
       window.HearthriseAuto.setEat(eatBefore);
+      window.G.traits = traitsBefore;
       restoreG(snap);
     }
   }),
@@ -2111,7 +2176,9 @@ const TESTS = [
     if (eligible.length < 1) return;
     const snap = snapshotG();
     const eatBefore = window.HearthriseAuto.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
     try {
+      window.G.traits = { auto_eat: true };            // b217: trait unlocked so eat logic runs
       window.G.playerMaxHp = 10;
       window.G.playerHp = 3;
       window.G.inventory = {};
@@ -2124,6 +2191,7 @@ const TESTS = [
       assert(ate === true, 'maybeAutoEat should fall back to best-in-bag, got false');
     } finally {
       window.HearthriseAuto.setEat(eatBefore);
+      window.G.traits = traitsBefore;
       restoreG(snap);
     }
   }),

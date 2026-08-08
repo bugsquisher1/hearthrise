@@ -2396,6 +2396,15 @@ function renderShop(){
     ];
     el.innerHTML=cosmetics.map(c=>{const owned=G.ownedCosmetics.includes(c.id);const can=(G.gems||0)>=c.price;return `<div class="shop-row"><span class="si">${c.icon}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="muted tiny" style="margin-top:10px">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
   }
+  /* b217: gold-purchased trait upgrades — appended below the tab list so
+     they're reachable from the in-game shop. Reuses the existing shop-row
+     component (no new styles). */
+  const _traitRows=Object.entries(TRAITS).map(([id,t])=>{
+    const owned=hasTrait(id);const can=(G.gold||0)>=t.cost;
+    const art=(window.HR&&window.HR.icon)?window.HR.icon(t.glyph,34,'currentColor'):'';
+    return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyTrait('${id}')">Buy</button>`}</div>`;
+  }).join('');
+  el.innerHTML+=`<div class="muted tiny" style="margin-top:12px">Trait Upgrades</div>`+_traitRows;
 }
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
 function buyShopItem(id,qty,cost){if(G.gold<cost){notify('Not enough gold','kill');return;}G.gold-=cost;addItem(id,qty);notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();}

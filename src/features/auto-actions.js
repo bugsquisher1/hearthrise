@@ -71,14 +71,6 @@
     }
     if(!aa.trainGoal)   aa.trainGoal   = Object.assign({}, DEFAULTS.trainGoal);
     if(!aa.farmReplant) aa.farmReplant = Object.assign({}, DEFAULTS.farmReplant);
-    // b217: auto-eat is now a purchased trait (bought with gold in the Store).
-    // Grandfather anyone who already had it enabled (or a legacy foodSlot) so we
-    // never revoke a working feature from an existing save. Fresh players start
-    // with eat.enabled=false, so they are NOT grandfathered — they buy it.
-    if(aa.eat && aa.eat.enabled && !(window.G.traits && window.G.traits.auto_eat)){
-      window.G.traits = window.G.traits || {};
-      window.G.traits.auto_eat = true;
-    }
     return aa;
   }
 

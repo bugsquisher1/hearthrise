@@ -469,6 +469,20 @@ function processOffline(){
   // Combat takes priority — if a fight was in progress, simulate that.
   if(G.activeMonster){
     combatSummary = processOfflineCombat(hrs);
+  } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
+    // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
+    // sessions used to make ZERO offline progress (the gather replay below
+    // no-ops for artisan skills). Replay doArtisanAction at the session
+    // rate; it self-stops when inputs run out, so we just watch for that.
+    const recipes=window.ARTISAN_RECIPES[G.activeSkill];
+    const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
+    if(rec && typeof window.doArtisanAction==='function'){
+      const ticks=Math.floor((hrs*3600000)/(G.skillMs||rec.ms||3000));
+      for(let i=0;i<ticks;i++){
+        if(typeof hasInputs==='function' && !hasInputs(rec)) break;   // out of materials
+        window.doArtisanAction(G.activeSkill, G.skillTargetId);
+      }
+    }
   } else if(G.activeSkill){
     // Offline gather runs at the same rate as active play — no dampening.
     const ticks=Math.floor((hrs*3600000)/(G.skillMs||5000));

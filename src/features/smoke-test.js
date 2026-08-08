@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=203' directly.
+// modularised, will import { G } from '../state/game.js?v=204' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=203';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=203';
+import { on } from '../net/events.js?v=204';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=204';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -306,6 +306,47 @@ const TESTS = [
       assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should unlock lichling');
     } finally {
       if (saved === undefined) delete G.companions; else G.companions = saved;
+    }
+  }),
+  () => tryRun('b204: world events — deterministic by date, bonuses flow through getBonus', () => {
+    const E = window.HearthriseWorldEvents;
+    assert(E, 'HearthriseWorldEvents present');
+    // determinism: same key → same event, different keys spread across the pool
+    const a = E.daily('2026-3-14'), b = E.daily('2026-3-14');
+    assert(a && b && a.id === b.id, 'same date key must pick the same daily event');
+    const picks = new Set(['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7','2026-1-8'].map(k => E.daily(k).id));
+    assert(picks.size >= 3, 'date keys should spread across the pool, got ' + picks.size);
+    // today's event bonus must be visible through getBonus
+    const d = E.daily(), w = E.weekly();
+    const keys = Object.keys(Object.assign({}, d.bonus, w.bonus));
+    keys.forEach(k => {
+      const evPart = E.bonusFor(k);
+      assert(evPart > 0, 'bonusFor(' + k + ') should be > 0 today');
+      assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus');
+    });
+  }),
+  () => tryRun('b204: artisan offline — cooking session progresses offline (was zero)', () => {
+    const G = window.G;
+    const saved = {
+      activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
+      lastSeen: G.lastSeen, inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})), summary: G.lastOfflineSummary
+    };
+    try {
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });      // workbench present
+      G.activeMonster = null;
+      G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp'; G.skillMs = 2400;
+      G.inventory = Object.assign({}, G.inventory, { shrimp: 50, cooked_shrimp: 0 });
+      G.lastSeen = Date.now() - 2 * 3600000;                     // 2h "offline"
+      processOffline();
+      const cooked = G.inventory.cooked_shrimp || 0;
+      assert(cooked > 0, 'offline cooking should produce cooked shrimp, got 0');
+      assert(cooked <= 50, 'offline cooking must stop when inputs run out, got ' + cooked);
+      assert((G.inventory.shrimp || 0) === 50 - cooked, 'raw shrimp should be consumed 1:1');
+    } finally {
+      G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
+      G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
+      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.lastOfflineSummary = saved.summary;
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

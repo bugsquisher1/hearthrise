@@ -1,0 +1,56 @@
+# ============================================================
+# CI gate for Hearthrise (b215)
+#
+# The 168-test smoke suite lived only behind Ctrl+Shift+T in a browser, so it
+# could never block a bad push — by the repo's own workflow note it usually ran
+# *after* a bug was already live on Pages. This runs the same suite headlessly
+# on every push and PR, plus the cache-buster invariant that keeps a deploy from
+# shipping half-stale modules.
+#
+# Deliberately no build step: the game is a static folder, so CI serves the repo
+# exactly as GitHub Pages does.
+# ============================================================
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The cache-buster must agree across build-info.js, index.html and every
+      # ESM import specifier. Cheap, so run it before spending time on a browser.
+      - name: Cache-buster invariant
+        run: bash bump-version.sh --check
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Smoke suite (headless)
+        run: node tests/run-smoke.mjs
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7

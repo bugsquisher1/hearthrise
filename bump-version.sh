@@ -16,14 +16,57 @@
 # Usage:  ./bump-version.sh <new-cache-number>
 #   e.g.  ./bump-version.sh 149
 #
+#         ./bump-version.sh --check
+#   Verifies the invariant WITHOUT changing anything: build-info's cache
+#   number must match every ?v= in index.html and on every ESM import, and
+#   no relative import may be missing its ?v= entirely. Exits non-zero when
+#   they disagree, so CI can gate on it (b215).
+#
 # After running: review `git diff`, update CHANGELOG.md + the date in
 # build-info.js by hand, then commit & push.
 # ============================================================
 set -euo pipefail
 
 new="${1:-}"
+
+# ── --check: assert the three places agree, change nothing ──────────────
+if [[ "$new" == "--check" ]]; then
+  cur="$(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js | grep -oE '[0-9]+')"
+  if [[ -z "$cur" ]]; then
+    echo "FAIL: could not read cache number from src/build-info.js" >&2; exit 1
+  fi
+  # Only real references count. Scoping matters: a bare `?v=` grep also hits
+  # prose in comments (index.html + legacy.js both *describe* "legacy.js?v=111"
+  # when explaining the kill-switch) and asset image URLs (icon-swap.js pins
+  # sprites at ?v=88). Those are not cache-busted modules and must not fail CI.
+  #   • index.html → only src="…?v=" / href="…?v=" attributes
+  #   • src/**.js  → only import/export/from specifiers ending in .js?v=
+  # The file extension is required so the comment on index.html:12, which spells
+  # out `<script src="...?v=111">` as an EXAMPLE, isn't mistaken for a real tag.
+  bad_html="$({ grep -oE '(src|href)="[^"]*\.[a-z]+\?v=[0-9]+' index.html || true; } \
+    | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+  bad_js="$({ grep -rhoE "(import|export|from|import\()[^'\"]*['\"][^'\"]*\.js\?v=[0-9]+" src --include='*.js' || true; } \
+    | grep -oE '\?v=[0-9]+$' | { grep -vE "\?v=${cur}\$" || true; } | sort -u | tr '\n' ' ')"
+  # A relative .js import with no ?v= at all is the gap that lets a stale
+  # module run for ~10 min after deploy.
+  missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' || true; } | { grep -vE '\?v=' || true; })"
+
+  echo "cache-buster check — build-info says ${cur}"
+  ok=0
+  if [[ -n "$bad_html" ]]; then echo "  FAIL index.html has stale versions: ${bad_html}" >&2; ok=1; fi
+  if [[ -n "$bad_js"   ]]; then echo "  FAIL src/**/*.js has stale versions: ${bad_js}" >&2; ok=1; fi
+  if [[ -n "$missing"  ]]; then
+    echo "  FAIL relative imports with no ?v= (they'd serve stale after deploy):" >&2
+    echo "$missing" >&2
+    ok=1
+  fi
+  if [[ "$ok" == "0" ]]; then echo "  OK — index.html + every ESM import are all at ?v=${cur}"; fi
+  exit "$ok"
+fi
+
 if ! [[ "$new" =~ ^[0-9]+$ ]]; then
   echo "usage: ./bump-version.sh <new-cache-number>   (integer)" >&2
+  echo "       ./bump-version.sh --check              (verify only)" >&2
   exit 1
 fi
 

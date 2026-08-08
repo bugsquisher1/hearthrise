@@ -75,28 +75,61 @@
     };
   }
 
-  // ── UI: banner strip on the Home panel + login toast ──
+  // ── UI: the Blessing strip + login toast ──
+  // b220: these events carry an emoji `glyph` in their data (⛏ 🔥 🌾 🎪). Nothing
+  // in Hearthrise renders emoji as art (Final Directive), and relocating the
+  // strip into a dedicated panel made the last few very visible. The ids map
+  // onto the baked atlas here — the SAME map home-dashboard.js already uses, so
+  // Home and Events can never disagree about what an event looks like.
+  var EVENT_GLYPH = {
+    gather_surge: 'uiPickaxe', forge_fires: 'uiFlame', harvest_fest: 'uiWheat',
+    scholars_day: 'uiScroll', hunters_moon: 'uiBow', feast_day: 'uiPot',
+    quiet_vigil: 'prayer', grand_fair: 'uiBanner', deep_veins: 'uiOre',
+    war_drums: 'uiSword', guild_works: 'uiHammer'
+  };
+  function gly(id, fallback) {
+    var k = EVENT_GLYPH[id];
+    var g = (k && window.HR && window.HR.icon) ? window.HR.icon(k, 14, '--gold-2') : null;
+    return g || '';                  // no atlas yet → no glyph, never an emoji
+  }
   function bannerHtml() {
     var d = daily(), w = weekly();
+    // b220: the strip used to lead with its own "World events" label. Inside
+    // the Events panel that is a label under a label under a panel of the same
+    // name; the section eyebrow says what this is now.
+    var onEvents = !!document.getElementById('hr-ev-blessing');
     return '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
-      '<span class="tiny" style="text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--gold-2)">World events</span>' +
+      (onEvents ? '' : '<span class="tiny" style="text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--gold-2)">World events</span>') +
       '<span style="font-size:12px;background:rgba(201,162,74,.10);border:1px solid var(--line);border-radius:99px;padding:3px 10px">' +
-        d.glyph + ' <b>' + d.name + '</b> <span class="muted">— ' + d.desc + '</span></span>' +
+        gly(d.id, d.glyph) + ' <b>' + d.name + '</b> <span class="muted">— ' + d.desc + '</span></span>' +
       '<span style="font-size:12px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:99px;padding:3px 10px">' +
-        w.glyph + ' <b>' + w.name + '</b> <span class="muted">— ' + w.desc + '</span></span>' +
+        gly(w.id, w.glyph) + ' <b>' + w.name + '</b> <span class="muted">— ' + w.desc + '</span></span>' +
       '</div>';
   }
 
+  // b220 (#14): the Blessing strip has moved OFF the Home panel and into the
+  // Events destination, where the rest of the day's world event lives. On Home
+  // it was a line of text that re-injected itself every five seconds, could not
+  // be interacted with, and taught the player that the words "world event" mean
+  // "a line of text". Home falls back to hosting it only while the Events panel
+  // does not exist yet (early boot, or muster.js failing to load) — a bonus the
+  // player is already receiving must never become invisible.
+  function bannerHost() {
+    return document.getElementById('hr-ev-blessing') || document.getElementById('panel-profile');
+  }
   function injectBanner() {
-    var panel = document.getElementById('panel-profile');
-    if (!panel) return;
+    var host = bannerHost();
+    if (!host) return;
     var el = document.getElementById('hr-worldevents');
     if (!el) {
       el = document.createElement('div');
       el.id = 'hr-worldevents';
       el.className = 'card';
       el.style.cssText = 'margin-bottom:8px;padding:8px 12px';
-      panel.insertBefore(el, panel.firstChild);
+    }
+    if (el.parentNode !== host) {
+      if (host.id === 'hr-ev-blessing') host.appendChild(el);
+      else host.insertBefore(el, host.firstChild);
     }
     el.innerHTML = bannerHtml();
   }
@@ -111,7 +144,9 @@
       var today = utcDayKey();
       if (localStorage.getItem(seenKey) !== today) {
         localStorage.setItem(seenKey, today);
-        if (window.notify) notify(d.glyph + ' World event: ' + d.name + ' — ' + d.desc, 'info');
+        // Toasts render with textContent, so a glyph here can only ever be a
+        // raw emoji character. Say it in words instead.
+        if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc, 'info');
       }
     } catch (e) {}
   }
@@ -126,6 +161,7 @@
     daily: daily, weekly: weekly,
     bonusFor: bonusFor,
     utcDayKey: utcDayKey, utcWeekKey: utcWeekKey,
+    renderBlessing: injectBanner,
     _hash: hash
   };
 })();

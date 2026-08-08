@@ -350,19 +350,15 @@
   }
   window.renderDungeons = renderDungeons;
 
-  // ---- Inject the Dungeons sidebar nav + panel ----
-  function injectNav(){
-    var sidebar = document.getElementById('sidebar');
-    if(!sidebar || sidebar.querySelector('[data-tab=dungeons]')) return;
-    var combatBtn = sidebar.querySelector('[data-tab=combat]');
-    if(!combatBtn) return;
-    var btn = document.createElement('button');
-    btn.className = 'nav-btn';
-    btn.setAttribute('data-tab', 'dungeons');
-    btn.innerHTML = '<span class="ic">🏰</span><span class="lbl">Dungeons</span>';
-    btn.addEventListener('click', function(){ if(typeof window.showTab === 'function') window.showTab('dungeons'); });
-    combatBtn.parentNode.insertBefore(btn, combatBtn.nextSibling);
-  }
+  // ---- The Dungeons panel ----
+  // b220 (#14): injectNav() is GONE. It created a `nav-btn[data-tab=dungeons]`
+  // that theme-cozy.css immediately hid with `display:none !important` — an
+  // entry that existed only to be invisible, which is why dungeons (and the
+  // clan raid card rendered inside their panel) could not be found at all.
+  // Dungeons are now a section of the real top-level `Events` destination
+  // (index.html nav + src/features/muster.js), which relocates this panel into
+  // itself on boot. `showTab('dungeons')` still works — Muster's showTab tap
+  // maps it to 'events' — so every existing deep link keeps functioning.
   function injectPanel(){
     if(document.getElementById('panel-dungeons')) return;
     var main = document.querySelector('main.main');
@@ -381,16 +377,16 @@
     window.__dungeonsTabHooked = true;
     window.showTab = function(name){
       var r = orig.apply(this, arguments);
-      if(name === 'dungeons') setTimeout(renderDungeons, 0);
+      if(name === 'dungeons' || name === 'events') setTimeout(renderDungeons, 0);
       return r;
     };
   }
 
   document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){ injectNav(); injectPanel(); wireShowTab(); }, 50);
+    setTimeout(function(){ injectPanel(); wireShowTab(); }, 50);
   });
   if(document.readyState !== 'loading'){
-    setTimeout(function(){ injectNav(); injectPanel(); wireShowTab(); }, 50);
+    setTimeout(function(){ injectPanel(); wireShowTab(); }, 50);
   }
 
   // ════════════════════════════════════════════════════════════

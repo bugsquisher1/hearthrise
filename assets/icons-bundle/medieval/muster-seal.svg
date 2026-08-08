@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Muster Seal">
+  <!-- Hearthrise "Muster Seal" — original line art (Forge & Stone).
+       A wax seal pressed over a ribbon: the realm's summons, answered.
+       Drawn in the gilt palette so it reads as chrome in the bag. -->
+  <defs>
+    <linearGradient id="ms-wax" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3c77e"/>
+      <stop offset="1" stop-color="#a97f30"/>
+    </linearGradient>
+  </defs>
+  <!-- ribbon tails -->
+  <path d="M23 40 L16 60 L25 55 L31 61 L33 44 Z" fill="#7d3b32" stroke="#4c221c" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M41 40 L48 60 L39 55 L33 61 L31 44 Z" fill="#96473c" stroke="#4c221c" stroke-width="1.6" stroke-linejoin="round"/>
+  <!-- seal disc -->
+  <circle cx="32" cy="26" r="19" fill="url(#ms-wax)" stroke="#5d420f" stroke-width="2"/>
+  <circle cx="32" cy="26" r="14.5" fill="none" stroke="#5d420f" stroke-width="1.2" opacity=".65"/>
+  <!-- pressed device: a watch-fire over crossed muster staves -->
+  <path d="M32 15 c3.6 4.2 5.6 7.2 5.6 10.2 a5.6 5.6 0 0 1 -11.2 0 c0 -3 2 -6 5.6 -10.2 Z" fill="#4a3208" opacity=".85"/>
+  <path d="M22 36 L42 36" stroke="#4a3208" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>
+  <path d="M25 31.5 L39 31.5" stroke="#4a3208" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+</svg>

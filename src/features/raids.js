@@ -419,18 +419,32 @@
     return true;
   }
 
-  // ── UI card at the top of the Dungeons panel ───────────────
+  // ── UI card in the Events panel ─────────────────────────────
+  // b220 (#14): this card used to render into #panel-dungeons — a panel whose
+  // nav entry was injected and then hidden in CSS. The game's flagship SOCIAL
+  // feature was therefore nested inside an unreachable COMBAT sub-panel, and a
+  // player could be in a clan for a month without learning raids exist. It now
+  // lives in the top-level Events destination next to the muster.
+  // It also renders at its true height there: #panel-dungeons was
+  // `.panel.active { display:grid }` with no row template, so the injected card
+  // became an implicit grid row in a fixed-height container and collapsed to
+  // 16px. #panel-events is a block column that scrolls (see muster.js).
   async function render() {
-    var panel = document.getElementById('panel-dungeons');
-    if (!panel) return;
-    ensureState();
     var host = document.getElementById('hr-raid-card');
+    var slot = document.getElementById('hr-events-raid') || document.getElementById('panel-dungeons');
+    if (!slot) return;
+    ensureState();
     if (!host) {
       host = document.createElement('div');
       host.id = 'hr-raid-card';
       host.className = 'card';
       host.style.cssText = 'margin-bottom:10px';
-      panel.insertBefore(host, panel.firstChild);
+    }
+    if (host.parentNode !== slot) {
+      // In the Events panel the slot carries its own section label, so append;
+      // in the legacy dungeons panel the card is the first thing on the screen.
+      if (slot.id === 'hr-events-raid') slot.appendChild(host);
+      else slot.insertBefore(host, slot.firstChild);
     }
     var G = window.G, st = G.raids, boss = bossOfWeek(), wk = weekKey();
     var clan = inClan();
@@ -463,11 +477,12 @@
       ensureState();
       render();
       setInterval(function () {
-        if (document.getElementById('panel-dungeons') && document.getElementById('panel-dungeons').classList.contains('active')) render();
+        var p = document.getElementById('panel-events') || document.getElementById('panel-dungeons');
+        if (p && p.classList.contains('active')) render();
       }, 15000);
-      // re-render when the dungeons tab is shown
+      // re-render when the Events tab is shown (or the legacy dungeons route)
       document.addEventListener('click', function (e) {
-        var t = e.target && e.target.closest && e.target.closest('[data-tab="dungeons"]');
+        var t = e.target && e.target.closest && e.target.closest('[data-tab="events"],[data-tab="dungeons"]');
         if (t) setTimeout(render, 150);
       });
     } catch (e) {}

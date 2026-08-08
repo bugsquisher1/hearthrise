@@ -153,6 +153,12 @@
 
     <div class="nav-group-label">Adventure</div>
     <button class="nav-btn" data-tab="combat"><span class="ic"></span><span class="lbl">Combat</span></button>
+    <!-- b220 (#14): everything SCHEDULED or INSTANCED lives here — today's
+         muster, the Blessing, the weekly clan boss and the dungeons. This is a
+         real top-level entry on purpose: the previous "inject a nav button and
+         then hide it in CSS" arrangement is precisely what made dungeons and
+         the flagship clan raid undiscoverable. A smoke test now guards it. -->
+    <button class="nav-btn" data-tab="events"><span class="ic"></span><span class="lbl">Events</span></button>
     <button class="nav-btn" data-tab="bounty"><span class="ic"></span><span class="lbl">Bounty Board</span></button>
     <button class="nav-btn" data-tab="skills"><span class="ic"></span><span class="lbl">Skills</span></button>
 
@@ -404,6 +410,7 @@
       <button class="btn btn-sm" data-close-modal="more-modal">Close</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+      <button class="btn tap" data-tab="events">Events</button>
       <button class="btn tap" data-tab="inventory">🎒 Items</button>
       <button class="btn tap" data-tab="house">🏠 House</button>
       <button class="btn tap" data-tab="social">🏆 Social</button>
@@ -696,6 +703,10 @@
   <script src="src/features/clans.js?v=219"></script>
   <!-- b209 SYS-6: weekly async clan raids (shared boss HP pool, real combat-roll strikes) -->
   <script src="src/features/raids.js?v=219"></script>
+  <!-- b220 #15/#14: the Muster — 2x/day joinable world-event windows, topbar
+       countdown pill, and the top-level Events destination. Loads AFTER
+       world-events.js (shared clock) and raids.js (owns the raid card). -->
+  <script src="src/features/muster.js?v=219"></script>
   <script src="src/item-ux.js?v=219"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can

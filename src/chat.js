@@ -150,7 +150,16 @@
     // Supabase 400'd the insert ("invalid input syntax for type uuid").
     var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
     var liveUser = liveSession && liveSession.user;
-    var name = (liveUser && (liveUser.user_metadata && liveUser.user_metadata.display_name || (liveUser.email||'').split('@')[0]))
+    // b221: the CONFIRMED unique name outranks everything, because in chat a
+    // name is an address — you whisper it, you block it, you @-mention it.
+    // The old order preferred the auth metadata / email prefix, which nobody
+    // chose and two accounts could easily share.
+    var id = window.HearthriseIdentity;
+    var unique = (id && typeof id.isUniqueName === 'function' && id.isUniqueName() &&
+                  typeof id.displayName === 'function') ? id.displayName() : null;
+    var name = unique
+            || (liveUser && (liveUser.user_metadata && liveUser.user_metadata.display_name || (liveUser.email||'').split('@')[0]))
+            || (id && typeof id.displayName === 'function' ? id.displayName() : null)
             || G.playerName
             || (profile && profile.displayName)
             || 'Adventurer';

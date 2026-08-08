@@ -1001,7 +1001,17 @@ const TESTS = [
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
-    assert(window._playerAvatar && /assets\/icons-bundle\/painted\//.test(window._playerAvatar), 'player avatar path bad: ' + window._playerAvatar);
+    // b221 widened this deliberately. The bug it guards is "the portrait seam
+    // points at an UNSHIPPED folder and 404s" (b186 pointed it at raw-bundle),
+    // and that guard is kept exactly as strict as it was. What changed is that
+    // players can now upload a portrait, so a self-contained data: URL is also
+    // a legitimate resolution — it is, in fact, the one value that cannot 404.
+    const seam = window._playerAvatar;
+    assert(seam, 'player avatar seam is empty');
+    const uploaded = /^data:image\//.test(seam);
+    assert(uploaded || /assets\/icons-bundle\/painted\//.test(seam),
+      'player avatar path bad: ' + String(seam).slice(0, 80));
+    assert(!/raw-bundle|icons3/.test(seam), 'player avatar seam points at an unshipped folder: ' + seam);
     const img = document.querySelector('.player-avatar img');
     const src = (img && img.getAttribute('src')) || '';
     assert(!/raw-bundle|icons3/.test(src), 'topbar avatar points at unshipped folder: ' + src);
@@ -4052,6 +4062,390 @@ const TESTS = [
         'the "Back to Combat" escape hatch belongs to the old dead-end panel');
     } finally {
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // ── b221 regression suite (backlog #9 — unique names + player portraits) ──
+
+  // #9a: the rules are the contract. They are enforced in TWO places — here
+  // and in public.hr_validate_display_name() — so every case below is also
+  // asserted by the migration's own self-check. If these two ever disagree,
+  // the server accepts a name the client refused (or worse, the reverse) and
+  // a player's name stops meaning what the UI says it means.
+  () => tryRun('b221: display-name rules — length, charset, trimming, reserved, profanity', () => {
+    const I = window.HearthriseIdentity;
+    assert(I && typeof I.validateName === 'function', 'HearthriseIdentity.validateName missing');
+    const ok = (s) => I.validateName(s).ok;
+    const why = (s) => I.validateName(s).reason;
+
+    assert(I.MIN_LEN === 3 && I.MAX_LEN === 20, 'length rules drifted: ' + I.MIN_LEN + '-' + I.MAX_LEN);
+    assert(!ok('') && why('') === 'empty', 'an empty name must be refused');
+    assert(why('ab') === 'short', '2 characters must be too short');
+    assert(ok('abc'), '3 characters must be allowed');
+    assert(ok('a'.repeat(20)), '20 characters must be allowed');
+    assert(why('a'.repeat(21)) === 'long', '21 characters must be too long');
+
+    // Charset. The angle-bracket case is the b214 stored-XSS lesson made
+    // structural: a name that cannot contain markup cannot deliver any.
+    assert(ok('Iron Vale') && ok("O'Malley") && ok('Sir_Bob') && ok('Iron-Vale') && ok('Bob.2'),
+      'the documented charset must be accepted');
+    assert(why('<script>x') === 'charset', 'angle brackets must be refused');
+    assert(why('Bob&Co') === 'charset', 'ampersands must be refused');
+    assert(why('_Bob') === 'charset', 'a name must START alphanumeric');
+    assert(why('Bob_') === 'charset', 'a name must END alphanumeric');
+    assert(why('-.-') === 'charset' || why('-.-') === 'short', 'punctuation-only must never pass');
+    assert(why('café') === 'charset', 'the charset is deliberately narrow — no lookalike-rich scripts');
+
+    // Leading/trailing space is NORMALISED, not scolded: a player cannot see
+    // a trailing space, so refusing it would be a puzzle, not a rule.
+    assert(I.validateName('  Bob  ').name === 'Bob', 'must strip leading/trailing spaces');
+    assert(I.validateName('Bob   Ross').name === 'Bob Ross', 'must collapse inner whitespace runs');
+    assert(ok(' Bob '), 'a name that only needs trimming must be accepted');
+
+    // Reserved names are matched with separators REMOVED. canon() folds "_"
+    // to a space, so a plain lookup would let "Adm_in" ("adm in") straight
+    // through — and "A d m i n" with it. The tight fold must not, however,
+    // start eating ordinary two-word names.
+    assert(why('admin') === 'reserved', 'the plain reserved word must be refused');
+    assert(why('Adm_in') === 'reserved', 'separator-split reserved names must be refused');
+    assert(why('A d m i n') === 'reserved', 'letter-spaced reserved names must be refused');
+    assert(why('Game_Master') === 'reserved', 'multi-word reserved names must fold too');
+    assert(ok('Iron Vale') && ok('Mod ern Bob'),
+      'the tight reserved fold must not swallow ordinary names');
+    assert(why('Adventurer') === 'reserved',
+      'the default name must be reserved — otherwise one player owns everyone else’s fallback');
+
+    // The profanity guard is the one the codebase already has.
+    assert(window.ChatFilter && typeof window.ChatFilter.contains === 'function',
+      'ChatFilter is the profanity guard — it must exist');
+    assert(why('shit lord') === 'profanity', 'the ChatFilter guard must reject profane names');
+  }),
+
+  // #9b: canonicalisation IS the uniqueness key. Every pair below is
+  // asserted verbatim in the migration's self-check (section 7). Case and
+  // punctuation are the cheapest impersonation attack on a name system.
+  () => tryRun('b221: canonical name folds case, separators and apostrophes — one name, one owner', () => {
+    const I = window.HearthriseIdentity;
+    const c = I.canon;
+    assert(c('Sir_Bob') === 'sir bob', 'underscore must fold to a space: ' + c('Sir_Bob'));
+    assert(c('  SIR   BOB  ') === 'sir bob', 'case + whitespace must fold: ' + c('  SIR   BOB  '));
+    assert(c("O'Malley") === 'omalley', 'apostrophes must drop: ' + c("O'Malley"));
+    assert(c('Iron-Vale') === 'iron vale', 'hyphen must fold to a space: ' + c('Iron-Vale'));
+    assert(c('Iron.Vale') === 'iron vale', 'dot must fold to a space: ' + c('Iron.Vale'));
+    // The whole point, stated as the property it protects.
+    const same = ['Sir_Bob', 'sir bob', 'SIR   BOB', 'Sir-Bob', 'Sir.Bob'];
+    const folded = new Set(same.map(c));
+    assert(folded.size === 1, 'these must all be ONE name, got ' + folded.size + ': ' + [...folded]);
+    assert(c('Sir Bobb') !== c('Sir Bob'), 'genuinely different names must stay different');
+    assert(c(null) === '' && c(undefined) === '', 'canon must not throw on empty input');
+  }),
+
+  // #9c: the claim reducer carries the entire server contract, including the
+  // race. Two players claiming one name at the same instant is not an edge
+  // case at launch — it is the normal case for every desirable name — and
+  // the loser must be told, never silently handed a name they do not own.
+  () => tryRun('b221: claim reducer — confirmed / taken / race / invalid / un-migrated', () => {
+    const I = window.HearthriseIdentity;
+    const R = I._reduceClaim;
+
+    const win = R(200, { ok: true, name: 'Iron Vale', canonical: 'iron vale', renamed: true });
+    assert(win.action === 'confirmed' && win.name === 'Iron Vale' && win.canonical === 'iron vale',
+      'a successful claim must confirm: ' + JSON.stringify(win));
+
+    // THE RACE. Both clients POST; the primary key picks one; the other gets
+    // 'taken'. Exactly one of these two verdicts may be 'confirmed'.
+    const lose = R(200, { ok: false, error: 'taken', canonical: 'iron vale' });
+    assert(lose.action === 'taken' && /taken/i.test(lose.message),
+      'the loser of a race must be told the name is taken: ' + JSON.stringify(lose));
+    assert([win, lose].filter((d) => d.action === 'confirmed').length === 1,
+      'exactly one side of a simultaneous claim may win');
+
+    const bad = R(200, { ok: false, error: 'invalid', reason: 'long' });
+    assert(bad.action === 'invalid' && bad.reason === 'long' && /20/.test(bad.message),
+      'a server-side rejection must surface the reason: ' + JSON.stringify(bad));
+    assert(R(200, { ok: false, error: 'not_signed_in' }).action === 'signedout',
+      'a signed-out claim must not read as a failure to retry blindly');
+
+    // Nothing that is not the RPC's own {ok:boolean,…} envelope may read as a
+    // confirmation — a 401 body has no `ok` field, and treating one as
+    // success would hand a player a name they do not hold.
+    assert(R(200, null).action === 'fail', 'a null body must never confirm a name');
+    assert(R(200, { name: 'Iron Vale' }).action === 'fail', 'an envelope-less body must never confirm');
+    assert(R(401, { code: 'PGRST301' }).action === 'fail', 'an auth error must never confirm');
+    assert(R(200, { ok: true }).action === 'fail', 'ok:true with no name is not a confirmation');
+    assert(R(500, { ok: false, error: 'boom' }).action === 'fail', 'a server error must not confirm');
+
+    // CLIENT-FIRST: this ships before the migration is run.
+    assert(R(404, { code: 'PGRST202' }).action === 'unsupported',
+      'a missing claim_display_name RPC must degrade to provisional, not break sign-in');
+    assert(R(404, {}).action === 'unsupported', 'a bare 404 must degrade too');
+    assert(I._isMissingRpc(200, { code: '42883' }) && I._isMissingRpc(200, { code: '42P01' }),
+      'undefined-function / undefined-table must both count as un-migrated');
+  }),
+
+  // #9d: availability is UX, never a reservation. Between the green tick and
+  // the claim, another player can win — so the tick must not be able to
+  // short-circuit the claim, and an un-migrated server must not read as
+  // "taken" (which would refuse every name in the game).
+  () => tryRun('b221: availability probe is advisory only, and degrades safely', () => {
+    const I = window.HearthriseIdentity;
+    const A = I._reduceAvailability;
+    assert(A(200, { ok: true, available: true, name: 'Iron Vale' }).action === 'available', 'free name');
+    assert(A(200, { ok: true, available: false }).action === 'taken', 'held name');
+    assert(A(200, { ok: true, available: true, mine: true }).mine === true,
+      'your own name must not be reported as taken back to you');
+    assert(A(200, { ok: false, reason: 'short' }).action === 'invalid', 'validation echo');
+    assert(A(404, { code: 'PGRST202' }).action === 'unsupported',
+      'no migration yet must not make every name look taken');
+    assert(A(500, null).action === 'unknown', 'a server error is unknown, never "available"');
+    assert(A(200, null).action === 'unknown', 'a malformed body is unknown, never "available"');
+    // The claim is the only authority: the reducer for it has no path that
+    // consults availability at all.
+    assert(I._reduceClaim(200, { ok: false, error: 'taken' }).action === 'taken',
+      'a claim must still be able to fail after an "available" tick');
+  }),
+
+  // #9e: the avatar pipeline. The original bytes must NEVER ship — the file
+  // is decoded and re-encoded from pixels, which is what caps the size, fixes
+  // the dimensions, and drops every scrap of metadata (EXIF GPS included).
+  () => tryRun('b221: avatar pipeline downscales to a 256×256 square under the hard cap', () => {
+    const I = window.HearthriseIdentity;
+    assert(typeof I.processImage === 'function', 'processImage missing');
+    assert(I.AVATAR_PX === 256 && I.AVATAR_MAX_BYTES === 512 * 1024,
+      'avatar limits drifted: ' + I.AVATAR_PX + ' / ' + I.AVATAR_MAX_BYTES);
+
+    // A deliberately awkward source: wide, odd-sized, and full of noise so it
+    // does not compress to nothing and the size cap is actually exercised.
+    const mk = (w, h) => {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const x = c.getContext('2d');
+      for (let i = 0; i < 900; i++) {
+        x.fillStyle = 'rgb(' + ((i * 37) % 256) + ',' + ((i * 91) % 256) + ',' + ((i * 53) % 256) + ')';
+        x.fillRect((i * 29) % w, (i * 71) % h, 26, 26);
+      }
+      return c;
+    };
+
+    const wide = I.processImage(mk(1400, 500));
+    assert(wide.width === 256 && wide.height === 256,
+      'output must be a 256×256 square, got ' + wide.width + '×' + wide.height);
+    assert(wide.bytes > 0 && wide.bytes <= 512 * 1024,
+      'output must be under the 512KB cap, got ' + wide.bytes);
+    assert(/^image\/(webp|jpeg)$/.test(wide.type),
+      'output must be a compressed format, got ' + wide.type);
+    assert(wide.dataUrl.indexOf('data:' + wide.type) === 0, 'dataUrl/type disagree');
+    assert(wide.blob && wide.blob.size > 0 && wide.blob.type === wide.type,
+      'a blob must be produced for upload');
+    // The reported byte count must be the real one — it is what the cap is
+    // enforced against, so an optimistic estimate would be a fake guard.
+    assert(Math.abs(wide.blob.size - wide.bytes) <= 2,
+      'byte accounting is wrong: ' + wide.bytes + ' vs blob ' + wide.blob.size);
+
+    // Tall and tiny sources must produce the SAME square — crop, never squash.
+    const tall = I.processImage(mk(400, 1200));
+    assert(tall.width === 256 && tall.height === 256, 'a tall source must crop to the same square');
+    const tiny = I.processImage(mk(40, 90));
+    assert(tiny.width === 256 && tiny.height === 256, 'a small source must still normalise to 256×256');
+
+    assert(I._b64Bytes('data:image/webp;base64,AAAA') === 3, 'base64 byte maths is wrong');
+    assert(I._b64Bytes('data:image/webp;base64,AA==') === 1, 'base64 padding maths is wrong');
+    let threw = false;
+    try { I.processImage({ width: 0, height: 0 }); } catch (e) { threw = true; }
+    assert(threw, 'a zero-sized source must be refused, not silently produce a blank portrait');
+  }),
+
+  // #9f: upload reducer — the bucket may not exist yet (client ships first),
+  // and no failure mode may cost the player the portrait they just chose.
+  () => tryRun('b221: avatar upload degrades to a local portrait, never to a loss', () => {
+    const U = window.HearthriseIdentity._reduceUpload;
+    assert(U(200, { Key: 'avatars/x/avatar.webp' }).action === 'accept', 'a 200 is an upload');
+    assert(U(404, { message: 'Bucket not found' }).action === 'unsupported',
+      'no avatars bucket yet must degrade to local-only');
+    assert(U(400, { message: 'Bucket not found' }).action === 'unsupported',
+      'Supabase reports a missing bucket as 400 too');
+    assert(U(413, {}).action === 'too_large', 'an over-size upload must be named as such');
+    assert(U(400, { message: 'mime type image/gif is not supported' }).action === 'bad_type',
+      'a rejected type must be named');
+    assert(U(403, {}).action === 'denied', 'a policy refusal must ask the player to sign in again');
+    assert(U(500, {}).action === 'fail', 'a server error is a failure, not a success');
+    assert(!/lost|deleted/i.test(U(500, {}).message || ''),
+      'a failed upload must reassure, not alarm — the local copy is already saved');
+  }),
+
+  // #9g: rendering. NO broken-image states, ever — the portrait seam must
+  // always resolve to something that loads, and a player's own dataURL must
+  // win over the network so there is no flash on a slow connection.
+  () => tryRun('b221: portrait always resolves — uploaded first, painted default otherwise', () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      rec.avatar = { data: null, remote: null, status: null, at: 0 };
+      const def = I.avatarUrl();
+      assert(def && /assets\/icons-bundle\/painted\//.test(def),
+        'with no upload the portrait must be the painted default, got ' + def);
+      assert(def === I.DEFAULT_AVATAR, 'the default must come from the one constant');
+
+      // A remote URL that has been verified is used; a local dataURL beats it.
+      rec.avatar.remote = 'https://example.invalid/storage/v1/object/public/avatars/u/avatar.webp';
+      assert(I.avatarUrl() === rec.avatar.remote, 'a synced portrait must be used');
+
+      // A REAL portrait, produced by the real pipeline — not a stub string.
+      // An invalid dataURL would be swapped out by the markup's fallback latch
+      // the moment the decode failed, and the test would be asserting against
+      // a portrait the browser had already rejected.
+      const src = document.createElement('canvas');
+      src.width = 300; src.height = 180;
+      const cx = src.getContext('2d');
+      cx.fillStyle = '#c9a24a'; cx.fillRect(0, 0, 300, 180);
+      cx.fillStyle = '#221b14'; cx.fillRect(40, 30, 120, 90);
+      const real = I.processImage(src).dataUrl;
+
+      rec.avatar.data = real;
+      assert(I.avatarUrl() === real,
+        'the local copy must win — a synced portrait must never cause a load flash');
+
+      // The seam the rest of the game reads.
+      I.applyAvatar();
+      assert(window._playerAvatar === real, '_playerAvatar must track the identity seam');
+      const img = document.querySelector('.player-avatar img');
+      assert(img && img.getAttribute('src') === real, 'the topbar portrait must follow');
+      assert(img.style.display !== 'none', 'the portrait must never be left hidden');
+      assert(typeof I.getAvatarUrl === 'function' && I.getAvatarUrl() === real,
+        'the profile.js read accessor must resolve through the same seam');
+
+      // NO BROKEN-IMAGE STATES. A portrait that fails to decode — a truncated
+      // upload, a dead bucket — must fall back to the shipped default rather
+      // than leave the browser's torn-page icon in the topbar. Driven
+      // synchronously so this never depends on network timing.
+      img.dispatchEvent(new Event('error'));
+      const after = img.getAttribute('src') || '';
+      assert(/assets\/icons-bundle\/painted\//.test(after),
+        'a failed portrait must fall back to the painted default, got ' + after.slice(0, 60));
+      assert(!/[\u{1F300}-\u{1FAFF}☀-➿]/u.test(img.parentNode.textContent || ''),
+        'the fallback must not be an emoji — no emoji as art (Final Directive)');
+      // And a second failure hides rather than looping.
+      img.dispatchEvent(new Event('error'));
+      assert(img.style.display === 'none', 'a fallback that also fails must hide, not loop');
+    } finally {
+      rec.avatar = saved;
+      I.applyAvatar();
+    }
+    // The default must still be a SHIPPED path (the icons-bundle rule).
+    assert(!/raw-bundle|icons3/.test(I.DEFAULT_AVATAR), 'the default portrait must be a shipped asset');
+  }),
+
+  // #9h: the seam itself. src/utils/profile.js (ESM, deferred) and
+  // src/features/identity.js (classic script) both publish into ONE
+  // window.HearthriseIdentity by MERGING. If either ever goes back to
+  // assigning a fresh object, load order silently deletes the other half —
+  // and the failure looks like "names work, portraits don't" on some loads
+  // and the reverse on others. This is the guard for that.
+  () => tryRun('b221: the identity seam carries both halves — read accessors and the write authority', () => {
+    const I = window.HearthriseIdentity;
+    // The b214 read half (built, 0 consumers until now).
+    ['getActiveSlot', 'getActiveCharId', 'getDisplayName', 'getActiveClan', 'hasUniqueName', 'getAvatarUrl']
+      .forEach((k) => assert(typeof I[k] === 'function', 'read seam lost ' + k + '() — merge became replace'));
+    // The b221 write half.
+    ['validateName', 'canon', 'claimName', 'checkAvailability', 'displayName', 'nameStatus',
+      'isUniqueName', 'processImage', 'setAvatarFromFile', 'avatarUrl', 'openNameModal']
+      .forEach((k) => assert(typeof I[k] === 'function', 'write seam lost ' + k + '() — merge became replace'));
+
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec));
+    const savedName = window.G.playerName;
+    try {
+      // An adopted name is what the whole game renders, through the seam.
+      I._adopt('Iron Vale', I.canon('Iron Vale'), 'confirmed');
+      assert(I.displayName() === 'Iron Vale', 'displayName must reflect the adopted name');
+      assert(I.getDisplayName() === 'Iron Vale', 'the read accessor must agree with the authority');
+      assert(I.isUniqueName() && I.hasUniqueName(), 'a confirmed name must report as unique');
+      assert(window.G.playerName === 'Iron Vale',
+        'G.playerName must be kept in step — ~30 legacy call sites read it directly');
+      assert(window.HearthriseMarket && typeof window.HearthriseMarket === 'object', 'market module missing');
+
+      // Provisional is honestly NOT unique. Claiming otherwise in the UI
+      // would be exactly the kind of fake the project directive forbids.
+      I._adopt('Iron Vale', I.canon('Iron Vale'), 'provisional');
+      assert(I.nameStatus() === 'provisional', 'status must survive a re-adopt');
+      assert(!I.isUniqueName(), 'a provisional name must never claim uniqueness');
+      assert(I.displayName() === 'Iron Vale', 'a provisional name is still the player’s name');
+
+      // Anonymous players keep a local name and are never prompted — the
+      // prompt is a signed-in flow, and gating offline play behind a server
+      // round-trip would break the game for everyone playing offline.
+      if (!(window.HearthriseAuth && window.HearthriseAuth.isSignedIn && window.HearthriseAuth.isSignedIn())) {
+        assert(I.mustPromptForName() === false, 'an anonymous player must never be prompted to claim');
+      }
+    } finally {
+      Object.assign(rec, saved);
+      I._persist();
+      window.G.playerName = savedName;
+    }
+  }),
+
+  // #9j: ONE writer. The Settings "Display name" field used to be a second
+  // one, with no rules at all (trim + slice(0,20) straight into
+  // G.playerName) — so it could set a name the claim flow would refuse, that
+  // no server row backed, and that silently diverged from the unique name
+  // every other player sees. It must now go through the same gate.
+  () => tryRun('b221: the Settings rename goes through the identity gate, not around it', () => {
+    const prevTab = window.activeTab;
+    const I = window.HearthriseIdentity;
+    const savedName = window.G.playerName;
+    const rec = I._record();
+    const savedRec = JSON.parse(JSON.stringify(rec));
+    try {
+      window.showTab('settings');
+      if (typeof window.renderSettings === 'function') window.renderSettings();
+      const input = document.getElementById('set-display-name');
+      const save = document.getElementById('set-name-save');
+      assert(input && save, 'the Settings display-name row is missing');
+      assert(input.getAttribute('maxlength') === String(I.MAX_LEN),
+        'the Settings field length cap must match the rule: ' + input.getAttribute('maxlength'));
+
+      // A name the gate refuses must not reach G.playerName.
+      window.G.playerName = 'Keep Me';
+      input.value = '<script>x</script>';
+      save.click();
+      assert(window.G.playerName === 'Keep Me',
+        'Settings wrote a name that the validator refuses: ' + window.G.playerName);
+      input.value = 'ab';
+      save.click();
+      assert(window.G.playerName === 'Keep Me', 'Settings wrote a too-short name');
+      input.value = 'Admin';
+      save.click();
+      assert(window.G.playerName === 'Keep Me', 'Settings wrote a reserved name');
+    } finally {
+      window.G.playerName = savedName;
+      Object.assign(rec, savedRec);
+      I._persist();
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // #9i: the identity record must NOT ride in the save. A 512KB portrait
+  // dataURL inside snapshotG would upload to game_saves every 60 seconds.
+  () => tryRun('b221: the portrait lives in the storage seam, never in the synced save', () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      rec.avatar.data = 'data:image/webp;base64,' + 'A'.repeat(4096);
+      I._persist();
+      const snap = JSON.stringify(window.G || {});
+      assert(snap.indexOf('data:image/webp') === -1,
+        'a portrait dataURL leaked into G — that uploads to game_saves on every snapshot');
+      assert(window.HearthriseStorage && typeof window.HearthriseStorage.getJSON === 'function',
+        'the platform storage seam must be the backing store');
+      const back = window.HearthriseStorage.getJSON('hearthrise:identity', null);
+      assert(back && back.avatar && back.avatar.data === rec.avatar.data,
+        'the portrait must persist through the storage seam');
+    } finally {
+      rec.avatar = saved;
+      I._persist();
+      I.applyAvatar();
     }
   }),
 ];

@@ -31,11 +31,36 @@ function deriveClass() {
   return { name: cn, tagline: tag };
 }
 
+// b221: the identity seam owns the portrait now — it resolves the player's
+// uploaded avatar and falls back to the painted default, so this never
+// renders a broken image. Reading the topbar <img> first was a hidden
+// dependency on DOM order; it stays only as a last resort.
 function getActiveAvatar() {
+  const id = window.HearthriseIdentity;
+  if (id && typeof id.getAvatarUrl === 'function') {
+    const u = id.getAvatarUrl();
+    if (u) return u;
+  }
   const pa = document.querySelector('.player-avatar img');
   if (pa?.src) return pa.src;
   // b186: painted player portrait (was an unshipped raw-bundle path → 404)
   return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
+}
+
+// b214 lesson, applied preventatively: a display name is player-supplied
+// text and this file interpolates it into innerHTML. It is self-only today,
+// but a name that survives a cloud restore is a name that arrived over the
+// network — escape it at the boundary, every time.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function playerName() {
+  const id = window.HearthriseIdentity;
+  if (id && typeof id.getDisplayName === 'function') {
+    const n = id.getDisplayName();
+    if (n) return n;
+  }
+  return window.G?.playerName || 'Adventurer';
 }
 
 function getEquipmentBonusFor(style) {
@@ -103,7 +128,7 @@ function buildHeroCard() {
   const G = window.G;
   const avatarSrc = getActiveAvatar();
   const cls = deriveClass();
-  const name = G?.playerName || 'Adventurer';
+  const name = esc(playerName());
   const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   const gold = G.gold || 0;
@@ -127,7 +152,7 @@ function buildHeroCard() {
   })();
 
   return `<div class="cr-hero">
-    <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" /></div>
+    <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
     <div class="cr-hero-id">
       <div class="cr-name">${name}</div>
       <div class="cr-class">${cls.tagline}</div>
@@ -145,8 +170,7 @@ function buildHeroCard() {
 
 function buildSlotsCard() {
   const avatarSrc = getActiveAvatar();
-  const G = window.G;
-  const name = G?.playerName || 'Adventurer';
+  const name = esc(playerName());
   const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const cls = deriveClass();
   return `<div class="cr-slots">
@@ -154,7 +178,7 @@ function buildSlotsCard() {
     <div class="cr-slots-grid">
       <div class="cr-slot active">
         <span class="cr-slot-badge">Active</span>
-        <div class="cr-slot-portrait"><img src="${avatarSrc}" alt="" /></div>
+        <div class="cr-slot-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
         <div class="cr-slot-name">${name}</div>
         <div class="cr-slot-meta">${cls.tagline} · CL ${cl}</div>
       </div>

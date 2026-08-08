@@ -73,6 +73,15 @@ function replaceBrokenImg(img) {
 function onError(e) {
   const t = e.target;
   if (!t || t.tagName !== 'IMG') return;
+  // b221 opt-out. This handler is deliberately greedy, which is right for
+  // ICONS — a missing pickaxe glyph is better as a 📦 than as a torn page.
+  // It is wrong for anything the player supplied or that must never be
+  // emoji: it runs in the CAPTURE phase, so it pre-empts an element's own
+  // onerror, and it REPLACES the <img> outright, so a portrait that failed
+  // once can never be swapped for a good one. Player portraits carry
+  // data-no-fallback and handle their own degradation (to the painted
+  // default, never to a pictograph — Final Directive: no emoji as art).
+  if (t.hasAttribute('data-no-fallback')) return;
   // Only swap our own asset images so we don't accidentally rewrite
   // someone else's broken third-party img.
   const src = t.getAttribute('src') || '';
@@ -91,7 +100,7 @@ if (typeof window !== 'undefined') {
   // Sweep any images that already failed before we attached the handler.
   // (Browser fires error events synchronously during initial decode.)
   function sweep() {
-    document.querySelectorAll('img').forEach(img => {
+    document.querySelectorAll('img:not([data-no-fallback])').forEach(img => {
       if (img.complete && img.naturalWidth === 0) {
         replaceBrokenImg(img);
       }

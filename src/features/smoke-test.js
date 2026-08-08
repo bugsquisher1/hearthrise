@@ -4448,6 +4448,166 @@ const TESTS = [
       I.applyAvatar();
     }
   }),
+
+  // ── b221 regression suite (backlog #5 — the board is a board, the shop is a
+  //    shop). These guard STRUCTURE and CONTENT, not taste: one notice per
+  //    bounty with nothing clipped, every offer reachable and clickable, and
+  //    zero emoji in either screen's DOM in any state.
+
+  // The board must post exactly as many notices as the board data holds, at a
+  // usable size, with no notice clipped out of the frame. A grid with a
+  // hardcoded column count silently drops the fourth bounty when the tier-2
+  // board unlocks; `auto-fill` does not, and this is the tripwire for it.
+  () => tryRun('b221: the bounty board renders one notice per bounty, none clipped', () => {
+    const prevTab = window.activeTab;
+    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
+    try {
+      window.G.bountyHunter.active = null;
+      window.G.bountyHunter.board = window.generateBountyBoard();
+      window.showTab('bounty');
+      const board = document.querySelector('#panel-bounty .bb-board');
+      assert(board, 'the bounty screen has no board object — it is a list again');
+      const notices = board.querySelectorAll('.bb-notice');
+      assert(notices.length === window.G.bountyHunter.board.length,
+        'board holds ' + window.G.bountyHunter.board.length + ' bounties but posted '
+        + notices.length + ' notices');
+      const frame = board.getBoundingClientRect();
+      notices.forEach((n, i) => {
+        const r = n.getBoundingClientRect();
+        assert(r.width > 120 && r.height > 90,
+          'notice ' + i + ' collapsed to ' + Math.round(r.width) + 'x' + Math.round(r.height));
+        assert(r.bottom <= frame.bottom + 1 && r.right <= frame.right + 1,
+          'notice ' + i + ' hangs outside the board frame — it is clipped');
+        assert(n.querySelector('.bb-nail'), 'notice ' + i + ' is not pinned to anything');
+        assert(n.querySelector('button'), 'notice ' + i + ' has no way to accept it');
+      });
+      // Paper is light in both themes, so type on it must NOT resolve --ink.
+      // This is the guard for the theme-cozy `#panel-bounty * { color: --ink
+      // !important }` blanket coming back and blanking the notices.
+      const name = board.querySelector('.bb-name');
+      const ink = getComputedStyle(name).color.match(/\d+/g).map(Number);
+      assert(ink[0] + ink[1] + ink[2] < 330,
+        'notice type is rendering light-on-paper (' + name.style.color + ' -> rgb('
+        + ink.join(',') + ')) — a colour blanket is overriding the paper ink role');
+    } finally {
+      window.G.bountyHunter.active = prevActive || null;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // A claimed bounty must still be ON the board and visibly settled — the
+  // "where did my bounty go" failure mode is a blank card.
+  () => tryRun('b221: an accepted bounty stays on the board, stamped', () => {
+    const prevTab = window.activeTab;
+    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
+    const prevBoard = (window.G.bountyHunter.board || []).slice();
+    try {
+      if (!window.G.bountyHunter.board.length) window.G.bountyHunter.board = window.generateBountyBoard();
+      window.acceptBounty(0);
+      window.showTab('bounty');
+      const notice = document.querySelector('#panel-bounty .bb-notice.is-taken');
+      assert(notice, 'the accepted bounty left the board entirely');
+      assert(notice.querySelector('.bb-stamp'), 'a taken notice carries no claimed stamp');
+      assert(notice.querySelector('.bb-bar'), 'a taken notice shows no progress');
+      assert(/abandon/i.test(notice.textContent), 'no way to give the contract back');
+    } finally {
+      window.G.bountyHunter.active = prevActive || null;
+      window.G.bountyHunter.board = prevBoard;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // The shop is a scene now. A scene that swallows its own offers is worse
+  // than the list it replaced, so: the counter renders, every catalogue entry
+  // reaches it, and every Buy control is on screen and hit-testable.
+  () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('shop');
+      ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
+        window.setShopTab(tab);
+        const panel = document.getElementById('shop-panel');
+        assert(panel.querySelector('.sc-scene svg'), tab + ': the shopfront scene is missing');
+        assert(panel.querySelector('.sc-counter'), tab + ': the offers are not on a counter');
+        const expect = tab === 'seeds' ? window.SEED_SHOP.length
+          : tab === 'equip' ? window.EQUIP_SHOP.length : 4;
+        const rows = panel.querySelectorAll('.sc-counter .shop-row');
+        // +1 for the Auto-Eat trait row appended under the counter.
+        assert(rows.length === expect + Object.keys(window.TRAITS).length,
+          tab + ': expected ' + expect + ' offers + traits, got ' + rows.length);
+        rows.forEach((row, i) => {
+          const btn = row.querySelector('button');
+          assert(btn, tab + ' row ' + i + ' has no buy control');
+          const r = btn.getBoundingClientRect();
+          assert(r.width > 24 && r.height > 16,
+            tab + ' row ' + i + ': buy control collapsed to ' + Math.round(r.width) + 'x' + Math.round(r.height));
+          assert(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+            ? row.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
+            : true,
+            tab + ' row ' + i + ': something is covering the buy control');
+        });
+      });
+      window.setShopTab('seeds');
+    } finally {
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // Real money is sapphire and only sapphire (art-direction.css §6). Before
+  // b221 the store's Buy button was the same struck-gilt control that spends
+  // in-game gold one card lower on the same screen.
+  () => tryRun('b221: the real-money surface is sapphire, not gilt', () => {
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('shop');
+      const buys = document.querySelectorAll('#iap-panel .iap-card .btn');
+      assert(buys.length === window.IAP_CATALOG.length,
+        'store rendered ' + buys.length + ' buy controls for ' + window.IAP_CATALOG.length + ' products');
+      buys.forEach((b) => {
+        assert(b.classList.contains('btn-gem') && !b.classList.contains('btn-primary'),
+          'a real-money Buy button is wearing the in-game gold primary style');
+      });
+    } finally {
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // Zero emoji as art, in EVERY state of both screens. The old sweep in
+  // icon-set.js only covered `#panel-bounty .si/.price/.ic`, which is why four
+  // cosmetics (✨🐲🦅😎) and the active-bounty 🎯 shipped for months.
+  () => tryRun('b221: no emoji in the bounty or shop DOM, in any state', () => {
+    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    const prevTab = window.activeTab;
+    const prevActive = window.G.bountyHunter && window.G.bountyHunter.active;
+    const prevBoard = (window.G.bountyHunter.board || []).slice();
+    const offenders = [];
+    const scan = (id, label) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = w.nextNode())) {
+        if (EMO.test(n.nodeValue)) offenders.push(label + ': "' + n.nodeValue.trim().slice(0, 40) + '"');
+      }
+    };
+    try {
+      window.showTab('shop');
+      ['seeds', 'equip', 'cosmetics'].forEach((t) => { window.setShopTab(t); scan('panel-shop', 'shop/' + t); });
+      window.setShopTab('seeds');
+      window.G.bountyHunter.active = null;
+      window.G.bountyHunter.board = window.generateBountyBoard();
+      window.showTab('bounty');
+      scan('panel-bounty', 'bounty/board');
+      window.acceptBounty(0);
+      window.showTab('bounty');
+      scan('panel-bounty', 'bounty/active');
+      assert(offenders.length === 0, 'emoji rendered as art — ' + offenders.join(' | '));
+    } finally {
+      window.G.bountyHunter.active = prevActive || null;
+      window.G.bountyHunter.board = prevBoard;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

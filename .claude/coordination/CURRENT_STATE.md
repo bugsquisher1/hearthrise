@@ -2,12 +2,12 @@
 
 _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE and after every integration. Keep it true._
 
-**Last updated:** 2026-08-08 · by Coordinator (Wave 0 complete)
+**Last updated:** 2026-08-08 · by Coordinator (b218 shipped)
 
 ## Build & branch
-- **main HEAD:** `19595db` — Wave 0 fully integrated (#1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs). Local, **ahead of origin** — Wave 0 is NOT yet shipped; bump build to 218 + CHANGELOG before pushing.
-- **Version:** v0.9.2-beta (build b217 — Coordinator bumps build at Wave-0 ship, not per-merge)
-- **Remote:** `origin/main` at `119a698`. Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). **Do not push without Tyler's go.**
+- **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
+- **Version:** v0.9.2-beta (build b218)
+- **Remote:** in sync (`6470793` pushed 2026-08-08, Tyler's "ship it"). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). **Do not push without Tyler's go.**
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state

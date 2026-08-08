@@ -4,6 +4,9 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `6470793` · **b218 SHIPPED to production** · Coordinator
+Wave 0 released on Tyler's "ship it": version bumped 217->218 (59 tags + 47 ESM specifiers), player CHANGELOG entry added, final gate 177/177 + cache-buster OK, pushed to origin/main.
+
 ### 2026-08-08 · `19595db` · Wave 0 Art — readable type scale + Hearthrise wordmark (#1, #2) · Art Director
 ~x1.13 proportional scale across all 3 sheets (body 14->16px, ~700 declarations, hierarchy preserved) + `--t-*` ramp raised. Header brand replaced: inline-SVG shield emblem + gilt Cinzel "HEARTHRISE" lockup (old crest was dark-brown-on-black, near-zero contrast). **Verified:** smoke 177/177 post-merge, Coordinator re-verified rendered screens + narrow-viewport brand collapse on :8125. Local only — not pushed.
 

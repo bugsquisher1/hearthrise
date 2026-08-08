@@ -115,6 +115,21 @@
     }, 250);
   }
 
+  // ── Food classification ─────────────────────────────────────
+  /* b220: auto-eat = HEAL ONLY. The authority is foodClassOf() in
+   * src/data/items.js (published on window by main.js); this is a
+   * behaviour-identical local fallback for the boot window before the ESM
+   * modules land, and for any context that loads this classic script alone.
+   * Keep the two in step — the rule is one line and duplicating it here is
+   * cheaper than an auto-eat that silently stops working mid-boot. */
+  function foodClassOf(it){
+    if(typeof window.foodClassOf === 'function') return window.foodClassOf(it);
+    if(!it || typeof it !== 'object') return null;
+    if(it.foodClass === 'healing' || it.foodClass === 'buff') return it.foodClass;
+    return it.heals ? 'healing' : null;
+  }
+  function isAutoEatable(it){ return foodClassOf(it) === 'healing'; }
+
   // ── Engine hooks ────────────────────────────────────────────
 
   /* b134: maybeAutoEat()
@@ -122,9 +137,16 @@
    * Eats one food if config is enabled AND HP fraction <= threshold.
    * Returns true if a food was consumed.
    *
-   * Food selection priority:
-   *   1. Configured `foodId` if it exists, has `heals`, and player owns >= 1
-   *   2. Otherwise the "best food in bag" (item with highest `heals`)
+   * Food selection priority (b220 — Provisions only):
+   *   1. Configured `foodId` if it is a PROVISION (foodClass 'healing') and
+   *      the player owns >= 1
+   *   2. Otherwise the biggest-healing PROVISION in the bag
+   *
+   * A Feast or Draught (foodClass 'buff') is never eligible, even when it is
+   * the only food you own. Those are timed power items you spend deliberately;
+   * auto-eat burning a Void Banquet to soak one wolf hit is the failure this
+   * rule exists to prevent, and "you would have died otherwise" does not make
+   * it a good trade — the player can still eat it by hand.
    *
    * Side effects:
    *   - Heals G.playerHp (capped at G.playerMaxHp)
@@ -149,24 +171,27 @@
     var foodId = eat.foodId;
     var foodItem = foodId && window.ITEMS ? window.ITEMS[foodId] : null;
     var qty = foodId ? ((window.G.inventory && window.G.inventory[foodId]) || 0) : 0;
-    if(!foodItem || !foodItem.heals || qty <= 0){
-      // Fall back to best food in bag. PREFER plain (non-buff) food so auto-eat
-      // never burns your buffed cooked food (Cooked Shrimp etc. heal AND grant a
-      // buff) for a plain heal — save those for deliberate buffing. Fall back to
-      // buff-food only if it's the ONLY food you have, so you never just die.
+    if(!isAutoEatable(foodItem) || qty <= 0){
+      /* b220: fall back to the biggest-healing PROVISION in the bag.
+       *
+       * This replaces a "prefer food with no buff, else eat anything that
+       * heals" heuristic. That rule was reading the wrong signal: EVERY cooked
+       * food carries a buff, so "no buff" meant raw ingredients — auto-eat
+       * would pick Raw Shrimp (3 HP) over Cooked Shark (42 HP) and then, once
+       * the raws ran out, reach for a Void Banquet. foodClass says what a food
+       * is FOR, so the pool is now exactly the Provisions line and the pick
+       * inside it is simply the best heal. */
       var inv = window.G.inventory || {};
-      var bestPlainId = null, bestPlainHeals = 0, bestAnyId = null, bestAnyHeals = 0;
+      var bestId = null, bestHeals = 0;
       for(var id in inv){
         if(!Object.prototype.hasOwnProperty.call(inv, id)) continue;
         if((inv[id] || 0) <= 0) continue;
         var it = window.ITEMS && window.ITEMS[id];
-        if(!it || !it.heals) continue;
-        if(it.heals > bestAnyHeals){ bestAnyId = id; bestAnyHeals = it.heals; }
-        if(!it.buff && it.heals > bestPlainHeals){ bestPlainId = id; bestPlainHeals = it.heals; }
+        if(!isAutoEatable(it)) continue;
+        if(it.heals > bestHeals){ bestId = id; bestHeals = it.heals; }
       }
-      var pick = bestPlainId || bestAnyId;
-      if(!pick) return false;
-      foodId = pick; foodItem = window.ITEMS[foodId];
+      if(!bestId) return false;
+      foodId = bestId; foodItem = window.ITEMS[foodId];
     }
     // Consume.
     var heals = foodItem.heals;
@@ -264,6 +289,10 @@
     maybeAutoEat: maybeAutoEat,
     maybeStopTraining: maybeStopTraining,
     maybeReplant: maybeReplant,
+    // b220: the auto-eat eligibility rule, exposed so UI surfaces that offer
+    // a food choice filter to the same pool the engine will actually eat from.
+    foodClassOf: foodClassOf,
+    isAutoEatable: isAutoEatable,
     // Exposed for tests + future migrations
     _DEFAULTS: DEFAULTS,
     _ensureShape: ensureShape,

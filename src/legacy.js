@@ -1850,7 +1850,14 @@ function renderCombat(){
   const monsterRoll=getMonsterCombatRolls(m,eq);
   const hitCh=playerRoll.accuracy;
   const maxHit=playerRoll.maxHit;
-  const foods=Object.entries(G.inventory).filter(([id])=>ITEMS[id]?.heals);
+  /* b220: the auto-eat picker offers only what auto-eat may actually eat —
+     Provisions (foodClass 'healing'). Listing Feasts & Draughts here let a
+     player select a Void Banquet as their auto-eat food and then watch it
+     never fire; the engine filter is in HearthriseAuto.maybeAutoEat(). */
+  const _autoEatOk=(id)=>window.HearthriseAuto&&typeof window.HearthriseAuto.isAutoEatable==='function'
+    ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
+    : !!(ITEMS[id]&&ITEMS[id].heals&&ITEMS[id].foodClass!=='buff');
+  const foods=Object.entries(G.inventory).filter(([id])=>_autoEatOk(id));
   el.innerHTML=`
     ${renderBountyPanel()}
     <div class="arena">
@@ -2001,6 +2008,11 @@ function renderInventory(){
 function onItemTap(id){
   const d=ITEMS[id];if(!d)return;
   if(d.type==='weapon'||d.type==='armor'||d.type==='jewelry'||d.type==='ammo'||d.type==='companion'){equipItem(id);return;}
+  /* b220: tapping a food assigns the auto-eat slot — but only for Provisions.
+     A Feast or Draught is spent deliberately (the Eat button on the tile), so
+     assigning one here would promise an auto-eat that never fires. Say so
+     instead of silently falling through to the sell prompt. */
+  if(d.foodClass==='buff'){notify(`${d.n} is a feast — eat it when you want the buff`,'info');return;}
   if(d.heals){G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;}
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
@@ -8307,6 +8319,113 @@ function tileForArtisan(recipe, skillId){
     +'</div>';
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   b220 — ARTISAN CATEGORY STRIP (crafting-cooking-taxonomy §6)
+
+   Smithing shows 81 recipes, crafting 46, cooking 27. One level-sorted column
+   of that length is not a ladder, it is a haystack — and in cooking the food
+   you eat to HEAL sat shoulder-to-shoulder with the food you eat for a BUFF
+   with nothing to tell them apart.
+
+   So: a category strip at the top of the artisan screen, filtering the grid.
+   Sub-tabs, not accordions — the player picks a lane ("I'm here for armour")
+   and stays; an accordion makes them manage open/closed state every visit.
+   Same `.chips` / `.chip.active` vocabulary as the House and Leaderboard
+   strips, so there is no new UI to learn and it is already themed.
+
+   The categories themselves are DERIVED in src/data/recipes.js — nothing here
+   is authored per recipe. This module owns only the selection + painting.
+
+   Selection persists in window._artisanCat (same window._* convention as
+   _tdPane / _invFilter): the panel is rebuilt from scratch by activity-driven
+   re-renders, so a category held only in the DOM would snap back to the
+   default every few seconds — the b218 doll bug, one screen over.
+
+   This object is also what src/features/activities-grid.js (the ESM twin of
+   this renderer) uses, so the two cannot drift.
+   ══════════════════════════════════════════════════════════════════════ */
+window._artisanCat = window._artisanCat || {};
+
+window.HearthriseArtisanCat = (function(){
+  /* Grouped recipes for a skill, or null when the skill has no taxonomy
+     (prayer) or the data layer hasn't published yet. */
+  function groups(skillId){
+    if(typeof window.categorizeRecipes !== 'function') return null;
+    var recipes = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[skillId];
+    if(!recipes) return null;
+    var res = window.categorizeRecipes(skillId, recipes, window.ITEMS);
+    if(!res || !res.groups.length) return null;
+    /* Fail-safe: a recipe no rule claimed still has to be reachable. A test
+       asserts this list is empty; if it ever isn't, the player sees an "Other"
+       lane rather than losing content silently. */
+    if(res.uncategorized.length){
+      res.groups = res.groups.concat([{key:'other', label:'Other', recipes:res.uncategorized}]);
+    }
+    return res.groups;
+  }
+
+  /* The category actually shown: the player's persisted pick if it still
+     exists, else the first lane holding something they can already make, else
+     the first lane. Opening on a wall of locked recipes teaches nothing. */
+  function selected(skillId, gs){
+    gs = gs || groups(skillId);
+    if(!gs || !gs.length) return null;
+    var saved = window._artisanCat[skillId];
+    for(var i=0;i<gs.length;i++) if(gs[i].key === saved) return saved;
+    var lv = (typeof getLevel==='function') ? getLevel(skillId) : 1;
+    for(var j=0;j<gs.length;j++){
+      var open = gs[j].recipes.some(function(r){ return lv >= (r.req||1); });
+      if(open) return gs[j].key;
+    }
+    return gs[0].key;
+  }
+
+  function recipesFor(skillId){
+    var gs = groups(skillId);
+    if(!gs) return (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[skillId]) || [];
+    var key = selected(skillId, gs);
+    for(var i=0;i<gs.length;i++) if(gs[i].key===key) return gs[i].recipes;
+    return gs[0].recipes;
+  }
+
+  /* The strip. Each chip carries its recipe count; a lane where nothing is
+     unlocked yet shows the level that opens it instead — a locked lane should
+     still advertise its goal rather than read as an empty room. */
+  function strip(skillId){
+    var gs = groups(skillId);
+    if(!gs || gs.length < 2) return '';   // one lane is not a choice
+    var key = selected(skillId, gs);
+    var lv = (typeof getLevel==='function') ? getLevel(skillId) : 1;
+    return '<div class="chips act-cats" role="tablist">'+gs.map(function(g){
+      var openCount = g.recipes.filter(function(r){ return lv >= (r.req||1); }).length;
+      var nextReq = g.recipes.reduce(function(a,r){
+        var q = r.req||1; return (q>lv && q<a) ? q : a;
+      }, 99);
+      var badge = openCount>0 ? String(g.recipes.length) : ('Lv '+nextReq);
+      var title = openCount>0
+        ? (openCount+' of '+g.recipes.length+' available now')
+        : ('Unlocks at '+skillId.charAt(0).toUpperCase()+skillId.slice(1)+' Lv '+nextReq);
+      return '<button class="chip'+(g.key===key?' active':'')+'" role="tab"'
+        +' aria-selected="'+(g.key===key?'true':'false')+'"'
+        +' data-artcat="'+g.key+'" title="'+title+'"'
+        +' onclick="window.setArtisanCategory(\''+skillId+'\',\''+g.key+'\')">'
+        +g.label
+        +'<span style="margin-left:6px;opacity:.62;font-variant-numeric:tabular-nums">'+badge+'</span>'
+        +'</button>';
+    }).join('')+'</div>';
+  }
+
+  return {groups:groups, selected:selected, recipesFor:recipesFor, strip:strip};
+})();
+
+window.setArtisanCategory = function(skillId, key){
+  window._artisanCat[skillId] = key;
+  /* renderSkillDetail keys its rebuild on _actLastRender; the category is part
+     of that key, so this call repaints instead of falling through to the
+     cheap lightUpdate path. */
+  if(typeof window.renderSkillDetail === 'function') window.renderSkillDetail(skillId);
+};
+
 function buildHead(skillId){
   var s = SKILLS_DEF[skillId];
   var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
@@ -8367,7 +8486,17 @@ function patchSkillDetail(){
       return;
     }
 
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'');
+    /* b220: the selected artisan category is part of the render key, so
+       switching lanes forces a real rebuild instead of the lightUpdate path,
+       while an activity tick with the same lane still costs nothing. */
+    var catSel = window.HearthriseArtisanCat ? window.HearthriseArtisanCat.selected(id) : null;
+    /* …and so is the skill level. The cheap lightUpdate path only refreshes the
+       XP header and quantities, so a level-up left every newly-unlocked tile
+       still greyed out and every "Lv 12" category hint still promising a level
+       you already have — until some unrelated event happened to change the
+       key. Levelling is rare; one rebuild per level is the right price. */
+    var catLv = (typeof getLevel==='function') ? getLevel(id) : 0;
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv;
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){
@@ -8385,6 +8514,7 @@ function patchSkillDetail(){
     var head = buildHead(id);
     var tiles = '';
     var count = 0;
+    var cats = '';
 
     if(id==='woodcutting'){
       tiles = TREES.map(function(a){return tileForGather(a, id);}).join('');
@@ -8403,7 +8533,13 @@ function patchSkillDetail(){
         +'</div>';
       count = 1;
     } else if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[id]){
-      var recipes = window.ARTISAN_RECIPES[id];
+      /* b220: filtered to the selected category (all of them when the skill
+         has no taxonomy, e.g. prayer). recipesFor() falls back to the full
+         list if the data layer is unavailable — never show an empty screen. */
+      var recipes = window.HearthriseArtisanCat
+        ? window.HearthriseArtisanCat.recipesFor(id)
+        : window.ARTISAN_RECIPES[id];
+      cats = window.HearthriseArtisanCat ? window.HearthriseArtisanCat.strip(id) : '';
       tiles = recipes.map(function(r){return tileForArtisan(r, id);}).join('');
       count = recipes.length;
     } else {
@@ -8419,7 +8555,7 @@ function patchSkillDetail(){
        clipped to "FORGE". */
     var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';
 
-    if(detailEl) detailEl.innerHTML = head + grid;
+    if(detailEl) detailEl.innerHTML = head + cats + grid;
   };
 }
 

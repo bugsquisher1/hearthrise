@@ -189,24 +189,35 @@ const TESTS = [
     assert(ratio >= 4.5,
       'FTUE secondary button text must be readable on its own face — got ' + ratio.toFixed(2) + ':1 (' + cs.color + ' on ' + cs.backgroundColor + ')');
   }),
-  () => tryRun('b168: auto-eat prefers plain food, preserves buffed food', () => {
+  // b168, restated in b220. The intent was always "auto-eat must not burn the
+  // food you were saving" — but the signal it tested was `!it.buff`, and EVERY
+  // cooked food in Hearthrise carries a buff. So "plain food" meant raw
+  // ingredients, and the test was really asserting that auto-eat prefers Raw
+  // Shrimp (3 HP) over Cooked Shark (42 HP). The taxonomy replaced that proxy
+  // with `foodClass`, which says what a food is FOR: auto-eat draws from
+  // Provisions and picks the best heal there; Feasts & Draughts are untouched.
+  () => tryRun('b168/b220: auto-eat draws from Provisions, preserves Feasts', () => {
     const A = window.HearthriseAuto;
     assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto.maybeAutoEat missing');
     const G = window.G;
-    let plainId = null, buffId = null;
-    for (const id in window.ITEMS) { const it = window.ITEMS[id]; if (it.heals && !it.buff && !plainId) plainId = id; if (it.heals && it.buff && !buffId) buffId = id; }
-    if (!plainId || !buffId) return; // data lacks both kinds — nothing to assert
+    let healId = null, buffId = null, healHeals = 0;
+    for (const id in window.ITEMS) {
+      const it = window.ITEMS[id];
+      if (it.foodClass === 'healing' && it.heals > healHeals) { healId = id; healHeals = it.heals; }
+      if (it.foodClass === 'buff' && !buffId) buffId = id;
+    }
+    assert(healId && buffId, 'ITEMS lacks a Provision or a Feast — the taxonomy did not load');
     const sInv = JSON.parse(JSON.stringify(G.inventory || {}));
     const sHp = G.playerHp, sMax = G.playerMaxHp, sAA = G.autoActions ? JSON.parse(JSON.stringify(G.autoActions)) : undefined;
     const sTraits = JSON.parse(JSON.stringify(G.traits || {}));
     try {
       G.traits = { auto_eat: true };                              // b217: trait unlocked so eat logic runs
-      G.inventory = {}; G.inventory[plainId] = 5; G.inventory[buffId] = 5;
+      G.inventory = {}; G.inventory[healId] = 5; G.inventory[buffId] = 5;
       G.playerMaxHp = 100; G.playerHp = 10;                       // low HP → should eat
       G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: null } };
-      assert(A.maybeAutoEat() === true, 'should auto-eat at low HP with food available');
-      assert((G.inventory[plainId] || 0) === 4, 'plain food should be the one consumed');
-      assert((G.inventory[buffId] || 0) === 5, 'buffed food should be preserved');
+      assert(A.maybeAutoEat() === true, 'should auto-eat at low HP with a Provision available');
+      assert((G.inventory[healId] || 0) === 4, 'the Provision should be the one consumed (' + healId + ')');
+      assert((G.inventory[buffId] || 0) === 5, 'the Feast should be preserved (' + buffId + ')');
     } finally {
       G.inventory = sInv; G.playerHp = sHp; G.playerMaxHp = sMax; G.traits = sTraits;
       if (sAA === undefined) delete G.autoActions; else G.autoActions = sAA;
@@ -3476,6 +3487,157 @@ const TESTS = [
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
     assert(!EMOJI.test(html), 'rendered whats-new HTML still contains pictographs');
     assert(/<strong>bullet<\/strong>/.test(html), 'markdown bold lost in render');
+  }),
+
+  // ── b220 regression suite (backlog #12 — artisan taxonomy) ──
+
+  // b220 (#12a): categories are DERIVED from output.type / id suffix /
+  // foodClass, never hand-tagged, so a new recipe files itself. The whole
+  // scheme is only worth anything if it is total: one uncategorized recipe is
+  // one recipe a player can no longer reach, because the grid now renders a
+  // single category at a time. Guard: zero strays, across all three skills.
+  () => tryRun('b220: every artisan recipe lands in exactly one category', () => {
+    const cz = window.categorizeRecipes;
+    assert(typeof cz === 'function', 'categorizeRecipes not published on window');
+    ['smithing', 'crafting', 'cooking'].forEach((skill) => {
+      const res = cz(skill, window.ARTISAN_RECIPES[skill], window.ITEMS);
+      assert(res.groups.length > 0, skill + ' produced no categories at all');
+      assert(res.uncategorized.length === 0,
+        skill + ' has ' + res.uncategorized.length + ' uncategorized recipe(s): '
+        + res.uncategorized.map((r) => r.id).join(', '));
+      const summed = res.groups.reduce((n, g) => n + g.recipes.length, 0);
+      assert(summed === res.total,
+        skill + ' categories hold ' + summed + ' of ' + res.total + ' recipes (a recipe is in two lanes or none)');
+      // Every category the taxonomy declares as present must be non-empty —
+      // an empty lane is a dead tab.
+      res.groups.forEach((g) => assert(g.recipes.length > 0, skill + ' category "' + g.key + '" is empty'));
+    });
+    // Prayer deliberately has no taxonomy — it must degrade to "no strip",
+    // not to "no recipes".
+    const pr = cz('prayer', window.ARTISAN_RECIPES.prayer, window.ITEMS);
+    assert(pr.groups.length === 0 && pr.total === window.ARTISAN_RECIPES.prayer.length,
+      'prayer should have no categories but keep all its recipes');
+  }),
+
+  // b220 (#12b): the cooking split is the headline — Provisions (what you eat
+  // to heal, and the only pool auto-eat may touch) vs Feasts & Draughts (what
+  // you spend for a timed buff). The mapping is authored per item, so it is
+  // the one part of the taxonomy that CAN drift. Lock the totals: 13 / 14.
+  () => tryRun('b220: cooking splits 13 Provisions / 14 Feasts & Draughts', () => {
+    const cz = window.categorizeRecipes;
+    assert(typeof cz === 'function', 'categorizeRecipes not published on window');
+    const res = cz('cooking', window.ARTISAN_RECIPES.cooking, window.ITEMS);
+    const of = (k) => (res.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
+    assert(of('provisions').length === 13, 'expected 13 Provisions, got ' + of('provisions').length);
+    assert(of('feasts').length === 14, 'expected 14 Feasts & Draughts, got ' + of('feasts').length);
+    // Spot-check the two ends of the ruling: the top heal is a Provision even
+    // though it carries a damage buff; the endgame feast never is.
+    assert(window.ITEMS.cooked_shark.foodClass === 'healing', 'Cooked Shark must stay a Provision (top heal)');
+    assert(window.ITEMS.void_banquet.foodClass === 'buff', 'Void Banquet must be a Feast');
+    // Every cooked output must be explicitly classified — no implicit fallback
+    // on the cooking screen, or a new dish quietly joins Provisions.
+    window.ARTISAN_RECIPES.cooking.forEach((r) => {
+      const it = window.ITEMS[r.output];
+      assert(it && (it.foodClass === 'healing' || it.foodClass === 'buff'),
+        'cooked item ' + r.output + ' has no foodClass');
+    });
+  }),
+
+  // b220 (#12c): auto-eat = heal only. This is a design law, not a preference:
+  // a player who leaves auto-eat on and walks away must never come back to a
+  // bag emptied of Void Banquets. Guard the engine, with the hardest case —
+  // a buff feast is the ONLY food owned, and HP is at zero threshold.
+  () => tryRun('b220: auto-eat never consumes buff food', () => {
+    const A = window.HearthriseAuto;
+    assert(A && typeof A.maybeAutoEat === 'function', 'HearthriseAuto.maybeAutoEat missing');
+    const G = window.G;
+    const snap = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      hp: G.playerHp, maxHp: G.playerMaxHp,
+      traits: JSON.parse(JSON.stringify(G.traits || {})),
+      eat: JSON.parse(JSON.stringify(A.getEat())),
+    };
+    try {
+      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.playerMaxHp = 100; G.playerHp = 10;
+      // ONLY buff food in the bag, and it is explicitly the configured food.
+      G.inventory = { void_banquet: 3, pumpkin_pie: 2 };
+      A.setEat({ enabled: true, threshold: 0.9, foodId: 'void_banquet' });
+      const ate = A.maybeAutoEat();
+      assert(ate === false, 'auto-eat consumed buff food (it returned true)');
+      assert(G.inventory.void_banquet === 3, 'Void Banquet was eaten: ' + G.inventory.void_banquet + ' left of 3');
+      assert(G.inventory.pumpkin_pie === 2, 'Pumpkin Pie was eaten: ' + G.inventory.pumpkin_pie + ' left of 2');
+      assert(G.playerHp === 10, 'HP changed (' + G.playerHp + ') — something healed the player');
+      // …and it must still eat a Provision, picking the best heal available.
+      G.inventory = { void_banquet: 3, cooked_shrimp: 2, cooked_shark: 1 };
+      A.setEat({ enabled: true, threshold: 0.9, foodId: null });
+      assert(A.maybeAutoEat() === true, 'auto-eat refused to eat an available Provision');
+      assert(G.inventory.void_banquet === 3, 'auto-eat still reached for the Feast');
+      assert(!G.inventory.cooked_shark, 'auto-eat did not pick the biggest-healing Provision (Cooked Shark)');
+      // The classification helper is the contract both UI and engine read.
+      assert(A.isAutoEatable(window.ITEMS.cooked_shark) === true, 'Cooked Shark should be auto-eatable');
+      assert(A.isAutoEatable(window.ITEMS.void_banquet) === false, 'Void Banquet must not be auto-eatable');
+      assert(A.isAutoEatable(window.ITEMS.shrimp) === true, 'raw food should stay auto-eatable (implicit healing)');
+      assert(A.isAutoEatable(window.ITEMS.iron_bar) === false, 'a bar is not food');
+    } finally {
+      G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
+      G.traits = snap.traits;
+      A.setEat(snap.eat);
+    }
+  }),
+
+  // b220 (#12d): the artisan panel is rebuilt from scratch by activity-driven
+  // re-renders (the same class of bug as the b218 doll snap-back), so a
+  // category held only in the DOM would reset every few seconds. It persists
+  // in window._artisanCat and is restored on rebuild. Guard with the real
+  // re-render triggers: addItem() and updateTopbar().
+  () => tryRun('b220: artisan category persists across activity re-renders', () => {
+    const AC = window.HearthriseArtisanCat;
+    assert(AC && typeof AC.strip === 'function', 'HearthriseArtisanCat missing');
+    const prev = JSON.parse(JSON.stringify(window._artisanCat || {}));
+    const prevViewed = window.__viewedSkillId;
+    const startTab = window.activeTab;
+    try {
+      window.showTab('skills');
+      window.openSkillDetail('smithing');
+      window.setArtisanCategory('smithing', 'armour');
+      const detail = document.getElementById('skill-detail');
+      const activeOf = () => {
+        const el = detail.querySelector('.act-cats .chip.active');
+        return el && el.getAttribute('data-artcat');
+      };
+      assert(detail.querySelector('.act-cats'), 'no category strip rendered on the smithing screen');
+      assert(activeOf() === 'armour', 'category did not select: ' + activeOf());
+      // Only the selected lane is on screen, and it is not the whole list.
+      const shown = detail.querySelectorAll('.act-tile').length;
+      const all = window.ARTISAN_RECIPES.smithing.length;
+      assert(shown > 0 && shown < all, 'grid shows ' + shown + ' of ' + all + ' — the filter is not applied');
+      const armour = window.categorizeRecipes('smithing', window.ARTISAN_RECIPES.smithing, window.ITEMS)
+        .groups.find((g) => g.key === 'armour');
+      assert(shown === armour.recipes.length,
+        'Armour lane shows ' + shown + ' tiles, expected ' + armour.recipes.length);
+      // The real snap-back triggers.
+      window.addItem('iron_bar', 1);
+      window.updateTopbar();
+      window.renderSkillDetail('smithing');
+      assert(activeOf() === 'armour', 'category snapped back after addItem/updateTopbar: ' + activeOf());
+      assert(window._artisanCat.smithing === 'armour', '_artisanCat lost the selection');
+      // Cooking must open on its two named lanes. (renderSkillDetail directly:
+      // openSkillDetail defers its paint by a tick, which a sync test can't see.)
+      window.__viewedSkillId = 'cooking';
+      window.renderSkillDetail('cooking');
+      const labels = [...detail.querySelectorAll('.act-cats .chip')].map((c) => c.textContent.replace(/(\d+|Lv \d+)$/, '').trim());
+      assert(labels.includes('Provisions') && labels.includes('Feasts & Draughts'),
+        'cooking strip is missing its lanes: ' + JSON.stringify(labels));
+      // No emoji anywhere in the strip (project-wide rule).
+      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+      assert(!EMOJI.test(detail.querySelector('.act-cats').textContent),
+        'category strip renders emoji');
+    } finally {
+      window._artisanCat = prev;
+      window.__viewedSkillId = prevViewed;
+      try { window.showTab(startTab); } catch (e) {}
+    }
   }),
 ];
 

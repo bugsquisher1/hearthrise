@@ -25,9 +25,9 @@
 // 1. Data — single source of truth
 import { SKILLS_DEF } from './data/skills.js?v=219';
 import { MONSTERS } from './data/monsters.js?v=219';
-import { ITEMS } from './data/items.js?v=219';
+import { ITEMS, foodClassOf, isAutoEatable } from './data/items.js?v=219';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=219';
-import { ARTISAN_RECIPES } from './data/recipes.js?v=219';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes } from './data/recipes.js?v=219';
 import { COMPANIONS } from './data/companions.js?v=219';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
@@ -73,6 +73,9 @@ Object.assign(window, {
   FISH_SPOTS:      unifyArray('FISH_SPOTS', FISH_SPOTS),
   EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
+  // b220 — artisan taxonomy + food classification, published for the classic
+  // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
+  ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,
 });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.

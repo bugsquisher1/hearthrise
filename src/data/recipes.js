@@ -14,6 +14,7 @@
 // single source of truth.
 
 import { GEAR_RECIPES } from './gear-tiers.js?v=219';
+import { ITEMS, foodClassOf } from './items.js?v=219';
 
 const BASE_RECIPES = {
   cooking: [
@@ -165,3 +166,112 @@ export const ARTISAN_RECIPES = {
   crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting),
   prayer:   BASE_RECIPES.prayer,
 };
+
+/* ══════════════════════════════════════════════════════════════════════
+   b220 — ARTISAN CATEGORIES (crafting-cooking-taxonomy §§3-5)
+
+   Smithing carries ~81 recipes and crafting ~46. As one level-sorted column
+   that is not a ladder, it is a haystack: a player at Smithing 45 hunting
+   "the next platebody" scrolls past bars, axes, swords and five other slots.
+
+   The categories below are DERIVED, never authored. There are ~150 recipes;
+   a hand-written `category:` field on each is a drift generator (the exact
+   problem gear-tiers.js was built to remove — the ladder is generated, so a
+   tag would have to be generated too, and then it isn't data, it's a copy).
+   Everything here reads fields the recipe and its output item already carry:
+   `output.type`, the `_bar` / `_plank` id suffix, and `foodClass`.
+
+   Consequence that matters: a NEW recipe lands in the right tab the moment
+   it is written, with nothing else to remember.
+
+   Prayer is deliberately absent — three bury actions are a list, not a
+   taxonomy, and it has no output item to derive from.
+   ══════════════════════════════════════════════════════════════════════ */
+export const ARTISAN_CATEGORIES = {
+  smithing: [
+    { key: 'smelting', label: 'Smelting' },
+    { key: 'weapons',  label: 'Weapons' },
+    { key: 'armour',   label: 'Armour' },
+    { key: 'tools',    label: 'Tools' },
+  ],
+  crafting: [
+    { key: 'sawmill',    label: 'Sawmill' },
+    { key: 'weapons',    label: 'Weapons' },
+    { key: 'armour',     label: 'Armour' },
+    { key: 'jewellery',  label: 'Jewellery' },
+    { key: 'tools',      label: 'Tools' },
+    { key: 'ammunition', label: 'Ammunition' },
+  ],
+  cooking: [
+    { key: 'provisions', label: 'Provisions' },
+    { key: 'feasts',     label: 'Feasts & Draughts' },
+  ],
+};
+
+/* recipeCategory(skillId, recipe) → category key, or null.
+   Pure: pass `items` explicitly to classify against a different item table
+   (the engine passes window.ITEMS, which is the same object post-merge).
+   null means "this skill has no categories" OR "nothing claimed this recipe";
+   callers must surface an unclaimed recipe rather than hide it — see
+   categorizeRecipes(). */
+export function recipeCategory(skillId, recipe, items = ITEMS) {
+  if (!recipe) return null;
+  const outId = recipe.output || '';
+  const out = outId && items ? items[outId] : null;
+  const type = out ? out.type : null;
+
+  if (skillId === 'smithing') {
+    if (type === 'tool') return 'tools';          // axes + pickaxes
+    if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
+    if (type === 'weapon') return 'weapons';
+    if (type === 'armor') return 'armour';
+    return null;
+  }
+
+  if (skillId === 'crafting') {
+    if (/_plank$/.test(outId)) return 'sawmill';  // log → plank
+    if (type === 'tool') return 'tools';          // fishing rods
+    if (type === 'ammo') return 'ammunition';
+    if (type === 'jewelry') return 'jewellery';
+    if (type === 'weapon') return 'weapons';      // bows + staves
+    if (type === 'armor') return 'armour';        // leather + cloth
+    return null;
+  }
+
+  if (skillId === 'cooking') {
+    const fc = foodClassOf(out);
+    if (fc === 'buff') return 'feasts';
+    if (fc === 'healing') return 'provisions';
+    return null;
+  }
+
+  return null;
+}
+
+/* categorizeRecipes(skillId, recipes?, items?) →
+     { groups: [{key, label, recipes[]}], uncategorized: [recipe], total }
+
+   `groups` keeps ARTISAN_CATEGORIES order and only includes categories that
+   actually hold something, so an empty lane never becomes a dead tab.
+   `uncategorized` must always be empty (a regression test asserts it) — but
+   it is returned rather than swallowed so a renderer can show the strays
+   instead of making content unreachable. Silence is how content goes missing. */
+export function categorizeRecipes(skillId, recipes = ARTISAN_RECIPES[skillId], items = ITEMS) {
+  const defs = ARTISAN_CATEGORIES[skillId];
+  const list = Array.isArray(recipes) ? recipes : [];
+  if (!defs) return { groups: [], uncategorized: [], total: list.length };
+
+  const byKey = new Map(defs.map((d) => [d.key, []]));
+  const uncategorized = [];
+  list.forEach((r) => {
+    const key = recipeCategory(skillId, r, items);
+    if (key && byKey.has(key)) byKey.get(key).push(r);
+    else uncategorized.push(r);
+  });
+
+  const groups = defs
+    .filter((d) => byKey.get(d.key).length > 0)
+    .map((d) => ({ key: d.key, label: d.label, recipes: byKey.get(d.key) }));
+
+  return { groups, uncategorized, total: list.length };
+}

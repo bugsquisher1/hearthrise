@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 221 — 2026-08-08 (Your name, your face, a real town)
+
+- 📛 **Your name is yours.** On first sign-in you now choose a unique display name — live availability check, no duplicates, ever. `Sir_Bob` and `sir bob` count as the same name, so nobody can impersonate you with a lookalike. Existing players keep their name (earliest account wins a clash and just confirms it).
+- 🖼️ **Upload your portrait.** Any image becomes your adventurer: cropped and resized on your device (metadata stripped — the original file never leaves your machine), shown everywhere your character appears. Works offline too.
+- 📌 **The bounty board is a board.** A timber noticeboard under a lantern, each bounty a parchment notice nailed to it — and claimed hunts get an oxblood CLAIMED stamp instead of vanishing.
+- 🏪 **The shop is a shop.** A lit interior with a keeper leaning on her counter (hen included), wares laid out on cloth mats with price tags. The premium store keeps its sapphire trim so real-money is never ambiguous.
+- 🧹 A pile of long-standing oddities died on the way: the welcome sheet can no longer land on top of the tutorial, failed portraits no longer render a 📦, six emoji leaks on the bounty/shop screens are gone, and an economy safety test that had been silently checking an empty list is now actually watching the store.
+- 🧪 221 tests green (+15 new regression guards).
+
 ## v0.9.2-beta build 220 — 2026-08-08 (The Muster, honest farming, and a tidy workshop)
 
 - 📯 **The Muster.** Twice a day (01:00 and 13:00 UTC) a 45-minute world event opens — join one per day, rally your contribution, and claim a chest when the window closes. The two daily slots are always *different* events, so picking your slot is a real choice. A countdown pill in the top bar always shows what's coming; there's no "you missed it" nagging, ever.

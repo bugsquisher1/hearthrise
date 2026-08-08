@@ -54,15 +54,18 @@ body[data-theme="hearthlight"] {
   --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
   --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
 
-  /* One scale, eight steps. If a size isn't on this list it shouldn't exist. */
-  --t-micro: 11px;   /* unit labels, counts */
-  --t-small: 12.5px; /* supporting text */
-  --t-body: 14px;    /* default */
-  --t-lead: 15.5px;  /* row titles, emphasis */
-  --t-h3: 13px;      /* small-caps section label */
-  --t-h2: 19px;      /* panel title */
-  --t-h1: 27px;      /* screen title */
-  --t-num: 23px;     /* hero value */
+  /* One scale, eight steps. If a size isn't on this list it shouldn't exist.
+     b218: raised the whole ramp ~13% — the old baseline read as small on a
+     desktop at a normal viewing distance (backlog #1). Ratios are preserved so
+     the hierarchy is unchanged; only the base size moved. */
+  --t-micro: 12.5px; /* unit labels, counts */
+  --t-small: 14px;   /* supporting text */
+  --t-body: 16px;    /* default */
+  --t-lead: 17.5px;  /* row titles, emphasis */
+  --t-h3: 14.5px;    /* small-caps section label */
+  --t-h2: 21.5px;    /* panel title */
+  --t-h1: 30px;      /* screen title */
+  --t-num: 26px;     /* hero value */
 
   /* ── 2. SHAPE ──────────────────────────────────────────────────────────
    * Near-square. Stone and iron have arrises, not 16px fillets. A 3px radius
@@ -379,7 +382,7 @@ body[data-theme] .player-avatar {
 body[data-theme] .player-name {
   font-family: var(--f-display);
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: 16.5px;
   letter-spacing: .01em;
   color: var(--ink);
 }
@@ -392,14 +395,14 @@ body[data-theme] .t-stat {
   border: 0;
   border-radius: 0;
   padding: 4px 11px;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--ink-2);
   gap: 6px;
 }
 body[data-theme] .t-stat .lab {
   font-family: var(--f-label);
-  font-size: 11px;
+  font-size: 12.5px;
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -465,7 +468,7 @@ body[data-theme] #hr-quests-btn {
   border-radius: var(--r-sm);
   color: var(--ink-2);
   font-family: var(--f-label);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -486,7 +489,7 @@ body[data-theme] #hr-quests-btn .hr-q-count {
   border-radius: 2px;
   font-family: var(--f-ui);
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12.5px;
   padding: 1px 6px;
   min-width: 17px;
 }
@@ -576,7 +579,7 @@ body[data-theme] .ce-champ {
 }
 body[data-theme] .ce-standby {
   font-family: var(--f-display);
-  font-size: 19px;
+  font-size: 21.5px;
   font-weight: 600;
   color: var(--ink);
   margin-top: 16px;
@@ -613,16 +616,16 @@ body[data-theme] .ce-next-body { flex: 1; min-width: 0; display: block; }
 body[data-theme] .ce-next-lbl {
   display: block;
   font-family: var(--f-label);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-3);
 }
-body[data-theme] .ce-next-body b { display: block; font-size: 15.5px; color: var(--ink); line-height: 1.2; }
+body[data-theme] .ce-next-body b { display: block; font-size: 17.5px; color: var(--ink); line-height: 1.2; }
 body[data-theme] .ce-next-meta { display: block; font-size: var(--t-micro); color: var(--ink-3); margin-top: 2px; }
 body[data-theme] .ce-next-go {
   flex: 0 0 auto;
   font-family: var(--f-label);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 700;
   color: #221803;
   padding: 7px 15px;
@@ -646,12 +649,12 @@ body[data-theme] .monster-row:hover:not(:disabled) { background: rgba(255, 236, 
 body[data-theme] .monster-row.fighting { background: rgba(178, 58, 44, .14); box-shadow: inset 3px 0 0 var(--red); border-color: transparent; }
 body[data-theme] .monster-row .mi { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; }
 body[data-theme] .monster-row .mi img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65)); }
-body[data-theme] .monster-row .mn { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+body[data-theme] .monster-row .mn { font-size: 16.5px; font-weight: 600; color: var(--ink); }
 body[data-theme] .monster-row .ms { font-size: var(--t-micro); color: var(--ink-3); font-weight: 500; }
 body[data-theme] .mr-stats { display: flex; gap: 14px; flex: 0 0 auto; }
 body[data-theme] .mr-stats i {
   font-style: normal;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--ink-2);
   text-align: right;
@@ -662,7 +665,7 @@ body[data-theme] .mr-stats em {
   display: block;
   font-style: normal;
   font-family: var(--f-label);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 1px;
@@ -672,11 +675,11 @@ body[data-theme] .mr-lock {
   font-size: var(--t-micro); font-weight: 600; color: var(--ink-3);
 }
 body[data-theme] .mr-fighting {
-  font-family: var(--f-label); font-size: 12px; font-weight: 700; color: #d98b78;
+  font-family: var(--f-label); font-size: 13.5px; font-weight: 700; color: #d98b78;
 }
 body[data-theme] .tag {
   font-family: var(--f-label);
-  font-size: 10.5px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
+  font-size: 12px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
   background: rgba(201, 162, 74, .16); color: var(--gold-2);
   border: 1px solid rgba(201, 162, 74, .3);
   vertical-align: 1px;
@@ -700,7 +703,7 @@ body[data-theme] .csb-btn.active {
   color: var(--gold-2);
   border-color: rgba(201, 162, 74, .45);
 }
-body[data-theme] .csb-btn small { display: block; font-size: 10px; color: inherit; opacity: .72; }
+body[data-theme] .csb-btn small { display: block; font-size: 11.5px; color: inherit; opacity: .72; }
 
 /* ── 13. SKILLS ──────────────────────────────────────────────────────────
  * Two problems, both hierarchy:
@@ -752,7 +755,7 @@ body[data-theme] .skill-tile .st-ic img { width: 30px; height: 30px; object-fit:
 body[data-theme] .skill-tile .st-body { display: block; min-width: 0; }
 body[data-theme] .skill-tile .snm {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 5px;
@@ -760,7 +763,7 @@ body[data-theme] .skill-tile .snm {
 body[data-theme] .skill-tile .bar.xp { display: block; width: 100%; height: 4px; }
 body[data-theme] .skill-tile .slv {
   font-family: var(--f-display);
-  font-size: 18px;
+  font-size: 20.5px;
   font-weight: 600;
   color: var(--ink);
   min-width: 24px;
@@ -808,14 +811,14 @@ body[data-theme] .act-tile .at-icon img {
 body[data-theme] .at-name {
   font-family: var(--f-ui);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0;
   color: var(--ink);
   margin-bottom: 3px;
 }
 body[data-theme] .at-meta { font-size: var(--t-micro); color: var(--ink-3); }
 body[data-theme] .at-inputs {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-3);
   opacity: .82;
   margin-top: 4px;
@@ -864,7 +867,7 @@ body[data-theme] .at-stop {
   background: var(--gold);
   color: #1b1305;
   font-family: var(--f-label);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -925,14 +928,14 @@ body[data-theme] .act-head {
 }
 body[data-theme] .act-head .ah-name {
   font-family: var(--f-display);
-  font-size: 21px;
+  font-size: 23.5px;
   font-weight: 600;
   letter-spacing: .01em;
   color: var(--ink);
 }
 body[data-theme] .act-head .ah-lvl {
   font-family: var(--f-display);
-  font-size: 25px;
+  font-size: 28px;
   font-weight: 600;
   color: var(--gold-2);
   line-height: 1;
@@ -944,7 +947,7 @@ body[data-theme] .act-head .ah-lvl {
 body[data-theme] .act-head .ah-lvl em {
   font-family: var(--f-label);
   font-style: normal;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-3);
 }
@@ -1052,7 +1055,7 @@ body[data-theme] .invc-tile .invc-qty {
   left: auto; bottom: 2px; right: 3px;
   background: none;
   padding: 0;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #f0e2c2;
   text-shadow: 0 1px 2px #000, 0 0 3px #000;
@@ -1085,7 +1088,7 @@ body[data-theme] .iap-card .iap-icon {
 body[data-theme] .iap-card.gem .iap-icon { color: #8f9de0; }
 body[data-theme] .iap-card h3 {
   font-family: var(--f-display);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: .01em;
   color: var(--ink);
@@ -1108,7 +1111,7 @@ body[data-theme] .iap-card .iap-foot {
 }
 body[data-theme] .iap-card .iap-price {
   font-family: var(--f-display);
-  font-size: 21px;
+  font-size: 23.5px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.1;
@@ -1126,7 +1129,7 @@ body[data-theme] .iap-card .btn { min-height: 34px; padding: 0 18px; font-size: 
 /* Ribbons were four different pill colours in four corners. One treatment. */
 body[data-theme] .iap-card .ribbon {
   font-family: var(--f-label);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -1150,7 +1153,7 @@ body[data-theme] .shop-row {
 body[data-theme] .shop-row:hover { background: rgba(255, 236, 200, .035); }
 body[data-theme] .shop-row .si { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; }
 body[data-theme] .shop-row .si img { width: 34px; height: 34px; object-fit: contain; }
-body[data-theme] .shop-row .info b { font-size: 14px; font-weight: 600; color: var(--ink); }
+body[data-theme] .shop-row .info b { font-size: 16px; font-weight: 600; color: var(--ink); }
 body[data-theme] .shop-row .info > span { font-size: var(--t-micro); color: var(--ink-3); }
 /* Cost chips must stay inline wherever they're embedded. */
 body[data-theme] .hr-inline { display: inline-flex !important; align-items: center; white-space: nowrap; }
@@ -1258,7 +1261,7 @@ body[data-theme] .farm-tile.empty { border-style: solid; opacity: 1; }
 /* The plant affordance reads as an action, not as a "+" placeholder. */
 body[data-theme] .farm-tile .ft-plant {
   font-family: var(--f-label);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
   letter-spacing: .02em;
   color: #221803;
@@ -1297,7 +1300,7 @@ body[data-theme] .farm-tile.ready {
   border-color: rgba(201, 162, 74, .65);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), 0 0 20px -8px rgba(201, 162, 74, .75);
 }
-body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 12.5px; }
+body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 14px; }
 
 /* ── 19. HOMESTEAD ───────────────────────────────────────────────────────
  * The property block was a paragraph of stats and a run-on requirement
@@ -1310,7 +1313,7 @@ body[data-theme] .hh-stats { display: flex; gap: 26px; margin: 10px 0 14px; }
 body[data-theme] .hh-stat b {
   display: block;
   font-family: var(--f-ui);
-  font-size: 21px;
+  font-size: 23.5px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1;
@@ -1319,7 +1322,7 @@ body[data-theme] .hh-stat b {
 body[data-theme] .hh-stat span {
   display: block;
   font-family: var(--f-label);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 4px;
@@ -1392,10 +1395,10 @@ body[data-theme] .cr-slot .cr-slot-portrait {
   color: var(--ink-3);
 }
 body[data-theme] .cr-slot.active .cr-slot-portrait { border-color: rgba(201, 162, 74, .7); }
-body[data-theme] .cr-slot .cr-slot-name { font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
+body[data-theme] .cr-slot .cr-slot-name { font-size: 16.5px; font-weight: 600; letter-spacing: .01em; }
 body[data-theme] .cr-slot .cr-slot-badge {
   font-family: var(--f-label);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -1434,9 +1437,9 @@ body[data-theme] .cr-stat-row > span:first-child { color: var(--ink-3); font-siz
 body[data-theme] .cr-stat-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
 body[data-theme] .cr-bonus { color: #9ab76a; font-size: var(--t-micro); font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Hero header stat tiles */
-body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size: 23px; font-weight: 600; }
+body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size: 26px; font-weight: 600; }
 body[data-theme] .cr-hero-stat span {
-  font-family: var(--f-label); font-size: 11.5px; letter-spacing: .02em;
+  font-family: var(--f-label); font-size: 13px; letter-spacing: .02em;
   text-transform: none; font-weight: 700;
 }
 
@@ -1454,10 +1457,10 @@ body[data-theme] .bounty-option {
 body[data-theme] .bo-head { display: flex; align-items: center; gap: 10px; }
 body[data-theme] .bo-art { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; }
 body[data-theme] .bo-art img { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
-body[data-theme] .bo-head b { font-size: 15.5px; font-weight: 600; color: var(--ink); flex: 1; }
+body[data-theme] .bo-head b { font-size: 17.5px; font-weight: 600; color: var(--ink); flex: 1; }
 body[data-theme] .bounty-chip {
   font-family: var(--f-label);
-  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: none;
+  font-size: 12.5px; font-weight: 700; letter-spacing: .02em; text-transform: none;
   padding: 2px 9px; border-radius: var(--r-sm);
   background: rgba(236, 225, 204, .06); color: var(--ink-3);
   border: 1px solid rgba(236, 225, 204, .08);
@@ -1475,14 +1478,14 @@ body[data-theme] .bounty-reward {
 }
 body[data-theme] .bo-foot .btn { flex: 0 0 auto; min-width: 96px; }
 body[data-theme] .bounty-marks {
-  font-family: var(--f-display); font-size: 23px; font-weight: 600;
+  font-family: var(--f-display); font-size: 26px; font-weight: 600;
   color: var(--gold-2); text-align: right;
   display: flex; align-items: baseline; justify-content: flex-end; gap: 7px;
   font-variant-numeric: tabular-nums;
   margin-bottom: 10px;
 }
 body[data-theme] .bounty-marks em {
-  font-family: var(--f-label); font-style: normal; font-size: 11.5px;
+  font-family: var(--f-label); font-style: normal; font-size: 13px;
   font-weight: 700; color: var(--ink-3);
 }
 /* Unlock ladder — was ten inline-styled pills in a #3fb950 green that belongs
@@ -1612,7 +1615,7 @@ body[data-theme] .activity-bar.v2 .ab-icon {
 }
 body[data-theme] .activity-bar.v2 .ab-name {
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: .02em;
   color: var(--ink-2);
@@ -1733,7 +1736,7 @@ body[data-theme] #panel-inventory .invc-tile:not(.invc-slot) {
   box-shadow: inset 0 1px 0 rgba(255, 240, 210, .16), 0 1px 2px rgba(0, 0, 0, .6);
 }
 body[data-theme] .mr-active {
-  font-family: var(--f-label); font-size: 12px; font-weight: 700;
+  font-family: var(--f-label); font-size: 13.5px; font-weight: 700;
   letter-spacing: .02em; color: #9ab76a;
 }
 body[data-theme] .weak-tag { display: inline-flex; align-items: center; gap: 5px; }
@@ -1787,7 +1790,7 @@ body[data-theme] .td-doll .td-slot:has(img) {
 }
 body[data-theme] .td-doll .td-slot .td-slot-lbl {
   font-family: var(--f-label);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -1865,3 +1868,87 @@ body[data-theme] .bottom-nav .bn-btn.active {
   box-shadow: inset 0 2px 0 var(--gold);
 }
 body[data-theme] .bn-btn .ic { color: inherit; }
+
+/* ── 30. BRAND WORDMARK (b218) ───────────────────────────────────────────
+ * Backlog #2 (asked ~10×). The old mark was a light-background crest asset:
+ * its dark-brown "HEARTHRISE" wordmark sat at near-zero contrast on the dark
+ * sidebar. Replaced with a real game-logo lockup — a compact rising-sun/hearth
+ * emblem drawn to read on dark, beside a gilt Cinzel wordmark. Warm ember→gild
+ * fill on the wordmark, small-caps tagline in the SC face. Pure CSS/type so it
+ * is crisp at any DPI and needs no asset pipeline.
+ * ---------------------------------------------------------------------- */
+/* Vertical, centred lockup — the sidebar is only 180px, so a horizontal
+ * emblem+wordmark clips "HEARTHRISE". Emblem on top, wordmark beneath is the
+ * classic crest layout and fits the rail cleanly. */
+body[data-theme] .brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 15px;
+  margin-bottom: 8px;
+  border-bottom: 0;
+  position: relative;
+}
+/* An incised rule instead of a hard border, matching the section language. */
+body[data-theme] .brand::after {
+  content: "";
+  position: absolute; left: 14px; right: 14px; bottom: 0; height: 1px;
+  background: var(--rule-fade);
+}
+body[data-theme] .brand-emblem {
+  flex: 0 0 auto;
+  width: 40px; height: 44px;
+  display: block;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .55));
+}
+body[data-theme] .brand-emblem svg { width: 100%; height: 100%; display: block; }
+body[data-theme] .brand-word {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+  text-align: center;
+}
+body[data-theme] .brand-title {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 18.5px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  /* the last letter's tracking would push the optical centre left */
+  padding-left: .07em;
+  /* Gilt metal: warm ember highlight down to a deeper struck gold. */
+  background: linear-gradient(180deg, #f7d98f 0%, #e6b85e 45%, #c68f2e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* A hair of ember glow + a dark contact edge so it reads on any dark value. */
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .55)) drop-shadow(0 0 8px rgba(224, 150, 80, .22));
+}
+body[data-theme] .brand-tagline {
+  font-family: var(--f-label);
+  font-weight: 600;
+  font-size: 9px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .3em;
+  padding-left: .3em; /* balance the trailing tracking so the caps sit centred */
+  color: var(--gold);
+  opacity: .8;
+}
+
+/* Cozy-light (retired secondary theme) — same lockup, ink tuned for parchment. */
+body[data-theme="cozy-light"] .brand-title {
+  background: linear-gradient(180deg, #b5791f 0%, #97611a 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0 rgba(255, 250, 235, .5));
+}
+body[data-theme="cozy-light"] .brand-tagline { color: #8c5d1a; opacity: .9; }
+body[data-theme="cozy-light"] .brand-emblem { filter: drop-shadow(0 1px 1px rgba(90, 60, 20, .25)); }
+
+/* Icon-rail sidebar (<=1180px, --nav-w:64px): show the emblem only. */
+@media (max-width: 1180px) {
+  body[data-theme] .brand { justify-content: center; padding: 10px 0 12px; gap: 0; }
+  body[data-theme] .brand-word { display: none; }
+  body[data-theme] .brand::after { left: 8px; right: 8px; }
+}

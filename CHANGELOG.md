@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 222 — 2026-08-08 (Know your place — in a good way)
+
+- 🏆 **Leaderboards, rebuilt.** 21 boards — the Throne (renown), Overall, Wealth, Combat, Bosses, every skill, and Clan Power — and the big one: **you always see your own rank**, with the rival directly above and below you, no matter how deep you sit. Rank 1 wears a crown. Two long-standing scoring bugs died on the way: renown was undercounting everyone's levels, and the Combat board had never ranked anyone at all.
+- 🏰 **Castle groundwork.** New castle goods appear in the workshop (Timber Beams bound with slime gel, Iron Fittings case-hardened with bone chips…) under a new "Castle Stores" crafting lane — the supply line for the clan castle coming next build. Dozens of monster drops that were vendor trash now have a purpose.
+- 💰 Gold-find bonuses now actually work (they never did), and returning players' groundwork for Rested XP is in place.
+- 🎨 **Under the hood, a deep CSS cleanup:** shop price tags and buttons that shipped with unreadable cream-on-parchment text are fixed, the active nav item aligns properly again, the mobile bottom bar is no longer a parchment strip in the dark theme, and 636 lines of dead styling are gone.
+- 🧪 250 tests green (+29 new regression guards).
+
 ## v0.9.2-beta build 221 — 2026-08-08 (Your name, your face, a real town)
 
 - 📛 **Your name is yours.** On first sign-in you now choose a unique display name — live availability check, no duplicates, ever. `Sir_Bob` and `sir bob` count as the same name, so nobody can impersonate you with a lookalike. Existing players keep their name (earliest account wins a clash and just confirms it).

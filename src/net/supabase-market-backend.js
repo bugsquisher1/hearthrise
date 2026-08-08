@@ -25,7 +25,7 @@
 // known v1 limitation).
 // ============================================================
 
-import { getSession } from './auth.js?v=207';
+import { getSession } from './auth.js?v=208';
 
 function getCfg() {
   return (window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig()) || null;
@@ -115,14 +115,52 @@ const SupabaseMarketBackend = {
     const cfg = getCfg();
     const session = getSession();
     if (!cfg || !session) throw new Error('Not signed in');
-    // Atomic via stored procedure — server handles inventory + sale recording
+    // Atomic via stored procedure (row-locked decrement + sale-ledger insert).
+    // b208: param names must match the SQL signature exactly (PostgREST).
     const res = await fetch(cfg.url + '/rest/v1/rpc/buy_listing', {
       method: 'POST',
       headers: reqHeaders(cfg, session),
-      body: JSON.stringify({ listing_id: listingId, qty_wanted: qtyWanted }),
+      body: JSON.stringify({ p_listing_id: listingId, p_qty: qtyWanted }),
     });
     if (!res.ok) throw new Error('buy_listing RPC failed: ' + res.status);
     return await res.json();
+  },
+
+  // b208: seller proceeds. Fetch my uncollected sales, then atomically flip
+  // collected=false→true (the filter guarantees a row only pays out once —
+  // the PATCH returns only rows it actually flipped).
+  async collectSales() {
+    const cfg = getCfg();
+    const session = getSession();
+    if (!cfg || !session) return [];
+    const base = cfg.url + '/rest/v1/market_sales?seller_user_id=eq.' + session.user.id + '&collected=eq.false';
+    const res = await fetch(base + '&select=id,item_id,qty,gold_total,buyer_name', {
+      headers: reqHeaders(cfg, session),
+    });
+    if (!res.ok) return [];
+    const rows = await res.json();
+    if (!rows.length) return [];
+    const flip = await fetch(base, {
+      method: 'PATCH',
+      headers: reqHeaders(cfg, session),
+      body: JSON.stringify({ collected: true }),
+    });
+    if (!flip.ok) return [];
+    const flipped = await flip.json();          // only the rows we actually flipped
+    return flipped.map(r => ({ id: r.id, itemId: r.item_id, qty: r.qty, goldTotal: +r.gold_total }));
+  },
+
+  // b208: realtime — nudge the market panel whenever listings change anywhere.
+  subscribe(onChange) {
+    const client = (window.HearthriseAuth && window.HearthriseAuth.getClient && window.HearthriseAuth.getClient());
+    if (!client || this._sub) return;
+    try {
+      this._sub = client
+        .channel('market-listings')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'market_listings' },
+          () => { try { onChange(); } catch (e) {} })
+        .subscribe();
+    } catch (e) {}
   },
 
   async placeOffer({ itemId, qty, maxEach, buyerSlot, buyerName }) {
@@ -160,16 +198,18 @@ const SupabaseMarketBackend = {
   },
 };
 
-// Expose as a Phase-2 swap-in. The market.js LocalBackend stays the
-// active path until something explicitly calls
-// `window.HearthriseMarket.setBackend(SupabaseMarketBackend)`.
-//
-// We don't auto-swap because market.js's listings / offers are stored
-// in localStorage by character slot — switching backends mid-session
-// would orphan the local data. The clean cutover is at next page load:
-// once cloud is configured, market.js can opt in via a small wrapper
-// added in a later commit.
+// b208: auto-install into market.js (which now HAS setBackend). Same retry
+// pattern as the chat backend — the classic script may not have evaluated
+// yet when this ESM runs.
 if (typeof window !== 'undefined') {
   window.HearthriseSupabaseMarket = SupabaseMarketBackend;
-  console.log('[supabase-market] backend exposed at window.HearthriseSupabaseMarket — call HearthriseMarket.setBackend(it) to switch');
+  (function installMarket(attempt) {
+    if (window.HearthriseMarket && typeof window.HearthriseMarket.setBackend === 'function') {
+      window.HearthriseMarket.setBackend(SupabaseMarketBackend);
+      console.log('[supabase-market] live backend installed');
+      return;
+    }
+    if ((attempt || 0) >= 60) { console.warn('[supabase-market] HearthriseMarket never appeared'); return; }
+    setTimeout(() => installMarket((attempt || 0) + 1), 500);
+  })(0);
 }

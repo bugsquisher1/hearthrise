@@ -165,22 +165,59 @@ drop policy if exists "own offers write" on public.market_buy_offers;
 create policy "own offers write" on public.market_buy_offers
   for all using (auth.uid() = buyer_user_id) with check (auth.uid() = buyer_user_id);
 
--- Atomic buy: decrement/consume the listing in one statement so two buyers
--- can't both take the last unit. (Gold/inventory transfer stays client-side
--- for soft beta — known v1 limitation, server-authoritative pass later.)
+-- Sales ledger: every fill writes a row; the SELLER collects proceeds on
+-- their next login (atomic collect via conditional update — no double-pay).
+create table if not exists public.market_sales (
+  id             uuid primary key default gen_random_uuid(),
+  listing_id     uuid not null,
+  seller_user_id uuid not null,
+  seller_name    text not null,
+  buyer_user_id  uuid not null,
+  buyer_name     text not null default '',
+  item_id        text not null,
+  qty            int  not null,
+  gold_total     bigint not null,
+  collected      boolean not null default false,
+  created_at     timestamptz not null default now()
+);
+create index if not exists market_sales_seller_idx
+  on public.market_sales (seller_user_id, collected);
+alter table public.market_sales enable row level security;
+drop policy if exists "own sales readable" on public.market_sales;
+create policy "own sales readable" on public.market_sales
+  for select using (auth.uid() = seller_user_id or auth.uid() = buyer_user_id);
+drop policy if exists "seller collects own sales" on public.market_sales;
+create policy "seller collects own sales" on public.market_sales
+  for update using (auth.uid() = seller_user_id) with check (auth.uid() = seller_user_id);
+
+-- Atomic buy: decrement/consume the listing under row lock (two buyers can't
+-- both take the last unit) AND write the sale to the ledger so the seller is
+-- paid on next login. Buyer-side gold/inventory applies client-side after the
+-- ok (soft-beta limitation; full server inventory authority is the next pass).
 create or replace function public.buy_listing(p_listing_id uuid, p_qty int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare v_row public.market_listings;
 begin
+  if p_qty is null or p_qty <= 0 then
+    return jsonb_build_object('ok', false, 'error', 'bad_qty');
+  end if;
   select * into v_row from public.market_listings
     where id = p_listing_id for update;
   if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
+  if v_row.seller_user_id = auth.uid() then
+    return jsonb_build_object('ok', false, 'error', 'own_listing');
+  end if;
   if v_row.qty < p_qty then return jsonb_build_object('ok', false, 'error', 'not_enough'); end if;
   if v_row.qty = p_qty then
     delete from public.market_listings where id = p_listing_id;
   else
     update public.market_listings set qty = qty - p_qty where id = p_listing_id;
   end if;
+  insert into public.market_sales
+    (listing_id, seller_user_id, seller_name, buyer_user_id, item_id, qty, gold_total)
+  values
+    (p_listing_id, v_row.seller_user_id, v_row.seller_name, auth.uid(),
+     v_row.item_id, p_qty, (p_qty::bigint * v_row.ask_each));
   return jsonb_build_object('ok', true, 'item_id', v_row.item_id,
     'qty', p_qty, 'ask_each', v_row.ask_each,
     'seller_user_id', v_row.seller_user_id, 'seller_name', v_row.seller_name);

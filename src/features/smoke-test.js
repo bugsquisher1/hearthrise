@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=207' directly.
+// modularised, will import { G } from '../state/game.js?v=208' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=207';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=207';
+import { on } from '../net/events.js?v=208';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=208';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -382,6 +382,28 @@ const TESTS = [
       assert(G.gems === 160, 'redeem grants exactly 150 gems, got ' + G.gems);
     } finally {
       G.gems = saved.gems; G.inventory = saved.inv;
+    }
+  }),
+  () => tryRun('b208: market — live-backend seam present, sane offline defaults', () => {
+    const M = window.HearthriseMarket;
+    assert(M && typeof M.setBackend === 'function', 'HearthriseMarket.setBackend exists (was the missing wire to the finished Supabase backend)');
+    assert(typeof M.refreshFromBackend === 'function' && typeof M.collectSaleProceeds === 'function', 'refresh + sales-collection exposed');
+    assert(M.backendActive() === false || !!window.HearthriseAuth, 'backendActive only with auth');
+    // signed-out: seeding still allowed (dev), listing flow still local + sync
+    const G = window.G;
+    const savedInv = JSON.parse(JSON.stringify(G.inventory || {}));
+    const savedGold = G.gold;
+    try {
+      G.inventory.normal_log = (G.inventory.normal_log || 0) + 5;
+      const r = M.listItem('normal_log', 5, 3);
+      assert(r && r.ok === true, 'local listItem still returns sync {ok:true}, got ' + JSON.stringify(r));
+      const mine = M.myListings ? M.myListings() : null;
+      // cancel it again to restore state (find via listings)
+      const all = JSON.parse(localStorage.getItem('hearthrise:market:listings') || '[]');
+      const l = all.filter(x => x.itemId === 'normal_log').slice(-1)[0];
+      if (l) M.cancelListing(l.id);
+    } finally {
+      G.inventory = savedInv; G.gold = savedGold;
     }
   }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {

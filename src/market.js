@@ -143,6 +143,9 @@
   // to work with during beta. Idempotent — only seeds if no fake
   // listings already exist.
   function seedFakeListings(){
+    if(backendActive()){
+      return { ok:false, reason:'Live market active — no NPC seeds (final directive: no fake data)' };
+    }
     var existing = loadListings();
     if(existing.some(function(l){ return l.sellerId && l.sellerId.indexOf('npc-') === 0; })){
       return { ok:false, reason:'Already seeded — clear first via window.HearthriseMarket.clearSeed()' };
@@ -209,8 +212,18 @@
     return { ok:true };
   }
 
+  function activeSlot(){
+    var prof = window.HearthriseProfile && window.HearthriseProfile.profile;
+    return prof ? prof.activeSlot : 0;
+  }
+  function liveSession(){
+    return (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
+  }
   function currentSellerId(){
-    // Tie listings to the active character so the seller can manage them.
+    // b208: when signed in, ids match the Supabase rowToListing shape
+    // (<userId>:slot-<n>) so my own server rows are recognized as mine.
+    var s = liveSession();
+    if(s && s.user) return s.user.id + ':slot-' + activeSlot();
     var prof = window.HearthriseProfile && window.HearthriseProfile.profile;
     if(prof) return 'slot-' + prof.activeSlot;
     return 'local-' + (window.G && window.G.account || 'guest');
@@ -219,11 +232,124 @@
     return (window.G && window.G.playerName) || 'Adventurer';
   }
 
+  // ══ Backend integration (b208, SYS-7) ═══════════════════════
+  // When Supabase is configured + the player is signed in, the local
+  // MARKET_KEY store becomes a MIRROR of the server's market_listings:
+  //   • reads stay synchronous (all render/search/stats code unchanged)
+  //   • mutations apply locally first (snappy), then sync to the server;
+  //     a server refusal REVERTS the local change (optimistic-with-revert;
+  //     the buy_listing RPC is the atomic race arbiter)
+  //   • realtime nudges a refresh whenever anyone lists/cancels/fills
+  //   • seller proceeds arrive via the market_sales ledger (collected
+  //     atomically — "your Iron Sword sold while you were away")
+  // Buy OFFERS remain local-model for now: offer escrow + auto-fill work
+  // against the mirrored global listings, but cross-player offer matching
+  // needs a server matcher (next backend pass).
+  var backend = null;
+  var refreshTimer = null;
+  function backendActive(){ return !!(backend && liveSession()); }
+
+  function refreshFromBackend(){
+    if(!backendActive()) return Promise.resolve(false);
+    return backend.fetchListings().then(function(rows){
+      // Keep my un-synced local temp rows (id starts 'L'), drop npc seeds,
+      // mirror everything else from the server.
+      var mine = loadListings().filter(function(l){
+        return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId();
+      });
+      saveListings(rows.concat(mine));
+      if(typeof window.renderMarket === 'function' &&
+         document.querySelector('#panel-market.active, #market-root')) {
+        try { window.renderMarket(); } catch(e){}
+      }
+      return true;
+    }).catch(function(){ return false; });
+  }
+  function scheduleRefresh(){
+    if(refreshTimer) return;
+    refreshTimer = setTimeout(function(){ refreshTimer = null; refreshFromBackend(); }, 1200);
+  }
+
+  function collectSaleProceeds(){
+    if(!backendActive() || typeof backend.collectSales !== 'function') return;
+    backend.collectSales().then(function(sales){
+      if(!sales || !sales.length) return;
+      var total = 0;
+      sales.forEach(function(s){
+        var net = Math.floor(s.goldTotal * (1 - HOUSE_TAX));   // house tax = gold sink
+        total += net;
+        recordSale(s.itemId, Math.round(s.goldTotal / Math.max(1, s.qty)), s.qty);
+      });
+      if(total > 0){
+        window.G.gold = (window.G.gold || 0) + total;
+        if(typeof window.notify === 'function'){
+          window.notify('💰 Market sales while you were away: +' + total.toLocaleString() + 'g (' + sales.length + ' sale' + (sales.length>1?'s':'') + ', after ' + (HOUSE_TAX*100) + '% tax)', 'loot');
+        }
+        if(typeof window.saveLocal === 'function') window.saveLocal();
+        if(typeof window.updateTopbar === 'function') window.updateTopbar();
+      }
+    }).catch(function(){});
+  }
+
+  function setBackend(impl){
+    backend = impl;
+    refreshFromBackend();
+    collectSaleProceeds();
+    if(typeof impl.subscribe === 'function') impl.subscribe(scheduleRefresh);
+    setInterval(collectSaleProceeds, 60000);
+  }
+
+  // Background push of a locally-created listing; revert escrow on refusal.
+  function pushListingToBackend(localListing, itemName){
+    if(!backendActive()) return;
+    backend.createListing({
+      itemId: localListing.itemId, qty: localListing.qty, askEach: localListing.askEach,
+      sellerSlot: activeSlot(), sellerName: localListing.sellerName
+    }).then(function(serverRow){
+      if(!serverRow) throw new Error('no row');
+      var list = loadListings();
+      var idx = list.findIndex(function(l){ return l.id === localListing.id; });
+      if(idx >= 0){ list[idx].id = serverRow.id; list[idx].sellerId = serverRow.sellerId; saveListings(list); }
+    }).catch(function(){
+      // Server refused — undo the local listing + return escrow.
+      var list = loadListings();
+      var idx = list.findIndex(function(l){ return l.id === localListing.id; });
+      if(idx >= 0){ list.splice(idx, 1); saveListings(list); }
+      if(typeof window.addItem === 'function') window.addItem(localListing.itemId, localListing.qty);
+      if(typeof window.notify === 'function') window.notify('Listing failed to reach the market — items returned', 'kill');
+    });
+  }
+
+  // Background server-side buy; revert the local fill if the server says no
+  // (someone else won the race for the last units).
+  function pushBuyToBackend(listingId, itemId, qty, costPaid){
+    if(!backendActive()) return;
+    if(String(listingId).indexOf('L') === 0) return;    // local temp row — nothing server-side
+    backend.buyListing(listingId, qty).then(function(out){
+      if(out && out.ok !== false) return;               // server confirmed
+      revertBuy(itemId, qty, costPaid, out && out.error);
+    }).catch(function(){ revertBuy(itemId, qty, costPaid, 'network'); });
+  }
+  function revertBuy(itemId, qty, costPaid, why){
+    if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
+    else if(window.G && window.G.inventory) window.G.inventory[itemId] = Math.max(0, (window.G.inventory[itemId]||0) - qty);
+    window.G.gold = (window.G.gold || 0) + costPaid;
+    if(typeof window.notify === 'function'){
+      var reason = why === 'gone' || why === 'not_enough' ? 'someone bought it first' : 'server refused (' + (why||'error') + ')';
+      window.notify('Purchase reverted — ' + reason + '. Gold returned.', 'kill');
+    }
+    if(typeof window.updateTopbar === 'function') window.updateTopbar();
+    scheduleRefresh();
+  }
+
   // ── Listing operations ────────────────────────────────────────
   function expireOld(list){
     var now = Date.now();
     var changed = false;
     for(var i = list.length - 1; i >= 0; i--){
+      // b208: when the live market is active, server rows are authoritative —
+      // only ever locally expire my own un-synced temp rows.
+      if(backendActive() && String(list[i].id).indexOf('L') !== 0) continue;
       if(now - list[i].postedAt > LISTING_TTL_MS){
         // Refund the seller the escrowed qty.
         if(list[i].sellerId === currentSellerId() && typeof window.addItem === 'function'){
@@ -274,6 +400,7 @@
       list.pop();
     }
     saveListings(list);
+    if(newL.qty > 0) pushListingToBackend(newL, item.n || itemId);   // b208: sync to server
     if(typeof window.notify === 'function'){
       if(newL.qty > 0){
         window.notify('Listed ' + newL.qty + 'x ' + (item.n||itemId) + ' @ ' + askEach + 'g' + (qty !== newL.qty ? ' (' + (qty - newL.qty) + ' filled buy offers)' : ''), 'info');
@@ -296,6 +423,10 @@
     if(typeof window.addItem === 'function') window.addItem(l.itemId, l.qty);
     list.splice(idx, 1);
     saveListings(list);
+    // b208: mirror the cancel server-side (uuid ids are server rows)
+    if(backendActive() && String(l.id).indexOf('L') !== 0){
+      backend.cancelListing(l.id).catch(function(){});
+    }
     if(typeof window.notify === 'function') window.notify('Listing cancelled — items returned', 'info');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
     if(typeof window.updateTopbar === 'function') window.updateTopbar();
@@ -313,10 +444,12 @@
     var totalCost = qtyWanted * l.askEach;
     if((window.G.gold||0) < totalCost) return { ok:false, reason:'Need ' + totalCost + ' gold' };
 
-    // Transfer
+    // Transfer (optimistic — the server RPC is the race arbiter; a refusal
+    // reverts this via pushBuyToBackend → revertBuy)
     window.G.gold -= totalCost;
     if(typeof window.addItem === 'function') window.addItem(l.itemId, qtyWanted);
     else window.G.inventory[l.itemId] = (window.G.inventory[l.itemId]||0) + qtyWanted;
+    pushBuyToBackend(l.id, l.itemId, qtyWanted, totalCost);          // b208
 
     // Update listing
     l.qty -= qtyWanted;
@@ -381,6 +514,7 @@
       window.G.gold -= cost;
       if(typeof window.addItem === 'function') window.addItem(itemId, take);
       else window.G.inventory[itemId] = (window.G.inventory[itemId]||0) + take;
+      pushBuyToBackend(list[lIdx].id, itemId, take, cost);           // b208
       recordSale(itemId, list[lIdx].askEach, take);
       list[lIdx].qty -= take;
       if(list[lIdx].qty <= 0) list.splice(lIdx, 1);
@@ -552,6 +686,12 @@
     getTopMovers7d: getTopMovers7d,
     seedFakeListings: seedFakeListings,
     clearSeed: clearSeed,
+    /* b208 (SYS-7): live-backend seam — supabase-market-backend.js
+       auto-installs itself here when credentials are present. */
+    setBackend: setBackend,
+    refreshFromBackend: refreshFromBackend,
+    collectSaleProceeds: collectSaleProceeds,
+    backendActive: backendActive,
   };
 
   // ── UI: Market tab + sidebar entry ────────────────────────────

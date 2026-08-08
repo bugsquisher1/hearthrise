@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.1-beta build 188 — 2026-08-08 (Painted — the game gets a face)
+
+The whole game gets a real, cohesive art style.
+
+- 🎨 **Painted monsters + heroes.** Every enemy is now a hand-painted portrait — meet the Lich, the Death Knight, the Mummy King and 27 more in full painted glory, replacing the old placeholder icons. Your adventurer is a painted portrait too (upload-your-own is coming).
+- ⚔️ **Painted gear.** Weapons, armor, and jewelry now show real painted icons that grow more ornate as you climb tiers.
+- 🌈 **Item rarity colors.** Gear carries the classic rarity borders — Common (gray) → Uncommon (green) → Rare (blue) → Epic (purple) → Legendary (gold) → Mythic (deep red), with something special coming for Uniques. Your upgrades read at a glance.
+
 ## v0.9.1-beta build 176 — 2026-08-07 (The retention update + the game goes dark)
 
 - 🌙 **One look: Hearthlight.** The game is now a single, cohesive **dark** theme by default — deep warm shadows, gilt accents, the dusk backdrop glowing behind the panels. The old light theme is retired for launch (one look to polish, not two). This is the atmospheric, premium-idle feel the rework was aiming for; combat + monster art come next.

@@ -6,10 +6,13 @@
 # referenced by the game ship to production.
 # ============================================================
 
-# Raw asset libraries (Itch.io / Poneti packs — not loaded at runtime)
+# Raw asset libraries (Itch.io / Poneti / CraftPix packs — not loaded at runtime).
+# The USED subset is downscaled into assets/icons-bundle/painted/ and IS shipped;
+# these raw sources stay out of the repo + deploy.
 icons2/
 icons3/
 icons4/
+assets/pixel/
 
 # Local-only legacy monoliths superseded by src/ + index.html
 .legacy/

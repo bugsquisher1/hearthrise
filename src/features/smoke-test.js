@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=185' directly.
+// modularised, will import { G } from '../state/game.js?v=188' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=185';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=185';
+import { on } from '../net/events.js?v=188';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=188';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -177,6 +177,35 @@ const TESTS = [
       G.inventory = sInv; G.playerHp = sHp; G.playerMaxHp = sMax;
       if (sAA === undefined) delete G.autoActions; else G.autoActions = sAA;
     }
+  }),
+  () => tryRun('b186: painted monster portraits wired to shipped paths', () => {
+    const mi = window._monsterIcon || {};
+    ['slime', 'skeleton', 'lich', 'death_knight', 'dragon', 'goblin', 'wraith'].forEach((id) => {
+      const p = mi[id];
+      assert(p, 'monster icon missing for ' + id);
+      assert(/^assets\/icons-bundle\//.test(p), id + ' icon not in shipped icons-bundle: ' + p);
+      assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
+    });
+  }),
+  () => tryRun('b186: painted gear icons wired to shipped paths', () => {
+    const ip = window._itemPath || {};
+    ['bronze_sword', 'rune_sword', 'steel_platebody', 'copper_ring'].forEach((id) => {
+      const p = ip[id];
+      assert(p && /assets\/icons-bundle\/painted\/gear\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+    });
+  }),
+  () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
+    assert(window._playerAvatar && /assets\/icons-bundle\/painted\//.test(window._playerAvatar), 'player avatar path bad: ' + window._playerAvatar);
+    const img = document.querySelector('.player-avatar img');
+    const src = (img && img.getAttribute('src')) || '';
+    assert(!/raw-bundle|icons3/.test(src), 'topbar avatar points at unshipped folder: ' + src);
+  }),
+  () => tryRun('b186: item rarity tiers resolve by value + named uniques', () => {
+    assert(typeof window.itemRarity === 'function', 'itemRarity missing');
+    const cases = { bronze_sword: 'common', iron_sword: 'uncommon', steel_sword: 'rare', rune_sword: 'legendary', steel_platebody: 'epic', chief_blade: 'unique' };
+    for (const id in cases) assert(window.itemRarity(id) === cases[id], id + ' rarity should be ' + cases[id] + ', got ' + window.itemRarity(id));
+    assert(window.itemRarity('normal_log') === null, 'non-gear should have null rarity');
+    assert(window.RARITY && window.RARITY.classFor('rune_sword') === 'rr-legendary', 'classFor should map to rr-legendary');
   }),
   () => tryRun('b163: old foodSlot save migrates to unified auto-eat config', () => {
     // Regression: removing the combatTick auto-eat watchdog must not strand

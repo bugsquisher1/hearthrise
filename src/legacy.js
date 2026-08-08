@@ -3824,6 +3824,10 @@ console.log('Activity bar: loaded');
     if(pht) pht.textContent = (window.G.monsterHp||0)+' / '+(window.G.monsterMaxHp||0);
 
     var pp = document.getElementById('arena-player-portrait');
+    // b186: painted player portrait (set once so damage-number children survive)
+    if(pp && !pp.querySelector('img')){
+      pp.innerHTML = '<img src="'+(window._playerAvatar||'assets/icons-bundle/painted/npc/player.png')+'" alt="">';
+    }
     var pnp = document.getElementById('arena-player-name');
     var php = document.getElementById('arena-player-hp');
     var phpt = document.getElementById('arena-player-hp-text');
@@ -5022,7 +5026,7 @@ window.renderCharacter = function(){
   var gather = ['woodcutting','mining','fishing','farming'];
   var artisan = ['cooking','crafting','smithing'];
 
-  var avatarSrc = 'icons3/AvatarIconsMegapack/CharacterIcons/Characters_nobg/BoldWarrior_nb.png';
+  var avatarSrc = window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
 
   host.innerHTML =
     '<div class="char-hero">' +
@@ -8612,8 +8616,8 @@ function getActiveAvatar(){
   /* Use the topbar player avatar source if available */
   var pa = document.querySelector('.player-avatar img');
   if(pa && pa.src) return pa.src;
-  /* Fallback: dwarf avatar pack */
-  return 'assets/raw-bundle/rpg-avatar-dwarf-icons/background/3.png';
+  /* b186: painted player portrait (was unshipped raw-bundle → 404) */
+  return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
 }
 
 function getEquipmentBonusFor(style){
@@ -9696,7 +9700,30 @@ window._monsterIcon = window._monsterIcon || {};
     mushroom:    'assets/icons-bundle/resources/Res_125_mushroom.png',
     dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',
     // Misc craft items
-    anvil:       'assets/icons-bundle/medieval/BlacksmithInstruments.png'
+    anvil:       'assets/icons-bundle/medieval/BlacksmithInstruments.png',
+    // b186: PAINTED gear (weapons/armor/jewelry) — CraftPix packs, 128px.
+    // Tier ornateness climbs with rarity; rarity BORDER (not sprite tint)
+    // shows the upgrade (see itemRarity() + .rarity-* frame CSS).
+    bronze_sword:      'assets/icons-bundle/painted/gear/bronze_sword.png',
+    iron_sword:        'assets/icons-bundle/painted/gear/iron_sword.png',
+    steel_sword:       'assets/icons-bundle/painted/gear/steel_sword.png',
+    rune_sword:        'assets/icons-bundle/painted/gear/rune_sword.png',
+    chief_blade:       'assets/icons-bundle/painted/gear/chief_blade.png',
+    captains_ribblade: 'assets/icons-bundle/painted/gear/captains_ribblade.png',
+    apprentice_staff:  'assets/icons-bundle/painted/gear/apprentice_staff.png',
+    oak_staff:         'assets/icons-bundle/painted/gear/oak_staff.png',
+    shortbow:          'assets/icons-bundle/painted/gear/shortbow.png',
+    longbow:           'assets/icons-bundle/painted/gear/longbow.png',
+    stone_maul:        'assets/icons-bundle/painted/gear/stone_maul.png',
+    iron_warhammer:    'assets/icons-bundle/painted/gear/iron_warhammer.png',
+    iron_helm:         'assets/icons-bundle/painted/gear/iron_helm.png',
+    steel_helm:        'assets/icons-bundle/painted/gear/steel_helm.png',
+    iron_platebody:    'assets/icons-bundle/painted/gear/iron_platebody.png',
+    steel_platebody:   'assets/icons-bundle/painted/gear/steel_platebody.png',
+    leather_gloves:    'assets/icons-bundle/painted/gear/leather_gloves.png',
+    bronze_belt:       'assets/icons-bundle/painted/gear/bronze_belt.png',
+    copper_ring:       'assets/icons-bundle/painted/gear/copper_ring.png',
+    hunter_necklace:   'assets/icons-bundle/painted/gear/hunter_necklace.png'
   };
 
   // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,
@@ -9744,47 +9771,54 @@ window._monsterIcon = window._monsterIcon || {};
   // emoji glyph (matches the rest of the cozy theme anyway).
   window._skillIcon = {};
 
-  // b105: monster avatars — 31 hand-picked from icons3 character pack.
-  // Each maps a game monster id to a hand-painted character/creature
-  // illustration. Where the pack didn't have an exact match (rat, panther,
-  // bear, dire_wolf, etc.) we used the closest-tone Animals_*.png.
+  // b186: PAINTED monster portraits — the locked art direction (2026-08-08).
+  // Each game monster id maps to a downscaled (128px, transparent) painted
+  // character portrait from the CraftPix avatar packs (undead-avatar =
+  // enemies, monster-256 creature pack = beasts). Filenames match the game
+  // id exactly (built by scratchpad/paint_pipeline.py from icons4/*.zip).
+  // Reused/placeholder art flagged for later refinement: wolf/dire_wolf share
+  // the one creature-pack wolf; bear/ancient_bear share the boar; dragon uses
+  // a vampire-lord portrait (no painted dragon pack yet — grab one or AI-gen).
   var LOCAL_MONSTER_ICON = {
-    slime:           'assets/icons-bundle/monsters/Monster_Slime_nb.png',
-    rat:             'assets/icons-bundle/monsters/Animals_01_nobg.png',
-    goblin:          'assets/icons-bundle/monsters/goblin_01_nobg.png',
-    weak_skeleton:   'assets/icons-bundle/monsters/Monster_FrostSkeleton_nb.png',
-    small_wolf:      'assets/icons-bundle/monsters/Animals_02_nobg.png',
-    giant_bat:       'assets/icons-bundle/monsters/Bat_nb.png',
-    hobgoblin:       'assets/icons-bundle/monsters/goblin_02_nobg.png',
-    wolf:            'assets/icons-bundle/monsters/Animals_05_nobg.png',
-    skeleton:        'assets/icons-bundle/monsters/Monster_SkeletonDemon_nb.png',
-    dark_wizard:     'assets/icons-bundle/monsters/Cultist_nb.png',
-    venom_spider:    'assets/icons-bundle/monsters/Monster_Spider_nb.png',
-    goblin_brute:    'assets/icons-bundle/monsters/goblin_04_nobg.png',
-    dire_wolf:       'assets/icons-bundle/monsters/Animals_07_nobg.png',
-    zombie:          'assets/icons-bundle/monsters/Monster_Zombie_nb.png',
-    warlock:         'assets/icons-bundle/monsters/DarkLord_nb.png',
-    plague_swarm:    'assets/icons-bundle/monsters/Monster_Plague_nb.png',
-    goblin_warlord:  'assets/icons-bundle/monsters/goblin_05_nobg.png',
-    bear:            'assets/icons-bundle/monsters/Animals_06_nobg.png',
-    wraith:          'assets/icons-bundle/monsters/Monster_Ghost_nb.png',
-    lesser_demon:    'assets/icons-bundle/monsters/Demon_01_nobg.png',
-    mountain_troll:  'assets/icons-bundle/monsters/Giant_StoneGolem_nb.png',
-    shadow_creeper:  'assets/icons-bundle/monsters/DemonicTentacles_nb.png',
-    warband_captain: 'assets/icons-bundle/monsters/Warrior_nb.png',
-    panther:         'assets/icons-bundle/monsters/Animals_08_nobg.png',
-    death_knight:    'assets/icons-bundle/monsters/Monster_DarkRider_nb.png',
-    archmage:        'assets/icons-bundle/monsters/ElfMage_nb.png',
-    void_parasite:   'assets/icons-bundle/monsters/Monster_Worm_nb.png',
-    war_king:        'assets/icons-bundle/monsters/Duke_nb.png',
-    ancient_bear:    'assets/icons-bundle/monsters/Animals_09_nobg.png',
-    lich:            'assets/icons-bundle/monsters/Monster_SkeletonKing_nb.png',
-    dragon:          'assets/icons-bundle/monsters/Monster_WarDragon_nb.png',
+    slime:           'assets/icons-bundle/painted/monsters/slime.png',
+    rat:             'assets/icons-bundle/painted/monsters/rat.png',
+    goblin:          'assets/icons-bundle/painted/monsters/goblin.png',
+    weak_skeleton:   'assets/icons-bundle/painted/monsters/weak_skeleton.png',
+    small_wolf:      'assets/icons-bundle/painted/monsters/small_wolf.png',
+    giant_bat:       'assets/icons-bundle/painted/monsters/giant_bat.png',
+    hobgoblin:       'assets/icons-bundle/painted/monsters/hobgoblin.png',
+    wolf:            'assets/icons-bundle/painted/monsters/wolf.png',
+    skeleton:        'assets/icons-bundle/painted/monsters/skeleton.png',
+    dark_wizard:     'assets/icons-bundle/painted/monsters/dark_wizard.png',
+    venom_spider:    'assets/icons-bundle/painted/monsters/venom_spider.png',
+    goblin_brute:    'assets/icons-bundle/painted/monsters/goblin_brute.png',
+    dire_wolf:       'assets/icons-bundle/painted/monsters/dire_wolf.png',
+    zombie:          'assets/icons-bundle/painted/monsters/zombie.png',
+    warlock:         'assets/icons-bundle/painted/monsters/warlock.png',
+    plague_swarm:    'assets/icons-bundle/painted/monsters/plague_swarm.png',
+    goblin_warlord:  'assets/icons-bundle/painted/monsters/goblin_warlord.png',
+    bear:            'assets/icons-bundle/painted/monsters/bear.png',
+    wraith:          'assets/icons-bundle/painted/monsters/wraith.png',
+    lesser_demon:    'assets/icons-bundle/painted/monsters/lesser_demon.png',
+    shadow_creeper:  'assets/icons-bundle/painted/monsters/shadow_creeper.png',
+    warband_captain: 'assets/icons-bundle/painted/monsters/warband_captain.png',
+    panther:         'assets/icons-bundle/painted/monsters/panther.png',
+    death_knight:    'assets/icons-bundle/painted/monsters/death_knight.png',
+    archmage:        'assets/icons-bundle/painted/monsters/archmage.png',
+    void_parasite:   'assets/icons-bundle/painted/monsters/void_parasite.png',
+    war_king:        'assets/icons-bundle/painted/monsters/war_king.png',
+    ancient_bear:    'assets/icons-bundle/painted/monsters/ancient_bear.png',
+    lich:            'assets/icons-bundle/painted/monsters/lich.png',
+    dragon:          'assets/icons-bundle/painted/monsters/dragon.png',
   };
   window._monsterIcon = window._monsterIcon || {};
   Object.keys(LOCAL_MONSTER_ICON).forEach(function(k){
     window._monsterIcon[k] = LOCAL_MONSTER_ICON[k];
   });
+
+  // b186: canonical painted player portrait (dwarf/human avatar pack).
+  // Arena, topbar, and character page all read this.
+  window._playerAvatar = 'assets/icons-bundle/painted/npc/player.png';
 
   console.info('[icons-bundle b103] applied:',
     Object.keys(LOCAL_ITEM_ICON).length, 'items,',

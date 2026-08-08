@@ -4,9 +4,9 @@
 // Imports: SKILLS_DEF, ITEMS, ARTISAN_RECIPES, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=185';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=185';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=185';
+import { SKILLS_DEF } from '../data/skills.js?v=188';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=188';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=188';
 
 function deriveClass() {
   const G = window.G;
@@ -34,7 +34,8 @@ function deriveClass() {
 function getActiveAvatar() {
   const pa = document.querySelector('.player-avatar img');
   if (pa?.src) return pa.src;
-  return 'assets/raw-bundle/rpg-avatar-dwarf-icons/background/3.png';
+  // b186: painted player portrait (was an unshipped raw-bundle path → 404)
+  return window._playerAvatar || 'assets/icons-bundle/painted/npc/player.png';
 }
 
 function getEquipmentBonusFor(style) {

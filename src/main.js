@@ -23,16 +23,55 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=213';
-import { MONSTERS } from './data/monsters.js?v=213';
-import { ITEMS } from './data/items.js?v=213';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=213';
-import { ARTISAN_RECIPES } from './data/recipes.js?v=213';
-import { COMPANIONS } from './data/companions.js?v=213';
+import { SKILLS_DEF } from './data/skills.js?v=215';
+import { MONSTERS } from './data/monsters.js?v=215';
+import { ITEMS } from './data/items.js?v=215';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=215';
+import { ARTISAN_RECIPES } from './data/recipes.js?v=215';
+import { COMPANIONS } from './data/companions.js?v=215';
+
+// b215: MERGE the ESM data into legacy.js's lexical objects rather than just
+// shadowing them on window.
+//
+// Why: legacy.js declares `const ITEMS = {...}` at classic-script top level.
+// That's a lexical global binding, and it *shadows* `window.ITEMS` for every
+// bare `ITEMS[...]` reference inside that 10k-line file. Plain
+// `Object.assign(window, { ITEMS })` therefore published the ESM data to
+// feature modules while the entire engine kept reading its own stale inline
+// copy — two live datasets that drifted apart silently.
+//
+// Merging in place (same object identity) means legacy's `ITEMS`, this
+// module's `ITEMS`, and `window.ITEMS` are all one object. Content is authored
+// once, in src/data/*.js, and every consumer sees it.
+//
+// Merge direction is ESM-wins-per-key, and legacy-only keys survive — so a
+// value defined only in legacy.js no longer becomes `undefined` downstream.
+const LEGACY = window.__LEGACY_INLINE || {};
+
+function unifyObject(name, esmObj) {
+  const legacyObj = LEGACY[name];
+  if (!legacyObj || typeof legacyObj !== 'object' || Array.isArray(legacyObj)) return esmObj;
+  Object.assign(legacyObj, esmObj);      // ESM values win; legacy-only keys kept
+  return legacyObj;                       // one shared identity
+}
+function unifyArray(name, esmArr) {
+  const legacyArr = LEGACY[name];
+  if (!Array.isArray(legacyArr) || !Array.isArray(esmArr)) return esmArr;
+  legacyArr.length = 0;                   // mutate in place — the const still points here
+  esmArr.forEach((entry) => legacyArr.push(entry));
+  return legacyArr;
+}
 
 Object.assign(window, {
-  SKILLS_DEF, MONSTERS, ITEMS,
-  TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META,
+  SKILLS_DEF:      unifyObject('SKILLS_DEF', SKILLS_DEF),
+  MONSTERS:        unifyObject('MONSTERS', MONSTERS),
+  ITEMS:           unifyObject('ITEMS', ITEMS),
+  CROPS:           unifyObject('CROPS', CROPS),
+  EQUIP_SLOT_META: unifyObject('EQUIP_SLOT_META', EQUIP_SLOT_META),
+  TREES:           unifyArray('TREES', TREES),
+  ROCKS:           unifyArray('ROCKS', ROCKS),
+  FISH_SPOTS:      unifyArray('FISH_SPOTS', FISH_SPOTS),
+  EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
 });
 
@@ -41,29 +80,29 @@ Object.assign(window, {
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=213';
-import './net/sync.js?v=213';
-import './net/auth.js?v=213';
-import './net/supabase-bootstrap.js?v=213';
+import './net/events.js?v=215';
+import './net/sync.js?v=215';
+import './net/auth.js?v=215';
+import './net/supabase-bootstrap.js?v=215';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=213';
-import './utils/dom.js?v=213';
-import './utils/safe.js?v=213';
-import './utils/profile.js?v=213';
-import './utils/data-integrity.js?v=213';
-import './utils/image-fallback.js?v=213';
+import './config.js?v=215';
+import './utils/dom.js?v=215';
+import './utils/safe.js?v=215';
+import './utils/profile.js?v=215';
+import './utils/data-integrity.js?v=215';
+import './utils/image-fallback.js?v=215';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=213';
-import { setupCompanions } from './features/companions.js?v=213';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=213';
-import { setupCharacterPage } from './features/character-page.js?v=213';
-import { setupCombatRender } from './features/combat-render.js?v=213';
+import { setupSmokeTest } from './features/smoke-test.js?v=215';
+import { setupCompanions } from './features/companions.js?v=215';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=215';
+import { setupCharacterPage } from './features/character-page.js?v=215';
+import { setupCombatRender } from './features/combat-render.js?v=215';
 
 // Boot diagnostics
 const counts = {

@@ -4,6 +4,21 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 215 — 2026-08-08 (The Long Climb — every skill now runs to 99)
+
+Hearthrise is built on the promise of taking every skill to 99. This update makes that real: the ladders that used to stop dead in the sixties now run all the way to the cap, with two brand-new material tiers of your own — **Emberforged** and **Dawnsteel**.
+
+- 🏔️ **Level 99 is finally reachable.** The XP table was missing a rung (the level-98 threshold), so the cap was silently 98 and the skill panel showed "NaN" next to your experience. Fixed — 99 is real, and it says MAX when you get there.
+- ⛏️ **Gathering runs to 90.** Mining ends at **Emberstone** (75) and **Dawnstone** (90); woodcutting at **Runewood** (75) and **Duskwood** (90). Fishing gained **Herring** (10), **Swordfish** (55), **Frostfin** (66) and the **Moonlit Pool** (90), closing every dead stretch. Farming continues past pumpkin with **Goldenroot** (62), **Emberfruit** (75) and **Moonbloom** (88).
+- 🛡️ **A complete armour set at every tier.** Every material — Bronze, Iron, Steel, Mithril, Rune, Emberforged, Dawnsteel — now has a **helm, platebody, platelegs, boots, gauntlets and belt**. Armour used to stop at steel, and legs, gauntlets and belts barely existed. You can finish a set at any point in the game.
+- ⚔️ **Every combat style climbs the same ladder.** Swords, warhammers, bows and staves each run all seven tiers, so no build stalls waiting for gear that was never made. Dawnsteel gear carries a **mythic** border; a whole material tier now reads as one rarity across every slot instead of one piece randomly outranking its own set.
+- 🪓 **Tools go further.** Emberforged and Dawnsteel axes and pickaxes, plus Duskwood and Dawnsteel rods — up to **+35% gathering speed**.
+- 🔨 **Smithing and crafting have somewhere to go.** Emberforged (82) and Dawnsteel (92) bars, Runewood and Duskwood planks, and a forge recipe for every new piece — a new unlock at least every six levels all the way to 98.
+- 🍲 **Cooking to 99** with Swordfish, Frostfin, Moonfish, Goldenroot Roast, Ember Tart and the Moonbloom Elixir.
+- 🚫 **The Season Pass is gone.** It sold a permanent +10% XP boost, which is pay-to-win against a public leaderboard. Premium stays convenience and cosmetics — nothing you can buy makes you level faster.
+- 🧭 **Readable activity panels.** The skill grid sized itself with a fixed column count that assumed a handful of recipes; with the full ladder it crushed everything into 90px tiles with the names clipped to "FORGE". Tiles now size themselves and stay legible no matter how much content ships.
+- ⚙️ Under the hood: game data is finally **one dataset** instead of two silently-drifting copies, so new content reaches every part of the game the moment it's written.
+
 ## v0.9.2-beta build 213 — 2026-08-08 (The Playtest Update — a full QA pass, start to finish)
 
 A top-to-bottom playtest of the whole game — every system exercised the way a real player would, and everything that broke, confused, or lied got fixed.

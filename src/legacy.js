@@ -22,7 +22,12 @@
 /* ════════════════════════════════════════════════
    GAME DATA  (preserved from original alpha)
    ════════════════════════════════════════════════ */
-const XP_TABLE=[0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,111945,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,668051,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,13034431];
+const XP_TABLE=[0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,111945,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,668051,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,11805606,13034431];
+/* b215: 11,805,606 (the level-98 threshold) was missing, so this table held 98
+   entries instead of 99. Two consequences, both bad for a game whose pitch is
+   "every skill to 99": levelFromXp could never return 99 (13,034,431 xp showed
+   as level 98), and the skill header read "13,034,431 / NaN" because
+   XP_TABLE[98] was undefined. The cap is reachable now. */
 function levelFromXp(xp){for(let i=XP_TABLE.length-1;i>=0;i--)if(xp>=XP_TABLE[i])return Math.min(i+1,99);return 1}
 function xpToNext(xp){const lv=levelFromXp(xp);if(lv>=99)return 0;return XP_TABLE[lv]-xp}
 function xpPct(xp){const lv=levelFromXp(xp);if(lv>=99)return 1;const a=XP_TABLE[lv-1],b=XP_TABLE[lv];return(xp-a)/(b-a)}
@@ -323,6 +328,27 @@ const EQUIP_SLOT_META={
 };
 
 /* ════════════════════════════════════════════════
+   b215 — DATA UNIFICATION HANDOFF
+   These top-level `const`s are LEXICAL bindings: inside this file every bare
+   reference (ITEMS[id], TREES.find(...)) resolves to them and *shadows* any
+   same-named window property. So main.js assigning window.ITEMS from
+   src/data/*.js never reached a single line of this 10k-line engine — the two
+   copies silently diverged (that's how `mountain_troll` ended up half-missing).
+   Publishing them here lets main.js merge the ESM data INTO these exact
+   objects, in place, so both references are one dataset and content only has
+   to be authored once, in src/data/*.js.
+   ════════════════════════════════════════════════ */
+if (typeof window !== 'undefined') {
+  try {
+    window.__LEGACY_INLINE = {
+      SKILLS_DEF: SKILLS_DEF, MONSTERS: MONSTERS, ITEMS: ITEMS,
+      TREES: TREES, ROCKS: ROCKS, FISH_SPOTS: FISH_SPOTS, CROPS: CROPS,
+      EQUIP_SLOTS: EQUIP_SLOTS, EQUIP_SLOT_META: EQUIP_SLOT_META,
+    };
+  } catch (e) {}
+}
+
+/* ════════════════════════════════════════════════
    PREMIUM STORE / IAP CATALOG
    Real product SKUs the store routes to platform billing.
    ════════════════════════════════════════════════ */
@@ -332,7 +358,6 @@ const IAP_CATALOG=[
   {sku:'gems_traveler',type:'currency',icon:'💎',title:'Traveler Pack',desc:'650 gems + 50 bonus.',price:'$9.99',gems:700,style:'gem',ribbon:'Popular'},
   {sku:'gems_hero',type:'currency',icon:'🏆',title:'Hero Pack',desc:'1,800 gems + 250 bonus.',price:'$24.99',gems:2050,style:'gold'},
   {sku:'gems_legend',type:'currency',icon:'👑',title:'Legend Pack',desc:'5,000 gems + 800 bonus.',price:'$49.99',gems:5800,style:'gold',ribbon:'Best value'},
-  {sku:'pass_season',type:'pass',icon:'📜',title:'Season Pass',desc:'30 daily reward tiers, exclusive cosmetics, +25% offline progress.',price:'$9.99',duration:30,style:'purple',ribbon:'Season 1'},
   {sku:'remove_ads',type:'entitlement',icon:'🚫',title:'Remove Ads',desc:'Permanent. Removes interstitials and rewarded prompts.',price:'$2.99',ent:'noAds',style:'gem'},
   {sku:'offline_boost',type:'entitlement',icon:'⏰',title:'Lifetime Offline+',desc:'Raises offline cap from 12h to 16h, forever.',price:'$6.99',ent:'offlinePlus',style:'gem'},
   {sku:'starter_bundle',type:'bundle',icon:'🎁',title:'Starter Bundle',desc:'500 gems + Forest Lodge theme + 200k gold pouch.',price:'$7.99',gems:500,gold:200000,unlocks:['forest'],style:'gold'},
@@ -374,7 +399,8 @@ let G={
   entitlements:{},                          /* {noAds:true, offlinePlus:true, ...} */
   ownedThemes:['default'],
   ownedCosmetics:[],
-  seasonPass:null,                          /* {sku, expiresAt, tier} */
+  /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
+     carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
   inventory:{turnip_seed:5,carrot_seed:3,shrimp:8},
   bank:{},
@@ -778,9 +804,9 @@ const IAP=(()=>{
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
     if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
-    if(p.type==='pass'){
-      G.seasonPass={sku:p.sku,startedAt:Date.now(),expiresAt:Date.now()+(p.duration||30)*86400000,tier:0};
-    }
+    /* b215: the Season Pass was retired — it sold a permanent +10% all-XP
+       multiplier, which is pay-to-win on public leaderboards and against the
+       design rule that premium is convenience/cosmetic only. */
   }
   return {buy,detectPlatform,grant};
 })();
@@ -900,8 +926,8 @@ function getBonus(key){
   let t=0;
   for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;}}
   G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.05;if(b.id==='scarecrow'&&key==='farmYield')t+=0.1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
-  /* season pass bonus */
-  if(G.seasonPass && Date.now()<G.seasonPass.expiresAt && key==='allXP')t+=0.1;
+  /* b215: Season Pass retired — no purchasable XP multiplier exists. Premium
+     stays convenience/cosmetic (offline hours, slots, themes). */
   /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
   if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
@@ -1696,11 +1722,8 @@ function renderProfile(){
   const all=[...(G.daily?.tasks||[]),...(G.quests||[])];
   const open=all.filter(q=>!q.done),done=all.filter(q=>q.done);
   document.getElementById('dash-obj-sub').textContent=`${done.length}/${all.length} done`;
-  const passInfo=G.seasonPass?(()=>{
-    const days=Math.max(0,Math.ceil((G.seasonPass.expiresAt-Date.now())/86400000));
-    return `<div class="iap-card purple" style="margin-bottom:10px"><div class="row between"><div><h3>📜 Season ${G.seasonPass.tier?'Tier '+G.seasonPass.tier:'Pass'}</h3><div class="desc">${days}d remaining · +10% all XP</div></div><div class="iap-icon">📜</div></div></div>`;
-  })():`<div style="background:var(--purple-bg);border:1px solid rgba(139,92,246,.3);border-radius:var(--r-sm);padding:10px;margin-bottom:10px"><div class="row between"><div><b>Season Pass</b><div class="muted tiny">30 daily tiers + cosmetics</div></div><button class="btn btn-sm btn-gem" onclick="IAP.buy('pass_season')">$9.99</button></div></div>`;
-  document.getElementById('dash-objectives-body').innerHTML=passInfo+`
+  /* b215: Season Pass card removed along with the pass itself. */
+  document.getElementById('dash-objectives-body').innerHTML=`
     <div class="objective-list">
       ${open.slice(0,6).map(q=>`<div class="obj"><span>⬜ ${q.label}</span><b>${Math.min(q.progress||0,q.goal)}/${q.goal}</b></div>`).join('')}
       ${done.slice(0,3).map(q=>`<div class="obj done"><span>✅ ${q.label}</span><b>Done</b></div>`).join('')}
@@ -7903,17 +7926,13 @@ function patchSkillDetail(){
       count = 1;
     }
 
-    var cols = 4;
-    if(count <= 3) cols = count;
-    else if(count <= 4) cols = 4;
-    else if(count <= 6) cols = 3;
-    else if(count <= 8) cols = 4;
-    else if(count <= 10) cols = 5;
-    else if(count <= 12) cols = 6;
-    else if(count <= 15) cols = 5;
-    else cols = 6;
-
-    var grid = '<div class="act-grid" style="grid-template-columns:repeat('+cols+',minmax(0,1fr))">'+tiles+'</div>';
+    /* b215: size by readable minimum width, not a hand-tuned column count.
+       (Mirrors src/features/activities-grid.js — this legacy copy is the one
+       that actually renders, since it runs first and the ESM version bails on
+       `alreadyRendered`.) The old table capped at "more than 15 → 6 columns",
+       which squeezed smithing's 81 recipes into 93px tiles with the names
+       clipped to "FORGE". */
+    var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';
 
     if(detailEl) detailEl.innerHTML = head + grid;
   };

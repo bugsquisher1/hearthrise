@@ -7,7 +7,7 @@
  *
  * Symptom we keep seeing in the wild: console errors trace to
  * `legacy.js?v=111` (or some other old build) even though the
- * deployed HTML has `?v=213`. That means an old service worker
+ * deployed HTML has `?v=215`. That means an old service worker
  * is intercepting the HTML request and serving cached HTML with
  * stale <script src="...?v=111"> tags.
  *
@@ -86,10 +86,10 @@
 <!-- PWA manifest is inlined below at runtime so this works as a single file -->
 
 <!-- moved style#0 (style-0) -->
-  <link rel="stylesheet" href="src/styles/legacy.css?v=213">
-  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=213">
+  <link rel="stylesheet" href="src/styles/legacy.css?v=215">
+  <link rel="stylesheet" href="src/styles/audit-overrides.css?v=215">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->
-  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=213">
+  <link rel="stylesheet" href="src/styles/theme-cozy.css?v=215">
 </head>
 <body>
 <div class="app" id="app">
@@ -97,7 +97,7 @@
   <!-- ─── SIDEBAR (desktop) ─── -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=213" alt="Hearthrise — Idle Homestead" />
+      <img class="brand-crest" src="assets/brand/hearthrise-logo.svg?v=215" alt="Hearthrise — Idle Homestead" />
     </div>
     <!-- b211: labels unified with the mobile nav (Home / Skills — the panel
          ids stay profile/skills; icon-set paints gilt glyphs over the .ic
@@ -128,7 +128,7 @@
     <!-- topbar -->
     <header class="topbar">
       <div class="player">
-        <div class="player-avatar"><img src="assets/icons-bundle/painted/npc/player.png?v=213" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <div class="player-avatar"><img src="assets/icons-bundle/painted/npc/player.png?v=215" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
@@ -596,87 +596,87 @@
   <!-- observability.js MUST load first so window.captureException + window.onerror
        handlers are wired up before any other script can throw. -->
   <!-- build-info loads as a module (exports BUILD constant) -->
-  <script type="module" src="src/build-info.js?v=213"></script>
+  <script type="module" src="src/build-info.js?v=215"></script>
   <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
-  <script src="src/theme-picker.js?v=213"></script>
-  <script src="src/observability.js?v=213"></script>
+  <script src="src/theme-picker.js?v=215"></script>
+  <script src="src/observability.js?v=215"></script>
   <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
-  <script src="src/platform/storage.js?v=213"></script>
-  <script src="src/save-migrations.js?v=213"></script>
+  <script src="src/platform/storage.js?v=215"></script>
+  <script src="src/save-migrations.js?v=215"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
-  <script src="src/features/auto-actions.js?v=213"></script>
-  <script src="src/features/drop-log.js?v=213"></script>
-  <script src="src/features/farm-progression.js?v=213"></script>
+  <script src="src/features/auto-actions.js?v=215"></script>
+  <script src="src/features/drop-log.js?v=215"></script>
+  <script src="src/features/farm-progression.js?v=215"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
-  <script src="src/features/profile-launchpad.js?v=213"></script>
-  <script src="src/legacy.js?v=213"></script>
-  <script src="src/admin.js?v=213"></script>
+  <script src="src/features/profile-launchpad.js?v=215"></script>
+  <script src="src/legacy.js?v=215"></script>
+  <script src="src/admin.js?v=215"></script>
   <!-- b158: scenic backdrop + glass panels (atmosphere) -->
-  <script src="src/features/backdrop.js?v=213"></script>
+  <script src="src/features/backdrop.js?v=215"></script>
   <!-- b159: cohesive icon system (game-icons.net, recolored + medallioned) -->
-  <script src="src/features/icon-set.js?v=213"></script>
+  <script src="src/features/icon-set.js?v=215"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
-  <script src="src/features/home-dashboard.js?v=213"></script>
+  <script src="src/features/home-dashboard.js?v=215"></script>
   <!-- meta-spine: "Rise to Jarl" Renown ladder (loads after legacy for XP_TABLE/getCombatLevel) -->
-  <script src="src/features/renown.js?v=213"></script>
+  <script src="src/features/renown.js?v=215"></script>
   <!-- retention: escalating daily login reward (built on the streak counter) -->
-  <script src="src/features/daily-reward.js?v=213"></script>
+  <script src="src/features/daily-reward.js?v=215"></script>
   <!-- completionism: Collection Log (bestiary + items, milestone rewards) -->
-  <script src="src/features/collection-log.js?v=213"></script>
+  <script src="src/features/collection-log.js?v=215"></script>
   <!-- b186: item rarity system (border colours: gray→green→blue→purple→gold→red) -->
-  <script src="src/features/rarity.js?v=213"></script>
+  <script src="src/features/rarity.js?v=215"></script>
   <!-- b201 SYS 1-3: the progression spine — tools ladder, homestead→castle
        property tiers (rooms are workbenches), idle workers. Order matters:
        tools (no deps) → homestead (gates) → workers (needs homestead slots). -->
-  <script src="src/features/tools.js?v=213"></script>
-  <script src="src/features/homestead.js?v=213"></script>
-  <script src="src/features/workers.js?v=213"></script>
+  <script src="src/features/tools.js?v=215"></script>
+  <script src="src/features/homestead.js?v=215"></script>
+  <script src="src/features/workers.js?v=215"></script>
   <!-- b202 SYS-4: skilling + boss pets (rolls 'skill:'/'boss:' companion sources) -->
-  <script src="src/features/pets.js?v=213"></script>
+  <script src="src/features/pets.js?v=215"></script>
   <!-- b204 SYS-5: deterministic daily/weekly world events (date-seeded, serverless-shared) -->
-  <script src="src/features/world-events.js?v=213"></script>
+  <script src="src/features/world-events.js?v=215"></script>
   <!-- b206 SYS-9/10: real clans + leaderboards (Supabase backbone, replaces NetClient mocks) -->
-  <script src="src/features/clans.js?v=213"></script>
+  <script src="src/features/clans.js?v=215"></script>
   <!-- b209 SYS-6: weekly async clan raids (shared boss HP pool, real combat-roll strikes) -->
-  <script src="src/features/raids.js?v=213"></script>
-  <script src="src/item-ux.js?v=213"></script>
+  <script src="src/features/raids.js?v=215"></script>
+  <script src="src/item-ux.js?v=215"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can
        suppress item-ux's qty-slider handler. -->
-  <script src="src/features/inv-context-menu.js?v=213"></script>
-  <script src="src/dungeons.js?v=213"></script>
-  <script src="src/dungeon-scavenger.js?v=213"></script>
-  <script src="src/multi-character.js?v=213"></script>
-  <script src="src/market.js?v=213"></script>
+  <script src="src/features/inv-context-menu.js?v=215"></script>
+  <script src="src/dungeons.js?v=215"></script>
+  <script src="src/dungeon-scavenger.js?v=215"></script>
+  <script src="src/multi-character.js?v=215"></script>
+  <script src="src/market.js?v=215"></script>
   <!-- Chat: filter loads first (no deps), then the dock. -->
-  <script src="src/chat-filter.js?v=213"></script>
-  <script src="src/chat.js?v=213"></script>
-  <script src="src/settings-page.js?v=213"></script>
-  <script src="src/ftue.js?v=213"></script>
-  <script src="src/mobile.js?v=213"></script>
+  <script src="src/chat-filter.js?v=215"></script>
+  <script src="src/chat.js?v=215"></script>
+  <script src="src/settings-page.js?v=215"></script>
+  <script src="src/ftue.js?v=215"></script>
+  <script src="src/mobile.js?v=215"></script>
   <!-- Beta-tester loop tighteners -->
-  <script src="src/quests-topbar-button.js?v=213"></script>
-  <script src="src/nav-consolidation.js?v=213"></script>
+  <script src="src/quests-topbar-button.js?v=215"></script>
+  <script src="src/nav-consolidation.js?v=215"></script>
   <!-- b210: icon-swap.js RETIRED — it fought icon-set.js over the same nav/
        topbar slots with a different icon vocabulary (nondeterministic icons
        by timing). icon-set.js gilt glyphs are the single chrome-icon system;
        it now also covers bell/save/settings + strips chip/sub-tab emoji. -->
 
-  <script src="src/activity-bar-clickable.js?v=213"></script>
-  <script src="src/post-signup-welcome.js?v=213"></script>
-  <script src="src/mobile-keyboard.js?v=213"></script>
-  <script src="src/combat-mobile-tabs.js?v=213"></script>
-  <script src="src/mobile-more-chat.js?v=213"></script>
-  <script src="src/inventory-mobile-tabs.js?v=213"></script>
-  <script src="src/activities-mobile-tabs.js?v=213"></script>
-  <script src="src/bug-report.js?v=213"></script>
-  <script src="src/welcome-modal.js?v=213"></script>
+  <script src="src/activity-bar-clickable.js?v=215"></script>
+  <script src="src/post-signup-welcome.js?v=215"></script>
+  <script src="src/mobile-keyboard.js?v=215"></script>
+  <script src="src/combat-mobile-tabs.js?v=215"></script>
+  <script src="src/mobile-more-chat.js?v=215"></script>
+  <script src="src/inventory-mobile-tabs.js?v=215"></script>
+  <script src="src/activities-mobile-tabs.js?v=215"></script>
+  <script src="src/bug-report.js?v=215"></script>
+  <script src="src/welcome-modal.js?v=215"></script>
   <!-- b141 — beta launch prep: one-time disclaimer + Discord invite for new players -->
-  <script src="src/beta-banner.js?v=213"></script>
-  <script src="src/network-status.js?v=213"></script>
-  <script src="src/error-boundary.js?v=213"></script>
-  <script type="module" src="src/main.js?v=213"></script>
+  <script src="src/beta-banner.js?v=215"></script>
+  <script src="src/network-status.js?v=215"></script>
+  <script src="src/error-boundary.js?v=215"></script>
+  <script type="module" src="src/main.js?v=215"></script>
 </body>
 </html>

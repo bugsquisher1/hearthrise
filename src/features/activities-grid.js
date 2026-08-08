@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=213';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=213';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=213';
+import { SKILLS_DEF } from '../data/skills.js?v=215';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=215';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=215';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 const fmtQty = (n) => {
@@ -206,18 +206,15 @@ function renderSkillDetail(id) {
     count = 1;
   }
 
-  // Pick a column count that keeps everything in ~2 rows max
-  let cols = 4;
-  if (count <= 3) cols = count;
-  else if (count <= 4) cols = 4;
-  else if (count <= 6) cols = 3;
-  else if (count <= 8) cols = 4;
-  else if (count <= 10) cols = 5;
-  else if (count <= 12) cols = 6;
-  else if (count <= 15) cols = 5;
-  else cols = 6;
-
-  const grid = `<div class="act-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${tiles}</div>`;
+  // b215: size tiles by a readable MINIMUM WIDTH and let the grid reflow.
+  //
+  // This used to be a hand-tuned count table ("keeps everything in ~2 rows
+  // max") that topped out at "more than 15 recipes → 6 columns". Smithing now
+  // has 81 recipes, which squeezed every tile to 94px wide and 26px tall —
+  // names clipped to "FORGE", stats invisible. A column count tuned to
+  // today's content breaks the moment content grows; a minimum width doesn't.
+  // auto-fit (not auto-fill) so a skill with 3 activities still fills the row.
+  const grid = `<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">${tiles}</div>`;
   if (detailEl) detailEl.innerHTML = head + grid;
 }
 

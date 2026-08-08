@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=213' directly.
+// modularised, will import { G } from '../state/game.js?v=215' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=213';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=213';
+import { on } from '../net/events.js?v=215';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=215';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -71,6 +71,10 @@ const snapshotG = () => {
     // b213 QA: the house-room test raises the property tier to clear the
     // b201 room gate — snapshot it so the player's real tier is restored.
     homestead: G.homestead,
+    // b215: the dungeon-key test starts a run, which stamps a 4h cooldown into
+    // G.dungeons.lastRun. Without this the cooldown leaked past the test and
+    // made the SECOND suite run fail (canRun bails before spending the key).
+    dungeons: G.dungeons,
     playerName: G.playerName,
   }));
 };
@@ -450,6 +454,109 @@ const TESTS = [
       G.inventory = savedInv; G.gold = savedGold;
     }
   }),
+  () => tryRun('b215: level 99 is actually reachable (XP table has all 99 rungs)', () => {
+    // Regression: XP_TABLE was missing the level-98 threshold (11,805,606), so
+    // it held 98 entries. levelFromXp() could never return 99 — the cap the
+    // whole game is pitched around — and the skill header rendered
+    // "13,034,431 / NaN" because XP_TABLE[98] was undefined.
+    assert(typeof window.levelFromXp === 'function', 'levelFromXp exposed');
+    assert(window.levelFromXp(13034431) === 99, 'max XP must be level 99, got ' + window.levelFromXp(13034431));
+    assert(window.levelFromXp(11805606) === 98, '11,805,606 must be level 98, got ' + window.levelFromXp(11805606));
+    if (typeof window.xpToNext === 'function') {
+      const rem = window.xpToNext(13034431);
+      assert(rem === 0, 'at 99 there is nothing left to earn, got ' + rem);
+      assert(!Number.isNaN(rem), 'xpToNext must never be NaN at the cap');
+    }
+  }),
+
+  () => tryRun('b215: no skill hits an endgame cliff — every ladder runs near 99', () => {
+    // The design rule: a player should never be more than ~20 levels from the
+    // next unlock in any skill, and every skill must have content past 85.
+    // Before b215 woodcutting/mining stopped at 60, farming at 50, fishing at 76.
+    const R = window.ARTISAN_RECIPES || {};
+    const ladders = {
+      woodcutting: (window.TREES || []).map(t => t.req),
+      mining:      (window.ROCKS || []).map(t => t.req),
+      fishing:     (window.FISH_SPOTS || []).map(t => t.req),
+      farming:     Object.values(window.CROPS || {}).map(c => c.req),
+      cooking:     (R.cooking || []).map(r => r.req),
+      smithing:    (R.smithing || []).map(r => r.req),
+      crafting:    (R.crafting || []).map(r => r.req),
+    };
+    Object.entries(ladders).forEach(([skill, reqsRaw]) => {
+      const reqs = reqsRaw.filter(n => typeof n === 'number').sort((a, b) => a - b);
+      assert(reqs.length > 0, skill + ' has no unlocks at all');
+      const top = reqs[reqs.length - 1];
+      assert(top >= 85, skill + ' tops out at Lv ' + top + ' — endgame cliff before 99');
+      let prev = 1, gap = 0;
+      reqs.forEach(r => { if (r - prev > gap) gap = r - prev; prev = Math.max(prev, r); });
+      assert(gap <= 20, skill + ' has a ' + gap + '-level gap with nothing new to do');
+    });
+  }),
+
+  () => tryRun('b215: gear ladder is complete — every armour slot at every tier', () => {
+    // The generator in src/data/gear-tiers.js must actually reach ITEMS, and a
+    // player must be able to complete a set at any tier (armour used to stop
+    // dead at steel, with pants/gloves/belt missing entirely).
+    const I = window.ITEMS || {};
+    const tiers = ['bronze', 'iron', 'steel', 'mithril', 'rune', 'ember', 'dawn'];
+    const slots = ['helm', 'platebody', 'platelegs', 'boots', 'gauntlets', 'belt'];
+    tiers.forEach(t => slots.forEach(s => {
+      const id = t + '_' + s;
+      assert(I[id], 'missing gear piece ' + id);
+      assert(typeof I[id].defB === 'number' && I[id].defB > 0, id + ' has no defence value');
+    }));
+    // Defence must strictly increase with tier so an upgrade is never a downgrade.
+    slots.forEach(s => {
+      for (let i = 1; i < tiers.length; i++) {
+        const lo = I[tiers[i - 1] + '_' + s].defB, hi = I[tiers[i] + '_' + s].defB;
+        assert(hi > lo, tiers[i] + '_' + s + ' (' + hi + ') must beat ' + tiers[i - 1] + '_' + s + ' (' + lo + ')');
+      }
+    });
+    // Every weapon family runs the full ladder too.
+    ['sword', 'warhammer', 'bow', 'staff'].forEach(fam => {
+      const found = Object.values(I).filter(it => it && it.type === 'weapon' && it.tier);
+      assert(found.length >= 20, 'expected a full weapon ladder, found ' + found.length + ' tiered weapons');
+    });
+  }),
+
+  () => tryRun('b215: ESM data reaches the legacy engine (one dataset, not two)', () => {
+    // The engine's bare `ITEMS[...]` refs resolve to legacy.js's lexical const.
+    // main.js merges the ESM data INTO that same object, so both are one
+    // identity — otherwise content authored in src/data/*.js is invisible to
+    // 10k lines of engine code (that's how mountain_troll went missing).
+    const L = window.__LEGACY_INLINE;
+    if (!L) return;   // older cached legacy.js
+    assert(L.ITEMS === window.ITEMS, 'legacy ITEMS and window.ITEMS must be the same object');
+    assert(L.MONSTERS === window.MONSTERS, 'legacy MONSTERS and window.MONSTERS must be the same object');
+    assert(L.TREES === window.TREES, 'legacy TREES and window.TREES must be the same array');
+    // and the merge actually carried the new content across
+    assert(window.ITEMS.dawn_platebody, 'generated gear must be visible to the engine');
+    assert((window.TREES || []).some(t => t.id === 'duskwood_tree'), 'new gathering nodes must reach the engine');
+  }),
+
+  () => tryRun('b215: no purchasable XP multiplier (Season Pass retired)', () => {
+    // Premium must stay convenience/cosmetic. The Season Pass sold a permanent
+    // +10% all-XP boost, which is pay-to-win against public leaderboards.
+    const cat = window.IAP_CATALOG || [];
+    cat.forEach(p => {
+      assert(p.sku !== 'pass_season', 'the Season Pass must not be purchasable');
+      assert(p.type !== 'pass', 'no XP-granting pass product should exist');
+    });
+    if (typeof window.getBonus === 'function') {
+      const snap = snapshotG();
+      try {
+        // Even a forged legacy pass field must not grant XP any more.
+        window.G.seasonPass = { sku: 'pass_season', expiresAt: Date.now() + 8.64e7, tier: 1 };
+        const withPass = window.getBonus('allXP');
+        delete window.G.seasonPass;
+        const without = window.getBonus('allXP');
+        assert(withPass === without,
+          'a stale seasonPass still grants XP (' + withPass + ' vs ' + without + ')');
+      } finally { restoreG(snap); }
+    }
+  }),
+
   () => tryRun('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
     // Regression: three systems read G.lastSeen and all granted —
     // processOffline() (100% rate) plus _applyCatchup() and applyRichCatchup()
@@ -491,6 +598,7 @@ const TESTS = [
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
       G.gold = (G.gold || 0) + 100000;
+      G.dungeons = { lastRun: {} };          // clear any cooldown from a prior run
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
       const before = G.inventory[d.cost.key];
       window.startManualDungeonRun(id);
@@ -583,8 +691,20 @@ const TESTS = [
   }),
   () => tryRun('b186: item rarity tiers resolve by value + named uniques', () => {
     assert(typeof window.itemRarity === 'function', 'itemRarity missing');
-    const cases = { bronze_sword: 'common', iron_sword: 'uncommon', steel_sword: 'rare', rune_sword: 'legendary', steel_platebody: 'epic', chief_blade: 'unique' };
+    // b215: steel_platebody was 'epic' here purely because the VALUE fallback
+    // (v1500) landed in the epic band — while steel_sword read 'rare'. Two
+    // steel pieces with different borders is the exact inconsistency the tier
+    // ladder exists to remove, so tiered gear now resolves by MATERIAL, per
+    // the documented mapping (bronze→common … rune→legendary, dawn→mythic).
+    const cases = { bronze_sword: 'common', iron_sword: 'uncommon', steel_sword: 'rare', rune_sword: 'legendary', steel_platebody: 'rare', chief_blade: 'unique' };
     for (const id in cases) assert(window.itemRarity(id) === cases[id], id + ' rarity should be ' + cases[id] + ', got ' + window.itemRarity(id));
+    // A whole material tier must read as ONE rarity across every slot.
+    ['helm', 'platebody', 'platelegs', 'boots', 'gauntlets', 'belt'].forEach((slot) => {
+      assert(window.itemRarity('steel_' + slot) === 'rare', 'steel_' + slot + ' should be rare like the rest of the steel set');
+      assert(window.itemRarity('dawn_' + slot) === 'mythic', 'dawn_' + slot + ' should be mythic');
+    });
+    // The value fallback still governs gear with no explicit tier.
+    assert(window.itemRarity('leather_boots') === 'common', 'untiered gear still falls back to value');
     assert(window.itemRarity('normal_log') === null, 'non-gear should have null rarity');
     assert(window.RARITY && window.RARITY.classFor('rune_sword') === 'rr-legendary', 'classFor should map to rr-legendary');
   }),

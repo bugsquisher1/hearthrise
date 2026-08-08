@@ -1,6 +1,13 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
+import { GEAR_ITEMS } from './gear-tiers.js?v=215';
+
 export const ITEMS={
+  /* b215: the generated tier ladder (7 material tiers × every armour slot ×
+     four weapon families) is spread FIRST, so any hand-authored entry below
+     with the same id wins and keeps its historical stats/values. */
+  ...GEAR_ITEMS,
+
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
      auto-applies to its skill (Melvor-style, no equip juggling):
@@ -112,6 +119,63 @@ export const ITEMS={
   willow_plank: {n:'Willow Plank', icon:'🪵', v:120},
   maple_plank:  {n:'Maple Plank',  icon:'🍁', v:240},
   yew_plank:    {n:'Yew Plank',    icon:'🌲', v:520},
+
+  /* ══════════════════════════════════════════════════════════════════
+     b215 — LATE-GAME RESOURCE TIERS (levels 75-90)
+     Every gathering skill used to stop dead around level 60 while the XP
+     table runs to 99, so the last third of the game had nothing new to
+     collect. These two tiers — Emberforged and Dawnsteel, plus the woods,
+     waters and crops that feed them — carry every ladder to the cap.
+     ══════════════════════════════════════════════════════════════════ */
+  /* Mining (75 / 90) */
+  emberstone_ore: {n:'Emberstone Ore', icon:'🔶', v:520},
+  dawnstone_ore:  {n:'Dawnstone Ore',  icon:'🌟', v:1400},
+  /* Smithing outputs */
+  ember_bar: {n:'Emberforged Bar', icon:'🟧', v:1600},
+  dawn_bar:  {n:'Dawnsteel Bar',   icon:'🟪', v:4200},
+  /* Woodcutting (75 / 90) */
+  runewood_log: {n:'Runewood Log', icon:'🪵', v:480},
+  duskwood_log: {n:'Duskwood Log', icon:'🪵', v:1150},
+  /* Crafting outputs */
+  runewood_plank: {n:'Runewood Plank', icon:'🪵', v:1150},
+  duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:2600},
+  /* Fishing gap-fillers (10 / 66) */
+  herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:4},
+  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:40, heals:6, foodTier:1,
+    buff:{type:'gather_speed', magnitude:4, durationMs:120000}},
+  frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:18},
+  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:28, foodTier:4,
+    buff:{type:'defense', magnitude:10, durationMs:360000}},
+  /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone */
+  swordfish:        {n:'Raw Swordfish', icon:'🐠', v:220, heals:14},
+  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:22, foodTier:3,
+    buff:{type:'damage', magnitude:8, durationMs:300000}},
+  moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:24},
+  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:38, foodTier:4,
+    buff:{type:'all_xp', magnitude:8, durationMs:420000}},
+  /* Farming (62 / 75 / 88) */
+  goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:12},
+  goldenroot_seed: {n:'Goldenroot Seed', icon:'🌱', v:90,  seed:'goldenroot'},
+  emberfruit:      {n:'Emberfruit', icon:'🔥', v:480, heals:16},
+  emberfruit_seed: {n:'Emberfruit Seed', icon:'🌱', v:160, seed:'emberfruit'},
+  moonbloom:       {n:'Moonbloom', icon:'🌸', v:850, heals:20},
+  moonbloom_seed:  {n:'Moonbloom Seed', icon:'🌱', v:280, seed:'moonbloom'},
+  /* Late-game cooking — gives the new crops a real sink */
+  goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:26, foodTier:3,
+    buff:{type:'gather_speed', magnitude:12, durationMs:360000}},
+  ember_tart:       {n:'Ember Tart', icon:'🥧', v:1300, heals:30, foodTier:4,
+    buff:{type:'combat_xp', magnitude:12, durationMs:360000}},
+  moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:40, foodTier:5,
+    buff:{type:'all_xp', magnitude:12, durationMs:480000}},
+
+  /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
+     the final gather-speed upgrades (+30% / +35%). */
+  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:22000, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
+  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:55000, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
+  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:22000, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
+  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:55000, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
+  duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
+  dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 
   /* ── Cooked crops (farm → cooking) — extension hooks for upcoming
      pumpkin pie / carrot stew recipes. Defined with placeholder buffs
@@ -255,3 +319,16 @@ export const ITEMS={
   void_fragment:   {n:'Void Fragment',   icon:'🌑', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'voidbringer'},
   dragonsbane_key: {n:'Dragonsbane Key', icon:'🗡️', v:0, bop:true, rarity:'legendary', tag:'key', unlocks:'ancient_wyrm'},
 };
+
+/* b215: backfill tier + rarity onto the hand-authored pieces that sit on the
+   generated ladder (bronze_sword, iron_warhammer, shortbow, oak_staff …).
+   Those entries predate the tier system and override their generated twin
+   wholesale, so without this they'd be the only rungs with no rarity border —
+   a visibly inconsistent ladder. Their stats and values are left untouched. */
+Object.keys(GEAR_ITEMS).forEach((id) => {
+  const generated = GEAR_ITEMS[id];
+  const live = ITEMS[id];
+  if (!live || live === generated) return;
+  if (live.tier == null) live.tier = generated.tier;
+  if (live.rarity == null) live.rarity = generated.rarity;
+});

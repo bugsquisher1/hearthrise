@@ -1,5 +1,5 @@
 /* ============================================================================
- * src/styles/board-and-shop.css — b221
+ * src/styles/board-and-shop.css — b221, de-escalated b222
  *
  * Two screens that were named after physical places and drawn as spreadsheets:
  *
@@ -12,17 +12,37 @@
  *   counter, and the wares laid out ON that counter, each on its own cloth mat
  *   with a price tag.
  *
- * WHY THIS FILE EXISTS, AND WHY IT IS FULL OF !important.
+ * WHY THIS FILE USED TO STACK THREE IDS, AND DOES NOT ANY MORE (b222).
  * Both surfaces this file draws (parchment, lit counter wood) are LIGHT in both
  * themes. theme-cozy.css carries the b174 readability blankets —
  *   `#panel-bounty#panel-bounty *:not(...) { color: var(--ink) !important }`
  *   `#panel-shop#panel-shop  [class*="card"] { background: var(--bg-2) !important }`
- * — which force parchment-coloured ink and a dark plate onto anything inside
- * these panels. That was the right call when every panel was a dark card; it is
- * wrong for paper. `!important` cannot be outranked by specificity alone, so
- * every contested declaration below repeats it, at three ids. When those
- * blankets are finally deleted (documented debt in CURRENT_STATE), the extra ids
- * and the !importants come off with them — nothing else depends on them.
+ * — which forced parchment ink and a dark plate onto everything in these panels.
+ * `!important` cannot be outranked by specificity alone, so every contested
+ * declaration used to repeat it at THREE ids: 35 stacked-id selectors.
+ *
+ * b222 carved the in-world subtrees (`.bb-board`, `.sc-scene`, `.sc-counter`,
+ * `.iap-card`) out of the HEARTHLIGHT blankets — see the b222 note in
+ * theme-cozy.css. Under the live theme those blankets no longer reach in here,
+ * so the id-stacking is gone: 35 stacked selectors → 1, and that one says why
+ * on the line above itself.
+ *
+ * WHAT THE REMAINING `!important`s ARE FOR — read this before deleting any.
+ * They are NOT for hearthlight. Cozy Day (retired, still selectable) carries its
+ * own mirror blankets, which b222 deliberately did not touch because that theme
+ * must stay pixel-identical:
+ *   `body[data-theme="cozy-light"] #panel-bounty * { color:#3d2817 !important }`
+ *   `body[data-theme="cozy-light"] #panel-shop   * { color:#3d2817 !important }`
+ *   `body[data-theme="cozy-light"] #panel-shop [class*="iap-card"] { background… }`
+ * Those contest exactly three things: `color` anywhere in these panels, the
+ * `.iap-card` surface, and `.shop-row` padding. That is the whole keep-list, and
+ * it is why background/shadow/radius declarations below carry none. Two more
+ * survive for hearthlight component rules that are themselves `!important`
+ * (`.btn-primary` and `.ribbon`) — both are `color`, both are in the same list.
+ *
+ * EXIT CONDITION: when Cozy Day is deleted, delete its blankets and every
+ * `!important` in this file goes with them. Do not add new ones — an `!important`
+ * here now means a blanket grew back, and that is the thing to fix instead.
  *
  * Type that sits ON a picture or on paper gets its OWN ink role — the rule the
  * Home hearth band established in b219. Its background is parchment or lit wood,
@@ -289,10 +309,10 @@ body[data-theme] #panel-bounty .bb-nail {
   z-index: 2;
 }
 
-/* Type on paper reads paper ink, never --ink. See this file's header for why
-   three ids and !important are both required. */
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice,
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice * { color: var(--bb-ink) !important; }
+/* Type on paper reads paper ink, never --ink.
+   (!important here is Cozy Day's mirror blanket only — see the header.) */
+body[data-theme] #panel-bounty .bb-notice,
+body[data-theme] #panel-bounty .bb-notice * { color: var(--bb-ink) !important; }
 
 body[data-theme] #panel-bounty .bb-head { display: flex; gap: 11px; align-items: flex-start; }
 /* The painted portrait is PRINTED on the notice — desaturated to ink and
@@ -312,32 +332,32 @@ body[data-theme] #panel-bounty .bb-cut img {
   mix-blend-mode: multiply;
 }
 body[data-theme] #panel-bounty .bb-ident { min-width: 0; }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-kind {
+body[data-theme] #panel-bounty .bb-kind {
   display: block;
   font-family: var(--f-label);
   font-size: var(--t-micro);
   font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
   color: var(--bb-ink-3) !important;
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-kind.is-grave { color: var(--bb-seal) !important; }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-name {
+body[data-theme] #panel-bounty .bb-kind.is-grave { color: var(--bb-seal) !important; }
+body[data-theme] #panel-bounty .bb-name {
   display: block;
   font-family: var(--f-display);
   font-size: 19px; font-weight: 600; line-height: 1.15;
   color: var(--bb-ink) !important;
   overflow-wrap: anywhere;
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-task {
+body[data-theme] #panel-bounty .bb-task {
   margin: 11px 0 3px;
   font-size: var(--t-small); line-height: 1.4;
   color: var(--bb-ink-2) !important;
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-weak {
+body[data-theme] #panel-bounty .bb-weak {
   margin: 0;
   font-size: var(--t-micro); color: var(--bb-ink-3) !important;
 }
 /* The pay line is ruled off, the way a clerk would rule a form. */
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-pay {
+body[data-theme] #panel-bounty .bb-pay {
   margin-top: auto; padding-top: 9px;
   border-top: 1px solid var(--bb-rule);
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px;
@@ -345,7 +365,7 @@ body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-pay {
   font-variant-numeric: tabular-nums;
   color: var(--bb-ink-2) !important;
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-pay .hr-glyph { color: var(--bb-ink-2) !important; }
+body[data-theme] #panel-bounty .bb-pay .hr-glyph { color: var(--bb-ink-2) !important; }
 body[data-theme] #panel-bounty .bb-foot {
   margin-top: 12px;
   display: flex; gap: 8px; justify-content: flex-end;
@@ -357,18 +377,18 @@ body[data-theme] #panel-bounty .bb-notice .btn {
   border-color: var(--bb-ink-3);
   box-shadow: inset 0 1px 0 rgba(255,246,220,.5), 0 1px 2px rgba(70,50,26,.4);
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn-primary { color: var(--bb-plate) !important; }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn:not(.btn-primary) {
-  background: rgba(70,50,26,.07) !important;
+body[data-theme] #panel-bounty .bb-notice .btn-primary { color: var(--bb-plate) !important; }
+body[data-theme] #panel-bounty .bb-notice .btn:not(.btn-primary) {
+  background: rgba(70,50,26,.07);
   color: var(--bb-ink-2) !important;
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-notice .btn-danger {
-  background: none !important; border-color: var(--bb-seal); color: var(--bb-seal) !important;
+body[data-theme] #panel-bounty .bb-notice .btn-danger {
+  background: none; border-color: var(--bb-seal); color: var(--bb-seal) !important;
 }
 
 /* Progress, on paper: an ink-ruled trough with a sepia fill. */
 body[data-theme] #panel-bounty .bb-prog { margin-top: 13px; }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-prog-t {
+body[data-theme] #panel-bounty .bb-prog-t {
   display: block; margin-bottom: 5px;
   font-size: var(--t-micro); font-weight: 700; color: var(--bb-ink-2) !important;
   font-variant-numeric: tabular-nums;
@@ -389,7 +409,7 @@ body[data-theme] #panel-bounty .bb-bar i {
 body[data-theme] #panel-bounty .bb-notice.is-taken {
   filter: drop-shadow(-3px 6px 7px rgba(0,0,0,.6)) saturate(.88);
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-stamp {
+body[data-theme] #panel-bounty .bb-stamp {
   position: absolute; top: 30px; right: 14px;
   padding: 4px 13px 3px;
   font-family: var(--f-display);
@@ -411,7 +431,11 @@ body[data-theme] #panel-bounty .bb-rail {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   border-top: 1px solid rgba(236,225,204,.07);
 }
-body[data-theme] #panel-bounty#panel-bounty#panel-bounty .bb-rail-t {
+/* b222: the rail's control has to sit ABOVE the rail's label in value — it is
+   the one pressable thing on the frame. It used to inherit that brightness from
+   the b174 blanket by accident; now it says so. */
+body[data-theme] #panel-bounty .bb-rail .btn { color: var(--ink) !important; }
+body[data-theme] #panel-bounty .bb-rail-t {
   font-size: var(--t-micro); color: var(--bb-rail-ink) !important;
 }
 
@@ -450,13 +474,13 @@ body[data-theme] #panel-shop .sc-rimline {
 body[data-theme] #panel-shop .sc-comb     { fill: var(--sc-comb); }
 body[data-theme] #panel-shop .sc-prop-lit { fill: var(--sc-prop-lit); }
 
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter {
+body[data-theme] #panel-shop .sc-counter {
   position: relative;
   padding: 6px 13px 14px;
   border-radius: 0 0 3px 3px;
   background:
     radial-gradient(ellipse 60% 100% at 22% 0%, rgba(255,186,110,.10), rgba(255,186,110,0) 64%),
-    linear-gradient(180deg, var(--sc-top-0), var(--sc-top-1) 88%) !important;
+    linear-gradient(180deg, var(--sc-top-0), var(--sc-top-1) 88%);
   box-shadow: inset 0 -1px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(236,225,204,.05);
 }
 /* Plank seams running back-to-front, so the surface reads as a table top. */
@@ -473,8 +497,8 @@ body[data-theme] #panel-shop .sc-counter::before {
 body[data-theme] #panel-shop .sc-counter > * { position: relative; }
 
 /* Each offer is laid out on the counter: a cloth mat, the ware, a price tag. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row {
-  background: none !important;
+body[data-theme] #panel-shop .sc-counter .shop-row {
+  background: none;
   border: 0;
   border-bottom: 1px solid rgba(0,0,0,.30);
   border-radius: 0;
@@ -483,7 +507,7 @@ body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row {
   align-items: center;
 }
 body[data-theme] #panel-shop .sc-counter .shop-row:last-child { border-bottom: 0; }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row:hover { background: rgba(255,236,200,.06) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row:hover { background: rgba(255,236,200,.06); }
 body[data-theme] #panel-shop .sc-counter .shop-row .si {
   width: 44px; height: 44px; flex: 0 0 44px;
   display: grid; place-items: center;
@@ -498,22 +522,29 @@ body[data-theme] #panel-shop .sc-counter .shop-row .si img {
   width: 34px; height: 34px; object-fit: contain;
   filter: drop-shadow(0 2px 2px rgba(0,0,0,.6));
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .si .hr-glyph { color: var(--gold-2) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row .si .hr-glyph { color: var(--gold-2) !important; }
 /* Gem-priced wares carry the premium hue on their art too, so the whole row
    agrees about which currency it wants. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .si.is-prem .hr-glyph { color: var(--sc-prem-ink) !important; }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .info b {
+body[data-theme] #panel-shop .sc-counter .shop-row .si.is-prem .hr-glyph { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row .info b {
   font-size: 16px; font-weight: 600; color: var(--scene-ink) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .info > span {
+body[data-theme] #panel-shop .sc-counter .shop-row .info > span {
   font-size: var(--t-micro); color: var(--scene-ink-3) !important;
 }
+/* b222: the plain (unaffordable / "Owned") control on the counter. It used to
+   take its value from the b174 blanket by accident; now it says so, so that
+   carving the blanket out did not quietly dim 14 buttons. `--ink` reproduces
+   what both themes already showed — once Cozy Day is retired this should become
+   `--scene-ink-3`, the counter's own muted role. */
+body[data-theme] #panel-shop .sc-counter .shop-row .btn:not(.btn-primary):not(.btn-gem) { color: var(--ink) !important; }
+
 /* The price hangs off the ware as a tag — notched at the string end. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price {
+body[data-theme] #panel-shop .sc-counter .shop-row .price {
   position: relative;
   padding: 4px 11px 4px 17px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--sc-tag), var(--sc-tag) 62%, rgba(0,0,0,.07)) !important;
+  background: linear-gradient(180deg, var(--sc-tag), var(--sc-tag) 62%, rgba(0,0,0,.07));
   color: var(--sc-tag-ink) !important;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -522,7 +553,7 @@ body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price 
   white-space: nowrap;
   min-width: 0;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price .hr-glyph { color: var(--sc-tag-ink) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row .price .hr-glyph { color: var(--sc-tag-ink) !important; }
 /* The tag's string hole. */
 body[data-theme] #panel-shop .sc-counter .shop-row .price::before {
   content: '';
@@ -532,14 +563,14 @@ body[data-theme] #panel-shop .sc-counter .shop-row .price::before {
 }
 /* Gem-priced wares keep the sapphire role — a cosmetic is bought with the
    premium currency and must not look like a gold purchase. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price.gem {
-  background: linear-gradient(180deg, var(--sc-gem-tag), rgba(0,0,0,.10)) !important;
+body[data-theme] #panel-shop .sc-counter .shop-row .price.gem {
+  background: linear-gradient(180deg, var(--sc-gem-tag), rgba(0,0,0,.10));
   color: var(--sc-gem-ink) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .shop-row .price.gem .hr-glyph { color: var(--sc-gem-ink) !important; }
+body[data-theme] #panel-shop .sc-counter .shop-row .price.gem .hr-glyph { color: var(--sc-gem-ink) !important; }
 
 /* A shelf label burnt into the counter — not another card heading. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-sep {
+body[data-theme] #panel-shop .sc-counter .sc-sep {
   margin: 17px 0 2px;
   padding-top: 12px;
   border-top: 1px solid rgba(0,0,0,.34);
@@ -548,7 +579,7 @@ body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-sep {
   font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
   color: var(--scene-ink-3) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-note {
+body[data-theme] #panel-shop .sc-counter .sc-note {
   margin-top: 13px;
   display: flex; align-items: center; gap: 10px;
   font-size: var(--t-micro); color: var(--scene-ink-3) !important;
@@ -564,22 +595,26 @@ body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter .sc-note {
 /* Every card-head already carries a 3px gilt keyline; the premium one turns
    sapphire, so the two shelves on this screen are told apart before a single
    word is read. */
-body[data-theme] #panel-shop#panel-shop#panel-shop .card:has(> #iap-panel) .card-head {
+body[data-theme] #panel-shop .card:has(> #iap-panel) .card-head {
+  /* !important: a mobile media query sets .card-head's border with !important,
+     so this is the one non-`color` declaration that still needs it. Without it
+     the premium shelf loses its sapphire keyline on phones only — which is
+     exactly the kind of thing a desktop-only pass never sees. */
   border-left-color: var(--gem) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop .card:has(> #iap-panel) .card-head .card-title { color: var(--sc-prem-ink) !important; }
-body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card {
+body[data-theme] #panel-shop#panel-shop .card:has(> #iap-panel) .card-head .card-title { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop #iap-panel .iap-card {
   /* cool cast — the premium shelf is lit differently from the warm shop */
   background: linear-gradient(180deg, var(--sc-prem-bg), rgba(0,0,0,.20)) !important;
   border-color: var(--sc-prem-line) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .iap-icon { color: var(--sc-prem-ink) !important; }
-body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .ribbon {
+body[data-theme] #panel-shop #iap-panel .iap-card .iap-icon { color: var(--sc-prem-ink) !important; }
+body[data-theme] #panel-shop #iap-panel .iap-card .ribbon {
   background: var(--sc-prem-bg) !important;
   color: var(--sc-prem-ink) !important;
   border-color: var(--sc-prem-line) !important;
 }
-body[data-theme] #panel-shop#panel-shop#panel-shop #iap-panel .iap-card .iap-price { color: var(--sc-prem-ink2) !important; }
+body[data-theme] #panel-shop #iap-panel .iap-card .iap-price { color: var(--sc-prem-ink2) !important; }
 body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
 
 /* ── Narrow viewports ──────────────────────────────────────────────────────
@@ -609,7 +644,7 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
  * pushed to the far wall. Wares are laid out ACROSS the counter instead.
  * ---------------------------------------------------------------------- */
 @media (min-width: 1060px) {
-  body[data-theme] #panel-shop#panel-shop#panel-shop .sc-counter {
+  body[data-theme] #panel-shop .sc-counter {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 28px;

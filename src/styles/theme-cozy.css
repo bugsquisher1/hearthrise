@@ -199,7 +199,10 @@ body[data-theme="classic"] {
 
    A subtle radial warmth in the upper-right suggests a low sun
    without ever drawing one. */
-body[data-theme="cozy-light"] body,
+/* b222: this list used to start with `body[data-theme="cozy-light"] body` — two
+   <body> elements in one descendant chain, which can never match. Same b216
+   rescoping accident as the #panel-profile one. The `html body[…]` selector
+   below is the one that was always doing the work. */
 html body[data-theme="cozy-light"] {
   /* landscape gradient now lives in the --app-bg token (b151) */
   background: var(--app-bg);
@@ -209,7 +212,6 @@ html body[data-theme="cozy-light"] {
 }
 
 /* ─── Sidebar (carved-plaque treatment to match character-sheet body) ─── */
-body[data-theme="cozy-light"] .sidebar,
 body[data-theme="cozy-light"] .sidebar {
   background: var(--sidebar-bg);
   border-right: 2px solid #b8893e;
@@ -220,7 +222,6 @@ body[data-theme="cozy-light"] .sidebar {
   position: relative;
 }
 /* Vertical decorative rule near the right edge of the sidebar */
-body[data-theme="cozy-light"] .sidebar::after,
 body[data-theme="cozy-light"] .sidebar::after {
   content: "";
   position: absolute;
@@ -234,7 +235,6 @@ body[data-theme="cozy-light"] .sidebar::after {
 }
 
 /* Brand block — full Hearthrise crest replaces the small emoji+text */
-body[data-theme="cozy-light"] .brand,
 body[data-theme="cozy-light"] .brand {
   border-bottom: 1px solid var(--line-strong);
   position: relative;
@@ -243,19 +243,10 @@ body[data-theme="cozy-light"] .brand {
   display: block !important;
   text-align: center;
 }
-body[data-theme="cozy-light"] .brand-crest,
-body[data-theme="cozy-light"] .brand-crest {
-  display: block;
-  width: 100%;
-  max-width: 124px;
-  height: auto;
-  margin: 0 auto;
-  filter: drop-shadow(0 1px 0 rgba(255,247,224,.5));
-}
+
 
 /* Sidebar must scroll when nav exceeds viewport — was overflow:hidden,
    which clipped the bottom items behind the brand crest. */
-body[data-theme="cozy-light"] .sidebar,
 body[data-theme="cozy-light"] .sidebar {
   overflow-y: auto !important;
   overflow-x: hidden;
@@ -320,7 +311,6 @@ body[data-theme="cozy-light"] .sidebar {
 .nav-btn.active .ic.hr-icon-host .hr-svg-ic {
   filter: drop-shadow(0 0 2px rgba(255,247,224,.6));
 }
-body[data-theme="cozy-light"] .brand::after,
 body[data-theme="cozy-light"] .brand::after {
   content: "";
   position: absolute;
@@ -331,7 +321,6 @@ body[data-theme="cozy-light"] .brand::after {
   background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
   opacity: 0.65;
 }
-body[data-theme="cozy-light"] .brand-name,
 body[data-theme="cozy-light"] .brand-name {
   font-family: var(--f-display);
   color: #5c2d08;
@@ -339,7 +328,6 @@ body[data-theme="cozy-light"] .brand-name {
   letter-spacing: .08em;
   text-shadow: 0 1px 0 rgba(255,247,224,.5);
 }
-body[data-theme="cozy-light"] .brand-name small,
 body[data-theme="cozy-light"] .brand-name small {
   color: #7a4623;
   letter-spacing: .22em;
@@ -347,7 +335,6 @@ body[data-theme="cozy-light"] .brand-name small {
   font-family: var(--f-display);
   font-weight: 600;
 }
-body[data-theme="cozy-light"] .brand-mark,
 body[data-theme="cozy-light"] .brand-mark {
   filter: drop-shadow(0 1px 0 rgba(255,247,224,.4));
 }
@@ -355,8 +342,6 @@ body[data-theme="cozy-light"] .brand-mark {
 /* Group labels (ADVENTURE / ECONOMY / HOMESTEAD) — Cinzel small caps,
    matching HEARTHRISE wordmark color + weight so they read clearly. */
 body[data-theme="cozy-light"] .sidebar .nav-group-label,
-body[data-theme="cozy-light"] .sidebar .nav-group-label,
-body[data-theme="cozy-light"] .nav-group-label,
 body[data-theme="cozy-light"] .nav-group-label {
   color: #5c2d08 !important;
   font-family: var(--f-display) !important;
@@ -370,7 +355,6 @@ body[data-theme="cozy-light"] .nav-group-label {
   opacity: 1 !important;
   text-shadow: 0 1px 0 rgba(255,247,224,.6);
 }
-body[data-theme="cozy-light"] .nav-group-label::after,
 body[data-theme="cozy-light"] .nav-group-label::after {
   content: "";
   position: absolute;
@@ -382,7 +366,6 @@ body[data-theme="cozy-light"] .nav-group-label::after {
 }
 
 /* Nav buttons — parchment surface */
-body[data-theme="cozy-light"] .nav-btn,
 body[data-theme="cozy-light"] .nav-btn {
   color: var(--ink) !important;
   background: transparent;
@@ -393,19 +376,16 @@ body[data-theme="cozy-light"] .nav-btn {
   border: 1px solid transparent;
   transition: background .15s, color .15s, border-color .15s, transform .12s;
 }
-body[data-theme="cozy-light"] .nav-btn:hover,
 body[data-theme="cozy-light"] .nav-btn:hover {
   background: var(--gold-bg) !important;
   color: var(--ink) !important;
   border-color: var(--line-strong);
 }
-body[data-theme="cozy-light"] .nav-btn .ic,
 body[data-theme="cozy-light"] .nav-btn .ic {
   filter: drop-shadow(0 1px 0 rgba(255,247,224,.3));
 }
 
 /* ACTIVE nav button — wax-stamp red with cream text + gold trim */
-body[data-theme="cozy-light"] .nav-btn.active,
 body[data-theme="cozy-light"] .nav-btn.active {
   background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
   color: #fff8e2 !important;
@@ -419,13 +399,11 @@ body[data-theme="cozy-light"] .nav-btn.active {
   text-transform: uppercase;
   font-size: 12px;
 }
-body[data-theme="cozy-light"] .nav-btn.active .lbl,
 body[data-theme="cozy-light"] .nav-btn.active .lbl {
   font-family: var(--f-display);
   letter-spacing: .12em;
   text-transform: uppercase;
 }
-body[data-theme="cozy-light"] .nav-btn.active .ic,
 body[data-theme="cozy-light"] .nav-btn.active .ic {
   filter: none;
   /* slight glow on active icon */
@@ -433,7 +411,6 @@ body[data-theme="cozy-light"] .nav-btn.active .ic {
 }
 
 /* Sidebar foot (offline / online indicator) */
-body[data-theme="cozy-light"] .nav-foot,
 body[data-theme="cozy-light"] .nav-foot {
   border-top: 1px solid var(--line-strong) !important;
   color: #5c3d12 !important;
@@ -445,67 +422,54 @@ body[data-theme="cozy-light"] .nav-foot {
   padding-top: 10px;
   margin-top: 4px;
 }
-body[data-theme="cozy-light"] .nav-foot .dot,
 body[data-theme="cozy-light"] .nav-foot .dot {
   background: var(--green) !important;
   box-shadow: 0 0 6px var(--green);
 }
-body[data-theme="cozy-light"] .nav-foot .dot.off,
 body[data-theme="cozy-light"] .nav-foot .dot.off {
   background: #a5896a !important;
   box-shadow: none;
 }
 
 /* Topbar */
-body[data-theme="cozy-light"] .topbar,
 body[data-theme="cozy-light"] .topbar {
   background: var(--topbar-bg);
   border-bottom: 1px solid var(--line-strong);
 }
-body[data-theme="cozy-light"] .player-avatar,
 body[data-theme="cozy-light"] .player-avatar {
   background: linear-gradient(135deg, var(--gold-bg), rgba(95,124,61,.10));
   border: 1px solid rgba(200,134,42,.22);
 }
-body[data-theme="cozy-light"] .player-name,
 body[data-theme="cozy-light"] .player-name { color: var(--ink); }
-body[data-theme="cozy-light"] .t-stat,
 body[data-theme="cozy-light"] .t-stat {
   background: rgba(255,247,224,.55);
   color: var(--ink);
   border: 1px solid var(--line);
 }
-body[data-theme="cozy-light"] .t-stat .lab,
 body[data-theme="cozy-light"] .t-stat .lab {
   color: var(--ink-2);
 }
-body[data-theme="cozy-light"] .icon-btn,
 body[data-theme="cozy-light"] .icon-btn {
   color: var(--ink-2);
   background: rgba(255,247,224,.4);
   border: 1px solid var(--line);
 }
-body[data-theme="cozy-light"] .icon-btn:hover,
 body[data-theme="cozy-light"] .icon-btn:hover {
   background: var(--gold-bg);
   color: var(--gold);
 }
 
 /* Bottom nav (mobile) */
-body[data-theme="cozy-light"] .bottom-nav,
 body[data-theme="cozy-light"] .bottom-nav {
   background: linear-gradient(180deg, #e8d4a0, #ede0b8);
   border-top: 1px solid var(--line-strong);
 }
-body[data-theme="cozy-light"] .bn-btn,
 body[data-theme="cozy-light"] .bn-btn { color: var(--ink-2); }
-body[data-theme="cozy-light"] .bn-btn.active,
-body[data-theme="cozy-light"] .bn-btn.active { color: var(--gold); }
+
 
 /* Cards — parchment fill with a darker "header band" up top, gold
    inner trim, and a warm drop-shadow so they read like book pages
    pinned to a noticeboard, not flat <div>s. */
-body[data-theme="cozy-light"] .card,
 body[data-theme="cozy-light"] .card {
   background: var(--bg-card);
   border: 1px solid var(--line-strong);
@@ -520,7 +484,6 @@ body[data-theme="cozy-light"] .card {
 }
 /* Card head — darker parchment band, gold underline, decorative
    flourish before the title. */
-body[data-theme="cozy-light"] .card-head,
 body[data-theme="cozy-light"] .card-head {
   background: linear-gradient(180deg, #e8d4a0, #ddc88c);
   border-bottom: 1px solid var(--line-strong);
@@ -531,7 +494,6 @@ body[data-theme="cozy-light"] .card-head {
   position: relative;
 }
 /* Decorative gold underline on the band */
-body[data-theme="cozy-light"] .card-head::after,
 body[data-theme="cozy-light"] .card-head::after {
   content: "";
   position: absolute;
@@ -540,7 +502,6 @@ body[data-theme="cozy-light"] .card-head::after {
   background: linear-gradient(90deg, transparent, var(--gold), transparent);
 }
 /* Title in the band — Cinzel, with a small flourish character */
-body[data-theme="cozy-light"] .card-head .card-title,
 body[data-theme="cozy-light"] .card-head .card-title {
   font-family: var(--f-display);
   font-size: 13px;
@@ -549,7 +510,6 @@ body[data-theme="cozy-light"] .card-head .card-title {
   color: #5c3d12;
   text-transform: uppercase;
 }
-body[data-theme="cozy-light"] .card-head .card-title::before,
 body[data-theme="cozy-light"] .card-head .card-title::before {
   content: "❦ ";
   color: var(--gold);
@@ -699,11 +659,7 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
     height: auto !important;
   }
   /* Inventory bag tile grid — let it use the full width too */
-  .invc-bag,
-  .inv-bag,
-  .bag-grid {
-    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)) !important;
-  }
+
 
   /* b107 — Profile right-side bleed: the 2-column layout
    * (main content + Active Effects sidebar) doesn't stack on mobile,
@@ -722,9 +678,7 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
     display: block !important;
   }
   #panel-profile.active #active-effects-card,
-  #panel-profile.active .active-effects-side,
-  #panel-profile.active aside,
-  #panel-profile.active .col-side {
+#panel-profile.active aside {
     width: 100% !important;
     max-width: 100% !important;
     margin-left: 0 !important;
@@ -754,14 +708,12 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
   #panel-combat .combat-style-block {
     flex-wrap: wrap !important;
   }
-  .combat-style-block .csb-head,
   .combat-style-block > .row {
     flex-wrap: wrap !important;
     gap: 6px;
   }
   .combat-style-block h4,
-  .combat-style-block .csb-title,
-  .combat-style-block > .row > div:first-child {
+.combat-style-block > .row > div:first-child {
     flex: 1 1 100% !important;
     min-width: 0 !important;
     overflow: hidden;
@@ -876,7 +828,7 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
     font-size: 10px !important;
     min-height: 24px !important;
   }
-  .qbtn, .topbar button {
+  .topbar button {
     min-height: 26px !important;
     padding: 2px 6px !important;
     font-size: 10px !important;
@@ -1059,33 +1011,20 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
   /* Show only the section matching the active inventory sub-tab.
    * The inventory layout has three logical zones: bag column,
    * equipment column (paper-doll + hero stats), loadout column. */
-  #panel-inventory[data-mobile-sub="bag"] .invc-equip-col,
-  #panel-inventory[data-mobile-sub="bag"] .invc-loadout-col,
-  #panel-inventory[data-mobile-sub="bag"] .loadout-section,
-  #panel-inventory[data-mobile-sub="bag"] .hero-stats {
+#panel-inventory[data-mobile-sub="bag"] .invc-equip-col {
     display: none !important;
   }
-  #panel-inventory[data-mobile-sub="equip"] .invc-bag-col,
-  #panel-inventory[data-mobile-sub="equip"] .bag-section,
-  #panel-inventory[data-mobile-sub="equip"] .invc-loadout-col,
-  #panel-inventory[data-mobile-sub="equip"] .loadout-section {
+  #panel-inventory[data-mobile-sub="equip"] .invc-bag-col {
     display: none !important;
   }
   #panel-inventory[data-mobile-sub="loadouts"] .invc-bag-col,
-  #panel-inventory[data-mobile-sub="loadouts"] .bag-section,
-  #panel-inventory[data-mobile-sub="loadouts"] .invc-equip-col,
-  #panel-inventory[data-mobile-sub="loadouts"] .hero-stats,
-  #panel-inventory[data-mobile-sub="loadouts"] .td-doll {
+#panel-inventory[data-mobile-sub="loadouts"] .invc-equip-col,
+#panel-inventory[data-mobile-sub="loadouts"] .td-doll {
     display: none !important;
   }
 
   /* Tighten bag tile grid to 5 columns on mobile (was responsive auto-fill) */
-  #panel-inventory .bag-grid,
-  #panel-inventory .invc-bag,
-  #panel-inventory .inv-bag {
-    grid-template-columns: repeat(5, 1fr) !important;
-    gap: 4px !important;
-  }
+
 }
 
 /* Activities skill strip — horizontal-scroll across the top */
@@ -1137,21 +1076,12 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
 
   /* Hide the desktop-style skill list sidebar on mobile — the strip
    * replaces it. Show only the right-column detail. */
-  #panel-skills .activities-sidebar,
-  #panel-skills .skill-list-col,
-  #panel-skills aside.skill-list {
-    display: none !important;
-  }
-  #panel-skills .skill-detail,
-  #panel-skills .activity-detail-col {
+
+  #panel-skills .skill-detail {
     width: 100% !important;
   }
   /* Skill nodes (Normal Tree, Oak, etc.) — denser rows */
-  #panel-skills .skill-node,
-  #panel-skills .activity-tile {
-    padding: 8px 10px !important;
-    min-height: 60px !important;
-  }
+
 }
 
 /* ============================================================
@@ -1210,16 +1140,12 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
 
   /* Show ONLY the section matching the active mobile sub-tab.
    * data-mobile-sub is set by combat-mobile-tabs.js. */
-  #panel-combat[data-mobile-sub="style"] .combat-picker,
-  #panel-combat[data-mobile-sub="style"] .combat-arena,
-  #panel-combat[data-mobile-sub="style"] #combat-suggested,
-  #panel-combat[data-mobile-sub="style"] .suggested-card {
+#panel-combat[data-mobile-sub="style"] .combat-picker,
+#panel-combat[data-mobile-sub="style"] .combat-arena {
     display: none !important;
   }
   #panel-combat[data-mobile-sub="monsters"] .combat-style-block,
-  #panel-combat[data-mobile-sub="monsters"] .combat-arena,
-  #panel-combat[data-mobile-sub="monsters"] #combat-suggested,
-  #panel-combat[data-mobile-sub="monsters"] .suggested-card {
+#panel-combat[data-mobile-sub="monsters"] .combat-arena {
     display: none !important;
   }
   #panel-combat[data-mobile-sub="arena"] .combat-style-block,
@@ -1260,10 +1186,7 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
     font-weight: 700;
     font-size: 13px;
   }
-  body[data-theme="cozy-light"] #panel-combat .monster-row .mon-meta {
-    font-size: 10px;
-    color: #7a4623;
-  }
+  
   /* Hide bounty-style verbose chips on mobile bounty board too */
   @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
     .bounty-option {
@@ -1371,9 +1294,8 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
   /* The "Style: Accurate · Trains: Attack" + "Accuracy skill: attack
    * · Damage skill: strength" lines eat 60px doing nothing useful
    * once the user picks a style. Hide on mobile. */
-  #panel-combat .combat-style-block .csb-meta,
-  #panel-combat .combat-style-block .csb-desc,
-  #panel-combat .combat-style-block p {
+#panel-combat .combat-style-block .csb-meta,
+#panel-combat .combat-style-block p {
     display: none !important;
   }
   /* Combat-style buttons in a tight 4-up grid */
@@ -1392,12 +1314,10 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
   }
 
   /* Combat picker — make the tier buttons compact */
-  #panel-combat .combat-picker .tier-tabs,
-  #panel-combat .combat-picker .row {
+#panel-combat .combat-picker .row {
     flex-wrap: wrap !important;
     gap: 4px !important;
   }
-  #panel-combat .combat-picker .tier-tab,
   #panel-combat .combat-picker button {
     padding: 4px 10px !important;
     min-height: 36px !important;
@@ -1416,10 +1336,7 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
 
   /* Hide the "Suggested for your level" block — it's redundant once
    * the monster picker (with all tiers) is on the same screen. */
-  #panel-combat .suggested-card,
-  #panel-combat #combat-suggested {
-    display: none !important;
-  }
+
 
   /* PROFILE — ensure no overlap with the chat pill or bottom nav.
    * Final card needs bottom margin so it doesn't sit under the pill. */
@@ -1453,7 +1370,6 @@ body[data-theme="cozy-light"] #hr-store-link:hover {
     font-size: 11px !important;
     min-height: 30px !important;     /* was 36 in b108 */
   }
-  .qbtn,
   .topbar button {
     min-height: 32px !important;     /* was 36 in b108 */
     padding: 4px 8px !important;
@@ -1539,9 +1455,8 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
     margin-bottom: 2px;
   }
   /* Topbar pills (Quests, stats, gear) */
-  .topbar button,
-  .topbar .t-stat,
-  .topbar .qbtn {
+.topbar button,
+.topbar .t-stat {
     min-height: 36px !important;
     padding: 6px 10px !important;
   }
@@ -1592,8 +1507,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
     margin-bottom: 12px !important;
   }
   /* Bestiary / Achievements / similar grid items */
-  .iap-grid,
-  .ach-grid {
+.iap-grid {
     gap: 10px !important;
   }
 }
@@ -1628,7 +1542,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   }
 }e: 12px;
 }
-body[data-theme="cozy-light"] .card-head .card-sub,
 body[data-theme="cozy-light"] .card-head .card-sub {
   color: #7a5a2a;
   font-weight: 600;
@@ -1636,85 +1549,59 @@ body[data-theme="cozy-light"] .card-head .card-sub {
   font-family: var(--f-ui);
 }
 /* Card body padding (legacy uses padding on .card; offset for the band) */
-body[data-theme="cozy-light"] .card .card-body,
 body[data-theme="cozy-light"] .card .card-body {
   padding: 14px;
 }
 /* Standalone .card-title used outside .card-head still reads */
-body[data-theme="cozy-light"] .card-title,
 body[data-theme="cozy-light"] .card-title { color: var(--ink); font-weight: 700; }
-body[data-theme="cozy-light"] .card-sub,
 body[data-theme="cozy-light"] .card-sub { color: var(--ink-2); }
 
 /* Scrollbars on parchment — make the thumb actually visible */
-body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb,
 body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb {
   background: rgba(122,94,58,.25);
 }
-body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb:hover,
 body[data-theme="cozy-light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(122,94,58,.45);
 }
 
 /* Status pill ('Offline · sign in to sync') */
-body[data-theme="cozy-light"] .status-pill,
-body[data-theme="cozy-light"] .status-pill {
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-}
+
 
 /* Quests + dock-line elements that span the topbar */
-body[data-theme="cozy-light"] #quests-strip,
-body[data-theme="cozy-light"] #quests-strip {
-  background: linear-gradient(90deg, var(--bg-2), var(--bg-3));
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-2);
-}
+
 
 /* Activity bar — overrides both legacy.css gradient AND
  * audit-overrides.css's `.activity-bar.v2 { background: ... !important }`
  * so we need !important too to win. */
 body[data-theme="cozy-light"] .activity-bar,
-body[data-theme="cozy-light"] .activity-bar,
-body[data-theme="cozy-light"] .activity-bar.v2,
 body[data-theme="cozy-light"] .activity-bar.v2 {
   background: linear-gradient(180deg, rgba(255,247,224,.85), rgba(237,224,184,.65)) !important;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
 }
 body[data-theme="cozy-light"] .activity-bar.idle,
-body[data-theme="cozy-light"] .activity-bar.v2.idle,
-body[data-theme="cozy-light"] .activity-bar.idle,
 body[data-theme="cozy-light"] .activity-bar.v2.idle {
   background: rgba(237,224,184,.55) !important;
 }
-body[data-theme="cozy-light"] .activity-bar.idle .ab-name,
 body[data-theme="cozy-light"] .activity-bar.idle .ab-name {
   color: var(--ink-2);
 }
-body[data-theme="cozy-light"] .ab-name,
 body[data-theme="cozy-light"] .ab-name {
   color: var(--ink);
 }
-body[data-theme="cozy-light"] .ab-icon,
 body[data-theme="cozy-light"] .ab-icon {
   background: linear-gradient(135deg, var(--green-bg), rgba(95,124,61,.06));
   border: 1px solid rgba(95,124,61,.32);
 }
-body[data-theme="cozy-light"] .ab-progress,
 body[data-theme="cozy-light"] .ab-progress {
   background: rgba(122,94,58,.18);
 }
-body[data-theme="cozy-light"] .ab-progress > i,
 body[data-theme="cozy-light"] .ab-progress > i {
   background: linear-gradient(90deg, var(--green), #7a9c5d);
 }
-body[data-theme="cozy-light"] .ab-meta,
 body[data-theme="cozy-light"] .ab-meta {
   color: var(--ink-2);
 }
-body[data-theme="cozy-light"] .ab-meta b,
 body[data-theme="cozy-light"] .ab-meta b {
   color: var(--gold);
 }
@@ -1725,9 +1612,7 @@ body[data-theme="cozy-light"] .ab-meta b {
  * dark ink unless the text genuinely is meant to feel like a
  * highlight (currency values, level numbers, key stat readouts).
  * ============================================================ */
-
 /* Sidebar group labels ("ADVENTURE", "ECONOMY", "HOMESTEAD") */
-body[data-theme="cozy-light"] .nav-group-label,
 body[data-theme="cozy-light"] .nav-group-label {
   color: var(--ink-3) !important;
   letter-spacing: .12em;
@@ -1740,46 +1625,30 @@ body[data-theme="cozy-light"] .dash-user-sub,
 body[data-theme="cozy-light"] #dash-user-sub,
 body[data-theme="cozy-light"] #dash-skills-sub,
 body[data-theme="cozy-light"] #dash-active-sub,
-body[data-theme="cozy-light"] #dash-obj-sub,
-body[data-theme="cozy-light"] .dash-user-sub,
-body[data-theme="cozy-light"] #dash-user-sub,
-body[data-theme="cozy-light"] #dash-skills-sub,
-body[data-theme="cozy-light"] #dash-active-sub,
 body[data-theme="cozy-light"] #dash-obj-sub { color: var(--ink-2); }
 
 /* All "Live" / "Tier 1" / etc. badges in card heads */
-body[data-theme="cozy-light"] .card-head .card-sub,
 body[data-theme="cozy-light"] .card-head .card-sub {
   color: var(--ink-2);
   font-weight: 600;
 }
 
 /* Stat-card values — dark for readability, gold only for the gold tile */
-body[data-theme="cozy-light"] .stat-val,
-body[data-theme="cozy-light"] .stat-num,
-body[data-theme="cozy-light"] .stat-val,
 body[data-theme="cozy-light"] .stat-num { color: var(--ink); font-weight: 800; }
 
-body[data-theme="cozy-light"] .stat-label,
-body[data-theme="cozy-light"] .stat-lbl,
-body[data-theme="cozy-light"] .stat-label,
-body[data-theme="cozy-light"] .stat-lbl { color: var(--ink-2); }
+
 
 /* Buttons (Achievements, Bestiary, LIFETIME STATS, Last Session) */
-body[data-theme="cozy-light"] .btn,
 body[data-theme="cozy-light"] .btn {
   background: rgba(255,247,224,.6);
   color: var(--ink);
   border: 1px solid var(--line-strong);
 }
-body[data-theme="cozy-light"] .btn:hover,
 body[data-theme="cozy-light"] .btn:hover {
   background: rgba(255,247,224,.95);
   border-color: var(--gold);
   color: var(--ink);
 }
-body[data-theme="cozy-light"] .btn.btn-primary,
-body[data-theme="cozy-light"] .btn-primary,
 body[data-theme="cozy-light"] .btn.btn-primary,
 body[data-theme="cozy-light"] .btn-primary {
   background: linear-gradient(180deg, var(--gold-2), var(--gold));
@@ -1787,8 +1656,6 @@ body[data-theme="cozy-light"] .btn-primary {
   border-color: var(--gold);
   font-weight: 700;
 }
-body[data-theme="cozy-light"] .btn.btn-danger,
-body[data-theme="cozy-light"] .btn-danger,
 body[data-theme="cozy-light"] .btn.btn-danger,
 body[data-theme="cozy-light"] .btn-danger {
   background: var(--red-bg);
@@ -1799,11 +1666,8 @@ body[data-theme="cozy-light"] .btn-danger {
 /* Gold + gem stats in topbar (these SHOULD stay gold/gem-colored
    because they encode meaning, but use the deeper ramp shade for
    contrast on parchment) */
-body[data-theme="cozy-light"] .t-stat.gold .ic,
 body[data-theme="cozy-light"] .t-stat.gold .ic { color: var(--gold); }
-body[data-theme="cozy-light"] .t-stat.gem .ic,
 body[data-theme="cozy-light"] .t-stat.gem .ic { color: var(--gem); }
-body[data-theme="cozy-light"] .t-stat .lab,
 body[data-theme="cozy-light"] .t-stat .lab {
   color: var(--ink-3);
   font-weight: 700;
@@ -1813,27 +1677,18 @@ body[data-theme="cozy-light"] .t-stat .lab {
 }
 
 /* Quests strip ("QUESTS · No active quests") + click-to-open hint */
-body[data-theme="cozy-light"] #quests-strip *,
-body[data-theme="cozy-light"] #quests-strip * { color: var(--ink-2); }
-body[data-theme="cozy-light"] #quests-strip .qs-label,
-body[data-theme="cozy-light"] #quests-strip .qs-label { color: var(--ink); font-weight: 700; }
+
+
 
 /* Companion name (e.g. "Fox (Lv 2)") on profile dashboard */
-body[data-theme="cozy-light"] .companion-name,
-body[data-theme="cozy-light"] .comp-name,
-body[data-theme="cozy-light"] .companion-name,
-body[data-theme="cozy-light"] .comp-name { color: var(--ink); font-weight: 700; }
 
-body[data-theme="cozy-light"] .companion-role,
-body[data-theme="cozy-light"] .comp-role,
-body[data-theme="cozy-light"] .companion-role,
-body[data-theme="cozy-light"] .comp-role { color: var(--ink-2); }
+
+
 
 /* General fallback: ANY element using var(--gold-2) for color
    that lands on parchment becomes hard to read. Replace top-level
    uses where they appear as TEXT (not borders/bg). The pattern
    we use for card headers, badges, etc. */
-body[data-theme="cozy-light"] .card-head .card-title,
 body[data-theme="cozy-light"] .card-head .card-title {
   color: var(--ink);
   font-weight: 800;
@@ -1842,9 +1697,7 @@ body[data-theme="cozy-light"] .card-head .card-title {
 
 /* Brand "HEARTHRISE / IDLE HOMESTEAD" in sidebar — keep gold but use
    the deeper warm gold so it doesn't hurt to read */
-body[data-theme="cozy-light"] .brand-name,
 body[data-theme="cozy-light"] .brand-name { color: #8c5d1a; }
-body[data-theme="cozy-light"] .brand-name small,
 body[data-theme="cozy-light"] .brand-name small { color: var(--ink-3); }
 
 /* ============================================================
@@ -1862,10 +1715,8 @@ body[data-theme="cozy-light"] .brand-name small { color: var(--ink-3); }
  * render loop. Instead we suppress the card chrome via CSS and
  * unify them visually.
  * ============================================================ */
-
 /* Scope all panel-sheet styles to .active so we don't override
    legacy's `.panel { display: none }` for inactive tabs. */
-body[data-theme="cozy-light"] #panel-profile.active,
 body[data-theme="cozy-light"] #panel-profile.active {
   /* The sheet itself: thick parchment with gold double-border, drop
      shadow so it floats on the homestead landscape, ornamental
@@ -1904,7 +1755,6 @@ body[data-theme="cozy-light"] #panel-profile.active {
 /* Mirror the SVG flourishes per corner using transforms on
    pseudo-elements. The bg-image approach above lays the same SVG
    four times; we overlay rotated copies via ::before/::after. */
-body[data-theme="cozy-light"] #panel-profile::before,
 body[data-theme="cozy-light"] #panel-profile::before {
   content: "";
   position: absolute;
@@ -1914,7 +1764,6 @@ body[data-theme="cozy-light"] #panel-profile::before {
   transform: scaleX(-1);
   pointer-events: none;
 }
-body[data-theme="cozy-light"] #panel-profile::after,
 body[data-theme="cozy-light"] #panel-profile::after {
   content: "";
   position: absolute;
@@ -1925,7 +1774,6 @@ body[data-theme="cozy-light"] #panel-profile::after {
   pointer-events: none;
 }
 /* Bottom-right corner gets the wax seal instead of a flourish */
-body[data-theme="cozy-light"] #panel-profile.active,
 body[data-theme="cozy-light"] #panel-profile.active {
   background-image:
     url("../../assets/ornaments/corner-flourish.svg"),
@@ -1937,12 +1785,10 @@ body[data-theme="cozy-light"] #panel-profile.active {
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 }
 /* Adjust ::before/::after to handle remaining corners */
-body[data-theme="cozy-light"] #panel-profile::before,
 body[data-theme="cozy-light"] #panel-profile::before {
   top: 0; right: 0;
   transform: scaleX(-1);
 }
-body[data-theme="cozy-light"] #panel-profile::after,
 body[data-theme="cozy-light"] #panel-profile::after {
   bottom: 0; left: 0;
   transform: scaleY(-1);
@@ -1950,7 +1796,6 @@ body[data-theme="cozy-light"] #panel-profile::after {
 
 /* Suppress the card chrome on every dashboard child — the panel
    IS the card now. Children are sections of the sheet. */
-body[data-theme="cozy-light"] #panel-profile .card,
 body[data-theme="cozy-light"] #panel-profile .card {
   background: transparent !important;
   border: none !important;
@@ -1959,13 +1804,11 @@ body[data-theme="cozy-light"] #panel-profile .card {
   padding: 0 !important;
   overflow: visible !important;
 }
-body[data-theme="cozy-light"] #panel-profile .card-head,
 body[data-theme="cozy-light"] #panel-profile .card-head {
   background: transparent !important;
   border-bottom: none !important;
   padding: 0 0 4px 0 !important;
 }
-body[data-theme="cozy-light"] #panel-profile .card-head::after,
 body[data-theme="cozy-light"] #panel-profile .card-head::after {
   /* Replace the gold underline with a wider ornamental rule */
   background: linear-gradient(90deg, transparent 0%, var(--gold) 30%, var(--gold) 70%, transparent 100%) !important;
@@ -1975,43 +1818,33 @@ body[data-theme="cozy-light"] #panel-profile .card-head::after {
   right: 0 !important;
   opacity: .65;
 }
-body[data-theme="cozy-light"] #panel-profile .card-head .card-title,
 body[data-theme="cozy-light"] #panel-profile .card-head .card-title {
   font-family: var(--f-display);
   font-size: 11px;
   letter-spacing: .22em;
   color: #6a3e0c;
 }
-body[data-theme="cozy-light"] #panel-profile .card-head .card-title::before,
 body[data-theme="cozy-light"] #panel-profile .card-head .card-title::before {
   /* Slightly different ornament for the sheet sections */
   content: "✦ ";
   color: var(--gold);
   margin-right: 4px;
 }
-body[data-theme="cozy-light"] #panel-profile .card-body,
 body[data-theme="cozy-light"] #panel-profile .card-body {
   padding: 8px 0 0 0 !important;
 }
 
 /* Grid placement of the dashboard children */
-body[data-theme="cozy-light"] #panel-profile #dash-user,
 body[data-theme="cozy-light"] #panel-profile #dash-user { grid-area: user; }
-body[data-theme="cozy-light"] #panel-profile #dash-active,
 body[data-theme="cozy-light"] #panel-profile #dash-active { grid-area: right; }
-body[data-theme="cozy-light"] #panel-profile #dash-objectives,
 body[data-theme="cozy-light"] #panel-profile #dash-objectives { grid-area: bottom; }
-body[data-theme="cozy-light"] #panel-profile #dash-skills,
 body[data-theme="cozy-light"] #panel-profile #dash-skills { grid-area: left; }
-body[data-theme="cozy-light"] #panel-profile #dash-homestead,
 body[data-theme="cozy-light"] #panel-profile #dash-homestead { grid-area: ribbon; }
 
 /* Top section: name + portrait — make it the calligraphic title block */
-body[data-theme="cozy-light"] #panel-profile #dash-user .card-head,
 body[data-theme="cozy-light"] #panel-profile #dash-user .card-head {
   display: none !important;        /* don't show "PROFILE" — we'll let the player name BE the title */
 }
-body[data-theme="cozy-light"] #panel-profile #dash-user-body,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body {
   text-align: center;
   position: relative;
@@ -2022,9 +1855,7 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body {
 /* When the engine renders the user body, it normally shows
    "Adventurer / Offline play / Sign in / 4 stat tiles / companion".
    We use sibling selectors to push the layout into a header look. */
-
 /* ─── Activity card (top header) → title block ─── */
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card {
   background: transparent !important;
   border: none !important;
@@ -2037,8 +1868,6 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card {
   align-items: center;
 }
 /* Player avatar — gold-rimmed portrait frame */
-body[data-theme="cozy-light"] #panel-profile .activity-card .avatar,
-body[data-theme="cozy-light"] #panel-profile .activity-card > :first-child,
 body[data-theme="cozy-light"] #panel-profile .activity-card .avatar,
 body[data-theme="cozy-light"] #panel-profile .activity-card > :first-child {
   grid-area: portrait;
@@ -2054,9 +1883,6 @@ body[data-theme="cozy-light"] #panel-profile .activity-card > :first-child {
   overflow: hidden;
 }
 /* The name "Adventurer" — calligraphic title */
-body[data-theme="cozy-light"] #panel-profile .activity-card .ac-name,
-body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :first-child,
-body[data-theme="cozy-light"] #panel-profile .activity-card .ac-name,
 body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :first-child {
   grid-area: title;
   font-family: var(--f-display);
@@ -2069,9 +1895,6 @@ body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) >
   line-height: 1.05;
 }
 /* Subtitle line — Quicksand at readable size + dark color, NOT Caveat */
-body[data-theme="cozy-light"] #panel-profile .activity-card .ac-sub,
-body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :nth-child(2),
-body[data-theme="cozy-light"] #panel-profile .activity-card .ac-sub,
 body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) > :nth-child(2) {
   grid-area: subtitle;
   font-family: var(--f-ui);
@@ -2083,8 +1906,6 @@ body[data-theme="cozy-light"] #panel-profile .activity-card > div:nth-child(2) >
   margin: 0;
 }
 /* Sign In button — wax-stamp style on the right */
-body[data-theme="cozy-light"] #panel-profile .activity-card .btn,
-body[data-theme="cozy-light"] #panel-profile .activity-card button,
 body[data-theme="cozy-light"] #panel-profile .activity-card .btn,
 body[data-theme="cozy-light"] #panel-profile .activity-card button {
   grid-area: signin;
@@ -2101,14 +1922,11 @@ body[data-theme="cozy-light"] #panel-profile .activity-card button {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3);
 }
 body[data-theme="cozy-light"] #panel-profile .activity-card .btn:hover,
-body[data-theme="cozy-light"] #panel-profile .activity-card button:hover,
-body[data-theme="cozy-light"] #panel-profile .activity-card .btn:hover,
 body[data-theme="cozy-light"] #panel-profile .activity-card button:hover {
   filter: brightness(1.1);
 }
 
 /* Title block ornamental rule beneath */
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card::after,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card::after {
   content: "";
   grid-column: 1 / -1;
@@ -2118,14 +1936,12 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .activity-card::aft
 }
 
 /* ─── KPI row → ledger rows with leader dots ─── */
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi-row,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi-row {
   display: grid !important;
   grid-template-columns: 1fr 1fr;
   gap: 0 36px !important;
   margin: 18px 0 8px;
 }
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi {
   background: transparent !important;
   border: none !important;
@@ -2138,7 +1954,6 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi {
   position: relative;
 }
 /* SPAN (label) on the left, B (value) on the right */
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi span,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi span {
   order: 1 !important;
   font-family: var(--f-display);
@@ -2147,7 +1962,6 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi span {
   color: #6a3e0c;
   text-transform: uppercase;
 }
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi b,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi b {
   order: 2 !important;
   font-family: var(--f-display);
@@ -2157,7 +1971,6 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .kpi b {
 }
 
 /* ─── Companion card → small inline tile, no progress bar ─── */
-body[data-theme="cozy-light"] #panel-profile .companion-card,
 body[data-theme="cozy-light"] #panel-profile .companion-card {
   background: rgba(255,247,224,.6) !important;
   border: 1px solid var(--line) !important;
@@ -2170,18 +1983,15 @@ body[data-theme="cozy-light"] #panel-profile .companion-card {
   width: auto !important;
   max-width: 320px;
 }
-body[data-theme="cozy-light"] #panel-profile .companion-card .cc-icon,
 body[data-theme="cozy-light"] #panel-profile .companion-card .cc-icon {
   font-size: 28px;
   width: 36px;
   flex-shrink: 0;
 }
-body[data-theme="cozy-light"] #panel-profile .companion-card .cc-info,
 body[data-theme="cozy-light"] #panel-profile .companion-card .cc-info {
   display: flex;
   flex-direction: column;
 }
-body[data-theme="cozy-light"] #panel-profile .companion-card .cc-name,
 body[data-theme="cozy-light"] #panel-profile .companion-card .cc-name {
   font-family: var(--f-display);
   font-weight: 600;
@@ -2189,7 +1999,6 @@ body[data-theme="cozy-light"] #panel-profile .companion-card .cc-name {
   color: var(--ink);
   letter-spacing: .04em;
 }
-body[data-theme="cozy-light"] #panel-profile .companion-card .cc-meta,
 body[data-theme="cozy-light"] #panel-profile .companion-card .cc-meta {
   font-family: var(--f-ui);
   font-size: 11px;
@@ -2197,7 +2006,6 @@ body[data-theme="cozy-light"] #panel-profile .companion-card .cc-meta {
   font-style: italic;
 }
 /* Kill the full-width progress bar — Tyler's explicit ask */
-body[data-theme="cozy-light"] #panel-profile .companion-card .cc-bar,
 body[data-theme="cozy-light"] #panel-profile .companion-card .cc-bar {
   display: none !important;
 }
@@ -2205,12 +2013,9 @@ body[data-theme="cozy-light"] #panel-profile .companion-card .cc-bar {
 /* Buttons row at the bottom of profile (Achievements, Bestiary,
    LIFETIME STATS, Last Session Summary) — ribbon under the sheet */
 body[data-theme="cozy-light"] #panel-profile .feat-buttons,
-body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger,
-body[data-theme="cozy-light"] #panel-profile .feat-buttons,
 body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger {
   margin-top: 12px;
 }
-body[data-theme="cozy-light"] #panel-profile .btn,
 body[data-theme="cozy-light"] #panel-profile .btn {
   background: linear-gradient(180deg, #faedc4, #ecd5a0);
   border: 1px solid var(--line-strong);
@@ -2223,7 +2028,6 @@ body[data-theme="cozy-light"] #panel-profile .btn {
   border-radius: 4px;
   box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
 }
-body[data-theme="cozy-light"] #panel-profile .btn:hover,
 body[data-theme="cozy-light"] #panel-profile .btn:hover {
   background: linear-gradient(180deg, #fff4d2, #f0d8a0);
   border-color: var(--gold);
@@ -2233,8 +2037,6 @@ body[data-theme="cozy-light"] #panel-profile .btn:hover {
    LIFETIME STATS / LAST SESSION SUMMARY) — force EXACTLY the same
    height + padding + box-sizing so they line up perfectly. Uses
    .feat-buttons descendant + .stats-btn-trigger as a catch-all. */
-body[data-theme="cozy-light"] #panel-profile .feat-buttons .btn,
-body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger,
 body[data-theme="cozy-light"] #panel-profile .feat-buttons .btn,
 body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger {
   background: linear-gradient(180deg, #faedc4, #ecd5a0) !important;
@@ -2259,26 +2061,22 @@ body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger {
   margin: 0 !important;
 }
 /* The feat-buttons row gets consistent gap */
-body[data-theme="cozy-light"] #panel-profile .feat-buttons,
 body[data-theme="cozy-light"] #panel-profile .feat-buttons {
   display: flex !important;
   gap: 10px !important;
   flex-wrap: wrap;
   align-items: center;
 }
-body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger:hover,
 body[data-theme="cozy-light"] #panel-profile .stats-btn-trigger:hover {
   background: linear-gradient(180deg, #fff4d2, #f0d8a0) !important;
   border-color: var(--gold) !important;
 }
 
 /* Active Effects section — make it look like a sub-block, not a card */
-body[data-theme="cozy-light"] #panel-profile #dash-active .card-head .card-title,
 body[data-theme="cozy-light"] #panel-profile #dash-active .card-head .card-title {
   /* Keep the Active Effects label visible — it serves as a section heading */
   display: inline-block;
 }
-body[data-theme="cozy-light"] #panel-profile h4,
 body[data-theme="cozy-light"] #panel-profile h4 {
   font-family: var(--f-display);
   font-size: 11px;
@@ -2291,7 +2089,6 @@ body[data-theme="cozy-light"] #panel-profile h4 {
 }
 
 /* FOOD BUFFS / HOUSE BUFFS section headers — darker for readability */
-body[data-theme="cozy-light"] .eff-section-h,
 body[data-theme="cozy-light"] .eff-section-h {
   color: #4a2810 !important;
   font-family: var(--f-display) !important;
@@ -2301,10 +2098,6 @@ body[data-theme="cozy-light"] .eff-section-h {
 
 /* The "No food buffs active. Cook buff foods to add bonuses." paragraph
    below each section header — also too faded by default */
-body[data-theme="cozy-light"] .eff-panel .ss-empty,
-body[data-theme="cozy-light"] .eff-panel .eff-empty,
-body[data-theme="cozy-light"] .eff-panel p,
-body[data-theme="cozy-light"] .eff-panel .ss-empty,
 body[data-theme="cozy-light"] .eff-panel .eff-empty,
 body[data-theme="cozy-light"] .eff-panel p {
   color: var(--ink-2) !important;
@@ -2355,7 +2148,6 @@ body[data-theme="cozy-light"] #hr-quests-btn.no-active .hr-q-count {
 }
 
 /* Center any "Sign in" button inside the user header so it sits like a callout */
-body[data-theme="cozy-light"] #panel-profile #dash-user-body .btn-primary,
 body[data-theme="cozy-light"] #panel-profile #dash-user-body .btn-primary {
   display: inline-block;
   margin: 12px auto 8px;
@@ -2363,9 +2155,6 @@ body[data-theme="cozy-light"] #panel-profile #dash-user-body .btn-primary {
 
 /* Companion card inside profile — small inline strip rather than
    a full-width tile. */
-body[data-theme="cozy-light"] #panel-profile .companion-row,
-body[data-theme="cozy-light"] #panel-profile [data-companion],
-body[data-theme="cozy-light"] #panel-profile .companion-row,
 body[data-theme="cozy-light"] #panel-profile [data-companion] {
   background: rgba(255,247,224,.6);
   border: 1px solid var(--line);
@@ -2376,7 +2165,6 @@ body[data-theme="cozy-light"] #panel-profile [data-companion] {
 
 /* On smaller widths, collapse the grid */
 @media (max-width: 1100px) {
-  body[data-theme="cozy-light"] #panel-profile.active,
   body[data-theme="cozy-light"] #panel-profile.active {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -2395,7 +2183,6 @@ body[data-theme="cozy-light"] #panel-profile [data-companion] {
  * get the same parchment-sheet frame as Profile, but keep their
  * existing internal multi-card layouts.
  * ============================================================ */
-body[data-theme="cozy-light"] .panel.active:not(#panel-profile),
 body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
   position: relative;
   margin: 16px;
@@ -2417,7 +2204,6 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
     0 2px 4px rgba(60,40,16,.12);
 }
 /* Mirror the top-right corner SVG */
-body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::before,
 body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::before {
   content: "";
   position: absolute;
@@ -2428,7 +2214,6 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::before {
   pointer-events: none;
 }
 /* Bottom-left flourish + bottom-right wax seal */
-body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::after,
 body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::after {
   content: "";
   position: absolute;
@@ -2443,7 +2228,6 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile)::after {
    panels — let the cards themselves carry the smaller card-bands.
    Cards still keep their borders + shadows for separation, just
    styled cohesively. */
-body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card,
 body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card {
   background: rgba(255,247,224,.55);
   border: 1px solid var(--line-strong);
@@ -2454,7 +2238,6 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card {
 
 /* Smaller padding for non-profile panels on narrower screens */
 @media (max-width: 900px) {
-  body[data-theme="cozy-light"] .panel.active:not(#panel-profile),
   body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
     padding: 24px 18px 36px;
   }
@@ -2468,20 +2251,16 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card {
  * image so they read as parchment too. Also catch the common
  * `rgba(0,0,0,.X)` darkening overlays inside cards.
  * ============================================================ */
-
 /* Combat arena (the big "Pick a monster" area).
    The #panel-combat ID + .active selector in legacy beats simple
    class chains, so we mirror its specificity and use !important.
    Also nuke the ::before / ::after pseudo overlays which paint a
    dark image + dark gradient on top of the arena. */
-body[data-theme="cozy-light"] #panel-combat.active .combat-arena,
 body[data-theme="cozy-light"] #panel-combat.active .combat-arena {
   background-image: none !important;
   background-color: rgba(255,247,224,.55) !important;
   border: 1px solid var(--line-strong) !important;
 }
-body[data-theme="cozy-light"] #panel-combat.active .combat-arena::before,
-body[data-theme="cozy-light"] #panel-combat.active .combat-arena::after,
 body[data-theme="cozy-light"] #panel-combat.active .combat-arena::before,
 body[data-theme="cozy-light"] #panel-combat.active .combat-arena::after {
   display: none !important;
@@ -2489,7 +2268,6 @@ body[data-theme="cozy-light"] #panel-combat.active .combat-arena::after {
   background-image: none !important;
   content: none !important;
 }
-body[data-theme="cozy-light"] #panel-combat.active .combat-empty,
 body[data-theme="cozy-light"] #panel-combat.active .combat-empty {
   background: transparent !important;
   color: var(--ink-2) !important;
@@ -2498,49 +2276,26 @@ body[data-theme="cozy-light"] #panel-combat.active .combat-empty {
 /* Combat style picker block at top — force parchment AND dark
    readable text on every descendant. */
 body[data-theme="cozy-light"] .combat-style-block,
-body[data-theme="cozy-light"] .combat-style-block,
-body[data-theme="cozy-light"] #panel-combat .combat-style-block,
 body[data-theme="cozy-light"] #panel-combat .combat-style-block {
   background-image: none !important;
   background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
   border: 1px solid var(--line-strong) !important;
   border-radius: 6px;
 }
-body[data-theme="cozy-light"] .combat-style-block *,
 body[data-theme="cozy-light"] .combat-style-block * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] .combat-style-block b,
-body[data-theme="cozy-light"] .combat-style-block strong,
 body[data-theme="cozy-light"] .combat-style-block b,
 body[data-theme="cozy-light"] .combat-style-block strong {
   color: #5c2d08 !important;
   font-weight: 700;
 }
-body[data-theme="cozy-light"] .combat-style-block .style-btn,
-body[data-theme="cozy-light"] .combat-style-block .style-btn {
-  background: rgba(255,247,224,.7) !important;
-  color: #3d2817 !important;
-  border: 1px solid var(--line-strong) !important;
-  opacity: 1 !important;
-}
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active,
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active {
-  background: linear-gradient(180deg,#d44a3a,#8b2a1f) !important;
-  color: #fff8e2 !important;
-  border-color: #5a1208 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 3px rgba(60,40,16,.3) !important;
-}
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active *,
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active * {
-  color: #fff8e2 !important;
-}
+
+
+
 
 /* Combat style chips — wax red for active to match design language */
-body[data-theme="cozy-light"] .panel.active .chip.active,
-body[data-theme="cozy-light"] .panel.active .chip.active,
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active,
-body[data-theme="cozy-light"] .combat-style-block .style-btn.active {
+body[data-theme="cozy-light"] .panel.active .chip.active {
   background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
   color: #fff8e2 !important;
   border-color: #5a1208 !important;
@@ -2563,16 +2318,9 @@ body[data-theme="cozy-light"] #combat-area .row.between {
    Retired with the markup it targeted. */
 body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"] *,
 body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob *,
-body[data-theme="cozy-light"] #panel-combat #combat-area > div *,
-body[data-theme="cozy-light"] #panel-combat .combat-arena [class*="suggest"] *,
-body[data-theme="cozy-light"] #panel-combat .combat-arena .ce-mob *,
 body[data-theme="cozy-light"] #panel-combat #combat-area > div * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] #panel-combat .combat-arena h2,
-body[data-theme="cozy-light"] #panel-combat .combat-arena h3,
-body[data-theme="cozy-light"] #panel-combat .combat-arena h4,
-body[data-theme="cozy-light"] #panel-combat .combat-arena .label,
 body[data-theme="cozy-light"] #panel-combat .combat-arena h2,
 body[data-theme="cozy-light"] #panel-combat .combat-arena h3,
 body[data-theme="cozy-light"] #panel-combat .combat-arena h4,
@@ -2584,11 +2332,6 @@ body[data-theme="cozy-light"] #panel-combat .combat-arena .label {
 
 /* Loadout slot labels (Hel/Nec/Cap/Bod/Amm/Bel/Pan/Rin etc) */
 body[data-theme="cozy-light"] .loadout-slot small,
-body[data-theme="cozy-light"] .equip-slot small,
-body[data-theme="cozy-light"] .inv-slot small,
-body[data-theme="cozy-light"] .eq-slot small,
-body[data-theme="cozy-light"] .loadout-slot small,
-body[data-theme="cozy-light"] .equip-slot small,
 body[data-theme="cozy-light"] .inv-slot small,
 body[data-theme="cozy-light"] .eq-slot small {
   color: #3d2817 !important;
@@ -2610,15 +2353,9 @@ body[data-theme="cozy-light"] .eq-slot small {
  * SHOULD stay muted (e.g. genuinely hint-level), add an
  * exception class.
  * ============================================================ */
-
 /* All paragraphs, spans, divs, tds, lis inside panels — force
    readable cocoa unless they're already on a colored bg (chips,
    active buttons, etc.) */
-body[data-theme="cozy-light"] .panel.active,
-body[data-theme="cozy-light"] .panel.active p,
-body[data-theme="cozy-light"] .panel.active li,
-body[data-theme="cozy-light"] .panel.active td,
-body[data-theme="cozy-light"] .panel.active label,
 body[data-theme="cozy-light"] .panel.active,
 body[data-theme="cozy-light"] .panel.active p,
 body[data-theme="cozy-light"] .panel.active li,
@@ -2634,23 +2371,11 @@ body[data-theme="cozy-light"] .panel.active [style*="--ink-3"],
 body[data-theme="cozy-light"] .panel.active .muted,
 body[data-theme="cozy-light"] .panel.active .hint,
 body[data-theme="cozy-light"] .panel.active .ss-meta,
-body[data-theme="cozy-light"] .panel.active .meta,
-body[data-theme="cozy-light"] .panel.active [style*="--ink-3"],
-body[data-theme="cozy-light"] .panel.active .muted,
-body[data-theme="cozy-light"] .panel.active .hint,
-body[data-theme="cozy-light"] .panel.active .ss-meta,
 body[data-theme="cozy-light"] .panel.active .meta {
   color: #6a4823 !important;
 }
 
 /* Headers / labels inside panels: deeper warm brown for clear hierarchy */
-body[data-theme="cozy-light"] .panel.active h1,
-body[data-theme="cozy-light"] .panel.active h2,
-body[data-theme="cozy-light"] .panel.active h3,
-body[data-theme="cozy-light"] .panel.active h4,
-body[data-theme="cozy-light"] .panel.active h5,
-body[data-theme="cozy-light"] .panel.active legend,
-body[data-theme="cozy-light"] .panel.active .label,
 body[data-theme="cozy-light"] .panel.active h1,
 body[data-theme="cozy-light"] .panel.active h2,
 body[data-theme="cozy-light"] .panel.active h3,
@@ -2684,40 +2409,22 @@ body[data-theme="cozy-light"] .panel.active [style*="background-color:rgba(0"] {
 /* Tables inside panels — readable rows */
 body[data-theme="cozy-light"] .panel.active table,
 body[data-theme="cozy-light"] .panel.active table td,
-body[data-theme="cozy-light"] .panel.active table th,
-body[data-theme="cozy-light"] .panel.active table,
-body[data-theme="cozy-light"] .panel.active table td,
 body[data-theme="cozy-light"] .panel.active table th {
   color: #3d2817 !important;
   background: transparent !important;
 }
-body[data-theme="cozy-light"] .panel.active table th,
 body[data-theme="cozy-light"] .panel.active table th {
   color: #5c2d08 !important;
   font-weight: 700;
 }
-body[data-theme="cozy-light"] .panel.active table tr:nth-child(even) td,
 body[data-theme="cozy-light"] .panel.active table tr:nth-child(even) td {
   background: rgba(255,247,224,.4) !important;
 }
 
 /* "+0%" / "+5% combat XP" / similar stat-line lozenges (House/Bonuses) */
-body[data-theme="cozy-light"] .panel.active .stat-row,
-body[data-theme="cozy-light"] .panel.active .bonus-row,
-body[data-theme="cozy-light"] .panel.active [class*="-row"],
-body[data-theme="cozy-light"] .panel.active .stat-row,
-body[data-theme="cozy-light"] .panel.active .bonus-row,
 body[data-theme="cozy-light"] .panel.active [class*="-row"] {
   color: #3d2817;
 }
-body[data-theme="cozy-light"] .panel.active .stat-row b,
-body[data-theme="cozy-light"] .panel.active .stat-row strong,
-body[data-theme="cozy-light"] .panel.active .bonus-row b,
-body[data-theme="cozy-light"] .panel.active [class*="-val"],
-body[data-theme="cozy-light"] .panel.active [class*="-amount"],
-body[data-theme="cozy-light"] .panel.active .stat-row b,
-body[data-theme="cozy-light"] .panel.active .stat-row strong,
-body[data-theme="cozy-light"] .panel.active .bonus-row b,
 body[data-theme="cozy-light"] .panel.active [class*="-val"],
 body[data-theme="cozy-light"] .panel.active [class*="-amount"] {
   color: #5c2d08 !important;
@@ -2726,30 +2433,12 @@ body[data-theme="cozy-light"] .panel.active [class*="-amount"] {
 
 /* HERO panel + WEAPON STYLES + BONUSES + ACTIVE STYLE side blocks
    in inventory + character panels. Force their numbers readable. */
-body[data-theme="cozy-light"] .panel.active .hero-summary *,
-body[data-theme="cozy-light"] .panel.active .weapon-styles *,
 body[data-theme="cozy-light"] .panel.active .bonuses *,
-body[data-theme="cozy-light"] .panel.active .active-style *,
 body[data-theme="cozy-light"] .panel.active [class*="hero-card"] *,
-body[data-theme="cozy-light"] .panel.active [class*="weapon-style"] *,
-body[data-theme="cozy-light"] .panel.active .style-stats *,
-body[data-theme="cozy-light"] .panel.active .hero-summary *,
-body[data-theme="cozy-light"] .panel.active .weapon-styles *,
-body[data-theme="cozy-light"] .panel.active .bonuses *,
-body[data-theme="cozy-light"] .panel.active .active-style *,
-body[data-theme="cozy-light"] .panel.active [class*="hero-card"] *,
-body[data-theme="cozy-light"] .panel.active [class*="weapon-style"] *,
-body[data-theme="cozy-light"] .panel.active .style-stats * {
+body[data-theme="cozy-light"] .panel.active [class*="weapon-style"] * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] .panel.active .hero-summary b,
-body[data-theme="cozy-light"] .panel.active .weapon-styles b,
-body[data-theme="cozy-light"] .panel.active .bonuses b,
-body[data-theme="cozy-light"] .panel.active .style-stats b,
-body[data-theme="cozy-light"] .panel.active .hero-summary b,
-body[data-theme="cozy-light"] .panel.active .weapon-styles b,
-body[data-theme="cozy-light"] .panel.active .bonuses b,
-body[data-theme="cozy-light"] .panel.active .style-stats b {
+body[data-theme="cozy-light"] .panel.active .bonuses b {
   color: #5c2d08 !important;
   font-weight: 700;
 }
@@ -2790,24 +2479,17 @@ body[data-theme="cozy-light"] .mon-detail *:not(button):not(input):not(select) {
 
 /* Activity bar text / labels readable on parchment */
 body[data-theme="cozy-light"] .activity-bar,
-body[data-theme="cozy-light"] .activity-bar *,
-body[data-theme="cozy-light"] .activity-bar,
 body[data-theme="cozy-light"] .activity-bar * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] .activity-bar b,
 body[data-theme="cozy-light"] .activity-bar b {
   color: #5c2d08 !important;
 }
 
 /* "+5% combat XP" / "42 members" / clan/friend descriptions on Social */
-body[data-theme="cozy-light"] #panel-social *,
 body[data-theme="cozy-light"] #panel-social * {
   color: #3d2817;
 }
-body[data-theme="cozy-light"] #panel-social .card-title,
-body[data-theme="cozy-light"] #panel-social h3,
-body[data-theme="cozy-light"] #panel-social h4,
 body[data-theme="cozy-light"] #panel-social .card-title,
 body[data-theme="cozy-light"] #panel-social h3,
 body[data-theme="cozy-light"] #panel-social h4 {
@@ -2815,17 +2497,12 @@ body[data-theme="cozy-light"] #panel-social h4 {
 }
 
 /* Mock-data and similar small sub-labels */
-body[data-theme="cozy-light"] .panel.active .card-sub,
 body[data-theme="cozy-light"] .panel.active .card-sub {
   color: #6a4823 !important;
   font-weight: 600;
 }
 
 /* House Bonuses "+0%" giant numbers — readable + dark not gold */
-body[data-theme="cozy-light"] #panel-house .bonus-val,
-body[data-theme="cozy-light"] #panel-house [class*="bonus"] b,
-body[data-theme="cozy-light"] #panel-house [class*="bonus"] strong,
-body[data-theme="cozy-light"] #panel-house .bonus-val,
 body[data-theme="cozy-light"] #panel-house [class*="bonus"] b,
 body[data-theme="cozy-light"] #panel-house [class*="bonus"] strong {
   color: #5c2d08 !important;
@@ -2835,8 +2512,6 @@ body[data-theme="cozy-light"] #panel-house [class*="bonus"] strong {
 
 /* Final fallback: any element in a panel that has color: var(--ink-3),
    var(--gold-2), var(--aqua-2) gets replaced by the readable cocoa */
-body[data-theme="cozy-light"] .panel.active [style*="color:var(--ink-3)"],
-body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"],
 body[data-theme="cozy-light"] .panel.active [style*="color:var(--ink-3)"],
 body[data-theme="cozy-light"] .panel.active [style*="color: var(--ink-3)"] {
   color: #6a4823 !important;
@@ -2935,29 +2610,20 @@ body[data-theme="cozy-light"] #settings-body textarea {
   color: #3d2817 !important;
   border: 1px solid var(--line) !important;
 }
-body[data-theme="cozy-light"] /* Toggle pills / range sliders */
-#settings-body .ss-toggle,
-
-body[data-theme="cozy-light"] #settings-body .ss-pill {
+/* Toggle pills / range sliders */
+body[data-theme="cozy-light"] #settings-body .ss-toggle {
   background: rgba(255,247,224,.7) !important;
   color: #3d2817 !important;
   border: 1px solid var(--line) !important;
 }
 body[data-theme="cozy-light"] #settings-body .ss-toggle.on,
-
-body[data-theme="cozy-light"] #settings-body .ss-pill.on,
-
-body[data-theme="cozy-light"] #settings-body .ss-toggle.active,
-
-body[data-theme="cozy-light"] #settings-body .ss-pill.active {
+body[data-theme="cozy-light"] #settings-body .ss-toggle.active {
   background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
   color: #fff8e2 !important;
   border-color: #5a1208 !important;
 }
 #settings-body .ss-toggle.on *,
-#settings-body .ss-pill.on *,
-#settings-body .ss-toggle.active *,
-#settings-body .ss-pill.active * {
+#settings-body .ss-toggle.active * {
   color: #fff8e2 !important;
 }
 body[data-theme="cozy-light"] /* Buttons inside settings */
@@ -3002,92 +2668,36 @@ body[data-theme="cozy-light"] #settings-body .ss-backup-list > div {
   border: 1px solid var(--line) !important;
 }
 
-body[data-theme="cozy-light"] /* ============================================================
+/* ============================================================
  * UNIVERSAL MODAL / OVERLAY READABILITY
  *
  * Every popover / modal / flyout / overlay used in the game
  * gets parchment surfaces + readable cocoa text. Catches all
  * common offender classes. Add new ones here as we find them.
  * ============================================================ */
-
 /* All modal cards */
-.modal-card,
-
-
-body[data-theme="cozy-light"] .stats-modal-card,
-
-
-body[data-theme="cozy-light"] .lifetime-stats-card,
-
-
-body[data-theme="cozy-light"] .welcome-card,
-
-
-body[data-theme="cozy-light"] .welcome-back-card,
-
-
-body[data-theme="cozy-light"] .ach-card,
-
-
-body[data-theme="cozy-light"] .acq-card,
-
-
+body[data-theme="cozy-light"] .modal-card,
 body[data-theme="cozy-light"] .mon-detail-card,
-
-
-body[data-theme="cozy-light"] .item-detail,
-
-
-body[data-theme="cozy-light"] .item-flyout,
-
-
-body[data-theme="cozy-light"] .tooltip-card,
-
-
 body[data-theme="cozy-light"] .notif,
-
-
 body[data-theme="cozy-light"] .acq-overlay > div,
-
-
 body[data-theme="cozy-light"] .mon-detail > div,
-
-
 body[data-theme="cozy-light"] .welcome-overlay > div,
-
-
 body[data-theme="cozy-light"] .stats-modal > div,
-
-
 body[data-theme="cozy-light"] .ach-overlay > div,
-
-
 body[data-theme="cozy-light"] .lifetime-stats > div {
   background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
   border: 1px solid #b8893e !important;
   color: #3d2817 !important;
   box-shadow: 0 8px 24px rgba(60,40,16,.4) !important;
 }
-body[data-theme="cozy-light"] /* Force readable text on every descendant of any modal/overlay */
-.modal-card *,
-
+/* Force readable text on every descendant of any modal/overlay */
+body[data-theme="cozy-light"] .modal-card *,
 body[data-theme="cozy-light"] .stats-modal *,
-
 body[data-theme="cozy-light"] .lifetime-stats *,
-
 body[data-theme="cozy-light"] .welcome-overlay *,
-
 body[data-theme="cozy-light"] .ach-overlay *,
-
 body[data-theme="cozy-light"] .acq-overlay *,
-
-body[data-theme="cozy-light"] .mon-detail *,
-
-body[data-theme="cozy-light"] .item-detail *,
-
-body[data-theme="cozy-light"] .item-flyout *,
-
-body[data-theme="cozy-light"] .tooltip-card * {
+body[data-theme="cozy-light"] .mon-detail * {
   color: #3d2817;
 }
 /* But NOT button text on wax-red / colored buttons */
@@ -3099,92 +2709,47 @@ body[data-theme="cozy-light"] .tooltip-card * {
 .welcome-overlay button.btn-danger * {
   color: #fff8e2 !important;
 }
-body[data-theme="cozy-light"] /* Headers in modals */
-.modal-card h1,
-
+/* Headers in modals */
+body[data-theme="cozy-light"] .modal-card h1,
 body[data-theme="cozy-light"] .modal-card h2,
-
 body[data-theme="cozy-light"] .modal-card h3,
-
 body[data-theme="cozy-light"] .modal-card h4,
-
 body[data-theme="cozy-light"] .modal-card .modal-title,
-
 body[data-theme="cozy-light"] .stats-modal h1,
-
 body[data-theme="cozy-light"] .stats-modal h2,
-
 body[data-theme="cozy-light"] .stats-modal h3,
-
 body[data-theme="cozy-light"] .stats-modal h4,
-
 body[data-theme="cozy-light"] .lifetime-stats h1,
-
 body[data-theme="cozy-light"] .lifetime-stats h2,
-
 body[data-theme="cozy-light"] .lifetime-stats h3,
-
 body[data-theme="cozy-light"] .lifetime-stats h4,
-
 body[data-theme="cozy-light"] .welcome-overlay h1,
-
 body[data-theme="cozy-light"] .welcome-overlay h2,
-
 body[data-theme="cozy-light"] .welcome-overlay h3,
-
 body[data-theme="cozy-light"] .welcome-overlay h4,
-
-body[data-theme="cozy-light"] .welcome-overlay .welcome-title,
-
 body[data-theme="cozy-light"] .ach-overlay h1,
-
 body[data-theme="cozy-light"] .ach-overlay h2,
-
 body[data-theme="cozy-light"] .ach-overlay h3,
-
 body[data-theme="cozy-light"] .ach-overlay h4,
-
 body[data-theme="cozy-light"] .acq-overlay h1,
-
 body[data-theme="cozy-light"] .acq-overlay h2,
-
 body[data-theme="cozy-light"] .acq-overlay h3,
-
 body[data-theme="cozy-light"] .acq-overlay h4,
-
 body[data-theme="cozy-light"] .mon-detail h1,
-
 body[data-theme="cozy-light"] .mon-detail h2,
-
 body[data-theme="cozy-light"] .mon-detail h3,
-
-body[data-theme="cozy-light"] .mon-detail h4,
-
-body[data-theme="cozy-light"] .item-detail h1,
-
-body[data-theme="cozy-light"] .item-detail h2,
-
-body[data-theme="cozy-light"] .item-detail h3,
-
-body[data-theme="cozy-light"] .item-detail h4 {
+body[data-theme="cozy-light"] .mon-detail h4 {
   color: #5c2d08 !important;
   font-family: var(--f-display) !important;
   letter-spacing: .04em;
 }
-body[data-theme="cozy-light"] /* Numbers / values inside modals — pop them */
-.modal-card b,
-
+/* Numbers / values inside modals — pop them */
+body[data-theme="cozy-light"] .modal-card b,
 body[data-theme="cozy-light"] .stats-modal b,
-
 body[data-theme="cozy-light"] .lifetime-stats b,
-
 body[data-theme="cozy-light"] .welcome-overlay b,
-
 body[data-theme="cozy-light"] .ach-overlay b,
-
-body[data-theme="cozy-light"] .mon-detail b,
-
-body[data-theme="cozy-light"] .item-detail b {
+body[data-theme="cozy-light"] .mon-detail b {
   color: #5c2d08 !important;
   font-weight: 700;
 }
@@ -3202,14 +2767,10 @@ body[data-theme="cozy-light"] .stats-modal select {
   color: #3d2817 !important;
   border: 1px solid var(--line) !important;
 }
-body[data-theme="cozy-light"] /* Modal close buttons */
-.modal-card .stats-close,
-
+/* Modal close buttons */
+body[data-theme="cozy-light"] .modal-card .stats-close,
 body[data-theme="cozy-light"] .modal-card .modal-close,
-
-body[data-theme="cozy-light"] .stats-modal .stats-close,
-
-body[data-theme="cozy-light"] .welcome-overlay .welcome-close {
+body[data-theme="cozy-light"] .stats-modal .stats-close {
   color: #3d2817 !important;
   background: rgba(255,247,224,.7) !important;
   border: 1px solid var(--line) !important;
@@ -3227,18 +2788,11 @@ body[data-theme="cozy-light"] .welcome-overlay .welcome-close {
   background: rgba(40,25,12,.55) !important;
 }
 
-body[data-theme="cozy-light"] /* ============================================================
+/* ============================================================
  * FTUE (first-time user tutorial) — parchment + cocoa
  * ============================================================ */
-.hr-ftue,
-
-
+body[data-theme="cozy-light"] .hr-ftue,
 body[data-theme="cozy-light"] .hr-ftue-overlay,
-
-
-body[data-theme="cozy-light"] .ftue-tooltip,
-
-
 body[data-theme="cozy-light"] .ftue-card {
   background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
   color: #3d2817 !important;
@@ -3246,38 +2800,19 @@ body[data-theme="cozy-light"] .ftue-card {
   box-shadow: 0 8px 24px rgba(60,40,16,.4) !important;
 }
 body[data-theme="cozy-light"] .hr-ftue *,
-
 body[data-theme="cozy-light"] .hr-ftue-overlay *,
-
-body[data-theme="cozy-light"] .ftue-tooltip *,
-
 body[data-theme="cozy-light"] .ftue-card * {
   color: #3d2817 !important;
 }
 body[data-theme="cozy-light"] .hr-ftue h1,
-
 body[data-theme="cozy-light"] .hr-ftue h2,
-
 body[data-theme="cozy-light"] .hr-ftue h3,
-
-body[data-theme="cozy-light"] .ftue-tooltip h1,
-
-body[data-theme="cozy-light"] .ftue-tooltip h2,
-
-body[data-theme="cozy-light"] .ftue-tooltip h3,
-
 body[data-theme="cozy-light"] .ftue-card h1,
-
 body[data-theme="cozy-light"] .ftue-card h2,
-
 body[data-theme="cozy-light"] .ftue-card h3 {
   color: #5c2d08 !important;
   font-family: var(--f-display) !important;
 }
-body[data-theme="cozy-light"] .ftue-button,
-
-body[data-theme="cozy-light"] .ftue-next,
-
 body[data-theme="cozy-light"] .hr-ftue button {
   background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
   color: #fff8e2 !important;
@@ -3314,16 +2849,9 @@ body[data-theme="cozy-light"] .ftue-actions .ftue-btn:not(.primary):not(.skip) {
  * (not just :active). Catches dynamically-loaded panel content.
  * ============================================================ */
 body[data-theme="cozy-light"] .panel,
-body[data-theme="cozy-light"] .panel *,
-body[data-theme="cozy-light"] .panel,
 body[data-theme="cozy-light"] .panel * {
   color: #3d2817;
 }
-body[data-theme="cozy-light"] .panel h1,
-body[data-theme="cozy-light"] .panel h2,
-body[data-theme="cozy-light"] .panel h3,
-body[data-theme="cozy-light"] .panel h4,
-body[data-theme="cozy-light"] .panel .card-title,
 body[data-theme="cozy-light"] .panel h1,
 body[data-theme="cozy-light"] .panel h2,
 body[data-theme="cozy-light"] .panel h3,
@@ -3350,7 +2878,6 @@ body[data-theme="cozy-light"] #panel-bounty * {
   color: #3d2817 !important;
 }
 body[data-theme="cozy-light"] #panel-bounty b,
-
 body[data-theme="cozy-light"] #panel-bounty strong {
   color: #5c2d08 !important;
 }
@@ -3375,31 +2902,14 @@ body[data-theme="cozy-light"] #panel-stable strong {
   color: #5c2d08 !important;
 }
 
-body[data-theme="cozy-light"] /* Skills detail panel inside Activities — skill tile rows */
-#panel-skills #skill-detail,
-
-
-body[data-theme="cozy-light"] #panel-skills #skill-detail *,
-
-
-body[data-theme="cozy-light"] #panel-skills .activity-tile,
-
-
-body[data-theme="cozy-light"] #panel-skills .activity-tile * {
+/* Skills detail panel inside Activities — skill tile rows */
+body[data-theme="cozy-light"] #panel-skills #skill-detail,
+body[data-theme="cozy-light"] #panel-skills #skill-detail * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] #panel-skills .activity-tile {
-  background: rgba(255,247,224,.55) !important;
-  border: 1px solid var(--line) !important;
-}
-body[data-theme="cozy-light"] #panel-skills .activity-tile.active {
-  background: linear-gradient(180deg,#d44a3a,#8b2a1f) !important;
-  color: #fff8e2 !important;
-  border-color: #5a1208 !important;
-}
-#panel-skills .activity-tile.active * {
-  color: #fff8e2 !important;
-}
+
+
+
 
 body[data-theme="cozy-light"] /* Market tab — listings,
 
@@ -3437,27 +2947,22 @@ body[data-theme="cozy-light"] #panel-market select {
   color: #3d2817 !important;
   border: 1px solid var(--line) !important;
 }
-body[data-theme="cozy-light"] /* "List an item" form — was rendering with an olive-green default
+/* "List an item" form — was rendering with an olive-green default
    background that broke the parchment look. Force parchment. */
-#panel-market [class*="list-form"],
-
+body[data-theme="cozy-light"] #panel-market [class*="list-form"],
 body[data-theme="cozy-light"] #panel-market [class*="market-form"],
-
-body[data-theme="cozy-light"] #panel-market [class*="post-listing"],
-
-body[data-theme="cozy-light"] #panel-market #market-list-form {
+body[data-theme="cozy-light"] #panel-market [class*="post-listing"] {
   background: rgba(255,247,224,.6) !important;
   border: 1px solid var(--line-strong) !important;
   border-radius: 6px;
   padding: 14px !important;
 }
 
-body[data-theme="cozy-light"] /* Shop / Premium store tab */
-#panel-shop * {
+/* Shop / Premium store tab */
+body[data-theme="cozy-light"] #panel-shop * {
   color: #3d2817 !important;
 }
 body[data-theme="cozy-light"] #panel-shop b,
-
 body[data-theme="cozy-light"] #panel-shop strong {
   color: #5c2d08 !important;
 }
@@ -3509,47 +3014,21 @@ body[data-theme="cozy-light"] #panel-combat .fighter b {
   color: #5c2d08 !important;
 }
 
-body[data-theme="cozy-light"] /* Activity bar items / quest strip — all readable */
-.activity-bar *,
-
-
-body[data-theme="cozy-light"] #global-quests-strip *,
-
-
-body[data-theme="cozy-light"] #quests-strip * {
+/* Activity bar items / quest strip — all readable */
+body[data-theme="cozy-light"] .activity-bar *,
+body[data-theme="cozy-light"] #global-quests-strip * {
   color: #3d2817 !important;
 }
 body[data-theme="cozy-light"] .activity-bar b,
-
-body[data-theme="cozy-light"] #global-quests-strip b,
-
-body[data-theme="cozy-light"] #quests-strip b {
+body[data-theme="cozy-light"] #global-quests-strip b {
   color: #5c2d08 !important;
 }
 
-body[data-theme="cozy-light"] /* Item flyout / detail popovers */
-.inv-flyout,
-
-
-body[data-theme="cozy-light"] .inv-flyout *,
-
-
-body[data-theme="cozy-light"] .item-detail-flyout,
-
-
-body[data-theme="cozy-light"] .item-detail-flyout *,
-
-
+/* Item flyout / detail popovers */
 body[data-theme="cozy-light"] .tooltip,
-
-
 body[data-theme="cozy-light"] .tooltip * {
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] .inv-flyout,
-
-body[data-theme="cozy-light"] .item-detail-flyout,
-
 body[data-theme="cozy-light"] .tooltip {
   background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
   border: 1px solid #b8893e !important;
@@ -3567,9 +3046,7 @@ body[data-theme="cozy-light"] .chat-dock {
   background: linear-gradient(180deg, #fff8e2, #f4e4bc) !important;
   border: 1px solid #b8893e !important;
 }
-body[data-theme="cozy-light"] .chat-dock .chat-msg b,
-
-body[data-theme="cozy-light"] .chat-dock .msg-author {
+body[data-theme="cozy-light"] .chat-dock .chat-msg b {
   color: #5c2d08 !important;
 }
 
@@ -3614,45 +3091,30 @@ body[data-theme="cozy-light"] making them disappear. Force dark cocoa
 /* Activities skill tile icons — make the fallback glyphs prominent
    so the tile doesn't read as empty when the bundle PNG 404s. */
 .skill-tile .sicon,
-.activity-tile .sicon,
 [class*="skill-tile"] .sicon {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 36px;
 }
-.skill-tile .sicon img,
-.activity-tile .sicon img {
+.skill-tile .sicon img {
   max-width: 36px;
   max-height: 36px;
   object-fit: contain;
 }
-body[data-theme="cozy-light"] .skill-tile .sicon .icon-fallback,
-
-body[data-theme="cozy-light"] .activity-tile .sicon .icon-fallback {
+body[data-theme="cozy-light"] .skill-tile .sicon .icon-fallback {
   font-size: 28px !important;
   color: #5c2d08 !important;
   opacity: 1 !important;
 }
 
-body[data-theme="cozy-light"] /* Loadout / inventory paper-doll slot labels (those gray pills
+/* Loadout / inventory paper-doll slot labels (those gray pills
    under each slot showing slot type abbreviations). Currently
    showing as empty/illegible. Force dark text + visible bg. */
-.loadout-slot small,
-
-
-body[data-theme="cozy-light"] .equip-slot small,
-
-
+body[data-theme="cozy-light"] .loadout-slot small,
 body[data-theme="cozy-light"] .inv-slot small,
-
-
 body[data-theme="cozy-light"] .eq-slot small,
-
-
 body[data-theme="cozy-light"] .td-slot small,
-
-
 body[data-theme="cozy-light"] [class*="td-slot"] small {
   color: #3d2817 !important;
   background: rgba(255,247,224,.9) !important;
@@ -3665,18 +3127,10 @@ body[data-theme="cozy-light"] [class*="td-slot"] small {
   text-shadow: none !important;
 }
 
-body[data-theme="cozy-light"] /* FTUE Step 1 has a Skip button that's dark-on-dark. Force it
+/* FTUE Step 1 has a Skip button that's dark-on-dark. Force it
    to a readable parchment+cocoa style. The hr-ftue module
    uses inline styles so we need !important. */
-.hr-ftue button:not(.ftue-next),
-
-
-body[data-theme="cozy-light"] .ftue-skip,
-
-
 body[data-theme="cozy-light"] .hr-ftue [class*="skip"],
-
-
 body[data-theme="cozy-light"] .hr-ftue button[data-act="skip"] {
   background: rgba(255,247,224,.85) !important;
   color: #3d2817 !important;
@@ -3687,14 +3141,9 @@ body[data-theme="cozy-light"] .hr-ftue button[data-act="skip"] {
   text-transform: uppercase;
 }
 
-body[data-theme="cozy-light"] /* Make sure FTUE primary button (Take the tour / Got it / Next)
+/* Make sure FTUE primary button (Take the tour / Got it / Next)
    stays in the wax-stamp red style */
-.hr-ftue button.ftue-next,
-
-
 body[data-theme="cozy-light"] .hr-ftue button[data-act="next"],
-
-
 body[data-theme="cozy-light"] .hr-ftue button[data-act="primary"] {
   background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
   color: #fff8e2 !important;
@@ -3735,14 +3184,10 @@ body[data-theme="cozy-light"] ensure it
  * var(--gold-2) inline styles. Force them dark + readable.
  * ============================================================ */
 body[data-theme="cozy-light"] #panel-inventory > * > *:last-child *,
-body[data-theme="cozy-light"] #panel-inventory aside *,
-body[data-theme="cozy-light"] #panel-inventory > * > *:last-child *,
 body[data-theme="cozy-light"] #panel-inventory aside * {
   color: #3d2817 !important;
 }
 /* Stat numbers (the big bold ones) */
-body[data-theme="cozy-light"] #panel-inventory b,
-body[data-theme="cozy-light"] #panel-inventory strong,
 body[data-theme="cozy-light"] #panel-inventory b,
 body[data-theme="cozy-light"] #panel-inventory strong {
   color: #5c2d08 !important;
@@ -3750,10 +3195,6 @@ body[data-theme="cozy-light"] #panel-inventory strong {
 }
 /* Section headers in the right sidebar (HERO / WEAPON STYLES /
    BONUSES / ACTIVE STYLE) */
-body[data-theme="cozy-light"] #panel-inventory .card-title,
-body[data-theme="cozy-light"] #panel-inventory h3,
-body[data-theme="cozy-light"] #panel-inventory h4,
-body[data-theme="cozy-light"] #panel-inventory legend,
 body[data-theme="cozy-light"] #panel-inventory .card-title,
 body[data-theme="cozy-light"] #panel-inventory h3,
 body[data-theme="cozy-light"] #panel-inventory h4,
@@ -3767,16 +3208,10 @@ body[data-theme="cozy-light"] #panel-inventory legend {
 body[data-theme="cozy-light"] #panel-inventory [class*="stat"] *,
 body[data-theme="cozy-light"] #panel-inventory [class*="lv"] *,
 body[data-theme="cozy-light"] #panel-inventory [class*="value"] *,
-body[data-theme="cozy-light"] #panel-inventory [class*="num"] *,
-body[data-theme="cozy-light"] #panel-inventory [class*="stat"] *,
-body[data-theme="cozy-light"] #panel-inventory [class*="lv"] *,
-body[data-theme="cozy-light"] #panel-inventory [class*="value"] *,
 body[data-theme="cozy-light"] #panel-inventory [class*="num"] * {
   color: #3d2817 !important;
 }
 /* The big numbers (combat lv 5, total lv 39, HP 10/10) */
-body[data-theme="cozy-light"] #panel-inventory [class*="big"],
-body[data-theme="cozy-light"] #panel-inventory [class*="lg"],
 body[data-theme="cozy-light"] #panel-inventory [class*="big"],
 body[data-theme="cozy-light"] #panel-inventory [class*="lg"] {
   color: #5c2d08 !important;
@@ -3784,17 +3219,9 @@ body[data-theme="cozy-light"] #panel-inventory [class*="lg"] {
 }
 
 /* Same treatment for character panel */
-body[data-theme="cozy-light"] #panel-character *,
 body[data-theme="cozy-light"] #panel-character * {
   color: #3d2817;
 }
-body[data-theme="cozy-light"] #panel-character b,
-body[data-theme="cozy-light"] #panel-character strong,
-body[data-theme="cozy-light"] #panel-character h1,
-body[data-theme="cozy-light"] #panel-character h2,
-body[data-theme="cozy-light"] #panel-character h3,
-body[data-theme="cozy-light"] #panel-character h4,
-body[data-theme="cozy-light"] #panel-character .card-title,
 body[data-theme="cozy-light"] #panel-character b,
 body[data-theme="cozy-light"] #panel-character strong,
 body[data-theme="cozy-light"] #panel-character h1,
@@ -3809,15 +3236,11 @@ body[data-theme="cozy-light"] #panel-character .card-title {
    They're rendered with var(--gold-2) on a dark bg. Force parchment. */
 body[data-theme="cozy-light"] #panel-character [class*="tile"],
 body[data-theme="cozy-light"] #panel-character [class*="stat-card"],
-body[data-theme="cozy-light"] #panel-profile [class*="tile"]:not(.inv-tile),
-body[data-theme="cozy-light"] #panel-character [class*="tile"],
-body[data-theme="cozy-light"] #panel-character [class*="stat-card"],
 body[data-theme="cozy-light"] #panel-profile [class*="tile"]:not(.inv-tile) {
   background: rgba(255,247,224,.65) !important;
   border: 1px solid var(--line-strong) !important;
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] #panel-character [class*="tile"] *,
 body[data-theme="cozy-light"] #panel-character [class*="tile"] * {
   color: #3d2817 !important;
 }
@@ -3830,30 +3253,13 @@ body[data-theme="cozy-light"] .panel.active .csk-bar,
 body[data-theme="cozy-light"] .panel.active .eq-strip .eq-slot,
 body[data-theme="cozy-light"] .panel.active .fighter .portrait,
 body[data-theme="cozy-light"] .panel.active .inv-slot,
-body[data-theme="cozy-light"] .panel.active .equip-slot,
-body[data-theme="cozy-light"] .panel.active .loadout-slot,
-body[data-theme="cozy-light"] .panel.active .csk-icon,
-body[data-theme="cozy-light"] .panel.active .csk-bar,
-body[data-theme="cozy-light"] .panel.active .eq-strip .eq-slot,
-body[data-theme="cozy-light"] .panel.active .fighter .portrait,
-body[data-theme="cozy-light"] .panel.active .inv-slot,
-body[data-theme="cozy-light"] .panel.active .equip-slot,
 body[data-theme="cozy-light"] .panel.active .loadout-slot {
   background-color: rgba(232,210,164,.55) !important;
   border-color: var(--line) !important;
 }
 
 /* Hero / weapon-styles / bonuses sidebar boxes (inventory + character) */
-body[data-theme="cozy-light"] .panel.active .hero-summary,
-body[data-theme="cozy-light"] .panel.active .weapon-styles,
 body[data-theme="cozy-light"] .panel.active .bonuses,
-body[data-theme="cozy-light"] .panel.active .active-style,
-body[data-theme="cozy-light"] .panel.active [class*="hero-card"],
-body[data-theme="cozy-light"] .panel.active [class*="weapon-style-row"],
-body[data-theme="cozy-light"] .panel.active .hero-summary,
-body[data-theme="cozy-light"] .panel.active .weapon-styles,
-body[data-theme="cozy-light"] .panel.active .bonuses,
-body[data-theme="cozy-light"] .panel.active .active-style,
 body[data-theme="cozy-light"] .panel.active [class*="hero-card"],
 body[data-theme="cozy-light"] .panel.active [class*="weapon-style-row"] {
   background: rgba(255,247,224,.5) !important;
@@ -3865,60 +3271,66 @@ body[data-theme="cozy-light"] .panel.active [class*="weapon-style-row"] {
 /* ============================================================
  * COZY LIGHT — component fine-tuning
  * (kept separate so it's easy to spot what's structural vs polish)
+ *
+ * b222: every rule in this block used to be a PAIR — `body[data-theme="cozy-light"]
+ * .topbar, :root .topbar { … }`. `:root` is <html>; the theme attribute lives on
+ * <body>; so the `:root` half matched under EVERY theme and quietly painted the
+ * light theme's component layer beneath Hearthlight. Same always-true bug as the
+ * b216 `html:not([data-theme])` sweep, in a shape that sweep did not look for.
+ * All 25 `:root <descendant>` halves are deleted — the cozy-light half of each
+ * pair already covers the light theme, so Cozy Day is untouched. Two things had
+ * genuinely been leaking under Hearthlight and are now free:
+ *   .status-pill      — wore the light theme's plate + keyline
+ *   .nav-btn.active   — the light theme's flat --gold-bg fill and a REAL 3px
+ *                       border-left, which defeated b217's gilt wash and put a
+ *                       second spine next to the intended inset one (and shifted
+ *                       every nav label 3px right).
+ * Never write `:root <selector>` in this file. `:root` is for token blocks only.
  * ============================================================ */
 
 /* Light theme: softer button hover */
-body[data-theme="cozy-light"] .btn:hover,
-:root .btn:hover {
+body[data-theme="cozy-light"] .btn:hover {
   background: var(--gold-bg);
   border-color: var(--line-strong);
 }
 
 /* Topbar gets a parchment seal feel in light mode */
-body[data-theme="cozy-light"] .topbar,
-:root .topbar {
+body[data-theme="cozy-light"] .topbar {
   background: linear-gradient(180deg,#ede0b8,#e0d0a0);
   border-bottom: 1px solid var(--line-strong);
 }
 
 /* Sidebar — slightly recessed parchment */
-body[data-theme="cozy-light"] .sidebar,
-:root .sidebar {
+body[data-theme="cozy-light"] .sidebar {
   background: #ede0b8;
   border-right: 1px solid var(--line);
 }
 
-body[data-theme="cozy-light"] .nav-btn,
-:root .nav-btn {
+body[data-theme="cozy-light"] .nav-btn {
   color: var(--ink-2);
 }
-body[data-theme="cozy-light"] .nav-btn.active,
-:root .nav-btn.active {
+body[data-theme="cozy-light"] .nav-btn.active {
   background: var(--gold-bg);
   color: var(--ink);
   border-left: 3px solid var(--gold);
 }
 
 /* Bottom nav (mobile) */
-body[data-theme="cozy-light"] .bottom-nav,
-:root .bottom-nav {
+body[data-theme="cozy-light"] .bottom-nav {
   background: linear-gradient(180deg,#e8d4a0,#ede0b8);
   border-top: 1px solid var(--line-strong);
 }
-body[data-theme="cozy-light"] .bn-btn.active,
-:root .bn-btn.active {
+body[data-theme="cozy-light"] .bn-btn.active {
   color: var(--gold);
 }
 
 /* Chips: pill shape with parchment fill */
-body[data-theme="cozy-light"] .chip,
-:root .chip {
+body[data-theme="cozy-light"] .chip {
   background: var(--bg-2);
   color: var(--ink-2);
   border: 1px solid var(--line);
 }
-body[data-theme="cozy-light"] .chip.active,
-:root .chip.active {
+body[data-theme="cozy-light"] .chip.active {
   background: var(--green);
   color: #faf0d4;
   border-color: var(--green);
@@ -3926,21 +3338,17 @@ body[data-theme="cozy-light"] .chip.active,
 
 /* Skill bars — use the green ramp */
 body[data-theme="cozy-light"] .bar-fill,
-body[data-theme="cozy-light"] .progress-bar > div,
-:root .bar-fill,
-:root .progress-bar > div {
+body[data-theme="cozy-light"] .progress-bar > div {
   background: linear-gradient(90deg, var(--green), #7a9c5d);
 }
 
 /* HP bar — keep red */
-body[data-theme="cozy-light"] .hp-fill,
-:root .hp-fill {
+body[data-theme="cozy-light"] .hp-fill {
   background: linear-gradient(90deg, var(--red), #c46850);
 }
 
 /* Modals — full parchment */
-body[data-theme="cozy-light"] .modal-card,
-:root .modal-card {
+body[data-theme="cozy-light"] .modal-card {
   background: var(--bg-3);
   border: 1px solid var(--line-strong);
   box-shadow: 0 8px 24px rgba(60,40,20,.25);
@@ -3949,53 +3357,42 @@ body[data-theme="cozy-light"] .modal-card,
 /* Inputs */
 body[data-theme="cozy-light"] input,
 body[data-theme="cozy-light"] select,
-body[data-theme="cozy-light"] textarea,
-:root input,
-:root select,
-:root textarea {
+body[data-theme="cozy-light"] textarea {
   background: #fff7e0;
   border: 1px solid var(--line);
   color: var(--ink);
 }
 body[data-theme="cozy-light"] input:focus,
 body[data-theme="cozy-light"] select:focus,
-body[data-theme="cozy-light"] textarea:focus,
-:root input:focus,
-:root select:focus,
-:root textarea:focus {
+body[data-theme="cozy-light"] textarea:focus {
   border-color: var(--gold);
   outline: 2px solid var(--gold-bg);
   outline-offset: 0;
 }
 
 /* Status pill — make sure offline/online states are visible on parchment */
-body[data-theme="cozy-light"] .status-pill,
-:root .status-pill {
+body[data-theme="cozy-light"] .status-pill {
   background: var(--bg-2);
   border: 1px solid var(--line);
   color: var(--ink-2);
 }
-body[data-theme="cozy-light"] .status-pill.on,
-:root .status-pill.on {
+body[data-theme="cozy-light"] .status-pill.on {
   background: var(--green-bg);
   color: var(--green);
   border-color: var(--green);
 }
 
 /* Activity bar / topbar gold/gem stats — keep contrast */
-body[data-theme="cozy-light"] .t-stat.gold,
-:root .t-stat.gold {
+body[data-theme="cozy-light"] .t-stat.gold {
   color: var(--gold);
   font-weight: 700;
 }
-body[data-theme="cozy-light"] .t-stat.gem,
-:root .t-stat.gem {
+body[data-theme="cozy-light"] .t-stat.gem {
   color: var(--gem);
 }
 
 /* Notifications, dock, etc. */
-body[data-theme="cozy-light"] .notif,
-:root .notif {
+body[data-theme="cozy-light"] .notif {
   background: var(--bg-3);
   border: 1px solid var(--line);
   color: var(--ink);
@@ -4003,8 +3400,7 @@ body[data-theme="cozy-light"] .notif,
 }
 
 /* Bug-report + chat dock buttons read on parchment */
-body[data-theme="cozy-light"] #hr-bug-btn,
-:root #hr-bug-btn {
+body[data-theme="cozy-light"] #hr-bug-btn {
   background: rgba(255,247,224,.95);
   color: var(--gold);
   border: 1px solid var(--line-strong);
@@ -4126,8 +3522,7 @@ body[data-theme="classic"] .modal-card {
   /* --- Wax seal off on mobile (was bottom-right ornament that
          covered Lifetime Stats + Save Status cards on small
          viewports) --- */
-  body[data-theme="cozy-light"] #panel-profile.active,
-  body[data-theme="cozy-light"] #panel-profile.active {
+body[data-theme="cozy-light"] #panel-profile.active {
     background-image:
       url("../../assets/ornaments/corner-flourish.svg"),
       url("../../assets/ornaments/corner-flourish.svg"),
@@ -4138,27 +3533,21 @@ body[data-theme="classic"] .modal-card {
   }
   /* Smaller corner flourishes too — they were 64px squares
      eating useful real estate on a 380px panel */
-  body[data-theme="cozy-light"] #panel-profile::before,
-  body[data-theme="cozy-light"] #panel-profile::after,
-  body[data-theme="cozy-light"] #panel-profile::before,
-  body[data-theme="cozy-light"] #panel-profile::after {
+body[data-theme="cozy-light"] #panel-profile::before,
+body[data-theme="cozy-light"] #panel-profile::after {
     width: 40px !important;
     height: 40px !important;
   }
 
   /* --- Profile feat-buttons row → 2x2 grid on portrait,
          single horizontal scroll-row in landscape --- */
-  #panel-profile .feat-buttons,
-  #panel-profile .profile-toolbar,
-  #panel-profile .profile-actions {
+#panel-profile .feat-buttons {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
     width: 100% !important;
   }
-  #panel-profile .feat-buttons > *,
-  #panel-profile .profile-toolbar > *,
-  #panel-profile .profile-actions > * {
+  #panel-profile .feat-buttons > * {
     width: 100% !important;
     min-width: 0 !important;
     font-size: 12px !important;
@@ -4176,11 +3565,8 @@ body[data-theme="classic"] .modal-card {
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
-  #panel-character .char-grid,
   #panel-character .char-row,
-  #panel-character > .grid,
-  #panel-character .char-cols,
-  #panel-character .character-grid {
+#panel-character > .grid {
     grid-template-columns: 1fr !important;
     display: grid !important;
     gap: 12px !important;
@@ -4201,9 +3587,8 @@ body[data-theme="classic"] .modal-card {
     min-height: 0 !important;
   }
   .topbar .currency,
-  .topbar [class*="gold"],
-  .topbar [class*="gem"],
-  .topbar .topbar-pill {
+.topbar [class*="gold"],
+.topbar [class*="gem"] {
     font-size: 11px !important;
     padding: 2px 6px !important;
     line-height: 1.2 !important;
@@ -4222,50 +3607,35 @@ body[data-theme="classic"] .modal-card {
   .topbar .icon-broken { display: none !important; }
 
   /* --- Combat: FOES sub-tab DUNGEONS button --- */
-  #panel-combat .sub-tab-bar,
-  #panel-combat [data-mobile-sub] .header,
-  #panel-combat .panel-head {
+#panel-combat [data-mobile-sub] .header {
     flex-wrap: wrap !important;
     gap: 6px !important;
   }
-  #panel-combat .btn-dungeon,
   #panel-combat [onclick*="ungeon"],
-  #panel-combat button:has(> .em-icon) {
+#panel-combat button:has(> .em-icon) {
     flex: 0 1 auto !important;
     font-size: 11px !important;
     padding: 6px 10px !important;
     white-space: nowrap !important;
   }
 
-  body[data-theme="cozy-light"] /* --- Inventory action buttons → wax-stamp red --- */
-  #panel-inventory .btn,
-
-
-  body[data-theme="cozy-light"] #panel-inventory .filter-btn,
-
-
-  body[data-theme="cozy-light"] #panel-inventory .inv-action,
-
-
-  body[data-theme="cozy-light"] #panel-inventory [data-inv-action] {
+  /* --- Inventory action buttons → wax-stamp red --- */
+body[data-theme="cozy-light"] #panel-inventory .btn,
+body[data-theme="cozy-light"] #panel-inventory [data-inv-action] {
     background: linear-gradient(180deg, #b6483a 0%, #8a3329 100%) !important;
     color: #fff8e2 !important;
     border: 1px solid #6c2a22 !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18) !important;
   }
-  #panel-inventory .btn:hover,
-  #panel-inventory .filter-btn:hover {
+  #panel-inventory .btn:hover {
     filter: brightness(1.08) !important;
   }
-  #panel-inventory .btn.active,
-  #panel-inventory .filter-btn.active {
+  #panel-inventory .btn.active {
     background: linear-gradient(180deg, #d35a4a 0%, #a83d31 100%) !important;
     box-shadow: inset 0 0 0 2px #f5c249, 0 1px 2px rgba(0,0,0,0.2) !important;
   }
-  body[data-theme="cozy-light"] /* Keep the "secondary" muted ones legible — only theme primaries */
-  #panel-inventory .btn.btn-ghost,
-
-  body[data-theme="cozy-light"] #panel-inventory .btn.btn-secondary {
+  /* Keep the "secondary" muted ones legible — only theme primaries */
+body[data-theme="cozy-light"] #panel-inventory .btn.btn-ghost {
     background: rgba(0,0,0,0.04) !important;
     color: #3d2817 !important;
     border: 1px solid rgba(0,0,0,0.18) !important;
@@ -4275,9 +3645,7 @@ body[data-theme="classic"] .modal-card {
 
 /* Portrait-only: 2x2 grid; landscape gets a horizontal scroll */
 @media (max-height: 540px) and (max-width: 900px) and (orientation: landscape) {
-  #panel-profile .feat-buttons,
-  #panel-profile .profile-toolbar,
-  #panel-profile .profile-actions {
+  #panel-profile .feat-buttons {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
@@ -4301,17 +3669,11 @@ body[data-theme="classic"] .modal-card {
 @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* b124: keep .prof-toolbar HIDDEN on mobile — it's the desktop
      duplicate. The visible mobile container is .feat-buttons. */
-  body[data-theme="cozy-light"] #panel-profile .prof-toolbar,
-  body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
+body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
     display: none !important;
   }
   /* Feat-buttons grid — themed selectors so specificity ties */
-  body[data-theme="cozy-light"] #panel-profile .feat-buttons,
-  body[data-theme="cozy-light"] #panel-profile .profile-toolbar,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions,
-  body[data-theme="cozy-light"] #panel-profile .feat-buttons,
-  body[data-theme="cozy-light"] #panel-profile .profile-toolbar,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions {
+body[data-theme="cozy-light"] #panel-profile .feat-buttons {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
@@ -4319,12 +3681,7 @@ body[data-theme="classic"] .modal-card {
     flex-wrap: initial !important;
     margin: 12px 0 !important;
   }
-  body[data-theme="cozy-light"] #panel-profile .feat-buttons > *,
-  body[data-theme="cozy-light"] #panel-profile .profile-toolbar > *,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions > *,
-  body[data-theme="cozy-light"] #panel-profile .feat-buttons > *,
-  body[data-theme="cozy-light"] #panel-profile .profile-toolbar > *,
-  body[data-theme="cozy-light"] #panel-profile .profile-actions > * {
+  body[data-theme="cozy-light"] #panel-profile .feat-buttons > * {
     width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;
@@ -4336,10 +3693,9 @@ body[data-theme="classic"] .modal-card {
   }
 
   /* Topbar inner stats container — kill the wrap */
-  .topbar .top-stats,
-  header.topbar .top-stats,
-  body[data-theme="cozy-light"] .topbar .top-stats,
-  body[data-theme="cozy-light"] .topbar .top-stats {
+.topbar .top-stats,
+header.topbar .top-stats,
+body[data-theme="cozy-light"] .topbar .top-stats {
     flex-wrap: nowrap !important;
     gap: 4px !important;
     overflow-x: auto !important;
@@ -4409,55 +3765,43 @@ body[data-theme="classic"] .modal-card {
  * overrides re-skin it to match the parchment + cocoa + gold
  * palette the rest of the UI uses.
  * ============================================================ */
-body[data-theme="cozy-light"] .qm-modal,
 body[data-theme="cozy-light"] .qm-modal {
   background: linear-gradient(180deg, #fff8e2 0%, #faedc4 60%, #f4e4bc 100%) !important;
   border: 2px solid var(--gold) !important;
   color: #3d2817 !important;
   box-shadow: 0 24px 64px rgba(80, 50, 20, 0.30), 0 0 80px rgba(245, 194, 73, 0.20) !important;
 }
-body[data-theme="cozy-light"] .qm-overlay,
 body[data-theme="cozy-light"] .qm-overlay {
   background: rgba(40, 25, 12, 0.55) !important;
 }
-body[data-theme="cozy-light"] .qm-tabs,
 body[data-theme="cozy-light"] .qm-tabs {
   background: rgba(245, 226, 175, 0.55) !important;
   border-bottom: 1px solid rgba(120, 85, 40, 0.25) !important;
 }
-body[data-theme="cozy-light"] .qm-tab,
 body[data-theme="cozy-light"] .qm-tab {
   color: #5c3d12 !important;
 }
-body[data-theme="cozy-light"] .qm-tab:hover,
 body[data-theme="cozy-light"] .qm-tab:hover { color: #3d2817 !important; }
-body[data-theme="cozy-light"] .qm-tab.active,
 body[data-theme="cozy-light"] .qm-tab.active {
   color: #b6483a !important;
   border-bottom-color: #b6483a !important;
   background: rgba(255, 244, 215, 0.7) !important;
 }
-body[data-theme="cozy-light"] .qm-quest,
 body[data-theme="cozy-light"] .qm-quest {
   background: rgba(255, 248, 226, 0.7) !important;
   border: 1px solid rgba(120, 85, 40, 0.25) !important;
   color: #3d2817 !important;
 }
-body[data-theme="cozy-light"] .qm-quest .qm-q-name,
 body[data-theme="cozy-light"] .qm-quest .qm-q-name { color: #3d2817 !important; }
-body[data-theme="cozy-light"] .qm-quest .qm-q-desc,
 body[data-theme="cozy-light"] .qm-quest .qm-q-desc { color: #6c4a20 !important; }
-body[data-theme="cozy-light"] .qm-quest .qm-q-icon,
 body[data-theme="cozy-light"] .qm-quest .qm-q-icon {
   background: rgba(245, 226, 175, 0.6) !important;
 }
-body[data-theme="cozy-light"] .qm-close,
 body[data-theme="cozy-light"] .qm-close {
   background: rgba(255, 244, 215, 0.6) !important;
   border: 1px solid rgba(120, 85, 40, 0.35) !important;
   color: #5c3d12 !important;
 }
-body[data-theme="cozy-light"] .qm-close:hover,
 body[data-theme="cozy-light"] .qm-close:hover {
   background: #b6483a !important;
   border-color: #6c2a22 !important;
@@ -4697,7 +4041,7 @@ body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a16
    scene showed through the gaps between cards as a grey smudge. The dark panel
    frame further down now supplies a proper surface — keep the colour, drop the
    background kill. */
-body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
+
 
 /* b217: this block used to force `background: var(--bg-card) !important;
    border: 1px solid var(--line) !important` onto every surface-ish class in
@@ -4750,12 +4094,47 @@ body[data-theme="hearthlight"] .invc-hero-stat {
 body[data-theme="hearthlight"] .tb-btn { background: linear-gradient(180deg,#2f2418,#221a12) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
 body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !important; border-color: var(--line) !important; color: var(--ink) !important; }
 
+/* ------------------------------------------------------------------------
+ * b222 — THE IN-WORLD CARVE-OUT.
+ *
+ * Everything from here to the end of the b174 readability layer forces theme
+ * ink onto panel content with `!important`. That is correct for a UI surface
+ * (a dark card in a dark hall) and WRONG for an in-world surface — parchment,
+ * lit counter wood, a scene band — because those are lit by the picture, not
+ * by the theme. Type that sits on them reads its own ink role (the rule the
+ * b219 hearth band established and b221 repeated).
+ *
+ * Before b222 the only way to win was to out-!important the blanket at three
+ * ids, which is why board-and-shop.css shipped ~60 of them. The blankets now
+ * simply do not reach into those subtrees, so the sheet that draws them uses
+ * ordinary declarations.
+ *
+ * The exclusion list is the ROOTS of every subtree that owns its own colour,
+ * and their descendants. To add a new one: add it here, not an !important in
+ * your sheet. Grep `.bb-board,.sc-scene` to find every copy — they are all the
+ * same string on purpose.
+ *   .bb-board   — the bounty noticeboard, lit by its lantern (b221)
+ *   .sc-scene   — the shopfront picture (b221)
+ *   .sc-counter — the shop counter the offers list continues (b221)
+ *   .iap-card   — the real-money packs. Not a picture, but art-direction.css §6
+ *                 reserves sapphire for real money and the blanket flattened
+ *                 every sapphire value back to gilt ink.
+ * Home's hearth band (.hd-hearth) needs no entry: #panel-profile is not in the
+ * blanket list at all (see the note there), which is the proof that a screen
+ * built on tokens does not need this layer.
+ *
+ * All arguments are class selectors, so each `:not()` adds exactly (0,1,0) —
+ * the blankets keep their relative order. Complex selectors inside :not() are
+ * Chrome 88 / Firefox 84 / Safari 9; this file already ships `:has()`, which
+ * is a strictly newer baseline.
+ * --------------------------------------------------------------------- */
+
 /* text — headers gold, body light, hints muted (accent colours untouched) */
 body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-title,
-body[data-theme="hearthlight"] .panel.active [class*="-title"],
-body[data-theme="hearthlight"] .panel.active [class*="-name"],
-body[data-theme="hearthlight"] .panel.active .card-head,
+body[data-theme="hearthlight"] .panel.active .card-title:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active .card-head:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
 body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
 /* b217: the gilt wash band + full-width underline made every card-head look
    like a table header, and there are ~30 of them across the game. A heading
@@ -4769,17 +4148,17 @@ body[data-theme="hearthlight"] .card-head {
 body[data-theme="hearthlight"] .card-head .card-title,
 body[data-theme="hearthlight"] .card-head .card-title::before,
 body[data-theme="hearthlight"] .card-head .card-sub { color: var(--gold-2) !important; }
-body[data-theme="hearthlight"] .panel.active b,
-body[data-theme="hearthlight"] .panel.active strong,
-body[data-theme="hearthlight"] .panel.active p,
-body[data-theme="hearthlight"] .panel.active li,
+body[data-theme="hearthlight"] .panel.active b:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active strong:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active p:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active li:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
 body[data-theme="hearthlight"] .panel.active td { color: var(--ink) !important; }
-body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]) { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-sub,
-body[data-theme="hearthlight"] .panel.active .muted,
-body[data-theme="hearthlight"] .panel.active small { color: var(--ink-3) !important; }
+body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]):not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *) { color: var(--ink); }
+body[data-theme="hearthlight"] .panel.active .card-sub:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active .muted:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] .panel.active small:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *) { color: var(--ink-3) !important; }
 
-body[data-theme="cozy-light"] /* ============================================================
+/* ============================================================
  * HEARTHLIGHT — single-theme finalization (b174)
  * Hearthlight is now the ONLY theme. Several legacy readability rules hardcode
  * cocoa text + cream card backgrounds WITHOUT theme-scoping (e.g.
@@ -4790,20 +4169,34 @@ body[data-theme="cozy-light"] /* ===============================================
  * next — and the dead light-theme CSS gets deleted in a cleanup pass.)
  * ============================================================ */
 
-/* Panel text -> light (beats the unscoped `#panel-x *` cocoa) */
-body[data-theme="hearthlight"] #panel-profile *,
-body[data-theme="hearthlight"] #panel-character *,
-body[data-theme="hearthlight"] #panel-combat *,
-body[data-theme="hearthlight"] #panel-bounty *,
-body[data-theme="hearthlight"] #panel-skills *,
-body[data-theme="hearthlight"] #panel-inventory *,
-body[data-theme="hearthlight"] #panel-shop *,
-body[data-theme="hearthlight"] #panel-market *,
-body[data-theme="hearthlight"] #panel-dungeons *,
-body[data-theme="hearthlight"] #panel-stable *,
-body[data-theme="hearthlight"] #panel-farming *,
-body[data-theme="hearthlight"] #panel-house *,
-body[data-theme="hearthlight"] #panel-social * { color: var(--ink) !important; }
+/* Panel text -> light (beats the unscoped `#panel-x *` cocoa)
+ *
+ * b222: `#panel-profile` is deliberately NOT in this list. Before b222 it was —
+ * but the b216 rescoping pass had prefixed `body[data-theme="cozy-light"] ` onto
+ * the comment directly above, and a CSS comment is whitespace to the tokenizer,
+ * so the first selector in this list actually parsed as
+ *   `body[data-theme="cozy-light"] body[data-theme="hearthlight"] #panel-profile *`
+ * — two <body> elements in one descendant chain, which can never match. Home has
+ * therefore rendered WITHOUT this blanket since b216, and it is the best-looking
+ * screen in the game (b219 rebuilt it on tokens + its own --scene-* ink roles).
+ * Repairing the selector would have clobbered the hearth band's scene ink, so
+ * the dead fragment is deleted instead and Home stays out. Treat that as the
+ * exit criterion: a screen leaves this list when it stops needing it.
+ *
+ * Every remaining entry carves out the in-world surfaces (see the b222 note
+ * above the readability layer). */
+body[data-theme="hearthlight"] #panel-character *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-combat *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-bounty *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-skills *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-inventory *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-shop *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-market *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-dungeons *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-stable *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-farming *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-house *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-social *:not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *) { color: var(--ink) !important; }
 
 /* Cream card / input surfaces -> dark */
 body[data-theme="hearthlight"] #panel-bounty [class*="bounty-card"],
@@ -4821,13 +4214,12 @@ body[data-theme="hearthlight"] #panel-market fieldset,
 body[data-theme="hearthlight"] #panel-market section,
 body[data-theme="hearthlight"] #panel-market input,
 body[data-theme="hearthlight"] #panel-market select,
-body[data-theme="hearthlight"] #panel-shop [class*="card"],
-body[data-theme="hearthlight"] #panel-shop [class*="sku"],
-body[data-theme="hearthlight"] #panel-shop [class*="iap"],
+body[data-theme="hearthlight"] #panel-shop [class*="card"]:not(.iap-card),
+body[data-theme="hearthlight"] #panel-shop [class*="sku"]:not(.iap-card),
+body[data-theme="hearthlight"] #panel-shop [class*="iap"]:not(.iap-card),
 body[data-theme="hearthlight"] #panel-shop .row.between > button,
 body[data-theme="hearthlight"] #panel-dungeons [class*="card"],
 body[data-theme="hearthlight"] #panel-dungeons [class*="key-card"],
-body[data-theme="hearthlight"] #panel-skills .activity-tile,
 body[data-theme="hearthlight"] #panel-skills .act-tile,
 body[data-theme="hearthlight"] #panel-skills .act-head {
   background: var(--bg-2) !important;
@@ -4852,19 +4244,18 @@ body[data-theme="hearthlight"] #panel-market [class*="-title"] { color: var(--go
    parchment ink onto it produced light-on-light (store ribbons measured
    1.9:1). Excluding them here fixes the whole class instead of adding yet
    another higher-specificity patch per component. */
-body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger),
-body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger),
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger),
-body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger) { color: var(--ink) !important; }
+body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *),
+body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.bb-board,.sc-scene,.sc-counter,.iap-card,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *) { color: var(--ink) !important; }
 
 /* Stray light-face buttons/tiles -> dark surfaces (2-id to win) */
 body[data-theme="hearthlight"] #panel-skills#panel-skills .act-tile,
 body[data-theme="hearthlight"] #panel-skills#panel-skills .act-head,
-body[data-theme="hearthlight"] #panel-skills#panel-skills .activity-tile,
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-option"],
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty [class*="bounty-shop"],
 body[data-theme="hearthlight"] #panel-bounty#panel-bounty .row.between > button,
-body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"],
+body[data-theme="hearthlight"] #panel-shop#panel-shop [class*="iap"]:not(.iap-card),
 body[data-theme="hearthlight"] #panel-shop#panel-shop .row.between > button,
 body[data-theme="hearthlight"] #panel-farming .row.gap-sm > button {
   background: var(--bg-2) !important; border-color: var(--line) !important;
@@ -4972,7 +4363,6 @@ body[data-theme="hearthlight"] #panel-market .mk-list-form * {
 body[data-theme="hearthlight"] #panel-market .mk-list-form h3 {
   color: var(--gold-2, #cda24a) !important;
 }
-body[data-theme="hearthlight"] #panel-market .mk-list-form .mk-hint,
 body[data-theme="hearthlight"] #panel-market .mk-list-form .muted {
   color: var(--ink-3, #a5896a) !important;
 }
@@ -4999,17 +4389,13 @@ body[data-theme="hearthlight"] .modal-card h3,
 body[data-theme="hearthlight"] .modal-card .modal-title {
   color: var(--gold-2, #cda24a) !important;
 }
-body[data-theme="hearthlight"] .modal-card .ss-section,
 body[data-theme="hearthlight"] .modal-card .ss-card,
 body[data-theme="hearthlight"] .modal-card .ss-row {
   background: rgba(255,255,255,.04) !important;
   border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
   color: var(--ink, #e9e2cf) !important;
 }
-body[data-theme="hearthlight"] .modal-card .ss-section-head {
-  background: rgba(205,162,74,.12) !important;
-  color: var(--gold-2, #cda24a) !important;
-}
+
 body[data-theme="hearthlight"] .modal-card .ss-label,
 body[data-theme="hearthlight"] .modal-card .ss-card-title {
   color: var(--ink, #e9e2cf) !important;
@@ -5031,22 +4417,12 @@ body[data-theme="hearthlight"] .modal-card textarea {
    above — match its ID weight. Plus the sibling sheet classes. */
 body[data-theme="hearthlight"] #settings-modal .modal-card,
 body[data-theme="hearthlight"] #settings-modal #settings-body,
-body[data-theme="hearthlight"] .stats-modal-card,
-body[data-theme="hearthlight"] .lifetime-stats-card,
-body[data-theme="hearthlight"] .welcome-card,
-body[data-theme="hearthlight"] .welcome-back-card,
-body[data-theme="hearthlight"] .ach-card,
-body[data-theme="hearthlight"] .acq-card,
 body[data-theme="hearthlight"] .qm-modal {
   background: linear-gradient(180deg, #221c15, #17130e) !important;
   border-color: var(--gold-2, #cda24a) !important;
   color: var(--ink, #e9e2cf) !important;
 }
-body[data-theme="hearthlight"] #settings-modal .ss-section-head {
-  background: rgba(205,162,74,.12) !important;
-  color: var(--gold-2, #cda24a) !important;
-  border-color: var(--line-soft, rgba(122,94,58,.22)) !important;
-}
+
 body[data-theme="hearthlight"] #settings-modal .ss-row,
 body[data-theme="hearthlight"] #settings-modal .ss-card {
   background: rgba(255,255,255,.04) !important;
@@ -5054,8 +4430,7 @@ body[data-theme="hearthlight"] #settings-modal .ss-card {
 }
 body[data-theme="hearthlight"] #settings-modal .ss-label,
 body[data-theme="hearthlight"] #settings-modal .ss-card-title,
-body[data-theme="hearthlight"] #settings-modal label,
-body[data-theme="hearthlight"] #settings-modal .ss-section-title {
+body[data-theme="hearthlight"] #settings-modal label {
   color: var(--ink, #e9e2cf) !important;
 }
 body[data-theme="hearthlight"] #settings-modal .ss-meta,
@@ -5093,7 +4468,6 @@ body[data-theme="hearthlight"] .qm-quest *,
 body[data-theme="hearthlight"] .qm-q-info * {
   color: var(--ink, #e9e2cf) !important;
 }
-body[data-theme="hearthlight"] .qm-quest .qm-reward,
 body[data-theme="hearthlight"] .qm-quest [class*="reward"] {
   color: var(--gold-2, #cda24a) !important;
 }
@@ -5183,7 +4557,6 @@ body[data-theme="hearthlight"] .hd-cta.ghost:hover {
   background: color-mix(in srgb, var(--accent, var(--gold)) 12%, transparent) !important;
 }
 /* Gem counts — sapphire is a surface colour; lift it for text use. */
-body[data-theme="hearthlight"] .hd-pill.gem b,
 body[data-theme="hearthlight"] #top-gems,
 body[data-theme="hearthlight"] .t-stat .gem {
   color: color-mix(in srgb, var(--gem) 45%, var(--ink)) !important;
@@ -5459,13 +4832,8 @@ body[data-theme="hearthlight"] .td-comp-stable {
 }
 body[data-theme="hearthlight"] .td-comp-stable:hover { filter: brightness(1.1); }
 
-body[data-theme="hearthlight"] .td-bonus-btn {
-  width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer;
-  background: linear-gradient(180deg, var(--gold-2), var(--gold)) !important;
-  color: #20160a !important; border: 1px solid rgba(0,0,0,.25) !important;
-  font: 700 12px/1 var(--f-ui); letter-spacing: .06em; text-transform: uppercase;
-}
-body[data-theme="hearthlight"] .td-bonus-btn:hover { filter: brightness(1.06); }
+
+
 
 body[data-theme="hearthlight"] .eqb-card { max-width: 380px; width: 100%; padding: 18px; }
 body[data-theme="hearthlight"] .eqb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -5515,7 +4883,6 @@ body[data-theme="hearthlight"] .td-tab span { display: none; }
    The button hierarchy comes from art-direction.css; these only supply the
    FTUE-specific class names. */
 body[data-theme="hearthlight"] .ftue-btn,
-body[data-theme="hearthlight"] .ftue-button,
 body[data-theme="hearthlight"] .hr-ftue button {
   background: linear-gradient(180deg, rgba(255,236,200,.075), rgba(255,236,200,.018) 55%, rgba(0,0,0,.10)) !important;
   color: var(--ink-2) !important;
@@ -5528,8 +4895,7 @@ body[data-theme="hearthlight"] .hr-ftue button:hover {
   color: var(--ink) !important;
   border-color: rgba(201,162,74,.4) !important;
 }
-body[data-theme="hearthlight"] .ftue-btn.primary,
-body[data-theme="hearthlight"] .ftue-next {
+body[data-theme="hearthlight"] .ftue-btn.primary {
   background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%) !important;
   color: #221803 !important;
   border-color: #e6cd93 !important;
@@ -5542,8 +4908,7 @@ body[data-theme="hearthlight"] .ftue-btn.skip {
   box-shadow: none;
   color: var(--ink-3) !important;
 }
-body[data-theme="hearthlight"] .ftue-card,
-body[data-theme="hearthlight"] .ftue-tooltip {
+body[data-theme="hearthlight"] .ftue-card {
   background:
     radial-gradient(120% 80% at 50% -10%, rgba(201,162,74,.10), transparent 62%),
     linear-gradient(180deg, #262019, #16120d) !important;
@@ -5552,6 +4917,5 @@ body[data-theme="hearthlight"] .ftue-tooltip {
   color: var(--ink) !important;
   box-shadow: inset 0 1px 0 rgba(255,240,205,.13), 0 24px 60px -20px rgba(0,0,0,.85) !important;
 }
-body[data-theme="hearthlight"] .ftue-card *,
-body[data-theme="hearthlight"] .ftue-tooltip * { color: var(--ink) !important; }
+body[data-theme="hearthlight"] .ftue-card * { color: var(--ink) !important; }
 body[data-theme="hearthlight"] .ftue-card .ftue-title { color: var(--gold-2) !important; }

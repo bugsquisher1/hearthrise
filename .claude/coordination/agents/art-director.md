@@ -9,6 +9,48 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · Wave 3a — the CSS substrate (b222)
+
+**Purpose.** Pay down the debt that taxes every new screen: the b174 `!important` blankets, the unscoped stragglers, and the inert cozy-light CSS. Structural pass, not a redesign. Files: `theme-cozy.css`, `board-and-shop.css`, `smoke-test.js` (guards only).
+
+**Method — and this is the part worth keeping.** Eyeballing 36 screens cannot prove "unchanged". I built a Playwright harness that, for every screen × both themes, dumps the computed value of 17 properties for **every visible element** plus a screenshot, and diffs two runs. Baseline noise: **0 style differences, ~0.013 % pixels** (only the muster countdown, after seeding `Math.random`). That turned every decision from taste into measurement, and it caught four things a visual pass would have missed. Anyone doing CSS surgery here should rebuild it before touching anything.
+
+**Debt 1 — the blankets. What they actually were.** The b174 comment says they exist to beat unscoped `#panel-x * {color:#3d2817!important}` cocoa rules. b216 already scoped those to `cozy-light`, so the stated reason is gone — but the blankets are now load-bearing in their own right, and they fight *other `!important` rules in the same file*. Deleting them is not available. What IS available is to stop them reaching where they are **wrong**: an in-world surface (parchment, lit counter wood, a scene band) is lit by its picture, not by the theme.
+- Added one carve-out — `:not(.bb-board,.sc-scene,.sc-counter,.iap-card, …descendants)` — to the six hearthlight blankets that a matched-rule audit proved were the *only* `!important` colour rules reaching those subtrees. Same string everywhere, greppable, documented with an add-a-root instruction.
+- **`board-and-shop.css`: 35 stacked-id selectors → 1**, and every `!important` that survives is now attributable. It is 30 `color` + 4 `.iap-card` surface + 1 `border-left-color`, and *none of them are for hearthlight* — they are Cozy Day's mirror blankets (untouched on purpose) and one mobile media query. The header states the exit condition: delete Cozy Day, delete its blankets, and they all go.
+- **Found the blanket re-asserting a b216 fix.** Blanket B carefully excludes `.ribbon/.chip/.btn-*` so filled controls keep their own contrast — and blanket A, one id lower and with no carve-outs, put `--ink` back on them anyway. Live consequence: **cream "Buy" text on struck gilt, and cream coin glyphs on parchment price tags (~2:1)** in the shop, for months. The carve-out let board-and-shop's own ink land: dark on gilt, dark on paper, sapphire on the premium packs.
+- **Deleted an impossible selector.** `body[data-theme="cozy-light"] body[data-theme="hearthlight"] #panel-profile *` — b216's rescoping script prefixed a *comment*, and a comment is whitespace to the tokenizer, so the prefix glued itself to the next selector. Two `<body>` in one chain = never matches. **Home has rendered without the readability blanket since b216 and is the best-looking screen in the game.** That is the exit criterion now written into the file: a screen leaves the list when it stops needing it. A second instance (`body[…] body`) was found by the new guard.
+
+**Debt 2 — the stragglers. 25 of them, and two were live.** Every rule in the "cozy-light component fine-tuning" block was a pair: `body[data-theme="cozy-light"] X, :root X`. `:root` is `<html>`; the theme attribute is on `<body>`; so the second half matched under every theme. Deleted all 25 `:root <descendant>` halves. Two were visibly painting:
+- `.nav-btn.active` — the light theme's flat fill plus a **real 3px `border-left`**, which defeated b217's gilt wash and put a second spine beside the intended inset one. It also pushed every active nav label 3px right, so the selected item never lined up with the others. Both fixed.
+- `.status-pill` — wore the light theme's plate and keyline.
+- (`#hr-bug-btn` too, but the delta is a hairline.)
+
+**The one that only exists on phones.** `:root .bottom-nav` set `linear-gradient(#e8d4a0,#ede0b8)` — so **the mobile bottom nav has been a cream parchment bar under the dark theme on every portrait phone**, with grey-on-cream labels. Invisible to every desktop pass ever run, including mine until I built a 420×820 sweep. Now dark. Lesson: any theme-leak audit that does not open a phone viewport is incomplete. (Follow-up: the value it falls back to is `rgba(8,15,22,.96)` — a *cool* blue-black in a warm theme. Reads near-black in situ, but it should be a `--bg-*` token.)
+
+**Debt 3 — 636 lines / 28 KB of dead CSS deleted, with zero computed-style change.** Two provable criteria only:
+- 296 selectors that were **literal duplicates inside their own rule's list** (no-ops).
+- 171 selectors + 23 whole rules whose class/id hooks **appear nowhere** in `index.html` or any `src/**/*.js` — verified by regex over the full shipped corpus with a word-boundary guard, then spot-checked by hand. They are stale renames: `.invc-bag` (the real one is `.invc-bag-col`), `#quests-strip` (`#global-quests-strip`), `.ftue-tooltip/.ftue-next/.ftue-button` (FTUE ships `.ftue-card/.ftue-btn`), `.stat-val` (`.mp-stat-val`), plus `.qbtn/.bag-grid/.tier-tab/.suggested-card/.welcome-card/.item-detail`…
+- Plus 3 rules byte-identical to a later rule with the same selector and `@media`.
+- **Deliberately kept:** everything scoped to `cozy-light` whose hooks still exist (that theme must stay pixel-identical); 8 rules with comments interleaved in their selector list; anything reached by `[class*="…"]`. When in doubt it stayed. CURRENT_STATE's "~3,000 lines" is the *plausible* number once Cozy Day is actually retired; 636 is what is provable while it is still selectable.
+
+**A false start worth recording.** My first dead-code cutter deleted raw *lines*. It corrupted brace pairing and left the sheet parsing as 7 rules instead of 652 — and the screenshot diff looked merely "wrong", not "broken". The fix was to rebuild each rule's **selector region** instead, and to verify by parsing both files with the browser's own CSS engine and asserting *nothing new or changed* in the output. Never line-edit CSS; edit regions and verify with a parser.
+
+**Guards (b222 suite, 221 → 225).** Each one was proved to fail by re-introducing its bug at runtime, not assumed:
+1. no always-true `:root <descendant>` in **any** sheet (b216's guard only knew `html:not([data-theme])`, only in one file);
+2. no selector chaining two `<body>`/`<html>` — the comment-prefix accident;
+3. **the blankets stay out of in-world surfaces** — builds a synthetic `.bb-board`/`.sc-counter`/`.iap-card` fixture and asserts no foreign `!important` colour rule matches it, so the next in-world screen never has to start an arms race;
+4. `board-and-shop.css` never stacks panel ids (≤1).
+
+**Verified.** Static server :8148. 36 screen×theme combinations swept at 1440×900 (home, character, inventory, combat, bounty, shop ×3 tabs, skills, artisan detail, farm, house, social, events, market, stable, dungeons, settings), each also captured scrolled to the bottom of its panel; plus a 20-combination mobile sweep at 880×420 landscape and 420×820 portrait. Both themes throughout. **Cozy Day: exactly one computed-style difference in the entire sweep** (a `border-bottom` on the last shop row, see limitations). Hearthlight differences are all listed above. Smoke **225/225, 0 runtime errors**; `bump-version.sh --check` OK; `findUiOverlaps()` empty; console clean apart from the pre-existing offline Supabase 404.
+
+**Known limitations / handoffs.**
+- **Cozy Day is not actually selectable, and the code says two different things.** `theme-picker.js` lists only hearthlight, and `applyTheme('cozy-light')` *removes* `data-theme` rather than setting it — so the ~900 `body[data-theme="cozy-light"]` rules can only be reached by setting the attribute by hand. Someone should decide: retire it properly (then ~2,400 more lines and 30 `!important`s fall out of this pass automatically) or make it real. **Systems decision, not mine to take alone.**
+- `home-dashboard.js:182` injects `'html:not([data-theme]) …'` from JavaScript — the exact always-true pattern b216 killed, in a place CSS guards cannot police (my guards skip sheets with no `href`, or they would fail on every injected style). **Systems handoff.**
+- The mobile bottom nav's new (correct, dark) background is a cool blue-black; it wants a warm token.
+- The companion rows in the shop's Equipment tab are injected by a `setInterval(…, 1500)` poll, so they can take up to 1.5 s to appear. Not cosmetic — it made my screenshot harness non-deterministic until I raised the settle time. **Systems handoff.**
+- One intentional visual difference in Cozy Day: the last row under "Under the counter" loses a 1px hairline. b221's own `.shop-row:last-child{border-bottom:0}` had been defeated by its author's 3-id rule; collapsing the ids let the author's intent apply.
+
 ### 2026-08-08 · Wave 2b — the board is a board, the shop is a shop (#5)
 
 **The ask (Tyler).** "The bounty board should feel more like an actual 'board' and the 'shop' should feel like a shop.. a little chick behind a counter with offers on the table."

@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=215' directly.
+// modularised, will import { G } from '../state/game.js?v=216' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=215';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=215';
+import { on } from '../net/events.js?v=216';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=216';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -155,14 +155,30 @@ const TESTS = [
     root.style.cssText = 'position:fixed;left:-9999px;top:0';
     root.innerHTML = '<div class="ftue-actions"><button class="ftue-btn">x</button></div>';
     document.body.appendChild(root);
-    const cs = getComputedStyle(root.querySelector('.ftue-btn'));
-    const m = (cs.backgroundColor || '').match(/\d+/g);
+    const btn = root.querySelector('.ftue-btn');
+    const cs = getComputedStyle(btn);
+    const bgM = (cs.backgroundColor || '').match(/[\d.]+/g);
+    const fgM = (cs.color || '').match(/[\d.]+/g);
     document.body.removeChild(root);
-    assert(m, 'FTUE secondary button has no resolvable background color');
-    const p = m.map(Number);
+    assert(bgM && fgM, 'FTUE secondary button has no resolvable colours');
+    // b216: assert the REQUIREMENT (readable), not one particular solution.
+    // The original test demanded a light/parchment face because `.ftue-card *`
+    // forced cocoa text onto it. That cocoa rule is now scoped to the light
+    // theme, so under Hearthlight the correct answer is a DARK face with
+    // parchment text — which the old luminance check would have failed even
+    // though the button reads perfectly. Contrast is the thing that matters
+    // and it holds in either theme.
     const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
-    const lum = 0.2126 * f(p[0]) + 0.7152 * f(p[1]) + 0.0722 * f(p[2]);
-    assert(lum > 0.4, 'FTUE secondary button bg should be light/parchment for readable cocoa text, got ' + cs.backgroundColor + ' (lum ' + lum.toFixed(2) + ')');
+    const lumOf = (p) => 0.2126 * f(p[0]) + 0.7152 * f(p[1]) + 0.0722 * f(p[2]);
+    // Compose the (possibly translucent) button face over the card behind it.
+    const bg = bgM.map(Number), fg = fgM.map(Number);
+    const a = bg[3] === undefined ? 1 : bg[3];
+    const card = [30, 36, 48];                       // .ftue-card face
+    const eff = [0, 1, 2].map((i) => bg[i] * a + card[i] * (1 - a));
+    const l1 = lumOf(fg), l2 = lumOf(eff);
+    const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    assert(ratio >= 4.5,
+      'FTUE secondary button text must be readable on its own face — got ' + ratio.toFixed(2) + ':1 (' + cs.color + ' on ' + cs.backgroundColor + ')');
   }),
   () => tryRun('b168: auto-eat prefers plain food, preserves buffed food', () => {
     const A = window.HearthriseAuto;
@@ -454,6 +470,54 @@ const TESTS = [
       G.inventory = savedInv; G.gold = savedGold;
     }
   }),
+  () => tryRun('b216: the light theme never paints under the dark theme', () => {
+    // THE root cause of the recurring "mismatched colours". Two ways it broke:
+    //   1. `html:not([data-theme])` selectors — the theme attribute is set on
+    //      <body>, so <html> never has it and those rules matched FOREVER,
+    //      painting cream surfaces and cocoa ink beneath Hearthlight.
+    //   2. Rules that hardcode cocoa/cream with no theme scope at all.
+    // Both were fixed by scoping the light layer to body[data-theme="cozy-light"].
+    // This test fails the moment either pattern reappears, so the fix can't rot.
+    let sheet = null;
+    for (const s of Array.from(document.styleSheets)) {
+      if ((s.href || '').indexOf('theme-cozy') >= 0) { sheet = s; break; }
+    }
+    if (!sheet) return;
+    let rules;
+    try { rules = Array.from(sheet.cssRules); } catch { return; }   // CORS-blocked
+    const alwaysOn = [];
+    const unscoped = [];
+    const COCOA_CREAM = /#3d2817|#5c2d08|#7a4623|#fff8e2|#faf0d4|#f4e4bc|#ede0b8|#fff7e0|rgba?\(\s*61,\s*40,\s*23|rgba?\(\s*255,\s*247,\s*224|rgba?\(\s*237,\s*224,\s*184/i;
+    const walk = (list) => list.forEach((r) => {
+      if (r.cssRules && !r.selectorText) { walk(Array.from(r.cssRules)); return; }  // @media etc.
+      if (!r.selectorText || !r.style) return;
+      const sel = r.selectorText;
+      if (sel.indexOf('html:not([data-theme])') >= 0) { alwaysOn.push(sel.slice(0, 60)); return; }
+      if (!COCOA_CREAM.test(r.cssText)) return;
+      if (/cozy-light|hearthlight|lane1|data-theme="dark"|classic|cozy-dark/.test(sel)) return;
+      // Shadows/borders may legitimately tint; only surfaces + ink matter.
+      if (!/(^|;|\s)(color|background|background-color)\s*:/.test(r.style.cssText)) return;
+      unscoped.push(sel.slice(0, 60));
+    });
+    walk(rules);
+    assert(alwaysOn.length === 0,
+      alwaysOn.length + ' always-on `html:not([data-theme])` rule(s) are back — they match in EVERY theme: ' + alwaysOn.slice(0, 3).join(' | '));
+    assert(unscoped.length === 0,
+      unscoped.length + ' unscoped cocoa/cream rule(s) paint the light palette under the dark theme: ' + unscoped.slice(0, 3).join(' | '));
+  }),
+
+  () => tryRun('b216: dark palette is the default at :root', () => {
+    // The colour tokens used to live on :root with the COZY-LIGHT values, so the
+    // baseline palette was the light theme and anything resolving a token
+    // outside body's scope came out cream/cocoa.
+    const rootInk = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim().toLowerCase();
+    const rootBg = getComputedStyle(document.documentElement).getPropertyValue('--bg-0').trim().toLowerCase();
+    assert(rootInk && rootInk !== '#3d2817',
+      ':root --ink must not be the cocoa light value (got ' + rootInk + ')');
+    assert(rootBg && rootBg !== '#f4e4bc',
+      ':root --bg-0 must not be the cream light value (got ' + rootBg + ')');
+  }),
+
   () => tryRun('b215: level 99 is actually reachable (XP table has all 99 rungs)', () => {
     // Regression: XP_TABLE was missing the level-98 threshold (11,805,606), so
     // it held 98 entries. levelFromXp() could never return 99 — the cap the

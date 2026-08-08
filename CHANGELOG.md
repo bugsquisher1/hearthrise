@@ -4,6 +4,19 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 216 — 2026-08-08 (One Palette — the colours finally match)
+
+The mismatched colours had a single root cause, and this build removes it rather than papering over it again.
+
+- 🎨 **The light theme is no longer painting underneath the dark one.** The theme is applied to `<body>`, but ~310 style rules were written as "when no theme is set on `<html>`" — a condition that was *always* true. So the retired parchment theme rendered beneath Hearthlight on every screen, and 87 more rules hardcoded cream surfaces or cocoa text with no theme scope at all. That's why unreadable patches kept coming back no matter how many fixes went in. The light theme is now strictly opt-in, and the dark palette is the game's actual default.
+- 📖 **Readable everywhere.** The activity bar (cocoa text on a washed cream strip), the wordmark beside the logo, market listings, bounty cards, shop ribbons, settings, dungeon cards, the tour, and the mobile tab strips are all legible now. A contrast sweep across all 13 screens went from dozens of failures to none that affect text.
+- 🔘 **Filled buttons read correctly.** Gold ribbons and active chips were drawing pale text on pale fills; filled controls now take dark ink. The primary action button is the game's wax-stamp red instead of a leftover teal from an older palette.
+- 📦 **A real inventory.** The bag now shows empty slots in a dense, uniform grid instead of a few tiles above a black void — item positions stay put and the bag reads as a container.
+- 🧍 **The equipment doll fits on screen.** All 14 slots are visible at once (they used to overflow behind a scrollbar), split into **Equipment · Stats · Companion** tabs. Ammo sits top-right, earrings moved across, rings dropped a row, and there's a new **offhand/shield** slot. Every generated armour and weapon piece now shows real painted art instead of a placeholder shield.
+- 📊 **Equipment bonuses** are their own tab (and a pop-out) showing your summed totals and everything you're wearing.
+- 🖼️ Home is clearer: buttons are button-sized rather than card-height slabs, quest progress and reward read as a pair, and the backdrop no longer smears through the panels.
+- 🧪 Guarded by tests: the suite now fails if the always-on light layer or an unscoped cream/cocoa rule ever returns. 170/170 green.
+
 ## v0.9.2-beta build 215 — 2026-08-08 (The Long Climb — every skill now runs to 99)
 
 Hearthrise is built on the promise of taking every skill to 99. This update makes that real: the ladders that used to stop dead in the sixties now run all the way to the cap, with two brand-new material tiers of your own — **Emberforged** and **Dawnsteel**.

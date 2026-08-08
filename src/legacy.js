@@ -7055,16 +7055,91 @@ function slotGlyphSVG(slot){
     belt:    '<rect x="4" y="10" width="16" height="4" rx="1"/><rect x="10" y="9" width="4" height="6" rx="1"/>',
     pants:   '<path d="M7 4h10l-1.2 16h-3L12 11l-.8 9h-3z"/>',
     boots:   '<path d="M10 4v9l-3.5 2.5V20h9v-3c0-3.5-2.5-3-2.5-7V4z"/>',
-    companion:'<circle cx="12" cy="15.5" r="3"/><circle cx="7.5" cy="11" r="1.5"/><circle cx="16.5" cy="11" r="1.5"/><circle cx="9.8" cy="7.5" r="1.4"/><circle cx="14.2" cy="7.5" r="1.4"/>'
+    companion:'<circle cx="12" cy="15.5" r="3"/><circle cx="7.5" cy="11" r="1.5"/><circle cx="16.5" cy="11" r="1.5"/><circle cx="9.8" cy="7.5" r="1.4"/><circle cx="14.2" cy="7.5" r="1.4"/>',
+    /* b216: offhand — a heater shield with a centre boss */
+    shield:  '<path d="M12 3.5l7 2.2v6c0 4.2-3 7.3-7 9-4-1.7-7-4.8-7-9v-6z"/><circle cx="12" cy="11" r="2.1"/>'
   };
   var d = P[slot] || '<circle cx="12" cy="12" r="6"/>';
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
 }
 
+/* b216: total equipment bonuses, summed across every equipped slot.
+   Surfaced in a modal instead of a cramped always-on panel — the numbers are a
+   "check my build" question, not something you read every second. */
+window.getEquipmentTotals = function(){
+  var FIELDS = [
+    ['atkB','Attack'], ['strB','Strength'], ['defB','Defence'],
+    ['rangeAtkB','Ranged attack'], ['rangeStrB','Ranged strength'],
+    ['magicAtkB','Magic attack'], ['magicStrB','Magic strength'],
+    ['critB','Crit'], ['xpB','XP bonus'], ['spdB','Speed'],
+  ];
+  var totals = {}, worn = [];
+  FIELDS.forEach(function(f){ totals[f[0]] = 0; });
+  Object.keys(G.equipment || {}).forEach(function(slot){
+    var id = G.equipment[slot]; if(!id) return;
+    var def = (typeof ITEMS !== 'undefined') && ITEMS[id];
+    if(!def) return;
+    worn.push({slot: slot, id: id, name: def.n || id});
+    FIELDS.forEach(function(f){ if(typeof def[f[0]] === 'number') totals[f[0]] += def[f[0]]; });
+  });
+  return { fields: FIELDS, totals: totals, worn: worn };
+};
+
+/* Shared renderer so the Stats tab and the pop-out modal can never disagree. */
+window.renderEquipmentStatsHTML = function(){
+  var t = window.getEquipmentTotals();
+  var pct = { critB:1, xpB:1, spdB:1 };
+  var rows = t.fields.filter(function(f){ return t.totals[f[0]]; }).map(function(f){
+    var v = t.totals[f[0]];
+    var shown = pct[f[0]] ? (Math.round(v*1000)/10) + '%' : '+' + v;
+    return '<div class="eqb-row"><span>'+f[1]+'</span><b>'+shown+'</b></div>';
+  }).join('') || '<div class="eqb-empty">Nothing equipped yet — gear up to see your bonuses here.</div>';
+  var wornList = t.worn.length
+    ? t.worn.map(function(w){
+        var lbl = (EQUIP_SLOT_META[w.slot] && EQUIP_SLOT_META[w.slot].label) || w.slot;
+        return '<div class="eqb-worn"><span>'+lbl+'</span><b>'+w.name+'</b></div>';
+      }).join('')
+    : '';
+  return '<div class="eqb-grid">'+rows+'</div>'+
+    (wornList ? '<div class="eqb-sub">Equipped</div><div class="eqb-wornlist">'+wornList+'</div>' : '');
+};
+
+window.openEquipmentBonuses = function(){
+  var body = window.renderEquipmentStatsHTML();
+  var ov = document.getElementById('eqb-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'eqb-overlay'; ov.className = 'modal';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(e){ if(e.target === ov) ov.classList.remove('show'); });
+  }
+  ov.innerHTML =
+    '<div class="modal-card eqb-card" onclick="event.stopPropagation()">'+
+      '<div class="eqb-head"><h3>Equipment bonuses</h3>'+
+        '<button class="eqb-close" onclick="document.getElementById(\'eqb-overlay\').classList.remove(\'show\')" aria-label="Close">×</button></div>'+
+      body+
+    '</div>';
+  ov.classList.add('show');
+};
+
 window.buildTibiaDoll = function(){
   if(typeof EQUIP_SLOTS === 'undefined' || typeof EQUIP_SLOT_META === 'undefined') return null;
+  /* b216: the doll is now two panes — Equipment and Companion — so the pet
+     gets its own space instead of squatting in a gear slot, and every gear
+     slot fits on screen without scrolling. Ammo sits top-right, next to the
+     weapon side of the body, which is where players look for it. */
+  var LAYOUT = {            // [column, row] in a 4-wide doll
+    cape:[1,1],   helmet:[2,1], necklace:[3,1], ammo:[4,1],
+    weapon:[1,2], body:[2,2],   shield:[3,2],   earrings:[4,2],
+    gloves:[1,3], pants:[2,3],  belt:[3,3],     ring1:[4,3],
+                  boots:[2,4],                  ring2:[4,4],
+  };
+  var wrap = document.createElement('div');
+  wrap.className = 'td-wrap';
   var doll = document.createElement('div');
   doll.className = 'td-doll';
+  var companionPane = document.createElement('div');
+  companionPane.className = 'td-pet-pane';
   EQUIP_SLOTS.forEach(function(s){
     var id = G.equipment ? G.equipment[s] : null;
     var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
@@ -7094,9 +7169,48 @@ window.buildTibiaDoll = function(){
       // goes where (faint tiny glyphs alone were unreadable).
       slot.innerHTML = slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(slotLabel||s)+'</span>';
     }
-    doll.appendChild(slot);
+    if(s === 'companion'){
+      slot.classList.add('td-companion-slot');
+      companionPane.appendChild(slot);
+    } else {
+      var pos = LAYOUT[s];
+      if(pos){ slot.style.gridColumn = pos[0]; slot.style.gridRow = pos[1]; }
+      doll.appendChild(slot);
+    }
   });
-  return doll;
+
+  /* Stats pane — the summed bonuses of everything you're wearing. Its own tab
+     rather than an always-on panel: it answers "how strong am I right now",
+     which players check between fights, not every second. */
+  var statsPane = document.createElement('div');
+  statsPane.className = 'td-stats-pane';
+  statsPane.innerHTML = window.renderEquipmentStatsHTML();
+
+  /* Tabs — Equipment | Stats | Companion. */
+  var tabs = document.createElement('div');
+  tabs.className = 'td-tabs';
+  tabs.innerHTML =
+    '<button class="td-tab active" data-td-pane="gear" title="Equipment">'+ slotGlyphSVG('body') +'<span>Equipment</span></button>'+
+    '<button class="td-tab" data-td-pane="stats" title="Stats">'+ slotGlyphSVG('weapon') +'<span>Stats</span></button>'+
+    '<button class="td-tab" data-td-pane="pet" title="Companion">'+ slotGlyphSVG('companion') +'<span>Companion</span></button>';
+  tabs.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-td-pane]'); if(!btn) return;
+    var pane = btn.getAttribute('data-td-pane');
+    tabs.querySelectorAll('.td-tab').forEach(function(b){ b.classList.toggle('active', b === btn); });
+    doll.style.display          = pane === 'gear'  ? '' : 'none';
+    statsPane.style.display     = pane === 'stats' ? '' : 'none';
+    companionPane.style.display = pane === 'pet'   ? '' : 'none';
+    // Recompute on open so it always reflects what's currently worn.
+    if(pane === 'stats') statsPane.innerHTML = window.renderEquipmentStatsHTML();
+  });
+
+  statsPane.style.display = 'none';
+  companionPane.style.display = 'none';
+  wrap.appendChild(tabs);
+  wrap.appendChild(doll);
+  wrap.appendChild(statsPane);
+  wrap.appendChild(companionPane);
+  return wrap;
 };
 
 /* Replace existing eq-strip / char-loadout / loadout-doll with Tibia version */
@@ -7195,6 +7309,16 @@ function patchCombatPage(){
 function patchInventoryPage(){
   var panel = document.getElementById('panel-inventory');
   if(!panel) return;
+  /* b216: the modern inventory layout renders its own doll into
+     #invc-doll-host. This older top-of-panel host then rendered a SECOND one,
+     so the panel carried two complete dolls (28 slots for 14, and after the
+     b216 tab work, two sets of Equipment/Stats/Companion tabs). If the modern
+     host is present it owns the doll — bail out. */
+  if(panel.querySelector('#invc-doll-host')){
+    var stale = panel.querySelector('.inv-tibia-host');
+    if(stale) stale.remove();
+    return;
+  }
   /* Hide the old paper-doll if still present from prior renders */
   panel.querySelectorAll('.inv-doll, .loadout-doll').forEach(function(el){ el.style.display='none'; });
   /* Find or create the inline Tibia host */
@@ -7366,6 +7490,17 @@ function renderInvFancy(){
         '<div class="invc-grid">'+
           (visible.length === 0 ?
             '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:12px">No items in this category</div>' :
+            /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
+               inventory rather than a handful of tiles above a black void.
+               A uniform filled grid is what makes a bag scannable — you learn
+               the shape of the container, and item positions stay stable. */
+            (function(html){
+              var perRow = 8;
+              var minSlots = 40;                                   // ~5 rows
+              var target = Math.max(minSlots, Math.ceil(visible.length / perRow) * perRow);
+              for (var i = visible.length; i < target; i++) html += '<div class="invc-tile invc-slot" aria-hidden="true"></div>';
+              return html;
+            })(
             visible.map(function(kv){
               var id = kv[0], qty = kv[1];
               var def = ITEMS[id];
@@ -7377,7 +7512,7 @@ function renderInvFancy(){
                 itemImg(id)+
                 '<span class="invc-qty">'+fmtQty(qty)+'</span>'+
               '</div>';
-            }).join('')
+            }).join(''))
           )+
         '</div>'+
       '</div>'+
@@ -10022,6 +10157,56 @@ window._monsterIcon = window._monsterIcon || {};
     watchtower:  'assets/icons-bundle/buildings/Tower_01_nobg.png'
     // scarecrow intentionally omitted — no scarecrow art in pack, emoji fits
   };
+
+  /* b216: the b215 tier ladder generated ~70 armour/weapon pieces that had no
+     painted art, so every one fell back to a generic emoji — the equipment doll
+     showed the same blue shield in every slot. Per the locked art direction
+     ("gear tier = RARITY BORDER, not a recoloured sprite"), a slot shares one
+     silhouette across tiers and the border conveys the tier. Map each generated
+     piece to the shipped art for its slot, using the closest tier we own. */
+  window.__mapGeneratedGearIcons = function mapGeneratedGear(){
+    var byTier = function(list){            // pick the closest owned tier art
+      return function(tier){ return list[Math.min(tier, list.length) - 1] || list[list.length - 1]; };
+    };
+    var G_ = 'assets/icons-bundle/painted/gear/';
+    var SLOT_ART = {
+      helm:      byTier([G_+'iron_helm.png',      G_+'iron_helm.png',      G_+'steel_helm.png']),
+      platebody: byTier([G_+'iron_platebody.png', G_+'iron_platebody.png', G_+'steel_platebody.png']),
+      gauntlets: byTier([G_+'leather_gloves.png']),
+      belt:      byTier([G_+'bronze_belt.png']),
+      sword:     byTier([G_+'bronze_sword.png', G_+'iron_sword.png', G_+'steel_sword.png', G_+'steel_sword.png', G_+'rune_sword.png']),
+      warhammer: byTier([G_+'stone_maul.png', G_+'iron_warhammer.png']),
+      bow:       byTier([G_+'shortbow.png', G_+'longbow.png']),
+      staff:     byTier([G_+'apprentice_staff.png', G_+'oak_staff.png']),
+    };
+    var ITEMS_ = window.ITEMS || {};
+    Object.keys(ITEMS_).forEach(function(id){
+      if (LOCAL_ITEM_ICON[id]) return;                  // hand-mapped art wins
+      var def = ITEMS_[id];
+      if (!def || !def.tier) return;                    // only generated tier gear
+      var key = Object.keys(SLOT_ART).filter(function(k){ return id.indexOf('_' + k) > 0 || id.indexOf(k) === id.length - k.length; })[0];
+      if (!key) return;
+      LOCAL_ITEM_ICON[id] = SLOT_ART[key](def.tier);
+      window._itemPath = window._itemPath || {};
+      window._itemPath[id] = LOCAL_ITEM_ICON[id];
+      window._itemSVG = window._itemSVG || {};
+      window._itemSVG[id] = '<img src="'+LOCAL_ITEM_ICON[id]+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
+    });
+  };
+  window.__mapGeneratedGearIcons();
+  /* This IIFE runs while legacy.js loads — BEFORE main.js merges the ESM data,
+     so the generated tier gear isn't in ITEMS yet and the pass above finds
+     nothing. Run it again once the merge has happened. */
+  setTimeout(function(){
+    try {
+      window.__mapGeneratedGearIcons();
+      /* The doll is built once and cached (buildTibiaDoll bails when a
+         .td-doll already exists), so drop it to force a rebuild with the
+         freshly-mapped art. */
+      document.querySelectorAll('.td-wrap, .td-doll').forEach(function(n){ n.remove(); });
+      if (typeof renderInventory === 'function') renderInventory();
+    } catch(e){}
+  }, 1500);
 
   // Apply: override window._itemPath for known IDs. Item-render code
   // already prefers _itemPath over emoji.

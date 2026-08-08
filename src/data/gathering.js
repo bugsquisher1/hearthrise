@@ -50,11 +50,13 @@ export const CROPS={
   moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:170,req:88,seed:'moonbloom_seed'},
 };
 
-export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'];
+/* b216: 'shield' (offhand) added. Existing saves simply have no value for it —
+   migrateEquipmentSlots fills every known slot with null — so it's save-safe. */
+export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'];
 
 export const EQUIP_SLOT_META={
   helmet:{label:'Helmet',icon:'⛑️'},necklace:{label:'Necklace',icon:'📿'},earrings:{label:'Earrings',icon:'💎'},
-  cape:{label:'Cape',icon:'🦸'},weapon:{label:'Weapon',icon:'⚔️'},ammo:{label:'Ammo',icon:'🏹'},
+  cape:{label:'Cape',icon:'🦸'},weapon:{label:'Weapon',icon:'⚔️'},shield:{label:'Offhand',icon:'🛡️'},ammo:{label:'Ammo',icon:'🏹'},
   ring1:{label:'Ring 1',icon:'💍'},body:{label:'Body',icon:'🦺'},ring2:{label:'Ring 2',icon:'💍'},
   gloves:{label:'Gloves',icon:'🧤'},belt:{label:'Belt',icon:'🟫'},pants:{label:'Pants',icon:'👖'},
   boots:{label:'Boots',icon:'🥾'},companion:{label:'Companion',icon:'🐾'},

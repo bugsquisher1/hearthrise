@@ -88,9 +88,13 @@
     btn.style.cssText = ''
       + 'position:absolute; top:14px; right:14px; z-index:5;'
       + 'padding:6px 14px;'
-      + 'background:rgba(255,247,224,.65);'
-      + 'color:#3d2817;'
-      + 'border:1px solid #b8893e;'
+      /* b216: was an inline cream fill + cocoa ink — a parchment button
+         hardcoded into JS, so no stylesheet could re-theme it. Inline
+         styles also beat the theme layer, which left it light-on-light
+         once the dark palette became the default. Tokens now. */
+      + 'background:var(--bg-2);'
+      + 'color:var(--ink);'
+      + 'border:1px solid var(--line-strong);'
       + 'border-radius:4px;'
       + "font-family:'Cinzel',serif;"
       + 'font-size:11px; letter-spacing:.12em; font-weight:600;'
@@ -118,9 +122,13 @@
     btn.style.cssText = ''
       + 'position:absolute; top:14px; right:14px; z-index:5;'
       + 'padding:6px 14px;'
-      + 'background:rgba(255,247,224,.65);'
-      + 'color:#3d2817;'
-      + 'border:1px solid #b8893e;'
+      /* b216: was an inline cream fill + cocoa ink — a parchment button
+         hardcoded into JS, so no stylesheet could re-theme it. Inline
+         styles also beat the theme layer, which left it light-on-light
+         once the dark palette became the default. Tokens now. */
+      + 'background:var(--bg-2);'
+      + 'color:var(--ink);'
+      + 'border:1px solid var(--line-strong);'
       + 'border-radius:4px;'
       + "font-family:'Cinzel',serif;"
       + 'font-size:11px; letter-spacing:.12em; font-weight:600;'

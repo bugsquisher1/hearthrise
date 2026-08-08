@@ -105,13 +105,25 @@
       R + '.hd-qic{flex:0 0 44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:21px;background:var(--bg-2) !important;border:1px solid var(--line) !important}',
       R + '.hd-qbody{flex:1;min-width:0}',
       R + '.hd-qtitle{font-family:var(--f-display);font-size:16px;color:var(--ink) !important}',
-      R + '.hd-qmeta{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:5px 0 7px}',
+      /* b216: was space-between, which flung the progress and the reward to
+         opposite ends of a 620px card with dead air between them. They're one
+         thought — read them as a pair. */
+      R + '.hd-qmeta{display:flex;justify-content:flex-start;gap:12px;align-items:baseline;margin:5px 0 7px}',
       R + '.hd-qmeta .p{font-size:12px;color:var(--ink-2) !important;font-weight:600;font-variant-numeric:tabular-nums}',
       R + '.hd-qmeta .r{font-size:12px;color:var(--gold-2) !important;font-weight:600}',
 
-      R + '.hd-cta{flex:0 0 auto;align-self:stretch;display:flex;align-items:center;gap:6px;padding:0 15px;border:1px solid transparent;border-radius:11px;cursor:pointer;font:600 13.5px/1 var(--f-ui);white-space:nowrap;color:#20160c !important;background:linear-gradient(180deg,var(--gold-2),var(--gold)) !important;box-shadow:0 6px 15px -8px var(--gold)}',
+      /* b216: was `align-self:stretch`, which made every CTA as tall as its
+         card — an 80px gold slab wrapping a 13.5px label. Buttons now have a
+         real button height and sit centred against the card. */
+      R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 16px;border:1px solid transparent;border-radius:9px;cursor:pointer;font:600 13.5px/1 var(--f-ui);white-space:nowrap;color:#20160c !important;background:linear-gradient(180deg,var(--gold-2),var(--gold)) !important;box-shadow:0 4px 12px -7px var(--gold);transition:filter .12s,transform .12s}',
+      R + '.hd-cta:active{transform:translateY(1px)}',
       R + '.hd-cta:hover{filter:brightness(1.06)}',
-      R + '.hd-cta.ghost{background:transparent !important;color:var(--accent,var(--green)) !important;border:1px solid color-mix(in srgb,var(--accent,var(--green)) 50%,transparent) !important;box-shadow:none}',
+      /* b216: the raw accent was used as the label colour, but these tokens are
+         tuned as SURFACE colours — oxblood --red on a dark card measured 2.85:1.
+         Blending the accent toward parchment keeps the colour coding and makes
+         it legible, whatever accent the quest row sets inline. */
+      R + '.hd-cta.ghost{background:transparent !important;color:color-mix(in srgb,var(--accent,var(--green)) 55%,var(--ink)) !important;border:1px solid color-mix(in srgb,var(--accent,var(--green)) 46%,transparent) !important;box-shadow:none}',
+      R + '.hd-cta.ghost:hover{color:color-mix(in srgb,var(--accent,var(--green)) 30%,var(--ink)) !important;background:color-mix(in srgb,var(--accent,var(--green)) 12%,transparent) !important}',
 
       R + '.hd-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}',
       /* b213 (phase 2): the cozy sheet's always-on `[class*="tile"]` rules
@@ -355,7 +367,9 @@
     html += '<div><div class="hd-h"><h3>Buffs</h3></div>' +
       '<div class="hd-card hd-mini">' + (hasFood
         ? '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>Active buffs running.</div>'
-        : '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>No food buffs active. <span style="color:var(--hearth,var(--red));font-weight:600;cursor:pointer" data-hd="cook">Cook something →</span></div>') +
+        /* b216: raw --red as link text on a dark card was 2.85:1. Mixed toward
+           parchment like the other accent links. */
+        : '<div class="mi">' + gly('cooking', 20, '🍖') + '</div><div>No food buffs active. <span style="color:color-mix(in srgb,var(--red) 50%,var(--ink));font-weight:600;cursor:pointer" data-hd="cook">Cook something →</span></div>') +
       '</div></div>';
 
     html += '</div></div>';

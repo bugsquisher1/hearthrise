@@ -93,8 +93,13 @@
       'body[data-theme="hearthlight"] .main{background:transparent !important}',
       'body[data-theme="hearthlight"] .sidebar{background:linear-gradient(180deg,rgba(26,19,12,.82),rgba(18,13,8,.86)) !important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}',
       'body[data-theme="hearthlight"] .topbar{background:rgba(28,22,16,.62) !important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}',
-      'body[data-theme="hearthlight"] #panel-profile.active{background:transparent !important}',
-      'body[data-theme="hearthlight"] #panel-profile #hd-root .hd-card{background:rgba(38,29,20,.66) !important;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}',
+      /* b216: Home used to strip the panel surface entirely and float 66%-
+         transparent cards straight over the scene. The castle silhouette read
+         through them as a grey smudge behind the quest list, and Home was the
+         only screen with no frame. Keep the glass idea — blur + a hint of the
+         scene — but give content an opaque-enough surface to sit on, and let
+         the shared panel frame apply here like everywhere else. */
+      'body[data-theme="hearthlight"] #panel-profile #hd-root .hd-card{background:rgba(34,28,21,.90) !important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}',
       'body[data-theme="hearthlight"] #panel-profile #hd-root .hd-pill,' +
       'body[data-theme="hearthlight"] #panel-profile #hd-root .hd-tile,' +
       'body[data-theme="hearthlight"] #panel-profile #hd-root .hd-qic,' +

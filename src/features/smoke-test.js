@@ -85,6 +85,12 @@ const snapshotG = () => {
     // made the SECOND suite run fail (canRun bails before spending the key).
     dungeons: G.dungeons,
     playerName: G.playerName,
+    // b222 (SEAM 3): the Rested XP bank + its watermark. The seam tests fill
+    // the bank directly and drive processOffline, so without these two fields
+    // a test run would hand the player charges they never earned — or, worse,
+    // leave a future-dated watermark that silently stops rest accruing.
+    restedXp: G.restedXp,
+    restedAt: G.restedAt,
   }));
 };
 const restoreG = (snap) => {
@@ -3546,9 +3552,18 @@ const TESTS = [
     assert(window.ITEMS.void_banquet.foodClass === 'buff', 'Void Banquet must be a Feast');
     // Every cooked output must be explicitly classified — no implicit fallback
     // on the cooking screen, or a new dish quietly joins Provisions.
+    // b222: castle stores are the one legitimate exception. A Field Ration is
+    // not a meal, it is materiel: it has no `heals` and no `buff`, so
+    // foodClassOf() returns null by design and auto-eat can never touch it.
     window.ARTISAN_RECIPES.cooking.forEach((r) => {
       const it = window.ITEMS[r.output];
-      assert(it && (it.foodClass === 'healing' || it.foodClass === 'buff'),
+      assert(it, 'cooking recipe ' + r.id + ' has no output item');
+      if (it.tag === 'castle') {
+        assert(!it.heals && !it.buff && !it.foodClass,
+          'castle good ' + r.output + ' must not heal, buff or carry a foodClass');
+        return;
+      }
+      assert(it.foodClass === 'healing' || it.foodClass === 'buff',
         'cooked item ' + r.output + ' has no foodClass');
     });
   }),
@@ -3720,12 +3735,16 @@ const TESTS = [
     try {
       if (typeof window.waterPlot !== 'function') return;
       window.G.farmPlots = window.G.farmPlots || [];
-      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], watered: false, state: 'growing' };
+      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' };
       window.waterPlot(0);
       let p = window.G.farmPlots[0];
       assert(Array.isArray(p.waterings) && p.waterings.length === 1,
         'first watering must be recorded, got ' + JSON.stringify(p.waterings));
-      assert(p.watered === true, 'the legacy `watered` mirror must be dual-written for b219 rollback safety');
+      // b222: the `watered` dual-write is DELETED. b220 mirrored it purely so a
+      // rollback to b219 read a sane value; two builds have shipped since, and
+      // a field that is written but never read is state waiting to be trusted
+      // by accident. `waterings[]` is the only source now.
+      assert(!('watered' in p), 'the `watered` dual-write must be gone — waterings[] is the only source');
       window.waterPlot(0);
       p = window.G.farmPlots[0];
       assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
@@ -4607,6 +4626,602 @@ const TESTS = [
       window.G.bountyHunter.board = prevBoard;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
+  }),
+
+  // ══════════════════════════════════════════════════════════════════
+  // b222 regression suite — THE CLAN SEAT foundation (backlog #10, Wave 3a)
+  // docs/design/clan-overhaul.md v2. Data + four engine seams + the migration's
+  // client-side reducers. No castle UI ships in this wave; everything below is
+  // a foundation that must be correct BEFORE anything renders on top of it.
+  // ══════════════════════════════════════════════════════════════════
+
+  // #10a: the four castle goods. Their whole job is to be refined, deposited
+  // and never eaten — so the properties that make that true are the contract.
+  () => tryRun('b222: the four castle goods are stores, not gear and not food', () => {
+    const I = window.ITEMS;
+    const expect = { timber_beam: [300, 2], iron_fitting: [480, 2], field_ration: [90, 1], keystone: [3000, 5] };
+    Object.keys(expect).forEach((id) => {
+      const it = I[id];
+      assert(it, 'castle good missing from ITEMS: ' + id);
+      assert(it.tag === 'castle', id + ' must carry tag:"castle" — it is the ONE field the lane derives from');
+      assert(it.v === expect[id][0], id + ' value drifted from the spec: ' + it.v);
+      assert(it.tier === expect[id][1], id + ' material tier drifted: ' + it.tier);
+      // Typeless: nothing equips a beam. Food-less: auto-eat can never burn a
+      // Field Ration, and foodClassOf() must answer null so the cooking screen
+      // does not file it under Provisions.
+      assert(!it.type, id + ' must have no `type` — it is stores, not gear');
+      assert(!it.heals && !it.buff && !it.foodClass, id + ' must not heal or buff');
+      assert(window.foodClassOf(it) === null, 'foodClassOf(' + id + ') must be null, got ' + window.foodClassOf(it));
+      assert(window.isCastleGood(it) === true, 'isCastleGood must claim ' + id);
+    });
+    assert(window.isCastleGood(I.cooked_shark) === false, 'isCastleGood must not claim ordinary items');
+  }),
+
+  // #10b: THE LANE PROOF. The zero-uncategorized guard above is what would have
+  // broken on the commit that added these items (CONFLICTS #2) — so this test
+  // asserts the positive: each good is claimed by "Castle Stores" specifically,
+  // in the right skill, and the lane holds exactly the four.
+  () => tryRun('b222: the Castle Stores lane claims exactly the four goods, in three skills', () => {
+    const cz = window.categorizeRecipes;
+    const rc = window.recipeCategory;
+    const laneOf = (skill) => {
+      const res = cz(skill, window.ARTISAN_RECIPES[skill], window.ITEMS);
+      assert(res.uncategorized.length === 0, skill + ' stranded a recipe: ' + res.uncategorized.map((r) => r.id).join(','));
+      return (res.groups.find((g) => g.key === 'castle') || { recipes: [] }).recipes;
+    };
+    const crafting = laneOf('crafting'), smithing = laneOf('smithing'), cooking = laneOf('cooking');
+    assert(crafting.length === 2, 'crafting Castle Stores should hold 2, got ' + crafting.length);
+    assert(smithing.length === 1, 'smithing Castle Stores should hold 1, got ' + smithing.length);
+    assert(cooking.length === 1, 'cooking Castle Stores should hold 1, got ' + cooking.length);
+    const ids = crafting.concat(smithing, cooking).map((r) => r.output).sort().join(',');
+    assert(ids === 'field_ration,iron_fitting,keystone,timber_beam', 'lane contents drifted: ' + ids);
+    // Every declared lane carries a label the panel can print.
+    ['smithing', 'crafting', 'cooking'].forEach((s) => {
+      const def = window.ARTISAN_CATEGORIES[s].find((d) => d.key === 'castle');
+      assert(def && def.label === 'Castle Stores', s + ' is missing the Castle Stores category definition');
+    });
+    // The lane is the LAST claim: a castle-tagged item that IS food stays in
+    // Feasts & Draughts, because that is where the player drinks it. This is
+    // the Phase-B Cellar ale case (spec §4.5), asserted now so nobody reorders
+    // the derivation later and quietly moves three ales out of the cooking tab.
+    const fakeItems = Object.assign({}, window.ITEMS, {
+      __ale: { n: 'Test Ale', v: 100, tag: 'castle', foodClass: 'buff', buff: { type: 'all_xp', magnitude: 1, durationMs: 1 } },
+    });
+    assert(rc('cooking', { output: '__ale' }, fakeItems) === 'feasts',
+      'a castle-tagged BUFF food must stay in Feasts & Draughts, not be stolen by Castle Stores');
+  }),
+
+  // #10c: the refining margins. The spec deliberately makes refining only
+  // mildly profitable in gold — the real payment is CP and Standing, which is
+  // what makes a beam worth making for the hold rather than for the market.
+  // If someone re-values slime_gel or iron_bar, this is the test that notices.
+  () => tryRun('b222: castle recipe margins match the spec (+43/+33/+22/+8%)', () => {
+    const I = window.ITEMS;
+    const find = (skill, id) => window.ARTISAN_RECIPES[skill].find((r) => r.id === id);
+    const cost = (rec) => Object.keys(rec.inputs).reduce((s, k) => s + (I[k].v || 0) * rec.inputs[k], 0);
+    const cases = [
+      ['crafting', 'craft_timber_beam',  210,  300,  0.43],
+      ['smithing', 'smith_iron_fitting', 360,  480,  0.33],
+      ['cooking',  'cook_field_ration',  294,  360,  0.22],
+      ['crafting', 'craft_keystone',     2770, 3000, 0.08],
+    ];
+    cases.forEach(([skill, id, wantCost, wantOut, wantMargin]) => {
+      const rec = find(skill, id);
+      assert(rec, 'recipe missing: ' + id);
+      const c = cost(rec);
+      assert(c === wantCost, id + ' input cost drifted: ' + c + ' (spec says ' + wantCost + ')');
+      const out = (I[rec.output].v || 0) * (rec.outputQty || 1);
+      assert(out === wantOut, id + ' output value drifted: ' + out);
+      const margin = out / c - 1;
+      assert(Math.abs(margin - wantMargin) < 0.01, id + ' margin drifted to ' + (margin * 100).toFixed(0) + '%');
+    });
+    // The four goods are gated behind real artisan levels, which is what makes
+    // "day one of a brand-new clan is deliberately not buildable" true.
+    assert(find('crafting', 'craft_timber_beam').req === 25, 'Timber Beam must gate at crafting 25');
+    assert(find('smithing', 'smith_iron_fitting').req === 25, 'Iron Fitting must gate at smithing 25');
+    assert(find('cooking', 'cook_field_ration').req === 22, 'Field Ration must gate at cooking 22');
+    assert(find('crafting', 'craft_keystone').req === 60, 'Keystone must gate at crafting 60');
+    assert(find('cooking', 'cook_field_ration').outputQty === 4, 'Field Rations are made four at a time');
+  }),
+
+  // #10d: SEAM 1 — goldFind, declared since the buff registry shipped and read
+  // by nothing. Lich Soul Soup promised +50% gold find for five minutes and
+  // delivered zero; the castle Treasury perk would have been the second broken
+  // promise on the same key. Both are now real.
+  () => tryRun('b222 SEAM 1: goldFind multiplies monster gold (it was declared and never read)', () => {
+    assert(typeof window.applyGoldFind === 'function', 'applyGoldFind seam missing');
+    const origBonus = window.getBonus;
+    const snap = snapshotG();
+    try {
+      // The pure helper, first.
+      assert(window.applyGoldFind(1000) === 1000, 'with no goldFind, gold must be untouched');
+      window.getBonus = (k) => (k === 'goldFind' ? 0.5 : origBonus(k));
+      assert(window.applyGoldFind(1000) === 1500, '+50% goldFind must pay 1500, got ' + window.applyGoldFind(1000));
+      window.getBonus = (k) => (k === 'goldFind' ? -5 : origBonus(k));
+      assert(window.applyGoldFind(1000) === 1000, 'a negative contributor must clamp at 0, never pay negative gold');
+      assert(window.applyGoldFind(0) === 0 && window.applyGoldFind(-3) === 0, 'non-positive base pays nothing');
+
+      // …then the real kill path. A Slime pays 1-3 gold; at +10000% one kill
+      // must pay at least 101, which is arithmetically impossible unwired.
+      window.getBonus = (k) => (k === 'goldFind' ? 100 : origBonus(k));
+      window.G.gold = 0;
+      window.G.activeMonster = 'slime';
+      window.G.monsterHp = 0;
+      window.killMonster(window.MONSTERS.slime);
+      assert(window.G.gold >= 101,
+        'killMonster ignored goldFind — one Slime paid ' + window.G.gold + ', expected >= 101');
+      assert(window.G.gold <= 303, 'gold overshot the multiplied range: ' + window.G.gold);
+      // Offline combat is a separate code path and has its own history of
+      // drifting from the live one, so it is wired and asserted separately.
+      assert(String(window.processOfflineCombat).indexOf('applyGoldFind') >= 0,
+        'offline combat still mints raw gold — the two kill paths have diverged again');
+    } finally {
+      window.getBonus = origBonus;
+      restoreG(snap);
+    }
+  }),
+
+  // #10e: SEAM 2 — the timed-buff scaling choke-point the Tavern's Hearth needs
+  // (+40% duration / +20% strength at Tavern 10). Default must be exactly
+  // identity, or every food in the game silently changes length today.
+  () => tryRun('b222 SEAM 2: buff duration/magnitude scaler — identity by default, both axes when stubbed', () => {
+    assert(typeof window.registerBuffScaler === 'function', 'registerBuffScaler seam missing');
+    assert(typeof window.buffScaleFor === 'function', 'buffScaleFor missing');
+    const G = window.G;
+    const saved = JSON.parse(JSON.stringify(G.buffs || []));
+    try {
+      // Default: 1.0 × 1.0, and applyBuff stores exactly what it was given.
+      const d = window.buffScaleFor({ type: 'all_xp' });
+      assert(d.duration === 1 && d.magnitude === 1, 'default scale must be identity, got ' + JSON.stringify(d));
+      G.buffs = [];
+      window.applyBuff({ type: 'all_xp', magnitude: 10, durationMs: 60000 });
+      let b = G.buffs.find((x) => x.type === 'all_xp');
+      assert(b && b.remainingMs === 60000 && b.magnitude === 10,
+        'unscaled buff drifted: ' + JSON.stringify(b));
+
+      // A stubbed Tavern-10 Hearth: +40% duration, +20% strength.
+      window.registerBuffScaler('__test_hearth', () => ({ duration: 1.4, magnitude: 1.2 }));
+      G.buffs = [];
+      window.applyBuff({ type: 'all_xp', magnitude: 10, durationMs: 60000 });
+      b = G.buffs.find((x) => x.type === 'all_xp');
+      assert(b.remainingMs === 84000, 'duration multiplier not applied: ' + b.remainingMs);
+      assert(Math.abs(b.magnitude - 12) < 1e-9, 'magnitude multiplier not applied: ' + b.magnitude);
+      // The extend branch must use the SCALED duration too — that branch is
+      // where a "multiply at the call site" fix would have leaked.
+      window.applyBuff({ type: 'all_xp', magnitude: 10, durationMs: 60000 });
+      b = G.buffs.find((x) => x.type === 'all_xp');
+      assert(b.remainingMs === 168000, 'stacking a second buff ignored the scaler: ' + b.remainingMs);
+
+      // Registration is idempotent by NAME — a boot retry cannot compound.
+      window.registerBuffScaler('__test_hearth', () => ({ duration: 1.4, magnitude: 1.2 }));
+      assert(window.buffScaleFor({}).duration === 1.4, 're-registering the same name compounded the multiplier');
+      // A throwing scaler must not break buff application.
+      window.registerBuffScaler('__test_throws', () => { throw new Error('boom'); });
+      assert(window.buffScaleFor({}).duration === 1.4, 'a throwing scaler must be ignored, not fatal');
+    } finally {
+      window.unregisterBuffScaler('__test_hearth');
+      window.unregisterBuffScaler('__test_throws');
+      window.G.buffs = saved;
+    }
+    assert(window.buffScaleFor({}).duration === 1 && window.buffScaleFor({}).magnitude === 1,
+      'unregister must restore identity — the seam is inert until the Tavern exists');
+  }),
+
+  // #10f: SEAM 3 — the Rested XP bank, consumed by the XP grant path.
+  () => tryRun('b222 SEAM 3: G.restedXp is spent by addXp, and is inert while potency is 0', () => {
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    try {
+      // Level 99 woodcutting so no level-up fires mid-measurement.
+      window.G.skills.woodcutting = 12000000;
+      const xpNow = () => window.G.skills.woodcutting;
+
+      // Inert: charges banked, but nothing grants potency, so nothing is spent.
+      window.G.restedXp = 3;
+      const before = xpNow();
+      window.addXp('woodcutting', 1000);
+      const plain = xpNow() - before;
+      assert(window.G.restedXp === 3, 'a charge was burned for no benefit — the seam is not inert');
+
+      // Potency stubbed at +100%: exactly one charge is spent, and the grant
+      // is strictly larger than the same grant without it.
+      window.getBonus = (k) => (k === 'restedXp' ? 1 : origBonus(k));
+      const b2 = xpNow();
+      window.addXp('woodcutting', 1000);
+      const rested = xpNow() - b2;
+      assert(window.G.restedXp === 2, 'exactly one charge must be spent per grant, bank is ' + window.G.restedXp);
+      assert(rested > plain, 'rested XP did not increase the grant: ' + rested + ' vs ' + plain);
+      // Draining the bank must stop the bonus, not go negative.
+      window.G.restedXp = 1;
+      window.addXp('woodcutting', 10);
+      window.addXp('woodcutting', 10);
+      assert(window.G.restedXp === 0, 'the bank must floor at 0, got ' + window.G.restedXp);
+      // A zero grant must not consume a charge.
+      window.G.restedXp = 1;
+      window.addXp('woodcutting', 0);
+      assert(window.G.restedXp === 1, 'a 0-XP grant must not burn a rested charge');
+    } finally {
+      window.getBonus = origBonus;
+      restoreG(snap);
+    }
+  }),
+
+  // #10g: SEAM 3, THE ONE THAT MATTERS. b214 shipped offline rewards paid two
+  // and three times per login because processOffline and two catch-up systems
+  // all read the same unrefreshed G.lastSeen. Rested XP accrues on exactly that
+  // path, so it is watermarked instead: G.restedAt is the instant already paid
+  // for, and it advances by what was granted. Re-running cannot re-pay.
+  () => tryRun('b222 SEAM 3: rested accrual is watermarked — no offline double-bank', () => {
+    const snap = snapshotG();
+    try {
+      const CHARGE = window.RESTED_CHARGE_MS;
+      const CAP = window.RESTED_CAP;
+      assert(CHARGE === 360000 && CAP === 80, 'rested constants drifted: ' + CHARGE + ' / ' + CAP);
+
+      // One hour away = 10 charges, banked once.
+      const now = Date.now();
+      window.G.restedXp = 0;
+      window.G.restedAt = now - 60 * 60000;
+      const first = window.accrueRestedXp(now);
+      assert(first === 10 && window.G.restedXp === 10, 'one hour should bank 10 charges, got ' + first);
+      const second = window.accrueRestedXp(now);
+      assert(second === 0 && window.G.restedXp === 10, 'the second read re-banked ' + second + ' charges');
+      const third = window.accrueRestedXp(now);
+      assert(third === 0 && window.G.restedXp === 10, 'the third read re-banked ' + third + ' charges');
+
+      // The b214 shape, exactly: a STALE lastSeen re-read by a second caller.
+      // The watermark is a different clock, so it cannot be fooled by it.
+      window.G.restedXp = 0;
+      window.G.restedAt = now - 30 * 60000;
+      window.G.lastSeen = now - 30 * 60000;      // deliberately not refreshed
+      window.processOffline();
+      const afterFirst = window.G.restedXp;
+      window.processOffline();
+      assert(window.G.restedXp === afterFirst,
+        'processOffline double-banked rested charges: ' + afterFirst + ' → ' + window.G.restedXp);
+      assert(afterFirst === 5, 'thirty minutes should bank 5 charges, got ' + afterFirst);
+
+      // The cap is a hard cap, and a capped bank must not leave the watermark
+      // behind — otherwise spending one charge would instantly re-bank it.
+      window.G.restedXp = 0;
+      window.G.restedAt = now - 30 * 24 * 3600000;    // a month away
+      window.accrueRestedXp(now);
+      assert(window.G.restedXp === CAP, 'a month away must cap at ' + CAP + ', got ' + window.G.restedXp);
+      assert(window.G.restedAt <= now, 'the watermark must never run ahead of now');
+      assert(window.accrueRestedXp(now) === 0, 'a capped bank must not keep accruing');
+
+      // A fresh save must not be handed a bank it never earned.
+      delete window.G.restedXp;
+      delete window.G.restedAt;
+      window.accrueRestedXp(now);
+      assert(window.G.restedXp === 0, 'a save with no watermark must start empty, got ' + window.G.restedXp);
+      // A future-dated watermark (clock skew, edited save) must self-heal.
+      window.G.restedAt = now + 9e8;
+      window.accrueRestedXp(now);
+      assert(window.G.restedAt <= now && window.G.restedXp === 0, 'a future watermark must be repaired');
+    } finally { restoreG(snap); }
+  }),
+
+  // #10h: SEAM 3 — the fragile manual save allowlist. A bank that does not
+  // survive a cloud restore is not a bank, and a restored save with a fresh
+  // watermark would re-bank the same hours: both fields or neither.
+  () => tryRun('b222 SEAM 3: restedXp + restedAt are in the cloud-save allowlist and round-trip', () => {
+    const snap = snapshotG();
+    try {
+      const E = window.HearthriseEvents;
+      assert(E && typeof E.snapshot === 'function', 'HearthriseEvents.snapshot missing');
+      window.G.restedXp = 17;
+      window.G.restedAt = 1234567890000;
+      const s = E.snapshot(window.G);
+      assert(s.restedXp === 17, 'restedXp missing from the save snapshot');
+      assert(s.restedAt === 1234567890000, 'restedAt missing from the save snapshot');
+      // Round-trip through the same Object.assign the cloud restore uses.
+      window.G.restedXp = 0; window.G.restedAt = 0;
+      Object.assign(window.G, JSON.parse(JSON.stringify(s)));
+      assert(window.G.restedXp === 17 && window.G.restedAt === 1234567890000,
+        'the bank did not survive a save/restore round-trip');
+    } finally { restoreG(snap); }
+  }),
+
+  // #10i: SEAM 4 — two systems now wrap updateDaily (CONFLICTS #6). The chain
+  // carries a NAMED roster instead of each system inventing a private global
+  // the other cannot see, so a double-wrap is loud instead of a silent
+  // double-count.
+  () => tryRun('b222 SEAM 4: the updateDaily wrapper chain is named, and double-wrapping throws', () => {
+    assert(typeof window.wrapUpdateDaily === 'function', 'wrapUpdateDaily seam missing');
+    const chain = window.updateDaily;
+    assert(chain.__wrappedBy instanceof Set, 'updateDaily carries no wrapper roster');
+    assert(chain.__wrappedBy.has('muster'), 'the Muster is not registered on the chain: '
+      + window.updateDailyWrappers().join(','));
+    const snap = snapshotG();
+    const restore = window.updateDaily;
+    try {
+      // A second system wraps under its own name and both layers fire.
+      let a = 0, b = 0;
+      window.wrapUpdateDaily('__test_labour', () => { a++; });
+      window.wrapUpdateDaily('__test_board', () => { b++; });
+      assert(window.updateDailyWrappers().join(',').indexOf('__test_labour') >= 0, 'the roster did not carry forward');
+      window.updateDaily('gather', 1);
+      assert(a === 1 && b === 1, 'both wrappers must fire once per action, got ' + a + '/' + b);
+
+      // The same system wrapping twice is the double-count bug. It throws.
+      let threw = false;
+      try { window.wrapUpdateDaily('__test_labour', () => {}); } catch (e) { threw = true; }
+      assert(threw, 'double-wrapping under the same name must throw, not silently double-count');
+      let threwMuster = false;
+      try { window.wrapUpdateDaily('muster', () => {}); } catch (e) { threwMuster = true; }
+      assert(threwMuster, 'the live Muster registration did not protect itself');
+      // An unnamed wrap is refused — a nameless layer is an invisible one.
+      let threwAnon = false;
+      try { window.wrapUpdateDaily('', () => {}); } catch (e) { threwAnon = true; }
+      assert(threwAnon, 'wrapUpdateDaily must require a system name');
+      // A throwing observer must never eat a daily-task tick.
+      window.wrapUpdateDaily('__test_throws', () => { throw new Error('boom'); });
+      let c = 0;
+      window.wrapUpdateDaily('__test_after', () => { c++; });
+      window.updateDaily('gather', 1);
+      assert(c === 1, 'a throwing wrapper broke the chain below it');
+    } finally {
+      window.updateDaily = restore;
+      restoreG(snap);
+    }
+  }),
+
+  // #10j: the farming `watered` dual-write is gone from every writer. b220
+  // mirrored it purely so a rollback to b219 read a sane value; two builds have
+  // shipped since. A field written by four code paths and read by one migration
+  // is state waiting to be trusted by accident.
+  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => {
+    const snap = snapshotG();
+    try {
+      window.G.farmPlots = window.G.farmPlots || [];
+      // plantCrop
+      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
+      window.G.farmPlots[0] = null;
+      window.plantCrop(0, 'turnip');
+      const planted = window.G.farmPlots[0];
+      assert(planted && Array.isArray(planted.waterings), 'plantCrop must write waterings[]');
+      assert(!('watered' in planted), 'plantCrop still writes the `watered` mirror');
+      // waterPlot
+      planted.plantedAt = Date.now() - 3600000;
+      window.waterPlot(0);
+      assert(window.G.farmPlots[0].waterings.length === 1, 'waterPlot must record a watering');
+      assert(!('watered' in window.G.farmPlots[0]), 'waterPlot still writes the `watered` mirror');
+      // The one surviving READER — the legacy-save conversion — must stay.
+      const legacy = { cropId: 'turnip', plantedAt: 1000, watered: true };
+      window.HearthriseFarm.normalizePlot(legacy);
+      assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
+        'the legacy watered→waterings conversion was removed — old saves would stall');
+      const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
+      assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
+    } finally { restoreG(snap); }
+  }),
+
+  // #10k: the contribution formula. Every row here is lifted verbatim from
+  // clan-overhaul v2 §3.4's worked table, computed against the REAL item
+  // values, so a change to either the formula or an item value fails loudly.
+  () => tryRun('b222: Clan Seat contribution maths matches the spec table exactly', () => {
+    const C = window.HearthriseClanSeat;
+    assert(C, 'HearthriseClanSeat missing — the reducers module did not load');
+    const I = window.ITEMS;
+    const row = (id, normal, ordered, standing) => {
+      const it = I[id];
+      assert(C.cpForUnit(it.v, it.tier, 'normal') === normal,
+        id + ' normal CP should be ' + normal + ', got ' + C.cpForUnit(it.v, it.tier, 'normal'));
+      assert(C.cpForUnit(it.v, it.tier, 'ordered') === ordered,
+        id + ' on-demand CP should be ' + ordered + ', got ' + C.cpForUnit(it.v, it.tier, 'ordered'));
+      assert(C.standingFor(ordered) === standing,
+        id + ' Standing should be ' + standing + ', got ' + C.standingFor(ordered));
+    };
+    row('timber_beam',  42,   63,   22);
+    row('iron_fitting', 67,   100,  35);
+    row('field_ration', 9,    13,   4);
+    row('keystone',     1260, 1890, 661);
+    // The 0.4×-at-cap rule is load-bearing: it stops one player dumping 40,000
+    // planks and owning the ladder while the hold starves for Fittings.
+    assert(C.demandMult('capped') === 0.4, 'the at-cap multiplier must be 0.4×');
+    assert(C.cpForUnit(300, 2, 'capped') === 16, 'a capped Beam should pay 16 CP, got ' + C.cpForUnit(300, 2, 'capped'));
+    assert(C.cpForDeposit(300, 2, 'normal', 10) === 420, 'quantity must multiply linearly');
+    assert(C.cpForDeposit(300, 2, 'normal', 0) === 0 && C.cpForUnit(0, 1, 'normal') === 0, 'zero must pay zero');
+    // CP decays 12%/week, LAZILY on read. Standing never decays — that is the
+    // entire reason there are two numbers.
+    const wk = 7 * 24 * 3600000, t = Date.now();
+    assert(C.decayedCp(1000, t - wk, t) === 880, 'one week of decay should leave 880, got ' + C.decayedCp(1000, t - wk, t));
+    assert(C.decayedCp(1000, t - 2 * wk, t) === 774, 'two weeks should leave 774, got ' + C.decayedCp(1000, t - 2 * wk, t));
+    assert(C.decayedCp(1000, t, t) === 1000, 'no elapsed time must not decay');
+    assert(C.decayedCp(1000, t + wk, t) === 1000, 'a future stamp must not inflate CP');
+    assert(C.decayedCp(0, t - 52 * wk, t) === 0, 'zero CP stays zero');
+  }),
+
+  // #10l: the castle ladder, the Work Order curves and the upkeep schedule —
+  // the numbers a renderer will otherwise re-derive inline and get wrong.
+  () => tryRun('b222: Clan Seat tier, labour and upkeep curves match the spec', () => {
+    const C = window.HearthriseClanSeat;
+    // Tiers gate on STANDING, never on clan level (§2.3 — level 10 costs
+    // 655,360,000 gold, which is why v1's gate was unreachable).
+    assert(C.tierDef(2).standing === 12000 && C.tierDef(5).standing === 900000, 'Standing gates drifted');
+    assert(C.tierName(1) === 'Wayside Camp' && C.tierName(5) === 'Fortified Keep', 'tier names drifted');
+    assert(C.tierDef(4).contributors === 8 && C.tierDef(5).contributors === 12, 'distinct-contributor gates drifted');
+    assert(C.buildingLevelCap(3) === 6, 'no building may exceed castle_tier × 2');
+    assert(C.buildSlots(1) === 1 && C.buildSlots(2) === 1 && C.buildSlots(3) === 2 && C.buildSlots(5) === 2,
+      'build slots must be 1 + floor(tier/3)');
+    assert(C.maxHuntTier(1, 12) === 1, 'the castle tier must cap the Hunt tier');
+    assert(C.maxHuntTier(5, 0) === 1, 'a clan with no War Room is stuck on Tier I Hunts');
+    assert(C.maxHuntTier(3, 6) === 3, 'War Room 6 at castle 3 should allow Tier III');
+    // The 72h membership gate — free, because clan_members.joined_at exists.
+    const now = Date.now(), h = 3600000;
+    const rows = [
+      { user_id: 'a', joined_at: now - 100 * h },
+      { user_id: 'b', joined_at: now - 100 * h },
+      { user_id: 'a', joined_at: now - 100 * h },   // same member, two deposits
+      { user_id: 'c', joined_at: now - 1 * h },     // joined an hour ago
+    ];
+    assert(C.eligibleContributors(rows, now) === 2,
+      'distinct-contributor count must dedupe and exclude sub-72h members, got ' + C.eligibleContributors(rows, now));
+    // Labour: a 2× gap between level 20 and level 99, not a 40× gap. This is
+    // the number that lets a dozen casuals out-build one whale.
+    assert(Math.abs(C.labourFactor(20) - 0.702) < 0.001, 'level 20 factor drifted: ' + C.labourFactor(20));
+    assert(C.labourFactor(99) === 1.5, 'level 99 factor must be 1.5');
+    assert(C.labourFactor(200) === 1.5 && C.labourFactor(0) > 0, 'the factor must clamp at both ends');
+    assert(C.DAILY_LABOUR_CAP === 400 && C.LABOUR_CALL_CLAMP === 200, 'labour clamps drifted');
+    assert(C.labourRemainingToday(380) === 20 && C.labourRemainingToday(999) === 0, 'daily remaining must clamp at 0');
+    // NOTE the level-10 value: the spec's §6.5 TABLE prints 18,776, but the
+    // spec's own stated FORMULA — round(800 × 1.42^(level−1)) — yields 18,780.
+    // The formula is authoritative (the table is a rendering of it), so the
+    // engine follows the formula and this test pins the difference rather than
+    // letting a 4-tick discrepancy be rediscovered as a bug later.
+    assert(C.labourTarget(1) === 800 && C.labourTarget(3) === 1613 && C.labourTarget(5) === 3253
+        && C.labourTarget(7) === 6559 && C.labourTarget(10) === 18780, 'the labour curve drifted');
+    assert(C.timeFloorMs(1) === 2 * 3600000, 'the level-1 time floor is 2h');
+    assert(Math.abs(C.timeFloorMs(10) / 3600000 - 7.036) < 0.01, 'the level-10 time floor should be ~7h02m');
+    assert(C.timeFloorMs(40) === 48 * 3600000, 'the time floor must cap at 48h');
+    // Upkeep, and the spec's own scale check: 22 building levels at Treasury 6.
+    const up = C.upkeepDue({ treasury: 6, tavern: 6, sawmill: 4, smeltery: 4, war_room: 2 }, 6);
+    assert(up.levels === 22, 'building-level total drifted: ' + up.levels);
+    assert(up.gold === 5170 && up.rations === 42, 'upkeep drifted: ' + JSON.stringify(up));
+    assert(C.upkeepDue({ treasury: 6, tavern: 6, sawmill: 4, smeltery: 4, war_room: 2 }, 0).gold === 5500,
+      'undiscounted upkeep should be 5,500 gold');
+    // Forgiving, never punishing: dimmed, never destroyed.
+    assert(C.upkeepStateFor(1) === 'active' && C.upkeepStateFor(0.7) === 'strained'
+        && C.upkeepStateFor(0.49) === 'dormant' && C.upkeepStateFor(0) === 'dormant', 'upkeep states drifted');
+    assert(C.perkScaleFor('strained') === 0.6 && C.perkScaleFor('dormant') === 0, 'perk scaling drifted');
+    // The Sunday 00:00 UTC boundary is DERIVED, never stored — same discipline
+    // as the Muster's schedule.
+    const sunday = Date.UTC(2026, 7, 9, 0, 0, 0);      // 2026-08-09 is a Sunday
+    assert(C.lastUpkeepBoundary(Date.UTC(2026, 7, 12, 5)) === sunday, 'the weekly boundary is wrong');
+    assert(C.lastUpkeepBoundary(sunday) === sunday, 'the boundary must be inclusive of its own instant');
+    assert(C.nextUpkeepBoundary(sunday) === sunday + 7 * 24 * 3600000, 'the next boundary must be +7d');
+    assert(C.upkeepWeeksOwed(sunday - 1, Date.UTC(2026, 7, 12)) === 1, 'one boundary crossed = one week owed');
+    assert(C.upkeepWeeksOwed(sunday - 21 * 24 * 3600000, Date.UTC(2026, 7, 12)) === 3, 'three weeks owed');
+    assert(C.upkeepWeeksOwed(sunday + 3600000, Date.UTC(2026, 7, 12)) === 0, 'already settled = nothing owed');
+  }),
+
+  // #10m: the Tavern numbers the two engine seams will consume, plus the two
+  // anti-grief rules kept verbatim from the source doc.
+  () => tryRun('b222: Tavern, withdrawal-delay and succession maths match the spec', () => {
+    const C = window.HearthriseClanSeat;
+    // The Hearth feeds registerBuffScaler; the Common Room feeds G.restedXp.
+    const h10 = C.hearthScale(10);
+    assert(Math.abs(h10.duration - 1.4) < 1e-9 && Math.abs(h10.magnitude - 1.2) < 1e-9,
+      'Tavern 10 Hearth should be +40% duration / +20% strength');
+    assert(C.hearthScale(0).duration === 1 && C.hearthScale(0).magnitude === 1, 'no Tavern = identity scale');
+    assert(Math.abs(C.leftoversChance(10) - 0.05) < 1e-9, 'Leftovers should reach 5% at Tavern 10');
+    assert(Math.abs(C.restedPotency(10) - 0.20) < 1e-9, 'a rested charge is worth +20% at Tavern 10');
+    assert(C.restedPotency(0) === 0, 'no Tavern means no rested potency — the seam stays inert');
+    assert(C.RESTED_CHARGE_MS === window.RESTED_CHARGE_MS && C.RESTED_CAP === window.RESTED_CAP,
+      'the spec constants and the engine seam disagree about rest');
+    // Feasts. 20h cooldown, deliberately NOT 24 — it drifts round the clock so
+    // one timezone never owns Last Call.
+    assert(C.FEAST_COOLDOWN_MS === 20 * 3600000, 'the Feast cooldown must be 20h, not 24h');
+    assert(C.feastMeterCap(10) === 1800 && C.feastMeterCap(1) === 720, 'the meter cap drifted');
+    assert(C.feastEffect(10).allXP === 0.18 && C.feastEffect(10).hours === 4, 'the Tavern-10 Feast drifted');
+    assert(C.feastEffect(1).allXP === 0.08 && C.feastEffect(5).yield === 0.08, 'the Feast ladder drifted');
+    // Last Call doubles everything for the final 30 minutes at Tavern 7+.
+    const lc = C.feastEffectAt(10, 10 * 60000);
+    assert(lc.lastCall === true && Math.abs(lc.allXP - 0.36) < 1e-9, 'Last Call must double every effect');
+    assert(!C.feastEffectAt(6, 10 * 60000).lastCall, 'Last Call is Tavern 7+ only');
+    assert(!C.feastEffectAt(10, 90 * 60000).lastCall, 'Last Call is the final 30 minutes only');
+    // A withdrawal over 10% of the treasury is delayed 24h and announced.
+    assert(C.withdrawNeedsDelay(101, 1000) === true, '>10% must require the delay');
+    assert(C.withdrawNeedsDelay(100, 1000) === false, 'exactly 10% must not');
+    assert(C.withdrawNeedsDelay(0, 1000) === false && C.withdrawNeedsDelay(50, 0) === false, 'degenerate cases');
+    assert(C.WITHDRAW_DELAY_MS === 24 * 3600000, 'the withdrawal delay must be 24h');
+    // Leader ghosting: 21 days, then the highest-CP officer may claim.
+    const now = Date.now(), day = 86400000;
+    assert(C.canClaimLeadership(now - 21 * day, now) === true, '21 days must open succession');
+    assert(C.canClaimLeadership(now - 20 * day, now) === false, '20 days must not');
+    assert(C.canClaimLeadership(null, now) === false, 'a missing last_seen must never open succession');
+  }),
+
+  // #10n: the 34 routed spoils. This closes the largest open item on the
+  // Designer's backlog — "~25 tier-3-6 combat drops are recipe-less vendor
+  // trash", recounted at 34. A routing table nobody checks is how "every drop
+  // has a job" quietly becomes false again.
+  () => tryRun('b222: all 34 orphan combat drops are routed, and the four recipe routes are real', () => {
+    const C = window.HearthriseClanSeat;
+    const R = C.SPOILS_ROUTES;
+    const ids = Object.keys(R);
+    assert(ids.length === 34, 'the spoils table should route exactly 34 drops, got ' + ids.length);
+    // Every routed id must be a real item, or the route is a promise to nobody.
+    ids.forEach((id) => assert(window.ITEMS[id], 'routed spoil is not a real item: ' + id));
+    // Every route must be one the castle actually implements or has specced.
+    const ROUTES = ['recipe', 'board', 'work_order', 'tier_bundle', 'capstone', 'archives', 'armory'];
+    ids.forEach((id) => assert(ROUTES.indexOf(R[id].route) >= 0, id + ' has an unknown route: ' + R[id].route));
+    // The four `recipe` routes are the ones that are LIVE today — they must
+    // really appear as inputs on the recipe they name.
+    const allRecipes = ['crafting', 'smithing', 'cooking'].reduce((a, s) => a.concat(window.ARTISAN_RECIPES[s]), []);
+    const recipeRoutes = ids.filter((id) => R[id].route === 'recipe');
+    assert(recipeRoutes.length === 4, 'exactly four spoils should be live recipe inputs, got ' + recipeRoutes.length);
+    recipeRoutes.forEach((id) => {
+      const rec = allRecipes.find((r) => r.id === R[id].via);
+      assert(rec, id + ' points at a recipe that does not exist: ' + R[id].via);
+      assert(rec.inputs && rec.inputs[id] > 0, id + ' is not actually an input of ' + R[id].via);
+    });
+    // Slime Gel is the flagship of the whole idea: an 80% drop from tier-1
+    // Slimes, worth 5g, used by nothing — now the binder that holds the castle
+    // together, so a level-3 player is materially useful on build day.
+    assert(R.slime_gel.route === 'recipe' && R.slime_gel.via === 'craft_timber_beam', 'the Slime Gel route was lost');
+    // The three capstone trophies are ONE each — objects on a wall, not a grind.
+    ['war_crown', 'ancient_claw', 'dragon_gem'].forEach((id) => {
+      assert(R[id].route === 'capstone' && R[id].qty === 1, id + ' must be a single capstone trophy');
+      assert(C.TIER_BUNDLES[5][id] === 1, id + ' must appear once in the tier-5 bundle');
+    });
+    assert(C.spoilRoute('cooked_shark') === null, 'spoilRoute must answer null for an unrouted item');
+  }),
+
+  // #10o: the RPC reducers. Same contract as the Muster's: a missing RPC is
+  // 'unsupported' (the castle is not built yet), never 'fail' (your clan is
+  // broken). A body without the {ok:boolean} envelope is a REFUSAL — a 401 has
+  // no `ok` field, and treating one as success would credit Standing the
+  // server never granted.
+  () => tryRun('b222: Clan Seat reducers handle ok / error / unsupported shapes', () => {
+    const C = window.HearthriseClanSeat;
+    // Unsupported: the client may ship before the migration is run.
+    assert(C.reduceDeposit(404, null).action === 'unsupported', '404 must be unsupported');
+    ['PGRST202', '42883', '42P01'].forEach((code) => {
+      assert(C.reduceDeposit(200, { code }).action === 'unsupported', code + ' must be unsupported');
+      assert(C.reduceTierUp(400, { code }).action === 'unsupported', code + ' must be unsupported on tier-up too');
+    });
+    // A response with no envelope is never a success.
+    [[401, { message: 'JWT expired' }], [500, null], [200, null], [200, 'nope'], [200, { data: 1 }]]
+      .forEach(([st, body]) => {
+        const r = C.reduceDeposit(st, body);
+        assert(r.action === 'fail', 'status ' + st + ' with ' + JSON.stringify(body) + ' must fail, got ' + r.action);
+        assert(typeof r.message === 'string' && r.message.length > 0, 'a failure must carry player-facing copy');
+      });
+    // A refusal carries the server's reason, translated.
+    const refused = C.reduceDeposit(200, { ok: false, error: 'not_castle_good' });
+    assert(refused.action === 'fail' && refused.error === 'not_castle_good', 'the refusal reason was lost');
+    assert(/refine/i.test(refused.message), 'not_castle_good must explain itself: ' + refused.message);
+    assert(/refused/i.test(C.errorText('__unknown__')), 'an unknown error must still produce copy');
+    // Acceptance: the SERVER's numbers win, always.
+    const ok = C.reduceDeposit(200, { ok: true, cp: 630, standing: 220, clan_standing: 15000,
+                                      stored: { timber_beam: 40 }, demand: 'capped', capped: true });
+    assert(ok.action === 'accept' && ok.cp === 630 && ok.standing === 220 && ok.clanStanding === 15000,
+      'deposit acceptance dropped a field: ' + JSON.stringify(ok));
+    assert(ok.demand === 'capped' && ok.capped === true,
+      'the applied multiplier must survive — the player previewed 1.0× and was paid 0.4×');
+    assert(C.reduceDeposit(200, { ok: true }).demand === 'normal', 'a missing demand must default to normal');
+    // Negative / garbage numbers from a compromised server are clamped, never
+    // trusted: the same rule the Muster chest reducer enforces.
+    const dirty = C.reduceDeposit(200, { ok: true, cp: -50, standing: 'lots' });
+    assert(dirty.cp === 0 && dirty.standing === 0, 'the reducer must clamp hostile numbers');
+    // Labour: the server total wins over the local accumulator.
+    const lab = C.reduceWorkLabour(200, { ok: true, added: 120, labour_done: 4400, labour_target: 6559,
+                                          ticks_today: 400, capped: true, phase: 'labour' });
+    assert(lab.labourDone === 4400 && lab.ticksToday === 400 && lab.capped === true, 'labour acceptance drifted');
+    assert(C.reduceWorkLabour(200, { ok: false, error: 'daily_cap' }).error === 'daily_cap', 'the cap reason was lost');
+    // Tier-up names the tier it reached, so the panel never has to look it up.
+    const up = C.reduceTierUp(200, { ok: true, castle_tier: 3, standing: 61000, contributors: 5 });
+    assert(up.tier === 3 && up.name === 'Timber Hold', 'tier-up must name the tier: ' + JSON.stringify(up));
+    // Upkeep maps its state to a perk scale so nothing re-derives it.
+    const dorm = C.reduceUpkeep(200, { ok: true, upkeep_state: 'dormant', weeks: 3 });
+    assert(dorm.state === 'dormant' && dorm.perkScale === 0, 'dormant must switch perks off');
+    assert(C.reduceUpkeep(200, { ok: true, upkeep_state: 'nonsense' }).state === 'active',
+      'an unknown upkeep state must fall back to active, never to a broken one');
+    // A large withdrawal is DELAYED and announced — not refused, not done.
+    const w = C.reduceWithdraw(200, { ok: true, pending: true, ready_at: '2026-08-09T00:00:00Z', amount: 500000 });
+    assert(w.action === 'accept' && w.pending === true && w.readyAt, 'a delayed withdrawal must report as pending');
   }),
 ];
 

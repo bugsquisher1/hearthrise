@@ -27,7 +27,7 @@ import { SKILLS_DEF } from './data/skills.js?v=221';
 import { MONSTERS } from './data/monsters.js?v=221';
 import { ITEMS, foodClassOf, isAutoEatable } from './data/items.js?v=221';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=221';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes } from './data/recipes.js?v=221';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=221';
 import { COMPANIONS } from './data/companions.js?v=221';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
@@ -76,6 +76,9 @@ Object.assign(window, {
   // b220 — artisan taxonomy + food classification, published for the classic
   // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
   ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,
+  // b222 — the Castle Stores predicate, shared by the artisan lane and (once
+  // the Clan Seat migration is applied) the Storehouse deposit filter.
+  isCastleGood,
 });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.

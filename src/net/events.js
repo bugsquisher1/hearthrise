@@ -67,6 +67,14 @@ export function snapshot(G) {
     playerName: G.playerName,
     activeStyle: G.activeStyle,
     foodSlot: G.foodSlot,
+    // b222 (SEAM 3) — Rested XP. Added to this allowlist DELIBERATELY: the
+    // bank is worthless if it evaporates on the next cloud restore, and the
+    // watermark is worse than worthless without it — a restored save with a
+    // fresh `restedAt` would re-bank the same offline hours on the next login,
+    // which is exactly the b214 offline double-pay shape. Both fields or
+    // neither; they are one piece of state.
+    restedXp: G.restedXp,
+    restedAt: G.restedAt,
   };
 }
 

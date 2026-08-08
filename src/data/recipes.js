@@ -52,6 +52,10 @@ const BASE_RECIPES = {
     {id:'cook_goldenroot',  name:'Goldenroot Roast',  icon:'🍠', inputs:{goldenroot:2},                 output:'goldenroot_roast', xp:300, req:65, ms:5000},
     {id:'cook_ember_tart',  name:'Ember Tart',        icon:'🥧', inputs:{emberfruit:2, wheat:2},        output:'ember_tart',       xp:520, req:78, ms:5600},
     {id:'cook_moon_elixir', name:'Moonbloom Elixir',  icon:'🍶', inputs:{moonbloom:2, magic_essence:1}, output:'moonbloom_elixir', xp:780, req:92, ms:6400},
+    /* b222 — Castle Stores (clan-overhaul v2 §4.3). The hold marches on
+       rations, not on banquets: this is the only cooking output with no
+       `heals` and no `buff`, because it is stores, not a meal. */
+    {id:'cook_field_ration', name:'Field Rations ×4', icon:'🥖', inputs:{wheat:4, cooked_wolf_meat:2, carrot:2}, output:'field_ration', outputQty:4, xp:160, req:22, ms:3800},
   ],
   smithing: [
     // Bar smelting — full chain so steel_bar + rune_bar exist as ingredients for forging.
@@ -98,6 +102,10 @@ const BASE_RECIPES = {
     {id:'forge_steel_pickaxe',  name:'Forge Steel Pickaxe',   icon:'⛏️', inputs:{steel_bar:2, willow_plank:1},    output:'steel_pickaxe',   xp:320,  req:38, ms:3800},
     {id:'forge_mithril_pickaxe',name:'Forge Mithril Pickaxe', icon:'⛏️', inputs:{mithril_bar:2, maple_plank:1},   output:'mithril_pickaxe', xp:700,  req:58, ms:4500},
     {id:'forge_rune_pickaxe',   name:'Forge Rune Pickaxe',    icon:'⛏️', inputs:{rune_bar:2, yew_plank:1},        output:'rune_pickaxe',    xp:1500, req:78, ms:5500},
+    /* b222 — Castle Stores (clan-overhaul v2 §4.3). Bone Chips are the
+       hardener: bone ash for case-hardening is real metallurgy, and it gives
+       the 45-60% drop from Weak Skeleton / Skeleton its first ever use. */
+    {id:'smith_iron_fitting', name:'Iron Fitting', icon:'🔩', inputs:{iron_bar:3, copper_bar:2, bone_chips:2}, output:'iron_fitting', xp:210, req:25, ms:4200},
   ],
   crafting: [
     // Plank sawing
@@ -132,6 +140,15 @@ const BASE_RECIPES = {
     {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', input:'duskwood_log', output:'duskwood_plank', xp:380, req:90, ms:7200},
     {id:'carve_duskwood_rod',  name:'Carve Duskwood Rod',  icon:'🎣', inputs:{runewood_plank:3, silk_thread:5, magic_essence:3}, output:'duskwood_rod',  xp:2600, req:84, ms:6000},
     {id:'carve_dawnsteel_rod', name:'Carve Dawnsteel Rod', icon:'🎣', inputs:{duskwood_plank:3, dawn_bar:1, silk_thread:6},      output:'dawnsteel_rod', xp:4200, req:94, ms:6600},
+    /* b222 — Castle Stores (clan-overhaul v2 §4.3). Slime Gel is the binder:
+       it is a resin, it is an 80% drop from tier-1 Slimes, it was worth 5g and
+       used by NOTHING — and it is now the thing that holds the castle
+       together, so a level-3 player farming slimes is materially useful on
+       build day. That is the "every level matters" pillar, made structural. */
+    {id:'craft_timber_beam', name:'Timber Beam', icon:'🪵', inputs:{normal_plank:5, oak_plank:2, slime_gel:2}, output:'timber_beam', xp:200, req:25, ms:4200},
+    /* The top of the ladder: two castle goods plus two of the rarest orphan
+       drops in the game (Ancient Fragment, Cracked Spellstone). */
+    {id:'craft_keystone', name:'Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', xp:900, req:60, ms:6500},
   ],
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
@@ -186,6 +203,18 @@ export const ARTISAN_RECIPES = {
 
    Prayer is deliberately absent — three bury actions are a list, not a
    taxonomy, and it has no output item to derive from.
+
+   b222 — the "Castle Stores" lane (clan-overhaul v2 §15 conflict 2). Keyed on
+   `ITEMS[out].tag === 'castle'`, it lands in the SAME commit as the four goods
+   it categorises, because `uncategorized` being empty is a regression test and
+   adding the items alone would break it.
+
+   It is the LAST claim in every skill, deliberately. A derived taxonomy must
+   never *steal* a recipe from a more specific lane: a Phase-B Cellar ale
+   (`foodClass:'buff'` AND `tag:'castle'`, §4.5) belongs in Feasts & Draughts
+   where the player drinks it, and a hypothetical castle-tagged weapon belongs
+   in Weapons. Castle Stores claims exactly what nothing else wants — which
+   today is precisely the four typeless, foodClass-less goods.
    ══════════════════════════════════════════════════════════════════════ */
 export const ARTISAN_CATEGORIES = {
   smithing: [
@@ -193,6 +222,7 @@ export const ARTISAN_CATEGORIES = {
     { key: 'weapons',  label: 'Weapons' },
     { key: 'armour',   label: 'Armour' },
     { key: 'tools',    label: 'Tools' },
+    { key: 'castle',   label: 'Castle Stores' },
   ],
   crafting: [
     { key: 'sawmill',    label: 'Sawmill' },
@@ -201,12 +231,22 @@ export const ARTISAN_CATEGORIES = {
     { key: 'jewellery',  label: 'Jewellery' },
     { key: 'tools',      label: 'Tools' },
     { key: 'ammunition', label: 'Ammunition' },
+    { key: 'castle',     label: 'Castle Stores' },
   ],
   cooking: [
     { key: 'provisions', label: 'Provisions' },
     { key: 'feasts',     label: 'Feasts & Draughts' },
+    { key: 'castle',     label: 'Castle Stores' },
   ],
 };
+
+/* isCastleGood(item) — the single predicate behind the lane AND the Storehouse
+   deposit filter. One reader today, two once the Storehouse modal lands; it is
+   a function rather than an inline `.tag === 'castle'` so the two can never
+   drift apart. */
+export function isCastleGood(item) {
+  return !!(item && item.tag === 'castle');
+}
 
 /* recipeCategory(skillId, recipe) → category key, or null.
    Pure: pass `items` explicitly to classify against a different item table
@@ -225,6 +265,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'weapon') return 'weapons';
     if (type === 'armor') return 'armour';
+    if (isCastleGood(out)) return 'castle';       // b222 — Iron Fitting
     return null;
   }
 
@@ -235,6 +276,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'jewelry') return 'jewellery';
     if (type === 'weapon') return 'weapons';      // bows + staves
     if (type === 'armor') return 'armour';        // leather + cloth
+    if (isCastleGood(out)) return 'castle';       // b222 — Timber Beam, Keystone
     return null;
   }
 
@@ -242,6 +284,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     const fc = foodClassOf(out);
     if (fc === 'buff') return 'feasts';
     if (fc === 'healing') return 'provisions';
+    if (isCastleGood(out)) return 'castle';       // b222 — Field Ration
     return null;
   }
 

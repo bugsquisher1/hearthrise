@@ -6,13 +6,13 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 
 ## Build & branch
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b219)
+- **Version:** v0.9.2-beta (build b220)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
-- **⚠️ PENDING MANUAL STEP:** run `supabase/migrations/2026-08-08-raid-hardening.sql` in the Supabase SQL editor NOW that b219 is deployed (client shipped first by design; idempotent; ends with self-check assertions).
+- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) `supabase/migrations/2026-08-08-raid-hardening.sql` 2) `supabase/migrations/2026-08-08-muster.sql`. Both idempotent with self-checks; clients already shipped and feature-detect.
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **188/188 green, 0 runtime errors** (b219 final gate; +11 regression tests over b218). Coordinator visually verified home band, What's-New modal, toasts config on :8125.
+- **Smoke:** `node tests/run-smoke.mjs` → **206/206 green, 0 runtime errors** (b220 final gate; +18 over b219).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.
@@ -31,6 +31,12 @@ Online-only social idle-RPG, OSRS-scale north star. All skills to 99 (data-drive
 - Theme rules must be scoped (`:root` = dark tokens; `body[data-theme="cozy-light"]` for the retired light theme).
 - `assets/` structure is frozen (icons-bundle paths wired ~360 places). Prefer add over rename.
 - `snapshotG` save allowlist is a manual 24-field list — fragile.
+
+## Wave 2 follow-ups (b221)
+- Delete the farming dual-write `watered` compatibility field (was b219-rollback safety only — farming agent's contract).
+- Designer to ratify the Muster guest-solo-join deviation (spec said sign-in-gate; implementer allowed labelled solo musters, matching the raids precedent).
+- `daily_kill`/`daily_gather` have the same fixed-goal-vs-capability problem the harvest daily had.
+- Armour category lane is 42 tiles — optional §3 sub-grouping (by family/slot) not built.
 
 ## Known bugs / open items
 - **Design (Game Designer):** Cellar +500 storage perk feeds nothing; solo raid pool one-tap chest; "harvest 25 crops" harsh for starters; `deaths` never increments; ~25 tier-3–6 drops are recipe-less vendor trash; only 2 real bosses.

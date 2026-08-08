@@ -12,13 +12,33 @@
 //     clanWireId() routes 'clan' → 'clan:<id>' — so clan chat is
 //     live the moment you join.
 //
-// Clan PERKS ladder (earned by leveling the shared treasury — the
-// clan "castle" everyone builds together):
-//   Lv2 +2% all XP · Lv3 +3% gather speed · Lv4 +1h offline cap
-//   Lv5 +5% all XP · Lv6 +5% artisan speed · Lv7 +2h offline cap
-//   Lv8 +5% gather · Lv9 +8% all XP · Lv10 castle banner (+10% all XP)
-// Perks stack cumulatively and flow through getBonus, so every
-// system inherits them.
+// ── b223: `level` IS NOT THE CASTLE, AND ITS PERK LADDER IS NOW A BASELINE ──
+//
+// `clan_contribute` computes the next threshold as 10000 x 4^(level-1), which
+// puts level 10 at 655,360,000 gold. The comment that used to stand here
+// documented the thresholds as "10k, 50k, 200k, 800k, 3M" — a fourth, entirely
+// invented ladder that had been wrong since b206. Both are recorded in
+// clan-overhaul.md §2.3 / §15.1 as the structural bug that v2 exists to fix.
+//
+// The real thresholds are: Lv2 10,000 · Lv3 40,000 · Lv4 160,000 · Lv5 640,000
+// · Lv6 2,560,000 · Lv7 10,240,000 · Lv8 40,960,000 · Lv9 163,840,000 ·
+// Lv10 655,360,000. Castle progression therefore does NOT gate on `level` — it
+// gates on Standing (clan-seat.js / clan-seat-ui.js). `level` is a cosmetic
+// "age of the hold" badge and its perk ladder is re-scoped to a MEMBERSHIP
+// BASELINE:
+//
+//   Lv4 +1h offline cap · Lv7 +2h offline cap · Lv10 castle banner (cosmetic)
+//
+// Everything else it used to grant for free — +25% all XP, +8% gather speed,
+// +5% artisan speed — is deleted, because with the castle on top `allXP` alone
+// would have stacked homestead 20 + renown 22 + auto-level 25 + Great Hall 5 =
+// +72% (clan-overhaul §8.3). Post-re-scope the permanent ceiling is +47%, and
+// clan-seat-ui.js carries the +60% fuse. Joining a clan now grants +3h offline
+// and a banner; everything meaningful is EARNED through the castle rather than
+// ACCRUED by banking gold.
+//
+// This is a deliberate net power REDUCTION and it lands in the same wave as the
+// buildings, which is exactly what the perk-stacking conflict demanded.
 //
 // Offline-friendly: with no Supabase config or signed-out, the
 // social panel shows an honest sign-in prompt — never fake data.
@@ -29,15 +49,15 @@
   var PERKS = [
     null,                                                       // Lv1 — founding
     null,
-    { allXP: 0.02, label: '+2% all XP' },                       // Lv2
-    { gatherSpeed: 0.03, label: '+3% gather speed' },           // Lv3
+    null,                                                       // Lv2 — re-scoped away (§8.3)
+    null,                                                       // Lv3 — re-scoped away
     { offlineHours: 1, label: '+1h offline cap' },              // Lv4
-    { allXP: 0.05, label: '+5% all XP' },                       // Lv5
-    { cookSpeed: 0.05, smithSpeed: 0.05, craftSpeed: 0.05, label: '+5% artisan speed' }, // Lv6
+    null,                                                       // Lv5 — re-scoped away
+    null,                                                       // Lv6 — re-scoped away
     { offlineHours: 2, label: '+2h offline cap' },              // Lv7
-    { gatherSpeed: 0.05, label: '+5% gather speed' },           // Lv8
-    { allXP: 0.08, label: '+8% all XP' },                       // Lv9
-    { allXP: 0.10, label: 'Castle banner: +10% all XP' }        // Lv10
+    null,                                                       // Lv8 — re-scoped away
+    null,                                                       // Lv9 — re-scoped away
+    { label: 'Castle banner (cosmetic)' }                       // Lv10 — no stat
   ];
 
   function cfg() {
@@ -109,7 +129,7 @@
     }
     var clan = (await res.json())[0];
     await joinById(clan.id, 'leader');
-    notify('🏰 ' + name + ' founded! Rally your allies.', 'levelup');
+    notify(name + ' is founded — a Wayside Camp, and yours. Rally your allies.', 'levelup');
     return clan;
   }
 
@@ -169,15 +189,38 @@
     _myClan.myContributed = (_myClan.myContributed || 0) + amount;
     if (typeof window.saveLocal === 'function') saveLocal();
     if (typeof window.updateTopbar === 'function') updateTopbar();
-    notify(leveled ? ('🏰 The clan reached Lv ' + out.level + '! New perk unlocked.') : ('Contributed ' + amount.toLocaleString() + 'g to the clan'), leveled ? 'levelup' : 'info');
+    /* The level is the hold's AGE, not its power (§2.3). Saying "new perk
+       unlocked" at every level was a promise the re-scoped ladder no longer
+       keeps — it keeps two, at Lv4 and Lv7, and says so where it is true. */
+    notify(leveled
+      ? ('The hold is older: Lv ' + out.level + '. Its strength comes from the castle, not the coffer.')
+      : ('Banked ' + amount.toLocaleString() + 'g — the hold pays its upkeep and its builders from this.'),
+      leveled ? 'levelup' : 'info');
     if (typeof window.renderSocial === 'function') renderSocial();
     return true;
   }
 
+  /* b223: the roster carries the castle's ladder too. `cp`/`cp_at`/`charge`/
+     `joined_at` are added by 2026-08-08-clan-seat.sql; PostgREST answers 400 on
+     a select naming a column that does not exist yet, so the un-migrated shape
+     is tried as a FALLBACK rather than assumed. The panel then shows an em dash
+     for Contribution instead of a fabricated number — a roster that invents a
+     ladder is worse than one that admits it has none. */
+  var ROSTER_FULL = 'user_id,role,charge,contributed,cp,cp_at,joined_at,profiles(display_name)';
+  var ROSTER_BASE = 'user_id,role,contributed,profiles(display_name)';
+  var _rosterCols = null;
   async function roster() {
     if (!online() || !_myClan) return [];
-    var res = await fetch(cfg().url + '/rest/v1/clan_members?clan_id=eq.' + _myClan.id + '&select=user_id,role,contributed,profiles(display_name)&order=contributed.desc&limit=50', { headers: headers() });
+    var cols = _rosterCols || ROSTER_FULL;
+    var url = cfg().url + '/rest/v1/clan_members?clan_id=eq.' + _myClan.id +
+      '&select=' + cols + '&order=contributed.desc&limit=60';
+    var res = await fetch(url, { headers: headers() });
+    if (!res.ok && cols === ROSTER_FULL) {
+      _rosterCols = ROSTER_BASE;
+      return roster();
+    }
     if (!res.ok) return [];
+    _rosterCols = cols;
     return res.json();
   }
 
@@ -191,6 +234,10 @@
   }
 
   // ── replace the mock NetClient endpoints ───────────────────
+  /* The REAL `clan_contribute` ladder: 10000 x 4^(level-1). Exported so the
+     Storehouse can print the next "age of the hold" threshold from the same
+     arithmetic the server runs, instead of the invented ladder that used to sit
+     in this file's header. */
   function nextTreasuryGoal(level) { return 10000 * Math.pow(4, (level || 1) - 1); }
 
   function patchNetClient() {
@@ -237,35 +284,27 @@
     }
     if (!_myClan) await fetchMyClan();
     if (_myClan) {
-      var p = perksFor(_myClan.level);
-      var goal = nextTreasuryGoal(_myClan.level);
-      var pct = Math.min(100, Math.round(100 * _myClan.treasury / goal));
+      /* b223: the in-clan half of this panel is THE CASTLE now, and it belongs
+         to clan-seat-ui.js. This file keeps what it has always owned — finding,
+         joining, leaving, the gold treasury and the membership baseline perks —
+         and hands the rendering of the hold to the module that owns the castle
+         maths. Two files drawing one screen from two models is how a panel ends
+         up disagreeing with itself.
+
+         If that module is absent (it is a separate script tag), the fallback
+         below is the honest minimum: the hold's name, its treasury, and the way
+         out. It never pretends there is a castle it cannot draw. */
+      var UI = window.HearthriseClanSeatUI;
+      if (UI && typeof UI.render === 'function') {
+        UI.render(cl);
+        UI.readSeat().then(function () { UI.render(cl); }).catch(function () {});
+        return;
+      }
       cl.innerHTML =
-        '<div class="activity-card"><div class="ac-icon">🏰</div><div style="flex:1;min-width:0">' +
-          '<b>' + escapeHtml(_myClan.name) + '</b><span> Lv ' + _myClan.level + ' · ' + (_myClan.myRole || 'member') + '</span></div>' +
-          '<button class="btn btn-sm btn-danger" onclick="window.HearthriseClans.leave()">Leave</button></div>' +
-        '<div class="tiny muted" style="margin:8px 0 3px">Clan castle treasury — Lv ' + _myClan.level + ' → ' + (_myClan.level + 1) + '</div>' +
-        '<div style="height:8px;background:rgba(0,0,0,.3);border-radius:99px;overflow:hidden;border:1px solid var(--line-soft)">' +
-          '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--gold),var(--gold-2))"></div></div>' +
-        '<div class="tiny muted" style="margin:3px 0 8px">' + (+_myClan.treasury).toLocaleString() + ' / ' + goal.toLocaleString() + 'g</div>' +
-        '<div style="display:flex;gap:6px;margin-bottom:10px">' +
-          '<input type="number" id="clan-contrib" placeholder="Gold" min="1" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink)">' +
-          '<button class="btn btn-primary btn-sm" onclick="window.HearthriseClans.contribute(document.getElementById(\'clan-contrib\').value)">Contribute</button></div>' +
-        (p.labels.length
-          ? '<div class="tiny" style="margin-bottom:8px;color:var(--ink-2)"><b style="color:var(--gold-2)">Active perks</b><br>' + p.labels.join(' · ') + '</div>'
-          : '<div class="tiny muted" style="margin-bottom:8px">Reach clan Lv 2 for the first shared perk (+2% all XP).</div>') +
-        '<div class="muted tiny" style="margin:10px 0 6px;text-transform:uppercase;letter-spacing:.08em;font-weight:700">Roster</div>' +
-        '<div id="clan-roster" class="tiny muted">Loading…</div>';
-      roster().then(function (rows) {
-        var el = document.getElementById('clan-roster');
-        if (!el) return;
-        el.innerHTML = rows.map(function (m) {
-          var nm = (m.profiles && m.profiles.display_name) || 'Adventurer';
-          return '<div class="lb-row"><span class="lb-name">' + escapeHtml(nm) + '</span>' +
-            '<span class="lb-stat">' + m.role + '</span>' +
-            '<span class="lb-stat gold">' + (+m.contributed).toLocaleString() + 'g</span></div>';
-        }).join('') || '<div class="muted tiny">No members yet.</div>';
-      });
+        '<div class="tiny" style="margin-bottom:8px"><b>' + escapeHtml(_myClan.name) + '</b> · ' +
+          escapeHtml(_myClan.myRole || 'member') + '</div>' +
+        '<div class="tiny muted" style="margin-bottom:8px">Treasury ' + (+_myClan.treasury).toLocaleString() + 'g</div>' +
+        '<button class="btn btn-sm btn-danger" onclick="window.HearthriseClans.leave()">Leave</button>';
     } else {
       var cr = await NetClient.clans();
       cl.innerHTML =
@@ -340,6 +379,7 @@
     joinById: joinById,
     leave: leave,
     contribute: contribute,
+    nextTreasuryGoal: nextTreasuryGoal,
     roster: roster,
     offlineBonusHours: function () { return myPerks().offlineHours || 0; },
     _online: online, _signedIn: signedIn

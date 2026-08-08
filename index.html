@@ -105,6 +105,12 @@
        shopfront counter). Loads last — see the file header for why the
        three-id selectors in it exist. -->
   <link rel="stylesheet" href="src/styles/board-and-shop.css?v=222">
+  <!-- b223 #10 Wave 3b: the Clan Seat. Third in-world screen after the bounty
+       board and the shopfront, and the same deal: `.hr-cs` is carved out of the
+       b174 readability blankets in theme-cozy.css, so this sheet owns its whole
+       colour story and needs no !important and no stacked panel id. Loads last
+       for the same reason board-and-shop.css does. -->
+  <link rel="stylesheet" href="src/styles/clan-seat.css?v=222">
 </head>
 <body>
 <div class="app" id="app">
@@ -728,6 +734,13 @@
        and the castle modals land. Loads after clans.js so it can never be
        mistaken for the panel's dependency. -->
   <script src="src/features/clan-seat.js?v=222"></script>
+  <!-- b223 #10 Wave 3b: the VISIBLE Clan Seat — the hold band, the five modals,
+       Work Orders, the Tavern and the castle's perk flow into getBonus. Loads
+       AFTER clan-seat.js (every formula it draws comes from that module's
+       tested reducers, never re-derived here) and after clans.js (whose
+       renderSocial wrapper hands it the panel). Feature-detects both castle
+       migrations: with neither run it renders the hold read-only and honest. -->
+  <script src="src/features/clan-seat-ui.js?v=222"></script>
   <script src="src/item-ux.js?v=222"></script>
   <!-- b140 (Batch E): right-click context menu + Sell-junk helper. Loads
        AFTER item-ux.js so its capture-phase contextmenu listener can

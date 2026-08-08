@@ -1,0 +1,486 @@
+/* ============================================================================
+ * src/styles/clan-seat.css — b223, THE CLAN SEAT (backlog #10, Wave 3b)
+ *
+ * docs/design/clan-overhaul.md v2 §13: "the panel is a place, the modals do
+ * the work." Extended by the product owner's direction of 2026-08-08: the
+ * castle must read as BUILT FROM BLOCKS, every structure must be CLICKABLE, and
+ * each click must open a modal themed as that room.
+ *
+ * ── WHAT THIS SHEET DRAWS ───────────────────────────────────────────────────
+ *   1. The hold band — a dusk scene of your own castle, coursed stone and
+ *      planked timber, in which each of the six Phase-A structures is a door.
+ *   2. The room modal — a REUSABLE component (`.hr-room-*`, published as
+ *      window.HearthriseRoomModal) whose frame, header, upgrade ladder and
+ *      action row are theme-agnostic. The castle is its first consumer; the
+ *      personal homestead's ROOMS are the intended second, and nothing in the
+ *      `.hr-room-*` half of this file mentions a clan.
+ *   3. Six room themes, which change the LIGHT and the accent of the frame, not
+ *      its structure — a forge is hotter than a war room, and they are still
+ *      the same castle.
+ *
+ * ── WHY THIS FILE EXISTS INSTEAD OF INLINE STYLE ────────────────────────────
+ * The b221/b222 in-world screens (bounty board, shopfront) proved the shape: a
+ * screen lit by its own picture needs a sheet that owns its whole colour story,
+ * because the b174 readability blankets in theme-cozy.css force
+ * `color: var(--ink) !important` across a panel and that is exactly wrong on a
+ * surface with its own light. `.hr-cs` and `.hr-room` are therefore carved out
+ * of those blankets (see the b223 note in theme-cozy.css) and every colour
+ * below comes from a token.
+ *
+ * There is deliberately NO `!important` and NO stacked panel id in this file,
+ * and a b223 guard test asserts both. If a declaration here ever needs one, the
+ * blanket is reaching somewhere it should not and the carve-out is the fix.
+ *
+ * ── CONTAINMENT IS EARNED ───────────────────────────────────────────────────
+ * Three things draw a box: the hold band (it is a picture, it has a frame), a
+ * door (it is a block of the castle wall, and blocks have edges), and a modal
+ * (it floats over the page). Everything else is separated by a hairline or by
+ * space. No wall of cards.
+ * ========================================================================== */
+
+/* ── 1. The hold band ──────────────────────────────────────────────────────
+ * A 9:2 crop of a 1600x300 scene. It bleeds to the card edge (the card carries
+ * 12px of padding) because a picture with a gutter around it reads as an
+ * illustration in a document; a picture that touches the frame reads as a
+ * window. */
+.hr-cs { display: block; }
+
+.hr-cs-hold {
+  position: relative;
+  margin: -12px -12px 0;
+  height: 224px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--scene-sky-0);
+}
+.hr-cs-hold .hrcs-svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+/* The plate the hold's name sits on. A gradient, not a panel: the text needs a
+ * floor to stand on, not a container to live in. */
+.hr-cs-plate {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 34px 16px 12px;
+  background: linear-gradient(180deg, transparent, var(--scene-scrim-1), var(--scene-scrim-2));
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+  pointer-events: none;               /* the picture underneath stays clickable */
+}
+.hr-cs-name {
+  font-family: var(--f-display, serif);
+  font-size: 23px; font-weight: 800; line-height: 1.05;
+  color: var(--scene-ink);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .65);
+}
+.hr-cs-tier {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--scene-gilt);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .7);
+}
+.hr-cs-sub {
+  font-size: 12px; color: var(--scene-ink-2);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .7);
+}
+.hr-cs-plate .hr-cs-grow { flex: 1 1 auto; min-width: 0; }
+
+/* The upkeep word. Absent when the hold is Active — a label that is always
+ * there stops being read, and "Active" is the state you are meant to forget. */
+.hr-cs-state {
+  align-self: center;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 99px;
+  border: 1px solid var(--scene-gilt);
+  color: var(--scene-gilt);
+  background: rgba(0, 0, 0, .45);
+}
+.hr-cs-state[data-state="dormant"] { border-color: var(--scene-ink-3); color: var(--scene-ink-3); }
+
+/* ── 2. SVG paint ──────────────────────────────────────────────────────────
+ * Mirrors backdrop.js's sceneCss(): the shapes carry classes, the colours live
+ * here, so the same drawing works in both themes and re-tints for free. */
+.hrcs-s0 { stop-color: var(--scene-sky-0); }
+.hrcs-s1 { stop-color: var(--scene-sky-1); }
+.hrcs-s2 { stop-color: var(--scene-sky-2); }
+.hrcs-s3 { stop-color: var(--scene-sky-3); }
+.hrcs-s4 { stop-color: var(--scene-sky-4); }
+.hrcs-g0 { stop-color: var(--scene-glow-1); }
+.hrcs-g1 { stop-color: var(--scene-glow-2); }
+.hrcs-g2 { stop-color: var(--scene-glow-0); }
+.hrcs-h0 { stop-color: var(--scene-haze-0); }
+.hrcs-h1 { stop-color: var(--scene-haze-1); }
+.hrcs-f0 { stop-color: var(--scene-firelight); }
+.hrcs-f1 { stop-color: var(--scene-fire-0); }
+.hrcs-f2 { stop-color: var(--scene-litglow); }
+.hrcs-q0 { stop-color: var(--scene-rim); }
+.hrcs-q1 { stop-color: var(--scene-fire-0); }
+
+.hrcs-star circle { fill: var(--scene-star); opacity: .3; }
+.hrcs-ridge-far { fill: var(--scene-ridge-far); }
+.hrcs-ridge-mid { fill: var(--scene-ridge-mid); }
+.hrcs-ridge-near { fill: var(--scene-ridge-near); }
+.hrcs-tree path { fill: var(--scene-tree); }
+.hrcs-rim { stroke: var(--scene-rim); stroke-width: 2; fill: none; }
+.hrcs-rim2 { stroke: var(--scene-rim); stroke-width: 1.6; fill: none; stroke-linecap: round; }
+.hrcs-track { fill: var(--scene-track); }
+.hrcs-smoke ellipse { fill: var(--scene-smoke); }
+.hrcs-wall, .hrcs-wall path, .hrcs-wall rect, .hrcs-wall circle { fill: var(--scene-build); }
+.hrcs-wall-2 { fill: var(--scene-build-2); }
+.hrcs-pale path { stroke: var(--scene-build); stroke-width: 4; fill: none; }
+.hrcs-glow { fill: url(#hrcsFire); }
+
+/* THE BLOCKS. Coursing is what turns a silhouette into masonry: a hairline of
+ * catch-light along every mortar joint, at the scale of the structure. It is
+ * drawn as strokes rather than as a repeating pattern so it survives the
+ * viewBox scaling that `preserveAspectRatio="slice"` applies. */
+.hrcs-mortar path {
+  stroke: var(--scene-rim);
+  /* 1.4 rather than 1: the hold band slices a 1600-unit viewBox into ~1100
+   * CSS pixels, so a 1px joint arrives as 0.69px and disappears into the
+   * ridge. Measured at the shipped band height, not guessed. */
+  stroke-width: 1.4;
+  fill: none;
+  opacity: .34;
+}
+
+/* A structure has exactly three states, and each is a different KIND of mark
+ * rather than a different opacity of the same one:
+ *   built   — a solid silhouette with lit windows. It is there.
+ *   ghost   — a dashed outline and nothing inside. It is planned, not present.
+ *   dormant — the solid silhouette with its lights out. It is there and cold.
+ * Opacity alone would have made "unbuilt" read as "far away". */
+.hrcs-b { fill: var(--scene-build); }
+.hrcs-b .hrcs-lit { fill: var(--scene-lit); }
+.hrcs-b.is-ghost { fill: none; stroke: var(--scene-ink-3); stroke-width: 2; stroke-dasharray: 5 5; opacity: .42; }
+.hrcs-b.is-ghost .hrcs-lit { display: none; }
+.hrcs-b.is-dorm { opacity: .8; }
+.hrcs-b.is-dorm .hrcs-lit { fill: var(--scene-ink-3); opacity: .35; }
+
+/* EVERY STRUCTURE IS A DOOR. The hitbox is transparent but hit-testable, which
+ * is what makes a dashed outline as clickable as a solid wall; the halo is the
+ * hover state, and it is a pocket of light rather than an outline because the
+ * scene is lit, not drawn. */
+.hrcs-room { cursor: pointer; }
+.hrcs-hitbox { fill: transparent; }
+.hrcs-halo { fill: url(#hrcsHalo); opacity: 0; transition: opacity .18s ease; pointer-events: none; }
+.hrcs-room:hover .hrcs-halo,
+.hrcs-room:focus-visible .hrcs-halo { opacity: .85; }
+.hrcs-room:focus { outline: none; }
+.hrcs-room:focus-visible .hrcs-hitbox {
+  stroke: var(--scene-gilt); stroke-width: 2; stroke-dasharray: 4 4;
+}
+@media (prefers-reduced-motion: reduce) { .hrcs-halo { transition: none; } }
+
+/* ── 3. The doors ──────────────────────────────────────────────────────────
+ * The picture is the navigation. This row is the SAME navigation for a
+ * keyboard, a screen reader and a narrow phone — not a second control surface.
+ * Each one is drawn as a block of the wall: a squared stone with a mortar
+ * shadow, which is why they sit flush against each other. */
+.hr-cs-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 2px;
+  margin: 0 -12px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--line-soft);
+  padding: 0 0 1px;
+}
+.hr-cs-door {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 9px 10px;
+  border: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--scene-build-2) 82%, transparent),
+    color-mix(in srgb, var(--scene-build) 92%, transparent));
+  color: var(--ink-3);
+  font-family: inherit; text-align: left; cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--scene-rim);
+  transition: background .16s ease, color .16s ease;
+}
+.hr-cs-door:hover, .hr-cs-door:focus-visible {
+  color: var(--ink);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gold) 14%, var(--scene-build-2)),
+    color-mix(in srgb, var(--gold) 6%, var(--scene-build)));
+}
+.hr-cs-door-nm {
+  font-size: 12.5px; font-weight: 700; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hr-cs-door-lv {
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.hr-cs-door.is-built .hr-cs-door-nm { color: var(--gold-2); }
+.hr-cs-door.is-dorm .hr-cs-door-nm { color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .hr-cs-door { transition: none; } }
+
+/* ── 4. Lines, values and bars ─────────────────────────────────────────────*/
+.hr-cs-line {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 4px;
+}
+.hr-cs-label {
+  font-size: 10.5px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hr-cs-val { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hr-cs-val b { color: var(--gold-2); font-weight: 800; }
+
+.hr-cs-bar {
+  height: 9px; border-radius: 99px; overflow: hidden;
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--line-soft);
+}
+.hr-cs-bar > i {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, var(--gold-2), var(--gold));
+}
+.hr-cs-bar.is-supply > i { background: linear-gradient(90deg, var(--ink-3), var(--ink-2)); }
+.hr-cs-bar.is-feast > i { background: linear-gradient(90deg, var(--scene-lit), var(--gold)); }
+.hr-cs-foot { font-size: 11px; color: var(--ink-3); margin: 3px 0 12px; }
+.hr-cs-foot b { color: var(--ink-2); font-weight: 700; }
+
+/* The "this week" strip: three bars, one glance — what does my hold need from
+ * me right now. Three columns on a wide card, one on a narrow one. */
+.hr-cs-week {
+  display: grid; gap: 12px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin-bottom: 12px;
+}
+.hr-cs-week .hr-cs-foot { margin-bottom: 0; }
+
+.hr-cs-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.hr-cs-note { font-size: 11.5px; color: var(--ink-3); margin: 10px 0 0; line-height: 1.5; }
+.hr-cs-note b { color: var(--ink-2); font-weight: 700; }
+
+/* ── 5. THE ROOM MODAL — the reusable half ─────────────────────────────────
+ * Nothing below this line mentions a clan. `.hr-room-*` is the component the
+ * homestead's rooms are expected to adopt unchanged: same scrim, same frame,
+ * same header-with-a-scene, same upgrade ladder, same action row.
+ *
+ * The scrim is the third copy of the `hr-rn-scrim` pattern (renown, daily
+ * login, muster). Deliberately not a fourth shape: a player who has closed the
+ * Renown ladder already knows how to close this. */
+.hr-room-scrim {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0, 0, 0, .74);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px;
+}
+.hr-room-wrap {
+  position: relative;
+  width: 100%; max-width: 640px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--f-ui, system-ui, sans-serif);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px -18px rgba(0, 0, 0, .86);
+  /* THE WALL. A room you walk into has walls made of something, so the frame
+   * itself is coursed masonry: two repeating gradients for the bed and head
+   * joints over the panel surface, at a scale that reads as block rather than
+   * as tile. Every value is a token or a transparency of one. */
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0 33px,
+      color-mix(in srgb, var(--scene-rim) 46%, transparent) 33px 34px),
+    repeating-linear-gradient(90deg,
+      transparent 0 76px,
+      color-mix(in srgb, var(--scene-rim) 30%, transparent) 76px 77px),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0));
+}
+/* Alternate courses need their head joints offset by half a block or the wall
+ * reads as a grid. One overlay band does it without doubling the gradients. */
+.hr-room-wrap::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+    transparent 0 76px,
+    color-mix(in srgb, var(--scene-rim) 26%, transparent) 76px 77px);
+  transform: translateX(38px);
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 34px, transparent 34px 68px);
+  mask-image: repeating-linear-gradient(180deg, #000 0 34px, transparent 34px 68px);
+}
+.hr-room-wrap > * { position: relative; }
+
+.hr-room-head {
+  position: relative;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+}
+/* The vignette is a WINDOW INTO THE ROOM, and the caption sits under it on the
+ * wall. An overlaid plate (the idiom the hold band uses, correctly, because a
+ * castle skyline is tall) would have covered the floor of every interior —
+ * which is exactly where a room keeps its furniture. */
+.hr-room-scene {
+  position: relative;
+  height: 168px;
+  overflow: hidden;
+  background: var(--scene-sky-0);
+  border-bottom: 1px solid var(--line-soft);
+}
+.hr-room-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hr-room-title { padding: 11px 54px 11px 16px; }
+.hr-room-title h3 {
+  margin: 0;
+  font-family: var(--f-display, serif);
+  font-size: 20px; font-weight: 800; line-height: 1.15;
+  color: var(--gold);
+}
+.hr-room-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+.hr-room-x {
+  position: absolute; top: 10px; right: 10px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: rgba(0, 0, 0, .5);
+  color: var(--scene-ink-2);
+  cursor: pointer; line-height: 1;
+}
+.hr-room-x:hover { color: var(--scene-ink); border-color: var(--scene-gilt); }
+.hr-room-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px 20px;
+}
+.hr-room-note {
+  font-size: 11.5px; color: var(--ink-3); line-height: 1.55;
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--line-soft);
+}
+.hr-room-note b { color: var(--ink-2); font-weight: 700; }
+.hr-room-note em { color: var(--ink-2); font-style: italic; }
+
+/* THE UPGRADE LADDER. The rung you can act on is lit; the ones the castle tier
+ * has not unlocked yet are dimmed AND say why. A greyed row with no reason is
+ * the most common lie a progression screen tells. */
+.hr-room-ladder { margin-top: 4px; }
+.hr-room-rung {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hr-room-rung:last-child { border-bottom: 0; }
+.hr-room-rung-lv {
+  flex: 0 0 auto; min-width: 46px;
+  font-family: var(--f-display, serif);
+  font-size: 12px; font-weight: 800; letter-spacing: .06em;
+  color: var(--ink-3);
+  padding-top: 1px;
+}
+.hr-room-rung.is-next .hr-room-rung-lv { color: var(--gold); }
+.hr-room-rung.is-locked { opacity: .55; }
+
+/* ── 6. Room themes ────────────────────────────────────────────────────────
+ * A theme changes the LIGHT in the frame and the accent on its title — not the
+ * layout, not the type, not the spacing. A forge is hotter than a war room and
+ * they are still the same castle. Each is one radial wash from the tokens the
+ * scene already uses. */
+.hr-room-wrap[data-room-theme="hall"]    { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86), inset 0 60px 90px -60px var(--scene-glow-2); }
+.hr-room-wrap[data-room-theme="vault"]   { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86), inset 0 60px 90px -60px var(--scene-glow-2); }
+.hr-room-wrap[data-room-theme="tavern"]  { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86), inset 0 70px 110px -60px var(--scene-litglow); }
+.hr-room-wrap[data-room-theme="forge"]   { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86), inset 0 80px 120px -60px var(--scene-litglow); }
+.hr-room-wrap[data-room-theme="mill"]    { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86), inset 0 50px 80px -60px var(--scene-glow-2); }
+.hr-room-wrap[data-room-theme="warroom"] { box-shadow: 0 24px 64px -18px rgba(0,0,0,.86); }
+/* The mill and the tavern are timber rooms, so their frame is boarded rather
+ * than coursed: long horizontal joints, no head joints at all. */
+.hr-room-wrap[data-room-theme="mill"],
+.hr-room-wrap[data-room-theme="tavern"] {
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0 27px,
+      color-mix(in srgb, var(--scene-rim) 40%, transparent) 27px 28px),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0));
+}
+.hr-room-wrap[data-room-theme="mill"]::before,
+.hr-room-wrap[data-room-theme="tavern"]::before { display: none; }
+
+/* ── 7. Room interior paint ────────────────────────────────────────────────
+ * INSIDE a room there is no sky. The hold band gets its legibility for free —
+ * black silhouettes against an ember horizon — and an interior drawn with the
+ * same two values is black on black, which is what the first pass produced.
+ *
+ * So the interiors invert the relationship: the WALL is the lighter surface
+ * (it is the thing catching the firelight) and the furniture is the silhouette
+ * in front of it. The one real light source in each room is also pushed a stop
+ * warmer than the outdoor firelight, because indoors it is doing all the work. */
+.hr-room-svg .hrcs-wall-2 { fill: var(--scene-ridge-far); }
+.hr-room-svg .hrcs-f0 { stop-color: var(--scene-litglow); }
+.hr-room-svg .hrcs-mortar path { opacity: .26; }
+.hr-room-svg .hrcs-arch path { fill: var(--scene-ridge-mid); }
+.hrcs-floor { fill: var(--scene-ridge-near); }
+.hrcs-furn, .hrcs-furn path, .hrcs-furn rect, .hrcs-furn circle, .hrcs-furn ellipse { fill: var(--scene-build); }
+.hrcs-arch path { fill: var(--scene-ridge-far); }
+.hrcs-iron, .hrcs-iron path, .hrcs-iron rect, .hrcs-iron circle { fill: var(--scene-ridge-near); }
+.hrcs-gilt rect, .hrcs-gilt ellipse { fill: var(--scene-gilt); opacity: .82; }
+.hrcs-lit, .hrcs-lit path, .hrcs-lit rect, .hrcs-lit ellipse { fill: var(--scene-lit); }
+.hrcs-litglass path, .hrcs-litglass rect { fill: var(--scene-lit); opacity: .5; }
+.hrcs-hearthmouth path { fill: var(--scene-lit); opacity: .34; }
+.hrcs-banner rect { fill: var(--scene-ridge-near); }
+.hrcs-banner path { fill: var(--scene-build-2); }
+.hrcs-slate rect { fill: var(--scene-ridge-far); }
+.hrcs-chalk path { stroke: var(--scene-ink-3); stroke-width: 2.4; fill: none; opacity: .6; stroke-linecap: round; }
+.hrcs-blade circle { fill: var(--scene-ridge-near); }
+.hrcs-blade-teeth path { stroke: var(--scene-rim); stroke-width: 2.4; fill: none; }
+.hrcs-sawdust path { fill: var(--scene-gilt); opacity: .18; }
+.hrcs-spark circle { fill: var(--scene-lit); }
+.hrcs-parch path { fill: var(--scene-ink-3); opacity: .34; }
+.hrcs-marker path { stroke: var(--scene-gilt); stroke-width: 2.6; fill: none; stroke-linejoin: round; }
+.hrcs-trophy path { fill: var(--scene-gilt); opacity: .9; }
+
+/* ── 8. Rows, ladders and fields shared by the panel and the rooms ─────────*/
+.hr-cs-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hr-cs-row:last-child { border-bottom: 0; }
+.hr-cs-row .hr-cs-grow, .hr-room-rung .hr-cs-grow { flex: 1; min-width: 0; }
+.hr-cs-nm { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.hr-cs-nm .hr-cs-lv, .hr-cs-lv { color: var(--gold-2); font-weight: 700; }
+.hr-cs-meta { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; line-height: 1.5; }
+.hr-cs-amt { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+/* A bundle line the Storehouse can already cover reads gold; one it cannot
+ * stays muted. The colour IS the answer to "can we afford this yet". */
+.hr-cs-qty { white-space: nowrap; }
+.hr-cs-qty.is-full { color: var(--gold-2); }
+
+.hr-cs-eyebrow {
+  font-family: var(--f-display, serif);
+  font-size: 11.5px; font-weight: 800;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold-2);
+  margin: 18px 0 4px;
+}
+.hr-cs-eyebrow:first-child { margin-top: 0; }
+
+.hr-cs-field { display: flex; gap: 6px; margin: 8px 0 0; }
+.hr-cs-field input, .hr-cs-field select {
+  flex: 1; min-width: 0;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  padding: 8px 10px; color: var(--ink);
+  font-family: inherit; font-size: 13px;
+}
+.hr-cs-field input:focus, .hr-cs-field select:focus { outline: none; border-color: var(--gold-2); }
+
+.hr-cs-preview { font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.hr-cs-preview b { color: var(--gold-2); }
+.hr-cs-preview [data-demand="capped"] b { color: var(--ink-3); }
+.hr-cs-warn { font-size: 11.5px; color: var(--gold-2); margin-top: 4px; }
+
+.hr-cs-empty { font-size: 12px; color: var(--ink-3); padding: 12px 0; }
+
+@media (max-width: 640px) {
+  .hr-cs-hold { height: 168px; }
+  .hr-cs-name { font-size: 19px; }
+  .hr-room-scrim { padding: 0; align-items: stretch; }
+  .hr-room-wrap { max-width: none; max-height: none; border-radius: 0; border-width: 0; }
+  .hr-room-scene { height: 128px; }
+}

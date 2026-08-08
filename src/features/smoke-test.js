@@ -3639,6 +3639,188 @@ const TESTS = [
       try { window.showTab(startTab); } catch (e) {}
     }
   }),
+
+  // ── b220 regression suite (backlog #13 — farming: optional watering) ──
+  //
+  // THE bug: startFarmCheck() gated 'ready' on `elapsed >= crop.hours &&
+  // p.watered`, with no timeout. plantCrop() and every Tomato regrow wrote
+  // watered:false, and so did auto-replant — so an unattended plot was frozen
+  // FOREVER, and renderFarm hid it by printing "Tap to water" with no bar.
+  // Watering is now an optional 2h double-speed window; a dry crop always
+  // finishes, just slower. Spec: docs/design/farming-watering.md.
+
+  // The stall bug itself. Fails on b219: isReady() didn't exist and the tick
+  // would never have flipped this plot.
+  () => tryRun('b220: a never-watered crop still matures (the stall bug)', () => {
+    const F = window.HearthriseFarm;
+    assert(F && typeof F.isReady === 'function', 'HearthriseFarm.isReady missing');
+    const hours = window.CROPS.turnip.hours;
+    const stalled = { cropId: 'turnip', plantedAt: Date.now() - (hours + 1) * 3600000, waterings: [], state: 'growing' };
+    assert(F.isReady(stalled) === true, 'a dry crop past its grow time MUST be ready — on b219 it froze forever');
+    assert(F.progressPct(stalled) === 100, 'dry plot must report 100%, got ' + F.progressPct(stalled));
+    // Mid-growth it must report real progress, not the invisible dead state.
+    const half = { cropId: 'turnip', plantedAt: Date.now() - (hours / 2) * 3600000, waterings: [], state: 'growing' };
+    assert(F.isReady(half) === false, 'half-grown dry plot must not be ready');
+    const pct = F.progressPct(half);
+    assert(pct >= 45 && pct <= 55, 'dry plot must show ~50% progress, got ' + pct);
+    assert(F.readyInMs(half) > 0, 'a dry growing plot must have a finite projected ready time');
+  }),
+
+  // The watering window maths: exactly 2x, exactly 2h, self-capping, and
+  // clamped so a forged `waterings` array can never beat 2x.
+  () => tryRun('b220: watering is exactly 2x for 2h and can never exceed 2x', () => {
+    const F = window.HearthriseFarm;
+    const t0 = Date.now() - 40 * 3600000;
+    const watered = { cropId: 'wheat', plantedAt: t0, waterings: [t0], state: 'growing' };
+    const gh2 = F.growthHours(watered, t0 + 2 * 3600000);
+    assert(Math.abs(gh2 - 4) < 1e-6, '2 real hours watered should be 4 growth-hours, got ' + gh2);
+    const gh3 = F.growthHours(watered, t0 + 3 * 3600000);
+    assert(Math.abs(gh3 - 5) < 1e-6, 'the window must EXPIRE after 2h (3h → 5 growth-hours), got ' + gh3);
+    // Water-spam / forged save: 20 duplicate timestamps must not compound.
+    const forged = { cropId: 'wheat', plantedAt: t0, waterings: new Array(20).fill(t0), state: 'growing' };
+    const now = t0 + 5 * 3600000;
+    assert(F.growthHours(forged, now) <= 10 + 1e-9,
+      'min(bonus, elapsed) clamp broken — forged waterings gave ' + F.growthHours(forged, now) + ' growth-hours in 5h');
+    // Clock/backdate abuse: timestamps in the future contribute nothing.
+    const future = { cropId: 'wheat', plantedAt: t0, waterings: [now + 99 * 3600000], state: 'growing' };
+    assert(Math.abs(F.growthHours(future, now) - 5) < 1e-6, 'future watering timestamps must be ignored');
+    // The mechanic caps itself at -50%: floor(hours / (window * rate)).
+    assert(F.maxWaterings('turnip') === 1, 'turnip (4h) should allow 1 watering, got ' + F.maxWaterings('turnip'));
+    assert(F.maxWaterings('wheat') === 2, 'wheat (8h) should allow 2 waterings, got ' + F.maxWaterings('wheat'));
+    assert(F.maxWaterings('pumpkin') === 3, 'pumpkin (14h) should allow 3 waterings, got ' + F.maxWaterings('pumpkin'));
+  }),
+
+  () => tryRun('b220: a plot can only be watered once per window', () => {
+    const F = window.HearthriseFarm;
+    const now = Date.now();
+    const dry = { cropId: 'wheat', plantedAt: now - 3600000, waterings: [], state: 'growing' };
+    assert(F.isWaterable(dry) === true, 'a dry growing plot must be waterable');
+    const wet = { cropId: 'wheat', plantedAt: now - 3600000, waterings: [now - 60000], state: 'growing' };
+    assert(F.isWaterable(wet) === false, 'a plot watered a minute ago must not be re-waterable (water-spam exploit)');
+    assert(F.waterWindowRemainingMs(wet) > 0, 'an open window must report time remaining');
+    const expired = { cropId: 'wheat', plantedAt: now - 3 * 3600000, waterings: [now - (F.WATER_WINDOW_H * 3600000 + 1000)], state: 'growing' };
+    assert(F.isWaterable(expired) === true, 'once the window expires the plot is thirsty again');
+    assert(F.waterWindowRemainingMs(expired) === 0, 'an expired window must report 0 remaining');
+    const done = { cropId: 'turnip', plantedAt: now - 99 * 3600000, waterings: [], state: 'growing' };
+    assert(F.isWaterable(done) === false, 'a ready crop is not waterable');
+  }),
+
+  () => tryRun('b220: waterPlot opens one window and refuses a second', () => {
+    const snap = snapshotG();
+    try {
+      if (typeof window.waterPlot !== 'function') return;
+      window.G.farmPlots = window.G.farmPlots || [];
+      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], watered: false, state: 'growing' };
+      window.waterPlot(0);
+      let p = window.G.farmPlots[0];
+      assert(Array.isArray(p.waterings) && p.waterings.length === 1,
+        'first watering must be recorded, got ' + JSON.stringify(p.waterings));
+      assert(p.watered === true, 'the legacy `watered` mirror must be dual-written for b219 rollback safety');
+      window.waterPlot(0);
+      p = window.G.farmPlots[0];
+      assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
+      assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
+    } finally { restoreG(snap); }
+  }),
+
+  // The migration is what un-sticks every plot broken on live right now.
+  () => tryRun('b220: save migration un-sticks stalled plots', () => {
+    const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
+    assert(M, 'the v6 → v7 farming migration is missing from the registry');
+    assert(window.HEARTHRISE_SCHEMA_VERSION >= 7, 'CURRENT_SCHEMA_VERSION was not bumped to 7');
+    const F = window.HearthriseFarm;
+    const stalledAt = Date.now() - (window.CROPS.turnip.hours + 5) * 3600000;
+    const save = { v: 6, farmPlots: [
+      { cropId: 'turnip', plantedAt: stalledAt, watered: false, state: 'growing' },  // the auto-replant victim
+      { cropId: 'turnip', plantedAt: stalledAt, watered: true,  state: 'growing' },
+      { cropId: 'turnip', plantedAt: 'corrupt', watered: false, state: 'growing' },
+      null,
+    ] };
+    M.apply(save);
+    assert(Array.isArray(save.farmPlots[0].waterings) && save.farmPlots[0].waterings.length === 0,
+      'watered:false must migrate to waterings: []');
+    assert(save.farmPlots[1].waterings.length === 1 && save.farmPlots[1].waterings[0] === stalledAt,
+      'watered:true must retro-credit one window at plantedAt');
+    assert(typeof save.farmPlots[2].plantedAt === 'number' && save.farmPlots[2].waterings.length === 0,
+      'a corrupt plantedAt must be repaired, not crash the pipeline');
+    // THE point: both old plots now finish.
+    assert(F.isReady(save.farmPlots[0]) === true,
+      'the migrated dry plot must be ready — it was frozen forever on b219');
+    assert(F.isReady(save.farmPlots[1]) === true, 'the migrated watered plot must be ready');
+    assert(F.isReady(save.farmPlots[2]) === false, 'the repaired plot restarts its clock');
+    const before = JSON.stringify(save.farmPlots);
+    M.apply(save);
+    assert(JSON.stringify(save.farmPlots) === before, 'the migration must be idempotent');
+  }),
+
+  () => tryRun('b220: auto-replant produces a plot that actually matures', () => {
+    const snap = snapshotG();
+    try {
+      if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
+      window.G.homestead = { tier: 5 };
+      window.G.plotLevels = 1;
+      window.G.skills = window.G.skills || {};
+      window.G.skills.farming = 1000000;
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed | 0) + 5;
+      window.G.farmPlots = window.G.farmPlots || [];
+      window.G.farmPlots[0] = null;
+      window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });
+      assert(window.HearthriseAuto.maybeReplant(0) === true, 'auto-replant should have planted plot 0');
+      const p = window.G.farmPlots[0];
+      assert(p && p.cropId === 'turnip', 'plot 0 should hold a turnip, got ' + JSON.stringify(p));
+      assert(Array.isArray(p.waterings) && p.waterings.length === 0,
+        'auto-replant plants DRY — that is now correct and must be the new shape');
+      // b219's trap: this exact plot could never become ready.
+      p.plantedAt = Date.now() - (window.CROPS.turnip.hours + 1) * 3600000;
+      assert(window.HearthriseFarm.isReady(p) === true,
+        'an auto-replanted (dry) plot must mature unattended — this is the whole feature');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b220: the harvest daily scales with the farm it measures', () => {
+    const snap = snapshotG();
+    try {
+      const pool = window.DAILY_TASK_POOL;
+      assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
+      assert(pool.map((f) => f()).filter((t) => t.type === 'harvest').length === 1,
+        'expected exactly one harvest daily after folding daily_harvest_big away');
+      window.G.homestead = { tier: 0 };                    // Wanderer's Camp — 2 plots
+      const small = pool.map((f) => f()).find((t) => t.type === 'harvest');
+      assert(small.goal === 10, 'a 2-plot camp goal must floor at 10, got ' + small.goal);
+      window.G.homestead = { tier: 5 };                    // Hearthrise Castle — 12 plots
+      const big = pool.map((f) => f()).find((t) => t.type === 'harvest');
+      assert(big.goal === 36, 'a 12-plot castle goal must be 3 x 12 = 36, got ' + big.goal);
+      assert(big.reward === big.goal * 30, 'the reward must scale with the goal, got ' + big.reward);
+      assert(!/Harvest 25 crops/.test(small.label + '|' + big.label),
+        'the fixed "Harvest 25 crops" daily must be gone');
+    } finally { restoreG(snap); }
+  }),
+
+  // The invisibility half of the bug: a dry plot rendered no % and no bar, so
+  // a permanently stalled plot looked exactly like a fresh one.
+  () => tryRun('b220: a growing dry plot renders a percentage and a moving bar', () => {
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 5 };
+      window.G.farmPlots = window.G.farmPlots || [];
+      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 2 * 3600000, waterings: [], watered: false, state: 'growing' };
+      window.showTab('farming');
+      window.renderFarm();
+      const tile = document.querySelector('#farm-panel .farm-tile[data-plot="0"]');
+      assert(tile, 'plot 0 tile missing from the farm panel');
+      const lab = tile.querySelector('.ft-lab');
+      assert(lab && /%/.test(lab.textContent),
+        'a dry plot must show a percentage, got "' + (lab && lab.textContent) + '"');
+      assert(/dry/.test(lab.textContent), 'a dry plot must be labelled dry, got "' + lab.textContent + '"');
+      assert(!/Tap to water/.test(tile.textContent), 'the b219 "Tap to water" dead-end label must be gone');
+      const bar = tile.querySelector('.ft-bar i');
+      assert(bar && parseFloat(bar.style.width) > 0, 'a dry plot must render a non-zero progress bar');
+      assert(document.querySelector('#farm-panel button[onclick*="waterAllPlots"]'),
+        'the "Water all" header action is missing');
+      assert(document.getElementById('farm-next-water'), 'the "next watering" retention line is missing');
+    } finally { restoreG(snap); try { window.showTab('profile'); } catch {} }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

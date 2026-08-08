@@ -338,10 +338,31 @@ create trigger clan_membership_sync
   after insert or delete on public.clan_members
   for each row execute function public.sync_profile_clan();
 
--- ── 4b. Clan raids (b209, SYS-6) ──────────────────────────────
+-- ── 4b. Clan raids (b209, SYS-6 · hardened 2026-08-08, Wave 1b) ──
 -- Asynchronous cooperative raids: one shared boss HP pool per clan per
 -- week; every member's strikes decrement it atomically; when it hits 0,
 -- every contributor may claim the reward chest exactly once.
+--
+-- Everything below §4b mirrors supabase/migrations/2026-08-08-raid-hardening.sql
+-- — the two files MUST agree. Read that file's header for the four exploits
+-- this shape exists to close (unlimited strikes, chest-hopping, solo claim
+-- replay, client-declared pool size).
+
+-- Shared UTC clock helpers. These MUST agree byte-for-byte with
+-- src/features/world-events.js (HearthriseWorldEvents.utcDayKey/utcWeekKey),
+-- because the client compares the keys the server returns against its own:
+--   utcDayKey  → UNPADDED 'YYYY-M-D'   (e.g. '2026-8-8')
+--   utcWeekKey → 'w' + floor(days-since-epoch / 7)
+create or replace function public.hr_utc_day_key(p_at timestamptz default now())
+returns text language sql stable as $$
+  select to_char((p_at at time zone 'utc')::date, 'FMYYYY-FMMM-FMDD')
+$$;
+
+create or replace function public.hr_utc_week_key(p_at timestamptz default now())
+returns text language sql stable as $$
+  select 'w' || ((((p_at at time zone 'utc')::date - date '1970-01-01') / 7))::text
+$$;
+
 create table if not exists public.clan_raids (
   clan_id      uuid not null references public.clans(id) on delete cascade,
   week_key     text not null,
@@ -356,29 +377,74 @@ drop policy if exists "raids readable" on public.clan_raids;
 create policy "raids readable" on public.clan_raids for select using (true);
 
 create table if not exists public.raid_contributions (
-  clan_id  uuid not null,
-  week_key text not null,
-  user_id  uuid not null,
-  damage   bigint not null default 0,
-  claimed  boolean not null default false,
+  clan_id         uuid not null,
+  week_key        text not null,
+  user_id         uuid not null,
+  damage          bigint not null default 0,
+  strikes         int not null default 0,
+  last_strike_day text,
+  first_strike_at timestamptz,
+  claimed         boolean not null default false,
+  claimed_at      timestamptz,
   primary key (clan_id, week_key, user_id)
 );
+-- guarded ALTERs for a database created before the 2026-08-08 hardening
+alter table public.raid_contributions add column if not exists strikes         int not null default 0;
+alter table public.raid_contributions add column if not exists last_strike_day text;
+alter table public.raid_contributions add column if not exists first_strike_at timestamptz;
+alter table public.raid_contributions add column if not exists claimed_at      timestamptz;
+update public.raid_contributions set strikes = 1 where strikes = 0 and damage > 0;
 alter table public.raid_contributions enable row level security;
 drop policy if exists "contributions readable" on public.raid_contributions;
 create policy "contributions readable" on public.raid_contributions for select using (true);
+-- NO client UPDATE policy, deliberately. The old "own contribution claim"
+-- policy was how the chest was claimed — which let a tampered client both
+-- award itself a chest it hadn't earned and forge the `damage` figure the
+-- Wave-3 reward bands will read. Claims go through public.raid_claim() only.
 drop policy if exists "own contribution claim" on public.raid_contributions;
-create policy "own contribution claim" on public.raid_contributions
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- One strike: creates the week's raid row if absent, clamps damage,
--- decrements the shared pool, records the contribution. Server clamps
--- p_damage hard so a tampered client can't one-shot the boss.
-drop function if exists public.raid_strike(uuid, text, text, bigint, bigint);
+-- The claim ledger: ONE row per player per UTC week, across BOTH scopes.
+-- The primary key IS the anti-chest-hop rule — it does not matter how many
+-- clans you join or how many pools you touch, you take one chest per week.
+-- Deliberately NO foreign keys to clans/clan_raids: §1b rebuilds those with
+-- `drop … cascade` and this ledger must survive that. NEVER drop this table.
+create table if not exists public.raid_claims (
+  user_id    uuid not null,
+  week_key   text not null,
+  scope      text not null check (scope in ('clan','solo')),
+  clan_id    uuid,
+  boss_id    text,
+  scale      numeric not null default 1.0,
+  claimed_at timestamptz not null default now(),
+  primary key (user_id, week_key)
+);
+alter table public.raid_claims enable row level security;
+drop policy if exists "own claims readable" on public.raid_claims;
+create policy "own claims readable" on public.raid_claims
+  for select using (auth.uid() = user_id);
+-- No insert/update/delete policy on purpose: raid_claim() is the only writer.
+
+-- One strike: gates on the SERVER's UTC day, creates the week's raid row if
+-- absent at the SERVER's pool size, clamps damage, decrements the shared pool,
+-- records the contribution. Nothing about the rate limit, the week or the pool
+-- size is client-supplied — p_week is validated rather than trusted and
+-- p_max_hp is accepted for signature compatibility and ignored.
 create or replace function public.raid_strike(
   p_clan_id uuid, p_week text, p_boss text, p_max_hp bigint, p_damage bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare v_hp bigint; v_downed timestamptz;
+declare
+  c_pool_hp constant bigint := 250000;   -- b209 value, unchanged (hardening, not balance)
+  c_clamp   constant bigint := 50000;    -- b209 per-strike clamp, unchanged
+  v_week text := public.hr_utc_week_key();
+  v_day  text := public.hr_utc_day_key();
+  v_dmg  bigint;
+  v_hp   bigint;
+  v_downed timestamptz;
+  v_rows int;
 begin
+  if auth.uid() is null then
+    return jsonb_build_object('ok', false, 'error', 'not_signed_in');
+  end if;
   if p_damage is null or p_damage <= 0 then
     return jsonb_build_object('ok', false, 'error', 'bad_damage');
   end if;
@@ -386,23 +452,134 @@ begin
                  where clan_id = p_clan_id and user_id = auth.uid()) then
     return jsonb_build_object('ok', false, 'error', 'not_member');
   end if;
-  p_damage := least(p_damage, 50000);                    -- hard server clamp per strike
+  -- Without this a tampered client would invent a fresh week key per request
+  -- and get a fresh day gate with it, defeating the whole fix.
+  if p_week is distinct from v_week then
+    return jsonb_build_object('ok', false, 'error', 'week_mismatch',
+                              'week', v_week, 'day', v_day);
+  end if;
+
+  v_dmg := least(p_damage, c_clamp);
+
+  -- THE DAY GATE. The upsert is itself the lock: on conflict Postgres takes a
+  -- row lock before evaluating the WHERE, so two concurrent same-day strikes
+  -- cannot both pass. row_count = 0 means "already struck today".
+  insert into public.raid_contributions
+      (clan_id, week_key, user_id, damage, strikes, last_strike_day, first_strike_at)
+  values (p_clan_id, v_week, auth.uid(), v_dmg, 1, v_day, now())
+  on conflict (clan_id, week_key, user_id) do update
+     set damage          = public.raid_contributions.damage + excluded.damage,
+         strikes         = public.raid_contributions.strikes + 1,
+         last_strike_day = excluded.last_strike_day,
+         first_strike_at = coalesce(public.raid_contributions.first_strike_at,
+                                    excluded.first_strike_at)
+   where public.raid_contributions.last_strike_day is distinct from excluded.last_strike_day;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then
+    select hp_remaining, downed_at into v_hp, v_downed
+      from public.clan_raids where clan_id = p_clan_id and week_key = v_week;
+    return jsonb_build_object('ok', false, 'error', 'already_struck_today',
+      'day', v_day, 'week', v_week, 'max_hp', c_pool_hp,
+      'hp_remaining', coalesce(v_hp, c_pool_hp), 'downed', v_downed is not null);
+  end if;
+
   insert into public.clan_raids (clan_id, week_key, boss_id, hp_remaining, max_hp)
-    values (p_clan_id, p_week, p_boss, p_max_hp, p_max_hp)
+    values (p_clan_id, v_week, left(coalesce(p_boss, 'unknown'), 64), c_pool_hp, c_pool_hp)
     on conflict (clan_id, week_key) do nothing;
   update public.clan_raids
-    set hp_remaining = greatest(0, hp_remaining - p_damage),
-        downed_at = case when hp_remaining - p_damage <= 0 and downed_at is null
+    set hp_remaining = greatest(0, hp_remaining - v_dmg),
+        downed_at = case when hp_remaining - v_dmg <= 0 and downed_at is null
                          then now() else downed_at end
-    where clan_id = p_clan_id and week_key = p_week
+    where clan_id = p_clan_id and week_key = v_week
     returning hp_remaining, downed_at into v_hp, v_downed;
-  insert into public.raid_contributions (clan_id, week_key, user_id, damage)
-    values (p_clan_id, p_week, auth.uid(), p_damage)
-    on conflict (clan_id, week_key, user_id)
-    do update set damage = public.raid_contributions.damage + excluded.damage;
-  return jsonb_build_object('ok', true, 'hp_remaining', v_hp, 'downed', v_downed is not null);
+
+  return jsonb_build_object('ok', true, 'hp_remaining', v_hp,
+    'downed', v_downed is not null, 'damage', v_dmg,
+    'day', v_day, 'week', v_week, 'max_hp', c_pool_hp);
 end $$;
 grant execute on function public.raid_strike(uuid, text, text, bigint, bigint) to authenticated;
+
+-- The only way a raid chest is ever awarded. Minimal rule (Wave 3 replaces the
+-- flat scale with contribution bands):
+--   clan: this clan's pool for this week is at 0, you have ≥1 recorded strike
+--         on it, you were a member BEFORE the killing blow, and you have not
+--         already claimed a chest this week.
+--   solo: you have not already claimed a chest this week.
+create or replace function public.raid_claim(
+  p_scope text, p_clan_id uuid, p_week text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_week   text := public.hr_utc_week_key();
+  v_hp     bigint;
+  v_downed timestamptz;
+  v_boss   text;
+  v_strikes int;
+  v_damage bigint;
+  v_joined timestamptz;
+  v_scale  numeric;
+  v_rows   int;
+begin
+  if auth.uid() is null then
+    return jsonb_build_object('ok', false, 'error', 'not_signed_in');
+  end if;
+  if p_scope is null or p_scope not in ('clan','solo') then
+    return jsonb_build_object('ok', false, 'error', 'bad_scope');
+  end if;
+  -- An unvalidated week key would let a client replay last week's chest.
+  if p_week is distinct from v_week then
+    return jsonb_build_object('ok', false, 'error', 'week_mismatch', 'week', v_week);
+  end if;
+
+  if p_scope = 'clan' then
+    if p_clan_id is null then
+      return jsonb_build_object('ok', false, 'error', 'bad_clan');
+    end if;
+    select hp_remaining, downed_at, boss_id into v_hp, v_downed, v_boss
+      from public.clan_raids where clan_id = p_clan_id and week_key = v_week;
+    if v_hp is null or v_hp > 0 or v_downed is null then
+      return jsonb_build_object('ok', false, 'error', 'not_downed');
+    end if;
+    select joined_at into v_joined from public.clan_members
+      where clan_id = p_clan_id and user_id = auth.uid();
+    if v_joined is null then
+      return jsonb_build_object('ok', false, 'error', 'not_member');
+    end if;
+    if v_joined > v_downed then                       -- turning up after the kill earns nothing
+      return jsonb_build_object('ok', false, 'error', 'joined_after_kill');
+    end if;
+    select strikes, damage into v_strikes, v_damage
+      from public.raid_contributions
+      where clan_id = p_clan_id and week_key = v_week and user_id = auth.uid();
+    if coalesce(v_strikes, 0) < 1 and coalesce(v_damage, 0) <= 0 then
+      return jsonb_build_object('ok', false, 'error', 'no_contribution');
+    end if;
+    v_scale := 1.0;
+  else
+    v_scale := 0.4;   -- solo pays less; joining a clan is the social pull
+    v_boss  := null;
+  end if;
+
+  -- One chest per player per week, whatever the scope. The primary key does
+  -- the work, so this is race-safe without an advisory lock.
+  insert into public.raid_claims (user_id, week_key, scope, clan_id, boss_id, scale)
+  values (auth.uid(), v_week, p_scope,
+          case when p_scope = 'clan' then p_clan_id else null end,
+          v_boss, v_scale)
+  on conflict (user_id, week_key) do nothing;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then
+    return jsonb_build_object('ok', false, 'error', 'already_claimed', 'week', v_week);
+  end if;
+
+  if p_scope = 'clan' then
+    update public.raid_contributions set claimed = true, claimed_at = now()
+      where clan_id = p_clan_id and week_key = v_week and user_id = auth.uid();
+  end if;
+
+  return jsonb_build_object('ok', true, 'scope', p_scope, 'week', v_week,
+    'scale', v_scale, 'boss_id', coalesce(v_boss, ''));
+end $$;
+grant execute on function public.raid_claim(text, uuid, text) to authenticated;
 
 -- ── 5. Leaderboards ───────────────────────────────────────────
 -- game_saves.total_level is a generated column the client already uploads.

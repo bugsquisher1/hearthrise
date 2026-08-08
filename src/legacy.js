@@ -11221,6 +11221,15 @@ window._monsterIcon = window._monsterIcon || {};
     dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',
     // Misc craft items
     anvil:       'assets/icons-bundle/medieval/BlacksmithInstruments.png',
+    /* b224 (Asset pass) — the four b222 Castle Stores goods. Promoted from
+       _archive/reserve-art after judging fit against every candidate in
+       materials-bars/, ore-stone-piles/, gems-crystals/, food/ and
+       props-and-tools/. `keystone` is deliberately absent: no reserve-art
+       reads as a cut masonry block, so it keeps its gilt atlas glyph
+       (itemGlyphKey()) rather than wear a wrong painting. */
+    timber_beam:  'assets/icons-bundle/resources/Res_23_oldwood.png',
+    field_ration: 'assets/icons-bundle/resources/Res_137_bread.png',
+    iron_fitting: 'assets/icons-bundle/medieval/Cog.png',
     // b186: PAINTED gear (weapons/armor/jewelry) — CraftPix packs, 128px.
     // Tier ornateness climbs with rarity; rarity BORDER (not sprite tint)
     // shows the upgrade (see itemRarity() + .rarity-* frame CSS).
@@ -11357,7 +11366,18 @@ window._monsterIcon = window._monsterIcon || {};
       if (LOCAL_ITEM_ICON[id]) return;                  // hand-mapped art wins
       var def = ITEMS_[id];
       if (!def || !def.tier) return;                    // only generated tier gear
-      var key = Object.keys(SLOT_ART).filter(function(k){ return id.indexOf('_' + k) > 0 || id.indexOf(k) === id.length - k.length; })[0];
+      /* b224 fix: a bare `id.indexOf(k) === id.length - k.length` is TRUE by
+         coincidence whenever k is absent (indexOf === -1) AND k is exactly one
+         character longer than id (id.length - k.length === -1 too) — it was
+         never actually checking "ends with k". That silently painted `keystone`
+         (a Castle Stores good, not gear) as a steel platebody, because
+         'platebody'/'gauntlets'/'warhammer' are all 9 chars and 'keystone' is
+         8. Require a REAL suffix match: the substring must be found (idx>=0)
+         at exactly the tail of id. */
+      var key = Object.keys(SLOT_ART).filter(function(k){
+        var idx = id.indexOf(k);
+        return id.indexOf('_' + k) > 0 || (idx >= 0 && idx === id.length - k.length);
+      })[0];
       if (!key) return;
       LOCAL_ITEM_ICON[id] = SLOT_ART[key](def.tier);
       window._itemPath = window._itemPath || {};

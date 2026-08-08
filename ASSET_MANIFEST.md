@@ -1,6 +1,7 @@
 # Hearthrise — Asset Manifest
 
-_Last updated: 2026-08-08 (asset-organization pass, build b216)._
+_Last updated: 2026-08-08 (asset-organization pass, build b216; asset
+promotion pass, build b224)._
 
 The single reference for how Hearthrise's shipped assets are organized, what the
 art direction is, and where everything that isn't shipped went. Supersedes the
@@ -44,15 +45,98 @@ assets/
 ├── icons/            24 SVG nav/topbar glyphs          — our own cocoa-line set
 └── icons-bundle/     ← the only deployed icon root
     ├── painted/
-    │   ├── monsters/ 30 enemy portraits (rat … dragon, lich, death_knight)
+    │   ├── monsters/ 36 enemy portraits (rat … dragon, lich, death_knight,
+    │   │             + the 6 Hunt boss portraits added b224 below)
     │   ├── items/    30 resource/food/drop icons (ores absent → resources/)
     │   ├── gear/     35 weapon/armour/tool/jewelry icons
     │   └── npc/      player.png
-    ├── resources/    19 material icons (bars, logs, stones, mushroom, egg)
+    ├── resources/    21 material icons (bars, logs, stones, mushroom, egg,
+    │                 + timber_beam/field_ration plates added b224 below)
     ├── buildings/    10 homestead/room/plot structures (forge, farm, tower…)
-    ├── medieval/     BlacksmithInstruments.png (anvil)
+    ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
+    │                 added b224)
     └── backgrounds/  dungeon.jpg (combat/dungeon backdrop)
 ```
+
+### b224 — Asset Director promotion pass
+
+Six Hunt boss portraits, one Castle Stores cog, one beam and one loaf were
+promoted from `_archive/reserve-art/` (never modified there — copied out).
+Everything below is judged against the shipped painted CraftPix house style
+and each item's actual in-game identity, not just folder membership.
+
+**Hunt bosses (`src/features/raids.js` — the six were rendering as a
+typographic glyph only).** Matched by flavour text, not just filename:
+
+| Boss (`src/features/raids.js` id) | Flavour | Archive source | Bundle path |
+|---|---|---|---|
+| `emberclad_tyrant` — The Emberclad Tyrant | "a furnace given a crown… slag-armor weeps molten iron" | `reserve-art/monster-portraits/Demon_01_nobg.png` | `painted/monsters/emberclad_tyrant.png` |
+| `hollow_regent` — The Hollow Regent | "a king who outlived his own bones. The crown remembers" | `reserve-art/monster-portraits/Monster_SkeletonKing_nb.png` | `painted/monsters/hollow_regent.png` |
+| `maw_below` — The Maw Below | "the lake was never empty" — a literal gaping maw beat a tentacle for the boss's own name | `reserve-art/monster-portraits/Monster_Worm_nb.png` | `painted/monsters/maw_below.png` |
+| `sunken_choir` — The Sunken Choir | "drowned cantors beneath the ice" | `reserve-art/monster-portraits/Monster_FrostSkeleton_nb.png` | `painted/monsters/sunken_choir.png` |
+| `warden_long_dark` — Warden of the Long Dark | "set to guard a door… it still guards" | `reserve-art/monster-portraits/Giant_StoneGolem_nb.png` | `painted/monsters/warden_long_dark.png` |
+| `crownless_wyrm` — The Crownless Wyrm | wyrm/dragon that "ate the king who named it" | `reserve-art/monster-portraits/Monster_WarDragon_nb.png` | `painted/monsters/crownless_wyrm.png` |
+
+Wired via a new `BOSS_PORTRAIT` map + `bossPortraitHtml()` helper in
+`raids.js`, rendered as a 40px gilt-bordered circular portrait in the Hunt
+card's `card-head` (both the clan and Lone Hunt cards). The helper returns
+`''` for any boss without a mapped path (no `<img>` at all) and every `<img>`
+carries `onerror="this.remove()"` — a missing file removes itself rather than
+showing a broken-image icon; the boss's typographic `glyph` in the card title
+is the fallback identity mark either way. Guarded by
+`src/features/smoke-test.js` ("b224: Hunt boss portraits…").
+
+**Castle Stores goods (b222 brief, `src/data/items.js` / wired in
+`applyLocalIcons()`, `src/legacy.js`).** Judged against every candidate in
+`materials-bars/`, `ore-stone-piles/`, `gems-crystals/`, `food/` and
+`props-and-tools/`:
+
+| Item | Archive source | Bundle path | Verdict |
+|---|---|---|---|
+| `timber_beam` | `reserve-art/ore-stone-piles/Res_23_oldwood.png` | `resources/Res_23_oldwood.png` | promoted — a squared, aged wood plank reads exactly as a structural beam |
+| `field_ration` | `reserve-art/food/Res_137_bread.png` | `resources/Res_137_bread.png` | promoted — a baked loaf |
+| `iron_fitting` | `reserve-art/props-and-tools/Cog.png` | `medieval/Cog.png` | promoted — a cast-iron mechanical component reads as fabricated ironwork/hardware, closer to a "fitting" than a raw bar |
+| `keystone` | — | — (kept on gilt atlas glyph) | **rejected** — nothing in reserve-art reads as a carved/cut masonry block; the ore-stone-piles are raw ore-vein mounds and the gems-crystals are polished gems. A wrong painting is worse than the existing glyph. |
+
+**In-passing bug found and fixed while verifying `keystone`.**
+`__mapGeneratedGearIcons()` (bottom of `legacy.js`, maps generated tier gear
+to shared slot art) matched "id ends with slot key" as
+`id.indexOf(k) === id.length - k.length` with no check that `indexOf` actually
+found anything. `indexOf` returns `-1` for an absent key, and `id.length -
+k.length` is also `-1` whenever `k` is exactly one character longer than
+`id` — so any 8-character `.tier` item with no hand-mapped icon false-matched
+`platebody`/`gauntlets`/`warhammer` (all 9 chars). `keystone` (8 chars,
+`tier:5`, no hand-mapped icon) was being silently painted as a **steel
+platebody** instead of falling through to its glyph — the exact "wrong
+painting" this pass was checking for, caused one file away from where I was
+looking. Fixed to require a real match (`idx >= 0 && idx === id.length -
+k.length`); regression-guarded ("b224: castle-stores goods never get a
+false-matched gear icon").
+
+**Shop keeper NPC — rejected, SVG keeper stands.** `Duke_nb.png` /
+`Warrior_nb.png` / `ElfMage_nb.png` (`reserve-art/monster-portraits/`) are
+genuinely well-painted human busts. Judged RENDERED: temporarily overlaid
+each at the keeper's position in the live `SHOP_SCENE` (`src/legacy.js`,
+`#panel-shop`) at localhost:8153, screenshotted, then removed (nothing
+committed). All three read as a rectangular photographic bust pasted over the
+scene's flat vector silhouette art — the exact "sticker" failure the Art
+Director's b221 log documented fixing once already for the rim-light. None
+carries the lantern-side rim light the hand-tuned SVG keeper does, and
+replacing the figure drops its forearm-on-counter / apron / coif body
+language and its relationship to the hen. Duke was the strongest of the
+three (warm-toned, plausibly a merchant) but still net-worse in scene than
+the validated, Tyler-approved SVG keeper. **No promotion — verdict: SVG
+keeper stands.**
+
+**Homestead dusk plates (b219 brief) and hen/chick (b221 brief) — closed,
+not actioned; nothing in reserve-art fits either.** Checked every category
+folder plus `CATALOG.html`: `backgrounds/` holds only `ruins.jpg`, a bright
+flat-cel-shaded cartoon ruins scene — wrong medium (not painted), wrong tone
+(daylight, not dusk), and not shaped as a 5:1/8:1 identity band. The 7
+`Animals_*` portraits are a dolphin, an armoured horse, a falcon, a boar, a
+wolf, a bear-cat/lynx and a vulture-beaked bird — no hen or chick anywhere,
+shipped or archived. Both briefs still need a human artist/commission; not
+closeable by promotion.
 
 **How icons are wired:** every game item/monster/room ID maps to a path in the
 `LOCAL_*_ICON` maps inside `applyLocalIcons()` at the bottom of `src/legacy.js`.
@@ -74,13 +158,20 @@ Existing conventions were preserved (renaming would break the wired paths):
 Nothing was deleted. Everything questionable was moved here. See
 [`_archive/README.md`](_archive/README.md).
 
+`_archive/reserve-art/` was re-sorted by in-game purpose sometime after this
+manifest's last pass (see `_archive/README.md`) — the flat `resources/` /
+`medieval/` / `monsters/` folders below no longer exist on disk; the same 150
++ 29 + 31 files now live under 8 purpose-named folders + a `CATALOG.html` +
+`_preview/` contact sheets. Counts reconciled against disk during the b224
+promotion pass (below):
+
 | Location | Count | Tier | Notes |
 |---|---|---|---|
-| `_archive/reserve-art/resources/` | 150 | 2 — compatible reserve | painted materials/food/potions/gems for future content |
+| `_archive/reserve-art/materials-bars/`, `ore-stone-piles/`, `gems-crystals/`, `mushrooms/`, `plants-flowers/`, `potions-flasks/`, `monster-drops/`, `food/` | 150 (7+13+32+3+27+24+25+19) | 2 — compatible reserve | the old flat `resources/` folder, re-sorted by purpose; painted materials/food/potions/gems for future content |
 | `_archive/reserve-art/buildings/` | 47 | 2 — compatible reserve | painted structures for future homestead/property tiers |
-| `_archive/reserve-art/monsters/` | 31 | 2–3 — superseded | the OLD painted monster portraits, replaced by `painted/monsters/` |
-| `_archive/reserve-art/medieval/` | 29 | 3 — possibly useful | props/tools; a few no-game-use (chess, toy, steering wheel) |
-| `_archive/reserve-art/backgrounds/` | 1 | 2 — compatible reserve | `ruins.jpg` alt backdrop |
+| `_archive/reserve-art/monster-portraits/` | 31 | 2–3 — superseded, partly promoted | was `monsters/`; the OLD painted monster portraits, mostly replaced by `painted/monsters/`. 6 promoted b224 for the Hunt bosses (above); `Duke_nb.png`/`Warrior_nb.png`/`ElfMage_nb.png` (human busts) judged and rejected for the shop keeper (above) |
+| `_archive/reserve-art/props-and-tools/` | 29 | 3 — possibly useful, partly promoted | was `medieval/`; props/tools, a few no-game-use (chess, toy, steering wheel). `Cog.png` promoted b224 for `iron_fitting` |
+| `_archive/reserve-art/backgrounds/` | 1 | 2 — reviewed, not a fit | `ruins.jpg` — flat cel-shaded cartoon ruins, wrong medium/tone for a homestead dusk plate (checked b224, see below) |
 | `_archive/pixel-packs/` | 526 | 4 — off-style | abandoned pixel-art packs + `.psd` sources (was `assets/pixel/`) |
 | `_archive/asset-tooling/` | 10 | n/a — not art | icon-curation HTML/JSON/TXT dev tools |
 
@@ -91,18 +182,20 @@ Nothing was deleted. Everything questionable was moved here. See
 | Metric | Count |
 |---|---|
 | Files audited under `assets/` (start) | 949 |
-| **Currently used (kept active)** | **150** |
+| **Currently used (kept active)** | **159** (150 + 9 promoted b224) |
 | Kept active but unreferenced (our own brand/UI SVGs, intentionally kept) | 5 |
-| Unused-but-compatible → reserve (`_archive/reserve-art/`) | 258 |
+| Unused-but-compatible → reserve (`_archive/reserve-art/`) | 249 (258 − 9 promoted b224) |
 | Off-style pixel packs → archive (`_archive/pixel-packs/`) | 526 |
 | Dev tooling → archive (`_archive/asset-tooling/`) | 10 |
 | Duplicates found | 5 groups (intentional — one painting shared by several game IDs; left as-is) |
 | Files renamed | 0 (renaming would break wired paths) |
 | Permanently deleted | 0 |
+| **b224 promotion pass** | **+9 shipped** (6 Hunt boss portraits, timber_beam, field_ration, iron_fitting) — copied out of `_archive/`, originals left in place there |
 
-**Deploy impact:** `assets/` went from 949 files to 155; the ~256 unreferenced
-painted icons and ~628 KB of tooling JSON no longer ship, with everything
-recoverable from `_archive/`.
+**Deploy impact:** `assets/` went from 949 files to 155, then +9 in the b224
+promotion pass (164); the ~247 remaining unreferenced painted icons and
+~628 KB of tooling JSON still don't ship, with everything recoverable from
+`_archive/`.
 
 ### Duplicate note
 Five byte-identical groups exist in `painted/gear` and `painted/monsters`
@@ -113,16 +206,28 @@ own wired path even when the art is shared — so they were not deduplicated.
 ---
 
 ## Uncertain / future review
-- `reserve-art/medieval/` holds a few painted-but-purposeless props (chess set,
-  toy, steering wheel, drums). Cohesive art, but no game system uses them —
-  revisit if a matching feature ships, otherwise they can be dropped later.
-- `reserve-art/monsters/` is the previous monster portrait set. It's fully
-  superseded by `painted/monsters/`; keep until certain no content needs the old
-  variants (e.g. the human `Warrior`/`Duke`/`ElfMage` portraits could become NPCs).
+- `reserve-art/props-and-tools/` (was `medieval/`) holds a few painted-but-
+  purposeless props (chess set, toy, steering wheel, drums). Cohesive art, but
+  no game system uses them — revisit if a matching feature ships, otherwise
+  they can be dropped later.
+- `reserve-art/monster-portraits/` (was `monsters/`) is the previous monster
+  portrait set. 6 of its 31 files were promoted b224 for the Hunt bosses; the
+  human `Warrior_nb.png`/`Duke_nb.png`/`ElfMage_nb.png` were judged rendered
+  against the SVG shop keeper and rejected (see b224 section above) — still
+  worth keeping in reserve if a future NPC needs a human bust. The rest remain
+  fully superseded by `painted/monsters/`.
+- **Still open, needs a human artist/commission (b224 confirmed nothing in
+  reserve-art fits):** painted dusk homestead plates per property tier (b219
+  brief) and a hen/chick icon (b221 brief). See the b224 section above for
+  what was checked.
+- `keystone` (Castle Stores, b222) has no promoted art — ships on its gilt
+  atlas glyph. Nothing in reserve-art reads as a cut masonry block; flag for
+  a future pack purchase or commission if the Castle Stores lane gets a
+  visual pass.
 
 ---
 
-## Verification (this pass)
+## Verification (b216 pass)
 - Smoke suite: **170/170 green**, 0 runtime errors.
 - Headless load of every major screen (home, character, skills, combat,
   inventory, farm, house, market, dungeons, bounty, social, stable, shop):
@@ -130,3 +235,23 @@ own wired path even when the art is shared — so they were not deduplicated.
 - Pixel-diff before/after: only the animated status ticker and dynamic
   content differ (≤0.3%); no asset region changed; all painted portraits,
   gear, materials, buildings, and backgrounds render intact.
+
+## Verification (b224 promotion pass)
+- Smoke suite: **263/263 green**, 0 runtime errors (+2 guards this pass: Hunt
+  boss portrait wiring, and the castle-goods false-gear-icon regression).
+- `bash bump-version.sh --check` — OK, no version bump (asset/data/logic
+  change only).
+- Static server at `localhost:8153` (this worktree). Every one of the 9 new
+  files fetched individually — all `200`. Full page load network log showed
+  0 requests to any promoted path returning non-2xx/304. Console: only the
+  pre-existing offline-Supabase probe errors (documented elsewhere as a known
+  limitation), nothing asset-related.
+- Visually confirmed in the running Hunt card (`#panel-events` → Weekly Clan
+  Boss): the gilt-circular boss portrait renders next to the title.
+  `window._itemPath` confirmed correct for all 4 castle goods, including
+  `keystone` correctly resolving to `undefined` (glyph fallback) after the
+  false-gear-icon fix.
+- Shop keeper judgment: candidate portraits temporarily injected as an
+  absolutely-positioned overlay at the keeper's on-screen position in
+  `#panel-shop`, screenshotted for all three candidates, then fully removed
+  (no test files committed).

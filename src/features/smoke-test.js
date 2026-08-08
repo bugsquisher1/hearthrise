@@ -157,6 +157,33 @@ const TESTS = [
     const p = window._itemPath && window._itemPath['normal_log'];
     assert(p && p.indexOf('assets/icons-bundle/') === 0, 'normal_log should point at icons-bundle/, got ' + p);
   }),
+  // b224: __mapGeneratedGearIcons() (bottom of legacy.js) used to decide "id
+  // ends with slot key" via `id.indexOf(k) === id.length - k.length` with no
+  // check that indexOf actually found anything — so an ABSENT key (indexOf
+  // === -1) false-matched any id exactly one character shorter than the key.
+  // 'keystone' (8 chars, tag:'castle', tier:5, no hand-mapped icon) was being
+  // silently painted as a steel PLATEBODY ('platebody'/'gauntlets'/
+  // 'warhammer' are all 9 chars) instead of falling through to its gilt
+  // atlas glyph. Guard: no Castle Stores good should ever resolve to gear art.
+  () => tryRun('b224: castle-stores goods never get a false-matched gear icon', () => {
+    const ITEMS_ = window.ITEMS || {};
+    const castleGoods = Object.keys(ITEMS_).filter(id => ITEMS_[id] && ITEMS_[id].tag === 'castle');
+    assert(castleGoods.length >= 4, 'expected the 4 b222 castle goods to be present');
+    castleGoods.forEach(id => {
+      const p = window._itemPath && window._itemPath[id];
+      if (!p) return; // keystone: no fitting art was found — glyph fallback is correct, not a failure
+      assert(p.indexOf('/gear/') === -1,
+        id + ' resolved to a GEAR icon (' + p + ') — the suffix-match false positive is back');
+    });
+    // Direct regression on the matcher itself: a short id must not be treated
+    // as ending with a slot key it doesn't contain.
+    const before = window._itemPath && window._itemPath.keystone;
+    if (typeof window.__mapGeneratedGearIcons === 'function') {
+      window.__mapGeneratedGearIcons();
+      const after = window._itemPath && window._itemPath.keystone;
+      assert(after === before, 're-running the gear-icon mapper must not newly assign keystone a gear icon, got ' + after);
+    }
+  }),
   () => tryRun('tabs: showTab present', () => {
     assert(typeof window.showTab === 'function', 'showTab missing');
   }),
@@ -1064,6 +1091,30 @@ const TESTS = [
     } finally {
       if (saved === undefined) delete G.raids; else G.raids = saved;
     }
+  }),
+  // b224 (Asset pass): the six Hunt bosses rendered as a typographic glyph
+  // only — this promotes six painted portraits from _archive/reserve-art into
+  // assets/icons-bundle/painted/monsters/ and wires them through
+  // bossPortraitHtml(). Guards: every boss has art, every path is a shipped
+  // folder (never _archive/), and the helper degrades to '' (no <img> tag at
+  // all, never a broken-image icon) for an unknown boss — the glyph in the
+  // card title is always the fallback.
+  () => tryRun('b224: Hunt boss portraits — all six wired to shipped art, graceful fallback', () => {
+    const R = window.HearthriseRaids;
+    assert(R && R.BOSS_PORTRAIT && typeof R.bossPortraitHtml === 'function', 'boss portrait seam missing');
+    R.BOSSES.forEach(b => {
+      const p = R.BOSS_PORTRAIT[b.id];
+      assert(p, 'boss ' + b.id + ' has no promoted portrait');
+      assert(p.indexOf('assets/icons-bundle/') === 0, 'boss ' + b.id + ' portrait not in a shipped folder: ' + p);
+      assert(p.indexOf('_archive/') === -1, 'boss ' + b.id + ' portrait points into _archive/, which never ships: ' + p);
+      const html = R.bossPortraitHtml(b);
+      assert(html.indexOf('<img') === 0, 'boss ' + b.id + ' portrait html should be an <img>, got: ' + html.slice(0, 40));
+      assert(html.indexOf(p) !== -1, 'boss ' + b.id + ' portrait html does not reference its own path');
+      assert(html.indexOf('onerror=') !== -1, 'boss ' + b.id + ' portrait has no onerror guard — a 404 would render a broken-image icon');
+    });
+    // Unknown boss id -> no <img> at all (not an empty-src broken image).
+    const fallback = R.bossPortraitHtml({ id: 'not_a_real_boss' });
+    assert(fallback === '', 'unknown boss should render no portrait markup, got: ' + fallback);
   }),
   // ── Wave 1b raid hardening (2026-08-08) ─────────────────────
   // Three live exploits were fixed at the SERVER (see

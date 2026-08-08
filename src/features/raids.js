@@ -103,6 +103,30 @@
       reward: { gold: 90000, gems: 60, items: { dragon_scale: 8, dragon_bones: 10, hell_ember: 6 } } }
   ];
 
+  /* Asset pass (b224+): six painted portraits promoted from _archive/reserve-art
+     (same CraftPix house style as the shipped painted/monsters set), matched to
+     each boss's flavour — furnace demon, crowned skull, a literal gaping maw,
+     an ice-pale undead, a stone guardian, a dragon skull. `bossPortraitHtml`
+     is the only render seam: it degrades to nothing (never a broken-image icon)
+     if a file is ever missing, leaving the typographic `glyph` in the title as
+     the fallback identity mark. */
+  var BOSS_PORTRAIT = {
+    emberclad_tyrant: 'assets/icons-bundle/painted/monsters/emberclad_tyrant.png',
+    hollow_regent:    'assets/icons-bundle/painted/monsters/hollow_regent.png',
+    maw_below:        'assets/icons-bundle/painted/monsters/maw_below.png',
+    sunken_choir:     'assets/icons-bundle/painted/monsters/sunken_choir.png',
+    warden_long_dark: 'assets/icons-bundle/painted/monsters/warden_long_dark.png',
+    crownless_wyrm:   'assets/icons-bundle/painted/monsters/crownless_wyrm.png'
+  };
+  function bossPortraitHtml(boss) {
+    var path = boss && BOSS_PORTRAIT[boss.id];
+    if (!path) return '';
+    return '<img src="' + path + '" alt="" loading="lazy" draggable="false" ' +
+      'style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;' +
+      'border:2px solid var(--gold-2);box-shadow:0 0 6px rgba(0,0,0,.45)" ' +
+      'onerror="this.remove()" />';
+  }
+
   /* ══════════════════════════════════════════════════════════════
      2. THE TIER LADDER (§3.3, §5.4, §10.4)
 
@@ -1143,7 +1167,7 @@
         ' was not downed — a partial share is claimable for 24h after the week rolls.</div></div>'
       : '';
 
-    return '<div class="card-head"><div class="card-title">' + title + '</div>' +
+    return '<div class="card-head">' + bossPortraitHtml(boss) + '<div class="card-title">' + title + '</div>' +
       '<div class="card-sub">' + esc(sub) + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(boss.desc) +
@@ -1197,7 +1221,7 @@
     var hp = measured ? st.solo.hp : 0;
     var pct = measured && max > 0 ? Math.max(0, Math.min(100, Math.round(100 * hp / max))) : 100;
     var downed = measured && hp === 0;
-    return '<div class="card-head"><div class="card-title">' + esc(boss.glyph + ' Lone Hunt — ' + boss.name) + '</div>' +
+    return '<div class="card-head">' + bossPortraitHtml(boss) + '<div class="card-title">' + esc(boss.glyph + ' Lone Hunt — ' + boss.name) + '</div>' +
       '<div class="card-sub">Solo hunt (join a clan for the tiered pool + a bigger chest)</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(boss.desc) +
@@ -1304,6 +1328,11 @@
     SOLO_POOL_MIN: SOLO_POOL_MIN, SOLO_POOL_MAX: SOLO_POOL_MAX, SOLO_POOL_MULT: SOLO_POOL_MULT,
     SOLO_CLAMP_FRAC: SOLO_CLAMP_FRAC, HUNT_GATE_MS: HUNT_GATE_MS,
     CLAN_POOL_HP: CLAN_POOL_HP,
+    // Asset pass (b224+) — the six painted boss portraits + the render helper,
+    // exposed so the suite can verify the wiring without needing a full DOM/
+    // clan-state render.
+    BOSS_PORTRAIT: BOSS_PORTRAIT,
+    bossPortraitHtml: bossPortraitHtml,
     // Server-contract seams — pure, no I/O. Exposed for the regression suite.
     _reduceStrike: reduceStrike,
     _reduceClaim: reduceClaim,

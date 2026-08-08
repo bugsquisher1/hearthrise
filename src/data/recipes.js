@@ -106,6 +106,19 @@ const BASE_RECIPES = {
        hardener: bone ash for case-hardening is real metallurgy, and it gives
        the 45-60% drop from Weak Skeleton / Skeleton its first ever use. */
     {id:'smith_iron_fitting', name:'Iron Fitting', icon:'🔩', inputs:{iron_bar:3, copper_bar:2, bone_chips:2}, output:'iron_fitting', xp:210, req:25, ms:4200},
+    /* b223 — THE HUNT-FORGED KIT (clan-boss-events.md §3.4).
+       Five of the six Hunt signature materials are smithed here; the sixth
+       (Wyrm Gilding) is tailored under crafting. These recipes are the reason
+       the six boss materials are allowed to exist: a signature drop with no
+       recipe is vendor trash, and the spec calls that a hard requirement, not
+       a nice-to-have. They sit above Dawnsteel and each one needs a material
+       that ONLY the clan Hunt drops — the single piece of gear in the game
+       that solo play cannot reach at any level. */
+    {id:'forge_regent_helm',         name:'Forge Hollow Regent Helm', icon:'⛑️', inputs:{dawn_bar:3, hollow_sigil:3},   output:'regent_helm',         xp:3600, req:92, ms:6600},
+    {id:'forge_slagheart_platebody', name:'Forge Slagheart Platebody',icon:'🦺', inputs:{dawn_bar:6, slagheart_core:3}, output:'slagheart_platebody', xp:6000, req:95, ms:7200},
+    {id:'forge_abyssal_greaves',     name:'Forge Abyssal Greaves',    icon:'🦿', inputs:{dawn_bar:5, abyssal_pearl:3},  output:'abyssal_greaves',     xp:5000, req:93, ms:7000},
+    {id:'forge_choirbone_gauntlets', name:'Forge Choirbone Gauntlets',icon:'🧤', inputs:{dawn_bar:2, choirbone:2},      output:'choirbone_gauntlets', xp:2400, req:90, ms:6000},
+    {id:'forge_warden_girdle',       name:"Forge Warden's Girdle",    icon:'🟫', inputs:{dawn_bar:2, warden_seal:2},    output:'warden_girdle',       xp:2600, req:91, ms:6200},
   ],
   crafting: [
     // Plank sawing
@@ -149,6 +162,10 @@ const BASE_RECIPES = {
     /* The top of the ladder: two castle goods plus two of the rarest orphan
        drops in the game (Ancient Fragment, Cracked Spellstone). */
     {id:'craft_keystone', name:'Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', xp:900, req:60, ms:6500},
+    /* b223 — the sixth Hunt-forged piece. The Crownless Wyrm's gilding is
+       worked into cloth rather than steel, which is what gives the cape slot
+       its first endgame rung (it has had exactly two entries since launch). */
+    {id:'craft_wyrmgilt_mantle', name:'Tailor Wyrmgilt Mantle', icon:'🦸', inputs:{duskwood_plank:3, silk_thread:6, wyrm_gilding:3}, output:'wyrmgilt_mantle', xp:5200, req:95, ms:7000},
   ],
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},

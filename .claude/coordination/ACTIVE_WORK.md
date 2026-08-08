@@ -4,18 +4,18 @@ _What each agent is doing right now. Update when you start, change scope, or fin
 
 | Agent | Task | Files being modified | Depends on | Possible conflicts | Status | Updated |
 |---|---|---|---|---|---|---|
-| Coordinator | Wave 0 complete — all merged + verified; awaiting Tyler's ship decision, then Wave 1 | `.claude/**` | — | none | in progress | 2026-08-08 |
-| Systems Engineer | **#3** inventory tab snap-back bug; **#4** companion stats binding | `src/legacy.js`, `src/styles/theme-cozy.css`, `src/features/smoke-test.js` | — | — | **done** — both fixed, merged to main `8878ba8`, 177/177 | 2026-08-08 |
-| Art Director | **#1** global readable text scale; **#2** logo redesign | `src/styles/*.css`, `index.html` | — | — | **done** — merged to main `19595db`, 177/177, Coordinator visually verified | 2026-08-08 |
-| Game Designer | Design specs (no code): **#10** clan overhaul, **#11** leaderboards, **#12** crafting/cooking taxonomy | `docs/design/*.md` only | — | none (docs only) | **done** — `4d54eb3` on main; 4 items filed in CONFLICTS.md | 2026-08-08 |
+| Coordinator | Wave 1 running (autonomous mode) | `.claude/**` | — | none | in progress | 2026-08-08 |
+| Systems Engineer | **#7** readable/queued notifications + **#8** chat button placement + emoji-modal fix | `src/legacy.js` (toasts), `src/chat.js`, `src/features/ui-overlap.js`, `src/welcome-modal.js`, CSS (worktree) | — | CSS overlap w/ Art (different sections) | in progress (worktree) | 2026-08-08 |
+| Art Director | **#6** home screen — background, fill the empty space | `src/features/home-dashboard.js`, `src/features/backdrop.js`, CSS (worktree) | — | CSS overlap w/ Systems (different sections); NOT legacy.js | in progress (worktree) | 2026-08-08 |
+| Game Designer | Design specs (no code): **#13** watering/auto-replant, **#15** world-event cadence, **#16** clan boss events | `docs/design/*.md` only | — | none (docs only) | in progress | 2026-08-08 |
 | Asset Director | idle (on deck for #2 wordmark, #5/#6 scene art) | — | Art briefs | — | idle | 2026-08-08 |
 | QA Engineer | idle (verifies Wave 0 at integration) | — | Wave 0 output | — | idle | 2026-08-08 |
 
 ## Wave plan (see BACKLOG.md)
-- **Wave 0 (now):** #3 (unblocker), #1 + #2 (foundational type/identity), design specs for later waves.
-- **Wave 1:** #7+#8 (notifications/chat button), #4 (companion stats), #6 (home screen).
-- **Wave 2:** #9 (avatar/unique names), #12 (crafting/cooking categories), #5 (bounty/shop scenes).
-- **Wave 3:** #11 (leaderboards), #10 (clan overhaul).
+- **Wave 0 — SHIPPED b218:** #1, #2, #3, #4 + specs #10/#11/#12.
+- **Wave 1 (now):** #7+#8 (notifications/chat button) + emoji-modal fix, #6 (home screen), specs #13/#15/#16.
+- **Wave 2:** #9 (avatar/unique names), #12 (crafting/cooking categories), #5 (bounty/shop scenes), #13 (watering), #14+#15 (event discoverability + topbar timer).
+- **Wave 3:** #10 (clan castle), #11 (leaderboards), #16 (clan boss events).
 
 ## Rules
 - Status: `idle` · `in progress` · `blocked` · `ready-for-integration`.

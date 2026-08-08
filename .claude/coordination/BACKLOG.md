@@ -15,6 +15,10 @@ Triaged from Tyler's list. P0 critical · P1 major · P2 meaningful · P3 minor.
 | 12 | Crafting/smithing grouped into categories; cooking split buff-food/drink vs healing | P2 | Game Designer (Art, Systems) | `src/data/*` taxonomy, crafting/cooking render | **2** |
 | 5 | Bounty board should feel like a real board; shop like a shop (clerk behind counter, offers on table) | P2 | Art + Asset (Game Designer) | bounty/shop render, scene art | **2** |
 | 11 | Leaderboards enhanced a lot | P2 | Game Designer + Art (Systems) | leaderboards render, Supabase queries, CSS | **3** |
+| 13 | Auto-replant vs watering conflict: make watering OPTIONAL (speeds growth) so online play is more beneficial for farming | P2 | Game Designer (Systems) | `src/features/farm-progression.js`, farm render, `src/features/auto-actions.js` | **2** |
+| 14 | Dungeons/raids/world events too hard to find — improve discoverability | P2 | Art + Game Designer (Systems) | nav/IA, home dashboard, combat/adventure screens | **2** |
+| 15 | World-event timer at top of screen; events run 2x/day, joinable 1x/day per player | P2 | Systems (Game Designer, Art) | `src/features/world-events.js`, topbar in `src/legacy.js`, server schedule | **2** |
+| 16 | Clan group-boss events — clans fight tiered bosses on a schedule (clan analogue of world events) | P2 (big) | Game Designer + Systems | `src/features/clans.js`/`raids.js`, Supabase | **3** |
 | 10 | Clan overhaul — castle immersion, upgrade tree, growth tasks, modals | **P1 (big)** | Game Designer + Systems + Art | `src/features/clans.js`, Supabase, CSS, modals | **3** |
 
 ## Notes / risks
@@ -26,4 +30,6 @@ Triaged from Tyler's list. P0 critical · P1 major · P2 meaningful · P3 minor.
 - Design specs for #10/#11/#12 are being written up-front (parallel, no code collision) so implementation waves have a blueprint.
 
 ## Status
-- **Wave 0 dispatched 2026-08-08:** Systems (#3, diagnose #4), Art (#1, #2), Game Designer (design specs for #10/#11/#12, parallel). See `ACTIVE_WORK.md`.
+- **Wave 0 SHIPPED as b218 (`6470793`)** — #1, #2, #3, #4 live; specs for #10/#11/#12 delivered.
+- **Wave 1 dispatched 2026-08-08:** Systems (#7+#8 + emoji-modal fix), Art (#6 home screen), Game Designer (specs for #13/#15/#16). Tyler authorized autonomous wave progression + shipping (see DECISIONS.md).
+- Waves re-sequenced with new items: W1 = #7+#8, #6; W2 = #9, #12, #5, #13, #14+#15; W3 = #10, #11, #16.

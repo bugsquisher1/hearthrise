@@ -36,10 +36,14 @@
     combatLvl: ['lorc/crossed-swords'], totalLvl: ['lorc/laurel-crown', 'delapouite/star-formation', 'lorc/laurels-trophy'],
     // Nav glyphs (verified against the icon library)
     navProfile: ['delapouite/person'], navCharacter: ['lorc/visored-helm'], navCombat: ['lorc/crossed-swords'],
-    navBounty: ['lorc/bullseye', 'delapouite/target-dummy'], navSkills: ['delapouite/miner'], navInventory: ['lorc/knapsack'],
+    navBounty: ['lorc/archery-target', 'lorc/on-target'], navSkills: ['delapouite/miner'], navInventory: ['lorc/knapsack'],
     navStore: ['delapouite/shop'], navFarm: ['lorc/wheat'], navHouse: ['delapouite/house'],
     navSocial: ['lorc/trophy'], navMore: ['delapouite/hamburger-menu'],
-    navStable: ['lorc/paw-print', 'delapouite/dog-house', 'lorc/wolf-head'], navMarket: ['delapouite/scales', 'lorc/scales', 'delapouite/shop']
+    navStable: ['lorc/paw-print', 'delapouite/dog-house', 'lorc/wolf-head'], navMarket: ['delapouite/scales', 'lorc/scales', 'delapouite/shop'],
+    /* b210 (emoji purge): dungeons nav + topbar utility buttons — names
+       fetch-verified against the game-icons library */
+    navDungeons: ['delapouite/dungeon-gate'],
+    uiBell: ['lorc/bell-shield'], uiSave: ['delapouite/save'], uiSettings: ['delapouite/settings-knobs', 'lorc/cog']
   };
 
   // category accent per key (CSS token names)
@@ -193,7 +197,8 @@
   var NAV_MAP = {
     profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
     skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
-    house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable', market: 'navMarket'
+    house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable', market: 'navMarket',
+    dungeons: 'navDungeons'
   };
   function paintNav() {
     if (!Object.keys(paths).length) return;
@@ -207,7 +212,42 @@
     });
   }
 
-  function paintAll() { paintSkills(); paintMonsters(); paintTopbar(); paintNav(); }
+  // b210 (final directive §3 — no emoji as game art):
+  // 1. Topbar utility buttons (bell / save / settings) get gilt glyphs —
+  //    icon-swap.js used to cover these and is now retired (it fought this
+  //    module over the same slots with a different icon vocabulary).
+  var UI_BTN_MAP = { 'btn-notif': 'uiBell', 'btn-save': 'uiSave', 'btn-settings': 'uiSettings' };
+  function paintUiButtons() {
+    if (!Object.keys(paths).length) return;
+    Object.keys(UI_BTN_MAP).forEach(function (id) {
+      var btn = document.getElementById(id);
+      var key = UI_BTN_MAP[id];
+      if (!btn || !paths[key] || btn.querySelector('.hr-glyph')) return;
+      var g = glyph(key, 17, '--gold-2');
+      if (g) btn.innerHTML = g;
+    });
+  }
+  // 2. Chips / sub-tabs / more-modal entries carried inline emoji — strip
+  //    the pictographs so those controls read as clean text chrome.
+  var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
+  function stripChromeEmoji() {
+    document.querySelectorAll(
+      '.chips .chip, .cmt-btn, .imt-btn, .ams-btn, #more-modal .mm-item, #more-modal button'
+    ).forEach(function (el) {
+      if (el.dataset.hrDeemoji) return;
+      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      var n, touched = false;
+      while ((n = walker.nextNode())) {
+        if (EMOJI_RE.test(n.nodeValue)) {
+          n.nodeValue = n.nodeValue.replace(EMOJI_RE, '').replace(/^\s+/, '');
+          touched = true;
+        }
+      }
+      if (touched || el.textContent.trim()) el.dataset.hrDeemoji = '1';
+    });
+  }
+
+  function paintAll() { paintSkills(); paintMonsters(); paintTopbar(); paintNav(); paintUiButtons(); stripChromeEmoji(); }
 
   async function fetchOne(names) {
     for (var j = 0; j < names.length; j++) {

@@ -5,7 +5,7 @@ _What each agent is doing right now. Update when you start, change scope, or fin
 | Agent | Task | Files being modified | Depends on | Possible conflicts | Status | Updated |
 |---|---|---|---|---|---|---|
 | Coordinator | Wave 1 running (autonomous mode) | `.claude/**` | — | none | in progress | 2026-08-08 |
-| Systems Engineer | **#7** readable/queued notifications + **#8** chat button placement + emoji-modal fix | `src/legacy.js` (toasts), `src/chat.js`, `src/features/ui-overlap.js`, `src/welcome-modal.js`, CSS (worktree) | — | CSS overlap w/ Art (different sections) | in progress (worktree) | 2026-08-08 |
+| Systems Engineer | **#7** toasts + **#8** chat pill + beta-card emoji | `src/features/toasts.js` (new), `src/legacy.js`, `src/chat.js`, `src/beta-banner.js`, `src/features/daily-reward.js`, CSS | — | — | **done** — merged `8ae0680`, 185/185 (+8 tests) | 2026-08-08 |
 | Art Director | **#6** home screen — background, fill the empty space | `src/features/home-dashboard.js`, `src/features/backdrop.js`, CSS (worktree) | — | CSS overlap w/ Systems (different sections); NOT legacy.js | in progress (worktree) | 2026-08-08 |
 | Game Designer | Design specs (no code): **#13** watering/auto-replant, **#15** world-event cadence, **#16** clan boss events | `docs/design/*.md` only | — | none (docs only) | **done** — `8b764a1`; found 3 LIVE raid exploits (P1/P2/P3) + 7 cross-spec deps | 2026-08-08 |
 | Asset Director | idle (on deck for #2 wordmark, #5/#6 scene art) | — | Art briefs | — | idle | 2026-08-08 |

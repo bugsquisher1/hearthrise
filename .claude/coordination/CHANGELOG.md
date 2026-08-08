@@ -4,6 +4,9 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-08 · `8ae0680` · Wave 1 Systems — readable queued toasts + draggable chat pill (#7, #8) · Systems Engineer
+New `src/features/toasts.js`: body-size type, length-scaled duration (4-9s), real queue with coalescing (xN), pause-on-hover, click-dismiss, MEASURED clearance of chat pill/bug button/bottom nav. Chat pill drag-to-reposition with normalised persisted position via the storage seam. Beta card emoji removed + tokenized. Bonus fix: daily-reward toast printed raw SVG path text (pre-existing). +8 regression tests. **Verified:** 185/185 x3 runs, browser-measured non-overlap, drag persistence across reload. Local only — not pushed.
+
 ### 2026-08-08 · `6470793` · **b218 SHIPPED to production** · Coordinator
 Wave 0 released on Tyler's "ship it": version bumped 217->218 (59 tags + 47 ESM specifiers), player CHANGELOG entry added, final gate 177/177 + cache-buster OK, pushed to origin/main.
 

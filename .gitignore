@@ -61,3 +61,4 @@ build/
 # Document working files (the .docx + .xlsx live in repo for reference,
 # but ignore Office lock files)
 ~$*
+.claude/worktrees/

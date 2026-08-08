@@ -82,10 +82,22 @@
   }
 
   function fmt(n) { return (n || 0).toLocaleString(); }
+  // Gilt glyph from the shared icon set (no emoji — directive). Falls back
+  // to the plain word while icon paths are still loading.
+  function ico(key, px) {
+    var p = window.HearthriseIconSet && window.HearthriseIconSet.path && window.HearthriseIconSet.path(key);
+    if (!p) return null;
+    return '<svg viewBox="0 0 512 512" style="width:' + (px || 14) + 'px;height:' + (px || 14) + 'px;' +
+      'vertical-align:-2px;display:inline-block" aria-hidden="true"><path fill="currentColor" d="' + p + '"/></svg>';
+  }
+  function amountHtml(key, n, word, px) {
+    var g = ico(key, px);
+    return g ? (g + ' ' + fmt(n)) : (fmt(n) + ' ' + word);
+  }
   function rewardText(rw) {
     var p = [];
-    if (rw.gold) p.push('🪙 ' + fmt(rw.gold));
-    if (rw.gems) p.push('💎 ' + fmt(rw.gems));
+    if (rw.gold) p.push(amountHtml('gold', rw.gold, 'gold'));
+    if (rw.gems) p.push(amountHtml('gems', rw.gems, 'gems'));
     return p.join('  ');
   }
 
@@ -117,7 +129,11 @@
     var claimable = isClaimable(G);
     var week = CYCLE.map(function (r, i) {
       var d = i + 1;
-      var val = r.gems ? ('💎' + Math.round(r.gems * mult)) : ('🪙' + (r.gold >= 1000 ? Math.round(r.gold * mult / 1000) + 'k' : Math.round(r.gold * mult)));
+      var val = r.gems
+        ? amountHtml('gems', Math.round(r.gems * mult), 'gems', 10)
+        : (r.gold >= 1000
+            ? ((ico('gold', 10) || '') + ' ' + Math.round(r.gold * mult / 1000) + 'k').trim()
+            : amountHtml('gold', Math.round(r.gold * mult), 'gold', 10));
       var cls = 'hr-dl-day' + (d < day ? ' done' : d === day ? ' today' : '');
       return '<div class="' + cls + '">D' + d + '<b>' + val + '</b></div>';
     }).join('');
@@ -126,14 +142,14 @@
     scrim.innerHTML =
       '<div class="hr-dl-box">' +
         '<div class="hr-dl-eyebrow">Daily reward · ' + streakCount(G) + '-day streak' + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
-        '<div class="hr-dl-h">Welcome back!</div>' +
+        '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div>' +
         '<div class="hr-dl-week">' + week + '</div>' +
         (claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +
       '</div>';
     scrim.addEventListener('click', function (e) {
-      if (e.target.getAttribute('data-dl-claim')) {
+      if (e.target.closest && e.target.closest('[data-dl-claim]')) {
         var rw = claim(G);
         if (rw && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardText(rw), 'gold');
         scrim.remove();
@@ -163,7 +179,11 @@
     if (!window.G) { setTimeout(function () { autoBoot(tries); }, 500); return; }
     ensureState(window.G);
     if (!isClaimable(window.G)) return;              // already claimed today
-    if (anotherModalUp() && tries < 20) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
+    // Never stack onto another front-door overlay — keep waiting until it
+    // clears. (The old 20-try cap force-opened this OVER the FTUE tour when
+    // a new player took ~25s reading it.) The Home card remains the
+    // fallback claim path if no quiet moment ever comes this session.
+    if (anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
     open();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { autoBoot(0); }, 2200); });

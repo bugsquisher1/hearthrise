@@ -1,14 +1,14 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=212' directly.
+// modularised, will import { G } from '../state/game.js?v=213' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on } from '../net/events.js?v=212';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=212';
+import { on } from '../net/events.js?v=213';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=213';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -68,6 +68,9 @@ const snapshotG = () => {
     // b138: launchpad — Batch D's tests touch lastActivity + daily.snapshot.
     lastActivity: G.lastActivity,
     daily: G.daily,
+    // b213 QA: the house-room test raises the property tier to clear the
+    // b201 room gate — snapshot it so the player's real tier is restored.
+    homestead: G.homestead,
     playerName: G.playerName,
   }));
 };
@@ -233,6 +236,47 @@ const TESTS = [
       G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
     }
   }),
+  () => tryRun('b213: property ladder is climbable — no tier cost needs a locked workbench', () => {
+    // Regression for the fresh-account deadlock: tier 1 demanded planks
+    // (Workshop = tier-2 room) and tiers 2-3 demanded bars (Forge = tier-3
+    // room), so new players could never leave Wanderer's Camp. Every tier's
+    // cost must be payable with rooms granted by STRICTLY LOWER tiers.
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.tierDef !== 'function') return;
+    const producedBy = { kitchen: /^cooked_/, workshop: /_plank$/, forge: /_bar$/ };
+    let have = [];
+    for (let i = 1; ; i++) {
+      const t = H.tierDef(i); if (!t) break;
+      const prev = H.tierDef(i - 1);
+      have = have.concat((prev && prev.rooms) || []);
+      Object.keys(t.cost || {}).forEach(id => {
+        Object.keys(producedBy).forEach(room => {
+          if (producedBy[room].test(id)) {
+            assert(have.indexOf(room) >= 0,
+              t.id + ' costs ' + id + ' but its only source (' + room + ') unlocks at this tier or later — deadlock');
+          }
+        });
+      });
+    }
+  }),
+
+  () => tryRun('b213: farm plots respect the property-tier cap', () => {
+    // Regression: the farm rendered 8 plantable plots at every tier, making
+    // the homestead ladder's plot counts a fake perk. plantCrop must refuse
+    // an empty plot index beyond HearthriseHomestead.maxPlots().
+    if (typeof window.plantCrop !== 'function' || !window.HearthriseHomestead) return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 0 };                 // camp: 2 plots
+      window.G.farmPlots = [];
+      window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 10 });
+      window.plantCrop(0, 'turnip');
+      assert(!!window.G.farmPlots[0], 'plot 0 (within cap) should plant');
+      window.plantCrop(5, 'turnip');
+      assert(!window.G.farmPlots[5], 'plot 5 (beyond camp cap of 2) must refuse to plant');
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H, 'workers + homestead modules present');
@@ -682,8 +726,16 @@ const TESTS = [
     restoreG(snap);
   }),
   () => tryRun('equip: equipped items exist in ITEMS', () => {
-    for (const [, id] of Object.entries(window.G.equipment || {})) {
-      if (id) assert(window.ITEMS[id], 'equipped item ' + id + ' missing from ITEMS');
+    for (const [slot, id] of Object.entries(window.G.equipment || {})) {
+      if (!id) continue;
+      // b213: the companion slot holds ids from the COMPANIONS registry
+      // (data/companions.js), not ITEMS — a player with an equipped pet
+      // used to fail this test.
+      if (slot === 'companion') {
+        assert(window.COMPANIONS && window.COMPANIONS[id], 'equipped companion ' + id + ' missing from COMPANIONS');
+        continue;
+      }
+      assert(window.ITEMS[id], 'equipped item ' + id + ' missing from ITEMS');
     }
   }),
   () => tryRun('errors: clean log', () => {
@@ -1208,6 +1260,10 @@ const TESTS = [
     const snap = snapshotG();
     try {
       if (typeof window.upgradeRoom !== 'function') return;
+      // b201 homestead gate: rooms are tier-locked (a tier-0 camp has no
+      // workbenches). Raise the property tier so the kitchen is buildable —
+      // restoreG puts the real tier back afterwards.
+      window.G.homestead = { tier: 5 };
       // Give plenty of gold + the materials kitchen lv1 needs.
       window.G.gold = (window.G.gold || 0) + 100000;
       window.G.inventory = window.G.inventory || {};

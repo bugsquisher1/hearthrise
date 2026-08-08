@@ -29,7 +29,7 @@
     woodcutting: ['lorc/wood-axe'], mining: ['delapouite/miner'], fishing: ['delapouite/fishing-pole'],
     farming: ['lorc/wheat'], cooking: ['delapouite/cooking-pot'], crafting: ['delapouite/wool'],
     smithing: ['lorc/anvil-impact', 'delapouite/anvil'],
-    bountyHunter: ['lorc/bullseye', 'delapouite/target-dummy'],
+    bountyHunter: ['lorc/archery-target', 'lorc/on-target'],
     foraging: ['delapouite/berries-bowl'],
     gold: ['delapouite/two-coins'], gems: ['lorc/gems'],
     // UI-chrome glyphs (flat, not medallions) — cohesive topbar/nav icons
@@ -44,7 +44,10 @@
        fetch-verified against the game-icons library */
     navDungeons: ['delapouite/dungeon-gate'],
     uiBell: ['lorc/bell-shield'], uiSave: ['delapouite/save'], uiSettings: ['delapouite/settings-knobs', 'lorc/cog'],
-    uiFlame: ['lorc/small-fire']
+    uiFlame: ['lorc/small-fire'],
+    /* b213 QA: topbar Quests button carried a raw 📜 the b210-212 purge
+       missed — give it a proper gilt scroll glyph. */
+    uiQuests: ['lorc/scroll-unfurled', 'lorc/tied-scroll']
   };
 
   // category accent per key (CSS token names)
@@ -233,6 +236,13 @@
       });
       btn.insertAdjacentHTML('afterbegin', g);
     });
+    // Quests topbar button — glyph goes INSIDE its .hr-q-ic slot (the
+    // button also carries the label + live count spans; don't disturb them).
+    var qic = document.querySelector('#hr-quests-btn .hr-q-ic');
+    if (qic && paths.uiQuests && !qic.querySelector('.hr-glyph')) {
+      var qg = glyph('uiQuests', 15, '--gold-2');
+      if (qg) qic.innerHTML = qg;
+    }
     // streak flame badge
     var flame = document.querySelector('.streak-badge .flame');
     if (flame && paths.uiFlame && !flame.querySelector('.hr-glyph')) {

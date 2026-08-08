@@ -221,6 +221,23 @@ const ITEMS={
   obsidian_sigil:  {n:'Obsidian Sigil',   icon:'⬛', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'obsidian_keep'},
   void_fragment:   {n:'Void Fragment',    icon:'🌑', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'voidbringer'},
   dragonsbane_key: {n:'Dragonsbane Key',  icon:'🗡️', v:0, bop:true, rarity:'legendary',tag:'key', unlocks:'ancient_wyrm'},
+  /* ── Gathering tools (b201, SYS-3) — mirrored from src/data/items.js so the
+     legacy lexical ITEMS const stays in sync (data-integrity check). ── */
+  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
+  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
+  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
+  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
+  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
+  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
+  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
+  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
+  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
+  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
+  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
+  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
+  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
+  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
+  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
 };
 
 // b137: publish the legacy inline ITEMS under a distinct global so the
@@ -427,7 +444,17 @@ function loadLocal(){
       // upgraded against a clean object, not against current G defaults
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
       Object.assign(G, migrated);
-    }catch(e){console.warn(e);}
+    }catch(e){
+      console.warn(e);
+      /* b213 QA: an unreadable save used to silently reset the game — the
+         player was never told, even though Settings → Data can restore
+         backups. Preserve the bad blob for recovery + say what happened. */
+      try{ localStorage.setItem('hearthrise:save-backup:corrupt-'+Date.now(), raw); }catch(_){ }
+      try{ if(typeof window.captureException==='function') window.captureException(e,{source:'loadLocal-corrupt-save'}); }catch(_){ }
+      setTimeout(function(){
+        try{ notify('Your save data could not be read, so a fresh start was loaded. Open Settings → Data to restore a backup.','kill'); }catch(_){ }
+      }, 2000);
+    }
   }
   ensureRetentionState();
   ensureBountyState();
@@ -1348,8 +1375,21 @@ function startFarmCheck(){
     if(changed&&activeTab==='profile')renderProfile();
   },5000);
 }
+/* b213 QA: the property tier's plot count is REAL now. The farm used to
+   render 8 plantable plots no matter what, which made the homestead ladder's
+   headline benefit (2 plots at camp → 12 at the castle) a fake perk. Plots
+   beyond the cap render locked; already-growing crops in over-cap plots
+   (pre-b213 saves) can still be watered + harvested — they just can't be
+   replanted until the property grows into them. */
+function farmPlotCap(){
+  return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
+    ? window.HearthriseHomestead.maxPlots() : 8;
+}
 function plantCrop(plotIdx,cropId){
   const crop=CROPS[cropId];if(!crop)return;
+  if(plotIdx>=farmPlotCap() && !G.farmPlots[plotIdx]){
+    notify('Plot locked — upgrade your property to farm more land','kill');return;
+  }
   const seedId=crop.seed;
   if(!hasItem(seedId)){notify('No seeds!','kill');return;}
   if(getLevel('farming')<crop.req){notify(`Farming Lv ${crop.req} required`,'kill');return;}
@@ -1887,7 +1927,9 @@ function onItemTap(id){
    ──────────────────────────────────────────────── */
 function renderFarm(){
   const el=document.getElementById('farm-panel');if(!el)return;
-  const plotCount=Math.max(8,(G.farmPlots||[]).length);
+  /* b213: show every unlocked plot, plus any over-cap plots that still hold
+     a growing crop (pre-b213 saves) so nothing a player planted disappears. */
+  const plotCount=Math.max(farmPlotCap(),(G.farmPlots||[]).length);
   // b136: plot-level header + plant-all + auto-replant toggle.
   // The HearthriseFarm API drives all gating; we show a status strip
   // so the player understands what's unlocked and where to upgrade.
@@ -1912,6 +1954,7 @@ function renderFarm(){
   el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
     ${Array.from({length:plotCount}).map((_,i)=>{
       const p=G.farmPlots[i];
+      if(!p && i>=farmPlotCap())return `<div class="farm-tile empty locked" onclick="showTab('house')" title="Upgrade your property to unlock this plot" style="opacity:.45;cursor:pointer"><span>·</span><small>Locked</small></div>`;
       if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span>＋</span><small>Empty</small></div>`;
       const crop=CROPS[p.cropId];
       const elapsed=(Date.now()-p.plantedAt)/3600000;
@@ -1973,7 +2016,9 @@ window.plantAllEmpty = function plantAllEmpty(){
     return null;
   };
   let planted = 0;
-  const total = G.farmPlots.length || 8;
+  /* b213: only plant within the property's plot cap (locked plots would
+     just toast an error each). */
+  const total = farmPlotCap();
   for(let i = 0; i < total; i++){
     if(G.farmPlots[i]) continue;
     const pick = pickCrop();
@@ -2108,6 +2153,19 @@ function renderHouse(){
     </div>`;
 }
 function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').forEach(c=>c.classList.toggle('active',c.dataset.house===t));renderHouse();}
+/* b213 QA: name exactly what's missing instead of a bare "Not enough
+   resources" — players couldn't tell which material was short. Returns a
+   human list ("12 gold, Normal Log ×17") or null when the cost is covered. */
+function describeMissingCost(cost){
+  const parts=[];
+  for(const [k,v] of Object.entries(cost||{})){
+    const have=k==='gold'?G.gold:(G.inventory[k]||0);
+    if(have<v){
+      parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
+    }
+  }
+  return parts.length?parts.join(', '):null;
+}
 function upgradeRoom(id){
   const r=ROOMS[id];const lv=G.rooms[id]||0;const nx=r.levels[lv];if(!nx)return;
   /* b201: property tier gates which rooms exist (camp has no workbenches) */
@@ -2115,7 +2173,8 @@ function upgradeRoom(id){
     const gate=window.HearthriseHomestead.canBuildRoom(id);
     if(!gate.ok){notify(gate.reason,'kill');return;}
   }
-  for(const [k,v] of Object.entries(nx.cost)){if(k==='gold'?G.gold<v:(G.inventory[k]||0)<v){notify('Not enough resources','kill');return;}}
+  const missing=describeMissingCost(nx.cost);
+  if(missing){notify('Missing: '+missing,'kill');return;}
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
   G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;notify(`${r.name} upgraded`,'levelup');refreshAll();
 }
@@ -2125,7 +2184,8 @@ function buildPlot(id){
   if(id==='farm_plot' && window.HearthriseHomestead && have>=window.HearthriseHomestead.maxPlots()){
     notify('Plot limit reached — upgrade your property for more land','kill');return;
   }
-  for(const [k,v] of Object.entries(b.cost)){if(k==='gold'?G.gold<v:(G.inventory[k]||0)<v){notify('Not enough resources','kill');return;}}
+  const missingB=describeMissingCost(b.cost);
+  if(missingB){notify('Missing: '+missingB,'kill');return;}
   for(const [k,v] of Object.entries(b.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
   G.plotBuildings.push({id,uid:Date.now()});
   notify(`Built ${b.name}`,'levelup');refreshAll();
@@ -2153,7 +2213,10 @@ async function renderSocial(){
   lbEl.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Fetching ranks…</div>';
   const r=await NetClient.leaderboard(lbMode);
   if(r.ok){
-    document.getElementById('lb-sub').textContent=NetClient.online()&&G.account?'Live':'Mock data';
+    /* b213 QA: the b206 leaderboard override fetches the REAL Supabase view
+       even when signed out (anon key) and flags it r.live — don't stamp real
+       player rows "Mock data". */
+    document.getElementById('lb-sub').textContent=(r.live||(NetClient.online()&&G.account))?'Live':'Mock data';
     lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${u.rank<=3?['🥇','🥈','🥉'][u.rank-1]:u.rank}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat">⚔️${u.combat}</span><span class="lb-stat gold">🪙${(u.gold||0).toLocaleString()}</span></div>`).join('');
   }
   /* clan + friends */
@@ -7198,7 +7261,6 @@ function renderInvFancy(){
   /* Compute totals */
   var entries = Object.entries(G.inventory||{}).filter(function(kv){return kv[1] > 0;});
   var totalCount = entries.reduce(function(a,kv){return a+kv[1];},0);
-  var maxSpace = (G.inventoryMax || 360);
   var totalGold = G.gold || 0;
 
   /* Equipment bonuses summary */
@@ -7228,7 +7290,10 @@ function renderInvFancy(){
     /* Top toolbar */
     '<div class="invc-topbar">'+
       '<span class="invc-gold"><span class="invc-coin">🪙</span><span>'+totalGold.toLocaleString()+'</span></span>'+
-      '<span class="invc-space">Space: '+totalCount+'/'+maxSpace+'</span>'+
+      /* b213 QA: the old "Space: N/360" ceiling was never enforced anywhere
+         (players routinely sat at 1000+/360, which read as a bug). Show an
+         honest item count until a real storage system ships. */
+      '<span class="invc-space">Items: '+totalCount.toLocaleString()+'</span>'+
       '<div class="invc-actions">'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
         '<button onclick="window._invManage()">Manage</button>'+

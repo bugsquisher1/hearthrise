@@ -60,7 +60,7 @@
       target: '.top-stats',
       placement: 'below',
       title: 'Your stats live up here',
-      body: 'Combat level, total level, gold, and gems. Tap the 💾 anytime to save — though we auto-save in the background too.',
+      body: 'Combat level, total level, gold, and gems. Tap the save icon up top anytime — though we auto-save in the background too.',
       primary: 'Got it',
     },
     {
@@ -322,10 +322,14 @@
     card.setAttribute('data-pip', pipDir);
   }
 
-  function next(){
+  var advancing = false;   // b213: rapid double-clicks queued multiple
+  function next(){         // increments and silently skipped steps
+    if(advancing) return;
+    advancing = true;
     var card = rootEl.querySelector('.ftue-card');
     card.classList.remove('show');
     setTimeout(function(){
+      advancing = false;
       stepIndex++;
       if(stepIndex >= STEPS.length){ endFTUE(true); return; }
       renderStep();

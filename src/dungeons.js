@@ -106,7 +106,7 @@
       duration: 240,
       cooldownH: 24,
       partySize: 4,
-      desc: 'Storm the keep with your party. T3 housing blueprints drop here.',
+      desc: 'Storm the keep single-handed. T3 housing blueprints drop here.',
       loot: [
         { id: 'death_steel', qty: [1, 3], chance: 1.0 },
         { id: 'kitchen_blueprint_t3', qty: [1, 1], chance: .10 },
@@ -120,7 +120,7 @@
         { type:'dodge', label:'Cannon barrage', icon:'💥', target: 8, durationS: 60,
           desc: 'Dodge incoming cannonfire.' },
         { type:'fight', label:'Throne room', icon:'👑', enemyHp: 320, durationS: 140,
-          desc: 'The keep lord brings dark magic. Coordinate attacks.' },
+          desc: 'The keep lord brings dark magic. Time your attacks.' },
       ],
     },
     voidbringer: {
@@ -146,7 +146,7 @@
       duration: 600,
       cooldownH: 72,
       partySize: 24,
-      desc: 'The greatest dragon yet seen. Brings legendary cosmetics. Resets weekly.',
+      desc: 'The greatest dragon yet seen. Brings legendary cosmetics.',
       loot: [
         { id: 'dragon_scale', qty: [3, 8], chance: 1.0 },
         { id: 'dragon_bones', qty: [2, 5], chance: 1.0 },
@@ -244,7 +244,11 @@
     ensureState();
     var grouped = { dungeon: [], raid: [], worldboss: [] };
     Object.entries(DUNGEONS).forEach(function(kv){ grouped[kv[1].kind].push([kv[0], kv[1]]); });
-    var sectionLabel = { dungeon: 'Dungeons (Solo)', raid: 'Raids (Party of 4)', worldboss: 'World Bosses (24-player)' };
+    /* b213 QA: these key-gated runs are SOLO content (the run engine has no
+       party code) — stop advertising phantom "4 players"/"24 players"
+       multiplayer. Real multiplayer raiding is the weekly clan raid card
+       above (b209). */
+    var sectionLabel = { dungeon: 'Dungeons (Solo)', raid: 'Epic Dungeons (Solo)', worldboss: 'Legendary Hunts (Solo)' };
     var html = '';
     ['dungeon','raid','worldboss'].forEach(function(kind){
       if(!grouped[kind].length) return;
@@ -276,7 +280,7 @@
               '<div class="dgn-icon">' + d.icon + '</div>' +
               '<div class="dgn-title">' +
                 '<div class="dgn-name">' + d.name + '</div>' +
-                '<div class="dgn-meta">Lv ' + d.reqLv + (d.partySize ? ' · ' + d.partySize + ' players' : '') + ' · ' + d.cooldownH + 'h cooldown</div>' +
+                '<div class="dgn-meta">Lv ' + d.reqLv + ' · ' + d.cooldownH + 'h cooldown</div>' +
               '</div>' +
             '</div>' +
             '<div class="dgn-desc">' + d.desc + '</div>' +

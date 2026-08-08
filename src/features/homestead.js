@@ -27,17 +27,23 @@
     { id: 'camp',      name: "Wanderer's Camp",      icon: '⛺', plots: 2,  workers: 0, offlineHours: 0,
       desc: 'A bedroll, a fire, and two rows of dirt. Everyone starts somewhere.',
       cost: null, rooms: [] },
+    /* b213 QA: tier costs may only require materials a player can actually
+       produce BEFORE reaching that tier. The old table demanded planks for
+       tier 1 (planks need the Workshop — a tier-2 room) and bars for tiers
+       2-3 (bars need the Forge — a tier-3 room): a hard progression deadlock
+       for every fresh account (veterans were grandfathered past it, which is
+       why it went unseen). Each tier's new room now feeds the NEXT rung. */
     { id: 'homestead', name: 'Hearthside Homestead', icon: '🏡', plots: 4,  workers: 1, offlineHours: 0,
       desc: 'Four walls and a hearth. Unlocks the Kitchen and Garden — and your first hired hand.',
-      cost: { gold: 400, normal_log: 30, normal_plank: 10 },
+      cost: { gold: 400, normal_log: 30, copper_ore: 20 },
       rooms: ['kitchen', 'garden'] },
     { id: 'farmstead', name: 'Fieldworth Farmstead', icon: '🌾', plots: 6,  workers: 2, offlineHours: 1,
       desc: 'Barns and fences. Unlocks the Workshop and Cellar, a second worker, +1h offline cap.',
-      cost: { gold: 2500, oak_plank: 25, copper_bar: 12, wolf_pelt: 4 },
+      cost: { gold: 2500, oak_log: 40, copper_ore: 25, wolf_pelt: 4, cooked_shrimp: 10 },
       rooms: ['workshop', 'cellar'] },
     { id: 'manor',     name: 'Stonecross Manor',     icon: '🏛️', plots: 8,  workers: 3, offlineHours: 2,
       desc: 'Cut stone and iron gates. Unlocks the Forge and Library, a third worker, +2h offline cap.',
-      cost: { gold: 10000, willow_plank: 35, iron_bar: 30, silk_thread: 8 },
+      cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8 },
       rooms: ['forge', 'library'] },
     { id: 'keep',      name: 'Ironvale Keep',        icon: '🏰', plots: 10, workers: 4, offlineHours: 3,
       desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, a fourth worker, +3h offline cap.',

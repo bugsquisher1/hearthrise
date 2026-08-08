@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 213 — 2026-08-08 (The Playtest Update — a full QA pass, start to finish)
+
+A top-to-bottom playtest of the whole game — every system exercised the way a real player would, and everything that broke, confused, or lied got fixed.
+
+- 🏡 **New players can actually build now.** The property ladder had a chicken-and-egg lock: the Homestead demanded planks (which need the Workshop), the Farmstead demanded metal bars (which need the Forge) — rooms you couldn't have yet. Every tier's cost now uses materials you can genuinely produce at your current tier, and each new room feeds the *next* upgrade. Camp → Castle is a real climb.
+- 🌱 **Farm plots are real property perks.** Your plot count now truly comes from your property tier (2 at a camp → 12 at the castle) instead of a flat 8 forever. Anything already growing in an over-cap plot stays harvestable — nothing you planted is lost.
+- 🧭 **Clearer refusals.** "Not enough resources" now tells you exactly what's missing ("Missing: Normal Log ×17"), for rooms and plot buildings alike.
+- 🛟 **Save-safety.** If your save ever fails to load, the game now preserves the damaged data as a backup, tells you what happened, and points you at Settings → Data → Restore — no more silent fresh start.
+- 🗡️ **Honest dungeon labels.** The key-gated epic runs are solo challenges and now say so — no more phantom "party of 4" / "24 players" promises. (Real multiplayer raiding = the weekly clan raid.)
+- 🏆 **Leaderboard tells the truth.** Real player rankings fetched while signed out no longer get stamped "Mock data" — if it's live, it says Live.
+- 🎁 **Daily reward modal behaves.** It never stacks on top of the tutorial anymore, its claim button works wherever you tap it, and it greets first-day players properly. Its coins/gems are drawn in the game's gilt icon style, not emoji.
+- 🧰 Boot is clean: the 15 tool items are back in sync between data files (no more startup warning), the Bounty Hunter medallion loads a real icon, and the topbar Quests button got a proper gilt scroll.
+- 🧪 Regression tests added for the property ladder, the farm-plot cap, and the tier-gated room test — 159/159 green.
+
 ## v0.9.2-beta build 211 — 2026-08-08 (The Realm Update — the game goes multiplayer)
 
 The biggest update Hearthrise has ever shipped. Ten systems, one connected world.

@@ -45,7 +45,9 @@
     btn.id = 'hr-quests-btn';
     btn.type = 'button';
     btn.title = 'Quests';
-    btn.innerHTML = '<span class="hr-q-ic">📜</span><span class="hr-q-lbl">Quests</span><span class="hr-q-count">0</span>';
+    // Icon slot starts empty — icon-set.js paints a gilt scroll glyph into
+    // .hr-q-ic (uiQuests). No emoji in chrome (b213).
+    btn.innerHTML = '<span class="hr-q-ic"></span><span class="hr-q-lbl">Quests</span><span class="hr-q-count">0</span>';
     btn.addEventListener('click', () => {
       // Forward the click to whatever the strip used to do.
       // Most likely: a global openQuests / showQuests function, OR

@@ -1209,12 +1209,23 @@ const DAILY_TASK_POOL=[
   ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:900, done:false}),
   ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
   ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
-  ()=>({id:'daily_harvest',  type:'harvest',  label:'Harvest 10 crops',         goal:10, progress:0, reward:350, done:false}),
-  ()=>({id:'daily_harvest_big',type:'harvest',label:'Harvest 25 crops',         goal:25, progress:0, reward:700, done:false}),
+  /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
+     it measures varies 6× across the property ladder — at Wanderer's Camp
+     (2 plots of 4h turnips, ~6 produce a cycle) that was ~17 hours of
+     babysitting for 700g, and at the castle it was one harvest pass. These
+     entries are factories evaluated at generation time, so the goal can simply
+     scale with the plot cap. Reward scales with it too. */
+  ()=>{ const n=(typeof farmPlotCap==='function'?farmPlotCap():8);
+        const goal=Math.max(10,n*3);
+        return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
+                goal, progress:0, reward:goal*30, done:false}; },
   ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
   ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 8 items',            goal:8,  progress:0, reward:450, done:false}),
   ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 8 items',            goal:8,  progress:0, reward:450, done:false}),
 ];
+/* b220: exposed so the smoke suite can evaluate a factory deterministically
+   instead of depending on which 3 tasks today's date happens to draw. */
+window.DAILY_TASK_POOL = DAILY_TASK_POOL;
 /* Simple FNV-1a hash on a string so we can derive a deterministic
    shuffle from the date — every player on the same day gets the same
    3 tasks, but each new day rotates them. */
@@ -1425,19 +1436,108 @@ function doSkillAction(silent){
 }
 
 /* ─── farming ─── */
+/* b220 (backlog #13 — docs/design/farming-watering.md): watering is an
+   OPTIONAL accelerator, not a gate. All growth maths lives in ONE place,
+   HearthriseFarm.growthHours() (src/features/farm-progression.js), which the
+   tick, the offline catch-up and every renderer read. These thin accessors
+   exist so legacy.js never re-derives growth itself — the old code did, in
+   four places, with `&& p.watered` baked into two of them, which is exactly
+   how unwatered crops came to stall forever. */
+function farmApi(){ return window.HearthriseFarm; }
+function plotIsReady(p){ const A=farmApi(); return !!(A&&A.isReady&&A.isReady(p)); }
+function plotPct(p){ const A=farmApi(); return (A&&A.progressPct)?A.progressPct(p):0; }
+function plotIsWaterable(p){ const A=farmApi(); return !!(A&&A.isWaterable&&A.isWaterable(p)); }
+function plotWindowMs(p){ const A=farmApi(); return (A&&A.waterWindowRemainingMs)?A.waterWindowRemainingMs(p):0; }
+function plotReadyInMs(p){ const A=farmApi(); return (A&&A.readyInMs)?A.readyInMs(p):0; }
+/* Ticking countdown for the watered window. h:mm:ss above an hour, m:ss below —
+   the clock convention, so "1:59:04" and "12:30" both read unambiguously. */
+function fmtClock(ms){
+  const s=Math.max(0,Math.round(ms/1000));
+  const h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
+  if(h>0)return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  return m+':'+String(sec).padStart(2,'0');
+}
+/* "4h 38m" / "12m" for the projected ready time. Deliberately local: the
+   fmtTime() further down the file lives inside another block's scope. */
+function fmtSpan(ms){
+  const mins=Math.max(1,Math.round(ms/60000));
+  if(mins<60)return mins+'m';
+  return Math.floor(mins/60)+'h '+(mins%60)+'m';
+}
 let farmInterval=null;
 function startFarmCheck(){
   farmInterval=setInterval(()=>{
     let changed=false;
     G.farmPlots.forEach((p,i)=>{
-      if(!p||p.state==='ready')return;
+      if(!p)return;
       const crop=CROPS[p.cropId];if(!crop)return;
-      const elapsed=(Date.now()-p.plantedAt)/3600000;
-      if(elapsed>=crop.hours&&p.watered){G.farmPlots[i]={...p,state:'ready'};changed=true;notify(`🌾 ${crop.name} ready!`,'loot');}
+      if(p.state==='ready')return;
+      if(plotIsReady(p)){G.farmPlots[i]={...p,state:'ready',watered:false};changed=true;notify(`🌾 ${crop.name} ready!`,'loot');return;}
+      /* Keep the legacy `watered` boolean meaning "has an active window" so a
+         rollback to b219 reads a sane value. Purely derived — never a source. */
+      const active=plotWindowMs(p)>0;
+      if(!!p.watered!==active){p.watered=active;changed=true;}
     });
     if(changed&&activeTab==='farming')renderFarm();
     if(changed&&activeTab==='profile')renderProfile();
   },5000);
+  startFarmTicker();
+}
+/* b220: the watered window is a 2-hour countdown the player is meant to plan
+   around, so it has to move. A full renderFarm() every second would rebuild
+   the whole panel; this touches text nodes and one bar width instead, and only
+   while the farm tab is actually on screen. It re-renders properly only when a
+   plot crosses a state boundary (a window closing changes the buttons). */
+let farmTicker=null, farmWaterableSeen=-1;
+function startFarmTicker(){
+  if(farmTicker)return;
+  farmTicker=setInterval(()=>{
+    if(activeTab!=='farming')return;
+    const panel=document.getElementById('farm-panel');if(!panel)return;
+    if(countWaterablePlots()!==farmWaterableSeen){renderFarm();return;}
+    const A=farmApi();if(!A)return;
+    panel.querySelectorAll('.farm-tile[data-plot]').forEach(el=>{
+      const i=+el.getAttribute('data-plot');
+      const p=(G.farmPlots||[])[i];
+      if(!p||p.state==='ready')return;
+      const lab=el.querySelector('.ft-lab'), sub=el.querySelector('.ft-sub'), bar=el.querySelector('.ft-bar i');
+      if(bar)bar.style.width=plotPct(p)+'%';
+      if(lab)lab.textContent=farmPlotLabel(p);
+      if(sub)sub.textContent=farmPlotSub(p);
+      el.classList.toggle('watered',plotWindowMs(p)>0);
+    });
+    const nx=panel.querySelector('#farm-next-water');
+    if(nx)nx.textContent=farmNextWaterText();
+  },1000);
+}
+/* b220: "Water all (4)" needs a count, and the farm header needs a
+   come-back-in line. Both read the same predicate the tiles do. */
+function countWaterablePlots(){
+  let n=0;
+  (G.farmPlots||[]).forEach(p=>{ if(p&&plotIsWaterable(p))n++; });
+  return n;
+}
+function farmNextWaterText(){
+  const growing=(G.farmPlots||[]).filter(p=>p&&p.state!=='ready'&&!plotIsReady(p));
+  if(!growing.length)return 'No crops growing';
+  const n=countWaterablePlots();
+  if(n>0)return n+(n===1?' plot is thirsty':' plots are thirsty');
+  let soonest=Infinity;
+  growing.forEach(p=>{ const ms=plotWindowMs(p); if(ms>0&&ms<soonest)soonest=ms; });
+  if(!isFinite(soonest))return 'No crops growing';
+  return 'Next watering in '+fmtClock(soonest);
+}
+function farmPlotLabel(p){
+  if(!p)return '';
+  if(p.state==='ready'||plotIsReady(p))return 'Ready';
+  const w=plotWindowMs(p);
+  return plotPct(p)+'%'+(w>0?' · watered '+fmtClock(w):' · dry');
+}
+function farmPlotSub(p){
+  if(!p||p.state==='ready'||plotIsReady(p))return '';
+  const ms=plotReadyInMs(p);
+  if(ms<=0)return 'Ready';
+  return 'Ready in '+fmtSpan(ms);
 }
 /* b213 QA: the property tier's plot count is REAL now. The farm used to
    render 8 plantable plots no matter what, which made the homestead ladder's
@@ -1474,11 +1574,49 @@ function plantCrop(plotIdx,cropId){
     return;
   }
   removeItem(seedId,1);
-  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),watered:false,state:'growing'};
+  /* b220: a new plot is DRY and that is now correct — it grows at the base
+     rate and matures on its own. That is what makes auto-replant work
+     unattended. `watered` is the derived rollback-compat mirror. */
+  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],watered:false,state:'growing'};
   G.stats.planted=(G.stats.planted||0)+1;
   addXp('farming',2);renderFarm();
 }
-function waterPlot(i){if(G.farmPlots[i]){G.farmPlots[i]={...G.farmPlots[i],watered:true};addXp('farming',1);renderFarm();}}
+/* b220: watering opens a 2h double-speed window. It is rejected while a window
+   is already open — that single rule is both the anti-abuse mechanism and the
+   affordance ("this plot is thirsty again"). One tap, no confirm, no modal. */
+function applyWatering(i){
+  const p=(G.farmPlots||[])[i];
+  if(!p||!plotIsWaterable(p))return false;
+  const A=farmApi();
+  const ws=(Array.isArray(p.waterings)?p.waterings.slice():[]);
+  ws.push(Date.now());
+  G.farmPlots[i]={...p,waterings:ws,watered:true};
+  addXp('farming',(A&&A.waterXp)?A.waterXp(p):1);
+  return true;
+}
+function waterPlot(i){
+  const p=(G.farmPlots||[])[i];if(!p)return;
+  /* A tile the player taps while it is already ready should harvest, not
+     scold — the 5s tick may not have flipped `state` yet. */
+  if(p.state==='ready'||plotIsReady(p)){
+    if(p.state!=='ready')G.farmPlots[i]={...p,state:'ready'};
+    harvestPlot(i);return;
+  }
+  if(!applyWatering(i)){
+    notify(`Still watered — thirsty again in ${fmtClock(plotWindowMs(p))}`,'kill');
+    return;
+  }
+  renderFarm();
+}
+/* b220: header action — one tap tucks the whole farm in before bed. */
+window.waterAllPlots=function waterAllPlots(){
+  if(!G.farmPlots)return 0;
+  let n=0;
+  for(let i=0;i<G.farmPlots.length;i++){ if(applyWatering(i))n++; }
+  notify(n?`Watered ${n} plot${n===1?'':'s'}`:'Nothing to water right now',n?'loot':'kill');
+  renderFarm();
+  return n;
+};
 function harvestPlot(i){
   const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
   const crop=CROPS[p.cropId];
@@ -1489,7 +1627,9 @@ function harvestPlot(i){
   updateDaily('harvest',qty);updateQuest('harvest',qty);
   addXp('farming',crop.xp*qty);
   notify(`🌾 +${qty} ${crop.name}`,'loot');
-  if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',watered:false};
+  /* b220: a regrow restarts dry — and now that dry crops actually finish,
+     that is a fresh cycle rather than the permanent stall it used to be. */
+  if(crop.regrows)G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],watered:false};
   else G.farmPlots[i]=null;
   // b136: auto-replant hook. Only fires when the plot is now empty
   // (regrow path skips it because the plot is already replanted).
@@ -1785,10 +1925,12 @@ function renderProfile(){
   const plots=Array.from({length:8}).map((_,i)=>{
     const p=G.farmPlots[i];
     if(!p)return `<div class="farm-tile empty"><span>＋</span><small>Empty</small></div>`;
-    const crop=CROPS[p.cropId];const elapsed=(Date.now()-p.plantedAt)/3600000;
-    const pct=Math.min(100,Math.floor((elapsed/(crop.hours||1))*100));
-    const lab=p.state==='ready'?'Ready':(p.watered?`${pct}%`:'Water');
-    return `<div class="farm-tile ${p.state==='ready'?'ready':''}"><span>${crop.icon}</span><small>${lab}</small></div>`;
+    const crop=CROPS[p.cropId];
+    /* b220: this second render site used to hide dry progress behind the word
+       "Water" exactly like the farm panel did. Both now read plotPct(). */
+    const ready=p.state==='ready'||plotIsReady(p);
+    const lab=ready?'Ready':`${plotPct(p)}%`;
+    return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${crop.icon}</span><small>${lab}</small></div>`;
   }).join('');
   const roomLevels=Object.values(G.rooms).reduce((a,b)=>a+(b||0),0);
   document.getElementById('dash-homestead-body').innerHTML=`
@@ -2023,15 +2165,22 @@ function renderFarm(){
   const deeds = (window.HearthriseFarm && window.HearthriseFarm.getDeedCount) ? window.HearthriseFarm.getDeedCount() : 0;
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : {enabled:false,cropId:null};
   const replantLabel = replant.enabled ? (replant.cropId ? CROPS[replant.cropId]?.name || replant.cropId : 'last crop') : 'off';
+  /* b220: "Water all" sits beside "Plant all", labelled with the count, and the
+     status line carries the come-back-in timer — the only thing on this screen
+     that tells a farmer when watering is worth a login. */
+  const waterable = countWaterablePlots();
+  farmWaterableSeen = waterable;
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
         Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
         · ${deeds} Deed${deeds===1?'':'s'}
         · Auto-replant: <b>${replantLabel}</b>
+        <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
       </div>
       <div class="row gap-sm">
         <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
+        <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Spend Farmer's Deeds in House → Plot">Upgrade Plot</button>
       </div>
@@ -2048,12 +2197,17 @@ function renderFarm(){
       if(!p && i>=farmPlotCap())return `<div class="farm-tile empty locked" onclick="showTab('house')" title="Upgrade your property to unlock this plot"><span class="ft-lock">${lockGlyph()}</span><small>Locked</small></div>`;
       if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span class="ft-plant">Plant</span><small>Empty plot</small></div>`;
       const crop=CROPS[p.cropId];
-      const elapsed=(Date.now()-p.plantedAt)/3600000;
-      const pct=Math.min(100,Math.floor((elapsed/(crop.hours||1))*100));
-      const ready=p.state==='ready';
-      const lab=ready?'Ready':(p.watered?`${pct}%`:'Tap to water');
+      /* b220: a growing plot must ALWAYS look like it is growing. The old
+         label printed "Tap to water" and NO bar for a dry plot, which is why
+         a permanently stalled auto-replanted crop was invisible to the player.
+         Every growing plot now shows its percentage, a moving bar, and the
+         projected ready time — dry or watered. */
+      const ready=p.state==='ready'||plotIsReady(p);
+      const pct=ready?100:plotPct(p);
+      const wet=!ready&&plotWindowMs(p)>0;
       const action=ready?`harvestPlot(${i})`:`waterPlot(${i})`;
-      return `<div class="farm-tile ${ready?'ready':''}" onclick="${action}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small>${lab}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span>`}</div>`;
+      const title=ready?'Harvest':(wet?'Watered — growing at double speed':'Water this plot: double growth for 2 hours');
+      return `<div class="farm-tile ${ready?'ready':''} ${wet?'watered':''}" data-plot="${i}" onclick="${action}" title="${title}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small class="ft-lab">${farmPlotLabel(p)}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span><small class="ft-sub">${farmPlotSub(p)}</small>`}</div>`;
     }).join('')}
   </div>`;
 
@@ -6286,20 +6440,33 @@ function calcRichCatchup(){
       });
     }
   }
-  /* Farm plots that finished while away */
+  /* Farm plots that finished while away.
+     b220: reads the same HearthriseFarm.isReady() the live tick does — one
+     source of truth for growth. The old copy re-derived it here AND carried
+     `&& p.watered`, so a dry plot was never counted as ready offline either.
+     Farm growth is deliberately NOT subject to the 12h offline cap: crops
+     mature off plantedAt however long you were away. */
   if(typeof G.farmPlots !== 'undefined' && G.farmPlots){
-    var readyPlots = 0;
+    var readyPlots = 0, soonPlots = 0;
+    var FA = window.HearthriseFarm;
     G.farmPlots.forEach(function(p){
       if(!p) return;
       var crop = (typeof CROPS !== 'undefined') ? CROPS[p.cropId] : null;
       if(!crop) return;
-      var elapsed = (Date.now() - p.plantedAt) / 3600000;
-      if(elapsed >= crop.hours && p.watered) readyPlots++;
+      if(FA && FA.isReady(p)){ readyPlots++; return; }
+      if(FA && FA.readyInMs(p) <= 3600000) soonPlots++;
     });
     if(readyPlots > 0){
       summary.activities.push({
-        type:'farming', label: readyPlots + ' farm plot' + (readyPlots>1?'s':'') + ' ready to harvest',
+        type:'farming',
+        label: readyPlots + ' farm plot' + (readyPlots>1?'s':'') + ' ready to harvest'
+               + (soonPlots > 0 ? ' · ' + soonPlots + ' more within the hour' : ''),
         emoji:'🌾', readyPlots: readyPlots
+      });
+    } else if(soonPlots > 0){
+      summary.activities.push({
+        type:'farming', label: soonPlots + ' farm plot' + (soonPlots>1?'s':'') + ' ready within the hour',
+        emoji:'🌾', readyPlots: 0
       });
     }
   }

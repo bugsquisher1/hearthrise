@@ -1295,6 +1295,30 @@ body[data-theme] .farm-tile .ft-bar {
   overflow: hidden;
 }
 body[data-theme] .farm-tile .ft-bar i { display: block; height: 100%; background: linear-gradient(180deg, #9ab76a, var(--green)); }
+/* b220: the projected ready time, under the bar. Quieter than the label so the
+ * tile still reads percentage-first at a glance. */
+body[data-theme] .farm-tile .ft-sub {
+  font-size: calc(var(--t-micro) - 1px);
+  color: var(--ink-3);
+  opacity: .78;
+  letter-spacing: .01em;
+}
+/* b220: watered soil must read WITHOUT the label — a watered plot is growing
+ * at double speed for two hours and that is the whole active-play advantage.
+ * Same soil, wetted: the loam darkens, the furrows deepen and hold a low
+ * sheen where light catches standing water. No droplet icon, no emoji. */
+body[data-theme] .farm-tile.watered {
+  background-image:
+    linear-gradient(180deg, rgba(198, 224, 232, .10), transparent 30%),
+    repeating-linear-gradient(112deg,
+      rgba(0, 0, 0, .42) 0 9px,
+      rgba(190, 219, 228, .05) 9px 19px),
+    linear-gradient(180deg, #1d1710, #0d0a07);
+  border-color: rgba(120, 154, 164, .34);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(198, 224, 232, .07);
+}
+body[data-theme] .farm-tile.watered .ft-lab { color: var(--ink-2); }
+body[data-theme] .farm-tile.watered .ft-bar i { background: linear-gradient(180deg, #b6d087, var(--green)); }
 /* Ready = the harvest is waiting. This is the one lit state on the screen. */
 body[data-theme] .farm-tile.ready {
   border-color: rgba(201, 162, 74, .65);

@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 6;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 7;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -197,6 +197,42 @@
                        || (typeof save.foodSlot === 'string' && save.foodSlot);
         if(hadAutoEat && !save.traits.auto_eat){
           save.traits.auto_eat = true;
+        }
+      },
+    },
+    {
+      from: 6, to: 7,
+      name: 'v6 → v7 (farming: watered flag → waterings window list — un-sticks stalled plots)',
+      // b220 (backlog #13): watering was a mandatory ready-gate with no
+      // timeout, so any plot with watered:false NEVER matured. Auto-replant
+      // and every Tomato regrow planted dry, which means a lot of live saves
+      // are carrying permanently frozen crops right now.
+      //
+      // Growth is now derived from `plantedAt` + a list of watering
+      // timestamps (see features/farm-progression.js growthHours):
+      //   watered:true  → waterings:[plantedAt]  retro-credits one 2h window;
+      //                                          the crop matures EARLIER than
+      //                                          the player expected, never later.
+      //   watered:false → waterings:[]           the crop starts finishing. If it
+      //                                          is already past its grow time it
+      //                                          goes ready on the next 5s tick.
+      // `watered` is deliberately left in place — b220 dual-writes it as
+      // "has an active window" so a rollback to b219 does not brick saves.
+      // Delete the field in the build AFTER b220.
+      apply: function(save){
+        if(!Array.isArray(save.farmPlots)) return;
+        var now = Date.now();
+        for(var i = 0; i < save.farmPlots.length; i++){
+          var p = save.farmPlots[i];
+          if(!p || typeof p !== 'object') continue;
+          if(Array.isArray(p.waterings)) continue;         // idempotent
+          if(typeof p.plantedAt !== 'number' || !isFinite(p.plantedAt)){
+            // Corrupt plot — restart its clock rather than crash or stall.
+            p.plantedAt = now;
+            p.waterings = [];
+            continue;
+          }
+          p.waterings = p.watered ? [p.plantedAt] : [];
         }
       },
     },

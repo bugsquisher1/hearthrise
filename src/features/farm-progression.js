@@ -158,6 +158,166 @@
     } catch(e){}
   }
 
+  // ══════════════════════════════════════════════════════════
+  // b220 — GROWTH MODEL (Backlog #13, docs/design/farming-watering.md)
+  //
+  // Watering used to be a MANDATORY GATE: startFarmCheck() only flipped a
+  // plot to 'ready' when `elapsed >= crop.hours && p.watered`. There was no
+  // timeout, so an unwatered plot never matured — not late, *never*. Every
+  // auto-replanted plot (plantCrop writes watered:false) and every Tomato
+  // regrow stalled forever, and renderFarm hid the failure by printing
+  // "Tap to water" instead of a percentage.
+  //
+  // The model now: a crop ALWAYS grows. Watering opens a 2-hour window in
+  // which it grows twice as fast. Growth is purely DERIVED from timestamps
+  // — plantedAt plus a list of watering timestamps — so there is no stored
+  // counter to desync, offline catch-up is free, and the same numbers can
+  // later be re-derived server-side.
+  //
+  //   growth-hours = elapsed + min(waterBonus, elapsed)
+  //
+  // The min() is the load-bearing invariant: whatever lands in `waterings`
+  // (corruption, a forged save, a duplicated timestamp), effective growth
+  // can never exceed 2× real elapsed time.
+  //
+  // Balance constants are the Game Designer's (spec §10) — change them
+  // there, not here.
+  // ══════════════════════════════════════════════════════════
+  var WATER_WINDOW_H  = 2;    // hours a single watering stays active
+  var WATER_RATE      = 2.0;  // growth-hours per real hour while watered
+  var WATER_WINDOW_MS = WATER_WINDOW_H * 3600000;
+  var MAX_WATERINGS   = 8;    // defensive array cap (floor(hours/4) <= 5 today)
+
+  function nowMs(){ return Date.now(); }
+
+  function cropOf(plot){
+    if(!plot || !plot.cropId) return null;
+    var C = window.CROPS;
+    return (C && C[plot.cropId]) || null;
+  }
+
+  // Defensive, idempotent shape repair. save-migrations.js does this once at
+  // load for persisted saves; this covers cloud saves, other characters, and
+  // any plot that reaches us without passing through the migration.
+  function normalizePlot(plot){
+    if(!plot || typeof plot !== 'object') return plot;
+    if(typeof plot.plantedAt !== 'number' || !isFinite(plot.plantedAt)){
+      plot.plantedAt = nowMs();
+      plot.waterings = [];
+      return plot;
+    }
+    if(!Array.isArray(plot.waterings)){
+      // Legacy shape: a boolean flag. `true` retro-credits one window from
+      // planting (strictly better for the player); `false` becomes "dry",
+      // which un-sticks the plot instead of stalling it forever.
+      plot.waterings = plot.watered ? [plot.plantedAt] : [];
+    }
+    if(plot.waterings.length > MAX_WATERINGS){
+      plot.waterings = plot.waterings.slice(-MAX_WATERINGS);
+    }
+    return plot;
+  }
+
+  // THE single source of truth for farm growth. Tick, offline catch-up,
+  // progress bar and ready-check all read this one function.
+  function growthHours(plot, now){
+    if(!plot) return 0;
+    normalizePlot(plot);
+    now = (typeof now === 'number' && isFinite(now)) ? now : nowMs();
+    var elapsed = (now - plot.plantedAt) / 3600000;
+    if(!(elapsed > 0)) return 0;               // guard: future/equal plantedAt
+    var bonus = 0;
+    var ws = plot.waterings;
+    for(var i = 0; i < ws.length; i++){
+      var ts = Number(ws[i]);
+      if(!isFinite(ts) || ts > now) continue;  // guard: future timestamp
+      var start = Math.max(ts, plot.plantedAt);
+      var end   = Math.min(ts + WATER_WINDOW_MS, now);
+      if(end > start) bonus += (end - start) / 3600000 * (WATER_RATE - 1);
+    }
+    return elapsed + Math.min(bonus, elapsed); // HARD INVARIANT: never > 2×
+  }
+
+  function cropHours(plot){
+    var c = cropOf(plot);
+    return (c && c.hours > 0) ? c.hours : 0;
+  }
+
+  function isReady(plot){
+    var h = cropHours(plot);
+    if(!h) return false;                       // unknown crop — never auto-ready
+    return growthHours(plot) >= h;
+  }
+
+  function progressPct(plot){
+    var h = cropHours(plot);
+    if(!h) return 0;
+    return Math.min(100, Math.floor(growthHours(plot) / h * 100));
+  }
+
+  function lastWatering(plot){
+    if(!plot) return 0;
+    normalizePlot(plot);
+    var ws = plot.waterings, best = 0;
+    for(var i = 0; i < ws.length; i++){
+      var ts = Number(ws[i]);
+      if(isFinite(ts) && ts > best) best = ts;
+    }
+    return best;
+  }
+
+  // Remaining ms of the active watered window (0 = dry).
+  function waterWindowRemainingMs(plot){
+    if(!plot) return 0;
+    var end = lastWatering(plot) + WATER_WINDOW_MS;
+    return Math.max(0, end - nowMs());
+  }
+
+  // ms until this plot can be watered again (0 = right now).
+  function nextWaterableInMs(plot){
+    if(!plot) return 0;
+    return waterWindowRemainingMs(plot);
+  }
+
+  // A plot is waterable only when the previous window has closed. This is the
+  // whole anti-abuse mechanism AND the affordance ("this plot is thirsty").
+  function isWaterable(plot){
+    if(!plot || !cropHours(plot)) return false;
+    if(plot.state === 'ready' || isReady(plot)) return false;
+    return waterWindowRemainingMs(plot) <= 0;
+  }
+
+  // Projected wall-clock ms until ready: the rest of the current window runs
+  // at 2×, everything after it at 1×.
+  function readyInMs(plot){
+    var h = cropHours(plot);
+    if(!h) return 0;
+    var remain = h - growthHours(plot);
+    if(remain <= 0) return 0;
+    var windowMs = waterWindowRemainingMs(plot);
+    var windowGrowth = windowMs / 3600000 * WATER_RATE;
+    if(windowGrowth >= remain) return Math.round(remain / WATER_RATE * 3600000);
+    return Math.round(windowMs + (remain - windowGrowth) * 3600000);
+  }
+
+  function readyAtMs(plot){ return nowMs() + readyInMs(plot); }
+
+  // floor(hours / 4) — the windows must fit inside the shortened grow time,
+  // which is why the mechanic self-caps at −50% with no separate cap table.
+  function maxWaterings(cropId){
+    var C = window.CROPS;
+    var c = C && C[cropId];
+    if(!c || !(c.hours > 0)) return 0;
+    return Math.floor(c.hours / (WATER_WINDOW_H * WATER_RATE));
+  }
+
+  // XP for a watering: a tenth-ish of the skill's throughput, bounded to once
+  // per plot per window so it can never be farmed.
+  function waterXp(plot){
+    var c = cropOf(plot);
+    return Math.max(1, Math.ceil(((c && c.xp) || 4) / 4));
+  }
+
   // ── Public API ─────────────────────────────────────────────
   window.HearthriseFarm = {
     getPlotLevel: getPlotLevel,
@@ -170,10 +330,25 @@
     // Drop hooks — called by killMonster + completeBounty.
     rollKillDeed: rollKillDeed,
     rollBountyDeed: rollBountyDeed,
+    // b220 growth model — the single source of truth for crop growth.
+    growthHours: growthHours,
+    progressPct: progressPct,
+    isReady: isReady,
+    isWaterable: isWaterable,
+    waterWindowRemainingMs: waterWindowRemainingMs,
+    nextWaterableInMs: nextWaterableInMs,
+    readyInMs: readyInMs,
+    readyAtMs: readyAtMs,
+    lastWatering: lastWatering,
+    maxWaterings: maxWaterings,
+    waterXp: waterXp,
+    normalizePlot: normalizePlot,
     // Constants — exposed for tests + UI.
     MAX_LEVEL: MAX_LEVEL,
     BOUNTY_DEED_CHANCE: BOUNTY_DEED_CHANCE,
     KILL_DEED_CHANCE: KILL_DEED_CHANCE,
+    WATER_WINDOW_H: WATER_WINDOW_H,
+    WATER_RATE: WATER_RATE,
   };
 
   console.log('[farm-progression] HearthriseFarm API loaded — plot Lv', getPlotLevel(), '/', MAX_LEVEL);

@@ -867,6 +867,128 @@ const TESTS = [
       if (saved === undefined) delete G.raids; else G.raids = saved;
     }
   }),
+  // ── Wave 1b raid hardening (2026-08-08) ─────────────────────
+  // Three live exploits were fixed at the SERVER (see
+  // supabase/migrations/2026-08-08-raid-hardening.sql). Nothing in the
+  // browser can prove a server rule, so what these two tests guard is the
+  // client's half of the contract: the local mirror must refuse what the
+  // server refuses, every server refusal must produce an honest message and
+  // never a chest, and the client must keep working against a server that
+  // has NOT had the migration applied yet.
+  () => tryRun('b219: raid hardening — client mirrors the server day gate and never invents a strike', () => {
+    const R = window.HearthriseRaids;
+    const G = window.G;
+    assert(typeof R._reduceStrike === 'function', 'raid strike reducer missing');
+    const saved = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
+    const savedCL = window.getCombatLevel;
+    try {
+      R._resetClock();
+      // The clock must come from the shared world-events utility, not a
+      // reimplementation — raids, quests and events must agree on "today".
+      const WE = window.HearthriseWorldEvents;
+      assert(WE && R.dayKey() === WE.utcDayKey() && R.weekKey() === WE.utcWeekKey(),
+        'raid clock diverged from HearthriseWorldEvents');
+
+      window.getCombatLevel = () => 99;
+      delete G.raids;
+      R.ensureState();
+      assert(R.canStrike().ok === true, 'a fresh day should allow a strike');
+      G.raids.lastStrikeDay = R.dayKey();
+      const gate = R.canStrike();
+      assert(gate.ok === false && gate.reason === 'struck_today',
+        'a second strike on the same UTC day must be refused locally');
+      window.getCombatLevel = () => 5;
+      assert(R.canStrike().reason === 'level', 'below combat 30 the level gate wins');
+
+      // Server refusals. `already_struck_today` must resync the mirror, not
+      // hand the player a retry that will never succeed.
+      const blocked = R._reduceStrike({ ok: false, error: 'already_struck_today', day: '2026-8-8' }, 0);
+      assert(blocked.action === 'blocked' && /already struck/i.test(blocked.message),
+        'already_struck_today should block with an honest message, got ' + JSON.stringify(blocked));
+      assert(R._reduceStrike({ ok: false, error: 'not_member' }, 0).action === 'fail', 'not_member must fail');
+      assert(R._reduceStrike(null, 0).action === 'fail', 'a null/garbage body must never be treated as a hit');
+      assert(R._reduceStrike({ code: 'PGRST301', message: 'JWT expired' }, 0).action === 'fail',
+        'a PostgREST error envelope must never be treated as a hit');
+      // Clock correction is allowed exactly once — never a retry loop.
+      assert(R._reduceStrike({ ok: false, error: 'week_mismatch', week: 'w9999' }, 0).action === 'retry',
+        'first week_mismatch should re-sync and retry');
+      assert(R._reduceStrike({ ok: false, error: 'week_mismatch', week: 'w9999' }, 1).action === 'fail',
+        'a second week_mismatch must give up, not loop');
+
+      // BACKWARD COMPATIBILITY: the pre-migration server answers with only
+      // {ok, hp_remaining, downed}. That must still read as a normal hit.
+      const legacy = R._reduceStrike({ ok: true, hp_remaining: 240000, downed: false }, 0);
+      assert(legacy.action === 'accept' && legacy.max === R.CLAN_POOL_HP && legacy.hp === 240000,
+        'an un-migrated server response must still land a strike, got ' + JSON.stringify(legacy));
+
+      // The self-expiring clock correction: adopting a server key must not
+      // outlive the local key it disagreed with.
+      R._adoptClock({ week: 'w9999', day: '1999-1-1' });
+      assert(R.weekKey() === 'w9999' && R.dayKey() === '1999-1-1', 'server clock keys should be adopted');
+      R._adoptClock({ week: WE.utcWeekKey(), day: WE.utcDayKey() });
+      assert(R.weekKey() === WE.utcWeekKey(), 'agreeing with the server should clear the correction');
+    } finally {
+      R._resetClock();
+      if (savedCL) window.getCombatLevel = savedCL; else delete window.getCombatLevel;
+      if (saved === undefined) delete G.raids; else G.raids = saved;
+    }
+  }),
+  () => tryRun('b219: raid hardening — chests come from the server ledger, and never from an error', () => {
+    const R = window.HearthriseRaids;
+    const G = window.G;
+    assert(typeof R._reduceClaim === 'function', 'raid claim reducer missing');
+    const saved = G.raids ? JSON.parse(JSON.stringify(G.raids)) : undefined;
+    try {
+      // BACKWARD COMPATIBILITY: a server without raid_claim answers 404 /
+      // PGRST202. The client must fall back to the b209 path, not fail —
+      // this is what lets the client ship before the migration is applied.
+      assert(R._reduceClaim(404, { code: 'PGRST202', message: 'Could not find the function' }, 0).action === 'unsupported',
+        'a missing raid_claim RPC must fall back, not break claiming');
+      assert(R._reduceClaim(200, { ok: true, scale: 0.4 }, 0).action === 'accept', 'a granted claim should be accepted');
+      assert(R._reduceClaim(200, { ok: true, scale: 0.4 }, 0).scale === 0.4, 'the server dictates the chest scale');
+      assert(R._reduceClaim(200, { ok: false, error: 'already_claimed' }, 0).action === 'spent',
+        'a replayed claim must be refused');
+      ['not_downed', 'no_contribution', 'joined_after_kill', 'not_member'].forEach((e) => {
+        const d = R._reduceClaim(200, { ok: false, error: e }, 0);
+        assert(d.action === 'fail', e + ' must refuse the chest');
+        assert(d.message && d.message !== R._claimErrorText('__unknown__'),
+          e + ' needs its own honest message, not the generic one');
+      });
+      // The dangerous case: any non-envelope response must refuse. A 401 body
+      // has no `ok` field, and treating it as success would hand out a chest.
+      assert(R._reduceClaim(401, { code: 'PGRST301', message: 'JWT expired' }, 0).action === 'fail',
+        'an auth error must never award a chest');
+      assert(R._reduceClaim(500, null, 0).action === 'fail', 'a server error must never award a chest');
+
+      // The local claim map is a mirror, not a ledger — and it must not grow
+      // a key per week forever inside the manual snapshotG allowlist.
+      delete G.raids;
+      const st = R.ensureState();
+      st.claimed['w1'] = true;
+      st.claimed[R.weekKey()] = true;
+      R.ensureState();
+      assert(!st.claimed['w1'], 'stale weekly claim keys should be pruned from the save');
+      assert(st.claimed[R.weekKey()] === true, 'the current week must survive the prune');
+
+      // Claim UI state: a downed pool offers the chest exactly until it is taken.
+      const panel = document.getElementById('panel-dungeons');
+      if (panel) {
+        st.solo.hp = 0;
+        delete st.claimed[R.weekKey()];
+        const p1 = R.render(); if (p1 && p1.catch) p1.catch(() => {});
+        let html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
+        assert(/Claim raid chest/.test(html), 'a downed solo pool should offer the chest');
+        st.claimed[R.weekKey()] = true;
+        const p2 = R.render(); if (p2 && p2.catch) p2.catch(() => {});
+        html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
+        assert(!/Claim raid chest/.test(html) && /Chest claimed/.test(html),
+          'a claimed chest must not be offered again');
+      }
+    } finally {
+      if (saved === undefined) delete G.raids; else G.raids = saved;
+      try { const p = R.render(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+    }
+  }),
   () => tryRun('b186: player avatar resolves to a shipped painted portrait', () => {
     assert(window._playerAvatar && /assets\/icons-bundle\/painted\//.test(window._playerAvatar), 'player avatar path bad: ' + window._playerAvatar);
     const img = document.querySelector('.player-avatar img');

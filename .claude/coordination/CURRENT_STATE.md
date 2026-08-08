@@ -32,11 +32,16 @@ Online-only social idle-RPG, OSRS-scale north star. All skills to 99 (data-drive
 - `assets/` structure is frozen (icons-bundle paths wired ~360 places). Prefer add over rename.
 - `snapshotG` save allowlist is a manual 24-field list — fragile.
 
-## Designer ratifications owed (batch after castle panel lands)
-- Hunt: spec §8.6 test-case contradicts §5.2's 20%-of-median floor — implementer followed §5.2 (normative); ratify or re-rule.
-- Hunt-forged kit stats (6 pieces, smithing 90-95 + crafting 95 cape, one rung above Dawnsteel) — Systems-proposed on the b215 curve; ratify.
-- Undeclared-week rule: officers own first 3 UTC days, then next strike auto-founds Tier I (`c_grace_days`); ratify.
-- 18,776 vs 18,780 labour (formula pinned); 3 Phase-B reagents catalogued early; Muster guest-solo-join deviation.
+## Designer ratifications — **CLOSED 2026-08-08** (all six ruled; each recorded in the spec it touches)
+1. **Hunt §8.6 vs §5.2 → §5.2 stands, §8.6 was the typo.** The 20%-of-median floor is normative; the test case is corrected in `clan-boss-events.md` §8.6 (median 750 → 100 earns *no chest*, not Partisan). Implementation + smoke already correct.
+2. **Hunt-forged kit → stats/values/rarity RATIFIED; level gates RE-RULED.** Three of six unlocked *below* the Dawnsteel rung they replace and one tied. Now helm 94 / legs 97 / body 99 / belt 92 (gauntlets 90 + cape 95 unchanged). **Band is Smithing 90-99, Crafting 95** — not 90-95. Missing boots ratified as deliberate (Dawnsteel Boots stay BiS). Kit stays tradeable; positioning corrected to "solo cannot *earn*". `clan-boss-events.md` §3.4a.
+3. **Undeclared week → RATIFIED, `c_grace_days = 3` is correct.** Largest window that still leaves 4 of 7 days to kill the boss. Auto-found stays Tier I only. `clan-boss-events.md` §3.1.
+4. **18,776 vs 18,780 → formula wins; the table is corrected** in `clan-overhaul.md` §6.5.
+5. **3 Phase-B reagents → STAY catalogued** (the `phase` field is what makes the route honest; removing them breaks the 34-route invariant). **Binding condition:** no surface may present a `phase:'B'` route as actionable. `clan-overhaul.md` §4.5.
+6. **Muster guest-solo-join → RATIFIED**, and `world-event-cadence.md` §4.5's Guests row is rewritten to match. Three binding conditions: floor band only, label + upsell stay, nothing solo touches a server-facing surface.
+
+## Twin-pillar: homestead spec delivered
+`docs/design/homestead-deepening.md` — the personal half of Tyler's twin-pillar directive. 8 existing rooms + 3 new, five-rung ladders, the room-modal descriptor both pillars consume, and the homestead half of the power budget. Phase 1 = room modals + the Cellar ruling + Kitchen L4/L5 + Library L4/L5 (Rested XP). **Cellar `+500 storage` backlog item is CLOSED by ruling** (repurposed to buff-duration via the existing `registerBuffScaler`, zero new machinery, zero players worse off).
 
 ## Wave 3b inputs (from 3a contracts)
 - Panel builder consumes `window.HearthriseClanSeat` (reducers under test) — do NOT re-derive in a renderer.

@@ -1426,6 +1426,35 @@ const TESTS = [
       assert(ITEMS[id] && ITEMS[id].type === 'armor', id + ' is missing from the Hunt-forged kit');
       assert(ITEMS[id].rarity === 'unique', id + ' should read as the rarest band');
     });
+    /* Designer ruling, clan-boss-events.md §3.4a — the ladder must not invert.
+       Three of the six shipped BELOW the Dawnsteel rung they replace (helm 92
+       vs 93, legs 93 vs 96, body 95 vs 98) and the girdle tied at 91, so a
+       player at Smithing 95 could forge the best platebody in the game but not
+       the second-best. Each Hunt-forged piece is now pinned strictly above its
+       Dawnsteel counterpart, derived from gear-tiers.js rather than hardcoded,
+       so a future lvOff change can never silently re-open the inversion. */
+    (function () {
+      const all = RECIPES.smithing.concat(RECIPES.crafting);
+      const reqOf = (rid) => { const r = all.find((x) => x.id === rid); return r ? r.req : null; };
+      // Dawnsteel's own generated rungs are the comparison — read live, never
+      // hardcoded, so a gear-tiers.js lvOff change moves both sides together.
+      [['forge_choirbone_gauntlets', 'forge_dawn_gauntlets'],
+       ['forge_warden_girdle',       'forge_dawn_belt'],
+       ['forge_regent_helm',         'forge_dawn_helm'],
+       ['forge_abyssal_greaves',     'forge_dawn_platelegs'],
+       ['forge_slagheart_platebody', 'forge_dawn_platebody']].forEach(([mineId, dawnId]) => {
+        const mine = reqOf(mineId), below = reqOf(dawnId);
+        assert(mine != null, mineId + ' is missing from the recipe tables');
+        assert(below != null, dawnId + ' is missing — the Dawnsteel rung it sits above');
+        assert(mine > below || below >= 99,
+          mineId + ' (' + mine + ') must gate ABOVE the Dawnsteel rung it replaces (' + below + ')');
+        assert(mine <= 99, mineId + ' asks for a level that does not exist');
+      });
+      const cape = reqOf('craft_wyrmgilt_mantle');
+      const topCraft = RECIPES.crafting.filter((r) => r.id !== 'craft_wyrmgilt_mantle')
+                          .reduce((m, r) => Math.max(m, r.req || 0), 0);
+      assert(cape >= topCraft, 'the Wyrmgilt Mantle must be the top crafting rung (' + cape + ' vs ' + topCraft + ')');
+    })();
     Object.keys(RECIPES).forEach((skill) => {
       (RECIPES[skill] || []).forEach((r) => {
         Object.keys(r.inputs || {}).forEach((id) => {

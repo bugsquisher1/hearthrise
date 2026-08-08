@@ -384,9 +384,18 @@ export const ITEMS={
 
      So all six land WITH a recipe, and the recipes are one coherent thing —
      the HUNT-FORGED kit, six pieces sitting one rung above Dawnsteel (the top
-     of gear-tiers.js). It is the only gear in Hearthrise that cannot be reached
-     by solo play at any level, which is the point: the clan's combat pillar is
-     the only road to it.
+     of gear-tiers.js). It is the only gear in Hearthrise that solo play cannot
+     EARN at any level — the clan's combat pillar is the only road to making
+     one. (Designer ruling, clan-boss-events.md §3.4a: the pieces are NOT
+     bind-on-pickup, so a soloist may still buy one on the market at a price a
+     clan sets. That is a deliberate gold sink and a reason for clans to hunt;
+     the positioning is "cannot earn", never "cannot obtain".)
+
+     Note the deliberate hole: there is no Hunt-forged BOOTS. Six signature
+     materials buy six pieces and the sixth went to the cape, which had two
+     entries in the whole game (defB 1 and 5). Dawnsteel Boots are therefore
+     best-in-slot forever — the Hunt crowns your smithing, it does not replace
+     it. Do not "complete the set" without re-reading §3.4a.
 
      `hollow_sigil` is the sixth signature material and already exists (it is
      also a castle tier-bundle spoil, clan-seat.js SPOILS_ROUTES) — two sinks

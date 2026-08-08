@@ -77,6 +77,15 @@ A flat difficulty forces one number to fit every clan. Letting the clan pick mak
 
 Declaration is officer/leader-only, once per UTC week, and locks for the week.
 
+**The undeclared week — Designer ruling, 2026-08-08 (ratified as implemented).** The spec did not say what happens when nobody declares. Systems ruled that officers own the first `c_grace_days = 3` UTC days of the week and, after that, the next member's strike auto-founds a **Tier I** Hunt at the live roster size (`raid_strike`, `2026-08-08-hunt.sql`). **Ratified, and 3 days is the right number** — it is exactly the largest window that still leaves a majority of the week (4 of 7 days) to actually kill the thing, which is what the §3.3 pool tuning assumes (~5 of 7 days of attendance). Two days would let one member's impatience overrule a leadership that is merely asleep; four would hand the roster a week it cannot finish.
+
+Three properties of the rule that must not drift:
+- **Tier I, never higher.** The auto-founded Hunt is the floor tier every clan qualifies for, so the fallback can never pick a tier the roster cannot clear or one the officers would not have chosen. Declaration remains the *upgrade* decision — that is what keeps it a decision.
+- **The refusal is free.** The "no Hunt yet" check runs *before* the one-strike-per-day gate, so a member who tries on day 1 loses nothing.
+- **The day index is week-aligned by construction.** `v_dow = (date − epoch) % 7` and `hr_utc_week_key = (date − epoch) / 7` share one epoch, so day 0 is always the first day of the Hunt week. Do not "fix" `v_dow` to an ISO weekday — that would silently slide the grace window off the week boundary.
+
+*Flagged, not reversed:* the Hunt week rolls **Thursday 00:00 UTC** (the epoch's own weekday) while castle upkeep rolls **Sunday 00:00 UTC** (`hr_last_upkeep_boundary`). Two reset clocks inside one clan pillar is a player-facing confusion. Target state is a single clan week boundary; changing it now would truncate a live raid week, so it is a follow-up for Systems, not a Wave-3b reversal.
+
 ### 3.2 The pool scales with the roster — which makes freeloaders visible
 
 ```
@@ -130,6 +139,42 @@ The three existing bosses are kept verbatim (they are good, and they are already
 | V | **The Crownless Wyrm** *(new)* | 88 | ranged | `wyrm_gilding` | It ate the king who named it, and took nothing else. |
 
 **Signature materials are the top of the crafting ladder, not vendor trash.** My standing backlog records ~25 tier-3-6 combat drops with no recipe. These six must ship *with* recipes in the b215 armour tiers — a boss material with no use is worse than no drop at all, because it teaches the player that boss loot is meaningless. **Hard requirement, not a nice-to-have.**
+
+### 3.4a The Hunt-forged kit — Designer ruling, 2026-08-08
+
+Systems proposed and shipped six pieces one rung above Dawnsteel (b223, `src/data/items.js` + `src/data/recipes.js`). Audited against `gear-tiers.js` and the no-solo-reach positioning. **Ratified with one correction.**
+
+**Stats — ratified as authored.** Every piece continues its own `ARMOUR_SLOTS.def` curve at the same step Dawnsteel takes over Emberforged, checked slot by slot:
+
+| Piece | Slot | Dawnsteel | Hunt-forged | Step | Ember→Dawn step |
+|---|---|---|---|---|---|
+| Hollow Regent Helm | helmet | 44 | 59 | 1.34× | 1.33× |
+| Slagheart Platebody | body | 90 | 120 | 1.33× | 1.32× |
+| Abyssal Greaves | pants | 64 | 85 | 1.33× | 1.33× |
+| Choirbone Gauntlets | gloves | 23 | 31 | 1.35× | 1.35× |
+| Warden's Girdle | belt | 30 | 40 | 1.33× | 1.36× |
+| Wyrmgilt Mantle | cape | — | 14 def / 6 atk | new rung | — |
+
+The ladder stays one line. `rarity:'unique'`, `tier:8` and the flat 2.5× value multiple are also ratified — 2.5× is *below* the ladder's own value step (`tier.value` moves 130 → 360, i.e. 2.77×), so the kit is priced conservatively rather than inflated.
+
+**Correction — the level gates were inverted, and are re-ruled.** Generated Dawnsteel recipes require `88 + slot.lvOff`: gauntlets 89, boots 90, belt 91, helm 93, legs 96, body 98. Three of the six Hunt-forged pieces unlocked *below* the Dawnsteel piece they replace, and one tied — a player at Smithing 95 could forge the best platebody in the game but not the second-best. That is a broken ladder, not a shortcut. Corrected to sit strictly above the rung beneath:
+
+| Recipe | Dawnsteel rung | Was | **Now** |
+|---|---|---|---|
+| `forge_choirbone_gauntlets` | 89 | 90 | **90** (already correct) |
+| `forge_warden_girdle` | 91 | 91 *(tie)* | **92** |
+| `forge_regent_helm` | 93 | 92 *(inverted)* | **94** |
+| `forge_abyssal_greaves` | 96 | 93 *(inverted)* | **97** |
+| `forge_slagheart_platebody` | 98 | 95 *(inverted)* | **99** |
+| `craft_wyrmgilt_mantle` | — (top crafting recipe is the Dawnsteel Rod at 94) | 95 | **95** (correct) |
+
+The headline band therefore becomes **Smithing 90-99, Crafting 95**, not 90-95. Putting the single best armour piece in the game at Smithing 99 is deliberate: it is the one recipe that requires both a maxed skill *and* a clan that downs Hunt bosses, which is exactly what the two north-star pillars are supposed to mean when they meet.
+
+**The missing boots are deliberate — ratified.** Six signature materials buy six pieces, and the sixth goes to the cape rather than a boots rung. The cape slot has had two entries since launch (Traveler Cape `defB 1`, Alpha Cloak `defB 5`); a Wyrmgilt Mantle at `defB 14 / atkB 6` gives it its first endgame rung, which is worth more than a boots piece that would have been a +10 defence footnote. Consequence, stated so nobody "fixes" it later: **Dawnsteel Boots remain best-in-slot forever, and that is the point** — the Hunt crowns your smithing, it does not replace it.
+
+**Tradeability — ruled.** Nothing enforces `bop` on the market today, and the kit is not marked BoP, so it is tradeable. That is **kept**: a solo player buying a Hunt-forged piece is paying a clan for the clan's work, which is a good reason for clans to hunt and a large honest gold sink. The spec's positioning is corrected from *"solo play cannot reach"* to **"solo play cannot earn"** — the only route for a soloist is the market, at a price a clan sets.
+
+**Flagged to Systems, not fixed here (systemic, pre-existing):** vendoring pays the full item `v` (`invSellOne`), so every high-tier craft is a gold faucet — a Dawnsteel Platebody turns 21,000g of bars into 108,000g, and the Hunt-forged one turns 34,800g into 270,000g. The Hunt is not the marginal offender (its inputs are weekly-rate-limited; ore gathering is not), but the arbitrage should be priced deliberately rather than inherited from the value curve.
 
 ### 3.5 The solo Hunt, fixed
 
@@ -293,7 +338,9 @@ Additive. `clan_raids` gains columns; the client-side PATCH claim is replaced by
 3. **Regression — chest-hop blocked**: join after `declared_at`, strike twice, claim → refused.
 4. **Pool scaling**: declare Tier II at n=5 and n=25, assert `pool_hp` = 52,500 and 202,500.
 5. **Tier gating**: a `castle_tier` 1 clan declaring Tier III → refused.
-6. **Band maths**: seed contributions of 100/500/1000/5000, assert Partisan/Full/Full/Champion against a median over ≥3-strike members.
+6. **Band maths**: seed contributions of 100/500/1000/5000 (all with ≥3 strikes). The median is 750, so the assertions are **no chest / Full / Full / Champion** — 100 is 13% of the median, below §5.2's 20% Partisan floor. Add 150 (exactly 20% → Partisan) and 300 (40% → Partisan) so the floor itself is pinned, not just inferred.
+
+> **Designer ruling, 2026-08-08 (ratified).** This test case originally read *"Partisan/Full/Full/Champion"*, which contradicted §5.2's own 20%-of-median floor. **§5.2 is normative and stands unchanged** — the floor is the whole point of the band (a contributor at 13% of the median did not turn up, and paying them 0.6× would reopen the freeload hole §5.1 exists to close). §8.6 was the arithmetic error and is corrected above. The implementation (`raids.js` `BANDS` = 1.5/0.6/0.2 → 1.3×/1.0×/0.6×, and `raid_claim`'s identical ladder in `2026-08-08-hunt.sql`) matches §5.2 exactly and is ratified as shipped; `smoke-test.js` already pins both the floor and the two edge rungs.
 7. **Partial credit**: 40% of a pool at week end → chest × 0.4; 90% → chest × 0.6 (capped).
 8. **Solo pool calibration**: first strike of 1,200 → pool 20,000 (floor); first strike of 8,000 → pool 40,000; assert no single strike can exceed 25% of it.
 9. **`raidPower` reaches the strike**: seed a War Room tier, assert `simulateStrike` output rises proportionally.

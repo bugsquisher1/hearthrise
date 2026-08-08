@@ -190,6 +190,13 @@ The "spoils line" is a Work Order line item like any other; it just accepts a ra
 | **Clan Banner** | crafting 65 | `{bolt_of_cloth:4, keystone:1, war_crown:0/1}` | Great Hall cosmetic, Walls |
 | **Woodsman's Bitter** / **Miner's Stout** / **Traveler's Cider** | cooking 30/35/55 | `{wheat:6, goldenroot:2, …}` → `foodClass:'buff'`, `tag:'castle'` | Cellar draws (§9.5) |
 
+> **Designer ruling, 2026-08-08 — the three Phase-B reagents STAY catalogued.** `sticky_core` → Archives, `goblin_totem` → Archives, `alpha_fang` → Armory are declared in `clan-seat.js SPOILS_ROUTES` with `phase:'B'`, ahead of the buildings that consume them. **Keep them.** Three reasons, in order of weight:
+> 1. `SPOILS_ROUTES` is the machine-readable form of the promise *"every drop has a job."* Its regression test counts 34 routed drops. Commenting three out drops the count to 31 and turns a clean invariant into a special case — which is exactly how "every drop has a job" quietly became false the first time.
+> 2. A declared route is *honest*, and the `phase` field is what makes it honest. `spoilRoute('sticky_core')` answering `{route:'archives', phase:'B'}` lets a surface say "reserved for the Archives" instead of showing the player vendor trash.
+> 3. Deleting and re-adding them later is how a fourth routing pattern gets invented, which is the exact failure §4.5 exists to prevent.
+>
+> **One binding condition on the panel builder:** no surface may present a `phase:'B'` route as actionable. A Phase-B route renders as a planned state or not at all — never as a deposit target, never as a Work Order line. A promise the player can click and not complete is worse than no promise.
+
 ---
 
 ## 5. Castle tiers — the master gate
@@ -303,9 +310,11 @@ time_floor(level)    = 2h × 1.15^(level − 1)          (capped at 48h)
 | 3 | 1,613 | 2h 39m | < 1 |
 | 5 | 3,253 | 3h 30m | < 1 |
 | 7 | 6,559 | 4h 38m | ~1.6 |
-| 10 | 18,776 | 7h 02m | ~4.7 |
+| 10 | **18,780** | 7h 02m | ~4.7 |
 
 \* at the per-member daily Labour cap of **400** (see §6.6), 10 members = 4,000 Labour/day.
+
+> **Designer ruling, 2026-08-08 (ratified).** This table printed **18,776** at level 10; `round(800 × 1.42^9)` is **18,780**. **The formula wins and the table is corrected above.** The formula is the specification — the table is a rendering of it, and a rendering that disagrees with its source is a typo, never a second rule. Four Labour at level 10 is one one-hundredth of a single member's daily cap, so nothing downstream moves. `clan-seat.js labourTarget()` already implements the formula and the smoke suite pins `labourTarget(10) === 18780`; that test is now the authority, and this table is documentation of it.
 
 ### 6.6 The daily Labour cap, and why it exists
 

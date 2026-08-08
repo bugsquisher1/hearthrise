@@ -149,7 +149,20 @@ Only the *active* event's sources score. `all_hands` scores everything at ×0.5.
 | Must have joined to contribute | `world_event_contribute` checks the join row and that `now()` is inside the participation window |
 | No fabricated contribution | per-call delta clamp (**≤ 400 points**) and a per-muster total cap (**≤ 6,000 points**), mirroring `raid_strike`'s hard 50k clamp |
 | One claim per join | `claimed boolean` flipped by a conditional update, exactly like `raid_contributions` |
-| Guests | **World events require sign-in.** Signed-out players see the Blessing and an honest "Sign in to join the muster" state — never fake data. Precedent: `clans.js requireOnline()`. |
+| Guests | **The community layer requires sign-in.** A signed-out player may run a *labelled solo muster*; they never touch the shared bar, the participant count, the median, the leaderboards or a Muster Seal. See the ruling below. |
+
+> **Designer ruling, 2026-08-08 — the b220 guest-solo-join deviation is RATIFIED, and this table row is rewritten above to match.**
+>
+> The spec originally hard-gated the whole feature behind sign-in. The implementer instead let a signed-out player join a muster labelled *"(solo muster)"* which grants the floor band only (`SOLO_BAND` — 1,500 gold, 2 gems, **0 seals**), shows *"Solo muster — the shared community bar needs a signed-in session"* in place of the bar, and keeps the sign-in upsell on screen. Citing the raids precedent (the solo Lone Hunt), which is correct.
+>
+> **Why the deviation is better than what I specced.** The sign-in gate was written to protect the *community* layer, and the implementation protects exactly that — no shared bar, no participants count, no median, no Seal, none of which can be honest without a server. But hard-gating the whole feature would have aimed the topbar countdown — Backlog #15's headline ask, deliberately visible to everyone — at a locked door, for precisely the player it exists to convert. A labelled solo muster shows that player what they are missing *while they are missing it*, which is a conversion funnel; a wall is not. My own §6.2 already rules that there is no "you missed it" state, for the same reason.
+>
+> **Three conditions, binding on any future change:**
+> 1. **The solo band is the FLOOR band and nothing else.** No Silver, no Gold, no "the realm held" multiplier, and never a Muster Seal — those four are all measured against other players, and a session with no other players cannot measure them.
+> 2. **The label and the upsell stay.** A solo muster that reads as the real thing is a fake, and the Final Directive forbids fakes. The player must be able to see, without asking, that there is a bigger version of this.
+> 3. **Nothing solo is ever written to a server-facing surface** — not the community bar, not the participant count, not leaderboards.
+>
+> *Not blocking, flagged to Systems:* a signed-out session derives its window from the local clock, so a clock-rolled guest can re-claim the floor band. This is the same class as the P3 solo-raid-claim hole and is not muster-specific — the underlying question is whether a locally-earned save is trusted on first sign-in. That is one economy-integrity question for Systems, not three feature-level patches.
 
 ---
 

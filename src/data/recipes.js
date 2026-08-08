@@ -113,12 +113,22 @@ const BASE_RECIPES = {
        recipe is vendor trash, and the spec calls that a hard requirement, not
        a nice-to-have. They sit above Dawnsteel and each one needs a material
        that ONLY the clan Hunt drops — the single piece of gear in the game
-       that solo play cannot reach at any level. */
-    {id:'forge_regent_helm',         name:'Forge Hollow Regent Helm', icon:'⛑️', inputs:{dawn_bar:3, hollow_sigil:3},   output:'regent_helm',         xp:3600, req:92, ms:6600},
-    {id:'forge_slagheart_platebody', name:'Forge Slagheart Platebody',icon:'🦺', inputs:{dawn_bar:6, slagheart_core:3}, output:'slagheart_platebody', xp:6000, req:95, ms:7200},
-    {id:'forge_abyssal_greaves',     name:'Forge Abyssal Greaves',    icon:'🦿', inputs:{dawn_bar:5, abyssal_pearl:3},  output:'abyssal_greaves',     xp:5000, req:93, ms:7000},
+       that solo play cannot EARN at any level (it can still be bought on the
+       market, at a price a clan sets: clan-boss-events.md §3.4a).
+
+       b223 Designer ruling (§3.4a): the level gates were INVERTED. Generated
+       Dawnsteel recipes require `88 + slot.lvOff` — gauntlets 89, boots 90,
+       belt 91, helm 93, legs 96, body 98 — so a Hunt-forged helm at 92 and a
+       platebody at 95 unlocked BELOW the Dawnsteel rung they replace, and the
+       girdle tied. Each piece now sits strictly one level above the rung
+       beneath it. The band is therefore Smithing 90-99, and the best armour
+       piece in the game asks for a maxed Smithing AND a clan that kills Hunt
+       bosses — which is the two north-star pillars meeting, on purpose. */
+    {id:'forge_regent_helm',         name:'Forge Hollow Regent Helm', icon:'⛑️', inputs:{dawn_bar:3, hollow_sigil:3},   output:'regent_helm',         xp:3600, req:94, ms:6600},
+    {id:'forge_slagheart_platebody', name:'Forge Slagheart Platebody',icon:'🦺', inputs:{dawn_bar:6, slagheart_core:3}, output:'slagheart_platebody', xp:6000, req:99, ms:7200},
+    {id:'forge_abyssal_greaves',     name:'Forge Abyssal Greaves',    icon:'🦿', inputs:{dawn_bar:5, abyssal_pearl:3},  output:'abyssal_greaves',     xp:5000, req:97, ms:7000},
     {id:'forge_choirbone_gauntlets', name:'Forge Choirbone Gauntlets',icon:'🧤', inputs:{dawn_bar:2, choirbone:2},      output:'choirbone_gauntlets', xp:2400, req:90, ms:6000},
-    {id:'forge_warden_girdle',       name:"Forge Warden's Girdle",    icon:'🟫', inputs:{dawn_bar:2, warden_seal:2},    output:'warden_girdle',       xp:2600, req:91, ms:6200},
+    {id:'forge_warden_girdle',       name:"Forge Warden's Girdle",    icon:'🟫', inputs:{dawn_bar:2, warden_seal:2},    output:'warden_girdle',       xp:2600, req:92, ms:6200},
   ],
   crafting: [
     // Plank sawing

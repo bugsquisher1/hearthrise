@@ -77,8 +77,23 @@
     if (seen()) return;
     const session = window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession();
     if (!session || !session.user) return;
-    // Don't stack on FTUE
-    if (document.querySelector('.hr-ftue, .hr-ftue-overlay')) {
+    // Don't stack on FTUE — or on the b221 name modal, which must come first:
+    // this sheet greets the player by name, and until they have chosen one
+    // that "name" is the prefix of their email address.
+    //
+    // b221 fix: the FTUE half of this guard never worked. FTUE renders
+    // `.ftue-root > .ftue-card.show` (src/ftue.js), not `.hr-ftue`, so this
+    // selector has matched nothing since b141 and the welcome sheet has been
+    // free to land on top of the tutorial the whole time.
+    if (document.querySelector('.ftue-root .ftue-card.show, .hr-id-scrim')) {
+      setTimeout(maybeShow, 2000);
+      return;
+    }
+    // Racing the name modal open is the same stacking bug one step earlier:
+    // both flows poll, so "is it on screen yet" is not enough. Wait until the
+    // player is no longer OWED a name prompt.
+    const id = window.HearthriseIdentity;
+    if (id && typeof id.mustPromptForName === 'function' && id.mustPromptForName()) {
       setTimeout(maybeShow, 2000);
       return;
     }

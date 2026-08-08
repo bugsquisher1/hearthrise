@@ -229,6 +229,14 @@
     return 'local-' + (window.G && window.G.account || 'guest');
   }
   function currentSellerName(){
+    // b221: the identity seam, so a listing carries the player's CONFIRMED
+    // unique name rather than whichever per-character G.playerName happens
+    // to be loaded. "seller: Adventurer" was true of every player at once.
+    var id = window.HearthriseIdentity;
+    if(id && typeof id.getDisplayName === 'function'){
+      var n = id.getDisplayName();
+      if(n) return n;
+    }
     return (window.G && window.G.playerName) || 'Adventurer';
   }
 

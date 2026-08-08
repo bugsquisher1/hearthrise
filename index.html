@@ -180,7 +180,12 @@
     <!-- topbar -->
     <header class="topbar">
       <div class="player">
-        <div class="player-avatar"><img src="assets/icons-bundle/painted/npc/player.png?v=220" alt="" onerror="this.style.display='none';this.parentNode.textContent='⚔️';this.parentNode.style.fontSize='22px';this.parentNode.style.display='flex';this.parentNode.style.alignItems='center';this.parentNode.style.justifyContent='center';" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+        <!-- b221: the onerror used to swap the portrait for a ⚔️ system
+             pictograph — emoji as art, which the project directive forbids,
+             and now reachable by a player uploading a portrait. It falls back
+             to the painted default once, then simply hides, leaving the
+             styled avatar ring. No broken-image state either way. -->
+        <div class="player-avatar"><img src="assets/icons-bundle/painted/npc/player.png?v=220" alt="" data-no-fallback data-fallback="assets/icons-bundle/painted/npc/player.png?v=220" onerror="if(this.dataset.fellBack){this.style.display='none';}else{this.dataset.fellBack='1';this.src=this.dataset.fallback;}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
@@ -719,6 +724,10 @@
   <!-- Chat: filter loads first (no deps), then the dock. -->
   <script src="src/chat-filter.js?v=220"></script>
   <script src="src/chat.js?v=220"></script>
+  <!-- b221 #9: unique display names (server-arbitrated) + player-uploaded
+       portrait. Loads AFTER chat-filter.js (its profanity guard) and
+       multi-character.js (the profile record it reads). -->
+  <script src="src/features/identity.js?v=220"></script>
   <script src="src/settings-page.js?v=220"></script>
   <script src="src/ftue.js?v=220"></script>
   <script src="src/mobile.js?v=220"></script>

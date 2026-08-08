@@ -540,11 +540,43 @@
     });
 
     // Account controls
+    // b221: route the rename through the identity seam. This field used to be
+    // a SECOND writer of the display name with its own (nonexistent) rules —
+    // trim + slice(0,20) and straight into G.playerName. That meant a player
+    // could set a name here that the claim flow would have refused, that no
+    // server row backed, and that silently diverged from the unique name every
+    // other player sees in chat and on the market. One writer, one rule set.
     var saveName = root.querySelector('#set-name-save');
     if(saveName) saveName.addEventListener('click', function(){
-      var v = (root.querySelector('#set-display-name').value || '').trim().slice(0, 20);
-      if(!v) return;
-      window.G.playerName = v;
+      var raw = (root.querySelector('#set-display-name').value || '');
+      var id = window.HearthriseIdentity;
+      if(id && typeof id.claimName === 'function'){
+        var v = id.validateName(raw);
+        if(!v.ok){
+          if(typeof window.notify === 'function') window.notify(v.message, 'kill');
+          return;
+        }
+        saveName.disabled = true;
+        id.claimName(raw).then(function(d){
+          saveName.disabled = false;
+          if(d.action === 'confirmed'){
+            if(typeof window.notify === 'function') window.notify('You are known as ' + d.name + ' throughout the realm.', 'levelup');
+          } else if(d.action === 'provisional'){
+            if(typeof window.notify === 'function') window.notify('Name set to ' + d.name + '.', 'info');
+          } else if(typeof window.notify === 'function'){
+            window.notify(d.message || 'That name could not be claimed.', 'kill');
+          }
+          if(typeof window.updateTopbar === 'function') window.updateTopbar();
+          if(typeof window.renderSettings === 'function') window.renderSettings();
+        }).catch(function(){
+          saveName.disabled = false;
+          if(typeof window.notify === 'function') window.notify('Could not reach the server — try again in a moment.', 'kill');
+        });
+        return;
+      }
+      var fallback = raw.trim().slice(0, 20);
+      if(!fallback) return;
+      window.G.playerName = fallback;
       if(typeof window.updateTopbar === 'function') window.updateTopbar();
       if(typeof window.saveLocal === 'function') window.saveLocal();
       if(typeof window.notify === 'function') window.notify('Display name saved.', 'info');

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 269 — 2026-08-09 (Progress bars that actually move)
+
+- ⏳ **Fixed: crafting/cooking/smithing progress bars froze.** The activity bar filled to 100% on the first item and then stuck there — it kept making items, but the bar never moved again. It now resets and animates for every action, so you can see your progress at a glance. *(Thanks Tyler.)*
+- 🐾 **The Stable moved under Homestead** in the sidebar, where your pets belong — it used to sit under Adventure.
+- 🎒 **Buy more bank space.** Your bag now holds up to 200 item stacks, and you can expand it from the inventory screen: pay **gold** (the price rises with each purchase — a proper long-term gold sink) or spend a small flat number of **gems** for a much bigger jump. Everyone's existing bag is grandfathered above what they're already carrying, so nobody's suddenly full.
+
 ## v0.9.2-beta build 268 — 2026-08-09 (Every dungeon has a name — and a nemesis)
 
 - ☠️ **Every dungeon now has a named end-boss.** The Marrow King rules the Crypt of Bones, Grimtusk the Goblin Warcamp, the Pale Archivist the Haunted Archive, the Ashen King holds Obsidian Keep, the Riftmaw pours from the Voidbringer, and Elderscale the Great Wyrm is the capstone — each shown right on its dungeon card.

@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=268';
-import { emit } from '../net/events.js?v=268';
+import { COMPANIONS } from '../data/companions.js?v=269';
+import { emit } from '../net/events.js?v=269';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -217,6 +217,11 @@ function rollProc(triggerType, ctx) {
       break;
   }
   showProc((def.icon || '') + ' ' + def.proc.label);
+  // b269: record the pet's real, concrete contribution for the session-impact
+  // panel — the amount/ctx here are exactly what the effect above paid out.
+  if (window.HearthrisePetSession) {
+    try { window.HearthrisePetSession.recordProc(e, def.proc.amount, ctx); } catch (err) {}
+  }
   emit('companionProc', { id: G.companions.equipped, effect: e });
 }
 
@@ -329,17 +334,20 @@ function wireDragonEggHatch() {
 function injectNavButton() {
   const sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
   if (!sidebar || document.querySelector('[data-tab="stable"]')) return;
-  // Insert into Adventure group
+  // b269: the Stable belongs under Homestead (Tyler) — pets are a homestead
+  // fixture, not an adventuring activity. Final placement (incl. timing retries)
+  // is owned by legacy.js moveStableNav(); this just creates the button under
+  // Homestead when the label is present.
   const labels = sidebar.querySelectorAll('.nav-group-label');
-  let advLabel = null;
-  labels.forEach((l) => { if (l.textContent.trim() === 'Adventure') advLabel = l; });
+  let groupLabel = null;
+  labels.forEach((l) => { if (l.textContent.trim() === 'Homestead') groupLabel = l; });
   const btn = document.createElement('button');
   btn.className = 'nav-btn';
   btn.dataset.tab = 'stable';
   btn.innerHTML = '<span class="ic">🐾</span><span class="lbl">Stable</span>';
   btn.addEventListener('click', () => window.showTab && window.showTab('stable'));
-  if (advLabel) {
-    let next = advLabel.nextElementSibling;
+  if (groupLabel) {
+    let next = groupLabel.nextElementSibling;
     while (next && !next.classList.contains('nav-group-label')) next = next.nextElementSibling;
     if (next) sidebar.insertBefore(btn, next);
     else sidebar.appendChild(btn);

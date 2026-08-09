@@ -634,6 +634,7 @@ let G={
   playerName:'Adventurer',
   gold:500,
   gems:0,                                   /* premium currency */
+  bank:{goldBuys:0,gemBuys:0,grandfather:0},/* b269: purchased bank-space state */
   entitlements:{},                          /* {noAds:true, offlinePlus:true, ...} */
   ownedThemes:['default'],
   ownedCosmetics:[],
@@ -807,6 +808,7 @@ function loadLocal(){
   G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false},G.settings||{});
   delete G.settings.scale;   // b227: migrate old saves off the dead UI-scale key
   G.gems=G.gems||0;
+  G.bank=Object.assign({goldBuys:0,gemBuys:0,grandfather:0},G.bank||{});
   generateDailyTasks(false);
   G.playerMaxHp=levelFromXp(G.skills.hitpoints||0);
   G.playerHp=Math.min(G.playerHp||G.playerMaxHp,G.playerMaxHp);
@@ -1987,6 +1989,11 @@ function addXp(sk,amt,opts){
      world-events wrapper on getBonus, and gates itself off when the player is
      not present, so this line is the same arithmetic online and offline. */
   const base=(opts&&opts.authored)?(Number(amt)||0):pacedXp(sk,amt);
+  /* b269: attribute the equipped pet's real marginal allXP share of this grant
+     to the session-impact panel. Honest by construction — pet-session asks the
+     power budget what the pet actually bought after the clamp, so a clamped-away
+     bonus contributes nothing. Cheap no-op when no pet is equipped. */
+  if(window.HearthrisePetSession){ try{ window.HearthrisePetSession.recordXp(base); }catch(e){} }
   const raw=base*(1+bonus+cb);
   const gain=(raw>0?Math.max(1,Math.floor(raw)):0)+rested;
   const old=levelFromXp(G.skills[sk]||0);
@@ -2003,7 +2010,90 @@ function addXp(sk,amt,opts){
     }
   }
 }
-function addItem(id,qty=1,track=true){if(!ITEMS[id])return;G.inventory[id]=(G.inventory[id]||0)+qty;if(track)trackCollection(id,qty);}
+/* ─── Bank space (b269) ───────────────────────────────────────────────────
+   Tyler's call: reverse the b227 "no inventory cap" ruling and ship a real,
+   PURCHASABLE bank. The cap counts DISTINCT item stacks (not total quantity —
+   everything stacks, so limiting stacks is the OSRS-bank model). Two buy paths:
+
+     • GOLD  — escalating: cost = base × growth^goldBuys. A long-term gold sink.
+     • GEMS  — flat, deliberately BETTER value (3× the slots of one gold buy for
+               a small fixed gem price) so the premium path feels worthwhile.
+
+   Numbers live here as data, not scattered literals. The b227 "nobody worse
+   off" principle is honored by the v10→v11 migration: every existing save is
+   grandfathered a cap >= its current stack count + headroom, so no one is
+   retroactively walled in. Gem spends follow the established client-validate →
+   saveLocal → cloud-sync pattern (same as buyCosmetic/buyTheme); the guards
+   below refuse overspend / negative balances per the FINAL DIRECTIVE. */
+var BANK_SPACE = {
+  BASE_CAP: 200,                         /* free stacks a fresh account gets */
+  gold: { slots: 20, base: 3000, growth: 1.32 },  /* +20 stacks; escalating gold */
+  gem:  { slots: 60, cost: 45 },                  /* +60 stacks; flat, best value */
+};
+try{ window.BANK_SPACE = BANK_SPACE; }catch(_){}
+function bankCap(){
+  var b=(typeof G!=='undefined'&&G.bank)||{};
+  return BANK_SPACE.BASE_CAP
+    + (b.goldBuys||0)*BANK_SPACE.gold.slots
+    + (b.gemBuys||0)*BANK_SPACE.gem.slots
+    + (b.grandfather||0);
+}
+function bankUsed(){
+  var inv=(typeof G!=='undefined'&&G.inventory)||{}, n=0;
+  for(var k in inv){ if(inv[k]>0) n++; }
+  return n;
+}
+function bankGoldCost(){
+  var n=(typeof G!=='undefined'&&G.bank&&G.bank.goldBuys)||0;
+  return Math.round(BANK_SPACE.gold.base*Math.pow(BANK_SPACE.gold.growth,n));
+}
+var _bankFullAt=0;
+function notifyBankFull(){
+  var now=Date.now();
+  if(now-_bankFullAt<8000) return;          /* one nag per 8s, not per drop */
+  _bankFullAt=now;
+  if(typeof notify==='function') notify('Bank full ('+bankUsed()+'/'+bankCap()+'). Buy more space in the bag.','kill');
+}
+function buyBankSpaceGold(){
+  if(typeof G==='undefined')return false;
+  var cost=bankGoldCost();
+  if((G.gold||0)<cost){ if(typeof notify==='function')notify('Not enough gold','kill'); return false; }
+  G.gold-=cost;
+  G.bank=G.bank||{}; G.bank.goldBuys=(G.bank.goldBuys||0)+1;
+  if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gold.slots+' slots','levelup');
+  if(typeof saveLocal==='function')saveLocal();
+  if(typeof updateTopbar==='function')updateTopbar();
+  if(typeof renderInventory==='function')renderInventory();
+  _renderBankModal();
+  return true;
+}
+function buyBankSpaceGem(){
+  if(typeof G==='undefined')return false;
+  var cost=BANK_SPACE.gem.cost;
+  if((G.gems||0)<cost){ if(typeof notify==='function')notify('Not enough gems. Tap "Get Gems".','kill'); return false; }
+  G.gems-=cost;
+  G.bank=G.bank||{}; G.bank.gemBuys=(G.bank.gemBuys||0)+1;
+  if(typeof notify==='function')notify('Bank expanded +'+BANK_SPACE.gem.slots+' slots','levelup');
+  if(typeof saveLocal==='function')saveLocal();
+  if(typeof updateTopbar==='function')updateTopbar();
+  if(typeof renderInventory==='function')renderInventory();
+  _renderBankModal();
+  return true;
+}
+try{
+  window.bankCap=bankCap; window.bankUsed=bankUsed; window.bankGoldCost=bankGoldCost;
+  window.buyBankSpaceGold=buyBankSpaceGold; window.buyBankSpaceGem=buyBankSpaceGem;
+}catch(_){}
+
+function addItem(id,qty=1,track=true){
+  if(!ITEMS[id])return false;
+  if(!G.inventory[id]){                     /* a new (or emptied) stack needs a slot */
+    if(bankUsed() >= bankCap()){ notifyBankFull(); return false; }
+  }
+  G.inventory[id]=(G.inventory[id]||0)+qty;
+  if(track)trackCollection(id,qty);
+  return true;
+}
 function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];}
 function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
 
@@ -4507,6 +4597,49 @@ function renderShop(){
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
 function buyShopItem(id,qty,cost){if(G.gold<cost){notify('Not enough gold','kill');return;}G.gold-=cost;addItem(id,qty);notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();}
 function buyCosmetic(id,price){if((G.gems||0)<price){notify('Not enough gems. Tap "Get Gems".','kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
+/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
+   cost (escalating) and the flat gem deal side-by-side so the better value of
+   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
+function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
+function _bankRowsHTML(){
+  var used=bankUsed(), cap=bankCap();
+  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
+  var canG=(G.gold||0)>=gCost, canGem=(G.gems||0)>=gemCost;
+  var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
+  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
+  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
+  return ''
+    + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
+    + '<div class="bank-opt">'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
+      + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
+      + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
+    + '</div>'
+    + '<div class="bank-opt bank-opt-gem">'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
+      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
+      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
+    + '</div>';
+}
+function _renderBankModal(){
+  var body=document.getElementById('bank-modal-body');
+  if(body) body.innerHTML=_bankRowsHTML();
+}
+function openBankModal(){
+  closeBankModal();
+  var overlay=document.createElement('div');
+  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
+  overlay.innerHTML=
+    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
+    + '<button class="qm-close" aria-label="Close">✕</button>'
+    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
+    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
+    + '</div>';
+  overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });
+  document.body.appendChild(overlay);
+}
+try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
 /* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
    early game is manual eating (click food in combat); players buy the
    convenience once they're established. Gate lives in
@@ -9484,6 +9617,16 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   var recipes = window.ARTISAN_RECIPES[skillId];
   var r = recipes && recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
+  /* b269 FIX (Tyler: "the progress bar stops after moving from 1 activity to
+     another"): the artisan bar was driven by _armArtisanTimers filling
+     G.skillProgress to a Math.min(1,…) cap, but NOTHING ever reset it — so after
+     the first ~ms cycle the bar pinned at 100% and never moved again while
+     items kept being produced. The GATHER loop's doSkillAction resets it every
+     cycle (legacy.js:2806); the artisan action must do the same. Reset at the
+     top of each real production tick so the bar loops 0→100% per action.
+     Skip on silent offline-replay ticks — those never render and startArtisan
+     re-zeroes progress on resume anyway. */
+  if(!(opts && opts.silent)) G.skillProgress = 0;
   if(!hasInputs(r)){
     /* b228 (Tyler): "I ran out of iron ore but the game is still showing me as
        smithing." _stopArtisan only killed the timers — activeSkill, the Active
@@ -10643,8 +10786,9 @@ function renderInvFancy(){
        b213 QA note kept: the old "Space: N/360" ceiling was never enforced
        anywhere, so the honest item count stays until real storage ships. */
     '<div class="invc-topbar">'+
-      '<span class="invc-space">'+totalCount.toLocaleString()+' items</span>'+
+      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
+        '<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
         '<button onclick="window._invManage()">Manage</button>'+
       '</div>'+
@@ -12300,25 +12444,31 @@ console.log('[Companions C: UI] loaded');
 (function(){
 "use strict";
 
-/* Move Stable nav button from Homestead group to Adventure group */
+/* b269 (Tyler): place the Stable nav button in the HOMESTEAD group — pets are a
+   homestead fixture. This function was the real authority (it runs last, with
+   retries) and used to force the button INTO Adventure, overriding both
+   injectNavButton placements — which is why every earlier attempt to move it
+   failed. Now it anchors to Homestead. */
 function moveStableNav(){
   var btn = document.querySelector('[data-tab="stable"]');
   if(!btn) return;
   var sidebar = btn.closest('.sidebar') || btn.parentElement;
   if(!sidebar) return;
-  /* Find Adventure group label */
+  /* Find Homestead group label */
   var labels = sidebar.querySelectorAll('.nav-group-label');
-  var advLabel = null;
-  labels.forEach(function(l){ if(l.textContent.trim()==='Adventure') advLabel = l; });
-  if(!advLabel) return;
-  /* Find the position right BEFORE the next group label after Adventure */
-  var insertBefore = advLabel.nextElementSibling;
+  var homeLabel = null;
+  labels.forEach(function(l){ if(l.textContent.trim()==='Homestead') homeLabel = l; });
+  if(!homeLabel) return;
+  /* Find the position right BEFORE the next group label after Homestead */
+  var insertBefore = homeLabel.nextElementSibling;
   while(insertBefore && !insertBefore.classList.contains('nav-group-label')){
     insertBefore = insertBefore.nextElementSibling;
   }
-  /* Insert Stable button at the end of the Adventure group */
+  /* Insert Stable button at the end of the Homestead group */
   if(insertBefore && insertBefore.parentNode){
     insertBefore.parentNode.insertBefore(btn, insertBefore);
+  } else {
+    sidebar.appendChild(btn);
   }
 }
 

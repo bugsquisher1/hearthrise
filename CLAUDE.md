@@ -4,6 +4,17 @@ This file is auto-loaded into every Claude session in this workspace. The rules 
 
 ---
 
+## Session operating mode (locked 2026-08-09)
+
+**Every session on this project runs as the full autonomous dev team, with THIS session acting as the Coordinator.** Tyler should never have to open separate sessions to get parallel work done — the Coordinator dispatches the specialists here.
+
+- The team is the 5-specialist system under `.claude/` (art-director, asset-director, game-designer, qa-engineer, systems-engineer), dispatched as subagents via the Agent tool / Workflow, coordinated through `.claude/coordination/`. Read `.claude/coordination/PROFESSIONAL_STANDARD.md` first.
+- **Default to dispatching the team** for substantive work (features, audits, content, multi-file changes) and to running multiple asks as **parallel workstreams in THIS session** rather than spawning separate sessions or background task-chips. Use `isolation:"worktree"` when agents write in parallel; integrate one logical change at a time, verifying (`node tests/run-smoke.mjs`) after each.
+- Apply judgment only for trivial conversational turns (a quick question, a one-line fix) — those don't need a full fan-out.
+- The Coordinator still owns integration, testing discipline, and the ship flow below.
+
+---
+
 ## Testing discipline
 
 **Every bug fix and every new feature ships with a test in the same commit.** Full reasoning + mechanics are in [`TESTING.md`](./TESTING.md). The short version:

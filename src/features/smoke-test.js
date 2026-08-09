@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=268' directly.
+// modularised, will import { G } from '../state/game.js?v=269' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=268';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=268';
+import { on, snapshot } from '../net/events.js?v=269';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=269';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=268';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=269';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1467,6 +1467,55 @@ const TESTS = [
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target;
     }
   }),
+  () => tryRun('b269: the Stable nav button lives under Homestead, not Adventure', () => {
+    // Tyler: pets are a homestead fixture. companions.js injectNavButton was
+    // inserting the Stable button into the Adventure group; it must land in
+    // Homestead. Assert by walking the sidebar and tracking the group label
+    // that precedes the stable button.
+    const sb = document.querySelector('.sidebar') || document.querySelector('aside');
+    if (!sb) return;                                   // no sidebar in this harness view
+    const stable = sb.querySelector('[data-tab="stable"]');
+    if (!stable) return;                               // nav not injected yet — nothing to assert
+    let group = null;
+    for (const el of Array.from(sb.children)) {
+      if (el.classList && el.classList.contains('nav-group-label')) group = el.textContent.trim();
+      if (el === stable) break;
+    }
+    assert(group === 'Homestead',
+      'the Stable button must sit under the Homestead group, found it under: ' + group);
+  }),
+  () => tryRun('b269: artisan progress bar resets each action (was pinned at 100%)', () => {
+    // Regression (Tyler: "the progress bar stops after moving from 1 activity to
+    // another"). _armArtisanTimers filled G.skillProgress to a Math.min(1,…) cap
+    // but nothing reset it, so after one cycle the bar stuck at 100% forever
+    // while items kept being produced. doArtisanAction must re-zero it each real
+    // (non-silent) production tick, exactly like the gather loop's doSkillAction.
+    const G = window.G;
+    if (typeof window.doArtisanAction !== 'function') return;
+    const saved = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})),
+      prog: G.skillProgress,
+    };
+    try {
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 3 });   // burn-proof range
+      G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
+      G.skillProgress = 1;                                    // simulate a full bar
+      window.doArtisanAction('cooking', 'cook_shrimp');       // a real (non-silent) tick
+      assert(G.skillProgress === 0,
+        'a live artisan action must reset the progress bar to 0, got ' + G.skillProgress);
+      // silent offline-replay ticks must NOT touch the live bar
+      G.skillProgress = 0.5;
+      G.inventory.shrimp = 10;
+      window.doArtisanAction('cooking', 'cook_shrimp', { silent: true });
+      assert(G.skillProgress === 0.5,
+        'a silent offline tick must leave the live progress bar untouched, got ' + G.skillProgress);
+    } finally {
+      G.inventory = saved.inv; G.rooms = saved.rooms; G.skills = saved.skills;
+      G.skillProgress = saved.prog;
+    }
+  }),
   () => tryRun('b217: auto-eat is gated behind the purchased trait (unbypassable)', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
@@ -1523,6 +1572,82 @@ const TESTS = [
       G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
       if (G.bountyHunter) G.bountyHunter.marks = saved.marks;
     }
+  }),
+  // b269 (Tyler): purchasable bank space. Cap counts distinct stacks; gold path
+  // escalates; gem path is the better-value premium deal; can't overspend.
+  () => tryRun('b269: buying bank space raises the cap; gold escalates; gems are the better deal', () => {
+    const G = window.G;
+    assert(typeof window.buyBankSpaceGold === 'function', 'buyBankSpaceGold missing');
+    assert(typeof window.buyBankSpaceGem === 'function', 'buyBankSpaceGem missing');
+    assert(typeof window.bankCap === 'function' && typeof window.bankGoldCost === 'function', 'bank helpers missing');
+    const BS = window.BANK_SPACE;
+    const saved = { gold: G.gold, gems: G.gems, bank: JSON.parse(JSON.stringify(G.bank || {})) };
+    try {
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      const cap0 = window.bankCap();
+      assert(cap0 === BS.BASE_CAP, 'fresh cap must equal BASE_CAP, got ' + cap0);
+
+      // GOLD path: raises cap by the gold slot count, spends the escalating cost.
+      G.gold = 10_000_000; G.gems = 10_000;
+      const c0 = window.bankGoldCost();
+      assert(window.buyBankSpaceGold() === true, 'gold buy should succeed when affordable');
+      assert(window.bankCap() === cap0 + BS.gold.slots, 'gold buy must add gold.slots to the cap');
+      assert(G.gold === 10_000_000 - c0, 'gold buy must deduct exactly the quoted cost');
+      const c1 = window.bankGoldCost();
+      assert(c1 > c0, 'gold cost must ESCALATE after a purchase (' + c1 + ' > ' + c0 + ')');
+
+      // GEM path: bigger jump per purchase = better value than a single gold buy.
+      const gemsBefore = G.gems, capBeforeGem = window.bankCap();
+      assert(window.buyBankSpaceGem() === true, 'gem buy should succeed when affordable');
+      assert(window.bankCap() === capBeforeGem + BS.gem.slots, 'gem buy must add gem.slots to the cap');
+      assert(G.gems === gemsBefore - BS.gem.cost, 'gem buy must deduct exactly the gem cost');
+      assert(BS.gem.slots > BS.gold.slots, 'the gem path must grant more slots per buy than gold');
+
+      // Can't overspend either currency.
+      G.gold = 0;
+      assert(window.buyBankSpaceGold() === false && G.gold === 0, 'must refuse gold buy with no gold');
+      G.gems = 0;
+      assert(window.buyBankSpaceGem() === false && G.gems === 0, 'must refuse gem buy with no gems');
+    } finally {
+      G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank;
+    }
+  }),
+  () => tryRun('b269: addItem refuses a NEW stack when the bank is full, but grows existing stacks', () => {
+    const G = window.G;
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})) };
+    try {
+      // Two known item ids that stack.
+      const ids = Object.keys(window.ITEMS).filter(k => k !== 'gold').slice(0, 2);
+      assert(ids.length === 2, 'need two real item ids for the test');
+      G.inventory = {}; G.inventory[ids[0]] = 5;
+      // Pin the cap to exactly the current stack count → bank is full.
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      G.bank.grandfather = window.bankUsed() - window.BANK_SPACE.BASE_CAP; // cap == used
+      assert(window.bankCap() === window.bankUsed(), 'test setup: cap must equal used');
+      // Growing an EXISTING stack is always allowed.
+      assert(window.addItem(ids[0], 3) === true, 'existing stack must grow even when full');
+      assert(G.inventory[ids[0]] === 8, 'existing stack qty must increase');
+      // A brand-new stack is refused while full.
+      assert(window.addItem(ids[1], 1) === false, 'new stack must be refused when bank is full');
+      assert(!G.inventory[ids[1]], 'refused item must not enter the bag');
+      // Free a slot and the new stack now fits.
+      G.bank.grandfather += 1;
+      assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
+    } finally {
+      G.inventory = saved.inv; G.bank = saved.bank;
+    }
+  }),
+  () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
+    assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
+    const inv = {}; for (let i = 0; i < 260; i++) inv['probe_item_' + i] = 1; // 260 stacks > BASE 200
+    const out = window.applyMigrations({ v: 10, inventory: inv });
+    assert(out.bank && typeof out.bank.grandfather === 'number', 'migration must seed G.bank');
+    const cap = window.BANK_SPACE.BASE_CAP + out.bank.goldBuys * window.BANK_SPACE.gold.slots
+      + out.bank.gemBuys * window.BANK_SPACE.gem.slots + out.bank.grandfather;
+    assert(cap >= 260, 'grandfathered cap (' + cap + ') must cover existing 260 stacks — nobody worse off');
+    // Idempotent: re-running must not inflate the cap further.
+    const out2 = window.applyMigrations(out);
+    assert(out2.bank.grandfather === out.bank.grandfather, 'migration must be idempotent');
   }),
   () => tryRun('b217: migration grandfathers pre-v6 saves that already had auto-eat', () => {
     assert(typeof window.applyMigrations === 'function', 'window.applyMigrations missing');
@@ -14318,6 +14443,61 @@ const TESTS = [
       window.showTab('profile');
       assert(document.getElementById('panel-profile').classList.contains('active'), 'profile route broke');
     } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b269: pet session-impact tracker counts real contributions + surfaces the chip/modal', () => {
+    const PS = window.HearthrisePetSession;
+    assert(PS && typeof PS.recordProc === 'function' && typeof PS.recordXp === 'function',
+      'HearthrisePetSession seam missing — the tracker was not built');
+    const G = window.G;
+    const snap = G.companions ? JSON.parse(JSON.stringify(G.companions)) : null;
+    try {
+      // Equip a pet whose bonus we know: the Fox (allXP + a gold proc).
+      G.companions = G.companions || { ownedIds: ['fox'], xp: {}, equipped: null };
+      if (G.companions.ownedIds.indexOf('fox') < 0) G.companions.ownedIds.push('fox');
+      G.companions.xp = G.companions.xp || {};
+      G.companions.equipped = 'fox';
+      PS._reset();
+
+      // A proc pays a concrete amount — the tracker must record exactly it.
+      PS.recordProc('extraGold', 5, {});
+      let a = PS.get();
+      assert(a && a.petId === 'fox', 'accumulator must key on the equipped pet');
+      assert(a.gold === 5, 'gold proc must add its real amount, got ' + a.gold);
+      assert(a.procs === 1, 'proc count must increment, got ' + a.procs);
+
+      // A doubled drop records the item and its quantity.
+      PS.recordProc('doubleDrop', 0, { lastDrop: { id: 'copper_ore', qty: 2 } });
+      a = PS.get();
+      assert(a.drops === 2 && a.dropItems.copper_ore === 2, 'doubled drop must record item+qty');
+
+      // XP attribution is the pet's real marginal allXP after the budget.
+      const before = a.xp;
+      PS.recordXp(1000);
+      a = PS.get();
+      assert(a.xp > before, 'bonus XP must accrue from the Fox allXP share, got ' + a.xp);
+
+      // The chip mounts beside the avatar in the topbar.
+      PS.injectChip();
+      const chip = document.getElementById('hr-pet-chip');
+      assert(chip && chip.closest('.topbar .player'), 'pet chip must mount inside the topbar player block');
+
+      // The modal opens and renders the honest breakdown (reuses RoomModal).
+      if (window.HearthriseRoomModal) {
+        PS.openModal();
+        const scrim = document.querySelector('.hr-room-scrim');
+        assert(scrim, 'clicking the chip must open a RoomModal-style panel');
+        const txt = scrim.textContent;
+        assert(/Fox/.test(txt), 'the modal must be titled by the pet name');
+        assert(/Bonus XP granted/.test(txt) && /Gold contributed/.test(txt),
+          'the modal must show the real contribution breakdown');
+        window.HearthriseRoomModal.close();
+      }
+    } finally {
+      if (snap) G.companions = snap;
+      const c = document.getElementById('hr-pet-chip'); if (c) c.remove();
+      PS._reset();
+    }
   }),
 
 ];

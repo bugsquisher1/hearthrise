@@ -41,15 +41,20 @@
 create or replace function public.clan_feast_call(p_clan_id uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_clan public.clans%rowtype; v_role text; v_charge text;
+  v_clan public.clans%rowtype; v_role text;
   v_lv int; v_cap int; v_hours numeric; v_t public.clan_tavern%rowtype;
 begin
   if auth.uid() is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
-  select role, charge into v_role, v_charge from public.clan_members
+  select role into v_role from public.clan_members
     where clan_id = p_clan_id and user_id = auth.uid();
   if v_role is null then return jsonb_build_object('ok', false, 'error', 'not_member'); end if;
-  if v_role <> 'leader' and coalesce(v_charge,'') <> 'steward' then
-    return jsonb_build_object('ok', false, 'error', 'not_steward');
+  -- b228 reconcile: this migration re-creates clan_feast_call for the rebased
+  -- feast XP, but clan-governance re-created it for the vice-leader gate. Run
+  -- bonus-rebase LAST and carry BOTH — the vice permission gate lives here too,
+  -- so neither change is lost. Requires clan-governance to have run first
+  -- (hr_clan_may_post must exist).
+  if not public.hr_clan_may_post(p_clan_id, auth.uid()) then
+    return jsonb_build_object('ok', false, 'error', 'not_vice');
   end if;
 
   perform public.clan_upkeep_settle(p_clan_id);

@@ -73,9 +73,22 @@ const COMBAT_BALANCE={
   monsterMaxAccuracy:.85,
   monsterAttackDamageScale:.45,
   defenseXpMiss:1,
-  defenseXpDamageScale:2
+  defenseXpDamageScale:2,
+  /* b227: the swing interval was a bare 2400 written into two setInterval
+     calls, while FIVE readers already probed `COMBAT_BALANCE.tickMs` and
+     silently fell through to their own `|| 2400`. The key that everyone was
+     asking for now exists, so "how fast do I swing" has one answer. */
+  tickMs:2400
 };
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+
+/* b227: the combat HUD (src/features/combat-render.js) speaks the engine's
+   vocabulary rather than re-deriving it — a second copy of the damage maths is
+   how a stats panel starts disagreeing with the fight it describes. `const` in
+   a classic script is not a window property, so the two tables the render layer
+   reads are published deliberately. */
+window.WEAPON_TYPES = WEAPON_TYPES;
+window.COMBAT_BALANCE = COMBAT_BALANCE;
 
 const MONSTERS={
   /* Tier 1 — local threats */
@@ -575,7 +588,7 @@ function loadLocal(){
   // after the offline catch-up. processOfflineCombat may have nulled
   // G.activeMonster on death.
   if(G.activeMonster && !combatInterval){
-    combatInterval = setInterval(combatTick, 2400);
+    combatInterval = setInterval(combatTick, COMBAT_BALANCE.tickMs);
   }
 }
 /* ════════════════════════════════════════════════════════════════
@@ -1825,7 +1838,7 @@ function startCombat(mId){
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`⚔️ You attack the ${m.name}!`];
-  combatInterval=setInterval(combatTick,2400);
+  combatInterval=setInterval(combatTick,COMBAT_BALANCE.tickMs);
   combatTick();
   renderCombat();renderMonsterList();
 }
@@ -2563,12 +2576,6 @@ function renderCombat(){
   }
   const m=MONSTERS[G.activeMonster];
   const php=(G.playerHp/G.playerMaxHp)*100,mhp=(G.monsterHp/G.monsterMaxHp)*100;
-  const eq=getEquipmentStats();
-  const weak=getWeaknessInfo(m,eq);
-  const playerRoll=getPlayerCombatRolls(m,eq);
-  const monsterRoll=getMonsterCombatRolls(m,eq);
-  const hitCh=playerRoll.accuracy;
-  const maxHit=playerRoll.maxHit;
   /* b220: the auto-eat picker offers only what auto-eat may actually eat —
      Provisions (foodClass 'healing'). Listing Feasts & Draughts here let a
      player select a Void Banquet as their auto-eat food and then watch it
@@ -2589,23 +2596,35 @@ function renderCombat(){
        • with an empty bag it rendered as a lone "None" option, which reads as
          a broken control rather than "you have no healing food".
      Now: a real Eat button first, then auto-eat, then one line of plain
-     English about whichever of those two is actually in play. */
-  const _eatId = (typeof bestProvisionId === 'function') ? bestProvisionId() : null;
-  const _eatInfo = _eatId && typeof foodUseInfo === 'function' ? foodUseInfo(_eatId) : null;
+     English about whichever of those two is actually in play.
+
+     ── b227 (Tyler): "the eat food button is hard to read, and it needs to be
+     closer to the character screen. Right now I have to scroll down to see it."
+     He was right, and the reason is structural: this element renders into
+     #combat-area, which sits UNDER the arena stage and is the only scrolling
+     box on the screen. On a 900×760 window #combat-area was 91px tall holding
+     796px of content, so the one control that saves your life was 470px below
+     the fold DURING a fight.
+
+     The Eat BUTTON therefore no longer renders here. It is painted onto the
+     player's side of the arena stage — beside their own portrait and HP bar,
+     inside the non-scrolling region — by HearthriseCombatHud in
+     src/features/combat-render.js. What stays here is the auto-eat CONFIG,
+     which is a setting rather than an action and does not need to be reachable
+     inside one second.
+
+     Also gone from this box, and for the same reason: the six-tile `.calc`
+     grid, the drop-rate line, and (in injectCombatExtras) the Forecast card.
+     They are reference tables you consult between decisions, not things you
+     watch — so they became the two modals hung off the ENEMY portrait. */
   const _hasAutoEat = (typeof hasTrait === 'function') && hasTrait('auto_eat');
   const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
   const _threshPct = Math.round(((_eatCfg && _eatCfg.threshold) || 0.5) * 100);
-  const _atFullHp = G.playerHp >= G.playerMaxHp;
-  const _eatBtn = !_eatInfo
-    ? `<button class="btn btn-sm" disabled title="Cook fish or bake bread to get healing food">No healing food</button>`
-    : _atFullHp
-      ? `<button class="btn btn-sm" disabled title="Your health is already full">Full health</button>`
-      : `<button class="btn btn-sm btn-primary" onclick="eatBestProvision()" title="${ITEMS[_eatId].n} — you have ${G.inventory[_eatId]}">Eat ${ITEMS[_eatId].n} · +${_eatInfo.heals} HP · ×${G.inventory[_eatId]}</button>`;
   const _foodNote = !foods.length
     ? 'No Provisions in your bag. Cook fish or bake bread — Feasts &amp; Draughts heal too, but only when you use them by hand.'
     : _hasAutoEat
       ? `Auto-eat spends one Provision when your HP falls below ${_threshPct}%. Feasts &amp; Draughts are never auto-eaten.`
-      : `Auto-eat is a Store unlock — until then, healing in combat is manual: press Eat.`;
+      : `Auto-eat is a Store unlock — until then, healing in combat is manual: press Eat beside your champion.`;
   el.innerHTML=`
     ${renderBountyPanel()}
     <div class="arena">
@@ -2613,29 +2632,21 @@ function renderCombat(){
       <div class="vs">⚔️</div>
       <div class="fighter enemy"><div class="portrait">${m.icon}</div><div class="fname">${m.name}${m.boss?' <span class="tag">BOSS</span>':''}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
     </div>
-    <div class="calc">
-      <div><b>${Math.round(hitCh*100)}%</b><span>Your hit chance</span></div>
-      <div><b>${maxHit}</b><span>Your max hit</span></div>
-      <div><b>${Math.round(monsterRoll.accuracy*100)}%</b><span>Enemy hit chance</span></div>
-      <div><b>${monsterRoll.maxHit}</b><span>Enemy max hit</span></div>
-      <div><b>${WEAPON_TYPES[eq.weaponType]}</b><span>Your type</span></div>
-      <div><b>${WEAPON_TYPES[m.weaponWeak]}</b><span>${getWeaknessInfo(m,eq).matched?'+20% dmg / +15% acc':(m.weaponWeak==='neutral'?'+15% drops':'Weak to')}</span></div>
-    </div>
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
     <div class="cbt-food">
-      <div class="cbt-food-row">
-        ${_eatBtn}
-        ${(_hasAutoEat && foods.length) ? `<label class="row tiny muted" style="gap:6px">Auto-eat:
+      ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-eat:
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
             <option value="">Off</option>
             ${foods.map(([id])=>`<option value="${id}" ${(_eatCfg&&_eatCfg.foodId===id&&_eatCfg.enabled)?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
           </select>
-        </label>` : ''}
-      </div>
+        </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
-      <div class="row tiny muted">Drops: ${m.drops.map(d=>{const c=d.ch>=1?d.ch:Math.min(.95,d.ch*getWeaknessInfo(m,eq).dropMult);return `${ITEMS[d.id]?.icon||'?'} ${Math.round(c*100)}%`;}).join(' · ')}</div>
     </div>`;
   stop.style.display='inline-flex';
+  /* Repaint the stage-side controls in the same turn, so a caller that renders
+     and immediately reads (the smoke suite does exactly this) never sees a
+     button one tick out of date. */
+  if(window.HearthriseCombatHud) window.HearthriseCombatHud.refresh();
 }
 function renderLoadout(){
   const el=document.getElementById('loadout-panel');if(!el)return;
@@ -5368,12 +5379,18 @@ console.log('Activity bar: loaded');
     if(!vs){
       vs = document.createElement('div');
       vs.className = 'arena-vs';
+      /* b227: each fighter now carries an action slot directly under their own
+         HP readout. They are MOUNTS, not markup — everything inside them is
+         painted by HearthriseCombatHud (src/features/combat-render.js), which
+         is where the new combat UI lives. The stage owns the geometry; the
+         render module owns the contents. */
       vs.innerHTML = `
         <div class="arena-side player">
           <div class="arena-portrait" id="arena-player-portrait">🧙</div>
           <div class="arena-name" id="arena-player-name">You</div>
           <div class="arena-hp-bar"><i id="arena-player-hp" style="width:100%"></i></div>
           <div class="arena-hp-text" id="arena-player-hp-text">10 / 10</div>
+          <div class="arena-act arena-act-player" id="arena-act-player"></div>
         </div>
         <div class="arena-vs-divider">VS</div>
         <div class="arena-side foe">
@@ -5381,6 +5398,7 @@ console.log('Activity bar: loaded');
           <div class="arena-name" id="arena-foe-name">—</div>
           <div class="arena-hp-bar"><i id="arena-foe-hp" style="width:100%"></i></div>
           <div class="arena-hp-text" id="arena-foe-hp-text">— / —</div>
+          <div class="arena-act arena-act-foe" id="arena-act-foe"></div>
         </div>`;
       // Insert before the card-body so it sits at the top of the arena.
       var head = arena.querySelector('.card-head');
@@ -5398,6 +5416,7 @@ console.log('Activity bar: loaded');
       // Hide the arena-vs panel when not fighting so stale player/foe
       // portraits don't linger.
       if(existing) existing.style.display = 'none';
+      if(window.HearthriseCombatHud) window.HearthriseCombatHud.refresh();
       return;
     }
     ensureArenaVs();
@@ -5428,7 +5447,16 @@ console.log('Activity bar: loaded');
     var pPct = window.G.playerMaxHp ? Math.max(0, (window.G.playerHp/window.G.playerMaxHp)*100) : 0;
     if(php) php.style.width = pPct.toFixed(1)+'%';
     if(phpt) phpt.textContent = (window.G.playerHp||0)+' / '+(window.G.playerMaxHp||0);
+
+    /* b227: the two action slots ride the same 200ms tick as the HP bars, so
+       "Eat · +8 HP · 12 left" can never disagree with the HP number printed
+       directly above it. The HUD diffs before it repaints — see combat-render. */
+    if(window.HearthriseCombatHud) window.HearthriseCombatHud.refresh();
   }
+
+  /* b227: the stage's build step is published so the render module can paint
+     into it on demand instead of waiting up to 200ms for the next tick. */
+  window.HearthriseArenaStage = { ensure: ensureArenaVs, refresh: refreshArenaVs };
 
   // Tick alongside the activity bar
   setInterval(refreshArenaVs, 200);
@@ -8542,85 +8570,22 @@ function buildLoadoutDoll(){
   };
 })();
 
-/* ═══ Combat panel: drops list + XP/hr forecast ═══ */
-function rarityClass(ch){
-  if(ch >= 0.5) return 'r-common';
-  if(ch >= 0.15) return 'r-uncommon';
-  if(ch >= 0.05) return 'r-rare';
-  if(ch >= 0.01) return 'r-vrare';
-  return 'r-legendary';
-}
+/* ═══ Combat panel: the strip that used to live under the arena ═══
+   b227 (Tyler): "the possible loot / DPS statistics should be modals that you
+   click on near the enemy avatar, not a scrollable thing across the bottom."
 
-function injectCombatExtras(){
-  if(!G.activeMonster || typeof MONSTERS === 'undefined') return;
-  var m = MONSTERS[G.activeMonster];
-  if(!m) return;
-  var area = document.getElementById('combat-area');
-  if(!area) return;
+   What stood here was `injectCombatExtras()`: it rewrote the drop line into a
+   `.combat-drops-list` and prepended a six-tile `.combat-xp-forecast` card,
+   both into #combat-area — the one scrolling box on the combat screen. Between
+   them they were ~330px of reference material stacked on top of the combat log
+   and the Eat button, which is how the Eat button ended up below the fold.
 
-  /* Replace simple drops chip with structured list */
-  var dropsChip = area.querySelector('.row.tiny.muted');
-  if(dropsChip && /Drops:/.test(dropsChip.textContent)){
-    var list = document.createElement('div');
-    list.className = 'combat-drops-list';
-    list.innerHTML = '<div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin-bottom:4px">Drop Table</div>'+
-      m.drops.map(function(d){
-        var ch = d.ch >= 1 ? d.ch : d.ch;
-        var pct = (ch*100);
-        var pctTxt = pct >= 1 ? pct.toFixed(0) + '%' : pct.toFixed(1) + '%';
-        var def = (typeof ITEMS!=='undefined') ? ITEMS[d.id] : null;
-        var name = def ? def.n : d.id;
-        var path = window._itemPath && window._itemPath[d.id];
-        var iconHtml = path ? '<img src="'+path+'" alt="" />' : '<span style="font-size:15px">'+(def?.icon||'?')+'</span>';
-        return '<div class="combat-drop-row '+rarityClass(ch)+'">'+
-          '<div class="cdr-icon">'+iconHtml+'</div>'+
-          '<div class="cdr-name">'+name+'</div>'+
-          '<div class="cdr-pct">'+pctTxt+'</div>'+
-        '</div>';
-      }).join('');
-    dropsChip.parentNode.replaceChild(list, dropsChip);
-  }
-
-  /* Add XP/hr forecast card */
-  if(area.querySelector('.combat-xp-forecast')) return;
-  var rolls = (typeof getPlayerCombatRolls === 'function') ? getPlayerCombatRolls(m) : null;
-  if(!rolls) return;
-  var maxHit = rolls.maxHit;
-  var acc = rolls.accuracy;
-  var avgDmg = (1+maxHit)/2 * acc;
-  var killSec = (m.hp / Math.max(0.1, avgDmg)) * 2.4;
-  var killsHr = 3600 / killSec;
-  var goldHr = killsHr * (m.gp[0]+m.gp[1])/2;
-  var xpHr = killsHr * m.xp;
-  var style = (typeof window.getActiveCombatStyle === 'function') ? window.getActiveCombatStyle() : null;
-  var primary = style && style.xp ? Object.keys(style.xp)[0] : 'attack';
-  var primaryRatio = style && style.xp ? style.xp[primary] : 1;
-
-  var card = document.createElement('div');
-  card.className = 'combat-xp-forecast';
-  card.innerHTML = '<h4>Forecast — vs '+m.name+'</h4>'+
-    '<div class="cxr-grid">'+
-      '<div class="cxr-stat"><b>'+killsHr.toFixed(1)+'</b><span>Kills/hr</span></div>'+
-      '<div class="cxr-stat"><b>'+Math.floor(xpHr).toLocaleString()+'</b><span>Combat XP/hr</span></div>'+
-      '<div class="cxr-stat"><b>'+Math.floor(goldHr).toLocaleString()+'</b><span>Gold/hr</span></div>'+
-      '<div class="cxr-stat"><b>'+(acc*100).toFixed(0)+'%</b><span>Hit chance</span></div>'+
-      '<div class="cxr-stat"><b>1-'+maxHit+'</b><span>Damage range</span></div>'+
-      '<div class="cxr-stat"><b>'+primary.slice(0,3).toUpperCase()+' '+(primaryRatio*100).toFixed(0)+'%</b><span>Style trains</span></div>'+
-    '</div>';
-
-  /* Insert at top of combat-area */
-  area.insertBefore(card, area.firstChild);
-}
-
-(function(){
-  var origRC = window.renderCombat;
-  if(typeof origRC !== 'function') return;
-  window.renderCombat = function(){
-    var r = origRC.apply(this, arguments);
-    setTimeout(injectCombatExtras, 0);
-    return r;
-  };
-})();
+   Both now open from the enemy's side of the arena as modals, painted by
+   HearthriseCombatHud in src/features/combat-render.js. The Forecast maths
+   moved there verbatim (same rolls, same 2.4s swing, same kills/xp/gold per
+   hour) rather than being re-derived, and `.combat-drop-row` + its rarity
+   bands are reused unchanged, so the drop table a player already recognises
+   still looks like itself — it simply has a modal to live in. */
 
 console.log('UI rework v2 loaded');
 })();

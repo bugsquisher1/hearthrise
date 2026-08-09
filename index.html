@@ -111,6 +111,11 @@
        colour story and needs no !important and no stacked panel id. Loads last
        for the same reason board-and-shop.css does. -->
   <link rel="stylesheet" href="src/styles/clan-seat.css?v=226">
+  <!-- b227: the combat stage's own controls (Eat beside your champion, Loot /
+       Stats beside the foe) and the two modals they open. Loads last, after
+       clan-seat.css, because it reconciles one class it deliberately reuses
+       from legacy.css inside the shared room modal. See the file header. -->
+  <link rel="stylesheet" href="src/styles/combat-hud.css?v=226">
 </head>
 <body>
 <div class="app" id="app">

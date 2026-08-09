@@ -4503,11 +4503,15 @@ const TESTS = [
     }
   }),
 
-  // (4) The combat food row states what auto-eat does, offers a manual Eat,
-  //     and never offers an auto-eat the engine will refuse. The three states
+  // (4) The combat food controls state what auto-eat does, offer a manual Eat,
+  //     and never offer an auto-eat the engine will refuse. The three states
   //     that were each a lie before b224: trait not owned, no Provisions, and
   //     a bag holding only Feasts.
-  () => tryRun('b224: combat food row is honest in every state', () => {
+  //     b227: the Eat BUTTON moved out of #combat-area and onto the arena
+  //     stage, beside the player's own HP bar (it used to render below the fold
+  //     during a fight). Every assertion below is unchanged — only where the
+  //     button is read from moved, which is the point of the change.
+  () => tryRun('b224: combat food controls are honest in every state', () => {
     const G = window.G;
     assert(typeof window.renderCombat === 'function', 'renderCombat missing');
     assert(typeof window.bestProvisionId === 'function', 'bestProvisionId missing');
@@ -4521,11 +4525,12 @@ const TESTS = [
     const row = () => {
       window.renderCombat();
       const el = document.querySelector('#combat-area .cbt-food');
-      assert(el, 'the combat food row did not render');
-      const btn = el.querySelector('.cbt-food-row button');
+      assert(el, 'the combat food block did not render');
+      const btn = document.querySelector('#arena-act-player .arena-eat');
+      assert(btn, 'the Eat button did not render on the arena stage');
       return {
-        btn: btn ? btn.textContent.trim() : '',
-        disabled: btn ? !!btn.disabled : true,
+        btn: btn.textContent.trim(),
+        disabled: !!btn.disabled,
         hasPicker: !!el.querySelector('select'),
         note: el.querySelector('.cbt-food-note').textContent,
       };
@@ -4572,6 +4577,143 @@ const TESTS = [
       G.traits = snap.traits;
       window.HearthriseAuto.setEat(snap.eat);
       try { window.renderCombat(); } catch (e) { /* restoring state only */ }
+    }
+  }),
+
+  /* ── b227 · the combat stage ────────────────────────────────────────────
+     Tyler: "the eat food button is hard to read, and it needs to be closer to
+     the character screen. Right now I have to scroll down to see it — that's
+     crazy." The cause was structural: every control except the portraits and
+     HP bars rendered into #combat-area, the one scrolling box on the screen,
+     and the Eat button rendered LAST. So the regression this guards is not
+     "does an Eat button exist" (b224 already covers that) but "can the player
+     reach it without scrolling, during a fight". The suite runs at 1440×900,
+     so the geometry below is a real measurement at a real supported size. */
+  () => tryRun('b227: the Eat button is on the stage and reachable without scrolling', () => {
+    const G = window.G;
+    const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp,
+      hp: G.playerHp, maxHp: G.playerMaxHp, inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      tab: window.activeTab };
+    try {
+      window.showTab('combat');
+      G.activeMonster = 'slime'; G.monsterHp = 8; G.monsterMaxHp = 8;
+      G.playerMaxHp = 100; G.playerHp = 30;
+      G.inventory = { cooked_shrimp: 5 };
+      window.renderCombat();
+
+      const btn = document.querySelector('#arena-act-player .arena-eat');
+      assert(btn, 'no Eat button on the player side of the arena');
+
+      // It must not live inside the scrolling box — that is the whole bug.
+      const scroller = document.getElementById('combat-area');
+      assert(scroller && !scroller.contains(btn),
+        'the Eat button is back inside #combat-area, the box that scrolls');
+      const stage = document.querySelector('#panel-combat .combat-arena > .arena-vs');
+      assert(stage && stage.contains(btn), 'the Eat button must sit on the arena stage');
+      assert(getComputedStyle(stage).flexShrink === '0',
+        'the stage must not be compressible, or the log will squeeze the champion off-screen');
+
+      // And it must actually be on screen, inside the arena card, right now.
+      const r = btn.getBoundingClientRect();
+      const card = document.querySelector('#panel-combat .combat-arena').getBoundingClientRect();
+      assert(r.width > 0 && r.height > 0, 'the Eat button has no box');
+      assert(r.top >= 0 && r.bottom <= window.innerHeight,
+        'the Eat button is off-screen at ' + Math.round(r.top) + '–' + Math.round(r.bottom) +
+        ' in a ' + window.innerHeight + 'px viewport');
+      assert(r.bottom <= card.bottom + 1 && r.top >= card.top - 1,
+        'the Eat button escaped the arena card');
+
+      // It reads as the primary action, and its disabled state stays legible
+      // rather than dropping to the global 38% — an unreadable reason is not a
+      // reason (this is the "hard to read" half of the report).
+      assert(btn.classList.contains('btn-primary'),
+        'a live Eat button must get primary (gilt) treatment');
+      G.playerHp = 100;
+      window.renderCombat();
+      const off = document.querySelector('#arena-act-player .arena-eat');
+      assert(off.disabled && /full/i.test(off.textContent), 'full HP must disable Eat with a reason');
+      assert(parseFloat(getComputedStyle(off).opacity) >= 0.9,
+        'the disabled Eat button must stay readable, got opacity ' + getComputedStyle(off).opacity);
+    } finally {
+      G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
+      G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp; G.inventory = snap.inv;
+      try { window.renderCombat(); } catch (e) { /* restoring state only */ }
+      if (snap.tab) window.showTab(snap.tab);
+    }
+  }),
+
+  /* Tyler: "the possible loot / DPS statistics should be modals that you click
+     on near the enemy avatar, not a scrollable thing across the bottom." Two
+     halves: the strip is gone, and everything it carried is still reachable. */
+  () => tryRun('b227: loot and stats are modals off the enemy, not a bottom strip', () => {
+    const G = window.G;
+    const HUD = window.HearthriseCombatHud;
+    assert(HUD && typeof HUD.openLoot === 'function', 'HearthriseCombatHud is not published');
+    const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp, tab: window.activeTab };
+    const scrim = () => document.querySelector('.hr-room-scrim[data-combat-hud]');
+    try {
+      window.showTab('combat');
+      G.activeMonster = 'rat'; G.monsterHp = 9; G.monsterMaxHp = 9;
+      window.renderCombat();
+
+      // (1) The strip is gone. All three of these rendered into #combat-area
+      //     during a fight and together stood ~330px tall.
+      const area = document.getElementById('combat-area');
+      ['.combat-xp-forecast', '.combat-drops-list', '.calc'].forEach((sel) => {
+        assert(!area.querySelector(sel), sel + ' is still stacked under the arena');
+      });
+      assert(!/Drops:/.test(area.textContent), 'the raw drop-rate line is still under the arena');
+
+      // (2) Both affordances are on the ENEMY side of the stage.
+      const foe = document.querySelector('.arena-vs .arena-side.foe #arena-act-foe');
+      assert(foe, 'the enemy has no action slot');
+      assert(foe.querySelector('[data-arena-act="loot"]'), 'no Loot control beside the enemy');
+      assert(foe.querySelector('[data-arena-act="stats"]'), 'no Stats control beside the enemy');
+
+      // (3) Loot opens, carries every drop with a rate, and closes on demand.
+      assert(HUD.openLoot(), 'the loot modal did not open');
+      let m = scrim();
+      assert(m && m.dataset.combatHud === 'loot', 'the loot modal is not on screen');
+      const lootText = m.textContent;
+      window.MONSTERS.rat.drops.forEach((d) => {
+        const nm = window.ITEMS[d.id] ? window.ITEMS[d.id].n : d.id;
+        assert(lootText.indexOf(nm) >= 0, 'the loot modal does not list ' + nm);
+      });
+      assert(m.querySelectorAll('.combat-drop-row').length === window.MONSTERS.rat.drops.length,
+        'the drop rows lost their rarity bands');
+      assert(/%|always/.test(lootText), 'the loot modal shows no drop rates');
+      HUD.close();
+      assert(!scrim(), 'the loot modal would not close');
+
+      // (4) Stats opens and carries the combat maths the strip used to show —
+      //     both grids, not just one of them.
+      assert(HUD.openStats(), 'the stats modal did not open');
+      m = scrim();
+      assert(m && m.dataset.combatHud === 'stats', 'the stats modal is not on screen');
+      const st = m.textContent;
+      ['Hit chance', 'Max hit', 'Damage per second', 'Time to kill', 'Kills per hour',
+       'Combat XP per hour', 'Gold per hour'].forEach((label) => {
+        assert(st.indexOf(label) >= 0, 'the stats modal is missing "' + label + '"');
+      });
+
+      // The numbers come from the engine's own rolls, not a second copy of the
+      // maths — a stats panel that disagrees with the fight is worse than none.
+      const f = HUD._forecast(window.MONSTERS.rat);
+      const rolls = window.getPlayerCombatRolls(window.MONSTERS.rat);
+      assert(f.you.maxHit === rolls.maxHit && f.you.accuracy === rolls.accuracy,
+        'the stats modal re-derives the damage maths instead of reading the engine');
+      assert(st.indexOf(String(rolls.maxHit)) >= 0, 'the engine max hit is not on the panel');
+
+      // Ending the fight takes the modal with it — a drop table for a foe you
+      // are no longer fighting is a lie about what you are doing.
+      G.activeMonster = null;
+      HUD.refresh();
+      assert(!scrim(), 'the modal outlived the fight it described');
+    } finally {
+      try { HUD.close(); } catch (e) { /* teardown */ }
+      G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
+      try { window.renderCombat(); } catch (e) { /* restoring state only */ }
+      if (snap.tab) window.showTab(snap.tab);
     }
   }),
 

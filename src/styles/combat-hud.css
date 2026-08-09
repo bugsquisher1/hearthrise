@@ -1,0 +1,287 @@
+/* ==========================================================================
+ * src/styles/combat-hud.css — b227
+ *
+ * The controls that live ON the fighting stage, and nothing else. Loads last,
+ * after clan-seat.css, for the same reason board-and-shop.css does: everything
+ * here is scoped to `#panel-combat`, `.arena-*` or `.hr-room-combat`, so it
+ * needs no `!important` to win against the three legacy sheets — except in the
+ * one place noted at the bottom, where it is undoing an existing `!important`.
+ *
+ * WHY THIS FILE EXISTS
+ * --------------------
+ * The combat screen was a fixed stage (portraits + HP bars) over a single
+ * scrolling box that held everything else — forecast card, maths grid, combat
+ * log, food controls, drop table. Measured with a fight running: 735px of
+ * content in a 441px box at 1440×900, and 796px in a 91px box at 900×760. The
+ * Eat button rendered last, so the control that stops you dying sat 470px below
+ * the fold, mid-fight. Tyler: "that's crazy."
+ *
+ * The rule this file encodes is a division of labour, not a reshuffle:
+ *
+ *   An ACTION belongs to a fighter, so it is drawn beside that fighter and
+ *   never scrolls. Eating is yours — Eat sits under your HP bar. Sizing up the
+ *   foe is about them — Loot and Stats sit under theirs.
+ *
+ *   REFERENCE belongs in a modal. Drop rates and damage maths are read between
+ *   decisions, not watched, so they cost a click and zero screen height.
+ *
+ * CONTAINMENT IS EARNED (art-direction.css §preamble): neither action slot gets
+ * a box. They are the last row of a fighter's own column — the portrait, the
+ * name, the bar, the readout and then the thing you do about it. The only
+ * boxes here are the buttons themselves, which are things you press.
+ * ========================================================================== */
+
+/* ── 1. THE STAGE DOES NOT SCROLL ──────────────────────────────────────────
+ * `.card` is already a flex column and `#combat-area` is already `flex:1;
+ * min-height:0; overflow-y:auto`, so the model was right — the stage was just
+ * allowed to be squeezed. `flex:0 0 auto` makes the fighters and their controls
+ * incompressible, which is what "always visible without scrolling" means in a
+ * flex column: the log gives up its height, never the champion. */
+#panel-combat .combat-arena > .arena-vs {
+  flex: 0 0 auto;
+}
+
+/* And with the four reference blocks gone from it, #combat-area was 380px of
+ * box holding 200px of content — the log ended halfway up a painted wall. The
+ * combat log is the one thing on this screen you actually watch, so it takes
+ * the slack instead of leaving a void: it grows to whatever the stage did not
+ * use, and keeps its own scrollbar for the history above the fold. */
+body.in-combat #combat-area {
+  display: flex;
+  flex-direction: column;
+}
+body.in-combat #combat-area > .combat-log {
+  flex: 1 1 auto;
+  min-height: 84px;
+  max-height: none;
+}
+body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
+
+/* ── 2. THE ACTION SLOTS ───────────────────────────────────────────────────*/
+.arena-vs .arena-act {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  min-height: 0;
+  width: 100%;
+  max-width: 200px;   /* close to .arena-hp-bar, so the column reads as a column */
+}
+.arena-vs .arena-act:empty { display: none; }
+
+/* ── 3. EAT — the primary action of the whole screen ───────────────────────
+ * Struck gilt, per the button ladder: "only the primary is allowed to be
+ * bright", and if a screen gets one, this is the one. Two lines, because the
+ * old single-line label ("Eat Cooked Shrimp · +8 HP · ×12") is four facts run
+ * together with dots — legible in a wide row, unreadable in a 240px column.
+ * The name is the label; the numbers are the sub-line. */
+.arena-vs .arena-eat {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 42px;
+  padding: 5px 12px;
+  line-height: 1.15;
+  text-align: center;
+  /* The label wraps rather than clips: the longest Provision in the game is
+     "Eat Cooked Panther Meat", which is ~165px of type in a 200px slot before
+     padding. A two-line button is fine; a truncated food name is not, because
+     the name is how you know what you are about to spend. */
+  white-space: normal;
+}
+.arena-vs .arena-eat .ae-lbl {
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 700;
+  letter-spacing: .005em;
+}
+.arena-vs .arena-eat .ae-meta {
+  font-family: var(--f-label);
+  font-size: var(--t-micro);   /* the floor — nothing a player must read goes below it */
+  font-weight: 700;
+  letter-spacing: .02em;
+  opacity: .78;
+  white-space: nowrap;
+}
+
+/* THE DISABLED STATES ARE HONEST, WHICH MEANS THEY ARE STILL READABLE.
+ * The global `.btn:disabled { opacity: .38 }` is right for an ordinary control
+ * and wrong here: "Full health" and "No healing food" are the button telling
+ * you why it will not fire, and a reason you cannot read is not a reason. So
+ * the state is carried by weight and colour — recessed surface, quiet ink, no
+ * gilt — instead of by transparency. It still reads as un-pressable: it has
+ * lost the one bright treatment on the screen. */
+#panel-combat .arena-vs .arena-eat.is-idle,
+#panel-combat .arena-vs .arena-eat.is-idle:disabled {
+  opacity: 1;
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-2);
+  cursor: default;
+}
+#panel-combat .arena-vs .arena-eat.is-idle .ae-meta { color: var(--ink-3); opacity: 1; }
+
+/* ── 4. LOOT / STATS — the foe's two reference chips ───────────────────────
+ * Quiet by design. They open reading material; they are not moves. Sized to
+ * split the same 240px the HP bar occupies, so the enemy column keeps its
+ * silhouette. */
+.arena-vs .arena-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.arena-vs .arena-chip:hover { color: var(--gold-2); }
+
+/* ── 5. SHORT WINDOWS ──────────────────────────────────────────────────────
+ * At 900×760 the combat panel is 660px tall and the style ribbon wraps to two
+ * rows, which left the arena card ~337px. The stage compresses rather than
+ * pushing the controls off the bottom: the portrait and the VS lose size, the
+ * type and the buttons do not. */
+@media (max-height: 820px) {
+  #panel-combat .arena-vs { padding: 12px 16px; gap: 12px; }
+  #panel-combat .arena-vs .arena-portrait { width: 72px; height: 72px; font-size: 40px; }
+  #panel-combat .arena-vs .arena-vs-divider { font-size: 21.5px; }
+  #panel-combat .arena-vs .arena-side { gap: 5px; }
+  #panel-combat .arena-vs .arena-hp-bar { height: 12px; }
+}
+@media (max-height: 700px) {
+  #panel-combat .arena-vs { padding: 8px 14px; }
+  #panel-combat .arena-vs .arena-portrait { width: 58px; height: 58px; font-size: 32px; }
+  #panel-combat .arena-vs .arena-name { font-size: var(--t-small); }
+}
+
+/* ── 5b. NARROW DESKTOP (≤1180px) ──────────────────────────────────────────
+ * Two layout faults that this rework inherited and that cost exactly the
+ * height the Eat button needs. Both are dead space, both are one rule.
+ *
+ * (a) THE EMPTY COLUMN. legacy.css hides `.combat-loadout` below 1180px, but
+ *     audit-overrides.css declares the column track for it with `!important`
+ *     and no media query — so the track survived the card. At 900×760 that is
+ *     320px of painted nothing beside the monster list, and 340px beside the
+ *     arena once a fight starts. The track goes where the card went.
+ *
+ * (b) THE RIBBON THAT BECAME A COLUMN. In combat, `.csb-meta` is `flex:1;
+ *     min-width:0` next to four `flex-wrap:nowrap` style buttons. Below about
+ *     1180px the buttons take everything and the meta is crushed to roughly
+ *     100px, so "Style: Accurate · Trains: Attack · Accuracy skill: attack ·
+ *     Damage skill: strength" stacks one word per line and the ribbon runs
+ *     270px tall — a third of a 760px window, to say four short things. Given
+ *     its own row it is two lines. `order` keeps the title and the buttons
+ *     together on the first row rather than making three rows out of two. */
+@media (max-width: 1180px) {
+  #panel-combat.active {
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) !important;
+    grid-template-areas: "ribbon ribbon" "monsters arena" !important;
+  }
+  body.in-combat #panel-combat.active {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: "ribbon" "arena" !important;
+  }
+  body.in-combat #panel-combat.active .combat-style-block .csb-meta {
+    flex: 1 0 100%;
+    order: 3;
+  }
+}
+
+/* Below 900px the shell swaps the sidebar for the bottom nav, but the combat
+ * panel keeps the padding audit-overrides gives it with `!important`, so the
+ * bottom of the arena — the row the Eat button is now in — ran underneath the
+ * nav bar. Give it the same clearance every other panel gets. */
+@media (max-width: 900px) {
+  #panel-combat.active { padding-bottom: calc(72px + var(--safe-b, 0px)) !important; }
+}
+
+/* ── 6. THE TWO MODALS ─────────────────────────────────────────────────────
+ * They are HearthriseRoomModal descriptors — the house modal seam — so the
+ * frame, scrim, header, eyebrows and rows are all inherited and nothing is
+ * restyled here. The only work is reconciling ONE reuse: the drop rows carry
+ * `.combat-drop-row` and its rarity band from legacy.css, because those five
+ * band colours are the game's rarity vocabulary and re-declaring them here
+ * would be a second copy that drifts. That class was written for a row on a
+ * dark strip, so its own chrome (fill, radius, padding) is dropped and only
+ * the band — the part carrying the meaning — is kept. */
+.hr-room-combat .hr-cs-row.combat-drop-row {
+  background: none;
+  border-radius: 0;
+  padding: 10px 0 10px 11px;
+  font-size: var(--t-small);
+  border-bottom: 1px solid var(--line-soft);
+}
+.hr-room-combat .hr-cs-row.combat-drop-row:last-of-type { border-bottom: 0; }
+.hr-room-combat .hr-cs-row .cdr-name {
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: normal;      /* a modal has room; no need to clip item names */
+}
+.hr-room-combat .hr-cs-row .cdr-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+/* On a panel whose entire job is answering "what is the number", the number is
+ * the loudest thing on the row. `.hr-cs-amt` is quiet by default because in the
+ * clan seat it is a running total beside a name that matters more; here the
+ * name is the question and the value is the answer, so it takes the display
+ * face at the row-title step. Drop rates are exempt from the colour: their
+ * rarity band already says how likely they are, and one element cannot carry
+ * two meanings in two hues. */
+.hr-room-combat .hr-cs-amt {
+  font-family: var(--f-display);
+  font-size: var(--t-lead);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hr-room-combat .hr-cs-amt:not(.cdr-pct) { color: var(--gold-2); }
+
+/* ── 7. THE 420px LANDSCAPE CLIP ───────────────────────────────────────────
+ * Flagged by the art director: `#panel-combat` computes `display:grid;
+ * overflow:hidden` on a 420px-tall landscape phone and swallows ~290px of
+ * content that cannot be scrolled to. The cause is audit-overrides.css, where
+ * the three-column desktop grid is declared with `!important` and no media
+ * query, so it outranks the unweighted `#panel-combat.active { display:block }`
+ * in legacy.css's phone block. The mobile rule was always there; it simply
+ * never won.
+ *
+ * This is the one place in this file that needs `!important`, and it is
+ * undoing one — the desktop grid is told to stop applying where a desktop grid
+ * cannot fit. The mobile query is the project's own (CLAUDE.md § Mobile rules),
+ * copied exactly so this tracks the sub-tab bar it shares a layout with. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  #panel-combat.active,
+  body.in-combat #panel-combat.active {
+    display: block !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    grid-template-areas: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  /* The cards were sized by grid rows that no longer exist; let them be as
+     tall as their contents so the stage and the log are both reachable. */
+  #panel-combat.active .combat-picker,
+  #panel-combat.active .combat-loadout,
+  #panel-combat.active .combat-arena {
+    height: auto;
+    max-height: none;
+    overflow: visible !important;
+  }
+  /* The stage is the one thing worth the vertical budget on a 420px screen. */
+  #panel-combat .arena-vs { padding: 10px 12px; gap: 10px; }
+  #panel-combat .arena-vs .arena-portrait { width: 56px; height: 56px; font-size: 30px; }
+  #panel-combat .arena-vs .arena-vs-divider { font-size: 18px; }
+  #panel-combat .arena-vs .arena-hp-bar { width: 100%; height: 11px; }
+  .arena-vs .arena-act { max-width: none; }
+}

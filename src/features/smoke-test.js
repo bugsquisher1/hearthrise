@@ -4182,6 +4182,77 @@ const TESTS = [
     assert(/<strong>bullet<\/strong>/.test(html), 'markdown bold lost in render');
   }),
 
+  // b223 (QA): the What's-New sheet's "don't stack on FTUE" guard was a dead
+  // selector. It looked for `.hr-ftue` / `.hr-ftue-overlay`; the tour actually
+  // renders `.ftue-root > .ftue-card.show`, so the guard matched nothing and
+  // the sheet (z 99998) opened UNDER the tour card (z 99999) with a
+  // full-screen scrim the tour's spotlight could not punch through.
+  // Repro: finish one load (marks changelog seen), abandon the tour without
+  // answering it, ship a new build, return — both modals on screen at once.
+  // post-signup-welcome.js and identity.js were corrected in b221; this file
+  // was the last straggler. Guard the BEHAVIOUR, not the string: build the
+  // real FTUE DOM shape and assert the guard sees it.
+  () => tryRun('b223: whats-new never stacks on the FTUE tour / name modal', () => {
+    const P = window.__hrWelcomeParse;
+    if (!P || typeof P.anotherModalUp !== 'function') {
+      throw new Error('__hrWelcomeParse.anotherModalUp test seam missing');
+    }
+    // The suite may run while a real front-door overlay (daily reward, name
+    // modal) is on screen. Park them for the duration and put them back
+    // exactly where they were — the guard is what is under test, not the
+    // scheduler that opened them.
+    const parked = [].slice.call(document.querySelectorAll('.ftue-root, .hr-id-scrim, .hr-dl-scrim'))
+      .map((el) => ({ el, parent: el.parentNode, next: el.nextSibling }));
+    parked.forEach((p) => p.el.remove());
+    const restore = () => parked.forEach((p) => {
+      try { p.parent.insertBefore(p.el, p.next); } catch (e) { try { document.body.appendChild(p.el); } catch (e2) {} }
+    });
+
+    try {
+      // Nothing up: the sheet must be free to open, or a returning player
+      // never sees the release notes at all.
+      assert(P.anotherModalUp() === false, 'guard blocks with a clean DOM — the sheet would never open');
+
+      // The real FTUE shape (src/ftue.js): root > card, card carries `.show`
+      // only while a step is actually on screen.
+      const root = document.createElement('div');
+      root.className = 'ftue-root';
+      const card = document.createElement('div');
+      card.className = 'ftue-card';
+      root.appendChild(card);
+      document.body.appendChild(root);
+      try {
+        assert(P.anotherModalUp() === false,
+          'a hidden FTUE card (no .show) must not block the sheet forever');
+        card.classList.add('show');
+        assert(P.anotherModalUp() === true,
+          'the What\'s-New sheet would stack on top of the FTUE tour (dead .hr-ftue selector regression)');
+      } finally {
+        root.remove();
+      }
+
+      // The b221 name modal outranks the news: you are told who you are
+      // before you are told what changed.
+      const idScrim = document.createElement('div');
+      idScrim.className = 'hr-id-scrim';
+      document.body.appendChild(idScrim);
+      try {
+        assert(P.anotherModalUp() === true, 'the sheet would stack on the name modal');
+      } finally {
+        idScrim.remove();
+      }
+      assert(P.anotherModalUp() === false, 'guard did not clear after the overlays were removed');
+    } finally {
+      restore();
+    }
+
+    // Mutual-exclusion sanity: daily-reward yields to `#hr-welcome-modal` and
+    // this sheet yields to `.hr-dl-scrim`. Neither may name an element the
+    // OTHER always has on screen, or the two poll each other forever.
+    assert(P.BLOCKING_OVERLAYS.indexOf('#hr-welcome-modal') === -1,
+      'the sheet must not block on its own overlay — that is a permanent deadlock');
+  }),
+
   // ── b220 regression suite (backlog #12 — artisan taxonomy) ──
 
   // b220 (#12a): categories are DERIVED from output.type / id suffix /

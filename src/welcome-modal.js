@@ -119,9 +119,23 @@
     document.body.appendChild(overlay);
   }
 
+  // The front-door overlays this modal must never land on top of. FTUE renders
+  // `.ftue-root > .ftue-card.show` (src/ftue.js) — NOT `.hr-ftue`, which is the
+  // selector this file guarded on until b223 and which has matched nothing
+  // since b141. post-signup-welcome.js:88 and identity.js:1043 were corrected
+  // to the real selector in b221; this file was the last straggler, so a
+  // returning player who had not finished the tutorial met the What's-New
+  // sheet (z 99998) underneath the tour card (z 99999) — two modals at once,
+  // and the tour's spotlight blocked by a full-screen scrim it cannot see.
+  // `.hr-id-scrim` is the b221 name modal: naming comes before news.
+  var BLOCKING_OVERLAYS = '.ftue-root .ftue-card.show, .hr-id-scrim, .hr-dl-scrim';
+  function anotherModalUp() {
+    return !!document.querySelector(BLOCKING_OVERLAYS);
+  }
+
   async function maybeShow() {
-    // Don't stack on FTUE
-    if (document.querySelector('.hr-ftue, .hr-ftue-overlay')) {
+    // Don't stack on FTUE / the name modal / the daily-reward sheet.
+    if (anotherModalUp()) {
       setTimeout(maybeShow, 2000);
       return;
     }
@@ -149,8 +163,9 @@
   // branch — Settings → "Show what's new" never showed anything. Set a stale
   // sentinel instead so the "already saw this build" check misses.
   window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
-  // Test seam (smoke suite asserts CRLF parsing + emoji stripping)
-  window.__hrWelcomeParse = { parseFirstSection, mdToHtml };
+  // Test seam (smoke suite asserts CRLF parsing + emoji stripping, and that
+  // the front-door guard matches the overlays that actually exist)
+  window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS };
 
   // Run on DOM ready, slight delay so FTUE / build-info finish booting first
   function boot() { setTimeout(maybeShow, 1500); }

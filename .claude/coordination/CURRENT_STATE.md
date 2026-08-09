@@ -6,13 +6,13 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 
 ## Build & branch
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b222)
+- **Version:** v0.9.2-beta (build b223)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
-- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) raid-hardening 2) muster 3) unique-names 4) leaderboards 5) clan-seat (all `supabase/migrations/2026-08-08-*.sql`). All idempotent with self-checks; clients live and feature-detecting. NOTE: clan-seat + leaderboards SQL never executed against real Postgres — their self-check DO blocks are the net; run and read the notices.
+- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) raid-hardening 2) muster 3) unique-names 4) leaderboards 5) clan-seat 6) clan-seat-2 7) hunt (all `supabase/migrations/2026-08-08-*.sql`). All idempotent with self-checks; clients live and feature-detecting. NOTE: leaderboards/clan-seat/clan-seat-2/hunt SQL never executed against real Postgres — their self-check DO blocks are the net; run and read the notices.
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **250/250 green, 0 runtime errors** (b222 final gate; +29 over b221).
+- **Smoke:** `node tests/run-smoke.mjs` → **274/274 green, 0 runtime errors** (b223 final gate; +24 over b222).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

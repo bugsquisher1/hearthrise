@@ -20,6 +20,7 @@
       "port": 8149
     },
     {
+<<<<<<< HEAD
       "name": "hearthrise-questnav",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8166"],
@@ -30,6 +31,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8172"],
       "port": 8172
+=======
+      "name": "manual-stable-8171",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8171"],
+      "port": 8171
+>>>>>>> agent-stable
     }
   ]
 }

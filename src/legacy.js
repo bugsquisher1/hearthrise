@@ -8948,6 +8948,31 @@ window.buildTibiaDoll = function(){
   var companionPane = document.createElement('div');
   companionPane.className = 'td-pet-pane';
   EQUIP_SLOTS.forEach(function(s){
+    // b229: the companion slot used to resolve through `ITEMS[G.equipment.
+    // companion]` like every other slot, but equipCompanion() only ever
+    // mirrors the legacy 'fox_companion' item id into G.equipment.companion
+    // for the fox — every other companion (wolf_pup, hawk, ...) writes its
+    // raw COMPANIONS id there instead, which ITEMS doesn't have. That silently
+    // rendered 21 of the 22 companions as an EMPTY slot here even while
+    // equipped (the info panel below already read the right source). Resolve
+    // this slot from G.companions.equipped/window.COMPANIONS directly instead
+    // of piggybacking on the generic ITEMS path.
+    if(s === 'companion'){
+      var eqId = (G.companions && G.companions.equipped) || null;
+      var cdef = eqId && window.COMPANIONS ? window.COMPANIONS[eqId] : null;
+      var cslot = document.createElement('div');
+      cslot.className = 'td-slot td-companion' + (cdef?'':' empty') + ' td-companion-slot';
+      var cLabel = EQUIP_SLOT_META[s]?.label || s;
+      cslot.title = cdef ? (cLabel + ': ' + cdef.n + ' (click to unequip)') : cLabel;
+      cslot.onclick = function(){
+        if(cdef && typeof window.unequipCompanion === 'function') window.unequipCompanion();
+      };
+      cslot.innerHTML = cdef
+        ? window.companionIconHtml(eqId, 44)
+        : (slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(cLabel||s)+'</span>');
+      companionPane.appendChild(cslot);
+      return;
+    }
     var id = G.equipment ? G.equipment[s] : null;
     var def = id && (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
     var path = id && window._itemPath && window._itemPath[id];
@@ -8976,14 +9001,10 @@ window.buildTibiaDoll = function(){
       // goes where (faint tiny glyphs alone were unreadable).
       slot.innerHTML = slotGlyphSVG(s) + '<span class="td-slot-lbl">'+(slotLabel||s)+'</span>';
     }
-    if(s === 'companion'){
-      slot.classList.add('td-companion-slot');
-      companionPane.appendChild(slot);
-    } else {
-      var pos = LAYOUT[s];
-      if(pos){ slot.style.gridColumn = pos[0]; slot.style.gridRow = pos[1]; }
-      doll.appendChild(slot);
-    }
+    // 'companion' is handled by the early-return branch above.
+    var pos = LAYOUT[s];
+    if(pos){ slot.style.gridColumn = pos[0]; slot.style.gridRow = pos[1]; }
+    doll.appendChild(slot);
   });
 
   /* Stats pane — the summed bonuses of everything you're wearing. Its own tab
@@ -9020,7 +9041,7 @@ window.buildTibiaDoll = function(){
         return '<span class="td-comp-bonus"><b>' + v + '</b> ' + (LBL[k] || k) + '</span>';
       }).join('');
       info.innerHTML =
-        '<div class="td-comp-head"><span class="td-comp-icon">' + (def.icon || '') + '</span>' +
+        '<div class="td-comp-head"><span class="td-comp-icon">' + window.companionIconHtml(eq, 28) + '</span>' +
           '<div class="td-comp-idcol"><div class="td-comp-name">' + def.n + ' <span class="td-comp-lv">Lv ' + lv + '</span></div>' +
           '<div class="td-comp-role">' + (def.role || '') + ' companion</div></div></div>' +
         '<div class="td-comp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
@@ -10600,6 +10621,44 @@ window.COMPANIONS = {
               proc:null},
 };
 
+/* b229 (Asset Director — "pet icons"): the Stable was rendering all ~22
+   companions/pets as raw emoji in `.sc-icon` (audit finding, art-director
+   log 2026-08-08) — a live 0-emoji-rule violation. `def.icon` stays an emoji
+   in the data (other code paths/tests may still read it as a label char),
+   but every RENDER seam bypasses it through this helper instead, mirroring
+   raids.js's `bossPortraitHtml()`: painted portrait wins if we have one,
+   else the shared gilt "paw" atlas glyph (`uiPaw`) — never emoji, never a
+   broken-image icon (`onerror` removes the tag; the glyph is the graceful
+   floor for a missing/mismatched file, not a fallback for a working one).
+   Only 2 of the 22 have an honest identity match in `_archive/reserve-art`
+   (painted animal portraits, promoted here): Wolf Pup -> the wolf portrait,
+   Hawk -> the falcon portrait (same "bird of prey" identity; the file itself
+   reads generically enough not to claim a false species). The other 20 (fox,
+   sparrow, bunny, honeybee, badger, whelp, scorpion, raccoon, owl, tortoise,
+   beaver, rock_golem, heron, squirrel, phoenix_chick, forge_imp, silkling,
+   grave_wisp, lichling, dragonling) have no honest match on disk — reserve-art
+   has a dolphin/horse/boar/lynx/vulture portrait and none of those animals
+   are in this roster; the superseded monster-portraits set and raw-packs/
+   icons3 were re-swept too (raw-packs is a different, flatter icon style —
+   never shipped, per CLAUDE.md — so it's not a style-honest substitute even
+   where a name loosely matches, e.g. "Skill_Phoenix.png"). They stay on the
+   glyph until a human artist paints them — see the brief in
+   ASSET_MANIFEST.md / the Asset Director's log. */
+var COMPANION_PORTRAIT = {
+  wolf_pup: 'assets/icons-bundle/painted/companions/wolf_pup.png',
+  hawk:     'assets/icons-bundle/painted/companions/hawk.png'
+};
+window.companionIconHtml = function(id, px){
+  var size = px || 40;
+  var path = COMPANION_PORTRAIT[id];
+  if(path){
+    return '<img src="'+path+'" alt="" loading="lazy" draggable="false" '
+      + 'style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;'
+      + 'border:2px solid var(--gold-2);box-shadow:0 0 6px rgba(0,0,0,.45)" onerror="this.remove()" />';
+  }
+  return (window.HR && window.HR.medallion) ? (window.HR.medallion('uiPaw', size) || '') : '';
+};
+
 // Companion XP curve. Level 1..30. Cumulative XP needed to REACH level L:
 //   xpToLevel(1) = 0;  xpToLevel(L) = round(50 * 1.18^(L-1) * (L-1))   ~roughly 50K at lv 30
 window.companionXpToReach = function(L){
@@ -10946,7 +11005,7 @@ function renderStable(){
     var roleColor = ({combat:'#e88a8a', gather:'#e3c77e', artisan:'#f3d181', utility:'#d4a8e8', hybrid:'#9aa3b0'})[def.role] || '#9aa3b0';
     html += '<div class="stable-card '+(equipped?'equipped':'')+' '+(owned?'':'locked')+'">'
       + '<span class="sc-lvl">Lv '+lv+'</span>'
-      + '<div class="sc-row"><span class="sc-icon">'+def.icon+'</span><div>'
+      + '<div class="sc-row"><span class="sc-icon">'+window.companionIconHtml(id, 44)+'</span><div>'
         + '<div class="sc-name">'+def.n+'</div>'
         + '<div class="sc-role" style="color:'+roleColor+'">'+def.role+'</div>'
       + '</div></div>'
@@ -10996,7 +11055,7 @@ function injectProfileCard(){
   var pct = nextXp > thisLvXp ? Math.min(100, ((xp - thisLvXp) / (nextXp - thisLvXp)) * 100) : 100;
   var card = document.createElement('div');
   card.className = 'companion-card';
-  card.innerHTML = '<div class="cc-icon">'+def.icon+'</div>'
+  card.innerHTML = '<div class="cc-icon">'+window.companionIconHtml(id, 32)+'</div>'
     + '<div class="cc-info"><div class="cc-name">'+def.n+' (Lv '+lv+')</div>'
     + '<div class="cc-meta">'+def.role+' companion</div>'
     + '<div class="cc-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div></div>';
@@ -11459,7 +11518,7 @@ function parseSource(src){
       var row = document.createElement('div');
       row.className = 'shop-row';
       row.setAttribute('data-companion', id);
-      row.innerHTML = '<span class="si">'+def.icon+'</span>'
+      row.innerHTML = '<span class="si">'+window.companionIconHtml(id, 28)+'</span>'
         + '<div class="info"><b>'+def.n+'</b><span>'+def.role+' companion'+reqText+'</span></div>'
         + (owned
             ? '<span class="tag" style="color:#7f9a4f">Owned</span>'

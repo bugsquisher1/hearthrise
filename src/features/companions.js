@@ -16,6 +16,19 @@
 import { COMPANIONS } from '../data/companions.js?v=226';
 import { emit } from '../net/events.js?v=226';
 
+// b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
+// carries an emoji `icon` field (data stays as-authored — other consumers may
+// still want a text label), but render sites bypass it through the shared
+// helper legacy.js defines (`companionIconHtml()`, alongside the
+// COMPANION_PORTRAIT map + the honest-match reasoning for why only 2 of the
+// 22 have painted art yet). legacy.js loads before this module's render
+// functions ever run, so the window binding is always present by call time;
+// the ternary is defense-in-depth only, and it degrades to nothing — never
+// back to the emoji — if it's ever missing.
+function companionIconHtml(id, px) {
+  return (typeof window.companionIconHtml === 'function') ? window.companionIconHtml(id, px) : '';
+}
+
 // XP curve: cumulative XP needed to reach level L. Smooth growth, ~50K at L30.
 export function companionXpToReach(L) {
   if (L <= 1) return 0;
@@ -367,7 +380,7 @@ function renderStable() {
     return `<div class="stable-card ${equipped ? 'equipped' : ''} ${owned ? '' : 'locked'}">
       <span class="sc-lvl">Lv ${lv}</span>
       <div class="sc-row">
-        <span class="sc-icon">${def.icon}</span>
+        <span class="sc-icon">${companionIconHtml(id, 44)}</span>
         <div>
           <div class="sc-name">${def.n}</div>
           <div class="sc-role" style="color:${roleColor[def.role] || '#9aa3b0'}">${def.role}</div>
@@ -402,7 +415,7 @@ function injectProfileCard() {
   const pct = nextXp > thisLvXp ? Math.min(100, ((xp - thisLvXp) / (nextXp - thisLvXp)) * 100) : 100;
   const card = document.createElement('div');
   card.className = 'companion-card';
-  card.innerHTML = `<div class="cc-icon">${def.icon}</div>
+  card.innerHTML = `<div class="cc-icon">${companionIconHtml(id, 32)}</div>
     <div class="cc-info">
       <div class="cc-name">${def.n} (Lv ${lv})</div>
       <div class="cc-meta">${def.role} companion</div>
@@ -422,6 +435,11 @@ export function setupCompanions() {
   window.awardCompanionXp = awardCompanionXp;
   window.unlockCompanion = unlockCompanion;
   window.equipCompanion = equipCompanion;
+  // b229: expose so the smoke test can force a synchronous re-render instead
+  // of racing the 30ms setTimeout the showTab hook below schedules — the
+  // Stable emoji-sweep guard needs to inspect the DOM right after mutating
+  // G.companions, not after an arbitrary timer fires.
+  window.renderStable = renderStable;
   window.unequipCompanion = unequipCompanion;
 
   // Hook into existing engine functions

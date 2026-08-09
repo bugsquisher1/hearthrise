@@ -45,11 +45,12 @@ assets/
 ├── icons/            24 SVG nav/topbar glyphs          — our own cocoa-line set
 └── icons-bundle/     ← the only deployed icon root
     ├── painted/
-    │   ├── monsters/ 36 enemy portraits (rat … dragon, lich, death_knight,
-    │   │             + the 6 Hunt boss portraits added b224 below)
-    │   ├── items/    30 resource/food/drop icons (ores absent → resources/)
-    │   ├── gear/     35 weapon/armour/tool/jewelry icons
-    │   └── npc/      player.png
+    │   ├── monsters/   36 enemy portraits (rat … dragon, lich, death_knight,
+    │   │               + the 6 Hunt boss portraits added b224 below)
+    │   ├── items/      30 resource/food/drop icons (ores absent → resources/)
+    │   ├── gear/       35 weapon/armour/tool/jewelry icons
+    │   ├── companions/ wolf_pup.png, hawk.png — added b229 below
+    │   └── npc/        player.png
     ├── resources/    21 material icons (bars, logs, stones, mushroom, egg,
     │                 + timber_beam/field_ration plates added b224 below)
     ├── buildings/    10 homestead/room/plot structures (forge, farm, tower…)
@@ -138,11 +139,72 @@ wolf, a bear-cat/lynx and a vulture-beaked bird — no hen or chick anywhere,
 shipped or archived. Both briefs still need a human artist/commission; not
 closeable by promotion.
 
+### b229 — the Stable's pet icons ("we need to figure out what to do about pet icons")
+
+The Stable rendered its full roster — 22 companions/pets (12 base companions
+in `src/data/companions.js` + 10 skill/boss pets added b202) — as raw emoji in
+`.sc-icon`, the widest single 0-emoji-rule violation on one screen (Art
+Director audit, 2026-08-08). Judged every companion by identity against the 7
+painted `Animals_*` portraits in `reserve-art/monster-portraits/` (dolphin,
+armoured horse, falcon, boar, wolf, lynx, vulture — the same 7 the b224 pass
+already confirmed hold no hen/chick) plus a re-sweep of the rest of that
+superseded monster set and `_archive/raw-packs/icons3/` for anything else that
+reads as a creature portrait in style:
+
+| Companion (`COMPANIONS` id) | Archive source | Bundle path | Verdict |
+|---|---|---|---|
+| `wolf_pup` — Wolf Pup | `reserve-art/monster-portraits/Animals_07_nobg.png` | `painted/companions/wolf_pup.png` | **promoted** — a wolf companion gets the wolf. Honest caveat: the painting is an adult wolf, not a pup; accepted on species identity, same bar as "a wolf companion gets the wolf" from the b224 brief. |
+| `hawk` — Hawk | `reserve-art/monster-portraits/Animals_05_nobg.png` | `painted/companions/hawk.png` | **promoted** — the file is a generic hooked-beak bird-of-prey portrait (closer to a falcon than a hawk technically), but it doesn't claim a false species the way a songbird or scavenger would; same "bird of prey" identity as the Hawk companion's own gather/rareDrop flavour. |
+| `sparrow` (small songbird), `owl` (round-faced nocturnal raptor), `heron` (wading bird) | `Animals_05` (falcon) is the only other bird | — | **rejected** — a fierce hooked-beak raptor face is a false identity for a sparrow (delicate songbird), an owl (distinct round face/forward eyes) or a heron (long-necked wader). Reusing the hawk's file for any of these would be the "dolphin for a fox" mistake. |
+| `whelp`, `dragonling` (both dragons) | `_archive/reserve-art/monster-portraits/Monster_WarDragon_nb.png` — already promoted b224 as the Hunt boss `crownless_wyrm` | — | **rejected** — reusing a raid boss's own portrait for an unrelated companion (and a "whelp"/baby dragon at that, a life-stage mismatch on top) borrows another character's identity. No other dragon art exists in reserve. |
+| `fox`, `bunny`, `honeybee`, `badger`, `scorpion`, `raccoon`, `tortoise`, `beaver`, `rock_golem`, `squirrel`, `phoenix_chick`, `forge_imp`, `silkling`, `grave_wisp`, `lichling` (15) | none | — | **rejected — no honest match anywhere on disk.** reserve-art's non-bird animals are a dolphin, an armoured horse, a boar and a lynx; none of these 15 species/creatures. `_archive/raw-packs/icons3/` has name-adjacent hits (`phoenix.png`, `summon_imp.png`, `Skill_Phoenix.png`, dragon/golem/spider skill icons) but that pack is a flatter icon-illustration style, never curated into `assets/`, and explicitly not a shipped source per `CLAUDE.md` ("assets/raw-bundle/, icons3/, etc. are NOT shipped") — mixing that style into the Stable next to the painted Hunt bosses and the 2 promoted portraits would read as inconsistent, not "found." |
+
+**Render seam.** `window.companionIconHtml(id, px)` (`src/legacy.js`, defined
+right after `window.COMPANIONS`) mirrors `bossPortraitHtml()`: a painted
+portrait `<img>` (`onerror="this.remove()"`, never a broken-image icon) for
+the 2 matched ids, else the shared gilt "paw" atlas glyph (`HR.medallion
+('uiPaw', px)`, `uiPaw` already existed in `src/data/glyphs.js`) — never
+emoji, never blank. `def.icon` stays an emoji in the data (other consumers may
+still read it as a text label; not worth churning); every RENDER seam bypasses
+it instead:
+- Stable grid card (`.sc-icon`) — both `src/features/companions.js`
+  `renderStable()` (the live one, wins the DOM after both showTab hooks fire)
+  and `src/legacy.js`'s own superseded `renderStable()` (kept in sync as a
+  defense-in-depth fallback — see `src/features/companions.js` for why the
+  legacy one still exists and loses the race).
+- Doll's companion equip slot (`.td-companion-slot`, `window.buildTibiaDoll()`
+  in `src/legacy.js`) — **also fixed a real bug found in passing**: this slot
+  resolved the equipped companion through `ITEMS[G.equipment.companion]` like
+  every other gear slot, but `equipCompanion()` only ever mirrors the legacy
+  `fox_companion` item id into `G.equipment.companion` for the fox — every
+  other companion (wolf_pup, hawk, ...) writes its raw `COMPANIONS` id there,
+  which `ITEMS` doesn't have. That silently rendered 21 of the 22 companions
+  as an **empty slot** here even while equipped. Now resolves from
+  `G.companions.equipped` / `window.COMPANIONS` directly, matching the info
+  panel beside it. This doll is shared by the Character page and the
+  Inventory page's equipment column (`window.buildTibiaDoll()` is the single
+  builder for both), so the fix covers both surfaces.
+- Character page's companion detail pane (`.td-comp-icon`).
+- Profile mini-card (`.cc-icon`, `dash-user-body`) — both the live ESM
+  `injectProfileCard()` and the superseded `legacy.js` copy.
+- Shop's "buy a companion" rows (`.si`, `injectShopCompanions()` into
+  `#panel-shop`'s Equipment tab).
+
+Toast/notify copy (`"🎉 New companion unlocked: <emoji> <name>!"` and similar)
+was left alone — that emoji-prefixed-toast convention is pervasive across the
+whole game (auto-actions, collection-log, etc.), not a companion-specific
+issue, and out of this pass's surface.
+
+**Sizes:** Stable grid 44px, doll slot 44px, character detail pane 28px,
+profile mini-card 32px, shop row 28px — matched to each seam's prior
+font-size-driven emoji footprint.
+
 **How icons are wired:** every game item/monster/room ID maps to a path in the
 `LOCAL_*_ICON` maps inside `applyLocalIcons()` at the bottom of `src/legacy.js`.
 That IIFE is the single source of truth. Generated tier gear is mapped to the
 closest owned slot art by `window.__mapGeneratedGearIcons()`. Nav/topbar SVGs are
-applied by `src/icon-swap.js` (map keyed by `data-tab`).
+applied by `src/icon-swap.js` (map keyed by `data-tab`). Companion icons are
+their own seam, `window.companionIconHtml()` — see b229 above.
 
 ### Naming
 Existing conventions were preserved (renaming would break the wired paths):
@@ -169,7 +231,7 @@ promotion pass (below):
 |---|---|---|---|
 | `_archive/reserve-art/materials-bars/`, `ore-stone-piles/`, `gems-crystals/`, `mushrooms/`, `plants-flowers/`, `potions-flasks/`, `monster-drops/`, `food/` | 150 (7+13+32+3+27+24+25+19) | 2 — compatible reserve | the old flat `resources/` folder, re-sorted by purpose; painted materials/food/potions/gems for future content |
 | `_archive/reserve-art/buildings/` | 47 | 2 — compatible reserve | painted structures for future homestead/property tiers |
-| `_archive/reserve-art/monster-portraits/` | 31 | 2–3 — superseded, partly promoted | was `monsters/`; the OLD painted monster portraits, mostly replaced by `painted/monsters/`. 6 promoted b224 for the Hunt bosses (above); `Duke_nb.png`/`Warrior_nb.png`/`ElfMage_nb.png` (human busts) judged and rejected for the shop keeper (above) |
+| `_archive/reserve-art/monster-portraits/` | 31 | 2–3 — superseded, partly promoted | was `monsters/`; the OLD painted monster portraits, mostly replaced by `painted/monsters/`. 6 promoted b224 for the Hunt bosses + 2 promoted b229 for the Stable (`Animals_07_nobg.png`→wolf_pup, `Animals_05_nobg.png`→hawk, both above); `Duke_nb.png`/`Warrior_nb.png`/`ElfMage_nb.png` (human busts) judged and rejected for the shop keeper (above) |
 | `_archive/reserve-art/props-and-tools/` | 29 | 3 — possibly useful, partly promoted | was `medieval/`; props/tools, a few no-game-use (chess, toy, steering wheel). `Cog.png` promoted b224 for `iron_fitting` |
 | `_archive/reserve-art/backgrounds/` | 1 | 2 — reviewed, not a fit | `ruins.jpg` — flat cel-shaded cartoon ruins, wrong medium/tone for a homestead dusk plate (checked b224, see below) |
 | `_archive/pixel-packs/` | 526 | 4 — off-style | abandoned pixel-art packs + `.psd` sources (was `assets/pixel/`) |
@@ -182,20 +244,21 @@ promotion pass (below):
 | Metric | Count |
 |---|---|
 | Files audited under `assets/` (start) | 949 |
-| **Currently used (kept active)** | **159** (150 + 9 promoted b224) |
+| **Currently used (kept active)** | **161** (150 + 9 promoted b224 + 2 promoted b229) |
 | Kept active but unreferenced (our own brand/UI SVGs, intentionally kept) | 5 |
-| Unused-but-compatible → reserve (`_archive/reserve-art/`) | 249 (258 − 9 promoted b224) |
+| Unused-but-compatible → reserve (`_archive/reserve-art/`) | 247 (258 − 9 promoted b224 − 2 promoted b229) |
 | Off-style pixel packs → archive (`_archive/pixel-packs/`) | 526 |
 | Dev tooling → archive (`_archive/asset-tooling/`) | 10 |
 | Duplicates found | 5 groups (intentional — one painting shared by several game IDs; left as-is) |
 | Files renamed | 0 (renaming would break wired paths) |
 | Permanently deleted | 0 |
 | **b224 promotion pass** | **+9 shipped** (6 Hunt boss portraits, timber_beam, field_ration, iron_fitting) — copied out of `_archive/`, originals left in place there |
+| **b229 promotion pass** | **+2 shipped** (wolf_pup, hawk companion portraits) — copied out of `_archive/`, originals left in place there |
 
 **Deploy impact:** `assets/` went from 949 files to 155, then +9 in the b224
-promotion pass (164); the ~247 remaining unreferenced painted icons and
-~628 KB of tooling JSON still don't ship, with everything recoverable from
-`_archive/`.
+promotion pass (164), then +2 in the b229 pass (166); the ~245 remaining
+unreferenced painted icons and ~628 KB of tooling JSON still don't ship, with
+everything recoverable from `_archive/`.
 
 ### Duplicate note
 Five byte-identical groups exist in `painted/gear` and `painted/monsters`
@@ -224,6 +287,13 @@ own wired path even when the art is shared — so they were not deduplicated.
   atlas glyph. Nothing in reserve-art reads as a cut masonry block; flag for
   a future pack purchase or commission if the Castle Stores lane gets a
   visual pass.
+- **Still open, needs a human artist (b229 confirmed nothing in reserve-art
+  fits):** 20 of the 22 Stable companions/pets — fox, sparrow, bunny,
+  honeybee, badger, owl, tortoise, whelp, scorpion, raccoon, beaver,
+  rock_golem, heron, squirrel, phoenix_chick, forge_imp, silkling, grave_wisp,
+  lichling, dragonling — still ship on the shared gilt "paw" glyph, not a
+  portrait. Full artist brief (identity notes + size spec) in the Asset
+  Director's log, `.claude/coordination/agents/asset-director.md`.
 
 ---
 
@@ -255,3 +325,25 @@ own wired path even when the art is shared — so they were not deduplicated.
   absolutely-positioned overlay at the keeper's on-screen position in
   `#panel-shop`, screenshotted for all three candidates, then fully removed
   (no test files committed).
+
+## Verification (b229 — the Stable's pet icons)
+- Smoke suite: **332/332 green**, 0 runtime errors (+1 guard: "no emoji in
+  the Stable panel DOM, in any state" — sweeps all-locked, all-owned, and
+  each of the 22 companions/pets equipped in turn, across both the Stable
+  grid and the doll/detail-pane seams).
+- `bash bump-version.sh --check` — OK, no version bump (asset/render-seam
+  change only).
+- Static server on port 8171 (this worktree's designated harness seam),
+  `window.__HR_TEST_HARNESS__` set only long enough to walk the wall-gated
+  boot manually, then reverted before commit (mirrors `tests/run-smoke.mjs`'s
+  own `addInitScript` bypass — never a URL param, per `account-gate.js`'s own
+  reasoning for why it's a JS global). Walked the Stable with 7/22 companions
+  owned (mixing portrait ids and glyph-only ids) and Wolf Pup equipped: full
+  22-card grid confirmed, 0 emoji, wolf portrait + hawk portrait render
+  correctly, every other card shows the gilt paw medallion. Also walked
+  Character → Manage gear → Companion tab and re-equipped a glyph-only
+  companion (beaver) to confirm the doll's companion slot (the bug fix)
+  updates correctly.
+- Network log: `wolf_pup.png` and `hawk.png` both `200`, fetched from
+  `assets/icons-bundle/painted/companions/`; 0 non-2xx across the full asset
+  set for the whole walk. Console clean (no errors/warnings).

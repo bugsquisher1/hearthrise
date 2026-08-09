@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 260 — 2026-08-09 (Combat really keeps going)
+
+- ⚔️ **Combat no longer silently stalls after backgrounding.** On phones, coming back could leave you "in combat" but with your kills frozen — the fight loop was suspended by the OS and never actually restarted. The game now watches its own heartbeat and restarts a stalled fight the moment you return (through every resume signal Android/iOS might send, plus a safety-net check that doesn't rely on any of them). Your time away is credited too. *(Thanks paione — this is the deeper fix behind the offline-combat reports.)*
+
 ## v0.9.2-beta build 259 — 2026-08-09 (Landscape, the way it's meant to be played)
 
 - 📱 **Hearthrise is now landscape-only on phones.** Hold your phone upright and you'll get a friendly "turn your device sideways" screen; rotate to landscape and the full game opens up. The screens have the room they need this way — this is the first step of a proper landscape polish pass. (Tablets and desktop are unaffected.)

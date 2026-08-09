@@ -2485,6 +2485,7 @@ function stopCombat(){
 }
 function combatTick(){
   if(!G.activeMonster)return;
+  window._hrCombatBeat=Date.now();   // b260 heartbeat — lets the resume watchdog detect a STALLED (suspended-but-not-cleared) loop, not just a null one
   const m=MONSTERS[G.activeMonster];
   const eq=getEquipmentStats();
   const playerRoll=getPlayerCombatRolls(m,eq);
@@ -2670,7 +2671,16 @@ function resumeActiveActivity(){
      froze after every backgrounding. processOffline() credits the away gap, but
      nothing restarted the LIVE loop. Re-arm it here (matches loadLocal's resume). */
   if(G.activeMonster){
-    if(!combatInterval){ try{ combatInterval=setInterval(combatTick,combatTickMs()); }catch(e){} }
+    /* Re-arm if the loop is dead OR STALLED. On Android/mobile a background
+       freeze can SUSPEND the interval without clearing it, so `!combatInterval`
+       is false yet no ticks fire — the player returns "in combat" with kills
+       frozen (paione). If the last tick is stale, tear the old interval down and
+       start a fresh one. */
+    const stalled = (Date.now() - (window._hrCombatBeat||0)) > 8000;
+    if(!combatInterval || stalled){
+      if(combatInterval){ try{ clearInterval(combatInterval); }catch(e){} combatInterval=null; }
+      try{ combatInterval=setInterval(combatTick,combatTickMs()); window._hrCombatBeat=Date.now(); }catch(e){}
+    }
     return;
   }
   if(!G.activeSkill) return;
@@ -4595,13 +4605,54 @@ function bindEvents(){
      its watermark (offlineBudget.at, set to now by the saveLocal on hide) means
      it credits the frozen span exactly once and early-returns under ~3min, so a
      quick tab-flip costs nothing. */
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){ saveLocal(); return; }
+  /* b260 — ROBUST RESUME. b258 re-armed combat on visibilitychange, but paione
+     still saw frozen offline/afk combat: iOS PWAs do NOT reliably fire
+     visibilitychange on return (they may fire pageshow/focus, or nothing). So:
+       1. Every resume signal funnels through one idempotent handler.
+       2. A platform-independent WATCHDOG re-runs it every few seconds, so even
+          if NO resume event fires, a frozen span gets credited and a dead loop
+          gets re-armed within seconds of the tab being active again.
+     processOffline() is idempotent and early-returns under ~3min (its watermark
+     only grants for a real gap), so running it often is cheap and safe. */
+  function hrResume(){
     try{ if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return; }catch(e){}
+    // No debounce: several signals fire on one return, but processOffline() is
+    // idempotent (its watermark credits a span exactly once) and
+    // resumeActiveActivity() is guarded, so redundant calls are cheap and safe.
     try{ if(typeof processOffline==='function') processOffline(); }catch(e){}
     try{ if(typeof resumeActiveActivity==='function') resumeActiveActivity(); }catch(e){}
     try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
+  }
+  window.__hrResume=hrResume;
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){ try{ saveLocal(); }catch(e){} return; }
+    hrResume();
   });
+  /* iOS PWA / bfcache restore and app-switch return often fire these INSTEAD of
+     visibilitychange. All funnel to the same idempotent handler. */
+  window.addEventListener('pageshow',()=>hrResume());
+  window.addEventListener('focus',()=>hrResume());
+  document.addEventListener('resume',()=>hrResume());   // Capacitor/Cordova wrapper
+  window.addEventListener('pagehide',()=>{ try{ saveLocal(); }catch(e){} });
+  /* The net that doesn't depend on any event firing: re-arm dead loops + credit a
+     frozen span on the first ticks after the tab is active again. Guarded so it's
+     a no-op while everything is already running. NOT started under the test
+     harness — a 4s timer mutating G would race the smoke suite's controlled
+     setups (the __hrResume logic is exercised directly by the b260 test instead). */
+  if(!window.__HR_TEST_HARNESS__){
+    setInterval(()=>{
+      try{
+        if(typeof G==='undefined'||!G) return;
+        if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
+        const combatDead = G.activeMonster && typeof window.__isCombatLoopArmed==='function' && !window.__isCombatLoopArmed();
+        const skillDead  = G.activeSkill   && typeof window.__isSkillLoopArmed==='function'  && !window.__isSkillLoopArmed();
+        // Credit any real elapsed gap (idempotent; early-returns for small gaps),
+        // and re-arm whichever live loop died.
+        if(typeof processOffline==='function') processOffline();
+        if((combatDead||skillDead) && typeof resumeActiveActivity==='function') resumeActiveActivity();
+      }catch(e){}
+    }, 4000);
+  }
 }
 
 /* ════════════════════════════════════════════════

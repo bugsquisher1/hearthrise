@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=259' directly.
+// modularised, will import { G } from '../state/game.js?v=260' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=259';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=259';
+import { on, snapshot } from '../net/events.js?v=260';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=260';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=259';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=260';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,40 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
+    if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ assert(true, 'seam absent'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      if(typeof window.stopCombat === 'function') window.stopCombat();     // dead interval
+      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
+      G.activeMonster = 'goblin';
+      const m = window.MONSTERS.goblin;
+      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
+      G.playerHp = G.playerMaxHp;
+      // Simulate a 5-minute frozen span with a fresh budget.
+      if(typeof window.ensureOfflineBudget === 'function'){
+        const b = window.ensureOfflineBudget(Date.now()); b.at = Date.now() - 5 * 60000; b.usedMs = 0;
+      }
+      assert(!window.__isCombatLoopArmed(), 'precondition: combat loop is dead');
+      const killsBefore = G.stats.kills || 0;
+      // The resume handler runs WITHOUT any visibilitychange event.
+      window.__hrResume(true);
+      assert(window.__isCombatLoopArmed(), 'resume must re-arm the live combat loop');
+      assert((G.stats.kills || 0) > killsBefore, 'resume must credit the frozen combat span');
+      // The Android case: the interval EXISTS but is stalled (suspended, not
+      // cleared) — a stale heartbeat must trigger a fresh restart.
+      window._hrCombatBeat = Date.now() - 20000;
+      window.resumeActiveActivity();
+      assert(Date.now() - (window._hrCombatBeat || 0) < 2000,
+        'a stalled combat loop must be restarted (fresh heartbeat), got age ' + (Date.now() - (window._hrCombatBeat || 0)) + 'ms');
+    } finally {
+      if(typeof window.stopCombat === 'function') window.stopCombat();
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b259: portrait gate exists, hidden on desktop, gated to portrait touch phones only', () => {

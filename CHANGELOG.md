@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 226 — 2026-08-09 (The long road — and a smoother front door)
+
+- ⏳ **Progression has real gravity now.** The road to 99 is a journey measured in weeks, not days — and the economy stops raining items. Nothing you've earned changes: every level, item, and coin stays exactly where it is. (Under the hood: offline progress becomes a fair 12-hour daily budget instead of an exploit-shaped per-login cap, and rate displays now always tell the truth — one screen was advertising triple the real XP rate.)
+- 🟢 **Being present pays.** While you're actively playing, all XP flows 12% faster — look for the "+12% present" note. Boosts, feasts, and rallies stack on top of the long road; that's the design.
+- 🚪 **Sign-in is seamless.** No more being asked to choose a name you already own (the game now asks the realm first), no double sign-ins from a mistimed reload, no getting bounced to the door by a network blip, and the after-login sheets take turns instead of stacking.
+- 🍳 **The cooking progress bar works** — artisan tiles never actually knew they were active; now they do, for cooking, smithing, and crafting alike.
+- ⚒️ **The Forge unlocks at the Farmstead** (tier 2) — smithing opens far earlier in your homestead's story.
+- 🏅 Long-time players: your renown only went UP in this update (scoring weights rose), and pre-update accounts carry a permanent Founder's mark.
+- 🧪 330 tests green.
+
 ## v0.9.2-beta build 225 — 2026-08-09 (An online realm — and a fire you can cook on)
 
 - 🔐 **Hearthrise is an online realm now.** Creating an account is the front door — your progress, your name, and your place on the boards live on your account, on any device. **Beta players: your save is carried into your account the moment you sign in. Nothing is erased** — the game even tells you so on the door.

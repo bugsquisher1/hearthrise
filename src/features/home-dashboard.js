@@ -393,7 +393,9 @@
       '<button class="hd-rename" title="Rename" data-hd="rename">' + gly('uiEdit', 14, '', 'var(--ink-3)') + '</button></div>';
     html += '<div class="hd-sub">' + rankLine +
       (rankLine ? '<span class="sep">·</span>' : '') +
-      (isOnline() ? 'Online · cloud save active' : 'Offline play · sign in to sync') + '</div>';
+      /* b224: see legacy.js updateNetStatus — with accounts required, the
+         un-synced state is a connection problem, not an offer. */
+      (isOnline() ? 'Online · cloud save active' : 'Offline · progress saved on this device') + '</div>';
     html += '</div></div>';
     html += '<div class="hd-ledger">' +
       '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +

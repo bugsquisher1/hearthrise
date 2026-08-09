@@ -464,6 +464,14 @@ let G={
    PERSISTENCE  (local + cloud-ready hook)
    ════════════════════════════════════════════════ */
 function saveLocal(){
+  /* b224 ACCOUNT WALL — the single most dangerous line in this change.
+     While the gate is closed boot() has NOT run, so loadLocal() has NOT run,
+     so `G` is still the factory-default object. Any autosave, any hook, any
+     stray caller that reached saveLocal() in that state would write a brand
+     new character straight over a real beta player's local save. The wall
+     must never cost anybody their save, so persistence is simply off until
+     the player is through the door. */
+  if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
   G.lastSeen=Date.now();
   // Route through the platform Storage seam (src/platform/storage.js) so Steam
   // (electron-store) / mobile (Capacitor) can swap the backend without touching
@@ -781,7 +789,9 @@ function updateNetStatus(){
   }
   if(pill){
     pill.classList.toggle('off',!online);
-    pill.querySelector('span:last-child').textContent=online?'Online':'Offline play';
+    /* b224: "Offline play" was a product state; it is now only ever a
+       CONNECTION state, so the pill says so. */
+    pill.querySelector('span:last-child').textContent=online?'Online':'Offline';
   }
 }
 
@@ -1985,7 +1995,11 @@ function renderProfile(){
         || (G.account ? G.account.displayName : null)
         || G.playerName;
       const isOnline = !!(liveUser || G.account);
-      const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline play · sign in to sync');
+      /* b224: the last branch used to read "Offline play · sign in to sync",
+         which advertised a mode the game no longer has. Reaching it now means
+         the session lapsed mid-play — so it reports the truth about the
+         player's progress rather than pitching account-less play. */
+      const subtitle = liveUser ? 'Online · cloud save active' : (G.account ? 'Online · '+G.account.displayName : 'Offline · progress saved on this device');
       // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
       // for ALL players, including cloud-signed-in. setDisplayName updates
       // G.playerName which the cloud sync layer round-trips through
@@ -3350,8 +3364,23 @@ function boot(){
   window.G=G;window.IAP=IAP;window.NetClient=NetClient;window.generateBountyBoard=generateBountyBoard;
   window.testerBoost=()=>{G.gold+=5000;G.gems+=200;ensureBountyState();G.bountyHunter.marks+=50;['turnip_seed','carrot_seed','wheat_seed','potato_seed'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+10);['normal_log','copper_ore','iron_ore','shrimp','bones'].forEach(id=>G.inventory[id]=(G.inventory[id]||0)+25);['woodcutting','mining','fishing','farming','attack','strength','defense'].forEach(sk=>G.skills[sk]=(G.skills[sk]||0)+650);G.skills.hitpoints=Math.max(G.skills.hitpoints||0,1584);G.playerMaxHp=levelFromXp(G.skills.hitpoints);G.playerHp=G.playerMaxHp;notify('Tester boost applied','loot');refreshAll();};
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
-else boot();
+/* b224 ACCOUNT WALL — the engine does not start behind the gate.
+   Everything that makes the game PROGRESS is started from boot(): loadLocal()
+   (which runs processOffline() and resumes the combat tick), startFarmCheck(),
+   and the 90-second autosave. Deferring this one call is therefore what makes
+   "no gameplay behind the wall" true rather than merely painted over — there
+   is no offline catch-up, no tick, and no write to the save while the player
+   is at the door. The gate opens by reloading with a live session, so in the
+   normal path this deferral simply never resumes; whenOpen() is still honest
+   about running it if it ever does. */
+(function(){
+  function bootWhenReady(){
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+    else boot();
+  }
+  if(window.HearthriseGate&&typeof window.HearthriseGate.whenOpen==='function')window.HearthriseGate.whenOpen(bootWhenReady);
+  else bootWhenReady();
+})();
 
 // ===== block 1: script-1 =====
 "use strict";

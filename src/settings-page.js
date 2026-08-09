@@ -316,17 +316,21 @@
       var cloudReady = !!(window.HearthriseSupabase && window.HearthriseSupabase.isConfigured && window.HearthriseSupabase.isConfigured());
       auth = cloudReady
         ? ('<div class="ss-card">'
-          +   '<div class="ss-card-title">Play across devices</div>'
-          +   '<div class="ss-card-meta">Sign in to sync your save, join clans, and post to global chat. Free, takes 30 seconds.</div>'
+          /* b224: reaching this branch means the session lapsed mid-play — the
+             account wall is what a signed-out player meets at the front door.
+             The old hint ("Don't want an account? You can keep playing
+             offline") invited exactly the mode the product no longer has, so
+             it is gone; the honest reassurance about the local save stays. */
+          +   '<div class="ss-card-title">Signed out</div>'
+          +   '<div class="ss-card-meta">Sign back in to resume syncing, chat, clans and the leaderboards. Your progress is safe on this device in the meantime.</div>'
           +   '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
           +     '<button class="btn btn-sm btn-primary" id="set-cloud-signin">Sign in</button>'
           +     '<button class="btn btn-sm" id="set-cloud-signup">Create account</button>'
           +   '</div>'
-          +   '<div class="ss-hint" style="margin-top:8px">Don\'t want an account? You can keep playing offline — your save lives on this device.</div>'
           + '</div>')
         : ('<div class="ss-card">'
-          +   '<div class="ss-card-title">Offline play</div>'
-          +   '<div class="ss-card-meta">Cloud features aren\'t live in this build. Your save lives on this device.</div>'
+          +   '<div class="ss-card-title">No realm connected</div>'
+          +   '<div class="ss-card-meta">This build has no sign-in service configured, so cloud features are unavailable. Your save lives on this device.</div>'
           + '</div>');
     }
     // Cloud sync status copy. Three states:

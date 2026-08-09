@@ -398,15 +398,24 @@
   };
 
   // ── Auto-boot ───────────────────────────────────────────────
+  // b224: the tour is the SECOND thing a new player meets, not the first.
+  // Behind the account wall there is no game to tour and no save to judge
+  // "new" against, so the whole flow waits for the gate. Once the gate opens
+  // the existing precedence is unchanged: FTUE, then the name claim (which
+  // queues behind `.ftue-root .ftue-card.show`), then the welcome sheets.
   function maybeStart(){
     if(!isNewPlayer()) return;
     setTimeout(startFTUE, STEP_DELAY_MS);
   }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', maybeStart);
-  } else {
-    maybeStart();
+  function armStart(){
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', maybeStart);
+    } else {
+      maybeStart();
+    }
   }
+  if(window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(armStart);
+  else armStart();
 
   console.log('[ftue] loaded — call window.startFTUE() to preview, window.resetFTUE() to clear');
 })();

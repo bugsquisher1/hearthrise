@@ -9,6 +9,9 @@
 
 import { on, snapshot } from '../net/events.js?v=224';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=224';
+// b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
+// so the "a local save is never discarded silently" promise is provable.
+import { decideRestore } from '../net/auth.js?v=224';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -7233,6 +7236,292 @@ const TESTS = [
       G.quests = saved.quests; G.daily = saved.daily; G.collection = saved.collection;
       G.stats.gathered = saved.gathered; G.skills.woodcutting = saved.wc;
       restoreG(snap);
+    }
+  }),
+
+  // ── b224 regression suite — THE ACCOUNT WALL ────────────────────────────
+  // Product ruling 2026-08-08: accounts are REQUIRED, there is no account-less
+  // play. That is enforced client-side (see src/net/account-gate.js — it is
+  // UX enforcement of an online-only product, NOT a security boundary; the
+  // server already owns the economy). This suite itself runs THROUGH the one
+  // deliberate bypass, so the tests below assert the PURE decision rather than
+  // the rendered outcome — otherwise the harness would be marking its own
+  // homework.
+
+  // #1 The wall exists. A clean boot — no harness flag, no cached session —
+  // must be walled. This is the test that would fail if someone ever "fixed"
+  // the gate by defaulting it open.
+  () => tryRun('b224: a clean boot with no session and no harness flag is WALLED', () => {
+    const gate = window.HearthriseGate;
+    assert(gate && typeof gate.decide === 'function', 'HearthriseGate.decide missing — the wall is gone');
+    const clean = gate.decide({ harness: false, session: null });
+    assert(clean.open === false, 'a clean boot must be closed, got ' + JSON.stringify(clean));
+    assert(clean.reason === 'wall', 'the closed reason must be "wall", got ' + clean.reason);
+    // An empty object is not a session either — a truthy blob must not open it.
+    assert(gate.decide({ harness: false, session: {} }).open === false,
+      'an empty session object must not open the gate');
+    assert(gate.decide({ harness: false, session: { access_token: '' } }).open === false,
+      'a blank access token must not open the gate');
+  }),
+
+  // #2 A real session opens it — including an EXPIRED access token that still
+  // has a refresh token. Walling a returning player mid-refresh would be the
+  // "hard eject" the ruling explicitly forbids.
+  () => tryRun('b224: a usable session opens the gate; an expired-but-refreshable one still does', () => {
+    const gate = window.HearthriseGate;
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    const past = Math.floor(Date.now() / 1000) - 3600;
+    assert(gate.decide({ session: { access_token: 'a', expires_at: future } }).open === true,
+      'a live access token must open the gate');
+    assert(gate.decide({ session: { access_token: 'a', expires_at: past } }).open === false,
+      'an expired token with NO refresh token is not a session');
+    assert(gate.decide({ session: { access_token: 'a', expires_at: past, refresh_token: 'r' } }).open === true,
+      'an expired token WITH a refresh token must not wall a returning player');
+    assert(gate.decide({ session: { access_token: 'a', expires_at: future } }).reason === 'session',
+      'the open reason must name the session');
+  }),
+
+  // #3 THE SEAM CANNOT LEAK. The bypass is (explicit global) AND (not a host
+  // real players use). If either half ever became sufficient on its own, a
+  // production player could be handed an account-less game.
+  () => tryRun('b224: the test-harness bypass is inert on the hosts real players use', () => {
+    const gate = window.HearthriseGate;
+    assert(Array.isArray(gate.PLAYER_HOSTS) && gate.PLAYER_HOSTS.length >= 2,
+      'the player-origin list is missing');
+    // Probing the leak guard deliberately trips its console.error (which is
+    // correct — a real leak must be loud). Muffle it for the probe only, and
+    // assert it FIRED, so the alarm is tested rather than merely tolerated.
+    const realErr = console.error;
+    let alarms = 0;
+    console.error = () => { alarms++; };
+    try {
+      ['hearthrise.net', 'www.hearthrise.net', 'bugsquisher1.github.io'].forEach((h) => {
+        assert(gate.isPlayerOrigin(h), h + ' must be treated as a player origin');
+        assert(gate.isHarnessContext({ __HR_TEST_HARNESS__: true }, h) === false,
+          'the harness flag must be IGNORED on ' + h + ' — that is the production leak');
+      });
+      assert(alarms === 3, 'a leaked harness flag must log loudly on every player origin, saw ' + alarms);
+      ['localhost', '127.0.0.1', ''].forEach((h) => {
+        assert(gate.isPlayerOrigin(h) === false, h + ' must not be a player origin');
+        assert(gate.isHarnessContext({ __HR_TEST_HARNESS__: true }, h) === true,
+          'the harness flag must work on the dev origin ' + h);
+      });
+      assert(alarms === 3, 'the dev origins must not raise the leak alarm');
+    } finally {
+      console.error = realErr;
+    }
+    // The flag alone, without being set, opens nothing anywhere.
+    assert(gate.isHarnessContext({}, 'localhost') === false, 'an unset flag must never count as the harness');
+    assert(gate.isHarnessContext({ __HR_TEST_HARNESS__: 'true' }, 'localhost') === false,
+      'the flag is === true only — a truthy string must not pass');
+  }),
+
+  // #4 The seam is the thing that let THIS run in. Either the harness flag or
+  // a real session — never a third way, and never a wall the suite tunnelled
+  // through some other route.
+  () => tryRun('b224: this suite is running through the declared seam, not around the wall', () => {
+    const gate = window.HearthriseGate;
+    assert(gate.isOpen() === true, 'the suite cannot run behind a closed gate');
+    const why = gate.openReason();
+    assert(why === 'harness' || why === 'session',
+      'the gate opened for an unrecognised reason: ' + why);
+    if (why === 'harness') {
+      assert(window.__HR_TEST_HARNESS__ === true, 'harness reason without the harness flag');
+      assert(gate.isPlayerOrigin(location.hostname) === false,
+        'the harness opened the gate on a PLAYER origin — the bypass has leaked');
+    }
+  }),
+
+  // #5 The wall itself: a real sign-in surface, not a shrug. Built detached so
+  // the assertion costs the running suite nothing.
+  () => tryRun('b224: the wall renders a real account surface — email, password, both modes, no emoji', () => {
+    const gate = window.HearthriseGate;
+    const ui = gate._buildGate({});
+    try {
+      const root = ui.root;
+      assert(root.querySelector('form'), 'the wall must be a real form (Enter must submit)');
+      assert(ui.email && ui.email.type === 'email', 'no email field');
+      assert(ui.pass && ui.pass.type === 'password', 'no password field');
+      assert(ui.email.autocomplete === 'email', 'password managers need autocomplete="email"');
+      const modes = [...root.querySelectorAll('.hr-gate-mode')].map((b) => b.textContent);
+      assert(modes.indexOf('Create account') !== -1 && modes.indexOf('Sign in') !== -1,
+        'the wall must offer BOTH create-account and sign-in: ' + modes.join('/'));
+      assert(root.querySelector('.hr-gate-word').textContent === 'Hearthrise', 'the wordmark is missing');
+      assert(root.querySelector('.hr-gate-mark svg'), 'the crest is missing');
+      // No escape hatch: an account-less way past the front door would make
+      // the whole ruling decorative.
+      const words = root.textContent.toLowerCase();
+      ['continue offline', 'play offline', 'skip', 'maybe later', 'without an account'].forEach((s) => {
+        assert(words.indexOf(s) === -1, 'the wall must offer no account-less escape, found: ' + s);
+      });
+      // Project rule: zero emoji as art, anywhere.
+      const emoji = root.textContent.match(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu);
+      assert(!emoji, 'the wall renders emoji: ' + (emoji || []).join(' '));
+      // Forge & Stone means tokens, not literals, for the surface colours.
+      const style = document.getElementById('hr-account-gate-style');
+      assert(style, 'the wall injected no stylesheet');
+      assert(/var\(--bg-card/.test(style.textContent) && /var\(--line/.test(style.textContent) &&
+             /var\(--f-display/.test(style.textContent),
+        'the wall must draw its surface, lines and display face from theme tokens');
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  // #6 The re-prompt is a SHEET, not a second wall. A token that lapses
+  // mid-session must never eject a player from a game they are playing.
+  () => tryRun('b224: a lapsed session re-prompts beside a running game and can be deferred', () => {
+    const gate = window.HearthriseGate;
+    const ui = gate._buildGate({ reauth: true });
+    try {
+      assert(ui.root.classList.contains('reauth'), 'the re-prompt must render in its sheet form');
+      assert(ui.root.id !== 'hr-account-gate', 'the re-prompt must not masquerade as the front-door wall');
+      assert(ui.later, 'the re-prompt must be deferrable — no hard eject');
+      assert(/keep playing/i.test(ui.later.textContent), 'the defer action must say play continues: ' + ui.later.textContent);
+      assert(gate.isOpen() === true, 'building a re-prompt must never close the gate');
+    } finally {
+      if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
+    }
+  }),
+
+  // #7 THE SAVE-DESTROYER GUARD. Behind the wall legacy boot() never ran, so
+  // `G` is the factory default — one autosave in that state would write a new
+  // character straight over a beta player's save. saveLocal() must be inert.
+  () => tryRun('b224: saveLocal() cannot overwrite a local save while the gate is closed', () => {
+    const gate = window.HearthriseGate;
+    const KEY = 'hearthbound-save-v2';
+    const store = window.HearthriseStorage;
+    assert(store, 'storage seam missing');
+    const before = store.get(KEY);
+    const sentinel = JSON.stringify({ __b224Probe: true, gold: 123456 });
+    const realIsOpen = gate.isOpen;
+    try {
+      store.set(KEY, sentinel);
+      gate.isOpen = () => false;                       // stand at the door
+      window.saveLocal();
+      assert(store.get(KEY) === sentinel,
+        'saveLocal() wrote through a closed gate — this is how a beta player loses their save');
+      gate.isOpen = realIsOpen;
+      window.saveLocal();
+      assert(store.get(KEY) !== sentinel, 'saveLocal() must resume writing once the gate is open');
+    } finally {
+      gate.isOpen = realIsOpen;
+      if (before == null) store.remove(KEY); else store.set(KEY, before);
+    }
+  }),
+
+  // #8 ADOPTION. A beta player signing in for the first time brings a local
+  // save and an empty cloud. "Adoption" is mechanically: we change nothing,
+  // and sync.js uploads what is already there. The rule has exactly three
+  // outcomes and none of them is a silent overwrite.
+  () => tryRun('b224: a local save is adopted on first sign-in and never silently discarded', () => {
+    assert(typeof decideRestore === 'function', 'auth.js no longer exports the save-conflict rule');
+    // No cloud row at all — the overwhelmingly common first sign-in.
+    assert(decideRestore(742, null).action === 'none', 'no cloud snapshot must leave the local save alone');
+    assert(decideRestore(742, undefined).action === 'none', 'an undefined snapshot must leave the local save alone');
+    // Cloud exists but is behind: local stays live and gets uploaded.
+    const behind = decideRestore(742, { totalLevel: 100 });
+    assert(behind.action === 'adopt', 'a weaker cloud save must not displace the local one: ' + behind.action);
+    assert(behind.localTotalLv === 742 && behind.cloudTotalLv === 100, 'the verdict must carry both levels');
+    // Dead heat still favours the save in the player's hand.
+    assert(decideRestore(300, { totalLevel: 300 }).action === 'adopt', 'a tie must keep the local save');
+    // Cloud is ahead: the player is ASKED. Never resolved for them.
+    assert(decideRestore(19, { totalLevel: 900 }).action === 'prompt',
+      'a stronger cloud save must PROMPT, never auto-apply');
+    // A fresh account with a fresh device is not a conflict.
+    assert(decideRestore(0, { totalLevel: 0 }).action === 'adopt', 'two empty saves are not a conflict');
+    // The rule must never invent an outcome that discards without asking.
+    [[742, null], [742, { totalLevel: 100 }], [19, { totalLevel: 900 }], [0, {}]].forEach(([lv, snap]) => {
+      const a = decideRestore(lv, snap).action;
+      assert(['none', 'adopt', 'prompt'].indexOf(a) !== -1, 'unknown restore action: ' + a);
+    });
+  }),
+
+  // #9 The first-run flows queue on the gate rather than racing it. Asserted
+  // through whenOpen()'s contract, which is what every one of them now calls.
+  () => tryRun('b224: whenOpen() runs immediately while open and never drops a caller', () => {
+    const gate = window.HearthriseGate;
+    assert(typeof gate.whenOpen === 'function', 'the deferral seam is missing');
+    let ran = 0;
+    gate.whenOpen(() => { ran++; });
+    assert(ran === 1, 'whenOpen must run synchronously when the gate is already open');
+    gate.whenOpen(null);                              // must not throw
+    assert(ran === 1, 'a non-function must be ignored, not queued');
+    // The modules that must be behind it are all present and gated.
+    ['startFTUE', 'HearthriseProfile', 'HearthriseBetaBanner', 'HearthriseWelcome']
+      .forEach((k) => assert(k in window, 'gated module vanished: ' + k));
+  }),
+
+  // #11 Precedence, found by the b224 gate verification: the name modal used
+  // to open a hair BEFORE the FTUE card finished animating in, because both
+  // fired at DOMContentLoaded+600 and identity guarded on `.ftue-card.show`
+  // rather than on the tour existing. A first-sign-in player met two modals
+  // stacked. The guard is the tour's ROOT now.
+  () => tryRun('b224: the name modal waits for the FTUE tour from the moment it BUILDS, not when it animates', () => {
+    const I = window.HearthriseIdentity;
+    assert(typeof I._frontDoorBusy === 'function', 'the precedence guard is not exposed');
+    assert(/\.ftue-root/.test(I._FRONT_DOOR) && !/\.ftue-card/.test(I._FRONT_DOOR),
+      'the guard must watch the tour root, not the animated card: ' + I._FRONT_DOOR);
+    // Ambient-independent: the tour may genuinely be running during the suite
+    // (a fresh headless save IS a new player), so assert what the guard MATCHES
+    // rather than what the document happens to contain right now.
+    const root = document.createElement('div');
+    root.className = 'ftue-root';                      // built, card not yet .show
+    assert(root.matches(I._FRONT_DOOR),
+      'a built-but-not-shown FTUE root must match the guard — that is the whole fix');
+    const shown = document.createElement('div');
+    shown.className = 'ftue-card show';
+    assert(!shown.matches(I._FRONT_DOOR),
+      'the guard must key off the tour ROOT, not a card that may live elsewhere');
+    const scrim = document.createElement('div');
+    scrim.className = 'hr-id-scrim';
+    assert(scrim.matches(I._FRONT_DOOR), 'an open name modal must block a second one');
+    // And the live predicate agrees with the selector.
+    document.body.appendChild(root);
+    try { assert(I._frontDoorBusy() === true, 'the live guard ignored an FTUE root in the document'); }
+    finally { root.remove(); }
+  }),
+
+  // #12 The lapsed-session sheet joins the modal queue instead of jumping it.
+  () => tryRun('b224: the re-prompt refuses to stack on a front-door overlay', () => {
+    const gate = window.HearthriseGate;
+    const blocker = document.createElement('div');
+    blocker.id = 'beta-banner-overlay';
+    document.body.appendChild(blocker);
+    try {
+      assert(gate.promptReauth() === null, 'the re-prompt opened on top of the beta banner');
+      assert(!document.querySelector('.hr-gate.reauth'), 'a re-prompt sheet was mounted anyway');
+    } finally {
+      blocker.remove();
+      const stray = document.querySelector('.hr-gate.reauth');
+      if (stray) stray.remove();
+    }
+  }),
+
+  // #10 No surface may still INVITE account-less play. The degraded code paths
+  // stay (they are network resilience now) — the sales pitch does not.
+  () => tryRun('b224: no chrome copy invites playing without an account', () => {
+    const pill = document.getElementById('status-pill');
+    assert(pill, 'status pill missing');
+    const pillText = pill.textContent.toLowerCase();
+    assert(pillText.indexOf('offline play') === -1,
+      'the topbar pill still advertises "Offline play": ' + pill.textContent);
+    assert(pillText.indexOf('sign in to sync') === -1,
+      'the topbar pill still pitches sign-in as optional: ' + pill.textContent);
+    // The Settings account card must not offer an offline alternative.
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('settings');
+      if (typeof window.renderSettings === 'function') window.renderSettings();
+      const body = document.getElementById('settings-body');
+      assert(body, 'settings body missing');
+      const t = body.textContent.toLowerCase();
+      assert(t.indexOf("don't want an account") === -1 && t.indexOf('don’t want an account') === -1,
+        'Settings still offers an account-less alternative');
+      assert(t.indexOf('keep playing offline') === -1,
+        'Settings still invites offline play as a mode');
+    } finally {
+      if (prevTab) window.showTab(prevTab);
     }
   }),
 ];

@@ -200,7 +200,10 @@
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
             <span id="clan-tag" class="clan-tag hide"></span>
-            <span id="status-pill" class="status-pill off"><span class="dot"></span><span>Offline play</span></span>
+            <!-- b224: shipped label was "Offline play". Accounts are required,
+                 so the pre-auth markup says what it is doing, not what mode
+                 the player is in. -->
+            <span id="status-pill" class="status-pill off"><span class="dot"></span><span>Connecting…</span></span>
           </div>
         </div>
       </div>
@@ -674,6 +677,12 @@
   <script src="src/observability.js?v=224"></script>
   <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
   <script src="src/platform/storage.js?v=224"></script>
+  <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
+       reads the cached session through) and before every game script, because
+       its verdict is what decides whether legacy.js boots at all. Client-side
+       UX enforcement of an online-only product — NOT a security boundary; the
+       server already owns the economy. See the file header. -->
+  <script src="src/net/account-gate.js?v=224"></script>
   <script src="src/save-migrations.js?v=224"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->

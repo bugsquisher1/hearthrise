@@ -58,6 +58,64 @@ function serve() {
   });
 }
 
+// ── The wall guard (b224) ────────────────────────────────────────────────────
+// The suite below runs through the account-wall bypass, so it can never see the
+// state a real first-time player sees. This pass does: a clean context, storage
+// wiped, NO harness flag. It asserts the wall is up, that the engine genuinely
+// did not boot behind it (window.G is published by legacy.js boot(), which the
+// gate defers), that nothing was written to the player's save, and that the
+// console is clean — which is the only automated check that catches a module
+// throwing behind the wall, because no in-page test can reach that state.
+async function wallGuard(browser, url) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  const problems = [];
+  try {
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch {} });
+    await page.reload({ waitUntil: 'load', timeout: 60_000 });
+    await page.waitForTimeout(6_000);
+
+    const seen = await page.evaluate(() => ({
+      gate: !!window.HearthriseGate,
+      open: window.HearthriseGate ? window.HearthriseGate.isOpen() : null,
+      reason: window.HearthriseGate ? window.HearthriseGate.openReason() : null,
+      wall: !!document.getElementById('hr-account-gate'),
+      engineBooted: typeof window.G !== 'undefined',
+      appVisible: document.querySelector('.app')
+        ? getComputedStyle(document.querySelector('.app')).visibility : 'missing',
+      wroteSave: localStorage.getItem('hearthbound-save-v2') !== null,
+      wroteProfile: localStorage.getItem('hearthrise:profile') !== null,
+      modals: document.querySelectorAll(
+        '.ftue-root, #beta-banner-overlay, #hr-welcome-modal, .hr-id-scrim, .hr-dl-scrim, #hr-post-signup-modal'
+      ).length,
+      hasEmail: !!document.querySelector('#hr-account-gate input[type="email"]'),
+      hasPassword: !!document.querySelector('#hr-account-gate input[type="password"]'),
+    }));
+
+    if (!seen.gate) problems.push('HearthriseGate is not installed');
+    if (seen.open !== false) problems.push(`the gate opened without a session (reason=${seen.reason})`);
+    if (!seen.wall) problems.push('no wall rendered for a clean boot');
+    if (!seen.hasEmail || !seen.hasPassword) problems.push('the wall has no sign-in fields');
+    if (seen.engineBooted) problems.push('window.G exists — the engine booted behind the wall');
+    if (seen.appVisible !== 'hidden') problems.push(`the game shell is ${seen.appVisible} behind the wall`);
+    if (seen.wroteSave) problems.push('a save was written behind the wall (this is how a beta save dies)');
+    if (seen.wroteProfile) problems.push('a character profile was created behind the wall');
+    if (seen.modals) problems.push(`${seen.modals} modal(s) stacked on the wall`);
+
+    const real = errors.filter((t) => !/Failed to load resource|net::ERR|supabase|skypack|raw\.githubusercontent/i.test(t));
+    if (real.length) problems.push('console errors behind the wall: ' + real.slice(0, 5).join(' | '));
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 const run = async () => {
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
@@ -71,8 +129,30 @@ const run = async () => {
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message));
 
+  // ── TEST-ONLY: the account-wall bypass (b224) ────────────────────────────
+  // Hearthrise requires an account (DECISIONS 2026-08-08). src/net/account-gate.js
+  // walls off a clean boot, which would break all 274 tests below — so the
+  // harness declares itself with an explicit global, injected BEFORE any page
+  // script runs. Deliberately a JS global and not a URL parameter: it cannot be
+  // typed into an address bar, bookmarked, or sent to a friend. And the gate
+  // IGNORES it on the hosts real players use (account-gate.js PLAYER_HOSTS), so
+  // pointing --url at production correctly hits the wall instead of bypassing
+  // it. Never set this anywhere but here.
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+
   let exitCode = 0;
   try {
+    // Wall guard FIRST, in its own clean context, before the harness page below
+    // ever declares itself.
+    const wallProblems = await wallGuard(browser, url);
+    if (wallProblems.length) {
+      console.log('\nAccount-wall guard — FAILED:');
+      for (const p of wallProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it.');
+    }
+
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
 
     // The suite is registered by main.js's deferred feature boot.

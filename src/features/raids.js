@@ -1107,7 +1107,14 @@
        tick that render() is called, exactly as the pre-Hunt version did. Only
        the clan card, which genuinely has to ask the server what the Hunt is,
        pays a microtask. */
-    var st = window.G.raids, wk = weekKey();
+    /* b224: was `window.G.raids` — a bare deref of a global that legacy.js
+       only publishes from boot(). Any render() before the engine has booted
+       threw here, and because render() is async the throw escaped boot()'s
+       try/catch as an unhandled rejection. The account wall makes that state
+       reachable on purpose (nothing boots behind the gate), but the bug was
+       always there for anyone who called render() early. ensureState() has
+       handled a missing G since it was written — use it. */
+    var st = ensureState(), wk = weekKey();
     var struckToday = st.lastStrikeDay === dayKey();
     var claimed = !!st.claimed[wk];
     if (!inClan()) { host.innerHTML = soloCardHtml(st, wk, struckToday, claimed); return; }
@@ -1289,8 +1296,16 @@
       });
     } catch (e) {}
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 400); });
-  else setTimeout(boot, 400);
+  // b224: raids are a signed-in social surface, and this boot renders against
+  // the engine's state — so it waits for the account wall like the other
+  // first-run flows. (The null-deref fix at render() stands on its own: it was
+  // a latent bug for any early caller, gate or no gate.)
+  function arm() {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 400); });
+    else setTimeout(boot, 400);
+  }
+  if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   window.HearthriseRaids = {
     BOSSES: BOSSES,

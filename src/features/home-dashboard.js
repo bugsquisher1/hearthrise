@@ -536,6 +536,44 @@
     // This rail used to hold three items and then ~700px of nothing. It now
     // carries the four things a player checks between actions.
 
+    // Your heroes — the REAL multi-character selector (b229). The fake 3-slot
+    // paywall MOCKUP that used to sit on the Character screen is CUT; this
+    // account-gated block is the primary switch surface now, and it shares
+    // HearthriseProfile.slotRows() / selectSlot() with the topbar drawer so the
+    // two can never drift. Account gate: HearthriseProfile.profile is null until
+    // the account wall opens, so signed-out we render nothing at all.
+    var HP = window.HearthriseProfile;
+    if (HP && HP.profile && typeof HP.slotRows === 'function') {
+      try {
+        var heroRows = HP.slotRows();
+        if (heroRows.length) {
+          var heroesHtml = heroRows.map(function (r) {
+            if (r.kind === 'char') {
+              return '<div class="hd-card hd-duo">' +
+                '<div class="mi">' + gly('uiShield', 20, '', r.active ? 'var(--gold-2)' : 'var(--ink-2)') + '</div>' +
+                '<div class="bd"><div class="t">' + esc(r.name) +
+                  (r.active ? ' <span class="hd-rn-claimdot">active</span>' : '') + '</div>' +
+                  '<div class="s">Combat ' + (r.combatLv || 1) + ' · Total ' + (r.totalLv || 1) +
+                    (r.active ? '' : ' · ' + (HP.timeSince ? HP.timeSince(r.lastSeen) : '')) + '</div></div>' +
+                (r.active
+                  ? '<div class="when">now</div>'
+                  : '<button class="hd-cta ghost" data-hero="' + r.id + '">Play</button>') +
+              '</div>';
+            }
+            return '<div class="hd-card hd-duo">' +
+              '<div class="mi">' + gly('uiLock', 20, '', 'var(--ink-3)') + '</div>' +
+              '<div class="bd"><div class="t">Hero slot ' + (r.slotId + 1) + '</div>' +
+                '<div class="s">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div></div>' +
+              (r.canBuy
+                ? '<button class="hd-cta ghost" data-herobuy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'
+                : '<div class="when">locked</div>') +
+            '</div>';
+          }).join('');
+          html += '<div><div class="hd-h"><h3>Your heroes</h3></div><div class="hd-rows">' + heroesHtml + '</div></div>';
+        }
+      } catch (e) { /* multi-character optional */ }
+    }
+
     // b228 (Tyler): "While you were away". The offline catch-up (G.lastOfflineSummary)
     // only ever reached the player as a transient toast — b225's burn count, b226's
     // budget readout and b227's base-rate note were ALSO written into the legacy
@@ -664,6 +702,29 @@
   }
 
   function wire(root, tasks, mile, resume) {
+    // Your heroes — switch / buy, both routed through the SHARED helpers so Home
+    // and the drawer act identically (switchSlot → reload is preserved inside
+    // selectSlot). Separate from the [data-hd] table below because these carry a
+    // slot id, not a fixed kind string.
+    root.querySelectorAll('[data-hero]').forEach(function (el) {
+      el.onclick = function (e) {
+        e.preventDefault();
+        var id = parseInt(el.getAttribute('data-hero'), 10);
+        var HP = window.HearthriseProfile;
+        if (HP && typeof HP.selectSlot === 'function') HP.selectSlot(id);
+      };
+    });
+    root.querySelectorAll('[data-herobuy]').forEach(function (el) {
+      el.onclick = function (e) {
+        e.preventDefault();
+        var id = parseInt(el.getAttribute('data-herobuy'), 10);
+        var HP = window.HearthriseProfile;
+        if (!HP || typeof HP.unlockSlot !== 'function') return;
+        var r = HP.unlockSlot(id);
+        if (r && r.ok) render();
+        else if (r && typeof window.notify === 'function') window.notify(r.reason, 'kill');
+      };
+    });
     root.querySelectorAll('[data-hd]').forEach(function (el) {
       var kind = el.getAttribute('data-hd');
       el.onclick = function (e) {

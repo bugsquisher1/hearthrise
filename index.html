@@ -187,7 +187,10 @@
          the flagship clan raid undiscoverable. A smoke test now guards it. -->
     <button class="nav-btn" data-tab="events"><span class="ic"></span><span class="lbl">Events</span></button>
     <button class="nav-btn" data-tab="bounty"><span class="ic"></span><span class="lbl">Bounty Board</span></button>
-    <button class="nav-btn" data-tab="skills"><span class="ic"></span><span class="lbl">Skills</span></button>
+    <!-- b229: Skills folded into the Character screen (sub-tab, default). The
+         standalone Skills door is gone; showTab('skills')/openSkillDetail are
+         aliased to Character/Skills so every deep link still lands right. -->
+
 
     <!-- b230 (Tyler): the ECONOMY group is gone. It held exactly two entries —
          Inventory (which belongs to the character) and Store, which was
@@ -373,17 +376,14 @@
       </div>
     </section>
 
-    <!-- ── SKILLS ── -->
-    <section class="panel" id="panel-skills">
-      <div class="card layout-2col-a">
-        <div class="card-head"><div class="card-title">All Skills</div></div>
-        <div class="card-body" id="skills-list"></div>
-      </div>
-      <div class="card layout-2col-b">
-        <div class="card-head"><div class="card-title" id="skill-detail-title">Skill</div></div>
-        <div class="card-body" id="skill-detail"><div class="empty"><span class="em-icon">📊</span>Tap a skill to train it.</div></div>
-      </div>
-    </section>
+    <!-- ── SKILLS ──
+         b229: the Skills screen folded into the Character screen's Skills
+         sub-tab. #skills-list / #skill-detail / #skill-detail-title now live
+         inside #panel-character (built by character-page.js), so activities-grid
+         paints them there — the ids moved, not duplicated. This stays as an
+         empty deprecated stub so showTab has a panel to no-op against if ever
+         reached raw (the alias converts 'skills'→'character' first). -->
+    <section class="panel" id="panel-skills"></section>
 
     <!-- ── INVENTORY ── -->
     <section class="panel" id="panel-inventory">
@@ -542,7 +542,6 @@
 <nav class="bottom-nav" id="bottom-nav">
   <button class="bn-btn active" data-tab="profile"><span class="ic">👤</span><span>Home</span></button><button class="bn-btn" data-tab="character"><span class="ic">🧙</span><span>Character</span></button>
   <button class="bn-btn" data-tab="combat"><span class="ic">⚔️</span><span>Combat</span></button>
-  <button class="bn-btn" data-tab="skills"><span class="ic">📊</span><span>Skills</span></button>
   <button class="bn-btn" data-tab="farming"><span class="ic">🌾</span><span>Farm</span></button>
   <button class="bn-btn more" data-tab="more"><span class="ic">⋯</span><span>More</span></button>
 </nav>

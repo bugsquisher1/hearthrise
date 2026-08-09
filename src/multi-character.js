@@ -41,6 +41,14 @@
 
   function charKey(slot){ return 'hearthrise:char:' + slot; }
 
+  // A character name can arrive over the network on a cloud restore, and both
+  // the drawer and Home interpolate it into innerHTML — escape at the boundary.
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
   // ── Profile load / save / migrate ─────────────────────────────
   function loadProfile(){
     try {
@@ -206,6 +214,49 @@
         free: !!free,
       };
     },
+    // b229 — ONE model of "what slots exist and what each row can do", read by
+    // BOTH the topbar drawer and the Home "Your heroes" block so the two
+    // surfaces cannot drift. Existing character rows first, then the locked /
+    // buyable rows up to MAX_SLOTS. Rendering + wiring stay per-surface (Home
+    // speaks hd-*, the drawer speaks cs-*); the DATA and the actions are shared.
+    slotRows: function(){
+      var p = this.profile || loadProfile();
+      if(!p) return [];
+      var rows = [];
+      (p.slots || []).forEach(function(s){
+        rows.push({
+          kind: 'char', id: s.id, name: s.name || 'Adventurer',
+          combatLv: s.combatLv || 1, totalLv: s.totalLv || 1,
+          active: s.id === p.activeSlot, lastSeen: s.lastSeen,
+        });
+      });
+      for(var i = (p.slots || []).length; i < MAX_SLOTS; i++){
+        var hasPremium = p.entitlements && p.entitlements.hearthHall;
+        var free = hasPremium && i >= 1 && i <= 3;
+        rows.push({
+          kind: 'locked', slotId: i, free: !!free,
+          cost: free ? 0 : SLOT_COSTS_GEMS[i], canBuy: (i === p.unlockedSlots),
+        });
+      }
+      return rows;
+    },
+    // The shared switch action: confirm, snapshot-and-swap, reload. The reload
+    // is intentional — the engine boots from hearthbound-save-v2 and has no live
+    // save-swap seam (§1.4). Returns false if it was a no-op (already active or
+    // the player declined) so callers can skip a redundant re-render.
+    selectSlot: function(id){
+      var p = this.profile; if(!p) return false;
+      if(id === p.activeSlot) return false;
+      var slot = null, list = p.slots || [];
+      for(var i = 0; i < list.length; i++){ if(list[i].id === id){ slot = list[i]; break; } }
+      var nm = slot ? slot.name : ('Slot ' + (id + 1));
+      if(!confirm('Switch to ' + nm + '? Your current character will be saved.')) return false;
+      switchSlot(id);
+      if(typeof location !== 'undefined' && location.reload) location.reload();
+      return true;
+    },
+    timeSince: timeSince,
+    esc: esc,
   };
 
   // Initialize on DOMContentLoaded so legacy.js has loaded first.
@@ -247,52 +298,45 @@
 
     function render(){
       var modal = ov.querySelector('#cs-modal');
-      var p = window.HearthriseProfile.profile;
-      var slotsHtml = p.slots.map(function(s){
-        var active = s.id === p.activeSlot;
-        return '<button class="cs-slot ' + (active?'active':'') + '" data-slot="' + s.id + '">' +
-          '<div class="cs-slot-portrait">🧙</div>' +
-          '<div class="cs-slot-meta">' +
-            '<div class="cs-slot-name">' + s.name + (active?' <span class="cs-active-pill">active</span>':'') + '</div>' +
-            '<div class="cs-slot-stats">Cmb Lv <b>' + (s.combatLv||1) + '</b> · Tot Lv <b>' + (s.totalLv||1) + '</b></div>' +
-            '<div class="cs-slot-since">' + (active ? 'now' : timeSince(s.lastSeen)) + '</div>' +
-          '</div>' +
-        '</button>';
-      }).join('');
-
-      // Locked slot rows up to MAX_SLOTS
-      var lockedHtml = '';
-      for(var i = p.slots.length; i < MAX_SLOTS; i++){
-        var hasPremium = p.entitlements && p.entitlements.hearthHall;
-        var free = hasPremium && i >= 1 && i <= 3;
-        var cost = free ? 0 : SLOT_COSTS_GEMS[i];
-        var canBuyNext = (i === p.unlockedSlots);
-        lockedHtml += '<div class="cs-slot locked">' +
+      // b229: rows come from the SHARED model so the drawer and Home never
+      // disagree about which slots exist or what each one costs.
+      var rows = window.HearthriseProfile.slotRows();
+      var html = rows.map(function(r){
+        if(r.kind === 'char'){
+          return '<button class="cs-slot ' + (r.active?'active':'') + '" data-slot="' + r.id + '">' +
+            '<div class="cs-slot-portrait">🧙</div>' +
+            '<div class="cs-slot-meta">' +
+              '<div class="cs-slot-name">' + esc(r.name) + (r.active?' <span class="cs-active-pill">active</span>':'') + '</div>' +
+              '<div class="cs-slot-stats">Cmb Lv <b>' + (r.combatLv||1) + '</b> · Tot Lv <b>' + (r.totalLv||1) + '</b></div>' +
+              '<div class="cs-slot-since">' + (r.active ? 'now' : timeSince(r.lastSeen)) + '</div>' +
+            '</div>' +
+          '</button>';
+        }
+        return '<div class="cs-slot locked">' +
           '<div class="cs-slot-portrait">🔒</div>' +
           '<div class="cs-slot-meta">' +
-            '<div class="cs-slot-name">Slot ' + (i+1) + (free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
-            '<div class="cs-slot-stats">' + (free ? 'Included with Hearth Hall' : (cost + ' 💎')) + '</div>' +
+            '<div class="cs-slot-name">Slot ' + (r.slotId+1) + (r.free ? ' <span class="cs-pill premium">Premium</span>' : '') + '</div>' +
+            '<div class="cs-slot-stats">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' 💎')) + '</div>' +
           '</div>' +
-          (canBuyNext
-            ? '<button class="cs-buy" data-buy="' + i + '">' + (free ? 'Unlock' : 'Buy') + '</button>'
+          (r.canBuy
+            ? '<button class="cs-buy" data-buy="' + r.slotId + '">' + (r.free ? 'Unlock' : 'Buy') + '</button>'
             : '<div class="cs-locked-tag">unlock the previous slot first</div>') +
         '</div>';
-      }
+      }).join('');
 
       modal.innerHTML =
         '<button class="cs-close">✕</button>' +
         '<h2>Characters</h2>' +
         '<p class="cs-sub">Each character has its own skills, inventory, gold, and bound items. Up to ' + MAX_SLOTS + ' per profile.</p>' +
-        '<div class="cs-slots">' + slotsHtml + lockedHtml + '</div>';
+        '<div class="cs-slots">' + html + '</div>';
 
       modal.querySelector('.cs-close').addEventListener('click', close);
       modal.querySelectorAll('.cs-slot[data-slot]').forEach(function(b){
         b.addEventListener('click', function(){
           var sid = parseInt(this.dataset.slot, 10);
-          if(sid === p.activeSlot){ close(); return; }
-          if(!confirm('Switch to ' + p.slots[sid].name + '? Your current character will be saved.')) return;
-          window.HearthriseProfile.switchSlot(sid);
-          location.reload();
+          // Shared switch action (confirm + swap + reload). Returns false when
+          // the tapped slot is already active — just close the drawer then.
+          if(!window.HearthriseProfile.selectSlot(sid)) close();
         });
       });
       modal.querySelectorAll('.cs-buy[data-buy]').forEach(function(b){

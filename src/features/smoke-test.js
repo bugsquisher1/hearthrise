@@ -2846,7 +2846,11 @@ const TESTS = [
       'window.Chat.open missing — mobile More→Chat (mobile-more-chat.js) depends on it');
   }),
   () => tryRun('tabs: each tab activates', () => {
-    const tabs = ['profile', 'character', 'combat', 'bounty', 'skills', 'inventory', 'shop', 'farming', 'house', 'social'];
+    // b229: 'skills' is no longer its own panel — it aliases to the Character
+    // screen's Skills sub-tab (asserted separately below). It's out of this
+    // real-panel loop precisely because showTab('skills') now activates
+    // #panel-character, not #panel-skills.
+    const tabs = ['profile', 'character', 'combat', 'bounty', 'inventory', 'shop', 'farming', 'house', 'social'];
     for (const t of tabs) {
       try { window.showTab(t); }
       catch (e) { throw new Error(`showTab("${t}") threw: ${e.message || e}`); }
@@ -2857,10 +2861,12 @@ const TESTS = [
     window.showTab('profile');
   }),
   () => tryRun('renders: skills + activities', () => {
+    // b229: the skills grid lives inside #panel-character now; showTab('skills')
+    // aliases there and openSkillDetail paints the relocated #skill-detail.
     window.showTab('skills');
     if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
     if (typeof window.renderSkillDetail === 'function') window.renderSkillDetail('mining');
-    const grid = document.querySelector('#panel-skills .act-grid');
+    const grid = document.querySelector('#skill-detail .act-grid');
     assert(grid, 'activities grid missing');
     assert(grid.querySelectorAll('.act-tile').length > 0, 'no tiles');
   }),
@@ -3692,6 +3698,8 @@ const TESTS = [
   () => tryRun('b127: character page shows real HP, not "—"', () => {
     if (typeof window.G !== 'object' || typeof window.G.playerHp !== 'number') return;
     window.showTab('character');
+    // b229: HP now lives on the Hero sub-tab of the combined Character screen.
+    window._charPane = 'hero';
     void document.body.offsetHeight;
     if (typeof window.renderCharacter === 'function') window.renderCharacter();
     void document.body.offsetHeight;
@@ -11891,8 +11899,12 @@ const TESTS = [
       // 1 — a gathering daily opens the SKILL's detail, not the grid.
       const fish = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'fish');
       QN.go(fish);
-      assert(document.getElementById('panel-skills').classList.contains('active'),
-        'Catch 15 fish must land on the skills panel');
+      // b229: Skills folded into the Character screen — the skills route now
+      // lands on #panel-character with the Skills sub-tab selected.
+      assert(document.getElementById('panel-character').classList.contains('active'),
+        'Catch 15 fish must land on the Character screen (Skills folded in)');
+      assert((window._charPane || 'skills') === 'skills',
+        'a skills route must select the Skills sub-tab, got _charPane=' + window._charPane);
       assert(window.__viewedSkillId === 'fishing',
         'it must OPEN fishing, not leave the player on the grid (got ' + window.__viewedSkillId + ')');
       // openSkillDetail defers its paint a tick; paint it to see what the
@@ -11954,10 +11966,12 @@ const TESTS = [
       assert(!document.getElementById('quests-modal-overlay'),
         'the modal must close on Go — an overlay over the destination is the same dead end');
       // `activeTab` is a legacy `let`, so it is NOT on window — read the DOM,
-      // which is what the player sees anyway.
-      const landed = document.getElementById('panel-' + want.tab);
+      // which is what the player sees anyway. b229: a 'skills' destination now
+      // resolves to the Character screen (Skills sub-tab), so map it here.
+      const wantPanel = (want.tab === 'skills') ? 'character' : want.tab;
+      const landed = document.getElementById('panel-' + wantPanel);
       assert(landed && landed.classList.contains('active'),
-        'Go did not land on the ' + want.tab + ' panel for "' + goal.name + '"');
+        'Go did not land on the ' + wantPanel + ' panel for "' + goal.name + '"');
       if (want.skillId) {
         assert(window.__viewedSkillId === want.skillId,
           'Go landed on the ' + want.tab + ' tab but did not open ' + want.skillId);
@@ -12081,7 +12095,9 @@ const TESTS = [
 
       // Character-page portrait — rebuilt wholesale on every render, so the
       // click wiring has to survive that (decorateCharacterPage re-attaches).
+      // b229: the identity portrait lives on the Hero sub-tab now.
       window.showTab('character');
+      window._charPane = 'hero';
       if (typeof window.renderCharacter === 'function') window.renderCharacter();
       const portrait = document.querySelector('#panel-character .cr-hero-portrait');
       assert(portrait, 'character-page portrait missing');
@@ -13156,6 +13172,168 @@ const TESTS = [
       assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
         'a pre-retune Knight must still be a Knight — the ratchet is the promise');
     } finally { restoreG(snap); }
+  }),
+
+  // ── b229 · the combined Character screen (Skills · Equipment · Hero) ──────
+  () => tryRun('b229: Character screen has Skills/Equipment/Hero sub-tabs, Skills default', () => {
+    const prevPane = window._charPane;
+    try {
+      window._charPane = undefined;              // fresh entry defaults to Skills
+      window.showTab('character');
+      if (typeof window.renderCharacter === 'function') window.renderCharacter();
+      const shell = document.getElementById('char-shell');
+      assert(shell, 'the combined-screen shell (#char-shell) never built');
+      const tabs = [...shell.querySelectorAll('.char-subtab')].map((b) => b.getAttribute('data-cpane'));
+      assert(tabs.join(',') === 'skills,equip,hero', 'sub-tabs must be Skills · Equipment · Hero, got ' + tabs.join(','));
+      assert((window._charPane || 'skills') === 'skills', 'Skills must be the default sub-tab, got ' + window._charPane);
+      const active = shell.querySelector('.char-subtab.active');
+      assert(active && active.getAttribute('data-cpane') === 'skills', 'the Skills sub-tab must be the one lit on entry');
+      assert(document.getElementById('char-skills').style.display !== 'none', 'the Skills pane must be visible by default');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: showTab("skills") aliases to Character/Skills with the grid rendered', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('skills');
+      assert(document.getElementById('panel-character').classList.contains('active'),
+        'showTab("skills") must activate the Character panel, not #panel-skills');
+      assert((window._charPane || 'skills') === 'skills', 'the alias must select the Skills sub-tab');
+      // The relocated ids must live inside the Character panel (moved, not duplicated).
+      assert(document.querySelector('#panel-character #skills-list'), '#skills-list must live inside the Character panel now');
+      assert(document.querySelector('#panel-character #skill-detail'), '#skill-detail must live inside the Character panel now');
+      assert(!document.querySelector('#panel-skills #skill-detail'), '#skill-detail must NOT be duplicated in the old stub');
+      assert(document.querySelectorAll('#skills-list .skill-tile').length > 0, 'the skills grid rendered no tiles');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: live progress bar not frozen — isSkillsVisible() true on Character/Skills', () => {
+    const prevPane = window._charPane;
+    try {
+      assert(typeof window.isSkillsVisible === 'function', 'isSkillsVisible() seam missing (guards would freeze the bar)');
+      window.showTab('skills');                  // → Character, Skills sub-tab
+      assert(window.isSkillsVisible() === true, 'isSkillsVisible() must be true with Character open on the Skills sub-tab');
+      window._charPane = 'hero';
+      assert(window.isSkillsVisible() === false, 'isSkillsVisible() must be false on the Hero sub-tab (no bar to update)');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: sub-tab survives an auto-refresh re-render (b218 snap-back guard)', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('character');
+      window._charPane = 'hero';
+      window.renderCharacter();
+      assert(document.getElementById('char-hero').style.display !== 'none', 'Hero pane must show after selecting it');
+      // Simulate the 2s auto-refresh tick — the pane must NOT snap back to Skills.
+      window.renderCharacter();
+      assert((window._charPane || 'skills') === 'hero', '_charPane must persist across a re-render');
+      assert(document.getElementById('char-hero').style.display !== 'none', 'Hero pane must survive the auto-refresh (snap-back regression)');
+      assert(document.getElementById('char-skills').style.display === 'none', 'Skills pane must stay hidden while Hero is selected');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: a skill tile is a door — routes to its activity via the existing seam', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('skills');
+      const tile = document.querySelector('#skills-list .skill-tile');
+      assert(tile, 'no skill tile to click');
+      const oc = tile.getAttribute('onclick') || '';
+      assert(/openSkillDetail\(/.test(oc), 'a skill tile must route through openSkillDetail (the existing quest-nav seam), got: ' + oc);
+      // Drilling into a skill paints its activity detail inside the Character screen.
+      window.openSkillDetail('mining');
+      window.renderSkillDetail('mining');
+      const grid = document.querySelector('#panel-character #skill-detail .act-grid');
+      assert(grid && grid.querySelectorAll('.act-tile').length > 0, 'the mining activity grid did not render inside the Character screen');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: Equipment sub-tab hosts the paper-doll with its internal tabs', () => {
+    if (typeof window.buildTibiaDoll !== 'function') return;   // doll unavailable in this build
+    const prevPane = window._charPane;
+    try {
+      window.showTab('character');
+      window._charPane = 'equip';
+      window.renderCharacter();
+      const host = document.getElementById('char-equip');
+      assert(host && host.querySelector('.td-wrap'), 'the paper-doll (.td-wrap) is not mounted in the Equipment sub-tab');
+      const paneTabs = [...host.querySelectorAll('.td-tab')].map((b) => b.getAttribute('data-td-pane'));
+      assert(paneTabs.indexOf('gear') >= 0 && paneTabs.indexOf('stats') >= 0 && paneTabs.indexOf('pet') >= 0,
+        'the doll must keep its Equipment/Stats/Companion internal tabs, got ' + paneTabs.join(','));
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: Hero Account stat grid reads real sources (no fakes)', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('character');
+      window._charPane = 'hero';
+      window.renderCharacter();
+      const grid = document.querySelector('#char-hero .cr-acct-grid');
+      assert(grid, 'the Account stat grid did not render on the Hero sub-tab');
+      const cells = [...grid.querySelectorAll('.cr-acct-cell')];
+      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Time), got ' + cells.length);
+      const byLabel = (needle) => cells.find((c) => (c.querySelector('span').textContent || '').toLowerCase().indexOf(needle) === 0);
+      const cl = byLabel('combat'); const tl = byLabel('total');
+      assert(cl && cl.querySelector('b').textContent === String(window.getCombatLevel()),
+        'Combat Lv cell must equal getCombatLevel()');
+      assert(tl && tl.querySelector('b').textContent === String(window.getTotalLevel()),
+        'Total Lv cell must equal getTotalLevel()');
+      const ach = byLabel('achievements');
+      assert(ach && ach.querySelector('b').textContent.indexOf('/ ' + (window.ACHIEVEMENTS || []).length) >= 0,
+        'Achievements cell must count against the real ACHIEVEMENTS catalogue');
+      // Time Played is behind a reveal until clicked — never a faked "0h".
+      const time = byLabel('time');
+      assert(time, 'a Time played cell must exist (its counter is built, not omitted)');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: Time Played counter is real (G.stats.playMs, presence-gated, not faked)', () => {
+    assert(typeof window.HearthrisePlayTime === 'object' && typeof window.HearthrisePlayTime.ms === 'function',
+      'window.HearthrisePlayTime.ms() seam missing — the counter was not built');
+    assert(window.G && window.G.stats && typeof window.G.stats.playMs === 'number',
+      'G.stats.playMs must exist as a real accumulator field');
+    assert(window.HearthrisePlayTime.ms() === (window.G.stats.playMs || 0),
+      'HearthrisePlayTime.ms() must read the live accumulator, not a copy');
+  }),
+
+  () => tryRun('b229: the fake "Your Heroes" paywall mockup is gone from the Character screen', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('character');
+      window._charPane = 'skills'; window.renderCharacter();
+      window._charPane = 'hero'; window.renderCharacter();
+      assert(!document.querySelector('#panel-character .cr-slots'), 'the fake cr-slots paywall must be cut from the Character screen');
+      assert(!document.querySelector('#panel-character .cr-paywall-hint'), 'the fake paywall hint must be gone too');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
+  }),
+
+  () => tryRun('b229: "Your Heroes" is the REAL selector, shared with the drawer', () => {
+    const HP = window.HearthriseProfile;
+    assert(HP && typeof HP.slotRows === 'function' && typeof HP.selectSlot === 'function',
+      'HearthriseProfile must expose the shared slotRows()/selectSlot() helpers');
+    if (!HP.profile) return;   // signed out — the block renders nothing (tested by absence)
+    const rows = HP.slotRows();
+    assert(Array.isArray(rows) && rows.length > 0, 'slotRows() must describe the account\'s slots');
+    assert(rows.some((r) => r.kind === 'char'), 'slotRows() must include at least the active character');
+    // Home paints it from the same model.
+    window.showTab('profile');
+    if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render();
+    const root = document.getElementById('hd-root');
+    if (root) assert(/your heroes/i.test(root.textContent), 'Home must render a real "Your heroes" block from HearthriseProfile');
+  }),
+
+  () => tryRun('b229: every folded route still resolves (character / skills / profile)', () => {
+    const prevPane = window._charPane;
+    try {
+      window.showTab('character');
+      assert(document.getElementById('panel-character').classList.contains('active'), 'character route broke');
+      window.showTab('skills');
+      assert(document.getElementById('panel-character').classList.contains('active'), 'skills alias must resolve to Character');
+      window.showTab('profile');
+      assert(document.getElementById('panel-profile').classList.contains('active'), 'profile route broke');
+    } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
 ];

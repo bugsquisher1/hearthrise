@@ -4,7 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
-## v0.9.2-beta build 267 — 2026-08-09 (Pick your auto-eat food anywhere)
+## v0.9.2-beta build 268 — 2026-08-09 (Every dungeon has a name — and a nemesis)
+
+- ☠️ **Every dungeon now has a named end-boss.** The Marrow King rules the Crypt of Bones, Grimtusk the Goblin Warcamp, the Pale Archivist the Haunted Archive, the Ashen King holds Obsidian Keep, the Riftmaw pours from the Voidbringer, and Elderscale the Great Wyrm is the capstone — each shown right on its dungeon card.
+- ⚔️ **Signature boss loot.** Each boss drops an original weapon you can't get anywhere else — the Wartusk Cleaver, Whispering Codex, Ashcrown Greatsword, Voidmaw Scepter, and the legendary Dragonfang Pike. These are **bind-on-pickup**: the reward for clearing the fight yourself, not something you can buy.
+- 💰 **Dungeons are now a livelihood.** Farmer's Deeds and housing Blueprints are **tradeable** and drop across the dungeons (deeds scale up the harder the dungeon) — so if you love running dungeons, you can farm them and sell to players who'd rather buy their farm plots and castle upgrades on the market.
 
 - 🍖 **The auto-eat food picker is reachable in landscape now.** It used to live at the bottom of the combat screen, off the bottom of the fold on a landscape phone. There's now an **"Auto-eat: [food] ▾"** button right next to your Eat button (always visible) that opens a clean picker — choose any Provision, or turn it off. *(Thanks paione.)*
 

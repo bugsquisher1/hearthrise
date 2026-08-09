@@ -249,14 +249,14 @@ const ITEMS={
   farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
 
   // Bind-on-Pickup housing blueprints (drop from quests/monsters/dungeons)
-  kitchen_blueprint_t2: {n:'Kitchen Blueprint II',icon:'📜',v:500,bop:true,rarity:'rare',tag:'housing',unlocks:'kitchen.2'},
-  kitchen_blueprint_t3: {n:'Kitchen Blueprint III',icon:'📜',v:2000,bop:true,rarity:'epic',tag:'housing',unlocks:'kitchen.3'},
-  forge_blueprint_t2:   {n:'Forge Blueprint II',icon:'📜',v:500,bop:true,rarity:'rare',tag:'housing',unlocks:'forge.2'},
-  forge_blueprint_t3:   {n:'Forge Blueprint III',icon:'📜',v:2000,bop:true,rarity:'epic',tag:'housing',unlocks:'forge.3'},
-  library_blueprint_t2: {n:'Library Blueprint II',icon:'📜',v:500,bop:true,rarity:'rare',tag:'housing',unlocks:'library.2'},
-  library_blueprint_t3: {n:'Library Blueprint III',icon:'📜',v:2000,bop:true,rarity:'epic',tag:'housing',unlocks:'library.3'},
-  trophy_blueprint_t2:  {n:'Trophy Blueprint II',icon:'📜',v:500,bop:true,rarity:'rare',tag:'housing',unlocks:'trophy.2'},
-  trophy_blueprint_t3:  {n:'Trophy Blueprint III',icon:'📜',v:2000,bop:true,rarity:'epic',tag:'housing',unlocks:'trophy.3'},
+  kitchen_blueprint_t2: {n:'Kitchen Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'kitchen.2'},
+  kitchen_blueprint_t3: {n:'Kitchen Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'kitchen.3'},
+  forge_blueprint_t2:   {n:'Forge Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'forge.2'},
+  forge_blueprint_t3:   {n:'Forge Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'forge.3'},
+  library_blueprint_t2: {n:'Library Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'library.2'},
+  library_blueprint_t3: {n:'Library Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'library.3'},
+  trophy_blueprint_t2:  {n:'Trophy Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'trophy.2'},
+  trophy_blueprint_t3:  {n:'Trophy Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'trophy.3'},
 
   // Bind-on-Pickup raid/world-boss rewards
   dragon_relic: {n:'Dragon Relic',icon:'🐲',v:5000,bop:true,rarity:'legendary',tag:'cosmetic'},

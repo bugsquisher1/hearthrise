@@ -1169,6 +1169,15 @@ body.in-combat #combat-area {
   color: var(--ink-2);
   font-family: monospace;
 }
+/* b268: named end-boss line on each dungeon card (the boss ecosystem) */
+.dgn-boss-line {
+  font-size:calc(14.5px * var(--ui-scale, 1));
+  color: var(--ink-2);
+  margin: 4px 0 6px;
+  display: flex; align-items: center; gap: 5px;
+}
+.dgn-boss-line b { color: var(--gold-2); font-family: var(--font-display, inherit); letter-spacing: .01em; }
+.dgn-boss-skull { color: #c96; font-size: 1.05em; }
 .dgn-bop {
   font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 800;

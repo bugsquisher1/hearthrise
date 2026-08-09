@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=267';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=267';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=267';
+import { GEAR_ITEMS } from './gear-tiers.js?v=268';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=268';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=268';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -253,6 +253,10 @@ export const ITEMS={
      Explicitly NOT bind-on-pickup — tradable on the player market.
      Drop hooks live in src/features/farm-progression.js. Keep this in sync
      with the inline ITEMS const in src/legacy.js. */
+  /* b268: Deeds are TRADEABLE (non-BoP) — Tyler's call: dungeon-runners farm
+     them and sell to players who'd rather not run dungeons, so deeds become a
+     market money source rather than a personal-only currency. Rarish. Faucets:
+     dungeons (tier-scaled), the bounty trickle, and (b269) any-activity Scraps. */
   farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
 
   /* ── Phase A.1 items mirrored from legacy.js (b139 — QA sweep §1.1)
@@ -297,40 +301,42 @@ export const ITEMS={
   marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
   field_cookbook:       {n:'Field Cookbook',            icon:'📜', v:0, recipe:'hunters_feast'},
 
-  /* ── Bind-on-Pickup housing blueprints ─────────────────────────
+  /* ── Housing blueprints ─────────────────────────────────────────
      These drop from daily quests / monster drops / dungeons / raids.
      They unlock the corresponding room upgrade tier when consumed.
-     Untradeable so the economy can't bypass progression. */
+     b268: now TRADEABLE (non-BoP) — Tyler's call. Dungeon-runners sell
+     blueprints on the market to players who'd rather buy their castle
+     progression than farm dungeons, making dungeon loot a money source. */
   kitchen_blueprint_t2: {
-    n:'Kitchen Blueprint II', icon:'📜', v:500, bop:true,
+    n:'Kitchen Blueprint II', icon:'📜', v:500,
     rarity:'rare', tag:'housing', unlocks:'kitchen.2',
   },
   kitchen_blueprint_t3: {
-    n:'Kitchen Blueprint III', icon:'📜', v:2000, bop:true,
+    n:'Kitchen Blueprint III', icon:'📜', v:2000,
     rarity:'epic', tag:'housing', unlocks:'kitchen.3',
   },
   forge_blueprint_t2: {
-    n:'Forge Blueprint II', icon:'📜', v:500, bop:true,
+    n:'Forge Blueprint II', icon:'📜', v:500,
     rarity:'rare', tag:'housing', unlocks:'forge.2',
   },
   forge_blueprint_t3: {
-    n:'Forge Blueprint III', icon:'📜', v:2000, bop:true,
+    n:'Forge Blueprint III', icon:'📜', v:2000,
     rarity:'epic', tag:'housing', unlocks:'forge.3',
   },
   library_blueprint_t2: {
-    n:'Library Blueprint II', icon:'📜', v:500, bop:true,
+    n:'Library Blueprint II', icon:'📜', v:500,
     rarity:'rare', tag:'housing', unlocks:'library.2',
   },
   library_blueprint_t3: {
-    n:'Library Blueprint III', icon:'📜', v:2000, bop:true,
+    n:'Library Blueprint III', icon:'📜', v:2000,
     rarity:'epic', tag:'housing', unlocks:'library.3',
   },
   trophy_blueprint_t2: {
-    n:'Trophy Blueprint II', icon:'📜', v:500, bop:true,
+    n:'Trophy Blueprint II', icon:'📜', v:500,
     rarity:'rare', tag:'housing', unlocks:'trophy.2',
   },
   trophy_blueprint_t3: {
-    n:'Trophy Blueprint III', icon:'📜', v:2000, bop:true,
+    n:'Trophy Blueprint III', icon:'📜', v:2000,
     rarity:'epic', tag:'housing', unlocks:'trophy.3',
   },
 
@@ -468,6 +474,41 @@ export const ITEMS={
   choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8},
   warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8},
   wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8},
+
+  /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
+     Every solo dungeon has a named end-boss (see src/dungeons.js DUNGEONS[id].boss)
+     and 1-2 original signature drops that only fall from that boss.
+
+     Tyler's rule (2026-08-09): signature GEAR (weapons/armour) is BIND-ON-PICKUP
+     — it is the prestige reward for clearing the fight yourself, not a market
+     flip. Signature COSMETICS / trophies / materials stay TRADEABLE so the boss
+     feeds the player economy without letting the best gear be bought. No
+     signature item ever touches hearth_token / muster_seal (mint-leak guards).
+
+     Weapon reqLv is set explicitly to the dungeon's combat-level gate (no `tier`,
+     so gearWieldReq reads reqLv directly). Stats slot each weapon between the
+     same-tier craftables and the next rung, with a distinct identity (Wartusk =
+     strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
+
+  // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
+  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:20, strB:24, critB:.02, reqSkill:'attack', reqLv:35, rarity:'unique'},
+  warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
+
+  // haunted_archive — The Pale Archivist (Lv 45)
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'magic', reqLv:45, rarity:'unique'},
+  lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
+
+  // obsidian_keep — The Ashen King (Lv 65)
+  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'attack', reqLv:65, rarity:'unique'},
+
+  // voidbringer — The Riftmaw (Lv 80)
+  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
+  voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
+  riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
+
+  // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
+  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, spdB:.03, reqSkill:'attack', reqLv:95, rarity:'legendary'},
+  elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
   /* ── Bind-on-Pickup dungeon keys ──
      Replace gold entry costs. Drop from monsters whose family/tier match

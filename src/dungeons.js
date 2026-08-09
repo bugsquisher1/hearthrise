@@ -34,11 +34,13 @@
       reqLv: 25, cost: { key: 'bone_key' },
       duration: 60,
       cooldownH: 4,
-      desc: 'A small crypt swarming with skeletons. Decent way to farm bones and a chance at a blueprint.',
+      boss: { name: 'The Marrow King', title: 'Lord of the Bonepit' },
+      desc: 'A small crypt swarming with skeletons. The Marrow King waits at its heart — bones, a blueprint, and a deed for the taking.',
       loot: [
         { id: 'big_bones', qty: [10, 30], chance: 1.0 },
         { id: 'grave_dust', qty: [1, 3], chance: .85 },
         { id: 'kitchen_blueprint_t2', qty: [1, 1], chance: .12 },
+        { id: 'farm_deed', qty: [1, 1], chance: .20 },
       ],
       phases: [
         { type:'gather', label:'Gather torches', icon:'🔦', target: 8, durationS: 25,
@@ -57,19 +59,23 @@
       reqLv: 35, cost: { key: 'goblin_seal' },
       duration: 90,
       cooldownH: 6,
-      desc: 'Sack the warcamp. Expect heavy resistance and a forge blueprint if you survive.',
+      boss: { name: 'Grimtusk', title: 'Warlord of the Broken Tusk' },
+      desc: 'Sack the warcamp. Grimtusk rules the horde — cut the warlord down for his cleaver.',
       loot: [
         { id: 'goblin_totem', qty: [3, 8], chance: 1.0 },
         { id: 'warlord_badge', qty: [1, 2], chance: .35 },
         { id: 'forge_blueprint_t2', qty: [1, 1], chance: .15 },
+        { id: 'warboss_standard', qty: [1, 1], chance: .18 },
+        { id: 'wartusk_cleaver', qty: [1, 1], chance: .06 },
+        { id: 'farm_deed', qty: [1, 1], chance: .22 },
       ],
       phases: [
         { type:'gather', label:'Sneak past patrols', icon:'👁️', target: 10, durationS: 30,
           desc: 'Tap each green window the moment a patrol turns away.' },
         { type:'dodge', label:'Trap corridor', icon:'⚠️', target: 5, durationS: 40,
           desc: 'Dodge swinging blades — click DODGE when the prompt flashes.' },
-        { type:'fight', label:'Warlord brawl', icon:'⚔️', enemyHp: 120, durationS: 90,
-          desc: 'Time attacks on the beat to break the warlord.' },
+        { type:'fight', label:'Grimtusk, the Broken-Tusk Warlord', icon:'⚔️', enemyHp: 180, durationS: 90, boss: true,
+          desc: 'Grimtusk himself. Time attacks on the beat to break the warlord.' },
       ],
     },
     haunted_archive: {
@@ -77,11 +83,15 @@
       reqLv: 45, cost: { key: 'arcane_tome' },
       duration: 120,
       cooldownH: 8,
-      desc: 'A library long abandoned. Cursed tomes — and a chance at the Library blueprint.',
+      boss: { name: 'The Pale Archivist', title: 'Keeper of Forbidden Pages' },
+      desc: 'A library long abandoned. The Pale Archivist guards its forbidden codex.',
       loot: [
         { id: 'magic_essence', qty: [5, 12], chance: 1.0 },
         { id: 'cracked_spellstone', qty: [1, 3], chance: .60 },
         { id: 'library_blueprint_t2', qty: [1, 1], chance: .15 },
+        { id: 'lexarch_seal', qty: [1, 1], chance: .16 },
+        { id: 'whispering_codex', qty: [1, 1], chance: .06 },
+        { id: 'farm_deed', qty: [1, 1], chance: .25 },
       ],
       phases: [
         { type:'puzzle', label:'Decipher the codex', icon:'📖',
@@ -91,8 +101,8 @@
           desc: 'A clever librarian sees the pattern.' },
         { type:'gather', label:'Bind loose pages', icon:'📜', target: 12, durationS: 35,
           desc: 'Pages flutter past — collect each one before they vanish.' },
-        { type:'fight', label:'Spectral guardian', icon:'👻', enemyHp: 180, durationS: 100,
-          desc: 'Time attacks while the guardian phase-shifts.' },
+        { type:'fight', label:'The Pale Archivist', icon:'👻', enemyHp: 240, durationS: 100, boss: true,
+          desc: 'The Archivist unbinds. Time attacks while it phase-shifts.' },
       ],
     },
 
@@ -103,20 +113,23 @@
       duration: 240,
       cooldownH: 24,
       partySize: 4,
-      desc: 'Storm the keep single-handed. T3 housing blueprints drop here.',
+      boss: { name: 'The Ashen King', title: 'Lord of the Obsidian Throne' },
+      desc: 'Storm the keep single-handed. The Ashen King holds the throne — and his greatsword.',
       loot: [
         { id: 'death_steel', qty: [1, 3], chance: 1.0 },
         { id: 'kitchen_blueprint_t3', qty: [1, 1], chance: .10 },
         { id: 'forge_blueprint_t3', qty: [1, 1], chance: .10 },
         { id: 'trophy_blueprint_t2', qty: [1, 1], chance: .25 },
+        { id: 'ashcrown_greatsword', qty: [1, 1], chance: .05 },
+        { id: 'farm_deed', qty: [1, 2], chance: .30 },
       ],
       phases: [
         { type:'gather', label:'Scale the walls', icon:'🧗', target: 15, durationS: 40,
           desc: 'Click each handhold as it stabilizes.' },
         { type:'dodge', label:'Cannon barrage', icon:'💥', target: 8, durationS: 60,
           desc: 'Dodge incoming cannonfire.' },
-        { type:'fight', label:'Throne room', icon:'👑', enemyHp: 320, durationS: 140,
-          desc: 'The keep lord brings dark magic. Time your attacks.' },
+        { type:'fight', label:'The Ashen King', icon:'👑', enemyHp: 520, durationS: 140, boss: true,
+          desc: 'The Ashen King brings dark magic. Time your attacks.' },
       ],
     },
     voidbringer: {
@@ -125,12 +138,17 @@
       duration: 360,
       cooldownH: 24,
       partySize: 4,
-      desc: 'Rifts open in the sky. This boss drops the rarest crafting materials.',
+      boss: { name: 'The Riftmaw', title: 'The Devouring Rift' },
+      desc: "Rifts open in the sky. The Riftmaw pours through — its husk and scepter are the prize.",
       loot: [
         { id: 'void_chitin', qty: [1, 4], chance: 1.0 },
         { id: 'void_core', qty: [1, 2], chance: .35 },
         { id: 'void_essence', qty: [1, 1], chance: .25 },
         { id: 'library_blueprint_t3', qty: [1, 1], chance: .10 },
+        { id: 'riftmaw_husk', qty: [1, 2], chance: .30 },
+        { id: 'voidwoven_sigil', qty: [1, 1], chance: .14 },
+        { id: 'voidmaw_scepter', qty: [1, 1], chance: .04 },
+        { id: 'farm_deed', qty: [1, 2], chance: .32 },
       ],
     },
 
@@ -141,13 +159,17 @@
       duration: 600,
       cooldownH: 72,
       partySize: 24,
-      desc: 'The greatest dragon yet seen. Brings legendary cosmetics.',
+      boss: { name: 'Elderscale, the Great Wyrm', title: 'Eldest of Dragons' },
+      desc: 'The greatest dragon yet seen. Elderscale falls only to a true dragonslayer — the Dragonfang Pike is the reward.',
       loot: [
         { id: 'dragon_scale', qty: [3, 8], chance: 1.0 },
         { id: 'dragon_bones', qty: [2, 5], chance: 1.0 },
         { id: 'dragon_gem', qty: [1, 1], chance: .30 },
         { id: 'dragon_relic', qty: [1, 1], chance: .15 },
         { id: 'trophy_blueprint_t3', qty: [1, 1], chance: .10 },
+        { id: 'elderscale_heart', qty: [1, 1], chance: .25 },
+        { id: 'dragonfang_pike', qty: [1, 1], chance: .03 },
+        { id: 'farm_deed', qty: [2, 3], chance: .35 },
       ],
     },
   };
@@ -307,6 +329,7 @@
               '</div>' +
             '</div>' +
             '<div class="dgn-desc">' + d.desc + '</div>' +
+            (d.boss ? '<div class="dgn-boss-line"><span class="dgn-boss-skull">☠</span> Final boss: <b>' + d.boss.name + '</b></div>' : '') +
             '<div class="dgn-loot-row">' + lootHtml + '</div>' +
             '<div class="dgn-foot">' +
               '<div class="dgn-cost">Entry: <b>' + costStr + '</b></div>' +

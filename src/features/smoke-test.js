@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=267' directly.
+// modularised, will import { G } from '../state/game.js?v=268' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=267';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=267';
+import { on, snapshot } from '../net/events.js?v=268';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=268';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=267';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=268';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1984,6 +1984,60 @@ const TESTS = [
           'dungeon ' + id + ' must not drop hearth_token (premium currency is IAP-mint-only)');
       });
     });
+  }),
+
+  () => tryRun('b268: every solo dungeon has a named end-boss', () => {
+    const D = window.DUNGEONS;
+    if (!D) return;
+    Object.entries(D).forEach(([id, d]) => {
+      assert(d.boss && typeof d.boss.name === 'string' && d.boss.name.length > 2,
+        'dungeon ' + id + ' must have a named boss (d.boss.name) for the boss ecosystem');
+    });
+  }),
+
+  () => tryRun('b268: signature GEAR is BoP, signature COSMETICS/deeds are tradeable', () => {
+    const I = window.ITEMS;
+    if (!I) return;
+    // Signature weapons = the prestige clear-it-yourself reward → bind-on-pickup.
+    ['wartusk_cleaver','whispering_codex','ashcrown_greatsword','voidmaw_scepter','dragonfang_pike'].forEach(id => {
+      assert(I[id], 'signature gear ' + id + ' must exist');
+      assert(I[id].bop === true, 'signature gear ' + id + ' must be bind-on-pickup');
+      assert(I[id].type === 'weapon', 'signature gear ' + id + ' must be an equippable weapon');
+    });
+    // Cosmetics/trophies/materials + deeds/blueprints = the sellable dungeon money source → tradeable.
+    ['warboss_standard','lexarch_seal','voidwoven_sigil','riftmaw_husk','elderscale_heart',
+     'farm_deed','kitchen_blueprint_t2','trophy_blueprint_t3','library_blueprint_t3'].forEach(id => {
+      assert(I[id], 'tradeable dungeon drop ' + id + ' must exist');
+      assert(!I[id].bop, id + ' must be tradeable (non-BoP) — dungeon loot is a market money source');
+    });
+  }),
+
+  () => tryRun('b268: each signature weapon drops only from its own boss and carries a wield requirement', () => {
+    const D = window.DUNGEONS, I = window.ITEMS;
+    if (!D || !I) return;
+    const sig = {
+      wartusk_cleaver: 'goblin_warcamp', whispering_codex: 'haunted_archive',
+      ashcrown_greatsword: 'obsidian_keep', voidmaw_scepter: 'voidbringer',
+      dragonfang_pike: 'ancient_wyrm',
+    };
+    Object.entries(sig).forEach(([item, dungeon]) => {
+      const homes = Object.entries(D).filter(([, d]) => (d.loot || []).some(l => l.id === item)).map(([k]) => k);
+      assert(homes.length === 1 && homes[0] === dungeon,
+        item + ' must drop from exactly ' + dungeon + ' (found: ' + homes.join(',') + ')');
+      // wield requirement is real (gearWieldReq reads reqLv → gates equipping)
+      if (typeof window.gearWieldReq === 'function') {
+        const req = window.gearWieldReq(I[item]);
+        assert(req && req.lv >= 25, item + ' must carry a real wield-level requirement');
+      }
+    });
+  }),
+
+  () => tryRun('b268: deeds drop from dungeons and remain tradeable', () => {
+    const D = window.DUNGEONS, I = window.ITEMS;
+    if (!D || !I) return;
+    const droppers = Object.entries(D).filter(([, d]) => (d.loot || []).some(l => l.id === 'farm_deed'));
+    assert(droppers.length >= 5, 'farm_deed must drop from most dungeons (found ' + droppers.length + ')');
+    assert(!I.farm_deed.bop, 'farm_deed must stay tradeable');
   }),
 
   () => tryRun('b213: market listing row escapes a hostile seller name (stored-XSS guard)', () => {

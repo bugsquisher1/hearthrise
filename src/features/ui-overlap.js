@@ -50,7 +50,7 @@ export const NO_OVERLAP_PAIRS = [
   // Top-right floating bits.
   [null, '#btn-notif',  '#btn-settings',
    'Notification bell covers settings gear'],
-  [null, '#btn-settings', '#btn-save',
+  [null, '#btn-settings',
    'Settings gear covers save button'],
 
   // Chat dock (when minimized only — when full it's expected to overlay)

@@ -3573,9 +3573,8 @@ function bindEvents(){
   /* combat stop */
   document.getElementById('combat-stop').addEventListener('click',stopCombat);
   /* topbar buttons */
-  document.getElementById('btn-save').addEventListener('click',()=>{saveLocal();notify('Saved 💾','info');});
+  /* b227: manual save button removed — online realm, autosave + sync own persistence */
   document.getElementById('btn-settings').addEventListener('click',openSettings);
-  document.getElementById('btn-save-mobile')?.addEventListener('click',()=>{saveLocal();notify('Saved 💾','info');document.getElementById('more-modal').classList.remove('show');});
   document.getElementById('btn-settings-mobile')?.addEventListener('click',()=>{document.getElementById('more-modal').classList.remove('show');openSettings();});
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
   document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('shop'));

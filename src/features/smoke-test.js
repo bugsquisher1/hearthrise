@@ -2253,7 +2253,7 @@ const TESTS = [
   }),
 
   () => tryRun('clicks: topbar buttons (notif/save/settings/quests)', () => {
-    const ids = ['btn-notif', 'btn-save', 'btn-settings', 'hr-quests-btn'];
+    const ids = ['btn-notif', 'btn-settings', 'hr-quests-btn']; // b227: btn-save removed
     for (const id of ids) {
       const el = document.getElementById(id);
       if (!el) continue;
@@ -2862,7 +2862,7 @@ const TESTS = [
   // horizontal scroll clipping.
   () => tryRun('b132: low-priority topbar widgets hidden on mobile', () => {
     if (window.innerWidth > 540) return;
-    const ids = ['btn-notif', 'btn-save', 'btn-settings'];
+    const ids = ['btn-notif', 'btn-settings']; // b227: btn-save removed
     let visible = 0;
     for (const id of ids) {
       const el = document.getElementById(id);
@@ -8717,6 +8717,14 @@ const TESTS = [
     assert(minutes < 45,
       'a level-50 member must still fill the ' + CS.DAILY_LABOUR_CAP + ' labour cap in under 45 min, needs ' + minutes.toFixed(1));
   }),
+  // b227 (Tyler): "Remove the save game button as the game is solely online."
+  // Autosave + cloud sync own persistence; a manual save button implies the
+  // game might NOT be saving, which is now a lie. Guard both variants gone.
+  () => tryRun('b227: no manual save button exists (online realm)', () => {
+    assert(!document.getElementById('btn-save'), 'desktop #btn-save is back');
+    assert(!document.getElementById('btn-save-mobile'), 'mobile #btn-save-mobile is back');
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

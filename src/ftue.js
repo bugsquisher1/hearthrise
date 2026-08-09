@@ -62,7 +62,7 @@
       target: '.top-stats',
       placement: 'below',
       title: 'Your stats live up here',
-      body: 'Combat level, total level, gold, and gems. Tap the save icon up top anytime — though we auto-save in the background too.',
+      body: 'Combat level, total level, gold, and gems. Your progress saves itself to your account, continuously — no save button needed.',
       primary: 'Got it',
     },
     {

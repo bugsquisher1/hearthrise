@@ -32,7 +32,6 @@
 
   // Topbar tile / button targets
   const TOPBAR_BY_ID = {
-    'btn-save':     'save.svg',
     'btn-settings': 'settings.svg',
     'btn-notif':    'notifications.svg',
   };

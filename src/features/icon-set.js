@@ -226,7 +226,7 @@
     });
   }
 
-  var UI_BTN_MAP = { 'btn-notif': 'uiBell', 'btn-save': 'uiSave', 'btn-settings': 'uiSettings' };
+  var UI_BTN_MAP = { 'btn-notif': 'uiBell', 'btn-settings': 'uiSettings' };
   function paintUiButtons() {
     Object.keys(UI_BTN_MAP).forEach(function (id) {
       var btn = document.getElementById(id);

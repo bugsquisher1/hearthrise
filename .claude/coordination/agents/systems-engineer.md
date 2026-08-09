@@ -2,6 +2,21 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-09 · Itemization Program Phase 1 — Slice B audit (READ-ONLY, no code changed)
+Deliverable: `docs/reports/itemization-audit/B-combat-bosses-dungeons.md`. Scope: combat/monsters/bosses/dungeons/raids-Hunt/bounties/drop-tables.
+
+**Headline findings:**
+- **Bosses: 8 data-modeled** — 6 Hunt (`raids.js` BOSSES L79-104) + 2 `boss:true` monsters (`lich`/`dragon`, `monsters.js` L46-47). `boss:true` is a DECORATIVE flag — no combat consumer. Dungeon "bosses" are just HP numbers + loot tables (only Bone Lord has real stats, via the one scavenger config).
+- **Boss framework: HALF data-driven.** You can add a HUNT boss by editing data, but it's welded to the clan-raid economy. No framework for ordinary/daily/progression bosses. Rotation engine to REUSE exists and is clean: `HearthriseWorldEvents.utcDayKey/utcWeekKey` + FNV1a `_hash` (`bossOfWeek` raids.js L345).
+- **Daily boss: 0.** Weekly = the Hunt (=weekly+raid are the same feature). No daily-boss rotation despite the machinery being right there.
+- **Dungeons: 7 solo instances, 3 run paths unevenly built** — scavenger (the good one) configured for ONLY crypt_of_bones; voidbringer/ancient_wyrm are auto-run-only. NO dungeon-native item identity (no set/token/currency/dungeon gear).
+- **Drop tables: NOT standardized.** No rarity bands; "rare" = magic `ch<=0.05` threshold at consumer (`killMonster` L2431); rates scattered across monsters.js/dungeons.js(×2)/raids.js/bounty tables; runtime `dropMult` mutates declared rates. Only ~26 items carry `rarity:`, ~16 `tier:`.
+- **Combat reads accuracy + maxHit + weakness-match + style ONLY** (`combatTick` L2367, `getPlayerCombatRolls` L1269). **Crit is displayed on 4 screens but NEVER applied** (dead stat). No elemental/status/DoT/passive combat system. Emberfang-style boss effects → HOOKS MUST BE BUILT. `rollProc` (L11410) is a companion ECONOMY proc (gold/doubleDrop), reusable as a dispatcher pattern only.
+- **Orphan drops: ~29 of 73** (verified by script) consumed by nothing & no equip/food/scroll identity — incl. marquee boss/Hunt/dungeon loot `death_steel`/`void_chitin`/`hell_ember`/`war_crown`/`dragon_gem`/`ruby`. The 6 Hunt SIG mats are the exception: each feeds a tier-8 unique recipe (recipes.js L128-131,178) — the one working boss→unique-gear loop.
+- `boss`/`chain` bounty types defined (BOUNTY_TYPE_MULT L607) but never generated.
+
+**Top 5 (full rationale in the report):** (1) data-driven boss schema + rotation engine, back-port the Hunt onto it; (2) standardized banded drop-table schema, one tunable source; (3) retire/route the ~29 orphan drops; (4) build combat status-effect subsystem + activate crit; (5) dungeon item identity + finish run experience.
+
 ## Standing knowledge
 - Content authored ONCE in `src/data/*`; `main.js` identity-merges ESM into `window.__LEGACY_INLINE`. Never reintroduce the data double-copy (top-level `const` shadowing). Guard test asserts identity.
 - Theme: `:root` = dark tokens; `body[data-theme="cozy-light"]` for retired light. Guard tests fail if unscoped patterns return. When a visual bug recurs, find what re-asserts it — don't stack overrides.

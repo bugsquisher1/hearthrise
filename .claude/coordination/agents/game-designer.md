@@ -30,6 +30,15 @@ No level-req contradictions live in the player spine (the generator prevents dri
 
 ## Log
 
+### 2026-08-09 · Itemization audit Slice D — consumables/currency/clarity (READ-ONLY, `docs/reports/itemization-audit/D-consumables-currency-clarity.md`)
+Phase-1 domain audit for the re-Master Itemization program. Grounded in code (cited file:line throughout), no game changes.
+**Headline clarity gap:** the game tells the player *what an item is* (Q1 ✅ via `foodUseInfo`/flyout) and *what to do next* (Q6 ✅ quest-nav), but is near-blind on *where it came from* (Q3 ❌), *is it an upgrade* on the tap/mobile surface (Q2 ⚠️ — comparison exists in the hover tooltip `item-ux.js:68` but `openInvDetail` `legacy.js:4905` never calls it), and *how to upgrade it* (Q4 ❌ — no tier link; `reqLv` shown at `4918` but NOT enforced by `equipItem` `3328`, a phantom gate). No source-info, no upgrade-preview, no locked-item preview exist. Collection-log `itemSources()` (`collection-log.js:145`) is the only reverse map — monster-only + discovered-only.
+**Dead-end currency:** Rally Seal (`muster_seal`, `data/items.js:360`) — earned ≤1/day, `bop`, `v:0`, **zero sink anywhere**. The flagship world-event reward is inert. Gems are thin (cosmetic-only sinks) but not dead. Bounty Marks have 5+ sinks (auto-eat + Bounty Shop `legacy.js:5537`). Renown = score, not currency.
+**Consumables:** post-b228 buffs are 1–5% (barely perceptible on the 56-day curve); Provision/Feast split is fuzzy (every cooked food carries a buff — `auto-actions.js:179`); auto-eat silently drops the Provision's buff; **DEAD BUFF `defense`** on Frostfin Supper (`items.js:159`) — not in `BUFFS_DEF`, so `applyBuff` rejects it while the UI still promises "+4% Defense". Item lies.
+**Reward surfacing:** raid/Hunt bosses show NO chest preview before a week-long commit (`chestFor` computed `raids.js:361` but never rendered) — biggest reward-surface gap; dungeon loot hides drop-chance though it's in the data (`dungeons.js:38`).
+**Top 5:** (1) reverse item→source index surfaced on every item; (2) boss/dungeon loot preview before commit; (3) give the flyout the hover tooltip's comparison; (4) Rally Seal sink + real upgrade-preview + fix phantom reqLv; (5) fix dead `defense` buff + de-fuzz the Provision/Feast split + revisit tiny buff magnitudes.
+Handoff to Slices A/B/C: the reverse item→source index is a SHARED data structure — read by this slice's UI, authored from the item-DB-architecture slice's data. Commit: see below.
+
 ### 2026-08-09 · Bonus rebase spec — `docs/design/bonus-rebase.md` (DOCS ONLY)
 Brief = Tyler's binding *"increments of 2%"* decision. Censused the real code first, not the specs.
 

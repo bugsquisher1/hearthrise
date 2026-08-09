@@ -128,12 +128,20 @@ function tileForArtisan(recipe, skillId) {
     const d = window.ITEMS?.[id];
     return (q > 1 ? q + 'x ' : '') + (d ? d.n.split(' ')[0] : id);
   }).join(' + ');
+  // b225: the campfire ruling — cooking is ungated but the open fire burns, so
+  // every cooking tile carries its live burn risk. Built by the SAME helper the
+  // legacy renderer uses (window.burnRiskLine), which reads the same
+  // cookBurnChance() the cook itself rolls — one number, three surfaces.
+  const burnLine = (typeof window.burnRiskLine === 'function') ? window.burnRiskLine(recipe, skillId) : '';
+  const burnText = (typeof window.burnRiskText === 'function') ? window.burnRiskText(recipe, skillId) : '';
+  const tileTitle = (recipe.name || '') + (burnText ? ' — ' + burnText : '');
   return `<div class="act-tile ${unlocked ? '' : 'locked'} ${active ? 'active' : ''}"
-    data-prod="${outId}" onclick="${click}" title="${(recipe.name || '').replace(/"/g, '&quot;')}">
+    data-prod="${outId}" onclick="${click}" title="${tileTitle.replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '')}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
     <div class="at-meta">${recipe.xp} XP · ${fmtSec(recipe.ms || 3000)}</div>
     <div class="at-inputs">${inputsLine}</div>
+    ${burnLine}
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${recipe.req}</div>`}
     ${active ? '<span class="at-stop">Active</span>' : ''}
@@ -194,7 +202,11 @@ function renderSkillDetail(id) {
   // used to leave newly-unlocked activities greyed out until something else
   // forced a rebuild. (Kept identical to the legacy twin in block 27.)
   const catLv = typeof window.getLevel === 'function' ? window.getLevel(id) : 0;
-  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}|${catSel || ''}|${catLv}`;
+  // b225: the Kitchen's noBurn joins the key, because the cooking tiles print a
+  // live burn risk — building or upgrading a Kitchen must repaint them rather
+  // than leave the old odds on screen. (Kept identical to the legacy twin.)
+  const catBurn = (id === 'cooking' && typeof window.getBonus === 'function') ? window.getBonus('noBurn') : '';
+  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}|${catSel || ''}|${catLv}|${catBurn}`;
   const detailEl = document.getElementById('skill-detail');
   const alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
   if (alreadyRendered && window._actLastRender.skillId === id && window._actLastRender.activeKey === activeKey) {

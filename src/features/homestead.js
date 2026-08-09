@@ -7,7 +7,9 @@
 //   • farm-plot capacity        (2 → 12)
 //   • which house ROOMS you may build — rooms ARE the workbenches:
 //       kitchen→cooking, forge→smithing, workshop→crafting, shrine→prayer
-//     A fresh player literally cannot cook until they build a kitchen.
+//     …with ONE exception since b225: cooking. The tier-1 camp has a fire,
+//     so it cooks — badly. The Kitchen sells reliability, not permission.
+//     See UNGATED below and src/features/cooking-fire.js.
 //   • worker slots (see features/workers.js — idle resource production)
 //   • bonus offline-cap hours (wired into processOffline like renown)
 //   • castle capstone: +5% all XP (wired into getBonus)
@@ -57,6 +59,25 @@
 
   // room → the artisan skill it enables (rooms ARE the workbenches)
   var WORKBENCH = { cooking: 'kitchen', smithing: 'forge', crafting: 'workshop', prayer: 'shrine' };
+
+  /* b225 — THE CAMPFIRE RULING (Tyler, 2026-08-08, binding; DECISIONS.md and
+     homestead-deepening.md §2 PRODUCT-OWNER AMENDMENT).
+
+     "We can't restrict cooking when users don't have a kitchen. They can cook
+      with the fire in the first tier camp, it just has a chance to burn."
+
+     Cooking is the ONE exception to "rooms are workbenches": the tier-1 camp
+     is a bedroll and A FIRE, and a fire cooks. So the Kitchen keeps its
+     mapping above — it is still cooking's room, still the source of cookSpeed,
+     and now the source of `noBurn` — but it no longer grants PERMISSION.
+     What it sells instead is reliability (src/features/cooking-fire.js).
+
+     Expressed as an explicit exemption set rather than by deleting the mapping
+     because three other readers need cooking→kitchen intact: the grandfather
+     pass below (a veteran with cooking XP still gets their Kitchen back), the
+     cookSpeed bonus lookup, and the House room copy. Smithing on a campfire
+     would be silly; cooking on one is the entire point of a campfire. */
+  var UNGATED = { cooking: true };
 
   // min property tier at which each room may be built
   function roomMinTier(roomId) {
@@ -119,8 +140,10 @@
     return { ok: false, reason: 'Requires ' + (need ? need.name : 'a higher property tier') };
   }
 
-  // Workbench gate for artisan skills. Skills without a workbench room pass.
+  // Workbench gate for artisan skills. Skills without a workbench room pass,
+  // and so does anything in UNGATED (b225: cooking — see the ruling above).
   function hasWorkbench(skill) {
+    if (UNGATED[skill]) return { ok: true, ungated: true };
     var room = WORKBENCH[skill];
     if (!room) return { ok: true };
     ensureState();
@@ -268,6 +291,7 @@
   window.HearthriseHomestead = {
     TIERS: TIERS,
     WORKBENCH: WORKBENCH,
+    UNGATED: UNGATED,
     ensureState: ensureState,
     getTier: getTier,
     tierDef: tierDef,

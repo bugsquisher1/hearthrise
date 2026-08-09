@@ -203,6 +203,12 @@ const ITEMS={
   tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'monster_respawn',magnitude:10,durationMs:240000}},
   wheat_bread: {n:'Wheat Bread',icon:'🍞',v:120,heals:18,foodTier:1,buff:{type:'drop_rate',magnitude:5,durationMs:180000}},
 
+  // b225 — the open fire's failure state. Kept in sync with src/data/items.js
+  // (the source of truth) so the data-integrity divergence check stays clean.
+  // No heals / no foodClass on purpose: foodClassOf() → null, so auto-eat can
+  // never spend one and it is not edible. See features/cooking-fire.js.
+  burnt_food: {n:'Burnt Food', icon:'🔥', v:1, note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.'},
+
   // ── Farmer's Deed (b136 — Batch C) ──
   // Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
   // Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
@@ -297,15 +303,35 @@ const CROPS={
   pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:60,req:50,seed:'pumpkin_seed'},
 };
 const ROOMS={
-  kitchen:{name:'Kitchen',icon:'🍳',desc:'Cook food faster.',levels:[{cost:{gold:500,normal_log:20},bonus:'Cook +10%',bk:'cookSpeed',bv:.1},{cost:{gold:2000,normal_log:50},bonus:'Cook +25%',bk:'cookSpeed',bv:.25},{cost:{gold:8000,oak_log:30},bonus:'Cook +50%',bk:'cookSpeed',bv:.5}]},
+  /* b225 — the Kitchen finally produces `noBurn`, the ghost bonus key that
+     has been listed in the House buff panel and produced by NOTHING since the
+     panel shipped (homestead-deepening.md §0, finding 2).
+
+     The campfire ruling (Tyler, 2026-08-08) removed the Kitchen's gate on
+     cooking — the tier-1 camp cooks on the open fire at a 25% burn chance —
+     so the Kitchen's first job is now RELIABILITY. `bx` is a secondary bonus
+     map on a room rung (getBonus reads it alongside bk/bv), because a rung
+     that buys two different things needs two keys and the single bk/bv pair
+     could only ever express one.
+
+     The ladder is 25% → 12% → 6% → 0%: L3, the Cast-Iron Range, is
+     burn-proof, which is the endpoint the amendment suggested. Nothing
+     already bought is devalued — every rung keeps its exact live cost and
+     its exact cookSpeed value, and simply gains reliability on top.
+     The numbers live in features/cooking-fire.js KITCHEN_NO_BURN; the smoke
+     suite asserts these two tables agree so they can never drift. */
+  kitchen:{name:'Kitchen',icon:'🍳',desc:'Cook food faster — and stop burning it.',levels:[{cost:{gold:500,normal_log:20},bonus:'Cook +10% · burn −13%',bk:'cookSpeed',bv:.1,bx:{noBurn:.13}},{cost:{gold:2000,normal_log:50},bonus:'Cook +25% · burn −19%',bk:'cookSpeed',bv:.25,bx:{noBurn:.19}},{cost:{gold:8000,oak_log:30},bonus:'Cook +50% · never burns',bk:'cookSpeed',bv:.5,bx:{noBurn:.25}}]},
   forge:{name:'Forge',icon:'🔥',desc:'Smith items faster.',levels:[{cost:{gold:800,copper_ore:30},bonus:'Smith +10%',bk:'smithSpeed',bv:.1},{cost:{gold:3000,iron_ore:50},bonus:'Smith +25%',bk:'smithSpeed',bv:.25},{cost:{gold:12000,iron_ore:100},bonus:'Smith +50%',bk:'smithSpeed',bv:.5}]},
   library:{name:'Library',icon:'📚',desc:'+XP for all skills.',levels:[{cost:{gold:1000,normal_log:50},bonus:'All XP +5%',bk:'allXP',bv:.05},{cost:{gold:4000,oak_log:50},bonus:'All XP +10%',bk:'allXP',bv:.1},{cost:{gold:15000,maple_log:30},bonus:'All XP +20%',bk:'allXP',bv:.2}]},
   garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[{cost:{gold:600,wheat:20},bonus:'Yield +1',bk:'farmYield',bv:1},{cost:{gold:2500,wheat:60},bonus:'Yield +2',bk:'farmYield',bv:2},{cost:{gold:9000,pumpkin:5},bonus:'Yield +4',bk:'farmYield',bv:4}]},
   trophy:{name:'Trophy Room',icon:'🏆',desc:'+Combat XP.',levels:[{cost:{gold:2000,wolf_pelt:5},bonus:'CXP +5%',bk:'combatXP',bv:.05},{cost:{gold:8000,troll_hide:3},bonus:'CXP +12%',bk:'combatXP',bv:.12},{cost:{gold:25000,dragon_scale:2},bonus:'CXP +25%',bk:'combatXP',bv:.25}]},
   cellar:{name:'Cellar',icon:'🍷',desc:'Extra storage.',levels:[{cost:{gold:1200,normal_log:60},bonus:'+500 storage',bk:'storage',bv:500},{cost:{gold:4000,oak_log:60},bonus:'+1500',bk:'storage',bv:1500},{cost:{gold:12000,willow_log:50},bonus:'+5000',bk:'storage',bv:5000}]},
-  /* b201 (SYS-1): rooms ARE workbenches — kitchen gates cooking, forge gates
-     smithing, workshop gates crafting, shrine gates prayer. See
-     features/homestead.js (property tiers gate which rooms can be built). */
+  /* b201 (SYS-1): rooms ARE workbenches — forge gates smithing, workshop gates
+     crafting, shrine gates prayer. See features/homestead.js (property tiers
+     gate which rooms can be built).
+     b225: the Kitchen is NO LONGER one of them — the campfire ruling makes
+     cooking possible from the tier-1 camp and the Kitchen sells reliability
+     (noBurn) instead of permission. Forge/Workshop/Shrine are unchanged. */
   workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[{cost:{gold:700,normal_plank:15},bonus:'Craft +10%',bk:'craftSpeed',bv:.1},{cost:{gold:2800,oak_plank:25},bonus:'Craft +25%',bk:'craftSpeed',bv:.25},{cost:{gold:11000,willow_plank:30},bonus:'Craft +50%',bk:'craftSpeed',bv:.5}]},
   shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[{cost:{gold:900,bones:40},bonus:'Prayer +10%',bk:'prayerSpeed',bv:.1},{cost:{gold:3500,big_bones:25},bonus:'Prayer +25%',bk:'prayerSpeed',bv:.25},{cost:{gold:13000,dragon_bones:8},bonus:'Prayer +50%',bk:'prayerSpeed',bv:.5}]},
 };
@@ -584,9 +610,17 @@ function processOffline(){
     const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
     if(rec && typeof window.doArtisanAction==='function'){
       const ticks=Math.floor((hrs*3600000)/(G.skillMs||rec.ms||3000));
+      /* b225: cooking burns offline at exactly the same odds as online —
+         doArtisanAction is the single source of truth and this replay drives
+         it. `silent` suppresses the per-burn toast (a night's cooking would
+         queue thousands) and counts them into window._hrOfflineBurns instead — a
+         window counter, NOT a G field, so nothing transient lands in the save.
+         The count is reported once by the summary below.
+         the summary line below reports once. */
+      window._hrOfflineBurns = 0;
       for(let i=0;i<ticks;i++){
         if(typeof hasInputs==='function' && !hasInputs(rec)) break;   // out of materials
-        window.doArtisanAction(G.activeSkill, G.skillTargetId);
+        window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
       }
     }
   } else if(G.activeSkill){
@@ -601,9 +635,14 @@ function processOffline(){
   const gainedXp=Object.keys(G.skills).reduce((s,sk)=>s+Math.max(0,(G.skills[sk]||0)-(beforeXp[sk]||0)),0);
   const gainedGold=(G.gold||0)-beforeGold;
   const gainedKills=(G.stats?.kills||0)-beforeKills;
+  /* b225: burns are part of what happened while you were away, so they belong
+     in the summary object and not only in a toast the queue may coalesce. The
+     Home dashboard's offline line reads this. */
+  const offlineBurnt = window._hrOfflineBurns || 0;
+  window._hrOfflineBurns = 0;
   G.lastOfflineSummary={
     hrs:+hrs.toFixed(1), gainedItems, gainedXp,
-    gainedGold, gainedKills,
+    gainedGold, gainedKills, burnt: offlineBurnt,
     combat: combatSummary,
     at: Date.now(),
   };
@@ -613,7 +652,11 @@ function processOffline(){
       : `⏰ Offline ${hrs.toFixed(1)}h — ${combatSummary.kills} kills, +${gainedItems} items, +${gainedGold} gold`;
     notify(note, combatSummary.died ? 'kill' : 'info');
   } else {
-    notify(`⏰ Offline ${hrs.toFixed(1)}h — +${gainedItems} items, +${gainedXp} XP`,'info');
+    /* b225: if the fire ruined any of it while you were away, say so — an
+       unexplained pile of Burnt Food in the bag is exactly the kind of
+       silent mechanic the b224 food lesson said never to ship again. */
+    notify(`⏰ Offline ${hrs.toFixed(1)}h — +${gainedItems} items, +${gainedXp} XP` +
+      (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : ''),'info');
   }
 }
 
@@ -970,7 +1013,10 @@ function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 
 function getBonus(key){
   let t=0;
-  for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;}}
+  /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
+     headline bk/bv pair — the Kitchen buys cook speed AND burn reliability off
+     the same rung, and one bk/bv pair can only ever express one of those. */
+  for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;if(ld&&ld.bx&&ld.bx[key]!=null)t+=ld.bx[key];}}
   G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.05;if(b.id==='scarecrow'&&key==='farmYield')t+=0.1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
   /* b215: Season Pass retired — no purchasable XP multiplier exists. Premium
      stays convenience/cosmetic (offline hours, slots, themes). */
@@ -2078,7 +2124,7 @@ function renderProfile(){
         <button class="btn tap" onclick="showTab('shop')">💎 Store</button>
       </div>`;
   }
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP</div>`;
+  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''}</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
@@ -3865,6 +3911,11 @@ function openInvDetail(id){
       }
     }
     foodNote = `<div class="inv-detail-note">${bits.join(' ')}</div>`;
+  } else if(it.note){
+    /* b225: the same slot for a non-food item that needs one sentence of
+       explanation. Burnt Food is the first: without this, a player who has
+       just lost a shrimp to the fire opens a mystery item worth 1 gold. */
+    foodNote = `<div class="inv-detail-note">${it.note}</div>`;
   }
 
   d.innerHTML = `<div class="inv-detail-card">
@@ -7632,14 +7683,98 @@ function gateOk(recipe){
   return !!(G.unlockedRecipes && G.unlockedRecipes[recipe.gated]);
 }
 
-/* Override doArtisanAction to use the new schema */
-window.doArtisanAction = function(skillId, recipeId){
+/* b225 — the open fire's burn roll, in ONE place.
+
+   `cookBurnChance(recipe)` reads the live player state (cooking level + the
+   Kitchen's `noBurn`) and hands it to the pure function in
+   features/cooking-fire.js. The cook below, the offline replay (processOffline
+   drives this exact function) and the "Burn risk: N%" line on every cooking
+   tile all call THIS — so the number the player is shown is by construction
+   the number that is rolled. */
+window.cookBurnChance = function(recipe){
+  var CF = window.HearthriseCookingFire;
+  if(!CF || !recipe) return 0;
+  var lv = (typeof getLevel==='function') ? getLevel('cooking') : 1;
+  var noBurn = (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0;
+  return CF.burnChance(recipe, lv, noBurn);
+};
+
+/* The comprehension surface for the burn mechanic (b224's food lesson: never
+   ship a mechanic that does not explain itself). ONE builder, used by both
+   artisan renderers — the tile grid and the legacy list — so the risk a player
+   reads is the risk cookBurnChance() rolls, and the advice can never drift
+   between two screens.
+
+   Returns '' for non-cooking recipes and for burn-proof ones, so a Cast-Iron
+   Range player and a smith get a clean screen with nothing to ignore.
+   `.at-meta` is an existing tile class (styled in both themes); only the
+   colour is inline, and it is the --red token, never a literal. */
+window.burnRiskLine = function(recipe, skillId){
+  if(skillId !== 'cooking' || !recipe || !recipe.output) return '';
+  var CF = window.HearthriseCookingFire;
+  if(!CF || typeof window.cookBurnChance !== 'function') return '';
+  var pct = Math.round(window.cookBurnChance(recipe) * 100);
+  if(!(pct > 0)) return '';
+  var hasKitchen = ((G.rooms||{}).kitchen||0) > 0;
+  return '<div class="at-meta" style="color:var(--red)" title="'
+    + CF.burnAdvice(pct, hasKitchen).replace(/"/g,'&quot;')
+    + '">Burn risk: '+pct+'%</div>';
+};
+
+/* The same fact as one full sentence, for surfaces with room for it (the
+   legacy list rows and the tile's hover title). */
+window.burnRiskText = function(recipe, skillId){
+  if(skillId !== 'cooking' || !recipe || !recipe.output) return '';
+  var CF = window.HearthriseCookingFire;
+  if(!CF || typeof window.cookBurnChance !== 'function') return '';
+  var pct = Math.round(window.cookBurnChance(recipe) * 100);
+  if(!(pct > 0)) return '';
+  return CF.burnAdvice(pct, ((G.rooms||{}).kitchen||0) > 0);
+};
+
+/* Override doArtisanAction to use the new schema.
+   `opts.silent` suppresses the per-cook burn toast — set by the offline
+   replay, which can run thousands of ticks and would otherwise queue a
+   thousand toasts for a night's cooking. Offline burns are counted and
+   reported once, in the offline summary. */
+window.doArtisanAction = function(skillId, recipeId, opts){
   var recipes = window.ARTISAN_RECIPES[skillId];
   var r = recipes && recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
   if(!hasInputs(r)){ window._stopArtisan && window._stopArtisan(); return; }
   if(!gateOk(r)){ window._stopArtisan && window._stopArtisan(); if(typeof notify==='function') notify('Recipe locked','kill'); return; }
   consumeInputs(r);
+
+  /* ── The burn roll (cooking only; a forge does not "burn" a sword) ── */
+  var CF = window.HearthriseCookingFire;
+  var burnt = false;
+  if(skillId==='cooking' && r.output && CF){
+    var chance = window.cookBurnChance(r);
+    if(chance > 0 && Math.random() < chance) burnt = true;
+  }
+  if(burnt){
+    /* The ingredients are already gone — that is the honest cost the
+       amendment asks for. You get carbon and a fraction of the lesson. */
+    if(typeof addItem==='function') addItem(CF.BURNT_ITEM, 1);
+    if(typeof addXp==='function') addXp(skillId, CF.burnXp(r));
+    var outName = (ITEMS[r.output] && ITEMS[r.output].n) || r.name || 'dish';
+    if(!(opts && opts.silent)){
+      if(typeof notify==='function') notify('The fire claims your ' + outName + ' — Burnt Food','kill');
+    } else {
+      window._hrOfflineBurns = (window._hrOfflineBurns||0) + 1;
+    }
+    G.stats = G.stats || {};
+    G.stats.burnt = (G.stats.burnt||0) + 1;
+    /* NO cooked/daily/quest counter. A "cook N dishes" goal counts SUCCESSFUL
+       cooks only — a burn is the failure it is named for, and letting it tick
+       the quest would make the mechanic invisible AND dishonest. Nothing here
+       can deadlock: raw ingredients are infinitely gatherable, so the goal
+       just costs a few more shrimp. */
+    if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
+    if(typeof updateTopbar==='function') updateTopbar();
+    return;
+  }
+
   if(r.output && typeof addItem==='function') addItem(r.output, r.outputQty || 1);
   if(typeof addXp==='function') addXp(skillId, r.xp);
   // b217: this (the LIVE doArtisanAction) previously updated only G.stats and
@@ -7674,7 +7809,9 @@ window.startArtisan = function(skillId, recipeId){
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
-  /* b201 (SYS-1): rooms are workbenches — no kitchen, no cooking. */
+  /* b201 (SYS-1): rooms are workbenches — no forge, no smithing.
+     b225: cooking is exempt (hasWorkbench returns ok for it — the campfire
+     ruling). The Forge / Workshop / Shrine gates below are unchanged. */
   if(window.HearthriseHomestead){
     var wb = window.HearthriseHomestead.hasWorkbench(skillId);
     if(!wb.ok){ if(typeof notify==='function') notify('🔨 '+wb.reason,'kill'); return; }
@@ -7722,9 +7859,12 @@ window.renderArtisanActivities = function(skillId){
     else if(gated) status = '<span class="muted tiny">📜 Recipe locked</span>';
     else if(!hasInputs(r)) status = '<span class="muted tiny">Missing materials</span>';
     else if(active) status = '<span class="mr-active">Active</span>';
+    /* b225: this row is wide enough for the whole sentence, so it gets it. */
+    var burnSentence = (typeof window.burnRiskText === 'function') ? window.burnRiskText(r, skillId) : '';
     return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
       '<span class="mi">'+r.icon+'</span>'+
-      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+r.xp+' XP · '+inputNames+(r.output?' → '+outputLabel:'')+'</span></div>'+
+      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+r.xp+' XP · '+inputNames+(r.output?' → '+outputLabel:'')+'</span>'+
+      (burnSentence ? '<span class="ms" style="color:var(--red)">'+burnSentence+'</span>' : '')+'</div>'+
       status+
     '</button>';
   }).join('');
@@ -8631,6 +8771,9 @@ function itemGlyphKey(id, def){
     if(def.recipe)  return 'uiScroll';
   }
   var s = String(id || '');
+  /* b225: burnt food is carbon, not a chest — and the flame reads as "the fire
+     got this one". Prefix-matched so per-food burnt variants would inherit it. */
+  if(/^burnt_/.test(s))                   return 'uiFlame';
   if(/_log$|_plank$|wood/.test(s))        return 'uiLog';
   if(/_ore$|_bar$|coal|stone|ingot/.test(s)) return 'uiOre';
   if(/seed/.test(s))                      return 'uiSeed';
@@ -9234,14 +9377,19 @@ function tileForArtisan(recipe, skillId){
     var d = ITEMS[kv[0]]; return (kv[1]>1?kv[1]+'x ':'')+(d?d.n.split(' ')[0]:kv[0]);
   }).join(' + ');
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
+  /* b225: the open fire can ruin a cook — the tile says so before you press it. */
+  var burnLine = (typeof window.burnRiskLine === 'function') ? window.burnRiskLine(recipe, skillId) : '';
+  var burnText = (typeof window.burnRiskText === 'function') ? window.burnRiskText(recipe, skillId) : '';
+  var tileTitle = (recipe.name||'') + (burnText ? ' — ' + burnText : '');
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
-    +'title="'+(recipe.name||'').replace(/"/g,'&quot;')+'">'
+    +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '')+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
     +'<div class="at-meta">'+recipe.xp+' XP · '+fmtSec(recipe.ms||3000)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
+    +burnLine
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+recipe.req+'</div>')
     +(active ? '<span class="at-stop">Active</span>' : '')
@@ -9426,7 +9574,13 @@ function patchSkillDetail(){
        you already have — until some unrelated event happened to change the
        key. Levelling is rare; one rebuild per level is the right price. */
     var catLv = (typeof getLevel==='function') ? getLevel(id) : 0;
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv;
+    /* b225: …and so is the Kitchen's noBurn, because the cooking tiles now
+       print a live "Burn risk: N%". Without this, a player who has just built
+       or upgraded a Kitchen comes back to a screen still quoting the old odds
+       — the exact stale-render class of bug the two notes above describe.
+       Level is already in the key, so mastery relief repaints for free. */
+    var catBurn = (id==='cooking' && typeof getBonus==='function') ? getBonus('noBurn') : '';
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn;
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){

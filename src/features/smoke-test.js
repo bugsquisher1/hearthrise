@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=260' directly.
+// modularised, will import { G } from '../state/game.js?v=261' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=260';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=260';
+import { on, snapshot } from '../net/events.js?v=261';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=261';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=260';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=261';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,39 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {
+    if(typeof window.processOffline !== 'function'){ assert(true, 'seam absent'); return; }
+    const snap = snapshotG();
+    const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+    try {
+      const G = window.G;
+      G.skills = Object.assign({}, G.skills, { attack: 200000, strength: 200000, hitpoints: 200000, defense: 200000 });
+      G.activeMonster = 'goblin';
+      const m = window.MONSTERS.goblin;
+      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 99;
+      G.playerHp = G.playerMaxHp;
+      // Backgrounded 30 min ago; the watermark sits at hide-time.
+      const hideAt = Date.now() - 30 * 60000;
+      G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: hideAt };
+      // WHILE HIDDEN (Android throttle): the 90s autosave + 4s watchdog keep firing.
+      // Neither may advance the watermark — that was the bug that sliced a real
+      // absence into sub-threshold pieces crediting zero.
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      if(typeof window.saveLocal === 'function') window.saveLocal();
+      window.processOffline();                                   // watchdog-style call while hidden
+      assert(G.offlineBudget.at === hideAt, 'watermark must NOT advance while hidden, moved by ' + (G.offlineBudget.at - hideAt) + 'ms');
+      // RETURN: now visible — the WHOLE 30-min span is credited once.
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      const killsBefore = G.stats.kills || 0;
+      window.processOffline();
+      assert((G.stats.kills || 0) > killsBefore + 10, 'returning must credit the whole backgrounded span, got +' + ((G.stats.kills || 0) - killsBefore));
+    } finally {
+      if(dHid) Object.defineProperty(document, 'hidden', dHid); else { try { delete document.hidden; } catch(e){} }
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {

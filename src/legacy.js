@@ -697,8 +697,10 @@ function saveLocal(){
   /* b226: the offline-budget watermark tracks lastSeen while the tab is open,
      so an evening of active play is never mistaken for an absence and charged
      against the daily allowance. processOffline() is the only thing that
-     advances it ahead of a grant — which is what makes double-pay impossible. */
-  if(G.offlineBudget && typeof G.offlineBudget==='object') G.offlineBudget.at=G.lastSeen;
+     advances it ahead of a grant — which is what makes double-pay impossible.
+     b261: only WHILE VISIBLE — a throttled background autosave must not advance
+     the watermark, or it slices an AFK gap into uncredited sub-threshold pieces. */
+  if(G.offlineBudget && typeof G.offlineBudget==='object' && !(typeof document!=='undefined' && document.hidden)) G.offlineBudget.at=G.lastSeen;
   // Route through the platform Storage seam (src/platform/storage.js) so Steam
   // (electron-store) / mobile (Capacitor) can swap the backend without touching
   // this. Falls back to localStorage directly if the seam hasn't loaded.
@@ -890,6 +892,15 @@ function ensureOfflineBudget(now){
 function claimOfflineMs(now,active,minMs){
   now=(typeof now==='number'&&isFinite(now))?now:Date.now();
   const b=ensureOfflineBudget(now);
+  /* b261 — CRITICAL: while the tab is HIDDEN, do NOT advance the watermark or
+     grant. The whole point is to let a background gap ACCUMULATE so it is credited
+     once on return. Android throttles (not freezes) background timers to ~1/min,
+     so the 4s watchdog and 90s autosave keep firing while backgrounded; if each
+     advanced b.at here it would slice a real absence into sub-threshold (~60s)
+     pieces that each grant 0 → a multi-minute AFK credits ZERO (paione). Leaving
+     b.at alone while hidden means the first VISIBLE call after return sees the
+     full elapsed span. */
+  if(typeof document!=='undefined' && document.hidden) return 0;
   const elapsed=Math.max(0,now-b.at);
   b.at=now;
   /* Below the threshold nothing is simulated, so nothing may be charged —
@@ -935,7 +946,10 @@ function processOffline(){
   /* The budget watermark advances whether or not anything was running, so a
      day spent with no activity set cannot be banked and spent later. */
   const active=!!(G.activeSkill||G.activeMonster||G.activeArtisanRecipe);
-  const hrs=claimOfflineMs(_now,active,0.05*3600000)/3600000;
+  /* b261: 60s floor (was 180s). With the watermark now only advancing while
+     visible, a genuine 1–3 min AFK is credited instead of silently dropped;
+     sub-minute tab-flips still cost nothing. */
+  const hrs=claimOfflineMs(_now,active,60000)/3600000;
   if(hrs<=0) return;
   const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -4643,13 +4657,21 @@ function bindEvents(){
     setInterval(()=>{
       try{
         if(typeof G==='undefined'||!G) return;
+        if(typeof document!=='undefined' && document.hidden) return;   // b261: do nothing while backgrounded — its job is to catch up AFTER return
         if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
-        const combatDead = G.activeMonster && typeof window.__isCombatLoopArmed==='function' && !window.__isCombatLoopArmed();
-        const skillDead  = G.activeSkill   && typeof window.__isSkillLoopArmed==='function'  && !window.__isSkillLoopArmed();
+        // A combat loop counts as broken if it's NULL *or* STALLED — a mobile
+        // background freeze suspends the interval without clearing it, so a bare
+        // null-check misses it. Use the heartbeat (window._hrCombatBeat), same as
+        // resumeActiveActivity, so the watchdog fixes a frozen fight even when no
+        // resume event ever fires.
+        const beatStale  = (Date.now() - (window._hrCombatBeat||0)) > 8000;
+        const combatBad  = G.activeMonster && (
+          (typeof window.__isCombatLoopArmed==='function' && !window.__isCombatLoopArmed()) || beatStale);
+        const skillDead  = G.activeSkill && typeof window.__isSkillLoopArmed==='function' && !window.__isSkillLoopArmed();
         // Credit any real elapsed gap (idempotent; early-returns for small gaps),
-        // and re-arm whichever live loop died.
+        // and re-arm whichever live loop died or stalled.
         if(typeof processOffline==='function') processOffline();
-        if((combatDead||skillDead) && typeof resumeActiveActivity==='function') resumeActiveActivity();
+        if((combatBad||skillDead) && typeof resumeActiveActivity==='function') resumeActiveActivity();
       }catch(e){}
     }, 4000);
   }

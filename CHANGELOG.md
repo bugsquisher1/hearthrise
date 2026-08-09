@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 261 — 2026-08-09 (Offline combat, actually fixed)
+
+- ⚔️ **Your time away now counts — for real this time.** The true culprit behind the offline-combat reports: on Android, a backgrounded app keeps its timers running slowly instead of freezing them, and the game's own save + safety timers were quietly "using up" your away-time in tiny slices that were each too short to pay out — so a long AFK credited almost nothing. The game now leaves your away-time untouched while backgrounded and pays the whole span at once when you return. Also lowered the minimum AFK to **1 minute** (was 3) so short breaks count too. *(Thanks paione — two independent code reviews confirmed this was the root cause.)*
+
 ## v0.9.2-beta build 260 — 2026-08-09 (Combat really keeps going)
 
 - ⚔️ **Combat no longer silently stalls after backgrounding.** On phones, coming back could leave you "in combat" but with your kills frozen — the fight loop was suspended by the OS and never actually restarted. The game now watches its own heartbeat and restarts a stalled fight the moment you return (through every resume signal Android/iOS might send, plus a safety-net check that doesn't rely on any of them). Your time away is credited too. *(Thanks paione — this is the deeper fix behind the offline-combat reports.)*

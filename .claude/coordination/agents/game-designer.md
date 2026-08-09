@@ -17,6 +17,88 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-08-09 · Bonus rebase spec — `docs/design/bonus-rebase.md` (DOCS ONLY)
+Brief = Tyler's binding *"increments of 2%"* decision. Censused the real code first, not the specs.
+
+**`getBonus` is not a function — it is a base function plus SIX additive monkey-patch wrappers**
+(rooms/renown/capstone → companions → food buffs → clan → castle → muster → blessings). **42 live
+bonus sources across those 7 layers**, plus 4 multipliers outside the chain and **6 ghost keys**.
+The only fuse in the game sits at layer 4 and reduces *only layer 4's own contribution* — companions,
+buffs, the muster aura and the whole blessing calendar are added afterwards and nothing clamps them.
+That structural fact, not the individual numbers, is why `smithSpeed` reached +90% unnoticed.
+
+**Three sources no spec had ever budgeted.** (1) **Companions**: base .05-.10 scaled by
+`1 + 0.05×(lv−1)` over 30 levels = ×2.45, so a level-30 Forge Imp is `smithSpeed` **+24.5%** — bigger
+than the entire castle Smeltery ladder, from a pet. (2) **Food/drink buffs** to **+50%** (Lich Soul
+Soup `goldFind`), indefinitely renewable and therefore permanent power wearing a consumable's clothes.
+(3) The **blessing calendar's own worst stack**: `forge_fires` + `guild_works` = **+50% smith AND
+craft from the calendar alone.**
+
+**The grammar:** whole percents only; **2% step, 1% half-step for wide keys** (`allXP`, `combatXP`,
+`goldFind`) — a wide key pays on everything so it must cost more per point, which is exactly the
+distinction whose absence produced +52% allXP next to +90% smithSpeed. **Permanent ceiling +15% per
+key** (homestead ladder 10 + a castle wing 3 + a maxed companion 2), **fuse 0.20**, **temporary budget
++15%**, **absolute peak +30%**. `allXP` and the two artisan speeds land on +15% exactly — the ceiling
+is derived, not picked.
+
+**Argued the case for smallness properly rather than asserting it.** Today's Last Call is +36% on a
++52% stack = a 69% uplift that is *invisible* because everything else is enormous too; rebased it is
++8% on +15% = a 53% uplift and the largest thing on the screen. **You cannot have a peak without a
+plain.** And the hierarchy survives because of arithmetic, not taste: a presence-gated +4% weekly
+blessing is worth 0.69% of a week while a permanent +5% Library is worth 5.00% — **the Library beats
+the bigger-looking blessing by 7.2×.** That is why blessings were cut ~4× and NOT to 2%: at 2% the
+calendar's expected value is +0.3% on the day, and b227 shipped the calendar as the *entire*
+online-pays mechanic.
+
+**The exemption that does the real work.** The grammar governs **throughput multipliers only**.
+**Duration, capacity, reliability and access are outside it, cost no power budget, and are the
+preferred payload for any rung that costs a Keystone.** A 300,000g rung cannot be justified by +2% —
+and the honest fix is not to inflate the 2%, it is to stop paying in percentages at the top of a
+ladder. Seven surfaces convert: `restedXp` potency → a **flat XP quantum** (800/1,600 per charge; 8%
+potency is single-digit XP, provably worth nothing); the three **Keystone L5 rungs** → **batch
+capacity** (one action produces five — the Shrine's bulk-bury generalised); renown **Count → a market
+slot** and **King → a daily-task slot** (both fields already declared in `getPerks` and granted by
+nothing); blessings held at 3-6%; the five fractional-`farmYield` perks fixed by **not flooring**.
+
+**Ratified the homestead provisional with three amendments.** (1) **P1: Workshop and Shrine are still
+at +10/25/50/50/60** — six rooms retuned, two missed; a Sawpit at +50% beside a Double Bellows at +6%
+reads as a bug. (2) **The Cellar goes back UP to +20/40/60/80/100%** — duration is exempt and was cut
+by mistake; a maxed Deep Cellar at +20% turns a 6-minute buff into 7m12s, which is 320,000 gold for
+something nobody can perceive. (3) Library L4/L5's `restedXp` 4/8% is dead on arrival.
+
+**Pacing, stated not sold.** The whole boost economy now buys **7.5 days** off the 57.2-day floor
+instead of 19.6. **Artisan is where it actually bites** — throughput is `1/(1−speed)`, so a maxed
+Kitchen went from ×2.50 to ×1.14 and artisan 99s take ×2.19 longer; all-15-99s lands ≈18-19 months,
+top of the 16-18 target. **And that is the deepest thing this achieves:** with boosts confined to
+±15%, pacing is governed by `PACE` and nothing else. Today you cannot answer "how long is a 99?"
+without knowing which of 42 sources a player holds.
+
+**Ruled the tool ladder OUT of scope** (.05→.35 `gatherSpeed`): it is gear, not a perk — and decisively,
+the 57.2-day floor was derived *with* it applied, so rebasing it re-opens the anchor Tyler approved.
+A Rune Axe that saves 2% is not a Rune Axe.
+
+**Fuse + guards for Systems:** the fuse must **move out of `clan-seat-ui.js` into a final
+`power-budget.js` wrapper** — a fuse in the middle of a seven-layer chain cannot police it. Constants
+0.60→**0.20**, key cap 0.10→**0.05**, `CASTLE_TOTAL_CAP` 0.25→**0.12 and actually enforced** (today it
+is declared and never applied to anything). ~30 assertions retuned, listed line-by-line; **four new
+tests**, of which the **grammar test** — every magnitude in every source table is a whole percent — is
+the one that prevents re-drift forever. Flagged that `smoke-test.js:8746` breaks *structurally* under
+a final clamp (it forces a synthetic 0.50 blessing and asserts 1.0) and that its offline-replay latch
+must keep being guarded.
+
+**Migrations: two, not none.** Castle building perks are client-side (`hr_castle_buildings` stores
+costs only) — but the **feast ladder** (`clan-seat.sql:1104`) and **rested potency** (`:1151/:1170`)
+are server-mirrored and must move in lockstep or client and server disagree about what a feast is worth.
+
+**Also found in the census, filed:** `combatXP` skips ranged and magic entirely (`legacy.js:1508`) so
+the Trophy Room pays nothing to two of seven styles — live P1; `hearthScale()` is inert
+(`registerBuffScaler` has no caller); Frostfin Supper's `defense` buff is a silent no-op; five buff
+keys have zero readers; companion `xpB`/`goldBonus`/`prayerXp` are misspellings of live keys, so five
+pets pay nothing — and fixing those names is an unbudgeted *increase* that must land inside the rebase
+commit, not after it.
+
+No game files touched.
+
 ### 2026-08-09 · Pacing overhaul spec — `docs/design/pacing-overhaul.md` (DOCS ONLY)
 Modelled the real curve by simulating the shipped action loop (rung switching at the real level gates,
 best-tool speed ladder applied) against `data/gathering.js`, `recipes.js`, `items.js` and `XP_TABLE`.

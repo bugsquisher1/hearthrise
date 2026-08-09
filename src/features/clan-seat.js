@@ -94,8 +94,8 @@
      655,360,000 gold) is NOT the gate and cannot be: see §2.3 and CONFLICTS #1.
      ══════════════════════════════════════════════════════════════ */
   var TIERS = [
-    { tier: 1, name: 'Wayside Camp',  standing: 0,      gold: 0,       members: 10, buildingCap: 2,  contributors: 0,  huntClear: 0 },
-    { tier: 2, name: 'Palisade',      standing: 12000,  gold: 40000,   members: 15, buildingCap: 4,  contributors: 3,  huntClear: 0 },
+    { tier: 1, name: 'The Foundation', standing: 0,      gold: 0,       members: 10, buildingCap: 2,  contributors: 0,  huntClear: 0 },
+    { tier: 2, name: 'Rising Walls',  standing: 12000,  gold: 40000,   members: 15, buildingCap: 4,  contributors: 3,  huntClear: 0 },
     { tier: 3, name: 'Timber Hold',   standing: 60000,  gold: 200000,  members: 25, buildingCap: 6,  contributors: 5,  huntClear: 0 },
     { tier: 4, name: 'Stone Bailey',  standing: 240000, gold: 800000,  members: 40, buildingCap: 8,  contributors: 8,  huntClear: 2 },
     { tier: 5, name: 'Fortified Keep',standing: 900000, gold: 3000000, members: 60, buildingCap: 10, contributors: 12, huntClear: 3 }
@@ -114,7 +114,7 @@
     for (var i = 0; i < TIERS.length; i++) if (TIERS[i].tier === (t | 0)) return TIERS[i];
     return null;
   }
-  function tierName(t) { var d = tierDef(t); return d ? d.name : 'Wayside Camp'; }
+  function tierName(t) { var d = tierDef(t); return d ? d.name : 'The Foundation'; }
   function nextTier(t) { return tierDef((t | 0) + 1); }
   // No building may exceed castle_tier × 2 in level (§5).
   function buildingLevelCap(castleTier) { return Math.max(0, (castleTier | 0) * 2); }

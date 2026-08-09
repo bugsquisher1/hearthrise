@@ -6837,7 +6837,7 @@ const TESTS = [
     // Tiers gate on STANDING, never on clan level (§2.3 — level 10 costs
     // 655,360,000 gold, which is why v1's gate was unreachable).
     assert(C.tierDef(2).standing === 12000 && C.tierDef(5).standing === 900000, 'Standing gates drifted');
-    assert(C.tierName(1) === 'Wayside Camp' && C.tierName(5) === 'Fortified Keep', 'tier names drifted');
+    assert(C.tierName(1) === 'The Foundation' && C.tierName(5) === 'Fortified Keep', 'tier names drifted'); // b227: tier 1-2 renamed to follow the foundation scene (Tyler)
     assert(C.tierDef(4).contributors === 8 && C.tierDef(5).contributors === 12, 'distinct-contributor gates drifted');
     assert(C.buildingLevelCap(3) === 6, 'no building may exceed castle_tier × 2');
     assert(C.buildSlots(1) === 1 && C.buildSlots(2) === 1 && C.buildSlots(3) === 2 && C.buildSlots(5) === 2,
@@ -7284,7 +7284,7 @@ const TESTS = [
                     upgrades: {}, stores: {}, orders: [] }, 'test-hold');
       UI.render(host);
       html = host.innerHTML;
-      assert(/Wayside Camp/.test(html), 'tier 1 must be named');
+      assert(/The Foundation/.test(html), 'tier 1 must be named'); // b227 rename
       assert((html.match(/is-ghost/g) || []).length === 5, 'all five wings must be ghosted at a fresh camp');
       assert(/12,000/.test(html), 'the next tier gate must be stated');
       assert(/3 different members/.test(html), 'the distinct-contributor requirement must be shown honestly');

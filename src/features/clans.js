@@ -129,7 +129,7 @@
     }
     var clan = (await res.json())[0];
     await joinById(clan.id, 'leader');
-    notify(name + ' is founded — a Wayside Camp, and yours. Rally your allies.', 'levelup');
+    notify(name + ' is founded — the foundation is laid, and it is yours. Rally your allies.', 'levelup');
     return clan;
   }
 

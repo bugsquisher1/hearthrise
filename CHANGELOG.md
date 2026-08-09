@@ -12,6 +12,17 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 - ⚙️ Your activity now re-times itself as bonuses come and go, so a new axe or a fresh blessing is felt on the very next swing instead of after a restart.
 - 🧪 337 tests green.
 
+## v0.9.2-beta build 227 — 2026-08-09 (Readable at last, a castle in the making, and a combat screen that fights with you)
+
+- 🔎 **Text, actually fixed this time — and a dial that's yours.** Half the game's text sat at exactly the old minimum size; everything got a real step up, and Settings → Display now has a working **UI Scale** (90–130%) that resizes nearly all text live and remembers your choice.
+- ⚔️ **Combat fights beside you.** The Eat button now lives next to your fighter — always visible, never below a scroll. Loot odds and battle stats are one click away beside the enemy instead of a strip at the bottom of the screen. And "Fight target" on a bounty never cancels the fight you're already in.
+- 🏰 **Your hold starts as a castle, not a camp.** Tier 1 is now **The Foundation** — surveyed ground, the first masonry footings, and the finished castle sketched in gilt over the site. As your clan rises (**Rising Walls** next), the same footprint fills in, stone by stone. Clipped labels in the door strip fixed too.
+- 📯 **Pledge your rally.** Pick which of the day's two rallies you'll answer; if life happens and you miss it, you get half honors on your next login. Show up live and you earn the full chest — presence always wins. And blessings rotate as your online bonus: one week +4% XP, another +4% gold find, only while you're in the game.
+- 🐾 **The Stable has real art** — painted portraits where an honest match exists, a proper gilt paw for the rest (22 emoji retired), and your equipped companion finally shows in the equipment doll for all companions.
+- 🎯 **Every quest has a "Go"** that takes you straight to the thing — "catch fish" lands you on Fishing, ready to click. Auto-Eat is now earned with 100 Bounty Marks at the board instead of gold.
+- 🧹 Also: the false "Offline" badge is gone (it shows only when truly reconnecting), your avatar is click-to-change, the manual save button retired (the game saves itself, continuously), and the Active tag no longer covers your quantity badge.
+- 🧪 357 tests green.
+
 ## v0.9.2-beta build 226 — 2026-08-09 (The long road — and a smoother front door)
 
 - ⏳ **Progression has real gravity now.** The road to 99 is a journey measured in weeks, not days — and the economy stops raining items. Nothing you've earned changes: every level, item, and coin stays exactly where it is. (Under the hood: offline progress becomes a fair 12-hour daily budget instead of an exploit-shaped per-login cap, and rate displays now always tell the truth — one screen was advertising triple the real XP rate.)

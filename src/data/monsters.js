@@ -26,7 +26,7 @@ export const MONSTERS={
   plague_swarm:{name:'Plague Swarm',icon:'🪰',tier:4,family:'Vermin',weaponWeak:'hammer',hp:100,atk:26,def:13,xp:210,gp:[38,82],drops:[{id:'plague_ichor',ch:.6},{id:'venom_sac',ch:.25},{id:'swarm_heart',ch:.018},{id:'field_cookbook',ch:.02}]},
   goblin_warlord:{name:'Goblin Warlord',icon:'👺',tier:4,family:'Goblinoid',weaponWeak:'sword',hp:125,atk:30,def:18,xp:250,gp:[45,100],drops:[{id:'brute_plate',ch:.5},{id:'warlord_badge',ch:.16},{id:'steel_helm',ch:.015},{id:'chief_blade_recipe',ch:.05}]},
   bear:{name:'Bear',icon:'🐻',tier:4,family:'Beast',weaponWeak:'ranged',hp:140,atk:34,def:16,xp:275,gp:[42,95],drops:[{id:'bear_pelt',ch:.75},{id:'bear_claw',ch:.35},{id:'big_bones',ch:1},{id:'raw_bear_meat',ch:.6}]},
-  wraith:{name:'Wraith',icon:'👻',tier:4,family:'Undead',weaponWeak:'magic',hp:112,atk:38,def:20,xp:310,gp:[55,115],drops:[{id:'grave_dust',ch:.7},{id:'wraith_veil',ch:.2},{id:'ancient_rune',ch:.04}]},
+  wraith:{name:'Wraith',icon:'👻',tier:4,family:'Undead',weaponWeak:'magic',hp:112,atk:38,def:20,xp:310,gp:[55,115],drops:[{id:'grave_dust',ch:.7},{id:'wraith_veil',ch:.2},{id:'vamp_dust',ch:.12},{id:'ancient_rune',ch:.04}]},
   lesser_demon:{name:'Lesser Demon',icon:'😈',tier:4,family:'Mythic',weaponWeak:'neutral',hp:150,atk:40,def:18,xp:340,gp:[60,140],drops:[{id:'demon_shard',ch:.4},{id:'rune_frag',ch:.3},{id:'hell_ember',ch:.025}]},
   /* b214: was defined ONLY in legacy.js's inline MONSTERS const — every ESM
      reader (combat-render imports this module) saw undefined for it. */
@@ -43,6 +43,6 @@ export const MONSTERS={
   void_parasite:{name:'Void Parasite',icon:'🪱',tier:6,family:'Vermin',weaponWeak:'hammer',hp:340,atk:82,def:42,xp:900,gp:[210,420],drops:[{id:'void_chitin',ch:.55},{id:'plague_ichor',ch:.35},{id:'void_core',ch:.015}]},
   war_king:{name:'War King',icon:'👑',tier:6,family:'Goblinoid',weaponWeak:'sword',hp:420,atk:88,def:58,xp:1050,gp:[260,520],drops:[{id:'captain_medal',ch:.35},{id:'war_crown',ch:.08},{id:'chief_blade',ch:.012}]},
   ancient_bear:{name:'Ancient Bear',icon:'🐻',tier:6,family:'Beast',weaponWeak:'ranged',hp:460,atk:94,def:54,xp:1100,gp:[250,500],drops:[{id:'bear_pelt',ch:1},{id:'ancient_claw',ch:.25},{id:'alpha_cloak',ch:.01},{id:'raw_bear_meat',ch:.8},{id:'alpha_pattern',ch:.02}]},
-  lich:{name:'Ancient Lich',icon:'☠️',tier:6,family:'Undead',weaponWeak:'magic',hp:350,atk:55,def:30,xp:800,gp:[200,500],drops:[{id:'lich_soul',ch:.8},{id:'ancient_rune',ch:.3},{id:'hollow_sigil',ch:.025},{id:'soul_recipe',ch:.01}],boss:true},
+  lich:{name:'Ancient Lich',icon:'☠️',tier:6,family:'Undead',weaponWeak:'magic',hp:350,atk:55,def:30,xp:800,gp:[200,500],drops:[{id:'lich_soul',ch:.8},{id:'ancient_rune',ch:.3},{id:'vamp_dust',ch:.30},{id:'hollow_sigil',ch:.025},{id:'soul_recipe',ch:.01}],boss:true},
   dragon:{name:'Green Dragon',icon:'🐲',tier:6,family:'Mythic',weaponWeak:'neutral',hp:520,atk:105,def:62,xp:1250,gp:[320,700],drops:[{id:'dragon_bones',ch:1},{id:'dragon_scale',ch:.5},{id:'dragon_gem',ch:.02},{id:'ancient_claw',ch:.08},{id:'marrow_cookbook',ch:.005}],boss:true},
 };

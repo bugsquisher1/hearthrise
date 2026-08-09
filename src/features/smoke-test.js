@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=242' directly.
+// modularised, will import { G } from '../state/game.js?v=243' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=242';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=242';
+import { on, snapshot } from '../net/events.js?v=243';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=243';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=242';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=243';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,51 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {
+    // A deterministic reachability check: seed the "roots" a player can obtain
+    // (gather, drops, shops, dungeons, the clan Hunt, coded drops), then close
+    // over every recipe. Anything left unreachable that ISN'T deliberately gated
+    // is a dead item or a broken chain — a progression hole. This guards the
+    // whole item web so a future item/recipe can't silently strand the ladder.
+    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES, M = window.MONSTERS;
+    const base = new Set();
+    const add = (id) => { if (id) base.add(id); };
+    (window.TREES || []).forEach((a) => add(a.prod));
+    (window.ROCKS || []).forEach((a) => add(a.prod));
+    (window.FISH_SPOTS || []).forEach((a) => add(a.prod));
+    Object.keys(window.CROPS || {}).forEach((k) => { add(k); if (window.CROPS[k] && window.CROPS[k].prod) add(window.CROPS[k].prod); });
+    Object.values(M || {}).forEach((m) => (m.drops || []).forEach((d) => add(d.id)));
+    (window.SEED_SHOP || []).forEach((s) => add(s.id));
+    (window.EQUIP_SHOP || []).forEach((s) => add(s.id || s));
+    Object.values(window.DUNGEONS || {}).forEach((d) => (d.loot || []).forEach((l) => add(l.id)));
+    // The clan Hunt's signature materials (raids.js) — obtainable via the weekly boss.
+    ['slagheart_core', 'abyssal_pearl', 'choirbone', 'warden_seal', 'wyrm_gilding', 'hollow_sigil', 'wyrm_scale', 'void_core'].forEach(add);
+    // Coded drops the engine grants outside the drop tables.
+    ['farm_deed', 'hearth_token'].forEach(add);
+
+    const inputsOf = (r) => { if (r.inputs) return r.inputs; const i = {}; if (r.input) i[r.input] = r.inputQty || 1; if (r.secondary) Object.entries(r.secondary).forEach(([k, v]) => { i[k] = v; }); return i; };
+    const reach = new Set(base);
+    const recipes = []; Object.values(R).forEach((list) => (list || []).forEach((r) => recipes.push(r)));
+    let changed = true, guard = 0;
+    while (changed && guard++ < 60) {
+      changed = false;
+      for (const r of recipes) {
+        if (!r.output || reach.has(r.output)) continue;
+        const inp = inputsOf(r);
+        let ok = true;
+        for (const iid in inp) { if (!reach.has(iid)) { ok = false; break; } }
+        if (ok && r.gated && !reach.has(r.gated)) ok = false;
+        if (ok) { reach.add(r.output); changed = true; }
+      }
+    }
+    // Exempt: currencies, companions, blueprints/keys (they drop), recipe scrolls,
+    // and a few deliberately-spent-elsewhere odds. Everything else MUST be reachable.
+    const EXEMPT = new Set(['muster_seal', 'hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
+    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
+    const dead = Object.keys(ITEMS).filter((id) => !reach.has(id) && !isExempt(id));
+    assert(dead.length === 0, 'UNREACHABLE items (no obtainable source or broken recipe chain): ' + dead.join(', '));
   }),
 
   () => tryRun('b242: items explain themselves — flavour line + source + used-in', () => {

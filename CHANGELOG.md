@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 243 — 2026-08-09 (The ladder actually reaches the top)
+
+- 🌾 **Farming can finally be maxed.** The three endgame crops — Goldenroot (Lv 62), Emberfruit (75) and Moonbloom (88) — had **no way to get their seeds**, so farming quietly dead-ended in the low 60s. Their seeds are stocked in the Seed Shop now, so the whole skill is climbable to 99.
+- 💜 **Vampire Dust drops again.** A behind-the-scenes data mix-up had stopped Wraiths and the Ancient Lich from dropping it. Back where it belongs.
+- 🛡️ **A new safety net checks that *every* item in the game is actually obtainable** — no recipe can require something you can't get, and no item can hide with no source. If a future update ever breaks a progression path, it now fails a test before it can ship.
+- 🧪 447 tests green.
+
 ## v0.9.2-beta build 242 — 2026-08-09 (Every item has a story)
 
 - 📜 **Every item explains itself now.** Tap any item and you'll see a one-line description of what it is (all 281 items written from scratch, in-world) plus **where it comes from** (crafted, mined, farmed, or dropped by X) and **what it's used in** (the recipes it feeds). No more mystery mats sitting in your bag.

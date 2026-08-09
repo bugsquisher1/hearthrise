@@ -528,7 +528,12 @@ const HOUSE_THEMES=[
   {id:'volcanic',name:'Volcanic Keep',icon:'🌋',price:1000,currency:'gem'},
   {id:'fairy',name:'Fairy Glen',icon:'🧚',price:750,currency:'gem'},
 ];
-const SEED_SHOP=[{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150}];
+/* b243 (progression audit): the three ENDGAME seeds — goldenroot (Farming 62),
+   emberfruit (75), moonbloom (88) — had NO source anywhere (not sold, dropped,
+   or yielded), so farming hard-stopped at ~62 and the top 37 levels were
+   unreachable. Sold here now, priced up the ladder, so the whole skill is
+   climbable. (A reachability smoke guard was added so this can't regress.) */
+const SEED_SHOP=[{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600}];
 const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'iron_arrows',cost:150},{id:'fox_companion',cost:1200}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL

@@ -255,7 +255,7 @@ function buildRatesCard() {
   const rates = gatherRates();
   if (!rates.length) {
     return `<div class="cr-card"><div class="cr-section-title">${crGlyph('uiTrend')}Active Rates</div>
-      <div style="color:var(--ink-3);font-size:13.5px">Train a skill to see your rates.</div></div>`;
+      <div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Train a skill to see your rates.</div></div>`;
   }
   const rows = rates.map((r) => {
     const skillIcon = window._skillIcon?.[r.id]
@@ -291,7 +291,7 @@ function buildEquipSummaryCard() {
     <div class="cr-stat-row"><span>Total +STR</span><b>+${totalBonus.str}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +ATK</span><b>+${totalBonus.atk}</b><span></span></div>
     <div class="cr-stat-row"><span>Total +DEF</span><b>+${totalBonus.def}</b><span></span></div>
-    <div style="margin-top:8px"><button onclick="showTab('inventory')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:13.5px;font-weight:700">Manage gear →</button></div>
+    <div style="margin-top:8px"><button onclick="showTab('inventory')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700">Manage gear →</button></div>
   </div>`;
 }
 

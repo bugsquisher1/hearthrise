@@ -44,7 +44,7 @@
       background: linear-gradient(180deg,#3a2010,#1a0d05);
       color: #f3d181; border: 1px solid #c9a040;
       padding: 6px 10px; border-radius: 6px;
-      font-family: monospace; font-size: 13.5px; font-weight: 700;
+      font-family: monospace; font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700;
       cursor: pointer; letter-spacing: .06em; text-transform: uppercase;
       box-shadow: 0 4px 12px rgba(0,0,0,.5);
     }
@@ -55,12 +55,12 @@
       background: linear-gradient(180deg,#0d0a14,#08060e);
       color: #d0d4de; border: 1px solid #c9a040;
       border-radius: 8px; box-shadow: 0 16px 48px rgba(0,0,0,.7);
-      font-family: 'Inter',sans-serif; font-size: 13.5px;
+      font-family: 'Inter',sans-serif; font-size:calc(14.5px * var(--ui-scale, 1));
       display: none;
     }
     #admin-panel.open { display: block; }
     #admin-panel h3 {
-      font-family: monospace; font-size: 13.5px; font-weight: 800;
+      font-family: monospace; font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 800;
       margin: 0; padding: 10px 14px;
       background: linear-gradient(180deg,#3a2010,#1a0d05);
       color: #f3d181; border-bottom: 1px solid rgba(243,209,129,.25);
@@ -71,14 +71,14 @@
       border-bottom: 1px solid rgba(255,255,255,.06);
     }
     #admin-panel .ap-section h4 {
-      margin: 0 0 8px; font-size: 13.5px; font-weight: 800;
+      margin: 0 0 8px; font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 800;
       color: #f3d181; letter-spacing: .14em; text-transform: uppercase;
     }
     #admin-panel button.ap-btn {
       background: rgba(243,209,129,.12); color: #f3d181;
       border: 1px solid rgba(243,209,129,.3);
       padding: 4px 8px; margin: 2px 4px 2px 0;
-      border-radius: 4px; font-size: 13.5px; font-family: monospace;
+      border-radius: 4px; font-size:calc(14.5px * var(--ui-scale, 1)); font-family: monospace;
       cursor: pointer;
     }
     #admin-panel button.ap-btn:hover { background: rgba(243,209,129,.22); }
@@ -89,14 +89,14 @@
     #admin-panel input, #admin-panel select {
       background: rgba(0,0,0,.4); color: #d0d4de;
       border: 1px solid rgba(255,255,255,.1);
-      padding: 4px 6px; font-size: 13.5px; font-family: monospace;
+      padding: 4px 6px; font-size:calc(14.5px * var(--ui-scale, 1)); font-family: monospace;
       border-radius: 3px; box-sizing: border-box;
     }
     #admin-panel input { width: 70px; }
     #admin-panel input.wide { width: 140px; }
-    #admin-panel label { font-size: 13.5px; color: #9aa3b0; margin-right: 6px; }
+    #admin-panel label { font-size:calc(14.5px * var(--ui-scale, 1)); color: #9aa3b0; margin-right: 6px; }
     #admin-panel pre {
-      background: rgba(0,0,0,.4); padding: 6px; font-size: 13.5px;
+      background: rgba(0,0,0,.4); padding: 6px; font-size:calc(14.5px * var(--ui-scale, 1));
       max-height: 120px; overflow: auto; border-radius: 3px;
       color: #5fcc7c; font-family: monospace;
     }
@@ -346,7 +346,7 @@
           <button class="ap-btn" data-act="market-seed">Seed Test Listings</button>
           <button class="ap-btn danger" data-act="market-clear">Clear Seeded</button>
         </div>
-        <div class="ap-row" style="margin-top:4px;font-size:13.5px;color:#8a92a0">
+        <div class="ap-row" style="margin-top:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:#8a92a0">
           Drops 26 fake listings from fictional NPC sellers + 7 days of sales history so you can test buy / search / analytics.
         </div>
       </div>

@@ -159,11 +159,14 @@
       + '.ftue-card[data-pip="above"] .ftue-pip{bottom:-16px;left:24px;border-top-color:#16120d}'
       + '.ftue-card[data-pip="right"] .ftue-pip{left:-16px;top:24px;border-right-color:#241e17}'
       + '.ftue-card[data-pip="left"]  .ftue-pip{right:-16px;top:24px;border-left-color:#16120d}'
-      + '.ftue-step{font-family:var(--f-label,inherit);font-size:13.5px;color:#9d8b70;letter-spacing:0.02em;margin-bottom:6px}'
-      + '.ftue-title{font-family:var(--f-display,Georgia,serif);font-size:21px;font-weight:600;letter-spacing:.01em;color:#f2e6ca;margin:0 0 8px;line-height:1.18}'
-      + '.ftue-body{font-size:15px;line-height:1.5;color:#c4b79e;margin:0 0 18px}'
+      + '.ftue-step{font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));color:#9d8b70;letter-spacing:0.02em;margin-bottom:6px}'
+      + '.ftue-title{font-family:var(--f-display,Georgia,serif);font-size:calc(22px * var(--ui-scale, 1));font-weight:600;letter-spacing:.01em;color:#f2e6ca;margin:0 0 8px;line-height:1.18}'
+      + '.ftue-body{font-size:calc(16px * var(--ui-scale, 1));line-height:1.5;color:#c4b79e;margin:0 0 18px}'
       + '.ftue-actions{display:flex;gap:9px;justify-content:flex-end;align-items:stretch}'
-      + '.ftue-btn{font:600 13.5px/1 var(--f-ui,inherit);min-height:36px;padding:0 16px;border-radius:3px;'
+      // Longhands, not `font:` — the shorthand's size slot cannot carry the
+      // --ui-scale calc, and it is where two type passes have lost stragglers.
+      + '.ftue-btn{font-weight:600;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1;'
+      +   'font-family:var(--f-ui,inherit);min-height:36px;padding:0 16px;border-radius:3px;'
       +   'display:inline-flex;align-items:center;justify-content:center;text-align:center;'
       +   'border:1px solid rgba(201,162,74,.20);'
       +   'background:linear-gradient(180deg,rgba(255,236,200,.075),rgba(255,236,200,.018) 55%,rgba(0,0,0,.10));'

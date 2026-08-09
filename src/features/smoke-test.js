@@ -130,6 +130,48 @@ const restoreG = (snap) => {
   if (typeof window.stopCombat === 'function' && window.G.activeMonster) try { window.stopCombat(); } catch {}
 };
 
+/* ── b227 type-floor helpers (used by guards 19a-19e, far below) ──────────
+   The floor. ONE constant: 19a-19d must never disagree about it. 19c/19d
+   exist precisely because a token can be right while the screen is wrong,
+   so they may not read the value off the token they are checking. */
+const TYPE_FLOOR = 14.5;
+
+/* Files held by other agents during b227's parallel dispatch, so their
+   font-sizes could not be swept in that commit. The exact declaration list
+   (old -> new) is filed in .claude/coordination/HANDOFFS.md. Each entry is
+   scoped to the region its file renders and was derived from a measured
+   sweep (58 elements, no more). DELETE an entry when its file lands — an
+   exemption that outlives its handoff is just a hole in the guard. */
+const TYPE_PENDING_HANDOFF = [
+  { file: 'src/features/home-dashboard.js', region: '#panel-profile [class*="hd-"]' },
+  { file: 'src/features/world-events.js',   region: '#panel-events' },
+  { file: 'src/features/companions.js',     region: '#panel-stable' },
+  { file: 'src/styles/clan-seat.css',       region: '.clan-empty, .soc-signpost, .soc-signpost-txt' },
+];
+const typeHandoffOwner = (el) => {
+  for (const h of TYPE_PENDING_HANDOFF) {
+    try { if (el.closest(h.region)) return h.file; } catch (e) { /* malformed selector */ }
+  }
+  return null;
+};
+
+/* Custom properties are now `calc(<n>px * var(--ui-scale, 1))`, so a token's
+   computed value is a token stream, not a length — parseFloat() gives NaN.
+   Measure them the only honest way: paint one and read what the engine did. */
+const typeTokenPx = (name) => {
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;font-size:var(' + name + ')';
+  document.body.appendChild(probe);
+  const px = parseFloat(getComputedStyle(probe).fontSize);
+  probe.remove();
+  return px;
+};
+
+/* The five sheets b227 swept. 19d holds ONLY these to the scalable form —
+   a sheet the project does not own (or has not swept yet) is a handoff, not
+   a test failure. */
+const TYPE_OWNED_SHEETS = /\/(legacy|art-direction|audit-overrides|theme-cozy|board-and-shop)\.css/;
+
 const TESTS = [
   () => tryRun('boot: G defined', () => {
     assert(typeof window.G === 'object' && window.G, 'G not defined');
@@ -7888,42 +7930,57 @@ const TESTS = [
     });
   }),
 
-  // ── b225 regression suite (backlog #19 — the type FLOOR) ──
+  // ── b225/b227 regression suite (backlog #19 — the type FLOOR + the dial) ──
   //
-  // b218 scaled the whole ramp ~x1.13 and Tyler reported the text was STILL
-  // too small "in a lot of places". A measurement of every visible text element
-  // across 19 screens explained why: a proportional scale multiplies the base
-  // and leaves the bottom of the ramp proportionally tiny — 971 of 1962 visible
-  // elements were still rendering under 13.5px. b225 raised the FLOOR instead.
+  // Three passes, three complaints, and the third one is the reason this block
+  // now guards a dial as well as a number:
+  //   b218 multiplied the ramp ~x1.13 — "still too small in a lot of places",
+  //         because a multiplier leaves the BOTTOM of a ramp proportionally tiny.
+  //   b225 set a FLOOR of 13.5px and moved 1,093 elements onto it — "still too
+  //         small", because a measurement then showed 1,093 of 2,112 visible
+  //         elements (51.8%) sitting at EXACTLY 13.5px. When half the game
+  //         stands on the floor, the floor value IS the reading experience.
+  //   b227 raises the floor to 14.5 and every step with it (+1, separations
+  //         unchanged), and — the actual fix — makes text size a PLAYER
+  //         setting instead of a number only a build can change.
   //
-  // These three guards are the contract. #1 pins the tokens, #2 proves no
-  // stylesheet re-introduces a sub-floor rule (that is how 337 stragglers got
-  // below the ramp in the first place), #3 proves it in the RENDERED document,
-  // because a token can be correct while an inline style or a `font:` shorthand
-  // paints 10px on screen — which is exactly what b218 missed.
+  // The contract:
+  //   19a  the token ramp holds its floor and its ordering
+  //   19b  no stylesheet declares a reading size below the floor
+  //   19c  nothing in the RENDERED document draws below the floor — the guard
+  //        b218 needed, because inline style= and `font:` shorthand never
+  //        touch a token
+  //   19d  every font-size the project owns is authored in the scalable form,
+  //        so the dial can actually reach it
+  //   19e  the dial itself: moves a real computed size, clamps, and persists
 
-  // b225 (#19a): the ramp's bottom step is the floor, and the tiers above it
+  // b227 (#19a): the ramp's bottom step is the floor, and the tiers above it
   // keep their separation. Raising --t-body is NOT the fix and must not be the
   // way a future pass satisfies this test.
-  () => tryRun('b225: the type ramp holds its floor (micro 13.5 / small 15 / body 16)', () => {
-    const cs = getComputedStyle(document.documentElement);
-    const px = (name) => parseFloat(cs.getPropertyValue(name));
-    const micro = px('--t-micro'), small = px('--t-small'), body = px('--t-body'), h3 = px('--t-h3');
-    assert(micro >= 13.5, '--t-micro is ' + micro + 'px — below the 13.5px reading floor');
-    assert(small >= 15, '--t-small is ' + small + 'px — secondary reading text must be >= 15px');
-    assert(body >= 16, '--t-body is ' + body + 'px — the base must not regress');
-    // Small caps have no ascenders and a cap-height near the regular face's
-    // x-height, so the SC section label needs a size ABOVE its nominal tier.
-    assert(h3 >= small, '--t-h3 (' + h3 + 'px) is below --t-small (' + small + 'px) — the small-caps face renders smaller than its nominal size, so it may not sit under the tier it labels');
-    assert(micro < small && small <= body, 'the ramp lost its ordering: micro ' + micro + ' / small ' + small + ' / body ' + body);
+  () => tryRun('b227: the type ramp holds its floor (micro 14.5 / small 16 / body 17)', () => {
+    // The dial multiplies the whole ramp, so the ramp is only pinned at 100%.
+    const S = window.HearthriseUIScale;
+    const restore = S ? S.get() : null;
+    try {
+      if (S) S.apply(100);
+      const micro = typeTokenPx('--t-micro'), small = typeTokenPx('--t-small');
+      const body = typeTokenPx('--t-body'), h3 = typeTokenPx('--t-h3');
+      assert(micro >= TYPE_FLOOR, '--t-micro is ' + micro + 'px — below the ' + TYPE_FLOOR + 'px reading floor');
+      assert(small >= 16, '--t-small is ' + small + 'px — secondary reading text must be >= 16px');
+      assert(body >= 17, '--t-body is ' + body + 'px — the base must not regress');
+      // Small caps have no ascenders and a cap-height near the regular face's
+      // x-height, so the SC section label needs a size ABOVE its nominal tier.
+      assert(h3 >= small, '--t-h3 (' + h3 + 'px) is below --t-small (' + small + 'px) — the small-caps face renders smaller than its nominal size, so it may not sit under the tier it labels');
+      assert(micro < small && small <= body, 'the ramp lost its ordering: micro ' + micro + ' / small ' + small + ' / body ' + body);
+    } finally { if (S && restore != null) S.apply(restore); }
   }),
 
   // b225 (#19b): no stylesheet may declare a reading size under the floor.
   // Same-origin sheets only — a cross-origin sheet throws on .cssRules and is
   // not ours to police. Font sizes used to size a GLYPH (icon hosts) are the
   // documented exception and are matched by selector, not waved through.
-  () => tryRun('b225: no stylesheet rule sets a font-size below the 13.5px floor', () => {
-    const FLOOR = 13.5;
+  () => tryRun('b227: no stylesheet rule sets a font-size below the 14.5px floor', () => {
+    const FLOOR = TYPE_FLOOR;
     const offenders = [];
     // NOTE: check `rule.style` BEFORE recursing. Chromium's nested-CSS support
     // gives every CSSStyleRule a `cssRules` list, and an EMPTY CSSRuleList is
@@ -7933,11 +7990,26 @@ const TESTS = [
       for (const rule of rules) {
         if (rule.cssRules && rule.cssRules.length) scan(rule.cssRules, sheetHref);
         if (!rule.style || !rule.selectorText) continue;
-        const raw = rule.style.getPropertyValue('font-size') || '';
-        const m = /^([0-9]+(?:\.[0-9]+)?)px$/.exec(raw.trim());
+        const raw = (rule.style.getPropertyValue('font-size') || '').trim();
+        // Two authored forms carry a literal size: the bare `14.5px` a sweep
+        // has not reached yet, and b227's scalable `calc(14.5px * var(...))`.
+        // Reading only the first form would let `calc(9px * var(--ui-scale))`
+        // sail straight past the floor.
+        const m = /^([0-9]+(?:\.[0-9]+)?)px$/.exec(raw)
+               || /^calc\(\s*([0-9]+(?:\.[0-9]+)?)px\s*\*/.exec(raw);
         if (!m) continue;
         const v = parseFloat(m[1]);
         if (v >= FLOOR) continue;
+        // Pending handoffs (see TYPE_PENDING_HANDOFF). Only two of the four
+        // held files author STYLESHEET rules — the other two write inline
+        // style= attributes, which no sheet scan can see and which 19c
+        // catches instead. Both discriminators below are exact:
+        //   • clan-seat.css is a whole sheet the clan agent owns;
+        //   • home-dashboard.js injects every rule under the literal prefix
+        //     `#panel-profile #<root> `, so its namespace cannot be spoofed
+        //     by an unrelated rule that merely mentions "hd-".
+        if (sheetHref && /clan-seat\.css/.test(sheetHref)) continue;
+        if (/#panel-profile\s+#hd-/.test(rule.selectorText)) continue;
         // `font-size:0` is not small type — it is the glyph-suppression idiom:
         // an element that carries an emoji/text fallback in its markup and an
         // image or SVG as its real content collapses the fallback to nothing.
@@ -7962,9 +8034,10 @@ const TESTS = [
   // panel is active — and fails on anything rendering under the floor. This is
   // the guard that would have caught b218's blind spot: inline `style=` and
   // `font:` shorthand never touched a token.
-  () => tryRun('b225: nothing in the rendered document draws text below the floor', () => {
-    const FLOOR = 13.5;
+  () => tryRun('b227: nothing in the rendered document draws text below the floor', () => {
+    const FLOOR = TYPE_FLOOR;
     const bad = [];
+    const pending = {};
     for (const el of document.querySelectorAll('body *')) {
       if (el.closest('#hr-smoke-overlay')) continue;      // the test overlay itself
       const tag = el.tagName.toLowerCase();
@@ -7979,12 +8052,106 @@ const TESTS = [
       if (r.width < 1 || r.height < 1) continue;
       const px = parseFloat(cs.fontSize);
       if (px >= FLOOR) continue;
+      // A file another agent held during b227's wave. Counted, not ignored:
+      // if a handoff lands and the count does not drop, that shows up here.
+      const owner = typeHandoffOwner(el);
+      if (owner) { pending[owner] = (pending[owner] || 0) + 1; continue; }
       bad.push(tag + (el.id ? '#' + el.id : '') +
         (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/)[0] : '') +
         ' @ ' + px + 'px "' + own.slice(0, 24) + '"');
     }
     assert(bad.length === 0,
-      bad.length + ' rendered element(s) below the ' + FLOOR + 'px floor: ' + bad.slice(0, 6).join(' | '));
+      bad.length + ' rendered element(s) below the ' + FLOOR + 'px floor: ' + bad.slice(0, 6).join(' | ')
+      + (Object.keys(pending).length ? ' | (pending handoffs, not counted: ' + JSON.stringify(pending) + ')' : ''));
+  }),
+
+  // b227 (#19d): the dial must be able to REACH the type. A font-size written
+  // as a bare `14px` is a size no player setting can change — it is exactly
+  // the shape of the bug the click-through audit found (a "UI scale" control
+  // with nothing downstream of it). Every size in the five sheets this project
+  // sweeps must therefore be `calc(<n>px * var(--ui-scale …))` or a --t-* token
+  // (which is that calc). Sheets not yet swept are handoffs, not failures.
+  () => tryRun('b227: every font-size in the owned sheets is reachable by the UI-scale dial', () => {
+    const unreachable = [];
+    const scan = (rules, href) => {
+      for (const rule of rules) {
+        if (rule.cssRules && rule.cssRules.length) scan(rule.cssRules, href);
+        if (!rule.style || !rule.selectorText) continue;
+        const raw = (rule.style.getPropertyValue('font-size') || '').trim();
+        if (!raw) continue;
+        if (/var\(\s*--ui-scale/.test(raw)) continue;       // the scalable form
+        if (/var\(\s*--t-/.test(raw)) continue;             // a token, which is that form
+        if (/^0(px)?$/.test(raw)) continue;                 // glyph suppression
+        if (/^(inherit|initial|unset|revert|smaller|larger|100%|1em)$/.test(raw)) continue; // relative: scales with its parent
+        if (/%|em$/.test(raw)) continue;                    // ditto
+        unreachable.push(href.replace(/^.*\//, '') + ' — ' + rule.selectorText.slice(0, 70) + ' @ ' + raw);
+      }
+    };
+    let sheetsSeen = 0;
+    for (const sheet of document.styleSheets) {
+      if (!sheet.href || !TYPE_OWNED_SHEETS.test(sheet.href)) continue;
+      let rules = null;
+      try { rules = sheet.cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      sheetsSeen++;
+      scan(rules, sheet.href);
+    }
+    // Guard the guard: if the href pattern ever stops matching, this test
+    // would pass on zero sheets. b225 shipped a vacuous version of #19b for
+    // exactly this class of reason.
+    assert(sheetsSeen >= 4, 'only ' + sheetsSeen + ' owned sheet(s) were scanned — the test is not looking at the CSS');
+    assert(unreachable.length === 0,
+      unreachable.length + ' font-size(s) the dial cannot reach: ' + unreachable.slice(0, 6).join(' | '));
+  }),
+
+  // b227 (#19e): the dial itself. The shipped "UI scale" select wrote
+  // G.settings.scale and NOTHING read it — the audit measured documentElement
+  // zoom 1 -> 1 and font-size 16px -> 16px at the 150% setting. This asserts
+  // the opposite: a real element's real computed size moves with the control,
+  // the range clamps, and the choice survives on the storage seam.
+  () => tryRun('b227: the UI-scale dial moves a real computed size, clamps, and persists', () => {
+    const S = window.HearthriseUIScale;
+    assert(S && typeof S.set === 'function' && typeof S.get === 'function',
+      'window.HearthriseUIScale missing — the Settings dial has no controller');
+    assert(S.MIN === 90 && S.MAX === 130 && S.STEP === 5 && S.DEFAULT === 100,
+      'dial range changed: ' + S.MIN + '-' + S.MAX + ' step ' + S.STEP + ' default ' + S.DEFAULT);
+
+    const before = S.get();
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;font-size:var(--t-body)';
+    document.body.appendChild(probe);
+    try {
+      S.apply(100);
+      const at100 = parseFloat(getComputedStyle(probe).fontSize);
+      S.apply(130);
+      const at130 = parseFloat(getComputedStyle(probe).fontSize);
+      S.apply(90);
+      const at90 = parseFloat(getComputedStyle(probe).fontSize);
+      assert(Math.abs(at130 / at100 - 1.3) < 0.001,
+        '130% gave ' + at130 + 'px against ' + at100 + 'px — ratio ' + (at130 / at100).toFixed(3));
+      assert(Math.abs(at90 / at100 - 0.9) < 0.001,
+        '90% gave ' + at90 + 'px against ' + at100 + 'px');
+
+      // Out of range is clamped, not obeyed — 150% was a shipped option and
+      // must not silently come back as a save value.
+      assert(S.set(400, false) === S.MAX, 'a 400% request must clamp to ' + S.MAX);
+      assert(S.set(10, false) === S.MIN, 'a 10% request must clamp to ' + S.MIN);
+      assert(S.set(103, false) === 105, '103 must snap to the 5% step grid, got ' + S.set(103, false));
+
+      // Persistence: through the platform seam AND onto the per-account save.
+      S.set(115, true);
+      const store = window.HearthriseStorage;
+      assert(store && store.get(S.KEY) === '115',
+        'the seam holds "' + (store && store.get(S.KEY)) + '" after setting 115%');
+      assert(window.G && window.G.settings && window.G.settings.uiScale === 115,
+        'G.settings.uiScale is ' + (window.G && window.G.settings && window.G.settings.uiScale) + ' — the choice will not follow the account');
+      // And the dead key it replaced must not come back.
+      assert(!('scale' in window.G.settings),
+        'G.settings.scale is back — that is the control the audit found dead');
+    } finally {
+      probe.remove();
+      S.set(before, true);
+    }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════

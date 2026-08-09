@@ -79,28 +79,28 @@
       '.hr-cl-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px}',
       '.hr-cl-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:520px;max-height:88vh;overflow:auto;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
       '.hr-cl-top{padding:16px 18px 12px;position:sticky;top:0;background:var(--bg-1,#1a1f2e);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2));z-index:2}',
-      '.hr-cl-hn{font-family:var(--f-display,serif);font-size:20px;font-weight:800;color:var(--gold,#e0a64a)}',
-      '.hr-cl-eyebrow{font-size:13.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
-      '.hr-cl-x{position:absolute;top:12px;right:14px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));color:var(--ink-2,#cbb890);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px}',
+      '.hr-cl-hn{font-family:var(--f-display,serif);font-size:calc(21px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a)}',
+      '.hr-cl-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
+      '.hr-cl-x{position:absolute;top:12px;right:14px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));color:var(--ink-2,#cbb890);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:calc(16px * var(--ui-scale, 1))}',
       '.hr-cl-bar{height:8px;border-radius:99px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));overflow:hidden;margin:9px 0 3px}',
       '.hr-cl-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2,#c8862a),var(--gold,#e0a64a))}',
       '.hr-cl-tabs{display:flex;gap:6px;padding:10px 12px 0}',
-      '.hr-cl-tab{flex:1;text-align:center;padding:8px;border-radius:9px 9px 0 0;border:1px solid transparent;cursor:pointer;font-weight:700;font-size:13.5px;color:var(--ink-3,#a5896a)}',
+      '.hr-cl-tab{flex:1;text-align:center;padding:8px;border-radius:9px 9px 0 0;border:1px solid transparent;cursor:pointer;font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}',
       '.hr-cl-tab.on{color:var(--ink,#e9e2cf);background:color-mix(in srgb,var(--gold,#e0a64a) 10%,transparent);border-color:var(--line-soft,rgba(122,94,58,.25))}',
       '.hr-cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px;padding:12px}',
       '.hr-cl-cell{aspect-ratio:1;border-radius:9px;border:1px solid var(--line-soft,rgba(122,94,58,.25));background:var(--bg-2,#2c2216);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px;text-align:center;overflow:hidden}',
       '.hr-cl-cell.miss{opacity:.4;filter:grayscale(1)}',
-      '.hr-cl-ic{font-size:24px;line-height:1}',
-      '.hr-cl-nm{font-size:13.5px;color:var(--ink-3,#a5896a);line-height:1.05;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}',
-      '.hr-cl-sec{padding:2px 12px;font-size:13.5px;font-weight:700;color:var(--gold-2,#c8862a);text-transform:uppercase;letter-spacing:.08em}',
+      '.hr-cl-ic{font-size:calc(25px * var(--ui-scale, 1));line-height:1}',
+      '.hr-cl-nm{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);line-height:1.05;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}',
+      '.hr-cl-sec{padding:2px 12px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;color:var(--gold-2,#c8862a);text-transform:uppercase;letter-spacing:.08em}',
       '.hr-cl-ms{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:6px 12px;border:1px solid var(--gold,#e0a64a);border-radius:10px;background:color-mix(in srgb,var(--gold,#e0a64a) 10%,transparent)}',
-      '.hr-cl-msb{flex:1;font-size:13.5px}',
-      '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:13.5px;cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
+      '.hr-cl-msb{flex:1;font-size:calc(14.5px * var(--ui-scale, 1))}',
+      '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-cl-detail{padding:14px}',
-      '.hr-cl-stats{padding:2px 12px;font-size:13.5px;color:var(--ink-2,#cbb890);line-height:1.5}',
-      '.hr-cl-drop{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 9px;border-radius:7px;background:var(--bg-2,#2c2216);margin:4px 0;font-size:13.5px}',
+      '.hr-cl-stats{padding:2px 12px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2,#cbb890);line-height:1.5}',
+      '.hr-cl-drop{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 9px;border-radius:7px;background:var(--bg-2,#2c2216);margin:4px 0;font-size:calc(14.5px * var(--ui-scale, 1))}',
       '.hr-cl-drop b{color:var(--gold,#e0a64a);font-variant-numeric:tabular-nums}',
-      '.hr-cl-drop em{color:var(--ink-3,#a5896a);font-style:normal;font-size:13.5px}'
+      '.hr-cl-drop em{color:var(--ink-3,#a5896a);font-style:normal;font-size:calc(14.5px * var(--ui-scale, 1))}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -127,8 +127,8 @@
     }).join('') || '<div class="hr-cl-drop"><span>No drops</span></div>';
     return '<div class="hr-cl-detail">' +
       '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
-      '<div style="text-align:center"><div style="font-size:46px;line-height:1">' + (M.icon || '❔') + '</div>' +
-      '<div class="hr-cl-hn" style="font-size:22px">' + M.name + '</div>' +
+      '<div style="text-align:center"><div style="font-size:calc(46px * var(--ui-scale, 1));line-height:1">' + (M.icon || '❔') + '</div>' +
+      '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + M.name + '</div>' +
       '<div class="hr-cl-eyebrow">Tier ' + (M.tier || 1) + ' · ' + (M.family || '') + ' · ' + fmt(b.kills || 0) + ' slain</div></div>' +
       '<div class="hr-cl-sec">Combat</div>' +
       '<div class="hr-cl-stats">❤️ ' + M.hp + ' HP · ⚔️ ' + M.atk + ' ATK · 🛡️ ' + M.def + ' DEF · ✨ ' + M.xp + ' xp · weak to ' + (M.weaponWeak || '—') + '</div>' +
@@ -162,8 +162,8 @@
     var have = (window.G.collection || {})[id];
     return '<div class="hr-cl-detail">' +
       '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
-      '<div style="text-align:center"><div style="font-size:46px;line-height:1">' + (it.icon || '❔') + '</div>' +
-      '<div class="hr-cl-hn" style="font-size:22px">' + it.n + '</div>' +
+      '<div style="text-align:center"><div style="font-size:calc(46px * var(--ui-scale, 1));line-height:1">' + (it.icon || '❔') + '</div>' +
+      '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + it.n + '</div>' +
       '<div class="hr-cl-eyebrow">Worth ' + fmt(it.v || 0) + ' gold' + (have ? ' · discovered' : '') + '</div></div>' +
       (props.length ? '<div class="hr-cl-sec">Properties</div><div class="hr-cl-stats">' + props.join('<br>') + '</div>' : '') +
       '<div class="hr-cl-sec">Where it drops</div><div class="hr-cl-stats">' + (src.length ? src.join(', ') : 'Not a monster drop — gathered, crafted, or bought.') + '</div>' +

@@ -47,6 +47,10 @@
  * rounded sans — which is what a dashboard does, and it was applied to twelve
  * different levels of the hierarchy at once, flattening all of them.
  * ------------------------------------------------------------------------ */
+
+/* The dial's own rule — <html> and nothing else. See the note below. */
+:root { --ui-scale: 1; }
+
 :root,
 body[data-theme="hearthlight"] {
   --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
@@ -54,29 +58,53 @@ body[data-theme="hearthlight"] {
   --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
   --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
 
+  /* ── THE UI SCALE DIAL ────────────────────────────────────────────────
+   * Settings › Display › UI scale writes this onto <html> (0.90–1.30, 5%
+   * steps, default 1). It is the ONE choke-point for text size in the game:
+   * every font-size in every sheet — and in every JS-injected <style> — is
+   * written as `calc(<step>px * var(--ui-scale, 1))`, so one variable moves
+   * all of it. That form is mandatory. A bare `font-size:calc(15px * var(--ui-scale, 1))` is a size
+   * the player's dial cannot reach, and the smoke guard fails on one.
+   *
+   * The `, 1` fallback is not decoration: injected <style> blocks and the
+   * account wall paint before this sheet is guaranteed to have applied, and
+   * an unresolved var() would invalidate the whole declaration and drop the
+   * element to its inherited size.
+   *
+   * It is declared in its OWN :root rule below, deliberately NOT in this
+   * shared `:root, body[data-theme=...]` block — a copy on <body> would
+   * re-declare 1 one level below <html> and swallow the dial's inline value
+   * whole. (Measured: the first cut of this shipped a dial that moved 0 of
+   * 1,694 rendered elements for exactly that reason.) */
+
   /* One scale, eight steps. If a size isn't on this list it shouldn't exist.
-     b218 raised the whole ramp ~13% (body 14 -> 16) and Tyler said it was STILL
-     too small "in a lot of places". A proportional scale can't fix that: it
-     multiplies the base and leaves the bottom of the ramp proportionally tiny.
-     A measurement of every visible text element on 19 screens found HALF of
-     them (971 / 1962) still rendering under 13.5px.
+     b218 raised the whole ramp ~13% (body 14 -> 16). Tyler said it was STILL
+     too small. b225 answered with a FLOOR (13.5px) instead of a multiplier,
+     and moved 1,093 sub-floor elements onto it. Tyler said it was STILL too
+     small — a THIRD time — and the measurement says exactly why:
 
-     b225 therefore raises the FLOOR, not the base. --t-body is deliberately
-     unchanged; micro and small close on it instead, which compresses the ramp
-     at the bottom where the reading problem actually was. The floor is 13.5px
-     and nothing a player must read may sit below it (guarded in smoke-test.js).
+       after b225, 1,093 of 2,112 visible text elements (51.8%) sat at
+       EXACTLY 13.5px. Half the game's text was standing ON the floor, so
+       the floor value *was* the reading experience, and 13.5px is under
+       what a desktop monitor at arm's length comfortably resolves.
 
-     --t-h3 gets +1px over its tier because it is set in Alegreya Sans SC:
-     genuine small caps have no ascenders and a cap-height near the x-height of
-     the regular face, so 14.5px SC reads roughly like 12.5px regular. */
-  --t-micro: 13.5px; /* unit labels, counts — THE FLOOR */
-  --t-small: 15px;   /* supporting text */
-  --t-body: 16px;    /* default */
-  --t-lead: 17.5px;  /* row titles, emphasis */
-  --t-h3: 15.5px;    /* small-caps section label (+1 for the SC face) */
-  --t-h2: 21.5px;    /* panel title */
-  --t-h1: 30px;      /* screen title */
-  --t-num: 26px;     /* hero value */
+     b227 raises the floor to 14.5 and lifts every step by the same +1, so
+     the ramp keeps its separations exactly (13.5/15/16/17.5 -> 14.5/16/17/
+     18.5). A floor that half the game sits on has to be a comfortable size,
+     not a minimum-acceptable one — and the dial above is the honest answer
+     to "still too small" that a fourth hardcoded bump would not be.
+
+     --t-h3 keeps its +1 over its tier because it is set in Alegreya Sans SC:
+     genuine small caps have no ascenders and a cap-height near the x-height
+     of the regular face, so 15.5px SC reads roughly like 13.5px regular. */
+  --t-micro: calc(14.5px * var(--ui-scale, 1)); /* unit labels, counts — THE FLOOR */
+  --t-small: calc(16px   * var(--ui-scale, 1)); /* supporting text */
+  --t-body:  calc(17px   * var(--ui-scale, 1)); /* default */
+  --t-lead:  calc(18.5px * var(--ui-scale, 1)); /* row titles, emphasis */
+  --t-h3:    calc(16.5px * var(--ui-scale, 1)); /* small-caps section label (+1 for the SC face) */
+  --t-h2:    calc(22.5px * var(--ui-scale, 1)); /* panel title */
+  --t-h1:    calc(31px   * var(--ui-scale, 1)); /* screen title */
+  --t-num:   calc(27px   * var(--ui-scale, 1)); /* hero value */
 
   /* ── 2. SHAPE ──────────────────────────────────────────────────────────
    * Near-square. Stone and iron have arrises, not 16px fillets. A 3px radius
@@ -393,7 +421,7 @@ body[data-theme] .player-avatar {
 body[data-theme] .player-name {
   font-family: var(--f-display);
   font-weight: 600;
-  font-size: 16.5px;
+  font-size:calc(17.5px * var(--ui-scale, 1));
   letter-spacing: .01em;
   color: var(--ink);
 }
@@ -406,14 +434,14 @@ body[data-theme] .t-stat {
   border: 0;
   border-radius: 0;
   padding: 4px 11px;
-  font-size: 15px;
+  font-size:calc(16px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-2);
   gap: 6px;
 }
 body[data-theme] .t-stat .lab {
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -479,7 +507,7 @@ body[data-theme] #hr-quests-btn {
   border-radius: var(--r-sm);
   color: var(--ink-2);
   font-family: var(--f-label);
-  font-size: 15px;
+  font-size:calc(16px * var(--ui-scale, 1));
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -500,7 +528,7 @@ body[data-theme] #hr-quests-btn .hr-q-count {
   border-radius: 2px;
   font-family: var(--f-ui);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   padding: 1px 6px;
   min-width: 17px;
 }
@@ -590,7 +618,7 @@ body[data-theme] .ce-champ {
 }
 body[data-theme] .ce-standby {
   font-family: var(--f-display);
-  font-size: 21.5px;
+  font-size:calc(22.5px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--ink);
   margin-top: 16px;
@@ -627,16 +655,16 @@ body[data-theme] .ce-next-body { flex: 1; min-width: 0; display: block; }
 body[data-theme] .ce-next-lbl {
   display: block;
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-3);
 }
-body[data-theme] .ce-next-body b { display: block; font-size: 17.5px; color: var(--ink); line-height: 1.2; }
+body[data-theme] .ce-next-body b { display: block; font-size:calc(18.5px * var(--ui-scale, 1)); color: var(--ink); line-height: 1.2; }
 body[data-theme] .ce-next-meta { display: block; font-size: var(--t-micro); color: var(--ink-3); margin-top: 2px; }
 body[data-theme] .ce-next-go {
   flex: 0 0 auto;
   font-family: var(--f-label);
-  font-size: 15px;
+  font-size:calc(16px * var(--ui-scale, 1));
   font-weight: 700;
   color: #221803;
   padding: 7px 15px;
@@ -660,12 +688,12 @@ body[data-theme] .monster-row:hover:not(:disabled) { background: rgba(255, 236, 
 body[data-theme] .monster-row.fighting { background: rgba(178, 58, 44, .14); box-shadow: inset 3px 0 0 var(--red); border-color: transparent; }
 body[data-theme] .monster-row .mi { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; }
 body[data-theme] .monster-row .mi img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65)); }
-body[data-theme] .monster-row .mn { font-size: 16.5px; font-weight: 600; color: var(--ink); }
+body[data-theme] .monster-row .mn { font-size:calc(17.5px * var(--ui-scale, 1)); font-weight: 600; color: var(--ink); }
 body[data-theme] .monster-row .ms { font-size: var(--t-micro); color: var(--ink-3); font-weight: 500; }
 body[data-theme] .mr-stats { display: flex; gap: 14px; flex: 0 0 auto; }
 body[data-theme] .mr-stats i {
   font-style: normal;
-  font-size: 16px;
+  font-size:calc(17px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-2);
   text-align: right;
@@ -676,7 +704,7 @@ body[data-theme] .mr-stats em {
   display: block;
   font-style: normal;
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 1px;
@@ -686,11 +714,11 @@ body[data-theme] .mr-lock {
   font-size: var(--t-micro); font-weight: 600; color: var(--ink-3);
 }
 body[data-theme] .mr-fighting {
-  font-family: var(--f-label); font-size: 13.5px; font-weight: 700; color: #d98b78;
+  font-family: var(--f-label); font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700; color: #d98b78;
 }
 body[data-theme] .tag {
   font-family: var(--f-label);
-  font-size: 13.5px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
+  font-size:calc(14.5px * var(--ui-scale, 1)); padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
   background: rgba(201, 162, 74, .16); color: var(--gold-2);
   border: 1px solid rgba(201, 162, 74, .3);
   vertical-align: 1px;
@@ -714,7 +742,7 @@ body[data-theme] .csb-btn.active {
   color: var(--gold-2);
   border-color: rgba(201, 162, 74, .45);
 }
-body[data-theme] .csb-btn small { display: block; font-size: 13.5px; color: inherit; opacity: .72; }
+body[data-theme] .csb-btn small { display: block; font-size:calc(14.5px * var(--ui-scale, 1)); color: inherit; opacity: .72; }
 
 /* ── 13. SKILLS ──────────────────────────────────────────────────────────
  * Two problems, both hierarchy:
@@ -766,7 +794,7 @@ body[data-theme] .skill-tile .st-ic img { width: 30px; height: 30px; object-fit:
 body[data-theme] .skill-tile .st-body { display: block; min-width: 0; }
 body[data-theme] .skill-tile .snm {
   display: block;
-  font-size: 16px;
+  font-size:calc(17px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 5px;
@@ -774,7 +802,7 @@ body[data-theme] .skill-tile .snm {
 body[data-theme] .skill-tile .bar.xp { display: block; width: 100%; height: 4px; }
 body[data-theme] .skill-tile .slv {
   font-family: var(--f-display);
-  font-size: 20.5px;
+  font-size:calc(21.5px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--ink);
   min-width: 24px;
@@ -822,14 +850,14 @@ body[data-theme] .act-tile .at-icon img {
 body[data-theme] .at-name {
   font-family: var(--f-ui);
   font-weight: 600;
-  font-size: 16px;
+  font-size:calc(17px * var(--ui-scale, 1));
   letter-spacing: 0;
   color: var(--ink);
   margin-bottom: 3px;
 }
 body[data-theme] .at-meta { font-size: var(--t-micro); color: var(--ink-3); }
 body[data-theme] .at-inputs {
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   color: var(--ink-3);
   opacity: .82;
   margin-top: 4px;
@@ -878,7 +906,7 @@ body[data-theme] .at-stop {
   background: var(--gold);
   color: #1b1305;
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -939,14 +967,14 @@ body[data-theme] .act-head {
 }
 body[data-theme] .act-head .ah-name {
   font-family: var(--f-display);
-  font-size: 23.5px;
+  font-size:calc(24.5px * var(--ui-scale, 1));
   font-weight: 600;
   letter-spacing: .01em;
   color: var(--ink);
 }
 body[data-theme] .act-head .ah-lvl {
   font-family: var(--f-display);
-  font-size: 28px;
+  font-size:calc(29px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--gold-2);
   line-height: 1;
@@ -958,7 +986,7 @@ body[data-theme] .act-head .ah-lvl {
 body[data-theme] .act-head .ah-lvl em {
   font-family: var(--f-label);
   font-style: normal;
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-3);
 }
@@ -1066,7 +1094,7 @@ body[data-theme] .invc-tile .invc-qty {
   left: auto; bottom: 2px; right: 3px;
   background: none;
   padding: 0;
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   color: #f0e2c2;
   text-shadow: 0 1px 2px #000, 0 0 3px #000;
@@ -1099,7 +1127,7 @@ body[data-theme] .iap-card .iap-icon {
 body[data-theme] .iap-card.gem .iap-icon { color: #8f9de0; }
 body[data-theme] .iap-card h3 {
   font-family: var(--f-display);
-  font-size: 19px;
+  font-size:calc(20px * var(--ui-scale, 1));
   font-weight: 600;
   letter-spacing: .01em;
   color: var(--ink);
@@ -1122,7 +1150,7 @@ body[data-theme] .iap-card .iap-foot {
 }
 body[data-theme] .iap-card .iap-price {
   font-family: var(--f-display);
-  font-size: 23.5px;
+  font-size:calc(24.5px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--ink);
   line-height: 1.1;
@@ -1140,7 +1168,7 @@ body[data-theme] .iap-card .btn { min-height: 34px; padding: 0 18px; font-size: 
 /* Ribbons were four different pill colours in four corners. One treatment. */
 body[data-theme] .iap-card .ribbon {
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -1164,7 +1192,7 @@ body[data-theme] .shop-row {
 body[data-theme] .shop-row:hover { background: rgba(255, 236, 200, .035); }
 body[data-theme] .shop-row .si { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; }
 body[data-theme] .shop-row .si img { width: 34px; height: 34px; object-fit: contain; }
-body[data-theme] .shop-row .info b { font-size: 16px; font-weight: 600; color: var(--ink); }
+body[data-theme] .shop-row .info b { font-size:calc(17px * var(--ui-scale, 1)); font-weight: 600; color: var(--ink); }
 body[data-theme] .shop-row .info > span { font-size: var(--t-micro); color: var(--ink-3); }
 /* Cost chips must stay inline wherever they're embedded. */
 body[data-theme] .hr-inline { display: inline-flex !important; align-items: center; white-space: nowrap; }
@@ -1272,7 +1300,7 @@ body[data-theme] .farm-tile.empty { border-style: solid; opacity: 1; }
 /* The plant affordance reads as an action, not as a "+" placeholder. */
 body[data-theme] .farm-tile .ft-plant {
   font-family: var(--f-label);
-  font-size: 15px;
+  font-size:calc(16px * var(--ui-scale, 1));
   font-weight: 700;
   letter-spacing: .02em;
   color: #221803;
@@ -1338,7 +1366,7 @@ body[data-theme] .farm-tile.ready {
   border-color: rgba(201, 162, 74, .65);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), 0 0 20px -8px rgba(201, 162, 74, .75);
 }
-body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 15px; }
+body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size:calc(16px * var(--ui-scale, 1)); }
 
 /* ── 19. HOMESTEAD ───────────────────────────────────────────────────────
  * The property block was a paragraph of stats and a run-on requirement
@@ -1351,7 +1379,7 @@ body[data-theme] .hh-stats { display: flex; gap: 26px; margin: 10px 0 14px; }
 body[data-theme] .hh-stat b {
   display: block;
   font-family: var(--f-ui);
-  font-size: 23.5px;
+  font-size:calc(24.5px * var(--ui-scale, 1));
   font-weight: 600;
   color: var(--ink);
   line-height: 1;
@@ -1360,7 +1388,7 @@ body[data-theme] .hh-stat b {
 body[data-theme] .hh-stat span {
   display: block;
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 4px;
@@ -1433,10 +1461,10 @@ body[data-theme] .cr-slot .cr-slot-portrait {
   color: var(--ink-3);
 }
 body[data-theme] .cr-slot.active .cr-slot-portrait { border-color: rgba(201, 162, 74, .7); }
-body[data-theme] .cr-slot .cr-slot-name { font-size: 16.5px; font-weight: 600; letter-spacing: .01em; }
+body[data-theme] .cr-slot .cr-slot-name { font-size:calc(17.5px * var(--ui-scale, 1)); font-weight: 600; letter-spacing: .01em; }
 body[data-theme] .cr-slot .cr-slot-badge {
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -1475,9 +1503,9 @@ body[data-theme] .cr-stat-row > span:first-child { color: var(--ink-3); font-siz
 body[data-theme] .cr-stat-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
 body[data-theme] .cr-bonus { color: #9ab76a; font-size: var(--t-micro); font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Hero header stat tiles */
-body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size: 26px; font-weight: 600; }
+body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size:calc(27px * var(--ui-scale, 1)); font-weight: 600; }
 body[data-theme] .cr-hero-stat span {
-  font-family: var(--f-label); font-size: 13.5px; letter-spacing: .02em;
+  font-family: var(--f-label); font-size:calc(14.5px * var(--ui-scale, 1)); letter-spacing: .02em;
   text-transform: none; font-weight: 700;
 }
 
@@ -1495,10 +1523,10 @@ body[data-theme] .bounty-option {
 body[data-theme] .bo-head { display: flex; align-items: center; gap: 10px; }
 body[data-theme] .bo-art { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; }
 body[data-theme] .bo-art img { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
-body[data-theme] .bo-head b { font-size: 17.5px; font-weight: 600; color: var(--ink); flex: 1; }
+body[data-theme] .bo-head b { font-size:calc(18.5px * var(--ui-scale, 1)); font-weight: 600; color: var(--ink); flex: 1; }
 body[data-theme] .bounty-chip {
   font-family: var(--f-label);
-  font-size: 13.5px; font-weight: 700; letter-spacing: .02em; text-transform: none;
+  font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700; letter-spacing: .02em; text-transform: none;
   padding: 2px 9px; border-radius: var(--r-sm);
   background: rgba(236, 225, 204, .06); color: var(--ink-3);
   border: 1px solid rgba(236, 225, 204, .08);
@@ -1516,14 +1544,14 @@ body[data-theme] .bounty-reward {
 }
 body[data-theme] .bo-foot .btn { flex: 0 0 auto; min-width: 96px; }
 body[data-theme] .bounty-marks {
-  font-family: var(--f-display); font-size: 26px; font-weight: 600;
+  font-family: var(--f-display); font-size:calc(27px * var(--ui-scale, 1)); font-weight: 600;
   color: var(--gold-2); text-align: right;
   display: flex; align-items: baseline; justify-content: flex-end; gap: 7px;
   font-variant-numeric: tabular-nums;
   margin-bottom: 10px;
 }
 body[data-theme] .bounty-marks em {
-  font-family: var(--f-label); font-style: normal; font-size: 13.5px;
+  font-family: var(--f-label); font-style: normal; font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 700; color: var(--ink-3);
 }
 /* Unlock ladder — was ten inline-styled pills in a #3fb950 green that belongs
@@ -1707,7 +1735,7 @@ body[data-theme] .activity-bar.v2 .ab-icon {
 }
 body[data-theme] .activity-bar.v2 .ab-name {
   font-family: var(--f-label);
-  font-size: 15.5px;
+  font-size:calc(16.5px * var(--ui-scale, 1));
   font-weight: 700;
   letter-spacing: .02em;
   color: var(--ink-2);
@@ -1828,7 +1856,7 @@ body[data-theme] #panel-inventory .invc-tile:not(.invc-slot) {
   box-shadow: inset 0 1px 0 rgba(255, 240, 210, .16), 0 1px 2px rgba(0, 0, 0, .6);
 }
 body[data-theme] .mr-active {
-  font-family: var(--f-label); font-size: 13.5px; font-weight: 700;
+  font-family: var(--f-label); font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700;
   letter-spacing: .02em; color: #9ab76a;
 }
 body[data-theme] .weak-tag { display: inline-flex; align-items: center; gap: 5px; }
@@ -1882,7 +1910,7 @@ body[data-theme] .td-doll .td-slot:has(img) {
 }
 body[data-theme] .td-doll .td-slot .td-slot-lbl {
   font-family: var(--f-label);
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -2002,7 +2030,7 @@ body[data-theme] .brand-word {
 body[data-theme] .brand-title {
   font-family: var(--f-display);
   font-weight: 700;
-  font-size: 18.5px;
+  font-size:calc(19.5px * var(--ui-scale, 1));
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .07em;
@@ -2020,7 +2048,7 @@ body[data-theme] .brand-title {
 body[data-theme] .brand-tagline {
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size:calc(14.5px * var(--ui-scale, 1));
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .3em;

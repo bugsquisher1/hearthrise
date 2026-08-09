@@ -33,17 +33,17 @@
       + "font-family:'Quicksand',system-ui,sans-serif;"
       + 'box-shadow:0 8px 24px rgba(60,40,16,.4)">'
       +   '<div style="text-align:center">'
-      +     "<div style=\"font-family:'Cinzel',serif;font-size:13.5px;letter-spacing:.22em;color:#7a4623;margin-bottom:6px;text-transform:uppercase\">Welcome, traveler</div>"
-      +     "<h2 style=\"font-family:'Cinzel',serif;color:#5c2d08;font-size:24px;letter-spacing:.04em;margin:0 0 14px\">"
+      +     "<div style=\"font-family:'Cinzel',serif;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.22em;color:#7a4623;margin-bottom:6px;text-transform:uppercase\">Welcome, traveler</div>"
+      +     "<h2 style=\"font-family:'Cinzel',serif;color:#5c2d08;font-size:calc(25px * var(--ui-scale, 1));letter-spacing:.04em;margin:0 0 14px\">"
       +       (displayName ? esc(displayName) : 'Adventurer')
       +     '</h2>'
-      +     '<p style="margin:0 0 12px;font-size:15px;line-height:1.55">Your save is now syncing to the cloud — pick up on any device any time.</p>'
-      +     '<p style="margin:0 0 18px;font-size:15px;line-height:1.55"><b>First step:</b> head to <b>Activities</b> and start training a skill. Every action earns XP, even while you\'re away.</p>'
+      +     '<p style="margin:0 0 12px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55">Your save is now syncing to the cloud — pick up on any device any time.</p>'
+      +     '<p style="margin:0 0 18px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55"><b>First step:</b> head to <b>Activities</b> and start training a skill. Every action earns XP, even while you\'re away.</p>'
       +     '<div style="display:flex;gap:8px;justify-content:center">'
       +       '<button id="hr-psw-go" style="'
       +         'background:linear-gradient(180deg,#d44a3a,#8b2a1f);color:#fff8e2;'
       +         'border:2px solid #5a1208;border-radius:4px;'
-      +         "font-family:'Cinzel',serif;font-size:13.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;"
+      +         "font-family:'Cinzel',serif;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.18em;text-transform:uppercase;font-weight:700;"
       +         'padding:10px 20px;cursor:pointer;'
       +         'box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 4px rgba(60,40,16,.3)">'
       +         'Train your first skill →'
@@ -51,7 +51,7 @@
       +       '<button id="hr-psw-close" style="'
       +         'background:rgba(255,247,224,.7);color:#3d2817;'
       +         'border:1px solid #b8893e;border-radius:4px;'
-      +         "font-family:'Cinzel',serif;font-size:13.5px;letter-spacing:.12em;text-transform:uppercase;"
+      +         "font-family:'Cinzel',serif;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.12em;text-transform:uppercase;"
       +         'padding:10px 16px;cursor:pointer">'
       +         'Look around first'
       +       '</button>'

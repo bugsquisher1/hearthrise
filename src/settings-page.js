@@ -24,6 +24,112 @@
 (function(){
   'use strict';
 
+  // ══════════════════════════════════════════════════════════════════════
+  // UI SCALE (b227) — Settings › Display
+  //
+  // The click-through audit (finding #2) caught the shipped "UI scale"
+  // select writing G.settings.scale with NO consumer anywhere: setting it
+  // to 150% left documentElement zoom at 1, font-size at 16px and the app
+  // width at 1440. It was the control a player reaches for immediately
+  // BEFORE filing "text is too small" — so it was actively teaching
+  // players that the game could not be made readable.
+  //
+  // How the real one works. Every font-size in the game is authored as
+  // `calc(<step>px * var(--ui-scale, 1))` — the CSS token ramp in
+  // art-direction.css and all 877 hardcoded declarations across the five
+  // sheets and the JS-injected <style> blocks. This controller writes ONE
+  // custom property onto <html>, and every one of them recomputes. There
+  // is no zoom, no transform and no layout hack: nothing moves except the
+  // type, which is what the complaint is actually about.
+  //
+  // Deliberately NOT documentElement.style.fontSize: the codebase is
+  // px-authored, not rem-authored (a rem base would move exactly nothing),
+  // and NOT CSS `zoom`, which does not change computed font-size and so
+  // cannot be asserted on in a test.
+  //
+  // Range 90–130% in 5% steps. 130% is the ceiling because it is the
+  // largest value measured clean — past it the fixed-height chrome (the
+  // topbar pills, the sidebar rail) starts to clip, and a dial that breaks
+  // the layout at its top end is a dial that half-works.
+  //
+  // Persistence is two-layer on purpose:
+  //   • G.settings.uiScale — the truth, rides the per-account save (and
+  //     the cloud sync with it), so the choice follows the account.
+  //   • hearthrise:ui-scale via the platform storage seam — a device
+  //     mirror, applied at script load so the first painted frame is
+  //     already at the player's size instead of flashing 100% first.
+  // ══════════════════════════════════════════════════════════════════════
+  var UI_SCALE_KEY  = 'hearthrise:ui-scale';
+  var SCALE_MIN     = 90;
+  var SCALE_MAX     = 130;
+  var SCALE_STEP    = 5;
+  var SCALE_DEFAULT = 100;
+
+  function store(){ return window.HearthriseStorage || null; }
+
+  function clampScale(n){
+    n = Number(n);
+    if(!isFinite(n)) return SCALE_DEFAULT;
+    n = Math.round(n / SCALE_STEP) * SCALE_STEP;
+    return Math.min(SCALE_MAX, Math.max(SCALE_MIN, n));
+  }
+
+  function readDeviceScale(){
+    var s = store();
+    var raw = null;
+    try { raw = s ? s.get(UI_SCALE_KEY) : window.localStorage.getItem(UI_SCALE_KEY); } catch(_){}
+    return raw == null || raw === '' ? SCALE_DEFAULT : clampScale(raw);
+  }
+
+  // The single choke-point. Everything else in this file goes through here.
+  function applyScale(pctValue){
+    var v = clampScale(pctValue);
+    document.documentElement.style.setProperty('--ui-scale', String(v / 100));
+    return v;
+  }
+
+  function getScale(){
+    var G = window.G;
+    if(G && G.settings && typeof G.settings.uiScale === 'number') return clampScale(G.settings.uiScale);
+    return readDeviceScale();
+  }
+
+  // persist=false is the live-preview path while a thumb is being dragged:
+  // paint every step, but do not write a save on each of the nine of them.
+  function setScale(pctValue, persist){
+    var v = applyScale(pctValue);
+    if(persist === false) return v;
+    var G = window.G;
+    if(G && G.settings) G.settings.uiScale = v;
+    var s = store();
+    try { if(s) s.set(UI_SCALE_KEY, String(v)); else window.localStorage.setItem(UI_SCALE_KEY, String(v)); } catch(_){}
+    if(typeof window.saveLocal === 'function') window.saveLocal();
+    return v;
+  }
+
+  // Boot: paint the device mirror immediately, then adopt the account's own
+  // value once the save has hydrated G.settings (a second account signing in
+  // on this device must get ITS size, not the last one used here).
+  function bootScale(){
+    applyScale(readDeviceScale());
+    var tries = 0;
+    var t = setInterval(function(){
+      var G = window.G;
+      if(G && G.settings){
+        clearInterval(t);
+        if(typeof G.settings.uiScale === 'number') applyScale(G.settings.uiScale);
+        else G.settings.uiScale = applyScale(readDeviceScale());
+      } else if(++tries > 300){ clearInterval(t); }
+    }, 100);
+  }
+
+  window.HearthriseUIScale = {
+    get: getScale, set: setScale, apply: applyScale,
+    MIN: SCALE_MIN, MAX: SCALE_MAX, STEP: SCALE_STEP, DEFAULT: SCALE_DEFAULT,
+    KEY: UI_SCALE_KEY,
+  };
+  bootScale();
+
   // Lazy-init defaults — guarantees fields exist before we read them.
   function ensureSettings(){
     var G = window.G;
@@ -36,7 +142,11 @@
     if(typeof d.muteOnBlur    !== 'boolean') d.muteOnBlur    = true;
     if(typeof d.reduceFx      !== 'boolean') d.reduceFx      = false;
     if(typeof d.leftHand      !== 'boolean') d.leftHand      = false;
-    if(typeof d.scale         !== 'string')  d.scale         = 'auto';
+    if(typeof d.uiScale       !== 'number')  d.uiScale       = readDeviceScale();
+    // b227: `scale` was a 6-option select nothing read (click-through audit
+    // finding #2). It is replaced by `uiScale`; drop the dead key so it stops
+    // riding every save.
+    if('scale' in d) delete d.scale;
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
     if(typeof d.autoEatPct    !== 'number')  d.autoEatPct    = (G.autoEatPct != null ? G.autoEatPct : 0.5);
@@ -63,31 +173,31 @@
     overlay.className = 'hr-auth-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
     var inviteRow = isSignUp
-      ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px;text-transform:uppercase;letter-spacing:1px" />'
+      ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:1px" />'
       : '';
     var nameRow = isSignUp
-      ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
+      ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       : '';
     overlay.innerHTML = ''
       + '<form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
       +   '<h3 style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
-      +   '<p style="margin:0;font-size:13.5px;color:#9aa3b0">' + (isSignUp
+      +   '<p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">' + (isSignUp
               ? 'Closed beta — you\'ll need an invite code from Tyler. Your local progress will move to the cloud automatically.'
               : 'Sync your save, join clans, climb leaderboards.') + '</p>'
       +   inviteRow
       +   nameRow
-      +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
-      +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
+      +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
+      +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '<div style="display:flex;gap:8px;margin-top:4px">'
       +     '<button type="submit" data-act="primary" style="flex:1;padding:9px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">'
       +       (isSignUp ? 'Create account' : 'Sign in')
       +     '</button>'
       +   '</div>'
-      +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:13.5px;text-decoration:underline">'
+      +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));text-decoration:underline">'
       +     (isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account')
       +   '</button>'
-      +   '<button type="button" data-act="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:13.5px">Cancel · Continue offline</button>'
-      +   '<div data-status style="font-size:13.5px;color:#e88a8a;min-height:14px;text-align:center"></div>'
+      +   '<button type="button" data-act="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel · Continue offline</button>'
+      +   '<div data-status style="font-size:calc(14.5px * var(--ui-scale, 1));color:#e88a8a;min-height:14px;text-align:center"></div>'
       + '</form>';
     var form = overlay.querySelector('form');
     var status = overlay.querySelector('[data-status]');
@@ -223,9 +333,23 @@
   // ── Display ────────────────────────────────────────────────
   function displayHtml(){
     var d = window.G.settings;
-    var scaleOpts = [
-      ['auto','Auto'], ['90','90%'], ['100','100%'], ['110','110%'], ['125','125%'], ['150','150%'],
-    ];
+    var scaleNow = getScale();
+    // Bespoke row rather than sliderRow(): this one previews live on `input`
+    // (every 5% step, as the thumb moves) and only writes the save on
+    // `change`, and its readout is a percentage of its own, not pct(0..1).
+    var scaleRow = ''
+      + '<div class="ss-row">'
+      +   '<div class="ss-label">UI scale</div>'
+      +   '<div class="ss-slider">'
+      +     '<input type="range" id="set-ui-scale" min="' + SCALE_MIN + '" max="' + SCALE_MAX + '"'
+      +       ' step="' + SCALE_STEP + '" value="' + scaleNow + '"'
+      +       ' aria-label="UI scale" aria-valuetext="' + scaleNow + ' percent" />'
+      +     '<span class="ss-slider-value" id="set-ui-scale-val">' + scaleNow + '%</span>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="ss-hint">Sets the size of all text in the game. Changes apply as you drag,'
+      +   ' and follow your account to any device.</div>';
+
     // Theme picker — driven by HearthriseTheme (theme-picker.js).
     var current = (window.HearthriseTheme && window.HearthriseTheme.getTheme && window.HearthriseTheme.getTheme()) || 'cozy-light';
     var themes = (window.HearthriseTheme && window.HearthriseTheme.list && window.HearthriseTheme.list()) || [
@@ -240,12 +364,12 @@
         +   'data-theme-id="' + esc(t.id) + '" '
         +   'style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;text-align:left;padding:10px 12px;'
         +   (active ? 'border-color:var(--gold);background:var(--gold-bg);' : '') + '">'
-        +   '<span style="font-weight:700;font-size:13.5px">' + esc(t.label) + (active ? ' ✓' : '') + '</span>'
-        +   '<span style="font-size:13.5px;opacity:.75">' + esc(t.desc) + '</span>'
+        +   '<span style="font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1))">' + esc(t.label) + (active ? ' ✓' : '') + '</span>'
+        +   '<span style="font-size:calc(14.5px * var(--ui-scale, 1));opacity:.75">' + esc(t.desc) + '</span>'
         + '</button>';
     }).join('');
     return ''
-      + selectRow('UI scale', 'scale', d.scale, scaleOpts)
+      + scaleRow
       + '<div class="ss-row" style="flex-direction:column;align-items:stretch;gap:8px"><div class="ss-label">Theme</div>'
       +   '<div style="display:flex;gap:8px;flex-wrap:wrap">' + themeCards + '</div>'
       + '</div>'
@@ -367,7 +491,7 @@
       +     '<input type="text" id="set-sb-url" placeholder="https://xxxx.supabase.co" value="' + esc(sbConfig.url || '') + '" />'
       +   '</div>'
       +   '<div class="ss-row"><div class="ss-label">Anon key</div>'
-      +     '<input type="text" id="set-sb-key" placeholder="eyJhbG..." value="' + esc(sbConfig.anonKey || '') + '" style="font-family:monospace;font-size:13.5px" />'
+      +     '<input type="text" id="set-sb-key" placeholder="eyJhbG..." value="' + esc(sbConfig.anonKey || '') + '" style="font-family:monospace;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '</div>'
       +   '<div class="ss-row" style="justify-content:flex-end;gap:8px">'
       +     (hasCloud ? '<button class="btn btn-sm btn-danger" id="set-sb-disconnect">Disconnect</button>' : '')
@@ -500,6 +624,23 @@
 
   // ── Wire input → state ─────────────────────────────────────
   function bindControls(root){
+    // UI scale — outside the generic [data-set] wiring because it needs two
+    // different behaviours on two different events: `input` repaints the whole
+    // game live on every 5% step of the drag, `change` is the only one that
+    // writes a save.
+    var scaleEl = root.querySelector('#set-ui-scale');
+    if(scaleEl){
+      var readout = root.querySelector('#set-ui-scale-val');
+      var paint = function(persist){
+        var v = setScale(scaleEl.value, persist);
+        scaleEl.value = String(v);
+        scaleEl.setAttribute('aria-valuetext', v + ' percent');
+        if(readout) readout.textContent = v + '%';
+      };
+      scaleEl.addEventListener('input',  function(){ paint(false); });
+      scaleEl.addEventListener('change', function(){ paint(true); });
+    }
+
     // G.settings controls
     root.querySelectorAll('[data-set]').forEach(function(el){
       var key = el.getAttribute('data-set');

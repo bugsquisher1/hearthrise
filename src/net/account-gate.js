@@ -213,14 +213,14 @@
       '.hr-gate-mark{position:relative;display:flex;flex-direction:column;align-items:center;',
       '  gap:14px;margin-bottom:6px}',
       '.hr-gate-mark svg{display:block;width:66px;height:73px}',
-      '.hr-gate-word{position:relative;font-family:var(--f-display,Georgia,serif);font-size:37px;line-height:1;',
+      '.hr-gate-word{position:relative;font-family:var(--f-display,Georgia,serif);font-size:calc(37px * var(--ui-scale, 1));line-height:1;',
       '  font-weight:600;letter-spacing:.085em;text-indent:.085em;',
       '  background:linear-gradient(180deg,#f2dda6 0%,#dcbb6c 46%,#b58c37 100%);',
       '  -webkit-background-clip:text;background-clip:text;color:transparent;',
       '  -webkit-text-fill-color:transparent}',
       '.hr-gate-rule{width:112px;height:1px;margin:15px 0 11px;',
       '  background:linear-gradient(90deg,rgba(201,162,74,0),rgba(201,162,74,.62),rgba(201,162,74,0))}',
-      '.hr-gate-tag{font-family:var(--f-label,inherit);font-size:13.5px;letter-spacing:.2em;',
+      '.hr-gate-tag{font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.2em;',
       '  text-transform:uppercase;color:var(--ink-3,#9d8b70)}',
 
       /* ── the one contained object on the screen ── */
@@ -235,18 +235,18 @@
       '.hr-gate-modes{display:flex;gap:24px;border-bottom:1px solid var(--line-soft,rgba(236,225,204,.055));',
       '  margin:-2px 0 18px}',
       '.hr-gate-mode{appearance:none;background:none;border:0;padding:0 0 11px;cursor:pointer;',
-      '  font-family:var(--f-label,inherit);font-size:13.5px;letter-spacing:.15em;text-transform:uppercase;',
+      '  font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.15em;text-transform:uppercase;',
       '  color:var(--ink-3,#9d8b70);border-bottom:2px solid transparent;margin-bottom:-1px;',
       '  transition:color 120ms ease,border-color 120ms ease}',
       '.hr-gate-mode:hover{color:var(--ink-2,#c4b79e)}',
       '.hr-gate-mode[aria-selected="true"]{color:var(--gold-2,#e3c77e);border-bottom-color:var(--gold-2,#e3c77e)}',
 
-      '.hr-gate-lead{font-size:13.5px;line-height:1.55;color:var(--ink-2,#c4b79e);margin:0 0 16px}',
+      '.hr-gate-lead{font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.55;color:var(--ink-2,#c4b79e);margin:0 0 16px}',
 
       '.hr-gate-field{display:block;margin-bottom:12px}',
-      '.hr-gate-field span{display:block;font-family:var(--f-label,inherit);font-size:13.5px;',
+      '.hr-gate-field span{display:block;font-family:var(--f-label,inherit);font-size:calc(14.5px * var(--ui-scale, 1));',
       '  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#9d8b70);margin-bottom:5px}',
-      '.hr-gate-field input{width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:15px;',
+      '.hr-gate-field input{width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:calc(16px * var(--ui-scale, 1));',
       '  color:var(--ink,#ece1cc);background:rgba(0,0,0,.30);border-radius:var(--r,3px);',
       '  border:1px solid var(--line,rgba(201,162,74,.20));transition:border-color 120ms ease}',
       '.hr-gate-field input:focus{outline:none;border-color:var(--gold,#c9a24a)}',
@@ -254,7 +254,11 @@
       '  -webkit-box-shadow:0 0 0 1000px #241e17 inset}',
 
       '.hr-gate-go{width:100%;margin-top:6px;min-height:42px;padding:0 18px;cursor:pointer;',
-      '  font:700 13.5px/1 var(--f-ui,inherit);letter-spacing:.06em;',
+      // Longhands, not `font:` — the shorthand's size slot cannot carry the
+      // --ui-scale calc. This is the wall's primary button; b225 already found
+      // the wall carrying the smallest type in the game once.
+      '  font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1;',
+      '  font-family:var(--f-ui,inherit);letter-spacing:.06em;',
       '  border:1px solid #e6cd93;border-radius:var(--r,3px);color:#221803;',
       '  background:linear-gradient(180deg,#d9b361 0%,#c09539 52%,#a67c28 100%);',
       '  box-shadow:inset 0 1px 0 rgba(255,246,220,.55),inset 0 -2px 3px rgba(90,60,8,.4),0 2px 5px -2px rgba(0,0,0,.7);',
@@ -263,15 +267,15 @@
       '.hr-gate-go:active:not(:disabled){transform:translateY(1px)}',
       '.hr-gate-go:disabled{opacity:.6;cursor:progress}',
 
-      '.hr-gate-note{min-height:18px;margin:11px 2px 0;font-size:13.5px;line-height:1.45;text-align:center}',
+      '.hr-gate-note{min-height:18px;margin:11px 2px 0;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.45;text-align:center}',
       '.hr-gate-note[data-tone="bad"]{color:#d98b7a}',
       '.hr-gate-note[data-tone="ok"]{color:var(--gold-2,#e3c77e)}',
       '.hr-gate-note[data-tone="muted"]{color:var(--ink-3,#9d8b70)}',
 
-      '.hr-gate-foot{margin-top:20px;font-size:13.5px;line-height:1.6;text-align:center;',
+      '.hr-gate-foot{margin-top:20px;font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6;text-align:center;',
       '  color:var(--ink-3,#9d8b70);max-width:330px;text-wrap:balance}',
       '.hr-gate-foot b{color:var(--ink-2,#c4b79e);font-weight:700}',
-      '.hr-gate-help{margin-top:10px;font-size:13.5px;text-align:center;color:var(--ink-3,#8f8676)}',
+      '.hr-gate-help{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));text-align:center;color:var(--ink-3,#8f8676)}',
       '.hr-gate-help a{color:var(--gold,#e8c476);text-decoration:underline;text-underline-offset:2px}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
@@ -282,12 +286,12 @@
       '.hr-gate.reauth .hr-gate-col{max-width:392px}',
       '.hr-gate.reauth .hr-gate-panel{margin-top:0;background:var(--bg-3,#2a241c)}',
       '.hr-gate-later{display:block;margin:14px auto 0;background:none;border:0;padding:4px;',
-      '  font:inherit;font-size:13.5px;color:var(--ink-3,#9d8b70);text-decoration:underline;cursor:pointer}',
+      '  font:inherit;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#9d8b70);text-decoration:underline;cursor:pointer}',
       '.hr-gate-later:hover{color:var(--gold-2,#e3c77e)}',
 
-      '@media (max-height:620px){.hr-gate{align-items:flex-start}.hr-gate-word{font-size:31px}',
+      '@media (max-height:620px){.hr-gate{align-items:flex-start}.hr-gate-word{font-size:calc(32px * var(--ui-scale, 1))}',
       '  .hr-gate-mark svg{width:42px;height:46px}.hr-gate-panel{margin-top:18px}}',
-      '@media (max-width:420px){.hr-gate{padding:20px 14px}.hr-gate-word{font-size:31px}}'
+      '@media (max-width:420px){.hr-gate{padding:20px 14px}.hr-gate-word{font-size:calc(32px * var(--ui-scale, 1))}}'
     ].join('');
     document.head.appendChild(s);
   }

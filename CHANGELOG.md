@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 244 — 2026-08-09 (Your stuff is safe)
+
+- 🧷 **Behind the scenes: your inventory is now rename-proof.** As the big item rework continues, some items will get renamed or merged. A new safety layer makes sure that whenever that happens, anything you own — in your bag, worn, in your collection, locked, or in buy-back — is carried over automatically. No more risk of an update quietly eating your items, and it's covered by a test.
+- 🧪 448 tests green.
+
 ## v0.9.2-beta build 243 — 2026-08-09 (The ladder actually reaches the top)
 
 - 🌾 **Farming can finally be maxed.** The three endgame crops — Goldenroot (Lv 62), Emberfruit (75) and Moonbloom (88) — had **no way to get their seeds**, so farming quietly dead-ended in the low 60s. Their seeds are stocked in the Seed Shop now, so the whole skill is climbable to 99.

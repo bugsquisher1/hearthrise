@@ -712,6 +712,47 @@ function _readSave(key){
   try{ return window.HearthriseStorage ? window.HearthriseStorage.get(key) : localStorage.getItem(key); }
   catch(e){ try{ return localStorage.getItem(key); }catch(_){ return null; } }
 }
+/* ══════════════════════════════════════════════════════════════════════
+   b244 — THE ITEM-ID MIGRATION / ALIAS LAYER (itemization spec §4).
+   The rework will RENAME and RETIRE item ids (Wave 3 routes the orphan drops
+   into real lines; a cut item is aliased to null). Without this, a rename
+   silently vaporises a player's inventory / equipment / collection / locks /
+   buy-back / auto-eat food. ITEM_ALIAS maps oldId→newId (or →null to remove)
+   and is applied on EVERY load — aliases accumulate, and a veteran's save may
+   carry any historical id. This is the "SAFE TO EXTEND" prerequisite: a rename
+   becomes editing one map, not surgery, and it's covered by a round-trip test.
+   ══════════════════════════════════════════════════════════════════════ */
+window.ITEM_ALIAS = window.ITEM_ALIAS || {
+  /* oldId: 'newId'  (or oldId: null to cut). Populate as items are renamed. */
+};
+function _aliasId(id){ const a=window.ITEM_ALIAS; return (a && (id in a)) ? a[id] : id; }
+function remapItemIds(G){
+  const A = window.ITEM_ALIAS; if(!A || !Object.keys(A).length || !G) return;
+  const ok = (id) => id && ITEMS[id];
+  if(G.inventory && typeof G.inventory==='object'){
+    const next={};
+    for(const id in G.inventory){ const nid=_aliasId(id); if(ok(nid)) next[nid]=(next[nid]||0)+(G.inventory[id]||0); }
+    G.inventory=next;
+  }
+  if(G.equipment && typeof G.equipment==='object'){
+    for(const slot in G.equipment){ const id=G.equipment[slot]; if(id){ const nid=_aliasId(id); G.equipment[slot]=ok(nid)?nid:null; } }
+  }
+  if(G.collection && typeof G.collection==='object'){
+    const next={}; for(const id in G.collection){ const nid=_aliasId(id); if(ok(nid)) next[nid]=G.collection[id]; } G.collection=next;
+  }
+  if(G.lockedItems && typeof G.lockedItems==='object'){
+    const next={}; for(const id in G.lockedItems){ const nid=_aliasId(id); if(ok(nid)) next[nid]=G.lockedItems[id]; } G.lockedItems=next;
+  }
+  if(Array.isArray(G.buyback)){
+    G.buyback.forEach(b=>{ if(b&&b.id) b.id=_aliasId(b.id); });
+    G.buyback=G.buyback.filter(b=>b&&ok(b.id));
+  }
+  if(G.autoActions && G.autoActions.eat && G.autoActions.eat.foodId){
+    const nid=_aliasId(G.autoActions.eat.foodId); G.autoActions.eat.foodId=ok(nid)?nid:null;
+  }
+}
+window.remapItemIds = remapItemIds;
+
 function loadLocal(){
   // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
   // which silently breaks every caller that reads `window.G` — they keep
@@ -749,6 +790,7 @@ function loadLocal(){
       }, 2000);
     }
   }
+  remapItemIds(G);   // b244: fold any renamed/retired item ids across every store
   ensureRetentionState();
   ensureBountyState();
   migrateEquipmentSlots();

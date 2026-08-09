@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=243' directly.
+// modularised, will import { G } from '../state/game.js?v=244' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=243';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=243';
+import { on, snapshot } from '../net/events.js?v=244';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=244';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=243';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=244';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,35 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b244: the item-id migration layer remaps a renamed/retired id across every store', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const savedAlias = Object.assign({}, window.ITEM_ALIAS);
+    try {
+      assert(typeof window.remapItemIds === 'function' && window.ITEM_ALIAS, 'the migration/alias seam must exist');
+      // Pretend copper_ore was renamed/merged into iron_ore (both real items).
+      window.ITEM_ALIAS.copper_ore = 'iron_ore';
+      G.inventory = { copper_ore: 5, iron_ore: 2 };
+      G.equipment = { weapon: 'copper_ore' };
+      G.collection = { copper_ore: true };
+      G.lockedItems = { copper_ore: true };
+      G.buyback = [{ id: 'copper_ore', qty: 1, unit: 10 }];
+      G.autoActions = { eat: { foodId: 'copper_ore' } };
+      window.remapItemIds(G);
+      assert(G.inventory.iron_ore === 7 && !('copper_ore' in G.inventory), 'inventory must merge the qty under the new id');
+      assert(G.equipment.weapon === 'iron_ore', 'equipped id must remap');
+      assert(G.collection.iron_ore && !G.collection.copper_ore, 'collection must remap');
+      assert(G.lockedItems.iron_ore && !G.lockedItems.copper_ore, 'locks must remap');
+      assert(G.buyback[0] && G.buyback[0].id === 'iron_ore', 'buy-back entries must remap');
+      assert(G.autoActions.eat.foodId === 'iron_ore', 'auto-eat food id must remap');
+      // A cut item (aliased to null) is dropped safely, not left as a ghost.
+      window.ITEM_ALIAS.iron_ore = null;
+      G.inventory = { iron_ore: 3 };
+      window.remapItemIds(G);
+      assert(!('iron_ore' in G.inventory), 'an item aliased to null (cut) must be dropped, not linger');
+    } finally { window.ITEM_ALIAS = savedAlias; restoreG(snap); }
   }),
 
   () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {

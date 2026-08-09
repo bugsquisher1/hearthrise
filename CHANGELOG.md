@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 238 — 2026-08-09 (Buffs that mean it)
+
+More of the itemization rework's "stop showing numbers that lie":
+
+- 🛡️ **Frostfin Supper actually gives you Defense now.** It promised a defense buff the game silently threw away — it's real (and reads honestly as a flat bonus, not a fake percent).
+- 🍀 **Luck food works.** Cooked Lobster, Wheat Bread, Tomato Soup and Hunter's Feast carry a Drop Rate buff that, until now, did nothing — it lifts your odds of a drop for real.
+- ⏱️ Retired a phantom "Faster Respawn" buff that could never do anything (monsters here don't respawn on a timer) — the two foods that had it now give you the working luck buff instead.
+- 🧪 A new guard makes sure no food can ever again promise a buff the engine ignores. 442 tests green.
+
 ## v0.9.2-beta build 237 — 2026-08-09 (Keep going)
 
 - 🎣 **Your skill keeps going when you come back.** Coming back after a while — your fish and XP were credited for the time away (good), but the activity then just *sat* there: the game said "fishing" while nothing actually happened until you re-tapped. Now the live loop resumes on its own, same as a fight already did.

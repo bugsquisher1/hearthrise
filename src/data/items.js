@@ -1,7 +1,7 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=237';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=237';
+import { GEAR_ITEMS } from './gear-tiers.js?v=238';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=238';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -205,7 +205,7 @@ export const ITEMS={
   },
   tomato_soup: {
     n:'Tomato Soup', icon:'🍅', v:260, heals:28, foodTier:2, foodClass:'buff',
-    buff:{type:'monster_respawn', magnitude:2, durationMs:240000},
+    buff:{type:'drop_rate', magnitude:2, durationMs:240000}, // b238: was dead monster_respawn
   },
   wheat_bread: {
     n:'Wheat Bread', icon:'🍞', v:120, heals:18, foodTier:1, foodClass:'healing',
@@ -273,7 +273,7 @@ export const ITEMS={
   vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, foodClass:'buff', buff:{type:'all_xp',       magnitude:2,  durationMs:900000}},
   // Tier 3 buff foods
   bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, foodClass:'buff', buff:{type:'monster_respawn', magnitude:5, durationMs:900000}},
+  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, foodClass:'buff', buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: was dead monster_respawn — a hunter's feast earns you more loot
   dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, foodClass:'buff', buff:{type:'combat_xp',       magnitude:4, durationMs:1200000}},
   lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},

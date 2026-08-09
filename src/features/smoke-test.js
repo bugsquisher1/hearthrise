@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=237' directly.
+// modularised, will import { G } from '../state/game.js?v=238' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=237';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=237';
+import { on, snapshot } from '../net/events.js?v=238';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=238';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=237';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=238';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,32 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b238: no food buff lies — defense wired (flat), drop_rate live, monster_respawn retired', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      const B = window.BUFFS_DEF;
+      assert(B && B.defense && B.defense.bonusKey === 'defense', 'defense must be a real buff key now');
+      assert(!B.monster_respawn, 'monster_respawn must be removed (this engine has no respawn timer — it did nothing)');
+      // THE GUARD: every shipped food's buff type must resolve to a real bonus,
+      // or applyBuff silently discards it and the tooltip lies.
+      Object.entries(window.ITEMS || {}).forEach(([id, it]) => {
+        if (it && it.buff && it.buff.type) {
+          assert(B[it.buff.type], 'food "' + id + '" declares buff "' + it.buff.type + '" with no BUFFS_DEF entry — it would be silently discarded');
+        }
+      });
+      // defense reaches the engine as a FLAT bump (a +4 food = +4 defence, not +0.04).
+      if (typeof window.applyBuff === 'function') {
+        window.applyBuff({ type: 'defense', magnitude: 4, durationMs: 60000 });
+        assert(window.getBonus('defense') >= 4, 'a +4 defense buff must reach the engine flat (>=4), got ' + window.getBonus('defense'));
+        window.applyBuff({ type: 'drop_rate', magnitude: 20, durationMs: 60000 });
+        assert(window.getBonus('dropRate') > 0, 'drop_rate buff must feed getBonus("dropRate")');
+      }
+      assert(window.ITEMS.tomato_soup.buff.type === 'drop_rate' && window.ITEMS.hunters_feast.buff.type === 'drop_rate',
+        'the two ex-monster_respawn foods must be repointed to the live drop_rate');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b235: crit is a real lever — critB + the damage_crit buff roll a damage multiplier (was dead)', () => {

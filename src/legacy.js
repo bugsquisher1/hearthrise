@@ -232,7 +232,7 @@ const ITEMS={
   baked_potato: {n:'Baked Potato',icon:'🥔',v:150,heals:20,foodTier:2,buff:{type:'gather_speed',magnitude:10,durationMs:240000}},
   pumpkin_pie: {n:'Pumpkin Pie',icon:'🥧',v:420,heals:35,foodTier:3,buff:{type:'all_xp',magnitude:10,durationMs:300000}},
   carrot_stew: {n:'Carrot Stew',icon:'🍲',v:200,heals:24,foodTier:2,buff:{type:'farm_yield',magnitude:15,durationMs:360000}},
-  tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'monster_respawn',magnitude:10,durationMs:240000}},
+  tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'drop_rate',magnitude:2,durationMs:240000}}, // b238: stale twin — items.js is authoritative; kept in sync
   wheat_bread: {n:'Wheat Bread',icon:'🍞',v:120,heals:18,foodTier:1,buff:{type:'drop_rate',magnitude:5,durationMs:180000}},
 
   // b225 — the open fire's failure state. Kept in sync with src/data/items.js
@@ -1314,7 +1314,7 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
 }
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
   const b=COMBAT_BALANCE;
-  const playerDefense=getLevel('defense')+(eq.defB||0);
+  const playerDefense=getLevel('defense')+(eq.defB||0)+((typeof getBonus==='function')?(getBonus('defense')||0):0); // b238: defense food buff, finally read
   const accuracy=clamp(b.monsterBaseAccuracy+(((m?.atk||1)-playerDefense)*b.monsterAccuracyPerPoint),b.monsterMinAccuracy,b.monsterMaxAccuracy);
   const maxHit=Math.max(1,Math.floor((m?.atk||1)*b.monsterAttackDamageScale));
   return {accuracy,maxHit};
@@ -2470,7 +2470,12 @@ function killMonster(m){
   // not the full loot table.
   const _droppedThisKill = {};
   m.drops.forEach(d=>{
-    const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult);
+    /* b238: drop_rate food buff (Cooked Lobster, Wheat Bread, Tomato Soup, Hunter's
+       Feast) finally applies — it lifts the chance of a NON-guaranteed drop. Dead
+       since the buff registry shipped; the tooltip promised a luck bonus that
+       rolled into nothing. Guaranteed drops (ch>=1) are unaffected. */
+    const _dropBuff=(typeof getBonus==='function')?(getBonus('dropRate')||0):0;
+    const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult*(1+_dropBuff));
     if(Math.random()<chance){
       addItem(d.id,1);
       _droppedThisKill[d.id] = (_droppedThisKill[d.id] || 0) + 1;
@@ -8821,7 +8826,7 @@ var NEW_ITEMS = {
 
   /* Tier 3 (most are gated by Phase B per the doc, but we can add the data now) */
   bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, buff:{type:'damage',          magnitude:5,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, buff:{type:'monster_respawn', magnitude:15, durationMs:900000}},
+  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: stale twin — items.js authoritative; kept in sync
   dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, buff:{type:'combat_xp',       magnitude:10, durationMs:1200000}},
   lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, buff:{type:'gold_find',       magnitude:50, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
@@ -12327,7 +12332,14 @@ const BUFFS_DEF = {
      floored it to nothing. It is flat now, in both the maths and the label. */
   farm_yield:      {label:'Farm Yield',       bonusKey:'farmYield',      isPercent:false, isFlat:true, icon:'🌾'},
   damage:          {label:'Damage',           bonusKey:'damage',         isPercent:true, icon:'⚔️'},
-  monster_respawn: {label:'Faster Respawn',   bonusKey:'monsterRespawn', isPercent:true, icon:'⏱️'},
+  /* b238 (itemization Wave 1): `defense` was declared on Frostfin Supper but was
+     NOT a key here, so applyBuff() rejected it and the tooltip promised a buff
+     the engine threw away. It is a FLAT bump to your defence stat (a +4 food buff
+     reads as "+4", not "+4%"), wired into playerDefense in getMonsterCombatRolls. */
+  defense:         {label:'Defense',           bonusKey:'defense',        isPercent:false, isFlat:true, icon:'🛡️'},
+  /* b238: `monster_respawn` was dead — this engine re-attacks instantly, there is
+     no respawn timer to speed up. Removed; the two foods that used it (Tomato
+     Soup, Hunter's Feast) are repointed to drop_rate, which is now live. */
   combat_xp:       {label:'Combat XP',        bonusKey:'combatXP',       isPercent:true, icon:'🗡️'},
   gold_find:       {label:'Gold Find',        bonusKey:'goldFind',       isPercent:true, icon:'💰'},
   damage_crit:     {label:'Critical Chance',  bonusKey:'crit',           isPercent:true, icon:'💥'},

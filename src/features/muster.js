@@ -58,6 +58,25 @@
   var LIVE_XP_AURA    = 0.10;     // +10% all XP while mustered
   var SOLO_BAND       = { gold: 1500, gems: 2, seals: 0, band: 'answered' };
 
+  // ── Pre-selection: "I'll answer this one" (b228) ────────────
+  // A player may mark ONE of the day's two rallies as the one they intend to
+  // answer, and change it right up until that rally's window opens. If the
+  // window then passes without them — offline, or simply never joining — they
+  // take HALF HONORS: 50% of the base participation band, and nothing else.
+  //
+  // WHY HALF, AND WHY ONLY THE BASE BAND
+  // Presence has to keep winning or the feature quietly becomes "log in every
+  // other day". Half of the base band is 750g + 1 gem against a live chest that
+  // starts at 1,500g + 2 gems and reaches the 7,500g / 10 gems / 1 Seal ceiling
+  // when the realm holds — so answering in absence is worth 50% of the FLOOR
+  // and 10% of the CEILING. It never pays a Rally Seal and never draws on the
+  // community bar, because neither can be honest without someone actually
+  // being there. It is a consolation, not an alternative.
+  var ABSENT_SHARE = 0.5;
+  var ABSENT_BAND  = { gold:  Math.round(SOLO_BAND.gold * ABSENT_SHARE),
+                       gems:  Math.floor(SOLO_BAND.gems * ABSENT_SHARE),
+                       seals: 0, band: 'absent' };
+
   // ── The muster pool (original content · Forge & Stone · no emoji) ──
   // Each muster carries its own ambient Blessing theme, so the two layers of a
   // world event always describe the same day rather than two unrelated things
@@ -118,6 +137,19 @@
                : d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
   }
   function todayKey() { return dayKeyAt(now()); }
+
+  // When a UTC day's rallies are FINISHED — the end of its last window. The
+  // absent consolation cannot settle before this instant, and that single rule
+  // is what makes stacking impossible: while the day is still open the player
+  // can still join live, so paying half honors early could hand out both.
+  function dayCloseMs(dayKey) {
+    var p = String(dayKey || '').split('-');
+    if (p.length !== 3) return NaN;
+    var y = +p[0], mo = +p[1], d = +p[2];
+    if (!isFinite(y) || !isFinite(mo) || !isFinite(d) || !p[0] || !p[1] || !p[2]) return NaN;
+    var last = SLOT_UTC_HOURS[SLOT_UTC_HOURS.length - 1];
+    return Date.UTC(y, mo - 1, d, last, 0, 0) + WINDOW_MIN * 60000;
+  }
 
   // ── Schedule: derived, never stored ─────────────────────────
   // Both slots of a UTC day are DIFFERENT musters, and that is the whole point
@@ -206,8 +238,9 @@
   /**
    * @param {object} o
    *   nowMs, live {slot,endMs,startMs,eventKey,event}|null, next {startMs,event}|null,
-   *   joinedDayKey, joinedEventKey, joinedStartMs, todayKey, rewardReady, signedIn
-   * @returns {{state,copy,tone,rank,cta}} — `rank` encodes the spec's precedence.
+   *   joinedDayKey, joinedEventKey, joinedStartMs, todayKey, rewardReady, signedIn,
+   *   pledgedEventKey
+   * @returns {{state,copy,tone,rank,cta,answering}} — `rank` encodes the spec's precedence.
    */
   function computeState(o) {
     o = o || {};
@@ -215,6 +248,11 @@
     var joinedToday = !!(o.joinedDayKey && o.joinedDayKey === o.todayKey && o.joinedEventKey);
     var joinedThis  = !!(live && o.joinedEventKey === live.eventKey);
     var toNext = next ? Math.max(0, next.startMs - o.nowMs) : 0;
+    // A rally the player has already chosen stops ASKING and starts confirming.
+    // It changes the countdown's words, never its state or its precedence —
+    // pre-selecting is a plan, not an event.
+    var answering = !!(next && o.pledgedEventKey && next.eventKey === o.pledgedEventKey);
+    var lead = answering ? 'Answering in ' : 'Rally in ';
 
     // 3 — live and joinable. The loudest the topbar is ever allowed to be.
     if (live && !joinedToday) {
@@ -243,12 +281,12 @@
     }
     // 2 — imminent (T-15m). Warms up, and toasts once at T-15 and T-5.
     if (next && toNext <= IMMINENT_MS) {
-      return { state: 'imminent', rank: 50, tone: 'warm',
-               copy: 'Rally in ' + fmtClock(toNext), cta: 'open' };
+      return { state: 'imminent', rank: 50, tone: 'warm', answering: answering,
+               copy: lead + fmtClock(toNext), cta: 'open' };
     }
     // 1 — upcoming.
-    return { state: 'upcoming', rank: 10, tone: 'quiet',
-             copy: next ? ('Rally in ' + fmtClock(toNext)) : 'Rally', cta: 'open' };
+    return { state: 'upcoming', rank: 10, tone: 'quiet', answering: answering,
+             copy: next ? (lead + fmtClock(toNext)) : 'Rally', cta: 'open' };
   }
 
   // Snapshot of everything computeState needs, read from live state.
@@ -256,9 +294,11 @@
     var st = ensureState();
     var ms = (atMs == null) ? now() : atMs;
     var live = liveWindow(ms);
+    var pl = readPledge();
     return {
       nowMs: ms, live: live, next: nextWindow(ms), todayKey: dayKeyAt(ms),
       joinedDayKey: st.dayKey, joinedEventKey: st.eventKey, joinedStartMs: st.startMs,
+      pledgedEventKey: pl ? pl.eventKey : null,
       rewardReady: rewardReady(ms), signedIn: isSignedIn(), requireSignIn: false
     };
   }
@@ -292,6 +332,77 @@
     var st = ensureState();
     ms = (ms == null) ? now() : ms;
     return !!(st.eventKey && !st.claimed && st.points > 0 && ms >= st.endMs);
+  }
+
+  // ── The pre-selection, stored SEPARATELY from the muster mirror ──
+  // G.muster is deliberately pruned at the UTC day roll. The pledge must
+  // outlive its day — the whole promise is "we'll settle it when you come
+  // back", and a player who comes back on Thursday still gets Tuesday's half
+  // honors. So it lives at G.rallyPledge and is cleared by settlement, not by
+  // the calendar. At most ONE is ever outstanding (pledge() settles the old one
+  // before taking a new one), so half honors can never queue up behind itself.
+  //   { dayKey, eventKey, slot, startMs, at, joined, provisional }
+  function readPledge() {
+    var G = window.G || {};
+    var p = G.rallyPledge;
+    if (!p || typeof p !== 'object' || !p.dayKey || !p.eventKey) return null;
+    return p;
+  }
+  function writePledge(p) {
+    var G = window.G || {};
+    if (p) G.rallyPledge = p; else delete G.rallyPledge;
+    persist();
+    return p || null;
+  }
+
+  /**
+   * PURE. May this player mark `eventKey` as the rally they mean to answer?
+   * o: { nowMs, todayKey, windows:[{eventKey,dayKey,slot,startMs}], pledge, joinedToday }
+   */
+  function canPledge(eventKey, o) {
+    o = o || {};
+    var all = o.windows || [];
+    var w = null, i;
+    for (i = 0; i < all.length; i++) if (all[i].eventKey === eventKey) { w = all[i]; break; }
+    if (!w) return { ok: false, error: 'unknown_slot' };
+    // Only TODAY's two rallies. Tomorrow's opens for answering at the day roll,
+    // which keeps "one per day" a rule about a day the server can name.
+    if (w.dayKey !== o.todayKey) return { ok: false, error: 'not_today' };
+    if (o.nowMs >= w.startMs)   return { ok: false, error: 'window_open' };
+    // Already answered live today: the day is spent, and offering a pledge that
+    // could never pay would be a lie in the interface.
+    if (o.joinedToday) return { ok: false, error: 'already_answered' };
+    var p = o.pledge;
+    if (p && p.dayKey === o.todayKey) {
+      if (p.eventKey === eventKey) return { ok: false, error: 'already_pledged' };
+      // "Changeable until that rally's window opens" — once YOUR chosen rally
+      // has begun, the choice is made and the day is committed.
+      var cur = null;
+      for (i = 0; i < all.length; i++) if (all[i].eventKey === p.eventKey) { cur = all[i]; break; }
+      if (cur && o.nowMs >= cur.startMs) return { ok: false, error: 'locked' };
+    }
+    return { ok: true, dayKey: w.dayKey, slot: w.slot, startMs: w.startMs };
+  }
+
+  /**
+   * PURE. What happens to an outstanding pledge? This is the no-double-pay
+   * rule in one function, and it is the one thing in the feature worth testing
+   * hardest: `pay` is reachable ONLY when the pledged day is over AND no live
+   * join happened on it.
+   * o: { nowMs, dayCloseMs, joinedThatDay }
+   */
+  function pledgeOutcome(p, o) {
+    o = o || {};
+    if (!p || !p.dayKey || !p.eventKey) return { action: 'none', reason: 'no_pledge' };
+    var close = isFinite(o.dayCloseMs) ? o.dayCloseMs : dayCloseMs(p.dayKey);
+    if (!isFinite(close)) return { action: 'none', reason: 'bad_day_key' };
+    // While the day's rallies can still be joined, nothing is owed yet.
+    if (o.nowMs < close) return { action: 'hold', reason: 'day_open' };
+    // The pre-selection became a real join. It paid in full at the chest; the
+    // consolation is not owed and never was.
+    if (o.joinedThatDay) return { action: 'forfeit', reason: 'answered_live' };
+    return { action: 'pay', reason: 'absent',
+             gold: ABSENT_BAND.gold, gems: ABSENT_BAND.gems, seals: 0 };
   }
 
   // ════════════════════════════════════════════════════════════
@@ -340,8 +451,19 @@
     not_signed_in:   'Sign in to claim your rally chest',
     network:         'Could not reach the server — try again in a moment'
   };
-  function joinErrorText(e)  { return JOIN_ERRORS[e]  || 'The server refused that join'; }
-  function claimErrorText(e) { return CLAIM_ERRORS[e] || 'The server refused that claim'; }
+  var PLEDGE_ERRORS = {
+    window_open:      'That rally has already begun — join it live instead',
+    locked:           'Your rally has begun — your answer is locked in for today',
+    not_today:        'You can only answer one of today’s two rallies',
+    unknown_slot:     'That rally is not on today’s roll',
+    already_answered: 'You already joined a rally today',
+    already_pledged:  'You have already marked this rally',
+    not_signed_in:    'Sign in to answer a rally in advance',
+    network:          'Could not reach the server — try again in a moment'
+  };
+  function joinErrorText(e)   { return JOIN_ERRORS[e]   || 'The server refused that join'; }
+  function claimErrorText(e)  { return CLAIM_ERRORS[e]  || 'The server refused that claim'; }
+  function pledgeErrorText(e) { return PLEDGE_ERRORS[e] || 'The server refused that answer'; }
 
   // ── Reducers: pure, no fetch, no DOM. These carry the whole server contract
   //    and are directly unit-tested, including the pre-migration shape.
@@ -405,6 +527,42 @@
       gems:  Math.max(0, Math.min(10,   +out.gems || 0)),
       seals: out.held ? Math.max(0, Math.min(1, +out.seals || 0)) : 0
     };
+  }
+
+  function reducePledge(status, out) {
+    if (isMissingRpc(status, out)) return { action: 'unsupported' };
+    if (status >= 400 || !out || typeof out !== 'object' || typeof out.ok !== 'boolean') {
+      return { action: 'fail', message: pledgeErrorText('') };
+    }
+    if (out.ok === false) {
+      return { action: 'fail', error: out.error || '', message: pledgeErrorText(out.error || '') };
+    }
+    return { action: 'accept', dayKey: out.day_key, eventKey: out.event_key, slot: +out.slot || null };
+  }
+
+  // Half honors. The client mirrors the server's ceiling for the same reason
+  // reduceClaim does — so a compromised or confused server cannot mint — and it
+  // hard-zeroes seals here rather than trusting a field: absence never earns a
+  // Rally Seal, so there is no number the server could send that would pay one.
+  function reduceAbsence(status, out) {
+    if (isMissingRpc(status, out)) return { action: 'unsupported' };
+    if (status >= 400 || !out || typeof out !== 'object' || typeof out.ok !== 'boolean') {
+      return { action: 'fail', error: 'network' };
+    }
+    if (out.ok === false) {
+      var err = out.error || '';
+      // Not a failure: the server found a live join (or an earlier settlement)
+      // for that day. The pledge did its job — close it, pay nothing.
+      if (err === 'answered_live' || err === 'already_settled' || err === 'no_pledge') {
+        return { action: 'forfeit', error: err };
+      }
+      if (err === 'day_open') return { action: 'hold', error: err };
+      return { action: 'fail', error: err };
+    }
+    return { action: 'accept',
+             gold:  Math.max(0, Math.min(ABSENT_BAND.gold, +out.gold || 0)),
+             gems:  Math.max(0, Math.min(ABSENT_BAND.gems, +out.gems || 0)),
+             seals: 0 };
   }
 
   // ── serverSkewMs ────────────────────────────────────────────
@@ -501,6 +659,12 @@
       var m = windowsAround(now()).filter(function (w) { return w.eventKey === st.eventKey; })[0];
       if (m) { st.startMs = m.startMs; st.endMs = m.endMs; }
     }
+    // THE NO-DOUBLE-PAY LATCH. A pre-selection that becomes a real join is
+    // simply UPGRADED into that join — full chest, no consolation. It is
+    // recorded on the pledge (not on the muster mirror) because the mirror is
+    // pruned at the day roll, and settlement can happen days later.
+    var pl = readPledge();
+    if (pl && st.dayKey && pl.dayKey === st.dayKey && !pl.joined) pl.joined = true;
     persist();
     return st;
   }
@@ -636,6 +800,135 @@
     renderAll();
   }
 
+  // ════════════════════════════════════════════════════════════
+  // 5b · PRE-SELECTION — answering in advance, and answering in absence
+  // ════════════════════════════════════════════════════════════
+  function pledgeContext(atMs) {
+    var ms = (atMs == null) ? now() : atMs;
+    var st = ensureState(), dk = dayKeyAt(ms);
+    return { nowMs: ms, todayKey: dk, windows: windowsAround(ms), pledge: readPledge(),
+             joinedToday: !!(st.dayKey === dk && st.eventKey) };
+  }
+
+  async function pledge(eventKey) {
+    var ok = canPledge(eventKey, pledgeContext());
+    if (!ok.ok) { toast(pledgeErrorText(ok.error), 'info'); return false; }
+
+    // Settle whatever is outstanding FIRST. One answer at a time is what keeps
+    // half honors from accruing into a savings account.
+    await settlePledge();
+
+    var provisional = true;
+    if (isSignedIn() && !rpcMissing('world_event_pledge')) {
+      var r;
+      try { r = await rpc('world_event_pledge', { p_event_key: eventKey }); }
+      catch (e) { toast(pledgeErrorText('network'), 'kill'); return false; }
+      var d = reducePledge(r.status, r.json);
+      noteRpc('world_event_pledge', d.action !== 'unsupported');
+      if (d.action === 'fail') { toast(d.message, 'info'); renderAll(); return false; }
+      if (d.action === 'accept') provisional = false;
+      // 'unsupported' → the migration is not applied. Fall through: a local,
+      // clearly-labelled provisional answer, under the same rules.
+    }
+
+    writePledge({ dayKey: ok.dayKey, eventKey: eventKey, slot: ok.slot, startMs: ok.startMs,
+                  at: now(), joined: false, provisional: provisional });
+    var ev = eventForKey(eventKey);
+    toast('You will answer ' + (ev ? ev.name : 'the rally') + '. Be there for the full chest — ' +
+          'miss it and half honors find you' + (provisional ? ' (provisional — this device only)' : '') + '.', 'info');
+    renderAll();
+    return true;
+  }
+
+  // Settlement. Called at boot, once a minute, and before any new pledge.
+  //
+  // THE OWNERSHIP RULE that makes double-pay impossible across devices: a
+  // pledge the SERVER registered is settled ONLY by the server, and a
+  // provisional (local-only) pledge is settled ONLY locally. There is no path
+  // where a signed-out client pays out a pledge the server still holds open.
+  var settling = false;
+  async function settlePledge() {
+    var p = readPledge();
+    if (!p || settling) return { action: 'none', reason: p ? 'busy' : 'no_pledge' };
+    var st = ensureState();
+    var joined = !!p.joined || !!(st.dayKey === p.dayKey && st.eventKey);
+    var o = pledgeOutcome(p, { nowMs: now(), dayCloseMs: dayCloseMs(p.dayKey), joinedThatDay: joined });
+    if (o.action === 'hold' || o.action === 'none') return o;
+    if (o.action === 'forfeit') { writePledge(null); renderAll(); return o; }
+
+    settling = true;
+    try {
+      if (!p.provisional) {
+        // Server-owned. If we cannot ask it, we wait — never guess.
+        if (!isSignedIn()) return { action: 'hold', reason: 'signed_out' };
+        if (rpcMissing('world_event_absence_claim')) return { action: 'hold', reason: 'unsupported' };
+        var r;
+        try { r = await rpc('world_event_absence_claim', { p_day_key: p.dayKey }); }
+        catch (e) { return { action: 'hold', reason: 'network' }; }
+        var d = reduceAbsence(r.status, r.json);
+        noteRpc('world_event_absence_claim', d.action !== 'unsupported');
+        if (d.action === 'unsupported' || d.action === 'hold') return { action: 'hold', reason: d.action === 'hold' ? 'day_open' : 'unsupported' };
+        // A refusal we do not understand closes the pledge and pays NOTHING.
+        // No payout is ever invented out of an error.
+        if (d.action === 'forfeit' || d.action === 'fail') { writePledge(null); renderAll(); return d; }
+        grantAbsent(p, d);
+        writePledge(null);
+        return d;
+      }
+      grantAbsent(p, ABSENT_BAND);
+      writePledge(null);
+      return { action: 'accept', gold: ABSENT_BAND.gold, gems: ABSENT_BAND.gems, seals: 0, provisional: true };
+    } finally { settling = false; }
+  }
+
+  // Half honors. Gold and gems only — no Rally Seal, no community share, and
+  // no branch that could name the IAP-only Hearth Token.
+  function grantAbsent(p, d) {
+    var G = window.G, ev = eventForKey(p.eventKey);
+    var gold = Math.max(0, Math.min(ABSENT_BAND.gold, d.gold || 0));
+    var gems = Math.max(0, Math.min(ABSENT_BAND.gems, d.gems || 0));
+    G.gold = (G.gold || 0) + gold;
+    G.gems = (G.gems || 0) + gems;
+    persist();
+    toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: +' +
+          gold.toLocaleString() + 'g, +' + gems + (gems === 1 ? ' gem' : ' gems') +
+          (p.provisional ? ' (provisional)' : ''), 'levelup');
+    if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
+    renderAll();
+  }
+
+  // Cross-device honesty: the answer may have been given on the player's phone.
+  // Only ADOPTS a server pledge — it never deletes a provisional local one the
+  // server has never heard of, because that would silently eat half honors.
+  var lastHydrateAt = 0;
+  async function hydratePledge() {
+    if (!isSignedIn() || rpcMissing('hr_rally_pledge_state')) return null;
+    var r;
+    try { r = await rpc('hr_rally_pledge_state', {}); } catch (e) { return null; }
+    var missing = isMissingRpc(r.status, r.json);
+    noteRpc('hr_rally_pledge_state', !missing);
+    if (missing || !r.json || r.json.ok !== true) return null;
+    var pick = r.json.pending || r.json.today || null;
+    if (!pick || !pick.day_key || !pick.event_key) return r.json;
+    var local = readPledge();
+    if (local && local.provisional) return r.json;
+    if (!local || local.dayKey !== pick.day_key || local.eventKey !== pick.event_key) {
+      writePledge({ dayKey: pick.day_key, eventKey: pick.event_key, slot: +pick.slot || null,
+                    startMs: 0, at: now(), joined: !!pick.joined, provisional: false });
+      renderAll();
+    }
+    return r.json;
+  }
+  async function pledgeTick() {
+    try {
+      if (!readPledge() && isSignedIn() && (Date.now() - lastHydrateAt) > 600000) {
+        lastHydrateAt = Date.now();
+        await hydratePledge();
+      }
+      await settlePledge();
+    } catch (e) {}
+  }
+
   // ── The live aura: +10% all XP while mustered ───────────────
   // Same thin additive wrapper world-events.js uses, for the same reason:
   // every existing system inherits it with no further wiring.
@@ -705,6 +998,12 @@
       '.mu-slot .mu-when{font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700}',
       '.mu-slot .mu-nm{font-weight:800;color:var(--ink);margin:2px 0}',
       '.mu-slot .mu-what{font-size:13.5px;color:var(--ink-3)}',
+      /* the pre-selection footer — one line, never taller than the card it sits in */
+      '.mu-slot.is-mine{border-color:rgba(201,162,74,.45)}',
+      '.mu-slot .mu-foot{margin-top:8px}',
+      '.mu-slot .mu-pledged{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:700;',
+      '  color:var(--gold-2);letter-spacing:.02em}',
+      '.mu-slot .mu-pledge{width:100%}',
       /* ── the shared modal (reuses the renown/daily scrim pattern) ── */
       '.hr-mu-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);',
       '  display:flex;align-items:center;justify-content:center;padding:18px}',
@@ -847,8 +1146,18 @@
   }
 
   function modalAction(e) {
-    var a = e.target.getAttribute('data-mu');
+    var el = e.target.closest ? e.target.closest('[data-mu]') : e.target;
+    var a = el && el.getAttribute ? el.getAttribute('data-mu') : null;
     if (!a) return;
+    if (a === 'pledge') {
+      var key = el.getAttribute('data-key');
+      var inModal = !!document.querySelector('.hr-mu-scrim');
+      if (key) {
+        var pr = pledge(key);
+        if (pr && pr.then) pr.then(function (ok) { if (ok && inModal) openModal(); });
+      }
+      return;
+    }
     if (a === 'join')   { closeModal(); join(false); }
     if (a === 'rally')  { closeModal(); rally(); }
     if (a === 'claim')  { closeModal(); claim(); }
@@ -869,17 +1178,52 @@
   function slotsHtml(slots) {
     var n = now();
     var todayLocal = new Date(n).toDateString();
+    var ctx = pledgeContext(n), pl = ctx.pledge;
     return '<div class="mu-slots">' + slots.map(function (w) {
       var d = new Date(w.startMs);
       var when = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       if (d.toDateString() !== todayLocal) when = 'Tomorrow ' + when;
       var isLive = n >= w.startMs && n < w.endMs;
       var past = n >= w.endMs;
-      return '<div class="mu-slot' + (isLive ? ' is-live' : '') + '">' +
+      var mine = !!(pl && pl.eventKey === w.eventKey);
+      var can = canPledge(w.eventKey, ctx);
+      var foot = '';
+      if (mine) {
+        foot = '<div class="mu-foot"><div class="mu-pledged">' +
+          gly('uiBanner', 12, 'currentColor') + '<span>You answer this one' +
+          (pl.provisional ? ' · provisional' : '') + '</span></div></div>';
+      } else if (can.ok) {
+        foot = '<div class="mu-foot"><button class="btn btn-sm mu-pledge" data-mu="pledge" data-key="' +
+          esc(w.eventKey) + '">' +
+          (pl && pl.dayKey === ctx.todayKey ? 'Answer this one instead' : 'I’ll answer this one') +
+          '</button></div>';
+      }
+      return '<div class="mu-slot' + (isLive ? ' is-live' : '') + (mine ? ' is-mine' : '') + '">' +
         '<div class="mu-when">' + (isLive ? 'Live now' : (past ? 'Closed' : when)) + '</div>' +
         '<div class="mu-nm">' + gly(w.event.glyph, 14, 'var(--gold-2)') + ' ' + esc(w.event.name) + '</div>' +
-        '<div class="mu-what">' + esc(w.event.what) + '</div></div>';
-    }).join('') + '</div>';
+        '<div class="mu-what">' + esc(w.event.what) + '</div>' + foot + '</div>';
+    }).join('') + '</div>' + pledgeNote(ctx, slots);
+  }
+
+  // One honest line under the two slots. It must never promise more than the
+  // consolation actually is — half of the BASE band, and nothing else.
+  function pledgeNote(ctx, slots) {
+    var pl = ctx.pledge;
+    var half = ABSENT_BAND.gold.toLocaleString() + 'g and ' + ABSENT_BAND.gems +
+               (ABSENT_BAND.gems === 1 ? ' gem' : ' gems');
+    if (pl) {
+      var ev = eventForKey(pl.eventKey);
+      return '<div class="tiny muted" style="margin-top:8px">You have answered <b>' +
+        esc(ev ? ev.name : 'a rally') + '</b>. Join it live for the full chest — if the window passes ' +
+        'without you, half honors (' + half + ') are waiting when you return.' +
+        (pl.provisional ? ' <b>Provisional</b> — recorded on this device only.' : '') + '</div>';
+    }
+    var any = (slots || []).some(function (w) { return canPledge(w.eventKey, ctx).ok; });
+    if (ctx.joinedToday) return '';
+    return '<div class="tiny muted" style="margin-top:8px">' + (any
+      ? 'Mark the rally you mean to answer. Live play pays the full chest; if you cannot be there, ' +
+        'you still take half honors (' + half + ').'
+      : 'Tomorrow’s rallies open for answering at the day roll.') + '</div>';
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1056,10 +1400,15 @@
           return origGlyphKey.apply(this, arguments);
         };
       }
-      syncClock().then(function () { tickPill(); }).catch(function () {});
+      syncClock().then(function () { tickPill(); return pledgeTick(); }).catch(function () {});
       tickPill();
       setInterval(tickPill, 1000);
       setInterval(flush, FLUSH_MS);
+      // Settlement is cheap when nothing is owed (a pure outcome check that
+      // returns 'hold'/'no_pledge' without touching the network), so a minute
+      // is frequent enough to catch a day roll mid-session and quiet enough to
+      // add no traffic on an ordinary session.
+      setInterval(pledgeTick, 60000);
     } catch (e) { try { console.warn('[muster] boot failed', e); } catch (e2) {} }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 420); });
@@ -1070,8 +1419,9 @@
     SLOT_UTC_HOURS: SLOT_UTC_HOURS, WINDOW_MIN: WINDOW_MIN,
     GOAL_PER_PLAYER: GOAL_PER_PLAYER, MIN_GOAL: MIN_GOAL,
     CALL_CLAMP: CALL_CLAMP, TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA,
+    SOLO_BAND: SOLO_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
     // clock + schedule
-    now: now, serverSkewMs: serverSkewMs, syncClock: syncClock,
+    now: now, serverSkewMs: serverSkewMs, syncClock: syncClock, dayCloseMs: dayCloseMs,
     eventFor: eventFor, eventForKey: eventForKey, eventIndex: eventIndex,
     liveWindow: liveWindow, nextWindow: nextWindow, todaysWindows: todaysWindows, displaySlots: displaySlots,
     todayKey: todayKey,
@@ -1080,11 +1430,17 @@
     pillState: pillState, computeState: computeState,
     // actions
     join: join, rally: rally, claim: claim, flush: flush,
+    // pre-selection
+    pledge: pledge, settlePledge: settlePledge, getPledge: readPledge,
+    hydratePledge: hydratePledge, canPledge: canPledge,
     // UI
     render: renderEvents, renderPill: tickPill, openModal: openModal,
     // Server-contract seams — pure, no I/O. Exposed for the regression suite.
     _computeState: computeState, _fmtClock: fmtClock,
     _reduceJoin: reduceJoin, _reduceContribute: reduceContribute, _reduceClaim: reduceClaim,
+    _reducePledge: reducePledge, _reduceAbsence: reduceAbsence,
+    _canPledge: canPledge, _pledgeOutcome: pledgeOutcome, _pledgeContext: pledgeContext,
+    _writePledge: writePledge, _grantAbsent: grantAbsent, _adopt: adopt,
     _pointsFor: pointsFor, _addPoints: addPoints,
     _setSkew: function (ms) { skewMs = ms | 0; },
     _skewState: function () { return skewState; },

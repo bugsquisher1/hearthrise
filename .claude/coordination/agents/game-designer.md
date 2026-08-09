@@ -16,6 +16,30 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - ~~~25 tier-3–6 drops are recipe-less vendor trash~~ — **recounted 2026-08-08: it is 34, spanning tiers 1–6.** All 34 now have a route in `clan-overhaul.md` v2 §4.4 (castle goods, Work Order spoils lines, Tavern Board tributes, tier bundles). Still needs *building* — and the six new Hunt boss materials must not reopen it.
 
 ## Log
+
+### 2026-08-08 · b224 — "eating food is confusing" (beta feedback, branch `agent-food-ux`)
+Played every path a player might use to eat. The confusion was not subtle and part of it was mine (b220).
+
+**What was actually wrong**
+1. **There was no Eat button.** Left-clicking food opens `openInvDetail`, whose `Eat 1` was gated on `typeof eatItem === 'function'` — and **`eatItem` has never existed in this codebase**. It has never rendered once.
+2. **The one Eat affordance that was built is dead code.** `injectEatNowButtons()` required `.invc-tile[data-item-id]`, but `renderInvFancy` only sets `data-item-id` on *equippable* items and no food is equippable — empty intersection by construction. Confirmed live: 0 buttons with a bag of Provisions. Removed it and its orphaned CSS.
+3. **The only working manual path was a right-click menu** — undiscoverable; a 500 ms long-press on touch.
+4. **The prominent button was a lie three ways.** `Set Auto-eat` wrote `G.foodSlot`, dead since b134 (verified: `maybeAutoEat()` returns false after clicking it); it appeared on Feasts & Draughts, which b220 made permanently ineligible — **I mirrored that filter into the combat picker and missed this flyout**; and auto-eat is a 5,000g Store trait (b217) a new player does not own, unmentioned anywhere.
+5. **So new players have no healing at all.** b217's own comment says "early game is manual eating (click food in combat)". That click target was never built. This single fact explains the report.
+6. Bare `Auto-eat:` dropdown with no threshold/scope/empty state; Provisions and Feasts indistinguishable at point of use (both read `FOOD`, buff+duration never shown); `Ate X — buff applied` toast named neither the HP nor the buff; eating at full HP silently destroyed the item.
+
+**Fix (clarity only — no new systems, no balance change)**
+- `foodKindOf()` + `FOOD_KIND_META` in `data/items.js` — the presentation twin of `foodClassOf`, so provision/feast/draught can never drift from the auto-eat rule. Verbs: **Eat / Use / Drink**.
+- `foodUseInfo()` in legacy.js is now the single source of food wording; the flyout, combat row, right-click menu, hover tooltip and qty slider all read it.
+- Flyout: **Eat/Use/Drink is the primary button** with its effect on it; meta reads Provision/Feast/Draught; buff + duration shown; one honest sentence about auto-eat's real status; auto-eat offered only when true (Provision **and** trait owned).
+- `eatFood()`: refuses a Provision at full HP and keeps it (`opts.force` escape hatch); a Feast is never blocked — it is spent for the buff. Toast now states `+8 HP (48/99) · +5% Gather Speed for 2 min`, mirrored into the combat log.
+- Combat: **a real Eat button** (best Provision, same rule as auto-eat's fallback), plus honest states for full-HP / no-Provisions / trait-locked, and a picker that only renders when it can actually do something.
+
+**Ruling:** `foodClass` decides what the *engine* may spend; `foodKind` decides what the *player* reads. Neither touches item stats — the b220 fish-line ruling stands untouched.
+
+Smoke **278/278**, 0 runtime errors, `bump-version.sh --check` green, no bump. Verified in-browser on :8156 across fresh + mid-game saves, all 5 flyout states and all 5 combat states.
+
+**Handoff / not mine:** mobile combat is `display:none` on its parent container — arena, calc and log all collapse identically, pre-existing and orthogonal to this work (mobile is deferred, landscape-only).
 ### 2026-08-08 · Wave 3c — the ratification batch (6 rulings) + `homestead-deepening.md`
 
 **The six rulings.** Read the implementation before ruling on every one; none were surveys.

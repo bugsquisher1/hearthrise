@@ -4359,6 +4359,168 @@ const TESTS = [
     }
   }),
 
+  // ── b224: manual eating ────────────────────────────────────────────────
+  // Beta report: "eating food is confusing." It was worse than confusing —
+  // there was no Eat button. The item flyout gated `Eat 1` behind
+  // `typeof eatItem === 'function'` and eatItem never existed, so the only
+  // manual-eat path in the whole game was a right-click context menu, while
+  // the flyout's PRIMARY button ("Set Auto-eat") wrote a dead field, appeared
+  // on food auto-eat refuses, and configured a 5,000g trait the player did
+  // not own. These four tests are the contract for the fix.
+
+  // (1) The verb, the classification, and the plain-words effect text.
+  () => tryRun('b224: foodUseInfo names every food kind with its own verb', () => {
+    const f = window.foodUseInfo;
+    assert(typeof f === 'function', 'window.foodUseInfo missing — the shared food wording is gone');
+    const prov = f('cooked_shrimp');
+    assert(prov && prov.kind === 'provision', 'Cooked Shrimp must read as a Provision');
+    assert(prov.verb === 'Eat', 'a Provision is Eaten, got verb ' + prov.verb);
+    assert(prov.autoEatable === true, 'a Provision must be auto-eatable');
+    assert(prov.healText === 'Heals 8', 'Provision heal text wrong: ' + prov.healText);
+
+    const feast = f('void_banquet');
+    assert(feast && feast.kind === 'feast', 'Void Banquet must read as a Feast');
+    assert(feast.verb === 'Use', 'a Feast is Used, got verb ' + feast.verb);
+    assert(feast.autoEatable === false, 'a Feast must never read as auto-eatable');
+    // The buff is the whole reason to spend it — it must be stated in words.
+    assert(/%/.test(feast.buffText) && /min/.test(feast.buffText),
+      'Feast buff text must state magnitude and duration, got: ' + feast.buffText);
+
+    const draught = f('moonbloom_elixir');
+    assert(draught && draught.kind === 'draught', 'Moonbloom Elixir must read as a Draught');
+    assert(draught.verb === 'Drink', 'a Draught is Drunk, got verb ' + draught.verb);
+    assert(draught.autoEatable === false, 'a Draught must never read as auto-eatable');
+
+    // Raw ingredients are implicitly healing (auto-eat may still use them).
+    assert(f('shrimp').kind === 'provision', 'raw food should read as a Provision');
+    assert(f('iron_bar') === null, 'a bar is not food');
+  }),
+
+  // (2) Eat actually heals and actually decrements — the loop the player
+  //     reported as "nothing happens".
+  () => tryRun('b224: eating a Provision heals and consumes exactly one', () => {
+    const G = window.G;
+    assert(typeof window.eatFood === 'function', 'window.eatFood missing');
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), hp: G.playerHp, maxHp: G.playerMaxHp };
+    try {
+      G.inventory = { cooked_shrimp: 4 };
+      G.playerMaxHp = 100; G.playerHp = 50;
+      const ok = window.eatFood('cooked_shrimp');
+      assert(ok === true, 'eatFood returned ' + ok + ' for an eatable Provision');
+      assert(G.playerHp === 58, 'expected 58 HP after +8 heal, got ' + G.playerHp);
+      assert(G.inventory.cooked_shrimp === 3, 'expected 3 left, got ' + G.inventory.cooked_shrimp);
+      // Heals clamp at max, never overheal.
+      G.playerHp = 97;
+      window.eatFood('cooked_shrimp');
+      assert(G.playerHp === 100, 'heal must clamp to max HP, got ' + G.playerHp);
+    } finally {
+      G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
+    }
+  }),
+
+  // (3) Full HP is an honest dead end for a Provision (its only value is the
+  //     heal, so eating one at full HP destroyed it and changed nothing —
+  //     literally "I clicked eat and nothing happened"). A Feast is spent for
+  //     its timed buff, so full HP must NOT block it.
+  () => tryRun('b224: full HP refuses a Provision but never blocks a Feast', () => {
+    const G = window.G;
+    const snap = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      hp: G.playerHp, maxHp: G.playerMaxHp,
+      buffs: JSON.parse(JSON.stringify(G.buffs || [])),
+    };
+    try {
+      G.inventory = { cooked_shrimp: 4, void_banquet: 2 };
+      G.playerMaxHp = 100; G.playerHp = 100;
+      const refused = window.eatFood('cooked_shrimp');
+      assert(refused === false, 'eatFood must refuse a Provision at full HP, got ' + refused);
+      assert(G.inventory.cooked_shrimp === 4, 'the refused Provision was consumed anyway');
+      // ...but an explicit force still works, for callers that mean it.
+      assert(window.eatFood('cooked_shrimp', { force: true }) === true, 'opts.force must override the full-HP guard');
+      assert(G.inventory.cooked_shrimp === 3, 'forced eat did not consume');
+      // A Feast at full HP is a legitimate, deliberate spend.
+      G.playerHp = 100;
+      G.buffs = [];
+      assert(window.eatFood('void_banquet') === true, 'full HP must not block a Feast — it is eaten for the buff');
+      assert(G.inventory.void_banquet === 1, 'Feast was not consumed');
+      assert(G.buffs.length === 1, 'Feast did not apply its buff');
+    } finally {
+      G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp; G.buffs = snap.buffs;
+    }
+  }),
+
+  // (4) The combat food row states what auto-eat does, offers a manual Eat,
+  //     and never offers an auto-eat the engine will refuse. The three states
+  //     that were each a lie before b224: trait not owned, no Provisions, and
+  //     a bag holding only Feasts.
+  () => tryRun('b224: combat food row is honest in every state', () => {
+    const G = window.G;
+    assert(typeof window.renderCombat === 'function', 'renderCombat missing');
+    assert(typeof window.bestProvisionId === 'function', 'bestProvisionId missing');
+    const snap = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      hp: G.playerHp, maxHp: G.playerMaxHp, monster: G.activeMonster,
+      mhp: G.monsterHp, mmax: G.monsterMaxHp,
+      traits: JSON.parse(JSON.stringify(G.traits || {})),
+      eat: JSON.parse(JSON.stringify(window.HearthriseAuto.getEat())),
+    };
+    const row = () => {
+      window.renderCombat();
+      const el = document.querySelector('#combat-area .cbt-food');
+      assert(el, 'the combat food row did not render');
+      const btn = el.querySelector('.cbt-food-row button');
+      return {
+        btn: btn ? btn.textContent.trim() : '',
+        disabled: btn ? !!btn.disabled : true,
+        hasPicker: !!el.querySelector('select'),
+        note: el.querySelector('.cbt-food-note').textContent,
+      };
+    };
+    try {
+      G.activeMonster = 'slime';
+      G.monsterHp = 8; G.monsterMaxHp = 8;
+      G.playerMaxHp = 100; G.playerHp = 30;
+      G.inventory = { cooked_shrimp: 5 };
+
+      // Auto-eat not owned → no picker at all (it would configure nothing),
+      // a working manual Eat, and a note that says so.
+      G.traits = {};
+      let r = row();
+      assert(!r.hasPicker, 'auto-eat picker must not render when the trait is not owned');
+      assert(/^Eat /.test(r.btn) && !r.disabled, 'a manual Eat button must be offered, got: ' + r.btn);
+      assert(/Store unlock/i.test(r.note), 'the note must say auto-eat is locked, got: ' + r.note);
+
+      // Trait owned → picker appears and the note explains the threshold.
+      G.traits = { auto_eat: true };
+      window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+      r = row();
+      assert(r.hasPicker, 'auto-eat picker must render once the trait is owned');
+      assert(/falls below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
+      assert(/never auto-eaten/i.test(r.note), 'the note must say Feasts are never auto-eaten, got: ' + r.note);
+
+      // Full HP → Eat is an honest disabled state, not a silent no-op.
+      G.playerHp = 100;
+      r = row();
+      assert(r.disabled && /full/i.test(r.btn), 'full HP must disable Eat with a reason, got: ' + r.btn);
+
+      // A bag of nothing but Feasts is the same as no healing food, and the
+      // picker must not offer one.
+      G.playerHp = 30;
+      G.inventory = { void_banquet: 3, moonbloom_elixir: 2 };
+      r = row();
+      assert(r.disabled && /No healing food/i.test(r.btn), 'Feasts must not satisfy the Eat button, got: ' + r.btn);
+      assert(!r.hasPicker, 'the picker must not offer a Feast as auto-eat food');
+      assert(/No Provisions/i.test(r.note), 'the note must name the missing thing, got: ' + r.note);
+      assert(window.bestProvisionId() === null, 'bestProvisionId must not return a Feast');
+    } finally {
+      G.inventory = snap.inv; G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
+      G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
+      G.traits = snap.traits;
+      window.HearthriseAuto.setEat(snap.eat);
+      try { window.renderCombat(); } catch (e) { /* restoring state only */ }
+    }
+  }),
+
   // b220 (#12d): the artisan panel is rebuilt from scratch by activity-driven
   // re-renders (the same class of bug as the b218 doll snap-back), so a
   // category held only in the DOM would reset every few seconds. It persists

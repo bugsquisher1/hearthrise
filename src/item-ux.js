@@ -136,11 +136,26 @@
     }
 
     var marketBlock = '<div class="ttl-market">';
-    if(item.heals){
-      marketBlock += '<div class="ttl-row-2"><span>❤️</span><b>+' + item.heals + ' HP</b></div>';
-    }
-    if(item.buff && item.buff.type){
-      marketBlock += '<div class="ttl-row-2"><span>🌟</span><b>+' + item.buff.magnitude + '% ' + item.buff.type.replace(/_/g, ' ') + '</b><i>' + Math.round((item.buff.durationMs||0)/60000) + 'm</i></div>';
+    // b224: say what the food IS and what pressing it does, in plain words.
+    // The old rows showed a heal number and a raw buff key ("gather_speed"),
+    // which left a Provision and a Feast looking identical on hover.
+    var food = (typeof window.foodUseInfo === 'function') ? window.foodUseInfo(itemId) : null;
+    if(food){
+      marketBlock += '<div class="ttl-row-2"><b>' + food.label + '</b><i>' + food.verb.toLowerCase() + ' to use</i></div>';
+      if(food.heals){
+        marketBlock += '<div class="ttl-row-2"><span>❤️</span><b>+' + food.heals + ' HP</b><i>' + (food.kind === 'provision' ? 'heals' : 'also heals') + '</i></div>';
+      }
+      if(food.buffText){
+        marketBlock += '<div class="ttl-row-2"><span>🌟</span><b>' + food.buffText + '</b></div>';
+      }
+      marketBlock += '<div class="ttl-row-2"><i>' + (food.autoEatable ? 'Auto-eat can use this' : 'Never auto-eaten') + '</i></div>';
+    } else {
+      if(item.heals){
+        marketBlock += '<div class="ttl-row-2"><span>❤️</span><b>+' + item.heals + ' HP</b></div>';
+      }
+      if(item.buff && item.buff.type){
+        marketBlock += '<div class="ttl-row-2"><span>🌟</span><b>+' + item.buff.magnitude + '% ' + item.buff.type.replace(/_/g, ' ') + '</b><i>' + Math.round((item.buff.durationMs||0)/60000) + 'm</i></div>';
+      }
     }
     if(item.buryXp){
       marketBlock += '<div class="ttl-row-2"><span>🙏</span><b>+' + item.buryXp + ' Prayer XP</b><i>on bury</i></div>';
@@ -270,7 +285,24 @@
         },
       };
     }
-    // Food (has heals or buff) → Eat. Bulk-eat applies the buff once and heals up to one stack.
+    // Food → Eat / Drink / Use. b224: the verb and the hint come from
+    // foodUseInfo() so the quantity slider agrees with every other surface.
+    var food = (typeof window.foodUseInfo === 'function') ? window.foodUseInfo(itemId) : null;
+    if(food){
+      return {
+        label: food.verb,
+        icon: '🍴',
+        hint: food.kind === 'provision'
+          ? ('+' + food.heals + ' HP each')
+          : (food.buffText || ('+' + food.heals + ' HP each')),
+        fn: function(qty){
+          for(var i = 0; i < qty; i++){
+            if(typeof window.eatFood !== 'function') break;
+            if(!window.eatFood(itemId)) break;
+          }
+        },
+      };
+    }
     if(item.heals || item.buff){
       return {
         label: 'Eat',

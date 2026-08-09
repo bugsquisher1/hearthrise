@@ -2215,6 +2215,35 @@ function renderCombat(){
     ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
     : !!(ITEMS[id]&&ITEMS[id].heals&&ITEMS[id].foodClass!=='buff');
   const foods=Object.entries(G.inventory).filter(([id])=>_autoEatOk(id));
+  /* ── b224: the food row, rebuilt ────────────────────────────────────────
+     It used to be one unlabelled `Auto-eat:` dropdown. Three things were
+     wrong with that on the screen where you actually take damage:
+       • there was no way to heal by hand — and for a new player there is no
+         other kind of healing, because Auto-Eat is a 5,000g Store trait they
+         do not own yet. The dropdown was the only food control in combat and
+         it configured a feature they could not use.
+       • it never said what auto-eat does, when it fires, or that it only ever
+         spends Provisions.
+       • with an empty bag it rendered as a lone "None" option, which reads as
+         a broken control rather than "you have no healing food".
+     Now: a real Eat button first, then auto-eat, then one line of plain
+     English about whichever of those two is actually in play. */
+  const _eatId = (typeof bestProvisionId === 'function') ? bestProvisionId() : null;
+  const _eatInfo = _eatId && typeof foodUseInfo === 'function' ? foodUseInfo(_eatId) : null;
+  const _hasAutoEat = (typeof hasTrait === 'function') && hasTrait('auto_eat');
+  const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+  const _threshPct = Math.round(((_eatCfg && _eatCfg.threshold) || 0.5) * 100);
+  const _atFullHp = G.playerHp >= G.playerMaxHp;
+  const _eatBtn = !_eatInfo
+    ? `<button class="btn btn-sm" disabled title="Cook fish or bake bread to get healing food">No healing food</button>`
+    : _atFullHp
+      ? `<button class="btn btn-sm" disabled title="Your health is already full">Full health</button>`
+      : `<button class="btn btn-sm btn-primary" onclick="eatBestProvision()" title="${ITEMS[_eatId].n} — you have ${G.inventory[_eatId]}">Eat ${ITEMS[_eatId].n} · +${_eatInfo.heals} HP · ×${G.inventory[_eatId]}</button>`;
+  const _foodNote = !foods.length
+    ? 'No Provisions in your bag. Cook fish or bake bread — Feasts &amp; Draughts heal too, but only when you use them by hand.'
+    : _hasAutoEat
+      ? `Auto-eat spends one Provision when your HP falls below ${_threshPct}%. Feasts &amp; Draughts are never auto-eaten.`
+      : `Auto-eat is a Store unlock — until then, healing in combat is manual: press Eat.`;
   el.innerHTML=`
     ${renderBountyPanel()}
     <div class="arena">
@@ -2231,13 +2260,17 @@ function renderCombat(){
       <div><b>${WEAPON_TYPES[m.weaponWeak]}</b><span>${getWeaknessInfo(m,eq).matched?'+20% dmg / +15% acc':(m.weaponWeak==='neutral'?'+15% drops':'Weak to')}</span></div>
     </div>
     <div class="combat-log" id="clog">${[...G.combatLog].reverse().map(l=>`<div>${l}</div>`).join('')}</div>
-    <div class="row between" style="margin-top:9px;gap:8px;flex-wrap:wrap">
-      <label class="row tiny muted" style="gap:6px">Auto-eat:
-        <select onchange="G.foodSlot=this.value||null;if(window.HearthriseAuto)window.HearthriseAuto.setEat({foodId:this.value||null,enabled:!!this.value});notify(this.value?'Auto-eat: '+(window.ITEMS[this.value]?.n||this.value):'Auto-eat off','info')" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
-          <option value="">None</option>
-          ${foods.map(([id])=>`<option value="${id}" ${G.foodSlot===id?'selected':''}>${ITEMS[id].icon} ${ITEMS[id].n} (x${G.inventory[id]})</option>`).join('')}
-        </select>
-      </label>
+    <div class="cbt-food">
+      <div class="cbt-food-row">
+        ${_eatBtn}
+        ${(_hasAutoEat && foods.length) ? `<label class="row tiny muted" style="gap:6px">Auto-eat:
+          <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
+            <option value="">Off</option>
+            ${foods.map(([id])=>`<option value="${id}" ${(_eatCfg&&_eatCfg.foodId===id&&_eatCfg.enabled)?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
+          </select>
+        </label>` : ''}
+      </div>
+      <div class="cbt-food-note tiny muted">${_foodNote}</div>
       <div class="row tiny muted">Drops: ${m.drops.map(d=>{const c=d.ch>=1?d.ch:Math.min(.95,d.ch*getWeaknessInfo(m,eq).dropMult);return `${ITEMS[d.id]?.icon||'?'} ${Math.round(c*100)}%`;}).join(' · ')}</div>
     </div>`;
   stop.style.display='inline-flex';
@@ -3498,11 +3531,157 @@ function _filteredItems(srcDict){
   return arr;
 }
 
+/* ════════════════════════════════════════════════════════
+   b224 — ONE description of a food, for every surface that uses one.
+
+   Beta feedback: "eating food is confusing." Playing it back, the confusion
+   was not subtle — there was no Eat button. Left-clicking a Provision opened
+   this flyout and offered `Set Auto-eat` / `Sell 1` / `Sell All`; the `Eat 1`
+   button next to them was gated behind `typeof eatItem === 'function'` and
+   `eatItem` has never existed in this codebase, so it has never once
+   rendered. The only working manual-eat path was a right-click context menu.
+
+   Worse, the prominent button was wrong three ways at once:
+     1. it wrote G.foodSlot, a field the engine stopped reading in b134, so
+        it configured nothing;
+     2. it appeared on Feasts & Draughts, which b220 made permanently
+        ineligible for auto-eat — the combat picker got that filter, this
+        flyout did not;
+     3. auto-eat is a 5,000g Store trait (b217) that a new player does not
+        own, and nothing said so. b217's own comment reads "early game is
+        manual eating (click food in combat)" — that click target was never
+        built.
+
+   So the fix is comprehension, in the UI, at the point of use (b217 rule):
+   every surface that talks about a food now reads its wording from here, and
+   cannot invent its own.
+   ════════════════════════════════════════════════════════ */
+const _FOOD_KIND_META_FALLBACK = {
+  provision:{label:'Provision', verb:'Eat',   blurb:'Healing food. Auto-eat can use this.'},
+  feast:    {label:'Feast',     verb:'Use',   blurb:'Eaten for a timed buff. Auto-eat never spends it.'},
+  draught:  {label:'Draught',   verb:'Drink', blurb:'Drunk for a timed buff. Auto-eat never spends it.'},
+};
+const _FOOD_VERB_PAST = {Eat:'Ate', Drink:'Drank', Use:'Used'};
+/* Mirrors data/items.js foodKindOf for the boot window before the ESM data
+   module lands. Same rule, one line — cheaper than a food UI that goes blank
+   mid-boot. */
+function _foodKindOf(it){
+  if(typeof window.foodKindOf === 'function') return window.foodKindOf(it);
+  if(!it || typeof it !== 'object') return null;
+  const cls = (it.foodClass==='healing'||it.foodClass==='buff') ? it.foodClass : (it.heals ? 'healing' : null);
+  if(!cls) return null;
+  if(cls === 'healing') return 'provision';
+  return /\b(elixir|draught|draft|potion|brew|tonic|cordial|tea)\b/i.test(it.n||'') ? 'draught' : 'feast';
+}
+/* → {kind,label,verb,verbPast,blurb,heals,healText,buffText,autoEatable} or null */
+function foodUseInfo(id){
+  const it = (typeof ITEMS !== 'undefined') ? ITEMS[id] : null;
+  if(!it) return null;
+  const kind = _foodKindOf(it);
+  if(!kind) return null;
+  const meta = ((window.FOOD_KIND_META && window.FOOD_KIND_META[kind]) || _FOOD_KIND_META_FALLBACK[kind]);
+  const heals = it.heals || 0;
+  let buffText = '';
+  if(it.buff && it.buff.type){
+    const bd = (window.BUFFS_DEF || {})[it.buff.type];
+    const name = bd ? bd.label : String(it.buff.type).replace(/_/g,' ');
+    const mins = Math.round((it.buff.durationMs||0)/60000);
+    buffText = '+' + (it.buff.magnitude||0) + '% ' + name + (mins ? ' for ' + mins + ' min' : '');
+  }
+  return {
+    id, kind,
+    label: meta.label, verb: meta.verb, verbPast: _FOOD_VERB_PAST[meta.verb] || meta.verb,
+    blurb: meta.blurb,
+    heals, healText: heals ? ('Heals ' + heals) : '',
+    buffText,
+    autoEatable: kind === 'provision',
+  };
+}
+window.foodUseInfo = foodUseInfo;
+
+/* The best Provision in the bag — the same "biggest heal you own" rule
+   HearthriseAuto.maybeAutoEat() falls back to, so the combat Eat button and
+   auto-eat never disagree about what your healing food is. */
+function bestProvisionId(){
+  if(typeof G === 'undefined' || !G.inventory || typeof ITEMS === 'undefined') return null;
+  const configured = (window.HearthriseAuto && window.HearthriseAuto.getEat)
+    ? (window.HearthriseAuto.getEat().foodId || null) : null;
+  if(configured && (G.inventory[configured]||0) > 0 && _foodKindOf(ITEMS[configured]) === 'provision') return configured;
+  let bestId = null, bestHeals = -1;
+  for(const id in G.inventory){
+    if((G.inventory[id]||0) <= 0) continue;
+    const it = ITEMS[id];
+    if(_foodKindOf(it) !== 'provision') continue;
+    if((it.heals||0) > bestHeals){ bestId = id; bestHeals = it.heals||0; }
+  }
+  return bestId;
+}
+window.bestProvisionId = bestProvisionId;
+
+/* Is auto-eat currently pointed at this exact item (and switched on)? */
+function _autoEatUsesThis(id){
+  const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+  return !!(cfg && cfg.enabled && cfg.foodId === id);
+}
+
+/* Eat from a UI surface: consume, then refresh what the player is looking at.
+   eatFood() owns the rules and the toast; this owns the repaint. */
+window.eatFromInventory = function(id){
+  const ok = (typeof window.eatFood === 'function') ? window.eatFood(id) : false;
+  if(ok && typeof closeInvDetail === 'function') closeInvDetail();
+  if(typeof window._renderInvFancy === 'function') setTimeout(window._renderInvFancy, 0);
+  if(typeof updateTopbar === 'function') updateTopbar();
+  return ok;
+};
+/* The combat screen's manual heal. */
+window.eatBestProvision = function(){
+  const id = bestProvisionId();
+  if(!id){ notify('No healing food in your bag — cook fish or bake bread.','kill'); return false; }
+  return window.eatFromInventory(id);
+};
+/* Route auto-eat config through the ONE writer the engine reads (b134).
+   The old inline `G.foodSlot='x'` handler wrote a field nothing consumes. */
+window.setAutoEatFood = function(id){
+  const info = foodUseInfo(id);
+  if(!info || !info.autoEatable){
+    notify('Auto-eat only uses Provisions — ' + ((ITEMS[id]||{}).n || id) + ' must be eaten by hand.','kill');
+    return false;
+  }
+  if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
+    notify('Auto-eat is locked — unlock it in the Store.','kill');
+    return false;
+  }
+  G.foodSlot = id;   /* kept in step for old saves / loadout presets */
+  if(window.HearthriseAuto && window.HearthriseAuto.setEat){
+    window.HearthriseAuto.setEat({foodId:id, enabled:true});
+  }
+  notify('Auto-eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
+  if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
+  return true;
+};
+/* Combat picker onchange — "" is the explicit Off option, not a bad item id. */
+window.setCombatAutoEat = function(value){
+  if(!value){
+    G.foodSlot = null;
+    if(window.HearthriseAuto && window.HearthriseAuto.setEat){
+      window.HearthriseAuto.setEat({foodId:null, enabled:false});
+    }
+    notify('Auto-eat off.','info');
+    if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
+    return false;
+  }
+  return window.setAutoEatFood(value);
+};
+
 /* ───── Item detail flyout ───── */
 function openInvDetail(id){
   const it = ITEMS[id]; if(!it) return;
   const qty = G.inventory[id] || G.bank[id] || 0;
-  const cat = _itemCategory(it);
+  /* b224: "food" told the player nothing — a Cooked Shrimp and a Void Banquet
+     both read `FOOD` under the name while behaving completely differently.
+     Name the kind instead: Provision / Feast / Draught. */
+  const _food = foodUseInfo(id);
+  const cat = _food ? _food.label : _itemCategory(it);
   const d = document.getElementById('inv-detail-overlay') || (function(){
     const el = document.createElement('div');
     el.id = 'inv-detail-overlay';
@@ -3518,7 +3697,11 @@ function openInvDetail(id){
   if(it.atkB) stats.push(`<div><b>+${it.atkB}</b><span>attack</span></div>`);
   if(it.strB) stats.push(`<div><b>+${it.strB}</b><span>strength</span></div>`);
   if(it.defB) stats.push(`<div><b>+${it.defB}</b><span>defense</span></div>`);
-  if(it.heals) stats.push(`<div><b>+${it.heals}</b><span>heals</span></div>`);
+  /* b224: state the effect in plain words. A buff item used to show only its
+     heal number, so its whole reason to exist was invisible at the point of use. */
+  if(_food && _food.heals) stats.push(`<div><b>+${_food.heals} HP</b><span>${_food.kind==='provision'?'heals when eaten':'also heals'}</span></div>`);
+  else if(it.heals) stats.push(`<div><b>+${it.heals}</b><span>heals</span></div>`);
+  if(_food && _food.buffText) stats.push(`<div><b>${_food.buffText.split(' for ')[0]}</b><span>${_food.buffText.includes(' for ')?'for '+_food.buffText.split(' for ')[1]:'timed buff'}</span></div>`);
   if(it.speed != null) stats.push(`<div><b>+${Math.round((it.speed||0)*100)}%</b><span>tool speed</span></div>`);
   if(it.smithSpeed != null) stats.push(`<div><b>+${Math.round((it.smithSpeed||0)*100)}%</b><span>smith speed</span></div>`);
   if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
@@ -3533,9 +3716,29 @@ function openInvDetail(id){
     if(typeof equipItem === 'function')           acts.push(`<button class="btn btn-primary" onclick="equipItem('${id}');closeInvDetail();setTimeout(renderInvNew,0)">Equip</button>`);
     else if(typeof equipGear === 'function')      acts.push(`<button class="btn btn-primary" onclick="equipGear('${id}');closeInvDetail();setTimeout(renderInvNew,0)">Equip</button>`);
   }
-  if(it.heals){
-    acts.push(`<button class="btn btn-primary" onclick="G.foodSlot='${id}';notify('Auto-eat: ${it.n}','info');closeInvDetail()">Set Auto-eat</button>`);
-    if(typeof eatItem === 'function') acts.push(`<button class="btn" onclick="eatItem('${id}');closeInvDetail()">Eat 1</button>`);
+  /* b224: food. The action IS the point of this screen — Eat/Drink/Use is the
+     primary button, and it is honest about what it will do. See foodUseInfo(). */
+  /* Bank-only stacks open this same flyout, and eatFood() reads the bag — so
+     only offer the verb when there is something in the bag to spend. */
+  if(_food && (G.inventory[id]||0) > 0){
+    const atFull = typeof G.playerHp === 'number' && typeof G.playerMaxHp === 'number'
+      && G.playerHp >= G.playerMaxHp;
+    if(_food.kind === 'provision' && atFull){
+      /* Honest dead-end instead of silently burning the item for nothing —
+         "I clicked it and nothing happened" was half the reported confusion. */
+      acts.push(`<button class="btn" disabled title="Your health is already full">Already at full health</button>`);
+    } else {
+      const sub = _food.kind === 'provision'
+        ? (_food.healText ? ' — ' + _food.healText : '')
+        : (_food.buffText ? ' — ' + _food.buffText : '');
+      acts.push(`<button class="btn btn-primary" onclick="eatFromInventory('${id}')">${_food.verb}${sub}</button>`);
+    }
+    /* Auto-eat is offered only where it is true: a Provision, and a trait the
+       player actually owns. Everything else gets a sentence, not a button. */
+    if(_food.autoEatable && typeof hasTrait === 'function' && hasTrait('auto_eat')
+       && !_autoEatUsesThis(id)){
+      acts.push(`<button class="btn" onclick="setAutoEatFood('${id}');closeInvDetail()">Set as auto-eat food</button>`);
+    }
   }
   if(it.kind === 'upgrade' || it.upgradesTo){
     if(typeof openUpgradePicker === 'function') acts.push(`<button class="btn btn-primary" onclick="openUpgradePicker('${id}');closeInvDetail()">Apply Kit</button>`);
@@ -3552,6 +3755,23 @@ function openInvDetail(id){
     if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
   }
 
+  /* b224: one sentence saying what this food is for, plus the honest status of
+     auto-eat. b217's rule is that comprehension gets fixed in the UI, not in a
+     tutorial — so the screen that offers the button also explains the button. */
+  let foodNote = '';
+  if(_food){
+    const bits = [_food.blurb];
+    if(_food.autoEatable){
+      if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
+        const cost = ((window.TRAITS && window.TRAITS.auto_eat) ? window.TRAITS.auto_eat.cost : 5000).toLocaleString();
+        bits.push(`You have not unlocked Auto-Eat yet (${cost}g in the Store) — for now, heal by hand from here or the Combat screen.`);
+      } else if(_autoEatUsesThis(id)){
+        bits.push('Auto-eat is currently using this food.');
+      }
+    }
+    foodNote = `<div class="inv-detail-note">${bits.join(' ')}</div>`;
+  }
+
   d.innerHTML = `<div class="inv-detail-card">
     <div class="inv-detail-close" onclick="closeInvDetail()">✕</div>
     <div class="inv-detail-head">
@@ -3562,6 +3782,7 @@ function openInvDetail(id){
       </div>
     </div>
     <div class="inv-detail-stats">${stats.join('')}</div>
+    ${foodNote}
     <div class="inv-detail-actions">${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
@@ -10607,6 +10828,25 @@ window.eatFood = function(foodId, opts){
   const fd = (typeof ITEMS !== 'undefined') ? ITEMS[foodId] : null;
   if(!fd) return false;
 
+  const info = (typeof window.foodUseInfo === 'function') ? window.foodUseInfo(foodId) : null;
+
+  /* b224: refuse to burn a Provision for nothing.
+     A Provision's entire value is the heal, so eating one at full HP destroys
+     it and changes no visible state — which is precisely what beta testers
+     read as "I clicked eat and nothing happened". Say so and keep the item.
+     A Feast or Draught is spent for its timed buff, so full HP is never a
+     reason to block it. opts.force exists for callers that mean it. */
+  const atFull = typeof G.playerHp === 'number' && typeof G.playerMaxHp === 'number'
+    && G.playerHp >= G.playerMaxHp;
+  if(atFull && info && info.kind === 'provision' && !opts.force){
+    if(typeof window.notify === 'function'){
+      notify('Already at full health — kept your ' + (fd.n||foodId) + '.','info');
+    }
+    return false;
+  }
+
+  const hpBefore = (typeof G.playerHp === 'number') ? G.playerHp : null;
+
   // Heal if applicable
   if(fd.heals && typeof G.playerHp === 'number'){
     G.playerHp = Math.min(G.playerMaxHp || G.playerHp + fd.heals, G.playerHp + fd.heals);
@@ -10625,7 +10865,24 @@ window.eatFood = function(foodId, opts){
   G.stats.buffsConsumed = (G.stats.buffsConsumed||0) + 1;
 
   if(window.HearthriseEvents) window.HearthriseEvents.emit('eat', {foodId});
-  if(typeof window.notify === 'function') notify('Ate '+(fd.n||foodId)+(fd.buff?' — buff applied':''),'loot');
+
+  /* b224: say what actually happened. The old toast was "Ate X — buff applied":
+     no HP gained, no resulting HP, no buff named. */
+  const gained = (hpBefore != null) ? (G.playerHp - hpBefore) : 0;
+  if(typeof window.notify === 'function'){
+    const parts = [];
+    if(gained > 0) parts.push('+' + gained + ' HP (' + G.playerHp + '/' + G.playerMaxHp + ')');
+    if(info && info.buffText) parts.push(info.buffText);
+    const verbPast = (info && info.verbPast) || 'Ate';
+    notify(verbPast + ' ' + (fd.n||foodId) + (parts.length ? ' — ' + parts.join(' · ') : ''),
+           gained > 0 ? 'levelup' : 'loot');
+  }
+  /* Mid-fight the toast is not where the player is looking — mirror it into the
+     combat log next to the auto-eat lines, and repaint the HP bar immediately. */
+  if(G.activeMonster && Array.isArray(G.combatLog)){
+    G.combatLog.push('Ate ' + (fd.n||foodId) + (gained > 0 ? ' (+' + gained + ' HP)' : ''));
+    if(typeof window.renderCombat === 'function') window.renderCombat();
+  }
 
   if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
   if(typeof window.renderActiveEffects === 'function') window.renderActiveEffects();
@@ -10676,41 +10933,19 @@ setInterval(function(){
 // combat. Old G.foodSlot saves are migrated to G.autoActions.eat in
 // auto-actions.js so nobody loses their auto-eat setting.
 
-// ── UI: Eat Now button on inventory food tiles ──
-function injectEatNowButtons(){
-  const tiles = document.querySelectorAll('#panel-inventory .invc-tile');
-  tiles.forEach(function(tile){
-    const id = tile.getAttribute('data-item-id');
-    if(!id) return;
-    const def = (typeof ITEMS !== 'undefined') ? ITEMS[id] : null;
-    if(!def || !def.heals) return;
-    if(tile.querySelector('.eat-now-btn')) return;
-    const btn = document.createElement('button');
-    btn.className = 'eat-now-btn';
-    btn.textContent = 'Eat';
-    btn.style.position = 'absolute';
-    btn.style.top = '2px';
-    btn.style.left = '2px';
-    btn.style.zIndex = '5';
-    btn.addEventListener('click', function(e){
-      e.stopPropagation(); e.preventDefault();
-      window.eatFood(id);
-    });
-    tile.appendChild(btn);
-  });
-}
+/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper.
+   It looked for `#panel-inventory .invc-tile[data-item-id]` and skipped any
+   tile without that attribute — but renderInvFancy() only sets data-item-id
+   on EQUIPPABLE items (it drives drag-to-equip), and no food is equippable.
+   The intersection was empty by construction, so this produced zero buttons
+   on every render since the bag was rebuilt. Verified in-browser before
+   deleting: `document.querySelectorAll('.eat-now-btn').length === 0` with a
+   bag full of Provisions.
 
-// Inject after each inventory render
-(function(){
-  if(typeof window.renderInvFancy === 'function'){
-    const orig = window.renderInvFancy;
-    window.renderInvFancy = function(){
-      const r = orig.apply(this, arguments);
-      setTimeout(injectEatNowButtons, 30);
-      return r;
-    };
-  }
-})();
+   It is not resurrected here: a floating button on a 44px tile fights the
+   quantity badge and the rarity frame. Eat is now the primary action in the
+   item flyout (one click from the tile) and a first-class button on the
+   Combat screen, which is where healing is actually needed. */
 
 // ── UI: refresh just the timer text without re-rendering the whole panel ──
 function refreshBuffTimers(){
@@ -10788,7 +11023,8 @@ window.__renderBuffsSection = function(){
 function boot(){
   ensureBuffState();
   if(typeof window.renderActiveEffects === 'function') window.renderActiveEffects();
-  setTimeout(injectEatNowButtons, 800);
+  /* b224: the injectEatNowButtons() boot call went with the function — see the
+     note above. Eat now lives in the item flyout and the Combat screen. */
   setTimeout(window.__renderBuffsSection, 800);
 }
 if(document.readyState === 'loading'){

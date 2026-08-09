@@ -25,7 +25,7 @@
 // 1. Data — single source of truth
 import { SKILLS_DEF } from './data/skills.js?v=223';
 import { MONSTERS } from './data/monsters.js?v=223';
-import { ITEMS, foodClassOf, isAutoEatable } from './data/items.js?v=223';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=223';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=223';
 import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=223';
 import { COMPANIONS } from './data/companions.js?v=223';
@@ -76,6 +76,9 @@ Object.assign(window, {
   // b220 — artisan taxonomy + food classification, published for the classic
   // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
   ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,
+  // b224 — the presentation twin of foodClassOf, so the item modal, the combat
+  // picker and the hover tooltip all name a food the same way.
+  foodKindOf, FOOD_KIND_META,
   // b222 — the Castle Stores predicate, shared by the artisan lane and (once
   // the Clan Seat migration is applied) the Storehouse deposit filter.
   isCastleGood,

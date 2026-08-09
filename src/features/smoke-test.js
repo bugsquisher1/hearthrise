@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=245' directly.
+// modularised, will import { G } from '../state/game.js?v=246' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=245';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=245';
+import { on, snapshot } from '../net/events.js?v=246';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=246';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=245';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=246';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,30 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b246: gear level requirements are enforced (grandfathered) — the phantom gate is real now', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.canWield === 'function' && typeof window.gearWieldReq === 'function', 'the wield-gate seam must exist');
+      const rid = 'rune_platebody';
+      const req = window.gearWieldReq(window.ITEMS[rid]);
+      assert(req && req.skill === 'defense' && req.lv === 60, 'rune platebody must require Defence 60, got ' + JSON.stringify(req));
+      const isEquipped = () => Object.values(G.equipment || {}).indexOf(rid) >= 0;
+      // Under-level: cannot equip, item stays in the bag.
+      G.skills = { defense: 0 }; G.wieldGrandfather = {}; G.inventory = { [rid]: 1 }; G.equipment = {};
+      window.equipItem(rid);
+      assert(!isEquipped() && (G.inventory[rid] || 0) === 1, 'an under-level player must NOT equip gated armour');
+      // Grandfathered gear equips regardless of level (nobody is stripped / locked out of worn kit).
+      G.wieldGrandfather = { [rid]: true };
+      window.equipItem(rid);
+      assert(isEquipped(), 'grandfathered gear must still equip at any level');
+      // Meeting the requirement works.
+      G.wieldGrandfather = {}; G.inventory = { [rid]: 1 }; G.equipment = {}; G.skills = { defense: 5000000 };
+      window.equipItem(rid);
+      assert(isEquipped(), 'meeting the requirement lets you equip');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b245: attack speed is a real lever — spdB shortens the swing, capped at 20%', () => {

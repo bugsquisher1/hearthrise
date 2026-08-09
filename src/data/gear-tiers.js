@@ -111,6 +111,11 @@ export const GEAR_ITEMS = (() => {
         defB: slotDef.def[i],
         rarity: mat.rarity,
         tier: mat.tier,
+        /* b246: armour is gated on DEFENCE at the tier's level, so wielding it is
+           a real progression gate (enforced at equipItem, grandfathered for gear
+           already worn). Bronze (Lv 1) is effectively ungated. */
+        reqSkill: 'defense',
+        reqLv: mat.smith,
       };
     });
   });
@@ -129,6 +134,9 @@ export const GEAR_ITEMS = (() => {
         strB: fam.str[i],
         rarity: mat.rarity,
         tier: mat.tier,
+        /* b246: weapons are gated on their own combat style at the tier's level. */
+        reqSkill: fam.weaponType === 'ranged' ? 'ranged' : fam.weaponType === 'magic' ? 'magic' : 'attack',
+        reqLv: mat.smith,
       };
       // Ranged and magic weapons carry their style's own attack/strength too,
       // so the combat engine rolls them against the right stats.

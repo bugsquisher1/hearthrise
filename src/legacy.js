@@ -791,6 +791,10 @@ function loadLocal(){
     }
   }
   remapItemIds(G);   // b244: fold any renamed/retired item ids across every store
+  /* b246: grandfather gear already worn when wield-reqs went live — never strip
+     anyone of what they're wearing, and let them re-wear it freely. */
+  G.wieldGrandfather = G.wieldGrandfather || {};
+  if(G.equipment) for(const _s in G.equipment){ const _eid=G.equipment[_s]; if(_eid) G.wieldGrandfather[_eid]=true; }
   ensureRetentionState();
   ensureBountyState();
   migrateEquipmentSlots();
@@ -3476,12 +3480,39 @@ function renderLoadout(){
     <div class="muted tiny" style="margin-top:8px">Tap a slot to unequip. Manage gear from the Inventory tab.</div>`;
 }
 function unequip(slot){const id=G.equipment[slot];if(!id)return;G.equipment[slot]=null;G.inventory[id]=(G.inventory[id]||0)+1;notify(`Unequipped ${ITEMS[id].n}`,'info');renderLoadout();renderInventory();}
+/* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires
+   Lv X" but equipItem equipped anything — a phantom gate. Now armour is gated
+   on Defence and weapons on their combat style, at the tier's level (Bronze 1 →
+   Dawnsteel 88). GRANDFATHERED: anything a player already has worn is recorded
+   (on load + on every successful equip) so no one is ever stripped of gear, and
+   gear you've legitimately equipped once can always be re-worn. */
+const _TIER_WIELD_LV=[0,1,15,30,45,60,75,88]; // by item.tier 1..7 (the tier gates)
+function gearWieldReq(it){
+  if(!it) return null;
+  if(it.type!=='weapon' && it.type!=='armor' && it.type!=='jewelry') return null;
+  let lv = (typeof it.reqLv==='number') ? it.reqLv : (it.tier ? (_TIER_WIELD_LV[it.tier]||0) : 0);
+  if(!lv || lv<=1) return null;
+  let skill = it.reqSkill;
+  if(!skill){ skill = it.type==='armor' ? 'defense' : it.weaponType==='ranged' ? 'ranged' : it.weaponType==='magic' ? 'magic' : 'attack'; }
+  return { skill, lv };
+}
+function canWield(id){
+  const it=ITEMS[id]; const req=gearWieldReq(it);
+  if(!req) return { ok:true };
+  if(G.wieldGrandfather && G.wieldGrandfather[id]) return { ok:true };   // already-owned gear
+  if(getLevel(req.skill) >= req.lv) return { ok:true };
+  return { ok:false, req };
+}
+window.gearWieldReq=gearWieldReq; window.canWield=canWield;
 function equipItem(id){
   migrateEquipmentSlots();
   const def=ITEMS[id];if(!def||(!def.type&&!def.slot))return;
+  const w=canWield(id);   // b246: enforce the wield gate (grandfathered)
+  if(!w.ok){ notify(`Requires ${(SKILLS_DEF[w.req.skill]&&SKILLS_DEF[w.req.skill].name)||w.req.skill} Lv ${w.req.lv} to wield ${def.n}`,'kill'); return; }
   const slot=getPreferredSlot(def);if(!slot||!EQUIP_SLOTS.includes(slot))return;
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
   G.equipment[slot]=id;removeItem(id,1);
+  G.wieldGrandfather=G.wieldGrandfather||{}; G.wieldGrandfather[id]=true;   // once worn, always re-wearable
   notify(`Equipped ${def.n}`,'info');
   renderInventory();renderLoadout();
 }
@@ -4823,9 +4854,12 @@ function applyLoadout(idx){
     if(cur) addItem(cur, 1);
     /* if target item exists in bag, take from bag */
     if(target){
-      if(hasItem(target, 1)){
+      /* b246: a loadout can't sneak past the wield gate — but items you've worn
+         are grandfathered, so a legitimately-saved kit re-applies cleanly. */
+      if(hasItem(target, 1) && (typeof canWield!=='function' || canWield(target).ok)){
         removeItem(target, 1);
         newEq[slot] = target;
+        G.wieldGrandfather = G.wieldGrandfather || {}; G.wieldGrandfather[target] = true;
       } else {
         newEq[slot] = null;
       }
@@ -10570,10 +10604,14 @@ function equipToSlot(id, targetSlot){
     if(typeof notify === 'function') notify('Not compatible with that slot','kill');
     return;
   }
+  /* b246: the paper-doll drag-equip is a second equip path — gate it too. */
+  var _w = (typeof canWield === 'function') ? canWield(id) : {ok:true};
+  if(!_w.ok){ if(typeof notify==='function') notify(`Requires ${(SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill} Lv ${_w.req.lv} to wield ${def.n}`,'kill'); return; }
   /* Move existing item back to inventory */
   var old = G.equipment[targetSlot];
   if(old){ G.inventory[old] = (G.inventory[old]||0) + 1; }
   G.equipment[targetSlot] = id;
+  G.wieldGrandfather = G.wieldGrandfather || {}; G.wieldGrandfather[id] = true;
   if(typeof removeItem === 'function') removeItem(id, 1);
   if(typeof notify === 'function') notify('Equipped '+def.n,'info');
   if(typeof renderInventory === 'function') renderInventory();

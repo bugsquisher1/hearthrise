@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 246 — 2026-08-09 (Gear you've earned)
+
+- 🗡️ **Gear level requirements are real now.** The game showed "Requires Lv X" on gear but let you wear anything anyway — that gate is real: armour is gated on Defence, weapons on their combat style, at the tier's level (Bronze anytime → Dawnsteel needs Lv 88). Wearing top-tier gear is something you *earn* now.
+- 🛡️ **Nothing you're already wearing is touched.** Anything you have equipped is grandfathered in — you'll never be stripped of your kit, and once you've worn a piece you can always put it back on, even while you level toward it. It only stops you *newly* equipping gear you haven't grown into yet.
+- 🧪 450 tests green.
+
 ## v0.9.2-beta build 245 — 2026-08-09 (Speed & coal)
 
 - ⚡ **Attack speed is a real stat now.** Your gear's "Speed" bonus was shown but did nothing — it now genuinely makes you swing faster in combat (capped at 20% so it stays fair). Only a little speed gear exists today, but the stat finally means what it says, and future gear can lean into it.

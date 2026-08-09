@@ -39,6 +39,13 @@ export const ROCKS=[
   {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
   {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:30,xp:57,ms:5500,prod:'coal',qty:[1,1]},
   {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:75,ms:7000,prod:'gold_ore',qty:[1,1]},
+  /* b245 (Tyler / pacing audit): the COAL CHOKEPOINT. coal_rock opens at Mining
+     30 and yields 1 at a flat rate, while every bar past copper eats 1–5 coal and
+     the top bars need 4–5 each — so late smithing was gated on level-30 coal
+     throughput. This richer seam (Mining 52) yields 2–3 coal a swing, ~2.5× the
+     supply, so a late smith isn't grinding low-tier coal. Its xp/sec sits between
+     Gold and Mithril so the "every rung strictly better" rule still holds. */
+  {id:'rich_coal_rock',name:'Rich Coal Seam',icon:'⬛',req:52,xp:90,ms:8300,prod:'coal',qty:[2,3]},
   /* b226: ms 9000 → 8000. At 9s Mithril was a SLOWER xp/sec than Gold Rock
      15 levels below it — unlocking the rung was a punishment. Every rung must
      be strictly better than the one under it; the smoke suite now asserts it. */

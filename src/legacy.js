@@ -809,7 +809,7 @@ function loadLocal(){
   // after the offline catch-up. processOfflineCombat may have nulled
   // G.activeMonster on death.
   if(G.activeMonster && !combatInterval){
-    combatInterval = setInterval(combatTick, COMBAT_BALANCE.tickMs);
+    combatInterval = setInterval(combatTick, combatTickMs());   // b245: honour attack speed on resume
   }
   // b237: and resume the live gathering/artisan loop the same way — otherwise
   // the save says "fishing" but nothing ticks until the player re-taps.
@@ -2430,13 +2430,25 @@ window.fightBountyTarget=function(mId){
   if(G.activeMonster!==mId) startCombat(mId);
   if(typeof showTab==='function') showTab('combat');
 };
+/* b245 (Tyler): attack SPEED is a real lever now. spdB ("gear speed") was summed
+   and shown on the stats panel and fed nothing — the swing interval was a flat
+   tickMs. It now shortens the swing by your total spdB, capped at 20% so a future
+   speed-stacked build can't trivialise the pacing curve. Only leather_boots
+   carries spdB (.02) today, so the live effect is tiny; the mechanic is what
+   matters, and it scales as speed gear is added. Computed at fight start (and on
+   resume); re-tap a foe to apply a fresh loadout. */
+function combatTickMs(){
+  const spd=Math.max(0,Math.min(0.20,(getEquipmentStats().spdB)||0));
+  return Math.max(600,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)));
+}
+window.combatTickMs=combatTickMs;
 function startCombat(mId){
   if(G.activeMonster===mId){stopCombat();return;}
   stopCombat();
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`⚔️ You attack the ${m.name}!`];
-  combatInterval=setInterval(combatTick,COMBAT_BALANCE.tickMs);
+  combatInterval=setInterval(combatTick,combatTickMs());
   combatTick();
   renderCombat();renderMonsterList();
 }

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=244' directly.
+// modularised, will import { G } from '../state/game.js?v=245' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=244';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=244';
+import { on, snapshot } from '../net/events.js?v=245';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=245';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=244';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=245';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,25 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b245: attack speed is a real lever — spdB shortens the swing, capped at 20%', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.combatTickMs === 'function', 'combatTickMs() seam missing');
+      const base = window.combatTickMs();
+      G.equipment = {};
+      assert(window.combatTickMs() === Math.floor(window.COMBAT_BALANCE.tickMs), 'no speed gear = the base swing interval');
+      // A tiny spdB gear shortens the swing.
+      G.equipment = { boots: 'leather_boots' };   // spdB .02
+      assert(window.combatTickMs() < base, 'spdB gear must shorten the swing');
+      // The cap holds: even absurd speed can only reach 20% faster.
+      window.ITEMS.__test_speed = { n: 'Test Speed', spdB: 0.9, type: 'armor', slot: 'boots' };
+      G.equipment = { boots: '__test_speed' };
+      assert(window.combatTickMs() === Math.floor(window.COMBAT_BALANCE.tickMs * 0.80),
+        'attack speed must cap at 20% faster even at spdB 0.9, got ' + window.combatTickMs());
+    } finally { delete window.ITEMS.__test_speed; restoreG(snap); }
   }),
 
   () => tryRun('b244: the item-id migration layer remaps a renamed/retired id across every store', () => {

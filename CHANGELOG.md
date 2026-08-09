@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 245 — 2026-08-09 (Speed & coal)
+
+- ⚡ **Attack speed is a real stat now.** Your gear's "Speed" bonus was shown but did nothing — it now genuinely makes you swing faster in combat (capped at 20% so it stays fair). Only a little speed gear exists today, but the stat finally means what it says, and future gear can lean into it.
+- ⛏️ **A richer coal seam for late smithing.** Coal was a grind — every bar past copper needs it, and the top bars want 4–5 each, all fed by one flat level-30 rock. A new **Rich Coal Seam** (Mining 52) yields 2–3 coal a swing, so keeping the forge fed at high levels isn't a slog anymore.
+- 🧪 449 tests green.
+
 ## v0.9.2-beta build 244 — 2026-08-09 (Your stuff is safe)
 
 - 🧷 **Behind the scenes: your inventory is now rename-proof.** As the big item rework continues, some items will get renamed or merged. A new safety layer makes sure that whenever that happens, anything you own — in your bag, worn, in your collection, locked, or in buy-back — is carried over automatically. No more risk of an update quietly eating your items, and it's covered by a test.

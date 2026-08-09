@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 8;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 9;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -289,6 +289,63 @@
 
         if(save.dailyGoals) delete save.dailyGoals;
         if(save.weeklyGoals) delete save.weeklyGoals;
+      },
+    },
+    {
+      from: 8, to: 9,
+      name: 'v8 → v9 (b227: room levels are clamped to the live ladder)',
+      // WHAT A CORRUPTED SAVE WOULD LOOK LIKE, and what this does to it.
+      //
+      // Tyler reported the House screen "let me just keep building the forge",
+      // which raised a fair question: did he pay for rooms he does not have,
+      // and is G.rooms now past the end of its own ladder?
+      //
+      // Investigated before writing this, and the honest answer is NO. There
+      // are exactly two writers of G.rooms in the whole codebase — upgradeRoom
+      // (which advances by one and only when levels[lv] exists) and
+      // homestead.js's grandfather pass (which writes the literal 1) — so no
+      // live path can produce an out-of-range level, and no gold was spent on a
+      // phantom rung. What Tyler actually hit was a missing REPAINT: three real
+      // purchases at three escalating prices, none of them acknowledged on
+      // screen, then a silent dead button. He owns what he paid for.
+      //
+      // This migration is therefore insurance, not a repair, and it is written
+      // as insurance: it exists so the invariant "a room level is an integer in
+      // [0, ladder length]" is ENFORCED at load rather than merely being true
+      // by inspection of two call sites. A save that violates it — from a
+      // future bug, a hand-edited localStorage, a cloud blob written by a build
+      // whose ladder was longer — would otherwise reach getBonus, which reads
+      // `levels[lv-1]` and would hand `undefined` to the bonus walk, and reach
+      // renderHouse, which would offer a Build button for a rung that does not
+      // exist.
+      //
+      // Shape of a corrupted save: `rooms: { forge: 7 }` (beyond a 5-rung
+      // ladder), `{ forge: -2 }`, `{ forge: 2.5 }`, `{ forge: "3" }` or
+      // `{ forge: NaN }`. After this: 5, 0, 2, 3 and 0 respectively.
+      //
+      // Three deliberate restraints:
+      //   • It only ever clamps DOWN to the cap or up to zero. It never invents
+      //     a level, and a legitimate save is byte-identical afterwards.
+      //   • A room id the live ROOMS table does not know is left ALONE (beyond
+      //     integer coercion). We cannot know its cap, and silently deleting a
+      //     room because this build has not heard of it is how a save loses a
+      //     feature during a staged rollout.
+      //   • If window.ROOMS is somehow absent, the whole clamp is skipped. A
+      //     migration that cannot read the rules must not guess at them.
+      //
+      // Refunds: none, and deliberately none. Nothing was over-charged — every
+      // click bought the rung it was billed for. Paying gold back for a
+      // purchase the player still owns would be the actual duplication bug.
+      apply: function(save){
+        if(!save.rooms || typeof save.rooms !== 'object') return;
+        var LADDER = (typeof window !== 'undefined' && window.ROOMS) || null;
+        Object.keys(save.rooms).forEach(function(id){
+          var lv = Math.floor(Number(save.rooms[id]));
+          if(!isFinite(lv) || lv < 0) lv = 0;
+          var def = LADDER && LADDER[id];
+          if(def && def.levels && lv > def.levels.length) lv = def.levels.length;
+          save.rooms[id] = lv;
+        });
       },
     },
     // Future migrations go here. Example:

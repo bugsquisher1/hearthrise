@@ -394,6 +394,816 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b227 — THE HOUSE IS A PLACE (homestead-deepening.md §3, §5, §6)
+
+     Two Tyler reports, one wave:
+       "It let me just keep building the forge."
+       "No good indication that I own the forge on my house screen."
+
+     The first was a MISSING REPAINT, not a missing guard — so the regression
+     test that matters most is the one that reads the rendered DOM back after a
+     build. A test that only asserted `G.rooms.forge === 1` was green through
+     the entire bug, which is exactly the b224 lesson (every quest test asserted
+     the panel opened; none asserted a number moved).
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b227 regression: building a room repaints the House (the double-build report)', () => {
+    // THE BUG. refreshAll() renders profile/inventory/skills/combat/shop and
+    // has never rendered the House; nothing else repainted it after a mutation
+    // either. So the row kept its old level, its old price and its "Build"
+    // label after a real purchase, and clicking again bought the NEXT rung at
+    // the NEXT price with still no acknowledgement. Three real buys, zero
+    // feedback, then a silent dead button.
+    if (typeof window.upgradeRoom !== 'function' || typeof window.renderHouse !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 2 };                 // farmstead: the Forge is legal
+      window.G.rooms = {};
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, iron_ore: 500 });
+      window.showTab('house');
+      if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
+      window.renderHouse();
+
+      const panel = document.getElementById('house-panel');
+      assert(panel, 'house-panel missing');
+      assert(!/Lv 1/.test(panel.textContent), 'precondition: the Forge should not read as owned yet');
+
+      const goldBefore = window.G.gold;
+      window.upgradeRoom('forge');
+      assert(window.G.rooms.forge === 1, 'the build should have happened in state');
+      assert(window.G.gold === goldBefore - 800, 'the build should have charged exactly the L1 price');
+
+      // THE ASSERTION THE OLD CODE FAILED. No manual renderHouse() here on
+      // purpose — upgradeRoom itself must leave the screen agreeing with state.
+      const after = document.getElementById('house-panel').textContent;
+      assert(/Lv 1/.test(after),
+        'the House still does not show the Forge as owned after building it — this is the double-build report');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227 regression: a maxed room refuses another build, out loud', () => {
+    // The fourth click used to hit `if(!nx)return` — a silent no-op that is
+    // indistinguishable from a broken button, and the reason the screen read
+    // as "it let me keep building". Refusal now happens in the STATE path
+    // (not merely as a disabled button) and it says something.
+    if (typeof window.upgradeRoom !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const cap = window.ROOMS.forge.levels.length;
+      window.G.homestead = { tier: 5 };
+      window.G.rooms = { forge: cap };
+      window.G.gold = 5000000;
+      const goldBefore = window.G.gold, lvBefore = window.G.rooms.forge;
+      const ok = window.upgradeRoom('forge');
+      assert(ok === false, 'a maxed room must refuse the build and say so');
+      assert(window.G.rooms.forge === lvBefore, 'a maxed room must not gain a level');
+      assert(window.G.gold === goldBefore, 'a refused build must not charge the player');
+      // …and it must not throw on an id that is not a room at all. That path
+      // console.errors ON PURPOSE (a missing room is a wiring break and the
+      // b224 lesson is that those must be loud, never a silent plausible
+      // value) — so the error is captured here rather than left to fail the
+      // headless gate, and the fact that it fired is itself asserted.
+      const realError = console.error;
+      let logged = 0;
+      console.error = () => { logged++; };
+      try {
+        assert(window.upgradeRoom('not_a_room') === false, 'an unknown room id must be refused, not thrown on');
+        assert(logged === 1, 'an unknown room id must be reported loudly, not swallowed');
+      } finally { console.error = realError; }
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227 regression: the property gate is enforced on EVERY rung, not just the first', () => {
+    // The old gate ran only at `lv === 0`. Harmless while a room's three rungs
+    // shared one gate; a hole the moment L4 needs a Manor. A tier-2 player who
+    // owns a Forge could otherwise buy the tier-3 and tier-4 rungs outright.
+    if (typeof window.upgradeRoom !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 2 };                 // farmstead — below the L4 gate of 3
+      window.G.rooms = { forge: 3 };                    // owns every ungated rung
+      window.G.gold = 9000000;
+      const inv = {};
+      Object.keys(window.ROOMS.forge.levels[3].cost).forEach((k) => { if (k !== 'gold') inv[k] = 9999; });
+      window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      const goldBefore = window.G.gold;
+      assert(window.upgradeRoom('forge') === false, 'rung 4 must be refused below its property tier');
+      assert(window.G.rooms.forge === 3, 'a tier-gated rung must not be granted');
+      assert(window.G.gold === goldBefore, 'a tier-refused build must not charge the player');
+      // Raise the property and the same call now succeeds — proving the refusal
+      // was the TIER and not the cost.
+      window.G.homestead = { tier: 3 };
+      assert(window.upgradeRoom('forge') === true, 'rung 4 must be buildable at Stonecross Manor');
+      assert(window.G.rooms.forge === 4, 'the fitted rung should be owned');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
+    // Insurance, not a repair — no live writer can produce an out-of-range
+    // level (upgradeRoom advances by one only when levels[lv] exists, and the
+    // grandfather pass writes the literal 1). The clamp exists so the
+    // invariant is ENFORCED at load rather than true by inspection.
+    const M = window.HEARTHRISE_MIGRATIONS || window.__migrations;
+    const run = (save) => {
+      const list = (M && (M.list || M)) || null;
+      const m = (Array.isArray(list) ? list : []).find((x) => x && x.from === 8 && x.to === 9);
+      assert(m, 'the v8 → v9 room clamp migration is not registered');
+      m.apply(save);
+      return save;
+    };
+    const cap = window.ROOMS.forge.levels.length;
+    const out = run({ rooms: { forge: 99, kitchen: -2, library: 2.7, garden: NaN, workshop: '3', mystery_room: 4 } });
+    assert(out.rooms.forge === cap, 'a level past the ladder must clamp to the cap, got ' + out.rooms.forge);
+    assert(out.rooms.kitchen === 0, 'a negative level must clamp to 0');
+    assert(out.rooms.library === 2, 'a fractional level must floor');
+    assert(out.rooms.garden === 0, 'NaN must become 0, never propagate');
+    assert(out.rooms.workshop === 3, 'a numeric string must coerce');
+    // A room this build does not know keeps its level: we cannot know its cap,
+    // and deleting it would lose a feature during a staged rollout.
+    assert(out.rooms.mystery_room === 4, 'an unknown room id must be left alone');
+    // …and a legitimate save must come out untouched.
+    const clean = run({ rooms: { forge: 2, kitchen: cap } });
+    assert(clean.rooms.forge === 2 && clean.rooms.kitchen === cap, 'a valid save must be unchanged by the clamp');
+    // Idempotent, as every migration in this registry must be.
+    assert(JSON.stringify(run({ rooms: { forge: 2 } })) === JSON.stringify({ rooms: { forge: 2 } }),
+      'the clamp must be idempotent');
+  }),
+
+  () => tryRun('b227: every room has a five-rung ladder with real, reachable costs', () => {
+    // The b213 deadlock rule, re-run against the rungs this wave added: no
+    // cost may name an item the game does not define. A ladder that lists a
+    // price nobody can pay is a placeholder wearing a number.
+    const ids = Object.keys(window.ROOMS);
+    assert(ids.length === 8, 'expected 8 rooms, got ' + ids.length);
+    ids.forEach((id) => {
+      const r = window.ROOMS[id];
+      assert(r.levels.length === 5, id + ' should have 5 rungs, has ' + r.levels.length);
+      r.levels.forEach((rung, i) => {
+        assert(typeof rung.nm === 'string' && rung.nm.length, id + ' L' + (i + 1) + ' needs a rung name');
+        assert(typeof rung.bonus === 'string' && rung.bonus.length, id + ' L' + (i + 1) + ' needs an effect line');
+        assert(rung.cost && Object.keys(rung.cost).length, id + ' L' + (i + 1) + ' needs a cost');
+        Object.keys(rung.cost).forEach((k) => {
+          assert(k === 'gold' || window.ITEMS[k], id + ' L' + (i + 1) + ' costs unknown item "' + k + '"');
+          assert(rung.cost[k] > 0, id + ' L' + (i + 1) + ' cost ' + k + ' must be positive');
+        });
+        // Costs must rise. A rung that is cheaper than the one below it is a
+        // typo the ladder cannot express any other way.
+        if (i > 0) assert(rung.cost.gold > r.levels[i - 1].cost.gold,
+          id + ' L' + (i + 1) + ' must cost more gold than L' + i);
+      });
+      // L1-L3 are gate-free (they are the live rungs); L4/L5 carry a tier.
+      assert(r.levels[3].tier >= 3, id + ' L4 must require property tier 3 or better');
+      assert(r.levels[4].tier >= 4, id + ' L5 must require property tier 4 or better');
+      [0, 1, 2].forEach((i) => assert(r.levels[i].tier == null,
+        id + ' L' + (i + 1) + ' is a live rung and must not have gained a tier gate'));
+    });
+  }),
+
+  () => tryRun('b227 P1: no room rung can require a good the player cannot yet make (the §7 proof, executable)', () => {
+    /* THE BUG THIS CLOSES. Workshop L1 cost `normal_plank:15`. The only plank
+       source is the crafting recipe `saw_normal`; crafting is bench-gated on
+       the Workshop; the Workshop is that room. A fresh account could never
+       build it. b213 fixed exactly this class for the PROPERTY TIER costs and
+       never walked ROOM costs, and homestead-deepening §7 proves its new L4/L5
+       castle goods are reachable while simply ASSUMING the live rungs were.
+       Both blind spots are the same blind spot, so this is the whole proof,
+       run against live data instead of asserted in prose.
+
+       The model: walk the property ladder. At tier T a player has passed every
+       tier below, so they may own every room those tiers unlocked — and rooms
+       ARE the benches. Anything they can gather, farm, kill or buy is free;
+       anything else must come off a bench they can actually have by then. */
+    const R = window.ROOMS, H = window.HearthriseHomestead;
+    assert(R && H, 'rooms + homestead modules present');
+
+    // ── what the world gives you for free, with no bench at all ──
+    const raw = new Set(['gold']);
+    [].concat(window.TREES || [], window.ROCKS || [], window.FISH_SPOTS || [])
+      .forEach((n) => n && n.prod && raw.add(n.prod));
+    Object.keys(window.CROPS || {}).forEach((c) => {
+      const d = window.CROPS[c];
+      if (d && d.prod) raw.add(d.prod);
+      if (d && d.seed) raw.add(d.seed);      // seeds drop and are shop-stocked
+    });
+    Object.keys(window.MONSTERS || {}).forEach((m) => {
+      ((window.MONSTERS[m] || {}).drops || []).forEach((d) => d && d.id && raw.add(d.id));
+    });
+
+    // ── which bench each artisan skill needs, and when you may own it ──
+    // Cooking is the exception the campfire ruling created: the tier-1 camp
+    // has a fire, so cooking is reachable from tier 0 with no room at all.
+    const BENCH = H.WORKBENCH;                    // skill → room
+    const benchTier = (skill) => (H.UNGATED[skill] ? 0 : H.roomMinTier(BENCH[skill]));
+
+    const inputsOf = (r) => (typeof window.getInputs === 'function')
+      ? window.getInputs(r)
+      : (r.inputs || (r.input ? { [r.input]: 1 } : {}));
+
+    /* Everything obtainable by a player at property tier T, as a fixpoint:
+       start from raw, then keep adding any recipe output whose bench is
+       available by T and whose inputs are already obtainable.
+
+       `without` is the whole point of the check and the reason a first draft
+       of this test PASSED the very bug it was written for. The Workshop is a
+       tier-2 room, so at T=2 a naive walk counts the crafting bench as
+       available — and then Workshop L1's plank cost looks perfectly
+       reachable, via the Workshop. That circularity IS the deadlock. So when
+       checking a room's FIRST rung, the bench that room itself provides is
+       removed from the world: you cannot use a workshop to build the
+       workshop. From L2 onward it is legitimately available, because owning
+       L1 is a precondition of buying L2. */
+    const reachableAt = (T, without) => {
+      const have = new Set(raw);
+      for (let pass = 0; pass < 12; pass++) {
+        let grew = false;
+        Object.keys(window.ARTISAN_RECIPES || {}).forEach((skill) => {
+          if (benchTier(skill) > T) return;       // that bench is not open yet
+          if (without && BENCH[skill] === without && !H.UNGATED[skill]) return;
+          (window.ARTISAN_RECIPES[skill] || []).forEach((r) => {
+            if (!r.output || have.has(r.output)) return;
+            const inp = inputsOf(r);
+            if (Object.keys(inp).every((k) => have.has(k))) { have.add(r.output); grew = true; }
+          });
+        });
+        if (!grew) break;
+      }
+      return have;
+    };
+    const cache = {};
+    const reach = (T, without) => {
+      const k = T + '|' + (without || '');
+      return cache[k] || (cache[k] = reachableAt(T, without));
+    };
+
+    const problems = [];
+    Object.keys(R).forEach((id) => {
+      const roomTier = H.roomMinTier(id);
+      R[id].levels.forEach((rung, i) => {
+        // The earliest property tier at which this rung is legal at all.
+        const T = Math.max(roomTier, rung.tier || 0);
+        // Rung 1 is bought by someone who does NOT yet own this room.
+        const have = reach(T, i === 0 ? id : null);
+        Object.keys(rung.cost || {}).forEach((item) => {
+          if (!have.has(item)) {
+            problems.push(id + ' L' + (i + 1) + ' needs "' + item +
+              '" but nothing reachable at property tier ' + T +
+              (i === 0 ? ' (without the ' + R[id].name + ' itself)' : '') + ' produces it');
+          }
+        });
+      });
+    });
+    assert(problems.length === 0, 'DEADLOCK — ' + problems.join(' | '));
+    // The exclusion must actually bite, or this whole proof is decorative.
+    assert(reach(2, 'workshop').has('normal_log'), 'sanity: logs are free with no Workshop');
+    assert(!reach(2, 'workshop').has('normal_plank'),
+      'the self-exclusion is not working — a plank must be unreachable while the Workshop is excluded');
+
+    // The specific regression, pinned so it cannot come back by another route.
+    assert(!('normal_plank' in R.workshop.levels[0].cost),
+      'Workshop L1 must not cost planks — the only plank source is the bench it is trying to build');
+    assert(reach(0).has('normal_log'), 'logs must be free at a Wanderer\'s Camp');
+    assert(!reach(0).has('normal_plank'), 'precondition: a plank must NOT be reachable without a Workshop');
+    assert(reach(2).has('normal_plank'), 'a plank must become reachable once the Workshop tier is open');
+  }),
+
+  () => tryRun('b227: the magnitude retune — small increments, and costs untouched', () => {
+    /* Tyler, binding, mid-build: "the % boosts across the board are way too
+       high. 50% smithing? it should be like increments of 2%."
+
+       This OVERRIDES spec §1's "nothing already bought is devalued" corollary
+       for MAGNITUDES, by the owner, as a stated global rebalance. What the
+       corollary still protects — and what this test therefore guards — is that
+       LEVELS and COSTS did not move: a player who bought Kitchen 3 still owns
+       Kitchen 3 and still paid 8,000g and 30 Oak Log for it. Only the number
+       printed on it came down. */
+    const MAG = {
+      kitchen:  ['cookSpeed', [.02, .04, .06, .08, .10]],
+      forge:    ['smithSpeed', [.02, .04, .06, .08, .10]],
+      workshop: ['craftSpeed', [.02, .04, .06, .08, .10]],
+      shrine:   ['prayerSpeed', [.02, .04, .06, .08, .10]],
+      library:  ['allXP', [.01, .02, .03, .04, .05]],
+      trophy:   ['combatXP', [.01, .02, .03, .04, .05]],
+      // Duration is EXEMPT from the small-percent grammar (bonus-rebase.md):
+      // it is not throughput power, so it keeps the generous curve.
+      cellar:   ['buffDuration', [.20, .40, .60, .80, 1.0]],
+      garden:   ['farmYield', [1, 2, 4, 6, 8]],   // units, not a percentage
+    };
+    Object.keys(MAG).forEach((id) => {
+      const [key, vals] = MAG[id];
+      vals.forEach((v, i) => {
+        const rung = window.ROOMS[id].levels[i];
+        assert(rung.bk === key, id + ' L' + (i + 1) + ' should sell ' + key + ', sells ' + rung.bk);
+        assert(Math.abs(rung.bv - v) < 1e-9,
+          id + ' L' + (i + 1) + ' should grant ' + v + ', grants ' + rung.bv + ' — the retune drifted');
+      });
+    });
+    // Every percentage on this screen is a whole even number of points (or a
+    // whole point for the two +1..5 ladders). "Increments of 2%" as a shape,
+    // not a one-off edit — a rung at 0.075 would pass a ceiling test and still
+    // be exactly what Tyler asked us to stop doing.
+    // Whole percentages EVERYWHERE, including the secondary maps — the rebase
+    // spec's grammar test asserts integers, and a rung at 0.075 would pass a
+    // ceiling check while being exactly what Tyler asked us to stop doing.
+    const EXEMPT = { farmYield: 1, buffDuration: 1 };   // units / not throughput power
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((rung, i) => {
+      const seen = [];
+      if (rung.bk) seen.push([rung.bk, rung.bv || 0]);
+      if (rung.bx) Object.keys(rung.bx).forEach((k) => seen.push([k, rung.bx[k]]));
+      seen.forEach(([k, v]) => {
+        const pts = v * 100;
+        assert(Math.abs(pts - Math.round(pts)) < 1e-9,
+          id + ' L' + (i + 1) + ' grants ' + pts + ' points of ' + k + ' — not a whole percentage');
+        if (!EXEMPT[k]) {
+          assert(pts <= 25, id + ' L' + (i + 1) + ' grants ' + pts + '% ' + k + ' — too high for the retuned grammar');
+        }
+      });
+    }));
+    // No room ships at the old 10/25/50 shape anywhere.
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((rung, i) => {
+      if (EXEMPT[rung.bk]) return;
+      assert(!(Math.abs(rung.bv - 0.25) < 1e-9 || Math.abs(rung.bv - 0.5) < 1e-9),
+        id + ' L' + (i + 1) + ' is still on the pre-rebase 25/50 curve');
+    }));
+    // Library L4/L5 pay in allXP ALONE — the Rested potency payload is
+    // deliberately not shipped (dead on arrival at small numbers) and is
+    // stated on the rung instead of promised.
+    [3, 4].forEach((i) => {
+      const rung = window.ROOMS.library.levels[i];
+      assert(!rung.bx, 'Library L' + (i + 1) + ' must not ship a secondary payload yet');
+      assert(typeof rung.resv === 'string' && /[Rr]ested/.test(rung.resv),
+        'Library L' + (i + 1) + ' must SAY that its Rested payload is reserved, not drop it silently');
+    });
+    let restedProducers = 0;
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r) => {
+      if (r.bk === 'restedXp' || (r.bx && r.bx.restedXp != null)) restedProducers++;
+    }));
+    assert(restedProducers === 0, 'no homestead rung may promise Rested XP potency until the rework lands');
+
+    // COSTS AND LEVELS ARE UNTOUCHED. This is the half of the corollary that
+    // still stands, so it is frozen literally.
+    const COST = {
+      kitchen:  [{ gold: 500, normal_log: 20 }, { gold: 2000, normal_log: 50 }, { gold: 8000, oak_log: 30 }],
+      cellar:   [{ gold: 1200, normal_log: 60 }, { gold: 4000, oak_log: 60 }, { gold: 12000, willow_log: 50 }],
+      forge:    [{ gold: 800, copper_ore: 30 }, { gold: 3000, iron_ore: 50 }, { gold: 12000, iron_ore: 100 }],
+      library:  [{ gold: 1000, normal_log: 50 }, { gold: 4000, oak_log: 50 }, { gold: 15000, maple_log: 30 }],
+      garden:   [{ gold: 600, wheat: 20 }, { gold: 2500, wheat: 60 }, { gold: 9000, pumpkin: 5 }],
+      trophy:   [{ gold: 2000, wolf_pelt: 5 }, { gold: 8000, troll_hide: 3 }, { gold: 25000, dragon_scale: 2 }],
+      shrine:   [{ gold: 900, bones: 40 }, { gold: 3500, big_bones: 25 }, { gold: 13000, dragon_bones: 8 }],
+    };
+    Object.keys(COST).forEach((id) => COST[id].forEach((c, i) => {
+      assert(JSON.stringify(window.ROOMS[id].levels[i].cost) === JSON.stringify(c),
+        id + ' L' + (i + 1) + ' price changed: ' + JSON.stringify(window.ROOMS[id].levels[i].cost));
+    }));
+    // The Workshop is the ONE live cost that moved, and only because it was a
+    // deadlock (see the §7 proof above). Pinned so the fix cannot be reverted.
+    assert(JSON.stringify(window.ROOMS.workshop.levels[0].cost) === JSON.stringify({ gold: 700, normal_log: 40 }),
+      'Workshop L1 must stay on raw logs — planks were the deadlock');
+
+    // The Cellar is the one deliberate change of EFFECT, and it is a strict
+    // gain: `storage` was read by nothing, so nobody can be worse off.
+    window.ROOMS.cellar.levels.forEach((rung, i) => {
+      assert(rung.bk === 'buffDuration', 'Cellar L' + (i + 1) + ' should now sell buff duration');
+    });
+    assert(window.getBonus('storage') === 0, 'storage must no longer be produced by anything');
+    // Reliability is the Kitchen's mechanic, not a power number — explicitly
+    // exempt from the retune.
+    assert(window.ROOMS.kitchen.levels[2].bx.noBurn === 0.25, 'the noBurn column must NOT have been retuned');
+  }),
+
+  () => tryRun('b227 P1: the ESM merge does not silently eat legacy drop injections', () => {
+    /* Found by the deadlock proof, and it is a live content bug ~80 builds old.
+       legacy.js pushed 11 drops onto MONSTERS at parse time; main.js then runs
+       `unifyObject` = `Object.assign(legacyObj, esmObj)`, a PER-KEY overwrite
+       that replaces each whole monster object — discarding every push. Result:
+       3 raw meats never dropped (so cooked_wolf_meat, and therefore
+       field_ration — a castle good — were unobtainable) and 6 recipe scrolls
+       never dropped (so 6 `gated:` recipes could never unlock). They now live
+       in src/data/monsters.js with every other drop. */
+    const M = window.MONSTERS || {};
+    const dropsOf = (id) => ((M[id] || {}).drops || []).map((d) => d.id);
+    const EXPECT = {
+      small_wolf: 'raw_wolf_meat', wolf: 'raw_wolf_meat', dire_wolf: 'raw_wolf_meat',
+      panther: 'raw_panther_meat', bear: 'raw_bear_meat', ancient_bear: 'raw_bear_meat',
+      goblin_warlord: 'chief_blade_recipe', warband_captain: 'captain_recipe',
+      lich: 'soul_recipe', dragon: 'marrow_cookbook', plague_swarm: 'field_cookbook',
+    };
+    Object.keys(EXPECT).forEach((mid) => {
+      assert(dropsOf(mid).indexOf(EXPECT[mid]) >= 0,
+        mid + ' no longer drops ' + EXPECT[mid] + ' — the ESM merge ate it again');
+    });
+    assert(dropsOf('ancient_bear').indexOf('alpha_pattern') >= 0, 'ancient_bear must also drop alpha_pattern');
+    // No duplicates: if the legacy pushes are ever restored alongside the data,
+    // every one of these would drop twice.
+    Object.keys(EXPECT).forEach((mid) => {
+      const ids = dropsOf(mid);
+      assert(ids.length === new Set(ids).size, mid + ' has a duplicated drop entry');
+    });
+    // The b145 Phase-B suppression still holds — a scroll that unlocks nothing
+    // is a dead end, so these three must NOT drop until their items ship.
+    const all = Object.keys(M).reduce((a, k) => a.concat(dropsOf(k)), []);
+    ['spellstone_diagram', 'dragon_marrow_recipe', 'gemcutter_note'].forEach((s) => {
+      assert(all.indexOf(s) < 0, s + ' is dropping but its target item does not exist yet (b145)');
+    });
+    // And every scroll that DOES drop must actually unlock a live recipe.
+    const gates = new Set();
+    Object.keys(window.ARTISAN_RECIPES || {}).forEach((sk) =>
+      (window.ARTISAN_RECIPES[sk] || []).forEach((r) => { if (r.gated) gates.add(r.gated); }));
+    all.filter((id) => (window.ITEMS[id] || {}).recipe).forEach((id) => {
+      assert(gates.has(id), 'scroll ' + id + ' drops but unlocks no recipe — a dead end');
+    });
+  }),
+
+  () => tryRun('b227: the power budget holds at a maxed homestead (spec §6/H2)', () => {
+    /* Asserted against the LADDER, not against a live getBonus reading, and
+       that is deliberate. getBonus is wrapped additively by world-events,
+       companions, clans, clan-seat-ui and muster, and the daily/weekly event
+       pool contains speed and XP boosts — so a reading-based ceiling test goes
+       red or green on the UTC date alone. (I shipped exactly that mistake in
+       b225 and had to fix it in b226; a gate that flips on the calendar is
+       worse than no gate.) The budget is a statement about what the HOMESTEAD
+       may grant, so the homestead's own tables are what it is checked against. */
+    const CEIL = {
+      // Post-retune (Tyler, binding): small increments across the board.
+      allXP: 0.05,
+      combatXP: 0.05, cookSpeed: 0.10, smithSpeed: 0.10, craftSpeed: 0.10, prayerSpeed: 0.10,
+      farmYield: 8, craftSave: 0.08, yield_cooking: 0.08, yield_smithing: 0.08,
+      buffDuration: 1.0,    // exempt from the % grammar — not throughput power
+      noBurn: 0.25,         // the Kitchen cancels the whole open-fire burn, never more
+      restedXp: 0,          // reserved for the b228 rested rework — promised by nothing
+    };
+    const peak = {};
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((rung) => {
+      const add = (k, v) => { peak[k] = Math.max(peak[k] || 0, v); };
+      if (rung.bk) add(rung.bk, rung.bv || 0);
+      if (rung.bx) Object.keys(rung.bx).forEach((k) => add(k, rung.bx[k]));
+    }));
+    Object.keys(CEIL).forEach((k) => {
+      assert(Math.abs((peak[k] || 0) - CEIL[k]) < 1e-9,
+        'the homestead ceiling for ' + k + ' should be ' + CEIL[k] + ', the ladder grants ' + (peak[k] || 0));
+    });
+    // No room may invent a key the budget has not accounted for — that is how
+    // a ceiling stops meaning anything.
+    Object.keys(peak).forEach((k) => assert(CEIL[k] != null,
+      'a room rung grants "' + k + '", which is outside the audited power budget'));
+    // H2: the homestead contributes NO goldFind. That lane is the castle
+    // Treasury's, so the two pillars do not duplicate.
+    assert(peak.goldFind == null, 'the homestead must contribute no goldFind');
+
+    // allXP is the game's tightest budget (the fuse is 0.60 across every
+    // system). Post-retune the homestead's whole contribution is 5 points,
+    // which is the headroom problem solved rather than merely managed.
+    assert(peak.allXP <= 0.05 + 1e-9, 'the homestead may not contribute more than +5% allXP');
+  }),
+
+  () => tryRun('b227: the fuses live where the number is SPENT, so no wrapper can escape them', () => {
+    /* This test is the reason the fuses are not where the spec put them.
+
+       homestead-deepening §8 specs both clamps as one-liners inside getBonus.
+       Built there, this test measured prayerSpeed at 0.8999 through a clamp
+       that said 0.85 — because getBonus is a CHAIN of seven additive wrappers
+       (world-events, companions, clans, clan-seat-ui, muster + two in
+       legacy.js), and a clamp in the base function is escaped by every wrapper
+       above it. Both fuses therefore moved to the point of consumption. */
+    assert(typeof window.speedClamp === 'function', 'the speed fuse choke-point is not published');
+    assert(window.SPEED_FUSE === 0.85, 'the speed fuse should be 0.85, got ' + window.SPEED_FUSE);
+    assert(window.RESTED_POTENCY_CAP === 0.50, 'the rested cap should be 0.50');
+
+    // (a) The clamp clamps, at any input a wrapper chain could produce.
+    assert(Math.abs(window.speedClamp(0.60) - 0.40) < 1e-9, 'an in-budget speed must pass through untouched');
+    assert(Math.abs(window.speedClamp(0.90) - 0.15) < 1e-9, 'an over-budget speed must clamp to the fuse');
+    assert(Math.abs(window.speedClamp(4) - 0.15) < 1e-9, 'an absurd total must still land on the fuse');
+    assert(Math.abs(window.speedClamp(1) - 0.15) < 1e-9, 'speed 1.0 must never produce a zero interval');
+    assert(window.speedClamp(2) > 0, 'the multiplier must never go negative — setInterval would spin');
+    // A debuff still slows you: the fuse is a ceiling on fast, not a floor on slow.
+    assert(Math.abs(window.speedClamp(-0.5) - 1.5) < 1e-9, 'a negative speed must still lengthen the action');
+    assert(window.speedClamp(undefined) === 1 && window.speedClamp(NaN) === 1, 'garbage must be identity, not NaN');
+
+    // (b) Every site that spends a speed key goes through it. A single
+    //     un-routed `(1 - speed)` is a hole the fuse cannot see — and this
+    //     codebase keeps TWO copies of the activity renderers
+    //     (features/activities-grid.js overrides legacy.js's at boot), so
+    //     "patch both or you patch neither" is checked, not assumed.
+    //     Read off the live function bodies rather than a source blob, so this
+    //     cannot quietly become a no-op the way a missing global would.
+    [['startArtisan', window.startArtisan],
+     ['renderSkillDetail', window.renderSkillDetail],
+     ['_activityXpHr', window._activityXpHr]].forEach(([name, fn]) => {
+      if (typeof fn !== 'function') return;
+      const src = Function.prototype.toString.call(fn);
+      if (!/speed/.test(src)) return;                 // this copy does no interval math
+      assert(!/\(\s*1\s*-\s*speed\s*\)/.test(src),
+        name + ' still computes a raw (1 - speed) — that site bypasses the fuse');
+    });
+    // startArtisan is the live loop and MUST be routed. Asserted BEHAVIOURALLY
+    // rather than by reading its source: startArtisan is defined three times in
+    // legacy.js and the outermost copy is whichever loaded last, so a source
+    // scan tests the wrapper's shape instead of the game's behaviour. Drive a
+    // deliberately over-budget speed and read the interval the engine actually
+    // committed to (G.skillMs, which the offline replay also uses).
+    if (typeof window.startArtisan === 'function' && window.ARTISAN_RECIPES) {
+      const snapA = snapshotG();
+      try {
+        const rec = (window.ARTISAN_RECIPES.cooking || [])[0];
+        if (rec) {
+          window.G.rooms = { __fuse_probe: 1 };
+          window.ROOMS.__fuse_probe = { name: 'probe', icon: '', desc: '',
+            levels: [{ nm: 'p', bonus: 'p', cost: { gold: 1 }, bk: 'cookSpeed', bv: 4 }] };
+          window.G.skills = Object.assign({}, window.G.skills, { cooking: 9999999 });
+          const inp = (typeof window.getInputs === 'function') ? window.getInputs(rec) : {};
+          const bag = {}; Object.keys(inp).forEach((k) => { bag[k] = 9999; });
+          window.G.inventory = Object.assign({}, window.G.inventory, bag);
+          window.startArtisan('cooking', rec.id);
+          if (typeof window.stopSkill === 'function') window.stopSkill();
+          const floorMs = Math.max(500, Math.floor(window.pacedActionMs(rec.ms) * (1 - window.SPEED_FUSE)));
+          assert(window.G.skillMs >= floorMs - 1,
+            'a 400% cook speed produced a ' + window.G.skillMs + 'ms interval — the fuse was bypassed (floor ' + floorMs + ')');
+          assert(window.G.skillMs > 0, 'the committed interval must never be zero or negative');
+        }
+      } finally { delete window.ROOMS.__fuse_probe; restoreG(snapA); }
+    }
+
+    // (c) A real spend honours it: drive the interval with an over-budget
+    //     bonus and assert the resulting ms is the floored, fused one.
+    const snap = snapshotG();
+    try {
+      window.G.plotBuildings = [];
+      window.G.rooms = {};
+      Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
+      // Permanent power must sit UNDER the fuse — that is what makes it a fuse
+      // and not a nerf. Read off the ladder, not off getBonus, because the
+      // wrapper chain includes calendar-driven world events and a test that
+      // flips on the UTC date is worse than no test.
+      ['cookSpeed', 'smithSpeed', 'craftSpeed', 'prayerSpeed'].forEach((k) => {
+        let peak = 0;
+        Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r) => {
+          if (r.bk === k) peak = Math.max(peak, r.bv || 0);
+        }));
+        assert(Math.abs(peak - 0.10) < 1e-9, 'the ' + k + ' ladder should top out at 0.10 post-retune, got ' + peak);
+        assert(peak < window.SPEED_FUSE, k + ' permanent power reaches the fuse — that is a nerf, not a fuse');
+      });
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227: the material-only yield law (H6) — no extra output on equipment', () => {
+    // Without this predicate a 20% extra-output roll on endgame armour prints
+    // six figures at the vendor and the Forge becomes the game's largest gold
+    // faucet. Materials, never equipment.
+    assert(typeof window.isMaterialOutput === 'function', 'isMaterialOutput seam missing');
+    const material = Object.keys(window.ITEMS).find((k) => !window.ITEMS[k].type);
+    const equip = Object.keys(window.ITEMS).find((k) => !!window.ITEMS[k].type);
+    assert(material && equip, 'need one material and one equipment item to test with');
+    assert(window.isMaterialOutput({ output: material }) === true, material + ' is a material and should qualify');
+    assert(window.isMaterialOutput({ output: equip }) === false, equip + ' has a type and must NEVER qualify');
+    assert(window.isMaterialOutput({}) === false, 'a recipe with no output cannot yield extra');
+    assert(window.isMaterialOutput({ output: 'nope_not_an_item' }) === false, 'an unknown output must not qualify');
+    // Every recipe an extra-output rung can actually fire on must be a
+    // material — i.e. the Forge's smelting lane, not its armoury.
+    const smith = (window.ARTISAN_RECIPES.smithing || []).filter((r) => window.isMaterialOutput(r));
+    assert(smith.length > 0, 'the Forge must have at least one material recipe for yield_smithing to mean anything');
+    assert(smith.every((r) => !window.ITEMS[r.output].type), 'the filter must not admit a typed output');
+  }),
+
+  () => tryRun('b227: the Cellar finally does something — buff duration via registerBuffScaler', () => {
+    // The oldest item on the design backlog. getBonus('storage') was read by
+    // NOTHING, so up to 17,200 gold bought literally zero. Repurposed with no
+    // migration and no seam: registerBuffScaler was built in b222 for exactly
+    // this second consumer.
+    const H = window.HearthriseHomestead;
+    assert(H && typeof H.cellarScale === 'function', 'the Cellar scaler is not published');
+    const snap = snapshotG();
+    try {
+      window.G.plotBuildings = [];
+      window.G.rooms = {};
+      assert(Math.abs(H.cellarScale().duration - 1) < 1e-9, 'no Cellar means no change to a buff');
+      // Derived from the ladder so the magnitude retune cannot silently break
+      // the wiring test — what is guarded is that the rung reaches the scaler.
+      const rungs = window.ROOMS.cellar.levels;
+      window.G.rooms = { cellar: 1 };
+      assert(Math.abs(H.cellarScale().duration - (1 + rungs[0].bv)) < 1e-9,
+        'Root Cellar should lengthen buffs by its rung value, got ' + H.cellarScale().duration);
+      window.G.rooms = { cellar: 5 };
+      assert(Math.abs(H.cellarScale().duration - (1 + rungs[4].bv)) < 1e-9,
+        'The Deep Cellar should lengthen buffs by its rung value, got ' + H.cellarScale().duration);
+      assert(rungs[4].bv > rungs[0].bv, 'the Cellar ladder must still climb');
+      // H7: duration ONLY. Magnitude is the castle Tavern Hearth's lane, and
+      // the Cellar touching it is how two pillars multiply into a second
+      // character.
+      assert(H.cellarScale().magnitude == null, 'the Cellar must never scale buff MAGNITUDE');
+      // …and it is registered, so applyBuff actually sees it.
+      const scaled = window.buffScaleFor({ type: 'x' });
+      assert(scaled.duration >= 1 + rungs[4].bv - 1e-9,
+        'the registered scaler should be in the composition, got ' + scaled.duration);
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227: roomDescriptor is pure and answers owned / available / locked', () => {
+    const H = window.HearthriseHomestead;
+    assert(H && typeof H.roomDescriptor === 'function', 'roomDescriptor is not published');
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 2 };                  // farmstead
+      window.G.rooms = { forge: 2 };
+      window.G.gold = 0;
+      window.G.inventory = {};
+
+      const owned = H.roomDescriptor('forge');
+      assert(owned.state === 'built' && owned.level === 2, 'the Forge should read as owned at level 2');
+      assert(owned.currentName === 'Stone Forge', 'an owned room must name the rung it is on');
+      assert(owned.ladder.length === 5, 'the FULL ladder always renders, owned rungs included');
+      assert(owned.ladder[0].owned && owned.ladder[1].owned, 'rungs 1-2 should be marked owned');
+      assert(owned.ladder[2].next === true, 'rung 3 is the next one');
+      assert(owned.ladder[3].locked === true, 'rung 4 is tier-locked at a farmstead');
+      assert(/Stonecross/.test(owned.ladder[3].gateReason || ''), 'a locked rung must SAY which property opens it');
+      assert(owned.next && owned.next.affordable === false, 'a broke player cannot afford the next rung');
+      assert(owned.next.missing.length > 0, 'and the descriptor must name what is short');
+
+      const unbuilt = H.roomDescriptor('cellar');
+      assert(unbuilt.state === 'unbuilt' && unbuilt.level === 0, 'the Cellar is legal but unbuilt at a farmstead');
+      assert(unbuilt.lockReason === null, 'an available room has no lock reason');
+
+      const locked = H.roomDescriptor('shrine');
+      assert(locked.state === 'locked', 'the Shrine is a tier-4 room and must be locked at a farmstead');
+      assert(/Ironvale/.test(locked.lockReason || ''), 'a locked room must name the property tier that opens it');
+
+      // Purity: it renders nothing and mutates nothing.
+      const before = JSON.stringify(window.G.rooms);
+      H.roomDescriptor('forge'); H.roomDescriptor('shrine');
+      assert(JSON.stringify(window.G.rooms) === before, 'roomDescriptor must not mutate state');
+      // Total over every live room — no room may be undescribable.
+      Object.keys(window.ROOMS).forEach((id) => {
+        const d = H.roomDescriptor(id);
+        assert(d && d.title && d.theme && d.flavour, id + ' has no complete descriptor');
+        assert(d.ladder.length === window.ROOMS[id].levels.length, id + ' ladder length disagrees with its room');
+      });
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b227: every room opens a themed modal through the shared seam', () => {
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = { forge: 2, kitchen: 5 };
+      const themes = {};
+      Object.keys(window.ROOMS).forEach((id) => {
+        const m = H.modalDescriptor(id);
+        assert(m && m.title && m.theme, id + ' produced no modal descriptor');
+        assert(typeof m.onAction === 'function', id + ' modal must handle its own actions');
+        assert(/^<svg/.test(m.scene || ''), id + ' modal needs a scene');
+        // The seam's published grammar, and nothing outside it.
+        const kinds = m.sections.map((s) => s.kind);
+        kinds.forEach((k) => assert(['note', 'meter', 'rows', 'ladder', 'actions', 'field'].indexOf(k) >= 0,
+          id + ' used a section kind the seam does not define: ' + k));
+        assert(kinds.indexOf('ladder') >= 0, id + ' modal must show its ladder');
+        const ladder = m.sections.find((s) => s.kind === 'ladder');
+        assert(ladder.rows.length === 5, id + ' modal ladder must show all five rungs');
+        themes[m.theme] = (themes[m.theme] || 0) + 1;
+      });
+      // Themes are homestead vocabulary, never the castle's.
+      Object.keys(themes).forEach((t) => {
+        assert(['hearth', 'garden', 'workshop', 'cellar', 'forge', 'library', 'shrine', 'trophy'].indexOf(t) >= 0,
+          'unexpected room theme "' + t + '" — homestead themes only');
+      });
+
+      // An owned rung shows no price (you already paid it) and says so.
+      const maxed = H.modalDescriptor('kitchen');
+      const kl = maxed.sections.find((s) => s.kind === 'ladder');
+      assert(kl.rows.every((r) => r.costs === null), 'a fully owned ladder must show no prices');
+      assert(/Built/.test(kl.rows[0].effect), 'an owned rung must be marked built');
+      assert(!maxed.sections.some((s) => s.kind === 'actions' && s.buttons.some((b) => /^Build|^Upgrade/.test(b.label))),
+        'a maxed room must offer no upgrade button');
+
+      // A disabled action always carries a reason (spec §5 rule 5).
+      window.G.gold = 0; window.G.inventory = {};
+      const poor = H.modalDescriptor('forge');
+      const acts = poor.sections.find((s) => s.kind === 'actions');
+      const up = acts.buttons.find((b) => /^Upgrade|^Build/.test(b.label));
+      assert(up && up.disabled && /Missing/.test(up.why || ''),
+        'an unaffordable upgrade must be disabled AND name what is short');
+
+      // It really opens, and really closes.
+      H.openRoom('forge');
+      assert(window.HearthriseRoomModal.isOpen(), 'the room modal did not open');
+      assert(document.querySelector('.hr-room-wrap[data-room-theme="forge"]'), 'the theme did not reach the DOM');
+      window.HearthriseRoomModal.close();
+      assert(!window.HearthriseRoomModal.isOpen(), 'the room modal did not close');
+    } finally { restoreG(snap); window.HearthriseRoomModal.close(); }
+  }),
+
+  () => tryRun('b227: the House grid shows ownership at a glance (the acceptance test)', () => {
+    // Tyler's own bar: open House and KNOW the Forge is yours, at what level,
+    // and what is next — without reading a paragraph.
+    const H = window.HearthriseHomestead;
+    if (!H || typeof H.renderRoomGrid !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 2 };
+      window.G.rooms = { forge: 2 };
+      window.G.gold = 500000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { iron_ore: 999 });
+      window.showTab('house');
+      if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
+      window.renderHouse();
+
+      const cards = document.querySelectorAll('#house-panel .hh-room');
+      assert(cards.length === Object.keys(window.ROOMS).length, 'every room needs a card, got ' + cards.length);
+
+      const forge = document.querySelector('#house-panel .hh-room[data-room="forge"]');
+      assert(forge, 'the Forge has no card');
+      assert(forge.classList.contains('is-owned'), 'an owned Forge must be marked owned');
+      assert(/Lv 2/.test(forge.textContent), 'the card must show the level you own');
+      assert(/Stone Forge/.test(forge.textContent), 'the card must name the rung you are on');
+
+      const cellar = document.querySelector('#house-panel .hh-room[data-room="cellar"]');
+      assert(cellar.classList.contains('is-open'), 'a buildable-but-unbuilt room is "open", not owned');
+      assert(!/Lv /.test(cellar.textContent), 'an unbuilt room must not advertise a level');
+
+      const shrine = document.querySelector('#house-panel .hh-room[data-room="shrine"]');
+      assert(shrine.classList.contains('is-locked'), 'a tier-4 room must be locked at a farmstead');
+      assert(/Ironvale/.test(shrine.textContent), 'a locked card must name the property that opens it');
+
+      // The three states must be mutually exclusive — a card that is both
+      // owned and locked is how a screen starts lying.
+      cards.forEach((c) => {
+        const on = ['is-owned', 'is-open', 'is-locked'].filter((k) => c.classList.contains(k));
+        assert(on.length === 1, c.getAttribute('data-room') + ' is in ' + on.length + ' states at once');
+      });
+
+      // Clicking a card opens that room, not a list.
+      forge.click();
+      assert(window.HearthriseRoomModal.isOpen(), 'clicking a room card must open its modal');
+      assert(/Forge/.test(document.querySelector('.hr-room-title').textContent), 'the wrong room opened');
+    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+  }),
+
+  () => tryRun('b227: every price in the House is readable as words, never an icon and a number', () => {
+    /* Tyler, on a screenshot of the Workshop row: "It's hard to see what is
+       actually required for these upgrades... it should be bigger and either
+       have visible text or hover text."
+
+       The cause was `_costPart`, which appended the item's display NAME only
+       in its no-artwork branch — so every material that HAS an icon rendered
+       as a picture and a bare number, and the name was suppressed by the very
+       thing meant to illustrate it. This guards the rule, not the one row:
+       nothing purchasable on this screen may state a price the player cannot
+       read in words. */
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 3 };
+      window.G.rooms = { workshop: 0, forge: 2 };
+      window.G.gold = 1000;
+      window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 2, normal_plank: 2 });
+
+      // (1) the shared helper itself — with art present, which is the bug case.
+      const part = window._costPart('normal_plank', 15);
+      assert(/Normal Plank/.test(part), '_costPart must name the item even when it has artwork');
+      assert(/title="/.test(part), '_costPart must carry hover text');
+      assert(/you have 2/.test(part), 'the hover must say what the player actually holds');
+      assert(/is-short/.test(part), 'an unaffordable part must be marked short');
+      assert(/Gold/.test(window._costPart('gold', 700)), 'gold must be named too, not just a coin');
+      assert(/is-met/.test(window._costPart('gold', 700)), 'an affordable part must be marked met');
+
+      // (2) the room card face carries the next rung's price in words.
+      window.showTab('house');
+      if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
+      window.renderHouse();
+      const card = document.querySelector('#house-panel .hh-room[data-room="workshop"]');
+      assert(card, 'the Workshop has no card');
+      assert(/Normal Log/.test(card.textContent), 'the card must name what the next rung costs');
+      assert(/Gold/.test(card.textContent), 'the card must name the gold cost');
+      const costs = card.querySelectorAll('.hh-cost');
+      assert(costs.length >= 2, 'each requirement gets its own readable part, got ' + costs.length);
+      costs.forEach((c) => {
+        assert((c.getAttribute('title') || '').length > 0, 'every cost part needs hover text');
+        assert(c.classList.contains('is-met') || c.classList.contains('is-short'),
+          'every cost part must say whether it is met');
+      });
+
+      // (3) the modal ladder uses the have/need checklist, named, on every rung.
+      const H = window.HearthriseHomestead;
+      const m = H.modalDescriptor('workshop');
+      const ladder = m.sections.find((s) => s.kind === 'ladder');
+      ladder.rows.filter((r) => r.costs).forEach((r) => {
+        assert(r.costs.length > 0, 'an unowned rung must list its cost');
+        r.costs.forEach((c) => {
+          assert(typeof c.label === 'string' && c.label.length > 1 && !/^[0-9]+$/.test(c.label),
+            'a ladder cost must carry the item DISPLAY NAME, got "' + c.label + '"');
+          assert(typeof c.have === 'number' && typeof c.need === 'number',
+            'a ladder cost must be a have/need pair so the checklist can render met/short');
+        });
+      });
+      // Rendered, not just described: the seam prints "have/need Name".
+      H.openRoom('workshop');
+      const meta = document.querySelector('.hr-room-rung .hr-cs-meta');
+      assert(meta && /Normal Log/.test(meta.textContent),
+        'the rendered ladder must show the item name, got "' + (meta && meta.textContent) + '"');
+      assert(/\d+\s*\/\s*\d+/.test(meta.textContent), 'the rendered ladder must show your count over the needed count');
+    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+  }),
+
   () => tryRun('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H, 'workers + homestead modules present');
@@ -8066,7 +8876,12 @@ const TESTS = [
       window.G.rooms = { kitchen: 2 };
       assert(Math.abs((window.getBonus('noBurn') - baseBurn) - CF.KITCHEN_NO_BURN[1]) < 1e-9,
         'getBonus("noBurn") should read the Kitchen rung, got ' + window.getBonus('noBurn'));
-      assert(Math.abs((window.getBonus('cookSpeed') - baseCook) - 0.25) < 1e-9,
+      /* b227: derived from the rung, not pinned to 0.25. The relationship this
+         line guards is "the headline bk/bv still pays out alongside the bx
+         map" — the literal was only ever the value that happened to be in the
+         table, and the magnitude retune moved it. Same lesson as the delta
+         above: assert the claim, not today's number. */
+      assert(Math.abs((window.getBonus('cookSpeed') - baseCook) - rungs[1].bv) < 1e-9,
         'the headline cookSpeed bonus must survive the bx addition');
       window.G.rooms = {};
       assert(window.getBonus('noBurn') === baseBurn, 'no Kitchen means no Kitchen noBurn');

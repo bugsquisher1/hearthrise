@@ -4,26 +4,52 @@
     {
       "name": "hearthrise-static",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8000"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8000"
+      ],
       "port": 8000
     },
     {
       "name": "hearthrise-coord",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8125"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8125"
+      ],
       "port": 8125
     },
     {
       "name": "hearthrise-clanseat",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8149"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8149"
+      ],
       "port": 8149
     },
     {
       "name": "hearthrise-questnav",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8166"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8166"
+      ],
       "port": 8166
+    },
+    {
+      "name": "hearthrise-homestead",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8173"
+      ],
+      "port": 8173
     }
   ]
 }

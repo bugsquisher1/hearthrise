@@ -26,7 +26,7 @@ const artisanMs = (skillId, ms) => {
   const base = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(ms) : ms;
   const key = { cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed' }[skillId] || 'gatherSpeed';
   const speed = (typeof window.getBonus === 'function') ? window.getBonus(key) : 0;
-  return Math.max(500, Math.floor(base * (1 - speed)));
+  return Math.max(500, Math.floor(base * window.speedClamp(speed)));
 };
 /* The presence hint, rendered where the skill's XP is. Words and tokens, no
    emoji; it names the condition when it lapses rather than going quiet, so an
@@ -104,7 +104,10 @@ function tileForGather(action, skillId) {
   const toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
   const speed = (typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0) + toolSpeed;
   const baseMs = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(action.ms) : action.ms;
-  const ms = Math.max(500, Math.floor(baseMs * (1 - speed)));
+  /* b227: through the same fuse the live loop uses. This file is the renderer
+     TWIN of legacy.js's tile builder — patch both or you patch neither, or the
+     card quotes a rate the engine does not honour. */
+  const ms = Math.max(500, Math.floor(baseMs * window.speedClamp(speed)));
   // b129: locked tiles toast their level requirement instead of silently
   // doing nothing — players need feedback, not a dead click.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;

@@ -111,6 +111,11 @@
        colour story and needs no !important and no stacked panel id. Loads last
        for the same reason board-and-shop.css does. -->
   <link rel="stylesheet" href="src/styles/clan-seat.css?v=226">
+  <!-- b227: the House screen's room grid + the homestead's themes on the
+       SHARED room modal. Loads after clan-seat.css because it adds
+       [data-room-theme] values that sheet's component reads; it deliberately
+       restyles none of that component. -->
+  <link rel="stylesheet" href="src/styles/homestead-rooms.css?v=226">
 </head>
 <body>
 <div class="app" id="app">

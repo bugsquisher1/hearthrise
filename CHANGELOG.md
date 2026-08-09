@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 225 — 2026-08-09 (An online realm — and a fire you can cook on)
+
+- 🔐 **Hearthrise is an online realm now.** Creating an account is the front door — your progress, your name, and your place on the boards live on your account, on any device. **Beta players: your save is carried into your account the moment you sign in. Nothing is erased** — the game even tells you so on the door.
+- 🔥 **Cook anywhere.** No Kitchen? The camp fire works — it just burns things sometimes (25% on the open fire, shrinking as you level past a recipe, gone entirely with a good Kitchen). Burn risk is shown on every recipe, and each Kitchen upgrade visibly tames the fire.
+- 🏰 **The Clan tab.** Your clan castle now has its own place in the sidebar under a new Realm section — no more digging through Social. No clan yet? It takes you straight to finding or founding one.
+- 🔎 **Readable, this time for real.** Half the game's text sat below a comfortable reading size — every label, stat, and caption now meets a hard minimum, enforced by tests so it can't regress.
+- 📯 **The Muster is now the Rally** — same twice-daily world event, better name.
+- 🧹 Also: the tutorial can no longer be wedged by clicking a highlighted tab after finishing it, the rank-up ceremony wears a gilt laurel instead of an emoji, and a stack of smaller polish.
+- 🧪 307 tests green.
+
 ## v0.9.2-beta build 224 — 2026-08-08 (Hotfix — eating works, quests count)
 
 Two fixes straight from your beta reports. Thank you — keep them coming.

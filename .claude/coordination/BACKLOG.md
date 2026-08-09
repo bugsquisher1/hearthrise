@@ -21,6 +21,13 @@ Triaged from Tyler's list. P0 critical · P1 major · P2 meaningful · P3 minor.
 | 16 | Clan group-boss events — clans fight tiered bosses on a schedule (clan analogue of world events) | P2 (big) | Game Designer + Systems | `src/features/clans.js`/`raids.js`, Supabase | **3** |
 | 10 | Clan overhaul — castle immersion, upgrade tree, growth tasks, modals | **P1 (big)** | Game Designer + Systems + Art | `src/features/clans.js`, Supabase, CSS, modals | **3** |
 
+## Wave 4 directed items (Tyler, 2026-08-08 — decided, not audit findings)
+| # | Item | P | Owner | Notes |
+|---|---|---|---|---|
+| 17 | Account wall — no account-less play; local-save adoption | **P1** | Systems | IN FLIGHT (agent-account-gate) |
+| 18 | Clan/castle page OUT of the Social tab — its own easier-to-find destination (placement = Designer+Art call; it's a twin PILLAR, warrants top-level nav like Events got) | **P1** | Art + Designer (Systems) | after #17 merges (nav/index.html collision) |
+| 19 | SECOND text-size pass — b218's ~x1.13 (body 14→16) is still too small "in a lot of places"; raise the FLOOR (micro/small/label tiers + missed hardcoded spots), not just the base; verify screen-by-screen | **P1** | Art | after #17 merges |
+
 ## Notes / risks
 - **#3 is the unblocker:** while sub-tabs snap back, every other agent's browser verification is sabotaged. Fix first.
 - **#1 text scale lands before other visual work** so the rest rebases onto readable type (avoids re-doing sizing).

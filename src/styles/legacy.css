@@ -2952,7 +2952,8 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   background:linear-gradient(90deg,#7f9a4f,#e3c77e);
 }
 .at-stop{
-  position:absolute;top:6px;right:6px;
+  /* b227 (Tyler): sat top-right over the Qty badge on compact tiles — moved top-left */
+  position:absolute;top:6px;left:6px;
   font-size:13.5px;font-weight:800;letter-spacing:.06em;
   background:rgba(198,58,58,.85);color:#fff;
   padding:2px 6px;border-radius:3px;text-transform:uppercase;

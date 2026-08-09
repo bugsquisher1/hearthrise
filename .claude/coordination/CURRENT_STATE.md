@@ -6,13 +6,13 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 
 ## Build & branch
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b225)
+- **Version:** v0.9.2-beta (build b226)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
 - **✅ ALL 7 MIGRATIONS APPLIED (Tyler, 2026-08-09, verified by table probes):** raid_claims, world_event_joins+hr_server_now, display_names (first claim recorded), leaderboard_meta (matview refreshed), clan_stores, board tasks seeded, hunt tiers seeded. Server side is FULLY live.
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **307/307 green, 0 runtime errors** (b225 final gate).
+- **Smoke:** `node tests/run-smoke.mjs` → **330/330 green, 0 runtime errors** (b226 final gate).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

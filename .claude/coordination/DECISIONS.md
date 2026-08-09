@@ -4,6 +4,11 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Pacing directive — endgame is MONTHS away, presence bonus 10-15% (Tyler, binding)
+**Decision:** Tyler on the audit's P0 evidence (9h offline = WC 62 + 16,110 logs): "way too many logs for only 9 hours... the exp seems a bit fast too. I like the idea of an online boost, however I think it should be more like 10-15%. I don't want people hitting end game for at least a few months." Binding parameters: (1) online-presence bonus exists but is +10-15%, NOT the 25-50% the audit suggested; (2) overall XP/yield pacing must be retuned so endgame (99s / top gear) takes MONTHS of normal play — rate reductions are authorized, which supersedes the earlier additive-only framing; (3) earned progress is never clawed back — only rates going forward change.
+**Why:** Product-owner pacing call 2026-08-09.
+**Affected agents:** Game Designer (pacing model + retune spec — the whole curve, offline AND active, vs a months-to-99 target), Systems (implementation + presence bonus), QA (rate regression tests).
+
 ### 2026-08-08 · Accounts are REQUIRED — no account-less play (Tyler, binding rework)
 **Decision:** "I do not want any local saves to be available. The users should all be prompted to create an account when they access the game. Whether that be browser or when we migrate to an app for iOS or Steam." Enforced: account creation prompt at game access on every platform; no anonymous/local-only play path. NUANCE (Coordinator, to prevent over-rotation): signed-in accounts KEEP local persistence as the offline cache + offline-progression bank — what is removed is playing without an account, not local caching for account holders. Existing beta players' local saves must be ADOPTED into their new account on first sign-in (sync seam exists), never discarded.
 **Why:** Product-owner directive 2026-08-08; realizes the recorded online-only north star.

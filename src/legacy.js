@@ -4394,8 +4394,23 @@ function bindEvents(){
   /* online/offline events */
   window.addEventListener('online',updateNetStatus);
   window.addEventListener('offline',updateNetStatus);
-  /* visibility — save on hide */
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveLocal();});
+  /* visibility — save on hide, catch up on resume.
+     b229 (paione, mobile): on a phone "logging off" means backgrounding the app
+     or locking the screen — the page is NOT reloaded, so loadLocal()/processOffline()
+     never re-run. Mobile freezes all timers while backgrounded, so an active
+     gather/smith/fight makes ZERO progress and nothing credits it on return —
+     "it doesn't keep collecting ore." Desktop hid this because background tabs
+     keep ticking (throttled). Fix: when the tab becomes visible again, run the
+     same offline catch-up a fresh load would. processOffline() is idempotent —
+     its watermark (offlineBudget.at, set to now by the saveLocal on hide) means
+     it credits the frozen span exactly once and early-returns under ~3min, so a
+     quick tab-flip costs nothing. */
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){ saveLocal(); return; }
+    try{ if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return; }catch(e){}
+    try{ if(typeof processOffline==='function') processOffline(); }catch(e){}
+    try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
+  });
 }
 
 /* ════════════════════════════════════════════════

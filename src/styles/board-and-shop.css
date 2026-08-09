@@ -451,6 +451,14 @@ body[data-theme] #panel-bounty .bb-rail-t {
    frame you have; aspect-ratio here keeps the frame and the drawing agreeing. */
 body[data-theme] #panel-shop .sc-scene {
   position: relative;
+  /* b229 (mobile): width MUST be pinned to the container. Without it, the
+     `aspect-ratio: 8/1` + `min-height` pair drives the WIDTH off the height
+     (92px min-height × 8 = 736px), blowing a phone's 375px viewport wide open
+     and forcing sideways scroll on the whole Shop screen. With width:100% the
+     aspect ratio drives HEIGHT from width instead, and min-height just clamps a
+     short strip — no overflow. */
+  width: 100%;
+  max-width: 100%;
   aspect-ratio: 8 / 1;
   min-height: 104px;
   max-height: 182px;

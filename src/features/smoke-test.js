@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=229' directly.
+// modularised, will import { G } from '../state/game.js?v=230' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=229';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=229';
+import { on, snapshot } from '../net/events.js?v=230';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=230';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=229';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=230';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11145,6 +11145,62 @@ const TESTS = [
       try { document.dispatchEvent(new Event('visibilitychange')); } catch (e) {}
       restoreG(snap);
     }
+  }),
+
+  () => tryRun('b230: returning to a backgrounded tab catches up offline gather (paione — mobile "logs off, stops collecting ore")', () => {
+    // The bug: on a phone, "logging off" means backgrounding the app / locking
+    // the screen — the page is NOT reloaded, so loadLocal()/processOffline()
+    // never re-ran and the frozen gather span was credited nowhere. The fix
+    // wires visibilitychange→visible to processOffline(). This drives the exact
+    // event a phone fires on unlock and proves the returning player is paid.
+    const G = window.G;
+    const snap = snapshotG();
+    const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+    const dVis = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    const gate = window.HearthriseGate;
+    const origOpen = gate && gate.isOpen;
+    try {
+      if (gate) gate.isOpen = () => true;                 // a signed-in session
+      G.activeMonster = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      const before = (G.inventory && G.inventory.normal_log) || 0;
+      // The player left 20 minutes ago: rewind the offline watermark + lastSeen.
+      const now = Date.now(), past = now - 20 * 60000;
+      G.lastSeen = past;
+      G.offlineBudget = { dayKey: window.utcDayKey(now), usedMs: 0, at: past };
+      // Come BACK to the tab.
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const after = (G.inventory && G.inventory.normal_log) || 0;
+      assert(after > before, 'returning to the tab must credit the frozen gather span, got +' + (after - before));
+    } finally {
+      if (gate && origOpen) gate.isOpen = origOpen;
+      if (dHid) Object.defineProperty(document, 'hidden', dHid); else delete document.hidden;
+      if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else delete document.visibilityState;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b230: the shop counter scene is width-pinned so it cannot blow a phone viewport open', () => {
+    // The bug: `.sc-scene` had aspect-ratio:8/1 + min-height but no width, so a
+    // 92px mobile min-height drove the WIDTH to 736px (92×8), forcing sideways
+    // scroll on the whole Shop screen. The fix pins width:100%. Guard the rule.
+    let found = false, hasWidth = false;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      for (const r of rules) {
+        if (r.selectorText && /#panel-shop\s+\.sc-scene\b/.test(r.selectorText) && r.style && r.style.getPropertyValue('aspect-ratio')) {
+          found = true;
+          const w = r.style.getPropertyValue('width') || r.style.getPropertyValue('max-width');
+          if (w) hasWidth = true;
+        }
+      }
+    }
+    assert(found, 'the #panel-shop .sc-scene aspect-ratio rule must exist');
+    assert(hasWidth, '.sc-scene must pin width so aspect-ratio drives height (not width) — else it overflows mobile');
   }),
 
   () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {

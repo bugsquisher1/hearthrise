@@ -23,12 +23,12 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=229';
-import { MONSTERS } from './data/monsters.js?v=229';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=229';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=229';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=229';
-import { COMPANIONS } from './data/companions.js?v=229';
+import { SKILLS_DEF } from './data/skills.js?v=230';
+import { MONSTERS } from './data/monsters.js?v=230';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=230';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=230';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=230';
+import { COMPANIONS } from './data/companions.js?v=230';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -89,29 +89,29 @@ Object.assign(window, {
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=229';
-import './net/sync.js?v=229';
-import './net/auth.js?v=229';
-import './net/supabase-bootstrap.js?v=229';
+import './net/events.js?v=230';
+import './net/sync.js?v=230';
+import './net/auth.js?v=230';
+import './net/supabase-bootstrap.js?v=230';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=229';
-import './utils/dom.js?v=229';
-import './utils/safe.js?v=229';
-import './utils/profile.js?v=229';
-import './utils/data-integrity.js?v=229';
-import './utils/image-fallback.js?v=229';
+import './config.js?v=230';
+import './utils/dom.js?v=230';
+import './utils/safe.js?v=230';
+import './utils/profile.js?v=230';
+import './utils/data-integrity.js?v=230';
+import './utils/image-fallback.js?v=230';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=229';
-import { setupCompanions } from './features/companions.js?v=229';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=229';
-import { setupCharacterPage } from './features/character-page.js?v=229';
-import { setupCombatRender } from './features/combat-render.js?v=229';
+import { setupSmokeTest } from './features/smoke-test.js?v=230';
+import { setupCompanions } from './features/companions.js?v=230';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=230';
+import { setupCharacterPage } from './features/character-page.js?v=230';
+import { setupCombatRender } from './features/combat-render.js?v=230';
 
 // Boot diagnostics
 const counts = {
@@ -134,11 +134,18 @@ function tryBootFeatures() {
   if (typeof window.G === 'undefined' || typeof window.showTab !== 'function') {
     return false;
   }
-  setupSmokeTest();
-  setupCompanions();
-  setupActivitiesGrid();
-  setupCharacterPage();
-  setupCombatRender();
+  /* b229: isolate each setup. These ran bare in sequence, so a throw in an
+     earlier one (a boot-order race on a slow device) silently skipped every
+     setup after it — most visibly setupCharacterPage(), leaving the Character
+     screen stuck on the dead legacy renderer (fake "Your Heroes" slots that
+     overflow on mobile). Each is independent; one failing must not cost the
+     others. */
+  const boot = (name, fn) => { try { fn(); } catch (e) { console.error('[ESM boot] ' + name + ' failed', e); } };
+  boot('smoke-test', setupSmokeTest);
+  boot('companions', setupCompanions);
+  boot('activities-grid', setupActivitiesGrid);
+  boot('character-page', setupCharacterPage);
+  boot('combat-render', setupCombatRender);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
      any boot path installs. Hand the per-key power budget back the outermost
      position immediately rather than waiting for its 1s watchdog — otherwise

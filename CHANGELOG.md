@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 230 — 2026-08-09 (Mobile rescue)
+
+- 📱 **Offline progress works on your phone now.** If you locked your screen or switched apps while gathering, the game froze and credited you *nothing* when you came back — it only ever caught up on a full reload. Now the moment you return to the tab, your away-time is banked exactly like a fresh login. (Thanks, paione.)
+- 🏪 **The Shop stopped running off the edge of the screen.** The shopkeeper scene was drawing itself wider than a phone, forcing you to scroll the whole page sideways. Pinned to fit any screen.
+- 🛡️ **A boot hiccup can no longer break the Character screen.** Each part of the game now loads on its own, so one stumble can't quietly take the rest down with it.
+- 🧪 437 tests green.
+
 ## v0.9.2-beta build 228 — 2026-08-09 (Small numbers, real feelings)
 
 - 📉 **Every boost in the game came down — all of them, on purpose.** A room used to grant +50% smithing; it grants +10% now, and the whole boost economy is rebuilt on 2% steps (1% for the wide ones like all-XP). **Nothing you own changed** — same rooms, same levels, same prices, same castle. Only the size of the number each one grants. Boosts stop being a hidden second pacing dial and become a *feel* system, which is the point: when the plain is small, the peak is visible. A Last Call feast used to be lost among a pile of other big numbers; now it's the largest thing on your screen.

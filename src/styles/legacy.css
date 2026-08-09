@@ -3209,6 +3209,15 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   text-shadow:0 2px 4px rgba(0,0,0,.5);
   min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word;
 }
+/* b226 — the Founder's mark. It sits directly under the name because it is
+   part of how the player is addressed, and it is set in the display face at a
+   smaller size and lower weight than the name so it reads as an epithet
+   rather than competing with it. Tokens only; no badge, no emoji. */
+.cr-hero-id .cr-founder{
+  font-family:var(--f-display);font-size:14px;font-weight:600;
+  color:var(--ink-3);letter-spacing:.06em;line-height:1.1;
+  margin-top:-2px;font-style:italic;
+}
 .cr-hero-id .cr-class{
   font-size:16px;color:var(--ink-2);font-weight:600;letter-spacing:.03em;
 }

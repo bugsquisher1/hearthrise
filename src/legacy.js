@@ -479,6 +479,10 @@ let G={
   bountyHunter:{marks:0,xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
   lastOfflineSummary:null,
   lastSeen:Date.now(),
+  /* b226: nothing ever stamped a creation date, which is why the Founder's
+     mark needed one. Existing saves get theirs backfilled from lastSeen by
+     save-migrations v7→v8. */
+  createdAt:Date.now(),
   /* online */
   account:null,           /* {id, displayName, avatar, provider} once signed in */
   cloudSyncedAt:null,
@@ -499,6 +503,11 @@ function saveLocal(){
      the player is through the door. */
   if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
   G.lastSeen=Date.now();
+  /* b226: the offline-budget watermark tracks lastSeen while the tab is open,
+     so an evening of active play is never mistaken for an absence and charged
+     against the daily allowance. processOffline() is the only thing that
+     advances it ahead of a grant — which is what makes double-pay impossible. */
+  if(G.offlineBudget && typeof G.offlineBudget==='object') G.offlineBudget.at=G.lastSeen;
   // Route through the platform Storage seam (src/platform/storage.js) so Steam
   // (electron-store) / mobile (Capacitor) can swap the backend without touching
   // this. Falls back to localStorage directly if the seam hasn't loaded.
@@ -569,19 +578,39 @@ function loadLocal(){
     combatInterval = setInterval(combatTick, 2400);
   }
 }
-function processOffline(){
-  /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
-     whether or not you left an activity running — that is the whole point of
-     Rested XP. It reads its own watermark (G.restedAt), never G.lastSeen, so
-     it cannot participate in the b214 double-pay pattern where processOffline
-     and the catch-up systems all re-read one unrefreshed timestamp. Calling
-     processOffline() twice banks charges exactly once. */
-  accrueRestedXp(Date.now());
-  const elapsed=(Date.now()-G.lastSeen)/3600000;
-  if(elapsed<0.05) return;
-  if(!G.activeSkill && !G.activeMonster && !G.activeArtisanRecipe) return;
-  // Offline progression cap: 12h F2P, 16h with the Offline+ entitlement,
-  // plus any hours granted by your Renown rank perks. Resets every login.
+/* ════════════════════════════════════════════════════════════════
+   b226 — THE OFFLINE DAILY BUDGET. (docs/design/pacing-overhaul.md §5.4)
+
+   The cap used to be per LOGIN GAP: a player who slept 9h and worked 9h
+   banked 18–19 hours of full-rate progress every day and still had their
+   evening free. That, not the XP table, is why the first 99 landed in 4.5
+   days — the game converted wall-clock, not attention, and it converted 21.5
+   hours of every 24.
+
+   Same size, same perks, but it is now a ROLLING DAILY ALLOWANCE that
+   refills at 00:00 UTC. It targets the degenerate pattern precisely: the
+   honest sleeper is untouched (they never banked 19h), the twice-a-day
+   thirty-second banker loses the extra bank and nothing else. Nothing earned
+   is removed — this is a forward-looking accrual rule, not a reset.
+
+   It also rescues four near-dead perks. `offlineHours` from Offline+, the
+   renown ranks, the property ladder (+1…+4h) and clan level used to matter
+   only to a player asleep for more than twelve hours. As a DAILY budget
+   every player reaches the ceiling, so every extra hour is felt every day.
+
+   ── WATERMARKED, NOT ELAPSED-BASED ──
+   `G.offlineBudget.at` is the exact instant already accounted for, exactly
+   like Rested XP's `restedAt` and for exactly the same reason: the b214
+   double-pay class of bug, where processOffline() and two catch-up systems
+   each re-read one unrefreshed `G.lastSeen` and paid the same hours two and
+   three times over. A watermark cannot be double-read — the second reader
+   sees an already-advanced clock. It advances to `now` on EVERY call, even
+   when nothing was running and nothing was credited, because the wall-clock
+   passed either way; and saveLocal() keeps it level with `lastSeen` during a
+   live session so an evening of play is never mistaken for an absence.
+   ════════════════════════════════════════════════════════════════ */
+function offlineCapHours(){
+  // 12h F2P, 16h with the Offline+ entitlement, plus perk hours.
   let cap=G.entitlements?.offlinePlus?16:12;
   if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
@@ -594,7 +623,67 @@ function processOffline(){
   if(window.HearthriseClans){
     try{ cap += (window.HearthriseClans.offlineBonusHours()||0); }catch(e){}
   }
-  const hrs=Math.min(elapsed,cap);
+  return cap;
+}
+function utcDayKey(now){
+  const d=new Date(typeof now==='number'?now:Date.now());
+  return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
+}
+function ensureOfflineBudget(now){
+  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
+  let b=G.offlineBudget;
+  if(!b||typeof b!=='object'){
+    /* First run on an existing save: seed the watermark from `lastSeen` so the
+       player is credited for the absence they actually had, and start the day
+       with a FULL budget — no hours already banked are revoked (§9.1). */
+    b=G.offlineBudget={dayKey:utcDayKey(now),usedMs:0,at:(typeof G.lastSeen==='number'?G.lastSeen:now)};
+  }
+  if(typeof b.usedMs!=='number'||!isFinite(b.usedMs)||b.usedMs<0) b.usedMs=0;
+  if(typeof b.at!=='number'||!isFinite(b.at)||b.at>now) b.at=now;
+  if(b.dayKey!==utcDayKey(now)){ b.dayKey=utcDayKey(now); b.usedMs=0; }
+  return b;
+}
+/* Draw from today's allowance. Returns the milliseconds of progress to
+   simulate. Advances the watermark unconditionally; consumes budget only for
+   time that actually bought progress. */
+function claimOfflineMs(now,active,minMs){
+  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
+  const b=ensureOfflineBudget(now);
+  const elapsed=Math.max(0,now-b.at);
+  b.at=now;
+  /* Below the threshold nothing is simulated, so nothing may be charged —
+     but the watermark still moves, because the wall-clock did. */
+  if(!active||elapsed<(minMs||0)) return 0;
+  const capMs=offlineCapHours()*3600000;
+  const grant=Math.min(elapsed,Math.max(0,capMs-b.usedMs));
+  b.usedMs+=grant;
+  return grant;
+}
+function offlineBudgetRemainingMs(){
+  const b=ensureOfflineBudget(Date.now());
+  return Math.max(0,offlineCapHours()*3600000-b.usedMs);
+}
+window.utcDayKey=utcDayKey;
+window.offlineCapHours=offlineCapHours;
+window.ensureOfflineBudget=ensureOfflineBudget;
+window.claimOfflineMs=claimOfflineMs;
+window.offlineBudgetRemainingMs=offlineBudgetRemainingMs;
+
+function processOffline(){
+  /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
+     whether or not you left an activity running — that is the whole point of
+     Rested XP. It reads its own watermark (G.restedAt), never G.lastSeen, so
+     it cannot participate in the b214 double-pay pattern where processOffline
+     and the catch-up systems all re-read one unrefreshed timestamp. Calling
+     processOffline() twice banks charges exactly once. */
+  const _now=Date.now();
+  accrueRestedXp(_now);
+  /* The budget watermark advances whether or not anything was running, so a
+     day spent with no activity set cannot be banked and spent later. */
+  const active=!!(G.activeSkill||G.activeMonster||G.activeArtisanRecipe);
+  const hrs=claimOfflineMs(_now,active,0.05*3600000)/3600000;
+  if(hrs<=0) return;
+  const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
   let combatSummary = null;
 
@@ -640,24 +729,38 @@ function processOffline(){
      Home dashboard's offline line reads this. */
   const offlineBurnt = window._hrOfflineBurns || 0;
   window._hrOfflineBurns = 0;
+  /* b226: the budget is on the summary, because a player must never discover
+     a cap by noticing an absence. The welcome-back line names how much of
+     today's allowance this catch-up spent and what is left. */
+  const remainMs=offlineBudgetRemainingMs();
   G.lastOfflineSummary={
     hrs:+hrs.toFixed(1), gainedItems, gainedXp,
     gainedGold, gainedKills, burnt: offlineBurnt,
     combat: combatSummary,
+    budgetHrs: cap,
+    remainingHrs: +(remainMs/3600000).toFixed(2),
     at: Date.now(),
   };
+  const budgetNote = ` · ${fmtHm(hrs*3600000)} of your ${cap}h daily offline banked, ${fmtHm(remainMs)} left`;
   if(combatSummary){
     const note = combatSummary.died
       ? `⏰ Offline ${hrs.toFixed(1)}h — fought to the death after ${combatSummary.kills} kills, +${gainedXp} XP, +${gainedGold} gold`
       : `⏰ Offline ${hrs.toFixed(1)}h — ${combatSummary.kills} kills, +${gainedItems} items, +${gainedGold} gold`;
-    notify(note, combatSummary.died ? 'kill' : 'info');
+    notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
   } else {
     /* b225: if the fire ruined any of it while you were away, say so — an
        unexplained pile of Burnt Food in the bag is exactly the kind of
        silent mechanic the b224 food lesson said never to ship again. */
     notify(`⏰ Offline ${hrs.toFixed(1)}h — +${gainedItems} items, +${gainedXp} XP` +
-      (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : ''),'info');
+      (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : '') + budgetNote,'info');
   }
+}
+/* "9h 12m" / "48m" — the offline budget readout's only formatter. Deliberately
+   local: the fmtSpan() further down the file lives inside another block's scope. */
+function fmtHm(ms){
+  const mins=Math.max(0,Math.round((Number(ms)||0)/60000));
+  if(mins<60) return mins+'m';
+  return Math.floor(mins/60)+'h '+(mins%60)+'m';
 }
 
 // ── Offline combat simulator ──────────────────────────────────
@@ -1113,11 +1216,182 @@ window.restedXpCharges = function(){ return (typeof G !== 'undefined' && G.reste
 window.RESTED_CHARGE_MS = RESTED_CHARGE_MS;
 window.RESTED_CAP = RESTED_CAP;
 
-function addXp(sk,amt){
+/* ════════════════════════════════════════════════════════════════
+   b226 — PACE: the two pacing dials. (docs/design/pacing-overhaul.md)
+
+   THE WHOLE GAME'S SPEED IS THESE TWO NUMBERS. Nothing else may encode a
+   pacing multiplier — if a second one ever appears, the model in the spec
+   stops predicting the game and the next re-anchor becomes archaeology.
+
+     PACE.xp        multiplies every EARNED XP grant, at addXp() — the one
+                    choke-point every rate in the game passes through.
+     PACE.actionMs  multiplies every gathering/artisan action duration, at
+                    startSkill()/startArtisan() — the one place a duration
+                    becomes an interval.
+
+   Derived, not chosen (Appendix A of the spec shows the arithmetic):
+   the engaged day banks 12h of offline budget plus 2.5h of active play at
+   the ×1.12 presence bonus = 14.8 effective game-hours per wall-clock day.
+   56 days × 14.8 = 828.8 hours to the first 99, against a measured 120.5h
+   today, needs a stretch factor of 6.88. Holding actionMs at 1.60 (tier-1
+   4.8s — still a rhythm, not a wait) puts the remainder on XP:
+   1.60 / (6.88 × 0.60 woodcutting curve correction) → PACE.xp = 0.39.
+
+   NOT paced:
+     • FARMING — growth is wall-clock, so PACE.actionMs cannot reach it and
+       PACE.xp would only deepen a hole that was already ~40× too deep.
+       Its crop XP is ×14 in data instead (spec §8.3).
+     • AUTHORED PAYOUTS — quest / daily / weekly / bounty / chest XP are
+       designed rewards, not rates. They pass {authored:true}.
+     • COMBAT'S 2.4s TICK — combat XP is paced, the tick is not. Slowing it
+       would change every monster's difficulty, food burn and death risk at
+       once, which is a combat rebalance smuggled in under a pacing task.
+   ════════════════════════════════════════════════════════════════ */
+const PACE = { xp: 0.39, actionMs: 1.60 };
+const PACE_EXEMPT_SKILLS = ['farming'];
+
+/* ════════════════════════════════════════════════════════════════
+   b226 — THE FOUNDER'S MARK. (spec §9.3)
+
+   Everyone whose save predates the retune build carries a one-time cosmetic:
+   the title "of the First Season". It costs nothing, grants NO power — so it
+   can never become pay-to-win or a balance exception — and it says the true
+   thing: you were here for the fast era, and that era is a fact about this
+   game's history rather than a mistake being erased. An acknowledged change
+   is a story; an unacknowledged one is a betrayal.
+
+   Gated on `G.createdAt`, which save-migrations v7→v8 backfills from the
+   save's own `lastSeen`; a save with neither is older still and qualifies.
+   RETUNE_EPOCH is the instant this build's pacing took effect, so it cannot
+   be minted later by playing — only by having already been here.
+   ════════════════════════════════════════════════════════════════ */
+const RETUNE_EPOCH = Date.parse('2026-08-09T00:00:00Z');
+const FOUNDER_TITLE = 'of the First Season';
+function isFounder(g){
+  g = g || (typeof G !== 'undefined' ? G : null);
+  if(!g) return false;
+  const t = g.createdAt;
+  /* No stamp at all means the save predates the field, which predates this
+     build. Absence of evidence is evidence of age here, not of youth. */
+  if(typeof t !== 'number' || !isFinite(t)) return true;
+  return t < RETUNE_EPOCH;
+}
+function founderTitle(g){ return isFounder(g) ? FOUNDER_TITLE : ''; }
+window.RETUNE_EPOCH = RETUNE_EPOCH;
+window.FOUNDER_TITLE = FOUNDER_TITLE;
+window.isFounder = isFounder;
+window.founderTitle = founderTitle;
+
+/* The XP a grant is actually worth after the pacing dial. One function, so
+   the renderers can print the same number the engine grants — a card that
+   promises 15 XP and pays 5 is how a retune loses the room. */
+function pacedXp(sk, amt){
+  const n = Number(amt) || 0;
+  if(n <= 0) return 0;
+  if(PACE_EXEMPT_SKILLS.indexOf(sk) >= 0) return n;
+  return n * PACE.xp;
+}
+/* The base duration of one action after the pacing dial, before tool and
+   perk speed. Floored at 500ms exactly as the interval is. */
+function pacedActionMs(ms){
+  return Math.max(500, Math.floor((Number(ms) || 0) * PACE.actionMs));
+}
+/* The advertised rate, computed the way the engine actually pays: PACE.xp,
+   the additive perk stack, the presence multiplier, and PACE.actionMs with
+   tool and speed perks. Every "xp/hr" readout in the game reads this — an
+   activity bar quoting 18,000 xp/hr while the skill ticks up at 5,000 is a
+   worse lie than showing no number at all. */
+function actionRate(skillId, action){
+  if(!action) return null;
+  const gatherKey = ['woodcutting','mining','fishing'].indexOf(skillId) >= 0;
+  const speedKey = gatherKey ? 'gatherSpeed'
+    : ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'}[skillId] || 'gatherSpeed');
+  let speed = (typeof getBonus==='function') ? (getBonus(speedKey)||0) : 0;
+  if(gatherKey && window.HearthriseTools && window.HearthriseTools.bestToolSpeed){
+    try{ speed += (window.HearthriseTools.bestToolSpeed(skillId)||0); }catch(e){}
+  }
+  const ms = Math.max(500, Math.floor(pacedActionMs(action.ms||3000) * (1 - speed)));
+  const bonus = ((typeof getBonus==='function') ? getBonus('allXP') : 0)
+    + ((typeof getEquipmentStats==='function') ? (getEquipmentStats().xpB||0) : 0);
+  const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp||0) * (1 + bonus) * presenceMult()));
+  return { ms, xpPerAction: per, xpPerHour: Math.floor(3600000 / ms * per) };
+}
+window.PACE = PACE;
+window.pacedXp = pacedXp;
+window.pacedActionMs = pacedActionMs;
+window.actionRate = actionRate;
+
+/* ════════════════════════════════════════════════════════════════
+   b226 — PRESENCE: ×1.12 XP while you are actually here. (spec §5.2/5.3)
+
+   Tyler asked for an online bonus of 10–15%; this is the centre of that
+   band, and it is a BONUS — offline stays at 1.00×, so nothing was taken
+   away to pay for it and the total presence advantage is exactly +12%.
+
+   XP ONLY. Not item yield, not gold, not drop rates — so presence can never
+   be farmed as an economy faucet and the §6 vendor fix cannot be undone by
+   sitting at the screen.
+
+   OUTSIDE the additive `allXP` fuse, and multiplicative. It is not a perk:
+   every player has it, always, at the same value, from level 1 — a MODE
+   multiplier, not an accumulated power source. Inside the additive block it
+   would push the +52% permanent stack to +64% and blow the ≤0.60 fuse
+   (CONFLICTS 2026-08-08 §3) for a bonus nobody earned. Outside it, it also
+   cannot drift, because nothing can ever add to it.
+
+   "Online" is all three of: tab visible · real input within 10 minutes ·
+   an activity running. No mouse-jiggle detection, no focus heuristics, no
+   anti-cheat theatre — this is 12% of one action, and the 10-minute window
+   is deliberately generous because an idle game's player is watching, not
+   clicking.
+   ════════════════════════════════════════════════════════════════ */
+const PRESENCE_MULT = 1.12;
+const PRESENCE_IDLE_MS = 10 * 60 * 1000;
+let _lastInputAt = Date.now();
+function _markInput(){ _lastInputAt = Date.now(); }
+['pointerdown','keydown','touchstart'].forEach(function(ev){
+  try{ window.addEventListener(ev, _markInput, {passive:true, capture:true}); }catch(e){}
+});
+function isPresent(){
+  try{
+    if(typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+  }catch(e){ return false; }
+  if(Date.now() - _lastInputAt > PRESENCE_IDLE_MS) return false;
+  return !!(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
+}
+function presenceMult(){ return isPresent() ? PRESENCE_MULT : 1; }
+/* The honest hint. A bonus the player cannot see is a bonus that does not
+   change behaviour — and a bonus that is silently OFF is worse than one that
+   never existed. Words and tokens, no emoji, and it states the condition when
+   it lapses rather than just going quiet. */
+function presenceNote(){
+  const pct=Math.round((PRESENCE_MULT-1)*100);
+  if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
+  return isPresent()
+    ? ` · <b style="color:var(--gold-2)">+${pct}%</b> present`
+    : ` · <span style="opacity:.55">+${pct}% present — idle</span>`;
+}
+window.HearthrisePresenceNote = presenceNote;
+window.HearthrisePresence = {
+  MULT: PRESENCE_MULT,
+  IDLE_MS: PRESENCE_IDLE_MS,
+  isPresent: isPresent,
+  mult: presenceMult,
+  /* test seam: the suite drives the idle clock rather than faking events */
+  _setLastInput: function(t){ _lastInputAt = (typeof t === 'number') ? t : Date.now(); },
+  _lastInput: function(){ return _lastInputAt; },
+};
+
+function addXp(sk,amt,opts){
   const bonus=getBonus('allXP')+getEquipmentStats().xpB;
   const cb=['attack','strength','defense','hitpoints'].includes(sk)?getBonus('combatXP'):0;
   const rested=amt>0?spendRestedCharge():0;
-  const gain=Math.floor(amt*(1+bonus+cb+rested));
+  /* PACE first, then the additive perk block, then presence OUTSIDE it, then
+     one floor. A positive grant never rounds to zero — a 1-damage hit must
+     still be worth 1 Hitpoints XP or the low end of combat goes dead. */
+  const base=(opts&&opts.authored)?(Number(amt)||0):pacedXp(sk,amt);
+  const raw=base*(1+bonus+cb+rested)*presenceMult();
+  const gain=raw>0?Math.max(1,Math.floor(raw)):0;
   const old=levelFromXp(G.skills[sk]||0);
   G.skills[sk]=(G.skills[sk]||0)+gain;
   const nw=levelFromXp(G.skills[sk]);
@@ -1664,11 +1938,20 @@ function killMonster(m){
 let skillInterval=null,skillProgressInterval=null;
 function startSkill(type,targetId,ms){
   stopSkill();
-  G.activeSkill=type;G.skillTargetId=targetId;G.skillMs=ms;G.skillProgress=0;
+  G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
   /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze */
   const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
   const speed=getBonus('gatherSpeed')+toolSpeed;
-  const actualMs=Math.max(500,Math.floor(ms*(1-speed)));
+  const actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-speed)));
+  /* b226 (spec §1.6) — G.skillMs stores the ACTUAL interval, not the raw `ms`.
+     It used to store the raw duration while the live interval used the
+     tool/perk-adjusted one, and processOffline() divides the elapsed time by
+     G.skillMs — so a player with a Rune Axe and a Toolshed gathered up to
+     30–40% SLOWER offline than online, gear-scaled, and nothing in the game
+     said so. Every speed bonus now applies offline too (a straight buff to
+     every geared player), and the presence bonus is the only deliberate
+     online/offline differential left in the game. */
+  G.skillMs=actualMs;
   skillInterval=setInterval(()=>doSkillAction(false),actualMs);
   skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/actualMs));if(activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
   renderSkillsList();renderSkillDetail(type);
@@ -1697,6 +1980,15 @@ function doSkillAction(silent){
   const qty=rand(act.qty[0],act.qty[1]);
   addItem(act.prod,qty);
   G.stats.gathered=(G.stats.gathered||0)+qty;
+  /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for "logs"
+     without naming one log. `DAILY_GOAL_POOL` used to read item-specific
+     collection counters (collection.normal_log, collection.copper_ore,
+     collection.shrimp): a level-90 woodcutter chopping Duskwood made ZERO
+     progress on "Gather 25 logs", and "Catch 15 fish" was unachievable for
+     anyone past Shrimp unless they deliberately downgraded. The goals got
+     harder the better you were, which is backwards. */
+  const _perSkill={woodcutting:'chopped',mining:'mined',fishing:'fished'}[type];
+  if(_perSkill) G.stats[_perSkill]=(G.stats[_perSkill]||0)+qty;
   updateDaily('gather',qty);updateQuest('gather',qty);
   addXp(type,act.xp);
   if(!silent){renderSkillDetail(type);updateTopbar();}
@@ -1850,7 +2142,10 @@ function plantCrop(plotIdx,cropId){
      unattended. b222: the `watered` mirror is no longer written. */
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   G.stats.planted=(G.stats.planted||0)+1;
-  addXp('farming',2);renderFarm();
+  /* b226: 28, not 2 — farming's ×14 (spec §8.3) applies to the whole skill,
+     not only the harvest, or planting stops being worth the click. Farming is
+     exempt from PACE.xp, so this is the grant. */
+  addXp('farming',28);renderFarm();
 }
 /* b220: watering opens a 2h double-speed window. It is rejected while a window
    is already open — that single rule is both the anti-abuse mechanism and the
@@ -2413,7 +2708,7 @@ function renderSkillDetail(id){
       <div style="font-size:54px">${s.icon}</div>
       <div style="flex:1">
         <div style="font-family:var(--f-display);font-size:22px;color:var(--gold-2)">Level ${lv}</div>
-        <div class="muted tiny">${xp.toLocaleString()} XP${lv<99?` · ${toNext.toLocaleString()} to next`:' · MAX'}</div>
+        <div class="muted tiny">${xp.toLocaleString()} XP${lv<99?` · ${toNext.toLocaleString()} to next`:' · MAX'}${presenceNote()}</div>
         <div class="bar xp" style="margin-top:6px"><i style="width:${pct.toFixed(1)}%"></i></div>
       </div>
     </div>
@@ -2428,7 +2723,7 @@ function renderActivities(acts,skillId){
     const unlocked=lv>=a.req;const active=G.activeSkill===skillId&&G.skillTargetId===a.id;
     return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
       <span class="mi">${a.icon}</span>
-      <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${a.xp} XP · ${(a.ms/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
+      <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${Math.max(1,Math.floor(pacedXp(skillId,a.xp)))} XP · ${(pacedActionMs(a.ms)/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
       ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
     </button>`;
   }).join('');
@@ -2458,7 +2753,7 @@ function renderInventory(){
   el.innerHTML=`<div class="item-grid">${items.map(([id,qty])=>{
     const d=ITEMS[id];if(!d)return'';
     const qShow=qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-    return `<button class="item-slot" title="${d.n} ×${qty} · ${d.v}gp" onclick="onItemTap('${id}')">${d.icon}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
+    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${d.icon}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
   }).join('')}</div>
   <div class="muted tiny" style="margin-top:10px">Tap to use: equip, eat, plant, or sell. Long press for menu.</div>`;
 }
@@ -2473,7 +2768,8 @@ function onItemTap(id){
   if(d.heals){G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;}
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
-  if(confirm(`Sell 1× ${d.n} for ${d.v}gp?`)){G.gold+=d.v;removeItem(id,1);notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();}
+  const _p=vendorPrice(id);
+  if(confirm(`Sell 1× ${d.n} for ${_p}gp?`)){G.gold+=_p;removeItem(id,1);notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();}
 }
 
 /* ────────────────────────────────────────────────
@@ -3835,6 +4131,11 @@ function openInvDetail(id){
   const stats = [];
   stats.push(`<div><b>${qty.toLocaleString()}</b><span>quantity</span></div>`);
   stats.push(`<div><b>🪙 ${(it.v||0).toLocaleString()}</b><span>value each</span></div>`);
+  /* b226: for a raw material the book value and the vendor's bid are different
+     numbers, so say both. A player who sees "1,400 value" and is paid 280 has
+     been told a half-truth; a player who is told the vendor lowballs raws has
+     been handed the reason the player market exists. */
+  if(it.raw) stats.push(`<div><b>🪙 ${vendorPrice(id).toLocaleString()}</b><span>vendor pays</span></div>`);
   if(it.atkB) stats.push(`<div><b>+${it.atkB}</b><span>attack</span></div>`);
   if(it.strB) stats.push(`<div><b>+${it.strB}</b><span>strength</span></div>`);
   if(it.defB) stats.push(`<div><b>+${it.defB}</b><span>defense</span></div>`);
@@ -3891,8 +4192,8 @@ function openInvDetail(id){
     acts.push(`<button class="btn" onclick="if(typeof buryBones==='function'){buryBones('${id}');}else{G.skills.prayer=(G.skills.prayer||0)+${it.buryXp};removeItem('${id}',1);notify('Buried (+${it.buryXp} prayer XP)','info');}closeInvDetail();renderInvNew()">Bury</button>`);
   }
   if(qty > 0){
-    acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 (${(it.v||0)}🪙)</button>`);
-    if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} (${((it.v||0)*qty).toLocaleString()}🪙)</button>`);
+    acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 (${vendorPrice(id)}🪙)</button>`);
+    if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} (${(vendorPrice(id)*qty).toLocaleString()}🪙)</button>`);
     if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
   }
 
@@ -3937,22 +4238,61 @@ function closeInvDetail(){
   document.getElementById('inv-detail-overlay')?.classList.remove('show');
 }
 
+/* ════════════════════════════════════════════════════════════════
+   b226 — vendorPrice(): what the NPC vendor BIDS, in one place.
+   (docs/design/pacing-overhaul.md §6.1.)
+
+   Raw materials fetch VENDOR_RAW_RATE × their book value; everything else
+   fetches the book value. `ITEMS[id].v` is NOT touched — it stays the number
+   market listings, recipe costing, chest payouts and the collection log all
+   read, so nobody's bank is revalued and nothing already earned is reached
+   into. Only the vendor's bid, and only from now on.
+
+   Gathering throughput is roughly flat (~300 items/h at every tier) while `v`
+   climbs 2.77× per material tier, so a maxed miner vendoring Dawnstone
+   out-earned the King renown reward — 300,000 gold, the eleventh of twelve
+   ranks — every 32 minutes, WHILE ASLEEP. Beyond the arithmetic this puts
+   three systems back in their proper roles: gathering is the material faucet,
+   the artisan skills are the gold path, and the player market becomes the
+   best price for raws, because another player will pay more than 20% for
+   something they actually need.
+
+   ONE choke-point, mirroring applyGoldFind(). Every sell path in the game —
+   the bag's Sell 1 / Sell All / Sell Selected, the context menu, the quick-
+   sell slider, the sell-junk sweep and the old inventory tap — reads this.
+   A price that differs by which button you pressed is not a price.
+   ════════════════════════════════════════════════════════════════ */
+const VENDOR_RAW_RATE = 0.20;
+function vendorPrice(id){
+  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
+  if(!it) return 0;
+  const v = Number(it.v) || 0;
+  if(v <= 0) return 0;
+  /* Floored at 1: a raw worth anything at all is still worth something, and a
+     0g bid reads as "this item is broken" rather than "this is cheap". */
+  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+}
+window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
+window.vendorPrice = vendorPrice;
+
 /* Sell helpers — wrap existing logic if available, else simple */
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
   if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
-  G.gold = (G.gold||0) + (it.v||0);
+  const price = vendorPrice(id);
+  G.gold = (G.gold||0) + price;
   removeItem(id, 1);
-  notify(`Sold 1× ${it.n} (+${it.v||0}🪙)`,'loot');
+  notify(`Sold 1× ${it.n} (+${price}🪙)`,'loot');
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
   const it = ITEMS[id]; if(!it) return;
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
-  G.gold = (G.gold||0) + (it.v||0)*qty;
+  const price = vendorPrice(id);
+  G.gold = (G.gold||0) + price*qty;
   delete G.inventory[id];
-  notify(`Sold ${qty}× ${it.n} (+${((it.v||0)*qty).toLocaleString()}🪙)`,'loot');
+  notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){
@@ -3961,7 +4301,7 @@ function invSellSelected(){
   for(const id of window._invSelected){
     const it = ITEMS[id]; if(!it) continue;
     const qty = G.inventory[id]||0; if(qty<=0) continue;
-    total += (it.v||0)*qty; count += qty;
+    total += vendorPrice(id)*qty; count += qty;
     delete G.inventory[id];
   }
   G.gold = (G.gold||0) + total;
@@ -4039,7 +4379,7 @@ function renderInvNew(){
   const src = (typeof invTab !== 'undefined' && invTab === 'bank') ? G.bank : G.inventory;
   const items = _filteredItems(src);
   const totalCount = items.reduce((s,[id,q])=>s+q, 0);
-  const totalValue = items.reduce((s,[id,q])=>s+(ITEMS[id]?.v||0)*q, 0);
+  const totalValue = items.reduce((s,[id,q])=>s+vendorPrice(id)*q, 0);
 
   const filtersHtml = _CATEGORIES.map(c=>{
     const isAct = window._invFilter === c.id;
@@ -4083,7 +4423,7 @@ function renderInvNew(){
       const sel = window._invSelected.has(id);
       const tier = _itemTier(id);
       const qShow = qty>=10000?(qty/1000).toFixed(1)+'k':qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-      return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${it.v||0}🪙 each">
+      return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${vendorPrice(id)}🪙 each">
         <span class="selbox"></span>
         <span style="font-size:24px;line-height:1">${it.icon}</span>
         <span class="qty">${qShow}</span>
@@ -4098,7 +4438,7 @@ function renderInvNew(){
     let selValue = 0, selCount = 0;
     for(const id of window._invSelected){
       const q = G.inventory[id]||0;
-      selValue += (ITEMS[id]?.v||0)*q;
+      selValue += vendorPrice(id)*q;
       selCount += q;
     }
     batchBar = `<div class="inv-batch-bar">
@@ -4832,12 +5172,9 @@ function _activityXpHr(){
     if(G.activeSkill === 'woodcutting' && typeof TREES !== 'undefined') t = TREES.find(a=>a.id===G.skillTargetId);
     else if(G.activeSkill === 'mining' && typeof ROCKS !== 'undefined') t = ROCKS.find(a=>a.id===G.skillTargetId);
     else if(G.activeSkill === 'fishing' && typeof FISH_SPOTS !== 'undefined') t = FISH_SPOTS.find(a=>a.id===G.skillTargetId);
-    if(t){
-      const speed = (typeof getBonus==='function') ? (getBonus('gatherSpeed')||0) : 0;
-      const ms = Math.max(500, Math.floor((t.ms||3000) * (1 - speed)));
-      const aph = 3600000 / ms;
-      return Math.floor(aph * (t.xp||0));
-    }
+    /* b226: through actionRate(), so the pill quotes the rate the engine
+       actually pays — pace, tools, perks and presence included. */
+    if(t){ const r = actionRate(G.activeSkill, t); return r ? r.xpPerHour : null; }
   }
   return null;
 }
@@ -6406,10 +6743,16 @@ function buildWelcomeOverlay(){
 var DAILY_GOAL_POOL = [
   {id:'kill_any',  emoji:'⚔️', name:'Slay 10 monsters',   target:10, source:'stats.kills'},
   {id:'kill_more', emoji:'🩸', name:'Slay 30 monsters',   target:30, source:'stats.kills'},
-  {id:'gather_logs', emoji:'🪵', name:'Gather 25 logs',  target:25, source:'collection.normal_log'},
-  {id:'mine_ore',  emoji:'⛏️', name:'Mine 25 ores',      target:25, source:'collection.copper_ore'},
+  /* b226 (spec §8.2) — these three read PER-SKILL counters, not item-specific
+     collection counters. They used to point at collection.normal_log /
+     collection.copper_ore / collection.shrimp, so a level-90 woodcutter
+     chopping Duskwood made zero progress on "Gather 25 logs" and "Catch 15
+     fish" was unachievable for anyone past Shrimp unless they deliberately
+     downgraded. A daily that gets harder the better you are is backwards. */
+  {id:'gather_logs', emoji:'🪵', name:'Gather 25 logs',  target:25, source:'stats.chopped'},
+  {id:'mine_ore',  emoji:'⛏️', name:'Mine 25 ores',      target:25, source:'stats.mined'},
   {id:'cook',      emoji:'🍳', name:'Cook 5 dishes',     target:5,  source:'stats.cooked'},
-  {id:'fish',      emoji:'🎣', name:'Catch 15 fish',     target:15, source:'collection.shrimp'},
+  {id:'fish',      emoji:'🎣', name:'Catch 15 fish',     target:15, source:'stats.fished'},
   {id:'gold_500',  emoji:'🪙', name:'Earn 500 gold',     target:500, source:'_dailyGoldDelta'},
   {id:'plant',     emoji:'🌾', name:'Plant 5 crops',     target:5,  source:'stats.planted'},
   {id:'level_up',  emoji:'📈', name:'Gain a skill level', target:1,  source:'stats.levelups'},
@@ -6440,6 +6783,9 @@ function getGoalsForToday(){
 // hoursTillUTCMidnight — function declarations don't reach window
 // from inside nested IIFEs.
 window.getGoalsForToday = getGoalsForToday;
+/* b226: the pool itself, so the suite can assert what each goal READS. The
+   sources are the fix — a goal that watches one item id is the bug. */
+window.DAILY_GOAL_POOL = DAILY_GOAL_POOL;
 
 /* b224 (LIVE HOTFIX) — the quests-never-tick bug.
    readSource() is declared INSIDE this IIFE (block 16). The Quests strip +
@@ -6600,7 +6946,7 @@ window._renderInvSummary = function(){
   Object.entries(G.inventory||{}).forEach(function(kv){
     var id = kv[0], qty = kv[1];
     if(!qty || !ITEMS[id]) return;
-    total += (ITEMS[id].v||0) * qty;
+    total += (typeof vendorPrice==='function' ? vendorPrice(id) : (ITEMS[id].v||0)) * qty;
     count += qty;
   });
   var slot = panel.querySelector('.invc-space');
@@ -6716,9 +7062,9 @@ var ACHIEVEMENTS = [
   {id:'lv99_any',    name:'99 Club',             desc:'Reach Lv 99 in any skill',   icon:'💫', target:99,   src:'highest_skill'},
   {id:'all_25',      name:'Well-Rounded',        desc:'All combat skills to Lv 25', icon:'🎯', target:25,   src:'min_combat_skill'},
   {id:'all_50',      name:'Combat Master',       desc:'All combat skills to Lv 50', icon:'⚔️', target:50,   src:'min_combat_skill'},
-  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              icon:'🪵', target:500,  src:'collection.normal_log'},
-  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              icon:'⛏️', target:500,  src:'collection.copper_ore'},
-  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             icon:'🎣', target:500,  src:'collection.shrimp'},
+  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              icon:'🪵', target:500,  src:'stats.chopped'},
+  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              icon:'⛏️', target:500,  src:'stats.mined'},
+  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             icon:'🎣', target:500,  src:'stats.fished'},
   {id:'cook_100',    name:'Chef',                desc:'Cook 100 meals',             icon:'🍳', target:100,  src:'stats.cooked'},
   {id:'plant_100',   name:'Green Thumb',         desc:'Harvest 100 crops',          icon:'🌾', target:100,  src:'stats.harvested'},
   {id:'house_lv1',   name:'Homebody',            desc:'Build any house room',       icon:'🏠', target:1,    src:'stats.roomsBuilt'},
@@ -7119,7 +7465,7 @@ window.renderArtisanActivities = function(skillId){
     }
     return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
       '<span class="mi">'+r.icon+'</span>'+
-      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+r.xp+' XP · ('+inputName+secondaryText+(r.output?' → '+outputLabel:'')+') · Have: '+have+'</span></div>'+
+      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+Math.max(1,Math.floor(window.pacedXp(skillId,r.xp)))+' XP · '+(window.pacedActionMs(r.ms)/1000).toFixed(1)+'s · ('+inputName+secondaryText+(r.output?' → '+outputLabel:'')+') · Have: '+have+'</span></div>'+
       status+
     '</button>';
   }).join('');
@@ -7134,11 +7480,14 @@ window.startArtisan = function(skillId, recipeId){
   if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
   if(typeof stopSkill === 'function') stopSkill();
-  G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0; G.skillMs = r.ms;
+  G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   /* b201: each artisan skill reads its own workbench-room speed bonus */
   var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
   var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
-  var actualMs = Math.max(500, Math.floor(r.ms * (1 - speed)));
+  /* b226: PACE.actionMs at the seam, and G.skillMs stores the ACTUAL interval
+     so the offline replay runs at the same rate as the live loop (spec §1.6). */
+  var actualMs = Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
+  G.skillMs = actualMs;
   window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);
   window._artisanProgress = setInterval(function(){
     G.skillProgress = Math.min(1, G.skillProgress + (100/actualMs));
@@ -7824,11 +8173,14 @@ window.startArtisan = function(skillId, recipeId){
     if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
   }
   if(typeof stopSkill === 'function') stopSkill();
-  G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0; G.skillMs = r.ms;
+  G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   /* b201: each artisan skill reads its own workbench-room speed bonus */
   var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
   var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
-  var actualMs = Math.max(500, Math.floor(r.ms * (1 - speed)));
+  /* b226: PACE.actionMs at the seam, and G.skillMs stores the ACTUAL interval
+     so the offline replay runs at the same rate as the live loop (spec §1.6). */
+  var actualMs = Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
+  G.skillMs = actualMs;
   window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);
   window._artisanProgress = setInterval(function(){
     G.skillProgress = Math.min(1, G.skillProgress + (100/actualMs));
@@ -7863,7 +8215,7 @@ window.renderArtisanActivities = function(skillId){
     var burnSentence = (typeof window.burnRiskText === 'function') ? window.burnRiskText(r, skillId) : '';
     return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
       '<span class="mi">'+r.icon+'</span>'+
-      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+r.xp+' XP · '+inputNames+(r.output?' → '+outputLabel:'')+'</span>'+
+      '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+Math.max(1,Math.floor(window.pacedXp(skillId,r.xp)))+' XP · '+(window.pacedActionMs(r.ms)/1000).toFixed(1)+'s · '+inputNames+(r.output?' → '+outputLabel:'')+'</span>'+
       (burnSentence ? '<span class="ms" style="color:var(--red)">'+burnSentence+'</span>' : '')+'</div>'+
       status+
     '</button>';
@@ -9328,8 +9680,11 @@ function tileForGather(action, skillId){
   var unlocked = lv >= action.req;
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
-  var speed = (typeof getBonus==='function') ? getBonus('gatherSpeed') : 0;
-  var ms = Math.max(500, Math.floor(action.ms*(1-speed)));
+  /* b226: the tile is a price tag — it must state the PACED duration, tool
+     speed included, because that is what startSkill() will actually set. */
+  var toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
+  var speed = ((typeof getBonus==='function') ? getBonus('gatherSpeed') : 0) + toolSpeed;
+  var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*(1-speed)));
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
@@ -9348,7 +9703,7 @@ function tileForGather(action, skillId){
        "Qty: 0" is not information: the count appears once you own some. */
     +'<div class="at-icon">'+actIconHtml(action.prod, action.icon)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
-    +'<div class="at-meta">'+action.xp+' XP · '+fmtSec(ms)+'</div>'
+    +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)))+' XP · '+fmtSec(ms)+'</div>'
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
     +(active ? '<span class="at-stop">Active</span>' : '')
@@ -9387,7 +9742,7 @@ function tileForArtisan(recipe, skillId){
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '')+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    +'<div class="at-meta">'+recipe.xp+' XP · '+fmtSec(recipe.ms||3000)+'</div>'
+    +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,recipe.xp)))+' XP · '+fmtSec(window.pacedActionMs(recipe.ms||3000))+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +burnLine
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
@@ -9520,7 +9875,7 @@ function buildHead(skillId){
         +'<span class="ah-name">'+s.name+'</span>'
         +'<span class="ah-lvl"><em>Level</em>'+lv+'</span>'
       +'</div>'
-      +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+'</div>'
+      +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+presenceNote()+'</div>'
       +'<div class="ah-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
     +'</div>'
   +'</div>';
@@ -9541,7 +9896,7 @@ function lightUpdate(skillId){
   }
   var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
   var ahLvl = detail.querySelector('.ah-lvl'); if(ahLvl) ahLvl.innerHTML = '<em>Level</em>'+lv;
-  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.textContent = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX');
+  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.innerHTML = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+presenceNote();
   var ahBar = detail.querySelector('.ah-bar i'); if(ahBar) ahBar.style.width = pct.toFixed(1)+'%';
   detail.querySelectorAll('.act-tile').forEach(function(tile){
     var qe = tile.querySelector('.at-qty');
@@ -10591,9 +10946,8 @@ function gatherRates(){
       var unlocked = actions.filter(function(a){ return lv >= (a.req||1); });
       if(unlocked.length){
         var best = unlocked.reduce(function(a,b){ return (b.xp/b.ms*1000) > (a.xp/a.ms*1000) ? b : a; });
-        var speed = (typeof getBonus==='function') ? getBonus('gatherSpeed') : 0;
-        var ms = Math.max(500, Math.floor(best.ms*(1-speed)));
-        var xpPerHr = Math.floor(3600000 / ms * best.xp);
+        /* b226: actionRate() is the one place a rate is computed. */
+        var xpPerHr = (actionRate(id, best)||{}).xpPerHour || 0;
         results.push({id:id, lv:lv, action:best.name, xpHr:xpPerHr, icon:(SKILLS_DEF[id]||{}).icon||'?'});
         return;
       }
@@ -10603,7 +10957,7 @@ function gatherRates(){
       var rec = window.ARTISAN_RECIPES[id].filter(function(r){ return lv >= (r.req||1); });
       if(rec.length){
         var b = rec.reduce(function(a,b){ return (b.xp/b.ms*1000) > (a.xp/a.ms*1000) ? b : a; });
-        var xpPerHr = Math.floor(3600000 / (b.ms||3000) * (b.xp||0));
+        var xpPerHr = (actionRate(id, b)||{}).xpPerHour || 0;
         results.push({id:id, lv:lv, action:b.name, xpHr:xpPerHr, icon:(SKILLS_DEF[id]||{}).icon||'?'});
       }
     }
@@ -12109,8 +12463,8 @@ console.log('[Bundle Icons v1] applied:',
   // these on the same flow.
   window.WEEKLY_GOAL_POOL = window.WEEKLY_GOAL_POOL || [
     {id:'wk_kills',    emoji:'⚔️', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}}},
-    {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'collection.copper_ore', reward:{gold:2000, xp:{mining:500}}},
-    {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'collection.normal_log', reward:{gold:2000, xp:{woodcutting:500}}},
+    {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}}},
+    {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}}},
     {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},
     {id:'wk_levels',   emoji:'📈', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5}},
   ];
@@ -12232,7 +12586,9 @@ console.log('[Bundle Icons v1] applied:',
       if(reward.gems && typeof G.gems === 'number') G.gems += reward.gems;
       if(reward.xp){
         Object.entries(reward.xp).forEach(function(kv){
-          if(typeof window.addXp === 'function') window.addXp(kv[0], kv[1]);
+          /* b226: a daily/weekly reward is an AUTHORED payout, not a rate —
+             PACE.xp must not shrink a number the Designer wrote (spec §4.5). */
+          if(typeof window.addXp === 'function') window.addXp(kv[0], kv[1], {authored:true});
         });
       }
       if(reward.items){

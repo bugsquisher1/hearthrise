@@ -94,7 +94,32 @@ const snapshotG = () => {
     // leave a future-dated watermark that silently stops rest accruing.
     restedXp: G.restedXp,
     restedAt: G.restedAt,
+    // b226 (pacing retune): the offline DAILY budget and its watermark, the
+    // renown high-water ratchet, and the Founder's-mark date. Every offline
+    // test below drives the watermark directly — without these three fields a
+    // suite run would hand the player free offline hours, or leave a
+    // future-dated watermark that silently stops offline progress accruing.
+    offlineBudget: G.offlineBudget,
+    renownHigh: G.renownHigh,
+    createdAt: G.createdAt,
   }));
+};
+
+/* b226 — put the player "away" for N hours. The offline catch-up is
+   watermarked on G.offlineBudget.at (the same defence Rested XP uses against
+   the b214 double-pay class of bug), so moving `lastSeen` alone no longer
+   simulates an absence — the watermark IS the clock, and a test that only
+   moved lastSeen would be testing a field the engine no longer reads.
+   Also refills the day's allowance, so a test never inherits another's spend. */
+const setAway = (hours) => {
+  const G = window.G;
+  const at = Date.now() - hours * 3600000;
+  G.lastSeen = at;
+  G.offlineBudget = {
+    dayKey: (typeof window.utcDayKey === 'function') ? window.utcDayKey(Date.now()) : 0,
+    usedMs: 0,
+    at,
+  };
 };
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
@@ -471,7 +496,7 @@ const TESTS = [
       G.activeMonster = null;
       G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp'; G.skillMs = 2400;
       G.inventory = Object.assign({}, G.inventory, { shrimp: 50, cooked_shrimp: 0, burnt_food: 0 });
-      G.lastSeen = Date.now() - 2 * 3600000;                     // 2h "offline"
+      setAway(2);                                               // 2h "offline"
       processOffline();
       const cooked = G.inventory.cooked_shrimp || 0;
       // b225: offline cooking runs through the same doArtisanAction, so it
@@ -1001,7 +1026,7 @@ const TESTS = [
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
       G.inventory = {};
-      G.lastSeen = Date.now() - 2 * 3600 * 1000;      // 2h away
+      setAway(2);                                     // 2h away
       window.processOffline();
       const afterOffline = (G.inventory.normal_log || 0);
       assert(afterOffline > 0, 'processOffline should grant the offline haul');
@@ -7846,9 +7871,17 @@ const TESTS = [
       assert((G.inventory.burnt_food || 0) === 1, 'a burn must yield exactly one Burnt Food');
       assert((G.stats.cooked || 0) === 0, 'a burn must NOT tick the cooked counter — cook goals count successes only');
       assert((G.stats.burnt || 0) === 1, 'a burn should be counted as a burn');
+      // b226: CF.burnXp(rec) and rec.xp are BOOK values; what lands in the
+      // skill is the book value through PACE.xp, because a burn is a rate
+      // like any other. The relationship being guarded — a burn pays the
+      // consolation fraction and never the full cook — is unchanged; only
+      // the scale moved, so the expectation is derived from the same dial
+      // the engine uses rather than pinned to a number that will rot.
+      const paced = (n) => Math.max(1, Math.floor(window.pacedXp('cooking', n)));
       const burnXp = (G.skills.cooking || 0) - xp0;
-      assert(burnXp === CF.burnXp(rec), 'a burn should pay ' + CF.burnXp(rec) + ' consolation XP, got ' + burnXp);
-      assert(burnXp > 0 && burnXp < rec.xp, 'consolation XP must sting but not be zero');
+      assert(burnXp === paced(CF.burnXp(rec)),
+        'a burn should pay ' + paced(CF.burnXp(rec)) + ' consolation XP, got ' + burnXp);
+      assert(burnXp > 0 && burnXp < paced(rec.xp), 'consolation XP must sting but not be zero');
 
       Math.random = () => 0.999;                      // force a success
       const xp1 = G.skills.cooking || 0;
@@ -7856,7 +7889,7 @@ const TESTS = [
       assert((G.inventory.cooked_shrimp || 0) === 1, 'a successful cook must yield the dish');
       assert((G.inventory.burnt_food || 0) === 1, 'a successful cook must not yield carbon');
       assert((G.stats.cooked || 0) === 1, 'a successful cook ticks the cooked counter');
-      assert((G.skills.cooking || 0) - xp1 >= rec.xp, 'a successful cook pays full XP');
+      assert((G.skills.cooking || 0) - xp1 >= paced(rec.xp), 'a successful cook pays full XP');
 
       // Kitchen L3 is burn-proof: even a rigged roll cannot ruin the dish.
       G.rooms = { kitchen: 3 };
@@ -7982,7 +8015,7 @@ const TESTS = [
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = { shrimp: 30, cooked_shrimp: 0, burnt_food: 0 };
       G.activeSkill = 'cooking'; G.skillTargetId = rec.id; G.skillMs = 3000;
-      G.lastSeen = Date.now() - 2 * 3600000;
+      setAway(2);
       Math.random = () => 0;                    // every offline cook burns
       window.processOffline();
       assert((G.inventory.burnt_food || 0) === 30, 'offline cooking must burn on the same math, got ' + G.inventory.burnt_food);
@@ -8030,6 +8063,405 @@ const TESTS = [
     }
   }),
 
+
+  // ══════════════════════════════════════════════════════════════════════
+  // b226 — THE PACING RETUNE (docs/design/pacing-overhaul.md)
+  //
+  // Every test below fails without its fix. Together they pin the shape of
+  // the retune rather than its dial settings: PACE.xp and PACE.actionMs are
+  // meant to be re-tuned, so the tests STUB them and assert that the engine
+  // moves — a suite that hardcoded 0.39 would have to be rewritten at every
+  // re-anchor and would stop being evidence of anything.
+  // ══════════════════════════════════════════════════════════════════════
+
+  () => tryRun('b226: PACE.xp is wired at the ONE XP choke-point (a stub moves the grant)', () => {
+    const G = window.G;
+    const PACE = window.PACE;
+    assert(PACE && typeof PACE.xp === 'number' && typeof PACE.actionMs === 'number',
+      'window.PACE must publish { xp, actionMs }');
+    const snap = snapshotG();
+    const realXp = PACE.xp;
+    // The dial is asserted by its EFFECT on the grant, not by comparing the
+    // grant to a literal: the perk stack (renown allXP, rooms, presence) is a
+    // legitimate multiplier on top, and a test that assumed it away would
+    // fail the first time a rank was earned mid-suite.
+    const grant = (n) => { G.skills.woodcutting = 0; window.addXp('woodcutting', n); return G.skills.woodcutting; };
+    try {
+      G.restedXp = 0;
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      PACE.xp = 1;   const full = grant(100000);
+      PACE.xp = 0.5; const half = grant(100000);
+      PACE.xp = 0.1; const tenth = grant(100000);
+      assert(full > 0, 'the grant must land somewhere');
+      assert(Math.abs(full - 2 * half) <= 2,
+        'halving PACE.xp must halve the grant (' + full + ' vs 2×' + half + ')');
+      assert(Math.abs(full - 10 * tenth) <= 10,
+        'a tenth of PACE.xp must be a tenth of the grant (' + full + ' vs 10×' + tenth + ')');
+      // And the pure function is the contract the renderers read.
+      PACE.xp = 0.25;
+      assert(window.pacedXp('woodcutting', 400) === 100, 'pacedXp must apply the dial exactly');
+    } finally { PACE.xp = realXp; restoreG(snap); }
+  }),
+
+  () => tryRun('b226: PACE.actionMs is wired at the action-interval choke-point', () => {
+    const PACE = window.PACE;
+    const real = PACE.actionMs;
+    try {
+      PACE.actionMs = 1;
+      assert(window.pacedActionMs(3000) === 3000, 'actionMs = 1 must leave the duration alone');
+      PACE.actionMs = 2;
+      assert(window.pacedActionMs(3000) === 6000, 'actionMs = 2 must double the duration');
+      PACE.actionMs = 0.0001;
+      assert(window.pacedActionMs(3000) === 500, 'the 500ms floor must survive any dial value');
+    } finally { PACE.actionMs = real; }
+  }),
+
+  () => tryRun('b226: startSkill stores the TOOL-ADJUSTED interval in G.skillMs (offline parity)', () => {
+    // Regression: G.skillMs held the RAW `ms` while the live interval used the
+    // tool/perk-adjusted one, and processOffline divides elapsed time by
+    // G.skillMs — so a geared player gathered up to 30-40% slower offline than
+    // online, invisibly, scaled by their own gear.
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      const tree = window.TREES.find((t) => t.id === 'normal_tree');
+      G.rooms = {}; G.plotBuildings = [];
+      G.inventory = Object.assign({}, G.inventory, { rune_axe: 1 });     // at least +25%
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      const speed = window.getBonus('gatherSpeed') + window.HearthriseTools.bestToolSpeed('woodcutting');
+      assert(speed >= 0.25, 'the test player must own at least a rune axe, got ' + speed);
+      window.startSkill('woodcutting', 'normal_tree', tree.ms);
+      const expected = Math.max(500, Math.floor(window.pacedActionMs(tree.ms) * (1 - speed)));
+      assert(G.skillMs === expected,
+        'G.skillMs must be the adjusted interval ' + expected + ', got ' + G.skillMs);
+      assert(G.skillMs < window.pacedActionMs(tree.ms),
+        'an axe must make the STORED interval shorter than the unmodified one — this is the whole bug');
+      assert(G.skillMs !== tree.ms, 'and it must never be the raw data value again');
+    } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
+  }),
+
+  () => tryRun('b226: farming is exempt from PACE.xp; crop XP is the ×14 grant', () => {
+    const G = window.G;
+    const PACE = window.PACE;
+    const snap = snapshotG();
+    const realXp = PACE.xp;
+    try {
+      G.restedXp = 0;
+      PACE.xp = 0.01;                                   // a dial setting that would obliterate a paced skill
+      G.skills = Object.assign({}, G.skills, { farming: 0, mining: 0 });
+      window.addXp('farming', 100000);
+      window.addXp('mining', 100000);
+      assert(G.skills.farming > G.skills.mining * 50,
+        'farming must ignore PACE.xp entirely (farming ' + G.skills.farming + ' vs mining ' + G.skills.mining + ')');
+      assert(window.pacedXp('farming', 500) === 500, 'pacedXp must pass farming through untouched');
+      assert(window.pacedXp('mining', 500) === 5, 'but every other skill goes through the dial');
+      // Growth is wall-clock, so the ×14 has to live in the crop data.
+      assert(window.CROPS.turnip.xp === 112, 'Turnip must grant the ×14 harvest XP (8 → 112)');
+      assert(window.CROPS.moonbloom.xp === 2380, 'Moonbloom must grant the ×14 harvest XP (170 → 2380)');
+    } finally { PACE.xp = realXp; restoreG(snap); }
+  }),
+
+  () => tryRun('b226: presence is ×1.12, XP-only, and stacks OUTSIDE the allXP fuse', () => {
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    assert(P && typeof P.isPresent === 'function', 'window.HearthrisePresence must exist');
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      G.rooms = {}; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
+      G.restedXp = 0;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+
+      // Idle for longer than the window → no bonus, however visible the tab is.
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      assert(P.isPresent() === false, 'a player idle past the window is not present');
+      assert(P.mult() === 1, 'an absent player gets no multiplier');
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      window.addXp('woodcutting', 10000);
+      const away = G.skills.woodcutting;
+
+      // Present: visible + recent input + an activity running.
+      P._setLastInput(Date.now());
+      assert(P.isPresent() === true, 'visible + recent input + an activity running IS present');
+      assert(Math.abs(P.mult() - 1.12) < 1e-9, 'the presence multiplier must be exactly 1.12');
+      G.skills.woodcutting = 0;
+      window.addXp('woodcutting', 10000);
+      const here = G.skills.woodcutting;
+      assert(here === Math.floor(away * 1.12),
+        'presence must multiply the grant by 1.12 (' + away + ' → expected ' + Math.floor(away * 1.12) + ', got ' + here + ')');
+
+      // No activity running → not present, whatever the input clock says.
+      G.activeSkill = null;
+      assert(P.isPresent() === false, 'presence requires an activity to be running');
+
+      // OUTSIDE the fuse: it must never appear in the additive allXP channel,
+      // or the ≤0.60 power budget silently absorbs a bonus nobody earned.
+      G.activeSkill = 'woodcutting'; P._setLastInput(Date.now());
+      assert(window.getBonus('allXP') <= 0.60, 'the allXP fuse must still hold with presence active');
+      const beforeBonus = window.getBonus('allXP');
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      assert(window.getBonus('allXP') === beforeBonus,
+        'getBonus("allXP") must not change with presence — presence is a mode multiplier, not a perk');
+
+      // XP only: presence must never touch gold.
+      assert(window.applyGoldFind(1000) === 1000 * (1 + Math.max(0, window.getBonus('goldFind') || 0)) ||
+             window.applyGoldFind(1000) === Math.floor(1000 * window.goldFindMult()),
+        'presence must not leak into the gold channel');
+    } finally { P._setLastInput(savedInput); restoreG(snap); }
+  }),
+
+  () => tryRun('b226: the offline cap is a DAILY budget — two 9h gaps bank 12h, not 18h', () => {
+    // The old cap was per LOGIN GAP, so a player who slept 9h and worked 9h
+    // banked 18-19 hours of full-rate progress every day. The budget is
+    // watermarked (G.offlineBudget.at) exactly like Rested XP's restedAt, so
+    // the same absence can never be paid for twice.
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.entitlements = {}; G.rooms = {}; G.clanName = null;
+      const cap = window.offlineCapHours();
+      const day = window.utcDayKey(Date.now());
+      // Gaps are sized as a FRACTION of the cap, not as a literal 9h: this
+      // save may carry renown/property/clan offline hours, and a pair of
+      // literal 9h gaps is not a violation for a player whose cap is 18h.
+      // Two three-quarter-cap gaps always overrun, whatever the cap is.
+      const gap = cap * 0.75;
+
+      G.offlineBudget = { dayKey: day, usedMs: 0, at: Date.now() - gap * 3600000 };
+      const first = window.claimOfflineMs(Date.now(), true) / 3600000;
+      assert(Math.abs(first - gap) < 0.01, 'a gap inside the budget banks in full, got ' + first);
+
+      // Second gap, same UTC day: only the remainder is left.
+      G.offlineBudget.at = Date.now() - gap * 3600000;
+      const second = window.claimOfflineMs(Date.now(), true) / 3600000;
+      assert(Math.abs(second - (cap - gap)) < 0.01,
+        'the second gap may only bank the remaining ' + (cap - gap).toFixed(2) + 'h, got ' + second);
+      assert(Math.abs((first + second) - cap) < 0.01,
+        'two ' + gap.toFixed(1) + 'h gaps in one UTC day must total exactly the ' + cap + 'h cap, got ' + (first + second));
+      assert((first + second) < gap * 2 - 0.01,
+        'the daily budget must actually TRUNCATE the second bank — this is the whole change');
+
+      // A single gap longer than the whole allowance is truncated to it.
+      G.offlineBudget = { dayKey: day, usedMs: 0, at: Date.now() - (cap + 6) * 3600000 };
+      const huge = window.claimOfflineMs(Date.now(), true) / 3600000;
+      assert(Math.abs(huge - cap) < 0.01, 'a gap longer than the cap banks exactly the cap, got ' + huge);
+      G.offlineBudget.at = Date.now() - 3 * 3600000;
+      assert(window.claimOfflineMs(Date.now(), true) === 0,
+        'once the day is spent, further absence banks nothing');
+
+      // Watermarked: claiming again immediately banks nothing.
+      assert(window.claimOfflineMs(Date.now(), true) === 0,
+        'a second read of the same instant must bank nothing (b214 double-pay class)');
+
+      // Rolls at UTC midnight — a new day refills the whole allowance.
+      G.offlineBudget = { dayKey: day - 1, usedMs: cap * 3600000, at: Date.now() - 9 * 3600000 };
+      const nextDay = window.claimOfflineMs(Date.now(), true) / 3600000;
+      assert(Math.abs(nextDay - 9) < 0.01, 'a new UTC day must refill the budget, got ' + nextDay);
+
+      // Time spent with nothing running costs wall-clock but no budget.
+      G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: Date.now() - 5 * 3600000 };
+      const idle = window.claimOfflineMs(Date.now(), false);
+      assert(idle === 0, 'an absence with no activity running banks nothing');
+      assert(G.offlineBudget.usedMs === 0, 'and it must not spend the allowance either');
+      assert(Math.abs(G.offlineBudget.at - Date.now()) < 2000,
+        'but the watermark still advances — the wall-clock passed either way');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b226: the four offlineHours perks extend the daily budget', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.entitlements = {};
+      const base = window.offlineCapHours();
+      assert(base >= 12, 'the F2P floor is 12h, got ' + base);
+      G.entitlements = { offlinePlus: true };
+      assert(window.offlineCapHours() >= base + 4,
+        'Offline+ must add 4h to the DAILY budget (was ' + base + ', now ' + window.offlineCapHours() + ')');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b226: the vendor pays VENDOR_RAW_RATE for raws and full value for the rest', () => {
+    const ITEMS = window.ITEMS;
+    assert(window.VENDOR_RAW_RATE === 0.20, 'VENDOR_RAW_RATE must be 0.20');
+    assert(typeof window.vendorPrice === 'function', 'vendorPrice must be the one choke-point');
+    // Every gathering rung's output is raw BY CONSTRUCTION — a new rung cannot
+    // be added without its output being flagged, which is the omission class
+    // that makes an economy fix rot.
+    [...window.TREES, ...window.ROCKS, ...window.FISH_SPOTS].forEach((a) => {
+      assert(ITEMS[a.prod] && ITEMS[a.prod].raw === true, a.prod + ' must be flagged raw');
+    });
+    assert(window.vendorPrice('normal_log') === Math.max(1, Math.floor(ITEMS.normal_log.v * 0.20)),
+      'a raw log must fetch 20% of book value');
+    assert(window.vendorPrice('dawnstone_ore') === Math.floor(ITEMS.dawnstone_ore.v * 0.20),
+      'the biggest faucet in the game must be throttled at the choke-point');
+    assert(ITEMS.normal_log.v === 8, 'the item BOOK value must be untouched — only the vendor bid moves');
+    // A crafted item is not raw, so it keeps the full bid.
+    assert(!ITEMS.cooked_shrimp.raw, 'a cooked dish is not a raw material');
+    assert(window.vendorPrice('cooked_shrimp') === ITEMS.cooked_shrimp.v,
+      'a crafted/cooked item must still fetch full value');
+  }),
+
+  () => tryRun('b226: every gathering rung is strictly faster XP/sec than the one below it', () => {
+    // Mithril Rock (req 60) used to be a SLOWER xp/sec than Gold Rock (req 45):
+    // unlocking the rung was a punishment. This catches that class forever.
+    [['TREES', window.TREES], ['ROCKS', window.ROCKS], ['FISH_SPOTS', window.FISH_SPOTS]].forEach(([name, table]) => {
+      let prev = null;
+      table.forEach((rung) => {
+        const rate = Math.max(1, Math.floor(rung.xp * window.PACE.xp)) / (window.pacedActionMs(rung.ms) / 1000);
+        if (prev) {
+          assert(rate > prev.rate,
+            name + ': ' + rung.id + ' (' + rate.toFixed(2) + ' xp/s) must beat ' + prev.id + ' (' + prev.rate.toFixed(2) + ')');
+        }
+        prev = { id: rung.id, rate };
+      });
+    });
+  }),
+
+  () => tryRun('b226: low-tier gathering no longer out-produces high-tier (qty flattened to [1,1])', () => {
+    // [1,2] on the first three rungs made tier-1 gathering out-produce tier-7
+    // 6:1 in raw item count, at exactly the levels where the items are worth
+    // least and there is no sink for them.
+    [['TREES', window.TREES], ['ROCKS', window.ROCKS], ['FISH_SPOTS', window.FISH_SPOTS]].forEach(([name, table]) => {
+      table.slice(0, 3).forEach((rung) => {
+        assert(rung.qty[0] === 1 && rung.qty[1] === 1,
+          name + ': ' + rung.id + ' must yield exactly 1 (got [' + rung.qty + '])');
+      });
+    });
+    // And the flood is measured where the player feels it: items per hour.
+    const t1 = window.TREES[0], t7 = window.TREES[window.TREES.length - 1];
+    const perHour = (r) => 3600000 / window.pacedActionMs(r.ms) * ((r.qty[0] + r.qty[1]) / 2);
+    assert(perHour(t1) / perHour(t7) < 5,
+      'tier-1 may not out-produce tier-7 more than 5:1, got ' + (perHour(t1) / perHour(t7)).toFixed(1) + ':1');
+  }),
+
+  () => tryRun('b226: gathering dailies read per-SKILL counters, not one item id', () => {
+    // "Gather 25 logs" watched collection.normal_log, so a level-90 woodcutter
+    // cutting Duskwood made zero progress and the goal got HARDER the better
+    // they were. The counters are seeded from the collection log on migration,
+    // so nobody's achievement progress was zeroed to fix it.
+    const G = window.G;
+    const pool = window.DAILY_GOAL_POOL || [];
+    const byId = (id) => pool.find((g) => g.id === id);
+    ['gather_logs', 'mine_ore', 'fish'].forEach((id) => {
+      const g = byId(id);
+      assert(g, 'daily goal ' + id + ' should exist');
+      assert(g.source.indexOf('collection.') !== 0,
+        id + ' must not read an item-specific collection counter (got ' + g.source + ')');
+    });
+    assert(byId('gather_logs').source === 'stats.chopped');
+    assert(byId('mine_ore').source === 'stats.mined');
+    assert(byId('fish').source === 'stats.fished');
+    // And the counter actually moves on a high-tier rung.
+    const snap = snapshotG();
+    try {
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.XP_TABLE[89] });   // Lv 90
+      G.stats = Object.assign({}, G.stats, { chopped: 0 });
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'duskwood_tree';
+      window.doSkillAction(true);
+      assert((G.stats.chopped || 0) > 0,
+        'chopping Duskwood must tick the log counter, got ' + G.stats.chopped);
+    } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
+  }),
+
+  () => tryRun('b226: renown weights only rose, and the ratchet can never demote', () => {
+    const R = window.HearthriseRenown;
+    assert(R.WEIGHTS.totalLevel === 14, 'totalLevel weight must be 14 (was 10)');
+    assert(R.WEIGHTS.skill99 === 900, 'skill99 weight must be 900 (was 600)');
+    assert(R.WEIGHTS.kill === 0.5, 'the kill weight must NEVER be lowered — that demotes veterans');
+    assert(typeof R.effective === 'function', 'the ratcheted score must be published');
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.renownHigh = 0;
+      const live = R.compute(G);
+      const high = R.effective(G);
+      assert(high === live, 'with no history the ratchet is the live score');
+      assert(G.renownHigh === live, 'the high-water mark must persist into the save');
+
+      // Now simulate ANY future change that would lower the score — a weight
+      // edit, a recount, a lost term. The rank must not move.
+      const rankBefore = R.rankIndexFor(R.effective(G));
+      G.renownHigh = live + 50000;
+      assert(R.effective(G) === live + 50000, 'the ratchet holds the high-water mark, not the live score');
+      const rankAfter = R.rankIndexFor(R.effective(G));
+      assert(rankAfter >= rankBefore, 'a rank may never fall');
+
+      // And a collapse of the underlying score cannot pull the rank down.
+      const skills = G.skills; G.skills = {};
+      assert(R.compute(G) < live, 'the live score really did fall');
+      assert(R.effective(G) === live + 50000, 'but the ratcheted score did not');
+      assert(R.rankIndexFor(R.effective(G)) >= rankBefore, 'so the rank did not either');
+      G.skills = skills;
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun("b226: the Founder's mark is date-gated, cosmetic, and grants nothing", () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.RETUNE_EPOCH === 'number' && isFinite(window.RETUNE_EPOCH),
+        'the retune epoch must be a fixed constant, not "now"');
+      G.createdAt = window.RETUNE_EPOCH - 1;
+      assert(window.isFounder(G) === true, 'a save from before the retune is a founder save');
+      assert(window.founderTitle(G) === 'of the First Season', 'and it carries the title');
+      G.createdAt = window.RETUNE_EPOCH + 1;
+      assert(window.isFounder(G) === false, 'a save made after the retune is not');
+      assert(window.founderTitle(G) === '', 'and it carries no title');
+      delete G.createdAt;
+      assert(window.isFounder(G) === true, 'a save with no stamp at all predates the field, so it qualifies');
+
+      // Display-only: it may never reach a bonus channel.
+      G.createdAt = window.RETUNE_EPOCH - 1;
+      G.rooms = {};
+      const founderBonus = window.getBonus('allXP');
+      G.createdAt = window.RETUNE_EPOCH + 1;
+      assert(window.getBonus('allXP') === founderBonus,
+        'the mark must not change a single bonus — it is a title, not a perk');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b226: every rate readout quotes what the engine actually pays', () => {
+    // Caught in browser verification: the activity bar advertised 18,000 xp/hr
+    // while woodcutting ticked up at 5,250 — the tile, the pill and the
+    // Character page each did their own book-value arithmetic. A price tag
+    // that lies is worse than no price tag.
+    const G = window.G;
+    assert(typeof window.actionRate === 'function', 'actionRate must be the one rate calculator');
+    const snap = snapshotG();
+    try {
+      G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
+      const tree = window.TREES[0];
+      // Set the activity FIRST: the readout only exists while one is running,
+      // and presence is part of the rate the player is being quoted.
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
+      const r = window.actionRate('woodcutting', tree);
+      window.doSkillAction(true);
+      const granted = G.skills.woodcutting;
+      assert(granted === r.xpPerAction,
+        'the quoted per-action XP (' + r.xpPerAction + ') must be what a real action grants (' + granted + ')');
+      assert(Math.abs(r.xpPerHour - Math.floor(3600000 / r.ms * r.xpPerAction)) <= 1,
+        'xp/hr must follow from the quoted interval and grant');
+      // And it must NOT be the naive book-value rate the readouts used to show.
+      const bookRate = Math.floor(3600000 / tree.ms * tree.xp);
+      assert(r.xpPerHour < bookRate,
+        'the quoted rate must be the PACED one, not the book rate (' + r.xpPerHour + ' vs book ' + bookRate + ')');
+    } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
+  }),
+
+  () => tryRun('b226: the Castle Labour daily cap is still reachable in a sitting', () => {
+    // §8.5: labour is per ACTION, not per hour, so slowing actions pushes the
+    // cap further away. Confirm a level-50 member can still fill it, or the
+    // clan's "attendance beats gear" design quietly breaks on a rate change.
+    const CS = window.HearthriseClanSeat;
+    if (!CS || typeof CS.labourForAction !== 'function') return;
+    const perAction = CS.labourForAction(50, 1);
+    const actions = Math.ceil(CS.DAILY_LABOUR_CAP / perAction);
+    const minutes = actions * window.pacedActionMs(3000) / 60000;
+    assert(minutes < 45,
+      'a level-50 member must still fill the ' + CS.DAILY_LABOUR_CAP + ' labour cap in under 45 min, needs ' + minutes.toFixed(1));
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

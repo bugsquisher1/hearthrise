@@ -53,14 +53,26 @@
   // Renown = Σ(each progress term × weight). Balanced so steady grind (levels)
   // is the core, but "events" (quests, boss kills, mastering a skill) give
   // satisfying jumps, and the daily streak is rewarded (retention).
+  // b226 (pacing retune, spec §8.1) — levels come ~3× slower after the
+  // retune. Kills do NOT: the combat tick is deliberately unchanged, and the
+  // streak term is pure wall-clock. Left alone the ladder would tilt toward
+  // kill-grinding and away from "the steady grind of levels is the backbone",
+  // which is the intent written into this file.
+  //
+  // The correction RAISES the level weights instead of lowering `kill`.
+  // Lowering `kill` would be the tidier fix and it is forbidden: a kill-heavy
+  // veteran's score would drop and they could be DEMOTED a rank — earned
+  // progress clawed back, on the one surface whose entire job is to say you
+  // climbed. Raising from the other side strictly increases every existing
+  // player's renown; some will rank UP on this update, which is a gift.
   var W = {
-    totalLevel:   10,   // sum of all skill levels — the steady backbone
+    totalLevel:   14,   // b226: 10 → 14. sum of all skill levels — the steady backbone
     combatLevel:  15,
-    kill:         0.5,  // each monster kill (grind)
+    kill:         0.5,  // each monster kill (grind) — never lowered, see above
     bossKill:     40,   // bosses are landmarks
     questDone:    200,  // quests = big renown jumps
     collection:   25,   // each collection-log entry (completionism)
-    skill99:      600,  // mastering a skill to 99 = huge flex
+    skill99:      900,  // b226: 600 → 900. mastering a skill to 99 = huge flex
     streakBest:   25,   // best login streak ever (rewards the habit)
     bountyDone:   12,
     goldLog:      45    // × (log10(gold)-3) above 1k — a minor flex, not the path
@@ -141,6 +153,28 @@
     return Math.floor(r);
   }
 
+  // ── b226: THE RATCHET ───────────────────────────────────────
+  // `G.renownHigh` is the high-water mark of computeRenown(), and every rank
+  // decision reads it instead of the live score. It is the structural
+  // guarantee behind "earned progress is never clawed back": no future weight
+  // change, in ANY direction, and no recount of a term, can ever demote
+  // anybody. Without it the promise is a convention that survives exactly as
+  // long as everyone remembers it.
+  //
+  // The live score still climbs normally — the ratchet only ever holds a
+  // FLOOR, so it is invisible until the day it saves someone's rank.
+  // One number in the save, no derived state, idempotent to recompute.
+  function effectiveRenown(G) {
+    G = G || window.G;
+    var live = computeRenown(G);
+    if (!G) return live;
+    var high = G.renownHigh;
+    if (typeof high !== 'number' || !isFinite(high) || high < 0) high = 0;
+    if (live > high) { high = live; G.renownHigh = high; }
+    else if (G.renownHigh !== high) { G.renownHigh = high; }
+    return high;
+  }
+
   // ── Rank lookup ─────────────────────────────────────────────
   function rankIndexFor(renown) {
     var idx = 0;
@@ -151,7 +185,7 @@
   // Full state for the UI + home hero. Never throws.
   function getState(G) {
     G = G || window.G;
-    var renown = computeRenown(G);
+    var renown = effectiveRenown(G);
     var i = rankIndexFor(renown);
     var cur = RANKS[i];
     var next = RANKS[i + 1] || null;
@@ -180,10 +214,10 @@
       // spammed with retroactive rank-up popups — but leave `claimed` empty so
       // the rewards they've already earned are waiting to be claimed (a nice
       // "welcome to Renown" hook on launch).
-      G.renown = { claimed: [], seenRank: rankIndexFor(computeRenown(G)) };
+      G.renown = { claimed: [], seenRank: rankIndexFor(effectiveRenown(G)) };
     }
     if (!Array.isArray(G.renown.claimed)) G.renown.claimed = [];
-    if (typeof G.renown.seenRank !== 'number') G.renown.seenRank = rankIndexFor(computeRenown(G));
+    if (typeof G.renown.seenRank !== 'number') G.renown.seenRank = rankIndexFor(effectiveRenown(G));
     return G.renown;
   }
 
@@ -194,7 +228,7 @@
   // Ranks you've reached, have a reward, and haven't claimed yet.
   function getClaimable(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return [];
-    var curIdx = rankIndexFor(computeRenown(G));
+    var curIdx = rankIndexFor(effectiveRenown(G));
     var out = [];
     for (var i = 0; i <= curIdx && i < RANKS.length; i++) {
       if (hasReward(RANKS[i]) && s.claimed.indexOf(RANKS[i].id) < 0) out.push(RANKS[i]);
@@ -208,7 +242,7 @@
     if (s.claimed.indexOf(rankId) >= 0) return null;         // already claimed
     var idx = -1; for (var i = 0; i < RANKS.length; i++) if (RANKS[i].id === rankId) { idx = i; break; }
     if (idx < 0) return null;
-    if (idx > rankIndexFor(computeRenown(G))) return null;    // not reached yet
+    if (idx > rankIndexFor(effectiveRenown(G))) return null;    // not reached yet
     var rank = RANKS[idx];
     var rw = rank.reward || {};
     if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
@@ -225,7 +259,7 @@
     G = G || window.G;
     var p = { allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 };
     if (!G) return p;
-    var curIdx = rankIndexFor(computeRenown(G));
+    var curIdx = rankIndexFor(effectiveRenown(G));
     for (var i = 0; i <= curIdx && i < RANKS.length; i++) {
       var pk = RANKS[i].perk; if (!pk) continue;
       for (var k in pk) { if (Object.prototype.hasOwnProperty.call(pk, k)) p[k] = (p[k] || 0) + pk[k]; }
@@ -237,7 +271,7 @@
   // reached (usually one), advancing seenRank. UI calls this from a poll.
   function pollRankUp(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return [];
-    var curIdx = rankIndexFor(computeRenown(G));
+    var curIdx = rankIndexFor(effectiveRenown(G));
     if (curIdx <= s.seenRank) { if (curIdx < s.seenRank) s.seenRank = curIdx; return []; }
     var reached = RANKS.slice(s.seenRank + 1, curIdx + 1);
     s.seenRank = curIdx;
@@ -422,6 +456,8 @@
     RANKS: RANKS,
     WEIGHTS: W,
     compute: computeRenown,
+    /* b226: the ratcheted score every rank decision is made against. */
+    effective: effectiveRenown,
     getState: getState,
     rankIndexFor: rankIndexFor,
     ensureState: ensureState,

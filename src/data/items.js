@@ -1,6 +1,7 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
 import { GEAR_ITEMS } from './gear-tiers.js?v=225';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=225';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -518,6 +519,55 @@ export function foodClassOf(item) {
 export function isAutoEatable(item) {
   return foodClassOf(item) === 'healing';
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   b226 — `raw: true`: which items are UNPROCESSED MATERIAL.
+   (docs/design/pacing-overhaul.md §6.1.)
+
+   The NPC vendor pays VENDOR_RAW_RATE (0.20) × v for these and full v for
+   everything else. `v` itself is untouched — it stays the book value that
+   market listings, recipe costing, chest payouts and the collection log all
+   read. Only what the vendor BIDS changes, and only for raws.
+
+   Why it matters: gathering throughput is roughly flat (~300 items/h at
+   every tier) while `v` climbs 2.77× per material tier, so a maxed miner
+   selling Dawnstone out-earned the King renown reward — 300,000 gold, the
+   eleventh of twelve ranks — every 32 minutes, while asleep. This puts the
+   three systems back in their correct economic roles: gathering is the
+   MATERIAL faucet, the artisan skills are the GOLD path, and the player
+   market becomes the best price for raws, because another player will pay
+   more than 20% for something they actually need.
+
+   DERIVED, NOT HAND-TAGGED, for everything a gathering rung produces: the
+   `prod` field of every tree/rock/fishing-spot and the `prod` of every crop
+   IS the definition of "unprocessed". A future rung cannot be added without
+   its output being raw, which is exactly the class of omission that makes an
+   economy fix rot. Monster/boss materials are listed explicitly below
+   because nothing structural marks them.
+   ══════════════════════════════════════════════════════════════════════ */
+const RAW_GATHERED = [
+  ...TREES.map((t) => t.prod),
+  ...ROCKS.map((r) => r.prod),
+  ...FISH_SPOTS.map((f) => f.prod),
+  ...Object.values(CROPS).map((c) => c.prod),
+];
+
+/* Unprocessed monster/boss drops — hide, bone, ore-in-the-rough, essence.
+   NOT listed (and so NOT raw): anything a player crafted, cooked or smithed,
+   every gear piece, seeds (a bought input, not a gathered output), gems and
+   trophy curios that are authored payouts rather than throughput. */
+const RAW_DROPS = [
+  'bones', 'big_bones', 'dragon_bones', 'slime_gel', 'goblin_ear', 'bat_wing',
+  'wolf_pelt', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale',
+  'lich_soul', 'magic_essence', 'rune_frag', 'rat_tail', 'small_fang',
+  'bone_chips', 'venom_sac', 'silk_thread', 'grave_dust', 'plague_ichor',
+  'bear_pelt', 'bear_claw', 'dire_fang', 'shadow_pelt', 'razor_claw',
+  'shadow_thread', 'void_chitin', 'death_steel', 'brute_plate',
+  'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
+];
+
+export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS])];
+for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
 
 /* ══════════════════════════════════════════════════════════════════════
    b224 — foodKindOf(item): how a food PRESENTS at the point of use.

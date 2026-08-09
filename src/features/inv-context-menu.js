@@ -176,7 +176,9 @@
 
     // BoP items can't be sold — defensive check
     if(!def.bop){
-      var price = def.v || 0;
+      /* b226: the vendor's bid, not the book value — one price everywhere
+         (legacy.js vendorPrice, pacing-overhaul §6.1). */
+      var price = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v || 0);
       opts.push({ label: '🪙  Sell 1 (' + price.toLocaleString() + 'g)',
         disabled: qty < 1 || price <= 0,
         action: function(){
@@ -304,7 +306,7 @@
       if(def.type === 'jewelry' || def.type === 'companion' || def.type === 'ammo') return;
       if((def.v|0) <= 0) return;
       // Per-stack value cap — let the player keep stacks worth a lot.
-      var stackValue = qty * (def.v|0);
+      var stackValue = qty * ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v|0));
       if(stackValue > th * Math.max(1, qty)) return;   // single-item value > threshold → keep
       picks.push(id);
     });
@@ -320,7 +322,7 @@
     var totalGold = 0, totalCount = 0;
     ids.forEach(function(id){
       var qty = window.G.inventory[id] | 0;
-      var v = window.ITEMS[id].v | 0;
+      var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (window.ITEMS[id].v | 0);
       totalGold += qty * v;
       totalCount += qty;
     });

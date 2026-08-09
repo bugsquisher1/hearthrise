@@ -10,6 +10,29 @@ import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=225';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=225';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
+
+/* ── b226 (pacing retune) ──────────────────────────────────────────────
+   These tiles are the game's price tags. `action.xp` / `recipe.xp` are BOOK
+   values; what the player receives is the book value through PACE.xp, and
+   what the action actually takes is its `ms` through PACE.actionMs. Printing
+   the book value would mean every card in the game quotes a number the engine
+   does not pay — the single most corrosive thing a retune can do. Both go
+   through the same helpers the engine uses, so a card can never drift from
+   the grant. Defensive fallbacks keep the module renderable if legacy.js has
+   not published them yet (this module can render before boot completes). */
+const effXp = (skillId, xp) =>
+  (typeof window.pacedXp === 'function') ? Math.max(1, Math.floor(window.pacedXp(skillId, xp))) : xp;
+const artisanMs = (skillId, ms) => {
+  const base = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(ms) : ms;
+  const key = { cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed' }[skillId] || 'gatherSpeed';
+  const speed = (typeof window.getBonus === 'function') ? window.getBonus(key) : 0;
+  return Math.max(500, Math.floor(base * (1 - speed)));
+};
+/* The presence hint, rendered where the skill's XP is. Words and tokens, no
+   emoji; it names the condition when it lapses rather than going quiet, so an
+   idle player learns why the bonus stopped instead of never knowing it existed. */
+const presenceNote = () =>
+  (typeof window.HearthrisePresenceNote === 'function') ? window.HearthrisePresenceNote() : '';
 const fmtQty = (n) => {
   n = n || 0;
   if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.0', '') + 'M';
@@ -64,7 +87,7 @@ function buildHead(skillId) {
   return `<div class="act-head">${iconHtml}
     <div class="ah-meta">
       <div class="ah-row1"><span class="ah-name">${s.name}</span><span class="ah-lvl"><em>Level</em>${lv}</span></div>
-      <div class="ah-xp">${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() + ' XP' : ' XP · MAX'}</div>
+      <div class="ah-xp">${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() + ' XP' : ' XP · MAX'}${presenceNote()}</div>
       <div class="ah-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
       ${goalControl}
     </div>
@@ -76,8 +99,12 @@ function tileForGather(action, skillId) {
   const unlocked = lv >= action.req;
   const active = window.G.activeSkill === skillId && window.G.skillTargetId === action.id;
   const qty = window.G.inventory?.[action.prod] || 0;
-  const speed = typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0;
-  const ms = Math.max(500, Math.floor(action.ms * (1 - speed)));
+  /* b226: the tile must state the paced duration, tool speed included — the
+     number on the card is a promise, and startSkill() honours PACE.actionMs. */
+  const toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
+  const speed = (typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0) + toolSpeed;
+  const baseMs = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(action.ms) : action.ms;
+  const ms = Math.max(500, Math.floor(baseMs * (1 - speed)));
   // b129: locked tiles toast their level requirement instead of silently
   // doing nothing — players need feedback, not a dead click.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
@@ -97,7 +124,7 @@ function tileForGather(action, skillId) {
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(action.prod, action.icon)}</div>
     <div class="at-name">${action.name || action.id}</div>
-    <div class="at-meta">${action.xp} XP · ${fmtSec(ms)}</div>
+    <div class="at-meta">${effXp(skillId, action.xp)} XP · ${fmtSec(ms)}</div>
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${action.req}</div>`}
     ${active ? '<span class="at-stop">Active</span>' : ''}
@@ -142,7 +169,7 @@ function tileForArtisan(recipe, skillId) {
     data-prod="${outId}" onclick="${click}" title="${tileTitle.replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '')}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
-    <div class="at-meta">${recipe.xp} XP · ${fmtSec(recipe.ms || 3000)}</div>
+    <div class="at-meta">${effXp(skillId, recipe.xp)} XP · ${fmtSec(artisanMs(skillId, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
     ${burnLine}
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
@@ -171,7 +198,10 @@ function lightUpdate(skillId) {
   const ahLvl = detail.querySelector('.ah-lvl');
   if (ahLvl) ahLvl.textContent = 'Level: ' + lv;
   const ahXp = detail.querySelector('.ah-xp');
-  if (ahXp) ahXp.textContent = `Experience: ${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() : ' MAX'}`;
+  /* b226: innerHTML, and the presence note is re-rendered on every light
+     update — it has to DIM the moment the input window lapses, or the hint
+     would keep promising a bonus the player is no longer getting. */
+  if (ahXp) ahXp.innerHTML = `Experience: ${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() : ' MAX'}` + presenceNote();
   const ahBar = detail.querySelector('.ah-bar i');
   if (ahBar) ahBar.style.width = pct.toFixed(1) + '%';
   detail.querySelectorAll('.act-tile').forEach((tile) => {

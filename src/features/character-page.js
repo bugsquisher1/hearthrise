@@ -87,6 +87,16 @@ function getEquipmentBonusFor(style) {
   return s;
 }
 
+/* b226: one rate calculator for the whole game (legacy.js actionRate). The
+   fallback is only for the boot window before legacy publishes it. */
+const rateOf = (skillId, action) => {
+  if (typeof window.actionRate === 'function') {
+    const r = window.actionRate(skillId, action);
+    if (r) return r.xpPerHour;
+  }
+  return Math.floor(3600000 / Math.max(500, action.ms || 3000) * (action.xp || 0));
+};
+
 function gatherRates() {
   const skills = ['woodcutting', 'mining', 'fishing', 'farming', 'cooking', 'smithing', 'crafting'];
   const TABLES = {
@@ -101,9 +111,10 @@ function gatherRates() {
       const unlocked = actions.filter((a) => lv >= (a.req || 1));
       if (unlocked.length) {
         const best = unlocked.reduce((a, b) => ((b.xp / b.ms * 1000) > (a.xp / a.ms * 1000) ? b : a));
-        const speed = typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0;
-        const ms = Math.max(500, Math.floor(best.ms * (1 - speed)));
-        out.push({ id, lv, action: best.name, xpHr: Math.floor(3600000 / ms * best.xp), icon: SKILLS_DEF[id]?.icon || '?' });
+        /* b226: window.actionRate is the single rate calculator — pace, tools,
+           perks and presence — so no readout can quote a number the engine
+           will not pay. */
+        out.push({ id, lv, action: best.name, xpHr: rateOf(id, best), icon: SKILLS_DEF[id]?.icon || '?' });
         continue;
       }
     }
@@ -111,7 +122,7 @@ function gatherRates() {
       const rec = ARTISAN_RECIPES[id].filter((r) => lv >= (r.req || 1));
       if (rec.length) {
         const b = rec.reduce((a, b) => ((b.xp / b.ms * 1000) > (a.xp / a.ms * 1000) ? b : a));
-        out.push({ id, lv, action: b.name, xpHr: Math.floor(3600000 / (b.ms || 3000) * (b.xp || 0)), icon: SKILLS_DEF[id]?.icon || '?' });
+        out.push({ id, lv, action: b.name, xpHr: rateOf(id, b), icon: SKILLS_DEF[id]?.icon || '?' });
       }
     }
   }
@@ -123,6 +134,17 @@ const fmt = (n) => {
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
   return Math.floor(n || 0).toLocaleString();
 };
+
+/* b226 — the Founder's mark (pacing-overhaul §9.3). A title, set in the
+   display face, on the account of anyone who was playing before the retune.
+   Display only: it is read from nothing but `createdAt` and it is queried by
+   nothing but this line, so it cannot leak into a bonus, a gate or a price.
+   Type, not emoji — it is a mark of standing, not a sticker. */
+function founderMarkHtml() {
+  const title = (typeof window.founderTitle === 'function') ? window.founderTitle() : '';
+  if (!title) return '';
+  return `<div class="cr-founder" title="Your save predates the pacing retune of the First Season.">${esc(title)}</div>`;
+}
 
 function buildHeroCard() {
   const G = window.G;
@@ -155,6 +177,7 @@ function buildHeroCard() {
     <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
     <div class="cr-hero-id">
       <div class="cr-name">${name}</div>
+      ${founderMarkHtml()}
       <div class="cr-class">${cls.tagline}</div>
       <div class="cr-build">Top skill: <span>${topSkill}</span></div>
       <div class="cr-build">HP: <span>${hp} / ${maxHp}</span></div>

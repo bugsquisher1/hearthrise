@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=254' directly.
+// modularised, will import { G } from '../state/game.js?v=255' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=254';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=254';
+import { on, snapshot } from '../net/events.js?v=255';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=255';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=254';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=255';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11329,6 +11329,38 @@ const TESTS = [
     }
     assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
+  () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
+    assert(typeof window.processOffline === 'function' && typeof window.processOfflineCombat === 'function', 'offline combat seams must exist');
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      // Stand the player in an active fight vs a weak foe, at full health.
+      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
+      G.activeMonster = 'goblin';
+      const m = window.MONSTERS.goblin;
+      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
+      G.playerHp = G.playerMaxHp;
+      G.stats = Object.assign({}, G.stats); const killsBefore = G.stats.kills || 0;
+      const goldBefore = G.gold || 0;
+      // Direct simulator: half an hour of fighting must produce kills.
+      const r = window.processOfflineCombat(0.5);
+      assert(r && r.kills > 0, 'processOfflineCombat must produce kills over 30 min, got ' + JSON.stringify(r));
+      assert((G.stats.kills || 0) > killsBefore, 'kill count must advance');
+      // End-to-end through processOffline: set the offline watermark back an hour
+      // and confirm the catch-up runs combat and reports a summary.
+      G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = G.playerMaxHp;
+      if (typeof window.ensureOfflineBudget === 'function') {
+        const b = window.ensureOfflineBudget(Date.now());
+        b.at = Date.now() - 3600000; b.usedMs = 0;   // an hour away, budget fresh
+      }
+      const killsBefore2 = G.stats.kills || 0;
+      window.processOffline();
+      assert((G.stats.kills || 0) > killsBefore2, 'processOffline must simulate the fight on catch-up');
+      assert(G.lastOfflineSummary && G.lastOfflineSummary.combat, 'the welcome-back summary must record the offline combat');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b254: Boss of the Day — deterministic daily pick + featured kill bonus', () => {

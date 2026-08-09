@@ -822,6 +822,22 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     gap: 4px !important;
   }
   .topbar h1, .topbar .player-name { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }
+  /* Topbar player block — the slim 32px strip has room for ONE line, but the
+     block stacks the player NAME over a [clan-tag · Online] row, so it grew to
+     ~57px and spilled out, colliding with the Rally pill and the strip below
+     (paione's landscape shot). The name and the Online pill are both shown in
+     the profile header just under here, so on mobile the topbar keeps only the
+     portrait + a single truncated clan tag (the one place the clan is named). */
+  .topbar .player { align-items: center !important; min-width: 0 !important; }
+  .topbar .player .player-name { display: none !important; }
+  .topbar .player .status-pill { display: none !important; }
+  .topbar .player .row { margin: 0 !important; gap: 0 !important; min-width: 0 !important; }
+  .topbar .player .clan-tag {
+    max-width: 108px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
   /* Stats row — tighter so QUESTS / DUNGEONS don't overflow */
   .top-stats { gap: 2px !important; }
   .t-stat {

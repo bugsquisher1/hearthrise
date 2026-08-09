@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 255 — 2026-08-09 (Topbar breathing room)
+
+- 📱 **The top bar no longer overlaps itself in landscape.** Your name, clan tag and Online status were stacking into a strip too short to hold them, so they collided with the rally timer. On phones the top bar now shows a single, tidy clan tag (your name and status already live in the profile header just below), and long clan names truncate cleanly. *(Thanks Tyler.)*
+
 ## v0.9.2-beta build 254 — 2026-08-09 (Boss of the Day)
 
 - 🐉 **A featured Boss of the Day.** Every day a different boss is spotlighted at the top of the Combat screen, the same way the daily blessing rotates. Fighting today's boss pays **+50% drop chance** on its rare drops and **+25% combat XP** — a reason to check in and hunt it while it's up.

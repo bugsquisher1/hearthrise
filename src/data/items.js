@@ -211,6 +211,36 @@ export const ITEMS={
     buff:{type:'drop_rate', magnitude:5, durationMs:180000},
   },
 
+  /* ══════════════════════════════════════════════════════════════════
+     b225 — BURNT FOOD, the open fire's failure state.
+
+     The campfire ruling (Tyler, 2026-08-08; homestead-deepening.md §2
+     PRODUCT-OWNER AMENDMENT) makes cooking possible from the tier-1 camp
+     with a burn chance. A burn consumes the ingredients honestly and hands
+     back this, one generic item for every ruined dish.
+
+     ONE item rather than 27 `burnt_<food>` variants, deliberately: a burnt
+     shrimp and a burnt shark are the same object — carbon — and 27 of them
+     would pad the bag, the Collection Log and the market with content that
+     says nothing. If the Designer ever wants tier-graded ash, this id stays
+     the fallback.
+
+     Why the fields are exactly these:
+       • no `heals`, no `foodClass` → foodClassOf() answers null, so auto-eat
+         can NEVER spend one (auto-eat may only take 'healing'), it never
+         appears in the combat food picker, and it never lands in the cooking
+         screen's Provisions / Feasts sub-tabs.
+       • no `buff`, no `type`  → nothing equips or drinks it.
+       • `v:1` → vendor trash. It is worth carrying to town and nothing more;
+         at 1g it can never become a gold strategy no matter how badly you
+         cook.
+       • `note` is read by the inventory detail modal (legacy.js), so the
+         flavour has an actual reader rather than being a dead field.        */
+  burnt_food: {
+    n:'Burnt Food', icon:'🔥', v:1,
+    note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.',
+  },
+
   /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────
      Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
      Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.

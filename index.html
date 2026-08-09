@@ -721,6 +721,10 @@
   <script src="src/features/tools.js?v=224"></script>
   <script src="src/features/homestead.js?v=224"></script>
   <script src="src/features/workers.js?v=224"></script>
+  <!-- b225: the campfire ruling — cooking is never gated on the Kitchen; the
+       open fire burns instead. Pure burn math, no deps (legacy.js reads it at
+       cook time, not at parse time). -->
+  <script src="src/features/cooking-fire.js?v=224"></script>
   <!-- b202 SYS-4: skilling + boss pets (rolls 'skill:'/'boss:' companion sources) -->
   <script src="src/features/pets.js?v=224"></script>
   <!-- b204 SYS-5: deterministic daily/weekly world events (date-seeded, serverless-shared) -->

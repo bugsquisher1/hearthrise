@@ -295,20 +295,32 @@ const TESTS = [
     }
     assert(typeof H.getTier() === 'number', 'getTier returns a number');
   }),
-  () => tryRun('b201: workbench gate — no kitchen, no cooking; grandfathering grants it', () => {
+  /* b225 — this test used to assert the OPPOSITE ("no kitchen, no cooking").
+     The campfire ruling (Tyler, 2026-08-08, binding) reversed it: a tier-1
+     camp has a fire, so it cooks. The gate on the other three artisan skills
+     is unchanged, and this test now guards BOTH halves of that — the exemption
+     is worthless if it quietly leaks to smithing. */
+  () => tryRun('b225: cooking is never gated on the Kitchen; Forge/Workshop/Shrine still are', () => {
     const H = window.HearthriseHomestead;
     const G = window.G;
     const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
     try {
-      // Fresh camp: no rooms, no XP → cooking must be blocked
+      // Fresh camp: no rooms at all → cooking is allowed, everything else is not
       G.homestead = { tier: 0 }; G.rooms = {}; G.skills = {};
-      const blocked = H.hasWorkbench('cooking');
-      assert(blocked.ok === false, 'cooking should be blocked without a kitchen');
-      // Grandfather: save with cooking XP but no homestead state → kitchen auto-granted
+      assert(H.hasWorkbench('cooking').ok === true, 'the open fire cooks — cooking must not be gated');
+      ['smithing', 'crafting', 'prayer'].forEach((s) => {
+        const r = H.hasWorkbench(s);
+        assert(r.ok === false, s + ' must still require its workbench room');
+        assert(typeof r.reason === 'string' && r.reason.length > 0, s + ' must say which room it needs');
+      });
+      assert(H.UNGATED && H.UNGATED.cooking === true, 'cooking must be the declared exemption');
+      assert(!H.UNGATED.smithing && !H.UNGATED.crafting && !H.UNGATED.prayer,
+        'only cooking is exempt from the workbench gate');
+      // The Kitchen is still cooking's ROOM (cookSpeed + noBurn come off it),
+      // so the grandfather pass must still restore it for a veteran cook.
       delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
       H.ensureState();
       assert((G.rooms.kitchen || 0) >= 1, 'existing cooking XP should grandfather a kitchen');
-      assert(H.hasWorkbench('cooking').ok === true, 'cooking should now be allowed');
       assert(G.homestead.tier >= 1, 'grandfathered save should be at least tier 1');
     } finally {
       G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
@@ -458,13 +470,19 @@ const TESTS = [
       G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });      // workbench present
       G.activeMonster = null;
       G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp'; G.skillMs = 2400;
-      G.inventory = Object.assign({}, G.inventory, { shrimp: 50, cooked_shrimp: 0 });
+      G.inventory = Object.assign({}, G.inventory, { shrimp: 50, cooked_shrimp: 0, burnt_food: 0 });
       G.lastSeen = Date.now() - 2 * 3600000;                     // 2h "offline"
       processOffline();
       const cooked = G.inventory.cooked_shrimp || 0;
+      // b225: offline cooking runs through the same doArtisanAction, so it
+      // burns at the same odds. An attempt is cooked-or-burnt; raw shrimp are
+      // consumed 1:1 with ATTEMPTS, which is what "no free food, no lost food"
+      // actually means now.
+      const burnt = G.inventory.burnt_food || 0;
       assert(cooked > 0, 'offline cooking should produce cooked shrimp, got 0');
       assert(cooked <= 50, 'offline cooking must stop when inputs run out, got ' + cooked);
-      assert((G.inventory.shrimp || 0) === 50 - cooked, 'raw shrimp should be consumed 1:1');
+      assert((G.inventory.shrimp || 0) === 50 - cooked - burnt,
+        `raw shrimp should be consumed 1:1 with attempts (cooked ${cooked} + burnt ${burnt}), left ${G.inventory.shrimp}`);
     } finally {
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
       G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
@@ -505,7 +523,13 @@ const TESTS = [
       // Guard the fix: the LIVE window.doArtisanAction must feed updateDaily +
       // updateQuest for cooking — before b217 it updated only G.stats, so daily
       // "Cook N" tasks and the onboarding cook quest were un-completable.
-      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
+      // b225: kitchen 3, not 1. This test guards the counter WIRING, and the
+      // campfire ruling made a Kitchen-L1 cook a 12% coin-flip — three cooks
+      // would fail this assertion roughly one run in three for a reason that
+      // has nothing to do with what it is testing. The Cast-Iron Range is
+      // burn-proof, so the sample is deterministic again. Burn-vs-counter
+      // behaviour has its own dedicated tests in the b225 block.
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 3 });
       G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
       G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
       G.daily = G.daily || {};
@@ -7522,6 +7546,280 @@ const TESTS = [
         'Settings still invites offline play as a mode');
     } finally {
       if (prevTab) window.showTab(prevTab);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b225 — THE CAMPFIRE RULING (Tyler, 2026-08-08, binding)
+
+     Cooking is never gated on the Kitchen; the open fire burns instead. The
+     gate half is guarded by the b225 test up in the homestead block. These
+     six guard the mechanic:
+       1. the curve, at every documented point,
+       2. the Kitchen ladder is the producer of `noBurn` and the two tables
+          (ROOMS.kitchen.bx vs cooking-fire KITCHEN_NO_BURN) agree,
+       3. Burnt Food is inert — auto-eat can never touch it,
+       4. a burn costs the ingredients, yields carbon and consolation XP,
+       5. a burn never ticks a "cook N" goal,
+       6. the player is TOLD the risk before pressing the tile.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b225: burnChance() is the documented curve at every published point', () => {
+    const CF = window.HearthriseCookingFire;
+    assert(CF && typeof CF.burnChance === 'function', 'HearthriseCookingFire.burnChance missing');
+    const r = { req: 20, xp: 100 };
+    const at = (lv, noBurn) => Math.round(CF.burnChance(r, lv, noBurn) * 100);
+
+    // Open fire, at the recipe's exact requirement: the documented base.
+    assert(CF.BASE === 0.25, 'BASE burn should be 25%, got ' + CF.BASE);
+    assert(at(20, 0) === 25, 'no Kitchen at req should be 25%, got ' + at(20, 0));
+
+    // The Kitchen ladder: 25 → 12 → 6 → 0.
+    assert(at(20, CF.KITCHEN_NO_BURN[0]) === 12, 'Kitchen L1 should be 12%, got ' + at(20, CF.KITCHEN_NO_BURN[0]));
+    assert(at(20, CF.KITCHEN_NO_BURN[1]) === 6,  'Kitchen L2 should be 6%, got '  + at(20, CF.KITCHEN_NO_BURN[1]));
+    assert(at(20, CF.KITCHEN_NO_BURN[2]) === 0,  'Kitchen L3 must be burn-proof, got ' + at(20, CF.KITCHEN_NO_BURN[2]));
+
+    // Mastery: −1 point per level above the recipe req, and it STACKS.
+    assert(at(26, 0) === 19, '6 levels over req on the open fire should be 19%, got ' + at(26, 0));
+    assert(at(45, 0) === 0,  '25 levels over req should be burn-proof on the open fire, got ' + at(45, 0));
+    assert(at(26, CF.KITCHEN_NO_BURN[0]) === 6, 'Kitchen L1 + 6 levels should stack to 6%, got ' + at(26, CF.KITCHEN_NO_BURN[0]));
+
+    // Floors and ceilings: never negative, never above BASE, never NaN.
+    assert(CF.burnChance(r, 99, 5) === 0, 'burn chance must floor at 0');
+    assert(CF.burnChance(r, 1, 0) === CF.BASE, 'below req cannot exceed BASE');
+    assert(CF.burnChance(r, 20, -3) === CF.BASE, 'a negative noBurn must not raise the risk');
+    assert(CF.burnChance(null, NaN, undefined) === CF.BASE, 'garbage input must not produce NaN');
+    assert(CF.burnPct(r, 20, 0) === 25, 'burnPct should be the whole-percent twin');
+
+    // Consolation XP: 25% of the recipe, never zero.
+    assert(CF.BURN_XP_SHARE === 0.25, 'burn XP share should be 25%');
+    assert(CF.burnXp(r) === 25, 'a 100 XP recipe should pay 25 XP on a burn, got ' + CF.burnXp(r));
+    assert(CF.burnXp({ xp: 1 }) === 1, 'a burn must never award 0 XP');
+  }),
+
+  () => tryRun('b225: the Kitchen is the producer of noBurn, and the two tables agree', () => {
+    const CF = window.HearthriseCookingFire;
+    const rungs = window.ROOMS.kitchen.levels;
+    assert(rungs.length === CF.KITCHEN_NO_BURN.length, 'the Kitchen ladder and KITCHEN_NO_BURN must be the same length');
+    rungs.forEach((ld, i) => {
+      assert(ld.bx && ld.bx.noBurn === CF.KITCHEN_NO_BURN[i],
+        'Kitchen L' + (i + 1) + ' noBurn drifted: room says ' + JSON.stringify(ld.bx) + ', curve says ' + CF.KITCHEN_NO_BURN[i]);
+      // Nothing already bought is devalued: cookSpeed is untouched.
+      assert(ld.bk === 'cookSpeed', 'Kitchen L' + (i + 1) + ' must still sell cook speed');
+    });
+    assert(rungs[2].bx.noBurn === CF.BASE, 'the Cast-Iron Range must cancel the whole base burn');
+
+    // getBonus must actually READ the secondary map — this is the ghost key
+    // finally getting a producer, so a silent 0 here is the whole bug.
+    const savedRooms = window.G.rooms;
+    try {
+      window.G.rooms = { kitchen: 2 };
+      assert(Math.abs(window.getBonus('noBurn') - CF.KITCHEN_NO_BURN[1]) < 1e-9,
+        'getBonus("noBurn") should read the Kitchen rung, got ' + window.getBonus('noBurn'));
+      assert(Math.abs(window.getBonus('cookSpeed') - 0.25) < 1e-9,
+        'the headline cookSpeed bonus must survive the bx addition');
+      window.G.rooms = {};
+      assert(window.getBonus('noBurn') === 0, 'no Kitchen means no noBurn');
+    } finally { window.G.rooms = savedRooms; }
+  }),
+
+  () => tryRun('b225: Burnt Food is real, vendor trash, and inert to auto-eat', () => {
+    const it = window.ITEMS.burnt_food;
+    assert(it, 'burnt_food must be a real item');
+    assert(it.n === 'Burnt Food', 'burnt_food should be named "Burnt Food", got ' + it.n);
+    assert(it.v === 1, 'burnt_food should be vendor trash at 1g, got ' + it.v);
+    assert(!it.heals && !it.foodClass, 'burnt_food must carry no heal and no foodClass');
+    assert(!it.type && !it.buff && !it.seed && !it.buryXp, 'burnt_food must not be equipment, a buff, a seed or bones');
+    // The two engine predicates that decide whether auto-eat may spend it.
+    assert(window.foodClassOf(it) === null, 'foodClassOf(burnt_food) must be null');
+    assert(window.isAutoEatable(it) === false, 'auto-eat must never be allowed to eat Burnt Food');
+    assert(window.foodKindOf(it) === null, 'burnt_food must not present as a provision/feast/draught');
+    // bestProvisionId() is the "what will auto-eat reach for" answer — a bag
+    // holding nothing but Burnt Food must return nothing, not carbon.
+    const savedInv = window.G.inventory;
+    try {
+      window.G.inventory = { burnt_food: 99 };
+      assert(window.bestProvisionId() === null, 'Burnt Food must never be picked as a provision');
+    } finally { window.G.inventory = savedInv; }
+  }),
+
+  () => tryRun('b225: a burn costs the ingredients, pays consolation XP, and never ticks a cook goal', () => {
+    const G = window.G;
+    const CF = window.HearthriseCookingFire;
+    const saved = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      stats: JSON.parse(JSON.stringify(G.stats || {})),
+      random: Math.random,
+    };
+    const rec = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
+    assert(rec, 'the shrimp recipe should exist');
+    try {
+      G.rooms = {};                                   // open fire
+      G.skills = Object.assign({}, G.skills, { cooking: 0 });
+      G.inventory = { shrimp: 10, cooked_shrimp: 0, burnt_food: 0 };
+      G.stats = Object.assign({}, G.stats, { cooked: 0, burnt: 0 });
+      const xp0 = G.skills.cooking || 0;
+
+      Math.random = () => 0;                          // force a burn
+      window.doArtisanAction('cooking', rec.id, { silent: true });
+      assert((G.inventory.shrimp || 0) === 9, 'a burn must still consume the ingredient');
+      assert((G.inventory.cooked_shrimp || 0) === 0, 'a burn must not yield the dish');
+      assert((G.inventory.burnt_food || 0) === 1, 'a burn must yield exactly one Burnt Food');
+      assert((G.stats.cooked || 0) === 0, 'a burn must NOT tick the cooked counter — cook goals count successes only');
+      assert((G.stats.burnt || 0) === 1, 'a burn should be counted as a burn');
+      const burnXp = (G.skills.cooking || 0) - xp0;
+      assert(burnXp === CF.burnXp(rec), 'a burn should pay ' + CF.burnXp(rec) + ' consolation XP, got ' + burnXp);
+      assert(burnXp > 0 && burnXp < rec.xp, 'consolation XP must sting but not be zero');
+
+      Math.random = () => 0.999;                      // force a success
+      const xp1 = G.skills.cooking || 0;
+      window.doArtisanAction('cooking', rec.id, { silent: true });
+      assert((G.inventory.cooked_shrimp || 0) === 1, 'a successful cook must yield the dish');
+      assert((G.inventory.burnt_food || 0) === 1, 'a successful cook must not yield carbon');
+      assert((G.stats.cooked || 0) === 1, 'a successful cook ticks the cooked counter');
+      assert((G.skills.cooking || 0) - xp1 >= rec.xp, 'a successful cook pays full XP');
+
+      // Kitchen L3 is burn-proof: even a rigged roll cannot ruin the dish.
+      G.rooms = { kitchen: 3 };
+      assert(window.cookBurnChance(rec) === 0, 'a Cast-Iron Range must be burn-proof');
+      Math.random = () => 0;
+      window.doArtisanAction('cooking', rec.id, { silent: true });
+      assert((G.inventory.burnt_food || 0) === 1, 'Kitchen L3 must never burn, even on a worst-case roll');
+      assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
+    } finally {
+      Math.random = saved.random;
+      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
+      if (typeof window._stopArtisan === 'function') window._stopArtisan();
+    }
+  }),
+
+  () => tryRun('b225: only cooking burns — a forge never ruins a bar', () => {
+    const G = window.G;
+    const saved = {
+      inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      random: Math.random,
+    };
+    const rec = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
+    if (!rec) return;
+    try {
+      G.rooms = {};
+      G.skills = Object.assign({}, G.skills, { smithing: 500000 });
+      const inputs = rec.inputs || { [rec.input]: 1 };
+      G.inventory = { burnt_food: 0 };
+      Object.keys(inputs).forEach((id) => { G.inventory[id] = 20; });
+      G.inventory[rec.output] = 0;
+      Math.random = () => 0;                          // the worst possible roll
+      window.doArtisanAction('smithing', rec.id, { silent: true });
+      assert((G.inventory[rec.output] || 0) === 1, 'smithing must always produce its output');
+      assert((G.inventory.burnt_food || 0) === 0, 'smithing must never produce Burnt Food');
+    } finally {
+      Math.random = saved.random;
+      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms;
+      if (typeof window._stopArtisan === 'function') window._stopArtisan();
+    }
+  }),
+
+  () => tryRun('b225: the burn risk is on the screen before the player presses the tile', () => {
+    const G = window.G;
+    const saved = {
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})),
+    };
+    const cook = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
+    const smith = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
+    try {
+      assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
+      G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
+
+      const open = window.burnRiskLine(cook, 'cooking');
+      assert(/Burn risk: 25%/.test(open), 'the open fire must show its 25% risk, got: ' + open);
+      assert(/build a Kitchen/i.test(open), 'the advice must tell a camper to build a Kitchen, got: ' + open);
+      assert(open.indexOf('var(--red)') >= 0, 'the risk line must use the --red token, never a literal colour');
+
+      // The number shown is the number rolled — same source, by construction.
+      assert(Math.round(window.cookBurnChance(cook) * 100) === 25, 'preview and roll must agree');
+
+      G.rooms = { kitchen: 1 };
+      const withKitchen = window.burnRiskLine(cook, 'cooking');
+      assert(/Burn risk: 12%/.test(withKitchen), 'a Kitchen L1 cook must be told 12%, got: ' + withKitchen);
+      assert(/upgrade your Kitchen/i.test(withKitchen), 'a Kitchen owner should be told to UPGRADE, got: ' + withKitchen);
+
+      // Burn-proof and non-cooking recipes must add nothing to the screen.
+      G.rooms = { kitchen: 3 };
+      assert(window.burnRiskLine(cook, 'cooking') === '', 'a burn-proof cook must show no risk line');
+      G.rooms = {};
+      if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
+    } finally {
+      G.rooms = saved.rooms; G.skills = saved.skills;
+    }
+  }),
+
+  /* Found while browser-verifying b225: the cooking screen memoises its
+     rebuild on an activeKey, and noBurn was not in it — so a player who built
+     or upgraded a Kitchen kept reading the OLD odds until some unrelated event
+     happened to change the key. A live number behind a stale cache is worse
+     than no number, so noBurn joined the key in both renderer twins. */
+  () => tryRun('b225: building a Kitchen repaints the cooking screen (the risk is never stale)', () => {
+    const G = window.G;
+    const prevTab = window.activeTab;
+    const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), inv: G.inventory, skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      if (typeof window.renderSkillDetail !== 'function') return;
+      G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
+      G.inventory = Object.assign({}, G.inventory, { shrimp: 40 });
+      window.showTab('skills');
+      window.renderSkillDetail('cooking');
+      const camp = document.getElementById('skill-detail');
+      assert(camp && /Burn risk: 25%/.test(camp.innerHTML), 'a camp cook should read 25% on screen');
+
+      G.rooms = { kitchen: 1 };                 // built a Kitchen, nothing else changed
+      window.renderSkillDetail('cooking');
+      assert(/Burn risk: 12%/.test(document.getElementById('skill-detail').innerHTML),
+        'the screen must repaint to 12% the moment a Kitchen exists');
+
+      G.rooms = { kitchen: 3 };                 // Cast-Iron Range: burn-proof
+      window.renderSkillDetail('cooking');
+      assert(document.getElementById('skill-detail').innerHTML.indexOf('Burn risk:') === -1,
+        'a burn-proof kitchen must leave no risk line on the screen at all');
+    } finally {
+      G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
+      try { window.showTab(prevTab || 'profile'); } catch {}
+    }
+  }),
+
+  () => tryRun('b225: offline cooking burns on the same math and reports it once', () => {
+    const G = window.G;
+    const saved = {
+      activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
+      lastSeen: G.lastSeen, inv: JSON.parse(JSON.stringify(G.inventory || {})),
+      skills: JSON.parse(JSON.stringify(G.skills || {})), rooms: JSON.parse(JSON.stringify(G.rooms || {})),
+      summary: G.lastOfflineSummary, random: Math.random,
+    };
+    const rec = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
+    try {
+      G.rooms = {}; G.activeMonster = null;
+      G.skills = Object.assign({}, G.skills, { cooking: 0 });
+      G.inventory = { shrimp: 30, cooked_shrimp: 0, burnt_food: 0 };
+      G.activeSkill = 'cooking'; G.skillTargetId = rec.id; G.skillMs = 3000;
+      G.lastSeen = Date.now() - 2 * 3600000;
+      Math.random = () => 0;                    // every offline cook burns
+      window.processOffline();
+      assert((G.inventory.burnt_food || 0) === 30, 'offline cooking must burn on the same math, got ' + G.inventory.burnt_food);
+      assert((G.inventory.cooked_shrimp || 0) === 0, 'a forced burn must not produce dishes offline either');
+      assert(G.lastOfflineSummary && G.lastOfflineSummary.burnt === 30,
+        'the offline summary must report the burns, got ' + JSON.stringify(G.lastOfflineSummary && G.lastOfflineSummary.burnt));
+      assert((window._hrOfflineBurns || 0) === 0, 'the offline burn counter must reset, or the next session double-reports');
+    } finally {
+      Math.random = saved.random;
+      G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
+      G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
+      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms;
+      G.lastOfflineSummary = saved.summary;
+      if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
   }),
 ];

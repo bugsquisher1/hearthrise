@@ -24,6 +24,18 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 - ⚙️ Your activity now re-times itself as bonuses come and go, so a new axe or a fresh blessing is felt on the very next swing instead of after a restart.
 - 🧪 337 tests green.
 
+## v0.9.2-beta build 228 — 2026-08-09 (Your homestead, your hold, and honest numbers)
+
+- 🏡 **The House is a place you build.** Every room — Kitchen, Forge, Workshop and the rest — shows whether you own it, its level, and exactly what the next upgrade costs in plain words ("700 Gold · 15 Normal Log"). Click a room to step inside its own panel. (Two real bugs died here: you could "build the forge" over and over with no feedback, and the Workshop needed planks that needed the Workshop — a dead end for new players.)
+- 🏰 **The clan hold, out in the open.** When your clan is building something, the whole roster sees it: what's being built, every material with how much is in and how much is left, and the labour bar. Only the leader and vice leaders post work orders — and leadership can open the next one to a member vote. The confusing rules are in plain English now.
+- ⚖️ **Honest numbers.** Bonuses across the whole game were wildly oversized — smithing had quietly stacked past +90% (a companion bonus was being counted twice). Everything is rebased to small, meaningful steps, with a hard ceiling so it can't balloon again. Nothing you earned changed — a level or rank you hold, you keep.
+- 👑 **Renown, explained and re-paced.** The Rise to the Throne screen now tells you exactly how renown is earned, and how much you gained today. It was rising far too fast (a brand-new account was nearly a Serf before doing anything) — now it's a real climb. Your current rank is locked in; you keep it and simply climb slower from here.
+- 🔔 **The bell remembers.** Your notification bell opens the Chronicle — a permanent record of your milestones (level-ups, first boss kills, rank-ups, companions bonded). Achievements no longer vanish after a few seconds.
+- 📯 **Answer a rally.** Pick the rally you'll join; show up online and you're auto-entered for the full chest, themed to the event (the Forge Levy pays smithing and crafting). Miss it and half honors wait for you.
+- 🍳 **Nothing pretends to be working when it isn't.** Run out of ore mid-smith and the activity stops and tells you (this was happening to every skill). "While you were away" now shows your offline haul on Home. The connection badge only appears when you're actually reconnecting.
+- 🧹 Ranged and magic finally get their combat-XP bonuses; five companions that paid nothing now pay; combat's Loot and Stats are clean modals by the enemy; and a pile of smaller fixes.
+- 🧪 424 tests green.
+
 ## v0.9.2-beta build 227 — 2026-08-09 (Readable at last, a castle in the making, and a combat screen that fights with you)
 
 - 🔎 **Text, actually fixed this time — and a dial that's yours.** Half the game's text sat at exactly the old minimum size; everything got a real step up, and Settings → Display now has a working **UI Scale** (90–130%) that resizes nearly all text live and remembers your choice.

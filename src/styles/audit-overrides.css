@@ -333,6 +333,8 @@ img[src*="assets/raw-bundle"] {
 /* b262: bounty task progress chip in the combat activity bar (paione — the
    task's kills-left was falling below the fold on landscape). */
 .activity-bar.v2 .ab-meta .ab-bounty b { color: var(--gold-2); font-weight: 800; }
+/* b266: trained combat-skill XP progress chip. */
+.activity-bar.v2 .ab-meta .ab-xp b { color: var(--gold-2); font-weight: 800; }
 .activity-bar.v2.idle .ab-meta { display: none; }
 
 /* ─── Idle pulse: subtle attention-call when nothing is active ───

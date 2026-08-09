@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 266 — 2026-08-09 (See your combat XP while you fight)
+
+- 📊 **Your combat-skill progress now shows in the top bar during a fight.** It displays the skill your current style trains (e.g. STR) with your level and the XP left to the next level — no need to leave combat to check how close you are. *(Thanks tester!)*
+
 ## v0.9.2-beta build 265 — 2026-08-09 (Bury the whole pile)
 
 - 🦴 **Burying bones is consistent now.** Depending on how you tapped, "Bury" sometimes buried one bone and sometimes the whole stack. Now a plain **Bury** always buries your entire stack of that bone (and the quantity slider still lets you pick an exact amount). *(Thanks tester!)*

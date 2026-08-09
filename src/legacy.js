@@ -6473,8 +6473,26 @@ function refreshActivityBar(){
           : (_ab.progress||0);
         bountyChip = '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
       }
+      /* b266 (tester): show the combat SKILL you're training + XP to the next
+         level, right in the always-visible bar — "can I see Strength XP til level
+         up while fighting?". Primary trained skill = the active style's highest-
+         weighted skill. */
+      let xpChip = '';
+      const _st = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
+      if(_st && _st.xp){
+        const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
+        if(_sk){
+          const _xp = (G.skills && G.skills[_sk]) || 0;
+          const _lv = levelFromXp(_xp), _to = xpToNext(_xp);
+          const _lbl = _sk.slice(0,3).toUpperCase();
+          xpChip = _lv>=99
+            ? '<span class="ab-xp">'+_lbl+' <b>99</b></span>'
+            : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
+        }
+      }
       metaEl.innerHTML = ''
         + '<span class="ab-kills">⚔️ <b>'+kills.toLocaleString()+'</b> this fight</span>'
+        + xpChip
         + bountyChip
         + '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
     }

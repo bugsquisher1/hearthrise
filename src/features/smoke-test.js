@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=265' directly.
+// modularised, will import { G } from '../state/game.js?v=266' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=265';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=265';
+import { on, snapshot } from '../net/events.js?v=266';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=266';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=265';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=266';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11390,6 +11390,25 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b266: combat activity bar shows trained-skill XP to next level (tester: see Strength XP while fighting)', () => {
+    if(typeof window.refreshActivityBar !== 'function' || typeof window.getActiveCombatStyle !== 'function'){ assert(true, 'no fn'); return; }
+    const meta = document.getElementById('ab-meta');
+    if(!meta){ assert(true, 'activity bar not mounted'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
+      const style = window.getActiveCombatStyle();
+      if(!style || !style.xp){ assert(true, 'no active combat style in harness'); return; }
+      const sk = Object.keys(style.xp).sort((a,b)=>style.xp[b]-style.xp[a])[0];
+      G.skills = Object.assign({}, G.skills, { [sk]: 1000 });   // mid-level, not maxed
+      window.refreshActivityBar();
+      const html = document.getElementById('ab-meta').innerHTML;
+      assert(/ab-xp/.test(html), 'combat bar must show the trained-skill XP chip, got: ' + html.slice(0, 180));
+      assert(/to go|>99<|> 99 </.test(html), 'the chip must show XP-to-next (or level 99), got: ' + html.slice(0, 180));
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b265: buryBones is unified — a plain Bury clears the whole stack (tester: sometimes 1, sometimes all)', () => {

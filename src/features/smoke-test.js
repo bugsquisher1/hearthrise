@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=236' directly.
+// modularised, will import { G } from '../state/game.js?v=237' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=236';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=236';
+import { on, snapshot } from '../net/events.js?v=237';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=237';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=236';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=237';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11242,6 +11242,45 @@ const TESTS = [
       document.body.classList.toggle('in-combat', hadInCombat);
       if (priorSub) panel.dataset.mobileSub = priorSub;
     }
+  }),
+
+  () => tryRun('b237: an active gathering skill resumes its LIVE loop after a load/tab-return (not just offline catch-up)', () => {
+    // The bug (tester): loadLocal re-armed an active FIGHT but never an active
+    // SKILL, so after coming back the save said "fishing" while no timer ticked.
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.resumeActiveActivity === 'function', 'resumeActiveActivity() seam missing');
+      assert(typeof window.__isSkillLoopArmed === 'function', 'skill-loop probe missing');
+      window.stopSkill();                                   // clean, un-armed baseline
+      // Simulate a loaded save: the state SAYS active, but nothing is ticking.
+      G.activeMonster = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.skillMs = 1000;
+      assert(window.__isSkillLoopArmed() === false, 'precondition: no live loop should be running yet (the bug state)');
+      window.resumeActiveActivity();
+      assert(window.__isSkillLoopArmed() === true, 'resumeActiveActivity() must re-arm the live gathering loop');
+      window.stopSkill();
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b237: artisan tiles show how many of each input you own (live)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      window.openSkillDetail('crafting');
+      window.renderSkillDetail('crafting');
+      // The feature: every artisan input carries an owned-count span. Use whatever
+      // input actually rendered (recipes render by category lane), then prove the
+      // count is live — set stock and re-render (lightUpdate path) and read it back.
+      let span = document.querySelector('#skill-detail .at-inputs .at-have[data-have]');
+      assert(span, 'artisan tiles must render an owned-count span for each input');
+      const inputId = span.getAttribute('data-have');
+      G.inventory = G.inventory || {};
+      G.inventory[inputId] = 4242;
+      window.renderSkillDetail('crafting');                 // lightUpdate refreshes the count
+      span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
+      assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
+    } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
   }),
 
   () => tryRun('b235: crit is a real lever — critB + the damage_crit buff roll a damage multiplier (was dead)', () => {

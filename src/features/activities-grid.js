@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=236';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=236';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=236';
+import { SKILLS_DEF } from '../data/skills.js?v=237';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=237';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=237';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -157,9 +157,14 @@ function tileForArtisan(recipe, skillId) {
         ? `window.startArtisan('${skillId}','${recipe.id}')`
         : `notify('Requires ${skillName} Lv ${recipe.req}','kill')`);
   const inputs = recipe.inputs || (recipe.input ? { [recipe.input]: recipe.inputQty || 1 } : {});
+  /* b237 (tester): each input shows what you OWN (e.g. "2× Willow 200"), brightened
+     and turned red when you're short of one action's worth. data-have/data-need let
+     lightUpdate() refresh the count live as you consume stock. */
   const inputsLine = Object.entries(inputs).map(([id, q]) => {
     const d = window.ITEMS?.[id];
-    return (q > 1 ? q + 'x ' : '') + (d ? d.n.split(' ')[0] : id);
+    const nm = d ? d.n.split(' ')[0] : id;
+    const have = (window.G.inventory && window.G.inventory[id]) || 0;
+    return `${q > 1 ? q + '× ' : ''}${nm} <span class="at-have${have < q ? ' low' : ''}" data-have="${id}" data-need="${q}">${fmtQty(have)}</span>`;
   }).join(' + ');
   // b225: the campfire ruling — cooking is ungated but the open fire burns, so
   // every cooking tile carries its live burn risk. Built by the SAME helper the
@@ -215,6 +220,15 @@ function lightUpdate(skillId) {
       qe.textContent = 'Qty: ' + fmtQty(q);
       qe.classList.toggle('muted', q === 0);
     }
+  });
+  // b237: keep each input's owned-count live as it's consumed (saw planks →
+  // watch the log count fall, turn red when you're short of one action's worth).
+  detail.querySelectorAll('.at-inputs .at-have[data-have]').forEach((el) => {
+    const id = el.getAttribute('data-have');
+    const need = parseInt(el.getAttribute('data-need'), 10) || 1;
+    const have = (window.G.inventory && window.G.inventory[id]) || 0;
+    el.textContent = fmtQty(have);
+    el.classList.toggle('low', have < need);
   });
 }
 

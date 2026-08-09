@@ -863,6 +863,13 @@ body[data-theme] .at-inputs {
   margin-top: 4px;
   text-align: center;
 }
+/* b237 (tester): show how many of each input you actually OWN right on the tile
+   — so while sawing planks you watch your log count fall, and you know before
+   you start whether you have the materials. Brightened vs the recipe text, and
+   red when you're short of even one action's worth. Refreshed live by
+   lightUpdate() as stock changes. */
+body[data-theme] .at-inputs .at-have { color: var(--ink-2); font-weight: 700; opacity: 1; }
+body[data-theme] .at-inputs .at-have.low { color: var(--danger, #d9534f); }
 /* A count, not a label. Only rendered when you own some. */
 body[data-theme] .at-qty {
   top: 8px; right: 8px; bottom: auto;

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 237 — 2026-08-09 (Keep going)
+
+- 🎣 **Your skill keeps going when you come back.** Coming back after a while — your fish and XP were credited for the time away (good), but the activity then just *sat* there: the game said "fishing" while nothing actually happened until you re-tapped. Now the live loop resumes on its own, same as a fight already did.
+- 🪵 **See what you're working with.** Every crafting/smithing/cooking tile now shows **how many of each ingredient you own**, right on the tile — so as you saw planks you watch your log count fall, and it turns red when you're about to run out. (Thanks for the suggestion.)
+- 🧪 441 tests green.
+
 ## v0.9.2-beta build 236 — 2026-08-09 (Mobile hardening)
 
 A full sweep of the phone experience — a team audited every screen, then fixed it.

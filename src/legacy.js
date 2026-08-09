@@ -764,6 +764,9 @@ function loadLocal(){
   if(G.activeMonster && !combatInterval){
     combatInterval = setInterval(combatTick, COMBAT_BALANCE.tickMs);
   }
+  // b237: and resume the live gathering/artisan loop the same way — otherwise
+  // the save says "fishing" but nothing ticks until the player re-taps.
+  resumeActiveActivity();
 }
 /* ════════════════════════════════════════════════════════════════
    b226 — THE OFFLINE DAILY BUDGET. (docs/design/pacing-overhaul.md §5.4)
@@ -2558,6 +2561,30 @@ function armSkillTimers(ms){
   skillInterval=setInterval(()=>doSkillAction(false),ms);
   skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/ms));if(typeof isSkillsVisible==='function'?isSkillsVisible():activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
 }
+/* b237 (tester): the live SKILL loop was never restarted after a load or a
+   tab-resume. loadLocal re-arms an active FIGHT (the combatInterval hook) but
+   there was no equivalent for gathering/artisan — so after coming back the save
+   still said "fishing" (G.activeSkill set) while no timer ticked, and the
+   activity just sat there earning nothing until the player re-tapped. Offline
+   catch-up (processOffline) had already paid the away-time; this is purely
+   about resuming the LIVE loop. Re-arms whichever loop the active skill uses,
+   only if it isn't already running (idempotent), and never while a fight owns
+   the tick. */
+function resumeActiveActivity(){
+  if(typeof G==='undefined'||!G||!G.activeSkill||G.activeMonster) return;
+  const sk=G.activeSkill;
+  const ms=((typeof activityIntervalMs==='function'&&activityIntervalMs())||G.skillMs||3000);
+  try{
+    if(window.ARTISAN_RECIPES&&window.ARTISAN_RECIPES[sk]){
+      if(!window._artisanInterval&&typeof window._armArtisanTimers==='function') window._armArtisanTimers(ms);
+    }else if(!skillInterval){
+      armSkillTimers(ms);
+    }
+  }catch(e){}
+}
+window.resumeActiveActivity=resumeActiveActivity;
+/* Read-only seam so the smoke suite can assert the live loop is (re)armed. */
+window.__isSkillLoopArmed=function(){ return !!skillInterval || !!window._artisanInterval; };
 function retimeActivity(){
   if(inOfflineReplay()) return;            // the replay owns its own clock
   const want=activityIntervalMs();
@@ -4434,6 +4461,7 @@ function bindEvents(){
     if(document.hidden){ saveLocal(); return; }
     try{ if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return; }catch(e){}
     try{ if(typeof processOffline==='function') processOffline(); }catch(e){}
+    try{ if(typeof resumeActiveActivity==='function') resumeActiveActivity(); }catch(e){}
     try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
   });
 }
@@ -10643,8 +10671,13 @@ function tileForArtisan(recipe, skillId){
         ? "window.startArtisan('"+skillId+"','"+recipe.id+"')"
         : "notify('Requires "+skillName2+" Lv "+recipe.req+"','kill')");
   var inputs = recipe.inputs || (recipe.input ? (function(){var o={};o[recipe.input]=recipe.inputQty||1;return o;})() : {});
+  /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
+     planks → watch your log count fall), red when short of one action. data-have/
+     data-need let the live refresh below update it as stock is consumed. */
   var inputsLine = Object.entries(inputs).map(function(kv){
-    var d = ITEMS[kv[0]]; return (kv[1]>1?kv[1]+'x ':'')+(d?d.n.split(' ')[0]:kv[0]);
+    var d = ITEMS[kv[0]]; var nm = d?d.n.split(' ')[0]:kv[0];
+    var have = (G.inventory && G.inventory[kv[0]]) || 0;
+    return (kv[1]>1?kv[1]+'× ':'')+nm+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
   }).join(' + ');
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   /* b225: the open fire can ruin a cook — the tile says so before you press it. */
@@ -10821,6 +10854,14 @@ function lightUpdate(skillId){
       qe.textContent = 'Qty: ' + fmtQty(q);
       if(q===0) qe.classList.add('muted'); else qe.classList.remove('muted');
     }
+  });
+  /* b237: refresh each input's owned-count live as it's consumed. */
+  detail.querySelectorAll('.at-inputs .at-have[data-have]').forEach(function(el){
+    var id = el.getAttribute('data-have');
+    var need = parseInt(el.getAttribute('data-need'),10)||1;
+    var have = (G.inventory && G.inventory[id]) || 0;
+    el.textContent = fmtQty(have);
+    if(have<need) el.classList.add('low'); else el.classList.remove('low');
   });
 }
 

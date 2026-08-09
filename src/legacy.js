@@ -12159,7 +12159,7 @@ console.log('[Bundle Icons v1] applied:',
       + '<div class="qm-body">'
         + '<div class="qm-list" id="qm-list"></div>'
         + '<aside class="qm-aside">'
-          + '<div><h4>📊 Quest Info</h4>'
+          + '<div><h4>Quest Info</h4>'
           + '<div class="qm-summary" id="qm-summary"></div></div>'
           + '<div><h4 style="font-size:11px">About Quests</h4>'
           + '<p class="qm-info-text">Daily quests refresh every 24 hours at UTC midnight. Weekly quests refresh every Monday. Complete them to claim gold, XP, gems, and rare items.</p></div>'

@@ -268,16 +268,30 @@
 
     // Auto-advance hook: clicking the highlighted tab counts as
     // following along, no need for the user to also press Next.
+    // b225: the handler used to remove itself ONLY when it fired — advancing
+    // with the Next button left it armed on the nav tab, so a post-tour click
+    // threw in next() and permanently wedged `advancing`. Every armed hook is
+    // now tracked and disarmed on step change AND at endFTUE.
+    disarmAutoAdvance();
     if(step.autoAdvanceOnClick && step.target){
       var tgt = document.querySelector(step.target);
       if(tgt){
         var handler = function(){
-          tgt.removeEventListener('click', handler, true);
+          disarmAutoAdvance();
           // Small delay so the panel they navigated to has time to render
           setTimeout(next, 220);
         };
+        armedAdvance = { tgt: tgt, handler: handler };
         tgt.addEventListener('click', handler, true);
       }
+    }
+  }
+
+  var armedAdvance = null; // the one live auto-advance hook, if any
+  function disarmAutoAdvance(){
+    if(armedAdvance){
+      try { armedAdvance.tgt.removeEventListener('click', armedAdvance.handler, true); } catch(e){}
+      armedAdvance = null;
     }
   }
 
@@ -348,8 +362,11 @@
   var advancing = false;   // b213: rapid double-clicks queued multiple
   function next(){         // increments and silently skipped steps
     if(advancing) return;
+    // b225: a stale hook could call next() after the tour ended — rootEl gone,
+    // TypeError thrown AFTER advancing was set, wedging the tour forever.
+    var card = rootEl && rootEl.querySelector('.ftue-card');
+    if(!card) return;
     advancing = true;
-    var card = rootEl.querySelector('.ftue-card');
     card.classList.remove('show');
     setTimeout(function(){
       advancing = false;
@@ -369,6 +386,7 @@
   }
 
   function endFTUE(markComplete){
+    disarmAutoAdvance(); // b225: never leave a hook armed on a nav tab
     if(rootEl){
       var card = rootEl.querySelector('.ftue-card');
       var shade = rootEl.querySelector('.ftue-shade');

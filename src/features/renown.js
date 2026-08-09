@@ -370,7 +370,14 @@
     scrim.innerHTML =
       '<div class="hr-rn-cele">' +
         '<div class="hr-rn-eyebrow">Rank up</div>' +
-        '<div style="font-size:40px">🎉</div>' +
+        // b225: the meta-spine's highest-ceremony surface was a party-popper
+        // emoji (Final Directive violation). A gilt laurel crest, drawn.
+        '<svg viewBox="0 0 64 48" style="width:56px;height:42px;margin:2px auto 4px;display:block" aria-hidden="true">' +
+          '<path d="M14 40 Q6 30 10 16 Q12 26 18 32 Q13 22 16 10 Q19 22 24 28 Q21 18 26 8 Q28 20 30 26" fill="none" stroke="var(--gold,#e8c476)" stroke-width="2.2" stroke-linecap="round"/>' +
+          '<path d="M50 40 Q58 30 54 16 Q52 26 46 32 Q51 22 48 10 Q45 22 40 28 Q43 18 38 8 Q36 20 34 26" fill="none" stroke="var(--gold,#e8c476)" stroke-width="2.2" stroke-linecap="round"/>' +
+          '<circle cx="32" cy="34" r="5.5" fill="none" stroke="var(--gold,#e8c476)" stroke-width="2"/>' +
+          '<circle cx="32" cy="34" r="1.8" fill="var(--gold,#e8c476)"/>' +
+        '</svg>' +
         '<div class="big">' + rank.name + '</div>' +
         '<div class="hr-rn-sub" style="margin-bottom:4px">You are now <b>' + rank.title + '</b></div>' +
         '<div class="hr-rn-unlock" style="font-size:12px;margin-bottom:16px">' + rank.unlock + '</div>' +

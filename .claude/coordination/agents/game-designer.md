@@ -2,6 +2,19 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-09 · Itemization audit — Slice C (gathering/refine/craft/skills/tools/cross-system map)
+READ-ONLY audit for the re-Master Itemization program, Phase 1. No game code touched. Report: `docs/reports/itemization-audit/C-gathering-crafting-progression.md`. Grounded in the actual data (gear-tiers.js, gathering.js, recipes.js, items.js, homestead.js, farm-progression.js, tools.js, workers.js, raids.js, monsters.js) + the artisan action path in legacy.js.
+
+**Headline (matrix):** 4 true cross-system cores (Mining/Woodcutting/Smithing/Crafting) are tightly interlocked — the healthy heart. 3 soft-closers (Fishing→Cooking→buffs, Farming→Cooking) DO close the loop but only via manual eating and are near-invisible. **1 hard dead-end: PRAYER** — bury bones (output:null) → only a fractional combat-level bump; bones (100% drop) have no productive consumer.
+
+**Worst dead-ends:** (1) Prayer — whole skill, zero capability payoff [P1]. (2) Armour is a mono-skill sink — ALL armour = bars only (no plank/thread), so 6 equip slots never leave mining+smithing, unlike weapons which force cross-system play [P1]. (3) Farming's ceiling is bought with COMBAT — high crops gate on plot level, plot level gates on combat-dropped farm_deeds (17 to max), with no on-screen path; the crop's "Farming 88" label is a lie about the real wall [P2]. (4) Recipe-scroll/raw-meat drops were dead ~80 builds (ESM merge overwrite), fixed b227 but the trap class is unswept [P2].
+
+**Refinement spine:** the STRONGEST part — ore→bar→item and log→plank→item are enforced (no skipping), and castle goods extend it to Stage-3/4 (beam/fitting→keystone). But it never reaches gear: no weapon/armour needs a Stage-3 good, so the best chain only feeds buildings. Tools ladder is coherent (+5%/tier, self-made from each tier's bar) but never GATES gathering — pure speed nice-to-have. Coal is a flat-supply chokepoint under exponential late-smithing demand.
+
+**Top 5:** (1) give Prayer a real payoff or fold it in; (2) add wood/leather/thread secondaries to armour (generator already has the shape); (3) bridge the refine spine into gear (require a beam/fitting in a mid-high recipe); (4) fix Farming's cross-gate legibility + add a farming-earned deed source; (5) add a coal rung above Mining 30 + surface/auto-apply buff food.
+
+No level-req contradictions live in the player spine (the generator prevents drift). Committed with the report.
+
 ## Standing knowledge
 - Play as a NEW player; hunt dead moments ("what now? / why does this matter?"). Smallest strong fix, then re-play to verify.
 - North star: online-only social idle-RPG, all skills to 99 (`src/data/gear-tiers.js`), renown + daily login + collection log = retention pillars.

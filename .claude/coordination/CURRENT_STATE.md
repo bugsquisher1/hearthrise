@@ -2,11 +2,12 @@
 
 _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE and after every integration. Keep it true._
 
-**Last updated:** 2026-08-08 · by Coordinator (b218 shipped)
+**Last updated:** 2026-08-09 · b229 shipped. ACTIVE PROGRAM: itemization rework — all 4 audits committed (docs/reports/itemization-audit/A-D), Phase 1 DONE. NEXT SESSION: synthesize master audit + new-itemization DESIGN → Tyler approval → implement (id-alias layer is step 1). See memory [[itemization-program]].
 
 ## Build & branch
-- **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
-- **Version:** v0.9.2-beta (build b228)
+- **main HEAD:** `ebbe1bc` — **b229 SHIPPED** (Character/Skills rework Phase 1: combined Skills·Equipment·Hero screen, heroes on Home, playMs, room-pill fix).
+
+- **Version:** v0.9.2-beta (build b229)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
 - **✅ 7 migrations applied (2026-08-09).** **⚠️ PENDING migrations (run in order, after the earlier queue): rally-preselect, clan-governance, rally-v2, bonus-rebase (all `supabase/migrations/2026-08-09-*.sql`).** All idempotent, client-first, self-checking. More coming from in-flight agents: clan-governance, possibly bonus-rebase mirrors.
 - **Working tree:** worktree `manual-presence` (branch `agent-presence`) holds **b227 — the presence rework**, ready for integration: blessings are presence-gated, the flat ×1.12 is removed, the pool spans ten wired keys. Not version-bumped (`bump-version.sh --check` green at 226); the Coordinator bumps at ship.

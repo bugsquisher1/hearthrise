@@ -4,6 +4,11 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Presence rework: blessings are presence-gated; flat +12% removed (Tyler, binding)
+**Decision:** Tyler: "if you're offline the event doesn't apply to you... you only get that stuff WHILE online. One week it may be 12% exp, another week it may be +10% gold find." The daily/weekly rotating blessings apply ONLY while present (b226's presence definition: tab visible + input ≤10min + activity running). Offline = base rate, no blessing. The b226 flat presence ×1.12 is REMOVED — the rotating calendar replaces it as the entire online-pays mechanic. Blessing pool rotates varied boost TYPES (xp, gold find, gather/smith speed...; goldFind is wired since b222). Rally (join-gated live events) unchanged.
+**Why:** Product-owner economy direction 2026-08-09, superseding the b226 flat bonus.
+**Affected agents:** Systems (implementation b227), Designer (pool variety + pacing appendix update), QA (offline-excludes-blessings regression).
+
 ### 2026-08-09 · Pacing APPROVED with re-anchor: first 99 ≈ 8 WEEKS (Tyler)
 **Decision:** The pacing-overhaul package ships, re-anchored from the spec's 28-day first-99 to **~56 days (8 weeks)** — all-99 lands ≈16-18 months. Offline cap becomes the **12h DAILY budget** (approved explicitly). Presence bonus ×1.12 XP-only stands. All five modeling bug fixes ship with it (skillMs offline dampener, farming ×14, VENDOR_RAW_RATE 0.20, Mithril Rock regression, per-item daily counters). Renown weights only rise + renownHigh ratchet + Founder's mark. Constants re-derived from the spec's own model; Designer ratifies the derived table at integration.
 **Why:** Tyler's choices via decision gate 2026-08-09.

@@ -4,6 +4,10 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Bonus magnitudes rebase: "increments of 2%" (Tyler, binding, global)
+**Decision:** All percentage boosts across the game are far too large (rooms at +50% smithing etc.). Rebase to a small-increment grammar (~2% steps). Provisional applied to homestead ladders mid-build (speed rooms +2..10%, Library/Trophy +1..5%); the Designer re-derives the FULL bonus table (castle buildings, blessings, feasts, ales, renown perks, workers?) as one coherent budget with a much lower total ceiling, then Systems applies (b228). Levels/costs owned by players never change — only the magnitude a level grants (owner-stated global rebalance, announced in the changelog, never silent). NOTE (flagged to Tyler): this shrinks the boost headroom — typical engaged pace moves toward the 57-day floor.
+**Affected agents:** Designer (retune spec NOW), Systems (apply), homestead agent (provisional relayed mid-build).
+
 ### 2026-08-09 · Auto-eat: 5,000g → 100 Bounty Marks; LAUNCH NOTE: raise mark prices at release (Tyler)
 **Decision:** The auto-eat trait is purchased with 100 Bounty Marks, not gold. STANDING LAUNCH-CHECKLIST ITEM: all Bounty Mark prices get a raising pass before release — record, do not act yet.
 **Affected agents:** Systems (this change), Designer (the release-time mark-price pass).

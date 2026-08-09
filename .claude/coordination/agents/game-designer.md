@@ -97,7 +97,12 @@ keys have zero readers; companion `xpB`/`goldBonus`/`prayerXp` are misspellings 
 pets pay nothing — and fixing those names is an unbudgeted *increase* that must land inside the rebase
 commit, not after it.
 
-No game files touched.
+No game files touched. **Commit `7cc89ab`** — note for the audit trail: a concurrent agent's
+`git add -A`/`-a` on main swept these four files into its own commit (`feat(clans): tier names follow
+the foundation scene`) a moment before mine ran, so the spec landed under a message that does not
+describe it. Content verified intact (608 lines, 189 table rows). **Process note for the team: on a
+shared `main`, stage explicit paths — a blanket add on a tree three agents are writing to will claim
+another agent's work.**
 
 ### 2026-08-09 · Pacing overhaul spec — `docs/design/pacing-overhaul.md` (DOCS ONLY)
 Modelled the real curve by simulating the shipped action loop (rung switching at the real level gates,

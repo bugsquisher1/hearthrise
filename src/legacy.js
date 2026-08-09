@@ -2450,6 +2450,7 @@ function stopSkill(){
   }catch(e){}
   renderSkillsList();
 }
+window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers guarded on finding it and bailed, so window.stopSkill has not existed since they shipped (auto-actions' stop call was a no-op too) */
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
    This map was an inline object literal inside doSkillAction(), which made it
    invisible to everything else: `stats.chopped` / `stats.mined` /
@@ -8771,8 +8772,25 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   var recipes = window.ARTISAN_RECIPES[skillId];
   var r = recipes && recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
-  if(!hasInputs(r)){ window._stopArtisan && window._stopArtisan(); return; }
-  if(!gateOk(r)){ window._stopArtisan && window._stopArtisan(); if(typeof notify==='function') notify('Recipe locked','kill'); return; }
+  if(!hasInputs(r)){
+    /* b228 (Tyler): "I ran out of iron ore but the game is still showing me as
+       smithing." _stopArtisan only killed the timers — activeSkill, the Active
+       tile and the topbar card all kept claiming work was happening. Stop the
+       WHOLE activity honestly and say why, naming the missing ingredient. */
+    var missing = null;
+    try{
+      var need = r.inputs || (r.input ? (function(o){o[r.input]=1;return o;})({}) : {});
+      for(var k in need){ if(((G.inventory&&G.inventory[k])||0) < need[k]){ missing = (ITEMS[k]&&ITEMS[k].n)||k; break; } }
+    }catch(e){}
+    if(typeof window.stopSkill==='function') window.stopSkill(); else if(window._stopArtisan) window._stopArtisan();
+    if(typeof notify==='function') notify('Out of '+(missing||'materials')+' — '+skillId+' stopped','kill');
+    return;
+  }
+  if(!gateOk(r)){
+    if(typeof window.stopSkill==='function') window.stopSkill(); else if(window._stopArtisan) window._stopArtisan();
+    if(typeof notify==='function') notify('Recipe locked — '+skillId+' stopped','kill');
+    return;
+  }
   /* b227 — `craftSave` (Workshop L4/L5, homestead-deepening §3.3). One of the
      six ghost keys: declared in the House bonus display since it shipped and
      produced by nothing. The Workshop's Lathe finally produces it.

@@ -12204,6 +12204,55 @@ const TESTS = [
     }
   }),
 
+  // b228 (Tyler): "I ran out of iron ore but the game is still showing me as
+  // smithing." Exhausting inputs killed the timers but left activeSkill, the
+  // Active tile and the topbar claiming work. Guard ALL THREE artisan skills:
+  // running out stops the activity fully, clears the tile, and says why.
+  () => tryRun('b228: running out of materials stops the activity honestly (all artisan skills)', () => {
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      // Feed is DERIVED from each recipe's real input (cook_shrimp's input is
+      // 'shrimp', not 'raw_shrimp' — hardcoding it is how you test nothing).
+      const pick = (skill) => (window.ARTISAN_RECIPES[skill] || []).find((r) => r.req <= 1 && (r.input || (r.inputs && Object.keys(r.inputs).length >= 1)));
+      const cases = ['cooking', 'smithing', 'crafting'].map((skill) => {
+        const r = pick(skill);
+        assert(r, 'no simple ' + skill + ' recipe for the probe');
+        const feed = {};
+        if (r.inputs) Object.keys(r.inputs).forEach((k) => { feed[k] = r.inputs[k]; });
+        else feed[r.input] = 1;
+        return { skill, recipe: r.id, feed };
+      });
+      // Grant every workbench so the bench-gate isn't what stops us — exhaustion is.
+      window.G.rooms = Object.assign({}, window.G.rooms, { kitchen: 1, forge: 1, workshop: 1, shrine: 1 });
+      for (const c of cases) {
+        let toast = '';
+        window.notify = (m) => { toast += ' ' + m; };
+        window.G.inventory = Object.assign({}, window.G.inventory);
+        for (const k in c.feed) window.G.inventory[k] = c.feed[k];
+        window.G.skills[c.skill] = Math.max(window.G.skills[c.skill] || 0, 100000);
+        window.showTab('skills');
+        if (typeof window.openSkillDetail === 'function') window.openSkillDetail(c.skill);
+        window.startArtisan(c.skill, c.recipe);
+        assert(window.G.activeSkill === c.skill, c.skill + ': did not start');
+        // consume the single feed, then fire once more with nothing left
+        window.doArtisanAction(c.skill, c.recipe);
+        window.doArtisanAction(c.skill, c.recipe);
+        assert(window.G.activeSkill === null,
+          c.skill + ': activeSkill still "' + window.G.activeSkill + '" after inputs ran out'
+         );
+        assert(!document.querySelector('.act-tile.active'),
+          c.skill + ': a tile still claims Active after exhaustion');
+        assert(/Out of /.test(toast) && /stopped/.test(toast),
+          c.skill + ': no honest exhaustion toast, got"' + toast + '"');
+      }
+    } finally {
+      window.notify = realNotify;
+      restoreG(snap);
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

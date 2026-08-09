@@ -8037,7 +8037,10 @@ const TESTS = [
   // writes (it writes activeSkill + skillTargetId) — so no artisan tile was
   // ever .active and lightUpdate had nothing to drive. Guard: starting a cook
   // marks its tile active, and the fill moves within a second.
-  () => tryRun('b226: cooking marks its tile active and the progress bar moves', async () => {
+  // (Rewritten SYNCHRONOUS after the login-flow agent caught the async form
+  // being unfailable inside the sync runner: drive the lightUpdate path
+  // deterministically instead of sleeping.)
+  () => tryRun('b226: cooking marks its tile active and the progress bar moves', () => {
     const snap = snapshotG();
     try {
       window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 10;
@@ -8051,11 +8054,15 @@ const TESTS = [
       assert(/shrimp/i.test(tile.textContent), 'the wrong tile is marked active');
       const fill = tile.querySelector('.at-prog-fill');
       assert(fill, 'active tile has no progress fill element');
-      const w0 = fill.style.width || '';
-      await new Promise((res) => setTimeout(res, 700));
+      // Drive the light-update path with a known progress value: a second
+      // render with unchanged activeKey takes the lightUpdate branch, which
+      // must write the fill width from G.skillProgress.
+      window.G.skillProgress = 0.42;
+      window.renderSkillDetail('cooking');
+      window.renderSkillDetail('cooking');
       const f2 = (document.querySelector('.act-tile.active') || tile).querySelector('.at-prog-fill');
-      assert(f2 && (f2.style.width || '') !== w0,
-        'progress fill did not move in 700ms (' + w0 + ' -> ' + (f2 && f2.style.width) + ')');
+      assert(f2 && /^42(\.0)?%$/.test(f2.style.width || ''),
+        'lightUpdate did not drive the fill from G.skillProgress (got "' + (f2 && f2.style.width) + '", want 42%)');
     } finally {
       if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch (e) {}
       restoreG(snap);

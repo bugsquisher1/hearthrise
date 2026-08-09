@@ -599,25 +599,33 @@ const TESTS = [
       G.inventory = saved.inv; G.playerHp = saved.hp; G.playerMaxHp = saved.maxHp;
     }
   }),
-  () => tryRun('b217: buyTrait spends gold + unlocks; enabled saves are grandfathered', () => {
+  // b227 (Tyler): auto-eat is a BOUNTY MARK purchase (100 marks), not gold —
+  // earned at the board, and gold must never be touched by the buy.
+  () => tryRun('b227: buyTrait spends 100 Bounty Marks, never gold; refuses when short', () => {
     const G = window.G;
     assert(typeof window.buyTrait === 'function', 'window.buyTrait missing');
     const saved = {
-      gold: G.gold, traits: JSON.parse(JSON.stringify(G.traits || {})),
+      gold: G.gold, marks: (G.bountyHunter || {}).marks,
+      traits: JSON.parse(JSON.stringify(G.traits || {})),
       auto: JSON.parse(JSON.stringify(G.autoActions || {}))
     };
     try {
       G.traits = {};
-      G.gold = 100;
+      G.bountyHunter = G.bountyHunter || {};
+      G.bountyHunter.marks = 40;
+      G.gold = 999999;
       window.buyTrait('auto_eat');
-      assert(!(G.traits && G.traits.auto_eat) && G.gold === 100,
-        'buyTrait must reject when the player cannot afford it (no gold spent, no unlock)');
-      G.gold = 6000;
+      assert(!(G.traits && G.traits.auto_eat) && G.bountyHunter.marks === 40,
+        'buyTrait must refuse on short marks (no unlock, no marks spent) — gold is irrelevant');
+      assert(G.gold === 999999, 'buyTrait must NEVER touch gold for a marks trait');
+      G.bountyHunter.marks = 150;
       window.buyTrait('auto_eat');
-      assert(G.traits.auto_eat === true, 'buyTrait must unlock the trait when affordable');
-      assert(G.gold === 1000, 'buyTrait must deduct the 5000 cost, got gold=' + G.gold);
+      assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
+      assert(G.bountyHunter.marks === 50, 'buyTrait must deduct the 100-mark cost, got ' + G.bountyHunter.marks);
+      assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
     } finally {
       G.gold = saved.gold; G.traits = saved.traits; G.autoActions = saved.auto;
+      if (G.bountyHunter) G.bountyHunter.marks = saved.marks;
     }
   }),
   () => tryRun('b217: migration grandfathers pre-v6 saves that already had auto-eat', () => {

@@ -3476,9 +3476,9 @@ function renderShop(){
      they're reachable from the in-game shop. Reuses the existing shop-row
      component (no new styles). */
   const _traitRows=Object.entries(TRAITS).map(([id,t])=>{
-    const owned=hasTrait(id);const can=(G.gold||0)>=t.cost;
+    const owned=hasTrait(id);const can=t.currency==='marks'?((G.bountyHunter&&G.bountyHunter.marks||0)>=t.cost):((G.gold||0)>=t.cost);
     const art=(window.HR&&window.HR.icon)?window.HR.icon(t.glyph,30,'currentColor'):'';
-    return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyTrait('${id}')">Buy</button>`}</div>`;
+    return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyTrait('${id}')">Buy</button>`}</div>`;
   }).join('');
   /* b221: the scene and the offers are ONE object — the counter's top surface
      runs out of the picture and under the wares. Assign once; the old code
@@ -3497,7 +3497,8 @@ function buyCosmetic(id,price){if((G.gems||0)<price){notify('Not enough gems. Ta
    HearthriseAuto.maybeAutoEat() so it can't be bypassed via the settings
    toggle. Data-driven so more QoL traits can be added later. */
 const TRAITS={
-  auto_eat:{name:'Auto-Eat',cost:5000,glyph:'meat',desc:'Automatically eat food in combat when your HP drops low. Set the threshold in Settings → Gameplay.'},
+  /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold. */
+  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Automatically eat food in combat when your HP drops low. Earned with Bounty Marks — hunt bounties to afford it. Set the threshold in Settings → Gameplay.'},
 };
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
@@ -3505,8 +3506,14 @@ window.hasTrait=hasTrait;
 function buyTrait(id){
   const t=TRAITS[id];if(!t)return;
   if(hasTrait(id)){notify('Already unlocked','info');return;}
-  if((G.gold||0)<t.cost){notify('Not enough gold','kill');return;}
-  G.gold-=t.cost;
+  if(t.currency==='marks'){
+    const bh=G.bountyHunter||{};
+    if((bh.marks||0)<t.cost){notify('Not enough Bounty Marks — hunt bounties to earn them','kill');return;}
+    bh.marks-=t.cost;
+  } else {
+    if((G.gold||0)<t.cost){notify('Not enough gold','kill');return;}
+    G.gold-=t.cost;
+  }
   G.traits=G.traits||{};
   G.traits[id]=true;
   // Buying auto-eat turns it on so it works immediately; threshold stays default.
@@ -4224,8 +4231,8 @@ function openInvDetail(id){
     const bits = [_food.blurb];
     if(_food.autoEatable){
       if(typeof hasTrait === 'function' && !hasTrait('auto_eat')){
-        const cost = ((window.TRAITS && window.TRAITS.auto_eat) ? window.TRAITS.auto_eat.cost : 5000).toLocaleString();
-        bits.push(`You have not unlocked Auto-Eat yet (${cost}g in the Store) — for now, heal by hand from here or the Combat screen.`);
+        const _tae=(window.TRAITS&&window.TRAITS.auto_eat)||{cost:100,currency:'marks'};const cost=_tae.cost.toLocaleString()+(_tae.currency==='marks'?' Bounty Marks':'g');
+        bits.push(`You have not unlocked Auto-Eat yet (${cost} in the Store) — for now, heal by hand from here or the Combat screen.`);
       } else if(_autoEatUsesThis(id)){
         bits.push('Auto-eat is currently using this food.');
       }

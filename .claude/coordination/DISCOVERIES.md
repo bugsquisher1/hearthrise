@@ -4,6 +4,33 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-08 · Systems Engineer · ES modules re-wrap `window.*` AFTER every classic script — never assert a hook by reading a marker off a live global
+**Discovery:** `window.killMonster` / `window.addXp` are wrapped by at least six places (legacy's bestiary
++ level-up IIFEs, `collection-log.js`, `pets.js`, `dungeons.js`, and `companions.js`). Five are classic
+scripts and run in document order; **`companions.js` is an ES module imported by `main.js`**, so it is
+deferred and re-wraps AFTER *every* classic script has finished — including anything appended at the very
+bottom of `index.html`. Your wrapper is still in the chain and still fires, but a `fn.__myMarker` flag you
+set is no longer on the outermost function, so a test that reads the marker off the global reports a hook
+you definitely installed as missing. Cost a red smoke test on the Chronicle wave.
+**Affected systems:** anything wrapping a legacy global — collection-log, pets, companions, dungeons,
+chronicle, and any future decorator.
+**Required action:** compose (capture `orig`, call it, never replace), and if you need to *prove* the hook
+exists, keep your own installation registry inside your module (`HearthriseChronicle._hooks()` is the
+pattern) rather than probing the global.
+
+### 2026-08-08 · Systems Engineer · There are TWO save allowlists and they fail in opposite directions
+**Discovery:** new persistent state on `G` has to be registered in two unrelated places, and forgetting
+either is silent.
+1. `snapshotG()` in `src/features/smoke-test.js` — a manual field list the suite restores after every
+   player-action test. **Missing → the suite writes its test data into the real player's save.**
+2. `snapshot(G)` in `src/net/events.js` — the CLOUD payload allowlist. **Missing → the field survives
+   locally forever and is silently destroyed the first time the player restores on another device.**
+The local save itself is `JSON.stringify(G)`, so it needs no registration at all — which is exactly why
+these two get forgotten: everything looks fine until a test run or a device switch.
+**Affected systems:** every feature that adds a `G.*` field.
+**Required action:** when you add persistent state, add it to BOTH lists in the same commit, with a
+comment saying why it belongs in the cloud payload (or a deliberate note saying why it does not).
+
 ### 2026-08-09 · Systems Engineer · `isPresent()` is TRUE during offline catch-up — a presence gate alone is not a gate
 **Discovery:** `processOffline()` runs inside `loadLocal()`, on a **visible** tab, with the presence
 input timestamp **freshly initialised** and an activity **set**. Every clause of "the player is here"

@@ -104,6 +104,11 @@ const snapshotG = () => {
     offlineBudget: G.offlineBudget,
     renownHigh: G.renownHigh,
     createdAt: G.createdAt,
+    // b228: the Chronicle. The suite drives record()/reconcile() directly and
+    // opens the panel (which stamps seenAt), so without this a run would write
+    // test milestones into the player's permanent history and clear the badge
+    // on real milestones they had not read yet.
+    chronicle: G.chronicle,
   }));
 };
 
@@ -7125,7 +7130,7 @@ const TESTS = [
        a defect. Hide the transient overlays for the measurement, restore them
        after. (The b224 audit log: clear overlays BEFORE each measurement.) */
     const veiled = Array.from(document.querySelectorAll(
-      '.ftue-root, .modal.show, .hr-id-scrim, .hr-dl-scrim, #chat-dock, #hr-bug-btn, #notifs'
+      '.ftue-root, .modal.show, .hr-id-scrim, .hr-dl-scrim, .hr-ch-scrim, #chat-dock, #hr-bug-btn, #notifs'
     )).map((el) => ({ el, prev: el.style.display }));
     veiled.forEach(({ el }) => { el.style.display = 'none'; });
     try {
@@ -11174,6 +11179,425 @@ const TESTS = [
       restoreG(snap);
       try { window.showTab('profile'); } catch (e) {}
     }
+  }),
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b228 regression suite — THE CHRONICLE (audit finding #3, the dead bell)
+
+     The bell had no handler, no listener anywhere in src/, and a `#nb-dot`
+     badge hardcoded to 0 with no writer. These guard the four promises the
+     replacement makes:
+       1. the bell opens a panel and the panel shows what was recorded,
+       2. the badge counts MILESTONES only and clears on open,
+       3. a milestone is permanent — it survives save/load and compaction,
+       4. nothing here is invented: an undated entry says so.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b228: the topbar bell opens (and closes) the Chronicle', () => {
+    const C = window.HearthriseChronicle;
+    assert(C && typeof C.open === 'function', 'HearthriseChronicle missing');
+    const bell = document.getElementById('btn-notif');
+    assert(bell, '#btn-notif is gone from the topbar');
+    const snap = snapshotG();
+    try {
+      C.close();
+      bell.click();
+      assert(document.getElementById('hr-ch-modal'), 'clicking the bell did not open the Chronicle');
+      assert(C.isOpen(), 'isOpen() disagrees with the DOM');
+      bell.click();
+      assert(!document.getElementById('hr-ch-modal'), 'clicking the bell again did not close the Chronicle');
+      // Escape must work too — audit finding #10 is that the newer scrim
+      // family binds Escape to itself and never takes focus, so it can never
+      // fire. This one binds at the document, in capture.
+      C.open();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      assert(!document.getElementById('hr-ch-modal'), 'Escape did not close the Chronicle');
+    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: record → render round-trip (the entry reaches the panel, with its age)', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };
+      const twoDays = Date.now() - 2 * 86400000;
+      const r = C.record('skill', 'Reached Woodcutting 50', { id: 'skill:woodcutting:50', level: 50, ts: twoDays });
+      assert(r.added, 'record() refused a fresh milestone');
+      assert(r.entry.dated === 1 && r.entry.ts === twoDays, 'a recorded milestone must keep its timestamp');
+
+      const modal = C.open();
+      const txt = modal.textContent;
+      assert(txt.indexOf('Reached Woodcutting 50') >= 0, 'the milestone is not rendered in the panel');
+      assert(txt.indexOf('2 days ago') >= 0, 'the panel must render the age, got: ' + txt.slice(0, 200));
+      assert(txt.indexOf('Milestones') >= 0 && txt.indexOf('This session') >= 0,
+        'both sections must be labelled');
+    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: record() is idempotent on id — a hook and reconcile cannot double-log', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };
+      assert(C.record('boss', 'First kill — Ancient Lich', { id: 'boss:lich' }).added, 'first record should add');
+      assert(!C.record('boss', 'First kill — Ancient Lich', { id: 'boss:lich' }).added, 'second record must be refused');
+      assert(!C.record('boss', 'Totally different wording', { id: 'boss:lich' }).added,
+        'identity is the id, not the text — a reworded duplicate must still be refused');
+      assert(C.entries().length === 1, 'expected exactly one entry, got ' + C.entries().length);
+      // Empty text is not a milestone.
+      assert(!C.record('rank', '   ', { id: 'rank:blank' }).added, 'an empty milestone must be refused');
+    } finally { restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: the badge counts unseen milestones and clears on open', () => {
+    const C = window.HearthriseChronicle;
+    const dot = document.getElementById('nb-dot');
+    assert(dot, '#nb-dot is gone from the topbar');
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: Date.now() - 60000, seeded: 1 };
+      assert(C.unseen() === 0, 'an empty Chronicle must show no badge');
+      C.record('rank', 'Rose to Baron', { id: 'rank:baron' });
+      C.record('skill', 'Mastered Woodcutting — level 99', { id: 'skill:woodcutting:99', level: 99 });
+      assert(C.unseen() === 2, 'two new milestones should read as 2, got ' + C.unseen());
+      C.updateBadge();
+      assert(!dot.classList.contains('hide'), 'the badge must be visible when something is unread');
+      assert(dot.textContent === '2', 'the badge should read 2, got "' + dot.textContent + '"');
+
+      C.open();
+      assert(C.unseen() === 0, 'opening the Chronicle must clear the unseen count');
+      C.close();
+      C.updateBadge();
+      assert(dot.classList.contains('hide'), 'the badge must hide again once read');
+    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} window.HearthriseChronicle.updateBadge(); }
+  }),
+
+  () => tryRun('b228: the badge ignores toasts and undated history — it can never be permanent noise', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: Date.now() - 60000, seeded: 1 };
+      // 40 toasts — the shape of one minute of idle play.
+      for (let i = 0; i < 40; i++) window.notify('b228 badge probe ' + i, 'loot');
+      assert(C.unseen() === 0, 'toasts must never touch the badge, got ' + C.unseen());
+      // Undated (seeded) history is not news either.
+      C.record('rank', 'Rose to Serf', { id: 'rank:serf', dated: false });
+      C.record('property', 'Homestead raised to Stonecross Manor', { id: 'property:3', dated: false });
+      assert(C.unseen() === 0, 'undated seed entries must never light the badge, got ' + C.unseen());
+      // …but a real one does.
+      C.record('hunt', 'Cleared the Keep Hunt', { id: 'hunt:b228probe' });
+      assert(C.unseen() === 1, 'a genuinely new milestone must light the badge');
+    } finally {
+      C.close(); C.clearRecent();
+      try { window.HearthriseToasts.clear(); } catch {}
+      restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge();
+    }
+  }),
+
+  () => tryRun('b228: a milestone is PERMANENT — it survives a real save/load round-trip', () => {
+    const C = window.HearthriseChronicle;
+    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };
+      C.record('rank', 'Rose to Viscount', { id: 'rank:b228roundtrip' });
+      window.saveLocal();
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };   // memory only
+      window.loadLocal();
+      const found = (window.G.chronicle.entries || []).filter((e) => e.id === 'rank:b228roundtrip');
+      assert(found.length === 1, 'the milestone did not survive save/load');
+      assert(found[0].keep === 1, 'a rank-up must be flagged protected on the way through the save');
+      // …and it must reach the cloud too, or a restore hands back a blank history.
+      const cloud = window.HearthriseEvents.snapshot(window.G);
+      assert(cloud && cloud.chronicle && Array.isArray(cloud.chronicle.entries),
+        'G.chronicle must be in the cloud snapshot allowlist (net/events.js)');
+      assert(cloud.chronicle.entries.some((e) => e.id === 'rank:b228roundtrip'),
+        'the cloud snapshot carries a chronicle without the milestone in it');
+    } finally { restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: compaction holds the cap and never drops a rank-up or a 99', () => {
+    const C = window.HearthriseChronicle;
+    const cap = C.MAX_MILESTONES;
+    // The worst case: the two protected entries are the OLDEST in the list,
+    // so a naive "drop from the front" would take them first.
+    const list = [
+      { id: 'rank:peasant', kind: 'rank', text: 'Rose to Serf', ts: 1, dated: 1, keep: 1 },
+      { id: 'skill:woodcutting:99', kind: 'skill', text: 'Mastered Woodcutting — level 99', ts: 2, dated: 1, keep: 1 },
+    ];
+    for (let i = 0; i < cap + 120; i++) {
+      list.push({ id: 'hunt:w' + i, kind: 'hunt', text: 'Cleared the Warband Hunt', ts: 100 + i, dated: 1 });
+    }
+    const before = list.length;
+    C._compact(list, cap);
+    assert(list.length === cap, 'compaction should land on the cap (' + cap + '), got ' + list.length);
+    assert(list.some((e) => e.id === 'rank:peasant'), 'compaction dropped a rank-up');
+    assert(list.some((e) => e.id === 'skill:woodcutting:99'), 'compaction dropped a 99');
+    // It must drop the OLDEST droppable, not the newest.
+    assert(!list.some((e) => e.id === 'hunt:w0'), 'compaction kept the oldest droppable entry');
+    assert(list.some((e) => e.id === 'hunt:w' + (before - 3)), 'compaction dropped the newest entry');
+    // A list under the cap is untouched.
+    const small = [{ id: 'a', kind: 'hunt', text: 'x', ts: 1, dated: 1 }];
+    C._compact(small, cap);
+    assert(small.length === 1, 'compaction must not touch a list under the cap');
+  }),
+
+  () => tryRun('b228: the toast queue feeds the Recent ring at its choke-point', () => {
+    const C = window.HearthriseChronicle;
+    C.clearRecent();
+    try {
+      window.notify('b228 recent probe alpha', 'loot');
+      const r1 = C.recent();
+      assert(r1.length === 1 && r1[0].text.indexOf('b228 recent probe alpha') >= 0,
+        'notify() did not reach the Recent ring, got ' + JSON.stringify(r1.slice(0, 2)));
+      assert(r1[0].type === 'loot', 'the toast type must be carried through');
+      // Identical repeats coalesce rather than filling the ring.
+      window.notify('b228 recent probe alpha', 'loot');
+      window.notify('b228 recent probe alpha', 'loot');
+      const r2 = C.recent();
+      assert(r2.length === 1, 'identical toasts must coalesce, got ' + r2.length + ' rows');
+      assert(r2[0].count === 3, 'the coalesced row should read ×3, got ' + r2[0].count);
+      // The ring is capped.
+      for (let i = 0; i < C.MAX_RECENT + 25; i++) window.notify('b228 ring fill ' + i, 'info');
+      assert(C.recent().length <= C.MAX_RECENT,
+        'the Recent ring blew its cap: ' + C.recent().length + ' > ' + C.MAX_RECENT);
+      // …and it is NOT in the save. This tier is deliberately session-only.
+      assert(!('recent' in (window.G.chronicle || {})),
+        'the Recent ring must never be persisted — it is session memory by design');
+    } finally { C.clearRecent(); try { window.HearthriseToasts.clear(); } catch {} }
+  }),
+
+  () => tryRun('b228: reconcile SEEDS an existing save undated, then dates what it observes', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    try {
+      // A save that plainly earned things before the Chronicle existed.
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: 0 };
+      window.G.skills = Object.assign({}, window.G.skills, { woodcutting: window.xpForLevel ? window.xpForLevel(55) : 200000 });
+      const seed = C.reconcile();
+      assert(seed.seeded === true, 'the first reconcile on a save must be the seed');
+      const seeded = C.entries();
+      assert(seeded.length > 0, 'the seed derived nothing from a save with real progress');
+      assert(seeded.every((e) => e.dated === 0 && e.ts === 0),
+        'every seeded entry must be undated — no timestamp may be invented');
+      assert(seeded.some((e) => e.id === 'skill:woodcutting:50'),
+        'the seed must derive the level marks a save has already passed');
+      assert(window.G.chronicle.seeded > 0, 'the seed must stamp itself so it runs once');
+      assert(C.unseen() === 0, 'a seed is history, not news — the badge must stay dark');
+
+      // Now the same sweep OBSERVES a change, so it may honestly date it.
+      // The seed stamped seenAt = now; this test then records the observation
+      // inside the SAME millisecond, which no player can do. Nudge the
+      // watermark back so the strict `ts > seenAt` comparison is exercised
+      // rather than raced.
+      window.G.chronicle.seenAt -= 50;
+      const t0 = Date.now();
+      window.G.skills.woodcutting = window.xpForLevel ? window.xpForLevel(76) : 1300000;
+      const again = C.reconcile();
+      assert(again.seeded === false, 'a second reconcile must not re-seed');
+      const later = C.entries().filter((e) => e.id === 'skill:woodcutting:75');
+      assert(later.length === 1, 'reconcile missed the newly-crossed mark');
+      assert(later[0].dated === 1 && later[0].ts >= t0,
+        'a change reconcile OBSERVED may be dated — it saw the lower value last sweep');
+      assert(C.unseen() === 1, 'an observed milestone is news and must light the badge');
+    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge(); }
+  }),
+
+  () => tryRun('b228: the level-marks rule fires only on the published marks', () => {
+    const C = window.HearthriseChronicle;
+    assert(JSON.stringify(C.LEVEL_MARKS) === JSON.stringify([25, 50, 75, 92, 99]),
+      'the published level marks changed: ' + JSON.stringify(C.LEVEL_MARKS));
+    assert(C._marksCrossed(24, 26).join() === '25', '24 → 26 crosses 25 only');
+    assert(C._marksCrossed(50, 50).length === 0, 'no movement crosses nothing');
+    assert(C._marksCrossed(49, 51).join() === '50', 'the boundary is >=, not >');
+    // A single huge grant (an admin jump, a quest payout) records every mark it passed.
+    assert(C._marksCrossed(1, 99).join() === '25,50,75,92,99', 'one big grant must record every mark it passed');
+    assert(C._marksCrossed(92, 99).join() === '99', 'the final mark stands alone');
+  }),
+
+  () => tryRun('b228: every milestone source is hooked at the source', () => {
+    // Each of these is a wrapper chronicle.js installs onto an already
+    // exported seam — no edit inside the system that owns the moment, so the
+    // wrappers compose with collection-log/pets/companions/legacy's own.
+    // Assert the module's own registry, NOT a marker on the live global:
+    // companions.js is an ES module and re-wraps window.killMonster after
+    // every classic script, so the marker moves off the outermost function
+    // while our wrapper is still very much in the chain.
+    const h = window.HearthriseChronicle._hooks();
+    const missing = Object.keys(h).filter((k) => !h[k]);
+    assert(missing.length === 0, 'unhooked milestone sources: ' + missing.join(', '));
+  }),
+
+  () => tryRun('b228: a boss first-kill is recorded once, by the kill itself', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    // G.bestiary and G.collection are NOT in the snapshotG allowlist (they are
+    // lifetime discovery ledgers no other test writes), so this one restores
+    // them itself rather than widening a shared allowlist for one test.
+    const bestBefore = JSON.parse(JSON.stringify(window.G.bestiary || {}));
+    const colBefore = JSON.parse(JSON.stringify(window.G.collection || {}));
+    try {
+      window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };
+      window.G.bestiary = window.G.bestiary || {};
+      delete window.G.bestiary.lich;
+      window.G.activeMonster = 'lich';
+      const lich = window.MONSTERS.lich;
+      assert(lich && lich.boss, 'the lich must still be a boss for this test to mean anything');
+      const t0 = Date.now();
+      window.killMonster(lich);
+      const hit = C.entries().filter((e) => e.id === 'boss:lich');
+      assert(hit.length === 1, 'the first kill of a boss was not recorded, got ' + hit.length);
+      assert(hit[0].dated === 1 && hit[0].ts >= t0, 'a kill you were present for must carry a real timestamp');
+      assert(hit[0].text.indexOf('Ancient Lich') >= 0, 'the entry must name the boss');
+      // Killing it again is not a first kill.
+      window.G.activeMonster = 'lich';
+      window.killMonster(lich);
+      assert(C.entries().filter((e) => e.id === 'boss:lich').length === 1,
+        'the second kill of a boss must not add a second entry');
+      // A non-boss never enters the Chronicle — that is the Collection Log's job.
+      window.G.activeMonster = 'goblin';
+      delete window.G.bestiary.goblin;
+      window.killMonster(window.MONSTERS.goblin);
+      assert(!C.entries().some((e) => e.id === 'boss:goblin'), 'an ordinary monster is not a milestone');
+    } finally {
+      try { window.stopCombat && window.stopCombat(); } catch {}
+      window.G.bestiary = bestBefore;
+      window.G.collection = colBefore;
+      restoreG(snap); try { window.saveLocal(); } catch {}
+    }
+  }),
+
+  () => tryRun('b228: the Chronicle is EVENTS — it does not duplicate the Collection Log, it links to it', () => {
+    const C = window.HearthriseChronicle;
+    const kinds = Object.keys(C.MILESTONE_KINDS);
+    assert(kinds.indexOf('item') < 0 && kinds.indexOf('collection') < 0,
+      'item discovery belongs to the Collection Log, not the Chronicle');
+    const snap = snapshotG();
+    try {
+      const modal = C.open();
+      const link = [...modal.querySelectorAll('button')]
+        .find((b) => /collection log/i.test(b.textContent || ''));
+      assert(link, 'the Chronicle must offer the route to the Collection Log');
+      assert(typeof window.HearthriseCollection.open === 'function',
+        'the link has nowhere to go — HearthriseCollection.open is missing');
+    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: the Chronicle panel renders no emoji and nothing under the reading floor', () => {
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    try {
+      window.G.chronicle = {
+        v: 1, seenAt: 0, seeded: Date.now(),
+        entries: [
+          { id: 'rank:baron', kind: 'rank', text: 'Rose to Baron', ts: Date.now() - 3600000, dated: 1, keep: 1 },
+          { id: 'property:2', kind: 'property', text: 'Homestead raised to Fieldworth Farmstead', ts: 0, dated: 0 },
+        ],
+      };
+      window.notify('b228 render probe', 'info');
+      const modal = C.open();
+      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{231A}-\u{23FF}]/u;
+      const hit = EMOJI.exec(modal.textContent || '');
+      assert(!hit, 'the Chronicle renders an emoji: "' + (hit && hit[0]) + '" (Final Directive)');
+
+      const FLOOR = 14.5;
+      const small = [];
+      for (const el of modal.querySelectorAll('*')) {
+        if (el.ownerSVGElement || el.tagName.toLowerCase() === 'svg') continue;
+        let own = '';
+        for (const n of el.childNodes) if (n.nodeType === 3) own += n.nodeValue;
+        if (!own.trim()) continue;
+        const px = parseFloat(getComputedStyle(el).fontSize);
+        if (px < FLOOR) small.push(el.className + ' @ ' + px + 'px');
+      }
+      assert(small.length === 0, 'Chronicle text under the ' + FLOOR + 'px floor: ' + small.slice(0, 5).join(' | '));
+
+      // The undated entry must SAY it is undated rather than wear a fake date.
+      assert(modal.textContent.indexOf('Before the Chronicle') >= 0,
+        'undated history needs its own honest heading');
+      assert(modal.textContent.indexOf('undated') >= 0, 'an undated entry must be labelled undated');
+    } finally { C.close(); C.clearRecent(); try { window.HearthriseToasts.clear(); } catch {} restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('b228: a brand-new player opening the bell gets an honest empty state', () => {
+    // The first thing a fresh account can do is click the bell. Nothing is
+    // derivable yet, so both sections must be empty AND say why — the
+    // art-direction rule is that an empty state describes the state, never
+    // the roadmap ("coming soon" / dashed borders are wireframe language).
+    const C = window.HearthriseChronicle;
+    const snap = snapshotG();
+    const bestBefore = JSON.parse(JSON.stringify(window.G.bestiary || {}));
+    const colBefore = JSON.parse(JSON.stringify(window.G.collection || {}));
+    const streakBefore = window.G.streak;
+    try {
+      const G = window.G;
+      Object.keys(G.skills).forEach((k) => { G.skills[k] = 0; });
+      G.bestiary = {}; G.homestead = { tier: 0 };
+      G.companions = Object.assign({}, G.companions, { ownedIds: ['fox'] });
+      G.playerName = 'Adventurer';
+      G.renown = { claimed: [], seenRank: 0 }; G.renownHigh = 0;
+      G.stats = { kills: 0, gathered: 0, harvested: 0, rareDrops: 0 };
+      // Every other term computeRenown() reads, so the fresh account really
+      // scores zero and sits at rank 0 (Peasant — the start, not a milestone).
+      G.gold = 0; G.collection = {}; G.quests = [];
+      G.streak = { best: 0, count: 0 };
+      G.bountyHunter = Object.assign({}, G.bountyHunter, { completed: 0 });
+      G.chronicle = { v: 1, entries: [], seenAt: Date.now(), seeded: Date.now() };
+      C.clearRecent();
+      try { window.HearthriseToasts.clear(); } catch {}
+
+      const modal = C.open();
+      const txt = modal.textContent;
+      assert(C.entries().length === 0,
+        'a fresh account derives nothing, got: ' + C.entries().map((e) => e.id).join(', '));
+      assert(txt.indexOf('No milestones recorded yet') >= 0, 'the header must state the empty case');
+      assert(txt.indexOf('Nothing recorded yet') >= 0, 'the Milestones section needs an empty state');
+      assert(txt.indexOf('No notifications yet this session') >= 0, 'the Recent section needs an empty state');
+      assert(!/coming soon|coming in|not yet available|todo/i.test(txt),
+        'an empty state describes the state, never the roadmap');
+      assert(txt.indexOf('Before the Chronicle') < 0,
+        'a player with no history must not be shown the undated heading');
+      assert(C.unseen() === 0, 'a fresh account has nothing unread');
+    } finally {
+      C.close(); C.clearRecent();
+      window.G.bestiary = bestBefore;
+      window.G.collection = colBefore;
+      window.G.streak = streakBefore;
+      restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge();
+    }
+  }),
+
+  () => tryRun('b228: relative time is honest at every step, and undated says so', () => {
+    const C = window.HearthriseChronicle;
+    const now = 1700000000000;
+    const ago = (ms) => C._relTime(now - ms, now);
+    assert(C._relTime(0, now) === 'before the Chronicle', 'ts 0 means undated');
+    assert(ago(5000) === 'just now', 'under a minute is "just now", got ' + ago(5000));
+    assert(ago(60000) === '1 minute ago', 'singular minute, got ' + ago(60000));
+    assert(ago(3 * 60000) === '3 minutes ago', 'plural minutes, got ' + ago(3 * 60000));
+    assert(ago(3600000) === '1 hour ago', 'singular hour, got ' + ago(3600000));
+    assert(ago(2 * 86400000) === '2 days ago', 'Tyler\'s example, got ' + ago(2 * 86400000));
+    assert(ago(9 * 86400000) === '1 week ago', 'weeks, got ' + ago(9 * 86400000));
+    assert(!/NaN|Invalid/.test(ago(400 * 86400000)), 'a year-old entry must still format, got ' + ago(400 * 86400000));
+  }),
+
+  () => tryRun('b228: the save migration reserves the Chronicle without inventing history', () => {
+    // b228 merge: homestead's room clamp took v9, so the Chronicle is v9 → v10.
+    const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 9 && m.to === 10);
+    assert(M, 'the v9 → v10 Chronicle migration is missing');
+    assert(window.HEARTHRISE_SCHEMA_VERSION >= 10, 'CURRENT_SCHEMA_VERSION was not bumped to 10');
+    const save = { v: 9, skills: { woodcutting: 999999 } };
+    M.apply(save);
+    assert(save.chronicle && Array.isArray(save.chronicle.entries), 'the migration must reserve the shape');
+    assert(save.chronicle.entries.length === 0,
+      'the migration must NOT write entries — the runtime seeds them with the live tables in front of it');
+    assert(save.chronicle.seeded === 0, 'seeded must stay 0 so chronicle.js knows to seed');
+    // Idempotent, and it repairs a half-written record rather than clobbering it.
+    const kept = { v: 8, chronicle: { v: 1, entries: [{ id: 'rank:baron', kind: 'rank', text: 'Rose to Baron', ts: 5, dated: 1 }] } };
+    M.apply(kept); M.apply(kept);
+    assert(kept.chronicle.entries.length === 1, 're-running the migration must never drop recorded history');
+    assert(kept.chronicle.seenAt === 0 && kept.chronicle.seeded === 0, 'missing fields must be repaired, not ignored');
   }),
 
 ];

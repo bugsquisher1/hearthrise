@@ -60,6 +60,18 @@
       "port": 8174
     },
     {
+      "name": "hearthrise-clangov",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8178",
+        "--directory",
+        ".claude/worktrees/manual-clangov"
+      ],
+      "port": 8178
+    },
+    {
       "name": "hearthrise-homestead",
       "runtimeExecutable": "python",
       "runtimeArgs": [

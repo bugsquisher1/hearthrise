@@ -939,5 +939,9 @@
   <script src="src/network-status.js?v=227"></script>
   <script src="src/error-boundary.js?v=227"></script>
   <script type="module" src="src/main.js?v=227"></script>
+  <!-- b228 — the Chronicle (the topbar bell's panel). Loads LAST of the
+       feature scripts on purpose: it installs wrappers on window.addXp,
+       killMonster, celebrate etc., and every seam must exist first. -->
+  <script src="src/features/chronicle.js?v=227"></script>
 </body>
 </html>

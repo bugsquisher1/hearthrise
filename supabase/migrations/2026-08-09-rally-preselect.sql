@@ -364,4 +364,3 @@ begin
 
   raise notice 'RALLY PRE-SELECT migration OK — schedule, pledge table, both locks and the payout verified.';
 end $$;
-</content>

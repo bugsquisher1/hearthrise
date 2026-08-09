@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 9;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 10;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -346,6 +346,42 @@
           if(def && def.levels && lv > def.levels.length) lv = def.levels.length;
           save.rooms[id] = lv;
         });
+      },
+    },
+    {
+      from: 9, to: 10,
+      name: 'v9 → v10 (b228: the Chronicle — reserve the shape, let the runtime seed it)',
+      // The Chronicle is the permanent milestone record behind the topbar
+      // bell. This migration deliberately does NOT write any entries.
+      //
+      // Why not seed here: a migration runs on a PARSED SAVE OBJECT, before
+      // it is merged into G and before any feature module has booted. The
+      // seed needs HearthriseRenown (to know which ranks a score has passed),
+      // HearthriseHomestead.TIERS, window.MONSTERS, window.COMPANIONS and
+      // window.SKILLS_DEF — none of which this function may assume, and
+      // several of which are LIVE DATA TABLES that change between builds. A
+      // migration must describe the world as it was; deriving milestones from
+      // tables that will keep moving is exactly the thing a migration must
+      // not do.
+      //
+      // So the shape is reserved here and chronicle.js seeds on its first
+      // boot instead (`seeded === 0` is the trigger), with the current tables
+      // in front of it. Everything that seed derives is stored `dated: 0` and
+      // renders under "Before the Chronicle" — no timestamp is ever invented
+      // for a moment nobody recorded.
+      //
+      // `seenAt: 0` is safe: the seed sets it to `now` in the same pass, so an
+      // existing player's badge opens at 0 rather than at their whole history.
+      apply: function(save){
+        if(save.chronicle == null || typeof save.chronicle !== 'object' || Array.isArray(save.chronicle)){
+          save.chronicle = { v: 1, entries: [], seenAt: 0, seeded: 0 };
+          return;
+        }
+        // Idempotent repair for a partially-written record.
+        if(!Array.isArray(save.chronicle.entries)) save.chronicle.entries = [];
+        if(typeof save.chronicle.seenAt !== 'number') save.chronicle.seenAt = 0;
+        if(typeof save.chronicle.seeded !== 'number') save.chronicle.seeded = 0;
+        save.chronicle.v = 1;
       },
     },
     // Future migrations go here. Example:

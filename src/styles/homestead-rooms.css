@@ -116,11 +116,23 @@
   line-height: 1;
   padding: 4px 8px;
   border-radius: 999px;
-  color: var(--ink-inv, var(--bg-0));
+  /* b229 (Tyler): the pill was gilt-on-gilt and unreadable. Two causes:
+     --ink-inv resolved light, AND theme-cozy's #panel-house color blanket
+     (b222) forces var(--ink) !important — its carve-out list predates the
+     homestead's .hh-* classes. Gilt fills take dark ink; !important is the
+     only way past the blanket, same as board-and-shop.css / clan-seat.css. */
+  color: #241a06 !important;
+  font-weight: 700;
   background: var(--gold-2);
   white-space: nowrap;
 }
-.hh-room-badge i { font-style: normal; opacity: .62; }
+/* b229: the base rule above still loses to theme-cozy's #panel-house color
+   blanket — two !important rules fall to specificity and a lone class can't
+   beat an id. Match the blanket's id+class weight; homestead-rooms.css loads
+   after theme-cozy.css, so the tie breaks our way. */
+body[data-theme="hearthlight"] #panel-house .hh-room-badge,
+#panel-house .hh-room-badge { color: #241a06 !important; }
+.hh-room-badge i { font-style: normal; opacity: .78; }
 .hh-room-badge.is-lock {
   background: transparent;
   color: var(--ink-3);

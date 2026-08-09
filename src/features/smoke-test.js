@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=231' directly.
+// modularised, will import { G } from '../state/game.js?v=233' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=231';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=231';
+import { on, snapshot } from '../net/events.js?v=233';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=233';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=231';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=233';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11996,12 +11996,10 @@ const TESTS = [
       // 1 — a gathering daily opens the SKILL's detail, not the grid.
       const fish = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'fish');
       QN.go(fish);
-      // b229: Skills folded into the Character screen — the skills route now
-      // lands on #panel-character with the Skills sub-tab selected.
-      assert(document.getElementById('panel-character').classList.contains('active'),
-        'Catch 15 fish must land on the Character screen (Skills folded in)');
-      assert((window._charPane || 'skills') === 'skills',
-        'a skills route must select the Skills sub-tab, got _charPane=' + window._charPane);
+      // b232: Skills is a standalone Adventure screen again — a gathering goal
+      // lands on #panel-skills (the activity screen), NOT the Character overview.
+      assert(document.getElementById('panel-skills').classList.contains('active'),
+        'Catch 15 fish must land on the standalone Skills activity screen');
       assert(window.__viewedSkillId === 'fishing',
         'it must OPEN fishing, not leave the player on the grid (got ' + window.__viewedSkillId + ')');
       // openSkillDetail defers its paint a tick; paint it to see what the
@@ -12063,9 +12061,9 @@ const TESTS = [
       assert(!document.getElementById('quests-modal-overlay'),
         'the modal must close on Go — an overlay over the destination is the same dead end');
       // `activeTab` is a legacy `let`, so it is NOT on window — read the DOM,
-      // which is what the player sees anyway. b229: a 'skills' destination now
-      // resolves to the Character screen (Skills sub-tab), so map it here.
-      const wantPanel = (want.tab === 'skills') ? 'character' : want.tab;
+      // which is what the player sees anyway. b232: a 'skills' destination
+      // resolves to the standalone #panel-skills activity screen again.
+      const wantPanel = want.tab;
       const landed = document.getElementById('panel-' + wantPanel);
       assert(landed && landed.classList.contains('active'),
         'Go did not land on the ' + wantPanel + ' panel for "' + goal.name + '"');
@@ -13293,26 +13291,27 @@ const TESTS = [
     const prevPane = window._charPane;
     try {
       window.showTab('skills');
-      assert(document.getElementById('panel-character').classList.contains('active'),
-        'showTab("skills") must activate the Character panel, not #panel-skills');
-      assert((window._charPane || 'skills') === 'skills', 'the alias must select the Skills sub-tab');
-      // The relocated ids must live inside the Character panel (moved, not duplicated).
-      assert(document.querySelector('#panel-character #skills-list'), '#skills-list must live inside the Character panel now');
-      assert(document.querySelector('#panel-character #skill-detail'), '#skill-detail must live inside the Character panel now');
-      assert(!document.querySelector('#panel-skills #skill-detail'), '#skill-detail must NOT be duplicated in the old stub');
-      assert(document.querySelectorAll('#skills-list .skill-tile').length > 0, 'the skills grid rendered no tiles');
+      assert(document.getElementById('panel-skills').classList.contains('active'),
+        'b232: showTab("skills") must activate the standalone #panel-skills activity screen');
+      assert(!document.getElementById('panel-character').classList.contains('active'),
+        'showTab("skills") must NOT land on the Character overview any more');
+      // The activity ids live in the standalone panel (moved back out of Character).
+      assert(document.querySelector('#panel-skills #skills-list'), '#skills-list must live inside #panel-skills');
+      assert(document.querySelector('#panel-skills #skill-detail'), '#skill-detail must live inside #panel-skills');
+      assert(!document.querySelector('#panel-character #skill-detail'), '#skill-detail must NOT be inside the Character overview');
+      assert(document.querySelectorAll('#skills-list .skill-tile').length > 0, 'the activity skill list rendered no tiles');
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
-  () => tryRun('b229: live progress bar not frozen — isSkillsVisible() true on Character/Skills', () => {
-    const prevPane = window._charPane;
+  () => tryRun('b232: live progress bar not frozen — isSkillsVisible() true on the activity screen', () => {
+    const prevTab = window.activeTab;
     try {
       assert(typeof window.isSkillsVisible === 'function', 'isSkillsVisible() seam missing (guards would freeze the bar)');
-      window.showTab('skills');                  // → Character, Skills sub-tab
-      assert(window.isSkillsVisible() === true, 'isSkillsVisible() must be true with Character open on the Skills sub-tab');
-      window._charPane = 'hero';
-      assert(window.isSkillsVisible() === false, 'isSkillsVisible() must be false on the Hero sub-tab (no bar to update)');
-    } finally { window._charPane = prevPane; window.showTab('profile'); }
+      window.showTab('skills');                  // → standalone activity screen
+      assert(window.isSkillsVisible() === true, 'isSkillsVisible() must be true on the Skills activity screen');
+      window.showTab('character');               // the overview has no live bar
+      assert(window.isSkillsVisible() === false, 'isSkillsVisible() must be false on the Character overview (no bar there)');
+    } finally { window.showTab(prevTab || 'profile'); }
   }),
 
   () => tryRun('b229: sub-tab survives an auto-refresh re-render (b218 snap-back guard)', () => {
@@ -13330,19 +13329,28 @@ const TESTS = [
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
-  () => tryRun('b229: a skill tile is a door — routes to its activity via the existing seam', () => {
+  () => tryRun('b232: the Character skills grid is a door — a tile routes OUT to its activity', () => {
     const prevPane = window._charPane;
     try {
-      window.showTab('skills');
-      const tile = document.querySelector('#skills-list .skill-tile');
-      assert(tile, 'no skill tile to click');
-      const oc = tile.getAttribute('onclick') || '';
-      assert(/openSkillDetail\(/.test(oc), 'a skill tile must route through openSkillDetail (the existing quest-nav seam), got: ' + oc);
-      // Drilling into a skill paints its activity detail inside the Character screen.
-      window.openSkillDetail('mining');
+      // The overview grid lives on the Character screen; each tile routes via hrOpenActivity.
+      window.showTab('character');
+      window._charPane = 'skills';
+      window.renderCharacter();
+      const tiles = document.querySelectorAll('#panel-character .csk-grid .csk-tile');
+      assert(tiles.length >= 10, 'the Character overview must render a grid of every skill, got ' + tiles.length);
+      const oc = tiles[0].getAttribute('onclick') || '';
+      assert(/hrOpenActivity\(/.test(oc), 'a skill tile must route through window.hrOpenActivity, got: ' + oc);
+      assert(typeof window.hrOpenActivity === 'function', 'window.hrOpenActivity router must exist');
+      // A gathering skill routes to the standalone activity screen and paints its tiles there.
+      window.hrOpenActivity('mining');
       window.renderSkillDetail('mining');
-      const grid = document.querySelector('#panel-character #skill-detail .act-grid');
-      assert(grid && grid.querySelectorAll('.act-tile').length > 0, 'the mining activity grid did not render inside the Character screen');
+      assert(document.getElementById('panel-skills').classList.contains('active'),
+        'a gathering tile must route to the standalone Skills activity screen');
+      const grid = document.querySelector('#panel-skills #skill-detail .act-grid');
+      assert(grid && grid.querySelectorAll('.act-tile').length > 0, 'the mining activity grid did not render on the activity screen');
+      // A combat skill routes to Combat instead.
+      window.hrOpenActivity('attack');
+      assert(document.getElementById('panel-combat').classList.contains('active'), 'a combat tile must route to Combat');
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
@@ -13421,13 +13429,13 @@ const TESTS = [
     if (root) assert(/your heroes/i.test(root.textContent), 'Home must render a real "Your heroes" block from HearthriseProfile');
   }),
 
-  () => tryRun('b229: every folded route still resolves (character / skills / profile)', () => {
+  () => tryRun('b232: every route still resolves (character overview / skills activity / profile)', () => {
     const prevPane = window._charPane;
     try {
       window.showTab('character');
       assert(document.getElementById('panel-character').classList.contains('active'), 'character route broke');
       window.showTab('skills');
-      assert(document.getElementById('panel-character').classList.contains('active'), 'skills alias must resolve to Character');
+      assert(document.getElementById('panel-skills').classList.contains('active'), 'skills route must resolve to the standalone activity screen');
       window.showTab('profile');
       assert(document.getElementById('panel-profile').classList.contains('active'), 'profile route broke');
     } finally { window._charPane = prevPane; window.showTab('profile'); }

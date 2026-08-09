@@ -1,26 +1,28 @@
-// Character page renderer — the combined Character screen (b229 rework).
+// Character page renderer — the Character OVERVIEW screen (b232 rework, Tyler).
 //
 // Three sub-tabs, Skills default:
-//   • Skills    — the OSRS-our-own skills grid (relocated #skills-list) + the
-//                 skill's activity detail (#skill-detail), reusing the existing
-//                 activities-grid renderers by id. Each tile routes to its
-//                 activity via the existing openSkillDetail / quest-nav seam.
+//   • Skills    — the character OVERVIEW: an identity banner (portrait, name,
+//                 rank · renown, TOTAL LEVEL) + a dense grid of EVERY skill
+//                 (icon + level + xp bar) + the Hero·Account stat panel. It does
+//                 NOT embed the activity tiles — each tile routes OUT via
+//                 window.hrOpenActivity: combat→Combat, farm→Farm, and every
+//                 gathering/artisan skill→the standalone Adventure→Skills screen
+//                 (#panel-skills) where training actually happens.
 //   • Equipment — window.buildTibiaDoll() reused WHOLESALE (its internal
 //                 Equipment / Stats / Companion panes come free, _tdPane intact).
-//   • Hero      — identity header + the OSRS-style Account stat grid (every cell
-//                 a real source) + Melee/Ranged/Magic breakdown + best rates.
+//   • Hero      — identity header + the Account stat grid + Melee/Ranged/Magic
+//                 breakdown + best rates.
 //
-// The old two-screen split (separate Skills tab) folds in here: showTab('skills')
-// is aliased to Character/Skills, and the live-progress guards in legacy.js are
-// broadened via isSkillsVisible() so the training bar keeps moving with the
-// Character screen open on the Skills sub-tab.
+// b232 REVERTED the b229 fold: activities live back under Adventure (their own
+// #panel-skills), so showTab('skills') no longer aliases to Character — it lands
+// on the activity screen, and isSkillsVisible() is `activeTab==='skills'` again.
 //
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=231';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=231';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=231';
+import { SKILLS_DEF } from '../data/skills.js?v=233';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=233';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=233';
 
 function deriveClass() {
   const G = window.G;
@@ -304,21 +306,82 @@ function buildRatesCard() {
     <div class="cr-rate-table">${rows}</div></div>`;
 }
 
-/* The compact identity strip that heads the Skills sub-tab — avatar, name,
-   founder mark, and the two headline levels, so the front door shows who you
-   are without leaving the grid. Total level lives here (the OSRS footer). */
-function buildSkillsIdStrip() {
+/* The identity banner that heads the Skills sub-tab — portrait, name, the
+   rank · renown line, and TOTAL LEVEL as the headline figure on the right.
+   This is the top of the character overview Tyler designed: who you are, at a
+   glance, above the skills grid. */
+function buildSkillsHeader() {
   const G = window.G || {};
   const avatarSrc = getActiveAvatar();
   const name = esc(playerName());
-  const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
-  return `<div class="cs-id-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
-    <div class="cs-id-meta"><div class="cs-id-name">${name}</div>${founderMarkHtml()}</div>
-    <div class="cs-id-levels">
-      <div class="cs-id-lv"><b>${cl}</b><span>Combat</span></div>
-      <div class="cs-id-lv"><b>${tl}</b><span>Total level</span></div>
-    </div>`;
+  let sub = '';
+  try {
+    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
+    if (rn && rn.rank) {
+      const score = (rn.score != null ? rn.score : (G.renownHigh || 0));
+      sub = `${esc(rn.rank.name)} · ${fmt(score)} Renown`;
+    }
+  } catch (e) { /* renown optional */ }
+  if (!sub) sub = esc(deriveClass().tagline);
+  return `<div class="csk-hero">
+    <div class="csk-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
+    <div class="csk-hero-id">
+      <div class="csk-hero-name">${name}</div>
+      <div class="csk-hero-sub">${sub}</div>
+      ${founderMarkHtml()}
+    </div>
+    <div class="csk-hero-total">
+      <b>${fmt(tl)}</b><span>Total level</span>
+    </div>
+  </div>`;
+}
+
+/* Grid order — the making/gathering skills lead (that is what the game is
+   mostly about), combat trails. Any skill in SKILLS_DEF not listed here still
+   renders, appended at the end, so adding a skill can never drop it silently. */
+const SKILL_ORDER = [
+  'woodcutting', 'mining', 'fishing', 'farming',
+  'cooking', 'crafting', 'smithing',
+  'attack', 'strength', 'defense', 'hitpoints',
+  'magic', 'ranged', 'prayer', 'bountyHunter',
+];
+
+function orderedSkillIds() {
+  const defs = window.SKILLS_DEF || SKILLS_DEF;
+  const seen = new Set();
+  const ids = [];
+  SKILL_ORDER.forEach((id) => { if (defs[id]) { ids.push(id); seen.add(id); } });
+  Object.keys(defs).forEach((id) => { if (!seen.has(id)) ids.push(id); });
+  return ids;
+}
+
+function skillTile(id) {
+  const defs = window.SKILLS_DEF || SKILLS_DEF;
+  const s = defs[id];
+  if (!s) return '';
+  const G = window.G || {};
+  const xp = (G.skills && G.skills[id]) || 0;
+  const lv = typeof window.getLevel === 'function' ? window.getLevel(id) : 1;
+  const pct = (typeof window.xpPct === 'function') ? Math.min(100, Math.max(0, window.xpPct(xp) * 100)) : 0;
+  const active = (G.activeSkill === id) ? ' active' : '';
+  const iconHtml = window._skillIcon && window._skillIcon[id]
+    ? `<img src="${window._skillIcon[id]}" alt="" loading="lazy" />`
+    : ((window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(id, 26)) || `<span class="csk-emoji">${s.icon || ''}</span>`);
+  const maxed = lv >= 99;
+  return `<button type="button" class="csk-tile${active}" onclick="window.hrOpenActivity&&window.hrOpenActivity('${id}')" title="${esc(s.name)} — Level ${lv}${maxed ? ' (max)' : ', ' + Math.round(pct) + '% to next'}">
+    <span class="csk-ic">${iconHtml}</span>
+    <span class="csk-tile-body">
+      <span class="csk-nm">${esc(s.name)}</span>
+      <span class="csk-bar${maxed ? ' maxed' : ''}"><i style="width:${maxed ? 100 : pct.toFixed(1)}%"></i></span>
+    </span>
+    <span class="csk-lv">${lv}</span>
+  </button>`;
+}
+
+function buildSkillGrid() {
+  const tiles = orderedSkillIds().map(skillTile).join('');
+  return `<div class="csk-grid">${tiles}</div>`;
 }
 
 // ── the combined-screen shell ─────────────────────────────────────────────
@@ -329,13 +392,9 @@ const SHELL_HTML = `<div id="char-shell">
     <button class="char-subtab" data-cpane="hero" type="button">Hero</button>
   </div>
   <div class="char-pane" id="char-skills">
-    <div class="cs-idstrip" id="cs-idstrip"></div>
-    <div class="cs-cols">
-      <div class="card cs-list"><div class="card-head"><div class="card-title">Skills</div></div>
-        <div class="card-body" id="skills-list"></div></div>
-      <div class="card cs-detail"><div class="card-head"><div class="card-title" id="skill-detail-title">Skill</div></div>
-        <div class="card-body" id="skill-detail"><div class="empty"><span class="em-icon"></span>Tap a skill to train it.</div></div></div>
-    </div>
+    <div id="csk-header"></div>
+    <div id="csk-grid-host"></div>
+    <div id="csk-account"></div>
   </div>
   <div class="char-pane" id="char-equip"></div>
   <div class="char-pane" id="char-hero"></div>
@@ -344,22 +403,42 @@ const SHELL_HTML = `<div id="char-shell">
 const PANES = { skills: 'char-skills', equip: 'char-equip', hero: 'char-hero' };
 function paneOf(p) { return (p === 'equip' || p === 'hero') ? p : 'skills'; }
 
+/* The Skills sub-tab is the character OVERVIEW (Tyler's design): identity
+   banner → dense grid of every skill → the Hero·Account stat panel. It does NOT
+   embed the activity tiles — clicking a skill routes OUT to where you train it
+   (Combat / Farm / the Adventure → Skills activity screen) via hrOpenActivity.
+   The activities themselves live under Adventure, not on this screen. */
 function refreshSkillsPane() {
-  const strip = document.getElementById('cs-idstrip');
-  if (strip) strip.innerHTML = buildSkillsIdStrip();
-  if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
-  const detailEl = document.getElementById('skill-detail');
-  const cur = window._actLastRender && window._actLastRender.skillId;
-  if (cur && typeof window.renderSkillDetail === 'function') {
-    window.renderSkillDetail(cur);
-  } else if (detailEl && !detailEl.querySelector('.act-grid')) {
-    // Auto-open the first gathering/artisan skill, exactly like the old Skills
-    // tab did — but via renderSkillDetail directly (openSkillDetail would loop
-    // back through the skills→character alias and re-enter renderCharacter).
-    const firstId = Object.keys(SKILLS_DEF).find((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
-    if (firstId && typeof window.renderSkillDetail === 'function') window.renderSkillDetail(firstId);
-  }
+  const header = document.getElementById('csk-header');
+  if (header) header.innerHTML = buildSkillsHeader();
+  const gridHost = document.getElementById('csk-grid-host');
+  if (gridHost) gridHost.innerHTML = buildSkillGrid();
+  const acct = document.getElementById('csk-account');
+  if (acct) acct.innerHTML = buildAccountStatGrid();
+  // The account panel's "click to reveal" cells (Total XP / Time played).
+  if (acct) acct.querySelectorAll('[data-reveal]').forEach((el) => {
+    el.onclick = function () {
+      const k = el.getAttribute('data-reveal');
+      const r = window._charReveal || (window._charReveal = { xp: false, time: false });
+      r[k] = true;
+      refreshSkillsPane();
+    };
+  });
 }
+
+/* Route a skill tile to where that skill is actually trained. Combat skills →
+   the Combat screen; farming → the Farm; every gathering/artisan skill → the
+   Adventure activity screen (openSkillDetail, which now lands on #panel-skills).
+   This is the "activities live in Adventure, not on the character sheet" rule. */
+window.hrOpenActivity = function (id) {
+  const defs = window.SKILLS_DEF || SKILLS_DEF;
+  const s = defs[id];
+  if (!s) return;
+  if (s.cat === 'combat') { if (typeof window.showTab === 'function') window.showTab('combat'); return; }
+  if (id === 'farming') { if (typeof window.showTab === 'function') window.showTab('farming'); return; }
+  if (typeof window.openSkillDetail === 'function') window.openSkillDetail(id);
+  else if (typeof window.showTab === 'function') window.showTab('skills');
+};
 
 function refreshEquipPane() {
   const host = document.getElementById('char-equip');
@@ -448,8 +527,8 @@ function ensureSkillsHelper() {
   // don't depend on ESM boot order); this is the belt-and-braces publish.
   if (typeof window.isSkillsVisible !== 'function') {
     window.isSkillsVisible = function () {
-      const at = window.activeTab;
-      return at === 'skills' || (at === 'character' && paneOf(window._charPane) === 'skills');
+      // b232: only the standalone Skills activity screen shows a live bar.
+      return window.activeTab === 'skills';
     };
   }
 }
@@ -461,19 +540,13 @@ export function setupCharacterPage() {
   if (typeof window.showTab === 'function') {
     const orig = window.showTab;
     window.showTab = function (name) {
-      // The Skills route folds into the Character screen's Skills sub-tab. Every
-      // deep link (quest-nav, Home "cook", the legacy skill tiles, FTUE) funnels
-      // through showTab('skills') / openSkillDetail, so aliasing here keeps them
-      // all working without touching a single caller.
-      if (name === 'skills') {
-        window._charPane = 'skills';
-        const r = orig.call(this, 'character');
-        // Build the shell SYNCHRONOUSLY so #skill-detail exists before
-        // openSkillDetail's deferred renderSkillDetail(id) fires (it runs on a
-        // setTimeout(0), which would otherwise beat the shell into existence).
-        try { renderCharacter(); } catch (e) { /* never break navigation */ }
-        return r;
-      }
+      // b232 (Tyler): the Character screen is now an OVERVIEW (grid + account),
+      // and the activities live back under Adventure on their own #panel-skills
+      // screen. So showTab('skills') NO LONGER aliases to Character — it lands on
+      // the real Skills/activity panel (base showTab handles it, activities-grid
+      // auto-opens the first skill). Every deep link (quest-nav, Home "cook",
+      // openSkillDetail, FTUE) funnels through showTab('skills') and keeps
+      // working, now arriving at the activity screen where training happens.
       const r = orig.apply(this, arguments);
       if (name === 'character') {
         window._charPane = paneOf(window._charPane);
@@ -482,7 +555,7 @@ export function setupCharacterPage() {
       return r;
     };
   }
-  console.log('[Character Page ESM] combined screen loaded');
+  console.log('[Character Page ESM] overview screen loaded');
 }
 
 // ── scoped styles (tokens only) ────────────────────────────────────────────
@@ -523,6 +596,43 @@ function ensureCharStyle() {
     R + '#char-skills #skill-detail{display:flex;flex-direction:column;gap:10px;min-height:0}',
     '@media (max-width:900px){' + R + '.cs-cols{grid-template-columns:1fr}'
       + R + '.cs-idstrip{flex-wrap:wrap}}',
+    // ── Skills OVERVIEW (b232): identity banner + dense skill grid + account ──
+    R + '#char-skills{display:flex;flex-direction:column;gap:14px}',
+    R + '.csk-hero{display:flex;align-items:center;gap:14px;background:var(--bg-card);border:1px solid var(--line);'
+      + 'border-radius:10px;padding:14px 16px;flex-wrap:wrap}',
+    R + '.csk-hero-portrait{width:54px;height:54px;border-radius:8px;overflow:hidden;flex:0 0 auto;'
+      + 'border:1px solid var(--gold-2);background:rgba(0,0,0,.3)}',
+    R + '.csk-hero-portrait img{width:100%;height:100%;object-fit:cover}',
+    R + '.csk-hero-id{flex:1;min-width:120px}',
+    R + '.csk-hero-name{font-family:var(--f-display);font-size:calc(22px * var(--ui-scale, 1));font-weight:800;'
+      + 'color:var(--gold-2);letter-spacing:.03em;overflow-wrap:anywhere;line-height:1.1}',
+    R + '.csk-hero-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-top:3px;'
+      + 'text-transform:uppercase;letter-spacing:.04em}',
+    R + '.csk-hero-id .cr-founder{margin-top:4px}',
+    R + '.csk-hero-total{flex:0 0 auto;text-align:right;margin-left:auto}',
+    R + '.csk-hero-total b{display:block;font-size:calc(30px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);'
+      + 'line-height:1;font-variant-numeric:tabular-nums}',
+    R + '.csk-hero-total span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);'
+      + 'text-transform:uppercase;letter-spacing:.06em;margin-top:4px}',
+    R + '.csk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}',
+    R + '.csk-tile{position:relative;display:flex;align-items:center;gap:10px;padding:11px 12px 13px;'
+      + 'background:var(--bg-card);border:1px solid var(--line);border-radius:9px;cursor:pointer;text-align:left;'
+      + 'font-family:var(--f-ui);transition:border-color .12s,background .12s}',
+    R + '.csk-tile:hover{border-color:var(--gold-2);background:rgba(201,162,74,.07)}',
+    R + '.csk-tile.active{border-color:var(--gold-2);box-shadow:inset 0 0 0 1px var(--gold-2)}',
+    R + '.csk-ic{width:30px;height:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center}',
+    R + '.csk-ic img{width:100%;height:100%;object-fit:contain}',
+    R + '.csk-emoji{font-size:22px;line-height:1}',
+    R + '.csk-tile-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}',
+    R + '.csk-nm{font-size:calc(15px * var(--ui-scale, 1));font-weight:700;color:var(--ink);'
+      + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    R + '.csk-bar{display:block;height:3px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden}',
+    R + '.csk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-3,#b8893e),var(--gold-2));border-radius:2px}',
+    R + '.csk-bar.maxed i{background:linear-gradient(90deg,#6fae6f,#b8e6b8)}',
+    R + '.csk-lv{flex:0 0 auto;font-size:calc(21px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);'
+      + 'font-variant-numeric:tabular-nums;line-height:1}',
+    '@media (max-width:420px){' + R + '.csk-grid{grid-template-columns:repeat(2,1fr);gap:6px}'
+      + R + '.csk-tile{padding:9px 10px 11px;gap:8px}}',
     // Hero sub-tab — Account stat grid
     R + '#char-hero{display:flex;flex-direction:column;gap:12px}',
     R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
@@ -538,6 +648,20 @@ function ensureCharStyle() {
     R + '.cr-equip-link button{width:100%;padding:8px;background:rgba(201,162,74,.14);border:1px solid rgba(201,162,74,.32);'
       + 'border-radius:6px;color:var(--gold-2);cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;font-family:var(--f-ui)}',
     R + '.cr-equip-link button:hover{background:rgba(201,162,74,.22)}',
+    // ── The standalone Adventure→Skills activity screen (#panel-skills) ──
+    // Two columns (skill picker | activity tiles) on desktop, stacked on mobile.
+    // Scoped to .active so the base `.panel{display:none}` still hides it when
+    // it is not the current tab (an id rule would otherwise always show it).
+    // legacy.css already gives #panel-skills.active its desktop 2-col grid
+    // (minmax(260,300) | 1fr) at media:all — but media:all means it also fires on
+    // phones, squeezing the activity column to ~39px and overflowing. That legacy
+    // rule is `#panel-skills.active` (id+class); this mobile override is
+    // `#panel-skills.panel.active` (id+2 classes) so it out-specifies it and
+    // stacks to one column on a phone. Desktop keeps the legacy 2-col.
+    '#panel-skills.panel.active > .card{min-width:0}',
+    '#panel-skills #skills-list{max-height:calc(100vh - 220px);overflow-y:auto}',
+    // !important because the legacy rule it overrides is itself !important.
+    '@media (max-width:900px){#panel-skills.panel.active{grid-template-columns:1fr !important}}',
   ].join('\n');
   document.head.appendChild(s);
 }

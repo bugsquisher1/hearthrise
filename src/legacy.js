@@ -2983,7 +2983,11 @@ function showTab(tab){
    the same helper; defining it here too keeps the guards independent of ESM
    boot order. */
 function isSkillsVisible(){
-  return activeTab==='skills' || (activeTab==='character' && (window._charPane||'skills')==='skills');
+  // b232: training moved back to the standalone Adventure→Skills screen
+  // (#panel-skills). The Character screen's Skills sub-tab is a static overview
+  // with no live training bar, so it no longer counts — the live-progress guards
+  // that read this only need to fire while the activity screen is on.
+  return activeTab==='skills';
 }
 window.isSkillsVisible=isSkillsVisible;
 function refreshAll(){

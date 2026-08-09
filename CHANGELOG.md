@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 233 — 2026-08-09 (Your character, at a glance)
+
+- 🧬 **The Character screen is a real overview now.** Open Character and you see yourself: your portrait, your rank and renown, your TOTAL LEVEL, then a clean grid of *every* skill with its level and progress — and below it your whole account at a glance (combat level, total XP, quests, bounties, collections, renown, achievements, time played). Equipment and Hero are a tab away.
+- ⚒️ **Training lives back under Adventure.** Skills is its own door in the Adventure menu again — that's where you actually chop, mine, fish, cook and smith. Tap any skill on the Character grid and it takes you straight there (or to Combat / the Farm). The overview shows *who you are*; Adventure is where you *do*.
+- 📱 Both screens fit a phone cleanly — the grid reflows to two columns, the activity screen stacks.
+- 🧪 438 tests green.
+
 ## v0.9.2-beta build 231 — 2026-08-09 (Combat, unblanked)
 
 - ⚔️ **Combat works on mobile again.** Tapping Fight was dropping you onto a blank screen — the monster list hid itself for the fight, but the battle view was hidden behind the "Foes" tab, so nothing showed. Starting a fight now snaps you straight to the Arena, and ending it drops you back on the foe list for the next one.

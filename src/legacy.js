@@ -725,11 +725,12 @@ function processOffline(){
   let combatSummary = null;
 
   /* ── b227: EVERYTHING that simulates elapsed time runs inside the latch ──
-     The rotating blessings are presence-gated, and `isPresent()` is TRUE right
-     here: loadLocal() calls us on a visible tab with a fresh input timestamp
-     and an activity set. Without this latch the returning player would be paid
-     a whole night at today's blessing — the exact shape of the bug b226's flat
-     ×1.12 shipped with. Inside it, `blessingsApply()` is false, so every key
+     The rotating blessings are session-gated, and every "is the player here?"
+     signal is TRUE right here: loadLocal() calls us inside a live, connected
+     session with an activity set. Without this latch the returning player would
+     be paid a whole night at today's blessing — the exact shape of the bug
+     b226's flat ×1.12 shipped with. Inside it, `blessingsApply()` is false
+     regardless of connectivity (b229 did not weaken this), so every key
      the replay reads (allXP, combatXP, goldFind, farmYield, noBurn AND the
      speed keys, via the interval re-derivation below) is the base value. */
   withOfflineReplay(function(){
@@ -794,12 +795,14 @@ function processOffline(){
     blessed: false,
   };
   const budgetNote = ` · ${fmtHm(hrs*3600000)} of your ${cap}h daily offline banked, ${fmtHm(remainMs)} left`;
-  /* b227: "at the base rate", in the ONE offline surface a player actually
-     sees. The day's blessing is announced on Home and in Events as something
-     that pays while you play; a welcome-back line that said nothing would
-     leave the player to assume the night was blessed too, and then quietly
-     disappoint them. Four words, in the headline, before the numbers. */
-  const rateNote = 'at the base rate';
+  /* b227: the rate, stated in the ONE offline surface a player actually sees.
+     The day's blessing is announced on Home and in Events as something that is
+     alive while you are in the game; a welcome-back line that said nothing
+     would leave the player to assume the night was blessed too, and then
+     quietly disappoint them. b229 matches Tyler's register — "the steady base
+     rate" — so the two halves of the rule read as one sentence across surfaces
+     rather than two policies. */
+  const rateNote = 'at the steady base rate';
   if(combatSummary){
     const note = combatSummary.died
       ? `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills, +${gainedXp} XP, +${gainedGold} gold`
@@ -1393,50 +1396,74 @@ window.pacedActionMs = pacedActionMs;
 window.actionRate = actionRate;
 
 /* ════════════════════════════════════════════════════════════════
-   b227 — PRESENCE: the gate on the blessing calendar.
+   b227 — THE SESSION GATE on the blessing calendar.
    (DECISIONS 2026-08-09 "Presence rework"; supersedes b226 §5.2/5.3)
 
    b226 shipped presence as a flat ×1.12 XP multiplier. Tyler replaced it:
    *"if you're offline the event doesn't apply to you… you only get that
    stuff WHILE online. One week it may be 12% exp, another week it may be
-   +10% gold find."* So the flat multiplier is GONE and the detector stays —
-   it now decides whether the day's and week's rotating blessings apply at
-   all. The online advantage is the CALENDAR, which means it varies with the
-   week and with what you happen to be training, instead of being a constant
-   nobody could feel.
+   +10% gold find."* So the flat multiplier is GONE; the day's and week's
+   rotating blessings ARE the online advantage, which means it varies with
+   the week and with what you happen to be training, instead of being a
+   constant nobody could feel.
 
-   "Present" is all three of: tab visible · real input within 10 minutes ·
-   an activity running. No mouse-jiggle detection, no focus heuristics, no
-   anti-cheat theatre — the 10-minute window is deliberately generous
-   because an idle game's player is watching, not clicking.
+   ── b229: THE GATE IS SESSION-ONLINE, NOT ATTENTION ──
+   The first cut of this gate also demanded a visible tab and real input
+   within ten minutes, and the shipped copy had to say "this tab open".
+   Tyler, on reading it: *"Reword this, that's confusing. The tab shouldn't
+   need to be open, they just need to be online."*
+
+   So the rule is now exactly what the player is told: **the game is open
+   and connected.** A backgrounded tab with an activity running is blessed.
+   A player watching a bar for twenty minutes without touching the mouse is
+   blessed. Only a CLOSED game — the offline catch-up — earns the base rate.
+   The whole idle/focus distinction is gone: `_lastInputAt`, the ten-minute
+   window and the visibilitystate check are deleted rather than left inert,
+   because a dead concept that still has a variable is a concept the next
+   reader will believe.
+
+   `sessionOnline()` asks ONE oracle — `HearthriseNetStatus` in
+   src/network-status.js, which owns navigator.onLine plus a real probe
+   against the Supabase host (a captive portal fires 'online' with no route
+   out). It fails OPEN: with no honest disconnection signal the player is
+   online, because the code is executing in their session. That is the right
+   default now that the boundary is held elsewhere — see below.
+
+   `degraded` (three Supabase 5xx in a row) is deliberately NOT a
+   disconnection. It means our cloud is slow, not that the player left; the
+   blessing follows the player, and revoking it for a backend hiccup would
+   charge them for our outage.
 
    ── THE OFFLINE-REPLAY LATCH (this is the load-bearing part) ──
-   `isPresent()` alone is NOT a safe gate. processOffline() runs inside
-   loadLocal(), on a visible tab, with `_lastInputAt` freshly initialised and
-   an activity set — so isPresent() is TRUE for the entire catch-up. b226's
-   own ×1.12 leaked into every offline grant for exactly this reason. A gate
-   built only on isPresent() would inherit that bug verbatim and hand the
-   returning player a night of blessed output.
+   Connectivity alone is NOT a safe gate — for the same reason presence
+   wasn't. processOffline() runs inside loadLocal(), in a live, connected
+   session, so every "are they here?" question answers YES for the entire
+   catch-up. b226's own ×1.12 leaked into every offline grant for exactly
+   this reason.
 
-   So blessings ask `blessingsApply()`, which is isPresent() AND *not inside
-   an offline replay*. `_offlineReplay` is a DEPTH counter, not a boolean, so
-   a nested replay (offline combat inside processOffline) cannot clear the
-   latch early, and it is released in a `finally` so a throw mid-replay can
-   never strand the game in permanently-unblessed mode.
+   So blessings ask `blessingsApply()`, which is *not inside an offline
+   replay* AND sessionOnline(). `_offlineReplay` is a DEPTH counter, not a
+   boolean, so a nested replay (offline combat inside processOffline) cannot
+   clear the latch early, and it is released in a `finally` so a throw
+   mid-replay can never strand the game in permanently-unblessed mode. The
+   latch is the entire offline boundary; the connectivity half only handles
+   the honest mid-session dropout.
    ════════════════════════════════════════════════════════════════ */
-const PRESENCE_IDLE_MS = 10 * 60 * 1000;
-let _lastInputAt = Date.now();
 let _offlineReplay = 0;
-function _markInput(){ _lastInputAt = Date.now(); }
-['pointerdown','keydown','touchstart'].forEach(function(ev){
-  try{ window.addEventListener(ev, _markInput, {passive:true, capture:true}); }catch(e){}
-});
-function isPresent(){
-  try{
-    if(typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
-  }catch(e){ return false; }
-  if(Date.now() - _lastInputAt > PRESENCE_IDLE_MS) return false;
-  return !!(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
+/* The ONE connectivity question. Reuses the network-status oracle rather
+   than sampling navigator.onLine here as well — two oracles would disagree
+   the first time a captive portal lied, and then the badge and the blessing
+   would tell the player two different stories. */
+function sessionOnline(){
+  const NS = window.HearthriseNetStatus;
+  if(NS && typeof NS.getMode === 'function'){
+    try{ return NS.getMode() !== 'offline'; }catch(e){ return true; }
+  }
+  /* network-status.js not loaded yet (early boot) — the browser's own flag is
+     the same signal that module starts from, and it is only consulted here as
+     a bridge until it does load. */
+  try{ if(typeof navigator !== 'undefined' && navigator.onLine === false) return false; }catch(e){}
+  return true;
 }
 function inOfflineReplay(){ return _offlineReplay > 0; }
 /* Run `fn` with the blessing latch closed. EVERY path that simulates elapsed
@@ -1446,14 +1473,40 @@ function withOfflineReplay(fn){
   try{ return fn(); }
   finally{ _offlineReplay = Math.max(0, _offlineReplay - 1); }
 }
-function blessingsApply(){ return !inOfflineReplay() && isPresent(); }
+function blessingsApply(){ return !inOfflineReplay() && sessionOnline(); }
+
+/* b229: a connectivity flip changes what the current action is worth, so the
+   running loop re-derives its interval the moment it happens instead of on the
+   next swing, and every surface that states the rule re-reads it in the same
+   frame. (doSkillAction/doArtisanAction still retime per action; this is what
+   makes the discrete event immediate.)
+
+   It listens for the oracle's OWN announcement rather than the browser's
+   'offline' event, because network-status.js loads after this file — a raw
+   window listener registered here would fire first and read the stale mode,
+   which is precisely the class of bug this hook exists to avoid. */
+try{
+  window.addEventListener('hearthrise:netmode', function(){
+    try{ retimeActivity(); }catch(e){}
+    try{
+      const WE = window.HearthriseWorldEvents;
+      if(WE && typeof WE.renderBlessing === 'function') WE.renderBlessing();
+    }catch(e){}
+    try{
+      const HD = window.HearthriseHome;
+      if(HD && typeof HD.render === 'function') HD.render();
+    }catch(e){}
+  });
+}catch(e){}
 
 /* The honest hint, rendered beside the XP of whatever is running. A bonus the
    player cannot see is a bonus that does not change behaviour — and a bonus
    that is silently OFF is worse than one that never existed. It names the
    blessing that actually touches THIS activity (a "+30% smithing" note beside
-   a woodcutting bar is a lie by adjacency), says plainly that it is paid while
-   you play, and dims to "— idle" the moment the gate closes. */
+   a woodcutting bar is a lie by adjacency), says plainly that it is alive while
+   you are in the game, and dims to "— reconnecting" if the session genuinely
+   drops. b229: there is no "— idle" state any more; a backgrounded tab is not
+   a lapse, so the note must not imply one. */
 function blessingNote(){
   if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
   const WE = window.HearthriseWorldEvents;
@@ -1462,8 +1515,8 @@ function blessingNote(){
   try{ hit = WE.summaryFor(activeBonusKeys()); }catch(e){ return ''; }
   if(!hit) return '';
   return blessingsApply()
-    ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · while you play</span>`
-    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — idle</span>`;
+    ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · alive while you're in the game</span>`
+    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — reconnecting</span>`;
 }
 /* The getBonus keys that actually move what is running right now. One list,
    read by the hint and by the tests, so "does this blessing affect me" can
@@ -1490,15 +1543,16 @@ window.HearthriseBlessingNote = blessingNote;
    kind of thing (the live modifier beside the XP), so the name survives the
    rework rather than churning a caller for no gain. */
 window.HearthrisePresenceNote = blessingNote;
+/* b226 named this global; b227 gave it the blessing gate; b229 narrowed the
+   gate to "the session is online". The name survives the narrowing rather than
+   churning every caller — what it answers is still "is the player here?", only
+   the definition of here got honest. `isPresent`/`IDLE_MS`/`_setLastInput` are
+   GONE, not deprecated: nothing may ask the idle question any more. */
 window.HearthrisePresence = {
-  IDLE_MS: PRESENCE_IDLE_MS,
-  isPresent: isPresent,
+  isOnline: sessionOnline,
   blessingsApply: blessingsApply,
   inOfflineReplay: inOfflineReplay,
   activeBonusKeys: activeBonusKeys,
-  /* test seam: the suite drives the idle clock rather than faking events */
-  _setLastInput: function(t){ _lastInputAt = (typeof t === 'number') ? t : Date.now(); },
-  _lastInput: function(){ return _lastInputAt; },
   /* test seam: drive the replay latch without simulating a whole absence */
   _withOfflineReplay: withOfflineReplay,
 };
@@ -2633,7 +2687,7 @@ function renderProfile(){
      so this line, b225's burn count and b226's budget readout are all currently
      invisible. Kept correct rather than silently divergent; the visible surface
      is the toast in processOffline(). */
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate — blessings pay while you play</div>`;
+  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the steady base rate — blessings are alive while you're in the game</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.

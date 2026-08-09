@@ -11,10 +11,17 @@
 // "if you're offline the event doesn't apply to you... you only get that
 // stuff WHILE online. One week it may be 12% exp, another week it may be
 // +10% gold find." So the flat multiplier is gone and these blessings are
-// PRESENCE-GATED — they apply only while the player is genuinely here (tab
-// visible · input within 10 minutes · an activity running) and never during
-// an offline replay. Offline progress, background tabs and AFK-idle all earn
-// the base rate.
+// SESSION-GATED.
+//
+// ── b229: THE GATE IS BEING ONLINE, NOT PAYING ATTENTION ──
+// b227's first cut also demanded a visible tab and recent input, which made
+// the shipped copy say "this tab open". Tyler: "Reword this, that's
+// confusing. The tab shouldn't need to be open, they just need to be
+// online." So the gate is now: the game is OPEN and CONNECTED. A
+// backgrounded tab with an activity running is blessed; an untouched screen
+// is blessed. Only a CLOSED game — the offline catch-up — earns the steady
+// base rate, and that boundary is held by legacy.js's replay latch, not by
+// any "are they looking?" heuristic.
 //
 // That makes the online advantage a thing with a SHAPE: a Grand Fair week is
 // worth +12% XP to everyone, a King's Bounty week is worth +10% gold find to
@@ -140,11 +147,14 @@
 
   // ── THE GATE ──────────────────────────────────────────────────────────────
   // The single question "is the calendar paying right now?". It defers to
-  // legacy.js's presence layer, which owns both halves of the answer: the
-  // player is present AND we are not inside an offline replay. If that layer
-  // is missing we answer NO — a blessing that cannot verify presence has not
-  // earned the right to pay, and the failure mode of a silent extra +25% is
-  // far worse than the failure mode of a missing one.
+  // legacy.js's session layer, which owns both halves of the answer: we are
+  // not inside an offline replay AND the session is online. If that layer is
+  // missing we answer NO — this module wraps getBonus for the whole game, and
+  // the failure mode of a silent extra +25% paid to a catch-up is far worse
+  // than the failure mode of a missing one. (Note the asymmetry with
+  // sessionOnline() itself, which fails OPEN: there, "no disconnection signal"
+  // genuinely means online. Here, "no gate at all" means the replay latch is
+  // missing too, which is the dangerous direction.)
   function blessingActive() {
     var P = window.HearthrisePresence;
     if (!P || typeof P.blessingsApply !== 'function') return false;
@@ -234,12 +244,14 @@
       pill(d, 'today', true) + pill(w, 'this week', false) +
       '</div>' +
       // b227: the condition, stated plainly and in the same place as the
-      // bonus. It changes state live so the player can SEE the rule work
-      // rather than having to take the sentence on faith.
+      // bonus. b229: reworded to the rule as it now actually is — being in
+      // the game, not being at the screen. The dim branch is no longer an
+      // "idle" scold; the only way to lose the blessing mid-session is to
+      // genuinely lose the connection, so that is what it says.
       '<div class="tiny" style="margin-top:6px;color:var(--' + (live ? 'gold-2' : 'ink-2') + ')">' +
         (live
-          ? 'Active — blessings pay while you play.'
-          : 'Blessings apply only while you are playing: an activity running, this tab open. Offline progress earns the base rate.') +
+          ? 'Alive while you’re in the game. Away? You earn the steady base rate.'
+          : 'Reconnecting — blessings resume the moment you’re back online.') +
       '</div>';
   }
 
@@ -283,7 +295,7 @@
         localStorage.setItem(seenKey, today);
         // Toasts render with textContent, so a glyph here can only ever be a
         // raw emoji character. Say it in words instead.
-        if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc + ' while you play', 'info');
+        if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc + ', alive while you’re in the game', 'info');
       }
     } catch (e) {}
   }

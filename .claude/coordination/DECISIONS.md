@@ -4,6 +4,11 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Work-order visibility + posting permissions + opt-in voting (Tyler, binding)
+**Decision:** (1) An active Work Order is OBVIOUS to every member: what the clan is building, every material needed, live fulfillment per material (e.g. Hall upgrade → the whole clan sees "Timber Beams 340/600 · Iron Fittings 80/200 · Labour 1,200/4,800") — prominent on the clan panel, not buried in a modal. (2) ONLY the Clan Leader and Vice Leaders may post work orders. (3) OPT-IN VOTING: leadership may open the next work order to a member vote (leadership chooses candidates or opens nominations; one vote per member; server-authoritative; result posts the order). Voting is leadership's choice per order — not mandatory governance.
+**Why:** Tyler 2026-08-09. Maps onto the clan-overhaul rank model — reconcile "Vice Leader" with the existing role/charge columns (likely: leader + a 'vice' charge; Designer aligns naming).
+**Affected agents:** Systems (clan panel WO display + gating + vote RPCs/migration — QUEUED behind the clan-scene agent, same surfaces), Designer (vote flow spec details), QA.
+
 ### 2026-08-09 · Presence rework: blessings are presence-gated; flat +12% removed (Tyler, binding)
 **Decision:** Tyler: "if you're offline the event doesn't apply to you... you only get that stuff WHILE online. One week it may be 12% exp, another week it may be +10% gold find." The daily/weekly rotating blessings apply ONLY while present (b226's presence definition: tab visible + input ≤10min + activity running). Offline = base rate, no blessing. The b226 flat presence ×1.12 is REMOVED — the rotating calendar replaces it as the entire online-pays mechanic. Blessing pool rotates varied boost TYPES (xp, gold find, gather/smith speed...; goldFind is wired since b222). Rally (join-gated live events) unchanged.
 **Why:** Product-owner economy direction 2026-08-09, superseding the b226 flat bonus.

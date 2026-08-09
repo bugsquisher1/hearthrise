@@ -4,6 +4,10 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · re-Master Itemization & Progression Rework — PROGRAM START, AUDIT FIRST (Tyler)
+**Decision:** The largest program yet — full audit + rework of itemization/progression/equipment/bosses/dungeons/crafting/gathering/combat/rewards into one cohesive loop ("simple to understand, deep to master"). 20-phase brief; details in memory [[itemization-program]]. Coordinator plan: Phase 1 = 4 parallel READ-ONLY domain audits → synthesize master audit + new-itemization DESIGN → **bring to Tyler for approval before ANY implementation**. Implementation waits on that approval AND on b229 (character rework) shipping (clean base). NO code changes in the audit phase.
+**Affected agents:** all (multi-wave). Read-only auditors now; specialists implement per approved design later.
+
 ### 2026-08-09 · Character/Skills rework — DESIGN APPROVED (Tyler: "i fuckin love it")
 **Decision:** Tyler approved the visual mockup of the new Character screen. LOCKED: three sub-tabs **Skills · Equipment · Hero**, **Skills is the default tab**; Skills = the OSRS-our-own grid (icon + name + moss XP-to-next bar + gilt level, tile routes to the activity via the existing openSkillDetail/quest-nav seam); Equipment reuses buildTibiaDoll wholesale; Hero holds identity + combat cards + the OSRS-style account stat panel (Combat lvl, Total XP, Quests, Bounties=combat tasks, Collections, Renown rank, Time played "click to reveal"; Achievements→Chronicle/renown or flagged; Time played = new `G.stats.playMs` counter). The fake paywall "Your Heroes" is CUT; the real multi-character selector moves to Home. Spec: `docs/design/character-skills-rework.md`. Build AFTER b228 ships (bonus-rebase in flight; both touch Home). Phase 1 = combined screen + Heroes-on-Home behind existing seams; Phase 2 = grid art + playMs + de-dup.
 **Affected agents:** Systems (build, next wave after b228).

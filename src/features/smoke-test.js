@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=253' directly.
+// modularised, will import { G } from '../state/game.js?v=254' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=253';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=253';
+import { on, snapshot } from '../net/events.js?v=254';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=254';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=253';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=254';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11329,6 +11329,30 @@ const TESTS = [
     }
     assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
+  () => tryRun('b254: Boss of the Day — deterministic daily pick + featured kill bonus', () => {
+    const B = window.HearthriseBossOfDay;
+    assert(B && typeof B.featuredId === 'function', 'Boss of the Day module must load');
+    // Deterministic: same day key → same boss, and it is a real MONSTER.
+    const a = B.featuredId('2026-1-1'), b = B.featuredId('2026-1-1');
+    assert(a && a === b, 'the daily pick must be deterministic for a given day');
+    assert(window.MONSTERS[a], 'the featured boss must be a real monster: ' + a);
+    // Different days can differ; across a week it must not be a single stuck id.
+    const week = ['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7'].map(B.featuredId);
+    assert(new Set(week).size >= 2, 'the rotation must vary across a week, got ' + JSON.stringify(week));
+    // Kill bonus applies to the featured boss only.
+    const today = B.featuredId();
+    const feat = B.killBonuses(today);
+    assert(feat.dropMult > 1 && feat.xpMult > 1, 'featured boss must grant a drop + XP bonus');
+    const other = Object.keys(window.MONSTERS).find(id => id !== today);
+    const none = B.killBonuses(other);
+    assert(none.dropMult === 1 && none.xpMult === 1, 'non-featured monsters get no bonus');
+    // The card renders into the Combat panel with a title + a fight/lock button.
+    B.render();
+    const card = document.getElementById('hr-botd-card');
+    assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
+    assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
   }),
 
   () => tryRun('b253: toasts side-step a corner button on a short landscape screen (paione: toasts over content)', () => {

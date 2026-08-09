@@ -2546,6 +2546,10 @@ function killMonster(m){
   G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+1;
   const log=G.combatLog;if(gp>0)log.push(`💰 Looted ${gp} gold!`);
   const dropMult=getWeaknessInfo(m).dropMult;
+  /* b254: Boss of the Day — fighting today's featured boss lifts its non-guaranteed
+     drop chances and combat XP. Deterministic daily pick; 1× when not featured. */
+  const _feat=(window.HearthriseBossOfDay&&typeof window.HearthriseBossOfDay.killBonuses==='function')
+    ? window.HearthriseBossOfDay.killBonuses(G.activeMonster) : {dropMult:1,xpMult:1};
   // b133: accumulate the drops that actually rolled so we can record
   // them in HearthriseDropLog at the end. We only record what dropped,
   // not the full loot table.
@@ -2556,7 +2560,7 @@ function killMonster(m){
        since the buff registry shipped; the tooltip promised a luck bonus that
        rolled into nothing. Guaranteed drops (ch>=1) are unaffected. */
     const _dropBuff=(typeof getBonus==='function')?(getBonus('dropRate')||0):0;
-    const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult*(1+_dropBuff));
+    const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult*(1+_dropBuff)*_feat.dropMult);
     if(Math.random()<chance){
       addItem(d.id,1);
       _droppedThisKill[d.id] = (_droppedThisKill[d.id] || 0) + 1;
@@ -2581,10 +2585,11 @@ function killMonster(m){
   /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc. */
   {
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
+    const _xp = m.xp * _feat.xpMult; // b254: featured-boss XP bonus
     if(_style && _style.xp){
-      Object.entries(_style.xp).forEach(([sk,r])=>addXp(sk,m.xp*r));
+      Object.entries(_style.xp).forEach(([sk,r])=>addXp(sk,_xp*r));
     } else {
-      addXp('attack',m.xp);
+      addXp('attack',_xp);
     }
   }
   updateDaily('kill_any',1);updateQuest('kill_any',1,{target:G.activeMonster});updateQuest('kill_monster',1,{target:G.activeMonster});

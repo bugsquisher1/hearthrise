@@ -3523,3 +3523,23 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   .qm-body{grid-template-columns:1fr}
   .qm-aside{border-left:none;border-top:1px solid var(--line)}
 }
+
+/* ── Boss of the Day card (b254) — the featured solo boss surface. ──
+   Token-only so it themes with everything else. Sits atop the Combat panel. */
+.hr-botd{border:1px solid var(--line);border-left:3px solid var(--gold-2);padding:10px 12px}
+.hr-botd .botd-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.hr-botd .botd-kicker{text-transform:uppercase;letter-spacing:.09em;font-size:calc(14.5px * var(--ui-scale,1));font-weight:700;color:var(--gold-2)}
+.hr-botd .botd-timer{font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
+.hr-botd .botd-body{display:flex;align-items:center;gap:10px}
+.hr-botd .botd-icon{font-size:calc(30px * var(--ui-scale,1));line-height:1;flex:0 0 auto}
+.hr-botd .botd-main{min-width:0;flex:1}
+.hr-botd .botd-name{font-weight:700;font-size:calc(16px * var(--ui-scale,1));color:var(--ink)}
+.hr-botd .botd-sub{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
+.hr-botd .botd-bonus{font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2);margin-top:2px}
+.hr-botd .botd-loot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
+.hr-botd .botd-loot-lab{text-transform:uppercase;letter-spacing:.06em;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);margin-right:2px}
+.hr-botd .botd-drop{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line-soft);border-radius:999px;background:rgba(255,255,255,.03);font-size:calc(14.5px * var(--ui-scale,1))}
+.hr-botd .botd-drop b{color:var(--ink);font-weight:600}
+.hr-botd .botd-drop em{color:var(--gold-2);font-style:normal;font-variant-numeric:tabular-nums}
+.hr-botd .botd-drop.muted b,.hr-botd .botd-drop.muted{color:var(--ink-3)}
+.hr-botd .botd-foot{display:flex;justify-content:flex-end}

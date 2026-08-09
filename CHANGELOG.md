@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 254 — 2026-08-09 (Boss of the Day)
+
+- 🐉 **A featured Boss of the Day.** Every day a different boss is spotlighted at the top of the Combat screen, the same way the daily blessing rotates. Fighting today's boss pays **+50% drop chance** on its rare drops and **+25% combat XP** — a reason to check in and hunt it while it's up.
+- 🔎 **See what it drops before you commit.** The card previews the boss's notable drops with their odds, shows a countdown to the next rotation, and has a one-tap **Fight** button (locked with its level requirement until you're ready).
+- 🧪 459 tests green.
+
 ## v0.9.2-beta build 253 — 2026-08-09 (Toasts stay out of the way)
 
 - 💬 **Pop-up messages no longer float over the middle of the screen in landscape.** To avoid the bug-report button, the notification column was lifting itself up — which on a short landscape phone dropped it right on top of your content. It now steps neatly beside the button and stays pinned to the bottom corner. *(Thanks paione.)*

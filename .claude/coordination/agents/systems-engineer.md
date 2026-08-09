@@ -544,3 +544,19 @@ Both fixed. Files: `src/legacy.js` (buildTibiaDoll), `src/styles/theme-cozy.css`
 
 ### 2026-08-08 · bootstrap
 Domain seeded. No active task. Base green at `119a698`.
+### 2026-08-09 · Itemization rework Phase 1 — READ-ONLY audit, Slice A (items · data · economy)
+
+Wrote `docs/reports/itemization-audit/A-items-economy.md`. No game code touched (audit only). Grounded every claim in code — counted the table, cross-referenced recipe inputs, traced stat readers.
+
+**Counts:** 281 items (materials 92, armour 52, food 44, weapons 30, tools 21, keys/blueprints 14, recipe-scrolls 9, seeds 9, castle 4, currency 2, jewelry 2, ammo 1, companion 1). 156 recipes (smithing 87, crafting 38, cooking 28, prayer 3). 186/281 items carry no rarity.
+
+**Key findings:**
+- **Three ITEMS definitions** — canonical `data/items.js` + TWO dead-but-DRIFTED inline copies in legacy.js (`const ITEMS@149`, `NEW_ITEMS@8694`). Buff magnitudes disagree across them (lich_soul_soup gold_find 50 vs 5, tomato_soup 10 vs 2). ESM wins at boot so the legacy values are dead, but they're a maintenance landmine.
+- **34 orphan drops** with no recipe/sink still live — b222 comment claimed they were "routed to castle demand" but only 4 actually were. ~13 of them vendor at FULL `v` (not on RAW_DROPS list) = unintended gold faucet.
+- **Dead stats/buffs:** `critB` (never rolled — visual crit is just dmg>=8), `spdB` (never consumed), `rareDrop` (counter only). Buff types `drop_rate`/`monster_respawn`/`damage_crit` have no engine reader → Void Banquet (2400g), Lich Soul Soup, Hunter's Feast deliver nothing or were wired years late.
+- **Migration is program-blocking:** mature for SHAPE changes (v10 registry) but ZERO item-id rename/alias mechanism. Inventory/equipment/collection/market/autoActions all key on raw id; any rename/removal in the rework silently drops stacks / ghosts listings unless an alias layer ships first.
+- **Schema gap:** current table is a render-payload — missing `desc`, `category`, item-level `level_req`, `source`/`drop_sources`, `passives`, upgrade linkage; `rarity` coupled to `v`. gear-tiers.js generator is the model to extend.
+
+**Top-5 changes:** (1) one item source + id-alias/migration layer BEFORE renames; (2) delete/repurpose 34 orphans + make vendor-trash derived not hand-listed; (3) kill-or-wire dead stats/buffs; (4) extend gear-tiers generator to a full content schema, rarity decoupled from v; (5) make tier/level_req/source legible in UI + per-slot gear icons.
+
+Handoff to synthesis: §7 (migration) is a hard blocker for the whole program; §4 (dead buffs) crosses into the combat slice.

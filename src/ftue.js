@@ -67,10 +67,12 @@
     },
     {
       id: 'skills',
-      target: 'button[data-tab="skills"]',
+      // b229: Skills folded into the Character screen (its default sub-tab), so
+      // the standalone Skills nav button is gone — point the tour at Character.
+      target: 'button[data-tab="character"]',
       placement: 'right',
-      title: 'Train skills here',
-      body: 'Activities like Woodcutting, Mining, Fishing, and Cooking earn XP and produce items. Pick one and let it run — even when you\'re offline, progress continues.',
+      title: 'Train skills on the Character screen',
+      body: 'Open Character and you land on Skills — Woodcutting, Mining, Fishing, Cooking and the rest. Pick one and let it run; even when you\'re offline, progress continues.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },

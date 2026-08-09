@@ -1,7 +1,21 @@
-// Character page renderer. Hero showcase + multi-character paywall slots +
-// combat stat breakdown + best XP/hr per skill + equipment summary.
+// Character page renderer — the combined Character screen (b229 rework).
 //
-// Imports: SKILLS_DEF, ITEMS, ARTISAN_RECIPES, action tables
+// Three sub-tabs, Skills default:
+//   • Skills    — the OSRS-our-own skills grid (relocated #skills-list) + the
+//                 skill's activity detail (#skill-detail), reusing the existing
+//                 activities-grid renderers by id. Each tile routes to its
+//                 activity via the existing openSkillDetail / quest-nav seam.
+//   • Equipment — window.buildTibiaDoll() reused WHOLESALE (its internal
+//                 Equipment / Stats / Companion panes come free, _tdPane intact).
+//   • Hero      — identity header + the OSRS-style Account stat grid (every cell
+//                 a real source) + Melee/Ranged/Magic breakdown + best rates.
+//
+// The old two-screen split (separate Skills tab) folds in here: showTab('skills')
+// is aliased to Character/Skills, and the live-progress guards in legacy.js are
+// broadened via isSkillsVisible() so the training bar keeps moving with the
+// Character screen open on the Skills sub-tab.
+//
+// Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
 import { SKILLS_DEF } from '../data/skills.js?v=228';
@@ -135,6 +149,16 @@ const fmt = (n) => {
   return Math.floor(n || 0).toLocaleString();
 };
 
+/* Time played reads as "3h 24m" — the OSRS figure, our own words. */
+function fmtDuration(ms) {
+  const s = Math.floor((ms || 0) / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h >= 1) return h + 'h ' + m + 'm';
+  if (m >= 1) return m + 'm';
+  return s + 's';
+}
+
 /* b226 — the Founder's mark (pacing-overhaul §9.3). A title, set in the
    display face, on the account of anyone who was playing before the retune.
    Display only: it is read from nothing but `createdAt` and it is queried by
@@ -146,6 +170,11 @@ function founderMarkHtml() {
   return `<div class="cr-founder" title="Your save predates the pacing retune of the First Season.">${esc(title)}</div>`;
 }
 
+/* b217: section titles carried raw emoji. All resolve through the shipped icon
+   set now. */
+const crGlyph = (key, px) =>
+  (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
+
 function buildHeroCard() {
   const G = window.G;
   const avatarSrc = getActiveAvatar();
@@ -155,23 +184,19 @@ function buildHeroCard() {
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   const gold = G.gold || 0;
   const kills = G.stats?.kills || 0;
-  // b127: actual fields are G.playerHp / G.playerMaxHp. Earlier code
-  // read G.hp + getMaxHp() which don't exist, so the page rendered
-  // "HP: — / —". Fall back through G.hp + getMaxHp() for forward
-  // compat in case the canonical field names ever change.
+  // b127: actual fields are G.playerHp / G.playerMaxHp.
   const hp = (typeof G.playerHp === 'number') ? G.playerHp
            : (typeof G.hp === 'number') ? G.hp : '—';
   const maxHp = (typeof G.playerMaxHp === 'number') ? G.playerMaxHp
               : (typeof window.getMaxHp === 'function') ? window.getMaxHp()
               : '—';
-  const topSkill = (() => {
-    const entries = Object.entries(G.skills || {});
-    if (!entries.length) return '—';
-    const top = entries.reduce((a, b) => ((b[1] || 0) > (a[1] || 0) ? b : a));
-    const lv = typeof window.getLevel === 'function' ? window.getLevel(top[0]) : '?';
-    const s = SKILLS_DEF[top[0]];
-    return (s ? s.name : top[0]) + ' Lv ' + lv;
-  })();
+  // b229: renown rank rides the identity block — the Hero screen is where a
+  // player checks their standing, and the ladder itself stays on Home.
+  let rankLine = '';
+  try {
+    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
+    if (rn && rn.rank) rankLine = `<div class="cr-build">Standing: <span>${esc(rn.rank.name)}</span></div>`;
+  } catch (e) { /* renown optional */ }
 
   return `<div class="cr-hero">
     <div class="cr-hero-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
@@ -179,8 +204,8 @@ function buildHeroCard() {
       <div class="cr-name">${name}</div>
       ${founderMarkHtml()}
       <div class="cr-class">${cls.tagline}</div>
-      <div class="cr-build">Top skill: <span>${topSkill}</span></div>
       <div class="cr-build">HP: <span>${hp} / ${maxHp}</span></div>
+      ${rankLine}
     </div>
     <div class="cr-hero-stats">
       <div class="cr-hero-stat"><b>${cl}</b><span>Combat Lv</span></div>
@@ -191,47 +216,55 @@ function buildHeroCard() {
   </div>`;
 }
 
-function buildSlotsCard() {
-  const avatarSrc = getActiveAvatar();
-  const name = esc(playerName());
-  const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
-  const cls = deriveClass();
-  return `<div class="cr-slots">
-    <div class="cr-section-title">${crGlyph('uiShield')}Your Heroes</div>
-    <div class="cr-slots-grid">
-      <div class="cr-slot active">
-        <span class="cr-slot-badge">Active</span>
-        <div class="cr-slot-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
-        <div class="cr-slot-name">${name}</div>
-        <div class="cr-slot-meta">${cls.tagline} · CL ${cl}</div>
-      </div>
-      <div class="cr-slot locked">
-        <span class="cr-slot-badge">Locked</span>
-        <div class="cr-slot-portrait">${crGlyph('uiLock', 26)}</div>
-        <div class="cr-slot-name">Hero Slot 2</div>
-        <div class="cr-slot-meta">Hearth Hall premium</div>
-      </div>
-      <div class="cr-slot locked">
-        <span class="cr-slot-badge">Locked</span>
-        <div class="cr-slot-portrait">${crGlyph('uiLock', 26)}</div>
-        <div class="cr-slot-name">Hero Slot 3</div>
-        <div class="cr-slot-meta">Hearth Hall premium</div>
-      </div>
-    </div>
-    <div class="cr-paywall-hint">
-      <span>${crGlyph('gems', 16)}</span>
-      <div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>
-      <button onclick="window.openHearthHallStore && window.openHearthHallStore()">Learn more</button>
-    </div>
-  </div>`;
-}
+/* The OSRS-our-own Account panel. Every cell is a REAL source (spec §5). Total
+   XP and Time Played sit behind a "click to reveal" the way OSRS hides its
+   precise figures — the reveal state is a session field so it survives the 2s
+   auto-refresh. Time Played reads the b229 G.stats.playMs accumulator. */
+function buildAccountStatGrid() {
+  const G = window.G || {};
+  const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
+  const tlv = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
+  const totalXp = Object.values(G.skills || {}).reduce((a, b) => a + (b || 0), 0);
+  const quests = Array.isArray(G.quests) ? G.quests : [];
+  const qDone = quests.filter((q) => q && q.done).length;
+  const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
+  const achDone = Object.values(G.achievements || {}).filter((e) => e && e.unlocked).length;
+  const bounties = (G.bountyHunter && G.bountyHunter.completed) || 0;
+  let colPct = '0%';
+  try {
+    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
+      colPct = Math.round(window.HearthriseCollection.getStats(G).overall * 100) + '%';
+    }
+  } catch (e) { /* collection optional */ }
+  let rank = '—';
+  try {
+    const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
+    if (rn && rn.rank) rank = rn.rank.name;
+  } catch (e) { /* renown optional */ }
+  const playMs = (G.stats && G.stats.playMs) || 0;
+  const reveal = window._charReveal || (window._charReveal = { xp: false, time: false });
 
-/* b217: section titles carried raw emoji (🛡 🗡 🏹 🔮 📈 ⚔) and the locked
- * hero slots rendered a full-colour 🔒. Seven system pictographs on the one
- * screen that shows off the painted character portrait. All resolve through
- * the shipped icon set now. */
-const crGlyph = (key, px) =>
-  (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
+  const cell = (val, label) => `<div class="cr-acct-cell"><b>${val}</b><span>${label}</span></div>`;
+  const xpCell = reveal.xp
+    ? `<div class="cr-acct-cell reveal" data-reveal="xp"><b>${fmt(totalXp)}</b><span>Total XP</span></div>`
+    : `<div class="cr-acct-cell reveal" data-reveal="xp"><b>••••</b><span>Total XP · reveal</span></div>`;
+  const timeCell = reveal.time
+    ? `<div class="cr-acct-cell reveal" data-reveal="time"><b>${fmtDuration(playMs)}</b><span>Time played</span></div>`
+    : `<div class="cr-acct-cell reveal" data-reveal="time"><b>••••</b><span>Time played · reveal</span></div>`;
+
+  return `<div class="cr-card cr-acct"><div class="cr-section-title">${crGlyph('uiShield')}Account</div>
+    <div class="cr-acct-grid">
+      ${cell(clv, 'Combat Lv')}
+      ${cell(tlv, 'Total Lv')}
+      ${xpCell}
+      ${cell(qDone + ' / ' + quests.length, 'Quests')}
+      ${cell(achDone + ' / ' + ach.length, 'Achievements')}
+      ${cell(fmt(bounties), 'Bounties')}
+      ${cell(colPct, 'Collections')}
+      ${cell(esc(rank), 'Renown')}
+      ${timeCell}
+    </div></div>`;
+}
 
 function buildCombatCard() {
   const lv = (id) => (typeof window.getLevel === 'function' ? window.getLevel(id) : 0);
@@ -271,48 +304,240 @@ function buildRatesCard() {
     <div class="cr-rate-table">${rows}</div></div>`;
 }
 
-function buildEquipSummaryCard() {
-  let equipped = 0;
-  const totalBonus = { str: 0, atk: 0, def: 0 };
-  if (window.G.equipment) {
-    for (const id of Object.values(window.G.equipment)) {
-      if (!id) continue;
-      equipped++;
-      const it = window.ITEMS?.[id];
-      if (!it) continue;
-      totalBonus.str += (it.strB || 0) + (it.rangeStrB || 0) + (it.magicStrB || 0);
-      totalBonus.atk += (it.atkB || 0) + (it.rangeAtkB || 0) + (it.magicAtkB || 0);
-      totalBonus.def += (it.defB || 0);
-    }
+/* The compact identity strip that heads the Skills sub-tab — avatar, name,
+   founder mark, and the two headline levels, so the front door shows who you
+   are without leaving the grid. Total level lives here (the OSRS footer). */
+function buildSkillsIdStrip() {
+  const G = window.G || {};
+  const avatarSrc = getActiveAvatar();
+  const name = esc(playerName());
+  const cl = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
+  const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
+  return `<div class="cs-id-portrait"><img src="${avatarSrc}" alt="" data-no-fallback /></div>
+    <div class="cs-id-meta"><div class="cs-id-name">${name}</div>${founderMarkHtml()}</div>
+    <div class="cs-id-levels">
+      <div class="cs-id-lv"><b>${cl}</b><span>Combat</span></div>
+      <div class="cs-id-lv"><b>${tl}</b><span>Total level</span></div>
+    </div>`;
+}
+
+// ── the combined-screen shell ─────────────────────────────────────────────
+const SHELL_HTML = `<div id="char-shell">
+  <div class="char-subtabs">
+    <button class="char-subtab" data-cpane="skills" type="button">Skills</button>
+    <button class="char-subtab" data-cpane="equip" type="button">Equipment</button>
+    <button class="char-subtab" data-cpane="hero" type="button">Hero</button>
+  </div>
+  <div class="char-pane" id="char-skills">
+    <div class="cs-idstrip" id="cs-idstrip"></div>
+    <div class="cs-cols">
+      <div class="card cs-list"><div class="card-head"><div class="card-title">Skills</div></div>
+        <div class="card-body" id="skills-list"></div></div>
+      <div class="card cs-detail"><div class="card-head"><div class="card-title" id="skill-detail-title">Skill</div></div>
+        <div class="card-body" id="skill-detail"><div class="empty"><span class="em-icon"></span>Tap a skill to train it.</div></div></div>
+    </div>
+  </div>
+  <div class="char-pane" id="char-equip"></div>
+  <div class="char-pane" id="char-hero"></div>
+</div>`;
+
+const PANES = { skills: 'char-skills', equip: 'char-equip', hero: 'char-hero' };
+function paneOf(p) { return (p === 'equip' || p === 'hero') ? p : 'skills'; }
+
+function refreshSkillsPane() {
+  const strip = document.getElementById('cs-idstrip');
+  if (strip) strip.innerHTML = buildSkillsIdStrip();
+  if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
+  const detailEl = document.getElementById('skill-detail');
+  const cur = window._actLastRender && window._actLastRender.skillId;
+  if (cur && typeof window.renderSkillDetail === 'function') {
+    window.renderSkillDetail(cur);
+  } else if (detailEl && !detailEl.querySelector('.act-grid')) {
+    // Auto-open the first gathering/artisan skill, exactly like the old Skills
+    // tab did — but via renderSkillDetail directly (openSkillDetail would loop
+    // back through the skills→character alias and re-enter renderCharacter).
+    const firstId = Object.keys(SKILLS_DEF).find((k) => SKILLS_DEF[k].cat === 'gather' || SKILLS_DEF[k].cat === 'artisan');
+    if (firstId && typeof window.renderSkillDetail === 'function') window.renderSkillDetail(firstId);
   }
-  const maxSlots = EQUIP_SLOTS?.length || 13;
-  return `<div class="cr-card"><div class="cr-section-title">${crGlyph('uiSword')}Equipment</div>
-    <div class="cr-stat-row"><span>Slots filled</span><b>${equipped} / ${maxSlots}</b><span></span></div>
-    <div class="cr-stat-row"><span>Total +STR</span><b>+${totalBonus.str}</b><span></span></div>
-    <div class="cr-stat-row"><span>Total +ATK</span><b>+${totalBonus.atk}</b><span></span></div>
-    <div class="cr-stat-row"><span>Total +DEF</span><b>+${totalBonus.def}</b><span></span></div>
-    <div style="margin-top:8px"><button onclick="showTab('inventory')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700">Manage gear →</button></div>
-  </div>`;
+}
+
+function refreshEquipPane() {
+  const host = document.getElementById('char-equip');
+  if (!host) return;
+  // Reuse the b218 paper-doll WHOLESALE — its Equipment / Stats / Companion
+  // internal panes and _tdPane persistence come free. Rebuilt each time this
+  // pane is shown so it reflects the current loadout, the same way the
+  // Inventory copy rebuilds; _tdPane keeps the chosen internal pane.
+  host.innerHTML = '';
+  if (typeof window.buildTibiaDoll === 'function') {
+    const doll = window.buildTibiaDoll();
+    if (doll) host.appendChild(doll);
+  }
+  const link = document.createElement('div');
+  link.className = 'cr-equip-link';
+  link.innerHTML = `<button type="button" onclick="showTab('inventory')">Full inventory →</button>`;
+  host.appendChild(link);
+}
+
+function refreshHeroPane() {
+  const host = document.getElementById('char-hero');
+  if (!host) return;
+  host.innerHTML = buildHeroCard()
+    + buildAccountStatGrid()
+    + buildCombatCard()
+    + `<div class="cr-rates">${buildRatesCard()}</div>`;
+  host.querySelectorAll('[data-reveal]').forEach((el) => {
+    el.onclick = function () {
+      const k = el.getAttribute('data-reveal');
+      const r = window._charReveal || (window._charReveal = { xp: false, time: false });
+      r[k] = true;
+      refreshHeroPane();
+    };
+  });
+}
+
+function applyCharPane(pane) {
+  const shell = document.getElementById('char-shell');
+  if (!shell) return;
+  shell.querySelectorAll('.char-subtab').forEach((b) => b.classList.toggle('active', b.getAttribute('data-cpane') === pane));
+  Object.keys(PANES).forEach((k) => {
+    const el = document.getElementById(PANES[k]);
+    if (el) el.style.display = (k === pane) ? '' : 'none';
+  });
+}
+
+function wireSubtabs(shell) {
+  shell.querySelectorAll('.char-subtab').forEach((b) => {
+    b.addEventListener('click', function () {
+      window._charPane = paneOf(b.getAttribute('data-cpane'));
+      // Go through window.renderCharacter (not the local fn) so every render
+      // wrapper fires — chiefly identity.js's, which re-attaches the b227
+      // avatar-upload affordance to the Hero portrait after each rebuild.
+      (window.renderCharacter || renderCharacter)();
+    });
+  });
 }
 
 export function renderCharacter() {
   const panel = document.getElementById('panel-character');
   if (!panel) return;
-  panel.innerHTML = buildHeroCard()
-    + buildSlotsCard()
-    + buildCombatCard()
-    + `<div class="cr-rates">${buildRatesCard()}${buildEquipSummaryCard()}</div>`;
+  let shell = document.getElementById('char-shell');
+  if (!shell) {
+    // Build the shell ONCE. Rebuilding it every tick would wipe #skills-list /
+    // #skill-detail and freeze the live bar — the whole point of the shell/
+    // content split (this is the b218 snap-back lesson applied to the grid).
+    panel.innerHTML = SHELL_HTML;
+    shell = document.getElementById('char-shell');
+    wireSubtabs(shell);
+  }
+  const pane = paneOf(window._charPane);
+  window._charPane = pane;
+  // Only the visible pane is (re)painted on the 2s refresh. The live training
+  // bar itself is driven by legacy.js's skill/artisan progress intervals, which
+  // gate on isSkillsVisible() — so it advances even while this refresh sleeps.
+  if (pane === 'skills') refreshSkillsPane();
+  else if (pane === 'equip') refreshEquipPane();
+  else if (pane === 'hero') refreshHeroPane();
+  applyCharPane(pane);
+}
+
+// ── the Skills → Character/Skills alias + isSkillsVisible seam ──────────────
+function ensureSkillsHelper() {
+  // isSkillsVisible() is the single source of truth for "the player can see a
+  // training bar right now". legacy.js defines it too (so its hot-path guards
+  // don't depend on ESM boot order); this is the belt-and-braces publish.
+  if (typeof window.isSkillsVisible !== 'function') {
+    window.isSkillsVisible = function () {
+      const at = window.activeTab;
+      return at === 'skills' || (at === 'character' && paneOf(window._charPane) === 'skills');
+    };
+  }
 }
 
 export function setupCharacterPage() {
+  ensureCharStyle();
+  ensureSkillsHelper();
   window.renderCharacter = renderCharacter;
   if (typeof window.showTab === 'function') {
     const orig = window.showTab;
     window.showTab = function (name) {
+      // The Skills route folds into the Character screen's Skills sub-tab. Every
+      // deep link (quest-nav, Home "cook", the legacy skill tiles, FTUE) funnels
+      // through showTab('skills') / openSkillDetail, so aliasing here keeps them
+      // all working without touching a single caller.
+      if (name === 'skills') {
+        window._charPane = 'skills';
+        const r = orig.call(this, 'character');
+        // Build the shell SYNCHRONOUSLY so #skill-detail exists before
+        // openSkillDetail's deferred renderSkillDetail(id) fires (it runs on a
+        // setTimeout(0), which would otherwise beat the shell into existence).
+        try { renderCharacter(); } catch (e) { /* never break navigation */ }
+        return r;
+      }
       const r = orig.apply(this, arguments);
-      if (name === 'character') setTimeout(renderCharacter, 30);
+      if (name === 'character') {
+        window._charPane = paneOf(window._charPane);
+        setTimeout(renderCharacter, 30);
+      }
       return r;
     };
   }
-  console.log('[Character Page ESM] loaded');
+  console.log('[Character Page ESM] combined screen loaded');
+}
+
+// ── scoped styles (tokens only) ────────────────────────────────────────────
+function ensureCharStyle() {
+  if (document.getElementById('char-combined-css')) return;
+  const s = document.createElement('style');
+  s.id = 'char-combined-css';
+  const R = '#panel-character ';
+  s.textContent = [
+    R + '#char-shell{display:flex;flex-direction:column;gap:0;min-height:0;flex:1}',
+    // Sub-tab strip
+    R + '.char-subtabs{display:flex;gap:6px;flex-shrink:0;border-bottom:1px solid var(--gold-2);margin-bottom:14px}',
+    R + '.char-subtab{flex:0 0 auto;padding:9px 20px;border-radius:8px 8px 0 0;border:1px solid var(--line);'
+      + 'border-bottom:none;background:rgba(0,0,0,.2);color:var(--ink-3);font-weight:700;font-family:var(--f-ui);'
+      + 'font-size:calc(15px * var(--ui-scale, 1));cursor:pointer;letter-spacing:.02em;margin-bottom:-1px;transition:color .12s,background .12s}',
+    R + '.char-subtab:hover{color:var(--ink-2)}',
+    R + '.char-subtab.active{background:linear-gradient(180deg,rgba(201,162,74,.20),rgba(201,162,74,.05));'
+      + 'color:var(--gold-2);border-color:var(--gold-2)}',
+    R + '.char-pane{min-width:0}',
+    // Skills sub-tab — identity strip + relocated two-column layout
+    R + '#char-skills{display:flex;flex-direction:column;gap:14px}',
+    R + '.cs-idstrip{display:flex;align-items:center;gap:14px;background:var(--bg-card);border:1px solid var(--line);'
+      + 'border-radius:10px;padding:12px 16px;flex-shrink:0}',
+    R + '.cs-id-portrait{width:56px;height:56px;border-radius:8px;overflow:hidden;flex:0 0 auto;'
+      + 'border:1px solid var(--gold-2);background:rgba(0,0,0,.3)}',
+    R + '.cs-id-portrait img{width:100%;height:100%;object-fit:cover}',
+    R + '.cs-id-meta{min-width:0;flex:1}',
+    R + '.cs-id-name{font-family:var(--f-display);font-size:calc(21px * var(--ui-scale, 1));font-weight:800;'
+      + 'color:var(--gold-2);letter-spacing:.03em;overflow-wrap:anywhere}',
+    R + '.cs-id-meta .cr-founder{margin-top:0}',
+    R + '.cs-id-levels{display:flex;gap:20px;flex:0 0 auto}',
+    R + '.cs-id-lv{text-align:center}',
+    R + '.cs-id-lv b{display:block;font-size:calc(24px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}',
+    R + '.cs-id-lv span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}',
+    R + '.cs-cols{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr);gap:var(--gap,12px);align-items:start;min-height:0}',
+    R + '.cs-cols .card{min-width:0}',
+    R + '#char-skills #skills-list{max-height:calc(100vh - 320px);overflow-y:auto}',
+    R + '#char-skills #skill-detail{display:flex;flex-direction:column;gap:10px;min-height:0}',
+    '@media (max-width:900px){' + R + '.cs-cols{grid-template-columns:1fr}'
+      + R + '.cs-idstrip{flex-wrap:wrap}}',
+    // Hero sub-tab — Account stat grid
+    R + '#char-hero{display:flex;flex-direction:column;gap:12px}',
+    R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
+    R + '.cr-acct-cell{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:8px;padding:12px 10px;text-align:center}',
+    R + '.cr-acct-cell b{display:block;font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
+    R + '.cr-acct-cell span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
+    R + '.cr-acct-cell.reveal{cursor:pointer;transition:border-color .12s}',
+    R + '.cr-acct-cell.reveal:hover{border-color:var(--gold-2)}',
+    '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',
+    // Equipment sub-tab
+    R + '#char-equip{display:flex;flex-direction:column;gap:12px;align-items:center}',
+    R + '.cr-equip-link{width:100%;max-width:520px}',
+    R + '.cr-equip-link button{width:100%;padding:8px;background:rgba(201,162,74,.14);border:1px solid rgba(201,162,74,.32);'
+      + 'border-radius:6px;color:var(--gold-2);cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;font-family:var(--f-ui)}',
+    R + '.cr-equip-link button:hover{background:rgba(201,162,74,.22)}',
+  ].join('\n');
+  document.head.appendChild(s);
 }

@@ -645,7 +645,10 @@ let G={
   daily:{lastReset:null,tasks:[]},
   collection:{},
   quests:[],
-  stats:{kills:0,gathered:0,harvested:0,rareDrops:0},
+  /* b229: playMs is the Time Played accumulator surfaced on the Hero screen —
+     a presence-gated counter (see tickPlayMs). Fresh saves start at 0; existing
+     saves backfill nothing (an honest zero, never a faked figure). */
+  stats:{kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0},
   bountyHunter:{marks:0,xp:0,completed:0,active:null,board:[],boardGeneratedAt:0,freeRerolls:1,rerollsToday:0,upgrades:{},warrants:{}},
   lastOfflineSummary:null,
   lastSeen:Date.now(),
@@ -1759,6 +1762,26 @@ function withOfflineReplay(fn){
 }
 function blessingsApply(){ return !inOfflineReplay() && sessionOnline(); }
 
+/* b229 — Time Played (Hero screen Account panel). A presence-gated accumulator,
+   NOT a new interval: it is ticked from the existing 10fps activity-bar loop and
+   measures the REAL wall-clock delta between ticks, banking it only while the
+   session is online (the same gate blessings use). Capping the per-tick delta
+   means a slept/backgrounded machine that fires one giant catch-up tick on wake
+   never counts that gap as play, and an offline stretch is excluded outright —
+   so the figure is honest time in the game, never idle time or a fabrication. */
+let _lastPlayTick = Date.now();
+function tickPlayMs(){
+  const now = Date.now();
+  const dt = now - _lastPlayTick;
+  _lastPlayTick = now;
+  if(dt <= 0 || dt > 4000) return;                 // a sleep/resume gap — don't bank it
+  if(!blessingsApply()) return;                    // offline / replay — base rate, no clock
+  if(typeof G !== 'object' || !G) return;
+  if(!G.stats) G.stats = {kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0};
+  G.stats.playMs = (G.stats.playMs||0) + dt;
+}
+window.HearthrisePlayTime = { ms: function(){ return (typeof G==='object' && G && G.stats && G.stats.playMs) || 0; } };
+
 /* b229: a connectivity flip changes what the current action is worth, so the
    running loop re-derives its interval the moment it happens instead of on the
    next swing, and every surface that states the rule re-reads it in the same
@@ -2512,7 +2535,7 @@ function armSkillTimers(ms){
   if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
   if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
   skillInterval=setInterval(()=>doSkillAction(false),ms);
-  skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/ms));if(activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
+  skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/ms));if(typeof isSkillsVisible==='function'?isSkillsVisible():activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
 }
 function retimeActivity(){
   if(inOfflineReplay()) return;            // the replay owns its own clock
@@ -2951,11 +2974,23 @@ function showTab(tab){
     if(_shopsPane==='market' && typeof window.renderMarket==='function') window.renderMarket();
   }
 }
+/* b229: Skills folded into the Character screen's Skills sub-tab, so "is a
+   training bar on screen" is no longer just activeTab==='skills'. Every hot
+   path that used to gate on that (the skill/artisan progress intervals,
+   refreshAll) asks this instead — otherwise the live XP bar freezes the moment
+   the player watches it from the combined Character screen (the subtlest
+   breakage in the whole rework, spec §8 risk #1). character-page.js publishes
+   the same helper; defining it here too keeps the guards independent of ESM
+   boot order. */
+function isSkillsVisible(){
+  return activeTab==='skills' || (activeTab==='character' && (window._charPane||'skills')==='skills');
+}
+window.isSkillsVisible=isSkillsVisible;
 function refreshAll(){
   updateTopbar();
   if(activeTab==='profile')renderProfile();
   if(activeTab==='combat'){renderCombat();renderLoadout();renderMonsterList();}
-  if(activeTab==='skills'){renderSkillsList();if(G.activeSkill)renderSkillDetail(G.activeSkill);}
+  if(isSkillsVisible()){renderSkillsList();if(G.activeSkill)renderSkillDetail(G.activeSkill);}
   if(activeTab==='inventory')renderInventory();
   if(activeTab==='farming')renderFarm();
   if(activeTab==='shop')renderShop();
@@ -6084,7 +6119,10 @@ function refreshPanelProgress(){
     const s = SKILLS_DEF[G.activeSkill] || {};
     const target = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
     const xph = _activityXpHr();
-    updateOne('panel-skills',
+    /* b229: Skills folded into the Character screen, so the per-tab progress
+       strip lives on #panel-character now (it was keyed to #panel-skills, which
+       is never the active panel any more — the strip would silently vanish). */
+    updateOne('panel-character',
       `${s.name || G.activeSkill}${target?' — '+target:''}`,
       xph ? `${xph.toLocaleString()} xp/hr` : '',
       _activityProgress(),
@@ -6094,7 +6132,7 @@ function refreshPanelProgress(){
   if(G.activeArtisanRecipe){
     const skill = G.activeArtisanSkill || 'cooking';
     const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
-    updateOne('panel-skills',
+    updateOne('panel-character',
       `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`,
       '',
       Math.min(1, G.skillProgress || G.actionProgress || 0),
@@ -6120,8 +6158,9 @@ if(typeof _origStartCombatAB === 'function'){
   window.startCombat = function(){ G._combatTickStart = Date.now(); const r = _origStartCombatAB.apply(this, arguments); refreshActivityBar(); return r; };
 }
 
-/* Drive the bar at 10fps */
-setInterval(refreshActivityBar, 100);
+/* Drive the bar at 10fps — and bank Time Played off the same tick (b229), so
+   the counter rides an existing loop rather than adding a wall-clock of its own. */
+setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 100);
 
 console.log('Activity bar: loaded');
 
@@ -7866,6 +7905,11 @@ var ACHIEVEMENTS = [
   {id:'streak_30',   name:'Devoted',             desc:'30-day login streak',        icon:'☄️', target:30,   src:'streak.count'},
   {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          icon:'🐲', target:1,    src:'bestiary.dragon.kills'},
 ];
+/* b229: this array is IIFE-scoped, but the Hero screen's Account panel needs
+   ACHIEVEMENTS.length to print "X / total". Publish it read-only (the per-player
+   UNLOCK state stays in G.achievements) so the panel counts against the real
+   catalogue rather than a hand-copied number. */
+window.ACHIEVEMENTS = ACHIEVEMENTS;
 
 function readPath(path){
   if(typeof G !== 'object' || !G) return 0;
@@ -8287,7 +8331,7 @@ window._armArtisanTimers = function(ms){
   window._artisanInterval = setInterval(function(){ doArtisanAction(G.activeSkill, G.skillTargetId); }, ms);
   window._artisanProgress = setInterval(function(){
     G.skillProgress = Math.min(1, G.skillProgress + (100/ms));
-    if(typeof activeTab !== 'undefined' && activeTab==='skills' && typeof renderSkillDetail==='function') renderSkillDetail(G.activeSkill);
+    if((typeof window.isSkillsVisible==='function' ? window.isSkillsVisible() : (typeof activeTab !== 'undefined' && activeTab==='skills')) && typeof renderSkillDetail==='function') renderSkillDetail(G.activeSkill);
   }, 100);
 };
 /* b201: each artisan skill reads its own workbench-room speed bonus. Routed

@@ -4,6 +4,10 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Character/Skills screen rework — PLAN FIRST (Tyler, directive + guardrail)
+**Decision:** Tyler wants: (1) "Your Heroes" character-select MOVED from the Character screen to the HOME screen; (2) a NEW Character screen COMBINING Skills + Character, OSRS-style-but-our-own (the classic skills grid with levels, ref screenshot); (3) KEEP the Equipment tab (→ sub-tabs within the combined screen); (4) each skill tile routes the player to WHERE to do that activity (reuse the b227 quest-nav `questDestination`/`openSkillDetail` seams). **Guardrail (his words): "do it smart, don't break any functionality or ruin anything that sets us back."** → Produce a design + migration-safety plan BEFORE any code; sequence the build AFTER the in-flight bonus-rebase + rally-v2 agents land (they touch overlapping surfaces); present the plan to Tyler for reaction before building.
+**Affected agents:** Game Designer + Art (plan), Systems (build, next wave).
+
 ### 2026-08-09 · Rally pledges v2: auto-join when online, themed loot, no plumbing copy (Tyler, binding)
 **Decision:** (1) Pledge rule simplifies — pledged + ONLINE during the window = full participation automatically (no separate live-join click); pledged + offline = half honors on return. (2) A visible "Switch to <the other rally>" affordance on the pledged card until the window opens. (3) Chest contents are THEMED to the event: Forge Levy pays smithing/crafting XP + forge-domain items; each rally's reward table derives from its blessing domain. (4) NO implementation-state copy ever — "provisional / recorded on this device" class of strings is banned; if the server can't hold a pledge, the UI degrades silently or hides the affordance.
 **Affected agents:** Systems (rally v2), Designer (themed reward tables ratification).

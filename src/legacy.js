@@ -6074,8 +6074,24 @@ function getGoalsForToday(){
 // from inside nested IIFEs.
 window.getGoalsForToday = getGoalsForToday;
 
+/* b224 (LIVE HOTFIX) — the quests-never-tick bug.
+   readSource() is declared INSIDE this IIFE (block 16). The Quests strip +
+   modal live in their own IIFE (block 40) and referenced it bare, guarded by
+   `if(typeof readSource !== 'function') return 0;`. That guard never threw — it
+   just returned 0 — so every daily and weekly quest reported 0 / N forever and
+   nothing was ever claimable, with nothing in the console to show for it.
+   Exactly the cross-IIFE trap b127 (hoursTillUTCMidnight) and b130
+   (getGoalsForToday) already fixed here; readSource was the third read out of
+   this scope and the only one whose failure was silent. Export it.
+   The smoke suite now asserts a real player counter moves the RENDERED number,
+   so an export can never quietly go missing again. */
 function readSource(path){
   if(!G) return 0;
+  /* `_dailyGoldDelta` is a derived source, not a path into G — without this the
+     "Earn 500 gold" daily read G._dailyGoldDelta (undefined → 0) and stayed at
+     0 even once the renderer could see it. readPath() (block 17) already
+     derives it exactly this way. */
+  if(path === '_dailyGoldDelta') return Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
   var parts = path.split('.');
   var cur = G;
   for(var i = 0; i < parts.length; i++){
@@ -6084,6 +6100,7 @@ function readSource(path){
   }
   return cur || 0;
 }
+window.readSource = readSource;
 function renderDailyGoals(host){
   if(!host) return;
   var goals = getGoalsForToday();
@@ -11616,6 +11633,24 @@ console.log('[Bundle Icons v1] applied:',
     {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},
     {id:'wk_levels',   emoji:'📈', name:'Gain 5 skill levels', target:5, source:'stats.levelups',       reward:{gold:5000, gems:5}},
   ];
+  /* b224: this renderer reads its progress sources out of block 16 across an
+     IIFE boundary. When that export was missing the old inline guard silently
+     returned 0 — every quest read 0 / N forever and nothing was claimable, with
+     no error anywhere to find it by. Never fail silently here again: a missing
+     export is a wiring break, and console.error fails the headless smoke gate
+     (tests/run-smoke.mjs treats console errors as failures). */
+  var _srcWarned = false;
+  function src(path){
+    if(typeof window.readSource !== 'function'){
+      if(!_srcWarned){
+        _srcWarned = true;
+        console.error('[Quests] window.readSource is missing — quest progress cannot be computed');
+      }
+      return 0;
+    }
+    return window.readSource(path);
+  }
+
   function thisWeekKey(){
     var d = new Date();
     var ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -11634,8 +11669,23 @@ console.log('[Bundle Icons v1] applied:',
         while(used[idx]) idx = (idx+1) % WEEKLY_GOAL_POOL.length;
         used[idx] = true; picks.push(WEEKLY_GOAL_POOL[idx]);
       }
-      G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}};
-      picks.forEach(function(g){ G.weeklyGoals.startValues[g.id] = (typeof readSource === 'function') ? readSource(g.source) : 0; });
+      G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}, sv:1};
+      picks.forEach(function(g){ G.weeklyGoals.startValues[g.id] = src(g.source); });
+    } else if(G.weeklyGoals.sv !== 1){
+      /* b224: every weekly baseline written before this build was captured
+         through the broken lookup, so it is 0 for every source. Reading those
+         zeroes with a WORKING readSource would hand a long-time player an
+         instantly-complete weekly ("Slay 100 monsters", "Cut 250 logs") and its
+         full reward — thousands of gold and gems nobody earned. Re-baseline
+         once, from now. Nothing real is lost: the panel showed 0 and could not
+         be claimed, so no weekly progress was ever actually tracked. */
+      G.weeklyGoals.startValues = {};
+      G.weeklyGoals.claimed = G.weeklyGoals.claimed || {};
+      (G.weeklyGoals.picks || []).forEach(function(id){
+        var def = WEEKLY_GOAL_POOL.find(function(p){ return p.id === id; });
+        if(def) G.weeklyGoals.startValues[id] = src(def.source);
+      });
+      G.weeklyGoals.sv = 1;
     }
     return G.weeklyGoals.picks.map(function(id){
       return WEEKLY_GOAL_POOL.find(function(p){return p.id===id;});
@@ -11644,10 +11694,9 @@ console.log('[Bundle Icons v1] applied:',
 
   // ── Helpers to compute progress ──
   function getProgress(goal, isWeekly){
-    if(typeof readSource !== 'function') return 0;
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
     var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return Math.max(0, readSource(goal.source) - startVal);
+    return Math.max(0, src(goal.source) - startVal);
   }
   function isClaimed(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -11683,9 +11732,16 @@ console.log('[Bundle Icons v1] applied:',
 
   // ── Claim ──
   window.claimQuestReward = function(goalId, isWeekly){
+    /* b224: DAILY_GOAL_POOL is block-16 scoped too, so `typeof DAILY_GOAL_POOL`
+       was 'undefined' here and every daily claim returned on the next line —
+       the Claim button was inert even for a finished quest. getGoalsForToday()
+       is the exported view of that pool AND it is already narrowed to today's
+       three picks, which is exactly the set a player may claim. */
     var goal = isWeekly
       ? WEEKLY_GOAL_POOL.find(function(p){return p.id===goalId;})
-      : (typeof DAILY_GOAL_POOL !== 'undefined' ? DAILY_GOAL_POOL.find(function(p){return p.id===goalId;}) : null);
+      : (typeof window.getGoalsForToday === 'function'
+          ? window.getGoalsForToday().find(function(p){return p.id===goalId;})
+          : null);
     if(!goal) return;
     if(!isComplete(goal, isWeekly)) return;
     if(isClaimed(goal, isWeekly)) return;
@@ -11887,9 +11943,23 @@ console.log('[Bundle Icons v1] applied:',
   } else {
     setTimeout(renderStrip, 600);
   }
-  if(window.HearthriseEvents && typeof window.HearthriseEvents.on === 'function'){
-    window.HearthriseEvents.on('*', function(){ renderStrip(); var m=document.getElementById('quests-modal-overlay'); if(m) renderModal(); });
-  }
+  /* b224: legacy.js is a CLASSIC script and runs before main.js boots the ESM
+     modules, so window.HearthriseEvents did not exist yet when this line first
+     evaluated — the subscription silently never happened and the strip only ever
+     repainted on its own 2s timer. Same silently-inert cross-module wiring as the
+     readSource bug above. Retry until the bus is up, bounded so a build without
+     one never leaves a timer running. */
+  (function hookEventBus(tries){
+    if(!window.HearthriseEvents || typeof window.HearthriseEvents.on !== 'function'){
+      if(tries > 0) setTimeout(function(){ hookEventBus(tries - 1); }, 200);
+      return;
+    }
+    window.HearthriseEvents.on('*', function(){
+      renderStrip();
+      var m = document.getElementById('quests-modal-overlay');
+      if(m) renderModal();
+    });
+  })(50);
   // Esc to close
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape') closeQuestsModal();

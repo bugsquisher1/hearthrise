@@ -6857,6 +6857,222 @@ const TESTS = [
     assert(map[5].unlocks.indexOf('emberfruit') !== -1 && map[5].unlocks.indexOf('moonbloom') !== -1,
       'emberfruit + moonbloom must unlock at plot Lv 5');
   }),
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // b224 — LIVE HOTFIX: "the quests are not updating when doing the task"
+  //
+  // readSource() is declared inside legacy.js block 16's IIFE. The Quests strip
+  // and the Quests modal live in block 40's IIFE and read it ACROSS that
+  // boundary, behind `if(typeof readSource !== 'function') return 0;`. With no
+  // export the guard never threw — it answered 0. Every daily and weekly quest
+  // rendered 0 / N forever on the strip that sits under the topbar on every
+  // screen, and isComplete() was never true, so nothing was ever claimable.
+  //
+  // 274 tests stayed green through all of it because every quest test asserted
+  // that the panel OPENS, CLOSES or LAYS OUT — never that a number MOVES. That
+  // is the hole. These tests move real counters and read the rendered text back.
+  // ══════════════════════════════════════════════════════════════════════════
+  () => tryRun('b224: a player action moves the RENDERED quest number (strip, modal, claim)', () => {
+    assert(typeof window.readSource === 'function',
+      'window.readSource is not exported — the Quests strip/modal cannot compute any progress');
+    assert(typeof window.getGoalsForToday === 'function', 'getGoalsForToday missing');
+    assert(window.HearthriseEvents && typeof window.HearthriseEvents.emit === 'function',
+      'the event bus that repaints the Quests strip is missing');
+
+    const G = window.G;
+    const hadCombat = Object.prototype.hasOwnProperty.call(G.skills, 'combat');
+    const saved = {
+      kills: G.stats.kills, gold: G.gold, gems: G.gems, combat: G.skills.combat,
+      dailyGoals: G.dailyGoals ? JSON.parse(JSON.stringify(G.dailyGoals)) : null,
+      weeklyGoals: G.weeklyGoals ? JSON.parse(JSON.stringify(G.weeklyGoals)) : null,
+    };
+    const repaint = () => window.HearthriseEvents.emit('smokeQuestRepaint', {});
+    try {
+      window.getGoalsForToday();                 // make sure today's object exists
+      const dayKey = G.dailyGoals.dayKey;
+      // One known goal ("Slay 30 monsters"), baselined at the current kill count.
+      G.stats.kills = 40;
+      G.dailyGoals = { dayKey: dayKey, picks: ['kill_more'], startValues: { kill_more: 40 }, claimed: {} };
+
+      repaint();
+      const strip = document.getElementById('global-quests-strip');
+      assert(strip, 'the global Quests strip never rendered');
+      assert(/0\s*\/\s*30/.test(strip.innerText),
+        'a freshly baselined quest should read 0 / 30, got: ' + strip.innerText);
+
+      G.stats.kills = 47;                        // seven kills later
+      repaint();
+      assert(/7\s*\/\s*30/.test(strip.innerText),
+        'THE BUG: the Quests strip did not follow the counter — it still reads ' + strip.innerText);
+
+      window.openQuestsModal();
+      const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
+      assert(prog && /7\s*\/\s*30/.test(prog.textContent),
+        'the Quests modal did not follow the counter: ' + (prog ? prog.textContent : '(no quest row)'));
+
+      // A quest you cannot finish and claim is a quest that does not exist.
+      G.stats.kills = 70;
+      repaint();
+      const claim = document.querySelector('#quests-modal-overlay .qm-q-claim');
+      assert(claim, 'a completed quest offered no Claim button');
+      const goldBefore = G.gold;
+      window.claimQuestReward('kill_more', false);
+      assert(G.gold > goldBefore, 'claiming a completed quest paid nothing');
+      assert(G.dailyGoals.claimed && G.dailyGoals.claimed.kill_more === true,
+        'the claim was not recorded, so the same reward could be taken twice');
+    } finally {
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      G.stats.kills = saved.kills; G.gold = saved.gold; G.gems = saved.gems;
+      if (hadCombat) G.skills.combat = saved.combat; else delete G.skills.combat;
+      G.dailyGoals = saved.dailyGoals; G.weeklyGoals = saved.weeklyGoals;
+    }
+  }),
+
+  // The export itself, plus the second half of the same defect: `_dailyGoldDelta`
+  // is a DERIVED source, not a path into G, so "Earn 500 gold" read
+  // G._dailyGoldDelta (undefined → 0) and could never move even once the
+  // renderer could see readSource at all.
+  () => tryRun('b224: readSource is exported, walks G, and derives the gold-delta source', () => {
+    const G = window.G;
+    assert(typeof window.readSource === 'function', 'window.readSource missing');
+    const saved = { kills: G.stats.kills, gold: G.gold,
+      start: G.dailyGoldStart ? JSON.parse(JSON.stringify(G.dailyGoldStart)) : null };
+    try {
+      G.stats.kills = 123;
+      assert(window.readSource('stats.kills') === 123, 'readSource cannot walk a path into G');
+      assert(window.readSource('collection.__no_such_item__') === 0,
+        'a missing path must read 0, not undefined — the renderer subtracts it');
+      G.dailyGoldStart = { day: 0, gold: 1000 };
+      G.gold = 1750;
+      assert(window.readSource('_dailyGoldDelta') === 750,
+        'the gold-delta daily source is not derived, got ' + window.readSource('_dailyGoldDelta'));
+      G.gold = 500;
+      assert(window.readSource('_dailyGoldDelta') === 0, 'a negative gold delta must clamp to 0');
+
+      // Every source the live pools name has to be readable as a number, or that
+      // quest is decorative.
+      const defs = (window.getGoalsForToday() || []).concat(window.getWeeklyGoals() || []);
+      assert(defs.length > 0, 'no quest definitions to check');
+      defs.forEach((d) => {
+        assert(typeof window.readSource(d.source) === 'number',
+          'quest "' + d.id + '" names an unreadable source: ' + d.source);
+      });
+    } finally {
+      G.stats.kills = saved.kills; G.gold = saved.gold;
+      if (saved.start) G.dailyGoldStart = saved.start; else delete G.dailyGoldStart;
+    }
+  }),
+
+  // Fixing the read without re-baselining would have been worse than the bug:
+  // every weekly startValue in every live save was captured as the broken 0, so
+  // a long-time player would open the panel to three instantly-complete weeklies
+  // and thousands of gold plus gems they never earned.
+  () => tryRun('b224: stale weekly baselines are re-captured once, so the fix pays no windfall', () => {
+    const G = window.G;
+    assert(typeof window.getWeeklyGoals === 'function', 'getWeeklyGoals missing');
+    const saved = {
+      weekly: G.weeklyGoals ? JSON.parse(JSON.stringify(G.weeklyGoals)) : null,
+      kills: G.stats.kills, cooked: G.stats.cooked,
+    };
+    try {
+      G.stats.kills = 5000; G.stats.cooked = 900;
+      window.getWeeklyGoals();
+      assert(G.weeklyGoals.sv === 1, 'a freshly drawn week must carry the baseline marker');
+      const weekKey = G.weeklyGoals.weekKey;
+      const picks = G.weeklyGoals.picks.slice();
+
+      // A save written before this build: right week, every baseline a broken 0.
+      const zeroed = {};
+      picks.forEach((id) => { zeroed[id] = 0; });
+      G.weeklyGoals = { weekKey: weekKey, picks: picks, startValues: zeroed, claimed: {} };
+
+      const defs = window.getWeeklyGoals();
+      assert(G.weeklyGoals.sv === 1, 'the stale baseline was not re-captured');
+      assert(G.weeklyGoals.weekKey === weekKey, 're-baselining must not redraw the week');
+      defs.forEach((d) => {
+        assert(G.weeklyGoals.startValues[d.id] === window.readSource(d.source),
+          d.id + ' kept its broken baseline — a 5,000-kill player would claim it instantly');
+      });
+
+      // And the surface agrees: weekly reads 0 progress, nothing claimable.
+      window.openQuestsModal();
+      const wk = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]');
+      assert(wk, 'the modal has no Weekly tab');
+      wk.click();
+      const rows = [...document.querySelectorAll('#quests-modal-overlay .qm-q-progtext')];
+      assert(rows.length > 0, 'the Weekly tab rendered no quests');
+      rows.forEach((r) => {
+        assert(/^0\s*\//.test(r.textContent.trim()),
+          'a re-baselined weekly should read 0 / N, got ' + r.textContent);
+      });
+      assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'),
+        'a re-baselined weekly must not be claimable');
+      const daily = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]');
+      if (daily) daily.click();
+    } finally {
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      G.stats.kills = saved.kills; G.stats.cooked = saved.cooked;
+      G.weeklyGoals = saved.weekly;
+    }
+  }),
+
+  // The other half of the report: the Home "Next up" ladder and the daily tasks
+  // ride the updateDaily chain that b220-b223 wrapped twice. One real gather has
+  // to move the ladder AND be seen exactly once by every wrapper, no matter what
+  // order the wrappers booted in — a swallowed, re-ordered or double-fired link
+  // would kill or double every counter in the game at once.
+  () => tryRun('b224: one real gather ticks the quest ladder and each updateDaily wrapper exactly once', () => {
+    const G = window.G;
+    const owners = window.updateDailyWrappers();
+    assert(owners.indexOf('muster') >= 0 && owners.indexOf('castleLabour') >= 0,
+      'the live wrapper chain is not both systems: ' + owners.join(','));
+    const snap = snapshotG();
+    const saved = {
+      chain: window.updateDaily,
+      quests: JSON.parse(JSON.stringify(G.quests || [])),
+      daily: JSON.parse(JSON.stringify(G.daily || {})),
+      collection: JSON.parse(JSON.stringify(G.collection || {})),
+      gathered: G.stats.gathered, wc: G.skills.woodcutting,
+    };
+    try {
+      // Two more systems register AFTER the chain is already two deep. Boot order
+      // must not matter and nobody may be skipped or fired twice.
+      const seen = { a: [], b: [] };
+      window.wrapUpdateDaily('__b224_a', (type, amt) => { seen.a.push(type + ':' + amt); });
+      window.wrapUpdateDaily('__b224_b', (type, amt) => { seen.b.push(type + ':' + amt); });
+
+      const quest = (G.quests || []).find((q) => q.type === 'gather');
+      assert(quest, 'no gather quest on the ladder to measure');
+      quest.done = false; quest.progress = 0;
+      const task = ((G.daily && G.daily.tasks) || []).find((t) => t.type === 'gather') || null;
+      if (task) { task.done = false; task.progress = 0; }
+      const g0 = G.stats.gathered || 0;
+
+      // The real player path — the interval callback behind "chop this tree".
+      const lvl = window.getLevel('woodcutting');
+      const tree = (window.TREES || []).find((t) => t.req <= lvl);
+      assert(tree, 'no choppable tree at woodcutting ' + lvl);
+      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
+      window.doSkillAction(true);
+
+      const gained = (G.stats.gathered || 0) - g0;
+      assert(gained > 0, 'the gather never happened');
+      assert((quest.progress || 0) === gained,
+        'the Home "Next up" quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
+      if (task) assert((task.progress || 0) === gained,
+        'the daily task did not follow the gather: 0 → ' + task.progress + ' (gathered ' + gained + ')');
+      assert(seen.a.length === 1 && seen.b.length === 1,
+        'each wrapper must see exactly one event per action, got ' + seen.a.length + ' and ' + seen.b.length);
+      assert(seen.a[0] === 'gather:' + gained && seen.b[0] === 'gather:' + gained,
+        'a wrapper saw the wrong payload: ' + seen.a[0] + ' / ' + seen.b[0]);
+    } finally {
+      window.updateDaily = saved.chain;
+      G.activeSkill = null; G.skillTargetId = null;
+      G.quests = saved.quests; G.daily = saved.daily; G.collection = saved.collection;
+      G.stats.gathered = saved.gathered; G.skills.woodcutting = saved.wc;
+      restoreG(snap);
+    }
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

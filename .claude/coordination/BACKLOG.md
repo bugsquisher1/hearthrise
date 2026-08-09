@@ -28,6 +28,19 @@ Triaged from Tyler's list. P0 critical · P1 major · P2 meaningful · P3 minor.
 | 18 | Clan/castle page OUT of the Social tab — its own easier-to-find destination (placement = Designer+Art call; it's a twin PILLAR, warrants top-level nav like Events got) | **P1** | Art + Designer (Systems) | after #17 merges (nav/index.html collision) |
 | 19 | SECOND text-size pass — b218's ~x1.13 (body 14→16) is still too small "in a lot of places"; raise the FLOOR (micro/small/label tiers + missed hardcoded spots), not just the base; verify screen-by-screen | **P1** | Art | after #17 merges |
 
+## Tyler batch 2026-08-09 (b227/b228)
+| # | Item | Disposition |
+|---|---|---|
+| 20 | Rally pre-select: pick which rally you'll join today; offline during it → 50% participation reward | QUEUED behind presence agent (same surfaces) |
+| 21 | Pet/companion icons — Stable is 22 emoji-as-art | dispatched (Asset: 7 painted Animals_* in reserve + glyphs + artist brief) |
+| 22 | Clan header/door text clipping (screenshot) | dispatched w/ #24 |
+| 23 | Text STILL too small (3rd report) | dispatched: wire the dead Settings UI-scale control for real + floor 13.5→14.5, body 16→17 |
+| 24 | Tier-1 clan scene reads FARM; want "castle foundation" staging | dispatched (Art) |
+| 25 | Sidebar foot shows permanent "Offline" | dispatched w/ #26 (indicator only when actually disconnected) |
+| 26 | Click the avatar → upload portrait (prefabs later) | dispatched |
+| 27 | Combat Eat button unreadable + below the fold | dispatched w/ #28 |
+| 28 | Loot/DPS stats → click-open modals near the enemy avatar, not a bottom scroll strip | dispatched |
+
 ## Notes / risks
 - **#3 is the unblocker:** while sub-tabs snap back, every other agent's browser verification is sabotaged. Fix first.
 - **#1 text scale lands before other visual work** so the rest rebases onto readable type (avoids re-doing sizing).

@@ -8,7 +8,7 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 - **main HEAD:** `6470793` — **b218 SHIPPED** (Wave 0: #1 type scale, #2 wordmark, #3 sub-tab persistence, #4 companion stats, #10-12 specs).
 - **Version:** v0.9.2-beta (build b223)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
-- **⚠️ PENDING MANUAL STEPS (Tyler, Supabase SQL editor, in order):** 1) raid-hardening 2) muster 3) unique-names 4) leaderboards 5) clan-seat 6) clan-seat-2 7) hunt (all `supabase/migrations/2026-08-08-*.sql`). All idempotent with self-checks; clients live and feature-detecting. NOTE: leaderboards/clan-seat/clan-seat-2/hunt SQL never executed against real Postgres — their self-check DO blocks are the net; run and read the notices.
+- **✅ ALL 7 MIGRATIONS APPLIED (Tyler, 2026-08-09, verified by table probes):** raid_claims, world_event_joins+hr_server_now, display_names (first claim recorded), leaderboard_meta (matview refreshed), clan_stores, board tasks seeded, hunt tiers seeded. Server side is FULLY live.
 - **Working tree:** clean. No worktrees in flight.
 
 ## Build/test state

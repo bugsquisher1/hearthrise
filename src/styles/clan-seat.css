@@ -39,15 +39,34 @@
  * ========================================================================== */
 
 /* ── 1. The hold band ──────────────────────────────────────────────────────
- * A 9:2 crop of a 1600x300 scene. It bleeds to the card edge (the card carries
- * 12px of padding) because a picture with a gutter around it reads as an
- * illustration in a document; a picture that touches the frame reads as a
- * window. */
-.hr-cs { display: block; }
+ * A 9:2 crop of a 1600x300 scene. It bleeds past the card because a picture
+ * with a gutter around it reads as an illustration in a document; a picture
+ * that touches the frame reads as a window. (The original note here said the
+ * card "carries 12px of padding". It does not — see below; believing it cost
+ * the door strip's first label two pixels of its first letter.) */
+/* THE BLEED, DECLARED ONCE (b227). The band and the door strip run wider than
+ * the text under them, and every number that makes that happen is derived from
+ * these two so they can never drift apart again:
+ *   --cs-bleed  how far a full-width element hangs past the card body
+ *   --cs-inset  the padding inside a door cell
+ * A door's label therefore lands at exactly (bleed - inset + inset) = the card
+ * body's own content edge, i.e. on the same vertical axis as the STANDING label
+ * below it. It cost Tyler a bug report to learn why that matters: the strip was
+ * bleeding -12px against a card body whose padding is **0** in the shipped
+ * theme (14px only in Cozy Day), so the first cell's 10px inset put "The Great
+ * Hall" and "TIER 1" two pixels OUTSIDE a box that hides its overflow — and the
+ * b225 type floor, which took those two labels from 12.5px to 13.5px, is what
+ * finally made a 2px shave read as a chopped-off T. Measured, not guessed:
+ * ink.left 188 against a clip edge at 190, at every desktop width. */
+.hr-cs {
+  display: block;
+  --cs-bleed: 12px;
+  --cs-inset: 10px;
+}
 
 .hr-cs-hold {
   position: relative;
-  margin: -12px -12px 0;
+  margin: calc(-1 * var(--cs-bleed)) calc(-1 * var(--cs-bleed)) 0;
   height: 224px;
   overflow: hidden;
   border-bottom: 1px solid var(--line-soft);
@@ -128,8 +147,53 @@
 .hrcs-smoke ellipse { fill: var(--scene-smoke); }
 .hrcs-wall, .hrcs-wall path, .hrcs-wall rect, .hrcs-wall circle { fill: var(--scene-build); }
 .hrcs-wall-2 { fill: var(--scene-build-2); }
-.hrcs-pale path { stroke: var(--scene-build); stroke-width: 4; fill: none; }
 .hrcs-glow { fill: url(#hrcsFire); }
+
+/* THE BUILDING SITE (b227). Three marks, and the difference between them is
+ * what makes a low tier read as a castle under construction instead of a camp:
+ *   .hrcs-site   — solid site objects (posts, lean-to, cart, banner pole). Same
+ *                  silhouette value as the buildings: they stand on the same
+ *                  ground under the same sky.
+ *   .hrcs-frame  — timber that is a FRAME, not a surface. Drawn as open stroke
+ *                  so you see through it, which is the whole read of scaffold,
+ *                  a lifting gin, and a wall run that is standarded but not yet
+ *                  boarded. A filled scaffold is a shed.
+ *   .hrcs-cord   — the mason's line. Thin, cool, and dimmer than the stone, so
+ *                  it reads as string pulled between stakes rather than as
+ *                  another edge of the building. */
+.hrcs-site, .hrcs-site path, .hrcs-site rect, .hrcs-site circle { fill: var(--scene-build); }
+.hrcs-frame {
+  stroke: var(--scene-build);
+  stroke-width: 3.2; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.hrcs-cord { stroke: var(--scene-ink-3); stroke-width: 1.4; fill: none; opacity: .5; }
+/* An open trench is a cut in the ground, so it is DARKER than the ground — the
+ * one place in this picture where a shape recedes instead of standing up. */
+.hrcs-trench { fill: var(--scene-tree); }
+/* The levelled building platform. `--scene-ridge-far` is the only ground token
+ * far enough from `--scene-build` (#1a150f against #090705) to silhouette a
+ * 22-unit footing course. Everything the foundation stage draws is shorter than
+ * the horizon, so without this band it is dark on dark and simply not there. */
+.hrcs-terrace { fill: var(--scene-ridge-far); }
+/* The arris: the catch-light along the top of a cut stone. `--scene-rim` alone
+ * (α .20) vanishes at the ground, where there is no sky behind it to help — the
+ * top of the first course is the hero of tier 1 and it gets a real highlight. */
+.hrcs-arris {
+  stroke: var(--scene-ink-3); stroke-width: 2; fill: none;
+  opacity: .3; stroke-linecap: round;
+}
+/* THE PLAN — the mason's drawing of the castle, over the ground it will stand
+ * on. Not `.is-ghost`: a ghosted wing is a BUILDING that is absent, drawn in
+ * the scene's own ink. This is a DRAWING, so it is gilt (the colour the tier
+ * name is set in), finer, longer-dashed and quieter — it must be legible as a
+ * castle silhouette without ever competing with the stone actually laid. */
+.hrcs-plan, .hrcs-plan path, .hrcs-plan rect {
+  fill: none;
+  stroke: var(--scene-gilt); stroke-width: 1.6;
+  stroke-dasharray: 10 8; stroke-linejoin: round;
+  opacity: .28;
+}
 
 /* THE BLOCKS. Coursing is what turns a silhouette into masonry: a hairline of
  * catch-light along every mortar joint, at the scale of the structure. It is
@@ -180,16 +244,20 @@
  * shadow, which is why they sit flush against each other. */
 .hr-cs-doors {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
   gap: 2px;
-  margin: 0 -12px 12px;
+  margin: 0 calc(-1 * var(--cs-bleed)) 12px;
   border-bottom: 1px solid var(--line-soft);
   background: var(--line-soft);
-  padding: 0 0 1px;
+  /* The mortar bleeds to the frame; the BLOCKS stop where the text does. */
+  padding: 0 var(--cs-bleed) 1px;
 }
 .hr-cs-door {
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 9px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  /* 11px, not 9: two lines at the 13.5px floor in a 57px cell left 2px above
+   * the ascenders and 3px under the descenders, which is not breathing room —
+   * it is the amount of room that makes a reader check whether it was cut. */
+  padding: 11px var(--cs-inset);
   border: 0;
   background: linear-gradient(180deg,
     color-mix(in srgb, var(--scene-build-2) 82%, transparent),
@@ -205,12 +273,17 @@
     color-mix(in srgb, var(--gold) 14%, var(--scene-build-2)),
     color-mix(in srgb, var(--gold) 6%, var(--scene-build)));
 }
+/* Both labels declare their own line-height. Inherited leading is how a type
+ * floor turns into a clipping bug: `.hr-cs-door-nm` hides its overflow (for the
+ * ellipsis), so its box is exactly one line box tall, and any leading tighter
+ * than the face's own ascent+descent shears the glyphs top and bottom. */
 .hr-cs-door-nm {
-  font-size: 13.5px; font-weight: 700; color: var(--ink-2);
+  font-size: 13.5px; font-weight: 700; line-height: 1.45; color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hr-cs-door-lv {
-  font-size: 13.5px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 13.5px; line-height: 1.45;
+  letter-spacing: .06em; text-transform: uppercase;
   font-variant-numeric: tabular-nums;
 }
 .hr-cs-door.is-built .hr-cs-door-nm { color: var(--gold-2); }

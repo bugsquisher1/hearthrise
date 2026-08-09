@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 7;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 8;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -238,6 +238,57 @@
           }
           p.waterings = p.watered ? [p.plantedAt] : [];
         }
+      },
+    },
+    {
+      from: 7, to: 8,
+      name: 'v7 → v8 (b226 pacing retune: per-skill gather counters, founder date, goal re-snapshot)',
+      // Three things, all of them about not taking anything away.
+      //
+      // 1. PER-SKILL GATHER COUNTERS. Dailies, weeklies and achievements read
+      //    ITEM-SPECIFIC collection counters ("Chop 500 logs" watched
+      //    collection.normal_log), so a level-90 woodcutter cutting Duskwood
+      //    made zero progress — the goals got harder the better you were. They
+      //    now read stats.chopped / stats.mined / stats.fished. Those start at
+      //    zero, which would have silently ERASED real achievement progress,
+      //    so they are SEEDED from the collection log, which has always been a
+      //    cumulative lifetime count. Nobody loses a step; a Duskwood chopper
+      //    who was stuck on 0/500 usually gains several hundred.
+      //    The id lists are frozen here on purpose: a migration must describe
+      //    the world as it was, not import a table that will keep changing.
+      //
+      // 2. G.createdAt. Nothing ever stamped a creation date, so there is no
+      //    way to tell a save that predates the retune from one made after it
+      //    — which is exactly what the Founder's mark is gated on. Any save
+      //    passing through this migration existed BEFORE the retune build by
+      //    definition, so its best evidence of age is its own lastSeen, and a
+      //    save with no lastSeen at all is older still.
+      //
+      // 3. The daily/weekly goal snapshots captured startValues against the
+      //    OLD sources. Left alone, one day's goals would read as negative
+      //    progress and sit at 0/N until UTC midnight. Dropping the snapshot
+      //    re-rolls it cleanly on the next read.
+      apply: function(save){
+        var LOGS  = ['normal_log','oak_log','willow_log','maple_log','yew_log','runewood_log','duskwood_log'];
+        var ORES  = ['copper_ore','iron_ore','coal','gold_ore','mithril_ore','emberstone_ore','dawnstone_ore'];
+        var FISH  = ['shrimp','herring','trout','lobster','swordfish','frostfin','shark','moonfish'];
+        var col = (save.collection && typeof save.collection === 'object') ? save.collection : {};
+        function sum(ids){
+          var t = 0;
+          for(var i = 0; i < ids.length; i++){ var n = col[ids[i]]; if(typeof n === 'number' && isFinite(n) && n > 0) t += n; }
+          return Math.floor(t);
+        }
+        if(!save.stats || typeof save.stats !== 'object') save.stats = {};
+        if(typeof save.stats.chopped !== 'number') save.stats.chopped = sum(LOGS);
+        if(typeof save.stats.mined   !== 'number') save.stats.mined   = sum(ORES);
+        if(typeof save.stats.fished  !== 'number') save.stats.fished  = sum(FISH);
+
+        if(typeof save.createdAt !== 'number' || !isFinite(save.createdAt)){
+          save.createdAt = (typeof save.lastSeen === 'number' && isFinite(save.lastSeen)) ? save.lastSeen : 1;
+        }
+
+        if(save.dailyGoals) delete save.dailyGoals;
+        if(save.weeklyGoals) delete save.weeklyGoals;
       },
     },
     // Future migrations go here. Example:

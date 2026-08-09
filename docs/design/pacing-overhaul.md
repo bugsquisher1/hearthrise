@@ -662,3 +662,152 @@ pricing against the 16-week floor (§7).
   explicit yes. The fallback if it is rejected is `PACE.xp = 0.40` with the cap untouched.
 - **CONFLICTS** — Rested XP re-spec (§8.6); dawnstone raw value / vendor role (§6.2); the crop-tier
   unlock fix must land with §8.3.
+
+---
+
+# Appendix A · As-shipped constants — the 8-week anchor (b226)
+
+**Author:** Systems Engineer · **Date:** 2026-08-09 · **Status:** shipped in b226, awaiting Designer
+ratification at integration.
+**Brief:** `DECISIONS.md` → *2026-08-09 · Pacing APPROVED with re-anchor*. Tyler took the package
+whole with one change: the first-99 anchor moves from the 28 days modelled above to **≈56 days**, and
+the offline cap becomes the **12h daily budget** (§5.4, explicitly approved). Everything else — the
+presence bonus, the five modelling bugs, the fairness kit — ships as written.
+
+Tyler's reasoning for the slower anchor, recorded because it governs how the headroom below gets
+spent: *"we are obviously going to have lots of boosts and events so that 8 weeks will likely be
+faster."* **56 days is therefore the UNBOOSTED FLOOR, by design** — a player with no Library, no
+renown rank, no clan and no event uptime. The boosted columns in A.4 show what the diet already in
+the game does to it, so future boost tuning can see how much of that headroom it is spending.
+
+## A.1 The shipped constants
+
+| lever | §4 proposed | **as shipped** | why it moved |
+|---|---|---|---|
+| `PACE.xp` | 0.55 | **0.39** | carries the extra stretch from the re-anchor |
+| `PACE.actionMs` | 1.45 | **1.60** | takes a slightly larger share, because `actionMs` is the ONLY lever that cuts item throughput, and item volume is what Tyler actually flagged |
+| woodcutting curve correction | ×0.60 | **×0.60** | unchanged — a permanent balance fix, not a dial |
+| mining / fishing correction | ×1.15 / ×1.05 | **×1.15 / ×1.05** | unchanged |
+| offline cap | 12h daily budget | **12h daily budget** | approved as specified |
+| presence | ×1.12 XP | **×1.12 XP** | approved as specified |
+| `VENDOR_RAW_RATE` | 0.20 | **0.20** | approved as specified |
+| farming crop XP | ×14, exempt from `PACE.xp` | **×14, exempt** | approved as specified |
+
+**One architectural change from §4.1's instruction.** The spec asked for the final XP values to be
+published in `gathering.js` so nobody has to chain multipliers. Shipping it that way would have
+frozen the pacing dial into 22 data rows, and this document has now been re-anchored once already
+before a single player has seen it. So the split is: **the curve correction is baked into the data
+(it is a balance statement about the rungs), and `PACE.xp` stays a live constant at one choke-point
+(it is a speed statement about the game).** `book × PACE.xp` reproduces §4.1's published table
+exactly — Normal Tree 15 × 0.55 = 8, Mithril 92 × 0.55 = 51 — so the spec's arithmetic is intact;
+only the dial setting moved. To keep the cards honest, **every XP and duration readout in the game
+now renders through `pacedXp()` / `pacedActionMs()` / `actionRate()`**, so no tile, pill or rate
+panel can ever quote a number the engine will not pay.
+
+**Book values now in `gathering.js`** (grant = `floor(book × PACE.xp × (1 + allXP) × presence)`):
+
+| | t1 | t2 | t3 | t4 | t5 | t6 | t7 | t8 |
+|---|---|---|---|---|---|---|---|---|
+| Trees | 15 | 23 | 41 | 60 | 105 | 144 | 198 | — |
+| Rocks | 21 | 40 | 57 | 75 | 92 | 126 | 178 | — |
+| Fish | 11 | 21 | 32 | 84 | 116 | 137 | 158 | 226 |
+
+## A.2 The arithmetic to 56 days
+
+```
+day model (§2.3, unchanged)
+  offline banked/day   12.0 h   (the daily budget, at 1.00× — no offline dampening)
+  active/day            2.5 h × 1.12 presence = 2.8 h
+  effective game-hours per wall-clock day      = 14.8 h
+
+the target
+  first 99 = 11,805,606 XP
+  56 days × 14.8 h/day                         = 828.8 effective game-hours
+
+the baseline
+  woodcutting to 99 today, 0% allXP, tool ladder applied (§1.1)  = 120.5 h
+  required stretch factor F = 828.8 / 120.5                      = 6.878
+
+the split
+  F = PACE.actionMs / (PACE.xp × woodcutting curve 0.60)
+  holding actionMs at 1.60:  PACE.xp = 1.60 / (6.878 × 0.60)     = 0.3877  → shipped 0.39
+  realised F = 1.60 / (0.39 × 0.60) = 1.60 / 0.234               = 6.838
+  56.0 days at 0% allXP.  ✔
+```
+
+Why `actionMs` stopped at 1.60 rather than absorbing more: it is felt on every single action, and it
+sets the floor of the game's rhythm. At 1.60 the starting rung is **4.8s** and the tier-7 rung is
+**20.8s** (13.5s with a Dawnsteel axe) — slow enough to be felt, fast enough that the progress bar
+still reads as a rhythm rather than a wait. Every further 0.1 would have bought ~4% fewer items at
+the cost of a visibly draggier first session, which is the worst place in the game to spend it.
+
+## A.3 The as-shipped ladder
+
+| rung | grant | interval | rung | grant | interval |
+|---|---|---|---|---|---|
+| Normal Tree | 5 XP | 4.8s | Copper Rock | 8 XP | 4.8s |
+| Oak | 8 XP | 6.4s | Iron | 15 XP | 7.2s |
+| Willow | 15 XP | 8.8s | Coal | 22 XP | 8.8s |
+| Maple | 23 XP | 11.2s | Gold | 29 XP | 11.2s |
+| Yew | 40 XP | 16.0s | Mithril | 35 XP | **12.8s** ← was 14.4s |
+| Runewood | 56 XP | 18.4s | Emberstone | 49 XP | 16.8s |
+| Duskwood | 77 XP | 20.8s | Dawnstone | 69 XP | 19.2s |
+
+(Grants shown at 0% allXP, no presence. Mithril's `ms` 9000 → 8000 closes §1.2's rate regression;
+the suite now asserts every rung strictly beats the one below it, permanently.)
+
+## A.4 Floor and typical — the boost headroom
+
+Days to a first 99, at the same 14.8 h/day, at increasing amounts of the boost diet already in the
+game. The anchor is the leftmost column.
+
+| | **0% (the anchor)** | +20% Library L3 | +33% Library + mid renown + clan | +52% permanent ceiling | +52% & event/rally uptime |
+|---|---|---|---|---|---|
+| Woodcutting | **56.0 d** | 46.7 d | 42.2 d | 36.8 d | 35.2 d |
+| Mining | **56.6 d** | 47.3 d | 42.5 d | 37.3 d | 35.5 d |
+| Fishing | **54.0 d** | 45.1 d | 40.6 d | 35.6 d | 33.9 d |
+
+Composition of each column, from the shipped numbers: Library L1–L3 **+20%**; renown ranks at
+mid-ladder (Squire→Count) **+8%**; clan perks **+5%**; castle capstone **+5%**; the additive fuse
+caps the permanent stack at **+52%** (CONFLICTS 2026-08-08 §3). The last column additionally models
+~1h/day at the Rally aura (+10%) and a world event (+12%), which averages to about +4.5% over the
+2.5 active hours. **Rested XP contributes exactly nothing today** and is not in any column — its
+potency is `getBonus('restedXp')`, which no pillar grants (§8.6); it becomes real headroom the day
+the Tavern Common Room ships, and §8.6's re-spec should be priced against this table.
+
+So the honest sentence is: **the floor is eight weeks, a typical engaged player with the perks
+currently in the game lands around six, and the most decorated player in the game cannot get below
+five.** That is roughly 21 days of headroom between the anchor and the ceiling — the budget every
+future boost and event is spending from.
+
+**All 15 skills to 99.** Gathering is exact (166.6 days at 0%, ~135 at +25%). The artisan block
+scales ×4.10 against today (`actionMs / PACE.xp`); the combat block scales ×2.56 (XP only — the 2.4s
+tick is untouched, §4.4), which is gear-independent and therefore exact. Applied to §0's ~10.3-month
+figure those two multipliers bracket the total at **≈15–16 months for a player carrying the typical
++25% stack, and ≈19 months with no permanent perks at all** — inside the 16–18 month target, with
+the combat block the least certain term. Farming runs in parallel (wall-clock) rather than adding.
+
+## A.5 The five modelling bugs, as shipped
+
+| | before | after |
+|---|---|---|
+| `G.skillMs` offline dampener | stored raw `ms`; geared players gathered 30–40% slower offline | stores the tool/perk-adjusted interval — a straight buff to every geared player, and presence is now the only online/offline differential |
+| Farming XP | 12 plots of Moonbloom → 99 in **9.6 years** | ×14 and exempt from `PACE.xp` → **8.2 months** |
+| `VENDOR_RAW_RATE` | Dawnstone at mining 99 printed **646,154 g/h** | **80,769 g/h**; 12h budget 6.7M → **0.97M** |
+| Mithril Rock | 8.89 xp/s vs Gold's 9.29 — the unlock was a punishment | strictly faster than Gold at every dial setting, asserted forever |
+| Daily-goal counters | "Gather 25 logs" watched `collection.normal_log`; a Duskwood chopper scored 0 | per-skill `stats.chopped/mined/fished`, **seeded from the collection log** so no achievement progress was zeroed to fix it |
+
+## A.6 What the retune does to Tyler's two complaints
+
+| | today | as shipped |
+|---|---|---|
+| 9h offline on Normal Tree, fresh account | WC **59** · **16,200** logs · **129,600 g** | WC **39** · **6,750** logs · **6,750 g** |
+| factor | | **2.4× fewer logs · 19.2× less gold** |
+
+## A.7 Known limitation, filed not fixed
+
+An XP-side stretch raises the total item count for a 99 even as it lowers items *per hour*:
+woodcutting to 99 goes from 50,705 logs to 216,020. Per session the player sees **fewer** items
+(1/1.60 the rate, plus the `[1,1]` flattening) and far less gold per item, which is what they
+actually feel — but a finished bank is four times deeper. §6.3's Phase-2 sink scaling (property,
+castle and high-tier recipe costs into the thousands) is now load-bearing rather than a nicety.

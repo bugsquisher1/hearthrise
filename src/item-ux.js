@@ -168,7 +168,11 @@
     // NPC value: only show if the item is actually sold by an NPC shop
     // (EQUIP_SHOP or SEED_SHOP). Otherwise just show vendor sell-back.
     if(item.v){
-      var sellPrice = Math.max(1, Math.floor(item.v * 0.5));
+      /* b226: routed through the single vendorPrice() choke-point. This path
+         used to pay v × 0.5 while every OTHER sell button in the game paid the
+         full v — the same item fetched two different prices depending on which
+         control you pressed. One price, one place. */
+      var sellPrice = (typeof window.vendorPrice === 'function') ? window.vendorPrice(itemId) : Math.max(1, Math.floor(item.v * 0.5));
       var isNpcSold = isItemSoldByNpc(itemId);
       if(isNpcSold){
         marketBlock += '<div class="ttl-row-2"><span>🏪</span><b>NPC value</b><i>' + item.v + 'g · sells back ' + sellPrice + 'g</i></div>';
@@ -429,7 +433,7 @@
     var item = sliderState.id && window.ITEMS && window.ITEMS[sliderState.id];
     if(!item) return;
     var qty = parseInt(document.getElementById('qs-num').value, 10) || 1;
-    var sellEach = Math.max(1, Math.floor((item.v || 0) * 0.5));
+    var sellEach = (typeof window.vendorPrice === 'function') ? window.vendorPrice(sliderState.id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var totalSell = sellEach * qty;
     var lines = [];
     lines.push('<div class="qs-sum-row">💰 Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
@@ -469,7 +473,7 @@
     var id = sliderState.id;
     if(!id || qty <= 0) return;
     var item = window.ITEMS[id];
-    var goldGain = Math.max(1, Math.floor((item.v || 0) * 0.5)) * qty;
+    var goldGain = ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5))) * qty;
     if(typeof window.removeItem === 'function') window.removeItem(id, qty);
     else { window.G.inventory[id] = Math.max(0, (window.G.inventory[id]||0) - qty); }
     window.G.gold = (window.G.gold || 0) + goldGain;

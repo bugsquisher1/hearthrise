@@ -271,6 +271,8 @@
       '.hr-gate-foot{margin-top:20px;font-size:12.5px;line-height:1.6;text-align:center;',
       '  color:var(--ink-3,#9d8b70);max-width:330px;text-wrap:balance}',
       '.hr-gate-foot b{color:var(--ink-2,#c4b79e);font-weight:700}',
+      '.hr-gate-help{margin-top:10px;font-size:12.5px;text-align:center;color:var(--ink-3,#8f8676)}',
+      '.hr-gate-help a{color:var(--gold,#e8c476);text-decoration:underline;text-underline-offset:2px}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
          game rather than a door in front of it */
@@ -435,6 +437,16 @@
         foot.textContent = 'Hearthrise is played online. Your account holds your progress, ' +
           'your name, and your place on the boards.';
       }
+      // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
+      // so a player who cannot sign in must still have a way to reach us.
+      var help = el('div', 'hr-gate-help');
+      help.appendChild(document.createTextNode('Trouble signing in? '));
+      var dc = el('a', null, 'Join the Discord');
+      dc.href = 'https://discord.gg/eJrUSUJM3M';
+      dc.target = '_blank';
+      dc.rel = 'noopener';
+      help.appendChild(dc);
+      foot.parentNode.appendChild(help);
     }
 
     return {

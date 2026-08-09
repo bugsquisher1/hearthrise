@@ -541,14 +541,14 @@
   font-size: 19px; font-weight: 800; letter-spacing: .01em;
   color: var(--gold-2);
 }
-.clan-empty p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.clan-empty p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
 .clan-found { display: flex; gap: 6px; margin-top: 12px; }
 .clan-found input {
   flex: 1; min-width: 0;
   background: rgba(0, 0, 0, .3);
   border: 1px solid var(--line-soft); border-radius: 8px;
   padding: 8px 10px; color: var(--ink);
-  font-family: inherit; font-size: 13px;
+  font-family: inherit; font-size: 13.5px;
 }
 .clan-found input:focus { outline: none; border-color: var(--gold-2); }
 
@@ -562,7 +562,7 @@
 /* The sentence and its button sit together at the left. Letting the text take
  * flex:1 threw the button to the far edge of a 1,240px panel, a thousand pixels
  * from the words that explain it. */
-.soc-signpost-txt { flex: 0 1 auto; max-width: 640px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.soc-signpost-txt { flex: 0 1 auto; max-width: 640px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .soc-signpost-txt b { color: var(--gold-2); }
 
 /* The clan tag in the topbar became a button so it can carry the second route

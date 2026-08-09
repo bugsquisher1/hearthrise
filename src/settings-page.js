@@ -63,31 +63,31 @@
     overlay.className = 'hr-auth-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
     var inviteRow = isSignUp
-      ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px;text-transform:uppercase;letter-spacing:1px" />'
+      ? '<input type="text" name="invite" placeholder="Beta invite code (e.g. FRIEND-001)" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px;text-transform:uppercase;letter-spacing:1px" />'
       : '';
     var nameRow = isSignUp
-      ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
+      ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
       : '';
     overlay.innerHTML = ''
       + '<form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
       +   '<h3 style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
-      +   '<p style="margin:0;font-size:12px;color:#9aa3b0">' + (isSignUp
+      +   '<p style="margin:0;font-size:13.5px;color:#9aa3b0">' + (isSignUp
               ? 'Closed beta — you\'ll need an invite code from Tyler. Your local progress will move to the cloud automatically.'
               : 'Sync your save, join clans, climb leaderboards.') + '</p>'
       +   inviteRow
       +   nameRow
-      +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
-      +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13px" />'
+      +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
+      +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:13.5px" />'
       +   '<div style="display:flex;gap:8px;margin-top:4px">'
       +     '<button type="submit" data-act="primary" style="flex:1;padding:9px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">'
       +       (isSignUp ? 'Create account' : 'Sign in')
       +     '</button>'
       +   '</div>'
-      +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:12px;text-decoration:underline">'
+      +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:13.5px;text-decoration:underline">'
       +     (isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account')
       +   '</button>'
-      +   '<button type="button" data-act="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:11px">Cancel · Continue offline</button>'
-      +   '<div data-status style="font-size:11px;color:#e88a8a;min-height:14px;text-align:center"></div>'
+      +   '<button type="button" data-act="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:13.5px">Cancel · Continue offline</button>'
+      +   '<div data-status style="font-size:13.5px;color:#e88a8a;min-height:14px;text-align:center"></div>'
       + '</form>';
     var form = overlay.querySelector('form');
     var status = overlay.querySelector('[data-status]');
@@ -240,8 +240,8 @@
         +   'data-theme-id="' + esc(t.id) + '" '
         +   'style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;text-align:left;padding:10px 12px;'
         +   (active ? 'border-color:var(--gold);background:var(--gold-bg);' : '') + '">'
-        +   '<span style="font-weight:700;font-size:13px">' + esc(t.label) + (active ? ' ✓' : '') + '</span>'
-        +   '<span style="font-size:11px;opacity:.75">' + esc(t.desc) + '</span>'
+        +   '<span style="font-weight:700;font-size:13.5px">' + esc(t.label) + (active ? ' ✓' : '') + '</span>'
+        +   '<span style="font-size:13.5px;opacity:.75">' + esc(t.desc) + '</span>'
         + '</button>';
     }).join('');
     return ''
@@ -367,7 +367,7 @@
       +     '<input type="text" id="set-sb-url" placeholder="https://xxxx.supabase.co" value="' + esc(sbConfig.url || '') + '" />'
       +   '</div>'
       +   '<div class="ss-row"><div class="ss-label">Anon key</div>'
-      +     '<input type="text" id="set-sb-key" placeholder="eyJhbG..." value="' + esc(sbConfig.anonKey || '') + '" style="font-family:monospace;font-size:11px" />'
+      +     '<input type="text" id="set-sb-key" placeholder="eyJhbG..." value="' + esc(sbConfig.anonKey || '') + '" style="font-family:monospace;font-size:13.5px" />'
       +   '</div>'
       +   '<div class="ss-row" style="justify-content:flex-end;gap:8px">'
       +     (hasCloud ? '<button class="btn btn-sm btn-danger" id="set-sb-disconnect">Disconnect</button>' : '')

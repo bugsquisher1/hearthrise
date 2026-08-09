@@ -865,7 +865,7 @@ function confirmIAP(p,platform){
       <div style="text-align:center;padding:8px 0 16px">
         <div style="font-size:54px">${p.icon}</div>
         <h3 style="font-family:var(--f-display);font-size:18px;color:var(--gold-2);margin:6px 0">${p.title}</h3>
-        <div style="color:var(--ink-2);font-size:13px;margin-bottom:14px">${p.desc}</div>
+        <div style="color:var(--ink-2);font-size:13.5px;margin-bottom:14px">${p.desc}</div>
         <div style="font-size:24px;font-weight:800;color:var(--ink)">${p.price}</div>
         <div class="status-pill" style="margin-top:10px"><span class="dot"></span><span>Platform: ${platform}</span></div>
       </div>
@@ -873,7 +873,7 @@ function confirmIAP(p,platform){
         <button class="btn btn-block" id="iap-cancel">Cancel</button>
         <button class="btn btn-block btn-gem" id="iap-confirm">Confirm</button>
       </div>
-      <div style="font-size:10px;color:var(--ink-3);text-align:center;margin-top:10px">Receipts validated server-side. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Apple In-App Purchase.':platform==='android'?'Google Play Billing.':platform==='steam'?'Steamworks Microtransactions.':'Mock billing.'}</div>`;
+      <div style="font-size:13.5px;color:var(--ink-3);text-align:center;margin-top:10px">Receipts validated server-side. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Apple In-App Purchase.':platform==='android'?'Google Play Billing.':platform==='steam'?'Steamworks Microtransactions.':'Mock billing.'}</div>`;
     m.classList.add('show');
     const cleanup=v=>{m.classList.remove('show');res(v);};
     document.getElementById('iap-cancel').onclick=()=>cleanup(false);
@@ -2007,7 +2007,7 @@ function renderProfile(){
       // point of the feature for the most likely user.
       const canRename = true;
       const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:12px;opacity:.7">✏️</button>`
+        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:13.5px;opacity:.7">✏️</button>`
         : '';
       return `<div class="activity-card">
       <div class="ac-icon">🧙</div>
@@ -2757,7 +2757,7 @@ async function renderSocial(){
       /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
       const rankBadge=(n)=>{
         const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
-        return c?`<b style="color:${c};font-family:var(--f-display);font-size:14px">${n}</b>`:String(n);
+        return c?`<b style="color:${c};font-family:var(--f-display);font-size:15px">${n}</b>`:String(n);
       };
       lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
     }
@@ -3942,7 +3942,7 @@ function renderInvNew(){
   const toolbarHtml = `
     <div class="inv-toolbar">
       <div class="inv-search">
-        <span style="font-size:14px">🔍</span>
+        <span style="font-size:15px">🔍</span>
         <input type="text" placeholder="Search…" value="${(window._invSearch||'').replace(/"/g,'&quot;')}" oninput="invSetSearch(this.value)">
       </div>
       <select class="inv-sort" onchange="invSetSort(this.value)">
@@ -4490,7 +4490,7 @@ function openMonsterDetail(monsterId){
     const pctStr = pct >= 1 ? pct.toFixed(0)+'%' : pct.toFixed(2)+'%';
     return `<div class="mon-loot-row ${rare?'rare':''}">
       <span class="mli">${it.icon||'❓'}</span>
-      <span class="mln">${it.n||d.id}${rare?' <span style="font-size:10px;color:var(--purple)">RARE</span>':''}</span>
+      <span class="mln">${it.n||d.id}${rare?' <span style="font-size:13.5px;color:var(--purple)">RARE</span>':''}</span>
       <span class="mlc">${pctStr}</span>
     </div>`;
   }).join('') : '<div class="muted tiny">No loot drops listed.</div>';
@@ -8010,7 +8010,7 @@ function injectCombatExtras(){
   if(dropsChip && /Drops:/.test(dropsChip.textContent)){
     var list = document.createElement('div');
     list.className = 'combat-drops-list';
-    list.innerHTML = '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin-bottom:4px">Drop Table</div>'+
+    list.innerHTML = '<div style="font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin-bottom:4px">Drop Table</div>'+
       m.drops.map(function(d){
         var ch = d.ch >= 1 ? d.ch : d.ch;
         var pct = (ch*100);
@@ -8018,7 +8018,7 @@ function injectCombatExtras(){
         var def = (typeof ITEMS!=='undefined') ? ITEMS[d.id] : null;
         var name = def ? def.n : d.id;
         var path = window._itemPath && window._itemPath[d.id];
-        var iconHtml = path ? '<img src="'+path+'" alt="" />' : '<span style="font-size:14px">'+(def?.icon||'?')+'</span>';
+        var iconHtml = path ? '<img src="'+path+'" alt="" />' : '<span style="font-size:15px">'+(def?.icon||'?')+'</span>';
         return '<div class="combat-drop-row '+rarityClass(ch)+'">'+
           '<div class="cdr-icon">'+iconHtml+'</div>'+
           '<div class="cdr-name">'+name+'</div>'+
@@ -8689,7 +8689,7 @@ function renderInvFancy(){
       '<div class="invc-bag-col">'+
         '<div class="invc-grid">'+
           (visible.length === 0 ?
-            '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:12px">No items in this category</div>' :
+            '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:13.5px">No items in this category</div>' :
             /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
                inventory rather than a handful of tiles above a black void.
                A uniform filled grid is what makes a bag scannable — you learn
@@ -9753,7 +9753,7 @@ function addButton(){
   b.title = 'Run smoke test (Ctrl+Shift+T)';
   b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'+
     'background:#3a4154;color:#dfe9ee;border:1px solid #7f9a4f;border-radius:4px;'+
-    'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
+    'padding:4px 10px;font-size:13.5px;cursor:pointer;opacity:.6;font-weight:700';
   b.onmouseenter = function(){b.style.opacity='1';};
   b.onmouseleave = function(){b.style.opacity='.6';};
   b.onclick = function(){
@@ -9953,7 +9953,7 @@ function showProc(label){
     var el = document.createElement('div');
     el.textContent = label;
     el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'+
-      'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:12px;'+
+      'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:13.5px;'+
       'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
     setTimeout(function(){el.remove();}, 1700);
@@ -10172,9 +10172,9 @@ function renderStable(){
       + '<div class="sc-bonuses">'+bonuses+'</div>';
     if(owned){
       html += '<div class="sc-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
-            + '<div style="font-size:10px;color:var(--ink-3)">'+xp.toLocaleString()+' / '+nextXp.toLocaleString()+' XP</div>';
+            + '<div style="font-size:13.5px;color:var(--ink-3)">'+xp.toLocaleString()+' / '+nextXp.toLocaleString()+' XP</div>';
       if(def.proc){
-        html += '<div class="sc-bonuses" style="font-size:10px;font-style:italic">⚡ '+def.proc.label
+        html += '<div class="sc-bonuses" style="font-size:13.5px;font-style:italic">⚡ '+def.proc.label
               + ' ('+(def.proc.chance*100).toFixed(0)+'% on '+def.proc.trigger+')</div>';
       }
       html += '<button class="sc-equip" onclick="'+(equipped ? "window.unequipCompanion()" : "window.equipCompanion('"+id+"')")+'">'
@@ -10505,7 +10505,7 @@ function buildCombatCard(){
 function buildRatesCard(){
   var rates = gatherRates();
   if(!rates.length){
-    return '<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div><div style="color:var(--ink-3);font-size:12px">Train a skill to see your rates.</div></div>';
+    return '<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div><div style="color:var(--ink-3);font-size:13.5px">Train a skill to see your rates.</div></div>';
   }
   var rows = rates.map(function(r){
     var skillIcon = window._skillIcon && window._skillIcon[r.id]
@@ -10542,7 +10542,7 @@ function buildEquipSummaryCard(){
     + '<div class="cr-stat-row"><span>Total +STR</span><b>+'+totalBonus.str+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +ATK</span><b>+'+totalBonus.atk+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +DEF</span><b>+'+totalBonus.def+'</b><span></span></div>'
-    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:11px;font-weight:700">Manage gear →</button></div>'
+    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:13.5px;font-weight:700">Manage gear →</button></div>'
   + '</div>';
 }
 
@@ -10622,7 +10622,7 @@ function parseSource(src){
             t.textContent = '🎉 New companion unlocked: '+def.icon+' '+def.n+'!';
             t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
               'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'+
-              'font-weight:800;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);'+
+              'font-weight:800;font-size:15px;box-shadow:0 8px 32px rgba(0,0,0,.5);'+
               'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
             document.body.appendChild(t);
             setTimeout(function(){t.remove();}, 4500);
@@ -11037,7 +11037,7 @@ window.__renderBuffsSection = function(){
   }
   if(!host) return;
   if(!G.buffs || G.buffs.length === 0){
-    host.innerHTML = '<div style="color:var(--ink-3);font-size:12px;font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
+    host.innerHTML = '<div style="color:var(--ink-3);font-size:13.5px;font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
     return;
   }
   host.innerHTML = G.buffs.map(function(b, i){
@@ -12062,7 +12062,7 @@ console.log('[Bundle Icons v1] applied:',
     var meta = strip.querySelector('#gq-reset');
     var goals = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
     if(!goals.length){
-      if(list) list.innerHTML = '<span style="color:var(--ink-3);font-style:italic;font-size:11px">No active quests.</span>';
+      if(list) list.innerHTML = '<span style="color:var(--ink-3);font-style:italic;font-size:13.5px">No active quests.</span>';
       if(meta) meta.textContent = '';
       return;
     }
@@ -12099,7 +12099,7 @@ console.log('[Bundle Icons v1] applied:',
         + '<aside class="qm-aside">'
           + '<div><h4>📊 Quest Info</h4>'
           + '<div class="qm-summary" id="qm-summary"></div></div>'
-          + '<div><h4 style="font-size:11px">About Quests</h4>'
+          + '<div><h4 style="font-size:13.5px">About Quests</h4>'
           + '<p class="qm-info-text">Daily quests refresh every 24 hours at UTC midnight. Weekly quests refresh every Monday. Complete them to claim gold, XP, gems, and rare items.</p></div>'
           + '<div class="qm-reset" id="qm-reset"></div>'
         + '</aside>'

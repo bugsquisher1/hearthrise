@@ -388,15 +388,15 @@
       // The self block. A rule plus a caption, so the pinned rows read as a
       // separate statement about you rather than a continuation of the roll.
       '#leaderboard .lb-fold{display:flex;align-items:center;gap:8px;margin:12px 0 6px;',
-      '  font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--ink-3)}',
+      '  font-size:13.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--ink-3)}',
       '#leaderboard .lb-fold::after{content:"";flex:1;height:1px;background:var(--line-soft)}',
       '#leaderboard .lb-row.you{border-left:2px solid var(--gold-2)}',
-      '#leaderboard .lb-ctx{font-size:12px;color:var(--ink-3);font-weight:600;',
+      '#leaderboard .lb-ctx{font-size:13.5px;color:var(--ink-3);font-weight:600;',
       '  max-width:38%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '#leaderboard .lb-crown{font-size:10px;letter-spacing:.06em;text-transform:uppercase;',
+      '#leaderboard .lb-crown{font-size:13.5px;letter-spacing:.06em;text-transform:uppercase;',
       '  color:var(--gold-2);font-weight:800;margin-left:6px}',
-      '#leaderboard .lb-note{font-size:12px;color:var(--ink-3);margin-top:10px}',
-      '#leaderboard .lb-empty{font-size:13px;color:var(--ink-3);padding:14px 2px}',
+      '#leaderboard .lb-note{font-size:13.5px;color:var(--ink-3);margin-top:10px}',
+      '#leaderboard .lb-empty{font-size:13.5px;color:var(--ink-3);padding:14px 2px}',
       '@media (max-width:540px){#leaderboard .lb-ctx{display:none}}'
     ].join('');
     document.head.appendChild(s);

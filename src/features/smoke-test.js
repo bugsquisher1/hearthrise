@@ -7524,6 +7524,105 @@ const TESTS = [
       if (prevTab) window.showTab(prevTab);
     }
   }),
+
+  // ── b225 regression suite (backlog #19 — the type FLOOR) ──
+  //
+  // b218 scaled the whole ramp ~x1.13 and Tyler reported the text was STILL
+  // too small "in a lot of places". A measurement of every visible text element
+  // across 19 screens explained why: a proportional scale multiplies the base
+  // and leaves the bottom of the ramp proportionally tiny — 971 of 1962 visible
+  // elements were still rendering under 13.5px. b225 raised the FLOOR instead.
+  //
+  // These three guards are the contract. #1 pins the tokens, #2 proves no
+  // stylesheet re-introduces a sub-floor rule (that is how 337 stragglers got
+  // below the ramp in the first place), #3 proves it in the RENDERED document,
+  // because a token can be correct while an inline style or a `font:` shorthand
+  // paints 10px on screen — which is exactly what b218 missed.
+
+  // b225 (#19a): the ramp's bottom step is the floor, and the tiers above it
+  // keep their separation. Raising --t-body is NOT the fix and must not be the
+  // way a future pass satisfies this test.
+  () => tryRun('b225: the type ramp holds its floor (micro 13.5 / small 15 / body 16)', () => {
+    const cs = getComputedStyle(document.documentElement);
+    const px = (name) => parseFloat(cs.getPropertyValue(name));
+    const micro = px('--t-micro'), small = px('--t-small'), body = px('--t-body'), h3 = px('--t-h3');
+    assert(micro >= 13.5, '--t-micro is ' + micro + 'px — below the 13.5px reading floor');
+    assert(small >= 15, '--t-small is ' + small + 'px — secondary reading text must be >= 15px');
+    assert(body >= 16, '--t-body is ' + body + 'px — the base must not regress');
+    // Small caps have no ascenders and a cap-height near the regular face's
+    // x-height, so the SC section label needs a size ABOVE its nominal tier.
+    assert(h3 >= small, '--t-h3 (' + h3 + 'px) is below --t-small (' + small + 'px) — the small-caps face renders smaller than its nominal size, so it may not sit under the tier it labels');
+    assert(micro < small && small <= body, 'the ramp lost its ordering: micro ' + micro + ' / small ' + small + ' / body ' + body);
+  }),
+
+  // b225 (#19b): no stylesheet may declare a reading size under the floor.
+  // Same-origin sheets only — a cross-origin sheet throws on .cssRules and is
+  // not ours to police. Font sizes used to size a GLYPH (icon hosts) are the
+  // documented exception and are matched by selector, not waved through.
+  () => tryRun('b225: no stylesheet rule sets a font-size below the 13.5px floor', () => {
+    const FLOOR = 13.5;
+    const offenders = [];
+    // NOTE: check `rule.style` BEFORE recursing. Chromium's nested-CSS support
+    // gives every CSSStyleRule a `cssRules` list, and an EMPTY CSSRuleList is
+    // truthy — a `if (rule.cssRules) { recurse; continue; }` first branch skips
+    // every style rule in the document and makes this test pass vacuously.
+    const scan = (rules, sheetHref) => {
+      for (const rule of rules) {
+        if (rule.cssRules && rule.cssRules.length) scan(rule.cssRules, sheetHref);
+        if (!rule.style || !rule.selectorText) continue;
+        const raw = rule.style.getPropertyValue('font-size') || '';
+        const m = /^([0-9]+(?:\.[0-9]+)?)px$/.exec(raw.trim());
+        if (!m) continue;
+        const v = parseFloat(m[1]);
+        if (v >= FLOOR) continue;
+        // `font-size:0` is not small type — it is the glyph-suppression idiom:
+        // an element that carries an emoji/text fallback in its markup and an
+        // image or SVG as its real content collapses the fallback to nothing.
+        // Seven rules use it (skill icons, monster/fighter portraits, the
+        // activity-bar icon, the raw-bundle image guard). Nobody reads them.
+        if (v === 0) continue;
+        offenders.push((sheetHref || 'inline').replace(/^.*\//, '') + ' — ' + rule.selectorText.slice(0, 90) + ' @ ' + v + 'px');
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      let rules = null;
+      try { rules = sheet.cssRules; } catch (e) { continue; } // cross-origin
+      if (!rules) continue;
+      scan(rules, sheet.href);
+    }
+    assert(offenders.length === 0,
+      offenders.length + ' rule(s) below the ' + FLOOR + 'px floor: ' + offenders.slice(0, 6).join(' | '));
+  }),
+
+  // b225 (#19c): the floor as a PLAYER sees it. Walks every element that owns
+  // visible text in the live document — chrome, sidebar, topbar and whatever
+  // panel is active — and fails on anything rendering under the floor. This is
+  // the guard that would have caught b218's blind spot: inline `style=` and
+  // `font:` shorthand never touched a token.
+  () => tryRun('b225: nothing in the rendered document draws text below the floor', () => {
+    const FLOOR = 13.5;
+    const bad = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.closest('#hr-smoke-overlay')) continue;      // the test overlay itself
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'script' || tag === 'style' || el.ownerSVGElement) continue;
+      let own = '';
+      for (const n of el.childNodes) if (n.nodeType === 3) own += n.nodeValue;
+      own = own.replace(/\s+/g, ' ').trim();
+      if (!own) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      const px = parseFloat(cs.fontSize);
+      if (px >= FLOOR) continue;
+      bad.push(tag + (el.id ? '#' + el.id : '') +
+        (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/)[0] : '') +
+        ' @ ' + px + 'px "' + own.slice(0, 24) + '"');
+    }
+    assert(bad.length === 0,
+      bad.length + ' rendered element(s) below the ' + FLOOR + 'px floor: ' + bad.slice(0, 6).join(' | '));
+  }),
 ];
 
 export function runSmokeTest(opts = {}) {

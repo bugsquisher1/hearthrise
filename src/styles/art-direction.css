@@ -55,14 +55,25 @@ body[data-theme="hearthlight"] {
   --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
 
   /* One scale, eight steps. If a size isn't on this list it shouldn't exist.
-     b218: raised the whole ramp ~13% — the old baseline read as small on a
-     desktop at a normal viewing distance (backlog #1). Ratios are preserved so
-     the hierarchy is unchanged; only the base size moved. */
-  --t-micro: 12.5px; /* unit labels, counts */
-  --t-small: 14px;   /* supporting text */
+     b218 raised the whole ramp ~13% (body 14 -> 16) and Tyler said it was STILL
+     too small "in a lot of places". A proportional scale can't fix that: it
+     multiplies the base and leaves the bottom of the ramp proportionally tiny.
+     A measurement of every visible text element on 19 screens found HALF of
+     them (971 / 1962) still rendering under 13.5px.
+
+     b225 therefore raises the FLOOR, not the base. --t-body is deliberately
+     unchanged; micro and small close on it instead, which compresses the ramp
+     at the bottom where the reading problem actually was. The floor is 13.5px
+     and nothing a player must read may sit below it (guarded in smoke-test.js).
+
+     --t-h3 gets +1px over its tier because it is set in Alegreya Sans SC:
+     genuine small caps have no ascenders and a cap-height near the x-height of
+     the regular face, so 14.5px SC reads roughly like 12.5px regular. */
+  --t-micro: 13.5px; /* unit labels, counts — THE FLOOR */
+  --t-small: 15px;   /* supporting text */
   --t-body: 16px;    /* default */
   --t-lead: 17.5px;  /* row titles, emphasis */
-  --t-h3: 14.5px;    /* small-caps section label */
+  --t-h3: 15.5px;    /* small-caps section label (+1 for the SC face) */
   --t-h2: 21.5px;    /* panel title */
   --t-h1: 30px;      /* screen title */
   --t-num: 26px;     /* hero value */
@@ -395,14 +406,14 @@ body[data-theme] .t-stat {
   border: 0;
   border-radius: 0;
   padding: 4px 11px;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--ink-2);
   gap: 6px;
 }
 body[data-theme] .t-stat .lab {
   font-family: var(--f-label);
-  font-size: 12.5px;
+  font-size: 13.5px;
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -468,7 +479,7 @@ body[data-theme] #hr-quests-btn {
   border-radius: var(--r-sm);
   color: var(--ink-2);
   font-family: var(--f-label);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -489,7 +500,7 @@ body[data-theme] #hr-quests-btn .hr-q-count {
   border-radius: 2px;
   font-family: var(--f-ui);
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 13.5px;
   padding: 1px 6px;
   min-width: 17px;
 }
@@ -616,7 +627,7 @@ body[data-theme] .ce-next-body { flex: 1; min-width: 0; display: block; }
 body[data-theme] .ce-next-lbl {
   display: block;
   font-family: var(--f-label);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink-3);
 }
@@ -625,7 +636,7 @@ body[data-theme] .ce-next-meta { display: block; font-size: var(--t-micro); colo
 body[data-theme] .ce-next-go {
   flex: 0 0 auto;
   font-family: var(--f-label);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #221803;
   padding: 7px 15px;
@@ -665,7 +676,7 @@ body[data-theme] .mr-stats em {
   display: block;
   font-style: normal;
   font-family: var(--f-label);
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 1px;
@@ -679,7 +690,7 @@ body[data-theme] .mr-fighting {
 }
 body[data-theme] .tag {
   font-family: var(--f-label);
-  font-size: 12px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
+  font-size: 13.5px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 700;
   background: rgba(201, 162, 74, .16); color: var(--gold-2);
   border: 1px solid rgba(201, 162, 74, .3);
   vertical-align: 1px;
@@ -703,7 +714,7 @@ body[data-theme] .csb-btn.active {
   color: var(--gold-2);
   border-color: rgba(201, 162, 74, .45);
 }
-body[data-theme] .csb-btn small { display: block; font-size: 11.5px; color: inherit; opacity: .72; }
+body[data-theme] .csb-btn small { display: block; font-size: 13.5px; color: inherit; opacity: .72; }
 
 /* ── 13. SKILLS ──────────────────────────────────────────────────────────
  * Two problems, both hierarchy:
@@ -818,7 +829,7 @@ body[data-theme] .at-name {
 }
 body[data-theme] .at-meta { font-size: var(--t-micro); color: var(--ink-3); }
 body[data-theme] .at-inputs {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--ink-3);
   opacity: .82;
   margin-top: 4px;
@@ -867,7 +878,7 @@ body[data-theme] .at-stop {
   background: var(--gold);
   color: #1b1305;
   font-family: var(--f-label);
-  font-size: 12px;
+  font-size: 13.5px;
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -947,7 +958,7 @@ body[data-theme] .act-head .ah-lvl {
 body[data-theme] .act-head .ah-lvl em {
   font-family: var(--f-label);
   font-style: normal;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink-3);
 }
@@ -1055,7 +1066,7 @@ body[data-theme] .invc-tile .invc-qty {
   left: auto; bottom: 2px; right: 3px;
   background: none;
   padding: 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #f0e2c2;
   text-shadow: 0 1px 2px #000, 0 0 3px #000;
@@ -1129,7 +1140,7 @@ body[data-theme] .iap-card .btn { min-height: 34px; padding: 0 18px; font-size: 
 /* Ribbons were four different pill colours in four corners. One treatment. */
 body[data-theme] .iap-card .ribbon {
   font-family: var(--f-label);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
@@ -1261,7 +1272,7 @@ body[data-theme] .farm-tile.empty { border-style: solid; opacity: 1; }
 /* The plant affordance reads as an action, not as a "+" placeholder. */
 body[data-theme] .farm-tile .ft-plant {
   font-family: var(--f-label);
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: .02em;
   color: #221803;
@@ -1298,7 +1309,10 @@ body[data-theme] .farm-tile .ft-bar i { display: block; height: 100%; background
 /* b220: the projected ready time, under the bar. Quieter than the label so the
  * tile still reads percentage-first at a glance. */
 body[data-theme] .farm-tile .ft-sub {
-  font-size: calc(var(--t-micro) - 1px);
+  /* b225: was calc(--t-micro - 1px) — the only place in the sheets that
+     deliberately undercut the ramp's bottom step, which now IS the floor.
+     Separation from the label above comes from colour + opacity instead. */
+  font-size: var(--t-micro);
   color: var(--ink-3);
   opacity: .78;
   letter-spacing: .01em;
@@ -1324,7 +1338,7 @@ body[data-theme] .farm-tile.ready {
   border-color: rgba(201, 162, 74, .65);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5), 0 0 20px -8px rgba(201, 162, 74, .75);
 }
-body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 14px; }
+body[data-theme] .farm-tile.ready small { color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: 15px; }
 
 /* ── 19. HOMESTEAD ───────────────────────────────────────────────────────
  * The property block was a paragraph of stats and a run-on requirement
@@ -1346,7 +1360,7 @@ body[data-theme] .hh-stat b {
 body[data-theme] .hh-stat span {
   display: block;
   font-family: var(--f-label);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink-3);
   margin-top: 4px;
@@ -1422,7 +1436,7 @@ body[data-theme] .cr-slot.active .cr-slot-portrait { border-color: rgba(201, 162
 body[data-theme] .cr-slot .cr-slot-name { font-size: 16.5px; font-weight: 600; letter-spacing: .01em; }
 body[data-theme] .cr-slot .cr-slot-badge {
   font-family: var(--f-label);
-  font-size: 12px;
+  font-size: 13.5px;
   letter-spacing: .02em;
   text-transform: none;
   border-radius: var(--r-sm);
@@ -1463,7 +1477,7 @@ body[data-theme] .cr-bonus { color: #9ab76a; font-size: var(--t-micro); font-wei
 /* Hero header stat tiles */
 body[data-theme] .cr-hero-stat b { font-family: var(--f-display); font-size: 26px; font-weight: 600; }
 body[data-theme] .cr-hero-stat span {
-  font-family: var(--f-label); font-size: 13px; letter-spacing: .02em;
+  font-family: var(--f-label); font-size: 13.5px; letter-spacing: .02em;
   text-transform: none; font-weight: 700;
 }
 
@@ -1484,7 +1498,7 @@ body[data-theme] .bo-art img { width: 30px; height: 30px; object-fit: contain; f
 body[data-theme] .bo-head b { font-size: 17.5px; font-weight: 600; color: var(--ink); flex: 1; }
 body[data-theme] .bounty-chip {
   font-family: var(--f-label);
-  font-size: 12.5px; font-weight: 700; letter-spacing: .02em; text-transform: none;
+  font-size: 13.5px; font-weight: 700; letter-spacing: .02em; text-transform: none;
   padding: 2px 9px; border-radius: var(--r-sm);
   background: rgba(236, 225, 204, .06); color: var(--ink-3);
   border: 1px solid rgba(236, 225, 204, .08);
@@ -1509,7 +1523,7 @@ body[data-theme] .bounty-marks {
   margin-bottom: 10px;
 }
 body[data-theme] .bounty-marks em {
-  font-family: var(--f-label); font-style: normal; font-size: 13px;
+  font-family: var(--f-label); font-style: normal; font-size: 13.5px;
   font-weight: 700; color: var(--ink-3);
 }
 /* Unlock ladder — was ten inline-styled pills in a #3fb950 green that belongs
@@ -1868,7 +1882,7 @@ body[data-theme] .td-doll .td-slot:has(img) {
 }
 body[data-theme] .td-doll .td-slot .td-slot-lbl {
   font-family: var(--f-label);
-  font-size: 12px;
+  font-size: 13.5px;
   letter-spacing: .02em;
   text-transform: none;
   color: var(--ink-3);
@@ -2006,7 +2020,7 @@ body[data-theme] .brand-title {
 body[data-theme] .brand-tagline {
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: 9px;
+  font-size: 13.5px;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .3em;

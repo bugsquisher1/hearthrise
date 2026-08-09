@@ -153,7 +153,7 @@ function showProc(label) {
     const el = document.createElement('div');
     el.textContent = label;
     el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'
-      + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:12px;'
+      + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:13.5px;'
       + 'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1700);
@@ -229,7 +229,7 @@ function showCompanionUnlockedToast(def) {
     t.textContent = `🎉 New companion unlocked: ${def.icon} ${def.n}!`;
     t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'
       + 'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'
-      + 'font-weight:800;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);'
+      + 'font-weight:800;font-size:15px;box-shadow:0 8px 32px rgba(0,0,0,.5);'
       + 'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 4500);
@@ -376,8 +376,8 @@ function renderStable() {
       <div class="sc-bonuses">${bonuses}</div>
       ${owned ? `
         <div class="sc-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
-        <div style="font-size:10px;color:var(--ink-3)">${xp.toLocaleString()} / ${nextXp.toLocaleString()} XP</div>
-        ${def.proc ? `<div class="sc-bonuses" style="font-size:10px;font-style:italic">${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
+        <div style="font-size:13.5px;color:var(--ink-3)">${xp.toLocaleString()} / ${nextXp.toLocaleString()} XP</div>
+        ${def.proc ? `<div class="sc-bonuses" style="font-size:13.5px;font-style:italic">${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
         <button class="sc-equip" onclick="${equipped ? 'window.unequipCompanion()' : `window.equipCompanion('${id}')`}">${equipped ? 'Unequip' : 'Equip'}</button>
       ` : `<div class="sc-source">Locked · ${def.source}</div>`}
     </div>`;

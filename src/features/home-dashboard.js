@@ -88,12 +88,12 @@
       R + '.hd-ava{width:74px;height:74px;border-radius:var(--r);flex:0 0 auto;overflow:hidden;',
       'background:var(--bg-2) !important;border:1px solid var(--line-strong) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,232,190,.14),0 6px 16px -6px rgba(0,0,0,.95)}',
-      R + '.hd-eyebrow{font-family:var(--f-label);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;',
+      R + '.hd-eyebrow{font-family:var(--f-label);font-size:13.5px;letter-spacing:.06em;text-transform:uppercase;',
       'color:var(--scene-gilt) !important;font-weight:700;margin-bottom:2px;text-shadow:0 1px 6px rgba(0,0,0,.9)}',
       R + '.hd-name{font-family:var(--f-display);font-size:31px;font-weight:600;line-height:1.05;',
       'color:var(--scene-ink) !important;display:flex;align-items:center;gap:8px;',
       'text-shadow:0 2px 10px rgba(0,0,0,.9),0 1px 2px rgba(0,0,0,.9)}',
-      R + '.hd-sub{font-size:13px;color:var(--scene-ink-2) !important;margin-top:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;',
+      R + '.hd-sub{font-size:13.5px;color:var(--scene-ink-2) !important;margin-top:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;',
       'text-shadow:0 1px 6px rgba(0,0,0,.85)}',
       R + '.hd-sub b{font-family:var(--f-label);color:var(--scene-gilt) !important;font-weight:700;letter-spacing:.02em}',
       R + '.hd-sub .sep{opacity:.4}',
@@ -105,12 +105,12 @@
       R + '.hd-led{text-align:right}',
       R + '.hd-led b{font-family:var(--f-display);font-size:22px;font-weight:600;color:var(--scene-ink) !important;',
       'display:block;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.9)}',
-      R + '.hd-led span{font-family:var(--f-label);font-size:11px;letter-spacing:.05em;text-transform:uppercase;',
+      R + '.hd-led span{font-family:var(--f-label);font-size:13.5px;letter-spacing:.05em;text-transform:uppercase;',
       'color:var(--scene-ink-3) !important;font-weight:700;display:block;margin-top:5px;text-shadow:0 1px 5px rgba(0,0,0,.9)}',
       '@media(max-width:760px){' + R + '.hd-ledger{display:none}}',
       '@media(max-width:640px),(max-height:520px){' +
         R + '.hd-name{font-size:23px}' + R + '.hd-ava{width:52px;height:52px}' +
-        R + '.hd-sub{font-size:12.5px}' + R + '.hd-hearth-in{padding:0 12px 11px;gap:12px}}',
+        R + '.hd-sub{font-size:13.5px}' + R + '.hd-hearth-in{padding:0 12px 11px;gap:12px}}',
 
       /* ── b217 art direction ───────────────────────────────────────────────
          Home was seventeen bordered rounded boxes of identical weight: five
@@ -135,9 +135,9 @@
       'padding-bottom:6px;margin-bottom:11px;position:relative}',
       R + '.hd-h::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;',
       'background:linear-gradient(90deg,var(--line-strong),rgba(201,162,74,.10) 62%,transparent)}',
-      R + '.hd-h h3{margin:0;font-family:var(--f-label);font-size:13px;letter-spacing:.02em;',
+      R + '.hd-h h3{margin:0;font-family:var(--f-label);font-size:13.5px;letter-spacing:.02em;',
       'color:var(--gold-2) !important;font-weight:700;text-transform:none}',
-      R + '.hd-h a{font-size:12.5px;color:var(--ink-3) !important;font-weight:600;text-decoration:none;cursor:pointer}',
+      R + '.hd-h a{font-size:13.5px;color:var(--ink-3) !important;font-weight:600;text-decoration:none;cursor:pointer}',
       R + '.hd-h a:hover{color:var(--gold-2) !important}',
 
       /* Rows sit on the world. A hairline separates them; no card, no radius. */
@@ -158,10 +158,10 @@
          directly below. Tasks are sentences; only names and ranks are titles. */
       R + '.hd-mile-title{font-size:15.5px;font-weight:600;color:var(--ink) !important;line-height:1.25}',
       R + '.hd-mile.is-title .hd-mile-title{font-family:var(--f-display);font-size:17px;font-weight:600;letter-spacing:.01em}',
-      R + '.hd-mile-sub{font-size:12.5px;color:var(--ink-3) !important;margin:3px 0 8px;font-variant-numeric:tabular-nums}',
-      R + '.hd-rn-eyebrow{font-family:var(--f-label);font-size:11.5px;letter-spacing:.02em;',
+      R + '.hd-mile-sub{font-size:13.5px;color:var(--ink-3) !important;margin:3px 0 8px;font-variant-numeric:tabular-nums}',
+      R + '.hd-rn-eyebrow{font-family:var(--f-label);font-size:13.5px;letter-spacing:.02em;',
       'color:var(--ink-3) !important;font-weight:700;margin-bottom:2px}',
-      R + '.hd-rn-claimdot{font-family:var(--f-label);font-size:11px;background:var(--gold) !important;',
+      R + '.hd-rn-claimdot{font-family:var(--f-label);font-size:13.5px;background:var(--gold) !important;',
       'color:#1b1305 !important;border-radius:2px;padding:2px 7px;font-weight:700;vertical-align:middle;margin-left:8px;white-space:nowrap}',
 
       /* THE one lit object on the screen. A claimable reward is the only thing
@@ -193,14 +193,14 @@
       R + '.hd-qbody{flex:1;min-width:0}',
       R + '.hd-qtitle{font-size:15.5px;font-weight:600;color:var(--ink) !important;line-height:1.25}',
       R + '.hd-qmeta{display:flex;justify-content:flex-start;gap:10px;align-items:baseline;margin:4px 0 7px}',
-      R + '.hd-qmeta .p{font-size:12px;color:var(--ink-3) !important;font-weight:600;font-variant-numeric:tabular-nums}',
-      R + '.hd-qmeta .r{font-size:12px;color:var(--gold-2) !important;font-weight:600;display:inline-flex;align-items:center;gap:4px}',
+      R + '.hd-qmeta .p{font-size:13.5px;color:var(--ink-3) !important;font-weight:600;font-variant-numeric:tabular-nums}',
+      R + '.hd-qmeta .r{font-size:13.5px;color:var(--gold-2) !important;font-weight:600;display:inline-flex;align-items:center;gap:4px}',
 
       /* Buttons follow the global hierarchy: gilt = primary, quiet = the rest.
          Every row used to ship a filled gold slab, so nothing was primary. */
       R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:34px;display:inline-flex;align-items:center;',
       'justify-content:center;gap:6px;padding:0 15px;border-radius:var(--r);cursor:pointer;',
-      'font:700 13px/1 var(--f-ui);white-space:nowrap;',
+      'font:700 13.5px/1 var(--f-ui);white-space:nowrap;',
       'color:#221803 !important;border:1px solid #e6cd93 !important;',
       'background:linear-gradient(180deg,#d9b361 0%,#c09539 52%,#a67c28 100%) !important;',
       'box-shadow:inset 0 1px 0 rgba(255,246,220,.55),inset 0 -2px 3px rgba(90,60,8,.4),0 2px 5px -2px rgba(0,0,0,.7);',
@@ -216,9 +216,9 @@
       R + '.hd-cta.ghost:hover{color:var(--gold-2) !important;border-color:rgba(201,162,74,.45) !important;',
       'background:linear-gradient(180deg,rgba(255,236,200,.13),rgba(255,236,200,.04)) !important}',
 
-      R + '.hd-mini{padding:10px 4px;font-size:13px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
+      R + '.hd-mini{padding:10px 4px;font-size:13.5px;color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.8}',
-      R + '.hd-mini b{color:var(--ink) !important;font-size:14.5px;font-weight:700}',
+      R + '.hd-mini b{color:var(--ink) !important;font-size:15px;font-weight:700}',
       R + '.hd-mini div:not([data-hd]),' + R + '.hd-mini span:not([data-hd]){color:var(--ink-2) !important}',
       R + '.hd-mini .go{margin-left:auto}',
 
@@ -229,12 +229,12 @@
       R + '.hd-duo{display:flex;align-items:flex-start;gap:11px;padding:11px 4px}',
       R + '.hd-duo .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.85;margin-top:1px}',
       R + '.hd-duo .bd{flex:1;min-width:0}',
-      R + '.hd-duo .t{font-size:14.5px;font-weight:700;color:var(--ink) !important;line-height:1.2}',
-      R + '.hd-duo .s{font-size:12.5px;color:var(--ink-3) !important;margin-top:3px;line-height:1.35}',
-      R + '.hd-duo .when{flex:0 0 auto;font-family:var(--f-label);font-size:11px;letter-spacing:.05em;',
+      R + '.hd-duo .t{font-size:15px;font-weight:700;color:var(--ink) !important;line-height:1.2}',
+      R + '.hd-duo .s{font-size:13.5px;color:var(--ink-3) !important;margin-top:3px;line-height:1.35}',
+      R + '.hd-duo .when{flex:0 0 auto;font-family:var(--f-label);font-size:13.5px;letter-spacing:.05em;',
       'text-transform:uppercase;color:var(--ink-3) !important;font-weight:700;padding-top:3px;white-space:nowrap}',
       /* The holding's own line: cost list reads as a shopping list, tabular. */
-      R + '.hd-cost{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:12.5px;',
+      R + '.hd-cost{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:13.5px;',
       'color:var(--ink-3) !important;font-variant-numeric:tabular-nums}',
       R + '.hd-cost i{font-style:normal;color:var(--ink-2) !important;font-weight:600}',
       R + '.hd-cost i.short{color:var(--red) !important}',
@@ -532,11 +532,11 @@
     if (activeName) {
       html += '<div class="hd-card hd-mini"><div class="mi">' +
         (G.activeMonster ? gly('navCombat', 20, '', 'var(--red)') : gly(G.activeSkill || 'smithing', 20, '', 'var(--green)')) + '</div>' +
-        '<div><b>' + esc(activeName) + '</b><div style="font-size:12px;color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
+        '<div><b>' + esc(activeName) + '</b><div style="font-size:13.5px;color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
         '<button class="hd-cta ghost go" data-hd="active">Open</button></div>';
     } else if (resume) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, '', 'var(--ink-2)') + '</div>' +
-        '<div><b>' + esc(resume.label) + '</b><div style="font-size:12px;color:var(--ink-3)">Idle — nothing running</div></div>' +
+        '<div><b>' + esc(resume.label) + '</b><div style="font-size:13.5px;color:var(--ink-3)">Idle — nothing running</div></div>' +
         '<button class="hd-cta ghost go" data-hd="resume">Resume</button></div>';
     } else {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +

@@ -669,9 +669,9 @@
       /* ── the topbar pill ── it must never grow taller than a .t-stat chip ── */
       '#hr-muster-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;',
       '  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink-2);',
-      '  font-size:12.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;white-space:nowrap;',
+      '  font-size:13.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;white-space:nowrap;',
       '  line-height:1.2;max-height:30px}',
-      '#hr-muster-pill .mp-lab{text-transform:uppercase;font-size:10px;letter-spacing:.08em;color:var(--ink-3)}',
+      '#hr-muster-pill .mp-lab{text-transform:uppercase;font-size:13.5px;letter-spacing:.08em;color:var(--ink-3)}',
       '#hr-muster-pill .mp-t{font-variant-numeric:tabular-nums}',
       '#hr-muster-pill:hover{border-color:var(--line-strong,rgba(201,162,74,.45))}',
       '#hr-muster-pill[data-tone="quiet"]{color:var(--ink-3)}',
@@ -684,7 +684,7 @@
       '#hr-muster-pill[data-tone="claim"] .mp-dot{width:7px;height:7px;border-radius:50%;background:var(--gold-2);display:inline-block}',
       '@keyframes hr-mu-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,162,74,.30)}50%{box-shadow:0 0 0 5px rgba(201,162,74,0)}}',
       '@media (prefers-reduced-motion: reduce){#hr-muster-pill[data-tone="gold-pulse"]{animation:none}}',
-      '@media (max-width:540px){#hr-muster-pill{padding:4px 7px;font-size:11.5px}#hr-muster-pill .mp-lab{display:none}}',
+      '@media (max-width:540px){#hr-muster-pill{padding:4px 7px;font-size:13.5px}#hr-muster-pill .mp-lab{display:none}}',
       /* ── the Events panel ──
          .panel.active is display:grid with no template, which sizes injected
          cards as implicit rows against a fixed-height container — that is what
@@ -695,16 +695,16 @@
       '#panel-events #panel-dungeons{display:block;padding:0;overflow:visible;min-height:0;flex:none}',
       '#panel-events #hr-raid-card{display:block;height:auto;min-height:0;margin-bottom:0}',
       '#panel-events #hr-dungeons-back{display:none}',
-      '.ev-eyebrow{font-family:var(--f-display,inherit);font-size:12px;font-weight:800;color:var(--gold-2);',
+      '.ev-eyebrow{font-family:var(--f-display,inherit);font-size:13.5px;font-weight:800;color:var(--gold-2);',
       '  letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px}',
       '.mu-bar{height:10px;background:rgba(0,0,0,.35);border-radius:99px;overflow:hidden;border:1px solid var(--line-soft)}',
       '.mu-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2),#e3c77e)}',
       '.mu-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}',
       '.mu-slot{border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.02)}',
       '.mu-slot.is-live{border-color:rgba(201,162,74,.55);background:var(--gold-bg,rgba(201,162,74,.08))}',
-      '.mu-slot .mu-when{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700}',
+      '.mu-slot .mu-when{font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700}',
       '.mu-slot .mu-nm{font-weight:800;color:var(--ink);margin:2px 0}',
-      '.mu-slot .mu-what{font-size:12px;color:var(--ink-3)}',
+      '.mu-slot .mu-what{font-size:13.5px;color:var(--ink-3)}',
       /* ── the shared modal (reuses the renown/daily scrim pattern) ── */
       '.hr-mu-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);',
       '  display:flex;align-items:center;justify-content:center;padding:18px}',

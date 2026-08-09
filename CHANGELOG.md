@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 242 — 2026-08-09 (Every item has a story)
+
+- 📜 **Every item explains itself now.** Tap any item and you'll see a one-line description of what it is (all 281 items written from scratch, in-world) plus **where it comes from** (crafted, mined, farmed, or dropped by X) and **what it's used in** (the recipes it feeds). No more mystery mats sitting in your bag.
+- 🔎 On desktop the same flavour line shows in the hover tooltip.
+- 🧪 446 tests green.
+
 ## v0.9.2-beta build 241 — 2026-08-09 (Mobile tidy-up)
 
 - 👆 **The item tooltip stops sticking on mobile.** On a phone the hover tooltip could pop up and stay there over everything until you scrolled. It's a desktop-hover feature — on touch it now stays out of the way (tap an item to see its full details), and any stray one clears the moment you tap. (Thanks, paione.)

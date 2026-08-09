@@ -5104,6 +5104,17 @@ function openInvDetail(id){
     foodNote = `<div class="inv-detail-note">${it.note}</div>`;
   }
 
+  /* b242 (itemization Wave 2 — "explain everything on hover/tap"): the flavour
+     line + where it comes from + what it crafts into, from the reverse index.
+     Each is optional — an item with no data simply shows no line. */
+  const _desc = (typeof window.itemDesc==='function') ? window.itemDesc(id) : '';
+  const _src  = (typeof window.itemSourceLine==='function') ? window.itemSourceLine(id) : '';
+  const _used = (typeof window.itemUsedInLine==='function') ? window.itemUsedInLine(id) : '';
+  const descHtml = _desc ? `<div class="inv-detail-desc">${_desc}</div>` : '';
+  let infoBlock = '';
+  if(_src)  infoBlock += `<div class="inv-detail-info"><b>Source</b><span>${_src}</span></div>`;
+  if(_used) infoBlock += `<div class="inv-detail-info"><b>Used in</b><span>${_used}</span></div>`;
+
   d.innerHTML = `<div class="inv-detail-card">
     <div class="inv-detail-close" onclick="closeInvDetail()">✕</div>
     <div class="inv-detail-head">
@@ -5113,7 +5124,9 @@ function openInvDetail(id){
         <div class="inv-detail-meta">${cat}${it.slot?' · '+it.slot:''}${it.weaponType?' · '+it.weaponType:''}${_itemTier(id)?' · T'+_itemTier(id):''}</div>
       </div>
     </div>
+    ${descHtml}
     <div class="inv-detail-stats">${stats.join('')}</div>
+    ${infoBlock}
     ${foodNote}
     <div class="inv-detail-actions">${acts.join('')}</div>
   </div>`;

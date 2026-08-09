@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=241' directly.
+// modularised, will import { G } from '../state/game.js?v=242' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=241';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=241';
+import { on, snapshot } from '../net/events.js?v=242';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=242';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=241';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=242';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,27 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b242: items explain themselves — flavour line + source + used-in', () => {
+    assert(typeof window.itemDesc === 'function' && typeof window.itemSourceLine === 'function' && typeof window.itemUsedInLine === 'function',
+      'the item-index seams (itemDesc/itemSourceLine/itemUsedInLine) must exist');
+    // Flavour descriptions authored for the whole table.
+    assert(window.itemDesc('steel_sword') && window.itemDesc('steel_sword').length > 8, 'items must carry a flavour description');
+    // Source: a crafted item names its craft; a mined ore names Mining.
+    assert(/Smithing/i.test(window.itemSourceLine('steel_sword')), 'a crafted item must name its craft source, got: ' + window.itemSourceLine('steel_sword'));
+    assert(/Mining/i.test(window.itemSourceLine('iron_ore')), 'a mined ore must name Mining, got: ' + window.itemSourceLine('iron_ore'));
+    // Used-in: a common ingredient lists what it makes.
+    assert(window.itemUsedInLine('iron_bar').length > 0, 'a common ingredient must list what it is used in');
+    // And it renders into the tap flyout.
+    const snap = snapshotG();
+    try {
+      window.G.inventory = window.G.inventory || {}; window.G.inventory.steel_sword = 1;
+      window.openInvDetail('steel_sword');
+      assert(document.querySelector('.inv-detail-desc'), 'the flyout must render the flavour line');
+      assert(document.querySelector('.inv-detail-info'), 'the flyout must render the Source / Used-in lines');
+      window.closeInvDetail();
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b241: a stray item tooltip is dismissed by a tap (mobile stuck-tooltip fix)', () => {

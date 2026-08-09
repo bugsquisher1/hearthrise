@@ -190,7 +190,10 @@
     }
     marketBlock += '</div>';
 
-    return head + statsBlock + marketBlock;
+    // b242: the flavour line (what is it), between the name and the stats.
+    var descLine = '';
+    if(typeof window.itemDesc === 'function'){ var dd = window.itemDesc(itemId); if(dd) descLine = '<div class="ttl-desc">' + dd + '</div>'; }
+    return head + descLine + statsBlock + marketBlock;
   }
 
   function showTip(target, itemId){

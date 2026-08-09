@@ -9,6 +9,25 @@ This spec is the spine for a multi-build program and the **art brief source**: e
 
 ---
 
+## 0. Design pillars (Tyler, refined 2026-08-09) — non-negotiable
+
+The item system must be **robust, synthesising, and fun** — one interconnected web, not a list. Five pillars govern every wave:
+
+1. **Synthesising & interconnected.** Items reference each other on purpose — a drop feeds a recipe feeds a set feeds a boss. Nothing exists in isolation; every item has a *reason* and a *place in the web* (§6 cross-system, §7 orphans).
+2. **Unique, custom aspects.** Beyond stat ladders — signature materials, set bonuses, boss-only effects/procs (`passives[]`), horizontal build levers (crit/speed now, status later). Marquee items are *characters*, not "+1" rungs. **No generic filler.**
+3. **Simple to understand, deep to master.** A newcomer reads a tile and knows what to do; a veteran finds builds. Achieved by clarity surfaces, not by dumbing down.
+4. **Explain everything on hover/tap.** Every item's detail answers **what it is · what it does · where it comes from · is it an upgrade · what it's used for / crafts into**. Rich, always-present, and identical on desktop hover and mobile tap (§5). The `desc` field + the source index + the "used in" reverse-recipe index power this.
+5. **A Recipe Book — every combination, always visible.** A browsable book of **all** recipes in the game. A recipe you can't make yet shows as a **locked, grayscale** entry that *still lists the exact inputs + the level/station it needs* — so a player can see the whole crafting tree and plan toward it, never blocked by not-knowing. (Recipe Book = a Wave-2 deliverable, §9.)
+
+**And the meta-pillar — SAFE TO EXTEND.** Adding an item must be *editing data*, never surgery, and must not create an exploit or a balance hole. This is enforced structurally, not by discipline:
+- **Generate from curves** where a ladder exists (`gear-tiers.js` model) so a new tier is one table row.
+- **Derived economy props** — vendor-trash/`sellValue`, rarity band → drop rate — are *computed from the item*, never hand-listed, so a new drop can't skip the vendor rule or mint gold (§7 vendor leak).
+- **Server-authoritative** for anything an exploit could touch (drops, currency, market) — client requests, server validates.
+- **Guard tests as the contract.** Every structural rule ships a smoke guard that FAILS if a future item violates it — e.g. the b238 guard "no food may declare a buff type absent from `BUFFS_DEF`", the item-DB identity guard, the migration round-trip. Add the guard *with* the rule so the rule can't rot.
+- **The migration/alias layer** (§4) means a rename/removal is safe, so the DB can be refactored without fear.
+
+---
+
 ## 1. What the audits found (the short version)
 
 **Healthy — protect & extend:** the generated gear ladder (`gear-tiers.js`, 7 tiers from stat curves); the enforced two-stage refine spine (ore→bar→item, log→plank→item); the castle-goods Stage-3/4 chain; the Hunt (6 clan bosses) as the one place boss→signature-drop→unique-gear closes.
@@ -91,7 +110,7 @@ Bones (the universal 100% drop) → prayer charges spent on activatable **blessi
 ## 9. Wave plan (each wave is shippable + tested)
 
 1. **Foundation & Honesty** — migration/alias layer + round-trip test; wire crit + speed; fix dead buffs (`defense`, `drop_rate`, `monster_respawn`); enforce+grandfather `reqLv`. *No renames beyond what the alias covers.*
-2. **Clarity & Sources** — reverse item→source index + Source line + mobile flyout compare + boss/dungeon loot preview + locked-item Collection preview.
+2. **Clarity & Sources** — reverse item→source index + Source line + "used in" reverse-recipe index + rich always-present hover/tap detail (pillar 4) + the **Recipe Book** (pillar 5: every recipe, locked ones grayscale with their inputs + level/station shown) + mobile flyout compare + boss/dungeon loot preview + locked-item Collection preview.
 3. **Orphans & Economy** — route/cut the ~30 orphans; derive vendor-trash; armour cross-system; refine-spine→gear bridge; Rally Seal sink; consumable re-tune.
 4. **Boss ecosystem** — data-driven boss schema + daily/weekly rotation + progression bosses + Hunt back-port + banded drops.
 5. **Dungeon identity** — dungeon tokens + a dungeon gear line/set + finish run experiences.

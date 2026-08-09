@@ -578,7 +578,7 @@
     body.p_items[itemId] = qty;
     var d = await call('clan_deposit', body, function (o) { return { out: o }; });
     if (d.action === 'unsupported') { _support = 'unsupported'; renderIfOpen(); return false; }
-    var r = C().reduceDeposit(d.action === 'accept' ? 200 : 400, d.action === 'accept' ? d.out : { ok: false, error: d.error });
+    var r = C().reduceDeposit(200, d.action === 'accept' ? d.out : { ok: false, error: d.error });
     if (r.action !== 'accept') { toast(r.message, 'kill'); return false; }
     if (typeof window.removeItem === 'function') window.removeItem(itemId, qty);
     persist();
@@ -671,6 +671,145 @@
     renderIfOpen();
     return true;
   }
+  /* ── GOVERNANCE: the vice charge and the opt-in vote (b228) ──────────────
+     All four RPCs live in 2026-08-09-clan-governance.sql and feature-detect
+     exactly like every other call in this file. `_voteSupport` starts at
+     'unknown' and only ever becomes 'live' after a real answer, so a hold whose
+     project has not run the migration is never offered a vote it cannot hold —
+     the affordance is HIDDEN, not shown-and-broken. */
+  var _vote = null;              // the normalized vote, or null
+  var _mayOpenVote = false;      // the SERVER's answer to "may I open one"
+  var _voteSupport = 'unknown';  // unknown | live | unsupported
+  var _voteAt = 0;
+  var _voteReading = null;
+  var _votePick = [];            // the candidate buildings leadership has ticked
+
+  function voteSupported() { return _voteSupport === 'live'; }
+
+  /* Fire-and-redraw. The panel never BLOCKS on the vote read — it draws what it
+     knows, and the card appears a moment later if there is one. A governance
+     card that delayed the castle would be a governance card nobody thanked. */
+  var _voteChecking = false;
+  function ensureVote() {
+    if (_voteSupport === 'unsupported' || _voteChecking) return;
+    if (_voteSupport === 'live' && Date.now() - _voteAt < 20000) return;
+    _voteChecking = true;
+    readVote(true).then(function () { _voteChecking = false; renderIfOpen(); })
+      .catch(function () { _voteChecking = false; });
+  }
+
+  async function readVote(force) {
+    var id = clanId();
+    if (!id || !supported()) return null;
+    if (_voteSupport === 'unsupported') return null;
+    if (!force && Date.now() - _voteAt < 20000 && _vote !== undefined) return _vote;
+    if (_voteReading && !force) return _voteReading;
+    _voteAt = Date.now();
+    _voteReading = (async function () {
+      var d = await call('clan_vote_read', { p_clan_id: id }, function (o) { return { out: o }; });
+      if (d.action === 'unsupported') { _voteSupport = 'unsupported'; _vote = null; return null; }
+      if (d.action !== 'accept') return _vote;
+      var r = C().reduceVoteRead(200, d.out);
+      _voteSupport = 'live';
+      _vote = r.vote || null;
+      _mayOpenVote = !!r.mayOpen;
+      return _vote;
+    })();
+    try { return await _voteReading; } finally { _voteReading = null; }
+  }
+
+  async function openVote(buildings, hours) {
+    if (needServer()) return false;
+    var list = (buildings || []).slice(0, C().VOTE_MAX_CANDIDATES);
+    if (list.length < C().VOTE_MIN_CANDIDATES) {
+      toast('Pick at least ' + C().VOTE_MIN_CANDIDATES + ' things for the hold to choose between', 'kill');
+      return false;
+    }
+    var d = await call('clan_vote_open',
+      { p_clan_id: clanId(), p_candidates: list, p_hours: hours || C().VOTE_DEFAULT_HOURS },
+      function (o) { return { out: o }; });
+    if (d.action === 'unsupported') { _voteSupport = 'unsupported'; renderIfOpen(); return false; }
+    var r = C().reduceVoteOpen(200,
+      d.action === 'accept' ? d.out : { ok: false, error: d.error });
+    if (r.action !== 'accept') { toast(r.message, 'kill'); return false; }
+    _votePick = [];
+    toast('The hold is voting on its next work order — ' + (r.hours || 24) + ' hours to decide.', 'levelup');
+    await readVote(true);
+    renderIfOpen();
+    return true;
+  }
+
+  async function castVote(building) {
+    if (needServer()) return false;
+    if (!_vote || !_vote.id) return false;
+    var d = await call('clan_vote_cast', { p_clan_id: clanId(), p_vote: _vote.id, p_building: building },
+      function (o) { return { out: o }; });
+    if (d.action === 'unsupported') { _voteSupport = 'unsupported'; renderIfOpen(); return false; }
+    var r = C().reduceVoteCast(200,
+      d.action === 'accept' ? d.out : { ok: false, error: d.error });
+    if (r.action === 'expired') {
+      toast('The vote closed while you were deciding — here is what the hold chose.', 'info');
+      await readVote(true); await readSeat(true); renderIfOpen();
+      return false;
+    }
+    if (r.action !== 'accept') { toast(r.message, 'kill'); return false; }
+    var b = buildingDef(building);
+    toast('Your vote is in: ' + ((b && b.name) || building) + '.', 'loot');
+    await readVote(true);
+    renderIfOpen();
+    return true;
+  }
+
+  async function closeVote() {
+    if (needServer()) return false;
+    if (!_vote || !_vote.id) return false;
+    var d = await call('clan_vote_close', { p_clan_id: clanId(), p_vote: _vote.id },
+      function (o) { return { out: o }; });
+    if (d.action === 'unsupported') { _voteSupport = 'unsupported'; renderIfOpen(); return false; }
+    var r = C().reduceVoteClose(200,
+      d.action === 'accept' ? d.out : { ok: false, error: d.error });
+    if (r.action !== 'accept') { toast(r.message, 'kill'); return false; }
+    if (r.outcome === 'posted') {
+      var b = buildingDef(r.winner);
+      toast('The hold has chosen: ' + ((b && b.name) || r.winner) + '. The work order is posted.', 'levelup');
+    } else if (r.outcome === 'tie') {
+      toast('The vote is tied — leadership picks. Nothing was posted.', 'info');
+    } else {
+      toast(r.reason === 'no_ballots' ? 'Nobody voted, so nothing was posted.'
+                                      : 'The vote closed without posting: ' + C().errorText(r.reason), 'info');
+    }
+    await readVote(true);
+    await readSeat(true);
+    renderIfOpen();
+    return true;
+  }
+
+  /* Granting the office. Leader only, server-enforced; this button simply is
+     not drawn for anyone else. */
+  async function setVice(userId, grant) {
+    if (needServer()) return false;
+    var d = await call('clan_vice_set', { p_clan_id: clanId(), p_user: userId, p_grant: !!grant },
+      function (o) { return { out: o }; });
+    if (d.action === 'unsupported') {
+      toast('Vice leaders need the clan governance migration on this project', 'kill');
+      _viceSupport = 'unsupported'; renderIfOpen(); return false;
+    }
+    var r = C().reduceViceSet(200,
+      d.action === 'accept' ? d.out : { ok: false, error: d.error });
+    if (r.action !== 'accept') { toast(r.message, 'kill'); return false; }
+    _viceSupport = 'live';
+    toast(grant ? 'They are a vice leader now — they can post work orders and open votes.'
+                : 'They are no longer a vice leader.', 'info');
+    _roster = null;
+    try {
+      var rows = await window.HearthriseClans.roster();
+      _roster = rows || [];
+    } catch (e) { _roster = []; }
+    renderIfOpen();
+    return true;
+  }
+  var _viceSupport = 'unknown';
+
   async function boardClaim(taskId) {
     if (needServer()) return false;
     var d = await call('clan_board_claim', { p_clan_id: clanId(), p_task_id: taskId },
@@ -1763,24 +1902,241 @@
   function stored(id) { var s = seat(); return ((s && s.stores) || {})[id] || 0; }
   function storeCap() { return 2500 * Math.max(1, level('treasury')); }
 
+  /* The SEAT's answer wins. `clans.myClan().myRole` is populated at sign-in and
+     is a cache of an older read; `clan_seat_read` re-answers it on every panel
+     open, so a member promoted to leader ten seconds ago sees the leader's
+     buttons without a reload. readSeat() pushes the newer value back onto the
+     clan row, which is what keeps the two from disagreeing anywhere else. */
   function myRole() {
+    var s = seat();
+    if (s && s.my_role) return s.my_role;
     var c = myClanObj();
     return (c && c.myRole) || 'member';
   }
-  /* The leader always holds both charges implicitly, or a freshly founded clan
-     could commission nothing at all. `my_charge` arrives with the clan-seat-2
+  /* WHO MAY POST A WORK ORDER (Tyler, 2026-08-09): the Leader and the Vice
+     Leaders, and nobody else. The rule itself lives in HearthriseClanSeat so
+     the server's migration and this panel are reading one sentence; here we
+     only supply the two facts it needs.
+
+     The leader always qualifies implicitly, or a freshly founded clan could
+     commission nothing at all. `my_charge` arrives with the clan-seat-2
      migration; before it, only the leader is recognised — which is a narrower
      answer than the server's, never a wider one. */
-  function isSteward() {
-    var s = seat();
-    return myRole() === 'leader' || !!(s && s.my_charge === 'steward');
-  }
+  function myCharge() { var s = seat(); return (s && s.my_charge) || null; }
+  function isVice() { return C().mayPostOrder(myRole(), myCharge()); }
+  function isLeader() { return myRole() === 'leader'; }
+  /* What the panel calls the office, in running text. */
+  function VICE() { return 'vice leader'; }
 
   function ROOM_IDS() { return ['great_hall'].concat(BUILDINGS.map(function (b) { return b.id; })); }
   function roomName(id) {
     if (id === 'great_hall') return 'The Great Hall';
     var b = buildingDef(id);
     return (b && b.name) || id;
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     THE WORK ORDER BLOCK — the panel's lead story (Tyler, 2026-08-09)
+     ════════════════════════════════════════════════════════════
+     An active Work Order is what the whole hold is doing, and before this it
+     was a 40-pixel bar in a three-column strip that said "supply 62%". A
+     percentage is not an instruction. A member who reads "62%" cannot go and
+     fix it; a member who reads "Iron Fittings 80 / 200" can.
+
+     So every required material gets its OWN named row with its real have/need
+     numbers, at cost-text size — named text, never an icon beside a bare
+     number, and never below 14.5px. That is the cost-text law, and this block
+     is the largest surface in the game that obeys it.
+
+     The labour meter sits under the materials because it is the SECOND half of
+     the same order, and the whole block ends in one button that goes straight
+     to the place a player can act. */
+  function orderPhaseWord(o) {
+    return o.phase === 'supply' ? 'Gathering materials' : 'Under construction';
+  }
+  function workOrderLeadHtml() {
+    var orders = openOrders();
+    if (!orders.length) return '';
+    return orders.map(function (o) {
+      var b = buildingDef(o.building);
+      var nm = (b && b.name) || o.building;
+      var mats = Object.keys(o.materials || {});
+      var rows = mats.map(function (k) {
+        var need = Math.max(0, +o.materials[k] || 0);
+        var got = Math.min(need, Math.max(0, +(o.supplied || {})[k] || 0));
+        var full = got >= need;
+        var inStore = stored(k);
+        return '<div class="hr-cs-wo-mat' + (full ? ' is-full' : '') + '">' +
+          '<div class="hr-cs-wo-mat-top">' +
+            '<span class="hr-cs-wo-mat-nm">' + esc(itemName(k)) + '</span>' +
+            '<span class="hr-cs-wo-mat-qty">' + n(got) + ' / ' + n(need) + '</span>' +
+          '</div>' +
+          bar(full ? '' : 'is-supply', got, need) +
+          '<div class="hr-cs-wo-mat-foot">' + (full
+            ? 'Fully supplied.'
+            : n(need - got) + ' still needed &middot; ' + n(inStore) + ' waiting in the Storehouse') +
+          '</div></div>';
+      }).join('');
+
+      var done = Math.max(0, +o.labour_done || 0);
+      var target = Math.max(1, +o.labour_target || 1);
+      var mine = _labourToday + Math.floor(_labour);
+      var floorLeft = o.floor_until ? Date.parse(o.floor_until) - Date.now() : 0;
+
+      return '<div class="hr-cs-wo">' +
+        '<div class="hr-cs-wo-head">' +
+          '<div class="hr-cs-wo-eyebrow">The hold is building</div>' +
+          '<div class="hr-cs-wo-title">' + esc(nm) + ' &rarr; Level ' + (o.to_level | 0) + '</div>' +
+          '<div class="hr-cs-wo-phase" data-phase="' + esc(o.phase) + '">' + orderPhaseWord(o) + '</div>' +
+        '</div>' +
+        '<div class="hr-cs-wo-mats">' + rows + '</div>' +
+        '<div class="hr-cs-wo-labour">' +
+          '<div class="hr-cs-wo-mat-top">' +
+            '<span class="hr-cs-wo-mat-nm">Labour</span>' +
+            '<span class="hr-cs-wo-mat-qty">' + n(done) + ' / ' + n(target) + '</span>' +
+          '</div>' +
+          bar('', done, target) +
+          '<div class="hr-cs-wo-mat-foot">' + (o.phase === 'supply'
+            ? 'Labour starts once every material above is supplied. Then ordinary play builds it — no toggle, no sign-up.'
+            : 'Every skill action you take feeds this. You have given ' + n(mine) + ' of your ' +
+              C().DAILY_LABOUR_CAP + ' labour today' +
+              (floorLeft > 0 ? ' &middot; ' + fmtLeft(floorLeft) + ' of its time floor left.' : '.')) +
+          '</div>' +
+        '</div>' +
+        '<div class="hr-cs-wo-acts">' +
+          '<button class="btn btn-sm btn-primary" data-cs="room" data-b="' + esc(o.building) + '">Contribute</button>' +
+          '<span class="hr-cs-wo-hint">' + (o.phase === 'supply'
+            ? 'Move goods out of the Storehouse onto this order.'
+            : 'Open it to see the time floor and raise it when it is ready.') + '</span>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     THE VOTE CARD — opt-in, and honestly absent when it cannot run
+     ════════════════════════════════════════════════════════════
+     Leadership MAY put the next Work Order to the hold. It is a choice per
+     order, not mandatory governance, so this card has three jobs and no more:
+     show a running vote to everybody, let leadership open one, and tell the
+     hold what a closed vote decided when the answer was not simply "we built
+     it" (a posted winner is already the block above).
+
+     On a project that has not run 2026-08-09-clan-governance.sql this returns
+     an empty string. Not a greyed button, not "coming soon" — nothing. */
+  function voteCandidates() {
+    var cap = C().buildingLevelCap(castleTier());
+    return BUILDINGS.filter(function (b) {
+      return level(b.id) + 1 <= Math.min(10, cap) && !orderFor(b.id);
+    });
+  }
+  function voteCardHtml() {
+    if (!voteSupported()) return '';
+    var v = _vote;
+
+    // 1 — a vote is running.
+    if (v && !v.closed) {
+      var left = v.deadline - Date.now();
+      var total = v.votes;
+      var rows = v.candidates.map(function (c) {
+        var b = buildingDef(c.building);
+        var count = v.tally[c.building] || 0;
+        var mine = v.myVote === c.building;
+        return '<div class="hr-cs-vote-row' + (mine ? ' is-mine' : '') + '">' +
+          '<div class="hr-cs-wo-mat-top">' +
+            '<span class="hr-cs-wo-mat-nm">' + esc((b && b.name) || c.building) +
+              (c.to_level ? ' &rarr; Level ' + c.to_level : '') + '</span>' +
+            '<span class="hr-cs-wo-mat-qty">' + n(count) + ' vote' + (count === 1 ? '' : 's') + '</span>' +
+          '</div>' +
+          bar('', count, Math.max(1, total)) +
+          '<div class="hr-cs-vote-act">' + (mine
+            ? '<span class="hr-cs-wo-hint">Your vote.</span>'
+            : '<button class="btn btn-sm" data-cs="vote-cast" data-b="' + esc(c.building) + '">Vote for this</button>') +
+          '</div></div>';
+      }).join('');
+      return '<div class="hr-cs-wo is-vote">' +
+        '<div class="hr-cs-wo-head">' +
+          '<div class="hr-cs-wo-eyebrow">The hold is deciding</div>' +
+          '<div class="hr-cs-wo-title">What do we build next?</div>' +
+          '<div class="hr-cs-wo-phase" data-phase="vote">' +
+            (left > 0 ? fmtLeft(left) + ' left to vote' : 'Counting the votes') + '</div>' +
+        '</div>' +
+        '<div class="hr-cs-wo-mats">' + rows + '</div>' +
+        '<div class="hr-cs-wo-acts">' +
+          (isVice() ? '<button class="btn btn-sm" data-cs="vote-close">Close the vote now</button>' : '') +
+          '<span class="hr-cs-wo-hint">' + n(v.voters) + ' of ' + n(v.members) + ' members have voted. ' +
+          'One vote each, and you can change yours until the deadline. The winner is posted as the work order.' +
+          '</span>' +
+        '</div></div>';
+    }
+
+    // 2 — a closed vote that still needs a decision from somebody.
+    if (v && v.closed && (v.outcome === 'tie' || v.outcome === 'void')) {
+      var names = (v.outcome === 'tie' ? v.leaders : []).map(function (id) {
+        var b = buildingDef(id); return (b && b.name) || id;
+      });
+      return '<div class="hr-cs-wo is-vote">' +
+        '<div class="hr-cs-wo-head">' +
+          '<div class="hr-cs-wo-eyebrow">The last vote</div>' +
+          '<div class="hr-cs-wo-title">' + (v.outcome === 'tie'
+            ? 'It tied &mdash; ' + esc(names.join(' and '))
+            : 'Nothing was posted') + '</div>' +
+        '</div>' +
+        '<div class="hr-cs-wo-mat-foot">' + (v.outcome === 'tie'
+          ? 'A tie is never broken by chance, so the hold built nothing. Leadership commissions one of them, or opens a fresh vote.'
+          : (v.reason === 'no_ballots'
+              ? 'Nobody voted before the deadline, so nothing was posted.'
+              : 'The hold moved while the vote ran: ' + esc(C().errorText(v.reason)) + '.')) +
+        '</div>' + voteOpenerHtml() + '</div>';
+    }
+
+    // 3 — no vote running. Leadership is offered one; everyone else is told
+    //     plainly who posts the next order, with no dead button to press.
+    var op = voteOpenerHtml();
+    if (!op) return '';
+    return '<div class="hr-cs-wo is-vote">' +
+      '<div class="hr-cs-wo-head">' +
+        '<div class="hr-cs-wo-eyebrow">Optional</div>' +
+        '<div class="hr-cs-wo-title">Let the hold pick the next work order</div>' +
+      '</div>' + op + '</div>';
+  }
+
+  /* The opener. Leadership ticks two to four things and sets a deadline. It is
+     deliberately the same checkbox-and-button shape as the rest of the panel's
+     fields rather than a bespoke wizard — governance is a two-minute act. */
+  function voteOpenerHtml() {
+    if (!voteSupported() || !isVice() || !_mayOpenVote) return '';
+    var cands = voteCandidates();
+    if (cands.length < C().VOTE_MIN_CANDIDATES) {
+      return '<div class="hr-cs-wo-mat-foot">There are not enough things the hold could build right now to ' +
+        'hold a vote &mdash; raise the hold, or finish what is open.</div>';
+    }
+    var picked = _votePick;
+    var boxes = cands.map(function (b) {
+      var to = level(b.id) + 1;
+      var on = picked.indexOf(b.id) >= 0;
+      return '<button class="hr-cs-vote-pick' + (on ? ' is-on' : '') +
+        '" data-cs="vote-pick" data-b="' + esc(b.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+        '<span class="hr-cs-wo-mat-nm">' + esc(b.name) + '</span>' +
+        '<span class="hr-cs-wo-mat-qty">Level ' + to + '</span></button>';
+    }).join('');
+    var ready = picked.length >= C().VOTE_MIN_CANDIDATES;
+    return '<div class="hr-cs-vote-open">' +
+      '<div class="hr-cs-wo-mat-foot">Pick ' + C().VOTE_MIN_CANDIDATES + ' to ' + C().VOTE_MAX_CANDIDATES +
+        ' things for the hold to choose between. Every member gets one vote, and the winner is posted ' +
+        'automatically when the deadline passes.</div>' +
+      '<div class="hr-cs-vote-picks">' + boxes + '</div>' +
+      '<div class="hr-cs-wo-acts">' +
+        '<label class="hr-cs-wo-hint" for="hr-cs-vote-hrs">Deadline</label>' +
+        '<select id="hr-cs-vote-hrs" data-cs-sel="votehrs">' +
+          '<option value="12">12 hours</option>' +
+          '<option value="24" selected>24 hours</option>' +
+          '<option value="48">2 days</option>' +
+          '<option value="72">3 days</option>' +
+        '</select>' +
+        '<button class="btn btn-sm btn-primary" data-cs="vote-open"' + (ready ? '' : ' disabled') + '>' +
+          'Open the vote</button>' +
+        '<span class="hr-cs-wo-hint">' + picked.length + ' picked.</span>' +
+      '</div></div>';
   }
 
   /* THE MAIN PANEL. A picture you can click, six doors, three bars, and nothing
@@ -1834,13 +2190,35 @@
       return;
     }
 
+    /* ── THE LEAD STORY ──────────────────────────────────────────────────
+       What the hold is building, and what it needs from YOU, above everything
+       else on the panel. When nothing is being built, the vote card takes the
+       same slot — because "what do we build next" is the same question one
+       step earlier. */
+    ensureVote();
+    html += workOrderLeadHtml();
+    html += voteCardHtml();
+
     // ── Standing toward the next tier, with the contributor gate stated ──
     if (next) {
+      /* THE TIER GATE, IN PLAYER LANGUAGE. This paragraph used to read "3
+         different members must supply the bundle, each after 72 hours in the
+         hold. Buildings are capped at level 4 until the hold rises." — three
+         design-doc facts welded together, and Tyler could not parse it. It is
+         now two sentences with the LIVE count in them, because "1 so far" is
+         the number that tells a player whether to go and fetch a friend. */
+      /* The count comes from the server (clan_seat_read.tier_contributors) —
+         only it can see who has actually deposited past the 72h grace. A server
+         that has not run the governance migration does not send it, and `null`
+         must not become 0: the clause is dropped instead of being invented. */
+      var soFar = s.tier_contributors;
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing &rarr; ' + esc(next.name) + '</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b> / ' + n(next.standing) + '</span></div>' +
         bar('', standing, next.standing) +
-        '<div class="hr-cs-foot">' + esc(next.contributors) + ' different members must supply the bundle, ' +
-        'each after 72 hours in the hold. Buildings are capped at level ' + (tier * 2) + ' until the hold rises.</div>';
+        '<div class="hr-cs-foot">Needs contributions from <b>' + esc(next.contributors) +
+        ' different members</b>' + (soFar != null ? ' (<b>' + n(soFar) + '</b> so far)' : '') +
+        '. New members count 3 days after joining &mdash; this keeps holds honest. ' +
+        'Buildings can reach <b>level ' + (tier * 2) + '</b> now &mdash; raise the hold to unlock higher.</div>';
     } else {
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b></span></div>' +
@@ -1890,37 +2268,17 @@
   function weekStripHtml() {
     var out = '';
     var s = seat();
-    // 1 — the Work Order
-    var orders = openOrders();
-    var o = orders[0];
-    if (o) {
-      var b = buildingDef(o.building);
-      if (o.phase === 'supply') {
-        var need = 0, got = 0;
-        Object.keys(o.materials || {}).forEach(function (k) {
-          need += +o.materials[k] || 0;
-          got += Math.min(+o.materials[k] || 0, +(o.supplied || {})[k] || 0);
-        });
-        out += '<div><div class="hr-cs-line"><span class="hr-cs-label">Work Order &middot; supply</span>' +
-          '<span class="hr-cs-val">' + pct(got, need) + '%</span></div>' +
-          bar('is-supply', got, need) +
-          '<div class="hr-cs-foot">' + esc((b && b.name) || o.building) + ' to level ' + (o.to_level | 0) +
-          ' &mdash; the hold needs materials.</div></div>';
-      } else {
-        out += '<div><div class="hr-cs-line"><span class="hr-cs-label">Work Order &middot; labour</span>' +
-          '<span class="hr-cs-val"><b>' + n(o.labour_done) + '</b> / ' + n(o.labour_target) + '</span></div>' +
-          bar('', o.labour_done, o.labour_target) +
-          '<div class="hr-cs-foot">' + esc((b && b.name) || o.building) + ' to level ' + (o.to_level | 0) +
-          ' &mdash; you have spent ' + n(_labourToday + Math.floor(_labour)) + ' of your ' +
-          C().DAILY_LABOUR_CAP + ' labour today.</div></div>';
-      }
-    } else {
+    /* 1 — the Work Order, ONLY when there is none. An open order is the lead
+       story at the top of the panel now, with every material named; repeating
+       it here as a percentage would be the same news told twice, worse the
+       second time. */
+    if (!openOrders().length) {
       out += '<div><div class="hr-cs-line"><span class="hr-cs-label">Work Order</span>' +
         '<span class="hr-cs-val">none open</span></div>' + bar('is-supply', 0, 1) +
-        '<div class="hr-cs-foot">' + (isSteward()
+        '<div class="hr-cs-foot">' + (isVice()
           ? 'Open a room and commission one. ' + C().buildSlots(castleTier()) + ' slot' +
             (C().buildSlots(castleTier()) === 1 ? '' : 's') + ' at this tier.'
-          : 'Your leader or a Steward posts the next one.') + '</div></div>';
+          : 'The leader and vice leaders post work orders. Yours has not posted one yet.') + '</div></div>';
     }
 
     // 2 — the Feast meter
@@ -2001,7 +2359,7 @@
         : already ? 'Already commissioned — supply it below.'
         : open >= slots ? 'Every build slot is in use (' + open + ' / ' + slots + ').'
         : upkeepState() === 'dormant' ? 'The hold is dormant — settle its upkeep first.'
-        : !isSteward() ? 'The leader or a Steward commissions work.'
+        : !isVice() ? 'Only the leader and vice leaders post work orders.'
         : '';
       rows.push({
         level: to, locked: locked, next: to === cur + 1,
@@ -2095,11 +2453,17 @@
           effect: next.name + ' — ' + Math.round(GREAT_HALL_ALLXP_PER_TIER * next.tier * 100) +
             '% all XP, level cap ' + C().buildingLevelCap(next.tier) + ', ' + next.members + ' members',
           costs: costs.concat([{ label: 'gold', need: next.gold, have: s ? s.treasury : 0 }]),
-          why: next.contributors + ' different members must have supplied this bundle, each after 72 hours in ' +
-            'the hold' + (next.huntClear ? ', and a tier-' + next.huntClear + ' Hunt must have been cleared within 28 days' : '') +
-            (spoils ? '. It also takes ' + spoils.qty + ' tier-' + spoils.tiers.join('/') + ' combat spoils' : '') + '.',
-          action: myRole() === 'leader' ? { name: 'tier-up', label: 'Raise the hold' } : null
-        }], note: myRole() === 'leader' ? '' : 'Only the leader may raise the hold.' });
+          /* Plain language, live numbers. The old sentence stacked three design
+             rules into one clause and Tyler could not parse it. */
+          why: 'Needs contributions from ' + next.contributors + ' different members' +
+            (s && s.tier_contributors != null ? ' (' + n(s.tier_contributors) + ' so far)' : '') +
+            '. New members count 3 days after joining.' +
+            (next.huntClear ? ' The hold must also have cleared a tier-' + next.huntClear +
+              ' Hunt in the last 28 days.' : '') +
+            (spoils ? ' It also takes ' + n(spoils.qty) + ' combat spoils from tier ' +
+              spoils.tiers.join(' or ') + ' monsters.' : ''),
+          action: isLeader() ? { name: 'tier-up', label: 'Raise the hold' } : null
+        }], note: isLeader() ? '' : 'Only the leader can raise the hold.' });
       } else {
         sections.push({ kind: 'note', html:
           'The Fortified Keep is the summit of Phase A. Tiers 6 to 10 are deliberately untuned &mdash; ' +
@@ -2128,6 +2492,14 @@
       sections.push({ kind: 'rows', title: 'Those sworn to the hold',
         empty: _roster === null ? 'Reading the roster&hellip;' : 'No members yet.',
         rows: (_roster || []).map(rosterRow) });
+      /* WHO DECIDES. Stated in the room that holds the roster, because this is
+         where a leader is standing when the question occurs to them. */
+      sections.push({ kind: 'note', html: isLeader()
+        ? 'Work orders are posted by you and by your <b>vice leaders</b>. Make someone a vice leader from ' +
+          'the roster above and they can commission work, call the Feast and open a vote &mdash; useful when ' +
+          'you are asleep and the hold is not.'
+        : 'Work orders are posted by the leader and the <b>vice leaders</b>. Everyone else builds them: ' +
+          'supplying materials and simply playing both count.' });
       sections.push({ kind: 'note', html:
         'Contribution decays 12% a week, so the ladder shows who is helping <em>now</em> &mdash; not who ' +
         'no-lifed the hold eight months ago. Standing never decays, so the hold never loses its progress.' });
@@ -2216,8 +2588,8 @@
           f ? { label: 'The feast is running — ' + fmtLeft(f.left) + ' left', disabled: true }
             : cd > 0 ? { label: 'Cooldown', disabled: true, why: fmtLeft(cd) }
             : meter < cap ? { label: 'Call the Feast', disabled: true, why: 'the meter is not full' }
-            : isSteward() ? { label: 'Call the Feast', action: 'feast-call', primary: true }
-            : { label: 'Call the Feast', disabled: true, why: 'a Steward calls it' }
+            : isVice() ? { label: 'Call the Feast', action: 'feast-call', primary: true }
+            : { label: 'Call the Feast', disabled: true, why: 'the leader or a vice leader calls it' }
         ] });
         sections.push(feastField());
         sections.push({ kind: 'note', html:
@@ -2236,8 +2608,8 @@
 
         sections.push({ kind: 'rows', title: 'The Board',
           empty: _board === null
-            ? 'The Barkeep has not posted yet. The Board needs the <b>clan-seat-2</b> migration &mdash; until it ' +
-              'is run there are no tasks, and inventing some would be a lie.'
+            ? 'The Barkeep has not posted yet &mdash; the Board is not running on this hold\'s server. ' +
+              'Until it is there are no tasks, and inventing some would be a lie.'
             : 'No tasks posted for this period.',
           rows: (_board || []).map(function (t) {
             return {
@@ -2315,17 +2687,37 @@
     };
   }
 
+  /* THE ROSTER ROW — and, for the leader, the vice-leader grant.
+     The office is granted here rather than in a separate governance screen
+     because this is the only list in the game that already holds every member's
+     name; a second roster would be a second thing to keep in sync. */
+  function rankWord(m) {
+    if (m.role === 'leader') return 'Leader';
+    if (C().mayPostOrder(m.role, m.charge)) return 'Vice leader';
+    if (m.charge === 'marshal') return 'Marshal';
+    return m.role === 'officer' ? 'Officer' : 'Member';
+  }
   function rosterRow(m) {
     var now = Date.now();
     var nm = (m.profiles && m.profiles.display_name) || 'Adventurer';
     var cp = (m.cp != null && m.cp_at) ? C().decayedCp(m.cp, Date.parse(m.cp_at), now) : null;
     var fresh = m.joined_at && (now - Date.parse(m.joined_at)) < C().MEMBERSHIP_GRACE_MS;
+    var isVice_ = C().mayPostOrder(m.role, m.charge) && m.role !== 'leader';
+    /* The button only exists for the leader, only on other people, and only
+       while the governance RPC is not known to be missing — a grant button that
+       always answers "not migrated" is worse than no button. */
+    var grant = (isLeader() && m.role !== 'leader' && m.user_id && _viceSupport !== 'unsupported')
+      ? '<button class="btn btn-sm' + (isVice_ ? '' : ' btn-primary') + '" data-cs="vice" data-u="' +
+        esc(m.user_id) + '" data-g="' + (isVice_ ? '0' : '1') + '">' +
+        (isVice_ ? 'Remove vice' : 'Make vice leader') + '</button>'
+      : '';
     return {
       name: esc(nm),
-      meta: esc(m.role || 'member') + (m.charge ? ' &middot; ' + esc(m.charge) : '') +
-        (fresh ? ' &middot; new: does not count toward a tier gate for 72h' : ''),
+      meta: esc(rankWord(m)) +
+        (fresh ? ' &middot; joined recently &mdash; counts toward tier gates in ' +
+          fmtLeft(C().MEMBERSHIP_GRACE_MS - (now - Date.parse(m.joined_at))) : ''),
       right: '<span class="hr-cs-amt">' + (cp == null ? '&mdash;' : n(cp) + ' CP') + '</span>' +
-        '<span class="hr-cs-amt">' + n(m.contributed) + 'g</span>'
+        '<span class="hr-cs-amt">' + n(m.contributed) + 'g</span>' + grant
     };
   }
 
@@ -2510,6 +2902,24 @@
     }
     if (a === 'feast-call') { feastCall(); return; }
     if (a === 'board-claim') { boardClaim(el.getAttribute('data-t')); return; }
+    // ── governance ──
+    if (a === 'vice') { setVice(el.getAttribute('data-u'), el.getAttribute('data-g') === '1'); return; }
+    if (a === 'vote-cast') { castVote(el.getAttribute('data-b')); return; }
+    if (a === 'vote-close') { closeVote(); return; }
+    if (a === 'vote-pick') {
+      var pid = el.getAttribute('data-b');
+      var at = _votePick.indexOf(pid);
+      if (at >= 0) _votePick.splice(at, 1);
+      else if (_votePick.length < C().VOTE_MAX_CANDIDATES) _votePick.push(pid);
+      else toast('A vote holds at most ' + C().VOTE_MAX_CANDIDATES + ' choices', 'info');
+      renderIfOpen();
+      return;
+    }
+    if (a === 'vote-open') {
+      var hs = scope.querySelector('[data-cs-sel="votehrs"]');
+      openVote(_votePick.slice(), hs ? (+hs.value || C().VOTE_DEFAULT_HOURS) : C().VOTE_DEFAULT_HOURS);
+      return;
+    }
   }
 
   // ════════════════════════════════════════════════════════════
@@ -2577,10 +2987,26 @@
     feastDeposit: feastDeposit, feastCall: feastCall, boardClaim: boardClaim,
     // labour
     addLabour: addLabour, flushLabour: flushLabour, activeOrder: activeOrder,
+    // governance
+    isVice: isVice, isLeader: isLeader, myCharge: myCharge,
+    readVote: readVote, openVote: openVote, castVote: castVote, closeVote: closeVote,
+    setVice: setVice, voteSupported: voteSupported,
     // Test seams — pure or state-only, no I/O.
     _holdScene: holdScene, _weekStrip: weekStripHtml, _roomArt: ROOM_ART,
     _demandFor: demandFor, _skillLevelFor: skillLevelFor, _depositable: depositable,
     _wingLadder: wingLadder, _previewHtml: previewHtml,
+    _woBlock: workOrderLeadHtml, _voteCard: voteCardHtml, _rosterRow: rosterRow,
+    /* The vote seam takes the RAW server shape and runs it through the same
+       reducer the transport does, so a test can never pass against a shape the
+       real read would have rejected. */
+    _setVote: function (raw, mayOpen) {
+      if (raw === null || raw === undefined) { _voteSupport = 'unsupported'; _vote = null; _mayOpenVote = false; return; }
+      var r = C().reduceVoteRead(200, { ok: true, vote: raw, may_open: !!mayOpen });
+      _voteSupport = 'live'; _vote = r.vote; _mayOpenVote = !!r.mayOpen; _voteAt = Date.now();
+    },
+    _setVotePick: function (list) { _votePick = (list || []).slice(); },
+    _setRoster: function (rows) { _roster = rows || null; },
+    _setViceSupport: function (v) { _viceSupport = v; },
     _setClan: function (c) { _clanStub = c || null; },
     _setSeat: function (s, id) { _seat = s; _seatClan = id || (s ? clanId() : null); _support = s ? 'live' : 'unsupported'; },
     _setSupport: function (v) { _support = v; },
@@ -2588,6 +3014,8 @@
       _clanStub = null; _seat = null; _seatClan = null; _support = 'unknown';
       _board = null; _boardPending = {}; _roster = null; _assignment = null;
       _labour = 0; _labourToday = 0; _labourCapped = false;
+      _vote = null; _mayOpenVote = false; _voteSupport = 'unknown'; _voteAt = 0;
+      _votePick = []; _viceSupport = 'unknown'; _voteChecking = false;
     },
     _setBoard: function (b) { _board = b; },
     _labour: function () { return { pending: _labour, today: _labourToday, capped: _labourCapped }; },

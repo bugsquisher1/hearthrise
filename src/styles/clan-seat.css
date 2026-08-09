@@ -326,6 +326,111 @@
 }
 .hr-cs-week .hr-cs-foot { margin-bottom: 0; }
 
+/* ── 4b. THE WORK ORDER BLOCK — the panel's lead story ─────────────────────
+ * An open Work Order is what the whole hold is doing, so it is the largest,
+ * highest-contrast object on the panel below the picture itself.
+ *
+ * THE COST-TEXT LAW. Every material is a NAMED row — "Timber Beams", not a log
+ * icon beside a number — and no cost text in this block drops below 14.5px.
+ * The rest of the panel runs at 13.5px because it is commentary; these numbers
+ * are the instruction, and an instruction you have to lean in to read is an
+ * instruction most players will not follow. */
+.hr-cs-wo {
+  margin: 0 0 16px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--gold-2);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .22);
+}
+.hr-cs-wo.is-vote { border-left-color: var(--ink-3); }
+
+.hr-cs-wo-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px;
+  margin-bottom: 12px;
+}
+.hr-cs-wo-eyebrow {
+  flex: 0 0 100%;
+  font-size: 13.5px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hr-cs-wo-title {
+  font-family: var(--f-display, serif);
+  font-size: 21px; font-weight: 800; line-height: 1.25;
+  color: var(--gold-2);
+}
+.hr-cs-wo-phase {
+  font-size: 14.5px; color: var(--ink-2);
+  padding: 2px 9px; border-radius: 99px;
+  border: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, .25);
+}
+
+/* Two columns on a wide panel, one on a narrow one. A material list that runs
+ * the full 1,240px puts the name and its number a screen apart. */
+.hr-cs-wo-mats {
+  display: grid; gap: 12px 22px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.hr-cs-wo-mat-top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 4px;
+}
+.hr-cs-wo-mat-nm {
+  font-size: 14.5px; font-weight: 700; line-height: 1.4;
+  color: var(--ink);
+}
+.hr-cs-wo-mat-qty {
+  font-size: 14.5px; font-weight: 800; line-height: 1.4;
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.hr-cs-wo-mat.is-full .hr-cs-wo-mat-qty { color: var(--ink-3); }
+.hr-cs-wo-mat-foot { font-size: 14.5px; line-height: 1.45; color: var(--ink-3); margin-top: 4px; }
+.hr-cs-wo-mat-foot b { color: var(--ink-2); font-weight: 700; }
+
+.hr-cs-wo-labour {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.hr-cs-wo-acts {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+  margin-top: 12px;
+}
+.hr-cs-wo-hint { font-size: 14.5px; line-height: 1.45; color: var(--ink-3); }
+.hr-cs-wo-acts select {
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  padding: 5px 8px; color: var(--ink);
+  font-family: inherit; font-size: 14.5px;
+}
+.hr-cs-wo-acts select:focus { outline: none; border-color: var(--gold-2); }
+
+/* ── 4c. The vote ─────────────────────────────────────────────────────────*/
+.hr-cs-vote-row.is-mine .hr-cs-wo-mat-nm { color: var(--gold-2); }
+.hr-cs-vote-act { margin-top: 6px; }
+.hr-cs-vote-open { margin-top: 10px; }
+.hr-cs-vote-picks {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 10px 0 2px;
+}
+.hr-cs-vote-pick {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; text-align: left;
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  background: rgba(0, 0, 0, .2);
+  color: inherit; font-family: inherit; cursor: pointer;
+}
+.hr-cs-vote-pick:hover { border-color: var(--gold-2); }
+.hr-cs-vote-pick.is-on {
+  border-color: var(--gold-2);
+  background: rgba(0, 0, 0, .38);
+  box-shadow: inset 3px 0 0 var(--gold-2);
+}
+.hr-cs-vote-pick.is-on .hr-cs-wo-mat-nm { color: var(--gold-2); }
+
 .hr-cs-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .hr-cs-note { font-size: 13.5px; color: var(--ink-3); margin: 10px 0 0; line-height: 1.5; }
 .hr-cs-note b { color: var(--ink-2); font-weight: 700; }
@@ -592,6 +697,10 @@
 #panel-clan .hr-cs > .hr-cs-foot,
 #panel-clan .hr-cs > .hr-cs-note,
 #panel-clan .hr-cs > .hr-cs-acts { max-width: 760px; }
+/* The Work Order block runs wider than the stacked lines — it is a two-column
+ * material grid, not a label/value pair — but not the full 1,240px, or the
+ * "Contribute" button ends up a screen away from the list it acts on. */
+#panel-clan .hr-cs > .hr-cs-wo { max-width: 940px; }
 
 /* Clan Activity exists only for a player who has a hold. syncClanActivity()
  * stamps the panel; nothing here is injected-then-hidden, the section is in

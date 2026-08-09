@@ -8398,7 +8398,8 @@ const TESTS = [
       assert(/The Foundation/.test(html), 'tier 1 must be named'); // b227 rename
       assert((html.match(/is-ghost/g) || []).length === 5, 'all five wings must be ghosted at a fresh camp');
       assert(/12,000/.test(html), 'the next tier gate must be stated');
-      assert(/3 different members/.test(html), 'the distinct-contributor requirement must be shown honestly');
+      assert(/Needs contributions from <b>3 different members<\/b>/.test(html),
+        'the distinct-contributor requirement must be shown honestly, in plain language');
 
       // 3 — a Timber Hold mid-build. Built wings are lit, unbuilt still ghosted.
       UI._setSeat({ castle_tier: 3, standing: 61000, treasury: 200000, upkeep_state: 'active',
@@ -8412,7 +8413,11 @@ const TESTS = [
       assert(/Timber Hold/.test(html), 'tier 3 must be named');
       assert((html.match(/is-ghost/g) || []).length === 3, 'three wings are still unbuilt at this hold');
       assert(/Lv 4/.test(html) && /Lv 3/.test(html), 'the legend must print the real levels');
-      assert(/Work Order/.test(html) && /supply/.test(html), 'an order in supply must read as supply');
+      // b228: an open order is the panel's LEAD STORY, not a percentage in a
+      // strip. It names the building, the level, and every material.
+      assert(/The hold is building/.test(html), 'an open order must lead the panel');
+      assert(html.indexOf('Smeltery → Level 1') >= 0, 'the lead block must name the building and the level');
+      assert(/Gathering materials/.test(html), 'an order in supply must say it is gathering materials');
 
       // 4 — a Fortified Keep, dormant. Nothing is de-levelled; the lights are
       // out and the panel says exactly what that costs and how to fix it.
@@ -8433,6 +8438,361 @@ const TESTS = [
       assert(/ceiling/.test(html), 'the War Room must state the Hunt tier ceiling');
       assert(html.indexOf('boss') < 0, 'the castle must not draw the Hunt\'s own meter');
     } finally { UI._reset(); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b228 — CLAN GOVERNANCE (Tyler, 2026-08-09)
+
+     Three directives, and each one has a failure mode a passing build would
+     otherwise hide:
+       · the Work Order block can regress to a percentage bar and still "work"
+       · the posting gate can widen by accident and only fail at the server
+       · the vote can silently fake itself on an un-migrated project
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('b228: the Work Order block names every material with have/need', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const host = document.createElement('div');
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 3, treasury: 5000, myRole: 'member' });
+      UI._setSeat({ castle_tier: 3, standing: 61000, treasury: 5000, upkeep_state: 'active',
+                    my_role: 'member', upgrades: { tavern: 2 },
+                    stores: { timber_beam: 120, iron_fitting: 5 },
+                    orders: [{ id: 'o1', building: 'tavern', to_level: 3, phase: 'supply',
+                               materials: { timber_beam: 600, iron_fitting: 200, field_ration: 900 },
+                               supplied: { timber_beam: 340, iron_fitting: 80 },
+                               labour_done: 0, labour_target: 1613,
+                               posted_at: new Date().toISOString() }] }, 'test-hold');
+      UI.render(host);
+      const html = host.innerHTML;
+
+      assert(/The hold is building/.test(html), 'the block must announce itself as the lead story');
+      assert(html.indexOf('The Tavern → Level 3') >= 0, 'it must name the building and the level it is going to');
+
+      // EVERY material, named, with its real have/need — the whole point.
+      ['Timber Beam', 'Iron Fitting', 'Field Ration'].forEach((nm) => {
+        assert(html.indexOf(nm) >= 0, 'the block must name ' + nm + ' in words');
+      });
+      assert(/340 \/ 600/.test(html), 'Timber Beams must read 340 / 600');
+      assert(/80 \/ 200/.test(html), 'Iron Fittings must read 80 / 200');
+      assert(/0 \/ 900/.test(html), 'an untouched material must still get its own row');
+      assert(/260 still needed/.test(html), 'the block must say how many more are wanted');
+
+      // The labour half of the same order, and one button that goes somewhere.
+      assert(/Labour/.test(html) && /0 \/ 1,613/.test(html), 'the labour meter must be on the block');
+      assert(/data-cs="room" data-b="tavern"[^>]*>Contribute/.test(html),
+        'the block must end in a one-tap Contribute into the room that owns the order');
+
+      // …and the same news must not also be told as a percentage in the strip.
+      assert(!/Work Order &middot; supply/.test(html),
+        'the week strip must not repeat an open order as a bare percentage');
+
+      // THE COST-TEXT LAW. Named text, never below 14.5px. Measured against the
+      // real stylesheet rather than asserted about the source.
+      const probe = document.createElement('div');
+      probe.style.position = 'absolute'; probe.style.left = '-9999px';
+      probe.innerHTML = '<div class="hr-cs-wo"><div class="hr-cs-wo-mats"><div class="hr-cs-wo-mat">' +
+        '<div class="hr-cs-wo-mat-top"><span class="hr-cs-wo-mat-nm">Timber Beams</span>' +
+        '<span class="hr-cs-wo-mat-qty">340 / 600</span></div>' +
+        '<div class="hr-cs-wo-mat-foot">260 still needed</div></div></div></div>';
+      document.body.appendChild(probe);
+      try {
+        ['hr-cs-wo-mat-nm', 'hr-cs-wo-mat-qty', 'hr-cs-wo-mat-foot'].forEach((cls) => {
+          const px = parseFloat(getComputedStyle(probe.querySelector('.' + cls)).fontSize);
+          assert(px >= 14.5, '.' + cls + ' is ' + px + 'px — cost text may not drop below 14.5px');
+        });
+      } finally { probe.remove(); }
+    } finally { UI._reset(); }
+  }),
+
+  () => tryRun('b228: only the leader and vice leaders may post work orders', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const C = window.HearthriseClanSeat;
+
+    // The rule itself, in the one place both the client and the migration read.
+    assert(C.mayPostOrder('leader', null) === true, 'the leader always posts');
+    assert(C.mayPostOrder('officer', 'vice') === true, 'a vice charge posts');
+    assert(C.mayPostOrder('member', 'vice') === true, 'the charge carries the right, not the role');
+    assert(C.mayPostOrder('officer', 'steward') === true,
+      'a steward charge granted before the rename must not be silently demoted');
+    assert(C.mayPostOrder('officer', null) === false, 'a plain officer does NOT post');
+    assert(C.mayPostOrder('member', null) === false, 'a member does NOT post');
+    assert(C.mayPostOrder('member', 'marshal') === false, 'the Marshal is combat authority, not economic');
+
+    const host = document.createElement('div');
+    const seatFor = (role, charge) => ({
+      castle_tier: 3, standing: 61000, treasury: 5000, upkeep_state: 'active',
+      my_role: role, my_charge: charge, upgrades: { tavern: 2 }, stores: {}, orders: []
+    });
+    try {
+      // A member is told who posts, and is given no dead button.
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 3, treasury: 0, myRole: 'member' });
+      UI._setSeat(seatFor('member', null), 'test-hold');
+      assert(UI.isVice() === false, 'a plain member is not a vice leader');
+      UI.render(host);
+      assert(/leader and vice leaders post work orders/.test(host.innerHTML),
+        'a member must be told plainly who posts the next order');
+      let ladder = UI._wingLadder(UI.BUILDINGS.filter((b) => b.id === 'sawmill')[0]);
+      assert(/Only the leader and vice leaders post work orders\./.test(ladder.rows[0].why),
+        'the ladder must refuse a member in the same words');
+      assert(!ladder.rows[0].action, 'a member must get no Commission button at all');
+
+      // Grant the charge and the same hold becomes commissionable.
+      UI._setSeat(seatFor('officer', 'vice'), 'test-hold');
+      assert(UI.isVice() === true, 'the vice charge must unlock commissioning');
+      ladder = UI._wingLadder(UI.BUILDINGS.filter((b) => b.id === 'sawmill')[0]);
+      assert(ladder.rows[0].action && ladder.rows[0].action.name === 'post',
+        'a vice leader must get the Commission button');
+
+      // Raising the HOLD stays leader-only — that is a different power.
+      UI._setSeat(seatFor('officer', 'vice'), 'test-hold');
+      const hall = UI.roomDescriptor('great_hall');
+      const rung = hall.sections.filter((x) => x.kind === 'ladder')[0];
+      assert(rung && !rung.rows[0].action, 'a vice leader may commission work but not raise the hold');
+      assert(/Only the leader can raise the hold\./.test(rung.note), 'and it must say so');
+    } finally { UI._reset(); }
+  }),
+
+  () => tryRun('b228: the vote reducers answer ok / tie / expired / unsupported', () => {
+    const C = window.HearthriseClanSeat;
+
+    // UNSUPPORTED — the project has not run the governance migration. This is
+    // not an error, and confusing the two hides a whole feature behind a red toast.
+    [[404, null], [400, { code: 'PGRST202' }], [400, { code: '42883' }], [400, { code: '42P01' }]]
+      .forEach(([st, body]) => {
+        assert(C.reduceVoteRead(st, body).action === 'unsupported', 'a missing RPC is unsupported, not a failure');
+        assert(C.reduceVoteCast(st, body).action === 'unsupported', 'cast: same contract');
+        assert(C.reduceVoteClose(st, body).action === 'unsupported', 'close: same contract');
+      });
+
+    // OK — a running vote, normalized into one shape.
+    const read = C.reduceVoteRead(200, { ok: true, may_open: true, vote: {
+      id: 'v1', deadline: new Date(Date.now() + 3600000).toISOString(),
+      candidates: [{ building: 'tavern', to_level: 3 }, { building: 'sawmill', to_level: 2 }],
+      tally: { tavern: 4, sawmill: 2 }, my_vote: 'tavern', voters: 6, members: 11 } });
+    assert(read.action === 'accept' && read.mayOpen === true, 'a live read must accept');
+    assert(read.vote.votes === 6 && read.vote.leaders.join() === 'tavern',
+      'the tally must total and lead correctly');
+    assert(read.vote.tie === false, 'a clear winner is not a tie');
+    assert(read.vote.myVote === 'tavern', 'my own ballot must survive normalization');
+
+    // TIE — reported, never broken.
+    assert(C.voteIsTie({ tavern: 3, sawmill: 3 }) === true, 'equal counts are a tie');
+    assert(C.voteLeaders({ tavern: 3, sawmill: 3, war_room: 1 }).join() === 'sawmill,tavern',
+      'a tie must name every building that tied');
+    const tie = C.reduceVoteClose(200, { ok: true, outcome: 'tie', tally: { tavern: 3, sawmill: 3 },
+      tied: ['tavern', 'sawmill'] });
+    assert(tie.action === 'accept' && tie.outcome === 'tie', 'a tie closes successfully and says so');
+    assert(tie.tied.join() === 'sawmill,tavern' && !tie.winner,
+      'a tie must name the tied buildings and post nothing');
+
+    // POSTED and VOID — the other two honest outcomes.
+    const won = C.reduceVoteClose(200, { ok: true, outcome: 'posted', winner: 'tavern',
+      order_id: 'o9', tally: { tavern: 5 } });
+    assert(won.outcome === 'posted' && won.winner === 'tavern' && won.orderId === 'o9',
+      'a won vote must carry the order it created');
+    const none = C.reduceVoteClose(200, { ok: true, outcome: 'void', reason: 'no_ballots', tally: {} });
+    assert(none.outcome === 'void' && none.reason === 'no_ballots', 'an empty ballot box is void, with a reason');
+
+    // EXPIRED — a ballot cast into a vote that just closed is its own action,
+    // because the player did nothing wrong and must not see a red error.
+    // (A Supabase RPC refusal is HTTP 200 with ok:false — the status only
+    //  carries transport failures, which is why 400 here would be a network
+    //  error rather than the server's own answer.)
+    const late = C.reduceVoteCast(200, { ok: false, error: 'vote_closed' });
+    assert(late.action === 'expired', 'a late ballot must reduce to expired, not fail');
+    assert(/already closed/.test(late.message), 'and it must say so in words');
+    assert(C.voteExpired(Date.now() - 1, Date.now()) === true, 'a passed deadline is expired');
+    assert(C.voteExpired(Date.now() + 60000, Date.now()) === false, 'a future deadline is not');
+    assert(C.voteExpired(null, Date.now()) === false, 'a missing deadline must never read as expired');
+
+    // A refusal is still a refusal, with a sentence rather than a code.
+    const refused = C.reduceVoteOpen(200, { ok: false, error: 'not_vice' });
+    assert(refused.action === 'fail' && /vice leader/.test(refused.message),
+      'the posting refusal must be a sentence a player can read');
+    assert(/vice leader/.test(C.errorText('not_steward')),
+      'a pre-migration server answering not_steward must produce the same sentence');
+    assert(C.reduceVoteRead(401, { message: 'JWT expired' }).action === 'fail',
+      'a body with no ok field is a refusal, never a success');
+
+    // The vote's own shape rules.
+    assert(C.VOTE_MIN_CANDIDATES === 2 && C.VOTE_MAX_CANDIDATES === 4, 'a vote holds 2 to 4 choices');
+    assert(C.VOTE_DEFAULT_HOURS === 24, 'the default deadline is 24 hours');
+    assert(C.voteTotal(C.voteTally({ a: 2, b: 'x', c: -1 })) === 2, 'a tally must drop what is not a count');
+  }),
+
+  () => tryRun('b228: the vote card is honest — hidden un-migrated, live when it runs', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const host = document.createElement('div');
+    const baseSeat = (role, charge) => ({
+      castle_tier: 3, standing: 61000, treasury: 5000, upkeep_state: 'active',
+      my_role: role, my_charge: charge, upgrades: { tavern: 2, sawmill: 1 }, stores: {}, orders: []
+    });
+    try {
+      // 1 — un-migrated: NOTHING. Not a greyed button, not "coming soon".
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 3, treasury: 0, myRole: 'leader' });
+      UI._setSeat(baseSeat('leader', null), 'test-hold');
+      UI._setVote(null);
+      assert(UI.voteSupported() === false, 'an un-migrated project must not claim vote support');
+      assert(UI._voteCard() === '', 'the vote card must be absent, not faked, before the migration');
+
+      // 2 — a running vote, seen by an ordinary member.
+      UI._setSeat(baseSeat('member', null), 'test-hold');
+      UI._setVote({ id: 'v1', deadline: new Date(Date.now() + 7200000).toISOString(),
+        candidates: [{ building: 'tavern', to_level: 3 }, { building: 'sawmill', to_level: 2 }],
+        tally: { tavern: 4, sawmill: 2 }, my_vote: null, voters: 6, members: 11 }, false);
+      let card = UI._voteCard();
+      assert(/The hold is deciding/.test(card), 'a running vote must announce itself');
+      assert(/The Tavern &rarr; Level 3/.test(card) && /Sawmill &rarr; Level 2/.test(card),
+        'every candidate must be named with the level it would build');
+      assert(/4 votes/.test(card) && /2 votes/.test(card), 'the tally must be visible to everyone');
+      assert(/6 of 11 members have voted/.test(card), 'turnout must be stated');
+      assert(/data-cs="vote-cast" data-b="tavern"/.test(card), 'a member must be able to vote');
+      assert(card.indexOf('vote-close') < 0, 'a member must NOT be offered the close button');
+
+      // 3 — the same vote seen by a vice leader, with my ballot already cast.
+      UI._setSeat(baseSeat('officer', 'vice'), 'test-hold');
+      UI._setVote({ id: 'v1', deadline: new Date(Date.now() + 7200000).toISOString(),
+        candidates: [{ building: 'tavern', to_level: 3 }, { building: 'sawmill', to_level: 2 }],
+        tally: { tavern: 4, sawmill: 2 }, my_vote: 'tavern', voters: 6, members: 11 }, true);
+      card = UI._voteCard();
+      assert(/data-cs="vote-close"/.test(card), 'leadership may close a vote early');
+      assert(/Your vote\./.test(card), 'my own ballot must be marked');
+      assert(!/data-cs="vote-cast" data-b="tavern"/.test(card), 'and must not offer to cast it again');
+
+      // 4 — a tie: explained, and nothing pretends to have been built.
+      UI._setVote({ id: 'v1', deadline: new Date(Date.now() - 1000).toISOString(),
+        closed_at: new Date().toISOString(), outcome: 'tie',
+        candidates: [{ building: 'tavern', to_level: 3 }, { building: 'sawmill', to_level: 2 }],
+        tally: { tavern: 3, sawmill: 3 }, voters: 6, members: 11 }, true);
+      card = UI._voteCard();
+      assert(/It tied/.test(card) && /Sawmill and The Tavern/.test(card), 'a tie must name who tied');
+      assert(/never broken by chance/.test(card), 'and must explain why nothing was built');
+
+      // 5 — the opener. Leadership only, 2-4 picks, and the button is dead
+      //     until enough are picked.
+      UI._setVote({ id: 'v0', deadline: new Date(Date.now() - 1000).toISOString(),
+        closed_at: new Date().toISOString(), outcome: 'void', outcome_error: 'no_ballots',
+        candidates: [], tally: {}, voters: 0, members: 11 }, true);
+      UI._setVotePick([]);
+      card = UI._voteCard();
+      assert(/data-cs="vote-pick"/.test(card), 'leadership must be offered candidates to pick');
+      assert(/data-cs="vote-open"[^>]*disabled/.test(card), 'the opener is disabled until 2 are picked');
+      UI._setVotePick(['tavern', 'sawmill']);
+      card = UI._voteCard();
+      assert(/data-cs="vote-open"(?![^>]*disabled)/.test(card), 'two picks must arm the opener');
+      assert(/2 picked\./.test(card), 'the count of picks must be visible');
+
+      // …and an ordinary member is never shown the opener at all.
+      UI._setSeat(baseSeat('member', null), 'test-hold');
+      UI._setVote({ id: 'v0', deadline: new Date(Date.now() - 1000).toISOString(),
+        closed_at: new Date().toISOString(), outcome: 'void', outcome_error: 'no_ballots',
+        candidates: [], tally: {}, voters: 0, members: 11 }, false);
+      assert(UI._voteCard().indexOf('vote-pick') < 0, 'a member must never see the vote opener');
+    } finally { UI._reset(); }
+  }),
+
+  () => tryRun('b228: the leader grants the vice charge from the roster', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const seatFor = (role, charge) => ({
+      castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
+      my_role: role, my_charge: charge, upgrades: {}, stores: {}, orders: []
+    });
+    const them = { user_id: 'u2', role: 'officer', charge: null, contributed: 500,
+                   cp: 100, cp_at: new Date().toISOString(),
+                   joined_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+                   profiles: { display_name: 'Bramble' } };
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
+      UI._setSeat(seatFor('leader', null), 'test-hold');
+
+      let row = UI._rosterRow(them);
+      assert(/data-cs="vice" data-u="u2" data-g="1"/.test(row.right), 'the leader must be able to grant the charge');
+      assert(/Make vice leader/.test(row.right), 'and the button must say what it does');
+      assert(row.meta.indexOf('Officer') === 0, 'the rank must read in words, not as a column value');
+
+      const vice = Object.assign({}, them, { charge: 'vice' });
+      row = UI._rosterRow(vice);
+      assert(/Vice leader/.test(row.meta), 'a vice leader must read as one on the roster');
+      assert(/data-g="0"/.test(row.right) && /Remove vice/.test(row.right), 'and the grant must be revocable');
+
+      // The leader may not demote themself by accident, and nobody else may grant.
+      const me = Object.assign({}, them, { user_id: 'u1', role: 'leader' });
+      assert(UI._rosterRow(me).right.indexOf('data-cs="vice"') < 0, 'the leader row carries no grant button');
+      UI._setSeat(seatFor('officer', 'vice'), 'test-hold');
+      assert(UI._rosterRow(them).right.indexOf('data-cs="vice"') < 0,
+        'a vice leader may not create another vice leader — that is the leader\'s alone');
+
+      // An un-migrated project hides the button rather than offering a refusal.
+      UI._setSeat(seatFor('leader', null), 'test-hold');
+      UI._setViceSupport('unsupported');
+      assert(UI._rosterRow(them).right.indexOf('data-cs="vice"') < 0,
+        'a grant button that can only fail must not be drawn');
+    } finally { UI._reset(); }
+  }),
+
+  () => tryRun('b228: the clan panel speaks player language, not design-doc register', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const host = document.createElement('div');
+    const texts = [];
+    const collect = (node) => {
+      const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let t; while ((t = w.nextNode())) texts.push(t.nodeValue);
+    };
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 3, treasury: 9000, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 2, standing: 20000, treasury: 9000, upkeep_state: 'active',
+                    my_role: 'leader', tier_contributors: 1, members: 8, member_cap: 15,
+                    upgrades: { tavern: 2 }, stores: { timber_beam: 100 }, orders: [] }, 'test-hold');
+      UI.render(host);
+      const html = host.innerHTML;
+
+      // The sentence Tyler could not parse, rewritten — with the live count.
+      assert(/Needs contributions from <b>5 different members<\/b> \(<b>1<\/b> so far\)/.test(html),
+        'the tier gate must state the requirement AND how far along it is');
+      assert(/New members count 3 days after joining/.test(html),
+        '"72 hours in the hold" must read as three days, in a sentence of its own');
+      assert(/this keeps holds honest/.test(html), 'and it must say WHY the rule exists');
+      assert(/Buildings can reach <b>level 4<\/b> now/.test(html),
+        'the level cap must read as what you CAN do, not as what you are denied');
+      assert(!/each after 72 hours in the hold/.test(html), 'the old welded-together clause must be gone');
+      assert(!/capped at level/.test(html), 'and so must "capped at level N until the hold rises"');
+
+      // A server that has not published the count must not have one invented.
+      UI._setSeat({ castle_tier: 2, standing: 20000, treasury: 9000, upkeep_state: 'active',
+                    my_role: 'leader', upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+      UI.render(host);
+      assert(!/so far/.test(host.innerHTML), 'without the server count, the clause is dropped, never zeroed');
+
+      // No migration filenames, no schema words, no internal register anywhere
+      // a player can read — except the one honest "the tables do not exist yet"
+      // sentence the un-migrated Board owns.
+      UI._setSeat({ castle_tier: 4, standing: 250000, treasury: 900000, upkeep_state: 'active',
+                    my_role: 'leader', tier_contributors: 3,
+                    upgrades: { treasury: 3, tavern: 7, sawmill: 2, smeltery: 2, war_room: 6 },
+                    stores: { timber_beam: 2400 },
+                    orders: [{ id: 'o1', building: 'sawmill', to_level: 3, phase: 'labour',
+                               materials: { timber_beam: 88 }, supplied: { timber_beam: 88 },
+                               labour_done: 900, labour_target: 1613,
+                               posted_at: new Date().toISOString() }] }, 'test-hold');
+      UI.render(host);
+      texts.length = 0;
+      collect(host);
+      UI.ROOM_IDS().forEach((room) => {
+        UI.openRoom(room);
+        const scrim = document.querySelector('.hr-room-scrim');
+        if (scrim) collect(scrim);
+        UI.closeModal();
+      });
+      const BAD = /\.sql\b|migration|jsonb|rpc\b|supabase|user_id|clan_members|castle_tier|\bnull\b|§\d/i;
+      const offenders = texts.filter((t) => BAD.test(t)).map((t) => t.trim().slice(0, 90));
+      assert(offenders.length === 0,
+        'design-doc register reached the player: ' + offenders.slice(0, 3).join(' | '));
+    } finally { UI.closeModal(); UI._reset(); }
   }),
 
   () => tryRun('b223: no emoji in the Clan Seat DOM, in any state', () => {

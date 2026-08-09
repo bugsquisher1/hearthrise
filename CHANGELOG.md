@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 264 — 2026-08-09 (Auto-bounty keeps you hunting)
+
+- 🎯 **Auto-Accept now moves you to the new target.** When a bounty turns in and Auto-Accept grabs the next one, if you were fighting it now switches your combat to the new bounty's monster — instead of leaving you grinding the old one. (If you're not high enough level for the new target yet, it just tells you.) *(Thanks tester!)*
+
 ## v0.9.2-beta build 263 — 2026-08-09 (Better bug reports)
 
 - 🐛 **The in-game bug button now tags your device.** Tap the 🐛 button (bottom corner) to report a bug and it automatically attaches your device, OS, orientation, build, a screenshot, and what you were doing — so fixes happen faster. Please use it instead of typing in chat!

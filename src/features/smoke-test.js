@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=263' directly.
+// modularised, will import { G } from '../state/game.js?v=264' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=263';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=263';
+import { on, snapshot } from '../net/events.js?v=264';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=264';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=263';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=264';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -109,6 +109,11 @@ const snapshotG = () => {
     // test milestones into the player's permanent history and clear the badge
     // on real milestones they had not read yet.
     chronicle: G.chronicle,
+    // b264: the bounty tests mutate active/board/autoBounty; snapshot it so one
+    // test's leftover (e.g. autoBounty=1) can't leak into the next and, via
+    // ensureBountyState regenerating an emptied board, trigger a spurious
+    // auto-accept that flips a later test's outcome.
+    bountyHunter: G.bountyHunter,
   }));
 };
 
@@ -11385,6 +11390,35 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b264: auto-accept bounty switches combat to the new target (tester: left grinding the old monster)', () => {
+    if(typeof window.completeBounty !== 'function' || typeof window.bountyAutoSwitch !== 'function'){ assert(true, 'seam absent'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
+      G.skills = Object.assign({}, G.skills, { attack: 500000, strength: 500000, defense: 500000, hitpoints: 500000 });
+      G.bountyHunter.autoBounty = 1;
+      // Completing a goblin bounty; the board's next is a WOLF bounty.
+      G.bountyHunter.active = { id:'a', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:5, required:5, rewards:{gold:10,marks:2,xp:5} };
+      G.bountyHunter.board = [{ id:'b', type:'cull', target:'wolf', tier:2, difficulty:'easy', progress:0, required:5, rewards:{gold:20,marks:3,xp:8} }];
+      G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15; G.playerHp = 200; G.playerMaxHp = 200;
+      // Turn in the goblin bounty → auto-accept should take the wolf bounty.
+      window.completeBounty();
+      assert(G.bountyHunter.active && G.bountyHunter.active.target === 'wolf', 'auto-accept must take the next bounty (wolf), got ' + (G.bountyHunter.active && G.bountyHunter.active.target));
+      // Before the switch, combat is still on the OLD monster (the reported bug).
+      assert(G.activeMonster === 'goblin', 'precondition: combat is still on the old target');
+      // The deferred switch (setTimeout target) moves combat to the new bounty target.
+      window.bountyAutoSwitch('wolf');
+      assert(G.activeMonster === 'wolf', 'auto-bounty must switch combat to the new target, still on ' + G.activeMonster);
+    } finally {
+      // Reset the bounty fields this test set, so nothing leaks even if
+      // snapshotG ever stops covering bountyHunter.
+      try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch(e){}
+      if(typeof window.stopCombat === 'function') window.stopCombat();
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {

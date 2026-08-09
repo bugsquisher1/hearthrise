@@ -2203,9 +2203,38 @@ function completeBounty(){
   if(window.HearthriseFarm && typeof window.HearthriseFarm.rollBountyDeed === 'function'){
     window.HearthriseFarm.rollBountyDeed();
   }
-  if(G.bountyHunter.autoBounty>=1&&G.bountyHunter.board.length){acceptBounty(0);}
+  if(G.bountyHunter.autoBounty>=1&&G.bountyHunter.board.length){
+    const _wasFighting = !!G.activeMonster;
+    acceptBounty(0);
+    /* b264 (tester): Auto-Accept took the next bounty but left you grinding the
+       OLD monster. If you were in a fight, seamlessly switch combat to the new
+       bounty's target (when you meet its level gate). Deferred past this tick —
+       completeBounty runs INSIDE killMonster/combatTick, and startCombat mid-tick
+       would race killMonster's monster-respawn line. */
+    const _na = G.bountyHunter.active;
+    if(_wasFighting && _na && MONSTERS[_na.target] && G.activeMonster !== _na.target){
+      const _req = (MONSTERS[_na.target].tier - 1) * 15;
+      if((typeof getCombatLevel==='function' ? getCombatLevel() : 0) >= _req){
+        setTimeout(()=>bountyAutoSwitch(_na.target), 0);
+      } else {
+        notify(`New bounty: ${MONSTERS[_na.target].name} (Combat Lv ${_req} to fight)`,'info');
+      }
+    }
+  }
   updateTopbar();renderCombat();saveLocal();
 }
+/* b264: seamless auto-bounty combat switch (exposed for the smoke test). Guarded
+   so a stale deferred call can't hijack combat after the player moved on. */
+function bountyAutoSwitch(targetId){
+  try{
+    const a = G.bountyHunter && G.bountyHunter.active;
+    if(a && a.target === targetId && G.activeMonster && G.activeMonster !== a.target && MONSTERS[a.target]){
+      startCombat(a.target);
+      notify(`Auto-bounty: now hunting ${MONSTERS[a.target].name}`,'info');
+    }
+  }catch(e){}
+}
+window.bountyAutoSwitch=bountyAutoSwitch;
 /* b221 — THE BOARD IS AN OBJECT.
    The bounty screen used to be three bordered rows in a card: a list that
    happened to be called a board. It is now a physical noticeboard at the town

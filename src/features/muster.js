@@ -77,8 +77,8 @@
       desc: 'A new vein opened under Ironvale, and it will not stay open.' },
     { id: 'keep_kitchens', name: 'The Kitchens of the Keep', glyph: 'uiPot',
       what: 'cooking',                      sources: { cooked: 1 },
-      desc: 'Feed the muster or it marches hungry.' },
-    { id: 'all_hands',     name: 'The Muster of All Hands',  glyph: 'uiBanner',
+      desc: 'Feed the rally or it marches hungry.' },
+    { id: 'all_hands',     name: 'The Rally of All Hands',  glyph: 'uiBanner',
       what: 'every activity, at half rate',
       sources: { kill_any: 0.5, gather: 0.5, harvest: 0.5, cooked: 0.5, smithed: 0.5, crafted: 0.5 },
       desc: 'Every hand in the realm, whatever it holds.' }
@@ -224,7 +224,7 @@
     // 4 — live and you are in it.
     if (live && joinedThis) {
       return { state: 'mustered', rank: 90, tone: 'gold',
-               copy: 'Mustered · ' + fmtClock(live.endMs - o.nowMs), cta: 'open' };
+               copy: 'Rallied · ' + fmtClock(live.endMs - o.nowMs), cta: 'open' };
     }
     // 6 — a chest is waiting. Outranks 1, never outranks 3.
     if (o.rewardReady) {
@@ -244,11 +244,11 @@
     // 2 — imminent (T-15m). Warms up, and toasts once at T-15 and T-5.
     if (next && toNext <= IMMINENT_MS) {
       return { state: 'imminent', rank: 50, tone: 'warm',
-               copy: 'Muster in ' + fmtClock(toNext), cta: 'open' };
+               copy: 'Rally in ' + fmtClock(toNext), cta: 'open' };
     }
     // 1 — upcoming.
     return { state: 'upcoming', rank: 10, tone: 'quiet',
-             copy: next ? ('Muster in ' + fmtClock(toNext)) : 'Muster', cta: 'open' };
+             copy: next ? ('Rally in ' + fmtClock(toNext)) : 'Rally', cta: 'open' };
   }
 
   // Snapshot of everything computeState needs, read from live state.
@@ -325,19 +325,19 @@
   }
 
   var JOIN_ERRORS = {
-    already_joined: 'You already answered a muster today — the next one is tomorrow',
-    not_live:       'No muster is live right now',
-    stale_event:    'That muster has already closed',
-    not_signed_in:  'Sign in to join the realm’s muster',
+    already_joined: 'You already answered a rally today — the next one is tomorrow',
+    not_live:       'No rally is live right now',
+    stale_event:    'That rally has already closed',
+    not_signed_in:  'Sign in to join the realm’s rally',
     network:        'Could not reach the server — try again in a moment'
   };
   var CLAIM_ERRORS = {
-    already_claimed: 'You have already taken today’s muster chest',
-    not_joined:      'You did not join a muster today',
+    already_claimed: 'You have already taken today’s rally chest',
+    not_joined:      'You did not join a rally today',
     no_contribution: 'You joined but never contributed — no chest today',
-    still_live:      'The muster is still running — claim when it closes',
+    still_live:      'The rally is still running — claim when it closes',
     expired:         'That chest expired at the day roll',
-    not_signed_in:   'Sign in to claim your muster chest',
+    not_signed_in:   'Sign in to claim your rally chest',
     network:         'Could not reach the server — try again in a moment'
   };
   function joinErrorText(e)  { return JOIN_ERRORS[e]  || 'The server refused that join'; }
@@ -507,7 +507,7 @@
 
   function announceJoin(w) {
     toast('You answer ' + w.event.name + ' — +' + Math.round(LIVE_XP_AURA * 100) +
-          '% all XP while the muster runs.', 'levelup');
+          '% all XP while the rally runs.', 'levelup');
   }
 
   async function serverJoin(eventKey, attempt) {
@@ -582,8 +582,8 @@
   // seconds can still take part meaningfully. One per muster.
   function rally() {
     var st = ensureState();
-    if (!joinedThisWindow()) { toast('Join the muster first', 'info'); return 0; }
-    if (st.rallied) { toast('You have already rallied this muster', 'info'); return 0; }
+    if (!joinedThisWindow()) { toast('Join the rally first', 'info'); return 0; }
+    if (st.rallied) { toast('You have already rallied at this event', 'info'); return 0; }
     var R = window.HearthriseRaids;
     var roll = (R && typeof R.simulateStrike === 'function')
       ? R.simulateStrike({ def: 40, weak: 'sword' })
@@ -592,7 +592,7 @@
     st.rallied = true;
     var got = addPoints(pts);
     persist();
-    toast('You rally the muster — +' + got.toLocaleString() + ' to the realm’s effort', 'loot');
+    toast('You rally — +' + got.toLocaleString() + ' to the realm’s effort', 'loot');
     flush(); renderAll();
     return got;
   }
@@ -629,8 +629,8 @@
     G.gems = (G.gems || 0) + (d.gems || 0);
     if (d.seals > 0 && typeof window.addItem === 'function') window.addItem('muster_seal', d.seals);
     var bits = [(d.gold || 0).toLocaleString() + 'g', (d.gems || 0) + ' gems'];
-    if (d.seals > 0) bits.push(d.seals + ' Muster Seal');
-    toast('Muster chest: +' + bits.join(', +') + (d.held ? ' — the realm held.' : ''), 'levelup');
+    if (d.seals > 0) bits.push(d.seals + ' Rally Seal');
+    toast('Rally chest: +' + bits.join(', +') + (d.held ? ' — the realm held.' : ''), 'levelup');
     persist();
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
     renderAll();
@@ -735,7 +735,7 @@
       el.id = 'hr-muster-pill';
       el.type = 'button';
       el.title = 'World event — the muster';
-      el.innerHTML = '<span class="mp-ic"></span><span class="mp-lab">Muster</span><span class="mp-t"></span>';
+      el.innerHTML = '<span class="mp-ic"></span><span class="mp-lab">Rally</span><span class="mp-t"></span>';
       el.addEventListener('click', openModal);
       host.insertBefore(el, host.firstChild);
     }
@@ -812,7 +812,7 @@
     var body = '';
 
     if (s.state === 'signedout') {
-      body = '<h3>The Muster</h3><div class="tiny muted">Sign in to join the realm’s muster and its shared goal.</div>';
+      body = '<h3>The Rally</h3><div class="tiny muted">Sign in to join the realm’s rally and its shared goal.</div>';
     } else if (live) {
       var ev = live.event;
       body = '<h3>' + esc(ev.name) + '</h3>' +
@@ -833,10 +833,10 @@
         body += '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>' +
           '<button class="btn btn-sm" data-mu="events">Open Events</button></div>' +
           (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Playing offline — you can still muster ' +
-            'solo and take the base chest. Sign in for the realm’s shared goal and the Muster Seal.</div>');
+            'solo and take the base chest. Sign in for the realm’s shared goal and the Rally Seal.</div>');
       }
     } else {
-      body = '<h3>The Muster</h3>' +
+      body = '<h3>The Rally</h3>' +
         '<div class="tiny muted">Twice a day the realm calls a muster. Join one per day, play as you '
         + 'normally would, and take a chest when it closes.</div>' + slotsHtml(slots);
       if (s.state === 'reward') {

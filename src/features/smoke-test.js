@@ -4813,13 +4813,13 @@ const TESTS = [
     const mk = (o) => S(Object.assign({}, base, o));
 
     const s1 = mk({ next: { startMs: 1000 + 3 * 3600000 } });
-    assert(s1.state === 'upcoming' && /Muster in 3:00:00/.test(s1.copy), '1 upcoming: ' + JSON.stringify(s1));
+    assert(s1.state === 'upcoming' && /Rally in 3:00:00/.test(s1.copy), '1 upcoming: ' + JSON.stringify(s1)); // b225: renamed Muster→Rally (Tyler)
     const s2 = mk({ next: { startMs: 1000 + 14 * 60000 } });
     assert(s2.state === 'imminent' && s2.tone === 'warm' && /14:00/.test(s2.copy), '2 imminent: ' + JSON.stringify(s2));
     const s3 = mk({ live: LIVE });
     assert(s3.state === 'live' && s3.tone === 'gold-pulse' && /^LIVE · 41:00 left$/.test(s3.copy), '3 live: ' + JSON.stringify(s3));
     const s4 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#1' });
-    assert(s4.state === 'mustered' && /^Mustered · 41:00$/.test(s4.copy), '4 mustered: ' + JSON.stringify(s4));
+    assert(s4.state === 'mustered' && /^Rallied · 41:00$/.test(s4.copy), '4 mustered: ' + JSON.stringify(s4)); // b225: Muster→Rally
     const s5 = mk({ live: LIVE, joinedDayKey: 'D', joinedEventKey: 'D#13', joinedStartMs: Date.UTC(2026, 7, 8, 9, 0) });
     assert(s5.state === 'joined_earlier' && s5.tone === 'muted', '5 joined earlier: ' + JSON.stringify(s5));
     assert(s5.copy.indexOf('joined') === 5 || /joined/.test(s5.copy), '5 should say you already joined');

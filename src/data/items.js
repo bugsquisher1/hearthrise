@@ -332,7 +332,7 @@ export const ITEMS={
        detail card, the market row). Every other item answers those with an
        emoji; this one answers with its real art, because nothing in Hearthrise
        renders emoji as art. Same convention `window._itemSVG` already uses. */
-    n:'Muster Seal',
+    n:'Rally Seal',
     icon:'<img src="assets/icons-bundle/medieval/muster-seal.svg" alt="" draggable="false" style="width:100%;height:100%;max-width:38px;max-height:38px;object-fit:contain;display:inline-block;vertical-align:-.15em" />',
     v:0, bop:true,
     rarity:'currency', tag:'currency', musterOnly:true,

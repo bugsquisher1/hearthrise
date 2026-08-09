@@ -622,9 +622,16 @@
   function renderMessages(channel, msgs){
     if(state.active !== channel) return;
     if(!msgs || msgs.length === 0){
-      msgsEl.innerHTML = '<div class="chat-empty">'
-        + ((channel === 'clan' && !clanOf()) ? 'Join a clan to unlock this channel.' : 'No messages yet — be the first.')
-        + '</div>';
+      /* b225 (#18): a player who opens the clan channel with no clan is asking
+         for a clan. Telling them to join one and then not saying where is the
+         same dead end the Clan Seat used to be. The dock minimises itself on
+         the way out — the destination is behind it. */
+      msgsEl.innerHTML = (channel === 'clan' && !clanOf())
+        ? '<div class="chat-empty">Join a clan to unlock this channel.'
+          + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
+          + 'onclick="if(window.Chat)window.Chat.close();'
+          + 'if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div></div>'
+        : '<div class="chat-empty">No messages yet — be the first.</div>';
       return;
     }
     var meId = me().id;

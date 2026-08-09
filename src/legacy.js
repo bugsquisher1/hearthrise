@@ -1923,6 +1923,12 @@ document.addEventListener('keydown', function(e){
 
 function showTab(tab){
   if(tab==='more'){document.getElementById('more-modal').classList.add('show');return;}
+  /* b225 (#18): the Clan Seat left Social for its own destination. Every name
+     the castle has been called by in code, a deep link or a chat message lands
+     on the same panel — a route that used to work must never stop working just
+     because a screen moved. showTab('social') is deliberately NOT rewritten:
+     Social still exists, still opens, and now carries a signpost to the hold. */
+  if(tab==='castle'||tab==='clanseat'||tab==='clan-seat'||tab==='clans')tab='clan';
   // b127: dismiss every modal before changing panel — fixes the
   // bug where opening Quests + then clicking Profile would leave
   // the Quests overlay floating on top of every subsequent panel.
@@ -1940,6 +1946,7 @@ function showTab(tab){
   if(tab==='farming')renderFarm();
   if(tab==='house')renderHouse();
   if(tab==='social')renderSocial();
+  if(tab==='clan')renderClan();
   if(tab==='shop')renderShop();
 }
 function refreshAll(){
@@ -2762,20 +2769,76 @@ async function renderSocial(){
       lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
     }
   }
-  /* clan + friends */
+  /* b225 (#18): friends + a signpost to the hold.
+     This half of Social used to BE the clan screen. The clan screen moved to
+     its own top-level destination, so what stays here is what genuinely belongs
+     beside the leaderboards — the people you know — plus one line telling
+     anyone who arrives on muscle memory where the hold went. A signpost is a
+     single row with a single button; the moment it starts drawing standing
+     bars again, #18 has quietly reverted. */
   const cl=document.getElementById('social-panel');
-  if(G.clanName){
-    cl.innerHTML=`<div class="activity-card"><div class="ac-icon">🛡️</div><div style="flex:1"><b>${G.clanName}</b><span>Member · +5% all XP</span></div><button class="btn btn-sm btn-danger" onclick="leaveClan()">Leave</button></div>
-    <div class="muted tiny" style="margin:12px 0 6px;text-transform:uppercase;letter-spacing:.08em;font-weight:700">Roster</div>
-    <div class="lb-row"><span>👑</span><span class="lb-name">GuildMaster</span><span class="lb-stat" style="color:var(--green)">Online</span></div>
-    <div class="lb-row you"><span>⚔️</span><span class="lb-name">${escapeHtml(G.playerName)} (you)</span><span class="lb-stat" style="color:var(--green)">Online</span></div>`;
-  } else {
-    const cr=await NetClient.clans();
-    cl.innerHTML=`<div class="muted tiny" style="margin-bottom:10px">Join a clan for shared bonuses + chat. (Leaderboards and clan ops use a mock backend until the live server is connected.)</div>
-    ${cr.ok?cr.clans.map(c=>`<div class="shop-row"><span class="si">🛡️</span><div class="info"><b>${c.name}</b><span>${c.members} members · ${c.bonus}</span></div><button class="btn btn-sm btn-primary" onclick="joinClan('${c.name.replace(/'/g,'')}')">Join</button></div>`).join(''):''}
-    <div style="margin-top:10px;display:flex;gap:6px"><input type="text" id="clan-input" placeholder="Or create your own clan" style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px"><button class="btn btn-primary" onclick="joinClan(document.getElementById('clan-input').value)">Create</button></div>`;
+  if(!cl)return;
+  const inClan=!!(clanDisplayName());
+  cl.innerHTML=
+    `<div class="friend-row is-empty">No friends yet — add the players you meet on the boards above.</div>`+
+    `<div class="soc-signpost">`+
+      `<div class="soc-signpost-txt">`+
+        (inClan
+          ? `Your hold <b>${escapeHtml(clanDisplayName())}</b> — its castle, rooms and Work Orders live on the Clan screen.`
+          : `Clans build a castle together, with shared rooms, Work Orders and a weekly boss.`)+
+      `</div>`+
+      `<button class="btn btn-sm btn-primary" onclick="showTab('clan')">`+
+        (inClan?'Open the Clan Seat':'Find a clan')+`</button>`+
+    `</div>`;
+}
+/* The clan's name as the game currently knows it, whichever layer holds it:
+   the live server record (clans.js) first, the legacy save field second. */
+function clanDisplayName(){
+  try{
+    const c=window.HearthriseClans&&window.HearthriseClans.myClan&&window.HearthriseClans.myClan();
+    if(c&&c.name)return c.name;
+  }catch(e){}
+  return G.clanName||null;
+}
+/* ────────────────────────────────────────────────
+   RENDER — the Clan Seat screen (b225, backlog #18)
+
+   The no-module fallback ONLY. src/features/clans.js replaces this the moment
+   it boots, because the real screen — the hold, its six rooms, Standing, the
+   Storehouse and the Work Orders — is drawn by clan-seat-ui.js from the
+   server's numbers. What is written here is what the game can say honestly with
+   no network layer at all: that a clan is a thing you can found or join.
+   ──────────────────────────────────────────────── */
+async function renderClan(){
+  syncClanActivity();
+  const cl=document.getElementById('clan-panel');
+  if(!cl)return;
+  if(clanDisplayName()){
+    cl.innerHTML=`<div class="clan-empty"><h4>${escapeHtml(clanDisplayName())}</h4>`+
+      `<p>Reading the hold…</p></div>`;
+    return;
+  }
+  const cr=await NetClient.clans();
+  cl.innerHTML=`<div class="clan-empty"><h4>Find a hold, or found one</h4>`+
+    `<p>A clan raises a castle together — six rooms, shared Work Orders, and a weekly boss no one downs alone.</p></div>`+
+    (cr&&cr.ok?cr.clans.map(c=>`<div class="shop-row"><div class="info"><b>${escapeHtml(c.name)}</b><span>${c.members} members · ${c.bonus}</span></div><button class="btn btn-sm btn-primary" onclick="joinClan('${String(c.name).replace(/'/g,'')}')">Join</button></div>`).join(''):'')+
+    `<div class="clan-found"><input type="text" id="clan-input" maxlength="24" placeholder="Name your own hold"><button class="btn btn-primary" onclick="joinClan(document.getElementById('clan-input').value)">Found it</button></div>`;
+}
+/* The Clan Activity feed is a section of the clan screen, not of Social — its
+   subject is your members and its audience is your hold. It only exists when
+   you have one: a feed above a recruitment list is furniture. */
+function syncClanActivity(){
+  const p=document.getElementById('panel-clan');
+  if(!p)return;
+  p.setAttribute('data-inclan',clanDisplayName()?'1':'0');
+  const host=document.getElementById('clan-activity');
+  if(host&&!host.childElementCount){
+    host.innerHTML='<div class="friend-row is-empty">Nothing yet — deeds your members do for the hold will show up here.</div>';
   }
 }
+window.renderClan=renderClan;
+window.syncClanActivity=syncClanActivity;
+window.clanDisplayName=clanDisplayName;
 /* b222: kept as the legacy entry point (deep links + the old chip markup). The
    three old mode names map onto the new board ids so an old call still lands
    on the board it meant. */
@@ -2789,8 +2852,11 @@ function setLbMode(m){
   }
   renderSocial();
 }
-function joinClan(name){if(!name||name.length<3){notify('Need at least 3 chars','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();updateTopbar();}
-function leaveClan(){G.clanName=null;renderSocial();updateTopbar();}
+/* b225 (#18): both of these change what the CLAN screen should say, so both
+   refresh it as well as Social — the signpost on one and the hold on the other
+   have to agree the moment membership changes. */
+function joinClan(name){if(!name||name.length<3){notify('Need at least 3 chars','kill');return;}G.clanName=name;notify(`Joined ${name}!`,'info');renderSocial();renderClan();updateTopbar();}
+function leaveClan(){G.clanName=null;renderSocial();renderClan();updateTopbar();}
 /* b206 (SYS-10): redeem a tradable Hearth Token for gems. The other exit for
    a token is the player market (sell for gold) — that's the bond economy. */
 function redeemHearthToken(){
@@ -6808,24 +6874,18 @@ window.openBestiary = function(){
 /* =========================================================
    5. FRIENDS LIST STUB (in Social panel)
    ========================================================= */
-function injectFriendsStub(){
-  var panel = document.getElementById('panel-social');
-  if(!panel) return;
-  if(panel.querySelector('.friends-section')) return;
-  var card = document.createElement('div');
-  card.className = 'card friends-section';
-  /* b217: both empty states used to announce the ROADMAP — "Online accounts
-     arrive in beta", "Clan feed coming with the multi-character beta sprint" —
-     in italics inside a dashed box. That is a build note shown to the player:
-     it tells them the game is unfinished, on a screen where nothing is broken.
-     An empty state should describe the empty state and point at the action
-     that fills it. */
-  card.innerHTML = '<h4>Friends</h4>'+
-    '<div class="friend-row is-empty">No friends yet — sign in to add the players you meet.</div>'+
-    '<h4 style="margin-top:14px">Clan Activity</h4>'+
-    '<div class="friend-row is-empty">Nothing here yet. Join a clan to see what your members are up to.</div>';
-  panel.appendChild(card);
-}
+/* b225 (#18): RETIRED. This injected a third card into Social holding two
+   sections — Friends and Clan Activity — while the card above it was already
+   titled "Clan + Friends". Both halves now have a real home in the markup:
+   Friends is the body of Social's second card (renderSocial writes it), and
+   Clan Activity is a section of #panel-clan, because it is clan content and
+   belongs where the clan lives. Kept as a no-op so any external caller that
+   still names it does nothing rather than throwing.
+
+   b217's lesson is preserved in both replacements: an empty state describes the
+   empty state and points at the action that fills it. It never announces the
+   roadmap. */
+function injectFriendsStub(){ /* no-op — see the b225 note above */ }
 
 /* =========================================================
    HOOKS + WELCOME-BACK CATCHUP INTEGRATION
@@ -6834,7 +6894,9 @@ function injectFriendsStub(){
   var origST = window.showTab;
   window.showTab = function(tab){
     var r = (typeof origST==='function') ? origST.apply(this, arguments) : null;
-    if(tab === 'social') setTimeout(injectFriendsStub, 50);
+    /* b225 (#18): the Clan Activity section is state-dependent, so it is
+       re-evaluated every time the clan screen opens. */
+    if(tab === 'clan') setTimeout(syncClanActivity, 50);
     return r;
   };
 })();
@@ -6887,7 +6949,7 @@ function injectProfileButtons(){
 setInterval(checkAchievements, 6000);
 setTimeout(checkAchievements, 1500);
 setTimeout(injectProfileButtons, 600);
-setTimeout(injectFriendsStub, 600);
+setTimeout(function(){ if(typeof syncClanActivity==='function') syncClanActivity(); }, 600);
 
 /* Expose */
 window.checkAchievements = checkAchievements;

@@ -4997,6 +4997,84 @@ const TESTS = [
     }
   }),
 
+  /* ── b225 regression suite (backlog #18 — the Clan Seat's own destination) ──
+     The castle is one of the two ULTIMATE progression pillars and it shipped as
+     a card at the bottom of Social, underneath the leaderboards. These two
+     guards are the tripwires that failure never had: one for the entry, one for
+     every route that leads to it. */
+  () => tryRun('b225: the Clan Seat is a real top-level destination and nothing hides it', () => {
+    const nav = document.querySelector('.nav-btn[data-tab="clan"]');
+    assert(nav, 'the top-level Clan nav entry is missing');
+    assert(getComputedStyle(nav).display !== 'none',
+      'something is hiding the Clan nav entry — this is backlog #18 recurring');
+    assert(/clan/i.test(nav.textContent), 'the Clan nav entry lost its label');
+    // b220's lesson: an injected-then-hidden entry is how a feature vanishes.
+    assert(!nav.hasAttribute('data-injected'), 'the Clan entry must be static markup');
+    // No emoji anywhere in the chrome this feature added (Final Directive).
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+    assert(!EMOJI.test(nav.textContent), 'the Clan nav entry contains emoji');
+    // The 6-slot bottom nav is full, so mobile's route is the More sheet.
+    const more = document.querySelector('#more-modal [data-tab="clan"]');
+    assert(more, 'mobile has no route to the Clan Seat — the More sheet is the only spare surface');
+    assert(!EMOJI.test(more.textContent), 'the mobile Clan entry contains emoji');
+    // The panel and its host exist in the markup, not at the mercy of a boot order.
+    const panel = document.getElementById('panel-clan');
+    assert(panel, '#panel-clan was never built');
+    const host = document.getElementById('clan-panel');
+    assert(host, 'the Clan Seat has no render host (#clan-panel)');
+    assert(host.closest('#panel-clan'), 'the castle host is not inside the Clan panel');
+    // And it is NOT back inside Social.
+    assert(!document.querySelector('#panel-social #clan-panel'),
+      'the Clan Seat drifted back into Social — this is backlog #18 recurring');
+    const social = document.getElementById('panel-social');
+    assert(social && document.querySelector('.nav-btn[data-tab="social"]'),
+      'Social lost its own entry while the clan moved out');
+    assert(social.querySelector('#leaderboard'), 'Social lost its leaderboards');
+    assert(social.querySelector('#social-panel'), 'Social lost its friends host');
+  }),
+
+  () => tryRun('b225: every route to the hold resolves, and Social still opens', () => {
+    const prevTab = window.activeTab;
+    try {
+      const panel = document.getElementById('panel-clan');
+      // The direct route.
+      window.showTab('clan');
+      assert(panel.classList.contains('active'), 'showTab("clan") did not open the Clan panel');
+      // A picture-led screen in a fixed grid row is what collapsed the raid
+      // card in b220. This one is a block column that scrolls as a page.
+      const cs = getComputedStyle(panel);
+      assert(cs.display === 'block', 'the Clan panel must be a block column, not a ' + cs.display);
+      assert(cs.overflowY === 'auto', 'the Clan panel must scroll as a page');
+      // Clan Activity moved here with the hold, and only exists for a member.
+      const act = document.getElementById('clan-activity-card');
+      assert(act && act.closest('#panel-clan'), 'Clan Activity did not move to the Clan panel');
+      if (!(window.clanDisplayName && window.clanDisplayName())) {
+        assert(getComputedStyle(act).display === 'none',
+          'Clan Activity is showing to a player with no clan');
+      }
+      // Every legacy name for this screen still lands on it.
+      ['castle', 'clanseat', 'clan-seat', 'clans'].forEach((alias) => {
+        window.showTab('profile');
+        window.showTab(alias);
+        assert(panel.classList.contains('active'), 'showTab("' + alias + '") no longer reaches the hold');
+      });
+      // The old deep link is untouched: Social still opens, and it signposts.
+      window.showTab('social');
+      const soc = document.getElementById('panel-social');
+      assert(soc.classList.contains('active'), 'showTab("social") stopped resolving');
+      const sign = document.querySelector('#social-panel .soc-signpost [onclick*="clan"]');
+      assert(sign, 'Social has no signpost to the hold for players arriving on muscle memory');
+      // The topbar clan tag is the second door.
+      const tag = document.getElementById('clan-tag');
+      assert(tag && /clan/.test(tag.getAttribute('onclick') || ''),
+        'the topbar clan tag no longer routes to the Clan Seat');
+      // The hold's renderer looks for its host in the new home.
+      assert(typeof window.renderClan === 'function', 'renderClan() is missing');
+    } finally {
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   // ── b221 regression suite (backlog #9 — unique names + player portraits) ──
 
   // #9a: the rules are the contract. They are enforced in TWO places — here

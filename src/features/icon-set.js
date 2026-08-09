@@ -207,7 +207,11 @@
     profile: 'navProfile', character: 'navCharacter', combat: 'navCombat', bounty: 'navBounty',
     skills: 'navSkills', inventory: 'navInventory', shop: 'navStore', farming: 'navFarm',
     house: 'navHouse', social: 'navSocial', more: 'navMore', stable: 'navStable',
-    market: 'navMarket', dungeons: 'navDungeons', events: 'uiEvent'
+    market: 'navMarket', dungeons: 'navDungeons', events: 'uiEvent',
+    // b225 (#18): the Clan Seat's own nav entry. `uiCastle` and not a banner or
+    // a shield — the destination is a keep you build, and it has to read as a
+    // different KIND of thing from navSocial's podium sitting under it.
+    clan: 'uiCastle'
   };
   function paintNav() {
     document.querySelectorAll('.nav-btn[data-tab], .bn-btn[data-tab]').forEach(function (btn) {

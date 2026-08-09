@@ -1245,6 +1245,11 @@
           : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
             ' onclick="window.HearthriseRaids.strike()">' +
             (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>') +
+        /* b225 (#18): the card-sub above says "join a clan for the tiered pool"
+           and then left the player to work out where. It has a destination
+           now. */
+        '<div style="margin-top:8px"><button class="btn btn-sm btn-ghost" ' +
+          'onclick="if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div>' +
       '</div>';
   }
 

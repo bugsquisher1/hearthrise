@@ -4,6 +4,10 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Character/Skills rework — DESIGN APPROVED (Tyler: "i fuckin love it")
+**Decision:** Tyler approved the visual mockup of the new Character screen. LOCKED: three sub-tabs **Skills · Equipment · Hero**, **Skills is the default tab**; Skills = the OSRS-our-own grid (icon + name + moss XP-to-next bar + gilt level, tile routes to the activity via the existing openSkillDetail/quest-nav seam); Equipment reuses buildTibiaDoll wholesale; Hero holds identity + combat cards + the OSRS-style account stat panel (Combat lvl, Total XP, Quests, Bounties=combat tasks, Collections, Renown rank, Time played "click to reveal"; Achievements→Chronicle/renown or flagged; Time played = new `G.stats.playMs` counter). The fake paywall "Your Heroes" is CUT; the real multi-character selector moves to Home. Spec: `docs/design/character-skills-rework.md`. Build AFTER b228 ships (bonus-rebase in flight; both touch Home). Phase 1 = combined screen + Heroes-on-Home behind existing seams; Phase 2 = grid art + playMs + de-dup.
+**Affected agents:** Systems (build, next wave after b228).
+
 ### 2026-08-09 · Character/Skills screen rework — PLAN FIRST (Tyler, directive + guardrail)
 **Decision:** Tyler wants: (1) "Your Heroes" character-select MOVED from the Character screen to the HOME screen; (2) a NEW Character screen COMBINING Skills + Character, OSRS-style-but-our-own (the classic skills grid with levels, ref screenshot); (3) KEEP the Equipment tab (→ sub-tabs within the combined screen); (4) each skill tile routes the player to WHERE to do that activity (reuse the b227 quest-nav `questDestination`/`openSkillDetail` seams). **Guardrail (his words): "do it smart, don't break any functionality or ruin anything that sets us back."** → Produce a design + migration-safety plan BEFORE any code; sequence the build AFTER the in-flight bonus-rebase + rally-v2 agents land (they touch overlapping surfaces); present the plan to Tyler for reaction before building.
 **Affected agents:** Game Designer + Art (plan), Systems (build, next wave).

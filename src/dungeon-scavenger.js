@@ -19,6 +19,19 @@
 (function(){
   'use strict';
 
+  /* Boss-fight survival rule (extracted so it's unit-testable).
+     Tester report (Xarnathos): at 0 HP you kept damaging the Bone Lord, won,
+     and could never be defeated. Cause: the old tick clamped playerHp to 0 and
+     THEN added heal-on-hit every tick, so any food (even 3hp/hit) nudged a
+     downed player back above 0 and playerHp<=0 never fired.
+     Rule: apply the blow first; heal-on-hit only sustains a fighter still
+     standing (hp>0). A blow that reaches 0 is lethal — heal can't resurrect. */
+  window._scvResolvePlayerHp = function(hp, damage, heal, maxHp){
+    hp = hp - damage;                    // may cross 0 — do not clamp here
+    if(hp > 0) hp = Math.min(maxHp, hp + heal);
+    return hp;                           // caller checks hp<=0 for defeat
+  };
+
   // ── Scavenger configurations per dungeon ──
   // Each room has 2-3 task options. Repeats allowed but eat time.
   var SCAVENGER_CONFIGS = {
@@ -465,11 +478,10 @@
       if(Math.random() < loadout.critPct / 100) hit *= 1.5;
       bossHp = Math.max(0, bossHp - hit * dt);
 
-      // Boss attack
+      // Boss attack. Resolve damage + heal-on-hit through the shared rule so the
+      // "downed fighters can't heal back up" invariant is unit-testable.
       var incoming = bossDps * (1 - Math.min(0.7, loadout.defense / 100 + loadout.defBuffPct));
-      playerHp = Math.max(0, playerHp - incoming * dt);
-      // Heal-on-hit
-      playerHp = Math.min(playerMaxHp, playerHp + loadout.healPerHit * dt);
+      playerHp = window._scvResolvePlayerHp(playerHp, incoming * dt, loadout.healPerHit * dt, playerMaxHp);
 
       // Loot rolls per 10% boss HP loss
       var pct = bossHp / bossMaxHp;

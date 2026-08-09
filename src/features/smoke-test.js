@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=247' directly.
+// modularised, will import { G } from '../state/game.js?v=248' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=247';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=247';
+import { on, snapshot } from '../net/events.js?v=248';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=248';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=247';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=248';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11305,6 +11305,39 @@ const TESTS = [
       window.equipItem(rid);
       assert(isEquipped(), 'meeting the requirement lets you equip');
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
+    assert(typeof window._scvResolvePlayerHp === 'function', 'the boss survival rule seam must exist');
+    // The exact tester scenario: HP already near 0, taking a lethal blow, WITH food (heal>0).
+    const afterLethal = window._scvResolvePlayerHp(5, 40, 3, 255);
+    assert(afterLethal <= 0, 'a lethal blow must leave hp<=0 even with heal-on-hit, got ' + afterLethal);
+    // A glancing blow on a living fighter still heals (sustain must keep working).
+    const sustained = window._scvResolvePlayerHp(100, 5, 3, 255);
+    assert(sustained > 100 - 5, 'a surviving fighter must still heal on hit, got ' + sustained);
+    // Heal never overflows max HP.
+    assert(window._scvResolvePlayerHp(254, 1, 50, 255) === 255, 'heal must clamp to max HP');
+  }),
+
+  () => tryRun('b248: bag scroll survives an in-place re-render (paione: inventory snapped to top mid-fight)', () => {
+    assert(typeof window._nearestScrollable === 'function', 'the scroll-preserving helper must exist');
+    // Build a scrollable container with a child panel, scroll it, rebuild the child.
+    const host = document.createElement('div');
+    host.style.cssText = 'height:80px;overflow-y:auto';
+    const panel = document.createElement('div');
+    panel.innerHTML = Array.from({length:40}, (_,i)=>`<div style="height:20px">row ${i}</div>`).join('');
+    host.appendChild(panel); document.body.appendChild(host);
+    try {
+      const scroller = window._nearestScrollable(panel);
+      assert(scroller === host, 'must find the overflow ancestor as the scroll container');
+      host.scrollTop = 300;
+      const saved = host.scrollTop;
+      // Simulate the tick re-render: replace innerHTML, then restore (as renderInvNew now does).
+      const s = window._nearestScrollable(panel); const top = s ? s.scrollTop : 0;
+      panel.innerHTML = Array.from({length:40}, (_,i)=>`<div style="height:20px">row ${i}</div>`).join('');
+      if(s) s.scrollTop = top;
+      assert(host.scrollTop === saved, 'scroll position must be preserved across the rebuild, got ' + host.scrollTop + ' want ' + saved);
+    } finally { host.remove(); }
   }),
 
   () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {

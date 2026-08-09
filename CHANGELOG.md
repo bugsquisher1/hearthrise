@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 248 — 2026-08-09 (Two tester fixes)
+
+- 💀 **You can actually lose a boss fight now.** In the Crypt of Bones (and any scavenger boss), if you had food equipped your heal-on-hit was quietly reviving you every instant — so at 0 HP you kept swinging and always won. Bosses are a real threat again: run out of HP and you're defeated, food or not. *(Thanks Xarnathos.)*
+- 🎒 **Your bag stops jumping to the top.** Browsing your inventory while fighting or skilling snapped you back to the top every tick. It now holds your scroll position while the bag updates in the background. *(Thanks paione.)*
+- 🧪 453 tests green.
+
 ## v0.9.2-beta build 247 — 2026-08-09 (Loot worth chasing)
 
 - ⚔️ **14 new unique items — real boss loot with a purpose.** A pile of monster drops used to be dead weight you only sold. They now feed 14 hand-crafted uniques with their own identity and flavour — from the early **Widow's Fang** (fast, envenomed) to the endgame **Dragonrend** greatblade forged from an ancient claw and a dragon's heart-gem. Each one leans into crit, swing speed, or a combat style, so what drops finally matters.

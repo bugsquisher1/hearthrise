@@ -5532,7 +5532,24 @@ function renderInvNew(){
 
   const summaryHtml = items.length ? `<div class="muted tiny" style="margin-top:8px;display:flex;justify-content:space-between"><span>${items.length} stack${items.length!==1?'s':''} · ${totalCount.toLocaleString()} items</span><span>worth ${totalValue.toLocaleString()}🪙</span></div>` : '';
 
+  /* Tester report (paione): the bag re-renders every combat/skill tick, and
+     replacing innerHTML resets the scroll container to the top — so browsing
+     your bag mid-fight kept snapping you back up. Preserve the nearest
+     scrollable ancestor's position across the swap. */
+  const _scroller = _nearestScrollable(bagEl);
+  const _savedTop = _scroller ? _scroller.scrollTop : 0;
   bagEl.innerHTML = toolbarHtml + gridHtml + summaryHtml + batchBar;
+  if(_scroller) _scroller.scrollTop = _savedTop;
+}
+
+/* Nearest scrollable ancestor (incl. the element itself) — used to keep a
+   panel's scroll position stable when its innerHTML is rebuilt in place. */
+function _nearestScrollable(el){
+  for(let n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement){
+    const oy = getComputedStyle(n).overflowY;
+    if((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight + 2) return n;
+  }
+  return null;
 }
 
 function invSetFilter(id){ window._invFilter=id; renderInvNew(); }

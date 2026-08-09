@@ -297,4 +297,8 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
   #panel-combat .arena-vs .arena-vs-divider { font-size: 18px; }
   #panel-combat .arena-vs .arena-hp-bar { width: 100%; height: 11px; }
   .arena-vs .arena-act { max-width: none; }
+  /* P3 hardening: the Loadout column only vanished by cascade order before, so
+     an injected/late rule could resurrect the empty column. Hide it explicitly
+     and with weight that survives re-ordering. */
+  #panel-combat.active .combat-loadout { display: none !important; }
 }

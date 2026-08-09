@@ -655,12 +655,23 @@
 
 .hr-cs-empty { font-size: 13.5px; color: var(--ink-3); padding: 12px 0; }
 
-@media (max-width: 640px) {
+/* b230 mobile: landscape phones (short but wide) never hit max-width:640px, so
+ * the room modal stayed a floating card on a phone held sideways. Add the
+ * landscape phone query so it fullscreens there too. */
+@media (max-width: 640px), (max-height: 540px) and (max-width: 900px) {
   .hr-cs-hold { height: 168px; }
   .hr-cs-name { font-size: 19px; }
   .hr-room-scrim { padding: 0; align-items: stretch; }
   .hr-room-wrap { max-width: none; max-height: none; border-radius: 0; border-width: 0; }
   .hr-room-scene { height: 128px; }
+  /* 30x30 close button was under the 44px tap floor on touch. */
+  .hr-room-x { width: 40px; height: 40px; }
+}
+/* Short viewports: shrink the scene so the body/ladder is not pushed off. */
+@media (max-height: 540px) {
+  .hr-room-scene { height: 96px; }
+  .hr-room-scrim { padding: 0; align-items: stretch; }
+  .hr-room-wrap { max-width: none; max-height: none; border-radius: 0; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

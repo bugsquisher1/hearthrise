@@ -247,8 +247,11 @@
     // name; the section eyebrow says what this is now.
     var onEvents = !!document.getElementById('hr-ev-blessing');
     var pill = function (ev, when, strong) {
-      return '<span style="font-size:13.5px;background:' + (strong ? 'rgba(201,162,74,.10)' : 'rgba(255,255,255,.04)') +
-        ';border:1px solid var(--' + (strong ? 'line' : 'line-soft') + ');border-radius:99px;padding:3px 10px' +
+      // b230 mobile: 13.5px was below the 14.5 type floor and unscaled; the
+      // 99px lozenge wrapped into an ugly pill-blob on a phone. Scale the type
+      // and drop to an 8px radius so multi-line text reads as a card, not a bean.
+      return '<span style="font-size:calc(14.5px * var(--ui-scale, 1));background:' + (strong ? 'rgba(201,162,74,.10)' : 'rgba(255,255,255,.04)') +
+        ';border:1px solid var(--' + (strong ? 'line' : 'line-soft') + ');border-radius:8px;padding:3px 10px' +
         (live ? '' : ';opacity:.55') + '">' +
         gly(ev.id) + ' <b>' + ev.name + '</b> <span class="muted">— ' + ev.desc + ' · ' + when + '</span></span>';
     };

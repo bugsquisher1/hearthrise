@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 236 — 2026-08-09 (Mobile hardening)
+
+A full sweep of the phone experience — a team audited every screen, then fixed it.
+
+- 📱 **Combat and Inventory menus are back on mobile.** The little tab bars — Combat's Style / Foes / Arena and Inventory's Bag / Equip / Saved — were invisible on phones (tied to a retired theme), which meant your **attack-style picker and gear switcher were unreachable**. They render again.
+- ↔️ **The topbar stopped running off the edge** (the "FIGHTI…" clip). No more sideways scroll on any screen.
+- 🛒 **The Market buy window scrolls now**, so you can actually reach Confirm on a phone.
+- 🔤 **Bigger, readable text and thumb-friendly buttons** across Home and the menus (nothing below the readable floor, every button at least 44px), and your daily **XP / Kills / Harvest ledger is back on mobile**.
+- 🩹 Also: the "More" sheet no longer lurks behind chat, the room upgrade window fits landscape phones, blessing pills read cleanly, and the Hunt card stacks instead of squishing.
+- 🧪 439 tests green.
+
 ## v0.9.2-beta build 235 — 2026-08-09 (Critical hit)
 
 - 💥 **Crit is a real thing now.** Your gear's Crit % was shown on four screens and did *nothing* — every hit rolled it into no damage, and the floating "CRIT!" was faked off any big hit. Now a crit genuinely rolls and lands extra damage, marked in the log and on the number. This also means the **Void Banquet's crit buff finally works** (it was silently discarded). First step of the itemization rework: the game stops showing you numbers that lie.

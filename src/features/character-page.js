@@ -20,9 +20,9 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=235';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=235';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=235';
+import { SKILLS_DEF } from '../data/skills.js?v=236';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=236';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=236';
 
 function deriveClass() {
   const G = window.G;
@@ -574,6 +574,11 @@ function ensureCharStyle() {
     R + '.char-subtab:hover{color:var(--ink-2)}',
     R + '.char-subtab.active{background:linear-gradient(180deg,rgba(201,162,74,.20),rgba(201,162,74,.05));'
       + 'color:var(--gold-2);border-color:var(--gold-2)}',
+    // b230 mobile: the 3 top tabs were ~36px tall (under the 44px tap floor)
+    // and the strip could not wrap. Taller padding + wrap so they never clip.
+    '@media (max-width:540px),(max-height:540px) and (max-width:900px){'
+      + R + '.char-subtabs{flex-wrap:wrap}'
+      + R + '.char-subtab{padding:11px 16px}}',
     R + '.char-pane{min-width:0}',
     // Skills sub-tab — identity strip + relocated two-column layout
     R + '#char-skills{display:flex;flex-direction:column;gap:14px}',

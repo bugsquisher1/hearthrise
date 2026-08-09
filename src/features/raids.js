@@ -1071,8 +1071,12 @@
       '  font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-2);',
       '  border:1px solid rgba(201,162,74,.45);border-radius:99px;padding:2px 8px;margin-right:8px}',
       '#hr-raid-card .hunt-declare{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}',
-      '#hr-raid-card .hunt-you{display:flex;justify-content:space-between;gap:10px;',
-      '  border-top:1px solid var(--line-soft);margin-top:10px;padding-top:8px}'
+      // b230 mobile: space-between with no wrap crushed two multi-word stat
+      // spans into slivers on a phone. Wrap + full-width children stack them.
+      '#hr-raid-card .hunt-you{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 10px;',
+      '  border-top:1px solid var(--line-soft);margin-top:10px;padding-top:8px}',
+      '@media (max-width:540px),(max-height:540px) and (max-width:900px){',
+      '  #hr-raid-card .hunt-you>span{flex:1 1 100%;min-width:0}}'
     ].join('');
     (document.head || document.documentElement).appendChild(s);
   }

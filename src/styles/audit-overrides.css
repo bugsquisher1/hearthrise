@@ -1995,6 +1995,10 @@ body.in-combat #combat-area {
   .mk-toolbar #mk-sort { min-width: 0; width: 100%; }
   .mk-stats { font-size:calc(14.5px * var(--ui-scale, 1)); gap: 6px; }
   .mk-movers { grid-template-columns: 1fr 1fr; }
+  /* P3: clear button stacks full-width under the search input at phone width */
+  .mk-toolbar #mk-clear-q { width: 100%; height: 44px; }
+  /* P3: buy quick-qty chips grow to fill the row */
+  #buy-modal .bm-quick button { min-height: 44px; flex: 1; }
 }
 
 /* ─── Buy offer rows + buy modal ─── */
@@ -2021,7 +2025,14 @@ body.in-combat #combat-area {
   border-radius: 12px;
   padding: 0;
   overflow: hidden;
+  /* P1: scrolling flex column so head + actions stay pinned and content
+     never clips on short/landscape phones (was overflow:hidden w/ no scroll) */
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
+/* P1: only the body scrolls; head + .bm-actions remain reachable */
+#buy-modal .bm-body { overflow-y: auto; }
 #buy-modal .modal-head {
   padding: 16px 18px;
   border-bottom: 1px solid rgba(255,255,255,.08);
@@ -2449,6 +2460,13 @@ body.in-combat #combat-area {
   }
   .qsm-actions button { min-height: 44px; }
 
+  /* P2: qty slider action buttons wrap + shrink so they don't clip past
+     the modal edge on phone */
+  .qs-actions { flex-wrap: wrap; }
+  .qs-btn-action { min-width: 96px; }
+  /* P3: qty quick-picks tappable */
+  .qs-quick .qs-q, .qs-btn { min-height: 44px; }
+
   /* Dungeon cards: single column on phone */
   .dgn-grid { grid-template-columns: 1fr !important; }
   .dgn-run-buttons { width: 100%; }
@@ -2466,6 +2484,17 @@ body.in-combat #combat-area {
   .drm-foe { font-size:calc(56px * var(--ui-scale, 1)); }
   .drm-gather-board { height: 220px; }
   .drm-gather-node { width: 56px; height: 56px; font-size:calc(30.5px * var(--ui-scale, 1)); }   /* bigger tap target */
+
+  /* P2: Scavenger run modal — full-screen on phone (24+26px padding wasted
+     ~27% of a 375px viewport) */
+  .scv-overlay { padding: 0 !important; }
+  .scv-modal {
+    width: 100% !important;
+    max-height: 100vh !important;
+    height: 100vh;
+    border-radius: 0 !important;
+    padding: 18px 16px !important;
+  }
 
   /* Scavenger lobby — stack rooms vertically */
   .scv-lobby-rooms { grid-template-columns: 1fr !important; gap: 10px; }

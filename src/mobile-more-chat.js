@@ -13,8 +13,10 @@
 
   function openChat() {
     // Close the More sheet first.
+    // b230: the modal framework toggles the 'show' class, not 'open' — removing
+    // 'open' was a no-op that left the More sheet stacked under the chat dock.
     const moreModal = document.getElementById('more-modal');
-    if (moreModal) moreModal.classList.remove('open');
+    if (moreModal) moreModal.classList.remove('show');
 
     // Open the chat dock via its real API. chat.js exposes window.Chat
     // (NOT window.HearthriseChat — that name never existed; the old check

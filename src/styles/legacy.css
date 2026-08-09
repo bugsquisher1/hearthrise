@@ -703,9 +703,13 @@ img,svg{display:block;max-width:100%}
   .topbar{padding:8px 12px}
   .player-avatar{width:30px;height:30px;font-size:calc(19px * var(--ui-scale, 1))}
   .player-name{font-size:calc(16px * var(--ui-scale, 1))}
-  .top-stats{gap:4px}
+  .top-stats{gap:4px;min-width:0}
   .t-stat{padding:4px 7px;font-size:calc(14.5px * var(--ui-scale, 1))}
   .t-stat .lab{display:none}
+  /* P1 fix: the fixed-width chip row overflowed and clipped the Quests button
+     to 'FIGHTI…'. Drop the Quests text label on phones — glyph + count carry
+     the meaning; button title/aria stay intact for a11y. */
+  #hr-quests-btn .hr-q-lbl{display:none}
 
   .panel{padding:8px;padding-bottom:calc(72px + var(--safe-b))}
   .panel.active{grid-template-columns:1fr !important;grid-template-rows:auto !important;overflow-y:auto;display:block}

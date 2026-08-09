@@ -966,26 +966,24 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 /* Inventory sub-tab strip — hidden by default, mobile-only */
 .inv-mob-tabs { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
-  body[data-theme="cozy-light"] .inv-mob-tabs {
+  /* b218: STRUCTURE is un-prefixed so ALL themes (incl. live hearthlight)
+   * render the bar. The live theme is pinned to hearthlight, so the old
+   * cozy-light-only structural rules meant the strip never appeared on real
+   * phones and inventory sub-sections stayed hidden. Colour stays per-theme. */
+  .inv-mob-tabs {
     display: flex !important;
     position: sticky;
     top: 0;
     z-index: 5;
     gap: 4px;
     padding: 6px 4px;
-    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
-    border-bottom: 1px solid #b8893e;
-    backdrop-filter: blur(6px);
     margin: -8px -8px 8px;
   }
-  body[data-theme="cozy-light"] .inv-mob-tabs .imt-btn {
+  .inv-mob-tabs .imt-btn {
     flex: 1 1 0;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     padding: 6px 4px;
-    background: rgba(255,255,255,.5);
-    border: 1px solid #c9a35c;
     border-radius: 6px;
-    color: #5c2d08;
     font-family: 'Cinzel', serif;
     font-size:calc(14.5px * var(--ui-scale, 1));
     font-weight: 600;
@@ -993,6 +991,17 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     text-transform: uppercase;
     cursor: pointer;
     min-height: 44px;
+  }
+  /* Colour/background/border only — per-theme. */
+  body[data-theme="cozy-light"] .inv-mob-tabs {
+    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
+    border-bottom: 1px solid #b8893e;
+    backdrop-filter: blur(6px);
+  }
+  body[data-theme="cozy-light"] .inv-mob-tabs .imt-btn {
+    background: rgba(255,255,255,.5);
+    border: 1px solid #c9a35c;
+    color: #5c2d08;
   }
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(17px * var(--ui-scale, 1)); }
   body[data-theme="cozy-light"] .inv-mob-tabs .imt-btn.active {
@@ -1024,7 +1033,8 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 /* Activities skill strip — horizontal-scroll across the top */
 .act-mob-strip { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
-  body[data-theme="cozy-light"] .act-mob-strip {
+  /* b218: STRUCTURE un-prefixed so all themes render the strip (see inv note). */
+  .act-mob-strip {
     display: flex !important;
     position: sticky;
     top: 0;
@@ -1035,22 +1045,16 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x mandatory;
-    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
-    border-bottom: 1px solid #b8893e;
-    backdrop-filter: blur(6px);
     margin: -8px -8px 8px;
     scrollbar-width: none;
   }
   .act-mob-strip::-webkit-scrollbar { display: none; }
-  body[data-theme="cozy-light"] .act-mob-strip .ams-btn {
+  .act-mob-strip .ams-btn {
     flex: 0 0 auto;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     padding: 6px 10px;
     min-width: 56px;
-    background: rgba(255,255,255,.5);
-    border: 1px solid #c9a35c;
     border-radius: 6px;
-    color: #5c2d08;
     font-family: 'Cinzel', serif;
     font-size:calc(14.5px * var(--ui-scale, 1));
     font-weight: 600;
@@ -1059,6 +1063,17 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     cursor: pointer;
     min-height: 48px;
     scroll-snap-align: start;
+  }
+  /* Colour/background/border only — per-theme. */
+  body[data-theme="cozy-light"] .act-mob-strip {
+    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
+    border-bottom: 1px solid #b8893e;
+    backdrop-filter: blur(6px);
+  }
+  body[data-theme="cozy-light"] .act-mob-strip .ams-btn {
+    background: rgba(255,255,255,.5);
+    border: 1px solid #c9a35c;
+    color: #5c2d08;
   }
   .act-mob-strip .ams-btn .ams-ic { font-size:calc(19px * var(--ui-scale, 1)); }
   body[data-theme="cozy-light"] .act-mob-strip .ams-btn.active {
@@ -1093,29 +1108,26 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   display: none;
 }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
-  body[data-theme="cozy-light"] .cmb-mob-tabs {
+  /* b218: STRUCTURE un-prefixed so all themes render the STYLE/FOES/ARENA bar
+   * (see inv note — this was the P0: the bar was cozy-light-only, invisible on
+   * the live hearthlight theme, so combat sub-sections never showed on phones). */
+  .cmb-mob-tabs {
     display: flex !important;
     position: sticky;
     top: 0;
     z-index: 5;
     gap: 4px;
     padding: 6px 4px;
-    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
-    border-bottom: 1px solid #b8893e;
-    backdrop-filter: blur(6px);
     margin: -8px -8px 8px;
   }
-  body[data-theme="cozy-light"] .cmb-mob-tabs .cmt-btn {
+  .cmb-mob-tabs .cmt-btn {
     flex: 1 1 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
     padding: 6px 4px;
-    background: rgba(255,255,255,.5);
-    border: 1px solid #c9a35c;
     border-radius: 6px;
-    color: #5c2d08;
     font-family: 'Cinzel', serif;
     font-size:calc(14.5px * var(--ui-scale, 1));
     font-weight: 600;
@@ -1123,6 +1135,17 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     text-transform: uppercase;
     cursor: pointer;
     min-height: 44px;
+  }
+  /* Colour/background/border only — per-theme. */
+  body[data-theme="cozy-light"] .cmb-mob-tabs {
+    background: linear-gradient(180deg, rgba(255,248,226,.95), rgba(244,228,188,.92));
+    border-bottom: 1px solid #b8893e;
+    backdrop-filter: blur(6px);
+  }
+  body[data-theme="cozy-light"] .cmb-mob-tabs .cmt-btn {
+    background: rgba(255,255,255,.5);
+    border: 1px solid #c9a35c;
+    color: #5c2d08;
   }
   .cmb-mob-tabs .cmt-btn .cmt-ic { font-size:calc(17px * var(--ui-scale, 1)); }
   body[data-theme="cozy-light"] .cmb-mob-tabs .cmt-btn.active {
@@ -4896,6 +4919,12 @@ body[data-theme="hearthlight"] .td-stats-pane { padding-top: 4px; }
 body[data-theme="hearthlight"] .td-stats-pane .eqb-grid { grid-template-columns: 1fr 1fr; }
 body[data-theme="hearthlight"] .td-tab span { display: none; }
 @media (min-width: 1200px) {
+  body[data-theme="hearthlight"] .td-tab span { display: inline; }
+}
+/* b218: On phones the doll's Equipment/Stats/Companion tabs are icon-only and
+   ambiguous — keep the text labels so the tabs are identifiable. Same
+   specificity as the base rule, declared later, so it wins in the mobile query. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body[data-theme="hearthlight"] .td-tab span { display: inline; }
 }
 

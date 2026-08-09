@@ -130,23 +130,30 @@
       }});
     }
 
-    // Food — Eat heals immediately, Set auto-eat sets it as the slotted food
-    if(def.heals && def.heals > 0){
-      opts.push({ label: '🍖  Eat (+' + def.heals + ' HP)', action: function(){
-        if(typeof window.eatNow === 'function') window.eatNow(id);
+    // Food — b224: the verb and the effect come from foodUseInfo() so this
+    // menu, the item flyout and the combat row cannot describe one item three
+    // ways. "Set as auto-eat food" is offered only where it is true: a
+    // Provision, and only once the player owns the Auto-Eat trait.
+    var food = (typeof window.foodUseInfo === 'function') ? window.foodUseInfo(id) : null;
+    if(food){
+      var effect = food.kind === 'provision'
+        ? (food.healText || '')
+        : [food.buffText, food.heals ? '+' + food.heals + ' HP' : ''].filter(Boolean).join(' · ');
+      opts.push({ label: food.verb + (effect ? '  (' + effect + ')' : ''), action: function(){
+        if(typeof window.eatFromInventory === 'function') window.eatFromInventory(id);
         else if(typeof window.eatFood === 'function') window.eatFood(id);
-        else {
-          // Defensive fallback — heal directly + decrement
-          G.playerHp = Math.min(G.playerMaxHp || 10, (G.playerHp || 0) + def.heals);
-          if(typeof window.removeItem === 'function') window.removeItem(id, 1);
-          if(typeof window.notify === 'function') window.notify('Ate ' + def.n, 'info');
-        }
       }});
-      opts.push({ label: '🥄  Set as auto-eat food', action: function(){
-        if(window.HearthriseAuto && window.HearthriseAuto.setEat){
-          window.HearthriseAuto.setEat({ enabled: true, foodId: id });
-          if(typeof window.notify === 'function') window.notify('Auto-eat: ' + def.n, 'info');
-        }
+      var owns = (typeof window.hasTrait === 'function') ? window.hasTrait('auto_eat') : false;
+      if(food.autoEatable && owns){
+        opts.push({ label: 'Set as auto-eat food', action: function(){
+          if(typeof window.setAutoEatFood === 'function') window.setAutoEatFood(id);
+        }});
+      }
+    } else if(def.heals && def.heals > 0){
+      // Defensive: an item that heals but that foodUseInfo() could not classify
+      // (foodUseInfo is unavailable pre-boot). Still let the player eat it.
+      opts.push({ label: 'Eat (+' + def.heals + ' HP)', action: function(){
+        if(typeof window.eatFood === 'function') window.eatFood(id);
       }});
     }
 

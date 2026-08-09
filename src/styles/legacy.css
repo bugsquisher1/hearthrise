@@ -987,7 +987,22 @@ img,svg{display:block;max-width:100%}
 .inv-detail-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:12px}
 .inv-detail-stats div{padding:6px 9px;border-radius:var(--r-sm);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);font-size:12.5px;font-weight:600}
 .inv-detail-stats div b{color:var(--gold-2);font-size:14.5px;display:block}
+/* b224: one sentence under the stats saying what a food is for, and the
+   honest status of auto-eat. Tokens only. */
+.inv-detail-note{
+  margin:0 0 4px;padding:8px 10px;border-radius:var(--r-sm);
+  background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+  color:var(--ink-2);font-size:12.5px;line-height:1.5;
+}
 .inv-detail-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px}
+.inv-detail-actions .btn[disabled]{opacity:.5;cursor:default}
+
+/* b224: the Combat screen's food controls — Eat first, auto-eat second,
+   one line of plain English underneath. */
+.cbt-food{margin-top:9px;display:flex;flex-direction:column;gap:6px}
+.cbt-food-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cbt-food-row .btn[disabled]{opacity:.55;cursor:default}
+.cbt-food-note{line-height:1.5;max-width:62ch}
 .inv-detail-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:16px;cursor:pointer}
 
 @media (max-width:900px){
@@ -3284,12 +3299,8 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .buff-row .br-name{flex:1;color:var(--ink);font-weight:700}
 .buff-row .br-mag{color:#7f9a4f;font-weight:800}
 .buff-row .br-time{color:var(--ink-3);font-size:12.5px;font-family:monospace}
-.eat-now-btn{
-  display:inline-block;margin-top:4px;padding:3px 9px;font-size:11.5px;
-  background:rgba(127,154,79,.20);border:1px solid rgba(127,154,79,.4);
-  color:#7f9a4f;border-radius:4px;cursor:pointer;font-weight:700;
-}
-.eat-now-btn:hover{background:rgba(127,154,79,.32)}
+/* b224: .eat-now-btn removed with injectEatNowButtons() — the JS that used it
+   had not rendered a button since the bag was rebuilt (see legacy.js). */
 
 /* ===== block 30: profile-layout-fix ===== */
 /* Profile panel: cleaner 2-col grid with proper auto-flow */

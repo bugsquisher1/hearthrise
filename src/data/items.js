@@ -488,3 +488,57 @@ export function foodClassOf(item) {
 export function isAutoEatable(item) {
   return foodClassOf(item) === 'healing';
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   b224 — foodKindOf(item): how a food PRESENTS at the point of use.
+
+   foodClassOf() answers the engine's question ("may auto-eat spend this?").
+   It does not answer the player's question, which is "what is this and what
+   verb do I press?" — and beta testers reported exactly that gap: a Void
+   Banquet and a Cooked Shrimp were both an item called "food" with a heal
+   number and an identical button.
+
+   So this is the presentation twin of foodClassOf, derived from it plus the
+   item's own name. Three kinds, three verbs:
+
+     provision → "Eat"    healing staple; auto-eat draws from this pool
+     feast     → "Use"    prepared dish eaten for a timed buff
+     draught   → "Drink"  the same, but liquid — the drinks category the
+                          standing design note asked for
+
+   Provision/buff comes from foodClassOf so the split can never drift from
+   the auto-eat rule. Draught-vs-feast is a naming read, because "is it a
+   drink" is a fact about the noun and hand-tagging 27 items with a field
+   that only picks a verb would be authoring with no reader (same argument
+   §2 of the taxonomy makes for categories generally).
+   ══════════════════════════════════════════════════════════════════════ */
+const DRAUGHT_NAME_RE = /\b(elixir|draught|draft|potion|brew|tonic|cordial|tea)\b/i;
+
+export function foodKindOf(item) {
+  const cls = foodClassOf(item);
+  if (!cls) return null;
+  if (cls === 'healing') return 'provision';
+  return DRAUGHT_NAME_RE.test(item.n || '') ? 'draught' : 'feast';
+}
+
+/* Plain-words presentation for each kind. The UI reads verb/label/blurb from
+   here so the item modal, the combat picker and the hover tooltip cannot
+   describe the same item three different ways. No emoji — these are labels,
+   not art. */
+export const FOOD_KIND_META = {
+  provision: {
+    label: 'Provision',
+    verb: 'Eat',
+    blurb: 'Healing food. Auto-eat can use this.',
+  },
+  feast: {
+    label: 'Feast',
+    verb: 'Use',
+    blurb: 'Eaten for a timed buff. Auto-eat never spends it.',
+  },
+  draught: {
+    label: 'Draught',
+    verb: 'Drink',
+    blurb: 'Drunk for a timed buff. Auto-eat never spends it.',
+  },
+};

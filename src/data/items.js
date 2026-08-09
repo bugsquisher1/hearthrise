@@ -1,6 +1,6 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=222';
+import { GEAR_ITEMS } from './gear-tiers.js?v=223';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

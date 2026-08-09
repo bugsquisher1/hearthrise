@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 223 — 2026-08-08 (The Clan Seat rises)
+
+- 🏰 **Your clan has a castle now.** The clan page is a dusk scene of your hold, built from real coursed stonework — and it grows with your clan, from two tents and a fire to a fortified keep with towers and trophies. **Every structure is clickable**: step inside the Great Hall (banners, dais, the roster), the Treasury vault (iron door, coin chests), the Tavern (a glowing hearth and the chalked task Board), the Sawmill, the Smeltery, and the War Room's map table. Each room carries its own upgrade ladder — costs, effects, and what the next level buys.
+- 🔨 **Work Orders.** Building the castle is a three-phase clan effort: an officer posts the order, everyone supplies materials (castle goods crafted in the new Castle Stores lane — even tier-1 slime drops matter now), then every skill action you take fuels construction. A dozen casual members genuinely out-build one maxed player.
+- 🍻 **Feasts and rest.** Fill the Tavern's feast meter with cooked food and call a clan-wide XP feast — with a doubled-power Last Call in its final stretch. And the Tavern banks Rested XP for time you spent away.
+- ⚔️ **The Hunt, tiered.** The weekly clan raid was mathematically unbeatable (it was tuned for a clan far larger than any that exists — never once cleared). Now it scales with your actual roster across five tiers, your War Room sets your ceiling, and six new boss materials forge the first gear beyond Dawnsteel — the only kit solo play can't earn.
+- 🖼️ All six Hunt bosses wear painted portraits, castle goods got real icons, and farming's three endgame crops (levels 62/75/88) are finally plantable — the last 37 farming levels actually have something to grow.
+- 🧹 Modal traffic control: tutorial, name choice, What's New, and the daily reward now take turns instead of stacking.
+- 🧪 274 tests green (+24 new regression guards).
+
 ## v0.9.2-beta build 222 — 2026-08-08 (Know your place — in a good way)
 
 - 🏆 **Leaderboards, rebuilt.** 21 boards — the Throne (renown), Overall, Wealth, Combat, Bosses, every skill, and Clan Power — and the big one: **you always see your own rank**, with the rival directly above and below you, no matter how deep you sit. Rank 1 wears a crown. Two long-standing scoring bugs died on the way: renown was undercounting everyone's levels, and the Combat board had never ranked anyone at all.

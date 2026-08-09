@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 240 — 2026-08-09 (Never lose an item)
+
+- 🔒 **Lock items so they can't be sold by accident.** In an item's menu, tap **Lock** — a locked item shows no Sell buttons at all until you Unlock it. Bulk-sell skips your locked items too.
+- ↩️ **Buy-Back — an undo for the vendor.** Everything you sell to a vendor is remembered; open **Buy Back** (from an item's menu or the More menu) to repurchase your last sales at exactly the price you got. No more gut-punch from a mis-tap. Every sell path in the game now respects both.
+- 🧪 444 tests green.
+
 ## v0.9.2-beta build 239 — 2026-08-09 (The Recipe Book)
 
 - 📖 **A Recipe Book — every recipe in the game, in one place.** Open it from the Skills screen (or the More menu on mobile) and browse all 156 recipes across Smithing, Crafting, Cooking and Prayer. **Recipes you can't make yet show up too** — greyed out, but still listing exactly what they need and at what level, so you can see the whole crafting tree and plan toward it. Each ingredient shows how many you own (red when you're short), and you can search by item or ingredient.

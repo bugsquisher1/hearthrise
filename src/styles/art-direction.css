@@ -870,6 +870,18 @@ body[data-theme] .at-inputs {
    lightUpdate() as stock changes. */
 body[data-theme] .at-inputs .at-have { color: var(--ink-2); font-weight: 700; opacity: 1; }
 body[data-theme] .at-inputs .at-have.low { color: var(--danger, #d9534f); }
+
+/* b240 — Buy-Back window (undo a vendor sale). Rows in the shared .modal frame. */
+#bb-modal .bb-body { max-height: 60vh; overflow-y: auto; }
+#bb-modal .bb-empty { color: var(--ink-3); padding: 24px 6px; text-align: center; font-size: calc(14.5px * var(--ui-scale, 1)); }
+#bb-modal .bb-row { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+#bb-modal .bb-ic { width: 34px; height: 34px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center; }
+#bb-modal .bb-ic img { width: 100%; height: 100%; object-fit: contain; }
+#bb-modal .bb-emoji { font-size: calc(24px * var(--ui-scale, 1)); line-height: 1; }
+#bb-modal .bb-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#bb-modal .bb-meta b { color: var(--ink); font-size: calc(15px * var(--ui-scale, 1)); }
+#bb-modal .bb-meta span { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); }
+#bb-modal .bb-row .btn { flex: 0 0 auto; }
 /* A count, not a label. Only rendered when you own some. */
 body[data-theme] .at-qty {
   top: 8px; right: 8px; bottom: auto;

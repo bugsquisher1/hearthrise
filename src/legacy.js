@@ -5066,8 +5066,19 @@ function openInvDetail(id){
     acts.push(`<button class="btn" onclick="if(typeof buryBones==='function'){buryBones('${id}');}else{G.skills.prayer=(G.skills.prayer||0)+${it.buryXp};removeItem('${id}',1);notify('Buried (+${it.buryXp} prayer XP)','info');}closeInvDetail();renderInvNew()">Bury</button>`);
   }
   if(qty > 0){
-    acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 (${vendorPrice(id)}🪙)</button>`);
-    if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} (${(vendorPrice(id)*qty).toLocaleString()}🪙)</button>`);
+    /* b240: sell-lock. A locked item shows no sell buttons — just Unlock — so an
+       accidental tap can't get through. Vendorable items get a Lock button. */
+    if(isItemLocked(id)){
+      acts.push(`<button class="btn" disabled title="Locked — protected from selling">Locked</button>`);
+      acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')">Unlock</button>`);
+    } else {
+      if(vendorPrice(id) > 0){
+        acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 (${vendorPrice(id)}🪙)</button>`);
+        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} (${(vendorPrice(id)*qty).toLocaleString()}🪙)</button>`);
+      }
+      acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold">Lock</button>`);
+    }
+    if(Array.isArray(G.buyback) && G.buyback.length) acts.push(`<button class="btn" onclick="openBuyback()">Buy Back…</button>`);
     if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
   }
 
@@ -5152,38 +5163,127 @@ window.vendorPrice = vendorPrice;
 /* Sell helpers — wrap existing logic if available, else simple */
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
+  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
   if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   G.gold = (G.gold||0) + price;
   removeItem(id, 1);
+  recordVendorSale(id, 1, price);   // b240: undoable
   notify(`Sold 1× ${it.n} (+${price}🪙)`,'loot');
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
   const it = ITEMS[id]; if(!it) return;
+  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   G.gold = (G.gold||0) + price*qty;
   delete G.inventory[id];
+  recordVendorSale(id, qty, price);   // b240: undoable
   notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){
   if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
-  let total = 0, count = 0;
+  let total = 0, count = 0, skipped = 0;
   for(const id of window._invSelected){
     const it = ITEMS[id]; if(!it) continue;
+    if(isItemLocked(id)){ skipped++; continue; }   // b240: locked items are left alone
     const qty = G.inventory[id]||0; if(qty<=0) continue;
-    total += vendorPrice(id)*qty; count += qty;
+    const price = vendorPrice(id);
+    total += price*qty; count += qty;
     delete G.inventory[id];
+    recordVendorSale(id, qty, price);   // b240: undoable
   }
   G.gold = (G.gold||0) + total;
   window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()}🪙`,'loot');
+  notify(`Sold ${count} items for ${total.toLocaleString()}🪙` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
   window._invSelectMode = false;
   updateTopbar(); renderInvNew();
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   b240 (Tyler) — SELL-LOCK + VENDOR BUY-BACK.
+   Two safety nets around the vendor so an accidental tap never loses a thing:
+   • Lock an item and it cannot be sold until you unlock it (a padlock in the
+     flyout; every sell path checks isItemLocked first).
+   • Every vendor sale is recorded; the last 15 are buyable BACK at the exact
+     price you got, from the Buy-Back window — an undo for the vendor.
+   Both live on G (saved), so they survive a reload. Vendor gold is client-side
+   in this game (the market is the server-authoritative economy), so this needs
+   no server round-trip and cannot mint value — you only ever buy back what you
+   sold, at what you sold it for. ═══════════════════════════════════════════ */
+function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
+function toggleItemLock(id){
+  G.lockedItems = G.lockedItems || {};
+  if(G.lockedItems[id]){ delete G.lockedItems[id]; notify('Unlocked — this item can be sold','info'); }
+  else { G.lockedItems[id] = true; notify('Locked — protected from selling','info'); }
+  try{ saveLocal(); }catch(e){}
+  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
+  try{ if(typeof renderInvNew==='function') renderInvNew(); }catch(e){}
+  try{ if(typeof openInvDetail==='function' && window._invDetailId===id) openInvDetail(id); }catch(e){}
+}
+function recordVendorSale(id, qty, unit){
+  if(!qty || unit==null) return;
+  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
+  const ex = G.buyback.find(b => b.id===id && b.unit===unit);
+  if(ex){ ex.qty += qty; ex.at = Date.now(); }
+  else { G.buyback.unshift({ id, qty, unit, at: Date.now() }); }
+  if(G.buyback.length > 15) G.buyback.length = 15;
+}
+function repurchase(idx){
+  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
+  const b = G.buyback[idx]; if(!b) return;
+  const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
+  const cost = b.unit * b.qty;
+  if((G.gold||0) < cost){ notify('Not enough gold to buy it back','kill'); return; }
+  G.gold -= cost;
+  addItem(b.id, b.qty);
+  G.buyback.splice(idx, 1);
+  notify(`Bought back ${b.qty}× ${it.n} (−${cost.toLocaleString()}🪙)`,'loot');
+  try{ saveLocal(); }catch(e){}
+  updateTopbar();
+  renderBuyback();
+  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
+}
+window.isItemLocked = isItemLocked;
+window.toggleItemLock = toggleItemLock;
+window.recordVendorSale = recordVendorSale;
+window.repurchase = repurchase;
+
+function renderBuyback(){
+  const body = document.getElementById('bb-modal-body');
+  if(!body) return;
+  const list = Array.isArray(G.buyback) ? G.buyback : [];
+  if(!list.length){ body.innerHTML = '<div class="bb-empty">Nothing to buy back yet. Anything you sell to a vendor shows up here so you can undo it.</div>'; return; }
+  body.innerHTML = list.map((b,i)=>{
+    const it = ITEMS[b.id]; if(!it) return '';
+    const cost = b.unit * b.qty;
+    const afford = (G.gold||0) >= cost;
+    const icon = (window._itemPath && window._itemPath[b.id]) ? `<img src="${window._itemPath[b.id]}" alt=""/>` : `<span class="bb-emoji">${it.icon||'❓'}</span>`;
+    return `<div class="bb-row">
+      <span class="bb-ic">${icon}</span>
+      <span class="bb-meta"><b>${b.qty}× ${it.n}</b><span>sold for ${b.unit.toLocaleString()}🪙 each</span></span>
+      <button class="btn btn-sm ${afford?'btn-primary':''}" ${afford?'':'disabled'} onclick="repurchase(${i})">Buy back · ${cost.toLocaleString()}🪙</button>
+    </div>`;
+  }).join('');
+}
+function openBuyback(){
+  let m = document.getElementById('bb-modal');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'bb-modal'; m.className = 'modal';
+    m.innerHTML = '<div class="modal-card"><div class="modal-head"><div class="modal-title">Buy Back</div>'
+      + '<button class="btn btn-sm" onclick="document.getElementById(\'bb-modal\').classList.remove(\'show\')">Close</button></div>'
+      + '<div id="bb-modal-body" class="bb-body"></div></div>';
+    document.body.appendChild(m);
+  }
+  renderBuyback();
+  m.classList.add('show');
+}
+window.renderBuyback = renderBuyback;
+window.openBuyback = openBuyback;
 
 /* ───── Render: equipment paper-doll + loadouts + bag w/ filters ───── */
 function renderInvNew(){

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=239' directly.
+// modularised, will import { G } from '../state/game.js?v=240' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=239';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=239';
+import { on, snapshot } from '../net/events.js?v=240';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=240';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=239';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=240';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,36 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      const id = 'normal_log';
+      G.inventory = G.inventory || {}; G.inventory[id] = 100;
+      G.gold = 100000; G.buyback = []; G.lockedItems = {};
+      // LOCK — a locked item cannot be sold.
+      window.toggleItemLock(id);
+      assert(window.isItemLocked(id) === true, 'toggleItemLock must lock the item');
+      window.invSellOne(id);
+      assert(G.inventory[id] === 100, 'a LOCKED item must not sell (protected from the accidental tap)');
+      // UNLOCK + sell — the sale is recorded for buy-back.
+      window.toggleItemLock(id);
+      assert(window.isItemLocked(id) === false, 'toggleItemLock must unlock');
+      const goldBefore = G.gold;
+      window.invSellOne(id);
+      assert(G.inventory[id] === 99, 'an unlocked item sells');
+      assert(G.gold > goldBefore, 'selling pays gold');
+      assert(G.buyback.length === 1 && G.buyback[0].id === id, 'the sale must be recorded for buy-back');
+      // BUY BACK — repurchase restores the item at exactly the price you were paid.
+      const goldAfterSell = G.gold;
+      const cost = G.buyback[0].unit * G.buyback[0].qty;
+      window.repurchase(0);
+      assert(G.inventory[id] === 100, 'buy-back must restore the item');
+      assert(G.gold === goldAfterSell - cost, 'buy-back costs exactly what you were paid (no minting)');
+      assert(G.buyback.length === 0, 'the buy-back entry is consumed');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b239: the Recipe Book lists every recipe; locked ones stay grayscale but still show inputs + requirement', () => {

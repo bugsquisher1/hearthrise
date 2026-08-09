@@ -179,30 +179,25 @@
       /* b226: the vendor's bid, not the book value — one price everywhere
          (legacy.js vendorPrice, pacing-overhaul §6.1). */
       var price = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v || 0);
-      opts.push({ label: '🪙  Sell 1 (' + price.toLocaleString() + 'g)',
-        disabled: qty < 1 || price <= 0,
-        action: function(){
-          if(qty < 1 || price <= 0) return;
-          G.gold = (G.gold | 0) + price;
-          if(typeof window.removeItem === 'function') window.removeItem(id, 1);
-          if(typeof window.notify === 'function') window.notify('Sold ' + def.n + ' for ' + price + 'g', 'loot');
-          if(typeof window.renderInvNew === 'function') setTimeout(window.renderInvNew, 0);
-          else if(typeof window.renderInventory === 'function') setTimeout(window.renderInventory, 0);
-          if(typeof window.updateTopbar === 'function') window.updateTopbar();
+      var locked = (typeof window.isItemLocked === 'function') && window.isItemLocked(id);
+      // b240: lock toggle (protect from accidental selling).
+      opts.push({ label: locked ? 'Unlock — allow selling' : 'Lock — protect from selling', action: function(){
+        if(typeof window.toggleItemLock === 'function') window.toggleItemLock(id);
+      }});
+      if(!locked){
+        // b240: route Sell 1 through the guarded, buy-back-recorded path so it
+        // respects the lock AND becomes undoable — one sell choke-point.
+        opts.push({ label: '🪙  Sell 1 (' + price.toLocaleString() + 'g)',
+          disabled: qty < 1 || price <= 0,
+          action: function(){ if(typeof window.invSellOne === 'function') window.invSellOne(id); }
+        });
+        // Sell N… defers to item-ux's qty slider for the actual UX
+        if(isStack){
+          opts.push({ label: '📊  Sell N…  (stack: ' + qty.toLocaleString() + ')', action: function(){
+            if(typeof window.openInvQtySlider === 'function') window.openInvQtySlider(id);
+            else if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
+          }});
         }
-      });
-      // Sell N… defers to item-ux's qty slider for the actual UX
-      if(isStack){
-        opts.push({ label: '📊  Sell N…  (stack: ' + qty.toLocaleString() + ')', action: function(){
-          // Find the slider opener — item-ux.js stashes it on the slider
-          // overlay's "Sell" handler. The cleanest way is to dispatch a
-          // synthetic contextmenu on the original tile, which item-ux
-          // catches; but since we just suppressed our own handler, just
-          // call the global if exposed.
-          if(typeof window.openInvQtySlider === 'function') window.openInvQtySlider(id);
-          // Otherwise open the full detail flyout — it has bulk sell.
-          else if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
-        }});
       }
     }
 

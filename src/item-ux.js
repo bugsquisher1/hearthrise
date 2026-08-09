@@ -473,10 +473,17 @@
     var id = sliderState.id;
     if(!id || qty <= 0) return;
     var item = window.ITEMS[id];
-    var goldGain = ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5))) * qty;
+    // b240: respect the sell-lock and record for buy-back, like every sell path.
+    if(typeof window.isItemLocked === 'function' && window.isItemLocked(id)){
+      if(typeof window.notify === 'function') window.notify(item.n + ' is locked — unlock it first', 'kill');
+      return;
+    }
+    var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
+    var goldGain = unit * qty;
     if(typeof window.removeItem === 'function') window.removeItem(id, qty);
     else { window.G.inventory[id] = Math.max(0, (window.G.inventory[id]||0) - qty); }
     window.G.gold = (window.G.gold || 0) + goldGain;
+    if(typeof window.recordVendorSale === 'function') window.recordVendorSale(id, qty, unit);
     if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
     if(typeof window.updateTopbar === 'function') window.updateTopbar();

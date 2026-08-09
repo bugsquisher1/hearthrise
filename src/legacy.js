@@ -6412,8 +6412,21 @@ function refreshActivityBar(){
       // player HP, so the activity bar carries the more interesting numbers.
       const kills = (G.combatKillsThisFoe||0);
       const totalKills = (G.stats?.kills||0);
+      /* b262 (paione): the bounty task progress lived in a card that fell below
+         the fold of the short landscape combat view, so "how many kills left for
+         my task" wasn't visible. Surface it in the always-on activity bar when
+         the active bounty targets the monster you're fighting. */
+      let bountyChip = '';
+      const _ab = G.bountyHunter && G.bountyHunter.active;
+      if(_ab && _ab.target === G.activeMonster){
+        const _cur = _ab.type==='proof'
+          ? Math.min((typeof bountyProofHave==='function'?bountyProofHave(_ab):0), _ab.required)
+          : (_ab.progress||0);
+        bountyChip = '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
+      }
       metaEl.innerHTML = ''
         + '<span class="ab-kills">⚔️ <b>'+kills.toLocaleString()+'</b> this fight</span>'
+        + bountyChip
         + '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
     }
     if(stopBtn) stopBtn.style.display = '';

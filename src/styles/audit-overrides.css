@@ -330,6 +330,9 @@ img[src*="assets/raw-bundle"] {
 .activity-bar.v2 .ab-meta .ab-lv b,
 .activity-bar.v2 .ab-meta .ab-xph b { color: var(--gold-2); font-size:calc(16px * var(--ui-scale, 1)); font-weight: 800; }
 .activity-bar.v2 .ab-meta .ab-hp b { color: #7f9a4f; font-weight: 800; }
+/* b262: bounty task progress chip in the combat activity bar (paione — the
+   task's kills-left was falling below the fold on landscape). */
+.activity-bar.v2 .ab-meta .ab-bounty b { color: var(--gold-2); font-weight: 800; }
 .activity-bar.v2.idle .ab-meta { display: none; }
 
 /* ─── Idle pulse: subtle attention-call when nothing is active ───

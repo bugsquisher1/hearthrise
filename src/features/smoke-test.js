@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=261' directly.
+// modularised, will import { G } from '../state/game.js?v=262' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=261';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=261';
+import { on, snapshot } from '../net/events.js?v=262';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=262';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=261';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=262';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,26 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {
+    if(typeof window.refreshActivityBar !== 'function'){ assert(true, 'no activity-bar fn'); return; }
+    const meta = document.getElementById('ab-meta');
+    if(!meta){ assert(true, 'activity bar not mounted in harness'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
+      G.bountyHunter.active = { id:'t', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:3, required:10, rewards:{gold:1,marks:1,xp:1} };
+      G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
+      window.refreshActivityBar();
+      const html = document.getElementById('ab-meta').innerHTML;
+      assert(/ab-bounty/.test(html) && /3\/10/.test(html), 'combat activity bar must show the active bounty progress, got: ' + html.slice(0, 140));
+      // No chip when the bounty targets a DIFFERENT monster than the one you're fighting.
+      G.activeMonster = 'rat';
+      window.refreshActivityBar();
+      assert(!/ab-bounty/.test(document.getElementById('ab-meta').innerHTML), 'no bounty chip when fighting a non-target monster');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {

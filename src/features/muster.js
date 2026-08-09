@@ -107,6 +107,133 @@
   // ALREADY fires (updateDaily) — no new call sites, nothing to keep in sync.
   var POINTS = { kill_any: null /* 10 x tier */, gather: 4, harvest: 6, cooked: 12, smithed: 12, crafted: 12 };
 
+  // ════════════════════════════════════════════════════════════
+  // 1b · THE THEMED CHEST  (b231 — Tyler: "Forge Levy pays smithing")
+  // ════════════════════════════════════════════════════════════
+  // A rally that asks you to smith all afternoon and then pays a pile of
+  // undifferentiated gold has told you the event was a costume. Every rally's
+  // chest now derives from the SAME domain its contribution sources do, so the
+  // day describes one thing from the pill to the payout.
+  //
+  // ── THE RULE THAT KEEPS THIS FROM BEING A BUFF ──────────────
+  // Theming CONVERTS value, it never adds any. The band the server computes
+  // (1,500g floor … 7,500g ceiling) is a VALUE BUDGET; the table below decides
+  // what that budget is paid IN. A fixed slice becomes domain materials priced
+  // at their own vendor value, a fixed slice becomes domain XP at one stated
+  // rate, and whatever is left stays gold. The sum can only ever round DOWN,
+  // never up — chestValue() asserts exactly that, and the smoke suite runs it
+  // across every event at both the floor and the ceiling.
+  //
+  //   gems  — untouched, still the same small constant per band.
+  //   seals — untouched. A Rally Seal still means only "the realm held".
+  //
+  // ── THE TWO CONVERSION CONSTANTS (Designer owns both) ───────
+  // XP_PER_GOLD is anchored on the game's own economy rather than invented:
+  // smelting an Iron Bar turns 65g of ore and coal into a 90g bar and 30
+  // smithing XP — about 1.2 XP per gold of value added — and gathering is
+  // cheaper per gold than that. 2 XP per gold of converted budget sits just
+  // above the artisan anchor, which is the right side to err on for a reward
+  // that costs a player their whole day's rally.
+  //
+  // Every XP grant goes through window.addXp, so PACE, the fuse and the
+  // blessing all apply exactly as they do to played XP. There is no raw
+  // G.skills write anywhere in this file.
+  var CHEST_ITEM_SHARE = 0.30;   // of the band's value, paid as domain materials
+  var CHEST_XP_SHARE   = 0.20;   // of the band's value, paid as domain XP
+  var XP_PER_GOLD      = 2;      // XP per gold of converted budget
+
+  // `v` is the item's vendor value, stated INLINE. Both this table and the
+  // server's copy carry the number, so neither can drift into paying a
+  // different chest than the other; a smoke assertion checks each one against
+  // window.ITEMS so an economy change cannot silently unbalance a rally.
+  var THEMES = {
+    ashen_horde:   { skills: ['attack', 'strength', 'defense'],
+                     items: [{ id: 'wolf_pelt',    v: 35, w: 0.6 },
+                             { id: 'dragon_bones', v: 10, w: 0.4 }] },
+    long_harvest:  { skills: ['farming', 'woodcutting'],
+                     items: [{ id: 'wheat',        v: 50, w: 0.5 },
+                             { id: 'pumpkin_seed', v: 50, w: 0.5 }] },
+    forge_levy:    { skills: ['smithing', 'crafting'],
+                     items: [{ id: 'iron_bar',     v: 90, w: 0.6 },
+                             { id: 'coal',         v: 40, w: 0.4 }] },
+    deep_seam:     { skills: ['mining', 'woodcutting', 'fishing'],
+                     items: [{ id: 'iron_ore',     v: 25, w: 0.4 },
+                             { id: 'coal',         v: 40, w: 0.3 },
+                             { id: 'oak_log',      v: 20, w: 0.3 }] },
+    keep_kitchens: { skills: ['cooking', 'fishing'],
+                     items: [{ id: 'trout',        v: 20, w: 0.5 },
+                             { id: 'lobster',      v: 100, w: 0.5 }] },
+    // Every hand in the realm — so the payout spreads the same way the
+    // contribution sources do, thin across the four everyday domains.
+    all_hands:     { skills: ['woodcutting', 'mining', 'smithing', 'cooking'],
+                     items: [{ id: 'iron_bar',     v: 90, w: 0.5 },
+                             { id: 'oak_log',      v: 20, w: 0.5 }] }
+  };
+  var CHEST_GOLD_CEIL = 7500, CHEST_GEM_CEIL = 10;
+
+  function themeFor(eventId) { return THEMES[eventId] || null; }
+
+  /**
+   * PURE. Turn a band's gold budget into that rally's themed chest.
+   * Never invents value: goldOut + materials + xp/XP_PER_GOLD <= gold, always.
+   * An unknown event (a save from a future pool, a malformed key) falls back to
+   * plain gold rather than paying nothing — degrade poorer, never emptier.
+   */
+  function themedChest(eventId, gold, gems, seals) {
+    gold  = Math.max(0, Math.min(CHEST_GOLD_CEIL, Math.floor(+gold || 0)));
+    gems  = Math.max(0, Math.min(CHEST_GEM_CEIL,  Math.floor(+gems || 0)));
+    seals = Math.max(0, Math.min(1, Math.floor(+seals || 0)));
+    var t = themeFor(eventId);
+    if (!t) return { eventId: eventId || null, gold: gold, gems: gems, seals: seals, xp: [], items: [] };
+
+    var itemBudget = Math.floor(gold * CHEST_ITEM_SHARE);
+    var xpBudget   = Math.floor(gold * CHEST_XP_SHARE);
+    var items = [], spent = 0, i;
+    for (i = 0; i < t.items.length; i++) {
+      var it = t.items[i];
+      var qty = Math.floor((itemBudget * it.w) / it.v);
+      if (qty > 0) { items.push({ id: it.id, qty: qty, value: qty * it.v }); spent += qty * it.v; }
+    }
+    // The XP budget is spent whether or not it divides evenly — the remainder
+    // is simply not paid, which is the rounding direction that cannot inflate.
+    var per = Math.floor((xpBudget * XP_PER_GOLD) / t.skills.length);
+    var xp = t.skills.map(function (s) { return { skill: s, amount: per }; });
+    var goldOut = Math.max(0, gold - spent - xpBudget);
+    return { eventId: eventId, gold: goldOut, gems: gems, seals: seals, xp: xp, items: items };
+  }
+
+  // The audit function. What a chest is actually worth, in gold, by the same
+  // rate that built it. The smoke suite asserts this never exceeds the band.
+  function chestValue(c) {
+    if (!c) return 0;
+    var v = c.gold || 0, i;
+    for (i = 0; i < (c.items || []).length; i++) v += (c.items[i].value || 0);
+    for (i = 0; i < (c.xp || []).length; i++) v += (c.xp[i].amount || 0) / XP_PER_GOLD;
+    return v;
+  }
+
+  // One line a player can read before they commit their day to a rally.
+  function chestSummary(c) {
+    if (!c) return '';
+    var bits = [(c.gold || 0).toLocaleString() + 'g'];
+    if (c.gems) bits.push(c.gems + (c.gems === 1 ? ' gem' : ' gems'));
+    (c.items || []).forEach(function (it) { bits.push(it.qty.toLocaleString() + ' ' + itemName(it.id)); });
+    var xp = (c.xp || []).filter(function (x) { return x.amount > 0; });
+    if (xp.length) {
+      bits.push(xp.map(function (x) { return x.amount.toLocaleString() + ' ' + skillName(x.skill); }).join(', ') + ' XP');
+    }
+    if (c.seals > 0) bits.push(c.seals + ' Rally Seal');
+    return bits.join(', ');
+  }
+  function itemName(id) {
+    var it = (window.ITEMS && window.ITEMS[id]) || null;
+    return (it && it.n) || String(id).replace(/_/g, ' ');
+  }
+  function skillName(id) {
+    var s = (window.SKILLS_DEF && window.SKILLS_DEF[id]) || null;
+    return (s && s.name) || (String(id).charAt(0).toUpperCase() + String(id).slice(1));
+  }
+
   function W() { return window.HearthriseWorldEvents; }
   function hash(s) {
     if (W() && W()._hash) return W()._hash(s);
@@ -670,8 +797,9 @@
   }
 
   function announceJoin(w) {
-    toast('You answer ' + w.event.name + ' — +' + Math.round(LIVE_XP_AURA * 100) +
-          '% all XP while the rally runs.', 'levelup');
+    var aura = ' — +' + Math.round(LIVE_XP_AURA * 100) + '% all XP while the rally runs.';
+    toast(autoJoining ? (w.event.name + ' opened and you were here — you are in' + aura)
+                      : ('You answer ' + w.event.name + aura), 'levelup');
   }
 
   async function serverJoin(eventKey, attempt) {
@@ -784,20 +912,36 @@
     return true;
   }
 
-  // The reward. Gold, gems and AT MOST ONE Muster Seal. There is no branch
-  // here that can produce a hearth_token — the IAP bond is never PvE-minted.
+  // The reward. Gold, gems, the rally's own materials and XP, and AT MOST ONE
+  // Muster Seal. There is no branch here that can produce a hearth_token — the
+  // IAP bond is never PvE-minted.
   function grant(d) {
-    var G = window.G, st = ensureState();
+    var st = ensureState();
     st.claimed = true;
-    G.gold = (G.gold || 0) + (d.gold || 0);
-    G.gems = (G.gems || 0) + (d.gems || 0);
-    if (d.seals > 0 && typeof window.addItem === 'function') window.addItem('muster_seal', d.seals);
-    var bits = [(d.gold || 0).toLocaleString() + 'g', (d.gems || 0) + ' gems'];
-    if (d.seals > 0) bits.push(d.seals + ' Rally Seal');
-    toast('Rally chest: +' + bits.join(', +') + (d.held ? ' — the realm held.' : ''), 'levelup');
+    var ev = eventForKey(st.eventKey);
+    var chest = themedChest(ev ? ev.id : null, d.gold, d.gems, d.seals);
+    payChest(chest);
+    toast('Rally chest: ' + chestSummary(chest) + (d.held ? ' — the realm held.' : ''), 'levelup');
     persist();
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
     renderAll();
+  }
+
+  // The ONE payout path, shared by the live chest and half honors. XP goes
+  // through addXp so PACE, the fuse and the day's blessing all apply — a rally
+  // must never be a way to inject XP the rest of the game cannot see.
+  function payChest(c) {
+    var G = window.G;
+    G.gold = (G.gold || 0) + (c.gold || 0);
+    G.gems = (G.gems || 0) + (c.gems || 0);
+    (c.items || []).forEach(function (it) {
+      if (it.qty > 0 && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
+    });
+    if (c.seals > 0 && typeof window.addItem === 'function') window.addItem('muster_seal', c.seals);
+    (c.xp || []).forEach(function (x) {
+      if (x.amount > 0 && typeof window.addXp === 'function') window.addXp(x.skill, x.amount);
+    });
+    persist();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -810,7 +954,23 @@
              joinedToday: !!(st.dayKey === dk && st.eventKey) };
   }
 
+  // ── Is a pledge a thing this session can actually hold? ─────
+  // b231, Tyler: an answer the server cannot keep is not a feature, it is a
+  // rumour. So there is no local-only pledge any more. Client-first still
+  // holds — the affordance shows until a probe PROVES the RPC is absent, and
+  // then it disappears rather than degrading into a promise nothing backs.
+  var UNAVAILABLE = 'Rally pledges are unavailable right now.';
+  // Test seam only: null = ask the real thing. The suite runs without a
+  // session, so there is no other way to exercise the supported branch.
+  var forcedSupport = null;
+  function pledgeSupported() {
+    if (forcedSupport !== null) return forcedSupport;
+    if (!isSignedIn()) return false;
+    return !rpcMissing('world_event_pledge') && !rpcMissing('hr_rally_pledge_state');
+  }
+
   async function pledge(eventKey) {
+    if (!pledgeSupported()) { toast(UNAVAILABLE, 'info'); renderAll(); return false; }
     var ok = canPledge(eventKey, pledgeContext());
     if (!ok.ok) { toast(pledgeErrorText(ok.error), 'info'); return false; }
 
@@ -818,24 +978,20 @@
     // half honors from accruing into a savings account.
     await settlePledge();
 
-    var provisional = true;
-    if (isSignedIn() && !rpcMissing('world_event_pledge')) {
-      var r;
-      try { r = await rpc('world_event_pledge', { p_event_key: eventKey }); }
-      catch (e) { toast(pledgeErrorText('network'), 'kill'); return false; }
-      var d = reducePledge(r.status, r.json);
-      noteRpc('world_event_pledge', d.action !== 'unsupported');
-      if (d.action === 'fail') { toast(d.message, 'info'); renderAll(); return false; }
-      if (d.action === 'accept') provisional = false;
-      // 'unsupported' → the migration is not applied. Fall through: a local,
-      // clearly-labelled provisional answer, under the same rules.
-    }
+    var r;
+    try { r = await rpc('world_event_pledge', { p_event_key: eventKey }); }
+    catch (e) { toast(pledgeErrorText('network'), 'kill'); return false; }
+    var d = reducePledge(r.status, r.json);
+    noteRpc('world_event_pledge', d.action !== 'unsupported');
+    // Un-migrated: the affordance goes away. No half-kept promise, no jargon.
+    if (d.action === 'unsupported') { toast(UNAVAILABLE, 'info'); renderAll(); return false; }
+    if (d.action === 'fail') { toast(d.message, 'info'); renderAll(); return false; }
 
     writePledge({ dayKey: ok.dayKey, eventKey: eventKey, slot: ok.slot, startMs: ok.startMs,
-                  at: now(), joined: false, provisional: provisional });
+                  at: now(), joined: false, provisional: false });
     var ev = eventForKey(eventKey);
-    toast('You will answer ' + (ev ? ev.name : 'the rally') + '. Be there for the full chest — ' +
-          'miss it and half honors find you' + (provisional ? ' (provisional — this device only)' : '') + '.', 'info');
+    toast('You will answer ' + (ev ? ev.name : 'the rally') + '. Be online when it opens and you are ' +
+          'in automatically — miss it entirely and half honors find you.', 'info');
     renderAll();
     return true;
   }
@@ -881,18 +1037,22 @@
     } finally { settling = false; }
   }
 
-  // Half honors. Gold and gems only — no Rally Seal, no community share, and
-  // no branch that could name the IAP-only Hearth Token.
+  // Half honors — the SAME themed table, on half the band. That is what makes
+  // the consolation legible: a Forge Levy you missed still pays bars and
+  // smithing, just half of it. No Rally Seal, no community share, and no branch
+  // that could name the IAP-only Hearth Token.
+  function absentChest(eventKey, gold, gems) {
+    var ev = eventForKey(eventKey);
+    return themedChest(ev ? ev.id : null,
+      Math.max(0, Math.min(ABSENT_BAND.gold, Math.floor(+gold || 0))),
+      Math.max(0, Math.min(ABSENT_BAND.gems, Math.floor(+gems || 0))), 0);
+  }
   function grantAbsent(p, d) {
-    var G = window.G, ev = eventForKey(p.eventKey);
-    var gold = Math.max(0, Math.min(ABSENT_BAND.gold, d.gold || 0));
-    var gems = Math.max(0, Math.min(ABSENT_BAND.gems, d.gems || 0));
-    G.gold = (G.gold || 0) + gold;
-    G.gems = (G.gems || 0) + gems;
-    persist();
-    toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: +' +
-          gold.toLocaleString() + 'g, +' + gems + (gems === 1 ? ' gem' : ' gems') +
-          (p.provisional ? ' (provisional)' : ''), 'levelup');
+    var ev = eventForKey(p.eventKey);
+    var chest = absentChest(p.eventKey, d.gold, d.gems);
+    payChest(chest);
+    toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: ' +
+          chestSummary(chest), 'levelup');
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
     renderAll();
   }
@@ -927,6 +1087,100 @@
       }
       await settlePledge();
     } catch (e) {}
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 5c · AUTO-JOIN — the pledge answers itself (b231)
+  // ════════════════════════════════════════════════════════════
+  // Tyler: a player who marked a rally and is THERE when it opens should not
+  // have to find a button. The pledge was the decision; clicking Join again is
+  // only a tax on the players who did the planning the feature asked for.
+  //
+  // So: pledged + online at any point inside the window = the pledge UPGRADES
+  // itself into the ordinary join, at full value, through the ordinary join
+  // path. Nothing downstream changes — contribution, the community bar, the
+  // aura and the chest are the same code they were before this existed.
+  //
+  // ── WHAT "ONLINE" MEANS ─────────────────────────────────────
+  // Exactly what the blessing gate means by it: HearthrisePresence.isOnline,
+  // which is the one oracle (HearthriseNetStatus → navigator.onLine plus a
+  // real probe). One question, one answer, one story told to the player. It
+  // fails OPEN — with no honest disconnection signal the player is online,
+  // because their session is what is executing this line.
+  //
+  // ── WHY THIS CANNOT DOUBLE-PAY ──────────────────────────────
+  // Auto-join is not a new payout; it is a join. Every no-double-pay lock the
+  // pledge already had applies unchanged, and the join itself is idempotent on
+  // four independent guards:
+  //   1. joinedThisWindow() — the local mirror already names this rally.
+  //   2. the day-spent check — a join for today under ANY key stops it.
+  //   3. `autoJoining`, an in-flight latch, so a 1Hz tick cannot start a second
+  //      attempt while the first is still awaiting the server.
+  //   4. world_event_joins' primary key (day_key, user_id), server-side, which
+  //      answers `already_joined` and is adopted rather than retried.
+  // And once it lands, adopt() latches joined=true on the PLEDGE, so
+  // pledgeOutcome() forfeits the consolation and world_event_absence_claim's
+  // LOCK 2 refuses it independently on the server. Full chest OR half honors,
+  // never both, on either side of the wire.
+  function sessionOnline() {
+    var P = window.HearthrisePresence;
+    if (P && typeof P.isOnline === 'function') { try { return !!P.isOnline(); } catch (e) { return true; } }
+    try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return false; } catch (e2) {}
+    return true;
+  }
+
+  /**
+   * PURE. Should the pledge become a join right now?
+   * o: { live, pledge, joinedDayKey, joinedEventKey, todayKey, online }
+   */
+  function autoJoinDecision(o) {
+    o = o || {};
+    if (!o.live)    return { action: 'skip', reason: 'no_window' };
+    if (!o.pledge)  return { action: 'skip', reason: 'no_pledge' };
+    if (o.pledge.eventKey !== o.live.eventKey) return { action: 'skip', reason: 'other_rally' };
+    if (o.joinedDayKey === o.todayKey && o.joinedEventKey) {
+      return { action: 'skip',
+               reason: o.joinedEventKey === o.live.eventKey ? 'already_joined' : 'day_spent' };
+    }
+    // Offline through the window is the OTHER branch of the promise: it is not
+    // a failure, it is the half-honors path, settled when they come back.
+    if (!o.online) return { action: 'skip', reason: 'offline' };
+    return { action: 'join', eventKey: o.live.eventKey };
+  }
+
+  function autoJoinContext(atMs) {
+    var ms = (atMs == null) ? now() : atMs;
+    var st = ensureState();
+    return { live: liveWindow(ms), pledge: readPledge(), todayKey: dayKeyAt(ms),
+             joinedDayKey: st.dayKey, joinedEventKey: st.eventKey, online: sessionOnline() };
+  }
+
+  var autoJoining = false;
+  async function autoJoinTick() {
+    if (autoJoining) return { action: 'skip', reason: 'busy' };
+    var d = autoJoinDecision(autoJoinContext());
+    if (d.action !== 'join') return d;
+    autoJoining = true;
+    try {
+      var ok = await join(true);          // the ordinary join path, confirm bypassed
+      if (!ok) return { action: 'skip', reason: 'refused' };
+      await closeJoinedPledge();
+      return { action: 'joined', eventKey: d.eventKey };
+    } catch (e) { return { action: 'skip', reason: 'error' }; }
+    finally { autoJoining = false; }
+  }
+
+  // Close the server's copy of the pledge the moment it has been answered.
+  // Not required for correctness — LOCK 2 already refuses half honors for a
+  // day with a join row — but it means a second device never even SEES a
+  // pending consolation it would then have to be told it cannot have.
+  async function closeJoinedPledge() {
+    var p = readPledge();
+    if (!p || p.provisional || !isSignedIn() || rpcMissing('world_event_pledge_settle')) return null;
+    var r;
+    try { r = await rpc('world_event_pledge_settle', { p_day_key: p.dayKey }); } catch (e) { return null; }
+    noteRpc('world_event_pledge_settle', !isMissingRpc(r.status, r.json));
+    return r.json || null;
   }
 
   // ── The live aura: +10% all XP while mustered ───────────────
@@ -1045,6 +1299,12 @@
 
   var lastToastAt = { t15: null, t5: null };
   function tickPill() {
+    // The pledge answers itself the second its window opens, which is why this
+    // rides the 1Hz pill tick rather than the 60s settle pass: a player who is
+    // here at 13:00:01 should already be mustered, not a minute late.
+    // autoJoinDecision() is pure and returns on its first line in every state
+    // but the one that matters, so this costs nothing on an ordinary session.
+    try { var pj = autoJoinTick(); if (pj && pj.catch) pj.catch(function () {}); } catch (e) {}
     var el = ensurePill(); if (!el) return;
     var s = pillState();
     var t = el.querySelector('.mp-t'), lab = el.querySelector('.mp-lab');
@@ -1175,10 +1435,27 @@
       (community.met ? ' · <b style="color:var(--gold-2)">the realm held</b>' : '') + '</div>';
   }
 
+  // The other one of today's two rallies — the thing "Switch to …" points at.
+  // Null once it can no longer be taken (its own window opened, or ours did and
+  // the day is committed), so the button can never offer a move that would be
+  // refused the moment it was clicked.
+  function switchTarget(ctx) {
+    var pl = ctx.pledge;
+    if (!pl || pl.dayKey !== ctx.todayKey) return null;
+    var all = ctx.windows || [];
+    for (var i = 0; i < all.length; i++) {
+      var w = all[i];
+      if (w.dayKey !== ctx.todayKey || w.eventKey === pl.eventKey) continue;
+      if (canPledge(w.eventKey, ctx).ok) return w;
+    }
+    return null;
+  }
+
   function slotsHtml(slots) {
     var n = now();
     var todayLocal = new Date(n).toDateString();
     var ctx = pledgeContext(n), pl = ctx.pledge;
+    var supported = pledgeSupported();
     return '<div class="mu-slots">' + slots.map(function (w) {
       var d = new Date(w.startMs);
       var when = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1188,41 +1465,59 @@
       var mine = !!(pl && pl.eventKey === w.eventKey);
       var can = canPledge(w.eventKey, ctx);
       var foot = '';
-      if (mine) {
+      if (!supported) {
+        foot = '';                                   // the affordance is simply not there
+      } else if (mine) {
+        // THE SWITCH (b231). The choice lives on the card that holds it, and
+        // it names the rally it would move to — "Switch to The Deep Seam" is a
+        // decision a player can make without opening anything else. It is
+        // present until YOUR window opens; after that canPledge() answers
+        // 'locked' and the line below simply states the plan.
+        var alt = switchTarget(ctx);
         foot = '<div class="mu-foot"><div class="mu-pledged">' +
-          gly('uiBanner', 12, 'currentColor') + '<span>You answer this one' +
-          (pl.provisional ? ' · provisional' : '') + '</span></div></div>';
-      } else if (can.ok) {
+          gly('uiBanner', 12, 'currentColor') + '<span>You answer this one</span></div>' +
+          (alt ? '<button class="btn btn-sm mu-pledge" data-mu="pledge" data-key="' + esc(alt.eventKey) +
+                 '">Switch to ' + esc(alt.event.name) + '</button>' : '') +
+          '</div>';
+      } else if (can.ok && !(pl && pl.dayKey === ctx.todayKey)) {
         foot = '<div class="mu-foot"><button class="btn btn-sm mu-pledge" data-mu="pledge" data-key="' +
-          esc(w.eventKey) + '">' +
-          (pl && pl.dayKey === ctx.todayKey ? 'Answer this one instead' : 'I’ll answer this one') +
-          '</button></div>';
+          esc(w.eventKey) + '">I’ll answer this one</button></div>';
       }
       return '<div class="mu-slot' + (isLive ? ' is-live' : '') + (mine ? ' is-mine' : '') + '">' +
         '<div class="mu-when">' + (isLive ? 'Live now' : (past ? 'Closed' : when)) + '</div>' +
         '<div class="mu-nm">' + gly(w.event.glyph, 14, 'var(--gold-2)') + ' ' + esc(w.event.name) + '</div>' +
         '<div class="mu-what">' + esc(w.event.what) + '</div>' + foot + '</div>';
-    }).join('') + '</div>' + pledgeNote(ctx, slots);
+    }).join('') + '</div>' + pledgeNote(ctx, slots, supported);
   }
 
   // One honest line under the two slots. It must never promise more than the
-  // consolation actually is — half of the BASE band, and nothing else.
-  function pledgeNote(ctx, slots) {
+  // consolation actually is — half of the BASE band's themed table, and
+  // nothing else. b231: it also states the auto-join rule, because that rule is
+  // the whole reason to mark a rally in the first place.
+  //
+  // There is NO implementation-state copy here, at any branch. If the server
+  // cannot hold a pledge the affordance is gone and this says one plain
+  // sentence about the feature, never a word about devices or storage.
+  function pledgeNote(ctx, slots, supported) {
     var pl = ctx.pledge;
-    var half = ABSENT_BAND.gold.toLocaleString() + 'g and ' + ABSENT_BAND.gems +
-               (ABSENT_BAND.gems === 1 ? ' gem' : ' gems');
+    var half = chestSummary(absentChest(pl ? pl.eventKey : null, ABSENT_BAND.gold, ABSENT_BAND.gems));
+    if (!supported) {
+      return isSignedIn()
+        ? '<div class="tiny muted" style="margin-top:8px">' + UNAVAILABLE + '</div>'
+        : '';
+    }
     if (pl) {
       var ev = eventForKey(pl.eventKey);
       return '<div class="tiny muted" style="margin-top:8px">You have answered <b>' +
-        esc(ev ? ev.name : 'a rally') + '</b>. Join it live for the full chest — if the window passes ' +
-        'without you, half honors (' + half + ') are waiting when you return.' +
-        (pl.provisional ? ' <b>Provisional</b> — recorded on this device only.' : '') + '</div>';
+        esc(ev ? ev.name : 'a rally') + '</b>. Be online when it opens and you join automatically, ' +
+        'for the full chest. If the whole window passes without you, half honors (' + esc(half) +
+        ') are waiting when you return.</div>';
     }
     var any = (slots || []).some(function (w) { return canPledge(w.eventKey, ctx).ok; });
     if (ctx.joinedToday) return '';
     return '<div class="tiny muted" style="margin-top:8px">' + (any
-      ? 'Mark the rally you mean to answer. Live play pays the full chest; if you cannot be there, ' +
-        'you still take half honors (' + half + ').'
+      ? 'Mark the rally you mean to answer and you are entered automatically if you are online when ' +
+        'it opens. Miss the window entirely and you still take half honors (' + esc(half) + ').'
       : 'Tomorrow’s rallies open for answering at the day roll.') + '</div>';
   }
 
@@ -1400,7 +1695,11 @@
           return origGlyphKey.apply(this, arguments);
         };
       }
-      syncClock().then(function () { tickPill(); return pledgeTick(); }).catch(function () {});
+      // pledgeTick's first pass hydrates, which is also what PROBES the pledge
+      // RPCs. Re-render once it settles so an un-migrated project drops the
+      // affordance on its own rather than after the player's first click.
+      syncClock().then(function () { tickPill(); return pledgeTick(); })
+                 .then(function () { renderAll(); }).catch(function () {});
       tickPill();
       setInterval(tickPill, 1000);
       setInterval(flush, FLUSH_MS);
@@ -1432,7 +1731,16 @@
     join: join, rally: rally, claim: claim, flush: flush,
     // pre-selection
     pledge: pledge, settlePledge: settlePledge, getPledge: readPledge,
-    hydratePledge: hydratePledge, canPledge: canPledge,
+    hydratePledge: hydratePledge, canPledge: canPledge, pledgeSupported: pledgeSupported,
+    // themed chests (b231)
+    THEMES: THEMES, CHEST_ITEM_SHARE: CHEST_ITEM_SHARE, CHEST_XP_SHARE: CHEST_XP_SHARE,
+    XP_PER_GOLD: XP_PER_GOLD, themedChest: themedChest, chestValue: chestValue,
+    chestSummary: chestSummary, absentChest: absentChest,
+    // auto-join (b231)
+    autoJoinDecision: autoJoinDecision, autoJoin: autoJoinTick,
+    _autoJoinContext: autoJoinContext, _sessionOnline: sessionOnline,
+    _switchTarget: switchTarget, _noteRpc: noteRpc, UNAVAILABLE: UNAVAILABLE,
+    _forceSupport: function (v) { forcedSupport = (v == null) ? null : !!v; },
     // UI
     render: renderEvents, renderPill: tickPill, openModal: openModal,
     // Server-contract seams — pure, no I/O. Exposed for the regression suite.

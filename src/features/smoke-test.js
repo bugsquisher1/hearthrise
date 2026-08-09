@@ -6210,12 +6210,17 @@ const TESTS = [
       const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
       M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
                        at: 0, joined: false, provisional: true });
+      // b231: the 750g band is now paid in that rally's OWN currency — some of
+      // it as domain materials and XP — so the gold delta is the themed
+      // remainder, and the whole chest is still worth no more than the band.
+      const expect = M.absentChest(pastKey + '#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
+      assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
       M.settlePledge();
-      assert(G.gold === gold0 + 750, 'half honors did not land: ' + (G.gold - gold0));
+      assert(G.gold === gold0 + expect.gold, 'half honors did not land: ' + (G.gold - gold0));
       assert(G.gems === gems0 + 1, 'half honors gems did not land: ' + (G.gems - gems0));
       assert(M.getPledge() === null, 'a settled pledge must be cleared, or it pays again on the next boot');
       M.settlePledge();
-      assert(G.gold === gold0 + 750, 'half honors paid twice — the pledge was not consumed');
+      assert(G.gold === gold0 + expect.gold, 'half honors paid twice — the pledge was not consumed');
     } finally {
       G.gold = gold0; G.gems = gems0;
       if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
@@ -6272,10 +6277,11 @@ const TESTS = [
     }
   }),
 
-  // #4: client-first. The client ships before the migration, so an un-migrated
-  // (or signed-out) server must degrade to a LABELLED provisional answer rather
-  // than hiding the feature or lying about it.
-  () => tryRun('b228: with no migration the pre-selection degrades to a labelled provisional answer', () => {
+  // #4: the wire contract, and what happens when the server cannot hold a
+  // pledge at all. b231 replaced the old "provisional, this device only"
+  // degradation — Tyler: an answer the server cannot keep is not a feature, it
+  // is a rumour — so an un-migrated project HIDES the affordance instead.
+  () => tryRun('b231: with no migration the pledge affordance hides — no half-kept promise', () => {
     const M = window.HearthriseMuster, G = window.G;
     assert(M._reducePledge(404, { code: 'PGRST202' }).action === 'unsupported',
       'a missing world_event_pledge RPC must degrade, not break the feature');
@@ -6287,29 +6293,300 @@ const TESTS = [
     assert(M._reducePledge(200, { ok: false, error: 'locked' }).message.length > 0,
       'every refusal must carry copy a player can act on');
 
-    // The provisional label is surfaced in the Events rally card, not buried —
-    // the same honesty pattern the solo rally uses.
+    // A signed-out or un-migrated session must not claim pledge support.
+    M._forceSupport(null);
+    assert(M.pledgeSupported() === false,
+      'a session with no server must never offer to hold a pledge');
+
     const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
     const prevTab = window.activeTab;
     try {
-      // Dated FORWARD on purpose: this test is about the label, and a pledge
-      // whose day cannot have closed can never be settled out from under it by
-      // the background settle pass while the assertions run.
+      // Dated FORWARD on purpose: a pledge whose day cannot have closed can
+      // never be settled out from under the assertions by the settle pass.
       const soon = new Date(M.now() + 86400000);
       const dayKey = soon.getUTCFullYear() + '-' + (soon.getUTCMonth() + 1) + '-' + soon.getUTCDate();
       M._writePledge({ dayKey, eventKey: dayKey + '#1', slot: 1, startMs: M.now() + 9e6,
-                       at: M.now(), joined: false, provisional: true });
+                       at: M.now(), joined: false, provisional: false });
       window.showTab('events');
+
+      // 1 — un-migrated: no buttons at all. Not a greyed one, not a "coming
+      // soon", and above all not a promise recorded nowhere.
+      M._forceSupport(false);
       M.render();
       const card = document.getElementById('hr-muster-card');
       assert(card, 'the rally card is missing from Events');
-      const text = card.textContent || '';
+      assert(!card.querySelector('[data-mu="pledge"]'),
+        'an un-migrated project still offered a pledge button');
+
+      // 2 — supported: the affordance is there and states the real numbers.
+      M._forceSupport(true);
+      M.render();
+      const text = document.getElementById('hr-muster-card').textContent || '';
       assert(/half honors/i.test(text),
         'the rally card never tells the player what answering in absence is worth');
-      assert(/750/.test(text), 'the card must state the actual number, not a vague promise');
-      assert(/provisional/i.test(text),
-        'a device-only answer must say so — an unlabelled provisional reward is a lie');
+      assert(/\d/.test(text.split('half honors')[1] || ''),
+        'the card must state the actual reward, not a vague promise');
+      assert(/automatically/i.test(text),
+        'the card must state the auto-join rule — it is the reason to mark a rally');
     } finally {
+      M._forceSupport(null);
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+      try { window.showTab(prevTab || 'profile'); } catch {}
+    }
+  }),
+
+  /* ── b231 regression suite (rally pledges v2) ──────────────────
+     Tyler, 2026-08-09: (1) pledged + online during the window = full
+     participation automatically; (2) a visible "Switch to <the other rally>"
+     until the pledged window opens; (3) chests THEMED to the event; (4) no
+     implementation-state copy, ever.
+
+     The two things that can go badly wrong here are the two that are tested
+     hardest: auto-join must never become a second payout on top of half
+     honors, and theming must never become a stealth buff. */
+
+  () => tryRun('b231: auto-join — pledged + online joins once, and never doubles with half honors', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    const D = M.autoJoinDecision;
+    const DAY = '2026-8-9';
+    const live = { eventKey: DAY + '#1', dayKey: DAY, slot: 1 };
+    const base = { live, pledge: { dayKey: DAY, eventKey: DAY + '#1' }, todayKey: DAY,
+                   joinedDayKey: null, joinedEventKey: null, online: true };
+    const why = (o) => { const r = D(Object.assign({}, base, o)); return r.action === 'join' ? 'join' : r.reason; };
+
+    // THE happy path: the window opened, they are here, they are in.
+    assert(why() === 'join', 'a pledged, online player must be entered automatically');
+    // Every branch that must NOT auto-join.
+    assert(why({ online: false }) === 'offline',
+      'an offline player must fall through to half honors, never be auto-joined');
+    assert(why({ live: null }) === 'no_window', 'nothing happens outside a window');
+    assert(why({ pledge: null }) === 'no_pledge',
+      'an un-pledged player keeps the manual join — auto-join must never fire for them');
+    assert(why({ pledge: { dayKey: DAY, eventKey: DAY + '#13' } }) === 'other_rally',
+      'a pledge for the OTHER rally must not be answered by this one');
+    assert(why({ joinedDayKey: DAY, joinedEventKey: DAY + '#1' }) === 'already_joined',
+      'the join is idempotent — a 1Hz tick must not re-join every second');
+    assert(why({ joinedDayKey: DAY, joinedEventKey: DAY + '#13' }) === 'day_spent',
+      'a day already spent on the other rally must not be spent again');
+
+    // The online oracle is the blessing gate's oracle, not a second opinion.
+    assert(typeof M._sessionOnline === 'function' && typeof M._sessionOnline() === 'boolean',
+      'auto-join must read a real online signal');
+    const P = window.HearthrisePresence;
+    assert(P && typeof P.isOnline === 'function', 'HearthrisePresence.isOnline is the one oracle');
+    assert(M._sessionOnline() === P.isOnline(),
+      'auto-join and the blessing must never disagree about whether the player is here');
+
+    // NO DOUBLE PAY, end to end on the real functions: pledge → auto-join →
+    // the day rolls (the muster mirror is pruned) → settlement pays nothing.
+    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const gold0 = G.gold, gems0 = G.gems;
+    try {
+      const past = new Date(M.now() - 3 * 86400000);
+      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
+      delete G.muster; M.ensureState();
+      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
+                       at: 0, joined: false, provisional: true });
+      // What auto-join does is adopt() the join — the same call the manual path
+      // makes — so the latch is exercised, not simulated.
+      M._adopt({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, server: false });
+      assert(M.getPledge().joined === true, 'auto-join must latch onto the pledge');
+      G.muster.dayKey = '1999-1-1'; M.ensureState();
+      M.settlePledge();
+      assert(G.gold === gold0 && G.gems === gems0,
+        'an auto-joined rally paid half honors on top of its chest — that is the double-pay bug');
+      assert(M.getPledge() === null, 'the answered pledge must be closed, not left pending');
+      // And the server says the same thing independently, through the join PK.
+      assert(M._reduceAbsence(200, { ok: false, error: 'answered_live' }).action === 'forfeit',
+        'the server must forfeit the consolation for a day that was answered live');
+    } finally {
+      G.gold = gold0; G.gems = gems0;
+      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+    }
+  }),
+
+  () => tryRun('b231: the pledged card offers "Switch to <the other rally>" until its window opens', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const prevTab = window.activeTab;
+    try {
+      M._forceSupport(true);
+      // Pledge whichever of TODAY's two rallies has not opened yet, so the
+      // switch is genuinely available and the test never depends on the hour.
+      const open = M.todaysWindows().filter((w) => M.now() < w.startMs);
+      if (open.length < 2) {
+        // After 13:00 UTC neither of today's slots can be pledged. The rule
+        // still has to hold, so it is asserted through the pure seam instead.
+        const ctx = M._pledgeContext();
+        assert(M._switchTarget(ctx) === null || M.canPledge(M._switchTarget(ctx).eventKey, ctx).ok,
+          'a switch target must always be one the pledge gate would actually accept');
+        return;
+      }
+      const mine = open[0], other = open[1];
+      M._writePledge({ dayKey: mine.dayKey, eventKey: mine.eventKey, slot: mine.slot,
+                       startMs: mine.startMs, at: M.now(), joined: false, provisional: false });
+      window.showTab('events'); M.render();
+      const card = document.getElementById('hr-muster-card');
+      const btn = card.querySelector('[data-mu="pledge"]');
+      assert(btn, 'a pledged card must still offer the switch');
+      assert(btn.getAttribute('data-key') === other.eventKey,
+        'the switch must point at the OTHER rally, got ' + btn.getAttribute('data-key'));
+      assert(btn.textContent.indexOf('Switch to ') === 0 &&
+             btn.textContent.indexOf(other.event.name) > 0,
+        'the switch must name the rally it moves to, got: ' + btn.textContent);
+      // Exactly one pledge control on the card — the choice lives where it is
+      // held, not duplicated onto every slot.
+      assert(card.querySelectorAll('[data-mu="pledge"]').length === 1,
+        'a pledged player must be offered one switch, not a second pledge button');
+
+      // Once YOUR window has opened the day is committed and the switch is gone.
+      const ctxOpen = Object.assign(M._pledgeContext(), { nowMs: mine.startMs + 60000 });
+      assert(M._switchTarget(ctxOpen) === null,
+        'the switch must disappear once the pledged rally has begun');
+    } finally {
+      M._forceSupport(null);
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+      try { window.showTab(prevTab || 'profile'); } catch {}
+    }
+  }),
+
+  () => tryRun('b231: every rally has a themed chest, and theming never inflates the band', () => {
+    const M = window.HearthriseMuster;
+    const ITEMS = window.ITEMS || {};
+    assert(M.EVENTS.length === Object.keys(M.THEMES).length,
+      'every rally needs a reward table — ' + M.EVENTS.length + ' rallies, ' +
+      Object.keys(M.THEMES).length + ' tables');
+
+    M.EVENTS.forEach((ev) => {
+      const t = M.THEMES[ev.id];
+      assert(t, 'rally ' + ev.id + ' has no reward table');
+      assert(t.skills.length > 0, ev.id + ' pays no XP — the theme is the whole point');
+      assert(t.items.length > 0, ev.id + ' pays no materials');
+      // The inline vendor values must match the economy, or a price change
+      // silently unbalances a rally chest.
+      t.items.forEach((it) => {
+        assert(ITEMS[it.id], ev.id + ' pays an item that does not exist: ' + it.id);
+        assert(ITEMS[it.id].v === it.v,
+          ev.id + ' prices ' + it.id + ' at ' + it.v + ' but the game says ' + ITEMS[it.id].v);
+      });
+      // The weights are a split of one budget, not a multiplier on it.
+      const w = t.items.reduce((a, b) => a + b.w, 0);
+      assert(Math.abs(w - 1) < 1e-9, ev.id + ' item weights must total 1, got ' + w);
+
+      // THE CEILING, at the floor band, the ceiling band and half honors.
+      [750, 1500, 3000, 7500].forEach((band) => {
+        const c = M.themedChest(ev.id, band, 2, 0);
+        assert(M.chestValue(c) <= band,
+          ev.id + ' at ' + band + 'g is worth ' + M.chestValue(c) + ' — theming must convert value, not add it');
+        assert(c.gold <= band && c.gold >= 0, ev.id + ' gold out of range at ' + band);
+        assert(c.items.length > 0, ev.id + ' paid no materials at ' + band + 'g');
+        assert(c.xp.length === t.skills.length && c.xp.every((x) => x.amount > 0),
+          ev.id + ' paid no XP at ' + band + 'g');
+        assert(JSON.stringify(c).indexOf('hearth_token') === -1,
+          'a rally chest must never reference the IAP-only Hearth Token');
+      });
+    });
+
+    // Tyler's own example, spelled out: the Forge Levy pays the forge.
+    const forge = M.themedChest('forge_levy', 7500, 10, 1);
+    assert(forge.xp.map((x) => x.skill).join() === 'smithing,crafting',
+      'the Forge Levy must pay smithing and crafting XP, got ' + JSON.stringify(forge.xp));
+    assert(forge.items.map((i) => i.id).join() === 'iron_bar,coal',
+      'the Forge Levy must pay forge materials, got ' + JSON.stringify(forge.items));
+    assert(forge.gems === 10 && forge.seals === 1,
+      'theming must leave gems and the Rally Seal exactly as the band set them');
+    assert(M.themedChest('forge_levy', 9e9, 9e9, 9e9).gold <= 7500,
+      'the 7,500g ceiling must survive theming');
+    assert(M.themedChest('forge_levy', 7500, 9e9, 9e9).gems === 10 &&
+           M.themedChest('forge_levy', 7500, 10, 9e9).seals === 1,
+      'the gem and Seal ceilings must survive theming');
+
+    // Half honors is 50% of the SAME table, not a different reward.
+    const half = M.absentChest('2026-8-9#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
+    const full = M.themedChest(half.eventId, M.SOLO_BAND.gold, M.SOLO_BAND.gems, 0);
+    assert(half.eventId === full.eventId && half.seals === 0,
+      'absence must draw on the same rally table and never earn a Rally Seal');
+    assert(M.chestValue(half) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
+    assert(M.chestValue(half) * 2 <= M.SOLO_BAND.gold + 1,
+      'half honors must stay at half the floor band');
+    assert(half.xp.map((x) => x.skill).join() === full.xp.map((x) => x.skill).join(),
+      'half honors must pay the same domain as the rally it was pledged to');
+
+    // An unknown rally degrades to plain gold — poorer, never emptier.
+    const unknown = M.themedChest('no_such_rally', 1500, 2, 0);
+    assert(unknown.gold === 1500 && unknown.items.length === 0 && unknown.xp.length === 0,
+      'an unknown rally must fall back to plain gold, got ' + JSON.stringify(unknown));
+
+    // XP must be granted, never injected: the chest names skills and amounts
+    // and the payout hands them to addXp, so PACE and the fuse apply.
+    assert(typeof window.addXp === 'function', 'the themed chest needs addXp to exist');
+    assert(M.XP_PER_GOLD > 0 && M.CHEST_XP_SHARE + M.CHEST_ITEM_SHARE < 1,
+      'the conversion shares must leave gold in the chest');
+  }),
+
+  () => tryRun('b231: no implementation-state copy anywhere in the rally surfaces', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    // Tyler: "provisional / recorded on this device" and anything like it is
+    // banned outright. A player must never be told about our plumbing.
+    const BANNED = [/provisional/i, /recorded on this device/i, /this device only/i,
+                    /device only/i, /local(?:ly)? (?:only|saved|stored)/i,
+                    /not (?:yet )?synced/i, /un-?migrated/i, /migration/i, /rpc/i];
+    const sweep = (label, s) => BANNED.forEach((re) => assert(!re.test(String(s || '')),
+      label + ' leaks implementation-state copy (' + re + '): ' + s));
+
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const prevTab = window.activeTab;
+    const realNotify = window.notify;
+    const toasts = [];
+    try {
+      window.notify = (msg) => { toasts.push(String(msg)); };
+      window.showTab('events');
+
+      // Every state the rally card can be in, swept.
+      [[true, true], [true, false], [false, true], [false, false]].forEach(([supported, pledged]) => {
+        M._forceSupport(supported);
+        if (pledged) {
+          const soon = new Date(M.now() + 86400000);
+          const dayKey = soon.getUTCFullYear() + '-' + (soon.getUTCMonth() + 1) + '-' + soon.getUTCDate();
+          M._writePledge({ dayKey, eventKey: dayKey + '#1', slot: 1, startMs: M.now() + 9e6,
+                           at: M.now(), joined: false, provisional: false });
+        } else { M._writePledge(null); }
+        M.render();
+        const card = document.getElementById('hr-muster-card');
+        sweep('the rally card (supported=' + supported + ', pledged=' + pledged + ')',
+              card ? card.textContent : '');
+      });
+
+      // The degraded sentence is the ONLY thing a server-less session may say,
+      // and it says nothing about why.
+      M._forceSupport(false); M._writePledge(null); M.render();
+      const degraded = document.getElementById('hr-muster-card').textContent || '';
+      assert(degraded.indexOf('unavailable') < 0 || degraded.indexOf(M.UNAVAILABLE) >= 0,
+        'the degraded state may only use the one approved sentence');
+      assert(M.UNAVAILABLE === 'Rally pledges are unavailable right now.',
+        'the degraded sentence drifted: ' + M.UNAVAILABLE);
+      sweep('the degraded sentence', M.UNAVAILABLE);
+
+      // The half-honors toast, captured at source.
+      toasts.length = 0;
+      const gold0 = G.gold, gems0 = G.gems;
+      try {
+        M._grantAbsent({ dayKey: '2026-8-9', eventKey: '2026-8-9#1', provisional: true },
+                       { gold: M.ABSENT_BAND.gold, gems: M.ABSENT_BAND.gems });
+      } finally { G.gold = gold0; G.gems = gems0; }
+      assert(toasts.length > 0, 'half honors must tell the player it happened');
+      toasts.forEach((t) => sweep('a half-honors toast', t));
+
+      // And every refusal sentence the pledge can produce.
+      ['window_open', 'locked', 'not_today', 'unknown_slot', 'already_answered',
+       'already_pledged', 'not_signed_in', 'network', ''].forEach((e) => {
+        sweep('pledge refusal "' + e + '"', M._reducePledge(200, { ok: false, error: e }).message);
+      });
+    } finally {
+      window.notify = realNotify;
+      M._forceSupport(null);
       if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
       try { window.showTab(prevTab || 'profile'); } catch {}
     }

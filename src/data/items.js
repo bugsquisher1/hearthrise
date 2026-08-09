@@ -1,13 +1,18 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=246';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=246';
+import { GEAR_ITEMS } from './gear-tiers.js?v=247';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=247';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=247';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
      four weapon families) is spread FIRST, so any hand-authored entry below
      with the same id wins and keeps its historical stats/values. */
   ...GEAR_ITEMS,
+
+  /* b247 (Wave 3): 14 curated unique items that route ~26 orphan boss/mid
+     drops into real gear. New ids only — no collision with hand entries. */
+  ...WAVE3_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

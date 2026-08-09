@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 247 — 2026-08-09 (Loot worth chasing)
+
+- ⚔️ **14 new unique items — real boss loot with a purpose.** A pile of monster drops used to be dead weight you only sold. They now feed 14 hand-crafted uniques with their own identity and flavour — from the early **Widow's Fang** (fast, envenomed) to the endgame **Dragonrend** greatblade forged from an ancient claw and a dragon's heart-gem. Each one leans into crit, swing speed, or a combat style, so what drops finally matters.
+- 📖 **Every new piece is in the Recipe Book, level-gated and explained.** Hover any unique to read what it is and exactly what it's made from — locked ones show their recipe in grey so you know what to hunt for.
+- 🧵 **Nothing dead-ends.** War Crowns, Void Chitin, Hell Embers, Alpha Fangs and more now route into gear instead of the vendor. Old saves are untouched.
+- 🧪 451 tests green.
+
 ## v0.9.2-beta build 246 — 2026-08-09 (Gear you've earned)
 
 - 🗡️ **Gear level requirements are real now.** The game showed "Requires Lv X" on gear but let you wear anything anyway — that gate is real: armour is gated on Defence, weapons on their combat style, at the tier's level (Bronze anytime → Dawnsteel needs Lv 88). Wearing top-tier gear is something you *earn* now.

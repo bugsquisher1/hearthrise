@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=246' directly.
+// modularised, will import { G } from '../state/game.js?v=247' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=246';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=246';
+import { on, snapshot } from '../net/events.js?v=247';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=247';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=246';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=247';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11305,6 +11305,33 @@ const TESTS = [
       window.equipItem(rid);
       assert(isEquipped(), 'meeting the requirement lets you equip');
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {
+    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
+    const VALID_SLOTS = new Set(['helmet','necklace','earrings','cape','weapon','ammo','ring','body','gloves','belt','pants','boots','companion']);
+    const WAVE3 = ['dragonrend_greatblade','crown_of_the_fallen_king','emberfang_blade','demoncaller_staff',
+      'panthers_eye_pendant','wraithsilk_shroud','widows_fang','plaguewarden_greaves','hollow_sigil_ring',
+      'fangdart_recurve','alphaheart_longbow','nightstalker_pelt','warband_bulwark','chitinweave_cloak'];
+    const allRecipes = [...(R.smithing||[]), ...(R.crafting||[])];
+    WAVE3.forEach((id) => {
+      const it = ITEMS[id];
+      assert(it, 'Wave 3 item must exist: ' + id);
+      assert(VALID_SLOTS.has(it.slot), id + ' must sit in a real equip slot, got ' + it.slot);
+      // Every unique is obtainable: exactly one recipe outputs it, and every input is a known item.
+      const rec = allRecipes.find((r) => r.output === id);
+      assert(rec, id + ' must have a craft recipe (no dead boss loot)');
+      Object.keys(rec.inputs || {}).forEach((k) => assert(ITEMS[k], id + ' recipe references a real item: ' + k));
+      // Endgame gear carries a real wield gate.
+      const req = window.gearWieldReq(it);
+      assert(req && req.lv > 0, id + ' must be level-gated to wield');
+      // Flavour line surfaces in the tooltip index.
+      assert(typeof window.itemDesc === 'function' && window.itemDesc(id), id + ' must have a description');
+    });
+    // The marquee orphans are actually consumed by these recipes (routing, not just new content).
+    const consumed = new Set(allRecipes.filter((r) => WAVE3.includes(r.output)).flatMap((r) => Object.keys(r.inputs || {})));
+    ['war_crown','void_chitin','ancient_claw','hell_ember','wraith_veil','alpha_fang','dark_sigil','plague_ichor']
+      .forEach((orphan) => assert(consumed.has(orphan), 'orphan drop must be routed into a unique: ' + orphan));
   }),
 
   () => tryRun('b245: attack speed is a real lever — spdB shortens the swing, capped at 20%', () => {

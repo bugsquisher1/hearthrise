@@ -13,8 +13,9 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=246';
-import { ITEMS, foodClassOf } from './items.js?v=246';
+import { GEAR_RECIPES } from './gear-tiers.js?v=247';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=247';
+import { ITEMS, foodClassOf } from './items.js?v=247';
 
 const BASE_RECIPES = {
   cooking: [
@@ -206,8 +207,8 @@ function mergeGenerated(base, generated) {
 
 export const ARTISAN_RECIPES = {
   cooking:  BASE_RECIPES.cooking.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
-  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing),
-  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting),
+  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing)),
+  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
 };
 

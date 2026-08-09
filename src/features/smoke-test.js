@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=255' directly.
+// modularised, will import { G } from '../state/game.js?v=256' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=255';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=255';
+import { on, snapshot } from '../net/events.js?v=256';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=256';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=255';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=256';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,30 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b256: Boss of the Day card lives with the picker + hides during a fight (paione: popped up mid-combat)', () => {
+    const B = window.HearthriseBossOfDay;
+    if(!B || typeof B.render !== 'function'){ assert(true,'boss module absent'); return; }
+    const panel = document.getElementById('panel-combat');
+    if(!panel){ assert(true,'no combat panel'); return; }
+    B.render();
+    const card = document.getElementById('hr-botd-card');
+    assert(card && card.parentElement === panel, 'the card must be a child of #panel-combat');
+    const picker = panel.querySelector('.combat-picker');
+    if(picker){ assert(card.nextElementSibling === picker, 'the card must sit just before the monster picker'); }
+    // During a fight (desktop rule) the card follows the picker out of view.
+    const hadActive = panel.classList.contains('active');
+    const hadCombat = document.body.classList.contains('in-combat');
+    panel.classList.add('active'); document.body.classList.add('in-combat');
+    try {
+      assert(getComputedStyle(card).display === 'none', 'the card must be hidden during an active fight');
+      document.body.classList.remove('in-combat');
+      assert(getComputedStyle(card).display !== 'none', 'the card must be visible again when not fighting');
+    } finally {
+      if(!hadActive) panel.classList.remove('active');
+      if(hadCombat) document.body.classList.add('in-combat'); else document.body.classList.remove('in-combat');
+    }
   }),
 
   () => tryRun('b253: toasts side-step a corner button on a short landscape screen (paione: toasts over content)', () => {

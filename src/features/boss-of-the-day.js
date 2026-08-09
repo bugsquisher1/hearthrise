@@ -108,7 +108,14 @@
       card = document.createElement('div');
       card.id = 'hr-botd-card';
       card.className = 'card hr-botd';
-      panel.insertBefore(card, panel.firstChild);
+    }
+    // Live with the monster picker ("choose a fight"), so the mobile sub-tabs
+    // keep it on the Foes tab and out of an active fight. Sit just before the
+    // picker card; fall back to the panel top if the picker isn't there yet.
+    var picker = panel.querySelector('.combat-picker');
+    var target = picker || panel.firstChild;
+    if (card.parentElement !== panel || (picker && card.nextElementSibling !== picker)) {
+      panel.insertBefore(card, target);
     }
     return card;
   }

@@ -1192,6 +1192,14 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   #panel-combat[data-mobile-sub="arena"] .combat-picker {
     display: none !important;
   }
+  /* b256: the Boss of the Day card belongs to the "choose a fight" context — it
+     lives ONLY on the Foes (monsters) sub-tab. Without this it sat at the panel
+     top on every sub-tab and dropped into the middle of an active fight on the
+     Arena tab (paione). */
+  #panel-combat[data-mobile-sub="style"] #hr-botd-card,
+  #panel-combat[data-mobile-sub="arena"] #hr-botd-card {
+    display: none !important;
+  }
   /* DUNGEONS button always visible regardless of sub-tab */
 
   /* Style sub-tab — keep the picker compact */

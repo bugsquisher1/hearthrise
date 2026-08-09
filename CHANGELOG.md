@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 256 — 2026-08-09 (Boss card knows its place)
+
+- 🐉 **The Boss of the Day card no longer interrupts a fight.** It was showing on every combat sub-tab, so it dropped into the middle of an active battle. It now lives only on the **Foes** tab (where you pick who to fight) and steps aside during combat. *(Thanks paione.)*
+
 ## v0.9.2-beta build 255 — 2026-08-09 (Topbar breathing room)
 
 - 📱 **The top bar no longer overlaps itself in landscape.** Your name, clan tag and Online status were stacking into a strip too short to hold them, so they collided with the rally timer. On phones the top bar now shows a single, tidy clan tag (your name and status already live in the profile header just below), and long clan names truncate cleanly. *(Thanks Tyler.)*

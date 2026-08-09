@@ -209,9 +209,21 @@
   };
 
   // Initialize on DOMContentLoaded so legacy.js has loaded first.
+  //
+  // b224 ACCOUNT WALL: init() is not read-only. With no `hearthrise:profile`
+  // present it runs migrateLegacySave(), which WRITES a profile and copies the
+  // save into slot 0 — character-slot creation, on a device whose visitor has
+  // not proved they own an account. Slots belong to an account now, so the
+  // whole module (init, the migration, and the slot-select UI that can buy a
+  // slot with gems) waits for the gate. Nothing here is deleted: signed in,
+  // it behaves exactly as before.
   function start(){ window.HearthriseProfile.init(); injectUI(); }
-  if(document.readyState !== 'loading'){ setTimeout(start, 50); }
-  else document.addEventListener('DOMContentLoaded', start);
+  function arm(){
+    if(document.readyState !== 'loading'){ setTimeout(start, 50); }
+    else document.addEventListener('DOMContentLoaded', start);
+  }
+  if(window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   // ── UI: character-select drawer ──────────────────────────────
   // Triggered by clicking the player avatar in the topbar.

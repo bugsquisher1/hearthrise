@@ -109,28 +109,62 @@ function enableLiveSync() {
   pullAndMaybeRestore();
 }
 
+/**
+ * THE SAVE-CONFLICT RULE, pure and exported so it can be tested without a
+ * network, a session, or a live G. (b224 — it used to be inlined inside
+ * pullAndMaybeRestore(), which made the one promise this project cannot break
+ * — "a local save is never discarded silently" — unprovable.)
+ *
+ * The account wall means every player now signs in, and a beta player signing
+ * in for the first time arrives here with a real local save and (usually) an
+ * empty cloud. The three outcomes, and why:
+ *
+ *   'adopt'  — the cloud has nothing (or nothing better). The LOCAL save stays
+ *              live and sync.js's next snapshot uploads it. This is what
+ *              "adoption" mechanically is: we do nothing, and the local save
+ *              becomes the account's save.
+ *   'prompt' — both exist and the cloud is further along. The player is ASKED.
+ *              Never resolved for them.
+ *   'none'   — no cloud snapshot at all. Same practical effect as 'adopt',
+ *              reported separately so the caller can tell "nothing to compare"
+ *              from "compared, local won".
+ *
+ * There is deliberately NO branch that overwrites a local save without asking.
+ * @returns {{action:'none'|'adopt'|'prompt', localTotalLv:number, cloudTotalLv:number}}
+ */
+export function decideRestore(localTotalLv, snap) {
+  const local = Number(localTotalLv) || 0;
+  if (!snap || typeof snap !== 'object') return { action: 'none', localTotalLv: local, cloudTotalLv: 0 };
+  const cloud = Number(snap.totalLevel) || 0;
+  if (cloud > local) return { action: 'prompt', localTotalLv: local, cloudTotalLv: cloud };
+  return { action: 'adopt', localTotalLv: local, cloudTotalLv: cloud };
+}
+
 async function pullAndMaybeRestore() {
   try {
     const snap = await pullLatest();
-    if (!snap) return;
-    // Conflict resolution: take whichever has the higher totalLevel.
-    // This is a v1 stub; refine later. NOTE: G has no stored `totalLevel` — it's
-    // computed from skills via getTotalLevel(). Using G.totalLevel (undefined)
-    // made this gate always 0 > 0 = false, so cloud restore NEVER fired and
-    // cross-device / fresh-login progress silently failed to load.
+    // NOTE: G has no stored `totalLevel` — it's computed from skills via
+    // getTotalLevel(). Using G.totalLevel (undefined) made this gate always
+    // 0 > 0 = false, so cloud restore NEVER fired and cross-device / fresh-
+    // login progress silently failed to load.
     const localTotalLv = (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
       || (window.G && window.G.totalLevel) || 0;
-    const cloudTotalLv = snap.totalLevel || 0;
-    if (cloudTotalLv > localTotalLv) {
-      const ok = confirm(
-        `Cloud save found (Total Lv ${cloudTotalLv} vs local Lv ${localTotalLv}).\n\n` +
-        `Restore from cloud?`
-      );
-      if (ok && window.G) {
-        Object.assign(window.G, snap);
-        if (typeof window.saveLocal === 'function') window.saveLocal();
-        location.reload();
-      }
+    const d = decideRestore(localTotalLv, snap);
+    if (d.action === 'none') return;
+    if (d.action === 'adopt') {
+      // The local save wins and is about to be uploaded by sync.js. Say so —
+      // an existing beta player deserves to know their save was carried in.
+      console.log(`[Auth] local save kept (Total Lv ${d.localTotalLv} vs cloud ${d.cloudTotalLv}) — it will be synced to this account.`);
+      return;
+    }
+    const ok = confirm(
+      `Cloud save found (Total Lv ${d.cloudTotalLv} vs local Lv ${d.localTotalLv}).\n\n` +
+      `Restore from cloud?`
+    );
+    if (ok && window.G) {
+      Object.assign(window.G, snap);
+      if (typeof window.saveLocal === 'function') window.saveLocal();
+      location.reload();
     }
   } catch (e) {
     console.warn('[Auth] pull failed:', e.message);
@@ -193,7 +227,11 @@ function renderAuthUi() {
       label.textContent = session.user.email || 'Online';
     } else {
       banner.classList.add('off');
-      label.textContent = authConfig ? 'Offline · sign in to sync' : 'Offline play';
+      /* b224: was "Offline · sign in to sync" / "Offline play" — a standing
+         invitation to play without an account, which the product no longer
+         offers. Inside a session this state means the token lapsed or the
+         network went, not that account-less play is on the menu. */
+      label.textContent = authConfig ? 'Signed out' : 'Offline';
     }
   }
   // Replace the "Sign in" button on the profile dashboard if it exists
@@ -225,7 +263,7 @@ function showAuthModal() {
         <button type="submit" data-action="signin" style="flex:1;padding:8px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Sign In</button>
         <button type="button" data-action="signup" style="flex:1;padding:8px;background:#5fcc7c;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">Create Account</button>
       </div>
-      <button type="button" data-action="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:11px">Cancel · Continue Offline</button>
+      <button type="button" data-action="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:11px">Cancel</button>
       <div data-status style="font-size:11px;color:#e88a8a;min-height:14px;text-align:center"></div>
     </form>
   `;

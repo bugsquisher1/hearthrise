@@ -167,8 +167,14 @@
   // the front-door guard matches the overlays that actually exist)
   window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS };
 
-  // Run on DOM ready, slight delay so FTUE / build-info finish booting first
+  // Run on DOM ready, slight delay so FTUE / build-info finish booting first.
+  // b224: and behind the account wall — the What's-New sheet is news for a
+  // player who is IN, not a thing to stack on the front door.
   function boot() { setTimeout(maybeShow, 1500); }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  function arm() {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  }
+  if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 })();

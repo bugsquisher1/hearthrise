@@ -200,8 +200,15 @@
     if (anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
     open();
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { autoBoot(0); }, 2200); });
-  else setTimeout(function () { autoBoot(0); }, 2200);
+  // b224: behind the account wall. autoBoot() would otherwise poll for
+  // window.G forever every 500ms while the player is at the door — legacy
+  // boot() is what publishes it, and that is exactly what the gate defers.
+  function arm() {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { autoBoot(0); }, 2200); });
+    else setTimeout(function () { autoBoot(0); }, 2200);
+  }
+  if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   console.log('[daily-reward] ready');
 })();

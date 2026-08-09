@@ -1020,6 +1020,13 @@
   // post-signup-welcome.js does — auth.js exposes no subscribe hook — and
   // deliberately queues behind FTUE and the post-signup modal so a new
   // player never meets two modals at once.
+  // The overlays this prompt must never land on. `.ftue-root` — not
+  // `.ftue-card.show` — because the tour is "up" from the moment it builds its
+  // root, not from the moment its card finishes animating in. Exposed so the
+  // regression suite can assert the guard rather than infer it from timing.
+  var FRONT_DOOR = '.ftue-root, .hr-id-scrim';
+  function frontDoorBusy() { return !!document.querySelector(FRONT_DOOR); }
+
   var lastUser = null;
   function tick() {
     var uid = userId();
@@ -1040,7 +1047,14 @@
     // `.ftue-root > .ftue-card.show` — the `.hr-ftue` that post-signup-welcome
     // has been guarding on since b141 matches nothing, which is why that
     // modal has always been able to land on top of the tutorial.
-    if (document.querySelector('.ftue-root .ftue-card.show, .hr-id-scrim')) return;
+    //
+    // b224: `.ftue-card.show` alone still lost a RACE. FTUE builds `.ftue-root`
+    // at DOMContentLoaded+600 and only adds `.show` ~80ms later; this tick also
+    // ran at +600 (see boot below, now +1200). On a first sign-in the name
+    // modal therefore opened a hair before the tour's card appeared, and the
+    // player met both at once — the exact stacking bug b221/b223 kept closing
+    // elsewhere. Guard on the ROOT, which exists the instant the tour starts.
+    if (frontDoorBusy()) return;
     // Deliberately NOT queued behind #hr-post-signup-modal: that sheet greets
     // the player by the prefix of their email address, which is precisely the
     // name this modal exists to replace. Naming comes first; the welcome then
@@ -1061,11 +1075,22 @@
       try { console.warn('[identity] boot failed', e); } catch (e2) {}
     }
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 600); });
-  } else {
-    setTimeout(boot, 600);
+  // b224: the name modal is a FIRST-SIGN-IN flow, so it waits for the account
+  // wall to open. The seam below is still published immediately — load order
+  // must not depend on the gate — only the polling/prompting boot is deferred.
+  // b224: +1200, not +600. FTUE starts at DOMContentLoaded+600, so a first
+  // tick at +600 was a coin toss against it. Being late costs a new player
+  // nothing — the tick repeats every 2s and they are reading a tutorial —
+  // while being early costs them two modals stacked on their first minute.
+  function arm() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 1200); });
+    } else {
+      setTimeout(boot, 1200);
+    }
   }
+  if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   // ── The seam ────────────────────────────────────────────────
   // MERGE, never replace: src/utils/profile.js merges its read accessors
@@ -1089,6 +1114,7 @@
     // server-contract seams — pure, no I/O. Exposed for the regression suite.
     _reduceClaim: reduceClaim, _reduceAvailability: reduceAvailability,
     _reduceUpload: reduceUpload, _isMissingRpc: isMissingRpc,
+    _FRONT_DOOR: FRONT_DOOR, _frontDoorBusy: frontDoorBusy,
     _record: function () { return load(); },
     _adopt: adopt, _reset: _reset, _persist: persist,
     _resetProbes: _resetProbes, _b64Bytes: b64Bytes

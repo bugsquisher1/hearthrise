@@ -123,11 +123,19 @@
     }, 1000);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootWatch);
-  } else {
-    bootWatch();
+  // b224: behind the account wall too. This sheet's whole job is "you are
+  // signed in, here is what to do first" — it has nothing to say to someone
+  // still standing at the door, and its 30-second poll would otherwise burn
+  // out before they finish signing up.
+  function arm() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootWatch);
+    } else {
+      bootWatch();
+    }
   }
+  if (window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   // Public hook: manual trigger from settings ("show welcome again")
   window.HearthrisePostSignup = {

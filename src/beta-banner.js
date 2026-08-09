@@ -88,7 +88,11 @@
       '<ul style="margin:0 0 14px;padding-left:18px;font-size:var(--t-small,14px)">'+
       '  <li>Found a bug? Use the <b>Report</b> button in the bottom-right corner — it goes straight to the dev Discord.</li>'+
       '  <li>Have ideas, want to chat, or just say hi? Join the Discord below.</li>'+
-      '  <li>Saves live in your browser. Sign in via Settings → Account if you want cloud sync across devices.</li>'+
+      /* b224: this line used to read "Saves live in your browser. Sign in via
+         Settings → Account if you want cloud sync" — an invitation to play
+         without an account, which is no longer the product. Accounts are
+         required; the local save is the offline cache underneath one. */
+      '  <li>Your account keeps your progress safe — it syncs to the realm and follows you to every device you play on.</li>'+
       '</ul>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
       '  <a class="btn" target="_blank" rel="noopener" href="'+DISCORD_INVITE+'" style="background:transparent;color:var(--ink-2,#c4b79e);border:1px solid var(--line,rgba(201,162,74,.3));padding:8px 14px;border-radius:var(--r,3px);font-weight:700;text-decoration:none;font-size:var(--t-small,13px)">Join the Discord</a>'+
@@ -170,12 +174,18 @@
   }, 1000);
 
   // Boot deferred so we don't compete with the changelog/welcome modals.
+  // b224: and deferred again behind the account wall — no modal may land in
+  // front of the front door.
   function boot(){ setTimeout(maybeShow, 1500); }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
+  function arm(){
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
   }
+  if(window.HearthriseGate && typeof window.HearthriseGate.whenOpen === 'function') window.HearthriseGate.whenOpen(arm);
+  else arm();
 
   // Public API for testing + admin-side reset.
   window.HearthriseBetaBanner = {

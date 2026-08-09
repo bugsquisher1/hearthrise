@@ -260,3 +260,28 @@ Wrote three buildable specs in `docs/design/` (no game code touched). Grounded i
 
 ### 2026-08-08 · bootstrap
 Domain seeded. No active task.
+
+### 2026-08-09 · Character/Skills screen rework — PLAN (docs/design/character-skills-rework.md)
+Read-only plan per Tyler's directive + guardrail. No game code touched. Mapped every widget on the two live screens to file+region+function before writing.
+
+**Key discoveries (from reading the actual code, not the memory):**
+- The live **Character screen is `character-page.js`'s ESM `renderCharacter`**, not legacy's. `main.js` (deferred module) calls `setupCharacterPage()` AFTER `legacy.js` runs, so it **overwrites** legacy's `renderCharacter` (7173) + `applyCharExtensions` (9107) + `buildActivityCard` + the `.char-skill-card` patcher — **all of that legacy path is dead code.** Don't "preserve" it.
+- The character-page **"Your Heroes" (`buildSlotsCard`) is a FAKE** — a static 3-slot paywall mockup that doesn't read `multi-character.js` and can't switch characters. The REAL switcher is the topbar-avatar drawer in `multi-character.js` (`openCharacterSelect`/`wireAvatar`). Plan CUTS the fake (Final Directive) and moves the real selector to Home.
+- The **b218 equipment doll (`buildTibiaDoll`, `_tdPane` Equipment/Stats/Companion) lives in `#panel-inventory`**, not Character — Character only shows a summary card with "Manage gear →" jumping to inventory. Plan promotes the doll into a real Equipment sub-tab (reused whole).
+- `switchSlot` does `location.reload()` by design (monolith has no hot save-swap) — preserved.
+
+**Chosen sub-tab structure: Skills · Equipment · Hero** (Skills default). Reasoned in §2.1: Skills leads (it's what the game is about + what Tyler featured); Equipment stays first-class per directive #3 (reuse the doll seam whole, companion comes free); Hero absorbs identity + combat cards + rates + the OSRS Account stat grid; Companion stays the doll's 3rd internal pane, not a 4th top-level tab; Renown stays on Home (don't fork the meta-spine).
+
+**Skill tiles = doors via the EXISTING seam** — `openSkillDetail(id)` (which already short-circuits combat→Combat, farming→Farm) + `HearthriseQuestNav`. Invented no routing. b220 lanes + b227 quest "Go" move with `#skill-detail` unchanged.
+
+**Nav fold = re-point, don't delete.** `showTab('skills')` becomes an alias (via a chained wrapper) → Character + `_charPane='skills'` + `openSkillDetail`. Keep `#skills-list`/`#skill-detail`/`#skill-detail-title` in the DOM or activities-grid.js goes blank. Retarget the FTUE `[data-tab="skills"]` step (coordinate with the already-filed FTUE listener-leak P1 fix).
+
+**Coordinator addendum handled** — Account stat grid, each mapped to a real source in §5: Combat Lv `getCombatLevel()`, Total Lv `getTotalLevel()`, Total XP ΣG.skills, Quests `(G.quests||[]).filter(q=>q.done)` (+flagged the stale `G.quests.list` read at legacy.js:9549 and that lifetime-incl-dailies would need a new counter), Achievements `ACHIEVEMENTS`×`G.achievements[id].unlocked` (real system at legacy.js:7698 — honest 1:1, not Chronicle/renown), Combat Tasks `G.bountyHunter.completed` (legacy.js:646, confirmed), Collections `HearthriseCollection.getStats`, **Time Played → NO counter exists** (only createdAt/lastSeen) → spec'd new tick-driven `G.stats.playMs` reusing b226 presence, OMITTED until built, never faked.
+
+**Migration-safety table: 38 items** — ~26 preserved, ~9 moved/merged, 3 cut (fake paywall slots, standalone Skills nav button, dead legacy renderCharacter path), + 8 stat rows (7 real, 1 new-work).
+
+**Top-3 breakage risks:** (1) the `skills`→`character` alias silently freezes the live XP bar because hot paths gate on `activeTab==='skills'` (legacy.js 2401/2823/8151) → broaden to `isSkillsVisible()` helper + a live-progress test; (2) sub-tab snap-back (the b218 bug reborn) → copy `_tdPane` persistence into `window._charPane`; (3) `showTab` wrapper-chain ordering + deep links → install the alias last as one fresh wrapper, keep the skill DOM ids, regression-test every deep link.
+
+**Sequencing:** build AFTER `bonus-rebase` (b228) + `rally-v2` merge. The real collision is `home-dashboard.js` (rally-v2 edits "The realm"; we add "Your Heroes" — land it as a new self-contained function after they merge). character-page rates read `getBonus` (numeric-only impact from b228, no structural collision). Phase 1 = combined screen + Heroes-on-Home behind existing render seams; Phase 2 = OSRS-grid art + Time Played counter + doll/Hero stats de-dup. Full test list (baseline + new) in §7.3.
+
+**For Tyler's reaction:** the sub-tab order (Skills default) and the CUT of the fake paywall "Your Heroes" are the two calls most worth confirming before build.

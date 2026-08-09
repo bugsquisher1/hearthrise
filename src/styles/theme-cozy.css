@@ -743,8 +743,11 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
    * — yet the un-prefixed `.app` padding-left:64px below still reserved space.
    * Result: a dead 64px strip on the left AND the bottom-nav still eating the
    * bottom. De-themed so the rail rotates on every theme; only the *colour*
-   * stays theme-specific, driven by the theme's own --sidebar-bg token. */
-  .bottom-nav {
+   * stays theme-specific, driven by the theme's own --sidebar-bg token.
+   * Qualified with body[data-theme] so this rail layout (0,2,1) reliably beats
+   * the general mobile-nav rules (`.bottom-nav`, 0,1,0) that ALSO match a
+   * landscape phone and would otherwise force it back to a ~60px bottom bar. */
+  body[data-theme] .bottom-nav {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;

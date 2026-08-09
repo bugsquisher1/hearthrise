@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 250 — 2026-08-09 (Landscape rail, full height)
+
+- 📱 **The landscape nav rail now runs the full height of the screen.** b249 moved the nav to the left but a competing rule kept it a short stub; it's now a proper full-height rail, so every tab is reachable and the game truly fills the landscape screen.
+- 🧪 455 tests green.
+
 ## v0.9.2-beta build 249 — 2026-08-09 (Landscape space + a real scroll fix)
 
 - 📱 **Landscape reclaims the wasted left strip and the bottom bar.** On the live theme the nav never folded into the side rail, so a dead ~64px gutter sat on the left while the nav still ate the bottom of the screen. The nav now becomes a proper left rail on every theme — the game fills the whole landscape screen.

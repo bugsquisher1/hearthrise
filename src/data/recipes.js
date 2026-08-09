@@ -13,9 +13,9 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=249';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=249';
-import { ITEMS, foodClassOf } from './items.js?v=249';
+import { GEAR_RECIPES } from './gear-tiers.js?v=250';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=250';
+import { ITEMS, foodClassOf } from './items.js?v=250';
 
 const BASE_RECIPES = {
   cooking: [

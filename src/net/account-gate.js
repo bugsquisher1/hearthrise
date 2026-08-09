@@ -550,6 +550,32 @@
   // ════════════════════════════════════════════════════════════
   // 5 · THE WALL
   // ════════════════════════════════════════════════════════════
+  /**
+   * Resolve once the signed-in session is actually IN STORAGE — i.e. once the
+   * next boot is guaranteed to find it.
+   *
+   * b226: this used to be a flat 220ms guess. auth.js persists the session
+   * from its onAuthStateChange handler, which supabase-js normally fires
+   * inside the sign-in call, so 220ms was usually enough — but "usually" here
+   * means the reloaded page meets the WALL AGAIN and the player is asked to
+   * sign in twice. Waiting for the fact instead of for a duration is both
+   * faster in the common case (it resolves on the first poll, ~0ms) and
+   * correct in the slow one. Exported so the suite can assert the handoff
+   * without a real Supabase.
+   */
+  function whenSessionPersisted(ms, stepMs) {
+    return new Promise(function (resolve) {
+      var waited = 0, step = stepMs || 40, limit = ms == null ? 3000 : ms;
+      function check() {
+        if (sessionIsUsable(readCachedSession())) { resolve(true); return; }
+        if (waited >= limit) { resolve(false); return; }
+        waited += step;
+        setTimeout(check, step);
+      }
+      check();
+    });
+  }
+
   function mountWall() {
     if (document.getElementById(WALL_ID)) return;
     var ui = buildGate({});
@@ -563,7 +589,17 @@
         // One clean boot with a live session runs the ORIGINAL, well-tested
         // order — loadLocal reads the untouched local save, sync.js adopts it,
         // then name-claim and FTUE take their turns.
-        setTimeout(function () { try { location.reload(); } catch (e) {} }, 220);
+        //
+        // ONE reload, and the boot on the far side of it must not show this
+        // wall again: that is the whole reason we wait for the session to be
+        // on disk rather than for a stopwatch. If it somehow never lands we
+        // still reload — supabase-js persists its own copy, so auth.js
+        // restores and the watcher below opens the gate a beat later — but we
+        // say so in the console rather than pretending it went to plan.
+        whenSessionPersisted().then(function (ok) {
+          if (!ok) { try { console.warn('[account-gate] signed in, but no cached session was written before reload'); } catch (e) {} }
+          try { location.reload(); } catch (e) {}
+        });
       }
     });
     document.body.appendChild(ui.root);
@@ -656,7 +692,8 @@
     PLAYER_HOSTS: PLAYER_HOSTS.slice(),
     // test seams
     _buildGate: buildGate,
-    _readCachedSession: readCachedSession
+    _readCachedSession: readCachedSession,
+    _whenSessionPersisted: whenSessionPersisted
   };
 
   console.log('[account-gate] ' + (open ? 'open (' + reason + ')' : 'CLOSED — account required'));

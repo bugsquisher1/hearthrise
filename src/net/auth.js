@@ -14,6 +14,33 @@ let session = null;        // current session
 const LOCAL_KEY = 'hearthrise:supabaseSession';
 
 /**
+ * WHAT AN AUTH EVENT MEANS FOR THE CACHED SESSION — pure, and exported so the
+ * suite can prove it (b226).
+ *
+ * The cached session under LOCAL_KEY is not a convenience: src/net/account-gate.js
+ * opens the front door on it, so deleting it is equivalent to signing the
+ * player out of the product. Before b226 the handler cleared it on ANY event
+ * that arrived without a session, and supabase-js emits several — an
+ * INITIAL_SESSION replay, a TOKEN_REFRESHED that has not resolved yet, a
+ * transient network blip during refresh. One of those and a signed-in player
+ * met the wall on their next load and had to sign in again. That is the
+ * "logging in doesn't seem very seamless" report, in one line.
+ *
+ *   'persist' — an event carrying a session. Always wins.
+ *   'clear'   — an EXPLICIT end of the account's session on this device.
+ *   'ignore'  — a null we cannot interpret as an intentional sign-out. Keep
+ *               the cache; supabase-js keeps retrying, and if the session
+ *               really is dead the gate's lapsed-session sheet asks — beside a
+ *               running game, which is the behaviour the account ruling
+ *               requires.
+ * @returns {'persist'|'clear'|'ignore'}
+ */
+export function decideSessionEvent(event, newSession) {
+  if (newSession) return 'persist';
+  return (event === 'SIGNED_OUT' || event === 'USER_DELETED') ? 'clear' : 'ignore';
+}
+
+/**
  * Initialise auth + cloud sync.
  * @param {{url: string, anonKey: string}} config
  */
@@ -46,13 +73,17 @@ export async function setupAuth(config) {
     } catch {}
   }
 
-  // Auth state listener — keep session in localStorage + reconfigure sync
-  supabase.auth.onAuthStateChange((_event, newSession) => {
-    session = newSession;
-    if (newSession) {
+  // Auth state listener — keep session in localStorage + reconfigure sync.
+  // The rule itself is decideSessionEvent() below, so it can be proved.
+  supabase.auth.onAuthStateChange((event, newSession) => {
+    const act = decideSessionEvent(event, newSession);
+    if (act === 'ignore') return;                    // transient null — keep what we have
+    if (act === 'persist') {
+      session = newSession;
       localStorage.setItem(LOCAL_KEY, JSON.stringify(newSession));
       enableLiveSync();
     } else {
+      session = null;
       localStorage.removeItem(LOCAL_KEY);
       // Sync stays in offline mode (events buffer to localStorage)
     }

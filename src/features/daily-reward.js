@@ -179,15 +179,23 @@
     rewardFor: rewardFor,
     cycleDay: cycleDay,
     open: open,
-    ensureState: ensureState
+    ensureState: ensureState,
+    _blockingOverlays: function () { return BLOCKING_OVERLAYS; },
+    _anotherModalUp: function () { return anotherModalUp(); }
   };
 
   // Gentle once-per-day auto-popup: wait for G, then only show when no other
   // modal/overlay is already up (never stack on welcome-back/beta/FTUE/rank-up).
+  // b226: `.hr-id-scrim` (the name modal) and `#hr-post-signup-modal` were
+  // MISSING from this list, so the once-a-day sheet landed straight on top of
+  // both — found by walking the real post-login sequence in a browser, not by
+  // reading the code. Every other first-run flow in the build already names
+  // them; this one had been quietly exempt since b169.
+  var BLOCKING_OVERLAYS = '.ftue-root,.hr-rn-scrim,.hr-id-scrim,.hr-gate,#hr-account-gate,' +
+    '#hr-welcome-modal,#hr-post-signup-modal,.wbv-overlay,.beta-overlay,' +
+    '[class*="welcome-overlay"],.acq-overlay,.ach-overlay';
   function anotherModalUp() {
-    return !!document.querySelector(
-      '.ftue-root,.hr-rn-scrim,#hr-welcome-modal,.wbv-overlay,.beta-overlay,[class*="welcome-overlay"],.acq-overlay,.ach-overlay'
-    );
+    return !!document.querySelector(BLOCKING_OVERLAYS);
   }
   function autoBoot(tries) {
     if (!window.G) { setTimeout(function () { autoBoot(tries); }, 500); return; }

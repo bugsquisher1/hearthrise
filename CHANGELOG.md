@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 231 — 2026-08-09 (Combat, unblanked)
+
+- ⚔️ **Combat works on mobile again.** Tapping Fight was dropping you onto a blank screen — the monster list hid itself for the fight, but the battle view was hidden behind the "Foes" tab, so nothing showed. Starting a fight now snaps you straight to the Arena, and ending it drops you back on the foe list for the next one.
+- 🧪 438 tests green.
+
 ## v0.9.2-beta build 230 — 2026-08-09 (Mobile rescue)
 
 - 📱 **Offline progress works on your phone now.** If you locked your screen or switched apps while gathering, the game froze and credited you *nothing* when you came back — it only ever caught up on a full reload. Now the moment you return to the tab, your away-time is banked exactly like a fresh login. (Thanks, paione.)

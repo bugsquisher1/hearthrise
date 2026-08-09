@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=230' directly.
+// modularised, will import { G } from '../state/game.js?v=231' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=230';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=230';
+import { on, snapshot } from '../net/events.js?v=231';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=231';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=230';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=231';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11201,6 +11201,47 @@ const TESTS = [
     }
     assert(found, 'the #panel-shop .sc-scene aspect-ratio rule must exist');
     assert(hasWidth, '.sc-scene must pin width so aspect-ratio drives height (not width) — else it overflows mobile');
+  }),
+
+  () => tryRun('b231: starting a fight shows the arena on mobile (not a blank combat screen)', () => {
+    // The bug (Tyler): on a phone, `body.in-combat` hid the monster picker AND
+    // the "Foes" mobile sub-tab hid the arena, so clicking Fight from the default
+    // tab blanked the whole combat screen. Two guards: (1) the CSS safety net
+    // shows the arena during any live fight; (2) combat-mobile-tabs.js flips the
+    // sub-tab to 'arena' on fight start. Both are checked here.
+    const panel = document.getElementById('panel-combat');
+    assert(panel, 'panel-combat must exist');
+
+    // (1) CSS safety net — the arena is forced visible whenever body.in-combat.
+    let cssGuard = false;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      const walk = (list) => { for (const r of list) {
+        if (r.cssRules && r.media) { walk(r.cssRules); continue; }
+        if (r.selectorText && /body\.in-combat[^,]*\.combat-arena/.test(r.selectorText)
+            && r.style && r.style.display && r.style.display !== 'none') cssGuard = true;
+      } };
+      walk(rules);
+    }
+    assert(cssGuard, 'a `body.in-combat ... .combat-arena { display:<visible> }` rule must exist (blank-combat safety net)');
+
+    // (2) Behavioural — the sub-tab follows combat state.
+    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
+    const hadInCombat = document.body.classList.contains('in-combat');
+    const priorSub = panel.dataset.mobileSub;
+    try {
+      panel.dataset.mobileSub = 'monsters';
+      document.body.classList.add('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      assert(panel.dataset.mobileSub === 'arena', 'fight start must switch the mobile sub-tab to arena, got ' + panel.dataset.mobileSub);
+      document.body.classList.remove('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      assert(panel.dataset.mobileSub === 'monsters', 'fight end must return the mobile sub-tab to foes, got ' + panel.dataset.mobileSub);
+    } finally {
+      document.body.classList.toggle('in-combat', hadInCombat);
+      if (priorSub) panel.dataset.mobileSub = priorSub;
+    }
   }),
 
   () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {

@@ -73,11 +73,41 @@
 
   // The Combat panel is rebuilt by render() periodically. Re-install
   // the bar if it disappears.
+  // b230: keep the sub-tab in step with combat state. When a fight goes live the
+  // arena becomes the screen (the CSS also forces it visible as a safety net);
+  // when it ends, return to the Foes list so the next fight is one tap away.
+  // Driven off the body.in-combat class so it catches every fight entry point
+  // (monster row, bounty "fight target", resume-on-load) without wrapping any of
+  // the engine's many combat functions.
+  function syncCombatSub(panel) {
+    panel = panel || document.getElementById('panel-combat');
+    if (!panel) return;
+    const inCombat = document.body.classList.contains('in-combat');
+    if (inCombat && panel.dataset.mobileSub !== 'arena') setSubActive(panel, 'arena');
+    else if (!inCombat && panel.dataset.mobileSub === 'arena') setSubActive(panel, 'monsters');
+  }
+  // Exposed so the smoke suite can assert the fight→arena switch deterministically
+  // without racing the MutationObserver / poll interval.
+  window.__cmbSyncCombatSub = syncCombatSub;
+
   function watch() {
     if (!install()) return;
+    const panel0 = document.getElementById('panel-combat');
+    if (panel0) {
+      syncCombatSub(panel0);
+      // React the instant a fight starts/ends, not on the next poll tick.
+      try {
+        new MutationObserver(() => {
+          const p = document.getElementById('panel-combat');
+          if (p) syncCombatSub(p);
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      } catch (e) { /* no MutationObserver → the interval below still covers it */ }
+    }
     setInterval(() => {
       const panel = document.getElementById('panel-combat');
-      if (panel && !panel.querySelector('#cmb-mob-tabs')) install();
+      if (!panel) return;
+      if (!panel.querySelector('#cmb-mob-tabs')) install();
+      syncCombatSub(panel);
     }, 1500);
   }
 

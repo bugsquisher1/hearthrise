@@ -278,6 +278,19 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
     max-height: none;
     overflow: visible !important;
   }
+  /* b230 (Tyler — "click fight and the screen is blank"): during a live fight
+     two rules cancel out to nothing on mobile — `body.in-combat` hides the
+     monster picker (audit-overrides.css) and the `data-mobile-sub="monsters"|
+     "style"` sub-tab hides the arena (theme-cozy.css). If the player started
+     the fight from the Foes tab (the default), BOTH the picker and the arena
+     are hidden → blank combat screen. The arena IS the screen once a fight is
+     live, so force it visible regardless of the last-selected sub-tab. This
+     out-specifies the sub-tab hide (adds body.in-combat + .active) and is the
+     core-loop safety net; combat-mobile-tabs.js also flips the sub-tab to
+     'arena' on fight start so the tab highlight agrees. */
+  body.in-combat #panel-combat.active .combat-arena { display: flex !important; }
+  body.in-combat #panel-combat.active .combat-picker,
+  body.in-combat #panel-combat.active .combat-style-block { display: none !important; }
   /* The stage is the one thing worth the vertical budget on a 420px screen. */
   #panel-combat .arena-vs { padding: 10px 12px; gap: 10px; }
   #panel-combat .arena-vs .arena-portrait { width: 56px; height: 56px; font-size: 30px; }

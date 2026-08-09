@@ -71,7 +71,16 @@
   // The `noBurn` value each Kitchen rung contributes to getBonus('noBurn').
   // Exported so the House panel, the smoke suite and any future Kitchen rung
   // read the ladder from one place rather than re-deriving 12/6/0.
-  var KITCHEN_NO_BURN = [0.13, 0.19, 0.25];
+  //
+  // b227: the Kitchen grew from three rungs to five (homestead-deepening §3.1),
+  // and this table grew with it — one entry per rung, same length, so the
+  // suite's anti-drift guard keeps its teeth instead of being relaxed to
+  // "the first three agree". L4 and L5 buy YIELD, not reliability: the range
+  // is already burn-proof at L3 and there is nothing below zero to sell. They
+  // restate 0.25 because a rung's bonus map REPLACES the rung below it rather
+  // than adding to it, so an L4 that omitted noBurn would silently un-burn-
+  // proof a player as a reward for upgrading.
+  var KITCHEN_NO_BURN = [0.13, 0.19, 0.25, 0.25, 0.25];
 
   /**
    * The odds this cook is ruined.

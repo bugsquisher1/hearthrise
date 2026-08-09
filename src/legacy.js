@@ -344,20 +344,163 @@ const ROOMS={
      its exact cookSpeed value, and simply gains reliability on top.
      The numbers live in features/cooking-fire.js KITCHEN_NO_BURN; the smoke
      suite asserts these two tables agree so they can never drift. */
-  kitchen:{name:'Kitchen',icon:'🍳',desc:'Cook food faster — and stop burning it.',levels:[{cost:{gold:500,normal_log:20},bonus:'Cook +10% · burn −13%',bk:'cookSpeed',bv:.1,bx:{noBurn:.13}},{cost:{gold:2000,normal_log:50},bonus:'Cook +25% · burn −19%',bk:'cookSpeed',bv:.25,bx:{noBurn:.19}},{cost:{gold:8000,oak_log:30},bonus:'Cook +50% · never burns',bk:'cookSpeed',bv:.5,bx:{noBurn:.25}}]},
-  forge:{name:'Forge',icon:'🔥',desc:'Smith items faster.',levels:[{cost:{gold:800,copper_ore:30},bonus:'Smith +10%',bk:'smithSpeed',bv:.1},{cost:{gold:3000,iron_ore:50},bonus:'Smith +25%',bk:'smithSpeed',bv:.25},{cost:{gold:12000,iron_ore:100},bonus:'Smith +50%',bk:'smithSpeed',bv:.5}]},
-  library:{name:'Library',icon:'📚',desc:'+XP for all skills.',levels:[{cost:{gold:1000,normal_log:50},bonus:'All XP +5%',bk:'allXP',bv:.05},{cost:{gold:4000,oak_log:50},bonus:'All XP +10%',bk:'allXP',bv:.1},{cost:{gold:15000,maple_log:30},bonus:'All XP +20%',bk:'allXP',bv:.2}]},
-  garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[{cost:{gold:600,wheat:20},bonus:'Yield +1',bk:'farmYield',bv:1},{cost:{gold:2500,wheat:60},bonus:'Yield +2',bk:'farmYield',bv:2},{cost:{gold:9000,pumpkin:5},bonus:'Yield +4',bk:'farmYield',bv:4}]},
-  trophy:{name:'Trophy Room',icon:'🏆',desc:'+Combat XP.',levels:[{cost:{gold:2000,wolf_pelt:5},bonus:'CXP +5%',bk:'combatXP',bv:.05},{cost:{gold:8000,troll_hide:3},bonus:'CXP +12%',bk:'combatXP',bv:.12},{cost:{gold:25000,dragon_scale:2},bonus:'CXP +25%',bk:'combatXP',bv:.25}]},
-  cellar:{name:'Cellar',icon:'🍷',desc:'Extra storage.',levels:[{cost:{gold:1200,normal_log:60},bonus:'+500 storage',bk:'storage',bv:500},{cost:{gold:4000,oak_log:60},bonus:'+1500',bk:'storage',bv:1500},{cost:{gold:12000,willow_log:50},bonus:'+5000',bk:'storage',bv:5000}]},
+  /* b227 — THE FIVE-RUNG LADDER (homestead-deepening.md §2, §3).
+
+     Every room grows from three rungs to five. L1-L3 keep their EXACT live
+     costs and their EXACT live effects — §1's third corollary is absolute, a
+     player at Kitchen 3 wakes up at Kitchen 3 having lost nothing. L4 is the
+     *fitted* rung (property tier ≥ 3, costs a castle good); L5 is the *named*
+     rung (tier ≥ 4, or 5 for the three flagships, and costs a Keystone).
+     That is what turns the property ladder from a prologue into a spine:
+     before this, tier 5 unlocked no room at all and the last rung of the
+     game's personal spine was its flattest.
+
+     Two fields are new on a rung:
+       `nm`   — the rung's NAME. A ladder of "Lv 4" is a shop row; a ladder of
+                "Twin Range" is a place. The modal leads with it.
+       `tier` — the minimum PROPERTY tier this rung requires, when it is higher
+                than the room's own. upgradeRoom enforces it on every rung (it
+                used to check the gate only at lv 0 — harmless while all three
+                rungs shared one gate, a hole the moment L4 needs a manor).
+
+     A rung's bk/bv/bx REPLACES the rung below it rather than adding to it —
+     getBonus reads only `levels[lv-1]` — so each rung restates every key it
+     keeps. That is why L4 Kitchen repeats `noBurn:.25`: dropping it would
+     silently un-burn-proof a player for upgrading.
+
+     b227 THE MAGNITUDE RETUNE (Tyler, binding, mid-build): *"the % boosts
+     across the board are way too high. 50% smithing? it should be like
+     increments of 2%."* Every percentage on this screen came down to a small-
+     increment grammar. This OVERRIDES the spec's "nothing already bought is
+     devalued" corollary for MAGNITUDES only, by the owner, as a stated global
+     rebalance — levels and costs are untouched, so a player at Kitchen 3 is
+     still at Kitchen 3, having paid the same price, with an honest smaller
+     number on it.
+
+       four workbench speeds  +2 / 4 / 6 / 8 / 10%
+       Library allXP          +1 / 2 / 3 / 4 / 5%
+       Trophy combatXP        +1 / 2 / 3 / 4 / 5%
+       Cellar buff duration   +4 / 8 / 12 / 16 / 20%   (duration is felt weakly)
+       Garden yield           +1 / 2 / 4 / 6 / 8       (units, not a percentage)
+       Kitchen noBurn         13 / 19 / 25 / 25 / 25   UNCHANGED — reliability
+                                                       is the mechanic itself,
+                                                       not a power number.
+
+     The three proc keys (yield_cooking, yield_smithing, craftSave) were NOT
+     named in the directive. Left at the old 10-25% they would tower over the
+     +10% speed they sit beside on the same rung, so they are brought into the
+     same grammar at 4 / 8% — larger than a speed rung because a proc fires
+     rarely and is felt weakly, which is the same reasoning the duration column
+     uses. Flagged for the Designer's parallel global retune to ratify.
+
+     Power budget (spec §6/H2) as retuned, which the smoke suite asserts:
+     allXP +5% (Library L5 — and it does not move again at any rung), combatXP
+     +5%, the four artisan speeds +10% each, farmYield +8 flat, restedXp +8%,
+     craftSave and yield_* +8% each, buff duration +20%, noBurn 25%. */
+  kitchen:{name:'Kitchen',icon:'🍳',desc:'Cook food faster — and stop burning it.',levels:[
+    {nm:'Hearthstone',      cost:{gold:500,normal_log:20},                            bonus:'Cook +2% · burn −13%',       bk:'cookSpeed',bv:.02,bx:{noBurn:.13}},
+    {nm:'Iron Stove',       cost:{gold:2000,normal_log:50},                           bonus:'Cook +4% · burn −19%',       bk:'cookSpeed',bv:.04,bx:{noBurn:.19}},
+    {nm:'Cast-Iron Range',  cost:{gold:8000,oak_log:30},                              bonus:'Cook +6% · never burns',     bk:'cookSpeed',bv:.06,bx:{noBurn:.25}},
+    {nm:'Twin Range',       cost:{gold:45000,timber_beam:12,willow_log:40,field_ration:25},   tier:3, bonus:'Cook +8% · 4% extra portion',  bk:'cookSpeed',bv:.08,bx:{noBurn:.25,yield_cooking:.04}},
+    {nm:'The Great Hearth', cost:{gold:250000,keystone:2,duskwood_plank:30,dragon_scale:8},   tier:5, bonus:'Cook +10% · 8% extra portion', bk:'cookSpeed',bv:.10,bx:{noBurn:.25,yield_cooking:.08}}]},
+  forge:{name:'Forge',icon:'🔥',desc:'Smith items faster. Required for Smithing.',levels:[
+    {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2%',                  bk:'smithSpeed',bv:.02},
+    {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4%',                  bk:'smithSpeed',bv:.04},
+    {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6%',                  bk:'smithSpeed',bv:.06},
+    {nm:'The Great Bellows',cost:{gold:55000,iron_fitting:15,steel_bar:60,coal:20},          tier:3, bonus:'Smith +8% · 4% extra bar',   bk:'smithSpeed',bv:.08,bx:{yield_smithing:.04}},
+    {nm:'The Deep Forge',   cost:{gold:280000,keystone:2,mithril_bar:20,dragon_scale:6},     tier:4, bonus:'Smith +10% · 8% extra bar',  bk:'smithSpeed',bv:.10,bx:{yield_smithing:.08}}]},
+  library:{name:'Library',icon:'📚',desc:'+XP for all skills — and it pays you for the hours you were away.',levels:[
+    {nm:'Shelf',            cost:{gold:1000,normal_log:50},                           bonus:'All XP +1%',                 bk:'allXP',bv:.01},
+    {nm:'Reading Room',     cost:{gold:4000,oak_log:50},                              bonus:'All XP +2%',                 bk:'allXP',bv:.02},
+    {nm:'The Library',      cost:{gold:15000,maple_log:30},                           bonus:'All XP +3%',                 bk:'allXP',bv:.03},
+    /* These two rungs were specced to pay in Rested XP POTENCY on top of allXP.
+       They do not, and deliberately: bonus-rebase.md finds a percentage
+       potency dead on arrival at the retuned scale (a few percent of one XP
+       grant, spent one charge at a time, is indistinguishable from nothing),
+       and converts Rested to a flat XP quantum owned by the b228 apply pass.
+       Shipping the old +4/+8% here would have been a promise the player could
+       not feel — exactly the class of ghost bonus this whole wave is retiring.
+       So the payload is left OUT and the rungs pay honestly in allXP alone
+       until that pass lands. Reserved, not forgotten. */
+    {nm:'The Scriptorium',  cost:{gold:65000,timber_beam:12,silk_thread:25,magic_essence:10},tier:3, bonus:'All XP +4%', bk:'allXP',bv:.04, resv:'Rested XP — reserved for the rested rework'},
+    {nm:'The Great Library',cost:{gold:300000,keystone:2,duskwood_plank:30,ancient_rune:12}, tier:5, bonus:'All XP +5%', bk:'allXP',bv:.05, resv:'Rested XP — reserved for the rested rework'}]},
+  garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[
+    {nm:'Kitchen Garden',   cost:{gold:600,wheat:20},                                 bonus:'Yield +1',                   bk:'farmYield',bv:1},
+    {nm:'Walled Garden',    cost:{gold:2500,wheat:60},                                bonus:'Yield +2',                   bk:'farmYield',bv:2},
+    {nm:'The Beds',         cost:{gold:9000,pumpkin:5},                               bonus:'Yield +4',                   bk:'farmYield',bv:4},
+    {nm:'The Glasshouse',   cost:{gold:60000,timber_beam:10,silk_thread:20,goldenroot:15},   tier:3, bonus:'Yield +6',    bk:'farmYield',bv:6},
+    {nm:'The Orchard',      cost:{gold:300000,keystone:2,duskwood_plank:40,moonbloom:12},    tier:4, bonus:'Yield +8',    bk:'farmYield',bv:8}]},
+  trophy:{name:'Trophy Room',icon:'🏆',desc:'+Combat XP.',levels:[
+    {nm:'Trophy Wall',      cost:{gold:2000,wolf_pelt:5},                             bonus:'Combat XP +1%',              bk:'combatXP',bv:.01},
+    {nm:'The Hall',         cost:{gold:8000,troll_hide:3},                            bonus:'Combat XP +2%',              bk:'combatXP',bv:.02},
+    {nm:'Hall of Heads',    cost:{gold:25000,dragon_scale:2},                         bonus:'Combat XP +3%',              bk:'combatXP',bv:.03},
+    {nm:'Hall of Banners',  cost:{gold:60000,iron_fitting:12,bear_pelt:6,ancient_claw:3},    tier:3, bonus:'Combat XP +4%',  bk:'combatXP',bv:.04},
+    {nm:'The Long Gallery', cost:{gold:290000,keystone:2,dragon_scale:6,dragon_gem:1},       tier:4, bonus:'Combat XP +5%',  bk:'combatXP',bv:.05}]},
+  /* b227 — THE CELLAR RULING (homestead-deepening.md §3.4, Designer, binding).
+
+     The Cellar's three rungs bought `storage`, and `getBonus('storage')` has
+     never been read by anything: there is no inventory cap in Hearthrise,
+     anywhere. Up to 17,200 gold and 170 logs bought literally nothing.
+
+     It is REPURPOSED, not enforced. Building an inventory cap would mean
+     inventing a limit every existing save is already over and shipping a
+     RESTRICTION as the payoff of a feature — the most-hated chore in the
+     genre, in a game whose promise is that it plays while you are away.
+
+     Repurposing costs nothing and nobody can be worse off, because nobody has
+     ever received the thing being taken away. The three live costs are kept
+     EXACTLY, so a player who bought them gets a real effect for the first
+     time. The Cellar becomes the room where things KEEP: it lengthens food
+     buffs through registerBuffScaler (features/homestead.js), the b222 seam
+     that was built for precisely this second consumer. Zero new machinery,
+     zero migration. `storage` is now produced by nothing and read by nothing —
+     one fewer ghost key. */
+  cellar:{name:'Cellar',icon:'🍷',desc:'Cold stone and stoppered bottles — food buffs last longer.',levels:[
+    /* Buff DURATION is exempt from the small-percent grammar (bonus-rebase.md):
+       it is not throughput power — it does not make anything stronger or
+       faster, it only lets an effect you already earned run longer — so it
+       keeps the generous curve. Longest possible food buff is still bounded by
+       H7: base × castle Hearth 1.40 × Cellar 2.00 = 2.8×. */
+    {nm:'Root Cellar',      cost:{gold:1200,normal_log:60},                           bonus:'Food buffs last +20% longer', bk:'buffDuration',bv:.20},
+    {nm:'Stone Cellar',     cost:{gold:4000,oak_log:60},                              bonus:'Food buffs last +40% longer', bk:'buffDuration',bv:.40},
+    {nm:'The Vault',        cost:{gold:12000,willow_log:50},                          bonus:'Food buffs last +60% longer', bk:'buffDuration',bv:.60},
+    {nm:'The Cask Room',    cost:{gold:70000,timber_beam:12,field_ration:20,goldenroot_roast:6}, tier:3, bonus:'Food buffs last +80% longer',  bk:'buffDuration',bv:.80},
+    {nm:'The Deep Cellar',  cost:{gold:320000,keystone:2,moonbloom_elixir:4,duskwood_plank:20},  tier:5, bonus:'Food buffs last +100% longer', bk:'buffDuration',bv:1.0}]},
   /* b201 (SYS-1): rooms ARE workbenches — forge gates smithing, workshop gates
      crafting, shrine gates prayer. See features/homestead.js (property tiers
      gate which rooms can be built).
      b225: the Kitchen is NO LONGER one of them — the campfire ruling makes
      cooking possible from the tier-1 camp and the Kitchen sells reliability
      (noBurn) instead of permission. Forge/Workshop/Shrine are unchanged. */
-  workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[{cost:{gold:700,normal_plank:15},bonus:'Craft +10%',bk:'craftSpeed',bv:.1},{cost:{gold:2800,oak_plank:25},bonus:'Craft +25%',bk:'craftSpeed',bv:.25},{cost:{gold:11000,willow_plank:30},bonus:'Craft +50%',bk:'craftSpeed',bv:.5}]},
-  shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[{cost:{gold:900,bones:40},bonus:'Prayer +10%',bk:'prayerSpeed',bv:.1},{cost:{gold:3500,big_bones:25},bonus:'Prayer +25%',bk:'prayerSpeed',bv:.25},{cost:{gold:13000,dragon_bones:8},bonus:'Prayer +50%',bk:'prayerSpeed',bv:.5}]},
+  workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[
+    /* b227 P1 — THE ROOM-COST DEADLOCK, found by Tyler and confirmed in data.
+       This rung cost `normal_plank:15`. The ONLY source of a plank is the
+       crafting recipe `saw_normal`; crafting is bench-gated on the Workshop;
+       the Workshop is this room. No monster drops a plank and no shop stocks
+       one, so a fresh account could never build the Workshop honestly — the
+       bench that makes the material was gated behind the material.
+
+       This is the b213 deadlock class, and b213 missed it because that pass
+       audited TIER costs and never walked ROOM costs. The spec's §7 proof has
+       the same blind spot: it proves the L4/L5 castle goods are reachable and
+       simply assumes the live rungs were. Both are now closed by an executable
+       proof in the smoke suite that walks every rung of every room.
+
+       40 logs rather than 15 planks: the saw is 1 log → 1 plank at 15 planks,
+       so 40 is a deliberate premium for the labour the player is no longer
+       doing, and logs come from woodcutting, which needs no bench at all.
+       Cost-side fix only — anyone who already owns a Workshop keeps it. */
+    {nm:'Work Bench',       cost:{gold:700,normal_log:40},                            bonus:'Craft +2%',                  bk:'craftSpeed',bv:.02},
+    {nm:"Joiner's Bench",   cost:{gold:2800,oak_plank:25},                            bonus:'Craft +4%',                  bk:'craftSpeed',bv:.04},
+    {nm:'The Sawpit',       cost:{gold:11000,willow_plank:30},                        bonus:'Craft +6%',                  bk:'craftSpeed',bv:.06},
+    {nm:'The Lathe',        cost:{gold:50000,iron_fitting:12,maple_plank:30,silk_thread:10}, tier:3, bonus:'Craft +8% · 4% of crafts cost nothing',  bk:'craftSpeed',bv:.08,bx:{craftSave:.04}},
+    {nm:"The Master's Shop",cost:{gold:260000,keystone:2,duskwood_plank:25,rune_bar:6},      tier:4, bonus:'Craft +10% · 8% of crafts cost nothing', bk:'craftSpeed',bv:.10,bx:{craftSave:.08}}]},
+  shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[
+    {nm:'Wayside Shrine',   cost:{gold:900,bones:40},                                 bonus:'Prayer +2%',                 bk:'prayerSpeed',bv:.02},
+    {nm:'Stone Altar',      cost:{gold:3500,big_bones:25},                            bonus:'Prayer +4%',                 bk:'prayerSpeed',bv:.04},
+    {nm:'The Chapel',       cost:{gold:13000,dragon_bones:8},                         bonus:'Prayer +6%',                 bk:'prayerSpeed',bv:.06},
+    {nm:'The Reliquary',    cost:{gold:55000,iron_fitting:10,big_bones:60,grave_dust:20},    tier:4, bonus:'Prayer +8%',  bk:'prayerSpeed',bv:.08},
+    {nm:'The Ossuary',      cost:{gold:270000,keystone:2,dragon_bones:30,war_crown:4},       tier:4, bonus:'Prayer +10%', bk:'prayerSpeed',bv:.10}]},
 };
 window.ROOMS = ROOMS; /* b201: expose for features/homestead.js workbench checks */
 const PLOT_BUILDINGS={
@@ -1185,6 +1328,49 @@ function getCombatLevel(){
 }
 function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 
+/* ══════════════════════════════════════════════════════════════════════
+   b227 — THE FUSES, at the only place they cannot be escaped.
+
+   homestead-deepening.md §8 specs both of these as one-liners inside
+   getBonus. I built them there first and my own test caught them not
+   working, which is worth writing down because it is the second time this
+   codebase has learned it:
+
+   `getBonus` is not a function, it is a CHAIN. Seven modules wrap it
+   additively — world-events, companions, clans, clan-seat-ui, muster and two
+   more inside this file — and each wrapper calls the one below and adds to
+   the result. So a clamp placed inside the base function clamps the base and
+   is then escaped by every wrapper above it. Measured: a maxed homestead
+   read 0.8999 on prayerSpeed through a clamp that said 0.85. (The Clan Seat
+   wave hit the same wall and solved it a different way, for a cap whose job
+   was different; the note is in CONFLICTS as "Perk stacking power budget".)
+
+   A fuse that can be escaped is worse than no fuse, because it is a false
+   assurance written into the code. So both fuses moved to the point of
+   CONSUMPTION, where nothing can wrap past them:
+
+     • speedClamp() — every site that spends a speed key as `ms × (1 − speed)`
+       now goes through it. That expression is what the fuse exists to
+       protect: at 1.0 the interval is zero and past it the interval is
+       negative, and setInterval spins.
+     • the Rested potency clamp lives in spendRestedCharge, the one reader.
+
+   Deliberately NOT clamped in getBonus as well. Two half-truths about the
+   same number is how a screen and an engine end up disagreeing — the
+   displayed bonus stays the honest sum, and the fuse is applied where the
+   number is spent.
+   ══════════════════════════════════════════════════════════════════════ */
+const SPEED_KEYS={cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,gatherSpeed:1};
+const SPEED_FUSE=0.85;
+/* Returns the multiplier, not the bonus: `ms * speedClamp(speed)`. A negative
+   total (a debuff) is passed through untouched — the fuse is a ceiling on how
+   FAST you may go, never a floor on how slow. */
+function speedClamp(speed){return 1-Math.min(SPEED_FUSE,(+speed||0));}
+const RESTED_POTENCY_CAP=0.50;
+window.speedClamp=speedClamp;
+window.SPEED_FUSE=SPEED_FUSE;
+window.SPEED_KEYS=SPEED_KEYS;
+window.RESTED_POTENCY_CAP=RESTED_POTENCY_CAP;
 function getBonus(key){
   let t=0;
   /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
@@ -1202,6 +1388,25 @@ function getBonus(key){
   if(key==='allXP' && window.HearthriseHomestead){
     try{ if(window.HearthriseHomestead.isCastle()) t += 0.05; }catch(e){}
   }
+  /* ── b227: THE TWO FUSES (homestead-deepening.md §6, H3 + H5) ──────────
+     Neither one binds today. That is exactly what makes them fuses and not
+     nerfs: they are here so that the NEXT system to grant one of these keys
+     cannot quietly break the arithmetic that the whole power budget rests on.
+
+     H3, the artisan-speed fuse. Every speed key is spent as
+     `ms × (1 − speed)`, which divides by zero in spirit at 1.0 and goes
+     NEGATIVE past it. Today the worst case is homestead 0.60 + clan Lv6 0.05
+     + castle 0.05 = 0.70, so 0.85 is 15 points of slack; without the clamp a
+     third source of +20% would turn an action interval into a negative number
+     and setInterval would spin.
+
+     H5, one Rested ceiling with two roads. `restedXp` is now claimed by BOTH
+     pillars — the homestead Library L4/L5 (b227) and the castle Tavern's
+     Common Room (clan-overhaul §9.4) — and getBonus SUMS them, so a clanned
+     player with a maxed Library would bank 80 charges at double XP. Clamped
+     aggregate, so a clanless maxed homestead and a clanned castle arrive at
+     the same cap by different roads. That is what "twin pillars" has to mean
+     if the phrase is going to survive contact with a spreadsheet. */
   return t;
 }
 
@@ -1277,7 +1482,15 @@ function accrueRestedXp(now){
    what keeps the seam genuinely inert today. */
 function spendRestedCharge(){
   if(!(G.restedXp > 0)) return 0;
-  const potency = Math.max(0, getBonus('restedXp') || 0);
+  /* b227 (spec §6/H5) — one Rested ceiling, two roads. `restedXp` is now
+     claimed by BOTH pillars: the homestead Library L4/L5 and the castle
+     Tavern's Common Room. getBonus SUMS them, so a clanned player with a
+     maxed Library would bank 80 charges at DOUBLE XP. Clamped here, at the
+     one place the bank is actually spent, because a clamp inside getBonus is
+     escaped by the seven wrappers above it (see the fuse note by getBonus).
+     A clanless maxed homestead and a clanned castle now arrive at the same
+     cap by different roads, which is what "twin pillars" has to mean. */
+  const potency = Math.min(RESTED_POTENCY_CAP, Math.max(0, getBonus('restedXp') || 0));
   if(potency <= 0) return 0;
   G.restedXp -= 1;
   return potency;
@@ -1387,7 +1600,7 @@ function actionRate(skillId, action){
   if(gatherKey && window.HearthriseTools && window.HearthriseTools.bestToolSpeed){
     try{ speed += (window.HearthriseTools.bestToolSpeed(skillId)||0); }catch(e){}
   }
-  const ms = Math.max(500, Math.floor(pacedActionMs(action.ms||3000) * (1 - speed)));
+  const ms = Math.max(500, Math.floor(pacedActionMs(action.ms||3000) * speedClamp(speed)));
   const bonus = ((typeof getBonus==='function') ? getBonus('allXP') : 0)
     + ((typeof getEquipmentStats==='function') ? (getEquipmentStats().xpB||0) : 0);
   const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp||0) * (1 + bonus)));
@@ -2111,7 +2324,9 @@ function activityIntervalMs(){
   if(!d.artisan && window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
     try{ speed += (window.HearthriseTools.bestToolSpeed(G.activeSkill)||0); }catch(e){}
   }
-  return Math.max(500, Math.floor(pacedActionMs(d.act.ms||3000)*(1-speed)));
+  /* b228 merge: the bonus-census fuse applies at THE consumption point — this
+     single formula — rather than at ten call sites. */
+  return Math.max(500, Math.floor(pacedActionMs(d.act.ms||3000)*speedClamp(speed)));
 }
 window.activityIntervalMs=activityIntervalMs;
 
@@ -2947,7 +3162,7 @@ function renderSkillDetail(id){
   else acts=`<div class="empty"><span class="em-icon">⚔️</span>Train ${s.name} by fighting in the Combat tab.</div>`;
   let calcHtml='';
   if(calc){
-    const speed=getBonus('gatherSpeed');const ms=Math.max(500,Math.floor(calc.ms*(1-speed)));
+    const speed=getBonus('gatherSpeed');const ms=Math.max(500,Math.floor(calc.ms*speedClamp(speed)));
     const aph=3600000/ms,avgQ=(calc.qty[0]+calc.qty[1])/2;
     calcHtml=`<div class="calc" style="margin-top:10px"><div><b>${Math.floor(aph*calc.xp)}</b><span>XP/hr</span></div><div><b>${Math.floor(aph*avgQ)}</b><span>${ITEMS[calc.prod]?.n||calc.prod}/hr</span></div><div><b>${(ms/1000).toFixed(1)}s</b><span>per action</span></div></div>`;
   }
@@ -3217,12 +3432,31 @@ function renderHouse(){
     return _hrGly('uiHome', 30);
   };
   if(houseTab==='rooms'){
-    el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
-      const lv=G.rooms[id]||0,max=r.levels.length;
-      const next=r.levels[lv];
-      const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
-      return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' &nbsp;'+Object.entries(next.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
-    }).join('');
+    /* b227 — the Rooms tab stops being eight shop-rows and becomes the
+       homestead's version of the Clan Seat: a grid of room STRUCTURES you can
+       read at a glance (owned and lit / available and outlined / tier-locked
+       and dim) which open their own themed room modal on click.
+
+       Tyler, live: "No good indication that I own the forge on my house
+       screen. I feel like we need to revamp it to be similar to the clan
+       castle." A shop-row cannot answer "is this mine?" — it is a row with a
+       Build button on it whether you own the thing or not, and the only tell
+       was a "· Lv 1" fragment inside the title. Ownership is now the first
+       thing the card says and the loudest thing on it.
+
+       The grid lives in features/homestead.js next to the tier ladder that
+       gates it. This branch is the seam, and it degrades to the old rows if
+       that file failed to load rather than leaving the tab blank. */
+    if(window.HearthriseHomestead && typeof window.HearthriseHomestead.renderRoomGrid==='function'){
+      window.HearthriseHomestead.renderRoomGrid(el);
+    } else {
+      el.innerHTML=Object.entries(ROOMS).map(([id,r])=>{
+        const lv=G.rooms[id]||0;
+        const next=r.levels[lv];
+        const canAfford=next?Object.entries(next.cost).every(([k,v])=>k==='gold'?G.gold>=v:(G.inventory[k]||0)>=v):false;
+        return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, r.icon, '_roomIcon')}</span><div class="info"><b>${r.name} ${lv?'· Lv '+lv:''}</b><span>${next?next.bonus+' &nbsp;'+Object.entries(next.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; '):'MAX'}</span></div>${next?`<button class="btn btn-sm ${canAfford?'btn-primary':''}" ${canAfford?'':'disabled'} onclick="upgradeRoom('${id}')">${lv?'Upgrade':'Build'}</button>`:'<span class="tag">MAX</span>'}</div>`;
+      }).join('');
+    }
   } else if(houseTab==='plot'){
     // b136: Farm Plot tier card sits above the legacy plot-building list.
     // Spends Farmer's Deeds (which drop from Tier-2+ kills + bounties)
@@ -3287,18 +3521,90 @@ function describeMissingCost(cost){
   }
   return parts.length?parts.join(', '):null;
 }
+/* b227 — the one place that may raise a room's level, and the only authority
+   on whether a rung is legal. Everything else (the House grid, the room modal,
+   the button's enabled state) is a VIEW of this function's rules and is never
+   trusted to enforce them.
+
+   THE BUG THIS FIXES (Tyler, live: "It let me just keep building the forge").
+   Root cause was not here — it was the missing repaint at the bottom. `refreshAll()`
+   renders the profile, inventory, skills, combat and shop panels and has NEVER
+   rendered the House (there are two refreshAll definitions in this file and
+   neither one calls renderHouse; nothing else calls it after a mutation
+   either). So the room row a player clicked kept showing the level, the cost
+   and the button label it was painted with: still "Build", still 800g, still
+   no "· Lv 1". Clicking it again bought the NEXT rung at the NEXT price and
+   the row still did not move; a fourth click hit `if(!nx)return` and did
+   nothing at all, silently. Three real purchases at escalating cost, zero
+   acknowledgement, and then a dead button — which reads exactly like a screen
+   letting you buy the same forge over and over.
+
+   Four things are now true that were not:
+     1. The repaint happens (renderHouse + the open modal), so state and screen
+        cannot disagree.
+     2. A room at max REFUSES and SAYS SO, in the state path — not a silent
+        `return` that is indistinguishable from a broken button.
+     3. The property-tier gate is checked on EVERY rung, not only at level 0.
+        That was harmless while a room's three rungs shared one gate; it is a
+        hole the moment L4 requires a Manor and L5 a Castle (b227's ladder).
+     4. An unknown room id is refused instead of throwing on `r.levels`. */
 function upgradeRoom(id){
-  const r=ROOMS[id];const lv=G.rooms[id]||0;const nx=r.levels[lv];if(!nx)return;
-  /* b201: property tier gates which rooms exist (camp has no workbenches) */
-  if(lv===0 && window.HearthriseHomestead){
-    const gate=window.HearthriseHomestead.canBuildRoom(id);
-    if(!gate.ok){notify(gate.reason,'kill');return;}
+  const r=ROOMS[id];
+  if(!r){console.error('[house] upgradeRoom: unknown room '+id);return false;}
+  const lv=G.rooms[id]||0;
+  if(lv>=r.levels.length){
+    notify(`${r.name} is already at its highest level.`,'info');
+    renderHouseSurfaces();
+    return false;
   }
+  const nx=r.levels[lv];
+  /* b201: property tier gates which rooms exist (camp has no workbenches).
+     b227: …and gates the upper rungs of rooms you already own. */
+  const gate=roomRungGate(id,lv+1);
+  if(!gate.ok){notify(gate.reason,'kill');return false;}
   const missing=describeMissingCost(nx.cost);
-  if(missing){notify('Missing: '+missing,'kill');return;}
+  if(missing){notify('Missing: '+missing,'kill');return false;}
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
-  G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;notify(`${r.name} upgraded`,'levelup');refreshAll();
+  G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
+  /* "upgraded" was the word for a first BUILD too, which is the one moment the
+     player most wants told plainly that the room is now theirs. */
+  notify(lv===0?`${r.name} built — it's yours.`:`${r.name} upgraded to ${nx.nm||('Lv '+(lv+1))}`,'levelup');
+  refreshAll();
+  renderHouseSurfaces();
+  return true;
 }
+
+/* Is rung `want` (1-based) legal at the player's current property tier?
+   Total — answers for a rung nobody owns yet, which is what the ladder in the
+   room modal needs in order to say WHY a row is dim instead of just being dim. */
+function roomRungGate(id,want){
+  const HH=window.HearthriseHomestead;
+  if(!HH) return {ok:true};
+  const r=ROOMS[id];
+  const rung=r&&r.levels[want-1];
+  /* The room's own minimum tier, then the rung's own if it asks for more. */
+  const base=HH.canBuildRoom(id);
+  if(!base.ok) return base;
+  const need=rung&&rung.tier;
+  if(need!=null&&HH.getTier()<need){
+    const t=HH.TIERS[need];
+    return {ok:false,reason:'Requires '+((t&&t.name)||'a higher property tier')};
+  }
+  return {ok:true};
+}
+
+/* Repaint every surface that shows house state. Kept separate from refreshAll
+   deliberately: refreshAll fires on every kill and every gathered log, and
+   blowing away the room grid's innerHTML that often would fight the player's
+   own clicks for no benefit — house state only changes when the player changes
+   it, so the repaint belongs at the mutation, not on the global tick. */
+function renderHouseSurfaces(){
+  try{ if(typeof renderHouse==='function') renderHouse(); }catch(e){}
+  try{ if(window.HearthriseRoomModal) window.HearthriseRoomModal.refresh(); }catch(e){}
+}
+window.upgradeRoom=upgradeRoom;
+window.roomRungGate=roomRungGate;
+window.renderHouseSurfaces=renderHouseSurfaces;
 function buildPlot(id){
   const b=PLOT_BUILDINGS[id];const have=G.plotBuildings.filter(x=>x.id===id).length;if(have>=b.max)return;
   /* b201: farm-plot capacity comes from the property tier (2 at camp → 12 at castle) */
@@ -3309,7 +3615,9 @@ function buildPlot(id){
   if(missingB){notify('Missing: '+missingB,'kill');return;}
   for(const [k,v] of Object.entries(b.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
   G.plotBuildings.push({id,uid:Date.now()});
-  notify(`Built ${b.name}`,'levelup');refreshAll();
+  /* b227: same missing repaint as upgradeRoom — the Plot tab's "(1/2)" count
+     and its Max state never moved after a build either. Same class, same fix. */
+  notify(`Built ${b.name}`,'levelup');refreshAll();renderHouseSurfaces();
 }
 function setTheme(id){if(!G.ownedThemes.includes(id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
@@ -6817,7 +7125,7 @@ window.renderCharacter = function(){
     var node = (activeSk === skill) ? nodeFor(skill) : null;
     if(!node) return null;
     var speed = (typeof getBonus==='function') ? getBonus('gatherSpeed') : 0;
-    var ms = Math.max(500, Math.floor(node.ms * (1 - speed)));
+    var ms = Math.max(500, Math.floor(node.ms * speedClamp(speed)));
     var aph = 3600000 / ms;
     var avgQ = (node.qty[0] + node.qty[1]) / 2;
     var xpHr = Math.floor(aph * node.xp);
@@ -8321,6 +8629,23 @@ function gateOk(recipe){
   return !!(G.unlockedRecipes && G.unlockedRecipes[recipe.gated]);
 }
 
+/* b227 — THE MATERIAL-ONLY YIELD LAW (homestead-deepening.md §3.5 / H6).
+   A hard rule, not a tuning knob: `yield_*` and `craftSave` may fire ONLY on
+   a recipe whose output has no `type` — a bar, a plank, a dish; never a
+   weapon, armour or jewel. The vendor pays full item `v`, so a 20% extra-
+   output roll on a Slagheart Platebody prints six figures a session and the
+   Forge becomes the largest gold faucet in the game. With this predicate the
+   Forge doubles BARS — inputs, not outputs — which is what a better forge
+   should do. Any future building in EITHER pillar that grants extra output
+   must carry this same predicate (spec §9.4). */
+function isMaterialOutput(recipe){
+  var out = recipe && recipe.output;
+  if(!out) return false;
+  var def = (typeof ITEMS!=='undefined' && ITEMS[out]) || null;
+  return !!def && !def.type;
+}
+window.isMaterialOutput = isMaterialOutput;
+
 /* b225 — the open fire's burn roll, in ONE place.
 
    `cookBurnChance(recipe)` reads the live player state (cooking level + the
@@ -8381,7 +8706,17 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   if(!r) return;
   if(!hasInputs(r)){ window._stopArtisan && window._stopArtisan(); return; }
   if(!gateOk(r)){ window._stopArtisan && window._stopArtisan(); if(typeof notify==='function') notify('Recipe locked','kill'); return; }
-  consumeInputs(r);
+  /* b227 — `craftSave` (Workshop L4/L5, homestead-deepening §3.3). One of the
+     six ghost keys: declared in the House bonus display since it shipped and
+     produced by nothing. The Workshop's Lathe finally produces it.
+
+     Rolled HERE rather than inside consumeInputs because the roll needs the
+     skillId and consumeInputs only receives a recipe — and `craftSave` must
+     not silently pay out on cooking or smithing, which share that function.
+     Scoped to the bench that sells it. Subject to H6 below for the same
+     reason yield_* is: a free craft of a 270,000g platebody is a gold faucet,
+     not a better workshop. */
+  if(!(skillId==='crafting' && isMaterialOutput(r) && Math.random() < getBonus('craftSave'))) consumeInputs(r);
 
   /* ── The burn roll (cooking only; a forge does not "burn" a sword) ── */
   var CF = window.HearthriseCookingFire;
@@ -8413,7 +8748,13 @@ window.doArtisanAction = function(skillId, recipeId, opts){
     return;
   }
 
-  if(r.output && typeof addItem==='function') addItem(r.output, r.outputQty || 1);
+  /* b227 — `yield_<skill>` (Kitchen L4/L5, Forge L4/L5; spec §8's one-line
+     seam). The top rungs of a bench pay in OUTPUT, not speed, for two reasons:
+     `ms × (1 − speed)` runs out of room at 1.0 (H3), and an extra Cooked Shark
+     is a thing you can see in the bag where "+15% faster" is a thing you have
+     to believe. */
+  var extra = (r.output && isMaterialOutput(r) && Math.random() < getBonus('yield_'+skillId)) ? 1 : 0;
+  if(r.output && typeof addItem==='function') addItem(r.output, (r.outputQty || 1) + extra);
   if(typeof addXp==='function') addXp(skillId, r.xp);
   // b217: this (the LIVE doArtisanAction) previously updated only G.stats and
   // NOT the daily/quest trackers, so the daily "Cook/Smith/Craft N" tasks were
@@ -8505,45 +8846,44 @@ window.renderArtisanActivities = function(skillId){
   }).join('');
 };
 
-/* ─── Add raw meat + recipe scroll drops to monsters ─── */
-if(typeof MONSTERS !== 'undefined'){
-  /* Beast monsters drop raw meat */
-  if(MONSTERS.small_wolf) MONSTERS.small_wolf.drops.push({id:'raw_wolf_meat', ch:0.6});
-  if(MONSTERS.wolf)       MONSTERS.wolf.drops.push({id:'raw_wolf_meat', ch:0.7});
-  if(MONSTERS.dire_wolf)  MONSTERS.dire_wolf.drops.push({id:'raw_wolf_meat', ch:0.8});
-  if(MONSTERS.panther)    MONSTERS.panther.drops.push({id:'raw_panther_meat', ch:0.7});
-  if(MONSTERS.bear)       MONSTERS.bear.drops.push({id:'raw_bear_meat', ch:0.6});
-  if(MONSTERS.ancient_bear) MONSTERS.ancient_bear.drops.push({id:'raw_bear_meat', ch:0.8});
-
-  /* Recipe scroll drops from named bosses.
-   *
-   * b145 (beta launch prep — content reachability audit):
-   *   The active drops are ONLY the recipe scrolls whose unlock chains
-   *   are fully wired — output item exists in ITEMS, recipe exists in
-   *   ARTISAN_RECIPES. The three commented-out drops below
-   *   (spellstone_diagram, dragon_marrow_recipe, gemcutter_note) are
-   *   "Phase B" content — their target items (spellstone_ring,
-   *   dragonbone_spear, dragon_gem_earrings) aren't defined yet, and
-   *   their recipes don't exist either. Dropping the scrolls gives
-   *   players a confusing dead-end ("I have a Spellstone Diagram but
-   *   nothing happens"). Suppress the drops until the items ship.
-   *
-   *   When ready: define the 3 items in src/data/items.js, add their
-   *   recipes to src/data/recipes.js (with `gated:'<scroll_id>'`),
-   *   then un-comment the drops below. Smoke test will catch any
-   *   missed wiring via the divergence guard.
-   */
-  if(MONSTERS.goblin_warlord)   MONSTERS.goblin_warlord.drops.push({id:'chief_blade_recipe', ch:0.05});
-  if(MONSTERS.warband_captain)  MONSTERS.warband_captain.drops.push({id:'captain_recipe', ch:0.03});
-  if(MONSTERS.ancient_bear)     MONSTERS.ancient_bear.drops.push({id:'alpha_pattern', ch:0.02});
-  if(MONSTERS.lich)             MONSTERS.lich.drops.push({id:'soul_recipe', ch:0.01});
-  if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'marrow_cookbook', ch:0.005});
-  if(MONSTERS.plague_swarm)     MONSTERS.plague_swarm.drops.push({id:'field_cookbook', ch:0.02});
-  // ─── Phase B drops (suppressed in b145 — re-enable when items + recipes ship) ───
-  // if(MONSTERS.lich)             MONSTERS.lich.drops.push({id:'spellstone_diagram', ch:0.01});
-  // if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'dragon_marrow_recipe', ch:0.01});
-  // if(MONSTERS.dragon)           MONSTERS.dragon.drops.push({id:'gemcutter_note', ch:0.005});
-}
+/* ─── Raw meat + recipe scroll drops — MOVED TO src/data/monsters.js (b227) ───
+ *
+ * THESE PUSHES HAD NOT WORKED SINCE THE ESM DATA SPLIT, and nothing noticed
+ * for ~80 builds. Found by the b227 room-cost deadlock proof, which reported
+ * Field Rations as unreachable and was right.
+ *
+ * Mechanism: this block runs at legacy.js parse time and mutates the legacy
+ * `MONSTERS` object. `main.js` then runs `unifyObject('MONSTERS', …)`, which
+ * is `Object.assign(legacyObj, esmObj)` — a PER-KEY overwrite. So the whole
+ * `small_wolf` object (drops array included) is replaced by the ESM one, and
+ * every push above it is discarded. The identity-merge keeps ONE object, as
+ * intended, but it does not merge nested state — so any legacy code that
+ * post-hoc mutates a data entry is silently erased.
+ *
+ * What was actually lost, live: 3 raw meats (so `cooked_wolf_meat` and
+ * therefore `field_ration` — a castle good the Clan Seat Storehouse also
+ * wants — were unobtainable) and 6 recipe scrolls (so 6 `gated:` recipes could
+ * never be unlocked, because gateOk() reads G.unlockedRecipes).
+ *
+ * All 11 now live in src/data/monsters.js next to every other drop, which is
+ * the standing "content authored ONCE in src/data/*" rule. The b145 Phase-B
+ * reasoning below is preserved because it is still the live decision.
+ *
+ * FOR THE TEAM: this trap is general. Any other legacy-side mutation of
+ * MONSTERS / ITEMS / CROPS / SKILLS_DEF that runs before main.js is equally
+ * dead. Raised for a sweep — I only fixed the entries in front of me.
+ *
+ * The b145 reachability decision this block carried is still live and still
+ * correct, so it is recorded here rather than lost with the code:
+ *   Only recipe scrolls whose unlock chain is fully wired are dropped — the
+ *   output item must exist in ITEMS and the recipe in ARTISAN_RECIPES. Three
+ *   Phase-B scrolls (spellstone_diagram, dragon_marrow_recipe, gemcutter_note)
+ *   are deliberately NOT dropped: their target items (spellstone_ring,
+ *   dragonbone_spear, dragon_gem_earrings) do not exist yet, and a scroll that
+ *   unlocks nothing is a confusing dead end. When those ship, define the items
+ *   in src/data/items.js, add the recipes with `gated:'<scroll_id>'`, and add
+ *   the three drops in src/data/monsters.js — NOT here.
+ */
 
 /* ─── Recipe scroll auto-unlock on pickup ─── */
 (function(){
@@ -8621,7 +8961,7 @@ window._calcForSkill = function(skill){
     if(skill==='fishing' && typeof FISH_SPOTS !== 'undefined') node = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
     if(node){
       var speed = (typeof getBonus === 'function') ? getBonus('gatherSpeed') : 0;
-      var ms = Math.max(500, Math.floor(node.ms * (1 - speed)));
+      var ms = Math.max(500, Math.floor(node.ms * speedClamp(speed)));
       var aph = 3600000 / ms;
       var avgQ = (node.qty[0]+node.qty[1])/2;
       return {
@@ -9327,15 +9667,39 @@ function _gem(v){
   return (window.HR && window.HR.amount) ? window.HR.amount('gems', s, 13, '--gem') : s + ' gems';
 }
 /* One "<qty> <material>" chip for a recipe/building cost entry. */
+/* b227 — Tyler, live, on a screenshot of the Workshop row: "It's hard to see
+   what is actually required for these upgrades... it should be bigger and
+   either have visible text or hover text."
+
+   He was looking at THIS function. The old body appended the item's NAME only
+   in the `art ? '' : ...` branch — i.e. only when there was no icon. Every
+   material that has art (which is most of them) therefore rendered as a 15px
+   picture and a bare number: "🪵 15". The name was suppressed by the presence
+   of the thing that was supposed to illustrate it.
+
+   Now the name is never optional. A cost is a REQUIREMENT and a requirement
+   the player cannot read is not a requirement, it is a puzzle. Three changes:
+     • the display name always renders, in words, next to the count;
+     • a `title` gives the same fact plus what you actually hold, so a hover
+       answers "can I afford this?" without opening anything;
+     • met/short is carried as a class, because the row already knows the
+       answer and making the player subtract is a chore, not a decision.
+   House-only helper (the room rows and the plot rows are its only two
+   callers), so this is the whole fix for that complaint on those surfaces. */
 function _costPart(itemId, qty){
-  if(itemId === 'gold') return _gp(qty);
-  var def = (typeof ITEMS !== 'undefined') && ITEMS[itemId];
-  var path = window._itemPath && window._itemPath[itemId];
-  var art = path
-    ? '<img class="hr-cost-art ' + ((typeof window.itemTintClass === 'function') ? window.itemTintClass(itemId) : '') + '" src="' + path + '" alt="" />'
-    : '';
-  return '<span class="hr-inline hr-cost">' + art + '<span>' + qty + '</span></span>'
-    + (art ? '' : ' ' + ((def && def.n) || itemId));
+  var have = itemId === 'gold' ? (G.gold||0) : ((G.inventory||{})[itemId]||0);
+  var met = have >= qty;
+  var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
+  var tip = qty.toLocaleString() + ' ' + name + ' — you have ' + have.toLocaleString();
+  var art = '';
+  if(itemId === 'gold'){
+    art = (window.HR && window.HR.icon) ? (window.HR.icon('gold', 15, 'currentColor') || '') : '';
+  } else {
+    var path = window._itemPath && window._itemPath[itemId];
+    if(path) art = '<img class="hr-cost-art ' + ((typeof window.itemTintClass === 'function') ? window.itemTintClass(itemId) : '') + '" src="' + path + '" alt="" />';
+  }
+  return '<span class="hr-inline hr-cost hh-cost' + (met ? ' is-met' : ' is-short') + '" title="' + tip + '">' +
+    art + '<b>' + qty.toLocaleString() + '</b> <span class="hh-cost-nm">' + name + '</span></span>';
 }
 
 
@@ -9925,7 +10289,7 @@ function tileForGather(action, skillId){
      speed included, because that is what startSkill() will actually set. */
   var toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
   var speed = ((typeof getBonus==='function') ? getBonus('gatherSpeed') : 0) + toolSpeed;
-  var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*(1-speed)));
+  var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp(speed)));
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 251 — 2026-08-09 (Bounties count real kills)
+
+- 🎯 **"Collect" bounties no longer pay out instantly.** If a bounty asked you to collect drops from a monster and you already had a stack of that item, it completed the moment you accepted it — no kills required. Now the task only counts items you gather *after* accepting it, so the marks are earned. Your existing stacks are untouched. *(Thanks paione.)*
+- 🧪 456 tests green.
+
 ## v0.9.2-beta build 250 — 2026-08-09 (Landscape rail, full height)
 
 - 📱 **The landscape nav rail now runs the full height of the screen.** b249 moved the nav to the left but a competing rule kept it a short stub; it's now a proper full-height rail, so every tab is reachable and the game truly fills the landscape screen.

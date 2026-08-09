@@ -2091,6 +2091,16 @@ function generateBountyBoard(){
   G.bountyHunter.boardGeneratedAt=Date.now();
   return board;
 }
+/* Proof progress counts ONLY items collected AFTER the bounty was accepted.
+   Tester report (paione): accepting a "collect N proof" task paid out instantly
+   without any kills, because completion read the ABSOLUTE inventory count — so a
+   stack you already held from earlier kills satisfied it. `proofBaseline` is the
+   count at accept time; progress = current - baseline. Legacy active bounties
+   (accepted before this fix) have no baseline → 0 → old absolute behaviour, so
+   nobody loses in-flight progress. */
+function bountyProofHave(b){
+  return Math.max(0, (G.inventory[b.proofItem]||0) - (b.proofBaseline||0));
+}
 function bountyLabel(b){
   const m=MONSTERS[b.target];
   if(!m)return 'Unknown Bounty';
@@ -2101,7 +2111,7 @@ function bountyLabel(b){
 }
 function bountyProgressText(b){
   if(!b)return '';
-  if(b.type==='proof')return `${Math.min(G.inventory[b.proofItem]||0,b.required)} / ${b.required}`;
+  if(b.type==='proof')return `${Math.min(bountyProofHave(b),b.required)} / ${b.required}`;
   return `${Math.min(b.progress||0,b.required)} / ${b.required}`;
 }
 
@@ -2117,6 +2127,12 @@ function acceptBounty(index){
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
   const b=G.bountyHunter.board[index];if(!b)return;
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
+  /* Snapshot the proof-item count at accept time so only kills AFTER this count
+     toward the task (fixes instant auto-complete from a pre-existing stack). */
+  if(G.bountyHunter.active.type==='proof'){
+    G.bountyHunter.active.proofBaseline=G.inventory[G.bountyHunter.active.proofItem]||0;
+    G.bountyHunter.active.progress=0;
+  }
   G.bountyHunter.board.splice(index,1);
   notify(`Accepted bounty: ${MONSTERS[b.target]?.name}`,'info');
   renderCombat();repaintBounty();saveLocal();
@@ -2139,7 +2155,9 @@ function handleBountyKill(monsterId,m){
   ensureBountyState();
   const b=G.bountyHunter.active;if(!b||b.target!==monsterId)return;
   if(b.type==='proof'){
-    if((G.inventory[b.proofItem]||0)>=b.required)completeBounty();
+    const have=bountyProofHave(b);
+    b.progress=have;
+    if(have>=b.required)completeBounty();
     return;
   }
   if(b.type==='weapon'){
@@ -2214,7 +2232,7 @@ function renderBountyPanel(){
   let notices='';
   if(active){
     const m=MONSTERS[active.target];
-    const current=active.type==='proof'?Math.min(G.inventory[active.proofItem]||0,active.required):(active.progress||0);
+    const current=active.type==='proof'?Math.min(bountyProofHave(active),active.required):(active.progress||0);
     const pct=Math.min(100,(current/active.required)*100);
     /* The claimed notice stays ON the board, over-stamped. One strong device —
        a clerk's oxblood stamp — rather than three weak ones. */
@@ -5975,7 +5993,7 @@ window.renderBountyPanel = function(){
   const a = bh && bh.active;
   if(!a) return '';
   const m = MONSTERS[a.target];
-  const cur = a.type === 'proof' ? Math.min(G.inventory[a.proofItem]||0, a.required) : (a.progress||0);
+  const cur = a.type === 'proof' ? Math.min(bountyProofHave(a), a.required) : (a.progress||0);
   const pct = Math.min(100, (cur/a.required)*100);
   return `<div class="bounty-card" style="margin-bottom:8px">
     <div class="row between">

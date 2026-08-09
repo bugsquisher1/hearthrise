@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=250' directly.
+// modularised, will import { G } from '../state/game.js?v=251' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=250';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=250';
+import { on, snapshot } from '../net/events.js?v=251';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=251';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=250';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=251';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11329,6 +11329,40 @@ const TESTS = [
     }
     assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
+  () => tryRun('b251: proof bounty does not auto-complete from a pre-existing stack (paione: marks with no kills)', () => {
+    if(typeof window.acceptBounty !== 'function' || typeof window.handleBountyKill !== 'function'){ assert(true,'bounty system absent'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      if(typeof window.ensureBountyState === 'function') window.ensureBountyState();
+      // Pick a monster + a drop it yields; give the player a big pre-existing stack.
+      const monId = Object.keys(window.MONSTERS)[0];
+      const proof = (window.MONSTERS[monId].drops||[])[0] && window.MONSTERS[monId].drops[0].id;
+      if(!proof){ assert(true,'no proof drop to test'); return; }
+      G.inventory[proof] = 999;                         // huge stack from earlier play
+      // Craft a proof bounty on the board and accept it.
+      const b = { id:'test_proof', type:'proof', target:monId, tier:1, progress:0,
+                  proofItem:proof, required:3, rewards:{gold:0,marks:5,xp:0} };
+      G.bountyHunter.active = null;
+      G.bountyHunter.board = [b];
+      const marksBefore = G.bountyHunter.marks||0;
+      window.acceptBounty(0);
+      const a = G.bountyHunter.active;
+      assert(a && a.type==='proof', 'proof bounty must be accepted');
+      assert(a.proofBaseline === 999, 'accept must snapshot the current stack as baseline, got ' + a.proofBaseline);
+      // A kill fires the hook — but with no NEW proof items, it must NOT complete.
+      window.handleBountyKill(monId, window.MONSTERS[monId]);
+      assert(G.bountyHunter.active, 'bounty must still be active after a kill that yielded no new proof items');
+      assert((G.bountyHunter.marks||0) === marksBefore, 'no marks may be paid before real progress, got +' + ((G.bountyHunter.marks||0)-marksBefore));
+      assert(window.bountyProofHave(a) === 0, 'progress must read 0 right after accept, got ' + window.bountyProofHave(a));
+      // Collect the required NEW items → it completes.
+      G.inventory[proof] = 999 + 3;
+      window.handleBountyKill(monId, window.MONSTERS[monId]);
+      assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
+      assert((G.bountyHunter.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {

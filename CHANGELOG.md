@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 249 — 2026-08-09 (Landscape space + a real scroll fix)
+
+- 📱 **Landscape reclaims the wasted left strip and the bottom bar.** On the live theme the nav never folded into the side rail, so a dead ~64px gutter sat on the left while the nav still ate the bottom of the screen. The nav now becomes a proper left rail on every theme — the game fills the whole landscape screen.
+- 🎒 **Your bag really stops jumping to the top now.** The earlier fix patched the wrong renderer; the inventory you actually see is rebuilt every tick, which reset its scroll. It now holds position for real while you're fighting or skilling. *(Thanks paione — sorry it took two tries.)*
+- 🧪 455 tests green.
+
 ## v0.9.2-beta build 248 — 2026-08-09 (Two tester fixes)
 
 - 💀 **You can actually lose a boss fight now.** In the Crypt of Bones (and any scavenger boss), if you had food equipped your heal-on-hit was quietly reviving you every instant — so at 0 HP you kept swinging and always won. Bosses are a real threat again: run out of HP and you're defeated, food or not. *(Thanks Xarnathos.)*

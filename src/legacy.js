@@ -10387,6 +10387,17 @@ function renderInvFancy(){
     return true;
   });
 
+  /* Preserve scroll across this FULL-panel rebuild. Tester report (paione):
+     the bag "keeps scrolling up" every combat/skill tick — because this renderer
+     replaces #panel-inventory wholesale, destroying the internal scrollers
+     (.invc-bag-col, .invc-right) and recreating them at scrollTop 0. Capture
+     before, restore on the freshly-built nodes after. */
+  var _prevBagScroll = 0, _prevRightScroll = 0;
+  try {
+    var _pbc = panel.querySelector('.invc-bag-col'); if(_pbc) _prevBagScroll = _pbc.scrollTop;
+    var _prc = panel.querySelector('.invc-right');   if(_prc) _prevRightScroll = _prc.scrollTop;
+  } catch(e){}
+
   /* Build the panel */
   panel.innerHTML =
     /* b217: the screen opened with THREE stacked chrome bars before a single
@@ -10509,6 +10520,12 @@ function renderInvFancy(){
       '</div>'+
       '</div>'+
     '</div>';
+
+  /* Restore the scroll positions captured before the rebuild (paione fix). */
+  try {
+    var _nbc = panel.querySelector('.invc-bag-col'); if(_nbc) _nbc.scrollTop = _prevBagScroll;
+    var _nrc = panel.querySelector('.invc-right');   if(_nrc) _nrc.scrollTop = _prevRightScroll;
+  } catch(e){}
 
   /* Inject Tibia doll into the host */
   var host = document.getElementById('invc-doll-host');

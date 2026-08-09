@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=248' directly.
+// modularised, will import { G } from '../state/game.js?v=249' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=248';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=248';
+import { on, snapshot } from '../net/events.js?v=249';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=249';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=248';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=249';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11307,6 +11307,30 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  () => tryRun('b249: landscape side-rail is theme-neutral — no cozy-light lock (Tyler: dead offset on hearthlight)', () => {
+    // The live theme is `hearthlight`. The landscape nav→left-rail rotation was
+    // scoped to body[data-theme="cozy-light"], so it never fired live while the
+    // un-prefixed .app padding-left:64px still reserved the gutter → dead strip.
+    // Read the ACTUAL loaded stylesheets (synchronous, no fetch/await).
+    let found = false, themeLocked = false;
+    for(const sheet of document.styleSheets){
+      let rules; try { rules = sheet.cssRules; } catch(e){ continue; } // skip cross-origin
+      for(const rule of rules){
+        if(rule.type !== CSSRule.MEDIA_RULE) continue;
+        const mt = (rule.media && rule.media.mediaText) || rule.conditionText || '';
+        if(!(/max-height:\s*540px/.test(mt) && /landscape/.test(mt))) continue;
+        for(const r of rule.cssRules || []){
+          if(r.selectorText && /\.bottom-nav\b/.test(r.selectorText) && r.style && r.style.position === 'fixed'){
+            found = true;
+            if(/cozy-light/.test(r.selectorText)) themeLocked = true;
+          }
+        }
+      }
+    }
+    assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
+    assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
   () => tryRun('b248: Bone Lord is loseable — a downed fighter cannot heal-on-hit back above 0', () => {
     assert(typeof window._scvResolvePlayerHp === 'function', 'the boss survival rule seam must exist');
     // The exact tester scenario: HP already near 0, taking a lethal blow, WITH food (heal>0).
@@ -11338,6 +11362,35 @@ const TESTS = [
       if(s) s.scrollTop = top;
       assert(host.scrollTop === saved, 'scroll position must be preserved across the rebuild, got ' + host.scrollTop + ' want ' + saved);
     } finally { host.remove(); }
+  }),
+
+  () => tryRun('b249: renderInvFancy (the live bag) preserves .invc-bag-col scroll across its full-panel rebuild', () => {
+    // The b248 fix patched renderInvNew, but the bag players actually see is
+    // rebuilt by renderInvFancy, which replaces #panel-inventory wholesale and
+    // recreates the scroller (.invc-bag-col). paione still saw the snap-to-top.
+    const render = window._renderInvFancy || window.renderInvFancy;
+    const panel = document.getElementById('panel-inventory');
+    if(typeof render !== 'function' || !panel){ assert(true, 'renderer/panel absent — nothing to verify'); return; }
+    const snap = snapshotG();
+    // Force the bag column short + scrollable regardless of active tab/layout.
+    const style = document.createElement('style');
+    style.textContent = '#panel-inventory{display:flex!important} #panel-inventory .invc-bag-col{height:40px!important;max-height:40px!important;overflow-y:auto!important}';
+    document.head.appendChild(style);
+    try {
+      render();
+      let bag = panel.querySelector('.invc-bag-col');
+      assert(bag, 'the bag column must render');
+      // The renderer pads to ~88 slots, so at 40px tall it must overflow.
+      if(bag.scrollHeight > bag.clientHeight + 2){
+        bag.scrollTop = 25;
+        const saved = bag.scrollTop;               // may clamp to max
+        assert(saved > 0, 'precondition: bag must actually scroll');
+        render();                                   // the tick re-render
+        bag = panel.querySelector('.invc-bag-col'); // a NEW node after rebuild
+        assert(bag && Math.abs(bag.scrollTop - saved) <= 1,
+          'scroll must survive the rebuild, got ' + (bag && bag.scrollTop) + ' want ' + saved);
+      }
+    } finally { style.remove(); restoreG(snap); try { render(); } catch(e){} }
   }),
 
   () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {

@@ -737,7 +737,13 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
  * so the topbar doesn't bleed behind the rail.
  * ============================================================ */
 @media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
-  body[data-theme="cozy-light"] /* Side rail — parchment-themed (matches the panel sheet) */
+  /* Side rail LAYOUT — applies on EVERY theme.
+   * Bug (Tyler, landscape): this was scoped to body[data-theme="cozy-light"],
+   * but the live theme is `hearthlight`, so the nav never rotated into the rail
+   * — yet the un-prefixed `.app` padding-left:64px below still reserved space.
+   * Result: a dead 64px strip on the left AND the bottom-nav still eating the
+   * bottom. De-themed so the rail rotates on every theme; only the *colour*
+   * stays theme-specific, driven by the theme's own --sidebar-bg token. */
   .bottom-nav {
     position: fixed !important;
     left: 0 !important;
@@ -752,11 +758,11 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     padding: 6px 4px 6px calc(4px + var(--safe-l, 0px)) !important;
     gap: 3px !important;
     border-top: none !important;
-    border-right: 2px solid #b8893e !important;
-    /* Parchment gradient — vertical, fades from cream at top to
-     * slightly darker at bottom. Keeps theme consistent. */
-    background: linear-gradient(180deg, #fff8e2 0%, #f4e4bc 50%, #e8d5a3 100%) !important;
-    box-shadow: 2px 0 12px rgba(60,40,16,.25);
+    border-right: 2px solid var(--rail-edge, #b8893e) !important;
+    /* Rail surface comes from the active theme's sidebar token, so hearthlight
+     * gets its dark rail and cozy-light its parchment — no hardcoded leak. */
+    background: var(--sidebar-bg, linear-gradient(180deg, #241b12, #17120c)) !important;
+    box-shadow: 2px 0 12px rgba(0,0,0,.35);
     z-index: 100;
     overflow-y: auto;
     overflow-x: hidden;
@@ -764,10 +770,10 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   }
   .bottom-nav::-webkit-scrollbar { display: none; }
 
-  body[data-theme="cozy-light"] .bn-btn,
-
-
-  body[data-theme="cozy-light"] .bottom-nav button {
+  /* Rail button layout — de-themed (was cozy-light-only). Ink colour comes from
+   * the theme token so labels stay readable on both parchment and dark rails. */
+  .bn-btn,
+  .bottom-nav button {
     flex: 0 0 auto !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -777,7 +783,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     flex-direction: column;
     gap: 1px;
     border-radius: 5px;
-    color: #5c2d08 !important;       /* dark cocoa on parchment */
+    color: var(--ink) !important;
     background: transparent !important;
     border: 1px solid transparent !important;
     font-family: 'Cinzel', serif !important;
@@ -792,9 +798,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   .bn-btn:hover, .bottom-nav button:hover {
     background: rgba(184,137,62,.15) !important;
   }
-  body[data-theme="cozy-light"] /* Active rail item — wax-stamp red,
-
-  body[data-theme="cozy-light"] like every other primary action */
+  /* Active rail item — wax-stamp red, a primary action on every theme. */
   .bn-btn.active {
     background: linear-gradient(180deg, #d44a3a, #8b2a1f) !important;
     color: #fff8e2 !important;

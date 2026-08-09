@@ -51,6 +51,14 @@ Migrate toward four layers, strangler-fig, one domain at a time (combat, skills,
 
 ---
 
+## Adding content? Read the systems map first
+
+Before building any item / recipe / drop / gathering node / progression change, read
+[`docs/SYSTEMS_MAP.md`](./docs/SYSTEMS_MAP.md). Most content is a **data row** in
+`src/data/*.js` that an existing engine consumes — not new code. The map shows each
+system, its data shape, where to add, and which guard verifies it. Golden rule: grow
+by adding data, not code.
+
 ## What lives where
 
 - `src/legacy.js` — the ~9k-line monolith. Phase 3.5 (split into ESM modules) is still pending — task #129 in the task list.

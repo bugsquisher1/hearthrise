@@ -186,6 +186,9 @@ img,svg{display:block;max-width:100%}
 }
 .nav-foot .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
 .nav-foot .dot.off{background:var(--ink-3);box-shadow:none}
+/* b229: honest "Reconnecting…" state — amber, distinct from the green
+   connected dot and the neutral .off dot (which nothing sets anymore). */
+.nav-foot .dot.warn{background:var(--gold-2);box-shadow:0 0 6px var(--gold-2)}
 
 /* main column */
 .main{

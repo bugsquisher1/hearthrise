@@ -800,6 +800,35 @@
         pa.style.display = 'block';
       }
     } catch (e) {}
+    try { decorateTopbarAvatar(); } catch (e) {}
+  }
+
+  // b229: the topbar portrait, same rule as the Character page — click (or
+  // Enter/Space when focused) opens the SAME upload flow. `.player-avatar`
+  // is a static node from index.html (only its <img src> is ever swapped,
+  // never the container), so this wires once and is safe to call again on
+  // every avatar change — it just refreshes the tooltip label.
+  var topbarAvatarWired = false;
+  function decorateTopbarAvatar() {
+    var el = document.querySelector('.player-avatar');
+    if (!el) return;
+    el.title = avatarIsCustom() ? 'Change portrait' : 'Upload portrait';
+    if (topbarAvatarWired) return;
+    topbarAvatarWired = true;
+    ensureStyle();
+    el.classList.add('hr-id-clickable');
+    el.setAttribute('role', 'button');
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    el.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openAvatarPicker();
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openAvatarPicker();
+      }
+    });
   }
 
   // ════════════════════════════════════════════════════════════
@@ -833,6 +862,21 @@
       '.hr-id-rules{font-size:13.5px;color:var(--ink-3,#a2968a);margin:10px 2px 0;line-height:1.5}',
       '.hr-id-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}',
       '.hr-id-row .btn{flex:0 0 auto}',
+      /* b229: the portrait ITSELF is a click/keyboard target — topbar avatar
+         and Character-page hero portrait alike. Ring, not a filled state:
+         readable on both the dark topbar chip and the gilt hero frame
+         without fighting either one's own border.
+         Specificity note: src/styles/art-direction.css sets a baseline
+         `body[data-theme] .player-avatar` box-shadow at (0,2,1) — one
+         selector heavier than a bare `.hr-id-clickable:hover` (0,2,0), so
+         the generic rule silently lost on the topbar (confirmed by
+         computed-style check in browser verification: hover produced the
+         SAME box-shadow as idle). Pairing the class with each host
+         selector below wins the cascade outright, on both surfaces. */
+      '.hr-id-clickable{cursor:pointer;transition:box-shadow .15s ease}',
+      '.player-avatar.hr-id-clickable:hover,.cr-hero-portrait.hr-id-clickable:hover,',
+      '.player-avatar.hr-id-clickable:focus-visible,.cr-hero-portrait.hr-id-clickable:focus-visible{',
+      '  outline:none;box-shadow:0 0 0 2px var(--bg-1,#17140f),0 0 0 4px var(--gold-2,#e3c77e)}',
       /* the character-page portrait becomes an upload target */
       '.cr-hero-portrait{position:relative}',
       '.hr-id-upload{position:absolute;left:0;right:0;bottom:0;border:0;width:100%;',
@@ -1040,6 +1084,15 @@
     return fileInput;
   }
 
+  // b229 (Tyler): "clicking on the icon should give me the opportunity to
+  // upload an avatar" — the portrait itself is the affordance, on the
+  // Character page AND the topbar, and both call this ONE trigger rather
+  // than each reimplementing "open the file input". No forking the pipeline.
+  function openAvatarPicker() {
+    if (uploading) return;
+    ensureFileInput().click();
+  }
+
   var uploading = false;
   function handleUpload(file) {
     if (uploading) return;
@@ -1085,13 +1138,37 @@
       btn.className = 'hr-id-upload';
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
-        ensureFileInput().click();
+        openAvatarPicker();
       });
       portrait.appendChild(btn);
     }
     btn.textContent = uploading ? 'Working…' : (avatarIsCustom() ? 'Change portrait' : 'Upload portrait');
     btn.disabled = uploading;
     btn.title = 'PNG, JPG or WEBP. Cropped square to ' + AVATAR_PX + '×' + AVATAR_PX + '.';
+
+    // b229: the AVATAR ITSELF is the affordance, not just the label bar
+    // pinned to its bottom edge — the whole portrait is a clickable,
+    // keyboard-reachable target that opens the same upload flow. renderCharacter()
+    // rebuilds this element from scratch on every render (buildHeroCard()),
+    // so it is normally a fresh node with no listeners yet; the data attribute
+    // guards the one case where decorateCharacterPage() re-runs on the SAME
+    // node (a completed upload, with no intervening re-render).
+    if (!portrait.hasAttribute('data-hr-clickable')) {
+      portrait.setAttribute('data-hr-clickable', '1');
+      portrait.classList.add('hr-id-clickable');
+      portrait.setAttribute('role', 'button');
+      if (!portrait.hasAttribute('tabindex')) portrait.setAttribute('tabindex', '0');
+      // The bottom-bar button already stopPropagation()s its own click, so
+      // this cannot double-open the file picker when the button is hit.
+      portrait.addEventListener('click', function () { openAvatarPicker(); });
+      portrait.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openAvatarPicker();
+        }
+      });
+    }
+    portrait.title = avatarIsCustom() ? 'Change portrait' : 'Upload portrait';
 
     // The name row, under the hero name: what your name IS, and whether it
     // is actually yours. A provisional name that pretended to be unique
@@ -1279,6 +1356,9 @@
     processImage: processImage, setAvatarFromFile: setAvatarFromFile,
     clearAvatar: clearAvatar, applyAvatar: applyAvatar,
     decorateCharacterPage: decorateCharacterPage,
+    // b229: the one trigger both click affordances call — reused, not forked.
+    openAvatarPicker: openAvatarPicker, decorateTopbarAvatar: decorateTopbarAvatar,
+    avatarIsCustom: avatarIsCustom,
     // server-contract seams — pure, no I/O. Exposed for the regression suite.
     _reduceClaim: reduceClaim, _reduceAvailability: reduceAvailability,
     _reduceUpload: reduceUpload, _isMissingRpc: isMissingRpc,

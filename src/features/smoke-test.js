@@ -9252,6 +9252,118 @@ const TESTS = [
       try { window.showTab(startTab); } catch (e) {}
     }
   }),
+
+  // b229 (Tyler): "the bottom left corner of the game is showing 'offline'."
+  // Root cause was legacy.js's updateNetStatus() reading NetClient.online(),
+  // which is `navigator.onLine && !!ENDPOINT` with ENDPOINT hardcoded null —
+  // a pre-Supabase mock-backend relic — so it reported "Offline" permanently
+  // for every player, signed in and connected or not. Ownership of #net-status
+  // moved to src/network-status.js, the module that actually tracks live
+  // connectivity. Connected is the normal state for a signed-in, online-only
+  // realm: it shows NOTHING. Only a real disconnect gets an honest, live
+  // "Reconnecting…" badge that clears itself.
+  () => tryRun('b229: sidebar connection indicator is hidden when connected, honest "Reconnecting…" when not', () => {
+    const foot = document.getElementById('net-status');
+    assert(foot, '#net-status missing from the sidebar foot');
+    const NS = window.HearthriseNetStatus;
+    assert(NS && typeof NS.setMode === 'function' && typeof NS.getMode === 'function',
+      'network-status.js must expose the live seam');
+
+    // The regression itself: calling the legacy update path must never
+    // touch this element again.
+    foot.classList.remove('hide');
+    foot.querySelector('span:last-child').textContent = '__sentinel__';
+    if (typeof window.updateNetStatus === 'function') window.updateNetStatus();
+    assert(foot.querySelector('span:last-child').textContent === '__sentinel__',
+      'legacy.js updateNetStatus() must not write to #net-status any more — that was the stale-Offline bug');
+
+    const prevMode = NS.getMode();
+    try {
+      NS.setMode('ok');
+      assert(foot.classList.contains('hide'), 'connected must hide the indicator — connected is the normal state, not a status');
+
+      // A real disconnect: the browser 'offline' event is the live trigger.
+      window.dispatchEvent(new Event('offline'));
+      assert(!foot.classList.contains('hide'), 'a genuine disconnect must reveal the indicator');
+      const dot = foot.querySelector('.dot');
+      assert(dot && dot.classList.contains('warn') && !dot.classList.contains('off'),
+        'the disconnected dot must be the amber "warn" state');
+      assert(foot.querySelector('span:last-child').textContent === 'Reconnecting…',
+        'the disconnected label must read "Reconnecting…", never the old "Offline"');
+      assert(NS.getMode() === 'offline', 'setMode must actually flip to offline on a real disconnect event');
+
+      // Recovery clears it live, the same way it appeared.
+      NS.setMode('ok');
+      assert(foot.classList.contains('hide'), 'recovery must hide the indicator again');
+    } finally {
+      NS.setMode(prevMode);
+    }
+  }),
+
+  // b229 (Tyler): "clicking on the icon should give me the opportunity to
+  // upload an avatar." The b221 upload affordance was a small text bar
+  // pinned to the bottom of the Character-page portrait; the topbar avatar
+  // had no upload affordance at all. The portrait itself is now the
+  // affordance in both places, wired through identity.js's one existing
+  // upload pipeline (never forked).
+  () => tryRun('b229: the avatar itself opens the upload flow — topbar and Character page', () => {
+    const I = window.HearthriseIdentity;
+    assert(I && typeof I.openAvatarPicker === 'function',
+      'identity.js must expose one shared open-picker trigger for both surfaces to call');
+
+    // Force the lazily-created hidden <input type=file> into existence via
+    // the real seam, then spy on ITS .click() so a real DOM click on the
+    // portrait can be proven to reach the SAME pipeline — without popping
+    // an OS file dialog in headless CI.
+    I.openAvatarPicker();
+    const input = [...document.querySelectorAll('input[type="file"]')]
+      .find((el) => el.accept && /image\//.test(el.accept));
+    assert(input, 'identity.js must have created the hidden file-picker input');
+    const realClick = input.click.bind(input);
+    let calls = 0;
+    input.click = () => { calls++; };
+    const prevTab = window.activeTab;
+    try {
+      // Topbar avatar — present on every screen, never re-rendered wholesale.
+      const topAvatar = document.querySelector('.player-avatar');
+      assert(topAvatar, 'topbar avatar missing');
+      assert(topAvatar.getAttribute('role') === 'button', 'topbar avatar must be role="button"');
+      assert(topAvatar.tabIndex === 0, 'topbar avatar must be keyboard-reachable (tabindex=0)');
+      calls = 0;
+      topAvatar.click();
+      assert(calls === 1, 'clicking the topbar avatar must open the upload flow');
+      calls = 0;
+      topAvatar.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      assert(calls === 1, 'Enter on the focused topbar avatar must open the upload flow');
+
+      // Character-page portrait — rebuilt wholesale on every render, so the
+      // click wiring has to survive that (decorateCharacterPage re-attaches).
+      window.showTab('character');
+      if (typeof window.renderCharacter === 'function') window.renderCharacter();
+      const portrait = document.querySelector('#panel-character .cr-hero-portrait');
+      assert(portrait, 'character-page portrait missing');
+      assert(portrait.getAttribute('role') === 'button', 'character portrait must be role="button"');
+      assert(portrait.tabIndex === 0, 'character portrait must be keyboard-reachable (tabindex=0)');
+      calls = 0;
+      portrait.click();
+      assert(calls === 1, 'clicking the character-page portrait must open the upload flow');
+      calls = 0;
+      portrait.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      assert(calls === 1, 'Enter on the focused character portrait must open the upload flow');
+
+      // Clicking the bottom-bar label button (nested inside the portrait)
+      // must not double-open the picker via bubbling.
+      const btn = portrait.querySelector('.hr-id-upload');
+      assert(btn, 'the existing label button must still be present');
+      calls = 0;
+      btn.click();
+      assert(calls === 1, 'the label button must open the picker exactly once, not twice via bubbling');
+    } finally {
+      input.click = realClick;
+      window.showTab(prevTab);
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

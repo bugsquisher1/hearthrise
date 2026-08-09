@@ -11392,6 +11392,28 @@ const TESTS = [
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
   }),
 
+  () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
+    if(typeof window.processOfflineCombat !== 'function'){ assert(true, 'no offline combat'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      // Weak defence vs a monster that hurts, with auto-eat food configured.
+      G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
+      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 40;
+      G.playerHp = G.playerMaxHp;
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500 });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      if(window.HearthriseAuto && window.HearthriseAuto.setEat) window.HearthriseAuto.setEat({ foodId:'cooked_shrimp', enabled:true, threshold:0.6 });
+      G.activeMonster = 'wolf';
+      const m = window.MONSTERS.wolf; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      const before = G.inventory.cooked_shrimp;
+      const r = window.processOfflineCombat(0.5);
+      assert(r && r.foodEaten > 0, 'auto-eat must fire during offline combat, foodEaten=' + (r && r.foodEaten));
+      assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
+      assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {
     if(typeof window.openAutoEatPicker !== 'function' || typeof window.closeAutoEatPicker !== 'function'){ assert(true, 'no picker'); return; }
     const snap = snapshotG();

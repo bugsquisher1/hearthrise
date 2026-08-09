@@ -9,6 +9,35 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · Screen-by-screen UI/UX audit (read-only) — `docs/reports/AUDIT-2026-08-08-ui-review.md`
+
+**Scope.** b224 + account wall (`4bda860`). 40+ screen states — wall, every panel, every sub-tab, the castle + all six rooms, the modal fleet — at 1440×900 and 900×820, hearthlight and cozy-light. ~90 captures. **34 findings: 0 P0 · 9 P1 · 15 P2 · 8 P3 · 2 P4.**
+
+**Method worth keeping.** Playwright with the smoke suite's `__HR_TEST_HARNESS__` `addInitScript` seam (localhost-only) is the way to audit this build now that the wall is up — the MCP browser cannot set a global before page scripts run, so it cannot get past the front door. Seed state by writing `G.skills[s] = XP_TABLE[lv-1]` + `window.addItem` directly rather than via `window.Admin` (admin.js is gated behind `?admin=1` and injects its own panel into every screenshot). Overlays must be cleared *before each shot*, not once after boot — the daily-reward scrim and the renown celebration arrive on delays and silently dimmed my entire first pass. And `fullPage:true` is useless here: `.panel` scrolls internally, so a second pass that scrolls the tallest overflowing descendant is the only way to see below the fold.
+
+**The finding that dwarfs the rest: 112 emoji still render as art.** A DOM sweep counting only visible text nodes, over every panel and modal: Stable 22 at **48px** (the entire screen's art), Collection log 32, Events/Dungeons 24, House→Themes 6, Store→Equipment 5, Combat active-effects 4, Settings 4, House→Plot 3. The b217/b221 passes genuinely worked — Home, Character, Inventory, Bounty, Skills, Market, Social, Farm are clean — but every selector `icon-set.js` never listed is still emoji: `.sc-icon`, `.dgn-loot`, `.dgn-icon`, `.iap-icon`, `.at-icon`, `.hr-cl-ic`, `.modal-title`. **The sweep script is the guard we've never had** — it belongs in `smoke-test.js`; a strip-list is a blocklist and it will keep losing.
+
+**Three defects a visual pass alone would have missed, all found by measuring.**
+1. **Skills detail is stale by design.** `showTab('skills')` renders only the list; `refreshAll` re-renders the detail *only if `G.activeSkill`*. Until you click a tile, a level-58 skill displays "Level 1 · 0/83 XP" **with padlocks on Oak/Willow/Maple**. Not ugly — untrustworthy.
+2. **`character-page.js:225-227`** passes `lv('ranged')` into rows hardcoded `Attack / Strength`, so Melee and Ranged print two different numbers for "Attack" side by side.
+3. **Two dialogs render simultaneously.** Settings + the FTUE step-1 card; More + the What's-New sheet. `welcome-modal.js`'s `BLOCKING_OVERLAYS` guard exists but doesn't include `.modal.show` or the FTUE root.
+
+**Against my own standing brief.** The castle's six rooms are the entry affordance Tyler asked to feel like doors and they are a 6-cell bordered text table under a scene band; the room modals behind them are two-tone greybox (the Tavern is an arch, three lines and three plain black rectangles). `ROOM_ART` already draws one illustration per room — cropping those into the door tiles fixes the strip with zero new assets. Also: the Tavern tells the player the Board "needs the **clan-seat-2** migration" — a Supabase filename in shipped copy.
+
+**Colour discipline is slipping in three specific places**, all measured, none of them taste: the clan-boss bar is `linear-gradient(90deg, rgb(178,58,44), rgb(212,99,63))` at 1210×8 rendered **100% full above a caption that says "Unmeasured"**; the Store's nine Buy buttons are the highest-chroma block in the build and read violet rather than sapphire; and cozy-light's active nav is still `linear-gradient(rgb(212,74,58), rgb(139,42,31))` — the exact oxblood Forge & Stone was created to kill, one hand-set attribute away.
+
+**Where the value language is still absent.** House prints met and unmet requirements in the identical `rgb(236,225,204)` (Home colours the same data red); artisan recipe cards state inputs with no have/need and no disabled state; room-modal upgrade rows print `240/139 Timber Beam` which inverts into nonsense when you're over. That is **one atom** — a have/need pair with met/short states — owed to three screens.
+
+**The front door shows nothing of the game.** The account wall is a 402×386 card in a 1440×900 flat-black field (78% empty), with its value proposition stated twice in different words 250px apart. `HearthriseBackdrop.homesteadScene(5)` already exists, is already tokenised, and would fix it behind a scrim for free.
+
+**What holds up.** Bounty and the Store shopfront read as places and are now the internal reference for the Farm (eight diagonal-hatch plots — the most generated surface left), the Market (the last un-themed economy screen) and the castle. Home remains the strongest screen. Console clean, zero horizontal overflow at both widths, on every screen.
+
+**Deliberately not filed** (per brief): #18 nav placement, #19 text floors, the known asset gaps, mobile-portrait, everything in BACKLOG/CONFLICTS. Two are recorded in the report's "Not filed" section because the measurements change their sequencing: at 900px the chat dock and bug button sit **on top of the "More" bottom-nav tab** — the only route to five destinations on mobile, so #8 is a navigation block, not an overlap; and #19 is chasing an 8px floor (`.hr-cl-nm`), 9px (`.dgn-bop`, `.brand-tagline`) and a wide 10–10.5px band.
+
+**Note on overlap with b225 (below).** The audit was captured against `4bda860`, *before* the Clan destination shipped. Findings 3, 4, 25 and 27 are about the castle panel's own composition and the room modals, not its placement, so they survive the move unchanged — but they should be re-verified against b225's panel host before anyone acts on the pixel coordinates.
+
+**Limitations, honest.** cozy-light was checked but shallowly — it is unreachable through the UI, so depth there would have been spent badly. The Stable's 22 companion glyphs are a genuine asset ask, not a mapping job, and I have not confirmed the atlas can cover them. Captures live in the session scratchpad and are not committed; the report names the harness so any of them regenerates in one command.
+
 ### 2026-08-08 · b225 (#18) — the Clan Seat gets its own destination
 
 **The ask (Tyler, P1).** "The clan page needs to be different than the social/leaderboards tab... it should be easier to find."

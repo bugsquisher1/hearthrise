@@ -33,20 +33,35 @@
   // Every perk uses a WIRED type (allXP → getBonus, offlineHours → processOffline)
   // so nothing shown here is a broken promise. The bonuses stack as you climb —
   // higher rank literally makes everything faster (a retention engine in itself).
-  // By High Jarl: +22% XP and +12h offline cap.
+  //
+  // ── b228 · THE BONUS REBASE (docs/design/bonus-rebase.md §3.1, §5.3) ──────
+  // The ladder used to pay +22% allXP by High King — on its own, more than the
+  // entire rebased permanent ceiling for that key. The six XP ranks come to
+  // +1% each on the WIDE-key half-step, four of them survive as percentages,
+  // and TWO CONVERT, because +1% is not an unlock line worth 13,500 and 72,000
+  // renown:
+  //
+  //   Count → +1 market listing slot     (`marketSlots`, declared in getPerks
+  //   King  → +1 daily task slot          and `dailyTasks` — both fields have
+  //                                       existed unread since renown shipped)
+  //
+  // Access rewards are outside the power budget by design (§2.5): a slot does
+  // not scale a rate, cannot compound, and is felt every single day. Renown's
+  // six offline-hour ranks were always this shape — these two now match them.
+  // Total after: +4% allXP, +12h offline, +1 market slot, +1 daily task.
   var RANKS = [
     { id: 'peasant',  name: 'Peasant',   title: 'a Peasant',    min: 0,      reward: {},                           perk: null,                            unlock: 'Your journey begins.' },
     { id: 'serf',     name: 'Serf',      title: 'a Serf',       min: 400,    reward: { gold: 250 },                perk: { offlineHours: 1 },             unlock: '+1 hour offline progress' },
-    { id: 'squire',   name: 'Squire',    title: 'a Squire',     min: 900,    reward: { gold: 750 },                perk: { allXP: 0.02 },                 unlock: '+2% XP from every skill' },
+    { id: 'squire',   name: 'Squire',    title: 'a Squire',     min: 900,    reward: { gold: 750 },                perk: { allXP: 0.01 },                 unlock: '+1% XP from every skill' },
     { id: 'knight',   name: 'Knight',    title: 'a Knight',     min: 2200,   reward: { gold: 2000 },               perk: { offlineHours: 1 },             unlock: '+1 more hour offline progress' },
-    { id: 'baron',    name: 'Baron',     title: 'a Baron',      min: 4500,   reward: { gold: 5000, gems: 25 },     perk: { allXP: 0.03 },                 unlock: '+3% XP · 25 gems' },
+    { id: 'baron',    name: 'Baron',     title: 'a Baron',      min: 4500,   reward: { gold: 5000, gems: 25 },     perk: { allXP: 0.01 },                 unlock: '+1% XP · 25 gems' },
     { id: 'viscount', name: 'Viscount',  title: 'a Viscount',   min: 8000,   reward: { gold: 10000 },              perk: { offlineHours: 2 },             unlock: '+2 hours offline progress' },
-    { id: 'count',    name: 'Count',     title: 'a Count',      min: 13500,  reward: { gold: 20000, gems: 50 },    perk: { allXP: 0.03 },                 unlock: '+3% XP · 50 gems' },
+    { id: 'count',    name: 'Count',     title: 'a Count',      min: 13500,  reward: { gold: 20000, gems: 50 },    perk: { marketSlots: 1 },              unlock: '+1 market listing slot · 50 gems' },
     { id: 'marquis',  name: 'Marquis',   title: 'a Marquis',    min: 21000,  reward: { gold: 40000 },              perk: { offlineHours: 2 },             unlock: '+2 hours offline · the Marquis title' },
-    { id: 'duke',     name: 'Duke',      title: 'a Duke',       min: 32000,  reward: { gold: 75000, gems: 100 },   perk: { allXP: 0.04 },                 unlock: '+4% XP · 100 gems' },
+    { id: 'duke',     name: 'Duke',      title: 'a Duke',       min: 32000,  reward: { gold: 75000, gems: 100 },   perk: { allXP: 0.01 },                 unlock: '+1% XP · 100 gems' },
     { id: 'prince',   name: 'Prince',    title: 'a Prince',     min: 48000,  reward: { gold: 150000 },             perk: { offlineHours: 3 },             unlock: '+3 hours offline progress' },
-    { id: 'king',     name: 'King',      title: 'the King',     min: 72000,  reward: { gold: 300000, gems: 250 },  perk: { allXP: 0.05 },                 unlock: 'King of your own realm · +5% XP' },
-    { id: 'highking', name: 'High King', title: 'the High King', min: 120000, reward: { gold: 1000000, gems: 500 }, perk: { allXP: 0.05, offlineHours: 3 }, unlock: 'Legend of the realm · +5% XP · +3h offline' }
+    { id: 'king',     name: 'King',      title: 'the King',     min: 72000,  reward: { gold: 300000, gems: 250 },  perk: { dailyTasks: 1 },               unlock: 'King of your own realm · +1 daily task' },
+    { id: 'highking', name: 'High King', title: 'the High King', min: 120000, reward: { gold: 1000000, gems: 500 }, perk: { allXP: 0.01, offlineHours: 3 }, unlock: 'Legend of the realm · +1% XP · +3h offline' }
   ];
 
   // ── Scoring weights (tunable) ───────────────────────────────
@@ -65,17 +80,62 @@
   // progress clawed back, on the one surface whose entire job is to say you
   // climbed. Raising from the other side strictly increases every existing
   // player's renown; some will rank UP on this update, which is a gift.
+  //
+  // ── b228 · THE PACE RETUNE (Tyler, binding, 2026-08-09) ───────────────────
+  // *"It also seems to be going way too fast."* He was right, and the census
+  // says why: at the b226 weights a brand-new account scored ~380 before it
+  // took a single action (24 starting levels × 14, plus a combat level), so
+  // Serf was almost free — and a first full day of post-PACE play (~228K XP,
+  // ~120 levels, a couple of quests) landed a player near 3,000, which is
+  // KNIGHT ON DAY ONE. The ladder was paying for existing, not for climbing.
+  //
+  // Every weight comes down; the THRESHOLDS do not move by a single point.
+  // That is deliberate and it is the only safe direction: `min` values are
+  // compared against `renownHigh`, the b226 high-water ratchet, so lowering
+  // weights can never demote anyone (their banked high-water mark holds their
+  // rank forever) whereas raising thresholds would demote everybody at once.
+  //
+  // Derived against the pacing model (pacing-overhaul.md A.4: ~228K XP/day at
+  // PACE, total level growing sub-linearly as skills get expensive), targeting
+  // the pace Tyler asked for:
+  //
+  //   day 2     total level ~168 → ~440 renown     → SERF (400)      ✓ day 1-2
+  //   day 5-7   total level ~370 → ~1,150 renown   → SQUIRE (900)    ✓ week 1
+  //   day 17-24 total level ~685 → ~2,700 renown   → KNIGHT (2,200)  ✓ week 3-4
+  //   day 44-60 total level ~977 → ~5,300 renown   → BARON (4,500)   ✓ month 2
+  //
+  // Note the shape this produces, which is the real point: total level is
+  // ~80% of the score in week one and under a quarter of it by month two,
+  // because levels get expensive while kills, quests, collection entries and
+  // the login streak keep accruing linearly. Early renown is "you played";
+  // late renown is "you accomplished". That is the ladder the flavour text at
+  // the top of this file has always claimed to be.
   var W = {
-    totalLevel:   14,   // b226: 10 → 14. sum of all skill levels — the steady backbone
-    combatLevel:  15,
-    kill:         0.5,  // each monster kill (grind) — never lowered, see above
-    bossKill:     40,   // bosses are landmarks
-    questDone:    200,  // quests = big renown jumps
-    collection:   25,   // each collection-log entry (completionism)
-    skill99:      900,  // b226: 600 → 900. mastering a skill to 99 = huge flex
-    streakBest:   25,   // best login streak ever (rewards the habit)
-    bountyDone:   12,
-    goldLog:      45    // × (log10(gold)-3) above 1k — a minor flex, not the path
+    totalLevel:   2,     // sum of all skill levels — the steady backbone
+    combatLevel:  2,     // same currency as a skill level, so the same weight
+    kill:         0.05,  // 20 monsters = 1 renown
+    bossKill:     5,     // bosses are landmarks
+    questDone:    25,    // quests are still the biggest single jump available early
+    collection:   3,     // each collection-log entry (completionism)
+    skill99:      100,   // mastering a skill to 99 = a flex on top of its 99 levels
+    streakBest:   5,     // best login streak ever (rewards the habit)
+    bountyDone:   2,
+    goldLog:      8      // × (log10(gold)-3) above 1k — a minor flex, not the path
+  };
+  /* How each term reads in a sentence, for the "How renown is earned" panel.
+     The panel PRINTS W, never a copy of it, so the explanation cannot drift
+     away from the scoring the way a hand-written help text always does. */
+  var W_LABEL = {
+    totalLevel:  'Every skill level you own',
+    combatLevel: 'Every point of Combat level',
+    kill:        'Each monster slain',
+    bossKill:    'Each boss felled',
+    questDone:   'Each quest finished',
+    collection:  'Each Collection Log entry',
+    skill99:     'Each skill taken to 99',
+    streakBest:  'Each day of your best login streak',
+    bountyDone:  'Each bounty completed',
+    goldLog:     'Every tenfold of gold above 1,000'
   };
 
   function lvlFromXp(xp) {
@@ -300,6 +360,14 @@
       '.hr-rn-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2,#c8862a),var(--gold,#e0a64a))}',
       '.hr-rn-next{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}',
       '.hr-rn-list{padding:8px}',
+      // b228: the "How renown is earned" block.
+      '.hr-rn-today{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--green,#5fbf6a);font-weight:700;margin-top:6px}',
+      '.hr-rn-howh{font-family:var(--f-display,serif);font-size:calc(17px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a);padding:12px 13px 2px}',
+      '.hr-rn-howsub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);padding:0 13px 8px;line-height:1.45}',
+      '.hr-rn-earn{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:5px 13px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2,#cbb890)}',
+      '.hr-rn-earn+.hr-rn-earn{border-top:1px solid var(--line-soft,rgba(122,94,58,.16))}',
+      '.hr-rn-earn>b{color:var(--ink,#e9e2cf);white-space:nowrap;font-variant-numeric:tabular-nums}',
+      '.hr-rn-hownote{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);padding:10px 13px 14px;line-height:1.45}',
       '.hr-rn-rank{display:flex;gap:11px;align-items:center;padding:10px 11px;border-radius:10px;border:1px solid transparent;margin:3px 0}',
       '.hr-rn-rank.is-cur{background:color-mix(in srgb,var(--gold,#e0a64a) 12%,transparent);border-color:var(--gold,#e0a64a)}',
       '.hr-rn-rank.is-done{opacity:.9}',
@@ -320,6 +388,48 @@
       '.hr-rn-cele .big{font-family:var(--f-display,serif);font-size:calc(31px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a);margin:6px 0}'
     ].join('');
     document.head.appendChild(s);
+  }
+
+  /* ── "How renown is earned" (Tyler, 2026-08-09: *"we need to explain how to
+     gain renown, because I don't even know"*) ──────────────────────────────
+     The ladder screen showed twelve thresholds and never once said what makes
+     the number go up. This reads the LIVE `W` table — the same object
+     computeRenown() scores against — so the explanation is generated from the
+     scoring rather than written beside it, and it cannot go stale when the
+     weights are next tuned.
+
+     Small weights are inverted into whole things ("20 monsters slain: 1")
+     because "0.05" is a number, not an explanation. */
+  function weightPhrase(w) {
+    if (w >= 1) return (Math.round(w * 10) / 10) + '';
+    var n = Math.round(1 / w);
+    return '1 per ' + n;
+  }
+  function earnRows() {
+    var order = ['totalLevel', 'combatLevel', 'questDone', 'skill99', 'bossKill',
+                 'collection', 'streakBest', 'bountyDone', 'kill', 'goldLog'];
+    var out = [];
+    for (var i = 0; i < order.length; i++) {
+      var k = order[i];
+      if (!(k in W) || !W[k]) continue;
+      out.push('<div class="hr-rn-earn"><span>' + (W_LABEL[k] || k) + '</span>' +
+               '<b>' + weightPhrase(W[k]) + '</b></div>');
+    }
+    return out.join('');
+  }
+  /* +N renown earned today, or null when it cannot be answered honestly.
+     Reads profile-launchpad's midnight snapshot — one clock for every daily
+     number in the game. No snapshot, no line. */
+  function todayGain(G) {
+    G = G || window.G; if (!G) return null;
+    try {
+      if (window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.ensureDailySnapshot === 'function') {
+        window.HearthriseLaunchpad.ensureDailySnapshot();
+      }
+    } catch (e) {}
+    var snap = G.daily && G.daily.snapshot;
+    if (!snap || typeof snap.renown !== 'number' || !isFinite(snap.renown)) return null;
+    return Math.max(0, effectiveRenown(G) - snap.renown);
   }
 
   function rewardText(rw) {
@@ -365,6 +475,10 @@
       ? 'You have reached the summit — ' + st.rank.name
       : fmt(st.toNext) + ' Renown to <b>' + st.next.name + '</b>';
 
+    var gain = todayGain(G);
+    var todayLine = (gain === null) ? '' :
+      '<div class="hr-rn-today">+' + fmt(gain) + ' Renown today</div>';
+
     var scrim = document.createElement('div');
     scrim.className = 'hr-rn-scrim';
     scrim.id = 'hr-rn-modal';
@@ -377,8 +491,18 @@
           '<div class="hr-rn-sub">' + fmt(st.renown) + ' Renown</div>' +
           '<div class="hr-rn-bar"><i style="width:' + Math.round(st.progress * 100) + '%"></i></div>' +
           '<div class="hr-rn-next">' + nextLine + '</div>' +
+          todayLine +
         '</div>' +
         '<div class="hr-rn-list">' + rows + '</div>' +
+        '<div class="hr-rn-howh">How renown is earned</div>' +
+        '<div class="hr-rn-howsub">Renown is your whole account, added up. ' +
+          'Nothing is spent and nothing is lost — every rank you reach is yours ' +
+          'for good, so the number below only ever goes up.</div>' +
+        earnRows() +
+        '<div class="hr-rn-hownote">Early on, levels are most of your renown. ' +
+          'Later they slow down while quests, bosses, your Collection Log and ' +
+          'your login streak keep adding — so the climb shifts from <i>how much ' +
+          'you played</i> to <i>what you have done</i>.</div>' +
       '</div>';
     scrim.addEventListener('click', function (e) {
       if (e.target === scrim || e.target.getAttribute('data-close')) { closeModal(); return; }
@@ -455,6 +579,11 @@
   window.HearthriseRenown = {
     RANKS: RANKS,
     WEIGHTS: W,
+    WEIGHT_LABELS: W_LABEL,
+    /* b228: exposed so the suite can assert the explainer prints the live
+       weights rather than a hand-written copy of them. */
+    earnRows: earnRows,
+    todayGain: todayGain,
     compute: computeRenown,
     /* b226: the ratcheted score every rank decision is made against. */
     effective: effectiveRenown,

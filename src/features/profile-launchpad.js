@@ -74,6 +74,13 @@
       gathered:      stats.gathered | 0,
       harvested:     stats.harvested | 0,
       deedsDropped:  inv.farm_deed | 0,
+      /* b228: renown joins the baseline so the Throne ladder can honestly say
+         "+N renown today" off the SAME midnight rollover every other daily
+         number uses, rather than inventing a second clock. Guarded: if the
+         renown module has not booted yet the field is absent, and the ladder
+         then prints no daily line at all rather than a wrong one. */
+      renown:        (window.HearthriseRenown && typeof window.HearthriseRenown.effective === 'function')
+                       ? window.HearthriseRenown.effective(window.G) : undefined,
     };
     window.G.daily.snapshot = fresh;
     if(typeof window.saveLocal === 'function'){

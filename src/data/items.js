@@ -103,19 +103,19 @@ export const ITEMS={
      this field — see foodClassOf() at the bottom of this file. */
   cooked_shrimp: {
     n:'Cooked Shrimp', icon:'🍤', v:18, heals:8, foodTier:1, foodClass:'healing',
-    buff:{type:'gather_speed', magnitude:5,  durationMs:120000},
+    buff:{type:'gather_speed', magnitude:1,  durationMs:120000},
   },
   cooked_trout: {
     n:'Cooked Trout', icon:'🐠', v:55, heals:14, foodTier:2, foodClass:'healing',
-    buff:{type:'all_xp', magnitude:5,  durationMs:180000},
+    buff:{type:'all_xp', magnitude:2,  durationMs:180000},
   },
   cooked_lobster: {
     n:'Cooked Lobster', icon:'🦞', v:240, heals:25, foodTier:3, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:8,  durationMs:300000},
+    buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
     n:'Cooked Shark', icon:'🍣', v:900, heals:42, foodTier:4, foodClass:'healing',
-    buff:{type:'damage', magnitude:12, durationMs:360000},
+    buff:{type:'damage', magnitude:4, durationMs:360000},
   },
 
   /* ── Recipe outputs: smithing (bars) ── */
@@ -153,17 +153,17 @@ export const ITEMS={
   /* Fishing gap-fillers (10 / 66) */
   herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:4},
   cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:40, heals:6, foodTier:1, foodClass:'healing',
-    buff:{type:'gather_speed', magnitude:4, durationMs:120000}},
+    buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:18},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:28, foodTier:4, foodClass:'healing',
-    buff:{type:'defense', magnitude:10, durationMs:360000}},
+    buff:{type:'defense', magnitude:4, durationMs:360000}},
   /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone */
   swordfish:        {n:'Raw Swordfish', icon:'🐠', v:220, heals:14},
   cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:22, foodTier:3, foodClass:'healing',
-    buff:{type:'damage', magnitude:8, durationMs:300000}},
+    buff:{type:'damage', magnitude:3, durationMs:300000}},
   moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:24},
   cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:38, foodTier:4, foodClass:'healing',
-    buff:{type:'all_xp', magnitude:8, durationMs:420000}},
+    buff:{type:'all_xp', magnitude:3, durationMs:420000}},
   /* Farming (62 / 75 / 88) */
   goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:12},
   goldenroot_seed: {n:'Goldenroot Seed', icon:'🌱', v:90,  seed:'goldenroot'},
@@ -173,11 +173,11 @@ export const ITEMS={
   moonbloom_seed:  {n:'Moonbloom Seed', icon:'🌱', v:280, seed:'moonbloom'},
   /* Late-game cooking — gives the new crops a real sink */
   goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:26, foodTier:3, foodClass:'buff',
-    buff:{type:'gather_speed', magnitude:12, durationMs:360000}},
+    buff:{type:'gather_speed', magnitude:4, durationMs:360000}},
   ember_tart:       {n:'Ember Tart', icon:'🥧', v:1300, heals:30, foodTier:4, foodClass:'buff',
-    buff:{type:'combat_xp', magnitude:12, durationMs:360000}},
+    buff:{type:'combat_xp', magnitude:4, durationMs:360000}},
   moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:40, foodTier:5, foodClass:'buff',
-    buff:{type:'all_xp', magnitude:12, durationMs:480000}},
+    buff:{type:'all_xp', magnitude:5, durationMs:480000}},
 
   /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
      the final gather-speed upgrades (+30% / +35%). */
@@ -193,23 +193,23 @@ export const ITEMS={
      so that even a partial cooking unlock has working buff foods. */
   baked_potato: {
     n:'Baked Potato', icon:'🥔', v:150, heals:20, foodTier:2, foodClass:'healing',
-    buff:{type:'gather_speed', magnitude:10, durationMs:240000},
+    buff:{type:'gather_speed', magnitude:3, durationMs:240000},
   },
   pumpkin_pie: {
     n:'Pumpkin Pie', icon:'🥧', v:420, heals:35, foodTier:3, foodClass:'buff',
-    buff:{type:'all_xp', magnitude:10, durationMs:300000},
+    buff:{type:'all_xp', magnitude:3, durationMs:300000},
   },
   carrot_stew: {
     n:'Carrot Stew', icon:'🍲', v:200, heals:24, foodTier:2, foodClass:'buff',
-    buff:{type:'farm_yield', magnitude:15, durationMs:360000},
+    buff:{type:'farm_yield', magnitude:1, durationMs:360000},
   },
   tomato_soup: {
     n:'Tomato Soup', icon:'🍅', v:260, heals:28, foodTier:2, foodClass:'buff',
-    buff:{type:'monster_respawn', magnitude:10, durationMs:240000},
+    buff:{type:'monster_respawn', magnitude:2, durationMs:240000},
   },
   wheat_bread: {
     n:'Wheat Bread', icon:'🍞', v:120, heals:18, foodTier:1, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:5, durationMs:180000},
+    buff:{type:'drop_rate', magnitude:1, durationMs:180000},
   },
 
   /* ══════════════════════════════════════════════════════════════════
@@ -269,13 +269,13 @@ export const ITEMS={
   cooked_bear_meat:    {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:13, foodClass:'healing', cookedFrom:'raw_bear_meat'},
   // Tier 2 buff foods
   roasted_carrot:  {n:'Roasted Carrot', icon:'🥕', v:12,  heals:5,  foodClass:'buff', buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
-  roasted_pumpkin: {n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:22, foodClass:'buff', buff:{type:'farm_yield',   magnitude:5,  durationMs:600000}},
-  vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, foodClass:'buff', buff:{type:'all_xp',       magnitude:3,  durationMs:900000}},
+  roasted_pumpkin: {n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:22, foodClass:'buff', buff:{type:'farm_yield',   magnitude:1,  durationMs:600000}},
+  vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, foodClass:'buff', buff:{type:'all_xp',       magnitude:2,  durationMs:900000}},
   // Tier 3 buff foods
-  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, foodClass:'buff', buff:{type:'damage',          magnitude:5,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, foodClass:'buff', buff:{type:'monster_respawn', magnitude:15, durationMs:900000}},
-  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, foodClass:'buff', buff:{type:'combat_xp',       magnitude:10, durationMs:1200000}},
-  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, foodClass:'buff', buff:{type:'gold_find',       magnitude:50, durationMs:300000}},
+  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
+  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, foodClass:'buff', buff:{type:'monster_respawn', magnitude:5, durationMs:900000}},
+  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, foodClass:'buff', buff:{type:'combat_xp',       magnitude:4, durationMs:1200000}},
+  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},

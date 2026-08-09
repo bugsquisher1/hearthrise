@@ -252,18 +252,29 @@
      live here now so the wiring is a one-line hand-off rather than a second
      round of balance archaeology.
      ══════════════════════════════════════════════════════════════ */
-  // The Hearth: +4% duration and +2% strength per Tavern level (§9.1).
+  /* The Hearth: +4% duration and +1% strength per Tavern level.
+     b228 (bonus-rebase.md §3.2): DURATION is exempt from the small-percent
+     grammar — it lengthens a window you already earned and never raises a
+     magnitude — so it keeps +4%/level. MAGNITUDE is throughput and comes to
+     +1%/level → +10% at level 10. */
   function hearthScale(tavernLevel) {
     var lv = Math.max(0, Math.min(10, tavernLevel | 0));
-    return { duration: 1 + 0.04 * lv, magnitude: 1 + 0.02 * lv };
+    return { duration: 1 + 0.04 * lv, magnitude: 1 + 0.01 * lv };
   }
   function leftoversChance(tavernLevel) {
     return Math.max(0, Math.min(10, tavernLevel | 0)) * 0.005;   // 0.5%/lvl → 5%
   }
-  // The Common Room: each banked charge is worth +2% × Tavern level (§9.4).
-  // This is the value the castle will publish as getBonus('restedXp').
-  function restedPotency(tavernLevel) {
-    return Math.max(0, Math.min(10, tavernLevel | 0)) * 0.02;
+  /* The Common Room. b228: converted from a PERCENTAGE POTENCY to a flat XP
+     QUANTUM (bonus-rebase.md §5.3). A potency multiplied one XP grant per
+     charge, which was inert at +20% and would have been provably worthless at
+     the rebased scale; a quantum is capacity, is felt at any size, and cannot
+     compound. 160 XP per charge per Tavern level → 1,600 at level 10, which is
+     the aggregate ceiling legacy.js enforces across both roads (the homestead
+     Library is the other). The 2026-08-09-bonus-rebase.sql migration re-creates
+     the server's copy of this constant at the same value. */
+  var RESTED_XP_PER_LEVEL = 160;
+  function restedQuantum(tavernLevel) {
+    return Math.max(0, Math.min(10, tavernLevel | 0)) * RESTED_XP_PER_LEVEL;
   }
   var RESTED_CHARGE_MS = 6 * 60 * 1000;
   var RESTED_CAP = 80;
@@ -274,12 +285,21 @@
   }
   var FEAST_COOLDOWN_MS = 20 * 3600 * 1000;   // 20h, NOT 24 — it drifts round
   var LAST_CALL_MS = 30 * 60 * 1000;          // the final 30 min, Tavern 7+
+  /* b228 (bonus-rebase.md §3.2) — THE FEAST LADDER, REBASED.
+     The HOURS are untouched: a feast's length is what makes it an event the
+     clan schedules its evening around, and duration is outside the grammar.
+     Only the magnitudes move, and they move a long way — a Tavern-10 Last Call
+     used to pay +36% allXP on top of a +52% permanent stack, which is enormous
+     in absolute terms and INVISIBLE in relative terms because everything else
+     was enormous too. At +8% on a +15% stack it is a 53% uplift — the same
+     order of feeling, at a fifth of the cost to pacing, and now it is the
+     largest single thing on the screen. You cannot have a peak without a plain. */
   function feastEffect(tavernLevel) {
     var lv = Math.max(1, Math.min(10, tavernLevel | 0));
-    if (lv >= 10) return { hours: 4, allXP: 0.18, yield: 0.12, artisan: 0.12 };
-    if (lv >= 7)  return { hours: 3, allXP: 0.15, yield: 0.10, artisan: 0.10 };
-    if (lv >= 4)  return { hours: 2, allXP: 0.12, yield: 0.08, artisan: 0 };
-    return { hours: 1, allXP: 0.08, yield: 0, artisan: 0 };
+    if (lv >= 10) return { hours: 4, allXP: 0.04, yield: 0.03, artisan: 0.04 };
+    if (lv >= 7)  return { hours: 3, allXP: 0.03, yield: 0.02, artisan: 0.03 };
+    if (lv >= 4)  return { hours: 2, allXP: 0.02, yield: 0.01, artisan: 0 };
+    return { hours: 1, allXP: 0.01, yield: 0, artisan: 0 };
   }
   // Last Call doubles every effect for the final 30 minutes (Tavern 7+).
   function feastEffectAt(tavernLevel, msRemaining) {
@@ -689,7 +709,8 @@
     upkeepWeeksOwed: upkeepWeeksOwed,
     // tavern
     hearthScale: hearthScale, leftoversChance: leftoversChance,
-    restedPotency: restedPotency, RESTED_CHARGE_MS: RESTED_CHARGE_MS, RESTED_CAP: RESTED_CAP,
+    restedQuantum: restedQuantum, RESTED_XP_PER_LEVEL: RESTED_XP_PER_LEVEL,
+    RESTED_CHARGE_MS: RESTED_CHARGE_MS, RESTED_CAP: RESTED_CAP,
     feastMeterCap: feastMeterCap, feastEffect: feastEffect, feastEffectAt: feastEffectAt,
     FEAST_COOLDOWN_MS: FEAST_COOLDOWN_MS, LAST_CALL_MS: LAST_CALL_MS,
     // treasury + succession

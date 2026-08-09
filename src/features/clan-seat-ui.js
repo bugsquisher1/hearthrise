@@ -57,26 +57,49 @@
   // The Great Hall is deliberately absent from this list: it IS castle_tier,
   // not a Work Order, and the migration's hr_castle_buildings agrees (five
   // rows, not six). Its perk is handled separately below.
+  /* ── b228 · THE BONUS REBASE (docs/design/bonus-rebase.md §3.1, §4.2) ─────
+     `per: 0.005` is deleted from the vocabulary. A grant of half a percent is
+     not a reward, it is a rounding error with a price tag, and it was also the
+     single worst offender against the new grammar ("every percentage a source
+     grants is a whole number of percent").
+
+     Each building now pays **+1% at level 4, at level 7 and at level 10** —
+     three felt steps totalling +3%, in place of ten invisible ones totalling
+     +5%. RUNGS is that ladder, written down rather than computed, so the
+     Systems value and the panel copy read off one array.
+
+     The War Room comes down hardest (10% → 3%) and loses nothing that matters:
+     its real payload is the HUNT TIER CEILING — the highest Hunt the clan may
+     declare — which is access, not throughput, and the panel copy leads with
+     it (§5.3). The Tavern's `restedXp` percentage is gone entirely; Rested is
+     now a flat XP quantum (see restedQuantum below). */
+  var PERK_RUNGS = [4, 7, 10];
+  var PERK_PER_RUNG = 0.01;
+  function perkAtLevel(lv) {
+    var n = 0, l = Math.max(0, Math.min(10, lv | 0));
+    for (var i = 0; i < PERK_RUNGS.length; i++) if (l >= PERK_RUNGS[i]) n++;
+    return n * PERK_PER_RUNG;
+  }
   var BUILDINGS = [
     { id: 'treasury', name: 'Treasury', district: 'Keep',
-      perk: 'goldFind', per: 0.005,
+      perk: 'goldFind', rungs: PERK_RUNGS,
       fn: 'Storehouse cap 2,500 x level per item, and −1% upkeep per level.',
       gold: 4000, bundle: { timber_beam: 30, iron_fitting: 15 } },
     { id: 'tavern', name: 'The Tavern', district: 'Village',
-      perk: 'restedXp', per: 0.02,
+      perk: 'restedXp', rungs: PERK_RUNGS,
       fn: 'Feasts, Rested XP and the Board. Its power is bursty by design.',
       gold: 6000, bundle: { timber_beam: 40, iron_fitting: 20, field_ration: 60 } },
     { id: 'sawmill', name: 'Sawmill', district: 'Outer Ward',
-      perk: 'craftSpeed', per: 0.005,
+      perk: 'craftSpeed', rungs: PERK_RUNGS,
       fn: '−0.4% Timber Beam input per level. It is built of Beams and it makes Beams cheaper.',
       gold: 5000, bundle: { timber_beam: 35, iron_fitting: 15 } },
     { id: 'smeltery', name: 'Smeltery', district: 'Outer Ward',
-      perk: 'smithSpeed', per: 0.005,
+      perk: 'smithSpeed', rungs: PERK_RUNGS,
       fn: '−0.4% Iron Fitting input per level.',
       gold: 5000, bundle: { timber_beam: 25, iron_fitting: 25 } },
     { id: 'war_room', name: 'War Room', district: 'Keep',
-      perk: 'raidPower', per: 0.01,
-      fn: 'Hosts the Hunt: declaration, tier ceiling, rally lines.',
+      perk: 'raidPower', rungs: PERK_RUNGS,
+      fn: 'Hosts the Hunt — it sets the highest Hunt tier the clan may declare, and hosts declaration and rally.',
       gold: 8000, bundle: { timber_beam: 40, iron_fitting: 30 } }
   ];
   function buildingDef(id) {
@@ -84,8 +107,13 @@
     return null;
   }
 
-  // The Great Hall's own perk: +1% allXP per castle tier → +5% at tier 5 (§7).
+  /* The Great Hall's own perk. b228: +1% allXP per castle tier ABOVE THE
+     FIRST → +4% at tier 5 (§3.1). Tier 1 is the castle merely existing; the
+     ladder should pay for climbing it, not for arriving. */
   var GREAT_HALL_ALLXP_PER_TIER = 0.01;
+  function greatHallAllXp(tier) {
+    return GREAT_HALL_ALLXP_PER_TIER * Math.max(0, Math.min(5, tier | 0) - 1);
+  }
 
   /* ── THE POWER BUDGET, ENFORCED (§8.1) ──────────────────────────────────
      Three numbers, and each one is a rule the spec states rather than a taste:
@@ -122,9 +150,28 @@
      Under today's real values the fuse does not bind: homestead 5 (castle
      capstone) + renown 22 + clan perks 0 (re-scoped in §8.3) + Great Hall 5 =
      32%. That is the point. It is a fuse, not a nerf. */
-  var CASTLE_KEY_CAP = 0.10;
-  var CASTLE_TOTAL_CAP = 0.25;
-  var PERMANENT_ALLXP_CAP = 0.60;
+  /* ── b228 · THE FUSE LEFT THE CASTLE ─────────────────────────────────────
+     Everything the comment above says about WHERE a clamp can live is still
+     true, and the conclusion it drew was wrong: the castle cannot police a
+     chain it sits in the middle of. `fuseAllXp` reduced only layer 4's own
+     contribution, and layers 5 (muster) and 6 (blessings) — plus companions
+     and food buffs — were added afterwards and were never policed at all. It
+     also policed exactly one key, which is how `smithSpeed` reached +90%
+     unnoticed.
+
+     The budget now lives in features/power-budget.js, installed as the FINAL
+     wrapper in the chain, where nothing can be added after it: permanent
+     ≤ 0.20 per key, temporary ≤ 0.15 per key, total ≤ 0.30 per key
+     (bonus-rebase.md §2.2, §4.1).
+
+     So `fuseAllXp` and `CASTLE_TOTAL_CAP` retire — a mid-chain fuse that a
+     later wrapper escapes is a false assurance written into the code, and the
+     honest move is to delete it rather than leave two half-clamps disagreeing.
+     `CASTLE_KEY_CAP` stays and comes to 0.05, because it is not a fuse: it is
+     the castle's OWN share of the budget (§2.2 — "a castle wing at L10 is
+     worth 3%"), enforced at the source that grants it, which is the one place
+     a share can be enforced honestly. */
+  var CASTLE_KEY_CAP = 0.05;
 
   // ════════════════════════════════════════════════════════════
   // 2 · TRANSPORT (the muster.js contract, verbatim)
@@ -247,32 +294,33 @@
   // back and is running again inside a day.
   function perkScale() { return C().perkScaleFor(upkeepState()); }
 
-  /* The permanent castle contribution to one key, before the fuse. */
+  /* The permanent castle contribution to one key.
+     b228: `restedXp` no longer appears here at all — Rested converted from a
+     percentage potency to a flat XP quantum (restedQuantum, §5 below), so the
+     Tavern's Common Room stopped being a getBonus contribution entirely. */
   function castlePermanent(key) {
     if (!seat()) return 0;
+    if (key === 'restedXp') return 0;
     var v = 0;
-    if (key === 'allXP') v = GREAT_HALL_ALLXP_PER_TIER * Math.min(5, castleTier());
-    else if (key === 'restedXp') v = C().restedPotency(level('tavern'));
+    if (key === 'allXP') v = greatHallAllXp(castleTier());
     else {
       for (var i = 0; i < BUILDINGS.length; i++) {
         var b = BUILDINGS[i];
-        if (b.perk === key && b.perk !== 'restedXp') v += b.per * Math.min(10, level(b.id));
+        if (b.perk === key && b.perk !== 'restedXp') v += perkAtLevel(level(b.id));
       }
     }
     if (v <= 0) return 0;
-    /* The per-key cap is §8.1 rule 2, and it governs THROUGHPUT keys — the ones
-       that multiply what an hour of play is worth. `restedXp` is not one: it is
-       a multiplier on a single action drawn from a bank that is itself capped
-       at 80 charges, so its ceiling is the bank, not the percentage. Clamping
-       it at 10% would silently halve the Tavern's stated +20% (§9.4) — the
-       building the whole retention case for Phase A rests on. */
-    if (key !== 'restedXp') v = Math.min(CASTLE_KEY_CAP, v);
-    return v * perkScale();
+    /* The castle's own share of the per-key budget (bonus-rebase.md §2.2): a
+       wing at level 10 is worth +3%, and no key may draw more than +5% from
+       the castle whatever future buildings are added. Enforced at the source,
+       not in the chain — the chain-wide fuse is power-budget.js's job now. */
+    return Math.min(CASTLE_KEY_CAP, v) * perkScale();
   }
 
-  /* The three permanent allXP sources that are NOT the castle. Read directly
-     from their owners rather than inferred, so the fuse can never be fooled by
-     a wrapper that runs in a different order. */
+  /* The permanent allXP sources that are NOT the castle. Read directly from
+     their owners rather than inferred, so the audit can never be fooled by a
+     wrapper that runs in a different order.
+     b228: the homestead capstone came to +2% with everything else. */
   function otherPermanentAllXp() {
     var t = 0;
     try {
@@ -282,7 +330,7 @@
     } catch (e) {}
     try {
       if (window.HearthriseHomestead && typeof window.HearthriseHomestead.isCastle === 'function'
-          && window.HearthriseHomestead.isCastle()) t += 0.05;
+          && window.HearthriseHomestead.isCastle()) t += 0.02;
     } catch (e) {}
     try {
       if (window.HearthriseClans && typeof window.HearthriseClans.myPerks === 'function') {
@@ -291,14 +339,10 @@
     } catch (e) {}
     return t;
   }
-  /* THE FUSE (§8.3). Returns what the castle is allowed to add once the rest of
-     the permanent stack has been counted. Never negative — the castle can be
-     reduced to nothing, but it can never subtract someone else's perk. */
-  function fuseAllXp(castleWants) {
-    var room = PERMANENT_ALLXP_CAP - otherPermanentAllXp();
-    if (room <= 0) return 0;
-    return Math.min(castleWants, room);
-  }
+  /* Reporting only — what the four named permanent allXP sources come to.
+     b228: this used to be a FUSE that reduced the castle's own share when the
+     stack ran hot. It is now a plain sum, because the clamping moved to
+     power-budget.js at the end of the chain where it cannot be escaped. */
   function permanentAllXp() { return otherPermanentAllXp() + castleBonus('allXP', true); }
 
   /* ── THE FEAST (§9.3) — temporary, and budgeted separately (§8.4) ────────
@@ -336,23 +380,22 @@
 
   function castleBonus(key, permanentOnly) {
     var v = castlePermanent(key);
-    if (key === 'allXP') v = fuseAllXp(v);
     if (permanentOnly) return v;
     return v + feastBonus(key);
   }
 
-  /* The audit §8.2 prints. Exposed so the suite checks the real numbers rather
-     than a comment that can drift away from them. */
+  /* The audit the panel prints. Exposed so the suite checks the real numbers
+     rather than a comment that can drift away from them.
+     b228: `restedXp` leaves the audit — it is no longer a getBonus key the
+     castle produces. */
   function budgetAudit() {
     var out = { keys: {}, largest: 0, total: 0 };
-    var keys = ['allXP', 'goldFind', 'craftSpeed', 'smithSpeed', 'raidPower', 'restedXp'];
+    var keys = ['allXP', 'goldFind', 'craftSpeed', 'smithSpeed', 'raidPower'];
     keys.forEach(function (k) {
       var v = castlePermanent(k);
       out.keys[k] = v;
-      if (k !== 'restedXp') {                 // restedXp is a per-action multiplier, not throughput
-        out.total += v;
-        if (v > out.largest) out.largest = v;
-      }
+      out.total += v;
+      if (v > out.largest) out.largest = v;
     });
     return out;
   }
@@ -2329,10 +2372,17 @@
     return { goldFind: 'gold find', craftSpeed: 'crafting speed', smithSpeed: 'smithing speed',
              raidPower: 'raid power', allXP: 'all XP', restedXp: 'rested XP' }[k] || k;
   }
+  /* b228: the Tavern pays a flat XP quantum per Rested charge, not a potency;
+     every other building pays whole percents at levels 4, 7 and 10, and the
+     copy names the next rung so a level-5 wing reads as "on the way" rather
+     than as a dead level. */
   function perkAt(b, lvl) {
-    if (b.perk === 'restedXp') return Math.round(C().restedPotency(lvl) * 100) + '% rested XP per charge';
-    var v = b.per * Math.min(10, lvl) * 100;
-    return '+' + (Math.round(v * 10) / 10) + '% ' + perkLabel(b.perk);
+    if (b.perk === 'restedXp') return n(C().restedQuantum(lvl)) + ' XP per rested charge';
+    var v = perkAtLevel(lvl) * 100;
+    var next = null;
+    for (var i = 0; i < PERK_RUNGS.length; i++) if (Math.min(10, lvl | 0) < PERK_RUNGS[i]) { next = PERK_RUNGS[i]; break; }
+    return '+' + Math.round(v) + '% ' + perkLabel(b.perk) +
+      (next ? ' &middot; +1% more at level ' + next : '');
   }
   function orderFor(building) {
     return openOrders().filter(function (o) { return o.building === building; })[0] || null;
@@ -2599,11 +2649,13 @@
 
         sections.push({ kind: 'meter', title: 'The Common Room', label: 'Rested charges banked',
           value: (typeof window.restedXpCharges === 'function' ? window.restedXpCharges() : 0),
-          max: C().RESTED_CAP,
+          max: (typeof window.restedCap === 'function' ? window.restedCap() : C().RESTED_CAP),
           valueText: '<b>' + n(typeof window.restedXpCharges === 'function' ? window.restedXpCharges() : 0) +
-            '</b> / ' + C().RESTED_CAP,
-          foot: 'One charge for every six minutes away. Each one makes a single action worth <b>+' +
-            Math.round(C().restedPotency(tl) * 100) + '%</b> more XP at Tavern ' + tl +
+            '</b> / ' + (typeof window.restedCap === 'function' ? window.restedCap() : C().RESTED_CAP),
+          /* b228: Rested pays a flat XP quantum per charge, so the copy states
+             XP rather than a percentage that was never felt. */
+          foot: 'One charge for every six minutes away. Each one is worth <b>' +
+            n(C().restedQuantum(tl)) + ' XP</b> at Tavern ' + tl +
             '. It pays you for the hours you were not here, which is the whole promise of an idle game.' });
 
         sections.push({ kind: 'rows', title: 'The Board',
@@ -2970,8 +3022,16 @@
   window.HearthriseClanSeatUI = {
     BUILDINGS: BUILDINGS,
     GREAT_HALL_ALLXP_PER_TIER: GREAT_HALL_ALLXP_PER_TIER,
-    CASTLE_KEY_CAP: CASTLE_KEY_CAP, CASTLE_TOTAL_CAP: CASTLE_TOTAL_CAP,
-    PERMANENT_ALLXP_CAP: PERMANENT_ALLXP_CAP,
+    greatHallAllXp: greatHallAllXp,
+    /* b228: CASTLE_TOTAL_CAP and PERMANENT_ALLXP_CAP are gone — the chain-wide
+       budget moved to HearthrisePowerBudget, which is the only place a cap can
+       be enforced rather than merely declared. CASTLE_KEY_CAP stays: it is the
+       castle's own SHARE, enforced where it is granted. */
+    CASTLE_KEY_CAP: CASTLE_KEY_CAP,
+    PERK_RUNGS: PERK_RUNGS, PERK_PER_RUNG: PERK_PER_RUNG, perkAtLevel: perkAtLevel,
+    /* The castle road to Rested XP, in flat XP per charge. legacy.js takes the
+       larger of this and the homestead Library's — two roads, one ceiling. */
+    restedQuantum: function () { return seat() ? C().restedQuantum(level('tavern')) * perkScale() : 0; },
     // panel + rooms
     render: renderCastle, readSeat: readSeat,
     openRoom: openRoom, openModal: openModal, closeModal: closeModal,

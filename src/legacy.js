@@ -413,17 +413,17 @@ const ROOMS={
     {nm:'Shelf',            cost:{gold:1000,normal_log:50},                           bonus:'All XP +1%',                 bk:'allXP',bv:.01},
     {nm:'Reading Room',     cost:{gold:4000,oak_log:50},                              bonus:'All XP +2%',                 bk:'allXP',bv:.02},
     {nm:'The Library',      cost:{gold:15000,maple_log:30},                           bonus:'All XP +3%',                 bk:'allXP',bv:.03},
-    /* These two rungs were specced to pay in Rested XP POTENCY on top of allXP.
-       They do not, and deliberately: bonus-rebase.md finds a percentage
-       potency dead on arrival at the retuned scale (a few percent of one XP
-       grant, spent one charge at a time, is indistinguishable from nothing),
-       and converts Rested to a flat XP quantum owned by the b228 apply pass.
-       Shipping the old +4/+8% here would have been a promise the player could
-       not feel — exactly the class of ghost bonus this whole wave is retiring.
-       So the payload is left OUT and the rungs pay honestly in allXP alone
-       until that pass lands. Reserved, not forgotten. */
-    {nm:'The Scriptorium',  cost:{gold:65000,timber_beam:12,silk_thread:25,magic_essence:10},tier:3, bonus:'All XP +4%', bk:'allXP',bv:.04, resv:'Rested XP — reserved for the rested rework'},
-    {nm:'The Great Library',cost:{gold:300000,keystone:2,duskwood_plank:30,ancient_rune:12}, tier:5, bonus:'All XP +5%', bk:'allXP',bv:.05, resv:'Rested XP — reserved for the rested rework'}]},
+    /* b228 — THE RESERVED PAYLOAD IS PAID. These two rungs were specced to pay
+       Rested XP POTENCY and b227 shipped them without it, because a percentage
+       potency is dead on arrival at the retuned scale (a few percent of one XP
+       grant, spent one charge at a time, is indistinguishable from nothing).
+       bonus-rebase.md §5.3 converts Rested to a flat XP QUANTUM, and this is
+       that conversion landing: `rested` is XP per banked charge and
+       `restedCap` is the size of the bank. Capacity, not throughput — outside
+       the power budget by §2.5, and the honest way to justify a 300,000-gold
+       Keystone rung without inflating a percentage. */
+    {nm:'The Scriptorium',  cost:{gold:65000,timber_beam:12,silk_thread:25,magic_essence:10},tier:3, bonus:'All XP +4% · Rested 800 XP per charge',  bk:'allXP',bv:.04, rested:800},
+    {nm:'The Great Library',cost:{gold:300000,keystone:2,duskwood_plank:30,ancient_rune:12}, tier:5, bonus:'All XP +5% · Rested 1,600 XP per charge · bank 120', bk:'allXP',bv:.05, rested:1600, restedCap:120}]},
   garden:{name:'Garden',icon:'🌻',desc:'Boost farming yield.',levels:[
     {nm:'Kitchen Garden',   cost:{gold:600,wheat:20},                                 bonus:'Yield +1',                   bk:'farmYield',bv:1},
     {nm:'Walled Garden',    cost:{gold:2500,wheat:60},                                bonus:'Yield +2',                   bk:'farmYield',bv:2},
@@ -505,8 +505,11 @@ const ROOMS={
 window.ROOMS = ROOMS; /* b201: expose for features/homestead.js workbench checks */
 const PLOT_BUILDINGS={
   farm_plot:{name:'Farm Plot',icon:'🌾',cost:{gold:100,normal_log:5},desc:'Grow crops.',max:12},
-  scarecrow:{name:'Scarecrow',icon:'🎃',cost:{gold:200,wheat:10},desc:'+10% yield.',max:2},
-  toolshed:{name:'Tool Shed',icon:'🏚️',cost:{gold:800,normal_log:40},desc:'+5% gather speed.',max:1},
+  /* b228: the Scarecrow's copy said "+10% yield" and it granted +0.1 farmYield,
+     which harvestPlot floored to zero — the description and the grant were
+     both wrong, in different ways. It is +1 crop now, and it says so. */
+  scarecrow:{name:'Scarecrow',icon:'🎃',cost:{gold:200,wheat:10},desc:'+1 crop per harvest.',max:2},
+  toolshed:{name:'Tool Shed',icon:'🏚️',cost:{gold:800,normal_log:40},desc:'+2% gather speed.',max:1},
   watchtower:{name:'Watchtower',icon:'🗼',cost:{gold:1500,oak_log:30},desc:'+2% combat XP.',max:1},
 };
 const HOUSE_THEMES=[
@@ -1364,52 +1367,65 @@ function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
    number is spent.
    ══════════════════════════════════════════════════════════════════════ */
 const SPEED_KEYS={cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,gatherSpeed:1};
-const SPEED_FUSE=0.85;
+/* b228 (bonus-rebase.md §4.2): 0.85 → 0.70.
+   The per-key power budget now governs the getBonus chain itself
+   (features/power-budget.js: permanent ≤ 0.20, temporary ≤ 0.15, total ≤ 0.30),
+   so this is no longer the ceiling — it is the LAST LINE OF DEFENCE at the one
+   expression that cannot survive a bad number: `ms × (1 − speed)`.
+
+   0.70 is derived, not chosen. The largest legal speed a consumption site can
+   ever see is `gatherSpeed` — the only key that adds a source from OUTSIDE the
+   budget — at the absolute peak 0.30 plus the tool ladder's 0.35 = 0.65. So the
+   fuse sits five points above the highest legal reading: it never binds on a
+   legitimate stack (binding would be a silent nerf the budget did not ask for),
+   and it still catches any future unbudgeted source before the interval reaches
+   zero and setInterval spins. */
+const SPEED_FUSE=0.70;
 /* Returns the multiplier, not the bonus: `ms * speedClamp(speed)`. A negative
    total (a debuff) is passed through untouched — the fuse is a ceiling on how
    FAST you may go, never a floor on how slow. */
 function speedClamp(speed){return 1-Math.min(SPEED_FUSE,(+speed||0));}
-const RESTED_POTENCY_CAP=0.50;
+/* b228: RESTED_POTENCY_CAP retired — Rested is no longer a percentage at all.
+   See the Rested block below (`restedQuantum`), where a charge became a flat
+   XP grant and its ceiling became 1,600 XP/charge. */
 window.speedClamp=speedClamp;
 window.SPEED_FUSE=SPEED_FUSE;
 window.SPEED_KEYS=SPEED_KEYS;
-window.RESTED_POTENCY_CAP=RESTED_POTENCY_CAP;
 function getBonus(key){
   let t=0;
   /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
      headline bk/bv pair — the Kitchen buys cook speed AND burn reliability off
      the same rung, and one bk/bv pair can only ever express one of those. */
   for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;if(ld&&ld.bx&&ld.bx[key]!=null)t+=ld.bx[key];}}
-  G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.05;if(b.id==='scarecrow'&&key==='farmYield')t+=0.1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
+  /* b228 (bonus-rebase.md §3.1): Toolshed 5% → 2% (the 2% narrow step);
+     Watchtower was already in grammar; the Scarecrow's +0.1 was a GHOST —
+     harvestPlot floored the farmYield total, so a fractional grant paid
+     exactly zero from the day it shipped. It becomes a real +1, and the
+     flooring itself is fixed at the reader (see harvestPlot). */
+  G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.02;if(b.id==='scarecrow'&&key==='farmYield')t+=1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
   /* b215: Season Pass retired — no purchasable XP multiplier exists. Premium
      stays convenience/cosmetic (offline hours, slots, themes). */
   /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
   if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
     try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
   }
-  /* b201 (SYS-1): castle capstone — the pride of the realm, +5% all XP */
+  /* b201 (SYS-1): castle capstone — the pride of the realm.
+     b228: +5% → +2% (bonus-rebase.md §3.1). `allXP` is a WIDE key — it pays on
+     all fifteen skills, every action, forever — so it moves on the 1% half-step
+     and the capstone is worth two of them. */
   if(key==='allXP' && window.HearthriseHomestead){
-    try{ if(window.HearthriseHomestead.isCastle()) t += 0.05; }catch(e){}
+    try{ if(window.HearthriseHomestead.isCastle()) t += 0.02; }catch(e){}
   }
-  /* ── b227: THE TWO FUSES (homestead-deepening.md §6, H3 + H5) ──────────
-     Neither one binds today. That is exactly what makes them fuses and not
-     nerfs: they are here so that the NEXT system to grant one of these keys
-     cannot quietly break the arithmetic that the whole power budget rests on.
-
-     H3, the artisan-speed fuse. Every speed key is spent as
-     `ms × (1 − speed)`, which divides by zero in spirit at 1.0 and goes
-     NEGATIVE past it. Today the worst case is homestead 0.60 + clan Lv6 0.05
-     + castle 0.05 = 0.70, so 0.85 is 15 points of slack; without the clamp a
-     third source of +20% would turn an action interval into a negative number
-     and setInterval would spin.
-
-     H5, one Rested ceiling with two roads. `restedXp` is now claimed by BOTH
-     pillars — the homestead Library L4/L5 (b227) and the castle Tavern's
-     Common Room (clan-overhaul §9.4) — and getBonus SUMS them, so a clanned
-     player with a maxed Library would bank 80 charges at double XP. Clamped
-     aggregate, so a clanless maxed homestead and a clanned castle arrive at
-     the same cap by different roads. That is what "twin pillars" has to mean
-     if the phrase is going to survive contact with a spreadsheet. */
+  /* ── b228: WHERE THE BUDGET LIVES NOW ─────────────────────────────────
+     This function is layer 0 of a seven-layer additive chain, so a clamp
+     placed here clamps the base and is then escaped by all six wrappers. The
+     per-key power budget therefore lives in features/power-budget.js,
+     installed as the FINAL wrapper (permanent ≤ 0.20, temporary ≤ 0.15, total
+     ≤ 0.30 — bonus-rebase.md §4.1). speedClamp() stays at the point of
+     CONSUMPTION as the last line of defence on `ms × (1 − speed)`, and Rested
+     is no longer a percentage at all. Deliberately nothing is clamped here:
+     two half-truths about the same number is how a screen and an engine end
+     up disagreeing. */
   return t;
 }
 
@@ -1461,11 +1477,65 @@ window.applyGoldFind = applyGoldFind;
    the same hours two and three times over. A watermark cannot be double-read:
    the second reader sees an already-advanced clock.
    ════════════════════════════════════════════════════════════════ */
-const RESTED_CHARGE_MS = 6 * 60 * 1000;   // 1 charge per 6 minutes offline (§9.4)
-const RESTED_CAP       = 80;              // 8 hours banked, hard cap (§9.4)
+/* ── b228 · RESTED CONVERTS FROM A PERCENTAGE TO A QUANTUM ────────────────
+   (bonus-rebase.md §5.3 — "what becomes pointless at 2%, and what it converts
+   to", the first row.)
+
+   Rested potency multiplied ONE XP GRANT per charge. At the old +20% that was
+   already inert; at the rebased scale it would have been single-digit XP per
+   charge, and eighty charges would have been worth under a minute of play. It
+   was the one number in the spec that was provably worth nothing.
+
+   So a charge stops being a multiplier and becomes a FLAT XP GRANT — capacity,
+   not throughput, which is exactly the class §2.5 exempts from the 2% grammar
+   and names as the preferred payload for an expensive rung. It cannot compound
+   (it is added after the multiplier block, so no perk scales it), it cannot
+   inflate a rate (the bank is capped and refills on wall-clock only), and it
+   is FELT: a full bank is a real welcome-back rather than a rounding error.
+
+   TWO ROADS, ONE CEILING — §H5 survives verbatim, in new units. The homestead
+   Library and the castle Tavern each grant a quantum; the game takes the
+   LARGER, never the sum, so a clanless maxed homestead and a clanned castle
+   arrive at the same ceiling by different roads.
+
+     castle Tavern      160 XP per charge per level  → 1,600 at level 10
+     homestead Library  L4 800 · L5 1,600 XP/charge, and L5 also raises the
+                        bank from 80 charges to 120
+     aggregate ceiling  1,600 XP/charge — 120 × 1,600 = 192,000 XP, about five
+                        to six hours of retuned gathering. */
+const RESTED_CHARGE_MS   = 6 * 60 * 1000;   // 1 charge per 6 minutes offline (§9.4)
+const RESTED_CAP         = 80;              // 8 hours banked, hard cap (§9.4)
+const RESTED_CAP_LIBRARY = 120;             // the Great Library's raised bank
+const RESTED_QUANTUM_CAP = 1600;            // the one ceiling, both roads
+/* The larger of the two roads. Defensive on every hop: a missing module or a
+   clanless player simply contributes 0, never a throw and never a default. */
+function restedQuantum(){
+  let q = 0;
+  try{
+    const lv = (G && G.rooms && G.rooms.library) | 0;
+    const rung = (lv > 0 && ROOMS.library) ? ROOMS.library.levels[lv-1] : null;
+    if(rung && rung.rested > 0) q = Math.max(q, rung.rested);
+  }catch(e){}
+  try{
+    if(window.HearthriseClanSeatUI && typeof window.HearthriseClanSeatUI.restedQuantum === 'function'){
+      q = Math.max(q, Number(window.HearthriseClanSeatUI.restedQuantum()) || 0);
+    }
+  }catch(e){}
+  return Math.max(0, Math.min(RESTED_QUANTUM_CAP, q));
+}
+/* The bank's size, which the Great Library raises. Read everywhere the cap is
+   applied, so a player who builds it sees the deeper bank immediately. */
+function restedCap(){
+  try{
+    const lv = (G && G.rooms && G.rooms.library) | 0;
+    const rung = (lv > 0 && ROOMS.library) ? ROOMS.library.levels[lv-1] : null;
+    if(rung && rung.restedCap > 0) return rung.restedCap;
+  }catch(e){}
+  return RESTED_CAP;
+}
 function ensureRestedState(now){
   if(typeof G.restedXp !== 'number' || !isFinite(G.restedXp) || G.restedXp < 0) G.restedXp = 0;
-  if(G.restedXp > RESTED_CAP) G.restedXp = RESTED_CAP;
+  if(G.restedXp > restedCap()) G.restedXp = restedCap();
   /* A fresh save starts its clock NOW — never at epoch, or a brand-new player
      would log in holding a full bank they did not earn. */
   if(typeof G.restedAt !== 'number' || !isFinite(G.restedAt) || G.restedAt > now) G.restedAt = now;
@@ -1477,31 +1547,26 @@ function accrueRestedXp(now){
   if(charges <= 0) return 0;
   G.restedAt += charges * RESTED_CHARGE_MS;      // advance by what we PAID, not to now
   const before = G.restedXp;
-  G.restedXp = Math.min(RESTED_CAP, before + charges);
+  G.restedXp = Math.min(restedCap(), before + charges);
   return G.restedXp - before;                     // what was actually banked
 }
-/* Spend one charge, returning the multiplier bonus it is worth (0 = nothing
-   spent). A charge is never burned when it would be worth nothing — that is
-   what keeps the seam genuinely inert today. */
+/* Spend one charge, returning the FLAT XP it is worth (0 = nothing spent).
+   A charge is never burned when it would be worth nothing, which is what keeps
+   the seam genuinely inert for a player with neither road built. */
 function spendRestedCharge(){
   if(!(G.restedXp > 0)) return 0;
-  /* b227 (spec §6/H5) — one Rested ceiling, two roads. `restedXp` is now
-     claimed by BOTH pillars: the homestead Library L4/L5 and the castle
-     Tavern's Common Room. getBonus SUMS them, so a clanned player with a
-     maxed Library would bank 80 charges at DOUBLE XP. Clamped here, at the
-     one place the bank is actually spent, because a clamp inside getBonus is
-     escaped by the seven wrappers above it (see the fuse note by getBonus).
-     A clanless maxed homestead and a clanned castle now arrive at the same
-     cap by different roads, which is what "twin pillars" has to mean. */
-  const potency = Math.min(RESTED_POTENCY_CAP, Math.max(0, getBonus('restedXp') || 0));
-  if(potency <= 0) return 0;
+  const q = restedQuantum();
+  if(q <= 0) return 0;
   G.restedXp -= 1;
-  return potency;
+  return q;
 }
 window.accrueRestedXp = accrueRestedXp;
 window.restedXpCharges = function(){ return (typeof G !== 'undefined' && G.restedXp) || 0; };
 window.RESTED_CHARGE_MS = RESTED_CHARGE_MS;
 window.RESTED_CAP = RESTED_CAP;
+window.RESTED_QUANTUM_CAP = RESTED_QUANTUM_CAP;
+window.restedQuantum = restedQuantum;
+window.restedCap = restedCap;
 
 /* ════════════════════════════════════════════════════════════════
    b226 — PACE: the two pacing dials. (docs/design/pacing-overhaul.md)
@@ -1726,17 +1791,35 @@ try{
    you are in the game, and dims to "— reconnecting" if the session genuinely
    drops. b229: there is no "— idle" state any more; a backgrounded tab is not
    a lapse, so the note must not imply one. */
+/* b228 — THE CEILING IS SURFACED, NEVER SILENT (bonus-rebase.md §3.2).
+   The temporary budget is reachable only at a full conjunction — the right
+   weekly, the right daily, a Last Call feast and a draught in hand — and that
+   is a feature: it is a ceiling players chase. A clamp the player cannot see is
+   a clamp that reads as a bug ("I drank the elixir and nothing happened"), so
+   the moment the budget binds on a key THIS activity uses, the game says so. */
+function blessingLimitNote(){
+  const PB = window.HearthrisePowerBudget;
+  if(!PB || typeof PB.atLimit !== 'function') return '';
+  let hit = false;
+  try{ hit = activeBonusKeys().some(function(k){ return PB.atLimit(k); }); }catch(e){ return ''; }
+  return hit ? ' · <b style="color:var(--gold-2)">the realm\'s blessing is at its limit</b>' : '';
+}
 function blessingNote(){
   if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
   const WE = window.HearthriseWorldEvents;
   if(!WE || typeof WE.summaryFor !== 'function') return '';
   let hit = null;
   try{ hit = WE.summaryFor(activeBonusKeys()); }catch(e){ return ''; }
-  if(!hit) return '';
-  return blessingsApply()
+  if(!hit) return blessingLimitNote();
+  return (blessingsApply()
     ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · while online</span>`
-    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — reconnecting</span>`;
+    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — reconnecting</span>`) + blessingLimitNote();
 }
+window.HearthriseBlessingLimitNote = blessingLimitNote;
+/* Every skill `combatXP` pays. b228: the ONE list — addXp() reads it too, and
+   it used to carry its own four-style copy that had dropped ranged and magic. */
+const COMBAT_XP_SKILLS=['attack','strength','defense','hitpoints','ranged','magic'];
+window.COMBAT_XP_SKILLS=COMBAT_XP_SKILLS;
 /* The getBonus keys that actually move what is running right now. One list,
    read by the hint and by the tests, so "does this blessing affect me" can
    never be answered two different ways in two places. */
@@ -1745,7 +1828,7 @@ function activeBonusKeys(){
   const sk=G && G.activeSkill;
   if(G && G.activeMonster) keys.push('combatXP');
   if(sk){
-    if(['attack','strength','defense','hitpoints','ranged','magic'].indexOf(sk)>=0){
+    if(COMBAT_XP_SKILLS.indexOf(sk)>=0){
       if(keys.indexOf('combatXP')<0) keys.push('combatXP');
     }else if(['woodcutting','mining','fishing'].indexOf(sk)>=0){
       keys.push('gatherSpeed');
@@ -1778,7 +1861,21 @@ window.HearthrisePresence = {
 
 function addXp(sk,amt,opts){
   const bonus=getBonus('allXP')+getEquipmentStats().xpB;
-  const cb=['attack','strength','defense','hitpoints'].includes(sk)?getBonus('combatXP'):0;
+  /* b228 P1 (bonus-rebase.md §5.4) — `combatXP` used to list four styles and
+     silently skip RANGED and MAGIC. Two of the seven combat skills were paid
+     nothing by the Trophy Room, the Watchtower, War Drums or Hunter's Moon: a
+     player who trained a bow got a worse return from the same Trophy Room than
+     a player who trained a sword, and nothing on any screen said so.
+     COMBAT_XP_SKILLS is the one list; activeBonusKeys() (which already had
+     ranged and magic right) reads the same set, so the hint the player sees and
+     the XP the engine pays can never disagree again. */
+  const cb=COMBAT_XP_SKILLS.indexOf(sk)>=0?getBonus('combatXP'):0;
+  /* b228: a Rested charge is now a FLAT XP quantum, not a multiplier — see the
+     Rested block above. It is added AFTER the perk block on purpose: a welcome-
+     back grant is capacity, and letting +15% allXP scale it would quietly turn
+     the bank back into throughput, which is the thing the conversion exists to
+     stop. It is also outside the `Math.max(1, …)` floor because it is already
+     a whole number of XP. */
   const rested=amt>0?spendRestedCharge():0;
   /* PACE first, then the additive perk block, then one floor. A positive grant
      never rounds to zero — a 1-damage hit must still be worth 1 Hitpoints XP
@@ -1787,8 +1884,8 @@ function addXp(sk,amt,opts){
      world-events wrapper on getBonus, and gates itself off when the player is
      not present, so this line is the same arithmetic online and offline. */
   const base=(opts&&opts.authored)?(Number(amt)||0):pacedXp(sk,amt);
-  const raw=base*(1+bonus+cb+rested);
-  const gain=raw>0?Math.max(1,Math.floor(raw)):0;
+  const raw=base*(1+bonus+cb);
+  const gain=(raw>0?Math.max(1,Math.floor(raw)):0)+rested;
   const old=levelFromXp(G.skills[sk]||0);
   G.skills[sk]=(G.skills[sk]||0)+gain;
   const nw=levelFromXp(G.skills[sk]);
@@ -2147,9 +2244,26 @@ function generateDailyTasks(notice=true){
     const j=seed%(i+1);
     [indexes[i],indexes[j]]=[indexes[j],indexes[i]];
   }
-  G.daily.tasks=indexes.slice(0,3).map(i=>DAILY_TASK_POOL[i]());
+  /* b228 (bonus-rebase.md §5.3): the King's rank stops paying +1% XP and
+     starts paying a DAILY TASK SLOT. `dailyTasks` has been declared in
+     renown.getPerks() since renown shipped and nothing ever granted or read
+     it; this is the reader. Access, not throughput — outside the power budget
+     (§2.5), felt every single day, and it can never compound.
+     Bounded by the pool so a future perk can never ask for more tasks than
+     exist to hand out. */
+  var extraTasks=0;
+  try{
+    if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
+      extraTasks=Math.max(0, window.HearthriseRenown.getPerks(G).dailyTasks|0);
+    }
+  }catch(e){}
+  const taskCount=Math.min(DAILY_TASK_POOL.length, 3+extraTasks);
+  G.daily.tasks=indexes.slice(0,taskCount).map(i=>DAILY_TASK_POOL[i]());
   if(notice)notify('📅 New daily tasks!','info');
 }
+/* b228: exposed so the suite can prove the King's daily-task slot is really
+   read, rather than trusting a field that was declared and never granted. */
+window.generateDailyTasks=generateDailyTasks;
 function updateDaily(type,amt=1){
   generateDailyTasks(false);
   G.daily.tasks.forEach(t=>{
@@ -2678,10 +2792,31 @@ window.waterAllPlots=function waterAllPlots(){
   renderFarm();
   return n;
 };
+/* b228 (bonus-rebase.md §5.3) — STOP FLOORING A FLAT BONUS.
+   `farmYield` is a count of extra crops, and harvestPlot used to spend it as
+   Math.floor(). Every fractional grant therefore paid EXACTLY ZERO: the
+   Scarecrow (+0.1), the Bunny (+0.10), the Squirrel (+0.15), Carrot Stew
+   (+0.15) and Roasted Pumpkin (+0.05) — five purchased perks that have paid
+   nothing since the day they shipped, and nothing on any screen said so.
+
+   The whole part is paid always; the fraction is paid as its own probability,
+   so the EXPECTED yield is exactly the bonus. That is what makes small flat
+   numbers work at all, which is the same smallness problem the rebase is
+   solving everywhere else, wearing a different costume.
+   `_rand01` is injectable so the suite can assert both sides of the coin
+   without flaking on a random draw. */
+function rollFlatBonus(v,_rand01){
+  const n=Number(v)||0;
+  if(n<=0) return 0;
+  const whole=Math.floor(n), frac=n-whole;
+  const r=(typeof _rand01==='function')?_rand01():Math.random();
+  return whole+((frac>0 && r<frac)?1:0);
+}
+window.rollFlatBonus=rollFlatBonus;
 function harvestPlot(i){
   const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
   const crop=CROPS[p.cropId];
-  const yieldBonus=Math.floor(getBonus('farmYield'));
+  const yieldBonus=rollFlatBonus(getBonus('farmYield'));
   const qty=rand(crop.yield[0],crop.yield[1])+yieldBonus;
   addItem(crop.prod,qty);
   G.stats.harvested=(G.stats.harvested||0)+qty;
@@ -3569,7 +3704,7 @@ function renderHouse(){
     <div class="kpi-row" style="grid-template-columns:1fr">
       <div class="kpi"><b>+${Math.round(getBonus('allXP')*100)}%</b><span>All XP</span></div>
       <div class="kpi"><b>+${Math.round(getBonus('combatXP')*100)}%</b><span>Combat XP</span></div>
-      <div class="kpi"><b>+${Math.floor(getBonus('farmYield'))}</b><span>Farm Yield</span></div>
+      <div class="kpi"><b>+${(function(v){return (v%1)?(Math.round(v*10)/10):v;})(getBonus('farmYield'))}</b><span>Farm Yield</span></div>
       <div class="kpi"><b>+${Math.round(getBonus('gatherSpeed')*100)}%</b><span>Gather Speed</span></div>
     </div>`;
 }
@@ -6452,7 +6587,11 @@ function renderActiveEffects(){
       if(!v) return;
       any = true;
       const isFlat = (k === 'farmYield' || k === 'storage');
-      const display = isFlat ? `+${v}` : `+${Math.round(v*100)}%`;
+      /* b228: a flat bonus may now be fractional (the Bunny's +1 scales to
+         +2.45, and the fraction is paid as a probability — see rollFlatBonus).
+         Print one decimal when there is one, so the panel never rounds a real
+         reward away the way harvestPlot used to. */
+      const display = isFlat ? `+${(v%1)?(Math.round(v*10)/10):v}` : `+${Math.round(v*100)}%`;
       out.push(`<div class="eff-row house">
         <div class="eicon">${houseIcons[k]||'⭐'}</div>
         <div><b>${_formatBuffKindLabel(k).replace(/^./,c=>c.toUpperCase())}</b><div class="eff-effect">${display}</div></div>
@@ -9451,8 +9590,10 @@ window.buildTibiaDoll = function(){
       var thisXp = window.companionXpToReach(lv);
       var pct = nextXp > thisXp ? Math.min(100, ((xp - thisXp) / (nextXp - thisXp)) * 100) : 100;
       var cb = typeof window.getCompanionBonus === 'function' ? window.getCompanionBonus() : {};
-      var LBL = {strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',xpB:'XP',gatherSpeed:'Gather',farmYield:'Farm',cookSpeed:'Cook',prayerXp:'Prayer XP',rareDrop:'Rare drop',goldBonus:'Gold',hpRegen:'HP/s'};
-      var PCT = {crit:1,xpB:1,gatherSpeed:1,farmYield:1,cookSpeed:1,rareDrop:1,goldBonus:1,prayerXp:1};
+      /* b228: the corrected key names (allXP / goldFind / prayerSpeed), and
+         farmYield leaves the percent list — it is a count of crops. */
+      var LBL = {strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',allXP:'All XP',gatherSpeed:'Gather',farmYield:'Farm',cookSpeed:'Cook',smithSpeed:'Smith',craftSpeed:'Craft',prayerSpeed:'Prayer',rareDrop:'Rare drop',goldFind:'Gold find',hpRegen:'HP/s'};
+      var PCT = {crit:1,allXP:1,gatherSpeed:1,cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,rareDrop:1,goldFind:1};
       var bonuses = Object.keys(cb).filter(function(k){return cb[k];}).map(function(k){
         var v = PCT[k] ? '+' + (cb[k] * 100).toFixed(0) + '%' : '+' + (Math.round(cb[k] * 10) / 10);
         return '<span class="td-comp-bonus"><b>' + v + '</b> ' + (LBL[k] || k) + '</span>';
@@ -10938,7 +11079,9 @@ var TESTS = [
     var snap = JSON.stringify(G.companions);
     window.equipCompanion('fox');
     var b = window.getCompanionBonus();
-    assert(b.xpB > 0, 'fox xpB should apply when equipped');
+    /* b228: `xpB` was a MISSPELLING of `allXP` — the Fox paid nothing for its
+       whole life. The corrected key is what must be non-zero now. */
+    assert(b.allXP > 0, 'fox allXP should apply when equipped');
     /* Stable renders via setTimeout in showTab hook — verify panel exists; render manually for grid check */
     var panel = document.getElementById('panel-stable');
     assert(panel, 'panel-stable missing in DOM');
@@ -11034,33 +11177,16 @@ console.log('[Smoke Test v1] loaded — run with __smokeTest() or Ctrl+Shift+T o
 (function(){
 "use strict";
 
-// 12 companions across 5 roles
-window.COMPANIONS = {
-  fox:       {n:'Fox',          icon:'🦊', role:'utility', bonus:{xpB:.02, strB:1}, source:'starter',
-              proc:{trigger:'combatHit', chance:.05, effect:'gold', amount:1, label:'+1 gold'}},
-  wolf_pup:  {n:'Wolf Pup',     icon:'🐺', role:'combat',  bonus:{strB:3, atkB:1},  source:'drop:small_wolf',
-              proc:{trigger:'kill',      chance:.03, effect:'doubleDrop',          label:'Double drop!'}},
-  sparrow:   {n:'Sparrow',      icon:'🐦', role:'gather',  bonus:{gatherSpeed:.05},  source:'shop:5000',
-              proc:{trigger:'gather',    chance:.02, effect:'instant',              label:'Instant!'}},
-  bunny:     {n:'Bunny',        icon:'🐰', role:'gather',  bonus:{farmYield:.10},    source:'quest:harvest100',
-              proc:{trigger:'harvest',   chance:.10, effect:'doubleYield',          label:'Double crop!'}},
-  honeybee:  {n:'Honeybee',     icon:'🐝', role:'artisan', bonus:{cookSpeed:.08},    source:'shop:8000:cooking25',
-              proc:{trigger:'cook',      chance:.05, effect:'refundIngredients',    label:'Free meal!'}},
-  badger:    {n:'Badger',       icon:'🦡', role:'combat',  bonus:{strB:5, defB:2},   source:'drop:bear',
-              proc:null},
-  hawk:      {n:'Hawk',         icon:'🦅', role:'gather',  bonus:{rareDrop:.10},     source:'drop:panther',
-              proc:{trigger:'kill',      chance:.01, effect:'guaranteedRare',       label:'Rare drop!'}},
-  whelp:     {n:'Whelp',        icon:'🐉', role:'combat',  bonus:{strB:8, crit:.03}, source:'hatch:dragon_egg',
-              proc:{trigger:'combatHit', chance:.02, effect:'fireDot',              label:'Fire breath!'}},
-  scorpion:  {n:'Scorpion',     icon:'🦂', role:'combat',  bonus:{atkB:5, crit:.05}, source:'drop:shadow_creeper',
-              proc:null},
-  raccoon:   {n:'Raccoon',      icon:'🦝', role:'utility', bonus:{goldBonus:.05},    source:'shop:25000',
-              proc:{trigger:'kill',      chance:.20, effect:'extraGold', amount:5, label:'+5 gold'}},
-  owl:       {n:'Owl',          icon:'🦉', role:'artisan', bonus:{prayerXp:.10},     source:'shop:50:prayer50',
-              proc:null},
-  tortoise:  {n:'Tortoise',     icon:'🐢', role:'combat',  bonus:{defB:10, hpRegen:2}, source:'drop:ancient_bear',
-              proc:null},
-};
+/* ── b228 — THE SECOND COMPANION TABLE IS GONE ────────────────────────────
+   This block used to declare its own `window.COMPANIONS` — twelve of the
+   twenty-two pets, at the pre-rebase magnitudes, with the three misspelled
+   keys still in it. src/data/companions.js declares the real twenty-two and
+   main.js publishes it onto `window` at import time, which happens before any
+   render here can run, so this copy was always overwritten and never read.
+
+   It is deleted rather than "kept in sync": a second copy of a balance table
+   is how a rebase gets half-applied, and this one had already drifted ten
+   entries and two grammars away from the live data. One table, one owner. */
 
 /* b229 (Asset Director — "pet icons"): the Stable was rendering all ~22
    companions/pets as raw emoji in `.sc-icon` (audit finding, art-director
@@ -11133,11 +11259,14 @@ function ensureCompanionState(){
   }
 }
 
-// Bonus helper — scaled by level
+// Bonus helper — scaled by level.
+// b228: the key skeleton follows data/companions.js's corrected names (allXP /
+// goldFind / prayerSpeed replace the misspelled xpB / goldBonus / prayerXp).
 window.getCompanionBonus = function(){
   ensureCompanionState();
-  var b = {strB:0, atkB:0, defB:0, crit:0, xpB:0, gatherSpeed:0, farmYield:0,
-           cookSpeed:0, prayerXp:0, rareDrop:0, goldBonus:0, hpRegen:0};
+  var b = {strB:0, atkB:0, defB:0, crit:0, allXP:0, gatherSpeed:0, farmYield:0,
+           cookSpeed:0, smithSpeed:0, craftSpeed:0, prayerSpeed:0,
+           rareDrop:0, goldFind:0, hpRegen:0};
   var eq = G.companions && G.companions.equipped;
   if(!eq) return b;
   var def = window.COMPANIONS[eq];
@@ -11151,17 +11280,22 @@ window.getCompanionBonus = function(){
   return b;
 };
 
-// Hook into existing getBonus() if present
-(function(){
-  if(typeof window.getBonus !== 'function') return;
-  var orig = window.getBonus;
-  window.getBonus = function(key){
-    var v = orig.apply(this, arguments) || 0;
-    var cb = window.getCompanionBonus();
-    if(cb && typeof cb[key] === 'number') v += cb[key];
-    return v;
-  };
-})();
+/* ── b228 P0 — THE COMPANION DOUBLE-COUNT, REMOVED ────────────────────────
+   A getBonus wrapper adding `getCompanionBonus()[key]` lived HERE *and* in
+   features/companions.js setupCompanions(). Both installed at boot, both
+   called the same (module) getCompanionBonus, and the chain therefore added
+   every pet's bonus TWICE. Measured before the fix, in the harness: a Forge
+   Imp declaring smithSpeed .10 moved getBonus('smithSpeed') by 0.20 — a
+   level-30 Forge Imp was worth +49% smithing, not the +24.5% the census
+   budgeted, and no screen anywhere said so.
+
+   It could not be found by reading either file: each wrapper is correct on its
+   own. It is exactly the failure mode the power budget exists to make
+   impossible, so it is fixed inside the rebase and pinned by a regression test
+   that asserts the delta equals the companion's bonus EXACTLY ONCE.
+
+   features/companions.js keeps the hook (it owns the data and the level
+   curve); this copy is deleted. */
 
 // Hook into getEquipmentStats() if it exists, so combat/character pages see companion stat bonuses
 (function(){
@@ -11178,12 +11312,15 @@ window.getCompanionBonus = function(){
   };
 })();
 
-// Award XP to the equipped companion (capped to 50k cumulative)
+// Award XP to the equipped companion. b228: the cap is DERIVED from the curve
+// (companionXpToReach(30)) — the old flat 50,000 stopped every pet at level 14
+// on a bar the Stable draws as "/ 30".
 window.awardCompanionXp = function(amount){
   ensureCompanionState();
   var eq = G.companions && G.companions.equipped;
   if(!eq) return;
-  G.companions.xp[eq] = Math.min(50000, (G.companions.xp[eq]||0) + amount);
+  var cap = window.companionXpToReach(30);
+  G.companions.xp[eq] = Math.min(cap, (G.companions.xp[eq]||0) + amount);
 };
 
 // Add a companion to the player's stable
@@ -11217,7 +11354,10 @@ window.unequipCompanion = function(){
 };
 
 ensureCompanionState();
-console.log('[Companions A: data] loaded — '+Object.keys(window.COMPANIONS).length+' companions defined');
+/* b228: the table lives in data/companions.js and is published by main.js, so
+   this classic block no longer owns it and must not assume it has arrived. */
+console.log('[Companions A: logic] loaded — table owned by data/companions.js ('
+  + Object.keys(window.COMPANIONS || {}).length + ' seen at this point)');
 })();
 
 // ===== block 31: companions-hooks =====
@@ -11433,11 +11573,14 @@ function renderStable(){
     var pct = nextXp > thisLvXp ? Math.min(100, ((xp - thisLvXp) / (nextXp - thisLvXp)) * 100) : 100;
     var bonuses = Object.entries(def.bonus||{}).map(function(b){
       var key = b[0], val = b[1];
-      var label = ({strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',xpB:'XP',gatherSpeed:'Gather',
-                    farmYield:'Farm yield',cookSpeed:'Cook speed',rareDrop:'Rare drop',
-                    goldBonus:'Gold',hpRegen:'HP/sec'})[key] || key;
-      var v = (key === 'crit' || key === 'xpB' || key === 'gatherSpeed' || key === 'farmYield' ||
-               key === 'cookSpeed' || key === 'rareDrop' || key === 'goldBonus')
+      /* b228: corrected key names; farmYield prints as a crop count. */
+      var label = ({strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',allXP:'All XP',gatherSpeed:'Gather',
+                    farmYield:'Farm yield',cookSpeed:'Cook speed',smithSpeed:'Smith speed',
+                    craftSpeed:'Craft speed',prayerSpeed:'Prayer speed',rareDrop:'Rare drop',
+                    goldFind:'Gold find',hpRegen:'HP/sec'})[key] || key;
+      var v = (key === 'crit' || key === 'allXP' || key === 'gatherSpeed' ||
+               key === 'cookSpeed' || key === 'smithSpeed' || key === 'craftSpeed' ||
+               key === 'prayerSpeed' || key === 'rareDrop' || key === 'goldFind')
               ? '+'+(val*100).toFixed(0)+'%'
               : '+'+val;
       return '<span><b>'+v+'</b> '+label+'</span>';
@@ -12034,7 +12177,12 @@ const BUFFS_DEF = {
   gather_speed:    {label:'Gather Speed',     bonusKey:'gatherSpeed',    isPercent:true, icon:'🌿'},
   all_xp:          {label:'All XP',           bonusKey:'allXP',          isPercent:true, icon:'⭐'},
   drop_rate:       {label:'Drop Rate',        bonusKey:'dropRate',       isPercent:true, icon:'🍀'},
-  farm_yield:      {label:'Farm Yield',       bonusKey:'farmYield',      isPercent:true, icon:'🌾'},
+  /* b228: `farmYield` is a COUNT of extra crops, never a percentage — the
+     blessing calendar has always granted it as "+2 farm yield". This entry
+     claimed isPercent and getBuffBonuses divided its magnitude by 100, so
+     Carrot Stew's "15" reached the engine as 0.15 of a crop and harvestPlot
+     floored it to nothing. It is flat now, in both the maths and the label. */
+  farm_yield:      {label:'Farm Yield',       bonusKey:'farmYield',      isPercent:false, isFlat:true, icon:'🌾'},
   damage:          {label:'Damage',           bonusKey:'damage',         isPercent:true, icon:'⚔️'},
   monster_respawn: {label:'Faster Respawn',   bonusKey:'monsterRespawn', isPercent:true, icon:'⏱️'},
   combat_xp:       {label:'Combat XP',        bonusKey:'combatXP',       isPercent:true, icon:'🗡️'},
@@ -12131,7 +12279,9 @@ window.getBuffBonuses = function(){
     if(b.remainingMs <= 0) continue;
     const def = BUFFS_DEF[b.type];
     if(!def) continue;
-    out[def.bonusKey] = (out[def.bonusKey]||0) + (b.magnitude/100);
+    /* b228: a FLAT key's magnitude is already in its own units (crops), so it
+       is added as-is; every other key is a percentage stored as an integer. */
+    out[def.bonusKey] = (out[def.bonusKey]||0) + (def.isFlat ? b.magnitude : b.magnitude/100);
   }
   return out;
 };

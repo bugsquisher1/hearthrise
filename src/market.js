@@ -28,8 +28,33 @@
   // post-beta based on listing velocity and floor-price stability.
   const HOUSE_TAX = 0.015;
   const LISTING_TTL_MS = 48 * 3600 * 1000;
-  const PER_CHAR_LIMIT = 12;
+  const PER_CHAR_LIMIT_BASE = 12;
   const PRICE_HISTORY_KEY = 'hearthrise:market:history';
+
+  /* b228 (bonus-rebase.md §5.3): the Count's rank stops paying +1% XP and
+     starts paying a MARKET LISTING SLOT. `marketSlots` has been declared in
+     renown.getPerks() since renown shipped and nothing ever granted or read
+     it — this is the reader, and the perk is the grant.
+
+     A slot is ACCESS, not throughput (§2.5): it does not multiply anything,
+     cannot compound, and costs the power budget nothing — which is exactly why
+     it is the right payload for a rank that costs 13,500 renown and could not
+     be justified by the +1% the rebase would otherwise have left there.
+
+     A function rather than a constant because it now depends on player state.
+     Reads defensively: no renown module → the base 12, never a crash and never
+     a silent extra slot. Server-side listing caps (the `market_listings` RPC
+     path) remain the authority when the backend is live; this is the client's
+     honest local mirror of the same rule. */
+  function listingLimit(){
+    var extra = 0;
+    try{
+      if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks === 'function'){
+        extra = Math.max(0, window.HearthriseRenown.getPerks(window.G).marketSlots | 0);
+      }
+    }catch(e){}
+    return PER_CHAR_LIMIT_BASE + extra;
+  }
 
   // ── State ─────────────────────────────────────────────────────
   // Listings: { id, sellerId, sellerName, itemId, qty, askEach, postedAt }
@@ -385,8 +410,8 @@
     var list = loadListings();
     expireOld(list);
     var mine = list.filter(function(l){ return l.sellerId === currentSellerId(); });
-    if(mine.length >= PER_CHAR_LIMIT){
-      return { ok:false, reason:'Max ' + PER_CHAR_LIMIT + ' active listings reached' };
+    if(mine.length >= listingLimit()){
+      return { ok:false, reason:'Max ' + listingLimit() + ' active listings reached' };
     }
 
     // Escrow the qty out of inventory.
@@ -570,8 +595,8 @@
     // Per-character cap on open buy offers (keep it bounded)
     var offers = loadOffers();
     var mine = offers.filter(function(o){ return o.buyerId === currentSellerId(); });
-    if(mine.length >= PER_CHAR_LIMIT){
-      return { ok:false, reason:'Max ' + PER_CHAR_LIMIT + ' open buy offers reached' };
+    if(mine.length >= listingLimit()){
+      return { ok:false, reason:'Max ' + listingLimit() + ' open buy offers reached' };
     }
 
     window.G.gold -= totalEscrow;
@@ -692,7 +717,7 @@
     listOffers: loadOffers,
     expireOld: function(){ var l = loadListings(); if(expireOld(l)) saveListings(l); },
     HOUSE_TAX: HOUSE_TAX,
-    PER_CHAR_LIMIT: PER_CHAR_LIMIT,
+    PER_CHAR_LIMIT: PER_CHAR_LIMIT_BASE, listingLimit: listingLimit,
     getStats7d: getStats7d,
     getTopMovers7d: getTopMovers7d,
     seedFakeListings: seedFakeListings,
@@ -884,7 +909,7 @@
         + '</div>')
       : '';
 
-    var housing = '<div class="mk-strip"><b>Listings rules</b> · ' + (HOUSE_TAX*100) + '% house tax on sale · BoP items can\'t be listed · ' + PER_CHAR_LIMIT + ' active listings per character · 48h expiry.</div>';
+    var housing = '<div class="mk-strip"><b>Listings rules</b> · ' + (HOUSE_TAX*100) + '% house tax on sale · BoP items can\'t be listed · ' + listingLimit() + ' active listings per character · 48h expiry.</div>';
 
     // ── Search + sort toolbar ──
     var toolbar = '<div class="mk-toolbar">'
@@ -900,7 +925,7 @@
       + (ui.q ? '<button id="mk-clear-q" title="Clear search">×</button>' : '')
       + '</div>';
 
-    var mineBlock = '<div class="mk-block"><h3>Your listings (' + mine.length + ' / ' + PER_CHAR_LIMIT + ')</h3>' +
+    var mineBlock = '<div class="mk-block"><h3>Your listings (' + mine.length + ' / ' + listingLimit() + ')</h3>' +
       (mine.length ? mine.map(function(l){ return listingRow(l, true); }).join('') : '<div class="mk-empty">You haven\'t listed anything yet.</div>') +
     '</div>';
     var othersHeader = ui.q

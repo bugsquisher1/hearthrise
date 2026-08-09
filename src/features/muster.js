@@ -55,7 +55,12 @@
   var TOTAL_CAP       = 6000;     // per muster    (mirrors the server)
   var FLUSH_MS        = 30000;
   var IMMINENT_MS     = 15 * 60000;
-  var LIVE_XP_AURA    = 0.10;     // +10% all XP while mustered
+  /* b228 (bonus-rebase.md §3.2): +10% → +2% all XP while mustered. The aura is
+     TEMPORARY power on the game's widest key, and at +10% it was two thirds of
+     the entire rebased permanent allXP ceiling for turning up to a 45-minute
+     window. +2% is the wide-key step, and the muster's real reward has always
+     been its band payout, not its aura. */
+  var LIVE_XP_AURA    = 0.02;     // +2% all XP while mustered
   var SOLO_BAND       = { gold: 1500, gems: 2, seals: 0, band: 'answered' };
 
   // ── Pre-selection: "I'll answer this one" (b228) ────────────
@@ -929,14 +934,23 @@
     } catch (e) {}
   }
 
-  // ── The live aura: +10% all XP while mustered ───────────────
+  // ── The live aura: +2% all XP while mustered ────────────────
   // Same thin additive wrapper world-events.js uses, for the same reason:
   // every existing system inherits it with no further wiring.
+  //
+  // b228: extracted into a named function and EXPORTED, because the power
+  // budget has to be able to ask "how much of this key is temporary?" without
+  // guessing. A rally aura ends when the window does, so it is temporary by
+  // nature and belongs in the ceremony budget, not the permanent one.
+  function liveAura(key) {
+    if (key !== 'allXP') return 0;
+    try { return joinedThisWindow() ? LIVE_XP_AURA : 0; } catch (e) { return 0; }
+  }
   var origGetBonus = window.getBonus;
   if (typeof origGetBonus === 'function') {
     window.getBonus = function (key) {
       var t = origGetBonus.apply(this, arguments);
-      try { if (key === 'allXP' && joinedThisWindow()) t += LIVE_XP_AURA; } catch (e) {}
+      try { t += liveAura(key); } catch (e) {}
       return t;
     };
   }
@@ -1419,6 +1433,7 @@
     SLOT_UTC_HOURS: SLOT_UTC_HOURS, WINDOW_MIN: WINDOW_MIN,
     GOAL_PER_PLAYER: GOAL_PER_PLAYER, MIN_GOAL: MIN_GOAL,
     CALL_CLAMP: CALL_CLAMP, TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA,
+    liveAura: liveAura,   // b228: what the aura pays right now, for power-budget.js
     SOLO_BAND: SOLO_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
     // clock + schedule
     now: now, serverSkewMs: serverSkewMs, syncClock: syncClock, dayCloseMs: dayCloseMs,

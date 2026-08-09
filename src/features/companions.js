@@ -29,13 +29,28 @@ function companionIconHtml(id, px) {
   return (typeof window.companionIconHtml === 'function') ? window.companionIconHtml(id, px) : '';
 }
 
-// XP curve: cumulative XP needed to reach level L. Smooth growth, ~50K at L30.
+// XP curve: cumulative XP needed to reach level L.
+//
+// b228 — THE CAP DID NOT MATCH THE CURVE. The comment here said "~50K at L30"
+// and awardCompanionXp clamped cumulative XP to 50,000; the curve actually
+// needs 792,783 to reach 30. So every pet in the game stopped dead at level 14,
+// halfway up a bar the Stable draws as "Lv N / 30", and the last sixteen levels
+// were unreachable. Found by the rebase, because the power budget's companion
+// share is stated at level 30 (×2.45) and a pet that can never get there is a
+// budget line nobody can spend.
+//
+// The cap is now DERIVED from the curve — one source of truth, so the two can
+// never disagree again. This is a power increase, and it lands in the same
+// commit as the magnitudes that pay for it: a maxed pet is +2.45% on its key,
+// which is the share §2.2 budgets for "a 1-in-2,500 pet at level 30".
+export const COMPANION_MAX_LEVEL = 30;
 export function companionXpToReach(L) {
   if (L <= 1) return 0;
   let total = 0;
   for (let i = 1; i < L; i++) total += Math.floor(50 * Math.pow(1.18, i - 1) * i);
   return total;
 }
+export const COMPANION_XP_CAP = companionXpToReach(COMPANION_MAX_LEVEL);
 
 export function companionLevelFromXp(xp) {
   for (let L = 30; L >= 1; L--) {
@@ -64,9 +79,9 @@ function ensureState() {
 export function getCompanionBonus() {
   ensureState();
   const out = {
-    strB: 0, atkB: 0, defB: 0, crit: 0, xpB: 0,
-    gatherSpeed: 0, farmYield: 0, cookSpeed: 0, prayerXp: 0,
-    rareDrop: 0, goldBonus: 0, hpRegen: 0,
+    strB: 0, atkB: 0, defB: 0, crit: 0, allXP: 0,
+    gatherSpeed: 0, farmYield: 0, cookSpeed: 0, smithSpeed: 0,
+    craftSpeed: 0, prayerSpeed: 0, rareDrop: 0, goldFind: 0, hpRegen: 0,
   };
   const eq = window.G?.companions?.equipped;
   if (!eq) return out;
@@ -89,7 +104,7 @@ export function awardCompanionXp(amount) {
   if (!eq) return;
   const before = window.G.companions.xp[eq] || 0;
   const beforeLv = companionLevelFromXp(before);
-  const next = Math.min(50000, before + amount);
+  const next = Math.min(COMPANION_XP_CAP, before + amount);
   window.G.companions.xp[eq] = next;
   const afterLv = companionLevelFromXp(next);
   if (afterLv > beforeLv) emit('companionLevelUp', { id: eq, level: afterLv });
@@ -357,12 +372,17 @@ function renderStable() {
   if (sub) sub.textContent = `${G.companions.ownedIds.length}/${Object.keys(COMPANIONS).length} companions owned`;
 
   const roleColor = { combat: '#e88a8a', gather: '#e3c77e', artisan: '#f3d181', utility: '#d4a8e8', hybrid: '#9aa3b0' };
+  // b228: the three misspelled keys are gone from the data, so the Stable now
+  // labels the real ones. `farmYield` moves out of the percent list — it is a
+  // count of extra crops and always was.
   const labelMap = {
-    strB: 'STR', atkB: 'ATK', defB: 'DEF', crit: 'Crit', xpB: 'XP',
+    strB: 'STR', atkB: 'ATK', defB: 'DEF', crit: 'Crit', allXP: 'All XP',
     gatherSpeed: 'Gather', farmYield: 'Farm yield', cookSpeed: 'Cook speed',
-    rareDrop: 'Rare drop', goldBonus: 'Gold', hpRegen: 'HP/sec',
+    smithSpeed: 'Smith speed', craftSpeed: 'Craft speed', prayerSpeed: 'Prayer speed',
+    rareDrop: 'Rare drop', goldFind: 'Gold find', hpRegen: 'HP/sec',
   };
-  const isPercent = (k) => ['crit', 'xpB', 'gatherSpeed', 'farmYield', 'cookSpeed', 'rareDrop', 'goldBonus'].includes(k);
+  const isPercent = (k) => ['crit', 'allXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
+    'craftSpeed', 'prayerSpeed', 'rareDrop', 'goldFind'].includes(k);
 
   const cards = Object.entries(COMPANIONS).map(([id, def]) => {
     const owned = G.companions.ownedIds.includes(id);

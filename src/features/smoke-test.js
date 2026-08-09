@@ -7999,6 +7999,37 @@ const TESTS = [
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
   }),
+  // b226 (Tyler): "No progress bar when cooking shrimp." The artisan tile grid
+  // marked tiles active on G.activeArtisanRecipe — which startArtisan NEVER
+  // writes (it writes activeSkill + skillTargetId) — so no artisan tile was
+  // ever .active and lightUpdate had nothing to drive. Guard: starting a cook
+  // marks its tile active, and the fill moves within a second.
+  () => tryRun('b226: cooking marks its tile active and the progress bar moves', async () => {
+    const snap = snapshotG();
+    try {
+      window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 10;
+      window.showTab('skills');
+      if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
+      window.startArtisan('cooking', 'cook_shrimp');
+      assert(window.G.activeSkill === 'cooking' && window.G.skillTargetId === 'cook_shrimp',
+        'startArtisan did not start the cook');
+      const tile = document.querySelector('#skill-detail .act-tile.active, .act-tile.active');
+      assert(tile, 'no artisan tile carries .active while cooking runs — the b226 predicate regressed');
+      assert(/shrimp/i.test(tile.textContent), 'the wrong tile is marked active');
+      const fill = tile.querySelector('.at-prog-fill');
+      assert(fill, 'active tile has no progress fill element');
+      const w0 = fill.style.width || '';
+      await new Promise((res) => setTimeout(res, 700));
+      const f2 = (document.querySelector('.act-tile.active') || tile).querySelector('.at-prog-fill');
+      assert(f2 && (f2.style.width || '') !== w0,
+        'progress fill did not move in 700ms (' + w0 + ' -> ' + (f2 && f2.style.width) + ')');
+    } finally {
+      if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

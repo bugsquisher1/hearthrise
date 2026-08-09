@@ -9360,7 +9360,7 @@ function tileForGather(action, skillId){
 function tileForArtisan(recipe, skillId){
   var lv = getLevel(skillId);
   var unlocked = lv >= recipe.req;
-  var active = G.activeArtisanRecipe === recipe.id;
+  var active = (G.activeSkill === skillId && G.skillTargetId === recipe.id) || G.activeArtisanRecipe === recipe.id; /* b226: startArtisan never writes activeArtisanRecipe */
   var outId = recipe.output;
   var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;

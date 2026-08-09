@@ -112,7 +112,10 @@ function lockGlyph() {
 function tileForArtisan(recipe, skillId) {
   const lv = window.getLevel(skillId);
   const unlocked = lv >= recipe.req;
-  const active = window.G.activeArtisanRecipe === recipe.id;
+  // b226: startArtisan writes activeSkill+skillTargetId, NEVER activeArtisanRecipe
+  // — that key made no artisan tile ever .active, so the progress fill never
+  // moved (Tyler's "no progress bar when cooking shrimp").
+  const active = window.G.activeSkill === skillId && window.G.skillTargetId === recipe.id;
   const outId = recipe.output;
   const outDef = window.ITEMS?.[outId];
   const qty = window.G.inventory?.[outId] || 0;

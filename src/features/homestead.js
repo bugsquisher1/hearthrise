@@ -40,13 +40,16 @@
       cost: { gold: 400, normal_log: 30, copper_ore: 20 },
       rooms: ['kitchen', 'garden'] },
     { id: 'farmstead', name: 'Fieldworth Farmstead', icon: '🌾', plots: 6,  workers: 2, offlineHours: 1,
-      desc: 'Barns and fences. Unlocks the Workshop and Cellar, a second worker, +1h offline cap.',
+      /* b226 (Tyler): the Forge moves DOWN to tier 2 — smithing opens with the
+         farmstead. Moving a bench EARLIER can never create a b213-style cost
+         deadlock (it only relaxes what later tiers may demand). */
+      desc: 'Barns and fences. Unlocks the Workshop, Cellar and Forge, a second worker, +1h offline cap.',
       cost: { gold: 2500, oak_log: 40, copper_ore: 25, wolf_pelt: 4, cooked_shrimp: 10 },
-      rooms: ['workshop', 'cellar'] },
+      rooms: ['workshop', 'cellar', 'forge'] },
     { id: 'manor',     name: 'Stonecross Manor',     icon: '🏛️', plots: 8,  workers: 3, offlineHours: 2,
-      desc: 'Cut stone and iron gates. Unlocks the Forge and Library, a third worker, +2h offline cap.',
+      desc: 'Cut stone and iron gates. Unlocks the Library, a third worker, +2h offline cap.',
       cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8 },
-      rooms: ['forge', 'library'] },
+      rooms: ['library'] },
     { id: 'keep',      name: 'Ironvale Keep',        icon: '🏰', plots: 10, workers: 4, offlineHours: 3,
       desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, a fourth worker, +3h offline cap.',
       cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5 },

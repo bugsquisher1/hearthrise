@@ -18,8 +18,8 @@ Read from source, not from memory (`src/features/homestead.js`, `src/features/wo
 |---|---|---|---|---|---|---|
 | 0 | Wanderer's Camp | 2 | 0 | +0h | — | — |
 | 1 | Hearthside Homestead | 4 | 1 | +0h | Kitchen, Garden | 400g · 30 Normal Log · 20 Copper Ore |
-| 2 | Fieldworth Farmstead | 6 | 2 | +1h | Workshop, Cellar | 2,500g · 40 Oak Log · 25 Copper Ore · 4 Wolf Pelt · 10 Cooked Shrimp |
-| 3 | Stonecross Manor | 8 | 3 | +2h | Forge, Library | 10,000g · 35 Willow Plank · 40 Iron Ore · 8 Silk Thread |
+| 2 | Fieldworth Farmstead | 6 | 2 | +1h | Workshop, Cellar, Forge *(b226, Tyler: forge moved down)* | 2,500g · 40 Oak Log · 25 Copper Ore · 4 Wolf Pelt · 10 Cooked Shrimp |
+| 3 | Stonecross Manor | 8 | 3 | +2h | Library | 10,000g · 35 Willow Plank · 40 Iron Ore · 8 Silk Thread |
 | 4 | Ironvale Keep | 10 | 4 | +3h | Shrine, Trophy Room | 40,000g · 50 Maple Plank · 35 Steel Bar · 20 Big Bones · 5 Bear Pelt |
 | 5 | Hearthrise Castle | 12 | 6 | +4h | **nothing** | 150,000g · 70 Yew Plank · 40 Mithril Bar · 8 Rune Bar · 4 Dragon Scale |
 
@@ -33,7 +33,7 @@ Read from source, not from memory (`src/features/homestead.js`, `src/features/wo
 | Garden | 1 | Yield +1 / +2 / +4 | `farmYield` |
 | Workshop | 2 | Craft +10 / +25 / +50% | `craftSpeed` |
 | Cellar | 2 | +500 / +1500 / +5000 storage | `storage` — **reads nothing** |
-| Forge | 3 | Smith +10 / +25 / +50% | `smithSpeed` |
+| Forge | 2 *(b226)* | Smith +10 / +25 / +50% | `smithSpeed` |
 | Library | 3 | All XP +5 / +10 / +20% | `allXP` |
 | Shrine | 4 | Prayer +10 / +25 / +50% | `prayerSpeed` |
 | Trophy Room | 4 | Combat XP +5 / +12 / +25% | `combatXP` |
@@ -159,7 +159,7 @@ Each entry is the modal's contents: **identity → what it does now → the ladd
 
 **Actions.** `[Upgrade]` · `[Feasts & Draughts]` (jumps to the cooking sub-tab) · `[Keep on tap]` at L5.
 
-### 3.5 Forge — *the anvil* · property tier 3 · gates Smithing
+### 3.5 Forge — *the anvil* · property tier 2 *(b226, Tyler)* · gates Smithing
 
 **Identity.** Heat, a bellows, and the ringing that means someone is home.
 

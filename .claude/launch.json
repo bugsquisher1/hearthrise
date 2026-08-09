@@ -1,85 +1,15 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "hearthrise-static",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8000"
-      ],
-      "port": 8000
-    },
-    {
-      "name": "hearthrise-coord",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8125"
-      ],
-      "port": 8125
-    },
-    {
-      "name": "hearthrise-clanseat",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8149"
-      ],
-      "port": 8149
-    },
-    {
-      "name": "hearthrise-questnav",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8166"
-      ],
-      "port": 8166
-    },
-    {
-      "name": "hearthrise-smallfix",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8172"],
-      "port": 8172
-    },
-    {
-      "name": "hearthrise-stable",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8171"],
-      "port": 8171
-    },
-    {
-      "name": "hearthrise-rally",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8174"],
-      "port": 8174
-    },
-    {
-      "name": "hearthrise-clangov",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8178",
-        "--directory",
-        ".claude/worktrees/manual-clangov"
-      ],
-      "port": 8178
-    },
-    {
-      "name": "hearthrise-homestead",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8173"
-      ],
-      "port": 8173
-    }
+    { "name": "hearthrise-static",    "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8000"], "port": 8000 },
+    { "name": "hearthrise-coord",     "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8125"], "port": 8125 },
+    { "name": "hearthrise-clanseat",  "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8149"], "port": 8149 },
+    { "name": "hearthrise-questnav",  "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8166"], "port": 8166 },
+    { "name": "hearthrise-stable",    "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8171"], "port": 8171 },
+    { "name": "hearthrise-smallfix",  "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8172"], "port": 8172 },
+    { "name": "hearthrise-homestead", "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8173"], "port": 8173 },
+    { "name": "hearthrise-rally",     "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8174"], "port": 8174 },
+    { "name": "hearthrise-chronicle", "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8176"], "port": 8176 },
+    { "name": "hearthrise-online",    "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8177"], "port": 8177 }
   ]
 }

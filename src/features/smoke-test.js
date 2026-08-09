@@ -1326,40 +1326,44 @@ const TESTS = [
       if (saved === undefined) delete G.companions; else G.companions = saved;
     }
   }),
-  () => tryRun('b204/b227: world events — deterministic by date, and PRESENT bonuses flow through getBonus', () => {
+  () => tryRun('b204/b229: world events — deterministic by date, and ONLINE bonuses flow through getBonus', () => {
     const E = window.HearthriseWorldEvents;
     const P = window.HearthrisePresence;
+    const NS = window.HearthriseNetStatus;
     assert(E, 'HearthriseWorldEvents present');
     // determinism: same key → same event, different keys spread across the pool
     const a = E.daily('2026-3-14'), b = E.daily('2026-3-14');
     assert(a && b && a.id === b.id, 'same date key must pick the same daily event');
     const picks = new Set(['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7','2026-1-8'].map(k => E.daily(k).id));
     assert(picks.size >= 3, 'date keys should spread across the pool, got ' + picks.size);
-    // b227: the bonus reaches getBonus only WHILE PRESENT. The b204 contract
-    // (the wrapper is wired, every pool key travels) is unchanged — what moved
-    // is that it is now conditional, so the test has to hold the condition.
+    // b227/b229: the bonus reaches getBonus only while the SESSION IS ONLINE.
+    // The b204 contract (the wrapper is wired, every pool key travels) is
+    // unchanged — what moved is that it is now conditional, so the test has to
+    // hold the condition. b229 drives that condition through the real
+    // connectivity oracle instead of the retired idle clock.
     const G = window.G;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      P._setLastInput(Date.now());
-      assert(E.isActive() === true, 'a present player must have the blessing live');
+      assert(E.isActive() === true, 'an online player must have the blessing live');
       const d = E.daily(), w = E.weekly();
       const keys = Object.keys(Object.assign({}, d.bonus, w.bonus));
       keys.forEach((k) => {
         const evPart = E.bonusFor(k);
         assert(evPart > 0, 'bonusFor(' + k + ') should be > 0 today');
-        assert(E.liveBonusFor(k) === evPart, 'a present player must be PAID the full ' + k + ' blessing');
-        assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus while present');
+        assert(E.liveBonusFor(k) === evPart, 'an online player must be PAID the full ' + k + ' blessing');
+        assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus while online');
       });
-      // …and stops travelling the moment presence lapses.
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
-      assert(E.isActive() === false, 'an idle player must not have the blessing live');
-      keys.forEach((k) => {
-        assert(E.liveBonusFor(k) === 0, 'an idle player must be paid NO ' + k + ' blessing');
-      });
-    } finally { P._setLastInput(savedInput); restoreG(snap); }
+      // …and stops travelling the moment the session genuinely drops.
+      try {
+        NS.setMode('offline');
+        assert(E.isActive() === false, 'a disconnected player must not have the blessing live');
+        keys.forEach((k) => {
+          assert(E.liveBonusFor(k) === 0, 'a disconnected player must be paid NO ' + k + ' blessing');
+        });
+      } finally { NS.setMode('ok'); }
+      assert(E.isActive() === true, 'and reconnecting restores it');
+    } finally { restoreG(snap); }
   }),
   () => tryRun('b204: artisan offline — cooking session progresses offline (was zero)', () => {
     const G = window.G;
@@ -10242,27 +10246,40 @@ const TESTS = [
   //
   // The b226 test below this comment used to assert `presence multiplies the
   // grant by 1.12`. That contract was retired by the product owner, so the
-  // test is rewritten to the NEW contract rather than loosened: presence is
+  // test is rewritten to the NEW contract rather than loosened: being here is
   // now a GATE (worth nothing by itself) and the blessing is what it gates.
   // The rewritten pair is deliberately stricter than the original — an
-  // exact-equality "a present player with no blessing earns EXACTLY base"
+  // exact-equality "an online player with no blessing earns EXACTLY base"
   // is a stronger statement than the old ratio check ever made.
+  //
+  // b229 — "THE TAB SHOULDN'T NEED TO BE OPEN, THEY JUST NEED TO BE ONLINE"
+  // Tyler narrowed the gate to SESSION-ONLINE: game open + connected. The
+  // tests below drive that through the real connectivity oracle
+  // (HearthriseNetStatus) and, where they used to drive the idle clock, they
+  // now drive the retired *visibility* seam on purpose — to prove it no
+  // longer moves anything. The offline-replay latch tests are untouched in
+  // substance: the latch, not the gate, is what holds the offline boundary.
   // ══════════════════════════════════════════════════════════════════════
 
-  () => tryRun('b227: presence pays NOTHING by itself — the flat ×1.12 is gone', () => {
+  () => tryRun('b229: being online pays NOTHING by itself — the flat ×1.12 is gone', () => {
     const G = window.G;
     const P = window.HearthrisePresence;
-    assert(P && typeof P.isPresent === 'function', 'window.HearthrisePresence must exist');
+    const NS = window.HearthriseNetStatus;
+    assert(P && typeof P.isOnline === 'function', 'window.HearthrisePresence must publish isOnline()');
     assert(P.MULT === undefined && typeof P.mult !== 'function',
       'the flat presence multiplier must be removed from the API, not merely set to 1');
+    // b229: the attention-era API is GONE, not deprecated — nothing may ask
+    // "have they clicked lately?" any more, because that is not the rule.
+    assert(typeof P.isPresent !== 'function', 'isPresent() must be retired, not left as an alias');
+    assert(P.IDLE_MS === undefined && typeof P._setLastInput !== 'function',
+      'the idle clock and its test seam must be gone with it');
     const E = window.HearthriseWorldEvents;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       G.rooms = {}; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
       G.restedXp = 0; G.plotBuildings = [];
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      // Silence the calendar so this measures PRESENCE ALONE, whatever today's
+      // Silence the calendar so this measures THE GATE ALONE, whatever today's
       // blessing happens to be. Asserting against a date-derived pool pick
       // would make the test's meaning drift with the wall clock.
       E._force({ daily: E.QUIET, weekly: E.QUIET });
@@ -10270,42 +10287,37 @@ const TESTS = [
       const grant = () => { G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting; };
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
 
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
-      assert(P.isPresent() === false, 'a player idle past the window is not present');
+      NS.setMode('offline');
+      assert(P.isOnline() === false, 'a genuinely disconnected session is not online');
       const away = grant();
-      P._setLastInput(Date.now());
-      assert(P.isPresent() === true, 'visible + recent input + an activity running IS present');
+      NS.setMode('ok');
+      assert(P.isOnline() === true, 'a connected session IS online');
       const here = grant();
 
       // The headline assertion, and it is an exact equality rather than the
-      // ratio b226 checked: with no blessing live, being present is worth
+      // ratio b226 checked: with no blessing live, being here is worth
       // exactly nothing. That is what "the flat ×1.12 is gone" means.
       assert(away > 0, 'the grant must land somewhere for the comparison to mean anything');
       assert(here === away,
-        'a present grant with no blessing must EQUAL an absent one (' + away + ' vs ' + here + ')');
+        'an online grant with no blessing must EQUAL an offline one (' + away + ' vs ' + here + ')');
       // …and the rate readouts must quote the same thing.
       const tree = window.TREES.find((t) => t.id === 'normal_tree');
-      P._setLastInput(Date.now());
       const rHere = window.actionRate('woodcutting', tree).xpPerAction;
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      NS.setMode('offline');
       const rAway = window.actionRate('woodcutting', tree).xpPerAction;
+      NS.setMode('ok');
       assert(rHere === rAway, 'actionRate must not carry a presence multiplier either');
-
-      // No activity running → not present, whatever the input clock says.
-      G.activeSkill = null;
-      assert(P.isPresent() === false, 'presence requires an activity to be running');
     } finally {
       E._force(null);
-      P._setLastInput(savedInput); restoreG(snap);
+      NS.setMode('ok'); restoreG(snap);
     }
   }),
 
-  () => tryRun('b227: the blessing rides INSIDE getBonus and switches with presence', () => {
+  () => tryRun('b229: the blessing rides INSIDE getBonus and switches with CONNECTIVITY', () => {
     const G = window.G;
-    const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
+    const NS = window.HearthriseNetStatus;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
@@ -10313,40 +10325,141 @@ const TESTS = [
       const keys = Object.keys(Object.assign({}, E.daily().bonus, E.weekly().bonus));
       assert(keys.length > 0, "today's calendar must grant something");
 
-      P._setLastInput(Date.now());
-      const present = {}; keys.forEach((k) => { present[k] = window.getBonus(k); });
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
-      const idle = {}; keys.forEach((k) => { idle[k] = window.getBonus(k); });
+      const online = {}; keys.forEach((k) => { online[k] = window.getBonus(k); });
+      NS.setMode('offline');
+      const dropped = {}; keys.forEach((k) => { dropped[k] = window.getBonus(k); });
+      NS.setMode('ok');
 
       keys.forEach((k) => {
-        assert(Math.abs((present[k] - idle[k]) - E.bonusFor(k)) < 1e-9,
-          'getBonus("' + k + '") must rise by exactly the blessing when presence begins (' +
-          idle[k] + ' → ' + present[k] + ', blessing ' + E.bonusFor(k) + ')');
+        assert(Math.abs((online[k] - dropped[k]) - E.bonusFor(k)) < 1e-9,
+          'getBonus("' + k + '") must rise by exactly the blessing when the session is online (' +
+          dropped[k] + ' → ' + online[k] + ', blessing ' + E.bonusFor(k) + ')');
       });
+
+      // A SLOW cloud is not an absent player. 'degraded' (three Supabase 5xx)
+      // means our backend is struggling; charging the player for our outage
+      // would be the wrong half of the rule.
+      NS.setMode('degraded');
+      keys.forEach((k) => {
+        assert(Math.abs(window.getBonus(k) - online[k]) < 1e-9,
+          'a degraded cloud must not revoke the ' + k + ' blessing — the player never left');
+      });
+      NS.setMode('ok');
 
       // The b226 fuse still has to hold with a blessing live — the whole point
       // of putting the blessing INSIDE the additive channel is that the fuse
       // can see it. A blessing hidden outside the fuse is an unbudgeted bonus.
-      P._setLastInput(Date.now());
       assert(window.getBonus('allXP') <= 0.60,
         'the ≤0.60 allXP fuse must hold with the blessing live, got ' + window.getBonus('allXP'));
-    } finally { P._setLastInput(savedInput); restoreG(snap); }
+    } finally { NS.setMode('ok'); restoreG(snap); }
+  }),
+
+  () => tryRun('b229: a hidden, unfocused, untouched tab is STILL blessed — the tab need not be open', () => {
+    // Tyler's actual sentence, as an executable statement: "The tab shouldn't
+    // need to be open, they just need to be online." This drives the exact
+    // seams the retired gate was built on — document.visibilityState and
+    // document.hidden — and proves they no longer move the blessing. If a
+    // future refactor reintroduces an attention check, this fails.
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    const dVis = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+    try {
+      G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
+      G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      // Both halves of a blessing at once: the XP side (read live inside addXp)
+      // and the SPEED side (re-derived by activityIntervalMs). If backgrounding
+      // moved either one, one of the two equalities below breaks.
+      E._force({
+        daily: { id: 'test_scholar', name: 'Test Scholar', desc: '+15% all XP · +25% gather speed',
+                 bonus: { allXP: 0.15, gatherSpeed: 0.25 } },
+        weekly: E.QUIET,
+      });
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      const grant = () => { G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting; };
+      const visible = grant();
+      const visibleMs = window.activityIntervalMs();
+
+      // Background the tab for real, as far as every API the old gate read.
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      assert(document.visibilityState === 'hidden', 'the seam must actually be driven for this test to mean anything');
+
+      assert(P.isOnline() === true, 'a backgrounded tab is still an online session');
+      assert(P.blessingsApply() === true, 'a backgrounded tab must still be blessed');
+      assert(E.isActive() === true, 'the world-events layer must agree');
+      assert(E.liveBonusFor('allXP') === 0.15, 'and must still PAY the blessing, got ' + E.liveBonusFor('allXP'));
+      const hiddenGrant = grant();
+      const hiddenMs = window.activityIntervalMs();
+      assert(hiddenGrant === visible,
+        'a hidden-tab grant must equal a visible-tab grant (' + visible + ' vs ' + hiddenGrant + ')');
+      assert(hiddenMs === visibleMs,
+        'and the speed side must not change either (' + visibleMs + ' vs ' + hiddenMs + ')');
+
+      // The live hint must not call this player idle — there is no idle state.
+      const note = window.HearthriseBlessingNote();
+      assert(note.indexOf('idle') < 0, 'the note must not scold a backgrounded tab as idle, got: ' + note);
+      assert(note.indexOf('while online') >= 0, 'the note must state the real rule, got: ' + note); // Tyler's exact words
+    } finally {
+      E._force(null);
+      if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else delete document.visibilityState;
+      if (dHid) Object.defineProperty(document, 'hidden', dHid); else delete document.hidden;
+      try { document.dispatchEvent(new Event('visibilitychange')); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    const NS = window.HearthriseNetStatus;
+    assert(NS && typeof NS.getMode === 'function',
+      'the connectivity oracle must be the shipped one, not a second invention');
+    const snap = snapshotG();
+    try {
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      E._force({
+        daily: { id: 'test_surge', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
+        weekly: E.QUIET,
+      });
+      const liveNote = window.HearthriseBlessingNote();
+      assert(liveNote.indexOf('reconnecting') < 0, 'a connected session must not claim to be reconnecting');
+
+      NS.setMode('offline');
+      assert(P.isOnline() === false, 'the gate must read the oracle, not guess');
+      assert(P.blessingsApply() === false, 'a dropped session is not blessed');
+      assert(E.liveBonusFor('gatherSpeed') === 0, 'and pays nothing');
+      const dim = window.HearthriseBlessingNote();
+      assert(dim.indexOf('reconnecting') >= 0, 'the note must say reconnecting, got: ' + dim);
+      assert(dim.indexOf('idle') < 0, 'and must never resurrect the retired idle state, got: ' + dim);
+
+      NS.setMode('ok');
+      assert(P.blessingsApply() === true, 'reconnecting restores the blessing');
+      assert(E.liveBonusFor('gatherSpeed') === 0.25, 'in full');
+    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
   () => tryRun('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
-    // THE test this rework exists for. processOffline() runs inside loadLocal()
-    // on a visible tab with a fresh input timestamp and an activity set — so
-    // isPresent() is TRUE for the whole catch-up, and a gate built on presence
-    // alone would pay a returning player a full night at today's blessing.
-    // (b226's own flat ×1.12 leaked into offline grants for exactly this
-    // reason.) Run the same absence twice with the blessing layer forced on and
-    // forced off; the two piles must be identical, item for item and XP for XP.
+    // THE test this rework exists for, and b229 left its assertions ALONE —
+    // only the retired input-clock seam was dropped from the setup. The latch,
+    // not the gate, is what holds the offline boundary: processOffline() runs
+    // inside loadLocal(), in a live connected session with an activity set, so
+    // every "is the player here?" signal is TRUE for the whole catch-up and a
+    // gate built on any of them would pay a returning player a full night at
+    // today's blessing. (b226's own flat ×1.12 leaked into offline grants for
+    // exactly this reason.) Run the same absence twice with the blessing layer
+    // forced on and forced off; the two piles must be identical, item for item
+    // and XP for XP.
     const G = window.G;
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
     assert(typeof P.inOfflineReplay === 'function', 'the offline-replay latch must be published');
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     // A blessing far stronger than anything in the shipped pools, touching
     // every key an offline gather replay could possibly read. If ONE of them
     // leaks, the two nights cannot come out equal.
@@ -10362,8 +10475,7 @@ const TESTS = [
         G.skillMs = 4800;
         G.inventory = {}; G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
         G.stats = Object.assign({}, G.stats, { gathered: 0 });
-        P._setLastInput(Date.now());               // "present" by every other measure
-        setAway(3);
+        setAway(3);                                // online by every other measure
         window.processOffline();
         return { xp: G.skills.woodcutting, items: G.stats.gathered, ms: G.skillMs };
       };
@@ -10387,25 +10499,25 @@ const TESTS = [
       assert(P.inOfflineReplay() === false, 'the replay latch must be released after processOffline');
     } finally {
       E._force(null);
-      P._setLastInput(savedInput); restoreG(snap);
+      restoreG(snap);
     }
   }),
 
-  () => tryRun('b227: the replay latch shuts the blessing even on a visible, active, freshly-touched tab', () => {
-    // The unit-level statement behind the test above: it is not presence that
+  () => tryRun('b227: the replay latch shuts the blessing even in a live, connected, active session', () => {
+    // The unit-level statement behind the test above: it is not the gate that
     // is false during a catch-up (it is emphatically true) — it is the latch.
+    // b229 renamed the signal it interrogates (isPresent → isOnline) and
+    // changed nothing else: every assertion below is the b227 original.
     const G = window.G;
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      P._setLastInput(Date.now());
-      assert(P.isPresent() === true, 'the test must be run in the state a catch-up actually sees');
-      assert(P.blessingsApply() === true, 'outside a replay, a present player is blessed');
+      assert(P.isOnline() === true, 'the test must be run in the state a catch-up actually sees');
+      assert(P.blessingsApply() === true, 'outside a replay, an online player is blessed');
       P._withOfflineReplay(() => {
-        assert(P.isPresent() === true, 'presence is still TRUE inside a replay — that is the trap');
+        assert(P.isOnline() === true, 'the session is still ONLINE inside a replay — that is the trap');
         assert(P.inOfflineReplay() === true, 'the latch must be closed');
         assert(P.blessingsApply() === false, '…and the blessing must be off anyway');
         assert(E.isActive() === false, 'the world-events layer must agree');
@@ -10422,20 +10534,22 @@ const TESTS = [
       // A throw inside a replay must not strand the game permanently unblessed.
       try { P._withOfflineReplay(() => { throw new Error('boom'); }); } catch (e) { /* expected */ }
       assert(P.inOfflineReplay() === false, 'a throw mid-replay must still release the latch');
-    } finally { P._setLastInput(savedInput); restoreG(snap); }
+    } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b227: a SPEED blessing gates too — the interval follows presence, online and offline', () => {
+  () => tryRun('b227/b229: a SPEED blessing gates too — the interval follows the session, online and offline', () => {
     // The XP side of a blessing gates itself because addXp reads getBonus live.
     // The speed side is baked into G.skillMs at startSkill, so without a
-    // re-derivation an idle player would keep blessed speed and — worse — carry
-    // it into the offline replay, which divides elapsed time by that number.
+    // re-derivation a disconnected player would keep blessed speed and — worse
+    // — carry it into the offline replay, which divides elapsed time by that
+    // number. b229 drives the gate through connectivity instead of the retired
+    // idle clock; the replay half of the test is untouched.
     const G = window.G;
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
+    const NS = window.HearthriseNetStatus;
     assert(typeof window.activityIntervalMs === 'function', 'the shared interval formula must be published');
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       G.rooms = {}; G.plotBuildings = []; G.inventory = {};
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
@@ -10445,34 +10559,47 @@ const TESTS = [
         daily: { id: 'test_gather', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
         weekly: E.QUIET,
       });
-      P._setLastInput(Date.now());
       const blessedMs = window.activityIntervalMs();
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      NS.setMode('offline');
       const baseMs = window.activityIntervalMs();
+      NS.setMode('ok');
       assert(blessedMs < baseMs,
-        'a present player must swing faster under a gather blessing (' + blessedMs + ' vs ' + baseMs + ')');
+        'an online player must swing faster under a gather blessing (' + blessedMs + ' vs ' + baseMs + ')');
 
-      // Inside a replay the blessing is off even though presence is on.
-      P._setLastInput(Date.now());
+      // Inside a replay the blessing is off even though the session is online.
       P._withOfflineReplay(() => {
         assert(window.activityIntervalMs() === baseMs,
           'the offline replay must re-derive the BASE interval, got ' + window.activityIntervalMs());
       });
 
-      // And the live loop actually re-times: start blessed, go idle, act.
+      // And the live loop actually re-times: start blessed, drop, act.
       window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
       assert(G.skillMs === blessedMs, 'starting while blessed must arm the blessed interval');
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      NS.setMode('offline');
       window.doSkillAction(false);
       assert(G.skillMs === baseMs,
-        'going idle must re-time the running loop to the base interval, got ' + G.skillMs);
-      P._setLastInput(Date.now());
+        'dropping the connection must re-time the running loop to the base interval, got ' + G.skillMs);
+      NS.setMode('ok');
       window.doSkillAction(false);
-      assert(G.skillMs === blessedMs, 'coming back must re-time it up again, got ' + G.skillMs);
+      assert(G.skillMs === blessedMs, 'reconnecting must re-time it up again, got ' + G.skillMs);
+
+      // b229: a connectivity FLIP retimes IMMEDIATELY — no action required.
+      // The oracle announces the change (hearthrise:netmode) after settling its
+      // own state, so the hook can never read a stale mode; a raw window
+      // 'offline' listener in legacy.js would, because legacy.js loads first.
+      window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
+      assert(G.skillMs === blessedMs, 'precondition: the loop is running blessed');
+      NS.setMode('offline');
+      assert(G.skillMs === baseMs,
+        'a disconnect must retime the running loop on the flip alone, got ' + G.skillMs);
+      NS.setMode('ok');
+      assert(G.skillMs === blessedMs,
+        'and reconnecting must retime it back on the flip alone, got ' + G.skillMs);
     } finally {
       E._force(null);
+      NS.setMode('ok');
       try { window.stopSkill(); } catch {}
-      P._setLastInput(savedInput); restoreG(snap);
+      restoreG(snap);
     }
   }),
 
@@ -10482,9 +10609,7 @@ const TESTS = [
     // key below is asserted to MOVE something, by driving the real seam.
     const G = window.G;
     const E = window.HearthriseWorldEvents;
-    const P = window.HearthrisePresence;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     const realGetBonus = window.getBonus;
     try {
       const keys = new Set();
@@ -10551,7 +10676,7 @@ const TESTS = [
         'craftSpeed', 'prayerSpeed', 'farmYield', 'goldFind', 'noBurn']);
       keys.forEach((k) => assert(WIRED.has(k),
         'pool key "' + k + '" has no proven consumer — add the seam or drop the entry'));
-    } finally { window.getBonus = realGetBonus; P._setLastInput(savedInput); restoreG(snap); }
+    } finally { window.getBonus = realGetBonus; restoreG(snap); }
   }),
 
   () => tryRun('b227: the blessing data carries no emoji, and every entry has an atlas glyph', () => {
@@ -10570,8 +10695,8 @@ const TESTS = [
     const G = window.G;
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
+    const NS = window.HearthriseNetStatus;
     const snap = snapshotG();
-    const savedInput = P._lastInput();
     try {
       // Keys are scoped to what is running: a smithing blessing must never be
       // offered as a reason to keep chopping.
@@ -10585,24 +10710,93 @@ const TESTS = [
         'a cooking session must consider cookSpeed and noBurn');
       assert(ckKeys.indexOf('gatherSpeed') < 0, 'and not gather speed');
 
-      // The note itself: live while present, dimmed and labelled "idle" when not.
+      // The note itself: live while the session is online, dimmed to
+      // "reconnecting" only when it genuinely drops. b229 retired "— idle".
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       const hit = E.summaryFor(P.activeBonusKeys());
-      P._setLastInput(Date.now());
       const live = window.HearthriseBlessingNote();
-      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      NS.setMode('offline');
       const dim = window.HearthriseBlessingNote();
+      NS.setMode('ok');
       if (hit) {
-        assert(live.indexOf(hit.name) >= 0 && live.indexOf('while you play') >= 0,
+        assert(live.indexOf(hit.name) >= 0 && live.indexOf("while online") >= 0,
           'the live note must name the blessing and state the condition, got: ' + live);
-        assert(dim.indexOf('idle') >= 0, 'the lapsed note must say idle, got: ' + dim);
+        assert(dim.indexOf('reconnecting') >= 0, 'the dropped note must say reconnecting, got: ' + dim);
+        assert(live.indexOf('idle') < 0 && dim.indexOf('idle') < 0,
+          'neither state may resurrect the retired "idle" scold');
+        assert(live.indexOf('tab') < 0 && dim.indexOf('tab') < 0,
+          'and neither may mention a tab — Tyler: "the tab shouldn\'t need to be open"');
         assert(live.indexOf('+12%') < 0 || hit.effect.indexOf('12%') >= 0,
           'the note must never resurrect the retired flat +12% presence hint');
       }
       // No activity → no note at all.
       G.activeSkill = null; G.activeMonster = null; G.activeArtisanRecipe = null;
       assert(window.HearthriseBlessingNote() === '', 'no activity running means no note');
-    } finally { P._setLastInput(savedInput); restoreG(snap); }
+    } finally { NS.setMode('ok'); restoreG(snap); }
+  }),
+
+  () => tryRun('b229: every surface states the same rule — while online, not while focused', () => {
+    // Four surfaces tell the player when a blessing pays: the Events panel
+    // card, Home's "The realm", the live note beside the running activity, and
+    // the welcome-back offline toast. They were three different sentences, one
+    // of which said "this tab open" — the line Tyler called confusing. This
+    // asserts the shipped STRINGS, because a rule the code obeys and the copy
+    // contradicts is still a broken rule to the person reading it.
+    const G = window.G;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    try {
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      E._force({
+        daily: { id: 'test_surge', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
+        weekly: E.QUIET,
+      });
+
+      // 1 — the Events-panel blessing card (rendered wherever it is hosted).
+      E.renderBlessing();
+      const card = document.getElementById('hr-worldevents');
+      assert(card, 'the blessing card must render somewhere');
+      const cardTxt = card.textContent;
+      assert(cardTxt.indexOf('active while you are online') >= 0,
+        'the blessing card must state the rule in Tyler\'s words, got: ' + cardTxt);
+
+      // 2 — Home, "The realm".
+      let homeTxt = '';
+      try {
+        if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render();
+        const panel = document.getElementById('panel-profile');
+        homeTxt = panel ? panel.textContent : '';
+      } catch (e) { /* Home is optional at this point in the suite */ }
+      if (homeTxt.indexOf('The realm') >= 0) {
+        assert(homeTxt.indexOf('active while you are online') >= 0,
+          'Home\'s "The realm" must state the same rule, got a panel without it');
+      }
+
+      // 3 — the live activity note.
+      const note = window.HearthriseBlessingNote();
+      assert(note.indexOf('while online') >= 0, 'the activity note must state the same rule, got: ' + note);
+
+      // 4 — the welcome-back offline toast, captured at source.
+      const realNotify = window.notify;
+      let toast = '';
+      try {
+        window.notify = (msg) => { if (String(msg).indexOf('Offline') >= 0) toast = String(msg); };
+        G.rooms = {}; G.plotBuildings = []; G.inventory = {};
+        G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+        G.skillMs = 4800; setAway(3);
+        window.processOffline();
+      } finally { window.notify = realNotify; }
+      assert(toast.indexOf('at the base rate') >= 0, 'the offline toast must name the base rate, got: ' + toast);
+
+      // …and none of the blessing copy may say "tab", or scold an "idle"
+      // player. (Home is checked for "tab" only — the whole profile panel is
+      // scanned there, and other cards are entitled to their own vocabulary.)
+      [cardTxt, note, toast].forEach((s) => {
+        assert(String(s).indexOf('tab') < 0, 'no blessing surface may mention a tab: ' + s);
+        assert(!/\bidle\b/.test(String(s)), 'no blessing surface may call an online player idle: ' + s);
+      });
+      assert(homeTxt.indexOf('this tab') < 0, 'Home must not mention a tab either');
+    } finally { E._force(null); restoreG(snap); }
   }),
 
   () => tryRun('b226: the offline cap is a DAILY budget — two 9h gaps bank 12h, not 18h', () => {

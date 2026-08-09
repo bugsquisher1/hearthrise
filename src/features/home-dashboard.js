@@ -595,16 +595,18 @@
               '<div class="s">' + esc(e.desc) + '</div></div>' +
             '<div class="when">' + when + '</div></div>';
         };
-        // b227: the blessings are presence-gated, so the panel that announces
+        // b227: the blessings are session-gated, so the panel that announces
         // them is the panel that must state the condition. A player who reads
         // "+25% gather speed" here and then banks a night at the base rate has
-        // been misled by omission, which is still being misled.
+        // been misled by omission, which is still being misled. b229: the
+        // condition is being in the game, not being at the screen — and the
+        // only mid-session way to lose it is a real disconnection.
         html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
           evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') +
           '<div class="hd-card hd-mini"><div class="mi">' + gly('uiInfo', 20, '', 'var(--ink-2)') + '</div>' +
             '<div>' + (evLive
-              ? 'Blessings are paying now — they apply while you play.'
-              : 'Blessings apply while you play. Offline progress earns the base rate.') + '</div>' +
+              ? 'Blessings remain active while you are online.'
+              : 'Reconnecting — blessings resume when you are back online.') + '</div>' +
           '</div>' +
           '</div></div>';
       } catch (e) { /* world events optional */ }

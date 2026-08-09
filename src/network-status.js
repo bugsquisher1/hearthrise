@@ -120,6 +120,14 @@
         setTimeout(hide, 1800);
       }
       if (next === 'ok') stopReconnectPoll(); else startReconnectPoll();
+      // b229: announce the flip. The blessing gate (legacy.js) reads THIS
+      // module as its single connectivity oracle, and legacy.js loads BEFORE
+      // this file — so it cannot subscribe through an API at boot, and a plain
+      // window 'offline' listener there would fire ahead of the assignment
+      // above and read the stale mode. Publishing the change after the state
+      // is settled makes the ordering impossible to get wrong, and keeps the
+      // oracle singular: consumers are told, they never sample a second source.
+      try { window.dispatchEvent(new CustomEvent('hearthrise:netmode', { detail: { mode: next } })); } catch (e) {}
     }
     updateNavFoot();
   }

@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 10;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 11;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -382,6 +382,34 @@
         if(typeof save.chronicle.seenAt !== 'number') save.chronicle.seenAt = 0;
         if(typeof save.chronicle.seeded !== 'number') save.chronicle.seeded = 0;
         save.chronicle.v = 1;
+      },
+    },
+    {
+      from: 10, to: 11,
+      name: 'v10 → v11 (b269: purchasable bank space — grandfather every save)',
+      // b269 reverses the b227 "no inventory cap" ruling at Tyler's request and
+      // ships a real, purchasable bank. The b227 "nobody worse off" principle is
+      // kept HERE: every existing save is granted a cap >= its current distinct
+      // stack count + headroom, so no returning player logs in already walled.
+      // The constants are frozen at their b269 values on purpose — a migration
+      // describes the world as it was, so it must not read a live table that
+      // may drift (see the v10 note above).
+      apply: function(save){
+        var BASE=200, GOLD=20, GEM=60, HEADROOM=25;
+        if(save.bank == null || typeof save.bank !== 'object' || Array.isArray(save.bank)){
+          save.bank = { goldBuys:0, gemBuys:0, grandfather:0 };
+        }
+        if(typeof save.bank.goldBuys!=='number')   save.bank.goldBuys=0;
+        if(typeof save.bank.gemBuys!=='number')    save.bank.gemBuys=0;
+        if(typeof save.bank.grandfather!=='number')save.bank.grandfather=0;
+        var used=0;
+        if(save.inventory && typeof save.inventory==='object'){
+          for(var k in save.inventory){ if(save.inventory[k]>0) used++; }
+        }
+        var effective = BASE + save.bank.goldBuys*GOLD + save.bank.gemBuys*GEM + save.bank.grandfather;
+        var want = used + HEADROOM;
+        // Idempotent: on a re-run `effective` already covers `want`, so no-op.
+        if(effective < want) save.bank.grandfather += (want - effective);
       },
     },
     // Future migrations go here. Example:

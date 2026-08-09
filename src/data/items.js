@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=269';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=269';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=269';
+import { GEAR_ITEMS } from './gear-tiers.js?v=270';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=270';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=270';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

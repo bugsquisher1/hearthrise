@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 270 — 2026-08-09 (Your pet's paw-print & a bigger bag)
+
+- 🐾 **Your equipped pet now sits beside your avatar.** Tap it to see exactly what it did for you *this session* — bonus XP it added, gold and extra drops it found, and any special procs. Every number is real (measured as it happened), never an estimate.
+- 🎒 **Buy more bank space.** Your bag now has a stack limit, and a **"Buy space"** button opens a shop: expand with **gold** (the price climbs each time — a long-term gold sink) or with **gems** for a flat, better deal. Every existing save is grandfathered with room to spare, so nobody logs in already full.
+
 ## v0.9.2-beta build 269 — 2026-08-09 (Progress bars that actually move)
 
 - ⏳ **Fixed: crafting/cooking/smithing progress bars froze.** The activity bar filled to 100% on the first item and then stuck there — it kept making items, but the bar never moved again. It now resets and animates for every action, so you can see your progress at a glance. *(Thanks Tyler.)*

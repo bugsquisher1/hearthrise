@@ -1079,6 +1079,29 @@ body[data-theme] .invc-topbar button {
 }
 body[data-theme] .invc-topbar button:hover { color: var(--ink); border-color: rgba(201, 162, 74, .4); background: linear-gradient(180deg, rgba(255,236,200,.12), rgba(255,236,200,.04)); }
 body[data-theme] .invc-topbar button.active { color: var(--gold-2); border-color: rgba(201, 162, 74, .55); background: linear-gradient(180deg, rgba(201,162,74,.2), rgba(201,162,74,.06)); }
+/* b269: "Buy space" is the primary action on this bar — give it the gilt fill. */
+body[data-theme] .invc-topbar button.invc-buyspace {
+  color: var(--gold-2);
+  border-color: rgba(201, 162, 74, .5);
+  background: linear-gradient(180deg, rgba(201,162,74,.18), rgba(201,162,74,.05));
+}
+body[data-theme] .invc-space .invc-space-sub { color: var(--ink-2); font-weight: 600; }
+/* b269: the Buy-space dialog rows (reuses .qm-overlay/.qm-modal chrome). */
+body[data-theme] .bank-modal .bank-cap-line { color: var(--ink-2); margin: 2px 0 12px; }
+body[data-theme] .bank-modal .bank-cap-line b { color: var(--gold-2); }
+body[data-theme] .bank-modal .bank-opt {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 8px;
+  border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surf-raised);
+}
+body[data-theme] .bank-modal .bank-opt-gem { border-color: rgba(120,170,255,.35); }
+body[data-theme] .bank-modal .bank-opt-info { flex: 1; display: flex; flex-direction: column; }
+body[data-theme] .bank-modal .bank-opt-info b { color: var(--ink); }
+body[data-theme] .bank-modal .bank-opt-info span { color: var(--ink-2); font-size: var(--t-small); }
+body[data-theme] .bank-modal .bank-opt-buy { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+body[data-theme] .bank-modal .bank-opt-buy .price { font-weight: 700; color: var(--gold-2); white-space: nowrap; }
+body[data-theme] .bank-modal .bank-opt-buy .price.gem { color: #8fb4ff; }
 body[data-theme] .invc-search-row button {
   text-transform: none; letter-spacing: 0; font-size: var(--t-small); font-weight: 600;
   border-radius: var(--r); color: var(--ink-2);

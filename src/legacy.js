@@ -1765,7 +1765,7 @@ function renderBountyPanel(){
       <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${m?.weaponWeak==='neutral'?' · +15% drops':''}</p>
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
       <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
-      <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="startCombat('${active.target}')">Fight target</button><button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
+      <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button><button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
     </article>`;
   }else{
     notices=bh.board.map((b,i)=>{
@@ -1943,6 +1943,13 @@ function trackCollection(id,qty=1){if(id&&ITEMS[id])G.collection[id]=(G.collecti
 
 /* ─── combat ─── */
 let combatInterval=null;
+/* b227 (Tyler): the bounty board's Fight-target button fed the TOGGLE below,
+   so clicking it while already fighting the target STOPPED the fight. Intent
+   from the board is "take me to the fight" — never a toggle. */
+window.fightBountyTarget=function(mId){
+  if(G.activeMonster!==mId) startCombat(mId);
+  if(typeof showTab==='function') showTab('combat');
+};
 function startCombat(mId){
   if(G.activeMonster===mId){stopCombat();return;}
   stopCombat();

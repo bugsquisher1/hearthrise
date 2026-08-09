@@ -9568,6 +9568,29 @@ const TESTS = [
     }
   }),
 
+  // b227 (Tyler): "If I click fight target in the bounty board it will remove
+  // me from combat when I'm already fighting the target." startCombat is a
+  // toggle; the board's intent is GO-TO-FIGHT. Guard: fighting stays fighting.
+  () => tryRun('b227: bounty Fight-target never stops an in-progress fight', () => {
+    const snap = snapshotG();
+    try {
+      assert(typeof window.fightBountyTarget === 'function', 'fightBountyTarget missing');
+      const mid = Object.keys(window.MONSTERS)[0];
+      window.startCombat(mid);
+      assert(window.G.activeMonster === mid, 'combat did not start');
+      window.fightBountyTarget(mid);
+      assert(window.G.activeMonster === mid,
+        'Fight-target TOGGLED OFF an active fight against the same target');
+      // activeTab is a legacy lexical (not on window) — assert the rendered panel.
+      assert(document.getElementById('panel-combat') && document.getElementById('panel-combat').classList.contains('active'),
+        'Fight-target must land on the combat tab');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

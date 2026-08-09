@@ -9,6 +9,36 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · b225 (#18) — the Clan Seat gets its own destination
+
+**The ask (Tyler, P1).** "The clan page needs to be different than the social/leaderboards tab... it should be easier to find."
+
+**Placement decision.** New top-level sidebar entry labelled **Clan**, in a new group **Realm**, sitting directly under House. Reasoning:
+- *Why top level at all* — DECISIONS 2026-08-08 makes the clan castle and the personal homestead the twin ultimate progression pillars. One of them had a nav entry (House); the other was the bottom half of a card underneath the leaderboards. Peers in the design have to be peers in the navigation. Events earned the same promotion in b220 for the same reason.
+- *Why "Clan" and not "Castle" / "Clan Seat"* — "Clan" is the word the player already uses (it is the word Tyler used). "Castle" names a room ~90% of players do not own yet, so it would be a lie for anyone without a clan, and "Clan Seat" is internal vocabulary. One word also matches every other entry in the rail and survives the icon-rail tooltip.
+- *Why a "Realm" group instead of extending "Homestead"* — a clan castle is explicitly NOT the homestead. Everything under Realm involves other players: Clan (your hold) and Social (the wider world's boards + friends). Social moving under it also finally explains what Social is now that the clan left it.
+- *Position* — first in its group, one row below House, so the two pillars are adjacent across the divider.
+- *No-clan state* — the entry never dead-ends. Signed out → "Your hold awaits" + Sign in. Signed in, no clan → "Find a hold, or found one" + the live clan list + the found-a-hold field. In a clan → the castle.
+- *Mobile* — the 6-slot bottom nav is full, so the More sheet carries it, second, directly under Events (exactly what b220 did). No emoji on the new entry.
+
+**Clan Activity moved with the hold, Friends stayed in Social.** The feed's subject is your members and its audience is your hold — leaving the one true clan surface inside Social is the defect #18 names. A friend list is cross-clan and global, so it belongs beside the leaderboards. Consequence: Social = the wider world (rankings + friends); Clan = your hold.
+
+**Second door.** The topbar clan tag `[Emberfall Watch]` is the only place a player's hold is named on every screen, so it became a `<button>` routing to the Clan Seat. Styled to stay the quiet gilt tag it always was (verified: Alegreya Sans SC, 11.5px, 22px tall, pointer, focus ring).
+
+**Two things the move broke, and the fixes.**
+1. *The rail overflowed.* `.sidebar` was `overflow:hidden` at `height:100vh`. At 1440x900 the list already stood 25px from the edge before this (two more entries — Stable, Market — are injected at runtime), so the new entry pushed the connection indicator off-screen with no way to reach it. The rail now scrolls (`overflow-y:auto`, `overscroll-behavior:contain`, `.sidebar > *{flex-shrink:0}` so nothing gets squeezed instead). Verified: scrollHeight 955 / client 900, foot reachable, brand 108px, tap targets still 44px. This is also the right answer at 10x content — an OSRS-scale game keeps adding destinations, and a nav that cannot grow starts hiding things.
+2. *Measure.* Inside Social the castle was a ~330px column, so `.hr-cs-line`'s space-between read as a label/value pair. At full panel width the same rule put "Treasury" and "42,500 gold" 1,200px apart. Capped the stacked lines, the find-or-found list and the Social signpost to a 760px column; the hold band, the six doors and the three-column week strip still take every pixel. **Lesson: a component tuned inside a narrow column does not survive being promoted to a full screen — re-check every space-between row when you widen a screen.**
+
+**Files.** `index.html` (nav entry + Realm label + `#panel-clan` + More entry + Social card head + clan-tag button), `src/legacy.js` (showTab aliases + `renderClan`/`syncClanActivity`/`clanDisplayName`, Social's clan half became friends + signpost, `injectFriendsStub` retired), `src/features/clans.js` (hosts `#clan-panel`, owns `renderClan`, `refreshClanScreens`), `src/features/clan-seat-ui.js` (**hosting only** — `renderIfOpen` looks at `#panel-clan`), `src/features/icon-set.js` (`clan: 'uiCastle'`), `src/styles/clan-seat.css` (all of #18's CSS, one place, loads last), `src/styles/legacy.css` (the rail scroll fix), `src/chat.js` + `src/features/raids.js` ("join a clan" CTAs now have a destination), `src/features/smoke-test.js` (2 guards).
+
+**Verified.** Static server :8157, Playwright with the `__HR_TEST_HARNESS__` init-script seam to get past the account wall. Desktop 1440x900, tablet 1100x820 (icon-rail: labels hidden, glyph correct), narrow 430x900. Hearthlight AND cozy-light (forced — the picker ships one theme now). Rendered the real castle via `_setClan`/`_setSeat`: hold band, six doors, standing bar, week strip, room modal all correct in the new home. Find-or-found state, Social's leaderboards + friends + signpost, More-sheet route, all five `showTab` aliases, activity card toggling with membership, 0 emoji in the touched chrome, 0 console/page errors. Smoke **296/296** (294 + 2 new), `bump-version.sh --check` OK, no bump.
+
+**Known limitations.**
+- A tier-1 hold leaves the lower ~40% of the screen empty. That is content depth, not layout — it fills as the hold grows. Worth a Designer look if it still reads thin once Work Orders are live.
+- The Clan Activity feed is still a stub empty state (it was in Social; it is now in the right place). Real events need a server feed — Systems.
+- The mobile More sheet's older labels still carry emoji (Items/House/Social/Store/Chat/Save/Settings). `icon-set.js` strips them at runtime so nothing renders, but the markup should be cleaned and given atlas glyphs. Not mine this wave.
+- FTUE never referenced Social or clans, so no tour step needed changing. If a clan step is ever added it should target `button[data-tab="clan"]`.
+
 ### 2026-08-08 · Standing brief — castle beauty pass (from Tyler)
 Castle blocks (stone/masonry) as the page's material language; every building clickable → a modal that feels like the INSIDE of that room (tavern warmth, vault iron, forge heat...), each carrying its upgrade ladder. Quality over speed — Tyler explicitly budgeted time for refinement. Build on the validated scene-composition craft.
 

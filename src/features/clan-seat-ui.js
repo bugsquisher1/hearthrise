@@ -2146,9 +2146,12 @@
                       stores: 'treasury', tavern: 'tavern' };
   function openModal(which) { openRoom(MODAL_ALIAS[which] || which); }
   function closeModal() { _openRoom = null; RoomModal.close(); }
+  /* b225 (#18): HOSTING ONLY. The hold moved out of Social into its own
+     top-level panel, so the "am I on screen?" check follows it. Nothing about
+     what this module draws changed — only where it looks for its host. */
   function renderIfOpen() {
-    var host = document.getElementById('social-panel');
-    var panel = document.getElementById('panel-social');
+    var host = document.getElementById('clan-panel');
+    var panel = document.getElementById('panel-clan');
     if (host && panel && panel.classList.contains('active')) {
       try { renderCastle(host); } catch (e) {}
     }

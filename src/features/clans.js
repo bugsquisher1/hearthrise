@@ -143,7 +143,7 @@
     if (!res.ok) { notify('Could not join (' + res.status + ')', 'kill'); return false; }
     await fetchMyClan();
     if (typeof window.saveLocal === 'function') saveLocal();
-    if (typeof window.renderSocial === 'function') renderSocial();
+    refreshClanScreens();
     if (typeof window.updateTopbar === 'function') updateTopbar();
     return true;
   }
@@ -165,7 +165,7 @@
     var G = window.G || {};
     G.clanId = null; G.clanName = null;
     if (typeof window.saveLocal === 'function') saveLocal();
-    if (typeof window.renderSocial === 'function') renderSocial();
+    refreshClanScreens();
     if (typeof window.updateTopbar === 'function') updateTopbar();
     notify('You left the clan.', 'info');
   }
@@ -196,7 +196,7 @@
       ? ('The hold is older: Lv ' + out.level + '. Its strength comes from the castle, not the coffer.')
       : ('Banked ' + amount.toLocaleString() + 'g — the hold pays its upkeep and its builders from this.'),
       leveled ? 'levelup' : 'info');
-    if (typeof window.renderSocial === 'function') renderSocial();
+    refreshClanScreens();
     return true;
   }
 
@@ -272,13 +272,32 @@
     };
   }
 
-  // ── real social-panel clan section ─────────────────────────
+  /* b225 (#18): membership changed, so BOTH screens that talk about it have to
+     agree — the hold on the Clan screen and the signpost + friends half of
+     Social. Calling only one of them is how a stale "Find a clan" button ends
+     up sitting next to a castle you already joined. */
+  function refreshClanScreens() {
+    if (typeof window.renderClan === 'function') { try { window.renderClan(); } catch (e) {} }
+    if (typeof window.syncClanActivity === 'function') { try { window.syncClanActivity(); } catch (e) {} }
+    if (typeof window.renderSocial === 'function') { try { window.renderSocial(); } catch (e) {} }
+  }
+
+  // ── the Clan Seat screen (b225 #18: its own panel, was #social-panel) ──
   async function renderClanSection() {
-    var cl = document.getElementById('social-panel');
+    /* The host moved out of Social into #panel-clan. The `social-panel`
+       fallback is kept for one build only as a belt-and-braces against an
+       index.html that has not been refreshed from cache — it renders into
+       whichever host actually exists rather than silently drawing nothing. */
+    var cl = document.getElementById('clan-panel') || document.getElementById('social-panel');
     if (!cl) return;
     var G = window.G || {};
+    /* b225 (#18): this screen has no card head above it, so every state has to
+       supply its own heading — a player who follows the Clan entry must never
+       land on an unlabelled list or a bare button. */
     if (!online() || !signedIn()) {
-      cl.innerHTML = '<div class="muted tiny" style="margin-bottom:10px">Clans are live multiplayer — sign in to found one, join one, and build your clan castle together.</div>' +
+      cl.innerHTML =
+        '<div class="clan-empty"><h4>Your hold awaits</h4>' +
+        '<p>Clans are live multiplayer — sign in to found one, join one, and raise a castle together.</p></div>' +
         '<button class="btn btn-primary btn-sm" onclick="(window.HearthriseAuth&&window.HearthriseAuth.showSignIn)?window.HearthriseAuth.showSignIn():notify(\'Open Home → Sign in\',\'info\')">Sign in</button>';
       return;
     }
@@ -308,23 +327,26 @@
     } else {
       var cr = await NetClient.clans();
       cl.innerHTML =
-        '<div class="muted tiny" style="margin-bottom:10px">Join a clan to unlock clan chat + shared perks, and build the clan castle together.</div>' +
+        '<div class="clan-empty"><h4>Find a hold, or found one</h4>' +
+        '<p>A clan raises a castle together — six rooms, shared Work Orders, clan chat and a weekly boss no one downs alone.</p></div>' +
         (cr.clans.length ? cr.clans.map(function (c) {
           return '<div class="shop-row"><div class="info"><b>' + escapeHtml(c.name) + '</b><span>' + c.members + ' members · ' + c.bonus + '</span></div>' +
             '<button class="btn btn-sm btn-primary" onclick="window.HearthriseClans.joinById(\'' + c.id + '\')">Join</button></div>';
-        }).join('') : '<div class="muted tiny" style="margin-bottom:8px">No clans yet — found the first one.</div>') +
-        '<div style="margin-top:10px;display:flex;gap:6px">' +
-          '<input type="text" id="clan-input" placeholder="Found a new clan" maxlength="24" style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;color:var(--ink)">' +
-          '<button class="btn btn-primary" onclick="window.HearthriseClans.createClan(document.getElementById(\'clan-input\').value)">Create</button></div>';
+        }).join('') : '<div class="muted tiny" style="margin-bottom:8px">No holds have been chartered yet — found the first one.</div>') +
+        '<div class="clan-found">' +
+          '<input type="text" id="clan-input" placeholder="Name your own hold" maxlength="24">' +
+          '<button class="btn btn-primary" onclick="window.HearthriseClans.createClan(document.getElementById(\'clan-input\').value)">Found it</button></div>';
     }
   }
 
-  // Wrap renderSocial: keep the legacy leaderboard half, replace the clan half.
-  function patchRenderSocial() {
-    var orig = window.renderSocial;
-    if (typeof orig !== 'function') return;
-    window.renderSocial = async function () {
-      await orig.apply(this, arguments);
+  /* b225 (#18): the clan half left Social, so this file no longer wraps
+     renderSocial — it OWNS renderClan. legacy.js keeps a fallback under that
+     name for the no-module case; this replaces it, exactly as it replaced the
+     clan half of renderSocial before. Social now draws its leaderboards and its
+     friends without this module's help. */
+  function patchRenderClan() {
+    window.renderClan = async function () {
+      if (typeof window.syncClanActivity === 'function') { try { window.syncClanActivity(); } catch (e) {} }
       try { await renderClanSection(); } catch (e) {}
     };
   }
@@ -352,7 +374,7 @@
   function boot() {
     try {
       patchNetClient();
-      patchRenderSocial();
+      patchRenderClan();
       patchClanFns();
       patchGetBonus();
       // hydrate clan membership shortly after auth settles

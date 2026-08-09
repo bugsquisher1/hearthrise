@@ -124,8 +124,20 @@ img,svg{display:block;max-width:100%}
   display:flex;flex-direction:column;gap:4px;
   background:linear-gradient(180deg,#0c1620,#070d13);
   border-right:1px solid var(--line);
-  overflow:hidden;
+  /* b225 (#18): the rail SCROLLS. It was overflow:hidden, which meant every
+     new destination silently pushed the connection indicator off the bottom of
+     the screen — at 900px tall the list already stood within 25px of the edge
+     before the Clan entry was added, and two more are injected at runtime
+     (Stable, Market). Clipping is not a layout: an OSRS-scale game grows
+     destinations, and a nav that cannot grow is a nav that starts hiding
+     things. Which is precisely the defect #18 exists to fix. */
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
 }
+/* Nothing in the rail may be squeezed to make the list fit — a squashed brand
+   or a 30px tap target is a worse failure than a scrollbar. */
+.sidebar > *{flex-shrink:0}
 .brand{
   display:flex;align-items:center;gap:9px;
   padding:8px 10px 12px;

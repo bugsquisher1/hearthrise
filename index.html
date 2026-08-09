@@ -179,6 +179,24 @@
     <div class="nav-group-label">Homestead</div>
     <button class="nav-btn" data-tab="farming"><span class="ic"></span><span class="lbl">Farm</span></button>
     <button class="nav-btn" data-tab="house"><span class="ic"></span><span class="lbl">House</span></button>
+
+    <!-- b225 (#18): the two ULTIMATE progression pillars are the personal
+         homestead and the clan castle (DECISIONS 2026-08-08). One of them had a
+         nav entry; the other was a card at the bottom of Social, underneath the
+         leaderboards, which is why nobody could find it. The Clan Seat is now a
+         real top-level destination sitting one row below House, so the pillars
+         read as the peers they are.
+
+         "Realm" rather than a second "Homestead": everything under this label
+         involves OTHER PLAYERS. Clan is your hold; Social is the wider world's
+         standings and your friends. The entry is labelled "Clan" and not
+         "Castle" because a player with no clan must not be sent to a room they
+         do not own — this route leads to the hold when you have one and to the
+         find-or-found flow when you do not. Static markup on purpose: the b220
+         lesson is that an injected-then-hidden nav entry is how a whole feature
+         disappears. Smoke tests guard the entry and the routing. -->
+    <div class="nav-group-label">Realm</div>
+    <button class="nav-btn" data-tab="clan"><span class="ic"></span><span class="lbl">Clan</span></button>
     <button class="nav-btn" data-tab="social"><span class="ic"></span><span class="lbl">Social</span></button>
 
     <div class="nav-spacer"></div>
@@ -199,7 +217,11 @@
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">
-            <span id="clan-tag" class="clan-tag hide"></span>
+            <!-- b225 (#18): the clan tag is the one place the player's hold is
+                 named on every screen, so it is the natural second door to it.
+                 A button, not a span, so it is reachable by keyboard and
+                 announces itself; styled to stay the quiet tag it always was. -->
+            <button type="button" id="clan-tag" class="clan-tag hide" title="Open the Clan Seat" onclick="showTab('clan')"></button>
             <!-- b224: shipped label was "Offline play". Accounts are required,
                  so the pre-auth markup says what it is doing, not what mode
                  the player is in. -->
@@ -384,9 +406,33 @@
         <div class="chips" id="lb-boards"></div>
         <div class="card-body" id="leaderboard"></div>
       </div>
+      <!-- b225 (#18): this card used to be "Clan + Friends" and held the entire
+           Clan Seat. The hold moved to its own top-level destination; what is
+           left here is what actually belongs to the wider world — your friends,
+           plus a signpost to the hold for anyone who still comes looking. -->
       <div class="card layout-2col-b">
-        <div class="card-head"><div class="card-title">Clan + Friends</div></div>
+        <div class="card-head"><div class="card-title">Friends</div></div>
         <div class="card-body" id="social-panel"></div>
+      </div>
+    </section>
+
+    <!-- ── CLAN SEAT (b225 #18) ──
+         The shared progression pillar, out of Social and into its own room. No
+         card head: the hold band at the top of `.hr-cs` already carries the
+         clan's name, tier, role and member count, so a "Clan Seat" title above
+         it would be the same words twice. The card frame stays because the band
+         bleeds to it (`.hr-cs-hold` uses a -12px margin against the card's own
+         12px padding) and because the find-or-found flow needs a surface. -->
+    <section class="panel" id="panel-clan">
+      <div class="card" id="clan-seat-card">
+        <div class="card-body" id="clan-panel"></div>
+      </div>
+      <!-- Clan Activity followed the hold out of Social: its subject is your
+           members and its audience is your hold. Shown only when you are in one
+           — an activity feed above a recruitment list is furniture. -->
+      <div class="card" id="clan-activity-card">
+        <div class="card-head"><div class="card-title">Clan Activity</div></div>
+        <div class="card-body" id="clan-activity"></div>
       </div>
     </section>
 
@@ -431,6 +477,13 @@
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
       <button class="btn tap" data-tab="events">Events</button>
+      <!-- b225 (#18): the 6-slot bottom nav is full, so the More sheet is the
+           mobile route to the Clan Seat — the same answer Events got in b220.
+           It sits second, directly under Events, because it is a progression
+           pillar and not an odds-and-ends entry. No emoji: the sheet's older
+           labels still carry them and icon-set.js strips those at runtime;
+           nothing new should be added for it to strip. -->
+      <button class="btn tap" data-tab="clan">Clan</button>
       <button class="btn tap" data-tab="inventory">🎒 Items</button>
       <button class="btn tap" data-tab="house">🏠 House</button>
       <button class="btn tap" data-tab="social">🏆 Social</button>

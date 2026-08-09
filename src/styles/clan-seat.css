@@ -484,3 +484,94 @@
   .hr-room-wrap { max-width: none; max-height: none; border-radius: 0; border-width: 0; }
   .hr-room-scene { height: 128px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * b225 (#18) — THE CLAN SEAT'S OWN SCREEN
+ *
+ * The hold used to be a card at the bottom of Social, under the leaderboards.
+ * It is a top-level destination now, so it needs the layout an owned screen
+ * gets rather than the one a passenger gets. These rules live in this sheet
+ * (which loads last) instead of legacy.css/theme-cozy.css so that everything
+ * #18 touches in CSS is in one place and no stacked panel id is needed.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* A vertical stack of sections scrolls AS A PAGE — one scrollbar, at the
+ * panel — which is the same rule Social, House and the Shop follow. `.panel`
+ * is display:grid with overflow:hidden by default; a picture-led screen in a
+ * fixed grid row is exactly what collapsed the raid card in b220. */
+#panel-clan.active {
+  display: block;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 78px;          /* clear of the floating utility buttons */
+}
+#panel-clan.active .card { overflow: visible; max-height: none; }
+#panel-clan.active #clan-activity-card { margin-top: var(--gap, 12px); }
+
+/* MEASURE. Inside Social this screen was a ~330px column, so a label pushed
+ * against its value by space-between read as a pair. Given the full width of a
+ * panel the same rule puts "Treasury" and "42,500 gold" 1,200px apart, and a
+ * pair that far apart is not a pair — the eye stops associating them. The
+ * picture, the doors and the three-column week strip still want every pixel;
+ * the stacked label/value lines under them want a column. */
+#panel-clan .hr-cs > .hr-cs-line,
+#panel-clan .hr-cs > .hr-cs-bar,
+#panel-clan .hr-cs > .hr-cs-foot,
+#panel-clan .hr-cs > .hr-cs-note,
+#panel-clan .hr-cs > .hr-cs-acts { max-width: 760px; }
+
+/* Clan Activity exists only for a player who has a hold. syncClanActivity()
+ * stamps the panel; nothing here is injected-then-hidden, the section is in
+ * the markup and its VISIBILITY tracks membership. */
+#panel-clan #clan-activity-card { display: none; }
+#panel-clan[data-inclan="1"] #clan-activity-card { display: flex; }
+
+/* The find-or-found state. No card head sits above the hold band, so this
+ * state supplies its own heading — otherwise a player with no clan lands on an
+ * unlabelled list. */
+/* Same measure as the castle's stacked lines: a recruitment list stretched to
+ * 1,240px puts "Emberfall Watch" a thousand pixels from its Join button. */
+#panel-clan .clan-empty,
+#panel-clan .shop-row,
+#panel-clan .clan-found { max-width: 760px; }
+.clan-empty { padding: 2px 0 12px; }
+.clan-empty h4 {
+  margin: 0 0 6px;
+  font-family: var(--f-display, serif);
+  font-size: 19px; font-weight: 800; letter-spacing: .01em;
+  color: var(--gold-2);
+}
+.clan-empty p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.clan-found { display: flex; gap: 6px; margin-top: 12px; }
+.clan-found input {
+  flex: 1; min-width: 0;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--line-soft); border-radius: 8px;
+  padding: 8px 10px; color: var(--ink);
+  font-family: inherit; font-size: 13px;
+}
+.clan-found input:focus { outline: none; border-color: var(--gold-2); }
+
+/* The signpost left behind in Social. One row, one sentence, one button — it
+ * points at the hold, it does not redraw it. */
+.soc-signpost {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+/* The sentence and its button sit together at the left. Letting the text take
+ * flex:1 threw the button to the far edge of a 1,240px panel, a thousand pixels
+ * from the words that explain it. */
+.soc-signpost-txt { flex: 0 1 auto; max-width: 640px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.soc-signpost-txt b { color: var(--gold-2); }
+
+/* The clan tag in the topbar became a button so it can carry the second route
+ * to the hold. It must still read as the quiet tag it has always been. */
+button.clan-tag {
+  cursor: pointer;
+  line-height: 1.35;
+  -webkit-appearance: none; appearance: none;
+  font-family: inherit;        /* body[data-theme] .clan-tag still sets --f-label */
+}
+button.clan-tag:hover { border-color: rgba(201, 162, 74, .55); }
+button.clan-tag:focus-visible { outline: 2px solid var(--gold-2); outline-offset: 2px; }

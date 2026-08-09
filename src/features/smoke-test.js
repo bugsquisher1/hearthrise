@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=234' directly.
+// modularised, will import { G } from '../state/game.js?v=235' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=234';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=234';
+import { on, snapshot } from '../net/events.js?v=235';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=235';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=234';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=235';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11241,6 +11241,32 @@ const TESTS = [
     } finally {
       document.body.classList.toggle('in-combat', hadInCombat);
       if (priorSub) panel.dataset.mobileSub = priorSub;
+    }
+  }),
+
+  () => tryRun('b235: crit is a real lever — critB + the damage_crit buff roll a damage multiplier (was dead)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const origRandom = Math.random;
+    try {
+      // The damage_crit food buff (Void Banquet) was declared, shown, and read by
+      // NOTHING; critB was summed on four screens and rolled into no damage.
+      if (typeof window.applyBuff === 'function') window.applyBuff({ type: 'damage_crit', magnitude: 100, durationMs: 60000 });
+      const critBonus = (typeof window.getBonus === 'function') ? window.getBonus('crit') : 0;
+      assert(critBonus > 0, 'the damage_crit buff must now feed getBonus("crit"), got ' + critBonus);
+      const mid = Object.keys(window.MONSTERS)[0];
+      G.equipment = {};
+      G.stats = G.stats || {};
+      window.startCombat(mid);
+      Math.random = () => 0;               // guaranteed hit AND crit (0 < accuracy, 0 < critChance)
+      const beforeCrits = G.stats.crits || 0;
+      window.combatTick();
+      assert((G.stats.crits || 0) > beforeCrits, 'a landed hit at cap crit chance must register a crit — crit is no longer dead');
+      assert(G._lastPlayerCrit === true, '_lastPlayerCrit must be set so the floating CRIT is the real event, not the old dmg>=8 fake');
+      try { window.stopCombat(); } catch (e) {}
+    } finally {
+      Math.random = origRandom;
+      restoreG(snap);
     }
   }),
 

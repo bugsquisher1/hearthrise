@@ -89,7 +89,15 @@ const COMBAT_BALANCE={
      calls, while FIVE readers already probed `COMBAT_BALANCE.tickMs` and
      silently fell through to their own `|| 2400`. The key that everyone was
      asking for now exists, so "how fast do I swing" has one answer. */
-  tickMs:2400
+  tickMs:2400,
+  /* b235 (itemization Wave 1): crit is a REAL lever now. critB was summed and
+     shown on four screens and rolled into nothing since it shipped; the floating
+     "CRIT" was faked from dmg>=8. A landed hit rolls critChance (gear critB +
+     the damage_crit buff, which also did nothing) and, on a crit, multiplies
+     damage by critMult. Cap keeps a future crit-stacked build from trivialising
+     accuracy. */
+  critMult:1.5,
+  critCap:0.60
 };
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
@@ -1295,7 +1303,11 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   maxHit = Math.max(1, Math.floor(maxHit - (defScore * 0.03)));
   maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
   maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
-  return {accuracy,maxHit,weak,profile,style};
+  /* b235: crit chance = gear critB + the damage_crit food buff, clamped. Read
+     here so every caller (the live tick AND the stats panel) sees one number. */
+  const critBuff = (typeof getBonus==='function') ? (getBonus('crit')||0) : 0;
+  const critChance = clamp((eq.critB||0) + critBuff, 0, COMBAT_BALANCE.critCap);
+  return {accuracy,maxHit,critChance,weak,profile,style};
 }
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
   const b=COMBAT_BALANCE;
@@ -2394,10 +2406,19 @@ function combatTick(){
   const playerRoll=getPlayerCombatRolls(m,eq);
   const hitCh=playerRoll.accuracy;
   const maxHit=playerRoll.maxHit;
-  const pDmg=Math.random()<hitCh?rand(1,maxHit):0;
+  let pDmg=Math.random()<hitCh?rand(1,maxHit):0;
+  /* b235: roll crit on a landed hit. `_lastPlayerCrit` is read by the combat-render
+     wrapper so the floating "CRIT" is now the REAL event, not the dmg>=8 fake. */
+  let didCrit=false;
+  if(pDmg>0 && Math.random()<(playerRoll.critChance||0)){
+    pDmg=Math.max(pDmg+1,Math.floor(pDmg*(COMBAT_BALANCE.critMult||1.5)));
+    didCrit=true;
+    G.stats.crits=(G.stats.crits||0)+1;
+  }
+  G._lastPlayerCrit=didCrit;
   G.monsterHp=Math.max(0,G.monsterHp-pDmg);
   const log=G.combatLog;
-  log.push(pDmg>0?`⚔️ You hit ${m.name} for ${pDmg}`:`💨 You miss!`);
+  log.push(pDmg>0?`${didCrit?'💥 CRIT! ':'⚔️ '}You hit ${m.name} for ${pDmg}`:`💨 You miss!`);
   if(pDmg>0){
     /* Route XP via active combat style (e.g. staff→Magic, bow→Ranged, sword 'aggressive'→Strength) */
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
@@ -5884,7 +5905,7 @@ console.log('Monster detail modal: loaded');
     /* monster took damage = player hit */
     if(beforeM != null && afterM < beforeM){
       const dmg = beforeM - afterM;
-      spawnDamage('monster', dmg, { crit: dmg >= 8 });
+      spawnDamage('monster', dmg, { crit: !!G._lastPlayerCrit });
     } else if(beforeM != null && afterM === beforeM && G.activeMonster){
       /* miss feedback only if player tried to attack — read last log line */
       const last = G.combatLog && G.combatLog[G.combatLog.length-1] || '';
@@ -6303,7 +6324,7 @@ console.log('Activity bar: loaded');
       var foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
       var youP = document.querySelector('#panel-combat .arena-vs .arena-side.player .arena-portrait');
       if(beforeM != null && afterM < beforeM){
-        popDmg(foeP, beforeM - afterM, { crit: (beforeM - afterM) >= 8 });
+        popDmg(foeP, beforeM - afterM, { crit: !!(window.G && window.G._lastPlayerCrit) });
       } else if(beforeM != null && afterM === beforeM && window.G && window.G.activeMonster){
         var last = window.G.combatLog && window.G.combatLog[window.G.combatLog.length-1] || '';
         if(/miss/i.test(last) && /You/i.test(last)){

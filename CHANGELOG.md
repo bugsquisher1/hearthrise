@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 235 — 2026-08-09 (Critical hit)
+
+- 💥 **Crit is a real thing now.** Your gear's Crit % was shown on four screens and did *nothing* — every hit rolled it into no damage, and the floating "CRIT!" was faked off any big hit. Now a crit genuinely rolls and lands extra damage, marked in the log and on the number. This also means the **Void Banquet's crit buff finally works** (it was silently discarded). First step of the itemization rework: the game stops showing you numbers that lie.
+- 🧪 439 tests green.
+
 ## v0.9.2-beta build 233 — 2026-08-09 (Your character, at a glance)
 
 - 🧬 **The Character screen is a real overview now.** Open Character and you see yourself: your portrait, your rank and renown, your TOTAL LEVEL, then a clean grid of *every* skill with its level and progress — and below it your whole account at a glance (combat level, total XP, quests, bounties, collections, renown, achievements, time played). Equipment and Hero are a tab away.

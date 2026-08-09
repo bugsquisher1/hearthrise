@@ -25,6 +25,8 @@ Read from source, not from memory (`src/features/homestead.js`, `src/features/wo
 
 **Eight rooms**, three levels each, and **rooms ARE the workbenches** — Kitchen gates Cooking, Forge gates Smithing, Workshop gates Crafting, Shrine gates Prayer (`homestead.js WORKBENCH` + `startArtisan`). A fresh player literally cannot cook until they build a kitchen. This is the homestead's best idea and everything below preserves it.
 
+> **PRODUCT-OWNER AMENDMENT (Tyler, 2026-08-08) — Cooking is the exception.** *"We can't restrict cooking when users don't have a kitchen. They can cook with the fire in the first tier camp, it just has a chance to burn."* Binding: Cooking is NEVER gated on the Kitchen. The tier-1 camp cooks on the **open fire** with a **burn chance** (a burnt cook consumes the ingredients and yields a Burnt <food> vendor-trash item — the input is lost, honestly). The Kitchen ladder's first job becomes **reliability**: each rung reduces burn chance via the `noBurn` key (§2's ghost key — this amendment gives it its producer), reaching burn-proof at a rung the Designer tunes (suggested: Cast-Iron Range L3 = 0% on food at or below your cooking level band, mirroring how cooking mastery works in genre precedent). Burn chance also falls with cooking skill level per recipe, so the fire is a nuisance that fades, not a wall. Forge/Workshop/Shrine gates are unchanged — smithing on a campfire would be silly; cooking on one is the entire point of a campfire. Designer owns the burn curve when Phase 1 builds; this amendment fixes the RULE, not the numbers.
+
 | Room | Tier | L1 / L2 / L3 | Key |
 |---|---|---|---|
 | Kitchen | 1 | Cook +10 / +25 / +50% | `cookSpeed` |

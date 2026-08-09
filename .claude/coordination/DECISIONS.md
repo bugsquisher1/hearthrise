@@ -4,6 +4,11 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-08 · Cooking never gated on the Kitchen — open fire + burn chance (Tyler, binding)
+**Decision:** Cooking works from the tier-1 camp on the open fire, with a burn chance (burnt food = lost input, vendor-trash output). The Kitchen ladder buys RELIABILITY via the `noBurn` key (formerly a ghost key — now has its designated producer), plus its existing speed/yield rungs. Burn also falls with cooking skill per recipe. Forge/Workshop/Shrine workbench gates unchanged. Amendment recorded in `homestead-deepening.md` §2; Designer owns the burn curve at Phase-1 build.
+**Why:** Product-owner rule 2026-08-08. Also note: the LIVE game currently hard-gates cooking on the Kitchen (`homestead.js WORKBENCH` + `startArtisan`) — Wave 4's homestead Phase 1 must remove that gate for cooking and add the burn mechanic together.
+**Affected agents:** Game Designer (burn curve), Systems (gate removal + burn implementation + noBurn wiring), QA (burn-rate regression tests).
+
 ### 2026-08-08 · Castle + Homestead are the twin ultimate progression pillars (Tyler, vision-level)
 **Decision:** "The clan castle and the personal homestead [are] the ultimate points of progression in this game, outside of the obvious maxing skills." Both pillars get the same depth arc and the SAME interaction language (clickable rooms → per-room themed modals with upgrade ladders). The room-modal machinery being built for the castle must be a reusable seam; the homestead adopts it next wave. Future content investment prioritizes deepening these two pillars.
 **Why:** Product-owner vision directive 2026-08-08.

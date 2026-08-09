@@ -633,10 +633,15 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     grid-template-columns: 1fr !important;
   }
 
-  /* #4 — Inventory paper-doll: 3-column responsive grid */
+  /* #4 — paper-doll: responsive grid. b233-fix (Tyler, mobile Equipment tab):
+     the slots are positioned in a FOUR-column body layout (helmet centre,
+     ammo/earrings/rings out at grid-column 4). This mobile rule forced THREE
+     columns, so every column-4 slot fell into an implicit crushed column —
+     unreadable slivers down the left and an empty-slot glyph blown up into a
+     stray arrow. Match the 4-column layout the slots are actually placed in. */
   .td-doll {
     display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 4px !important;
     max-width: 100% !important;
     width: 100% !important;

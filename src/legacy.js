@@ -5536,6 +5536,26 @@ function openBuyback(){
 window.renderBuyback = renderBuyback;
 window.openBuyback = openBuyback;
 
+/* b265: ONE bury path. The three inventory bury buttons had DIVERGED — the
+   context menu (inv-context-menu.js) and the inv detail (below) fell back to
+   burying a SINGLE bone because window.buryBones was never defined, while the
+   item-ux quantity slider buried the chosen qty. Tester: "sometimes it lets you
+   bury them all, sometimes 1 by 1." A plain Bury now buries the WHOLE stack; the
+   slider still passes an explicit qty. Returns the number buried. */
+function buryBones(id, qty){
+  const it = (typeof ITEMS !== 'undefined') && ITEMS[id];
+  if(!it || !it.buryXp) return 0;
+  const have = (G.inventory && G.inventory[id]) || 0;
+  const n = (qty && qty > 0) ? Math.min(qty, have) : have;   // default: the whole stack
+  if(n <= 0) return 0;
+  removeItem(id, n);
+  addXp('prayer', it.buryXp * n);
+  G.stats = G.stats || {}; G.stats.buried = (G.stats.buried || 0) + n;
+  notify('Buried ' + n + '× ' + it.n + ' (+' + Math.round(it.buryXp * n) + ' Prayer XP)', 'levelup');
+  return n;
+}
+window.buryBones = buryBones;
+
 /* ───── Render: equipment paper-doll + loadouts + bag w/ filters ───── */
 function renderInvNew(){
   const eqEl = document.getElementById('equip-panel');

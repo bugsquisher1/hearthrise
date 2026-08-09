@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=264' directly.
+// modularised, will import { G } from '../state/game.js?v=265' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=264';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=264';
+import { on, snapshot } from '../net/events.js?v=265';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=265';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=264';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=265';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11390,6 +11390,26 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b265: buryBones is unified — a plain Bury clears the whole stack (tester: sometimes 1, sometimes all)', () => {
+    if(typeof window.buryBones !== 'function'){ assert(true, 'no buryBones'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.inventory = Object.assign({}, G.inventory, { bones: 20 });
+      G.skills = Object.assign({}, G.skills, { prayer: 0 });
+      const p0 = G.skills.prayer || 0;
+      // Plain bury (no qty) buries the WHOLE stack.
+      const n = window.buryBones('bones');
+      assert(n === 20, 'a plain Bury must bury the whole stack, buried ' + n);
+      assert((G.inventory.bones || 0) === 0, 'the stack must be emptied, left ' + G.inventory.bones);
+      assert((G.skills.prayer || 0) > p0, 'prayer XP must be awarded for the buried bones');
+      // An explicit quantity buries exactly that many (the slider path).
+      G.inventory.bones = 10;
+      const n2 = window.buryBones('bones', 3);
+      assert(n2 === 3 && (G.inventory.bones || 0) === 7, 'a qty Bury must bury exactly that many, left ' + G.inventory.bones);
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b264: auto-accept bounty switches combat to the new target (tester: left grinding the old monster)', () => {

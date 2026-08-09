@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 265 — 2026-08-09 (Bury the whole pile)
+
+- 🦴 **Burying bones is consistent now.** Depending on how you tapped, "Bury" sometimes buried one bone and sometimes the whole stack. Now a plain **Bury** always buries your entire stack of that bone (and the quantity slider still lets you pick an exact amount). *(Thanks tester!)*
+
 ## v0.9.2-beta build 264 — 2026-08-09 (Auto-bounty keeps you hunting)
 
 - 🎯 **Auto-Accept now moves you to the new target.** When a bounty turns in and Auto-Accept grabs the next one, if you were fighting it now switches your combat to the new bounty's monster — instead of leaving you grinding the old one. (If you're not high enough level for the new target yet, it just tells you.) *(Thanks tester!)*

@@ -294,6 +294,9 @@
         icon: '🙏',
         hint: '+' + item.buryXp + ' Prayer XP each',
         fn: function(qty){
+          // b265: route through the one bury path so every surface buries + awards
+          // XP identically (slider passes an explicit qty; a plain Bury = whole stack).
+          if(typeof window.buryBones === 'function'){ window.buryBones(itemId, qty); return; }
           if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
           else { window.G.inventory[itemId] = Math.max(0, (window.G.inventory[itemId]||0) - qty); }
           if(typeof window.addXp === 'function') window.addXp('prayer', item.buryXp * qty);

@@ -9,10 +9,10 @@ _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE 
 - **Version:** v0.9.2-beta (build b226)
 - **Remote:** in sync (`92734b7`). Pushing to `main` **auto-deploys** to production (https://bugsquisher1.github.io/hearthrise/). Tyler authorized autonomous wave shipping (DECISIONS 2026-08-08).
 - **✅ ALL 7 MIGRATIONS APPLIED (Tyler, 2026-08-09, verified by table probes):** raid_claims, world_event_joins+hr_server_now, display_names (first claim recorded), leaderboard_meta (matview refreshed), clan_stores, board tasks seeded, hunt tiers seeded. Server side is FULLY live.
-- **Working tree:** clean. No worktrees in flight.
+- **Working tree:** worktree `manual-presence` (branch `agent-presence`) holds **b227 — the presence rework**, ready for integration: blessings are presence-gated, the flat ×1.12 is removed, the pool spans ten wired keys. Not version-bumped (`bump-version.sh --check` green at 226); the Coordinator bumps at ship.
 
 ## Build/test state
-- **Smoke:** `node tests/run-smoke.mjs` → **330/330 green, 0 runtime errors** (b226 final gate).
+- **Smoke:** `node tests/run-smoke.mjs` → **337/337 green, 0 runtime errors** (b227 gate; 330 at b226 + 7 net from the presence rework).
 - **Version guard:** `bash bump-version.sh --check`.
 - **CI:** `.github/workflows/smoke.yml` (headless Playwright + version-guard; verified to fail on breakage).
 - Local preview: `hearthrise-qa`, port 8123 (`.claude/launch.json` also has `hearthrise-static` on 8000). Cache is sticky — force-reload and confirm the build under test.

@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 227 — 2026-08-09 (The realm's blessing)
+
+- 🌤️ **The blessing calendar is the reason to play live.** The flat "+12% present" bonus is gone; in its place, the day's and the week's world blessings now pay **only while you're actually playing**. One week the realm grants +12% to all XP, another +10% gold find, another +15% gather speed — check what's blessed and train into it.
+- 🗓️ **More weeks worth having.** Two new blessings join the daily rotation (**The Open Coffers** — gold find; **The Steady Fire** — your cooking fire behaves) and three join the weekly (**The King's Bounty**, **The Long Harvest**, and the Grand Fair's XP week is now +12%). Fifty-four different weeks in the deck.
+- 💤 **Offline is honest.** Progress banked while you're away — and in a background tab, or sitting idle — earns the base rate, and the game says so on Home, on the Events page, and in your welcome-back summary. It never quietly promises a bonus it isn't paying.
+- ⚙️ Your activity now re-times itself as bonuses come and go, so a new axe or a fresh blessing is felt on the very next swing instead of after a restart.
+- 🧪 337 tests green.
+
 ## v0.9.2-beta build 226 — 2026-08-09 (The long road — and a smoother front door)
 
 - ⏳ **Progression has real gravity now.** The road to 99 is a journey measured in weeks, not days — and the economy stops raining items. Nothing you've earned changes: every level, item, and coin stays exactly where it is. (Under the hood: offline progress becomes a fair 12-hour daily budget instead of an exploit-shaped per-login cap, and rate displays now always tell the truth — one screen was advertising triple the real XP rate.)

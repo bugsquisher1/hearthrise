@@ -42,3 +42,63 @@ WHAT SHOULD BE TESTED:
 ---
 
 _(New handoffs below, newest first.)_
+
+### 2026-08-09 · FROM Systems Engineer → TO Game Designer, QA, Art Director  (b227, branch `agent-presence`)
+
+WHAT I LEARNED:
+- **Blessings DID apply to offline output, in full, on every catch-up.** `world-events.js` wraps
+  `window.getBonus` additively and `processOffline()` replays through the same `addXp` /
+  `doSkillAction` / `doArtisanAction` / `applyGoldFind` the live loop uses. This was true from b204.
+- **`isPresent()` is TRUE during an offline catch-up.** `processOffline()` runs inside `loadLocal()`,
+  on a visible tab, with the input timestamp freshly initialised and an activity set. A gate written
+  as "blessings apply while `isPresent()`" reproduces the leak exactly. b226's own flat ×1.12 leaked
+  into offline grants for this reason. **Anyone gating anything on presence must also check the
+  replay latch.**
+- **Speed bonuses were baked, not read.** `G.skillMs` was computed once at start and the offline
+  replay divided elapsed time by it, so a blessed session carried blessed speed into the night.
+- **`getBonus('rareDrop')` has no consumer.** `rareDrop` exists only as an equipment/pet ITEM stat.
+- **The Home offline welcome-back line is invisible.** `#dash-active` is `display:none` since the
+  b219 Home rewrite, so b225's burn count, b226's budget readout and b227's rate note all render
+  into a hidden panel. The only surface a player sees is the `processOffline()` toast.
+
+WHAT I CHANGED:
+- Flat presence ×1.12 REMOVED (`addXp`, `actionRate`, `HearthrisePresence.MULT/.mult` all gone).
+- `blessingsApply() = !inOfflineReplay() && isPresent()` — the detector stays, now as the gate.
+- `withOfflineReplay()` latch wraps the whole of `processOffline()`.
+- ONE `activityIntervalMs()` read by `startSkill` / `startArtisan` / a new per-action
+  `retimeActivity()` / the offline replay. De-duplicated the artisan timer arming (it existed twice).
+- Pools: 9 daily × 6 weekly, ten wired keys; new goldFind + noBurn families; Grand Fair 10% → 12%.
+  Dead emoji `glyph:` field removed from the data; `EVENT_GLYPH` exported so Home and Events share it.
+- Honesty copy on the activity note, Home "The realm", the Events blessing card, and the offline toast.
+- `docs/design/pacing-overhaul.md` Appendix A rewritten + new A.8.
+
+WHAT YOU NEED TO KNOW:
+- **Designer:** the day model is now **14.5 eff-h/day** (was 14.8) and the unboosted first-99 floor
+  moves **56.0 → 57.2 days**. Online value is now a *variable*: A.2b tables the range (14.5 → 16.2
+  eff-h/day depending on the week). Whole-calendar expected value ≈ **+1.7% on the day**, so the
+  blessing's real contribution SHRANK ~5.8× even at unchanged magnitudes — there is room here, and
+  A.8.4 states the worst-case overlap (+27% allXP, 2.5h, one day in 54) against §8.4's budget.
+- **QA:** the harness seam is `HearthriseWorldEvents._force({daily, weekly})` (+ `E.QUIET`, a
+  grants-nothing control). Pin a blessing rather than asserting against the wall clock. Presence is
+  driven with `HearthrisePresence._setLastInput()` and `_withOfflineReplay()`.
+- **Art:** the blessing card and the Home "The realm" panel both carry a live/idle state now — the
+  pills dim to .55 and the note changes wording when the gate closes.
+
+WHAT I NEED FROM YOU:
+- **Designer:** ratify the pool magnitudes in A.8.3/A.8.4 and the recomputed floor. If you want the
+  online bonus to *feel* bigger than +1.7%/day, the lever is pool magnitudes, not a new multiplier.
+- **QA:** an independent pass on the offline gate. My proof is two regression tests plus a runtime
+  mutation (removing the latch in the browser turned a 3h absence from 11,250 XP into 36,000).
+
+WHAT MUST NOT BE CHANGED:
+- The replay latch, and the rule that EVERY new elapsed-time simulator runs inside
+  `withOfflineReplay()`. This is the b214 double-pay class of bug wearing a different hat.
+- `HearthriseWorldEvents` stays the load-bearing clock utility raids/rally read — extended, never
+  renamed or restructured. Rally / join-gated live events: untouched by this change.
+- Pool entries may only name a key with a proven consumer; a test asserts it.
+
+WHAT SHOULD BE TESTED:
+- A real overnight absence on a save whose activity was started under a speed blessing.
+- Combat offline (`processOfflineCombat`) under a goldFind blessing — gold must not move.
+- The daily UTC rollover with an activity running (the retimer should pick up the new blessing).
+

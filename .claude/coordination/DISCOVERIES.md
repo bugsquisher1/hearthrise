@@ -4,6 +4,44 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-09 · Systems Engineer · `isPresent()` is TRUE during offline catch-up — a presence gate alone is not a gate
+**Discovery:** `processOffline()` runs inside `loadLocal()`, on a **visible** tab, with the presence
+input timestamp **freshly initialised** and an activity **set**. Every clause of "the player is here"
+is satisfied while the game is simulating an absence. Anything gated on presence therefore applies in
+full to offline output unless it *also* checks an explicit offline-replay flag. This is not
+hypothetical: b204's world-event blessings applied to every offline catch-up from the day they
+shipped, and b226's flat ×1.12 presence bonus multiplied every offline `addXp` grant for the same
+reason. Measured in the browser: a 3h absence paid **11,250 XP** with the b227 latch and **36,000 XP**
+with the latch removed and nothing else changed.
+
+**Second half of the same trap:** bonuses that are *baked* rather than *read* escape any live gate.
+`G.skillMs` froze the gather/artisan speed stack at `startSkill()`, and the offline replay divides
+elapsed time by it — so a session begun under a speed bonus carried that speed into the night no
+matter what the gate said. Live-read keys (`allXP`, `combatXP`, `goldFind`, `farmYield`, `noBurn`)
+gate themselves; baked ones must be re-derived.
+
+**Affected systems:** `legacy.js` (`processOffline`, `processOfflineCombat`, `addXp`, `startSkill`,
+`startArtisan`), `features/world-events.js`, and **every future system that pays differently online**.
+
+**Required action — regression tripwire:**
+1. Every new simulator of elapsed wall-clock runs inside `withOfflineReplay()`. No exceptions. This
+   is the b214 double-pay class of bug wearing a different hat.
+2. Gate on `HearthrisePresence.blessingsApply()`, never on `isPresent()` alone.
+3. A bonus that affects a DURATION must be re-derived through `activityIntervalMs()`, not stored.
+4. Guard tests: *"OFFLINE output is byte-identical with and without an active blessing"* and *"the
+   replay latch shuts the blessing even on a visible, active, freshly-touched tab"* in `smoke-test.js`.
+
+**Also found (filed, not fixed):** `#dash-active` — the legacy Home dashboard block — is
+`display:none` since the b219 Home rewrite. The offline welcome-back line it hosts (b225's burn
+count, b226's daily-budget readout, b227's rate note) is **invisible to players**; the only surface
+they see is the transient `processOffline()` toast.
+
+**Also found:** `getBonus('rareDrop')` has **no consumer**. `rareDrop` exists only as an
+equipment/pet ITEM stat (`getEquipmentStats().rareDrop`). Do not grant it from rooms, clans, renown
+or events until a drop-roll seam reads it.
+
+---
+
 ### 2026-08-08 · Coordinator · Seeded ground-truth (from project memory + audits)
 **Discovery:** The following are established facts, carried in so no agent relearns them the hard way.
 - **Data double-copy trap (fixed b215):** `legacy.js` top-level `const ITEMS/MONSTERS/...` lexically shadow `window.*`, so ESM data never reached the engine. Fix: `legacy` publishes `window.__LEGACY_INLINE`; `main.js` identity-merges ESM in. Guard test asserts identity. **Do not reintroduce.**

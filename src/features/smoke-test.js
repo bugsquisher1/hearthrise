@@ -469,22 +469,40 @@ const TESTS = [
       if (saved === undefined) delete G.companions; else G.companions = saved;
     }
   }),
-  () => tryRun('b204: world events — deterministic by date, bonuses flow through getBonus', () => {
+  () => tryRun('b204/b227: world events — deterministic by date, and PRESENT bonuses flow through getBonus', () => {
     const E = window.HearthriseWorldEvents;
+    const P = window.HearthrisePresence;
     assert(E, 'HearthriseWorldEvents present');
     // determinism: same key → same event, different keys spread across the pool
     const a = E.daily('2026-3-14'), b = E.daily('2026-3-14');
     assert(a && b && a.id === b.id, 'same date key must pick the same daily event');
     const picks = new Set(['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7','2026-1-8'].map(k => E.daily(k).id));
     assert(picks.size >= 3, 'date keys should spread across the pool, got ' + picks.size);
-    // today's event bonus must be visible through getBonus
-    const d = E.daily(), w = E.weekly();
-    const keys = Object.keys(Object.assign({}, d.bonus, w.bonus));
-    keys.forEach(k => {
-      const evPart = E.bonusFor(k);
-      assert(evPart > 0, 'bonusFor(' + k + ') should be > 0 today');
-      assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus');
-    });
+    // b227: the bonus reaches getBonus only WHILE PRESENT. The b204 contract
+    // (the wrapper is wired, every pool key travels) is unchanged — what moved
+    // is that it is now conditional, so the test has to hold the condition.
+    const G = window.G;
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      P._setLastInput(Date.now());
+      assert(E.isActive() === true, 'a present player must have the blessing live');
+      const d = E.daily(), w = E.weekly();
+      const keys = Object.keys(Object.assign({}, d.bonus, w.bonus));
+      keys.forEach((k) => {
+        const evPart = E.bonusFor(k);
+        assert(evPart > 0, 'bonusFor(' + k + ') should be > 0 today');
+        assert(E.liveBonusFor(k) === evPart, 'a present player must be PAID the full ' + k + ' blessing');
+        assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus while present');
+      });
+      // …and stops travelling the moment presence lapses.
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      assert(E.isActive() === false, 'an idle player must not have the blessing live');
+      keys.forEach((k) => {
+        assert(E.liveBonusFor(k) === 0, 'an idle player must be paid NO ' + k + ' blessing');
+      });
+    } finally { P._setLastInput(savedInput); restoreG(snap); }
   }),
   () => tryRun('b204: artisan offline — cooking session progresses offline (was zero)', () => {
     const G = window.G;
@@ -8416,52 +8434,372 @@ const TESTS = [
     } finally { PACE.xp = realXp; restoreG(snap); }
   }),
 
-  () => tryRun('b226: presence is ×1.12, XP-only, and stacks OUTSIDE the allXP fuse', () => {
+  // ══════════════════════════════════════════════════════════════════════
+  // b227 — THE CALENDAR IS THE ONLINE BONUS
+  // (DECISIONS 2026-08-09 "Presence rework"; replaces b226's flat ×1.12)
+  //
+  // The b226 test below this comment used to assert `presence multiplies the
+  // grant by 1.12`. That contract was retired by the product owner, so the
+  // test is rewritten to the NEW contract rather than loosened: presence is
+  // now a GATE (worth nothing by itself) and the blessing is what it gates.
+  // The rewritten pair is deliberately stricter than the original — an
+  // exact-equality "a present player with no blessing earns EXACTLY base"
+  // is a stronger statement than the old ratio check ever made.
+  // ══════════════════════════════════════════════════════════════════════
+
+  () => tryRun('b227: presence pays NOTHING by itself — the flat ×1.12 is gone', () => {
     const G = window.G;
     const P = window.HearthrisePresence;
     assert(P && typeof P.isPresent === 'function', 'window.HearthrisePresence must exist');
+    assert(P.MULT === undefined && typeof P.mult !== 'function',
+      'the flat presence multiplier must be removed from the API, not merely set to 1');
+    const E = window.HearthriseWorldEvents;
     const snap = snapshotG();
     const savedInput = P._lastInput();
     try {
       G.rooms = {}; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
-      G.restedXp = 0;
+      G.restedXp = 0; G.plotBuildings = [];
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      // Silence the calendar so this measures PRESENCE ALONE, whatever today's
+      // blessing happens to be. Asserting against a date-derived pool pick
+      // would make the test's meaning drift with the wall clock.
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
 
-      // Idle for longer than the window → no bonus, however visible the tab is.
+      const grant = () => { G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting; };
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+
       P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
       assert(P.isPresent() === false, 'a player idle past the window is not present');
-      assert(P.mult() === 1, 'an absent player gets no multiplier');
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-      window.addXp('woodcutting', 10000);
-      const away = G.skills.woodcutting;
-
-      // Present: visible + recent input + an activity running.
+      const away = grant();
       P._setLastInput(Date.now());
       assert(P.isPresent() === true, 'visible + recent input + an activity running IS present');
-      assert(Math.abs(P.mult() - 1.12) < 1e-9, 'the presence multiplier must be exactly 1.12');
-      G.skills.woodcutting = 0;
-      window.addXp('woodcutting', 10000);
-      const here = G.skills.woodcutting;
-      assert(here === Math.floor(away * 1.12),
-        'presence must multiply the grant by 1.12 (' + away + ' → expected ' + Math.floor(away * 1.12) + ', got ' + here + ')');
+      const here = grant();
+
+      // The headline assertion, and it is an exact equality rather than the
+      // ratio b226 checked: with no blessing live, being present is worth
+      // exactly nothing. That is what "the flat ×1.12 is gone" means.
+      assert(away > 0, 'the grant must land somewhere for the comparison to mean anything');
+      assert(here === away,
+        'a present grant with no blessing must EQUAL an absent one (' + away + ' vs ' + here + ')');
+      // …and the rate readouts must quote the same thing.
+      const tree = window.TREES.find((t) => t.id === 'normal_tree');
+      P._setLastInput(Date.now());
+      const rHere = window.actionRate('woodcutting', tree).xpPerAction;
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      const rAway = window.actionRate('woodcutting', tree).xpPerAction;
+      assert(rHere === rAway, 'actionRate must not carry a presence multiplier either');
 
       // No activity running → not present, whatever the input clock says.
       G.activeSkill = null;
       assert(P.isPresent() === false, 'presence requires an activity to be running');
+    } finally {
+      E._force(null);
+      P._setLastInput(savedInput); restoreG(snap);
+    }
+  }),
 
-      // OUTSIDE the fuse: it must never appear in the additive allXP channel,
-      // or the ≤0.60 power budget silently absorbs a bonus nobody earned.
-      G.activeSkill = 'woodcutting'; P._setLastInput(Date.now());
-      assert(window.getBonus('allXP') <= 0.60, 'the allXP fuse must still hold with presence active');
-      const beforeBonus = window.getBonus('allXP');
+  () => tryRun('b227: the blessing rides INSIDE getBonus and switches with presence', () => {
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+
+      const keys = Object.keys(Object.assign({}, E.daily().bonus, E.weekly().bonus));
+      assert(keys.length > 0, "today's calendar must grant something");
+
+      P._setLastInput(Date.now());
+      const present = {}; keys.forEach((k) => { present[k] = window.getBonus(k); });
       P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
-      assert(window.getBonus('allXP') === beforeBonus,
-        'getBonus("allXP") must not change with presence — presence is a mode multiplier, not a perk');
+      const idle = {}; keys.forEach((k) => { idle[k] = window.getBonus(k); });
 
-      // XP only: presence must never touch gold.
-      assert(window.applyGoldFind(1000) === 1000 * (1 + Math.max(0, window.getBonus('goldFind') || 0)) ||
-             window.applyGoldFind(1000) === Math.floor(1000 * window.goldFindMult()),
-        'presence must not leak into the gold channel');
+      keys.forEach((k) => {
+        assert(Math.abs((present[k] - idle[k]) - E.bonusFor(k)) < 1e-9,
+          'getBonus("' + k + '") must rise by exactly the blessing when presence begins (' +
+          idle[k] + ' → ' + present[k] + ', blessing ' + E.bonusFor(k) + ')');
+      });
+
+      // The b226 fuse still has to hold with a blessing live — the whole point
+      // of putting the blessing INSIDE the additive channel is that the fuse
+      // can see it. A blessing hidden outside the fuse is an unbudgeted bonus.
+      P._setLastInput(Date.now());
+      assert(window.getBonus('allXP') <= 0.60,
+        'the ≤0.60 allXP fuse must hold with the blessing live, got ' + window.getBonus('allXP'));
+    } finally { P._setLastInput(savedInput); restoreG(snap); }
+  }),
+
+  () => tryRun('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
+    // THE test this rework exists for. processOffline() runs inside loadLocal()
+    // on a visible tab with a fresh input timestamp and an activity set — so
+    // isPresent() is TRUE for the whole catch-up, and a gate built on presence
+    // alone would pay a returning player a full night at today's blessing.
+    // (b226's own flat ×1.12 leaked into offline grants for exactly this
+    // reason.) Run the same absence twice with the blessing layer forced on and
+    // forced off; the two piles must be identical, item for item and XP for XP.
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    assert(typeof P.inOfflineReplay === 'function', 'the offline-replay latch must be published');
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    // A blessing far stronger than anything in the shipped pools, touching
+    // every key an offline gather replay could possibly read. If ONE of them
+    // leaks, the two nights cannot come out equal.
+    const LOUD = { id: 'test_loud', name: 'Test Blessing', desc: 'everything', bonus: {
+      allXP: 0.50, combatXP: 0.50, gatherSpeed: 0.50, cookSpeed: 0.50,
+      smithSpeed: 0.50, craftSpeed: 0.50, prayerSpeed: 0.50,
+      farmYield: 5, goldFind: 0.50, noBurn: 0.50 } };
+    try {
+      const runNight = () => {
+        G.rooms = {}; G.plotBuildings = []; G.restedXp = 0; G.restedAt = Date.now();
+        G.activeMonster = null; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
+        G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+        G.skillMs = 4800;
+        G.inventory = {}; G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+        G.stats = Object.assign({}, G.stats, { gathered: 0 });
+        P._setLastInput(Date.now());               // "present" by every other measure
+        setAway(3);
+        window.processOffline();
+        return { xp: G.skills.woodcutting, items: G.stats.gathered, ms: G.skillMs };
+      };
+
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const quiet = runNight();
+      E._force({ daily: LOUD, weekly: LOUD });
+      assert(E.bonusFor('allXP') === 1.0, 'the loud blessing must actually be on the calendar');
+      const loud = runNight();
+      E._force(null);
+
+      assert(quiet.xp > 0, 'the offline night must actually have produced something to compare');
+      assert(loud.xp === quiet.xp,
+        'offline XP must not move with the blessing (' + quiet.xp + ' vs ' + loud.xp + ')');
+      assert(loud.items === quiet.items,
+        'offline item yield must not move with the blessing (' + quiet.items + ' vs ' + loud.items + ')');
+      assert(loud.ms === quiet.ms,
+        'the offline action interval must not move with the blessing (' + quiet.ms + ' vs ' + loud.ms + ')');
+      assert(G.lastOfflineSummary && G.lastOfflineSummary.blessed === false,
+        'the welcome-back summary must state, in data, that it was paid at the base rate');
+      assert(P.inOfflineReplay() === false, 'the replay latch must be released after processOffline');
+    } finally {
+      E._force(null);
+      P._setLastInput(savedInput); restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b227: the replay latch shuts the blessing even on a visible, active, freshly-touched tab', () => {
+    // The unit-level statement behind the test above: it is not presence that
+    // is false during a catch-up (it is emphatically true) — it is the latch.
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      P._setLastInput(Date.now());
+      assert(P.isPresent() === true, 'the test must be run in the state a catch-up actually sees');
+      assert(P.blessingsApply() === true, 'outside a replay, a present player is blessed');
+      P._withOfflineReplay(() => {
+        assert(P.isPresent() === true, 'presence is still TRUE inside a replay — that is the trap');
+        assert(P.inOfflineReplay() === true, 'the latch must be closed');
+        assert(P.blessingsApply() === false, '…and the blessing must be off anyway');
+        assert(E.isActive() === false, 'the world-events layer must agree');
+        Object.keys(Object.assign({}, E.daily().bonus, E.weekly().bonus)).forEach((k) => {
+          assert(E.liveBonusFor(k) === 0, 'no ' + k + ' may be paid inside a replay');
+        });
+      });
+      assert(P.blessingsApply() === true, 'and it must be restored afterwards');
+      // Nested (offline combat inside processOffline) must not clear it early.
+      P._withOfflineReplay(() => {
+        P._withOfflineReplay(() => {});
+        assert(P.blessingsApply() === false, 'a nested replay must not release the outer latch');
+      });
+      // A throw inside a replay must not strand the game permanently unblessed.
+      try { P._withOfflineReplay(() => { throw new Error('boom'); }); } catch (e) { /* expected */ }
+      assert(P.inOfflineReplay() === false, 'a throw mid-replay must still release the latch');
+    } finally { P._setLastInput(savedInput); restoreG(snap); }
+  }),
+
+  () => tryRun('b227: a SPEED blessing gates too — the interval follows presence, online and offline', () => {
+    // The XP side of a blessing gates itself because addXp reads getBonus live.
+    // The speed side is baked into G.skillMs at startSkill, so without a
+    // re-derivation an idle player would keep blessed speed and — worse — carry
+    // it into the offline replay, which divides elapsed time by that number.
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    assert(typeof window.activityIntervalMs === 'function', 'the shared interval formula must be published');
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      G.rooms = {}; G.plotBuildings = []; G.inventory = {};
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      // Pin a gather-speed blessing whatever today's calendar happens to be,
+      // so this test asserts the MECHANISM rather than the date.
+      E._force({
+        daily: { id: 'test_gather', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
+        weekly: E.QUIET,
+      });
+      P._setLastInput(Date.now());
+      const blessedMs = window.activityIntervalMs();
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      const baseMs = window.activityIntervalMs();
+      assert(blessedMs < baseMs,
+        'a present player must swing faster under a gather blessing (' + blessedMs + ' vs ' + baseMs + ')');
+
+      // Inside a replay the blessing is off even though presence is on.
+      P._setLastInput(Date.now());
+      P._withOfflineReplay(() => {
+        assert(window.activityIntervalMs() === baseMs,
+          'the offline replay must re-derive the BASE interval, got ' + window.activityIntervalMs());
+      });
+
+      // And the live loop actually re-times: start blessed, go idle, act.
+      window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
+      assert(G.skillMs === blessedMs, 'starting while blessed must arm the blessed interval');
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      window.doSkillAction(false);
+      assert(G.skillMs === baseMs,
+        'going idle must re-time the running loop to the base interval, got ' + G.skillMs);
+      P._setLastInput(Date.now());
+      window.doSkillAction(false);
+      assert(G.skillMs === blessedMs, 'coming back must re-time it up again, got ' + G.skillMs);
+    } finally {
+      E._force(null);
+      try { window.stopSkill(); } catch {}
+      P._setLastInput(savedInput); restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b227: every key in the blessing pools has a living consumer (no ghost promises)', () => {
+    // A pool entry naming a key nothing reads is a promise the engine cannot
+    // pay — the exact defect goldFind and noBurn were before b222/b225. Each
+    // key below is asserted to MOVE something, by driving the real seam.
+    const G = window.G;
+    const E = window.HearthriseWorldEvents;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    const realGetBonus = window.getBonus;
+    try {
+      const keys = new Set();
+      E.DAILY.concat(E.WEEKLY).forEach((ev) => Object.keys(ev.bonus).forEach((k) => keys.add(k)));
+      assert(keys.size >= 8, 'the pools must span a real spread of boost families, got ' + keys.size);
+      // Every family Tyler asked for, by name.
+      ['allXP', 'goldFind', 'gatherSpeed', 'smithSpeed', 'craftSpeed', 'cookSpeed', 'noBurn', 'combatXP', 'farmYield']
+        .forEach((k) => assert(keys.has(k), 'the pool must contain a ' + k + ' blessing'));
+
+      // Drive each key through its real consumer with a stubbed getBonus.
+      const withKey = (key, val, fn) => {
+        window.getBonus = function (k) { return k === key ? val : 0; };
+        try { return fn(); } finally { window.getBonus = realGetBonus; }
+      };
+      G.rooms = {}; G.plotBuildings = []; G.inventory = {};
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+
+      // gatherSpeed / the four artisan speeds → activityIntervalMs()
+      const baseGather = withKey('gatherSpeed', 0, () => window.activityIntervalMs());
+      const fastGather = withKey('gatherSpeed', 0.25, () => window.activityIntervalMs());
+      assert(fastGather < baseGather, 'gatherSpeed must shorten a gather action');
+      [['cooking', 'cookSpeed'], ['smithing', 'smithSpeed'], ['crafting', 'craftSpeed'], ['prayer', 'prayerSpeed']]
+        .forEach(([skill, key]) => {
+          const recipes = window.ARTISAN_RECIPES[skill];
+          if (!recipes || !recipes.length) return;
+          G.activeSkill = skill; G.skillTargetId = recipes[0].id;
+          const slow = withKey(key, 0, () => window.activityIntervalMs());
+          const fast = withKey(key, 0.30, () => window.activityIntervalMs());
+          assert(fast < slow, key + ' must shorten a ' + skill + ' action (' + slow + ' → ' + fast + ')');
+        });
+
+      // allXP / combatXP → addXp()
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.restedXp = 0;
+      G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
+      const xpAt = (key, v) => withKey(key, v, () => {
+        G.skills.woodcutting = 0; window.addXp('woodcutting', 10000); return G.skills.woodcutting;
+      });
+      assert(xpAt('allXP', 0.15) > xpAt('allXP', 0), 'allXP must raise an XP grant');
+      const cbAt = (v) => withKey('combatXP', v, () => {
+        G.skills.attack = 0; window.addXp('attack', 10000); return G.skills.attack;
+      });
+      assert(cbAt(0.20) > cbAt(0), 'combatXP must raise a combat XP grant');
+
+      // goldFind → applyGoldFind()
+      assert(withKey('goldFind', 0.15, () => window.applyGoldFind(1000)) >
+             withKey('goldFind', 0, () => window.applyGoldFind(1000)),
+        'goldFind must raise a monster gold drop');
+
+      // noBurn → cookBurnChance()
+      const rec = (window.ARTISAN_RECIPES.cooking || [])[0];
+      if (rec && typeof window.cookBurnChance === 'function') {
+        G.skills.cooking = 0;
+        const hot = withKey('noBurn', 0, () => window.cookBurnChance(rec));
+        const safe = withKey('noBurn', 0.25, () => window.cookBurnChance(rec));
+        assert(safe < hot, 'noBurn must reduce the burn chance (' + hot + ' → ' + safe + ')');
+      }
+
+      // farmYield → harvestPlot(), read at harvest time
+      assert(withKey('farmYield', 2, () => Math.floor(window.getBonus('farmYield'))) === 2,
+        'farmYield must be readable as the flat bonus harvestPlot adds');
+
+      // And nothing in the pools names a key with no consumer.
+      const WIRED = new Set(['allXP', 'combatXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
+        'craftSpeed', 'prayerSpeed', 'farmYield', 'goldFind', 'noBurn']);
+      keys.forEach((k) => assert(WIRED.has(k),
+        'pool key "' + k + '" has no proven consumer — add the seam or drop the entry'));
+    } finally { window.getBonus = realGetBonus; P._setLastInput(savedInput); restoreG(snap); }
+  }),
+
+  () => tryRun('b227: the blessing data carries no emoji, and every entry has an atlas glyph', () => {
+    const E = window.HearthriseWorldEvents;
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
+    E.DAILY.concat(E.WEEKLY).forEach((ev) => {
+      assert(ev.glyph === undefined, ev.id + ' must not carry an emoji glyph field (Final Directive)');
+      assert(!EMOJI.test(ev.name + ' ' + ev.desc), ev.id + ' name/desc must be free of emoji');
+      assert(E.EVENT_GLYPH[ev.id], ev.id + ' has no atlas glyph — it would render as a blank medallion');
+      assert(window.HR_GLYPHS && window.HR_GLYPHS[E.EVENT_GLYPH[ev.id]],
+        ev.id + ' maps to "' + E.EVENT_GLYPH[ev.id] + '", which is not a baked atlas key');
+    });
+  }),
+
+  () => tryRun('b227: the live blessing note names only a blessing that touches THIS activity', () => {
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    const savedInput = P._lastInput();
+    try {
+      // Keys are scoped to what is running: a smithing blessing must never be
+      // offered as a reason to keep chopping.
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      const wcKeys = P.activeBonusKeys();
+      assert(wcKeys.indexOf('gatherSpeed') >= 0 && wcKeys.indexOf('smithSpeed') < 0,
+        'a woodcutting session must consider gatherSpeed and ignore smithSpeed');
+      G.activeSkill = 'cooking'; G.skillTargetId = (window.ARTISAN_RECIPES.cooking || [{}])[0].id;
+      const ckKeys = P.activeBonusKeys();
+      assert(ckKeys.indexOf('cookSpeed') >= 0 && ckKeys.indexOf('noBurn') >= 0,
+        'a cooking session must consider cookSpeed and noBurn');
+      assert(ckKeys.indexOf('gatherSpeed') < 0, 'and not gather speed');
+
+      // The note itself: live while present, dimmed and labelled "idle" when not.
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      const hit = E.summaryFor(P.activeBonusKeys());
+      P._setLastInput(Date.now());
+      const live = window.HearthriseBlessingNote();
+      P._setLastInput(Date.now() - (P.IDLE_MS + 60000));
+      const dim = window.HearthriseBlessingNote();
+      if (hit) {
+        assert(live.indexOf(hit.name) >= 0 && live.indexOf('while you play') >= 0,
+          'the live note must name the blessing and state the condition, got: ' + live);
+        assert(dim.indexOf('idle') >= 0, 'the lapsed note must say idle, got: ' + dim);
+        assert(live.indexOf('+12%') < 0 || hit.effect.indexOf('12%') >= 0,
+          'the note must never resurrect the retired flat +12% presence hint');
+      }
+      // No activity → no note at all.
+      G.activeSkill = null; G.activeMonster = null; G.activeArtisanRecipe = null;
+      assert(window.HearthriseBlessingNote() === '', 'no activity running means no note');
     } finally { P._setLastInput(savedInput); restoreG(snap); }
   }),
 

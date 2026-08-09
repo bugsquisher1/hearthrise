@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 271 — 2026-08-09 (Bank starts leaner)
+
+- 🎒 **New accounts now start with 100 bank slots** (was 200) — the "Buy space" expansions matter a little sooner. Existing players are unaffected: your cap is re-granted to comfortably cover everything you already own, so nobody logs in full.
+
 ## v0.9.2-beta build 270 — 2026-08-09 (Your pet's paw-print & a bigger bag)
 
 - 🐾 **Your equipped pet now sits beside your avatar.** Tap it to see exactly what it did for you *this session* — bonus XP it added, gold and extra drops it found, and any special procs. Every number is real (measured as it happened), never an estimate.

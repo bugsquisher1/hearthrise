@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 11;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 12;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -409,6 +409,34 @@
         var effective = BASE + save.bank.goldBuys*GOLD + save.bank.gemBuys*GEM + save.bank.grandfather;
         var want = used + HEADROOM;
         // Idempotent: on a re-run `effective` already covers `want`, so no-op.
+        if(effective < want) save.bank.grandfather += (want - effective);
+      },
+    },
+    {
+      from: 11, to: 12,
+      name: 'v11 → v12 (b271: base cap 200→100 — re-grandfather so nobody is walled)',
+      // b271 lowers the LIVE free base cap from 200 to 100 (Tyler). The v11
+      // grandfather was computed assuming 200 free slots, so a save already at
+      // v11 would suddenly be 100 slots short and could log in walled — the exact
+      // "nobody worse off" violation v11 existed to prevent. This re-runs the top
+      // -up against the NEW base (100), which is idempotent: a save with enough
+      // headroom already is a no-op, and one that came straight from v10 (whose
+      // v11 pass used base 200) gets the extra 100 it now needs. Constants frozen
+      // at their b271 values on purpose — a migration must not read a live table.
+      apply: function(save){
+        var BASE=100, GOLD=20, GEM=60, HEADROOM=25;
+        if(save.bank == null || typeof save.bank !== 'object' || Array.isArray(save.bank)){
+          save.bank = { goldBuys:0, gemBuys:0, grandfather:0 };
+        }
+        if(typeof save.bank.goldBuys!=='number')   save.bank.goldBuys=0;
+        if(typeof save.bank.gemBuys!=='number')    save.bank.gemBuys=0;
+        if(typeof save.bank.grandfather!=='number')save.bank.grandfather=0;
+        var used=0;
+        if(save.inventory && typeof save.inventory==='object'){
+          for(var k in save.inventory){ if(save.inventory[k]>0) used++; }
+        }
+        var effective = BASE + save.bank.goldBuys*GOLD + save.bank.gemBuys*GEM + save.bank.grandfather;
+        var want = used + HEADROOM;
         if(effective < want) save.bank.grandfather += (want - effective);
       },
     },

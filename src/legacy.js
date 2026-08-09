@@ -2026,7 +2026,7 @@ function addXp(sk,amt,opts){
    saveLocal → cloud-sync pattern (same as buyCosmetic/buyTheme); the guards
    below refuse overspend / negative balances per the FINAL DIRECTIVE. */
 var BANK_SPACE = {
-  BASE_CAP: 200,                         /* free stacks a fresh account gets */
+  BASE_CAP: 100,                         /* free stacks a fresh account gets (b271: 200→100, Tyler) */
   gold: { slots: 20, base: 3000, growth: 1.32 },  /* +20 stacks; escalating gold */
   gem:  { slots: 60, cost: 45 },                  /* +60 stacks; flat, best value */
 };

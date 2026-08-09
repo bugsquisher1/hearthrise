@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=270' directly.
+// modularised, will import { G } from '../state/game.js?v=271' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=270';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=270';
+import { on, snapshot } from '../net/events.js?v=271';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=271';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=270';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=271';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1639,7 +1639,7 @@ const TESTS = [
   }),
   () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
     assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
-    const inv = {}; for (let i = 0; i < 260; i++) inv['probe_item_' + i] = 1; // 260 stacks > BASE 200
+    const inv = {}; for (let i = 0; i < 260; i++) inv['probe_item_' + i] = 1; // 260 stacks > BASE_CAP
     const out = window.applyMigrations({ v: 10, inventory: inv });
     assert(out.bank && typeof out.bank.grandfather === 'number', 'migration must seed G.bank');
     const cap = window.BANK_SPACE.BASE_CAP + out.bank.goldBuys * window.BANK_SPACE.gold.slots

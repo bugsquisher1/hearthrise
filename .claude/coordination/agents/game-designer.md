@@ -17,6 +17,58 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-08-09 · Pacing overhaul spec — `docs/design/pacing-overhaul.md` (DOCS ONLY)
+Modelled the real curve by simulating the shipped action loop (rung switching at the real level gates,
+best-tool speed ladder applied) against `data/gathering.js`, `recipes.js`, `items.js` and `XP_TABLE`.
+Brief = Tyler's binding Pacing directive (2026-08-09) + my own audit P0.
+
+**The measurement that reframed the problem.** Woodcutting 99 costs **120.5h** of game-time — which is
+not far off genre norms. The pathology is the *conversion rate*: the 12h offline cap is **per login
+gap, not per day**, so an engaged player banks ~19h of full-rate progress daily and still has their
+evening free. **21.5 effective game-hours per wall-clock day → first 99 in 4.5 days.** The XP table was
+never the disease.
+
+**Chosen retune:** `PACE.xp = 0.55` · `PACE.actionMs = 1.45` · offline cap → **12h daily budget** ·
+presence **×1.12 XP, multiplicative, outside the allXP fuse**. Lands first 99 at **28 days**, all-15-99s
+at **~10.3 months**, and the audit's 9h repro at WC 44 / 7,449 logs / 11,918g (was WC 59-62 / 16,200 /
+129,600g). Rate-side only — stretching `XP_TABLE` would demote every living player, which is the literal
+clawback the directive forbids.
+
+**On the presence bonus:** at +10-15% it is a *feel* feature, not a pacing lever — for a 2.5h/day player
+it moves ~1.4% of daily throughput. I implemented exactly Tyler's number and said so in the spec: the
+online-vs-offline problem is solved by online-only **content**, not by rate. Zero offline dampening —
+one dial, +12% exactly, no hidden second nerf.
+
+**Five things found while modelling that are bugs, not tuning:**
+1. **`G.skillMs` stores the RAW ms** (`startSkill` L1621; `actualMs` is a local, L1625) while
+   `processOffline` divides by `G.skillMs` (L594). So a geared player already gathers **30-40% slower
+   offline** — an invisible, gear-scaled offline dampener nobody designed. Same shape in the artisan path.
+2. **Farming 99 is unreachable by ~40×.** 12 castle plots of Moonbloom = 3,120 XP/22h → **9.5 years**.
+   Exempted farming from `PACE.xp` and specced crop XP **×14** instead. (Blocked on the already-filed
+   crop-tier unlock conflict — Goldenroot/Emberfruit/Moonbloom are unplantable at every plot level.)
+3. **Raw vendoring is the real economy hole.** Dawnstone Ore (v 1,400) at 300/h = **560,000 g/h**,
+   6.7M per 12h offline — a maxed miner out-earns the *King* renown reward every 32 minutes, asleep.
+   Specced `VENDOR_RAW_RATE = 0.20` on a single choke-point (`v` untouched, so market/recipe/collection
+   math is safe). Puts gathering on materials, artisan on gold, and the player market on top.
+4. **Mithril Rock is a rate regression** — 32,000 xp/h at req 60 vs Gold Rock's 33,429 at req 45. The
+   ladder goes backwards on unlock. `ms` 9000→8000, plus a QA assertion that every rung beats the one below.
+5. **`DAILY_GOAL_POOL` reads item-specific counters** (`collection.normal_log`, `collection.shrimp`), so
+   "Gather 25 logs" and "Catch 15 fish" get *harder* the better you are — a level-90 woodcutter on
+   Duskwood scores zero. Must move to aggregate counters before the goal retune.
+
+**Fairness:** no level, item, gold, rank or unlock is touched; renown weights only ever RISE (raising
+`totalLevel` 10→14 / `skill99` 600→900 rather than lowering `kill`, which would demote kill-heavy
+veterans), plus a `renownHigh` ratchet so no future weight change can ever demote anyone. Founder's mark
+(cosmetic, no power, `createdAt`-gated) for pre-retune saves. Mid-grind players are the sharpest edge and
+the spec says so.
+
+**Verified immune:** castle Labour (per-action, 400/day cap still fills in ~28 min) and farm growth
+timers (real-time). **Verified broken independently:** Rested XP banks *grants*, not XP — 80 charges is
+~6 minutes of play, and `PACE.xp` makes each charge worth less. Re-spec before any pillar grants potency.
+
+No game files touched. Phase 1 = the constants + presence + the five bug fixes (one build, with the
+regression list); Phase 2 = goal retunes and sinks.
+
 ### 2026-08-08 · b224 — "eating food is confusing" (beta feedback, branch `agent-food-ux`)
 Played every path a player might use to eat. The confusion was not subtle and part of it was mine (b220).
 

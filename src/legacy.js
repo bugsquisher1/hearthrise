@@ -2662,7 +2662,18 @@ function armSkillTimers(ms){
    only if it isn't already running (idempotent), and never while a fight owns
    the tick. */
 function resumeActiveActivity(){
-  if(typeof G==='undefined'||!G||!G.activeSkill||G.activeMonster) return;
+  if(typeof G==='undefined'||!G) return;
+  /* Combat first. Bug (paione: "afk/offline combat stuck at 71 kills"): mobile
+     browsers suspend the tab on background and can CLEAR the combat setInterval.
+     This function runs on every visibility-resume, but it used to bail whenever a
+     monster was active — so the fight loop was never re-armed and combat silently
+     froze after every backgrounding. processOffline() credits the away gap, but
+     nothing restarted the LIVE loop. Re-arm it here (matches loadLocal's resume). */
+  if(G.activeMonster){
+    if(!combatInterval){ try{ combatInterval=setInterval(combatTick,combatTickMs()); }catch(e){} }
+    return;
+  }
+  if(!G.activeSkill) return;
   const sk=G.activeSkill;
   const ms=((typeof activityIntervalMs==='function'&&activityIntervalMs())||G.skillMs||3000);
   try{
@@ -2674,8 +2685,9 @@ function resumeActiveActivity(){
   }catch(e){}
 }
 window.resumeActiveActivity=resumeActiveActivity;
-/* Read-only seam so the smoke suite can assert the live loop is (re)armed. */
+/* Read-only seams so the smoke suite can assert the live loops are (re)armed. */
 window.__isSkillLoopArmed=function(){ return !!skillInterval || !!window._artisanInterval; };
+window.__isCombatLoopArmed=function(){ return !!combatInterval; };
 function retimeActivity(){
   if(inOfflineReplay()) return;            // the replay owns its own clock
   const want=activityIntervalMs();

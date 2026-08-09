@@ -89,8 +89,35 @@ function gameStateSnapshot() {
     sessionMin: G.sessionStart ? Math.round((Date.now() - G.sessionStart) / 60000) : null,
     online: navigator.onLine,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
+    device: describeDevice(),
+    orientation: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
     ua: navigator.userAgent.slice(0, 200),
   };
+}
+
+// A one-line human device/OS summary parsed from the UA — so a bug report reads
+// "Android phone · landscape · build 262" at a glance instead of a raw UA blob.
+// Most of this session's bugs were platform/orientation-specific, so this is the
+// single most useful triage field. Best-effort; falls back to "Unknown device".
+function describeDevice() {
+  try {
+    const ua = navigator.userAgent || '';
+    const touch = (navigator.maxTouchPoints || 0) > 0 || /Mobi|Touch/.test(ua);
+    let os = 'Unknown OS';
+    if (/Android/.test(ua)) os = 'Android';
+    else if (/iPhone/.test(ua)) os = 'iOS (iPhone)';
+    else if (/iPad/.test(ua) || (/Macintosh/.test(ua) && touch)) os = 'iPadOS';
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Mac OS X|Macintosh/.test(ua)) os = 'macOS';
+    else if (/Linux/.test(ua)) os = 'Linux';
+    const form = /iPad/.test(ua) ? 'tablet'
+      : /Android/.test(ua) ? (/Mobi/.test(ua) ? 'phone' : 'tablet')
+      : /iPhone/.test(ua) ? 'phone'
+      : touch ? 'touch device' : 'desktop';
+    const pwa = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone
+      ? ' · installed PWA' : '';
+    return `${os} ${form}${pwa}`;
+  } catch (e) { return 'Unknown device'; }
 }
 
 function buildVersionString() {
@@ -175,6 +202,7 @@ async function sendDiscord(payload) {
     color: 0xd44a3a,
     fields: [
       { name: 'Build',    value: '`' + payload.build + '`', inline: true },
+      { name: 'Device',   value: (payload.state.device || '—') + ' · ' + (payload.state.orientation || '—'), inline: true },
       { name: 'Player',   value: payload.user || 'guest',    inline: true },
       { name: 'Tab',      value: String(payload.state.activeTab || '—'), inline: true },
       { name: 'Viewport', value: String(payload.state.viewport || '—'), inline: true },

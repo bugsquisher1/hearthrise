@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 263 — 2026-08-09 (Better bug reports)
+
+- 🐛 **The in-game bug button now tags your device.** Tap the 🐛 button (bottom corner) to report a bug and it automatically attaches your device, OS, orientation, build, a screenshot, and what you were doing — so fixes happen faster. Please use it instead of typing in chat!
+
 ## v0.9.2-beta build 262 — 2026-08-09 (Bounty progress you can always see)
 
 - 🎯 **Your bounty task progress now shows right in the combat bar.** On landscape phones the "X / Y kills left for your task" was in a card that slipped below the fold. When you're fighting your bounty target, the count now sits in the always-visible activity strip at the top — no scrolling to check it. *(Thanks paione.)*

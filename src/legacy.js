@@ -2458,6 +2458,27 @@ function showTab(tab){
      because a screen moved. showTab('social') is deliberately NOT rewritten:
      Social still exists, still opens, and now carries a signpost to the hold. */
   if(tab==='castle'||tab==='clanseat'||tab==='clan-seat'||tab==='clans')tab='clan';
+  /* b230 (Tyler): Shops is ONE destination with three toggles — Local Shop,
+     Market, Premium Shop. Every name any of the three has ever been called by
+     in a deep link, a CTA or a chat message resolves here and pre-selects the
+     right toggle, because a route that used to work must never stop working
+     just because a screen moved. `store` in particular was already BROKEN:
+     the item flyout's "Buy from Seed Shop" / "Buy from Equipment Shop" called
+     showTab('store'), there has never been a #panel-store, and showTab bailed
+     on the missing element — those two buttons did nothing at all.
+     Resolution is here in the base function rather than in a wrapper so it
+     cannot be bypassed, and so the alias table has exactly one home. */
+  var _shopsPane = null;
+  if(tab==='shops'||tab==='shop'||tab==='store'||tab==='stores'||tab==='localshop'||tab==='local-shop'||tab==='seedshop'||tab==='shopfront'
+     ||tab==='market'||tab==='exchange'||tab==='marketplace'
+     ||tab==='premium'||tab==='premiumshop'||tab==='premium-shop'||tab==='gems'||tab==='iap'){
+    _shopsPane = (window.HearthShops && window.HearthShops.paneFor)
+      ? window.HearthShops.paneFor(tab)
+      : ((tab==='market'||tab==='exchange'||tab==='marketplace') ? 'market'
+        : (tab==='premium'||tab==='premiumshop'||tab==='premium-shop'||tab==='gems'||tab==='iap') ? 'premium'
+        : 'local');
+    tab = (_shopsPane==='market') ? 'market' : 'shop';
+  }
   // b127: dismiss every modal before changing panel — fixes the
   // bug where opening Quests + then clicking Profile would leave
   // the Quests overlay floating on top of every subsequent panel.
@@ -2477,6 +2498,15 @@ function showTab(tab){
   if(tab==='social')renderSocial();
   if(tab==='clan')renderClan();
   if(tab==='shop')renderShop();
+  /* b230: apply the toggle AFTER the panel is active — the strip lives inside
+     both hosts, and the Shops nav button has to light up even though the panel
+     that opened is #panel-shop or #panel-market. Market renders through its own
+     published seam (window.renderMarket, market.js:1037) so this does not
+     depend on any showTab wrapper having been installed yet. */
+  if(_shopsPane){
+    if(window.HearthShops && window.HearthShops.apply) window.HearthShops.apply(_shopsPane);
+    if(_shopsPane==='market' && typeof window.renderMarket==='function') window.renderMarket();
+  }
 }
 function refreshAll(){
   updateTopbar();
@@ -2604,7 +2634,7 @@ function renderProfile(){
         <button class="btn tap" onclick="showTab('combat')">⚔️ Combat</button>
         <button class="btn tap" onclick="showTab('skills')">📊 Skills</button>
         <button class="btn tap" onclick="showTab('farming')">🌾 Farm</button>
-        <button class="btn tap" onclick="showTab('shop')">💎 Store</button>
+        <button class="btn tap" onclick="showTab('shops')">💎 Store</button>
       </div>`;
   }
   /* b227: says "base rate" out loud, for the same reason the welcome-back toast
@@ -3778,7 +3808,9 @@ function bindEvents(){
   document.getElementById('btn-settings').addEventListener('click',openSettings);
   document.getElementById('btn-settings-mobile')?.addEventListener('click',()=>{document.getElementById('more-modal').classList.remove('show');openSettings();});
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
-  document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('shop'));
+  /* b230: the topbar gem counter means "I want gems" — it opens the Premium
+     Shop toggle directly, not the shop's front door. */
+  document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('premium'));
   /* modals close */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
   document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
@@ -3786,7 +3818,7 @@ function bindEvents(){
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));return;}
     if(e.target.matches('input,textarea,select'))return;
-    const map={'1':'profile','2':'combat','3':'skills','4':'inventory','5':'farming','6':'house','7':'social','8':'shop'};
+    const map={'1':'profile','2':'combat','3':'skills','4':'inventory','5':'farming','6':'house','7':'social','8':'shops'};
     if(map[e.key]){showTab(map[e.key]);e.preventDefault();}
     if(e.key.toLowerCase()==='s'){saveLocal();notify('Saved 💾','info');}
   });
@@ -13074,7 +13106,9 @@ console.log('[Bundle Icons v1] applied:',
 // ===== block 41: script-41 =====
 (function(){
   window.openHearthHallStore = function(){
-    if(typeof showTab === 'function') showTab('shop');
+    /* b230: the Hearth Hall pack is a real-money SKU — go straight to the
+       Premium Shop toggle, or the scroll-to below lands on a hidden pane. */
+    if(typeof showTab === 'function') showTab('premium');
     setTimeout(function(){
       var btn = document.querySelector('button[onclick*="hearth_hall_premium"]');
       if(btn){

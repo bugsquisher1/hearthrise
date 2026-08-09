@@ -1914,12 +1914,11 @@ body[data-theme] #panel-combat .combat-arena::after { background: none; }
  * ("Real-money packs" through "← Back to Market"). The heading yields the
  * corner; the control keeps it.
  * ---------------------------------------------------------------------- */
-body[data-theme] #panel-shop.active .card-head:has(+ #iap-panel) .card-sub,
-body[data-theme] #panel-market.active > .card:first-child .card-sub,
+/* b230: the Store and Market halves of this rule are gone with the buttons
+ * they made room for — the Shops destination's three toggles replaced both
+ * injected shortcuts, so nothing is floating in either corner any more. */
 body[data-theme] #panel-dungeons.active .card-head .card-sub { padding-right: 150px; }
-body[data-theme] #hr-shop-back,
-body[data-theme] #hr-dungeons-back,
-body[data-theme] #hr-store-link { top: 8px; right: 10px; }
+body[data-theme] #hr-dungeons-back { top: 8px; right: 10px; }
 
 /* Floating utility buttons were overlapping the last row of any list that ran
  * to the bottom of the panel (the seed shop's Buy sat underneath the bug
@@ -1937,17 +1936,6 @@ body[data-theme] #panel-market.active { padding-bottom: 78px; }
 body[data-theme] #panel-market.active .mk-strip,
 body[data-theme] #panel-market.active .mk-list-form,
 body[data-theme] #panel-market.active .mk-block { height: auto; min-height: 0; overflow: visible; }
-/* "Premium Store" is a navigation shortcut, not a purchase — it was the
- * brightest element on the Market screen in the colour reserved for real-money
- * currency. Quiet control; the sapphire glyph keeps the association. */
-body[data-theme] #hr-store-link {
-  background: var(--surf-raised);
-  border: 1px solid var(--line-soft);
-  box-shadow: var(--surf-raised-edge);
-  color: var(--ink-2);
-}
-body[data-theme] #hr-store-link:hover { color: var(--ink); border-color: rgba(201,162,74,.4); }
-body[data-theme] #hr-store-link .hr-glyph { color: #8f9de0; }
 
 /* Mobile bottom-nav: the selected tab was a filled oxblood slab — the danger
  * colour, on the control the player touches most. Gilt, like every other

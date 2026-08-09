@@ -211,7 +211,14 @@
     // b225 (#18): the Clan Seat's own nav entry. `uiCastle` and not a banner or
     // a shield — the destination is a keep you build, and it has to read as a
     // different KIND of thing from navSocial's podium sitting under it.
-    clan: 'uiCastle'
+    clan: 'uiCastle',
+    // b230: one door for all three shops. `navStore` (a shopfront) and not
+    // `navMarket` (a balance) or `gems` — the entry has to read as a PLACE you
+    // walk into, the way the other two Realm entries are a castle and a
+    // podium; a balance names one of the three toggles behind the door, not
+    // the door. `shop`/`market` stay mapped below for any host that still
+    // paints an old button.
+    shops: 'navStore'
   };
   function paintNav() {
     document.querySelectorAll('.nav-btn[data-tab], .bn-btn[data-tab]').forEach(function (btn) {

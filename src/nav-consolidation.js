@@ -1,20 +1,118 @@
 // ============================================================
 // src/nav-consolidation.js
 //
-// The sidebar nav has too many items to fit comfortably with the
-// new larger crest logo. This module hides redundant top-level
-// entries and adds in-panel entry points instead:
+// Two jobs:
 //
-//   • Dungeons → "Dungeons" button injected into Combat panel
-//   • Store    → "Premium Store" toggle injected into Market panel
+//   1. The Combat panel's shortcut through to Events (dungeons).
+//   2. THE SHOPS TOGGLE (b230) — window.HearthShops.
 //
-// Hiding is handled by CSS (theme-cozy.css). This module just
-// inserts the alternative entry points so users can still reach
-// the panels.
+// b230 removed this module's original reason to exist. It used to
+// compensate for nav entries that were hidden in CSS by injecting
+// replacement buttons into panels at runtime: a "Premium Store"
+// button into the Market panel and a "← Back to Market" button
+// into the Store panel. Both were absolutely-positioned strays,
+// and the Premium Store one DELETED ITSELF on every market
+// re-render (market.js assigned panel.innerHTML, wiping any
+// injected sibling) — so it flickered back only because a 500ms
+// interval kept re-adding it.
+//
+// A navigation control that has to be re-injected twelve times a
+// second is not navigation. The three shops are now one real
+// destination with a real toggle, in static markup, and this
+// module only drives it.
 // ============================================================
 
 (function(){
   'use strict';
+
+  // ── THE SHOPS TOGGLE ─────────────────────────────────────────
+  // Three toggles, two hosts: #panel-shop carries Local Shop and
+  // Premium Shop (they share every `#panel-shop …` rule already
+  // written for them), #panel-market carries Market. The strip is
+  // duplicated into both hosts as static markup rather than moved
+  // or injected, so no re-render can destroy it.
+  var PANES = ['local', 'market', 'premium'];
+  var PANE_ALIAS = {
+    shops: null,            // null → "whatever was last chosen"
+    shop: 'local', store: 'local', stores: 'local', localshop: 'local',
+    'local-shop': 'local', local: 'local', seedshop: 'local', shopfront: 'local',
+    market: 'market', exchange: 'market', marketplace: 'market',
+    premium: 'premium', premiumshop: 'premium', 'premium-shop': 'premium',
+    gems: 'premium', iap: 'premium'
+  };
+  // Session-scoped, exactly the window._tdPane convention (see the
+  // Character doll): the choice survives every re-render and every
+  // trip away and back, but a fresh load always opens on the Local
+  // Shop. That is deliberate — Tyler's complaint was that the
+  // in-game shop was impossible to find, so it is the front door,
+  // and a player who browsed the Market last session must not have
+  // that front door silently replaced the next time they log in.
+  function currentPane(){
+    return PANES.indexOf(window._shopsPane) >= 0 ? window._shopsPane : 'local';
+  }
+  function paneFor(tab){
+    var key = String(tab || '').toLowerCase();
+    var p = Object.prototype.hasOwnProperty.call(PANE_ALIAS, key) ? PANE_ALIAS[key] : undefined;
+    if (p === null) return currentPane();          // 'shops' → remembered
+    if (PANES.indexOf(p) >= 0) return p;
+    return 'local';
+  }
+  var TAB_GLYPH = { local: 'navStore', market: 'navMarket', premium: 'gems' };
+  function paintStrips(){
+    document.querySelectorAll('.shops-tab').forEach(function(btn){
+      var ic = btn.querySelector('.ic');
+      if (!ic || ic.querySelector('.hr-glyph')) return;
+      if (!(window.HR && window.HR.icon)) return;
+      var pane = btn.getAttribute('data-shops-pane');
+      // The glyph INHERITS the segment's colour (the b217 nav-glyph rule) so
+      // the selected state reads on the icon too, and so the Premium
+      // segment's sapphire is one colour rather than two: the stylesheet
+      // paints `.shops-tab.is-premium .ic` and the glyph follows. Baking a
+      // token in here instead would put --gem next to --sc-prem-ink inside
+      // one 130px control.
+      var g = window.HR.icon(TAB_GLYPH[pane], 17, null);
+      if (g) ic.innerHTML = g;
+    });
+  }
+  function apply(pane){
+    if (PANES.indexOf(pane) < 0) pane = 'local';
+    window._shopsPane = pane;
+    var shopPanel = document.getElementById('panel-shop');
+    if (shopPanel) shopPanel.setAttribute('data-shops-pane', pane === 'market' ? currentLocalSide() : pane);
+    document.querySelectorAll('.shops-tab').forEach(function(btn){
+      var on = btn.getAttribute('data-shops-pane') === pane;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    // showTab() lit the nav button whose data-tab matched the panel it
+    // opened — 'shop' or 'market'. The player clicked "Shops"; that is
+    // the entry that has to look selected, on the rail AND in the More
+    // sheet.
+    document.querySelectorAll('.nav-btn,.bn-btn').forEach(function(b){
+      if (b.dataset.tab === 'shops') b.classList.add('active');
+      else if (b.dataset.tab === 'shop' || b.dataset.tab === 'market') b.classList.remove('active');
+    });
+    paintStrips();
+  }
+  // While the Market is showing, #panel-shop is off screen — leave its
+  // attribute on whichever local side was last used so returning to it
+  // does not flash the wrong card.
+  function currentLocalSide(){
+    var el = document.getElementById('panel-shop');
+    var v = el && el.getAttribute('data-shops-pane');
+    return v === 'premium' ? 'premium' : 'local';
+  }
+  window.HearthShops = { paneFor: paneFor, apply: apply, panes: PANES, repaint: paintStrips };
+
+  // One delegated listener for both copies of the strip.
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest && e.target.closest('.shops-tab');
+    if (!btn) return;
+    var pane = btn.getAttribute('data-shops-pane');
+    if (PANES.indexOf(pane) < 0) return;
+    e.preventDefault();
+    if (typeof window.showTab === 'function') window.showTab(pane === 'local' ? 'shop' : pane);
+  });
 
   function injectCombatDungeonsLink() {
     const combatPanel = document.getElementById('panel-combat');
@@ -49,55 +147,15 @@
     else { combatPanel.style.position = 'relative'; btn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:5'; combatPanel.appendChild(btn); }
   }
 
-  function injectMarketStoreLink() {
-    const marketPanel = document.getElementById('panel-market');
-    if (!marketPanel || marketPanel.querySelector('#hr-store-link')) return;
-    const btn = document.createElement('button');
-    btn.id = 'hr-store-link';
-    btn.type = 'button';
-    // b217: was a filled ice-blue button with a 💎 emoji, absolutely
-    // positioned in the corner. It sells gems, so it keeps the sapphire
-    // premium role — but as a normal-weight control in the flow.
-    btn.className = 'btn btn-sm btn-gem';
-    btn.innerHTML = ((window.HR && window.HR.icon) ? (window.HR.icon('gems', 14, 'currentColor') || '') : '') + '<span>Premium Store</span>';
-    btn.title = 'Premium Store (gem packs, cosmetics)';
-    btn.style.cssText = 'position:absolute; top:12px; right:12px; z-index:5;';
-    btn.addEventListener('click', () => {
-      if (typeof window.showTab === 'function') window.showTab('shop');
-    });
-    marketPanel.style.position = 'relative';
-    marketPanel.appendChild(btn);
-  }
-
-  // Also inject a "Back to Market" button on Store + a "Back to Combat"
-  // button on Dungeons so users have an obvious return path.
-  // b131: hidden on mobile — the button overlapped the "PREMIUM STORE"
-  // title at narrow widths, AND on mobile the entry point is MORE menu
-  // (not Market), so the label was misleading anyway.
-  function injectShopBackLink() {
-    const shopPanel = document.getElementById('panel-shop');
-    if (!shopPanel || shopPanel.querySelector('#hr-shop-back')) return;
-    const btn = document.createElement('button');
-    btn.id = 'hr-shop-back';
-    btn.type = 'button';
-    btn.innerHTML = '← Back to Market';
-    // b217: a "back" link is the quietest control on a screen. It was set in
-    // Cinzel uppercase with .12em tracking on a raised fill — the treatment
-    // reserved for titles — so it competed with the panel heading beside it.
-    btn.className = 'btn btn-sm btn-ghost';
-    btn.style.cssText = 'position:absolute; top:12px; right:12px; z-index:5;';
-    btn.addEventListener('click', () => {
-      if (typeof window.showTab === 'function') window.showTab('market');
-    });
-    // b131: hide on narrow viewports
-    function applyMobileVisibility(){
-      btn.style.display = (window.innerWidth <= 540) ? 'none' : '';
-    }
-    applyMobileVisibility();
-    window.addEventListener('resize', applyMobileVisibility);
-    shopPanel.style.position = 'relative';
-    shopPanel.appendChild(btn);
-  }
+  /* b230: injectMarketStoreLink() and injectShopBackLink() are GONE.
+     They were the two halves of a manual round-trip between two screens that
+     are now two toggles on one screen: a "Premium Store" button floating in
+     the Market panel's corner and a "← Back to Market" button floating in
+     the Store panel's corner. The first one was also a live bug — market.js
+     rendered with panel.innerHTML, which destroyed it on every search
+     keystroke, sort change, listing and cancellation; it reappeared only
+     because bootAll ran on a 500ms interval. The toggle strip is static
+     markup in both hosts and cannot be re-rendered away. */
   function injectDungeonsBackLink() {
     // b220 (#14): with Events as a real top-level entry the dungeon list is no
     // longer a dead-end sub-panel reached only from Combat, so a "← Back to
@@ -125,9 +183,8 @@
 
   function bootAll() {
     injectCombatDungeonsLink();
-    injectMarketStoreLink();
-    injectShopBackLink();
     injectDungeonsBackLink();
+    paintStrips();
   }
 
   if (document.readyState === 'loading') {

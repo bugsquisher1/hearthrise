@@ -267,7 +267,10 @@
       });
       saveListings(rows.concat(mine));
       if(typeof window.renderMarket === 'function' &&
-         document.querySelector('#panel-market.active, #market-root')) {
+         /* b230: #market-root now ALWAYS exists (it is static markup), so it
+            can no longer stand in for "the market is on screen". Only the
+            panel's own active state means that. */
+         document.querySelector('#panel-market.active')) {
         try { window.renderMarket(); } catch(e){}
       }
       return true;
@@ -702,27 +705,34 @@
     backendActive: backendActive,
   };
 
-  // ── UI: Market tab + sidebar entry ────────────────────────────
-  function injectNav(){
-    var sidebar = document.getElementById('sidebar');
-    if(!sidebar || sidebar.querySelector('[data-tab=market]')) return;
-    var storeBtn = sidebar.querySelector('[data-tab=shop], [data-tab=store]');
-    var btn = document.createElement('button');
-    btn.className = 'nav-btn';
-    btn.setAttribute('data-tab', 'market');
-    btn.innerHTML = '<span class="ic">📈</span><span class="lbl">Market</span>';
-    btn.addEventListener('click', function(){ if(typeof window.showTab === 'function') window.showTab('market'); });
-    if(storeBtn && storeBtn.nextSibling) storeBtn.parentNode.insertBefore(btn, storeBtn.nextSibling);
-    else sidebar.appendChild(btn);
-  }
+  // ── UI: Market host ───────────────────────────────────────────
+  /* b230: injectNav() is GONE. It created a `nav-btn[data-tab=market]` at
+     runtime (with a 📈 emoji in it) and anchored itself to the static Store
+     entry — which theme-cozy.css had set to `display:none !important`. The
+     net effect was a sidebar where the only visible commerce entry was the
+     injected one, and the in-game shop had no door at all. Both the Market
+     section and its route are now static markup under the Shops destination:
+     index.html owns the nav, showTab() owns the routing.
+
+     The panel host is static too. This function survives only as a fallback
+     for a DOM that somehow lacks it (a stale cached index.html mid-deploy),
+     and it builds the SAME shape — a stable #market-root that render() owns,
+     so nothing outside it is destroyed by a re-render. */
   function injectPanel(){
-    if(document.getElementById('panel-market')) return;
-    var main = document.querySelector('main.main');
-    if(!main) return;
-    var panel = document.createElement('section');
-    panel.className = 'panel';
-    panel.id = 'panel-market';
-    main.appendChild(panel);
+    var panel = document.getElementById('panel-market');
+    if(!panel){
+      var main = document.querySelector('main.main');
+      if(!main) return;
+      panel = document.createElement('section');
+      panel.className = 'panel';
+      panel.id = 'panel-market';
+      main.appendChild(panel);
+    }
+    if(!panel.querySelector('#market-root')){
+      var root = document.createElement('div');
+      root.id = 'market-root';
+      panel.appendChild(root);
+    }
   }
 
   function escapeAttr(s){
@@ -746,7 +756,13 @@
   }
 
   function render(){
-    var panel = document.getElementById('panel-market');
+    /* b230: render into #market-root, never into #panel-market itself. The
+       panel now hosts the Shops toggle strip as a sibling of this container —
+       and the old `panel.innerHTML = …` at the end of this function is
+       precisely what made the injected "Premium Store" button delete itself on
+       every market re-render (search, sort, list, cancel — every keystroke).
+       A renderer owns a container, not a panel. */
+    var panel = document.getElementById('market-root') || document.getElementById('panel-market');
     if(!panel) return;
     var list = loadListings();
     expireOld(list);
@@ -1171,18 +1187,12 @@
     if(m && m.parentNode) m.parentNode.removeChild(m);
   }
 
-  function wireShowTab(){
-    var orig = window.showTab;
-    if(typeof orig !== 'function'){ setTimeout(wireShowTab, 100); return; }
-    if(window.__marketTabHooked) return;
-    window.__marketTabHooked = true;
-    window.showTab = function(name){
-      var r = orig.apply(this, arguments);
-      if(name === 'market') setTimeout(render, 0);
-      return r;
-    };
-  }
-  function start(){ injectNav(); injectPanel(); wireShowTab(); }
+  /* b230: the showTab wrapper is GONE too. showTab() itself now calls
+     window.renderMarket() when the Market toggle is the one being opened —
+     one render path, and it works for every alias (`market`, `exchange`,
+     `shops` with Market remembered) rather than only for the literal string
+     this wrapper happened to compare against. */
+  function start(){ injectPanel(); }
   if(document.readyState !== 'loading') setTimeout(start, 60);
   else document.addEventListener('DOMContentLoaded', start);
 

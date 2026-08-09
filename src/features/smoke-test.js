@@ -1128,16 +1128,25 @@ const TESTS = [
       window.showTab('market');
       const panel = document.getElementById('panel-market');
       const html = panel ? panel.innerHTML : '';
-      // The security assertions hold unconditionally: the payload must never
-      // appear as live markup, and must never execute.
-      assert(html.indexOf('onerror="window.__mktXss') === -1,
+      /* b230 — this guard was VACUOUS and is now real. It used to run through
+         market.js's showTab wrapper, which rendered on `setTimeout(…, 0)`; the
+         assertions below ran synchronously against an empty panel and passed
+         without ever seeing a listing. showTab() renders the Market
+         synchronously now, which exposed two things at once:
+           1. the row does render, so the guard finally executes; and
+           2. the old string check was a false positive. escapeAttr() turns the
+              payload into TEXT, and innerHTML re-serialisation escapes < > &
+              but NOT quotes — so `onerror="…"` reappears inside a perfectly
+              safe text node. Asserting on serialised source cannot tell live
+              markup from escaped text.
+         Ask the DOM instead. It cannot be fooled: if the payload were live
+         there would be an element carrying that attribute. */
+      assert(html.indexOf('mk-row') !== -1,
+        'the market rendered no listing — this guard must not pass vacuously');
+      assert(!panel.querySelector('[onerror], img[src="x"]'),
         'hostile seller name rendered as LIVE html — stored XSS in the market');
       assert(window.__mktXss === 0, 'injected script executed — stored XSS in the market');
-      // If the row did render this pass, the name must be escaped. (Render is
-      // debounced behind the tab hook, so absence of a row isn't a failure.)
-      if (html.indexOf('mk-row') !== -1) {
-        assert(html.indexOf('&lt;img') !== -1, 'seller name should render HTML-escaped');
-      }
+      assert(html.indexOf('&lt;img') !== -1, 'seller name should render HTML-escaped');
     } finally {
       if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
       try { window.showTab('profile'); } catch {}
@@ -2272,8 +2281,16 @@ const TESTS = [
       if (seen.has(t)) continue; // dedupe (sidebar has duplicate items)
       seen.add(t);
       try { el.click(); } catch (e) { throw new Error(`sidebar ${t} click threw: ${e.message}`); }
-      const panel = document.getElementById('panel-' + t);
-      assert(panel, `panel-${t} missing after sidebar click`);
+      /* b230: the invariant is "every entry in the rail leads somewhere live",
+         not "every entry owns a panel whose id matches its data-tab". Shops is
+         one destination over two hosts (#panel-shop / #panel-market) and
+         resolves through showTab's alias table, so an id-equality check would
+         have failed a route that works. Assert what actually matters: a panel
+         became active, and it is the one the entry claims to open. */
+      const active = document.querySelector('.panel.active');
+      assert(active, `sidebar ${t} activated no panel at all`);
+      const named = document.getElementById('panel-' + t);
+      if (named) assert(named === active, `sidebar ${t} did not open panel-${t}`);
     }
     window.showTab('profile');
   }),
@@ -5152,6 +5169,227 @@ const TESTS = [
     }
   }),
 
+  /* ── b230 regression suite (Tyler: "Market tabs need some organization.
+     Right now it's hard to find the in-game shop.") ────────────────────────
+     The in-game shop had NO visible door: theme-cozy.css set
+     `.nav-btn[data-tab="shop"]{display:none!important}` and the only commerce
+     entry a player could see was the Market button market.js injected at
+     runtime. Commerce is now one static `Shops` destination under Realm with
+     three toggles, Inventory moved to the character block, and the Economy
+     group is gone. Five guards: the shape, the routes, the toggle, the colour
+     role, and the self-deleting button that started this. */
+  () => tryRun('b230: the nav shape — Economy is gone, Inventory is a character entry, Shops is a Realm entry', () => {
+    const sidebar = document.getElementById('sidebar');
+    assert(sidebar, 'no sidebar');
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+    const labels = Array.from(sidebar.querySelectorAll('.nav-group-label')).map((l) => l.textContent.trim());
+    assert(!labels.some((t) => /economy/i.test(t)),
+      'the Economy group is back — Tyler asked for it removed');
+
+    // Which labelled group a nav entry sits in = its nearest PRECEDING label.
+    const groupOf = (el) => {
+      let n = el.previousElementSibling;
+      while (n) { if (n.classList.contains('nav-group-label')) return n.textContent.trim(); n = n.previousElementSibling; }
+      return null; // the unlabelled head block
+    };
+
+    // Inventory belongs to the character, and sits directly under Character.
+    const character = sidebar.querySelector('.nav-btn[data-tab="character"]');
+    const inv = sidebar.querySelector('.nav-btn[data-tab="inventory"]');
+    assert(character && inv, 'Character or Inventory is missing from the rail');
+    assert(character.nextElementSibling === inv,
+      'Inventory is not directly under Character (Tyler: "Inventory should be under Character")');
+    assert(groupOf(inv) === null, 'Inventory drifted into a labelled group');
+
+    // Shops is a real, visible, static Realm entry.
+    const shops = sidebar.querySelector('.nav-btn[data-tab="shops"]');
+    assert(shops, 'the top-level Shops nav entry is missing');
+    assert(groupOf(shops) === 'Realm',
+      'Shops is not under Realm (Tyler: "\'shops\' should be under Realm") — it is under ' + groupOf(shops));
+    assert(getComputedStyle(shops).display !== 'none',
+      'something is hiding the Shops entry — that is exactly how the in-game shop vanished');
+    assert(/shops/i.test(shops.textContent), 'the Shops nav entry lost its label');
+    assert(!EMOJI.test(shops.textContent), 'the Shops nav entry contains emoji');
+    assert(shops.querySelector('.ic .hr-glyph svg'), 'the Shops entry has no atlas glyph');
+
+    // The entries it replaced must NOT come back as hidden strays.
+    assert(!sidebar.querySelector('.nav-btn[data-tab="shop"]'),
+      'the old hidden Store entry is back in the rail');
+    assert(!sidebar.querySelector('.nav-btn[data-tab="market"]'),
+      'market.js is injecting a Market nav button again — commerce is one entry now');
+
+    // Mobile: the More sheet is the phone route (the 6-slot bottom nav is full).
+    const more = document.querySelector('#more-modal [data-tab="shops"]');
+    assert(more, 'mobile has no route to Shops');
+    assert(!EMOJI.test(more.textContent), 'the mobile Shops entry contains emoji');
+    assert(!document.querySelector('#more-modal [data-tab="shop"]'),
+      'the More sheet still points at the old Store-only destination');
+  }),
+
+  () => tryRun('b230: every old route into the three shops still resolves, with the right toggle', () => {
+    const prevTab = window.activeTab;
+    const prevPane = window._shopsPane;
+    try {
+      const shopPanel = document.getElementById('panel-shop');
+      const marketPanel = document.getElementById('panel-market');
+      assert(shopPanel && marketPanel, 'a Shops host is missing from the markup');
+      // `store` is in here on purpose: the item flyout's "Buy from Seed Shop"
+      // and "Buy from Equipment Shop" have always called showTab('store'),
+      // there has never been a #panel-store, and showTab bailed on the missing
+      // element — those two buttons did nothing at all until b230.
+      const ROUTES = {
+        shops: null, shop: 'local', store: 'local', stores: 'local',
+        localshop: 'local', 'local-shop': 'local', seedshop: 'local', shopfront: 'local',
+        market: 'market', exchange: 'market', marketplace: 'market',
+        premium: 'premium', premiumshop: 'premium', 'premium-shop': 'premium',
+        gems: 'premium', iap: 'premium',
+      };
+      Object.keys(ROUTES).forEach((route) => {
+        const want = ROUTES[route];
+        window.showTab('profile');
+        if (want) window._shopsPane = want === 'local' ? 'premium' : 'local'; // force a real switch
+        window.showTab(route);
+        const host = (want || window._shopsPane) === 'market' ? marketPanel : shopPanel;
+        assert(host.classList.contains('active'),
+          'showTab("' + route + '") did not open a Shops host');
+        if (want) {
+          assert(window._shopsPane === want,
+            'showTab("' + route + '") selected the ' + window._shopsPane + ' toggle, expected ' + want);
+        }
+        assert(document.querySelector('.nav-btn[data-tab="shops"]').classList.contains('active'),
+          'showTab("' + route + '") left the Shops rail entry unlit');
+      });
+      // Local Shop is the front door on a fresh session (Tyler: it is the thing
+      // that was hard to find). `shops` with nothing remembered must be local.
+      delete window._shopsPane;
+      assert(window.HearthShops.paneFor('shops') === 'local',
+        'a fresh session must open Shops on the Local Shop');
+      // The Market's own renderer still owns its container and nothing else.
+      window.showTab('market');
+      assert(document.getElementById('market-root'), 'the market lost its render container');
+      assert(document.querySelector('#panel-market .mk-block, #panel-market .mk-list-form'),
+        'the Market toggle opened an empty panel — showTab must render it');
+    } finally {
+      window._shopsPane = prevPane;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b230: three toggles, in both hosts, and the choice persists', () => {
+    const prevTab = window.activeTab;
+    const prevPane = window._shopsPane;
+    try {
+      ['panel-shop', 'panel-market'].forEach((id) => {
+        const strip = document.querySelector('#' + id + ' .shops-tabs');
+        assert(strip, id + ' has no Shops toggle strip');
+        const tabs = strip.querySelectorAll('.shops-tab');
+        assert(tabs.length === 3, id + ' shows ' + tabs.length + ' toggles, expected 3');
+        const labels = Array.from(tabs).map((t) => t.textContent.trim());
+        ['Local Shop', 'Market', 'Premium Shop'].forEach((want, i) => {
+          assert(labels[i] === want, id + ' toggle ' + i + ' reads "' + labels[i] + '", expected "' + want + '"');
+        });
+        tabs.forEach((t) => assert(t.querySelector('.ic .hr-glyph svg'), 'a Shops toggle has no atlas glyph'));
+      });
+      // Clicking a toggle is real navigation, from either host.
+      window.showTab('shop');
+      document.querySelector('#panel-shop .shops-tab[data-shops-pane="market"]').click();
+      assert(document.getElementById('panel-market').classList.contains('active'),
+        'the Market toggle did not navigate');
+      document.querySelector('#panel-market .shops-tab[data-shops-pane="premium"]').click();
+      const shopPanel = document.getElementById('panel-shop');
+      assert(shopPanel.classList.contains('active') && shopPanel.getAttribute('data-shops-pane') === 'premium',
+        'the Premium toggle did not switch the pane');
+      assert(getComputedStyle(document.getElementById('shops-pane-local')).display === 'none',
+        'the Local Shop pane is still showing under the Premium toggle');
+      assert(getComputedStyle(document.getElementById('shops-pane-premium')).display !== 'none',
+        'the Premium pane did not show');
+      // Persist across a re-render AND a trip away — the window._tdPane
+      // convention. A panel rebuilt by an idle tick must not snap the player
+      // back to a toggle they did not pick.
+      window.renderShop();
+      window.showTab('profile');
+      window.showTab('shops');
+      assert(shopPanel.getAttribute('data-shops-pane') === 'premium' && window._shopsPane === 'premium',
+        'the Shops toggle did not survive a re-render + a trip away');
+      assert(document.querySelector('#panel-shop .shops-tab[data-shops-pane="premium"]').classList.contains('active'),
+        'the strip did not restore its selected state');
+    } finally {
+      window._shopsPane = prevPane;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b230: the Premium toggle keeps the sapphire real-money role', () => {
+    const prevTab = window.activeTab;
+    const prevPane = window._shopsPane;
+    try {
+      window.showTab('shop');
+      const strip = document.querySelector('#panel-shop .shops-tabs');
+      const local = strip.querySelector('.shops-tab[data-shops-pane="local"]');
+      const market = strip.querySelector('.shops-tab[data-shops-pane="market"]');
+      const prem = strip.querySelector('.shops-tab[data-shops-pane="premium"]');
+      assert(prem.classList.contains('is-premium'), 'the Premium toggle lost its role class');
+      const rgb = (el) => (getComputedStyle(el).color.match(/\d+/g) || []).map(Number);
+      // The glyph inherits the segment's colour, so it must be sapphire too —
+      // a gold coin icon over a sapphire label is a control disagreeing with
+      // itself about which currency it wants.
+      const gly = prem.querySelector('.ic .hr-glyph');
+      assert(gly, 'the Premium toggle has no glyph');
+      const gc = rgb(gly);
+      assert(gc[2] > gc[0], 'the Premium toggle glyph is not sapphire (it reads ' + getComputedStyle(gly).color + ')');
+      const localGly = rgb(local.querySelector('.ic .hr-glyph'));
+      assert(localGly[0] >= localGly[2], 'the Local Shop glyph stopped being gilt');
+      const p = rgb(prem), l = rgb(local), m = rgb(market);
+      assert(p.join() !== l.join() && p.join() !== m.join(),
+        'the Premium toggle reads the same colour as the gold ones — a player cannot see which one charges a card');
+      assert(p[2] > p[0], 'the Premium toggle is not blue-dominant (sapphire is the real-money role)');
+      // …in both selected states, and it must not have been flattened by the
+      // theme readability blankets (they are carved out in theme-cozy.css).
+      prem.click();
+      const pOn = rgb(prem);
+      assert(pOn[2] > pOn[0], 'the SELECTED Premium toggle lost sapphire');
+      const ink = (getComputedStyle(document.body).getPropertyValue('--ink') || '').trim();
+      assert(getComputedStyle(prem).color !== ink,
+        'a readability blanket flattened the Premium toggle to --ink');
+    } finally {
+      window._shopsPane = prevPane;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b230: the market renderer owns a container, not the panel (the self-deleting button)', () => {
+    const prevTab = window.activeTab;
+    const prevPane = window._shopsPane;
+    try {
+      window.showTab('market');
+      const panel = document.getElementById('panel-market');
+      const root = document.getElementById('market-root');
+      assert(root && root.parentElement === panel, '#market-root is not the market renderer\'s host');
+      // The bug: nav-consolidation.js appended a "Premium Store" button to
+      // #panel-market and market.js then assigned panel.innerHTML on EVERY
+      // re-render — search keystroke, sort change, listing, cancellation — so
+      // the only route to the premium store deleted itself and came back only
+      // because a 500ms interval kept re-adding it. Re-render hard and prove
+      // the navigation survives.
+      for (let i = 0; i < 4; i++) window.renderMarket();
+      assert(panel.querySelector('.shops-tabs'),
+        'a market re-render destroyed the Shops toggle — the b230 bug is back');
+      assert(panel.querySelectorAll('.shops-tab').length === 3,
+        'a market re-render ate part of the toggle strip');
+      assert(document.getElementById('market-root'),
+        'a market re-render replaced its own host');
+      assert(!panel.querySelector('#hr-store-link, #hr-shop-back'),
+        'an injected corner shortcut is back — the toggle strip replaced both');
+      // And the strip still works after all that.
+      panel.querySelector('.shops-tab[data-shops-pane="local"]').click();
+      assert(document.getElementById('panel-shop').classList.contains('active'),
+        'the toggle stopped navigating after a re-render');
+    } finally {
+      window._shopsPane = prevPane;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   // ── b221 regression suite (backlog #9 — unique names + player portraits) ──
 
   // #9a: the rules are the contract. They are enforced in TWO places — here
@@ -5609,6 +5847,17 @@ const TESTS = [
   // reaches it, and every Buy control is on screen and hit-testable.
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
     const prevTab = window.activeTab;
+    /* b230: this check is about the SHOP covering its own controls, not about
+       a deliberate overlay covering the screen. The FTUE tour card is centred
+       and the Local Shop moved to the top of its panel when Shops became one
+       destination — so from b230 the tour card lands squarely on the first row
+       of wares and elementFromPoint reports the tour, which is correct and not
+       a defect. Hide the transient overlays for the measurement, restore them
+       after. (The b224 audit log: clear overlays BEFORE each measurement.) */
+    const veiled = Array.from(document.querySelectorAll(
+      '.ftue-root, .modal.show, .hr-id-scrim, .hr-dl-scrim, #chat-dock, #hr-bug-btn, #notifs'
+    )).map((el) => ({ el, prev: el.style.display }));
+    veiled.forEach(({ el }) => { el.style.display = 'none'; });
     try {
       window.showTab('shop');
       ['seeds', 'equip', 'cosmetics'].forEach((tab) => {
@@ -5636,6 +5885,7 @@ const TESTS = [
       });
       window.setShopTab('seeds');
     } finally {
+      veiled.forEach(({ el, prev }) => { el.style.display = prev; });
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),

@@ -10,6 +10,50 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Bug flow: reproduce → minimize → severity → root cause → fix/route → reproduce → regression test → verify surroundings.
 
 ## Log
+### 2026-08-08 · systematic click-through, b224+wall (port 8159) → `docs/reports/AUDIT-2026-08-08-clickthrough.md`
+Breadth pass, read-only. **418 controls clicked (177 distinct), 0 console errors, 0 page errors.**
+7 genuinely dead controls · 2 shipped placeholders · 3 mislabeled · 3 stale-screen · 1 validation bypass ·
+Escape closes only 2 of 8 modals · **0 player traps** (every modal has a visible close).
+
+**Method that worked:** two automated sweeps (per-tab multi-pass, then modal-aware with recursive descent
+into whatever a control opens), each click bracketed by an idle baseline so the idle game's own ticking is
+subtracted — then EVERY flagged candidate re-tested by hand. Full findings in the report; here is what to
+carry forward.
+
+**Two harness traps I fell into — do not repeat.** Both manufacture false "dead control" readings and
+between them accounted for all 33 initial candidates (0 were real):
+1. **Toasts render with class `.notif`, NOT `.toast`.** Any control whose only feedback is a toast reads as
+   dead. Hook `window.notify` instead of diffing the DOM. Also hook `prompt`/`confirm`/`alert` — native
+   dialogs are invisible to a DOM diff (this is what hid the Home rename bug for a whole pass).
+2. **Element index paths go stale** — panels re-render on a timer, so a path captured at enumeration can
+   point at a different element, or at an already-active tab, by the time you click it. Re-find fresh by
+   (tag, class, text) immediately before each click.
+Corollary: a DOM diff can only ever say "something happened". Dead controls are found by asking what
+*consumes* the value — that is how the whole Audio section and UI scale fell out.
+
+**Third trap: the scratchpad is shared.** Other agents were live in the same session dir and overwrote two
+of my scripts mid-run. Work in a private subdir (`scratchpad/qa-ct/`).
+
+**Worst five (all routed in the report):** Settings › Audio is 4 controls with no audio subsystem in the
+build at all (and it is the section that opens by default) · UI scale scales nothing, which matters because
+it is what a player reaches for before filing backlog #1/#19 · the topbar Notifications bell has no handler
+anywhere in `src/` · Bounty Accept/Abandon mutate state but repaint `#combat-area` instead of the Bounty tab,
+so the board lies · Home's rename pencil is a third display-name writer that bypasses `validateName`
+entirely, three months after b221 wrote "One writer, one rule set" into `settings-page.js`.
+
+**Cleared with evidence — do not re-flag:** every inventory category chip, market picker/sort/search
+(sort+search ARE wired, they filter the *browse* list which is empty offline), farm plot tiles and Plant/Water
+All, skills activity tiles, all 49 gated controls (honestly disabled WITH the reason in the label), market
+list→cancel round-trip, bounty double-accept guard, the muster "Join" two-step confirm (looks like a stuck
+button in a diff; it is a confirmation step), the 8 extra `.farm-tile` nodes (0×0, hidden), collection-log
+cells (non-clickable by design until discovered), Reset-character with confirm=No.
+
+**Not covered (needs a live session or progression a fresh account cannot have):** all clan/castle controls
+incl. feast call + hunt declare + RoomModal actions, market Buy/buy-offer (no other sellers offline),
+identity Claim, server muster claim, leaderboard writes, dungeon/raid content behind combat 25-95,
+collection-log drill-in/claim (0/31 discovered), most House rooms, the file-chooser leg of avatar upload and
+import save, real pointer-drag of the chat pill, mobile/landscape.
+
 ### 2026-08-08 · exploratory attack on b219→b223 (branch `agent-qa-pass`, worktree `manual-qa`, port 8152)
 First solo dispatch. Attacked cross-feature seams, abuse, state corruption and the fresh-account
 front door. **Fixed 1 · routed 5 · cleared 12.** Smoke 262/262 (mine included, verified red without

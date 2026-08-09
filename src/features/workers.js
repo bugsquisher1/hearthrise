@@ -170,10 +170,10 @@
           ? '<svg viewBox="0 0 512 512" style="width:18px;height:18px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + window.HearthriseIconSet.path('navProfile') + '"/></svg>'
           : '<span style="font-size:18px">🧑‍🌾</span>') +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:12px"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
+          '<div style="font-size:13.5px"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
           '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + '</div>' +
         '</div>' +
-        '<select style="max-width:150px;font-size:11px;background:rgba(0,0,0,.25);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 6px" ' +
+        '<select style="max-width:150px;font-size:13.5px;background:rgba(0,0,0,.25);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 6px" ' +
           'onchange="window.HearthriseWorkers._onAssign(\'' + w.uid + '\', this.value)">' + taskOptions(w) + '</select>' +
         '</div>';
     }).join('');

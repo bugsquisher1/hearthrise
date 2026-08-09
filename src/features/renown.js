@@ -259,12 +259,12 @@
       '.hr-rn-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
       '.hr-rn-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:460px;max-height:88vh;overflow:auto;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
       '.hr-rn-top{padding:18px 18px 14px;background:radial-gradient(120% 90% at 50% 0,color-mix(in srgb,var(--gold,#e0a64a) 22%,transparent),transparent);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2));text-align:center;position:sticky;top:0;backdrop-filter:blur(6px)}',
-      '.hr-rn-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
+      '.hr-rn-eyebrow{font-size:13.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
       '.hr-rn-cur{font-family:var(--f-display,serif);font-size:26px;font-weight:800;color:var(--gold,#e0a64a);line-height:1.1;margin:3px 0 2px}',
-      '.hr-rn-sub{font-size:12px;color:var(--ink-2,#cbb890)}',
+      '.hr-rn-sub{font-size:13.5px;color:var(--ink-2,#cbb890)}',
       '.hr-rn-bar{height:9px;border-radius:99px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));overflow:hidden;margin:12px 0 5px}',
       '.hr-rn-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2,#c8862a),var(--gold,#e0a64a))}',
-      '.hr-rn-next{font-size:11px;color:var(--ink-3,#a5896a)}',
+      '.hr-rn-next{font-size:13.5px;color:var(--ink-3,#a5896a)}',
       '.hr-rn-list{padding:8px}',
       '.hr-rn-rank{display:flex;gap:11px;align-items:center;padding:10px 11px;border-radius:10px;border:1px solid transparent;margin:3px 0}',
       '.hr-rn-rank.is-cur{background:color-mix(in srgb,var(--gold,#e0a64a) 12%,transparent);border-color:var(--gold,#e0a64a)}',
@@ -273,10 +273,10 @@
       '.hr-rn-medal{width:38px;height:38px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:800;background:radial-gradient(circle at 38% 30%,var(--bg-2,#2c2216),var(--bg-0,#1a130c));border:2px solid var(--line,#cda24a);color:var(--gold,#e0a64a)}',
       '.hr-rn-rank.is-cur .hr-rn-medal{border-color:var(--gold,#e0a64a);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold,#e0a64a) 22%,transparent)}',
       '.hr-rn-info{flex:1;min-width:0}',
-      '.hr-rn-nm{font-weight:700;font-size:14px;color:var(--ink,#e9e2cf)}',
-      '.hr-rn-unlock{font-size:11px;color:var(--ink-3,#a5896a);margin-top:1px}',
-      '.hr-rn-req{font-size:10px;color:var(--ink-3,#a5896a);white-space:nowrap}',
-      '.hr-rn-claim{border:none;border-radius:8px;padding:7px 12px;font-weight:800;font-size:12px;cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a);white-space:nowrap;flex:0 0 auto}',
+      '.hr-rn-nm{font-weight:700;font-size:15px;color:var(--ink,#e9e2cf)}',
+      '.hr-rn-unlock{font-size:13.5px;color:var(--ink-3,#a5896a);margin-top:1px}',
+      '.hr-rn-req{font-size:13.5px;color:var(--ink-3,#a5896a);white-space:nowrap}',
+      '.hr-rn-claim{border:none;border-radius:8px;padding:7px 12px;font-weight:800;font-size:13.5px;cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a);white-space:nowrap;flex:0 0 auto}',
       '.hr-rn-claim:active{transform:translateY(1px)}',
       '.hr-rn-done{font-size:16px;color:var(--green,#5fbf6a);flex:0 0 auto}',
       '.hr-rn-x{position:absolute;top:12px;right:14px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));color:var(--ink-2,#cbb890);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1}',
@@ -380,10 +380,10 @@
         '</svg>' +
         '<div class="big">' + rank.name + '</div>' +
         '<div class="hr-rn-sub" style="margin-bottom:4px">You are now <b>' + rank.title + '</b></div>' +
-        '<div class="hr-rn-unlock" style="font-size:12px;margin-bottom:16px">' + rank.unlock + '</div>' +
+        '<div class="hr-rn-unlock" style="font-size:13.5px;margin-bottom:16px">' + rank.unlock + '</div>' +
         (claimable
-          ? '<button class="hr-rn-claim" data-cele-claim="' + rank.id + '" style="padding:10px 20px;font-size:14px">Claim ' + rewardText(rank.reward) + '</button>'
-          : '<button class="hr-rn-claim" data-cele-close="1" style="padding:10px 20px;font-size:14px">Onward →</button>') +
+          ? '<button class="hr-rn-claim" data-cele-claim="' + rank.id + '" style="padding:10px 20px;font-size:15px">Claim ' + rewardText(rank.reward) + '</button>'
+          : '<button class="hr-rn-claim" data-cele-close="1" style="padding:10px 20px;font-size:15px">Onward →</button>') +
       '</div>';
     scrim.addEventListener('click', function (e) {
       var id = e.target.getAttribute('data-cele-claim');

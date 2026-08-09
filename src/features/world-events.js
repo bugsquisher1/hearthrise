@@ -100,9 +100,9 @@
     var onEvents = !!document.getElementById('hr-ev-blessing');
     return '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
       (onEvents ? '' : '<span class="tiny" style="text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--gold-2)">World events</span>') +
-      '<span style="font-size:12px;background:rgba(201,162,74,.10);border:1px solid var(--line);border-radius:99px;padding:3px 10px">' +
+      '<span style="font-size:13.5px;background:rgba(201,162,74,.10);border:1px solid var(--line);border-radius:99px;padding:3px 10px">' +
         gly(d.id, d.glyph) + ' <b>' + d.name + '</b> <span class="muted">— ' + d.desc + '</span></span>' +
-      '<span style="font-size:12px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:99px;padding:3px 10px">' +
+      '<span style="font-size:13.5px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:99px;padding:3px 10px">' +
         gly(w.id, w.glyph) + ' <b>' + w.name + '</b> <span class="muted">— ' + w.desc + '</span></span>' +
       '</div>';
   }

@@ -320,7 +320,7 @@ function renderButton() {
   btn.title = 'Report a bug';
   // Position above the chat dock so they don't overlap.
   // Chat lives at right:12px;bottom:12px, so we sit on top of it.
-  btn.style.cssText = 'position:fixed;right:12px;bottom:62px;z-index:9998;padding:6px 9px;background:rgba(26,21,15,.9);color:#c4b79e;border:1px solid rgba(201,162,74,.28);border-radius:3px;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);line-height:1';
+  btn.style.cssText = 'position:fixed;right:12px;bottom:62px;z-index:9998;padding:6px 9px;background:rgba(26,21,15,.9);color:#c4b79e;border:1px solid rgba(201,162,74,.28);border-radius:3px;font-size:13.5px;cursor:pointer;backdrop-filter:blur(4px);line-height:1';
   btn.addEventListener('click', openModal);
   document.body.appendChild(btn);
 }
@@ -333,15 +333,15 @@ function openModal() {
   overlay.innerHTML = `
     <form style="background:linear-gradient(180deg,#262019,#16120d);border:1px solid rgba(201,162,74,.55);border-radius:5px;padding:18px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px;color:#ece1cc;font-family:var(--f-ui,system-ui),sans-serif">
       <h3 style="margin:0;color:#f3d181">Report a bug</h3>
-      <p style="margin:0;font-size:12px;color:#9aa3b0">Thanks for testing! We'll auto-attach your build version, current tab, and recent errors. Don't include passwords or anything private.</p>
-      <input name="summary" placeholder="One-line summary (e.g. 'inventory empty after combat')" required maxlength="120" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:13px" />
-      <textarea name="description" placeholder="What happened? What did you expect? Steps to reproduce?" rows="5" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
+      <p style="margin:0;font-size:13.5px;color:#9aa3b0">Thanks for testing! We'll auto-attach your build version, current tab, and recent errors. Don't include passwords or anything private.</p>
+      <input name="summary" placeholder="One-line summary (e.g. 'inventory empty after combat')" required maxlength="120" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:13.5px" />
+      <textarea name="description" placeholder="What happened? What did you expect? Steps to reproduce?" rows="5" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:13.5px;resize:vertical;font-family:inherit"></textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="submit" style="flex:1;min-width:120px;padding:8px;background:linear-gradient(180deg,#d9b361,#a67c28);color:#221803;border:1px solid #e6cd93;border-radius:3px;font-weight:700;cursor:pointer">Send report</button>
         <button type="button" data-act="copy" title="Copy report to clipboard so you can paste into Discord/email/etc" style="padding:8px 12px;background:rgba(255,236,200,.06);color:#c4b79e;border:1px solid rgba(236,225,204,.12);border-radius:3px;cursor:pointer;font-weight:600">Copy</button>
         <button type="button" data-act="cancel" style="padding:8px 14px;background:transparent;color:#8f7d63;border:1px solid rgba(236,225,204,.1);border-radius:3px;cursor:pointer">Cancel</button>
       </div>
-      <div data-status style="font-size:11px;color:#9aa3b0;min-height:14px;text-align:center"></div>
+      <div data-status style="font-size:13.5px;color:#9aa3b0;min-height:14px;text-align:center"></div>
     </form>
   `;
   const form = overlay.querySelector('form');

@@ -25,7 +25,7 @@
     if (banner) return banner;
     banner = document.createElement('div');
     banner.id = 'hr-net-banner';
-    banner.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:99997;padding:6px 14px;background:rgba(232,138,138,.95);color:#0f1320;border-radius:20px;font:600 12px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:opacity .3s, transform .3s;opacity:0;pointer-events:none';
+    banner.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:99997;padding:6px 14px;background:rgba(232,138,138,.95);color:#0f1320;border-radius:20px;font:600 13.5px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:opacity .3s, transform .3s;opacity:0;pointer-events:none';
     document.body.appendChild(banner);
     return banner;
   }

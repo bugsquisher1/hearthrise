@@ -220,7 +220,7 @@
       '  -webkit-text-fill-color:transparent}',
       '.hr-gate-rule{width:112px;height:1px;margin:15px 0 11px;',
       '  background:linear-gradient(90deg,rgba(201,162,74,0),rgba(201,162,74,.62),rgba(201,162,74,0))}',
-      '.hr-gate-tag{font-family:var(--f-label,inherit);font-size:11.5px;letter-spacing:.2em;',
+      '.hr-gate-tag{font-family:var(--f-label,inherit);font-size:13.5px;letter-spacing:.2em;',
       '  text-transform:uppercase;color:var(--ink-3,#9d8b70)}',
 
       /* ── the one contained object on the screen ── */
@@ -235,7 +235,7 @@
       '.hr-gate-modes{display:flex;gap:24px;border-bottom:1px solid var(--line-soft,rgba(236,225,204,.055));',
       '  margin:-2px 0 18px}',
       '.hr-gate-mode{appearance:none;background:none;border:0;padding:0 0 11px;cursor:pointer;',
-      '  font-family:var(--f-label,inherit);font-size:13px;letter-spacing:.15em;text-transform:uppercase;',
+      '  font-family:var(--f-label,inherit);font-size:13.5px;letter-spacing:.15em;text-transform:uppercase;',
       '  color:var(--ink-3,#9d8b70);border-bottom:2px solid transparent;margin-bottom:-1px;',
       '  transition:color 120ms ease,border-color 120ms ease}',
       '.hr-gate-mode:hover{color:var(--ink-2,#c4b79e)}',
@@ -244,7 +244,7 @@
       '.hr-gate-lead{font-size:13.5px;line-height:1.55;color:var(--ink-2,#c4b79e);margin:0 0 16px}',
 
       '.hr-gate-field{display:block;margin-bottom:12px}',
-      '.hr-gate-field span{display:block;font-family:var(--f-label,inherit);font-size:11px;',
+      '.hr-gate-field span{display:block;font-family:var(--f-label,inherit);font-size:13.5px;',
       '  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#9d8b70);margin-bottom:5px}',
       '.hr-gate-field input{width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:15px;',
       '  color:var(--ink,#ece1cc);background:rgba(0,0,0,.30);border-radius:var(--r,3px);',
@@ -254,7 +254,7 @@
       '  -webkit-box-shadow:0 0 0 1000px #241e17 inset}',
 
       '.hr-gate-go{width:100%;margin-top:6px;min-height:42px;padding:0 18px;cursor:pointer;',
-      '  font:700 13px/1 var(--f-ui,inherit);letter-spacing:.06em;',
+      '  font:700 13.5px/1 var(--f-ui,inherit);letter-spacing:.06em;',
       '  border:1px solid #e6cd93;border-radius:var(--r,3px);color:#221803;',
       '  background:linear-gradient(180deg,#d9b361 0%,#c09539 52%,#a67c28 100%);',
       '  box-shadow:inset 0 1px 0 rgba(255,246,220,.55),inset 0 -2px 3px rgba(90,60,8,.4),0 2px 5px -2px rgba(0,0,0,.7);',
@@ -263,15 +263,15 @@
       '.hr-gate-go:active:not(:disabled){transform:translateY(1px)}',
       '.hr-gate-go:disabled{opacity:.6;cursor:progress}',
 
-      '.hr-gate-note{min-height:18px;margin:11px 2px 0;font-size:12.5px;line-height:1.45;text-align:center}',
+      '.hr-gate-note{min-height:18px;margin:11px 2px 0;font-size:13.5px;line-height:1.45;text-align:center}',
       '.hr-gate-note[data-tone="bad"]{color:#d98b7a}',
       '.hr-gate-note[data-tone="ok"]{color:var(--gold-2,#e3c77e)}',
       '.hr-gate-note[data-tone="muted"]{color:var(--ink-3,#9d8b70)}',
 
-      '.hr-gate-foot{margin-top:20px;font-size:12.5px;line-height:1.6;text-align:center;',
+      '.hr-gate-foot{margin-top:20px;font-size:13.5px;line-height:1.6;text-align:center;',
       '  color:var(--ink-3,#9d8b70);max-width:330px;text-wrap:balance}',
       '.hr-gate-foot b{color:var(--ink-2,#c4b79e);font-weight:700}',
-      '.hr-gate-help{margin-top:10px;font-size:12.5px;text-align:center;color:var(--ink-3,#8f8676)}',
+      '.hr-gate-help{margin-top:10px;font-size:13.5px;text-align:center;color:var(--ink-3,#8f8676)}',
       '.hr-gate-help a{color:var(--gold,#e8c476);text-decoration:underline;text-underline-offset:2px}',
 
       /* the lapsed-session re-prompt: same form, but a sheet beside a running
@@ -282,7 +282,7 @@
       '.hr-gate.reauth .hr-gate-col{max-width:392px}',
       '.hr-gate.reauth .hr-gate-panel{margin-top:0;background:var(--bg-3,#2a241c)}',
       '.hr-gate-later{display:block;margin:14px auto 0;background:none;border:0;padding:4px;',
-      '  font:inherit;font-size:12px;color:var(--ink-3,#9d8b70);text-decoration:underline;cursor:pointer}',
+      '  font:inherit;font-size:13.5px;color:var(--ink-3,#9d8b70);text-decoration:underline;cursor:pointer}',
       '.hr-gate-later:hover{color:var(--gold-2,#e3c77e)}',
 
       '@media (max-height:620px){.hr-gate{align-items:flex-start}.hr-gate-word{font-size:31px}',

@@ -9,6 +9,51 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · Backlog #19 — the type FLOOR (b225, branch `agent-type-floor`)
+
+**Why b218 didn't fix it, stated plainly.** b218 multiplied every size by ~1.13 (body 14→16). A proportional scale keeps the ratio between the top and the bottom of a ramp — so a tier that started at 11px landed at 12.5px, which is still unreadable at a monitor's viewing distance. Tyler's second complaint was correct and specific: *"in a lot of places"*, not *"everywhere"*. **Never answer "too small" with a multiplier. Answer it with a floor.**
+
+**Measure first — the numbers that made this a decision instead of a taste argument.** I rebuilt the b222-style harness: harness-authed past the account wall (`__HR_TEST_HARNESS__`, the same seam `run-smoke.mjs` declares), walk 28 surfaces (13 nav destinations, 5 sub-views, 9 modals, plus the wall in its own un-harnessed context), and dump the **computed** font-size of every element that owns visible text, plus an overflow/clipping detector on the same walk.
+
+| | <13.5px | total | |
+|---|---|---|---|
+| before, 1440×900 | **1870** | 3665 | **51 %** |
+| after, 1440×900 | **0** | 3690 | |
+| after, cozy-light | 0 | 3820 | |
+| after, 900×760 | 0 | 3195 | |
+| after, 880×420 landscape | 0 | 3065 | |
+
+The before-histogram is the whole story: 861 elements at 12.5px (`--t-micro`), 298 at 10px, 286 at 11.5px, 186 at 8px. Nearly a *thousand* elements sat on or below the ramp's bottom step.
+
+**What moved.**
+- **Token tier (4 values).** `--t-micro` 12.5 → **13.5 (the floor)**, `--t-small` 14 → 15, `--t-h3` 14.5 → **15.5**, `--t-lead`/`--t-body`/`--t-h2`/`--t-h1`/`--t-num` untouched. `--t-body` staying at 16 is deliberate: the ramp compresses at the bottom, where the problem was. **`--t-h3` gets +1px over its tier** because it is set in Alegreya Sans SC — genuine small caps have no ascenders and a cap-height near the regular face's x-height, so 14.5px SC reads like ~12.5px regular. A floor pass that ignores the SC face under-raises every section label in the game.
+- **409 hardcoded declarations in 5 sheets** and **143 in 25 JS style strings**, by monotone map: `<13.5 → 13.5`, `14 & 14.5 → 15`, everything else untouched.
+- **7 `font:` shorthands** — a second regex, and the reason the first sweep left 12 stragglers (`.td-tab`, `.hd-cta`, the FTUE and gate buttons, `network-status`). **`font-size:` alone does not find all of it.**
+- One `calc(var(--t-micro) - 1px)` — the only rule in the codebase that deliberately undercut the ramp's bottom step, which is now the floor.
+
+**The JS half is the half b218 missed, and it is 25 files.** Almost all of it is injected `<style>` strings (home-dashboard 19, account-gate 7, renown 10, identity 6, muster 6, collection-log 9, leaderboards 5…) plus inline `style="font-size:11px"` in template literals. That is CSS living in a `.js` file — the **wall itself** carried 11px field labels. Verified with `git diff -U0 | grep -v font-size` returning **empty**: not one line of logic changed. Any future type work must sweep JS too or it will ship half a pass.
+
+**Layout fallout, all found by measurement, all fixed (4).**
+1. **The sidebar overflowed by 4px on every screen.** `height:100vh;overflow:hidden`, and the three group labels went 10 → 13.5px — the "Offline" foot fell off the bottom. The type stayed; the spacing paid (3 labels × 3px + 2px off the brand).
+2. **`.td-tab` clipped "COMPANION" mid-word.** At 13.5px the uppercase + `.08em` treatment needed ~136px in a 102px tab. **Uppercase and tracking were the luxury the width could not afford, not the size** — sentence case measures ~65px and matches the sidebar nav.
+3. **`.td-slot.empty` also matches the generic `.empty` rule and inherited `padding:30px 20px`** — a 72px slot with a 32px content box, so every doll label overflowed its own padding box. Invisible (centred, unclipped) and therefore live for months; the floor made the number big enough to notice.
+4. **Stable cards: `.sc-lvl` is absolutely positioned top-right and the name row never reserved its gutter.** "Rock Golem", "Phoenix Chick", "Dragonling" ran under the chip. First fix used `overflow-wrap:break-word` and produced "HONEYBE / E" — worse. Correct answer: reserve the gutter, wrap at spaces only, let a long word lean into slack the chip isn't using.
+
+**Guards (294 → 297), each proved to fail by re-introducing its bug at runtime.**
+1. tokens hold the floor *and their ordering* — and `--t-body` rising is explicitly not a way to pass it;
+2. no stylesheet rule declares a sub-floor font-size;
+3. **nothing in the rendered document draws text below the floor** — the guard that would have caught b218, because inline `style=` and `font:` shorthand never touch a token.
+**Guard 2 was vacuous on its first draft.** `if (rule.cssRules) { recurse; continue; }` — Chromium's nested-CSS support gives every `CSSStyleRule` a `cssRules` list, and an **empty `CSSRuleList` is truthy**, so the first branch swallowed every style rule and the test passed on a tree I had just poisoned. Check `rule.style` *before* recursing. (Same failure mode as the b222 empty-catalogue guard. Always poison the tree and watch the test go red.)
+**Documented exception:** `font-size:0` is exempt in guard 2 — it is the glyph-suppression idiom (7 rules: skill icons, monster/fighter portraits, activity-bar icon), not small type.
+
+**Verified.** Full harness sweep at 1440×900 both themes, 900×760, 880×420 landscape, 420×820 portrait; screenshots of all 13 destinations + doll + sidebar + topbar + the wall. Every post-pass overflow is byte-identical to the pre-pass baseline (`bb-cut y+7`, `combat-arena x+15`, `cr-name y+3`) — **zero new fallout in any supported configuration.** Smoke **297/297, 0 runtime errors**; `bump-version.sh --check` OK, no bump.
+
+**Known limitations / handoffs.**
+- **Portrait (420×820) is the one place the floor costs width.** The topbar already overflowed by 68px before this pass; it is now ~101px. Portrait is an explicitly abandoned form factor (landscape-only), and the pills' padding is set by a cascade of five competing rules — I wrote a `@media (max-width:540px)` compensation, measured it as **inert**, and deleted it rather than ship dead CSS. Fixing it properly means restructuring the topbar for portrait, which is a layout decision, not a type pass.
+- **`#panel-combat` clips ~290px of content on a 420px-tall landscape phone** (was ~235). It computes `display:grid;overflow:hidden` there — something outranks the mobile `display:block;overflow-y:auto`. **Pre-existing and unreachable content, not cosmetic.** Systems/mobile.
+- **The Stable renders ~22 literal emoji as companion art** (🦊🐺🐦🐰🐝…) — a live 0-emoji-rule violation on a whole screen, in `.sc-icon`. Out of a type pass's region; needs atlas glyphs or painted portraits. **Asset Director + Systems.**
+- The Cozy Day topbar draws the player name near-black on near-black. Pre-existing, that theme only.
+
 ### 2026-08-08 · Screen-by-screen UI/UX audit (read-only) — `docs/reports/AUDIT-2026-08-08-ui-review.md`
 
 **Scope.** b224 + account wall (`4bda860`). 40+ screen states — wall, every panel, every sub-tab, the castle + all six rooms, the modal fleet — at 1440×900 and 900×820, hearthlight and cozy-light. ~90 captures. **34 findings: 0 P0 · 9 P1 · 15 P2 · 8 P3 · 2 P4.**
@@ -67,7 +112,6 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - The Clan Activity feed is still a stub empty state (it was in Social; it is now in the right place). Real events need a server feed — Systems.
 - The mobile More sheet's older labels still carry emoji (Items/House/Social/Store/Chat/Save/Settings). `icon-set.js` strips them at runtime so nothing renders, but the markup should be cleaned and given atlas glyphs. Not mine this wave.
 - FTUE never referenced Social or clans, so no tour step needed changing. If a clan step is ever added it should target `button[data-tab="clan"]`.
-
 ### 2026-08-08 · Standing brief — castle beauty pass (from Tyler)
 Castle blocks (stone/masonry) as the page's material language; every building clickable → a modal that feels like the INSIDE of that room (tavern warmth, vault iron, forge heat...), each carrying its upgrade ladder. Quality over speed — Tyler explicitly budgeted time for refinement. Build on the validated scene-composition craft.
 

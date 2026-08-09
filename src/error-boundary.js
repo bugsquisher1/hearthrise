@@ -33,9 +33,9 @@
       + '<div style="padding:24px;text-align:center;color:#9aa3b0;font-family:system-ui,sans-serif">'
       +   '<div style="font-size:32px;margin-bottom:8px">⚠️</div>'
       +   '<div style="color:#dfe9ee;font-weight:600;margin-bottom:4px">Something broke here</div>'
-      +   '<div style="font-size:12px;margin-bottom:12px">The rest of the game still works. We\'ve logged the error.</div>'
+      +   '<div style="font-size:13.5px;margin-bottom:12px">The rest of the game still works. We\'ve logged the error.</div>'
       +   '<button onclick="location.reload()" style="padding:6px 14px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:600;cursor:pointer">Reload</button>'
-      +   '<div style="font-size:10px;color:#5a6470;margin-top:12px;font-family:monospace">' + escapeHtml(name + ': ' + (err?.message || 'unknown')) + '</div>'
+      +   '<div style="font-size:13.5px;color:#5a6470;margin-top:12px;font-family:monospace">' + escapeHtml(name + ': ' + (err?.message || 'unknown')) + '</div>'
       + '</div>';
   }
   function escapeHtml(s){

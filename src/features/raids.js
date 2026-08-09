@@ -1067,7 +1067,7 @@
       '  overflow:hidden;border:1px solid var(--line-soft)}',
       '#hr-raid-card .hunt-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#d4633f)}',
       '#hr-raid-card .hunt-bar.is-faltering i{background:linear-gradient(90deg,var(--gold-2),#e3c77e)}',
-      '#hr-raid-card .hunt-tier{display:inline-block;font-family:var(--f-display,inherit);font-size:11px;',
+      '#hr-raid-card .hunt-tier{display:inline-block;font-family:var(--f-display,inherit);font-size:13.5px;',
       '  font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-2);',
       '  border:1px solid rgba(201,162,74,.45);border-radius:99px;padding:2px 8px;margin-right:8px}',
       '#hr-raid-card .hunt-declare{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}',

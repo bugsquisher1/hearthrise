@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=251' directly.
+// modularised, will import { G } from '../state/game.js?v=252' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=251';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=251';
+import { on, snapshot } from '../net/events.js?v=252';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=252';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=251';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=252';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11329,6 +11329,24 @@ const TESTS = [
     }
     assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
+  () => tryRun('b252: topbar activity bar routes to the CURRENT activity when busy (Tyler)', () => {
+    assert(typeof window.__activityBarTarget === 'function', 'the activity-bar target resolver must exist');
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      const clear = () => { G.activeMonster=null; G.activeSkill=null; G.activeArtisanRecipe=null; G.activeArtisanSkill=null; G.activeAction=null; };
+      clear(); assert(window.__activityBarTarget() === null, 'idle → no target');
+      clear(); G.activeMonster = Object.keys(window.MONSTERS)[0];
+      assert(window.__activityBarTarget().tab === 'combat', 'fighting → combat tab');
+      clear(); G.activeSkill = 'woodcutting';
+      assert(window.__activityBarTarget().id === 'woodcutting', 'gathering → that skill');
+      clear(); G.activeArtisanRecipe = 'forge_iron_sword'; G.activeArtisanSkill = 'smithing';
+      assert(window.__activityBarTarget().id === 'smithing', 'artisan → that artisan skill');
+      clear(); G.activeAction = { kind:'cook', targetId:'shrimp' };
+      assert(window.__activityBarTarget().id === 'cooking', 'action-loop cook → cooking');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b251: proof bounty does not auto-complete from a pre-existing stack (paione: marks with no kills)', () => {

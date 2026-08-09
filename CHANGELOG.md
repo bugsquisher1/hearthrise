@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 252 — 2026-08-09 (Tap the bar, go to the activity)
+
+- 🧭 **The activity bar is now a shortcut back to what you're doing.** Tap the "current activity" strip at the top from any screen and it jumps you straight to that activity — the fight, the skill you're training, or the recipe you're crafting. (When you're idle it still opens the Activities list.) *(Thanks Tyler.)*
+- 🧪 457 tests green.
+
 ## v0.9.2-beta build 251 — 2026-08-09 (Bounties count real kills)
 
 - 🎯 **"Collect" bounties no longer pay out instantly.** If a bounty asked you to collect drops from a monster and you already had a stack of that item, it completed the moment you accepted it — no kills required. Now the task only counts items you gather *after* accepting it, so the marks are earned. Your existing stacks are untouched. *(Thanks paione.)*

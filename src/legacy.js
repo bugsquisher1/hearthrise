@@ -2951,7 +2951,7 @@ function renderProfile(){
      so this line, b225's burn count and b226's budget readout are all currently
      invisible. Kept correct rather than silently divergent; the visible surface
      is the toast in processOffline(). */
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate — blessings are while online</div>`;
+  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.

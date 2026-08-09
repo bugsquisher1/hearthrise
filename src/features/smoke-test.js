@@ -12530,6 +12530,30 @@ const TESTS = [
     }
   }),
 
+  // b228 (Tyler / spun-off task, folded in): the offline catch-up summary only
+  // reached the player as a transient toast — its numbers were also written into
+  // the display:none #dash-active panel. It now has a visible home: a "While you
+  // were away" card at the top of Home's status rail, shown for 30 min after
+  // return. Guard: a fresh summary renders the card; a stale one does not.
+  () => tryRun('b228: a recent offline summary shows the While-you-were-away card on Home', () => {
+    const snap = snapshotG();
+    try {
+      window.G.lastOfflineSummary = { hrs: 3.0, gainedItems: 2250, gainedXp: 14208, gainedGold: 6750, gainedKills: 0, burnt: 0, budgetHrs: 18, remainingHrs: 15.0, at: Date.now(), blessed: false };
+      window.HearthriseHome.render();
+      const panel = document.getElementById('panel-profile');
+      const fresh = Array.from(panel.querySelectorAll('.hd-h h3')).some((h) => /while you were away/i.test(h.textContent));
+      assert(fresh, 'a recent offline summary did not render the card');
+      // stale (> 30 min) must NOT render it
+      window.G.lastOfflineSummary.at = Date.now() - 31 * 60000;
+      window.HearthriseHome.render();
+      const stale = Array.from(document.getElementById('panel-profile').querySelectorAll('.hd-h h3')).some((h) => /while you were away/i.test(h.textContent));
+      assert(!stale, 'a stale (>30min) summary still shows the card — it must step aside');
+    } finally {
+      restoreG(snap);
+      try { window.HearthriseHome.render(); } catch (e) {}
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

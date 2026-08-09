@@ -536,6 +536,32 @@
     // This rail used to hold three items and then ~700px of nothing. It now
     // carries the four things a player checks between actions.
 
+    // b228 (Tyler): "While you were away". The offline catch-up (G.lastOfflineSummary)
+    // only ever reached the player as a transient toast — b225's burn count, b226's
+    // budget readout and b227's base-rate note were ALSO written into the legacy
+    // #dash-active panel, which is display:none. Three features reporting to a
+    // surface nobody can see. This is the visible home for it: a card at the top of
+    // the status rail, shown only while it is still news (a 30-minute window off
+    // summary.at), so it greets a returning player and then steps aside.
+    var _off = G.lastOfflineSummary;
+    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && (_off.hrs || 0) >= 0.1) {
+      var _bits = [];
+      if (_off.gainedXp) _bits.push('+' + _off.gainedXp.toLocaleString() + ' XP');
+      if (_off.gainedItems) _bits.push('+' + _off.gainedItems.toLocaleString() + ' items');
+      if (_off.gainedGold) _bits.push('+' + _off.gainedGold.toLocaleString() + ' gold');
+      if (_off.gainedKills) _bits.push('+' + _off.gainedKills.toLocaleString() + ' kills');
+      if (_off.burnt) _bits.push(_off.burnt.toLocaleString() + ' burnt on the fire');
+      var _budget = (_off.budgetHrs && _off.remainingHrs != null)
+        ? _off.hrs.toFixed(1) + 'h of your ' + _off.budgetHrs + 'h daily offline banked · ' + _off.remainingHrs.toFixed(1) + 'h left'
+        : 'earned at the base rate';
+      html += '<div><div class="hd-h"><h3>While you were away</h3></div>' +
+        '<div class="hd-card hd-duo">' +
+          '<div class="mi">' + gly('uiIdle', 20, '', 'var(--gold-2)') + '</div>' +
+          '<div class="bd"><div class="t">' + esc(_off.hrs.toFixed(1)) + 'h offline — ' + esc(_bits.join(' · ') || 'nothing to report') + '</div>' +
+          '<div class="s">' + esc(_budget) + '. Blessings apply while online.</div></div>' +
+        '</div></div>';
+    }
+
     // Right now / jump back in — first, because "what am I doing" is the
     // question an idle game has to answer on sight.
     html += '<div><div class="hd-h"><h3>Right now</h3></div>';

@@ -2387,6 +2387,68 @@ const TESTS = [
     }
   }),
 
+  // b229 (Asset Director — "pet icons"): the Stable rendered all ~22
+  // companions/pets as raw emoji (art-director audit, 2026-08-08) — the
+  // widest single 0-emoji-rule violation on one screen. Fixed by bypassing
+  // `def.icon` at every render seam (Stable grid, the doll's companion slot,
+  // the Character page's companion detail pane, the profile mini-card, the
+  // shop's "buy a companion" rows) in favour of `companionIconHtml()`:
+  // a painted portrait for the 2 companions with an honest identity match
+  // (wolf_pup, hawk) and the shared gilt "paw" atlas glyph for the other 20.
+  // Sweep every state a player can reach: nothing owned, everything owned,
+  // and each of the 22 equipped in turn (walks both the portrait path and
+  // the glyph-fallback path, in both the grid and the doll/detail seams that
+  // read the same equipped id) — mirrors the b221/b222/b223 sweep pattern.
+  () => tryRun('b229: no emoji in the Stable panel DOM, in any state', () => {
+    const EMO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    const offenders = [];
+    const sweep = (label, node) => {
+      if (!node) return;
+      const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let t;
+      while ((t = w.nextNode())) if (EMO.test(t.nodeValue)) offenders.push(label + ': ' + t.nodeValue.trim());
+    };
+    const snap = JSON.stringify(window.G.companions);
+    try {
+      const allIds = Object.keys(window.COMPANIONS || {});
+      assert(allIds.length >= 20, 'expected 20+ companions/pets (12 base + skill/boss pets), got ' + allIds.length);
+
+      window.showTab('stable');
+
+      // All locked (fresh account has none owned but the starter isn't yet granted)
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      if (typeof window.renderStable === 'function') window.renderStable();
+      sweep('all-locked', document.getElementById('panel-stable'));
+
+      // All owned, none equipped
+      window.G.companions = {
+        ownedIds: allIds.slice(),
+        xp: Object.fromEntries(allIds.map((id) => [id, 500])),
+        equipped: null,
+      };
+      if (typeof window.renderStable === 'function') window.renderStable();
+      sweep('all-owned', document.getElementById('panel-stable'));
+
+      // Every companion equipped in turn — the Stable grid, plus the doll's
+      // companion slot and Character page detail pane, which read the same
+      // G.companions.equipped id through the same companionIconHtml() seam.
+      allIds.forEach((id) => {
+        window.G.companions.equipped = id;
+        if (typeof window.renderStable === 'function') window.renderStable();
+        sweep('stable/equipped:' + id, document.getElementById('panel-stable'));
+        if (typeof window.buildTibiaDoll === 'function') {
+          const doll = window.buildTibiaDoll();
+          sweep('doll/equipped:' + id, doll);
+        }
+      });
+
+      assert(offenders.length === 0, 'emoji in the Stable — ' + offenders.slice(0, 6).join(' | '));
+    } finally {
+      window.G.companions = JSON.parse(snap);
+      if (typeof window.renderStable === 'function') window.renderStable();
+    }
+  }),
+
   () => tryRun('clicks: market panel renders + inputs respond', () => {
     window.showTab('market');
     if (typeof window.renderMarket === 'function') window.renderMarket();

@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8149"],
       "port": 8149
+    },
+    {
+      "name": "manual-stable-8171",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8171"],
+      "port": 8171
     }
   ]
 }

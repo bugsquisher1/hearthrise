@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=238' directly.
+// modularised, will import { G } from '../state/game.js?v=239' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=238';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=238';
+import { on, snapshot } from '../net/events.js?v=239';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=239';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=238';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=239';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,29 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b239: the Recipe Book lists every recipe; locked ones stay grayscale but still show inputs + requirement', () => {
+    assert(window.HearthriseRecipeBook && typeof window.HearthriseRecipeBook.open === 'function', 'Recipe Book seam missing');
+    const snap = snapshotG();
+    try {
+      window.G.skills = {};                       // everything Lv 1 → high-req recipes are locked
+      window.HearthriseRecipeBook.open();
+      const ov = document.getElementById('rb-overlay');
+      assert(ov && ov.style.display === 'flex', 'the Recipe Book must open');
+      const cards = ov.querySelectorAll('.rb-card');
+      const total = Object.values(window.ARTISAN_RECIPES).reduce((n, a) => n + a.length, 0);
+      assert(cards.length >= Math.min(50, total), 'the Book must list the recipes, got ' + cards.length + ' of ' + total);
+      // Pillar 5: a locked recipe is grayscale (.locked) but STILL shows its inputs + what it needs.
+      const locked = ov.querySelector('.rb-card.locked');
+      assert(locked, 'high-level recipes must render as locked at Lv 1');
+      assert(locked.querySelector('.rb-ings .rb-ing'), 'a locked recipe must STILL list its ingredients (plan-ahead)');
+      assert(locked.querySelector('.rb-lockmsg'), 'a locked recipe must show what it needs (level or scroll)');
+      // Search narrows it.
+      assert(/rb-card/.test(window.HearthriseRecipeBook.renderBody('bronze')), 'search must match by output/ingredient name');
+      window.HearthriseRecipeBook.close();
+      assert(document.getElementById('rb-overlay').style.display === 'none', 'close must hide the Book');
+    } finally { restoreG(snap); try { window.HearthriseRecipeBook.close(); } catch (e) {} }
   }),
 
   () => tryRun('b238: no food buff lies — defense wired (flat), drop_rate live, monster_respawn retired', () => {

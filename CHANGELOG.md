@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 239 — 2026-08-09 (The Recipe Book)
+
+- 📖 **A Recipe Book — every recipe in the game, in one place.** Open it from the Skills screen (or the More menu on mobile) and browse all 156 recipes across Smithing, Crafting, Cooking and Prayer. **Recipes you can't make yet show up too** — greyed out, but still listing exactly what they need and at what level, so you can see the whole crafting tree and plan toward it. Each ingredient shows how many you own (red when you're short), and you can search by item or ingredient.
+- 🧪 443 tests green.
+
 ## v0.9.2-beta build 238 — 2026-08-09 (Buffs that mean it)
 
 More of the itemization rework's "stop showing numbers that lie":

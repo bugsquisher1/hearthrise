@@ -862,6 +862,14 @@
   <!-- b141 — beta launch prep: one-time disclaimer + Discord invite for new players -->
   <script src="src/beta-banner.js?v=226"></script>
   <script src="src/network-status.js?v=226"></script>
+  <!-- b228 — the Chronicle (the topbar bell's panel). Loads LAST of the
+       feature scripts on purpose: it installs wrappers on window.addXp,
+       window.killMonster, window.unlockCompanion and the Renown / Homestead /
+       Identity / Raids / ClanSeatUI seams, so every one of them must already
+       exist. Anything still booting on its own timer is picked up by the
+       retry in attachHooks(), and anything never hooked at all is still
+       covered by reconcile(), which derives from save state. -->
+  <script src="src/features/chronicle.js?v=226"></script>
   <script src="src/error-boundary.js?v=226"></script>
   <script type="module" src="src/main.js?v=226"></script>
 </body>

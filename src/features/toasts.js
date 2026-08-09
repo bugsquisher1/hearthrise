@@ -291,6 +291,14 @@
     var msg = clean(text);
     var key = t + ' ' + msg;
 
+    // b228 — the Chronicle's "Recent" feed. This is the ONE choke-point every
+    // toast passes through, and the hook sits deliberately ABOVE the
+    // visibility decisions below: a toast this queue coalesces or DROPS (burst
+    // overflow, or stale before a slot freed) is precisely the one the player
+    // missed, so it must still be recorded. Guarded and fire-and-forget — the
+    // log never gets to break a notification.
+    try { if (window.HearthriseChronicle) window.HearthriseChronicle.recordToast(msg, t); } catch (e) {}
+
     // Identical message already up → count it instead of stealing a slot.
     var same = find(key);
     if (same) { bump(same); return; }

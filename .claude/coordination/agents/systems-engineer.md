@@ -13,6 +13,44 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 `showTab` wrapped 23×; `wrapShowTab`/`HearthriseIdentity` built, 0 consumers; 27 files use `localStorage` directly vs 3 on the seam; ~3,000 lines inert cozy-light CSS deletable; gear wield/level-requirement seam unbuilt.
 
 ## Log
+### 2026-08-09 · b227 — the calendar IS the online bonus · branch `agent-presence`
+
+**Brief:** DECISIONS *"Presence rework: blessings are presence-gated; flat +12% removed"*.
+
+**THE OFFLINE AUDIT VERDICT: yes, blessings leaked into offline — completely.** `world-events.js`
+wraps `window.getBonus` additively, and `processOffline()` replays through the same
+`doSkillAction` / `doArtisanAction` / `addXp` / `applyGoldFind` the live loop uses. Every catch-up
+was paid at the day's and week's blessing. **And the naive gate would have reproduced it exactly:
+`isPresent()` is TRUE during a catch-up** — `processOffline()` runs inside `loadLocal()` on a
+visible tab with `_lastInputAt` freshly initialised and an activity set. b226's own flat ×1.12
+leaked into offline grants for precisely this reason (it multiplied every `addXp` inside the
+replay). Hence the **replay latch**: a depth counter held across the whole simulation, released in
+a `finally`; `blessingsApply() = !inOfflineReplay() && isPresent()`.
+
+**Second leak, subtler: the SPEED keys were baked.** `G.skillMs` was computed once at
+`startSkill()` / `startArtisan()`, and `processOffline` divides elapsed time by it — so a session
+begun under a Gathering Surge carried blessed speed into the night, and an AFK player kept it too.
+Now one shared `activityIntervalMs()` is read by the live loop, a per-action `retimeActivity()` and
+the offline replay (which re-derives inside the latch). Free side-fix: buying a tool or a room
+mid-session applies on the next swing instead of the next restart. Also de-duplicated the artisan
+timer arming, which existed twice in `legacy.js` and could have drifted.
+
+**Not leaks, checked:** `calcCatchup()` is display-only since b214 (grants nothing); farm harvest
+reads `farmYield` at click time, which is always a present action — so a farm blessing pays on the
+harvest you take, by design.
+
+**Pool:** 9 daily × 6 weekly, ten wired keys. Added goldFind (Open Coffers / King's Bounty) and
+noBurn (Steady Fire) families; Grand Fair 10% → 12% (Tyler's number). Removed the dead `glyph:`
+emoji field from the data and exported `EVENT_GLYPH` so Home and Events read ONE map. **`rareDrop`
+deliberately excluded — no `getBonus('rareDrop')` consumer exists** (it is an equipment/pet item
+stat only); a pool entry for it would be a ghost promise of the exact kind b222/b225 had to fix.
+
+**Tests:** 330 → 337. Rewrote the b204 world-events test (bonus now travels *conditionally*) and
+replaced the b226 `presence is ×1.12` test with the new contract — deliberately stricter, an exact
+equality (`present grant == absent grant with no blessing`) rather than the old ratio. Added a
+harness seam `HearthriseWorldEvents._force({daily, weekly})` so tests and browser checks can pin a
+KNOWN blessing instead of asserting against the wall clock.
+
 ### 2026-08-09 · QUEST NAVIGATION — "take me to the area the quest is asking for" · branch `agent-quest-nav`
 
 Audit finding #2, targeted slice (NOT the two-to-do-list merge). Tyler: *"if it's asking me to catch fish, take me to the fishing section."*
@@ -34,7 +72,6 @@ Audit finding #2, targeted slice (NOT the two-to-do-list merge). Tyler: *"if it'
 **Known limitations.** (a) A grid destination (`level_up`, generic `gather`) lands on the skills tab with whatever detail was last open still showing — closing it would need new nav machinery, which was explicitly out of scope. (b) The resolver reads a bounty's shape but nothing *renders* bounties as quest rows yet, so that branch is test-covered, not player-visible. (c) The two to-do lists (`DAILY_TASK_POOL` vs `DAILY_GOAL_POOL`) are still two — this task deliberately only made both of them navigable. (d) Artisan counters (`stats.cooked/smithed/crafted`) are still written inline at two call sites rather than through `SKILL_ACTION_STAT`; unifying them touches the live economy path and did not belong in a navigation change.
 
 **Also touched (one line, same file as my tests):** the b220 artisan test's `finally` restored `window.activeTab`, which is a legacy `let` and therefore **not on window** — `showTab(undefined)` was a no-op. Added `|| 'profile'`. Same class of silently-inert nav restore.
-
 ### 2026-08-09 · LIVE HOTFIX — "it's asking me to choose a name I already have" · branch `agent-login-flow`
 **Root cause, exact.** `identity.js mustPrompt()` answered *"does this account have a name?"* from the LOCAL record only. That record is written by `adopt()` and by nothing else — i.e. only by a claim **this browser performed**. Tyler's claim reached the server by a different route entirely: `display_names.canonical = 'khemphill22'`, `claimed_at 2026-05-03T21:38Z`, which is his `profiles.created_at` — **section 4 of the unique-names migration backfilled it**. No client ever ran `adopt()`, so the local record was empty, so a player who has owned that name for three months was shown the first-run "Choose your name" modal. Verified by a READ-ONLY REST probe against production (`display_names`, `profiles`, and the `user_id=eq.<uid>` filter the fix uses — all 200, all confirmed). **The backfill makes this the default for the entire existing player base, not an edge case** — and it recurs on any second device or after clearing site data.
 

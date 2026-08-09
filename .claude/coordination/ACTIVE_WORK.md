@@ -11,6 +11,7 @@ _What each agent is doing right now. Update when you start, change scope, or fin
 | Asset Director | idle (on deck for #2 wordmark, #5/#6 scene art) | — | Art briefs | — | idle | 2026-08-08 |
 | Systems Engineer (1b) | Raid exploit hardening (P1-P4) | `supabase/migrations/*`, `schema.sql`, `raids.js` | — | — | **done** — merged, shipped b219; ⚠️ migration pending in Supabase | 2026-08-08 |
 | QA Engineer | idle (verifies at integration) | — | Wave 1 output | — | idle | 2026-08-08 |
+| Systems Engineer (b227) | **Presence rework** — blessings presence-gated, flat ×1.12 removed, pool families widened | `src/legacy.js`, `src/features/world-events.js`, `src/features/home-dashboard.js`, `src/features/smoke-test.js`, `docs/design/pacing-overhaul.md`, `CHANGELOG.md` | DECISIONS 2026-08-09 | `legacy.js` (addXp / processOffline / startSkill / startArtisan) — serialize against any other legacy.js writer | **ready-for-integration** — worktree `manual-presence`, branch `agent-presence`, 337/337 | 2026-08-09 |
 
 ## Wave plan (see BACKLOG.md)
 - **Wave 0 — SHIPPED b218:** #1, #2, #3, #4 + specs #10/#11/#12.

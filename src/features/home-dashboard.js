@@ -583,15 +583,30 @@
     if (WE && WE.daily) {
       try {
         var wd = WE.daily(), ww = WE.weekly && WE.weekly();
+        // b227: read the world-events module's own glyph map when it has one,
+        // so Home and the Events panel cannot disagree about what an event
+        // looks like. The local copy stays as the pre-boot fallback.
+        var GLY = (WE.EVENT_GLYPH || EVENT_GLYPH);
+        var evLive = !!(WE.isActive && WE.isActive());
         var evRow = function (e, when) {
-          return '<div class="hd-card hd-duo">' +
-            '<div class="mi">' + gly(EVENT_GLYPH[e.id] || 'uiEvent', 20, '', 'var(--gold-2)') + '</div>' +
+          return '<div class="hd-card hd-duo"' + (evLive ? '' : ' style="opacity:.62"') + '>' +
+            '<div class="mi">' + gly(GLY[e.id] || 'uiEvent', 20, '', 'var(--gold-2)') + '</div>' +
             '<div class="bd"><div class="t">' + esc(e.name) + '</div>' +
               '<div class="s">' + esc(e.desc) + '</div></div>' +
             '<div class="when">' + when + '</div></div>';
         };
+        // b227: the blessings are presence-gated, so the panel that announces
+        // them is the panel that must state the condition. A player who reads
+        // "+25% gather speed" here and then banks a night at the base rate has
+        // been misled by omission, which is still being misled.
         html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
-          evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') + '</div></div>';
+          evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') +
+          '<div class="hd-card hd-mini"><div class="mi">' + gly('uiInfo', 20, '', 'var(--ink-2)') + '</div>' +
+            '<div>' + (evLive
+              ? 'Blessings are paying now — they apply while you play.'
+              : 'Blessings apply while you play. Offline progress earns the base rate.') + '</div>' +
+          '</div>' +
+          '</div></div>';
       } catch (e) { /* world events optional */ }
     }
 

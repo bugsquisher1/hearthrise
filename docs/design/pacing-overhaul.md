@@ -689,7 +689,7 @@ the game does to it, so future boost tuning can see how much of that headroom it
 | woodcutting curve correction | ×0.60 | **×0.60** | unchanged — a permanent balance fix, not a dial |
 | mining / fishing correction | ×1.15 / ×1.05 | **×1.15 / ×1.05** | unchanged |
 | offline cap | 12h daily budget | **12h daily budget** | approved as specified |
-| presence | ×1.12 XP | **×1.12 XP** | approved as specified |
+| presence | ×1.12 XP | **removed (b227)** | replaced by the presence-gated blessing calendar — see A.8 |
 | `VENDOR_RAW_RATE` | 0.20 | **0.20** | approved as specified |
 | farming crop XP | ×14, exempt from `PACE.xp` | **×14, exempt** | approved as specified |
 
@@ -704,7 +704,8 @@ only the dial setting moved. To keep the cards honest, **every XP and duration r
 now renders through `pacedXp()` / `pacedActionMs()` / `actionRate()`**, so no tile, pill or rate
 panel can ever quote a number the engine will not pay.
 
-**Book values now in `gathering.js`** (grant = `floor(book × PACE.xp × (1 + allXP) × presence)`):
+**Book values now in `gathering.js`** (grant = `floor(book × PACE.xp × (1 + allXP))` — since b227 the
+blessing rides *inside* `allXP`, so there is no outer multiplier left in the formula):
 
 | | t1 | t2 | t3 | t4 | t5 | t6 | t7 | t8 |
 |---|---|---|---|---|---|---|---|---|
@@ -712,28 +713,54 @@ panel can ever quote a number the engine will not pay.
 | Rocks | 21 | 40 | 57 | 75 | 92 | 126 | 178 | — |
 | Fish | 11 | 21 | 32 | 84 | 116 | 137 | 158 | 226 |
 
-## A.2 The arithmetic to 56 days
+## A.2 The arithmetic to the floor
+
+**Restated for b227.** The dials did not move; the *day model* did. Removing the flat ×1.12 takes
+0.3 effective hours out of every wall-clock day, so the same XP requirement takes slightly longer
+and the floor moves from 56.0 to **57.2 days**. This is stated as a change to the model, not
+absorbed by re-tuning `PACE.xp`, because the anchor Tyler approved was "about eight weeks" and 57.2
+days *is* about eight weeks — re-cutting a live dial to defend a decimal would be optimising the
+document rather than the game.
 
 ```
-day model (§2.3, unchanged)
+day model (b227)
   offline banked/day   12.0 h   (the daily budget, at 1.00× — no offline dampening)
-  active/day            2.5 h × 1.12 presence = 2.8 h
-  effective game-hours per wall-clock day      = 14.8 h
+  active/day            2.5 h   (b226: × 1.12 presence = 2.8 h; b227: the flat bonus is gone)
+  effective game-hours per wall-clock day      = 14.5 h   (was 14.8)
 
-the target
-  first 99 = 11,805,606 XP
-  56 days × 14.8 h/day                         = 828.8 effective game-hours
+the dials (unchanged from b226)
+  realised stretch F = PACE.actionMs / (PACE.xp × woodcutting curve 0.60)
+                     = 1.60 / (0.39 × 0.60) = 1.60 / 0.234   = 6.838
 
 the baseline
   woodcutting to 99 today, 0% allXP, tool ladder applied (§1.1)  = 120.5 h
-  required stretch factor F = 828.8 / 120.5                      = 6.878
+  requirement = 120.5 × 6.838                                    = 824.0 effective game-hours
 
-the split
-  F = PACE.actionMs / (PACE.xp × woodcutting curve 0.60)
-  holding actionMs at 1.60:  PACE.xp = 1.60 / (6.878 × 0.60)     = 0.3877  → shipped 0.39
-  realised F = 1.60 / (0.39 × 0.60) = 1.60 / 0.234               = 6.838
-  56.0 days at 0% allXP.  ✔
+the floor
+  824.0 / 14.5 h/day                                             = 56.8 days
+  …and 57.2 days once the table below is scaled consistently with A.4's
+  per-skill baselines (14.8/14.5 = ×1.0207 on every b226 figure).
+  ≈ 8.2 weeks at 0% allXP, on a calendar week that pays your skill nothing.  ✔
 ```
+
+### A.2b Online value is now a variable, not a constant
+
+The 14.5 h/day above is the **floor**, and unlike b226's 14.8 it is not what a typical day looks
+like. The rotating blessing (A.8) is presence-gated, so it rides only the ~2.5 active hours — but
+while it rides them it can be worth a great deal:
+
+| the week you got | effective h/day | days to first 99 (woodcutting) |
+|---|---|---|
+| nothing that touches your skill | 14.5 | **57.2** |
+| Grand Fair (+12% all XP) | 14.8 | 56.1 |
+| Deep Veins (+15% gather) **and** a Gathering Surge day (+25%) | 16.2 | 51.4 |
+
+Expected value across the whole calendar, weighting each pool entry by its rotation odds, is about
+**+1.7% on the day** — i.e. the average engaged day lands near 14.75 h, almost exactly where b226's
+flat bonus put it. The difference is entirely in the *shape*: the same average power now arrives as
+a reason to check what today is and to train the thing the realm is blessing, instead of as a
+constant nobody could perceive. **Nothing was taken from the offline player, who was already at
+1.00× and still is.**
 
 Why `actionMs` stopped at 1.60 rather than absorbing more: it is felt on every single action, and it
 sets the floor of the game's rhythm. At 1.60 the starting rung is **4.8s** and the tier-7 rung is
@@ -753,32 +780,35 @@ the cost of a visibly draggier first session, which is the worst place in the ga
 | Runewood | 56 XP | 18.4s | Emberstone | 49 XP | 16.8s |
 | Duskwood | 77 XP | 20.8s | Dawnstone | 69 XP | 19.2s |
 
-(Grants shown at 0% allXP, no presence. Mithril's `ms` 9000 → 8000 closes §1.2's rate regression;
+(Grants shown at 0% allXP, no blessing. Mithril's `ms` 9000 → 8000 closes §1.2's rate regression;
 the suite now asserts every rung strictly beats the one below it, permanently.)
 
 ## A.4 Floor and typical — the boost headroom
 
-Days to a first 99, at the same 14.8 h/day, at increasing amounts of the boost diet already in the
-game. The anchor is the leftmost column.
+Days to a first 99, at the b227 day model of **14.5 h/day**, at increasing amounts of the *permanent*
+boost diet already in the game. The anchor is the leftmost column. (Every figure is the b226 table
+scaled by 14.8/14.5 = ×1.0207 — the dials are unchanged, only the day model moved.)
 
-| | **0% (the anchor)** | +20% Library L3 | +33% Library + mid renown + clan | +52% permanent ceiling | +52% & event/rally uptime |
+| | **0% (the anchor)** | +20% Library L3 | +33% Library + mid renown + clan | +52% permanent ceiling | +52% & rally/blessing uptime |
 |---|---|---|---|---|---|
-| Woodcutting | **56.0 d** | 46.7 d | 42.2 d | 36.8 d | 35.2 d |
-| Mining | **56.6 d** | 47.3 d | 42.5 d | 37.3 d | 35.5 d |
-| Fishing | **54.0 d** | 45.1 d | 40.6 d | 35.6 d | 33.9 d |
+| Woodcutting | **57.2 d** | 47.7 d | 43.1 d | 37.6 d | 35.9 d |
+| Mining | **57.8 d** | 48.3 d | 43.4 d | 38.1 d | 36.2 d |
+| Fishing | **55.1 d** | 46.0 d | 41.4 d | 36.3 d | 34.6 d |
 
 Composition of each column, from the shipped numbers: Library L1–L3 **+20%**; renown ranks at
 mid-ladder (Squire→Count) **+8%**; clan perks **+5%**; castle capstone **+5%**; the additive fuse
 caps the permanent stack at **+52%** (CONFLICTS 2026-08-08 §3). The last column additionally models
-~1h/day at the Rally aura (+10%) and a world event (+12%), which averages to about +4.5% over the
-2.5 active hours. **Rested XP contributes exactly nothing today** and is not in any column — its
-potency is `getBonus('restedXp')`, which no pillar grants (§8.6); it becomes real headroom the day
-the Tavern Common Room ships, and §8.6's re-spec should be priced against this table.
+~1h/day at the Rally aura (+10%) and the blessing calendar's expected value; **since b227 the
+blessing term is presence-only**, so it is worth roughly +1.7% of the day rather than the +4.5% b226
+modelled, and it is now *variable* rather than an average anybody actually experiences (A.2b).
+**Rested XP contributes exactly nothing today** and is not in any column — its potency is
+`getBonus('restedXp')`, which no pillar grants (§8.6); it becomes real headroom the day the Tavern
+Common Room ships, and §8.6's re-spec should be priced against this table.
 
-So the honest sentence is: **the floor is eight weeks, a typical engaged player with the perks
-currently in the game lands around six, and the most decorated player in the game cannot get below
-five.** That is roughly 21 days of headroom between the anchor and the ceiling — the budget every
-future boost and event is spending from.
+So the honest sentence is: **the floor is a little over eight weeks, a typical engaged player with
+the perks currently in the game lands around six, and the most decorated player in the game cannot
+get below five.** That is roughly 21 days of headroom between the anchor and the ceiling — the
+budget every future boost and event is spending from.
 
 **All 15 skills to 99.** Gathering is exact (166.6 days at 0%, ~135 at +25%). The artisan block
 scales ×4.10 against today (`actionMs / PACE.xp`); the combat block scales ×2.56 (XP only — the 2.4s
@@ -791,7 +821,7 @@ the combat block the least certain term. Farming runs in parallel (wall-clock) r
 
 | | before | after |
 |---|---|---|
-| `G.skillMs` offline dampener | stored raw `ms`; geared players gathered 30–40% slower offline | stores the tool/perk-adjusted interval — a straight buff to every geared player, and presence is now the only online/offline differential |
+| `G.skillMs` offline dampener | stored raw `ms`; geared players gathered 30–40% slower offline | stores the tool/perk-adjusted interval — a straight buff to every geared player. *(b227: the offline replay now re-derives the interval instead of trusting the stored one, so a session started under a speed blessing cannot carry blessed speed into an absence. The blessing calendar is the only online/offline differential left.)* |
 | Farming XP | 12 plots of Moonbloom → 99 in **9.6 years** | ×14 and exempt from `PACE.xp` → **8.2 months** |
 | `VENDOR_RAW_RATE` | Dawnstone at mining 99 printed **646,154 g/h** | **80,769 g/h**; 12h budget 6.7M → **0.97M** |
 | Mithril Rock | 8.89 xp/s vs Gold's 9.29 — the unlock was a punishment | strictly faster than Gold at every dial setting, asserted forever |
@@ -811,3 +841,116 @@ woodcutting to 99 goes from 50,705 logs to 216,020. Per session the player sees 
 (1/1.60 the rate, plus the `[1,1]` flattening) and far less gold per item, which is what they
 actually feel — but a finished bank is four times deeper. §6.3's Phase-2 sink scaling (property,
 castle and high-tier recipe costs into the thousands) is now load-bearing rather than a nicety.
+
+---
+
+# Appendix A.8 · b227 — the calendar *is* the online bonus
+
+**Author:** Systems Engineer · **Date:** 2026-08-09 · **Status:** shipped in b227.
+**Brief:** `DECISIONS.md` → *2026-08-09 · Presence rework: blessings are presence-gated; flat +12%
+removed*. Tyler: *"if you're offline the event doesn't apply to you… you only get that stuff WHILE
+online. One week it may be 12% exp, another week it may be +10% gold find."*
+
+## A.8.1 What changed
+
+| | b226 | **b227** |
+|---|---|---|
+| online bonus | flat **×1.12 XP** while present | **none** — presence is now a gate, worth nothing on its own |
+| daily / weekly blessing | applied **always**, including offline | applies **only while present**; base rate offline, in a background tab, or AFK past 10 min |
+| where it stacks | outside the additive fuse, multiplicative | **inside** `allXP` / `combatXP` / the speed keys, so the §8 power budget can see it |
+| the presence detector | drove the multiplier | **kept**, drives the gate |
+| rally / join-gated live events | — | **untouched** |
+
+"Present" is unchanged from b226: tab visible **and** real input within 10 minutes **and** an
+activity running.
+
+## A.8.2 The offline audit (the part that had a real bug in it)
+
+Blessings reach the engine through a thin additive wrapper on `getBonus`. `processOffline()` replays
+the player's activity through the *same* `doSkillAction` / `doArtisanAction` / `addXp` /
+`applyGoldFind` the live loop uses — so **before b227 the blessings did apply to offline output**, in
+full, on every catch-up.
+
+Worse for anyone building the gate: `isPresent()` is **true** during a catch-up. `processOffline()`
+runs inside `loadLocal()`, on a visible tab, with the input timestamp freshly initialised and an
+activity set. A gate written as "blessings apply when `isPresent()`" would have shipped the identical
+bug with a new name. (b226's own ×1.12 leaked into offline grants for exactly this reason.)
+
+The fix is a **replay latch**: a depth counter that `processOffline()` holds for the whole
+simulation, released in a `finally`. `blessingsApply()` is `!inOfflineReplay() && isPresent()`.
+Two regression tests pin it: one runs the same 3-hour absence under a deliberately enormous
+all-keys blessing and under no blessing at all and asserts the XP, the item count *and* the action
+interval come out identical; the other proves the latch closes even on a visible, active,
+freshly-touched tab, survives nesting, and is released after a throw.
+
+**The speed keys needed a second fix.** `gatherSpeed` / `cookSpeed` / … were baked into `G.skillMs`
+once, at `startSkill()`, and the offline replay divides elapsed time by that number — so a session
+begun under a Gathering Surge carried blessed speed into the night, and an idle player kept it too.
+The interval is now derived by one shared function (`activityIntervalMs()`) that the live loop, a
+per-action retimer and the offline replay all read. Side benefit: buying a Toolshed or a better axe
+mid-session now applies immediately instead of at the next restart.
+
+## A.8.3 The pool as shipped
+
+Nine daily entries × six weekly = 54 combinations, spanning **ten wired keys**. Every key was
+verified to have a live consumer, and the suite asserts each one *moves something*.
+
+| daily (rotates 00:00 UTC) | effect | key(s) |
+|---|---|---|
+| Gathering Surge | +25% gather speed | `gatherSpeed` |
+| Forge Fires | +30% smithing & crafting speed | `smithSpeed` `craftSpeed` |
+| Harvest Festival | +2 farm yield | `farmYield` |
+| Scholar's Day | +15% all XP | `allXP` |
+| Hunter's Moon | +20% combat XP | `combatXP` |
+| Feast Day | +30% cooking speed | `cookSpeed` |
+| Quiet Vigil | +30% prayer speed | `prayerSpeed` |
+| **The Open Coffers** *(new)* | +15% gold find | `goldFind` |
+| **The Steady Fire** *(new)* | −25% burn chance · +10% cooking speed | `noBurn` `cookSpeed` |
+
+| weekly (rotates on the UTC week index) | effect | key(s) |
+|---|---|---|
+| The Grand Fair | **+12% all XP** — Tyler's worked example, at his number | `allXP` |
+| **The King's Bounty** *(new)* | **+10% gold find** — his other worked example | `goldFind` |
+| Deep Veins | +15% gather speed | `gatherSpeed` |
+| War Drums | +15% combat XP | `combatXP` |
+| Guild Works | +20% artisan speed | `cookSpeed` `smithSpeed` `craftSpeed` |
+| **The Long Harvest** *(new)* | +1 farm yield · +8% gather speed | `farmYield` `gatherSpeed` |
+
+**Deliberately absent: `rareDrop`.** It exists as an *item* stat on pets and equipment, but nothing
+reads `getBonus('rareDrop')` — a rare-drop blessing would be a promise the engine cannot pay, which
+is exactly what `goldFind` and `noBurn` were before b222/b225 wired them. It becomes poolable the day
+a drop-roll seam reads it. Also absent: `restedXp` (potency is 0 until the Tavern ships) and
+`raidPower` (raids are join-gated live content, out of scope by direction).
+
+## A.8.4 Magnitudes, against the power budget
+
+Existing numbers are **unchanged** and the new families are set at comparable strength, with one
+deliberate exception: The Grand Fair moves +10% → **+12%**, because Tyler named that number and
+because it is the figure the retired flat presence bonus used to pay — the same headline power, now
+earned by showing up in the right week rather than granted every week forever.
+
+This is *temporary* power, which clan-overhaul §8.4 budgets separately from the ≤+52% permanent
+stack. Presence-gating **shrank** its real contribution by roughly 5.8×: a blessing used to be paid
+across all 14.5 effective hours of a day and now rides only the ~2.5 the player is at the screen.
+Whole-calendar expected value is **~+1.7% on the day**, against the +12%-on-active-hours it replaces.
+Keeping the magnitudes was therefore the conservative choice; cutting them as well would have made
+being online worth measurably *less* than it was before Tyler asked for the opposite.
+
+Worst-case overlap is Scholar's Day inside a Grand Fair week: **+27% `allXP`, for 2.5 hours, one day
+in fifty-four.** Against the +47% permanent ceiling that is +74% during those hours — comfortably
+inside the precedent §8.4 already sets for the Tavern Feast (+65% for four hours, every day, by
+design), and the fuse test asserts the ≤0.60 additive budget still holds on today's real calendar.
+
+## A.8.5 Honesty surfaces
+
+A gated bonus that is not visibly gated is worse than no bonus. Four surfaces state the rule:
+
+- the **live activity note** names only a blessing that touches *this* activity, says "while you
+  play", and dims to "— idle" the moment the gate closes (the b226 "+12% present" hint's job);
+- **Home → The realm** carries a plain line: *"Blessings apply while you play. Offline progress
+  earns the base rate."*;
+- the **Events panel blessing card** says the same and changes state live, so the player can watch
+  the rule work rather than take the sentence on faith;
+- the **welcome-back summary** says *"at the base rate — blessings pay while you play"*, and carries
+  `blessed: false` in the summary object so no future renderer can invent a blessing it never
+  applied.

@@ -680,6 +680,19 @@ window.ensureOfflineBudget=ensureOfflineBudget;
 window.claimOfflineMs=claimOfflineMs;
 window.offlineBudgetRemainingMs=offlineBudgetRemainingMs;
 
+/* b227 — the interval the offline replay divides elapsed time by.
+   Deliberately NOT `G.skillMs`: that value was frozen when the activity
+   started, and if it started under a gather/artisan-speed blessing it carries
+   that blessing's speed into the absence, where blessings do not apply. Called
+   from inside withOfflineReplay(), so activityIntervalMs() re-derives with the
+   gate shut and returns the base-rate interval. Falls back to the stored value
+   and then to the raw duration if the action cannot be resolved (a recipe
+   removed from the data between sessions), because a returning player must
+   never simply lose their night to a lookup miss. */
+function offlineIntervalMs(fallbackMs){
+  const derived=(typeof activityIntervalMs==='function')?activityIntervalMs():null;
+  return derived || G.skillMs || fallbackMs || 3000;
+}
 function processOffline(){
   /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
      whether or not you left an activity running — that is the whole point of
@@ -698,38 +711,48 @@ function processOffline(){
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
   let combatSummary = null;
 
-  // Combat takes priority — if a fight was in progress, simulate that.
-  if(G.activeMonster){
-    combatSummary = processOfflineCombat(hrs);
-  } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
-    // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
-    // sessions used to make ZERO offline progress (the gather replay below
-    // no-ops for artisan skills). Replay doArtisanAction at the session
-    // rate; it self-stops when inputs run out, so we just watch for that.
-    const recipes=window.ARTISAN_RECIPES[G.activeSkill];
-    const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
-    if(rec && typeof window.doArtisanAction==='function'){
-      const ticks=Math.floor((hrs*3600000)/(G.skillMs||rec.ms||3000));
-      /* b225: cooking burns offline at exactly the same odds as online —
-         doArtisanAction is the single source of truth and this replay drives
-         it. `silent` suppresses the per-burn toast (a night's cooking would
-         queue thousands) and counts them into window._hrOfflineBurns instead — a
-         window counter, NOT a G field, so nothing transient lands in the save.
-         The count is reported once by the summary below.
-         the summary line below reports once. */
-      window._hrOfflineBurns = 0;
-      for(let i=0;i<ticks;i++){
-        if(typeof hasInputs==='function' && !hasInputs(rec)) break;   // out of materials
-        window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
+  /* ── b227: EVERYTHING that simulates elapsed time runs inside the latch ──
+     The rotating blessings are presence-gated, and `isPresent()` is TRUE right
+     here: loadLocal() calls us on a visible tab with a fresh input timestamp
+     and an activity set. Without this latch the returning player would be paid
+     a whole night at today's blessing — the exact shape of the bug b226's flat
+     ×1.12 shipped with. Inside it, `blessingsApply()` is false, so every key
+     the replay reads (allXP, combatXP, goldFind, farmYield, noBurn AND the
+     speed keys, via the interval re-derivation below) is the base value. */
+  withOfflineReplay(function(){
+    // Combat takes priority — if a fight was in progress, simulate that.
+    if(G.activeMonster){
+      combatSummary = processOfflineCombat(hrs);
+    } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
+      // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
+      // sessions used to make ZERO offline progress (the gather replay below
+      // no-ops for artisan skills). Replay doArtisanAction at the session
+      // rate; it self-stops when inputs run out, so we just watch for that.
+      const recipes=window.ARTISAN_RECIPES[G.activeSkill];
+      const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
+      if(rec && typeof window.doArtisanAction==='function'){
+        const ticks=Math.floor((hrs*3600000)/offlineIntervalMs(rec.ms));
+        /* b225: cooking burns offline at exactly the same odds as online —
+           doArtisanAction is the single source of truth and this replay drives
+           it. `silent` suppresses the per-burn toast (a night's cooking would
+           queue thousands) and counts them into window._hrOfflineBurns instead — a
+           window counter, NOT a G field, so nothing transient lands in the save.
+           The count is reported once by the summary below.
+           the summary line below reports once. */
+        window._hrOfflineBurns = 0;
+        for(let i=0;i<ticks;i++){
+          if(typeof hasInputs==='function' && !hasInputs(rec)) break;   // out of materials
+          window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
+        }
+      }
+    } else if(G.activeSkill){
+      // Offline gather runs at the same rate as active play — no dampening.
+      const ticks=Math.floor((hrs*3600000)/offlineIntervalMs(5000));
+      if(ticks>0){
+        for(let i=0;i<ticks;i++)doSkillAction(true);
       }
     }
-  } else if(G.activeSkill){
-    // Offline gather runs at the same rate as active play — no dampening.
-    const ticks=Math.floor((hrs*3600000)/(G.skillMs||5000));
-    if(ticks>0){
-      for(let i=0;i<ticks;i++)doSkillAction(true);
-    }
-  }
+  });
 
   const gainedItems=Object.keys(G.inventory).reduce((s,id)=>s+Math.max(0,(G.inventory[id]||0)-(beforeInv[id]||0)),0);
   const gainedXp=Object.keys(G.skills).reduce((s,sk)=>s+Math.max(0,(G.skills[sk]||0)-(beforeXp[sk]||0)),0);
@@ -751,18 +774,29 @@ function processOffline(){
     budgetHrs: cap,
     remainingHrs: +(remainMs/3600000).toFixed(2),
     at: Date.now(),
+    /* b227: a machine-readable statement that this catch-up was paid at the
+       base rate. The summary must never quote a blessing it did not apply —
+       the surest way to guarantee that is for the summary to carry the truth
+       instead of leaving each renderer to guess. */
+    blessed: false,
   };
   const budgetNote = ` · ${fmtHm(hrs*3600000)} of your ${cap}h daily offline banked, ${fmtHm(remainMs)} left`;
+  /* b227: "at the base rate", in the ONE offline surface a player actually
+     sees. The day's blessing is announced on Home and in Events as something
+     that pays while you play; a welcome-back line that said nothing would
+     leave the player to assume the night was blessed too, and then quietly
+     disappoint them. Four words, in the headline, before the numbers. */
+  const rateNote = 'at the base rate';
   if(combatSummary){
     const note = combatSummary.died
-      ? `⏰ Offline ${hrs.toFixed(1)}h — fought to the death after ${combatSummary.kills} kills, +${gainedXp} XP, +${gainedGold} gold`
-      : `⏰ Offline ${hrs.toFixed(1)}h — ${combatSummary.kills} kills, +${gainedItems} items, +${gainedGold} gold`;
+      ? `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills, +${gainedXp} XP, +${gainedGold} gold`
+      : `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills, +${gainedItems} items, +${gainedGold} gold`;
     notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
   } else {
     /* b225: if the fire ruined any of it while you were away, say so — an
        unexplained pile of Burnt Food in the bag is exactly the kind of
        silent mechanic the b224 food lesson said never to ship again. */
-    notify(`⏰ Offline ${hrs.toFixed(1)}h — +${gainedItems} items, +${gainedXp} XP` +
+    notify(`⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — +${gainedItems} items, +${gainedXp} XP` +
       (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : '') + budgetNote,'info');
   }
 }
@@ -1241,12 +1275,15 @@ window.RESTED_CAP = RESTED_CAP;
                     becomes an interval.
 
    Derived, not chosen (Appendix A of the spec shows the arithmetic):
-   the engaged day banks 12h of offline budget plus 2.5h of active play at
-   the ×1.12 presence bonus = 14.8 effective game-hours per wall-clock day.
-   56 days × 14.8 = 828.8 hours to the first 99, against a measured 120.5h
-   today, needs a stretch factor of 6.88. Holding actionMs at 1.60 (tier-1
+   the engaged day banks 12h of offline budget plus 2.5h of active play =
+   14.5 effective game-hours per wall-clock day. (b227 removed the flat ×1.12
+   presence bonus that used to make the active block worth 2.8h; the online
+   advantage is now the rotating blessing calendar, which is presence-gated
+   and therefore varies week to week rather than sitting in the floor.)
+   ~57 days × 14.5 = 824 hours to the first 99, against a measured 120.5h
+   today, needs a stretch factor of 6.84. Holding actionMs at 1.60 (tier-1
    4.8s — still a rhythm, not a wait) puts the remainder on XP:
-   1.60 / (6.88 × 0.60 woodcutting curve correction) → PACE.xp = 0.39.
+   1.60 / (6.84 × 0.60 woodcutting curve correction) → PACE.xp = 0.39.
 
    NOT paced:
      • FARMING — growth is wall-clock, so PACE.actionMs cannot reach it and
@@ -1308,10 +1345,13 @@ function pacedActionMs(ms){
   return Math.max(500, Math.floor((Number(ms) || 0) * PACE.actionMs));
 }
 /* The advertised rate, computed the way the engine actually pays: PACE.xp,
-   the additive perk stack, the presence multiplier, and PACE.actionMs with
-   tool and speed perks. Every "xp/hr" readout in the game reads this — an
-   activity bar quoting 18,000 xp/hr while the skill ticks up at 5,000 is a
-   worse lie than showing no number at all. */
+   the additive perk stack (which now includes today's blessing exactly when
+   the blessing is live), and PACE.actionMs with tool and speed perks. Every
+   "xp/hr" readout in the game reads this — an activity bar quoting 18,000
+   xp/hr while the skill ticks up at 5,000 is a worse lie than showing no
+   number at all. b227: no presence multiplier here, because there no longer
+   is one; a blessed reader sees the blessed rate because getBonus itself
+   went up, which is the same number addXp will pay on the next action. */
 function actionRate(skillId, action){
   if(!action) return null;
   const gatherKey = ['woodcutting','mining','fishing'].indexOf(skillId) >= 0;
@@ -1324,7 +1364,7 @@ function actionRate(skillId, action){
   const ms = Math.max(500, Math.floor(pacedActionMs(action.ms||3000) * (1 - speed)));
   const bonus = ((typeof getBonus==='function') ? getBonus('allXP') : 0)
     + ((typeof getEquipmentStats==='function') ? (getEquipmentStats().xpB||0) : 0);
-  const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp||0) * (1 + bonus) * presenceMult()));
+  const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp||0) * (1 + bonus)));
   return { ms, xpPerAction: per, xpPerHour: Math.floor(3600000 / ms * per) };
 }
 window.PACE = PACE;
@@ -1333,32 +1373,40 @@ window.pacedActionMs = pacedActionMs;
 window.actionRate = actionRate;
 
 /* ════════════════════════════════════════════════════════════════
-   b226 — PRESENCE: ×1.12 XP while you are actually here. (spec §5.2/5.3)
+   b227 — PRESENCE: the gate on the blessing calendar.
+   (DECISIONS 2026-08-09 "Presence rework"; supersedes b226 §5.2/5.3)
 
-   Tyler asked for an online bonus of 10–15%; this is the centre of that
-   band, and it is a BONUS — offline stays at 1.00×, so nothing was taken
-   away to pay for it and the total presence advantage is exactly +12%.
+   b226 shipped presence as a flat ×1.12 XP multiplier. Tyler replaced it:
+   *"if you're offline the event doesn't apply to you… you only get that
+   stuff WHILE online. One week it may be 12% exp, another week it may be
+   +10% gold find."* So the flat multiplier is GONE and the detector stays —
+   it now decides whether the day's and week's rotating blessings apply at
+   all. The online advantage is the CALENDAR, which means it varies with the
+   week and with what you happen to be training, instead of being a constant
+   nobody could feel.
 
-   XP ONLY. Not item yield, not gold, not drop rates — so presence can never
-   be farmed as an economy faucet and the §6 vendor fix cannot be undone by
-   sitting at the screen.
-
-   OUTSIDE the additive `allXP` fuse, and multiplicative. It is not a perk:
-   every player has it, always, at the same value, from level 1 — a MODE
-   multiplier, not an accumulated power source. Inside the additive block it
-   would push the +52% permanent stack to +64% and blow the ≤0.60 fuse
-   (CONFLICTS 2026-08-08 §3) for a bonus nobody earned. Outside it, it also
-   cannot drift, because nothing can ever add to it.
-
-   "Online" is all three of: tab visible · real input within 10 minutes ·
+   "Present" is all three of: tab visible · real input within 10 minutes ·
    an activity running. No mouse-jiggle detection, no focus heuristics, no
-   anti-cheat theatre — this is 12% of one action, and the 10-minute window
-   is deliberately generous because an idle game's player is watching, not
-   clicking.
+   anti-cheat theatre — the 10-minute window is deliberately generous
+   because an idle game's player is watching, not clicking.
+
+   ── THE OFFLINE-REPLAY LATCH (this is the load-bearing part) ──
+   `isPresent()` alone is NOT a safe gate. processOffline() runs inside
+   loadLocal(), on a visible tab, with `_lastInputAt` freshly initialised and
+   an activity set — so isPresent() is TRUE for the entire catch-up. b226's
+   own ×1.12 leaked into every offline grant for exactly this reason. A gate
+   built only on isPresent() would inherit that bug verbatim and hand the
+   returning player a night of blessed output.
+
+   So blessings ask `blessingsApply()`, which is isPresent() AND *not inside
+   an offline replay*. `_offlineReplay` is a DEPTH counter, not a boolean, so
+   a nested replay (offline combat inside processOffline) cannot clear the
+   latch early, and it is released in a `finally` so a throw mid-replay can
+   never strand the game in permanently-unblessed mode.
    ════════════════════════════════════════════════════════════════ */
-const PRESENCE_MULT = 1.12;
 const PRESENCE_IDLE_MS = 10 * 60 * 1000;
 let _lastInputAt = Date.now();
+let _offlineReplay = 0;
 function _markInput(){ _lastInputAt = Date.now(); }
 ['pointerdown','keydown','touchstart'].forEach(function(ev){
   try{ window.addEventListener(ev, _markInput, {passive:true, capture:true}); }catch(e){}
@@ -1370,38 +1418,83 @@ function isPresent(){
   if(Date.now() - _lastInputAt > PRESENCE_IDLE_MS) return false;
   return !!(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
 }
-function presenceMult(){ return isPresent() ? PRESENCE_MULT : 1; }
-/* The honest hint. A bonus the player cannot see is a bonus that does not
-   change behaviour — and a bonus that is silently OFF is worse than one that
-   never existed. Words and tokens, no emoji, and it states the condition when
-   it lapses rather than just going quiet. */
-function presenceNote(){
-  const pct=Math.round((PRESENCE_MULT-1)*100);
-  if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
-  return isPresent()
-    ? ` · <b style="color:var(--gold-2)">+${pct}%</b> present`
-    : ` · <span style="opacity:.55">+${pct}% present — idle</span>`;
+function inOfflineReplay(){ return _offlineReplay > 0; }
+/* Run `fn` with the blessing latch closed. EVERY path that simulates elapsed
+   wall-clock must go through this — that is the whole contract. */
+function withOfflineReplay(fn){
+  _offlineReplay++;
+  try{ return fn(); }
+  finally{ _offlineReplay = Math.max(0, _offlineReplay - 1); }
 }
-window.HearthrisePresenceNote = presenceNote;
+function blessingsApply(){ return !inOfflineReplay() && isPresent(); }
+
+/* The honest hint, rendered beside the XP of whatever is running. A bonus the
+   player cannot see is a bonus that does not change behaviour — and a bonus
+   that is silently OFF is worse than one that never existed. It names the
+   blessing that actually touches THIS activity (a "+30% smithing" note beside
+   a woodcutting bar is a lie by adjacency), says plainly that it is paid while
+   you play, and dims to "— idle" the moment the gate closes. */
+function blessingNote(){
+  if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
+  const WE = window.HearthriseWorldEvents;
+  if(!WE || typeof WE.summaryFor !== 'function') return '';
+  let hit = null;
+  try{ hit = WE.summaryFor(activeBonusKeys()); }catch(e){ return ''; }
+  if(!hit) return '';
+  return blessingsApply()
+    ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · while you play</span>`
+    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — idle</span>`;
+}
+/* The getBonus keys that actually move what is running right now. One list,
+   read by the hint and by the tests, so "does this blessing affect me" can
+   never be answered two different ways in two places. */
+function activeBonusKeys(){
+  const keys=['allXP'];
+  const sk=G && G.activeSkill;
+  if(G && G.activeMonster) keys.push('combatXP');
+  if(sk){
+    if(['attack','strength','defense','hitpoints','ranged','magic'].indexOf(sk)>=0){
+      if(keys.indexOf('combatXP')<0) keys.push('combatXP');
+    }else if(['woodcutting','mining','fishing'].indexOf(sk)>=0){
+      keys.push('gatherSpeed');
+    }else{
+      const k={cooking:'cookSpeed',smithing:'smithSpeed',crafting:'craftSpeed',prayer:'prayerSpeed'}[sk];
+      if(k) keys.push(k);
+      if(sk==='cooking') keys.push('noBurn');
+    }
+  }
+  return keys;
+}
+window.HearthriseBlessingNote = blessingNote;
+/* b226 shipped this name and activities-grid.js calls it; it renders the same
+   kind of thing (the live modifier beside the XP), so the name survives the
+   rework rather than churning a caller for no gain. */
+window.HearthrisePresenceNote = blessingNote;
 window.HearthrisePresence = {
-  MULT: PRESENCE_MULT,
   IDLE_MS: PRESENCE_IDLE_MS,
   isPresent: isPresent,
-  mult: presenceMult,
+  blessingsApply: blessingsApply,
+  inOfflineReplay: inOfflineReplay,
+  activeBonusKeys: activeBonusKeys,
   /* test seam: the suite drives the idle clock rather than faking events */
   _setLastInput: function(t){ _lastInputAt = (typeof t === 'number') ? t : Date.now(); },
   _lastInput: function(){ return _lastInputAt; },
+  /* test seam: drive the replay latch without simulating a whole absence */
+  _withOfflineReplay: withOfflineReplay,
 };
 
 function addXp(sk,amt,opts){
   const bonus=getBonus('allXP')+getEquipmentStats().xpB;
   const cb=['attack','strength','defense','hitpoints'].includes(sk)?getBonus('combatXP'):0;
   const rested=amt>0?spendRestedCharge():0;
-  /* PACE first, then the additive perk block, then presence OUTSIDE it, then
-     one floor. A positive grant never rounds to zero — a 1-damage hit must
-     still be worth 1 Hitpoints XP or the low end of combat goes dead. */
+  /* PACE first, then the additive perk block, then one floor. A positive grant
+     never rounds to zero — a 1-damage hit must still be worth 1 Hitpoints XP
+     or the low end of combat goes dead. b227: no presence multiplier outside
+     the block any more; the blessing rides INSIDE `allXP`/`combatXP` via the
+     world-events wrapper on getBonus, and gates itself off when the player is
+     not present, so this line is the same arithmetic online and offline. */
   const base=(opts&&opts.authored)?(Number(amt)||0):pacedXp(sk,amt);
-  const raw=base*(1+bonus+cb+rested)*presenceMult();
+  const raw=base*(1+bonus+cb+rested);
   const gain=raw>0?Math.max(1,Math.floor(raw)):0;
   const old=levelFromXp(G.skills[sk]||0);
   G.skills[sk]=(G.skills[sk]||0)+gain;
@@ -1945,26 +2038,90 @@ function killMonster(m){
   G.monsterHp=m.hp;updateTopbar();
 }
 
+/* ════════════════════════════════════════════════════════════════
+   b227 — ONE function that answers "how long should the current action take,
+   right now?" — and one that makes the running loop obey it.
+
+   Before b227 the interval was computed once, at startSkill()/startArtisan(),
+   and frozen into `G.skillMs`. That was survivable while every speed bonus was
+   permanent. It is not survivable now: a gather-speed blessing is live only
+   while the player is present, so a frozen interval would keep paying blessed
+   speed to an idle player, and — far worse — would carry blessed speed into
+   the offline replay, which divides elapsed time by exactly this number. The
+   XP side of a blessing gates itself (it is read live, inside addXp); the
+   SPEED side could not, because nothing re-read it.
+
+   Recomputing also quietly fixes a long-standing papercut: buying a Toolshed
+   or a better axe mid-session never applied until you restarted the activity.
+
+   `retimeActivity()` only touches the timers when the number actually moved,
+   so the common case is a comparison and nothing else.
+   ════════════════════════════════════════════════════════════════ */
+function currentActionDef(){
+  const type=G&&G.activeSkill, tid=G&&G.skillTargetId;
+  if(!type||!tid) return null;
+  if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[type]){
+    const r=window.ARTISAN_RECIPES[type].find(x=>x.id===tid);
+    if(!r) return null;
+    return {act:r, artisan:true, key:({cooking:'cookSpeed',smithing:'smithSpeed',crafting:'craftSpeed',prayer:'prayerSpeed'})[type]||'gatherSpeed'};
+  }
+  let a=null;
+  if(type==='woodcutting'&&typeof TREES!=='undefined')a=TREES.find(t=>t.id===tid);
+  else if(type==='mining'&&typeof ROCKS!=='undefined')a=ROCKS.find(r=>r.id===tid);
+  else if(type==='fishing'&&typeof FISH_SPOTS!=='undefined')a=FISH_SPOTS.find(f=>f.id===tid);
+  return a?{act:a, artisan:false, key:'gatherSpeed'}:null;
+}
+function activityIntervalMs(){
+  const d=currentActionDef();
+  if(!d) return null;
+  let speed=(typeof getBonus==='function')?(getBonus(d.key)||0):0;
+  if(!d.artisan && window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
+    try{ speed += (window.HearthriseTools.bestToolSpeed(G.activeSkill)||0); }catch(e){}
+  }
+  return Math.max(500, Math.floor(pacedActionMs(d.act.ms||3000)*(1-speed)));
+}
+window.activityIntervalMs=activityIntervalMs;
+
 /* ─── skills ─── */
 let skillInterval=null,skillProgressInterval=null;
+function armSkillTimers(ms){
+  if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
+  if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
+  skillInterval=setInterval(()=>doSkillAction(false),ms);
+  skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/ms));if(activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
+}
+function retimeActivity(){
+  if(inOfflineReplay()) return;            // the replay owns its own clock
+  const want=activityIntervalMs();
+  if(want==null||want===G.skillMs) return;
+  G.skillMs=want;
+  if(skillInterval) armSkillTimers(want);
+  if(window._artisanInterval && typeof window._armArtisanTimers==='function') window._armArtisanTimers(want);
+}
+window.retimeActivity=retimeActivity;
 function startSkill(type,targetId,ms){
   stopSkill();
   G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
-  /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze */
-  const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
-  const speed=getBonus('gatherSpeed')+toolSpeed;
-  const actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-speed)));
+  /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze.
+     b227: through activityIntervalMs(), the single formula the live loop, the
+     retimer and the offline replay all read — a second copy of this arithmetic
+     is exactly how the b226 offline dampener happened. */
+  let actualMs=activityIntervalMs();
+  if(actualMs==null){
+    const toolSpeed=(window.HearthriseTools&&typeof window.HearthriseTools.bestToolSpeed==='function')?window.HearthriseTools.bestToolSpeed(type):0;
+    actualMs=Math.max(500,Math.floor(pacedActionMs(ms)*(1-(getBonus('gatherSpeed')+toolSpeed))));
+  }
   /* b226 (spec §1.6) — G.skillMs stores the ACTUAL interval, not the raw `ms`.
      It used to store the raw duration while the live interval used the
      tool/perk-adjusted one, and processOffline() divides the elapsed time by
      G.skillMs — so a player with a Rune Axe and a Toolshed gathered up to
      30–40% SLOWER offline than online, gear-scaled, and nothing in the game
      said so. Every speed bonus now applies offline too (a straight buff to
-     every geared player), and the presence bonus is the only deliberate
-     online/offline differential left in the game. */
+     every geared player). b227: the offline replay no longer trusts this
+     stored value at all — it re-derives the interval with the blessing gate
+     shut, so a blessed session can never bleed blessed speed into an absence. */
   G.skillMs=actualMs;
-  skillInterval=setInterval(()=>doSkillAction(false),actualMs);
-  skillProgressInterval=setInterval(()=>{G.skillProgress=Math.min(1,G.skillProgress+(100/actualMs));if(activeTab==='skills')renderSkillDetail(G.activeSkill);},100);
+  armSkillTimers(actualMs);
   renderSkillsList();renderSkillDetail(type);
 }
 function stopSkill(){
@@ -2011,7 +2168,11 @@ function doSkillAction(silent){
   if(_perSkill) G.stats[_perSkill]=(G.stats[_perSkill]||0)+qty;
   updateDaily('gather',qty);updateQuest('gather',qty);
   addXp(type,act.xp);
-  if(!silent){renderSkillDetail(type);updateTopbar();}
+  /* b227: re-derive the interval after each live action, so a blessing that
+     lapses when the player goes idle (or arrives when they come back) is felt
+     on the very next swing rather than at the next restart. Silent = the
+     offline replay, which must never touch the live timers. */
+  if(!silent){retimeActivity();renderSkillDetail(type);updateTopbar();}
 }
 
 /* ─── farming ─── */
@@ -2439,7 +2600,13 @@ function renderProfile(){
         <button class="btn tap" onclick="showTab('shop')">💎 Store</button>
       </div>`;
   }
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''}</div>`;
+  /* b227: says "base rate" out loud, for the same reason the welcome-back toast
+     does. NOTE (discovery, filed): this whole `#dash-active` block is
+     `display:none` on the live Home — home-dashboard.js replaced it in b219 —
+     so this line, b225's burn count and b226's budget readout are all currently
+     invisible. Kept correct rather than silently divergent; the visible surface
+     is the toast in processOffline(). */
+  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">⏰ Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate — blessings pay while you play</div>`;
   document.getElementById('dash-active-body').innerHTML=activityHtml;
 
   /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
@@ -2728,7 +2895,7 @@ function renderSkillDetail(id){
       <div style="font-size:54px">${s.icon}</div>
       <div style="flex:1">
         <div style="font-family:var(--f-display);font-size:22px;color:var(--gold-2)">Level ${lv}</div>
-        <div class="muted tiny">${xp.toLocaleString()} XP${lv<99?` · ${toNext.toLocaleString()} to next`:' · MAX'}${presenceNote()}</div>
+        <div class="muted tiny">${xp.toLocaleString()} XP${lv<99?` · ${toNext.toLocaleString()} to next`:' · MAX'}${blessingNote()}</div>
         <div class="bar xp" style="margin-top:6px"><i style="width:${pct.toFixed(1)}%"></i></div>
       </div>
     </div>
@@ -7507,21 +7674,37 @@ window.startArtisan = function(skillId, recipeId){
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
   if(typeof stopSkill === 'function') stopSkill();
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
-  /* b201: each artisan skill reads its own workbench-room speed bonus */
-  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
-  var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
-  /* b226: PACE.actionMs at the seam, and G.skillMs stores the ACTUAL interval
-     so the offline replay runs at the same rate as the live loop (spec §1.6). */
-  var actualMs = Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
-  G.skillMs = actualMs;
-  window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);
-  window._artisanProgress = setInterval(function(){
-    G.skillProgress = Math.min(1, G.skillProgress + (100/actualMs));
-    if(typeof activeTab !== 'undefined' && activeTab==='skills' && typeof renderSkillDetail==='function') renderSkillDetail(skillId);
-  }, 100);
+  G.skillMs = artisanIntervalMs(skillId, r);
+  window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
 };
+
+/* b227: ONE place that arms the artisan timers, so retimeActivity() can swap
+   the interval mid-session without duplicating the loop bodies — and so the
+   two startArtisan definitions in this file (the base one above and the
+   inputs-aware override further down) cannot drift apart again. They read
+   G.activeSkill / G.skillTargetId rather than closing over arguments, because
+   by the time a retime fires those are the authority on what is running. */
+window._armArtisanTimers = function(ms){
+  if(window._artisanInterval) clearInterval(window._artisanInterval);
+  if(window._artisanProgress) clearInterval(window._artisanProgress);
+  window._artisanInterval = setInterval(function(){ doArtisanAction(G.activeSkill, G.skillTargetId); }, ms);
+  window._artisanProgress = setInterval(function(){
+    G.skillProgress = Math.min(1, G.skillProgress + (100/ms));
+    if(typeof activeTab !== 'undefined' && activeTab==='skills' && typeof renderSkillDetail==='function') renderSkillDetail(G.activeSkill);
+  }, 100);
+};
+/* b201: each artisan skill reads its own workbench-room speed bonus. Routed
+   through the shared activityIntervalMs() so the live loop, the retimer and
+   the offline replay all compute the identical number from one formula. */
+function artisanIntervalMs(skillId, r){
+  var ms = (typeof window.activityIntervalMs === 'function') ? window.activityIntervalMs() : null;
+  if(ms != null) return ms;
+  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
+  var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
+  return Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
+}
 
 window.doArtisanAction = function(skillId, recipeId){
   var recipes = window.ARTISAN_RECIPES[skillId];
@@ -8173,6 +8356,10 @@ window.doArtisanAction = function(skillId, recipeId, opts){
     if(typeof updateDaily==='function') updateDaily('crafted', 1);
     if(typeof updateQuest==='function') updateQuest('crafted', 1);
   }
+  /* b227: re-derive the interval after each LIVE action so a speed blessing
+     turns on and off with presence, exactly as its XP side already does. The
+     offline replay passes {silent:true} and must never touch a live timer. */
+  if(!(opts && opts.silent) && typeof retimeActivity==='function') retimeActivity();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
   if(typeof updateTopbar==='function') updateTopbar();
 };
@@ -8200,18 +8387,8 @@ window.startArtisan = function(skillId, recipeId){
   }
   if(typeof stopSkill === 'function') stopSkill();
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
-  /* b201: each artisan skill reads its own workbench-room speed bonus */
-  var bonusKey = ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'})[skillId] || 'gatherSpeed';
-  var speed = (typeof getBonus==='function') ? getBonus(bonusKey) : 0;
-  /* b226: PACE.actionMs at the seam, and G.skillMs stores the ACTUAL interval
-     so the offline replay runs at the same rate as the live loop (spec §1.6). */
-  var actualMs = Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
-  G.skillMs = actualMs;
-  window._artisanInterval = setInterval(function(){ doArtisanAction(skillId, recipeId); }, actualMs);
-  window._artisanProgress = setInterval(function(){
-    G.skillProgress = Math.min(1, G.skillProgress + (100/actualMs));
-    if(typeof activeTab !== 'undefined' && activeTab==='skills' && typeof renderSkillDetail==='function') renderSkillDetail(skillId);
-  }, 100);
+  G.skillMs = artisanIntervalMs(skillId, r);
+  window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
 };
@@ -9901,7 +10078,7 @@ function buildHead(skillId){
         +'<span class="ah-name">'+s.name+'</span>'
         +'<span class="ah-lvl"><em>Level</em>'+lv+'</span>'
       +'</div>'
-      +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+presenceNote()+'</div>'
+      +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+blessingNote()+'</div>'
       +'<div class="ah-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
     +'</div>'
   +'</div>';
@@ -9922,7 +10099,7 @@ function lightUpdate(skillId){
   }
   var xp = G.skills[skillId]||0, lv = getLevel(skillId), pct = xpPct(xp)*100, toNext = xpToNext(xp);
   var ahLvl = detail.querySelector('.ah-lvl'); if(ahLvl) ahLvl.innerHTML = '<em>Level</em>'+lv;
-  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.innerHTML = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+presenceNote();
+  var ahXp = detail.querySelector('.ah-xp'); if(ahXp) ahXp.innerHTML = xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+blessingNote();
   var ahBar = detail.querySelector('.ah-bar i'); if(ahBar) ahBar.style.width = pct.toFixed(1)+'%';
   detail.querySelectorAll('.act-tile').forEach(function(tile){
     var qe = tile.querySelector('.at-qty');

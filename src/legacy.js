@@ -1918,6 +1918,14 @@ function bountyProgressText(b){
   if(b.type==='proof')return `${Math.min(G.inventory[b.proofItem]||0,b.required)} / ${b.required}`;
   return `${Math.min(b.progress||0,b.required)} / ${b.required}`;
 }
+
+/* b228 (Tyler): "nothing tells me anywhere on the screen what my active bounty
+   is until I refresh." Accept/abandon/reroll only repainted combat. One helper
+   repaints whichever bounty surface exists, called from all three. */
+function repaintBounty(){
+  try{ if(typeof renderBountyPanel==='function') renderBountyPanel(); }catch(e){}
+  try{ if(typeof window.renderBountyTab==='function') window.renderBountyTab(); }catch(e){}
+}
 function acceptBounty(index){
   ensureBountyState();
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
@@ -1925,7 +1933,7 @@ function acceptBounty(index){
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
   G.bountyHunter.board.splice(index,1);
   notify(`Accepted bounty: ${MONSTERS[b.target]?.name}`,'info');
-  renderCombat();saveLocal();
+  renderCombat();repaintBounty();saveLocal();
 }
 function abandonBounty(){
   if(!G.bountyHunter?.active)return;
@@ -1933,13 +1941,13 @@ function abandonBounty(){
   const lv=getBountyHunterLevel();
   if(lv>=10){const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));G.bountyHunter.marks=Math.max(0,(G.bountyHunter.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');}
   else notify('Bounty abandoned','info');
-  G.bountyHunter.active=null;renderCombat();saveLocal();
+  G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
 }
 function rerollBountyBoard(){
   ensureBountyState();
   if(G.bountyHunter.freeRerolls>0){G.bountyHunter.freeRerolls--;}
   else{const cost=5+(G.bountyHunter.rerollsToday||0)*5;if((G.bountyHunter.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}G.bountyHunter.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;}
-  G.bountyHunter.board=generateBountyBoard();notify('Bounty board refreshed','info');renderCombat();saveLocal();
+  G.bountyHunter.board=generateBountyBoard();notify('Bounty board refreshed','info');renderCombat();repaintBounty();saveLocal();
 }
 function handleBountyKill(monsterId,m){
   ensureBountyState();
@@ -2435,7 +2443,11 @@ function stopSkill(){
   }
   if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
   if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
+  var _prevSkill = null; /* b228 (Tyler): switching to combat left the old tile saying Active */
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
+  try{
+    document.querySelectorAll('.act-tile.active').forEach(function(t){ t.classList.remove('active'); var st=t.querySelector('.at-stop'); if(st) st.remove(); var f=t.querySelector('.at-prog-fill'); if(f) f.style.width='0%'; });
+  }catch(e){}
   renderSkillsList();
 }
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
@@ -5417,6 +5429,7 @@ function spendMarks(itemId){
 }
 
 /* Render the dedicated bounty tab */
+window.renderBountyTab = renderBountyTab; /* b228: cross-IIFE export — repaintBounty() lives in another block */
 function renderBountyTab(){
   ensureBountyState && ensureBountyState();
   const lv = (typeof getBountyHunterLevel === 'function') ? getBountyHunterLevel() : 1;

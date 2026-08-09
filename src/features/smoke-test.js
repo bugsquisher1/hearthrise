@@ -12154,6 +12154,56 @@ const TESTS = [
     assert(kept.chronicle.seenAt === 0 && kept.chronicle.seeded === 0, 'missing fields must be repaired, not ignored');
   }),
 
+  // b228 (Tyler): "Need an indication that I have chosen a bounty" — accept
+  // repainted combat, never the board. And renderBountyTab lived in another
+  // IIFE, unexported, so the repaint helper silently no-opped (the same
+  // cross-block typeof trap as the b224 quest strip).
+  () => tryRun('b228: accepting a bounty repaints the board immediately', () => {
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      assert(typeof window.renderBountyTab === 'function', 'renderBountyTab must be window-exported');
+      window.G.bountyHunter.active = null;
+      window.G.bountyHunter.board = window.generateBountyBoard();
+      window.showTab('bounty');
+      const before = document.querySelectorAll('#panel-bounty .bb-notice').length;
+      window.acceptBounty(0);
+      const board = document.getElementById('panel-bounty');
+      assert(window.G.bountyHunter.active, 'accept did not take the bounty');
+      const after = board.querySelectorAll('.bb-notice').length;
+      assert(after !== before || /CLAIMED|Fight target|Go to fight/i.test(board.textContent),
+        'the board did not visibly change on accept (still ' + after + ' notices, no active banner)');
+    } finally {
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // b228 (Tyler): "when I switch from a gathering/artisan activity to combat,
+  // it still shows Active on the old tile." stopSkill now strips the stale
+  // active class, the Active chip, and zeroes the fill.
+  () => tryRun('b228: starting combat clears the old activity tile Active state', () => {
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 5;
+      window.showTab('skills');
+      if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
+      window.startArtisan('cooking', 'cook_shrimp');
+      assert(document.querySelector('.act-tile.active'), 'setup: cook tile not active');
+      const mid = Object.keys(window.MONSTERS)[0];
+      window.startCombat(mid);
+      assert(!document.querySelector('.act-tile.active'),
+        'a tile still says Active after switching to combat');
+      assert(!document.querySelector('.act-tile .at-stop'),
+        'a stale Active chip survived the switch');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

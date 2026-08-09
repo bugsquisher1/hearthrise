@@ -53,7 +53,7 @@ Worked in the `manual-stable` worktree (branch `agent-stable`). Full write-up in
 | `lichling` | Lichling | utility (lich boss pet) | a small skeletal/undead creature — again must not reuse the `hollow_regent` Hunt boss's portrait (life-stage/identity mismatch, same reasoning as whelp/dragonling). |
 | `dragonling` | Dragonling | combat (dragon boss pet) | same brief as `whelp` — a young dragon distinct from both `crownless_wyrm` and whatever gets painted for `whelp` (they're different companions, ideally visually distinct from each other too, not just from the boss). |
 
-**Verified:** smoke 332/332 (+1 guard), `bump-version.sh --check` OK, 0 asset 404s (network log + `read_network_requests`), console clean. Runtime walked at `localhost:8171` (worktree's harness seam, added to `.claude/launch.json`) — Stable grid (22 cards, mixed owned/locked/equipped), Character → Companion tab (both a portrait id and a glyph-only id equipped), Manage gear doll. Commit `<see final report>`.
+**Verified:** smoke 332/332 (+1 guard), `bump-version.sh --check` OK, 0 asset 404s (network log + `read_network_requests`), console clean. Runtime walked at `localhost:8171` (worktree's harness seam, added to `.claude/launch.json`) — Stable grid (22 cards, mixed owned/locked/equipped), Character → Companion tab (both a portrait id and a glyph-only id equipped), Manage gear doll. Commit `7a5e616`.
 
 ### 2026-08-08 · b224 — asset promotion pass (Hunt bosses, shop keeper judgment, castle goods, homestead/hen)
 Worked in the `agent-asset-pass` worktree. Full change contract in `ASSET_MANIFEST.md` ("b224 — Asset Director promotion pass"); summary here.

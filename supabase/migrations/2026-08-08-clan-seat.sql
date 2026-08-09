@@ -1405,7 +1405,10 @@ grant execute on function public.clan_seat_read(uuid) to authenticated;
 -- treasury is an operating account that goes down when a hold builds something,
 -- so a board sorted on it rewards hoarding over building. Re-created verbatim
 -- from schema.sql §5 plus the two new columns.
-create or replace view public.clan_leaderboard as
+-- CREATE OR REPLACE VIEW can't change an existing view's column list
+-- (the live DB has the schema.sql version) — drop + recreate instead.
+drop view if exists public.clan_leaderboard;
+create view public.clan_leaderboard as
   select c.id, c.name, c.level, c.treasury, c.castle_tier,
          c.standing, c.upkeep_state,
          count(m.user_id) as members

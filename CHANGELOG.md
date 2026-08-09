@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 224 — 2026-08-08 (Hotfix — eating works, quests count)
+
+Two fixes straight from your beta reports. Thank you — keep them coming.
+
+- 🍖 **You can actually eat now.** Every healing food carries a real **Eat** button with its effect on it ("Eat — Heals 8"), buff food says **Drink/Use** with the buff and duration spelled out, and combat has a proper Eat button with your best food loaded. The truth we found: the old Eat path pointed at code that never existed, and "Set Auto-eat" hasn't done anything since build 134 — new players literally had no way to heal. Eating at full HP now politely refuses instead of wasting the food, and the game plainly tells you Auto-Eat is a Store unlock.
+- 📜 **The Quests strip counts again.** The topbar quest tracker has silently shown 0 progress — and refused claims on finished quests — for 97 builds. Chop a log, watch it move. (Your actual progress was always being recorded; only the display and the Claim button were broken.)
+- 🧪 282 tests green (+8 that specifically watch numbers move, which is how this stayed invisible).
+
 ## v0.9.2-beta build 223 — 2026-08-08 (The Clan Seat rises)
 
 - 🏰 **Your clan has a castle now.** The clan page is a dusk scene of your hold, built from real coursed stonework — and it grows with your clan, from two tents and a fire to a fortified keep with towers and trophies. **Every structure is clickable**: step inside the Great Hall (banners, dais, the roster), the Treasury vault (iron door, coin chests), the Tavern (a glowing hearth and the chalked task Board), the Sawmill, the Smeltery, and the War Room's map table. Each room carries its own upgrade ladder — costs, effects, and what the next level buys.

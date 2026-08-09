@@ -5019,6 +5019,220 @@ const TESTS = [
     assert(M._reduceClaim(500, null).action === 'fail', 'a server error must never award a chest');
   }),
 
+  // ── b228 regression suite (rally pre-selection + the 50% absence band) ──
+  //
+  // Tyler: "allow users to choose which rally they plan to join that day; if
+  // they are offline, they will get 50% participation reward during the event."
+  // Two things can break badly here and both are guarded below: the pre-select
+  // could become a way to pay twice, or it could quietly become better than
+  // showing up. Neither is allowed to regress silently.
+
+  // #1: the rule — ONE answer per UTC day, changeable only until the rally you
+  // chose actually opens. Driven through the pure gate with a frozen clock, so
+  // every edge is exercised without waiting for 01:00 UTC.
+  () => tryRun('b228: rally pre-select — one per UTC day, changeable only until that rally opens', () => {
+    const M = window.HearthriseMuster;
+    assert(typeof M.canPledge === 'function', 'canPledge is missing — the pre-selection gate IS the feature');
+    const DAY = '2026-8-9';
+    const A = { eventKey: DAY + '#1',  dayKey: DAY, slot: 1,  startMs: Date.UTC(2026, 7, 9, 1, 0) };
+    const B = { eventKey: DAY + '#13', dayKey: DAY, slot: 13, startMs: Date.UTC(2026, 7, 9, 13, 0) };
+    const TOM = { eventKey: '2026-8-10#1', dayKey: '2026-8-10', slot: 1, startMs: Date.UTC(2026, 7, 10, 1, 0) };
+    const ctx = (o) => Object.assign({ nowMs: Date.UTC(2026, 7, 9, 0, 0), todayKey: DAY,
+                                       windows: [A, B, TOM], pledge: null, joinedToday: false }, o);
+    const why = (key, o) => { const r = M.canPledge(key, ctx(o)); return r.ok ? 'ok' : r.error; };
+
+    assert(why(A.eventKey) === 'ok', 'an unpledged upcoming rally must be answerable');
+    // Changeable — the whole point of "plan to join", since a day's two rallies
+    // are always different content.
+    assert(why(B.eventKey, { pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'ok',
+      'the answer must be changeable while neither window has opened');
+    // …until YOUR rally opens. Then the day is committed.
+    assert(why(B.eventKey, { nowMs: Date.UTC(2026, 7, 9, 1, 5), pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'locked',
+      'once the chosen rally has opened the answer must lock');
+    assert(why(A.eventKey, { nowMs: Date.UTC(2026, 7, 9, 1, 5) }) === 'window_open',
+      'a rally that has already begun is joined, not pre-selected');
+    assert(why(A.eventKey, { pledge: { dayKey: DAY, eventKey: A.eventKey } }) === 'already_pledged',
+      'answering the same rally twice must be a no-op, not a second pledge');
+    assert(why(TOM.eventKey) === 'not_today',
+      'only TODAY’s two rallies may be answered — one per UTC day is a rule about a day the server can name');
+    assert(why(A.eventKey, { joinedToday: true }) === 'already_answered',
+      'a player who already joined live today must never be offered a pledge that could not pay');
+    assert(why('9999-1-1#7') === 'unknown_slot', 'an invented slot must be refused');
+
+    // The topbar pill's upcoming state stops asking once the choice is made,
+    // without changing state or precedence — pre-selecting is a plan, not an event.
+    const S = M._computeState;
+    const answering = S({ nowMs: 0, todayKey: 'D', next: { startMs: 3 * 3600000, eventKey: 'D#13' },
+                          pledgedEventKey: 'D#13' });
+    assert(answering.state === 'upcoming' && answering.answering === true &&
+           /^Answering in 3:00:00$/.test(answering.copy), 'pledged pill copy: ' + JSON.stringify(answering));
+    const plain = S({ nowMs: 0, todayKey: 'D', next: { startMs: 3 * 3600000, eventKey: 'D#13' } });
+    assert(/^Rally in 3:00:00$/.test(plain.copy) && !plain.answering,
+      'an unpledged countdown must read exactly as before: ' + JSON.stringify(plain));
+    assert(answering.rank === plain.rank && answering.state === plain.state,
+      'pre-selecting must not change the pill’s precedence');
+  }),
+
+  // #2: the economy. 50% of the BASE band and nothing else — never a Seal,
+  // never the community share, never twice, and never before the day is over.
+  () => tryRun('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    assert(M.ABSENT_SHARE === 0.5, 'the consolation share drifted: ' + M.ABSENT_SHARE);
+    assert(M.ABSENT_BAND.gold === Math.round(M.SOLO_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
+      'half honors must be 750g against the 1,500g base band, got ' + M.ABSENT_BAND.gold);
+    assert(M.ABSENT_BAND.gems === 1, 'half honors must be 1 gem against the base band’s 2, got ' + M.ABSENT_BAND.gems);
+    assert(M.ABSENT_BAND.seals === 0, 'absence must never earn a Rally Seal — the Seal means the realm held');
+    // Presence has to keep winning, or this quietly becomes "log in every other
+    // day". 750g is half the FLOOR and a tenth of the 7,500g ceiling.
+    assert(M.ABSENT_BAND.gold * 2 === M.SOLO_BAND.gold, 'absence must be worth exactly half of live participation');
+    assert(M.ABSENT_BAND.gold <= 7500 * 0.2, 'absence must stay far under the live ceiling');
+
+    // The day closes at the END of the LAST window — 13:45 UTC, not 01:45.
+    // Paying earlier could stack with a live join in the second slot.
+    assert(M.dayCloseMs('2026-8-9') === Date.UTC(2026, 7, 9, 13, 45),
+      'the day must close at 13:45 UTC, got ' + new Date(M.dayCloseMs('2026-8-9')).toISOString());
+    assert(!isFinite(M.dayCloseMs('rubbish')), 'a malformed day key must not produce a payout window');
+
+    const O = M._pledgeOutcome;
+    const P = { dayKey: '2026-8-9', eventKey: '2026-8-9#1', slot: 1 };
+    const close = M.dayCloseMs('2026-8-9');
+    assert(O(P, { nowMs: close - 1, joinedThatDay: false }).action === 'hold',
+      'nothing is owed while the day can still be joined');
+    const paid = O(P, { nowMs: close, joinedThatDay: false });
+    assert(paid.action === 'pay' && paid.gold === 750 && paid.gems === 1 && paid.seals === 0,
+      'the absent payout drifted: ' + JSON.stringify(paid));
+    assert(O(P, { nowMs: close + 9e8, joinedThatDay: true }).action === 'forfeit',
+      'a pledge answered live must forfeit the consolation, not add to it');
+    assert(O(null, { nowMs: close }).action === 'none', 'no pledge, no payout');
+
+    // The wire contract. A greedy or confused server cannot mint.
+    const A = M._reduceAbsence;
+    const greedy = A(200, { ok: true, gold: 9e9, gems: 9e9, seals: 9e9 });
+    assert(greedy.action === 'accept' && greedy.gold === 750 && greedy.gems === 1 && greedy.seals === 0,
+      'the half-honors ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
+    assert(JSON.stringify(greedy).indexOf('hearth_token') === -1,
+      'the absence band must never reference the IAP-only Hearth Token');
+    assert(A(200, { ok: false, error: 'day_open' }).action === 'hold', 'day_open must wait, not fail');
+    assert(A(500, null).action === 'fail' && A(200, null).action === 'fail',
+      'a server error must never pay half honors');
+
+    // End to end on the local (un-migrated) path. settlePledge() is async, but
+    // that path contains no await, so its whole body runs before it returns —
+    // which is what lets a synchronous suite drive the real function.
+    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const gold0 = G.gold, gems0 = G.gems;
+    try {
+      delete G.muster; M.ensureState();
+      const past = new Date(M.now() - 3 * 86400000);
+      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
+      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
+                       at: 0, joined: false, provisional: true });
+      M.settlePledge();
+      assert(G.gold === gold0 + 750, 'half honors did not land: ' + (G.gold - gold0));
+      assert(G.gems === gems0 + 1, 'half honors gems did not land: ' + (G.gems - gems0));
+      assert(M.getPledge() === null, 'a settled pledge must be cleared, or it pays again on the next boot');
+      M.settlePledge();
+      assert(G.gold === gold0 + 750, 'half honors paid twice — the pledge was not consumed');
+    } finally {
+      G.gold = gold0; G.gems = gems0;
+      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+    }
+  }),
+
+  // #3: THE no-double-pay test. A pre-selection that becomes a live join must
+  // upgrade into that join and pay nothing extra — including days later, after
+  // the muster mirror has been pruned at the UTC day roll.
+  () => tryRun('b228: a pre-selection that becomes a live join never double-pays', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const gold0 = G.gold, gems0 = G.gems;
+    try {
+      const past = new Date(M.now() - 3 * 86400000);
+      const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
+      delete G.muster; M.ensureState();
+      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
+                       at: 0, joined: false, provisional: true });
+      // Answer it live. adopt() latches the join onto the PLEDGE, because the
+      // muster mirror is pruned at the day roll and settlement can be days later.
+      M._adopt({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, server: false });
+      assert(M.getPledge() && M.getPledge().joined === true,
+        'joining the pledged rally must latch onto the pledge — the mirror will not remember');
+      // Now roll the day: the mirror forgets, the pledge does not.
+      G.muster.dayKey = '1999-1-1'; M.ensureState();
+      assert(M.ensureState().eventKey === null, 'the mirror should have been pruned');
+      M.settlePledge();
+      assert(G.gold === gold0 && G.gems === gems0,
+        'a rally answered live paid half honors on top of its chest — that is the double-pay bug');
+      assert(M.getPledge() === null, 'the forfeited pledge must be closed, not left pending');
+
+      // The server says the same thing, through the b220 join primary key.
+      assert(M._reduceAbsence(200, { ok: false, error: 'answered_live' }).action === 'forfeit',
+        'the server finding a live join must close the pledge, not fail loudly at the player');
+      assert(M._reduceAbsence(200, { ok: false, error: 'already_settled' }).action === 'forfeit',
+        'a replayed consolation claim must pay nothing');
+
+      // Ownership rule: what the SERVER holds, only the server settles. A
+      // client that paid a server-registered pledge locally would pay twice the
+      // moment that account signed in anywhere else.
+      M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
+                       at: 0, joined: false, provisional: false });
+      M.settlePledge();
+      assert(G.gold === gold0 && G.gems === gems0,
+        'a server-registered pledge was settled by the client — that is a cross-device double-pay');
+      assert(M.getPledge() !== null, 'a server-owned pledge must be held, not discarded');
+    } finally {
+      G.gold = gold0; G.gems = gems0;
+      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+    }
+  }),
+
+  // #4: client-first. The client ships before the migration, so an un-migrated
+  // (or signed-out) server must degrade to a LABELLED provisional answer rather
+  // than hiding the feature or lying about it.
+  () => tryRun('b228: with no migration the pre-selection degrades to a labelled provisional answer', () => {
+    const M = window.HearthriseMuster, G = window.G;
+    assert(M._reducePledge(404, { code: 'PGRST202' }).action === 'unsupported',
+      'a missing world_event_pledge RPC must degrade, not break the feature');
+    assert(M._reduceAbsence(404, { code: 'PGRST202' }).action === 'unsupported',
+      'a missing world_event_absence_claim RPC must degrade, not break settlement');
+    assert(M._reducePledge(200, null).action === 'fail', 'a null body must never read as an accepted answer');
+    assert(M._reducePledge(401, { code: 'PGRST301' }).action === 'fail',
+      'an auth error must never read as an accepted answer');
+    assert(M._reducePledge(200, { ok: false, error: 'locked' }).message.length > 0,
+      'every refusal must carry copy a player can act on');
+
+    // The provisional label is surfaced in the Events rally card, not buried —
+    // the same honesty pattern the solo rally uses.
+    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const prevTab = window.activeTab;
+    try {
+      // Dated FORWARD on purpose: this test is about the label, and a pledge
+      // whose day cannot have closed can never be settled out from under it by
+      // the background settle pass while the assertions run.
+      const soon = new Date(M.now() + 86400000);
+      const dayKey = soon.getUTCFullYear() + '-' + (soon.getUTCMonth() + 1) + '-' + soon.getUTCDate();
+      M._writePledge({ dayKey, eventKey: dayKey + '#1', slot: 1, startMs: M.now() + 9e6,
+                       at: M.now(), joined: false, provisional: true });
+      window.showTab('events');
+      M.render();
+      const card = document.getElementById('hr-muster-card');
+      assert(card, 'the rally card is missing from Events');
+      const text = card.textContent || '';
+      assert(/half honors/i.test(text),
+        'the rally card never tells the player what answering in absence is worth');
+      assert(/750/.test(text), 'the card must state the actual number, not a vague promise');
+      assert(/provisional/i.test(text),
+        'a device-only answer must say so — an unlabelled provisional reward is a lie');
+    } finally {
+      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+      try { window.showTab(prevTab || 'profile'); } catch {}
+    }
+  }),
+
   // #14: discoverability. THIS is the tripwire the original bug never had —
   // the Dungeons entry was injected and then hidden in CSS, which is exactly
   // the failure mode that made dungeons, and the clan raid nested inside them,

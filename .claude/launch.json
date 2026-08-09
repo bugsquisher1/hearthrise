@@ -30,6 +30,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8172"],
       "port": 8172
+    },
+    {
+      "name": "hearthrise-rally",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8174"],
+      "port": 8174
     }
   ]
 }

@@ -200,7 +200,14 @@
     <button class="nav-btn" data-tab="social"><span class="ic"></span><span class="lbl">Social</span></button>
 
     <div class="nav-spacer"></div>
-    <div class="nav-foot" id="net-status"><span class="dot off"></span><span>Offline</span></div>
+    <!-- b229: connected is the NORMAL state for a signed-in, online-only
+         realm — it is not a status worth a permanent badge, so the default
+         markup is hidden. src/network-status.js is the only thing that ever
+         unhides this: a real disconnect (browser offline event, confirmed by
+         a probe against the Supabase host) flips it to an honest amber
+         "Reconnecting…" and it clears itself the moment the probe succeeds
+         again. Never hardcode this to "Offline" — that was the b229 bug. -->
+    <div class="nav-foot hide" id="net-status"><span class="dot warn"></span><span>Reconnecting…</span></div>
   </aside>
 
   <!-- ─── MAIN ─── -->
@@ -212,8 +219,12 @@
              pictograph — emoji as art, which the project directive forbids,
              and now reachable by a player uploading a portrait. It falls back
              to the painted default once, then simply hides, leaving the
-             styled avatar ring. No broken-image state either way. -->
-        <div class="player-avatar"><img src="assets/icons-bundle/painted/npc/player.png?v=226" alt="" data-no-fallback data-fallback="assets/icons-bundle/painted/npc/player.png?v=226" onerror="if(this.dataset.fellBack){this.style.display='none';}else{this.dataset.fellBack='1';this.src=this.dataset.fallback;}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
+             styled avatar ring. No broken-image state either way.
+             b229: role/tabindex ship statically so the avatar is keyboard-
+             reachable from first paint; src/features/identity.js wires the
+             click/Enter/Space handlers + hover-ring class + tooltip onto
+             this same node (it never gets replaced, only its <img src>). -->
+        <div class="player-avatar" role="button" tabindex="0"><img src="assets/icons-bundle/painted/npc/player.png?v=226" alt="" data-no-fallback data-fallback="assets/icons-bundle/painted/npc/player.png?v=226" onerror="if(this.dataset.fellBack){this.style.display='none';}else{this.dataset.fellBack='1';this.src=this.dataset.fallback;}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" /></div>
         <div style="min-width:0">
           <div class="player-name" id="player-name">Adventurer</div>
           <div class="row tiny muted" style="gap:6px">

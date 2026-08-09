@@ -926,13 +926,20 @@ const NetClient=(()=>{
 })();
 
 function updateNetStatus(){
-  const el=document.getElementById('net-status');
+  /* b229: this used to also drive #net-status (the sidebar-foot indicator),
+     toggling it off NetClient.online() — which is `navigator.onLine &&
+     !!ENDPOINT`, and ENDPOINT above is hardcoded null (this is the
+     pre-Supabase mock-backend abstraction; it was never rewired when the
+     real backend went live). That made the sidebar foot report "Offline"
+     permanently for every player, signed in or not, actually connected or
+     not — this function ran once at boot() and NetClient.signIn/signOut,
+     neither of which the real auth flow (src/net/auth.js) ever calls.
+     Ownership of #net-status now lives in src/network-status.js, which
+     tracks REAL connectivity (browser online/offline events + a probe
+     against the actual Supabase host) — do not reintroduce a write to it
+     here. */
   const pill=document.getElementById('status-pill');
   const online=NetClient.online()&&G.account;
-  if(el){
-    el.querySelector('.dot').classList.toggle('off',!online);
-    el.querySelector('span:last-child').textContent=online?(G.account?.displayName||'Online'):'Offline';
-  }
   if(pill){
     pill.classList.toggle('off',!online);
     /* b224: "Offline play" was a product state; it is now only ever a

@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8149"],
       "port": 8149
+    },
+    {
+      "name": "hearthrise-smallfix",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8172"],
+      "port": 8172
     }
   ]
 }

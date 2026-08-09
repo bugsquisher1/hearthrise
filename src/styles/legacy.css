@@ -3543,3 +3543,51 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .hr-botd .botd-drop em{color:var(--gold-2);font-style:normal;font-variant-numeric:tabular-nums}
 .hr-botd .botd-drop.muted b,.hr-botd .botd-drop.muted{color:var(--ink-3)}
 .hr-botd .botd-foot{display:flex;justify-content:flex-end}
+
+/* ── b259: Landscape-only portrait gate ──────────────────────────────────
+   Hidden by default (desktop + landscape). Shown ONLY on a touch phone held
+   in portrait — coarse pointer + no hover keeps it off desktops in a narrow
+   window and off tablets (min side > 600px). Colours carry hard fallbacks so
+   it looks right even before the theme is applied on first paint. */
+#hr-rotate-gate { display: none; }
+@media (orientation: portrait) and (max-width: 600px) and (hover: none) and (pointer: coarse) {
+  #hr-rotate-gate {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(201,162,74,.10), transparent 60%),
+      var(--bg-0, #14110c);
+    color: var(--ink, #ece1cc);
+    padding: calc(28px + env(safe-area-inset-top, 0px)) 28px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+  #hr-rotate-gate .hr-rotate-inner { max-width: 340px; }
+  #hr-rotate-gate .hr-rotate-ic {
+    width: 86px; height: 86px;
+    color: var(--gold-2, #e2b84e);
+    margin: 0 auto 18px;
+    animation: hr-rotate-tip 2.6s ease-in-out infinite;
+  }
+  #hr-rotate-gate h2 {
+    font-family: 'Cinzel', serif;
+    font-size: calc(22px * var(--ui-scale, 1)); font-weight: 700; letter-spacing: .02em;
+    color: var(--gold-2, #e2b84e);
+    margin: 0 0 10px;
+  }
+  #hr-rotate-gate p {
+    font-size: calc(15px * var(--ui-scale, 1)); line-height: 1.5;
+    color: var(--ink-2, #cbbfa6);
+    margin: 0;
+  }
+  @keyframes hr-rotate-tip {
+    0%, 55%, 100% { transform: rotate(0deg); }
+    72%, 88%      { transform: rotate(-90deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #hr-rotate-gate .hr-rotate-ic { animation: none; }
+  }
+}

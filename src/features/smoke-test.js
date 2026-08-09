@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=258' directly.
+// modularised, will import { G } from '../state/game.js?v=259' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=258';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=258';
+import { on, snapshot } from '../net/events.js?v=259';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=259';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=258';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=259';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,28 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b259: portrait gate exists, hidden on desktop, gated to portrait touch phones only', () => {
+    const g = document.getElementById('hr-rotate-gate');
+    assert(g, 'the rotate gate element must be present from first paint');
+    assert(/sideways|landscape|rotate/i.test(g.textContent), 'it must tell the player to rotate');
+    // On the harness viewport (desktop, fine pointer) the gate must be hidden.
+    assert(getComputedStyle(g).display === 'none', 'the gate must be hidden on desktop / landscape, got ' + getComputedStyle(g).display);
+    // The SHOW rule must be gated to a portrait, phone-width, TOUCH device — never desktop.
+    let media = null;
+    for(const s of document.styleSheets){
+      let rules; try { rules = s.cssRules; } catch(e){ continue; }
+      for(const r of rules){
+        if(r.type === CSSRule.MEDIA_RULE && /hr-rotate-gate/.test(r.cssText)){
+          const mt = (r.media && r.media.mediaText) || '';
+          if(/portrait/.test(mt)) media = mt;
+        }
+      }
+    }
+    assert(media, 'a portrait media rule for the gate must exist');
+    assert(/pointer:\s*coarse/.test(media) && /hover:\s*none/.test(media), 'gate must be limited to touch devices, got: ' + media);
+    assert(/max-width/.test(media), 'gate must be limited to phone width, got: ' + media);
   }),
 
   () => tryRun('b258: combat loop re-arms on resume so AFK/offline combat keeps going (paione: stuck at 71 kills)', () => {

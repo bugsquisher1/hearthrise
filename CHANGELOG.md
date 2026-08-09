@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 257 — 2026-08-09 (Pick your food in peace)
+
+- 🍖 **The auto-eat food menu stops closing on you.** While you were choosing your auto-eat food, the combat screen redrew every couple of seconds and slammed the dropdown shut. It now leaves the menu alone while it's open — the fight keeps going underneath, and the picker stays put until you choose. *(Thanks paione.)*
+
 ## v0.9.2-beta build 256 — 2026-08-09 (Boss card knows its place)
 
 - 🐉 **The Boss of the Day card no longer interrupts a fight.** It was showing on every combat sub-tab, so it dropped into the middle of an active battle. It now lives only on the **Foes** tab (where you pick who to fight) and steps aside during combat. *(Thanks paione.)*

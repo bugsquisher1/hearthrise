@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=256' directly.
+// modularised, will import { G } from '../state/game.js?v=257' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=256';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=256';
+import { on, snapshot } from '../net/events.js?v=257';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=257';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=256';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=257';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11385,6 +11385,28 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b257: renderCombat leaves the auto-eat dropdown alone while it is open (paione: menu closes every few ticks)', () => {
+    const el = document.getElementById('combat-area');
+    if(!el || typeof window.renderCombat !== 'function'){ assert(true, 'combat area absent'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15;
+      G.playerHp = 30; G.playerMaxHp = 30;
+      // Simulate the player having opened the auto-eat <select> (it holds focus).
+      el.innerHTML = '<select id="__ae_test"><option>a</option></select>';
+      const sel = document.getElementById('__ae_test');
+      sel.focus();
+      if(document.activeElement !== sel){ assert(true, 'focus not honoured here — skip'); return; }
+      window.renderCombat();
+      assert(document.getElementById('__ae_test'), 'render must NOT tear down the focused dropdown mid-pick');
+      // Once the menu is closed (focus leaves), rendering resumes normally.
+      sel.blur();
+      window.renderCombat();
+      assert(!document.getElementById('__ae_test'), 'render rebuilds normally once the dropdown is closed');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b256: Boss of the Day card lives with the picker + hides during a fight (paione: popped up mid-combat)', () => {

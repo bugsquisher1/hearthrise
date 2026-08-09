@@ -3401,6 +3401,14 @@ function renderMonsterList(){
 }
 function renderCombat(){
   const el=document.getElementById('combat-area');if(!el)return;
+  /* Tester report (paione): the auto-eat food dropdown "keeps closing every few
+     ticks". renderCombat rebuilds this area's innerHTML on every combat tick,
+     which destroys the <select> mid-pick and closes its native menu. If the
+     player is actively choosing food (the select holds focus while its menu is
+     open), skip the repaint for this tick — the fight keeps running underneath;
+     only the HP numbers pause for the moment the menu is open. */
+  const _ae=document.activeElement;
+  if(_ae && _ae.tagName==='SELECT' && el.contains(_ae)) return;
   const stop=document.getElementById('combat-stop');
   if(!G.activeMonster){
     el.innerHTML=`${renderBountyPanel()}<div class="arena"><div class="fighter"><div class="portrait">🧍</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div></div><div class="vs">⚔️</div><div class="fighter enemy"><div class="portrait">❓</div><div class="fname">Choose a foe</div><div class="fhp">—</div></div></div><div class="empty"><span class="em-icon">⚔️</span>Pick a monster from the list to begin.</div>`;

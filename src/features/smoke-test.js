@@ -11,7 +11,9 @@ import { on, snapshot } from '../net/events.js?v=225';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=225';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
-import { decideRestore } from '../net/auth.js?v=225';
+// b226: same reasoning for the auth-event rule — the cached session is what the
+// account wall opens on, so "when may we delete it" has to be provable.
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=225';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -7652,6 +7654,240 @@ const TESTS = [
     }
   }),
 
+  /* ── b226 regression suite — THE NAME YOU ALREADY OWN ────────────────────
+     LIVE BUG, reported by Tyler while signed in on production: "it's asking me
+     to choose a name when one should already be attached to the account." His
+     claim existed server-side the whole time (display_names.canonical =
+     'khemphill22', claimed_at 2026-05-03 — i.e. written by section 4 of the
+     unique-names migration, which BACKFILLED every existing player from
+     profiles.display_name).
+
+     b221 answered "does this account have a name?" from the LOCAL record
+     alone, and that record is only ever written by a claim THIS browser
+     performed. So every player whose name reached the server by any other
+     route — the backfill, another device, a claim made before storage was
+     cleared — was nameless as far as the client could tell, and was shown a
+     first-run modal for a name they already held. The backfill makes that the
+     DEFAULT for the entire existing player base, not an edge case.
+
+     The rule these guards pin: the SERVER decides whether a player needs a
+     name, and this browser never prompts from its own ignorance. */
+
+  () => tryRun('b226: the display_names read is reduced correctly — found / none / unknown', () => {
+    const R = window.HearthriseIdentity._reduceServerName;
+    assert(typeof R === 'function', 'the server-name reducer is not exposed');
+
+    // The live shape, verified against production REST on 2026-08-08.
+    const found = R(200, [{ name: 'khemphill22', canonical: 'khemphill22' }]);
+    assert(found.action === 'found', 'a claimed row must read as found: ' + JSON.stringify(found));
+    assert(found.name === 'khemphill22' && found.canonical === 'khemphill22', 'the row must carry through verbatim');
+    // A row with a display spelling but no canonical is still a claim.
+    assert(R(200, [{ name: 'Sir_Bob' }]).canonical === 'sir bob', 'a missing canonical must be derived, not dropped');
+
+    // DEFINITE "no claim" — this is the only answer that may open the modal.
+    assert(R(200, []).action === 'none', 'an empty result means no claim');
+    assert(R(200, [{ canonical: 'x' }]).action === 'none', 'a row with no name is not a claim');
+    // No namespace at all (migration not applied) is also a definite no-claim:
+    // it is exactly the pre-migration state the provisional path exists for.
+    assert(R(404, null).action === 'none', 'a missing table means there are no claims yet');
+    assert(R(200, { code: 'PGRST205' }).action === 'none', 'PGRST205 (unknown table) means no claims yet');
+
+    // UNKNOWN — we could not ask. Never a prompt.
+    [[500, null], [401, { message: 'nope' }], [200, null], [0, null], [503, 'gateway']].forEach(([s, j]) => {
+      assert(R(s, j).action === 'unknown', 'status ' + s + ' must reduce to unknown, got ' + R(s, j).action);
+    });
+  }),
+
+  () => tryRun('b226: a name the server already holds is adopted silently — no modal', () => {
+    const I = window.HearthriseIdentity;
+    const store = window.HearthriseStorage;
+    const KEY = 'hearthrise:identity';
+    const uid = '53e3c6a4-1168-47fb-a0c2-c7e6dc9a7acc';
+    const before = store.get(KEY);
+    const savedAuth = window.HearthriseAuth;
+    const savedName = window.G && window.G.playerName;
+    const savedSave = window.saveLocal;
+    try {
+      window.saveLocal = () => {};
+      window.HearthriseAuth = Object.assign({}, savedAuth, { getSession: () => ({ user: { id: uid }, access_token: 't' }) });
+      I._reset(); I._resetServerName();
+      assert(!I._record().name, 'the probe must start from a record that knows nothing');
+
+      // THE BUG: with an empty local record and no server answer yet, b221
+      // said "prompt". It must now say nothing at all.
+      assert(I._mustPrompt() === false,
+        'the modal fired from local ignorance — this is the exact b226 report');
+
+      I._applyServerName(uid, { action: 'found', name: 'khemphill22', canonical: 'khemphill22' });
+      const rec = I._record();
+      assert(rec.name === 'khemphill22', 'the server name was not adopted: ' + JSON.stringify(rec));
+      assert(rec.canonical === 'khemphill22', 'the canonical form was not adopted');
+      assert(rec.status === 'confirmed', 'a server-held claim is confirmed, not provisional: ' + rec.status);
+      assert(rec.userId === uid, 'the adopted name must be filed under the account that owns it');
+      assert(I._mustPrompt() === false, 'a player whose name the server holds must never be prompted');
+      assert(I.displayName() === 'khemphill22', 'the adopted name must be what the game renders');
+      assert(I.isUniqueName() === true, 'a server-held claim is a unique name');
+      assert(window.G.playerName === 'khemphill22', 'the ~30 legacy call sites read G.playerName — it must be written too');
+    } finally {
+      window.HearthriseAuth = savedAuth;
+      window.saveLocal = savedSave;
+      if (window.G) window.G.playerName = savedName;
+      I._reset(); I._resetServerName();
+      if (before == null) store.remove(KEY); else store.set(KEY, before);
+    }
+  }),
+
+  () => tryRun('b226: an account the server has no claim for IS still prompted', () => {
+    const I = window.HearthriseIdentity;
+    const store = window.HearthriseStorage;
+    const KEY = 'hearthrise:identity';
+    const uid = '00000000-0000-4000-8000-00000000beef';
+    const before = store.get(KEY);
+    const savedAuth = window.HearthriseAuth;
+    try {
+      window.HearthriseAuth = Object.assign({}, savedAuth, { getSession: () => ({ user: { id: uid }, access_token: 't' }) });
+      I._reset(); I._resetServerName();
+
+      // Pending → silence. An unreachable registry → silence. Only a definite
+      // "this account holds no name" opens the modal.
+      assert(I._mustPrompt() === false, 'a pending answer must not prompt');
+
+      // …but a read still IN FLIGHT is not "no prompt is owed": it is "we have
+      // not found out yet", and the other first-run flows must keep waiting or
+      // they open in the gap and the name modal lands on top of them.
+      const realFetch = window.fetch;
+      try {
+        window.fetch = () => new Promise(() => {});     // never settles
+        I._resetServerName();
+        I._resolveServerName();
+        assert(I._serverPending() === true, 'an in-flight read must report itself pending');
+        assert(I._mustPrompt() === false, 'an in-flight read must never open the modal');
+        assert(I.mustPromptForName() === true, 'the welcome sheet must keep waiting while we ask');
+        assert(I._SERVER_NAME_DEADLINE_MS > 0 && I._SERVER_NAME_DEADLINE_MS <= 30000,
+          'the wait must be bounded, or a hung request suppresses the welcome sheet forever');
+      } finally {
+        window.fetch = realFetch;
+        I._resetServerName();
+      }
+      assert(I._serverPending() === false, 'a reset must not leave a phantom pending read');
+
+      I._applyServerName(uid, { action: 'unknown' });
+      assert(I._mustPrompt() === false, 'an unreachable registry must not prompt — we do not know');
+      I._applyServerName(uid, { action: 'none' });
+      assert(I._mustPrompt() === true, 'a genuinely nameless account must still be asked');
+      assert(I.mustPromptForName() === true, 'the public seam must agree with the internal rule');
+    } finally {
+      window.HearthriseAuth = savedAuth;
+      I._reset(); I._resetServerName();
+      if (before == null) store.remove(KEY); else store.set(KEY, before);
+    }
+  }),
+
+  () => tryRun('b226: adopting the server name never discards a name the player just chose', () => {
+    const S = window.HearthriseIdentity._shouldAdoptServerName;
+    const uid = 'u-1';
+    const found = { action: 'found', name: 'Ironvale', canonical: 'ironvale' };
+
+    // The fix's whole point: an empty record takes the server's name.
+    assert(S({ userId: null, name: '', status: null }, uid, found) === true, 'an empty record must adopt');
+    assert(S(null, uid, found) === true, 'a missing record must adopt');
+    // A PROVISIONAL local name is a choice the player made and reconcile() is
+    // already claiming. Overwriting it would silently undo a rename.
+    assert(S({ userId: uid, name: 'Bob', canonical: 'bob', status: 'provisional' }, uid, found) === false,
+      'a provisional name the player chose must survive — reconcile() owns it');
+    // Already in step: no write, no re-render, no churn.
+    assert(S({ userId: uid, name: 'Ironvale', canonical: 'ironvale', status: 'confirmed' }, uid, found) === false,
+      'an identical confirmed name must not be rewritten every session');
+    // Renamed on another device: the server is the authority.
+    assert(S({ userId: uid, name: 'Oldname', canonical: 'oldname', status: 'confirmed' }, uid, found) === true,
+      'a rename made on another device must reach this one');
+    // Only the spelling changed (claim_display_name refreshes it): still adopt.
+    assert(S({ userId: uid, name: 'ironvale', canonical: 'ironvale', status: 'confirmed' }, uid, found) === true,
+      'a re-spelled name must be picked up');
+    // A record belonging to somebody else on this device is not a defence.
+    assert(S({ userId: 'other', name: 'Someone', canonical: 'someone', status: 'confirmed' }, uid, found) === true,
+      'another account\'s record must not shield this one from its own name');
+    // Nothing found is never an adoption.
+    assert(S({ userId: null, name: '', status: null }, uid, { action: 'none' }) === false, 'no claim, no adoption');
+  }),
+
+  () => tryRun('b226: sign-in reloads on the session being on disk, not on a stopwatch', () => {
+    const gate = window.HearthriseGate;
+    assert(typeof gate._whenSessionPersisted === 'function',
+      'the sign-in handoff still has no seam — it is back to guessing a delay');
+    // The wall reloads after sign-in because the engine never booted behind it.
+    // That reload must land on a boot that finds the session, or the player
+    // meets the wall a SECOND time and signs in twice. This is the predicate
+    // the handoff waits on, and it is the same one the next boot's decide()
+    // uses — so if it is true here, the reloaded page opens without a flash.
+    const store = window.HearthriseStorage;
+    const KEY = 'hearthrise:supabaseSession';
+    const before = store.get(KEY);
+    try {
+      store.remove(KEY);
+      assert(gate.sessionIsUsable(gate._readCachedSession()) === false,
+        'with nothing on disk the handoff must not believe a session was persisted');
+      assert(gate.decide({ harness: false, session: gate._readCachedSession() }).open === false,
+        'that state is exactly the second wall the reload must never land on');
+      store.set(KEY, JSON.stringify({ access_token: 'a', refresh_token: 'r', user: { id: 'u' } }));
+      assert(gate.sessionIsUsable(gate._readCachedSession()) === true,
+        'a persisted session must be visible to the handoff');
+      assert(gate.decide({ harness: false, session: gate._readCachedSession() }).open === true,
+        'the reloaded boot must open on the cached session with no wall in between');
+      store.set(KEY, '{not json');
+      assert(gate._readCachedSession() === null, 'a corrupt session blob must read as no session, not throw');
+    } finally {
+      if (before == null) store.remove(KEY); else store.set(KEY, before);
+    }
+  }),
+
+  () => tryRun('b226: the daily reward joins the modal queue instead of landing on top of it', () => {
+    // Found by walking the real post-login sequence in a browser: with the name
+    // modal open, the once-a-day sheet opened straight on top of it 1.0s later.
+    // Every other first-run flow already named `.hr-id-scrim`; this one did not,
+    // so the "fixed precedence" the b221/b223/b224 work claims was never total.
+    const D = window.HearthriseDaily;
+    assert(D && typeof D._blockingOverlays === 'function', 'the daily-reward precedence guard is not exposed');
+    const sel = D._blockingOverlays();
+    ['.hr-id-scrim', '#hr-post-signup-modal', '#hr-welcome-modal', '.ftue-root'].forEach((s) => {
+      assert(sel.indexOf(s) !== -1, 'the daily sheet would stack on ' + s + ': ' + sel);
+    });
+    assert(sel.indexOf('.hr-dl-scrim') === -1, 'the sheet must not block on its OWN overlay — that is a deadlock');
+    // Both directions, or the pair is only half-exclusive: before b226 the name
+    // modal opened on TOP of an already-open daily sheet a second later.
+    const I = window.HearthriseIdentity;
+    assert(I._FRONT_DOOR.indexOf('.hr-dl-scrim') !== -1,
+      'the name modal would still stack on the daily sheet: ' + I._FRONT_DOOR);
+    assert(I._FRONT_DOOR.indexOf('.ftue-root') !== -1, 'the b224 FTUE guard must survive');
+    // And the live predicate agrees with the selector, for each of them.
+    [['div', 'hr-id-scrim', null], ['div', null, 'hr-post-signup-modal'], ['div', null, 'hr-welcome-modal']]
+      .forEach(([tag, cls, id]) => {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (id) n.id = id;
+        document.body.appendChild(n);
+        try { assert(D._anotherModalUp() === true, 'the live guard ignored ' + (cls || id)); }
+        finally { n.remove(); }
+      });
+  }),
+
+  () => tryRun('b226: a transient null auth event must not evict the cached session', () => {
+    assert(typeof decideSessionEvent === 'function', 'auth.js no longer exports the session-event rule');
+    const live = { access_token: 'a', user: { id: 'u' } };
+    // Anything carrying a session persists it, whatever the event is called.
+    ['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION', 'USER_UPDATED', ''].forEach((e) => {
+      assert(decideSessionEvent(e, live) === 'persist', e + ' with a session must persist it');
+    });
+    // Only an explicit end of the session clears the cache the account wall
+    // opens on. Everything else is a blip we must not turn into a sign-out.
+    assert(decideSessionEvent('SIGNED_OUT', null) === 'clear', 'an explicit sign-out must clear the cache');
+    assert(decideSessionEvent('USER_DELETED', null) === 'clear', 'a deleted user must clear the cache');
+    ['TOKEN_REFRESHED', 'INITIAL_SESSION', 'PASSWORD_RECOVERY', undefined].forEach((e) => {
+      assert(decideSessionEvent(e, null) === 'ignore',
+        String(e) + ' with no session must be IGNORED — clearing it walls a signed-in player');
+    });
+  }),
+
   // ── b225 regression suite (backlog #19 — the type FLOOR) ──
   //
   // b218 scaled the whole ramp ~x1.13 and Tyler reported the text was STILL
@@ -7813,15 +8049,27 @@ const TESTS = [
 
     // getBonus must actually READ the secondary map — this is the ghost key
     // finally getting a producer, so a silent 0 here is the whole bug.
+    //
+    // b226: measured as a DELTA, not as an absolute. window.getBonus is wrapped
+    // additively by world-events.js, companions.js, clans.js, clan-seat-ui.js
+    // and muster.js, and the daily/weekly event pool contains Feast Day
+    // (+0.30 cookSpeed) and Guild Works (+0.20). Asserting an absolute 0.25
+    // therefore FAILED the whole gate on roughly one day in six, depending on
+    // nothing but the UTC date — which is how a green suite stops meaning
+    // anything. What the Kitchen contributes is the claim; what else is in the
+    // stack today is not this test's business.
     const savedRooms = window.G.rooms;
     try {
+      window.G.rooms = {};
+      const baseCook = window.getBonus('cookSpeed');
+      const baseBurn = window.getBonus('noBurn');
       window.G.rooms = { kitchen: 2 };
-      assert(Math.abs(window.getBonus('noBurn') - CF.KITCHEN_NO_BURN[1]) < 1e-9,
+      assert(Math.abs((window.getBonus('noBurn') - baseBurn) - CF.KITCHEN_NO_BURN[1]) < 1e-9,
         'getBonus("noBurn") should read the Kitchen rung, got ' + window.getBonus('noBurn'));
-      assert(Math.abs(window.getBonus('cookSpeed') - 0.25) < 1e-9,
+      assert(Math.abs((window.getBonus('cookSpeed') - baseCook) - 0.25) < 1e-9,
         'the headline cookSpeed bonus must survive the bx addition');
       window.G.rooms = {};
-      assert(window.getBonus('noBurn') === 0, 'no Kitchen means no noBurn');
+      assert(window.getBonus('noBurn') === baseBurn, 'no Kitchen means no Kitchen noBurn');
     } finally { window.G.rooms = savedRooms; }
   }),
 

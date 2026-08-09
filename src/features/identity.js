@@ -395,22 +395,175 @@
   /** Anonymous play keeps a local name that is explicitly NOT unique. */
   function isUnique() { return nameStatus() === 'confirmed'; }
 
+  // ════════════════════════════════════════════════════════════
+  // 5b · THE SERVER IS THE SOURCE OF TRUTH FOR "DO I HAVE A NAME"
+  // ════════════════════════════════════════════════════════════
+  // b226 — the live bug this section exists to close.
+  //
+  // b221 answered "does this account have a name?" from the LOCAL record
+  // alone. That record is only ever written by adopt(), i.e. by a claim this
+  // browser performed. So every account whose name reached the server by any
+  // OTHER route was, to this client, nameless — and was shown the
+  // "Choose your name" modal for a name it already owned.
+  //
+  // That is not an edge case, it is the DEFAULT for the existing player base:
+  // section 4 of the unique-names migration BACKFILLED display_names from
+  // profiles.display_name, so every beta player holds a claim that no client
+  // ever wrote a local record for. Same bug, same cause, on a second device or
+  // after clearing site data.
+  //
+  // The read is one row, by primary-key-adjacent unique index, on a table with
+  // `for select using (true)` — so the anon key is enough and it costs a single
+  // small GET. It is memoised per user id, so it happens ONCE per session, not
+  // per tick and not per render.
+  //
+  // The prompt decision is now: never ask from local ignorance. Until the
+  // server has answered we say nothing; if it answers "no claim" we ask; if it
+  // cannot be reached we still say nothing, because a missed prompt costs the
+  // player one login (the Character screen also offers "Choose a name") while a
+  // wrong prompt takes the game away and invites them to rename themselves.
+  //
+  // The deadline exists because "we are still asking" is a state other first-run
+  // flows WAIT on (owedPrompt below), and a request that never settles must not
+  // hold the welcome sheet hostage forever. After it, an unresolved read counts
+  // as an answer we do not have — which means silence, not a prompt.
+  var SERVER_NAME_DEADLINE_MS = 15000;
+  var srv = { uid: null, state: 'idle', answer: null, promise: null, at: 0 };
+  function _resetServerName() { srv = { uid: null, state: 'idle', answer: null, promise: null, at: 0 }; }
+
+  /**
+   * PURE. What a `display_names?user_id=eq.<uid>` response means. Same shape
+   * as reduceClaim/reduceAvailability above, for the same reason: the decision
+   * that matters is testable without a network.
+   *
+   * 'none' is a DEFINITE answer — including a 404 on the table itself, because
+   * no namespace means no claims, which is exactly the pre-migration state the
+   * provisional path was built for. 'unknown' means we could not ask, and is
+   * never grounds for a prompt.
+   * @returns {{action:'found',name,canonical}|{action:'none'}|{action:'unknown'}}
+   */
+  function reduceServerName(status, json) {
+    if (status === 404 || (json && !Array.isArray(json) &&
+        (json.code === 'PGRST205' || json.code === 'PGRST202' || json.code === '42P01'))) {
+      return { action: 'none' };
+    }
+    if (status < 200 || status >= 300 || !Array.isArray(json)) return { action: 'unknown' };
+    var row = json[0];
+    if (!row || !row.name) return { action: 'none' };
+    return {
+      action: 'found',
+      name: String(row.name),
+      canonical: row.canonical ? String(row.canonical) : canon(row.name)
+    };
+  }
+
+  /** One read: does `uid` already hold a claimed name? */
+  async function fetchServerName(uid) {
+    var c = cfg();
+    if (!c || !uid) return { action: 'unknown' };
+    var res, json = null;
+    try {
+      res = await fetch(c.url + '/rest/v1/display_names?select=name,canonical&user_id=eq.' +
+                        encodeURIComponent(uid) + '&limit=1',
+                        { method: 'GET', headers: headers(false) });
+      try { json = await res.json(); } catch (e) { json = null; }
+    } catch (e) {
+      return { action: 'unknown' };
+    }
+    return reduceServerName(res.status, json);
+  }
+
+  /**
+   * Adopt a server-held name into the local record. Pure policy, exported for
+   * the suite — the three cases it has to get right:
+   *   • no local name for this account  → adopt (this is the b226 fix)
+   *   • a local PROVISIONAL name        → leave it; the player chose it and
+   *                                       reconcile() is already claiming it.
+   *                                       Overwriting would silently discard a
+   *                                       rename the player asked for.
+   *   • a local CONFIRMED name that differs → the server wins (another device
+   *                                       renamed this account)
+   * @returns {boolean} whether the local record should be rewritten
+   */
+  function shouldAdoptServerName(record, uid, found) {
+    if (!found || !found.name) return false;
+    if (!record || !record.name) return true;
+    if (record.userId && record.userId !== uid) return true;     // stale record
+    if (record.status !== 'confirmed') return false;             // provisional wins
+    return record.canonical !== found.canonical || record.name !== found.name;
+  }
+
+  /** Settle the answer for `uid` and adopt a found name. Synchronous. */
+  function applyServerName(uid, d) {
+    if (!uid) return d;
+    if (srv.uid !== uid) srv = { uid: uid, state: 'pending', answer: null, promise: srv.promise, at: Date.now() };
+    srv.state = 'done';
+    srv.answer = d;
+    if (d && d.action === 'found') {
+      load();
+      if (shouldAdoptServerName(rec, uid, d)) adopt(d.name, d.canonical, 'confirmed');
+    }
+    return d;
+  }
+
+  /** Memoised: one in-flight read per account, not one per tick. */
+  function resolveServerName() {
+    var uid = userId();
+    if (!uid) return Promise.resolve({ action: 'unknown' });
+    if (srv.uid === uid && srv.promise) return srv.promise;
+    srv = { uid: uid, state: 'pending', answer: null, promise: null, at: Date.now() };
+    var p = fetchServerName(uid)
+      .catch(function () { return { action: 'unknown' }; })
+      // A response that arrives after the account changed is stale: it must not
+      // settle the new account's answer, and above all must not adopt the old
+      // account's name onto it.
+      .then(function (d) { return srv.uid === uid ? applyServerName(uid, d) : d; });
+    srv.promise = p;
+    return p;
+  }
+
+  /** The settled answer for the CURRENT account, or null while we do not know. */
+  function serverAnswer() {
+    var uid = userId();
+    if (!uid || srv.uid !== uid || srv.state !== 'done') return null;
+    return srv.answer;
+  }
+
+  /** Are we still waiting to find out? Bounded — see SERVER_NAME_DEADLINE_MS. */
+  function serverPending() {
+    var uid = userId();
+    if (!uid || srv.uid !== uid || srv.state !== 'pending') return false;
+    return (Date.now() - (srv.at || 0)) < SERVER_NAME_DEADLINE_MS;
+  }
+
   // "Must we PROMPT this player?" — uniqueness is a signed-in feature, and a
   // PROVISIONAL name is already a finished choice: the player picked it, so
   // they are never asked twice. It re-claims silently instead (reconcile()).
-  // The only prompts are: no name at all, or a different account on this
-  // device. That is what "prompted once on next login" actually means.
+  //
+  // b226: the remaining case — "this device does not know this account's name"
+  // — is no longer decided here. It is decided by the server (above). A device
+  // that has never seen the account is IGNORANT, not authoritative, and b221
+  // treated the two as the same thing.
   function mustPrompt() {
     if (!isSignedIn()) return false;
     load();
-    if (rec.userId && rec.userId !== userId()) return true;
-    return !rec.name;
+    var mine = !rec.userId || rec.userId === userId();
+    if (mine && rec.name) return false;
+    var d = serverAnswer();
+    return !!(d && d.action === 'none');
   }
 
   // "Are we still OWED a prompt right now?" — the question other first-run
   // flows need. It goes false once we have asked (including after "Not now"),
   // so post-signup-welcome.js can wait its turn without waiting forever.
-  function owedPrompt() { return !promptedThisSession && mustPrompt(); }
+  //
+  // b226: it must also be true while the SERVER READ IS STILL IN FLIGHT.
+  // mustPrompt() is deliberately strict — it only says yes to a definite "this
+  // account holds no name" — but "we have not found out yet" is exactly the
+  // state in which the welcome sheet must keep waiting, or it opens in the gap
+  // and the name modal lands on top of it a moment later. The deadline keeps
+  // that wait bounded, so a hung request can never suppress the sheet forever.
+  function owedPrompt() { return !promptedThisSession && (mustPrompt() || serverPending()); }
 
   /**
    * Re-claim a provisional name once the RPC exists. Silent by design: the
@@ -1024,7 +1177,16 @@
   // `.ftue-card.show` — because the tour is "up" from the moment it builds its
   // root, not from the moment its card finishes animating in. Exposed so the
   // regression suite can assert the guard rather than infer it from timing.
-  var FRONT_DOOR = '.ftue-root, .hr-id-scrim';
+  // b226: `.hr-dl-scrim` added. Walking the real sequence showed the daily
+  // reward sheet opening at ~2.5s and this modal landing on top of it at ~3.5s
+  // — the same stacking bug as the one b224 closed against FTUE, in the one
+  // direction nobody had checked. daily-reward.js now blocks on `.hr-id-scrim`
+  // too, so the two are mutually exclusive in BOTH directions and whichever is
+  // ready first simply goes first. Deliberately still NOT blocking on
+  // `#hr-post-signup-modal`: that sheet greets the player by the prefix of
+  // their email address, which is precisely the name this modal exists to
+  // replace, so naming keeps its precedence over it.
+  var FRONT_DOOR = '.ftue-root, .hr-id-scrim, .hr-dl-scrim';
   function frontDoorBusy() { return !!document.querySelector(FRONT_DOOR); }
 
   var lastUser = null;
@@ -1037,6 +1199,12 @@
         load();
         if (rec.userId && rec.userId !== uid) _reset();   // different account, same device
         hydrateRemoteAvatar().catch(function () {});
+        // b226: ASK THE SERVER FIRST. This is what makes the name modal a
+        // consequence of the account genuinely having no name, rather than of
+        // this browser not knowing about one. mustPrompt() stays quiet until
+        // this settles, so the read is on the critical path of the prompt and
+        // of nothing else the player can see.
+        resolveServerName().catch(function () {});
         reconcile().catch(function () {});
       }
       applyAvatar();
@@ -1117,6 +1285,12 @@
     _FRONT_DOOR: FRONT_DOOR, _frontDoorBusy: frontDoorBusy,
     _record: function () { return load(); },
     _adopt: adopt, _reset: _reset, _persist: persist,
-    _resetProbes: _resetProbes, _b64Bytes: b64Bytes
+    _resetProbes: _resetProbes, _b64Bytes: b64Bytes,
+    // b226 — server-truth name resolution
+    _reduceServerName: reduceServerName, _fetchServerName: fetchServerName,
+    _resolveServerName: resolveServerName, _applyServerName: applyServerName,
+    _serverAnswer: serverAnswer, _serverPending: serverPending,
+    _resetServerName: _resetServerName, _SERVER_NAME_DEADLINE_MS: SERVER_NAME_DEADLINE_MS,
+    _shouldAdoptServerName: shouldAdoptServerName, _mustPrompt: mustPrompt
   });
 })();

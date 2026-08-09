@@ -169,7 +169,12 @@
        && typeof window.xpForLevel === 'function'){
       var skillIds = Object.keys(window.SKILLS_DEF);
       for(var i = 0; i < skillIds.length; i++){
-        var sid = skillIds[i];
+        /* b227: `var sid` is FUNCTION-scoped, so every deepLink closure below
+           shared one binding and read whatever the loop finished on — the last
+           key in SKILLS_DEF, `bountyHunter`. Home's milestone "Train" button
+           therefore opened the Bounty Hunter skill no matter which skill the
+           milestone was actually about. Bind per iteration. */
+        let sid = skillIds[i];
         var xp = window.G.skills[sid] | 0;
         var lv = window.levelFromXp(xp);
         if(lv >= 99) continue; // maxed — no milestone
@@ -199,9 +204,17 @@
     if(window.G.daily && Array.isArray(window.G.daily.tasks))
       open = open.concat(window.G.daily.tasks.filter(t => !t.done));
     for(var j = 0; j < open.length; j++){
-      var q = open[j];
+      let q = open[j];                       // per-iteration binding — see above
       if(!q.goal) continue;
       var pq = (q.progress || 0) / q.goal;
+      /* b227 (audit finding #2): this deepLink opened the Quests modal, which
+         does not contain `G.quests` / `G.daily.tasks` at all — the milestone
+         said "Gather 50 resources" and its button opened a window listing
+         three different quests. It now goes where the quest is PLAYED, via the
+         one shared resolver. `goal` is carried on the milestone so the
+         renderer can label the button with the same verb. */
+      var qdest = (window.HearthriseQuestNav && window.HearthriseQuestNav.destination)
+        ? window.HearthriseQuestNav.destination(q) : null;
       var qcand = {
         kind: 'quest',
         label: q.label || q.id,
@@ -209,8 +222,11 @@
         target: q.goal,
         pct: Math.max(0, Math.min(1, pq)),
         icon: q.done ? '✅' : '🎯',
+        goal: q,
+        verb: (qdest && qdest.verb) || 'Go',
         deepLink: function(){
-          // Open quests modal if available, else just nav to profile
+          var QN = window.HearthriseQuestNav;
+          if(QN && typeof QN.go === 'function'){ QN.go(q); return; }
           if(typeof window.openQuestsModal === 'function') window.openQuestsModal();
         },
         _cmp: pq,

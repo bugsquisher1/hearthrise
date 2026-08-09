@@ -273,23 +273,29 @@
     return '<svg viewBox="0 0 512 512" style="width:' + (px || 20) + 'px;height:' + (px || 20) + 'px;' +
       'display:inline-block;vertical-align:middle" aria-hidden="true"><path fill="' + (color || 'var(--gold-2)') + '" d="' + p + '"/></svg>';
   }
-  function questRoute(label) {
-    var l = (label || '').toLowerCase();
-    var map = [
-      ['fish', { key: 'fishing', icon: '🎣', verb: 'Go fish', accent: 'var(--green)', go: function () { nav('skills'); openSkill('fishing'); } }],
-      ['cook', { key: 'cooking', icon: '🍳', verb: 'Cook', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('cooking'); } }],
-      ['wood|log|chop|tree', { key: 'woodcutting', icon: '🪓', verb: 'Chop', accent: 'var(--green)', go: function () { nav('skills'); openSkill('woodcutting'); } }],
-      ['min(e|ing)|ore|rock', { key: 'mining', icon: '⛏️', verb: 'Mine', accent: 'var(--green)', go: function () { nav('skills'); openSkill('mining'); } }],
-      ['smith|smelt|bar', { key: 'smithing', icon: '⚒️', verb: 'Smith', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('smithing'); } }],
-      ['craft', { key: 'crafting', icon: '🧵', verb: 'Craft', accent: 'var(--hearth,var(--red))', go: function () { nav('skills'); openSkill('crafting'); } }],
-      ['farm|plant|harvest|crop|seed', { key: 'farming', icon: '🌾', verb: 'Farm', accent: 'var(--hearth,var(--red))', go: function () { nav('farming'); } }],
-      ['gold|sell|coin|market|trade', { key: 'gold', icon: '🪙', verb: 'Sell', accent: 'var(--gold)', go: function () { nav('market'); } }],
-      ['kill|defeat|slay|monster|combat|fight', { key: 'navCombat', icon: '⚔️', verb: 'Fight', accent: 'var(--red)', go: function () { nav('combat'); } }]
-    ];
-    for (var i = 0; i < map.length; i++) {
-      if (new RegExp(map[i][0]).test(l)) return map[i][1];
+  /* b227 — this used to be a private regex table that only ever saw a task's
+     LABEL, so it could not tell "Gather 50 resources" from "Gather 250 ores"
+     and its gold rule navigated to `market` two builds before a market panel
+     existed. Worse, its fallback was View → open the Quests modal, which is
+     precisely the audit's finding #2: the button opened a window that did not
+     contain the quest you clicked.
+
+     The mapping now lives in src/features/quest-nav.js and is derived from the
+     task's own `type` / `source` fields with the label only as a net, so Home
+     and the Quests modal cannot disagree about where a quest is played. */
+  function questRoute(task) {
+    var QN = window.HearthriseQuestNav;
+    var d = (QN && typeof QN.destination === 'function') ? QN.destination(task) : null;
+    if (!d) {
+      // quest-nav is a separate <script>; a missing resolver is a wiring break.
+      return { key: 'bountyHunter', verb: 'Go', go: function () { nav('skills'); } };
     }
-    return { key: 'bountyHunter', icon: '🎯', verb: 'View', accent: 'var(--gold)', go: function () { openQuests(); } };
+    return {
+      key: d.glyph,
+      verb: d.verb,
+      label: d.label,
+      go: function () { if (QN && typeof QN.go === 'function') QN.go(task); },
+    };
   }
   function nav(t) { if (typeof window.showTab === 'function') window.showTab(t); }
   function openSkill(id) { if (typeof window.openSkillDetail === 'function') window.openSkillDetail(id); }
@@ -444,13 +450,16 @@
         '<div class="hd-mile-sub">' + num(mile.current) + ' / ' + num(mile.target) + ' · ' + mpct + '%</div>' +
         '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + mpct + '%"></i></div>' +
         '</div>' +
-        '<button class="hd-cta" data-hd="mile">' + (isQuest ? 'View' : 'Train') + '</button>' +
+        /* b227: a quest milestone's button used to say "View" and open a modal
+           that did not contain it. It now carries the destination's own verb
+           ("Go fish") and lands on the screen the quest is played on. */
+        '<button class="hd-cta" data-hd="mile">' + esc(isQuest ? (mile.verb || 'Go') : 'Train') + '</button>' +
         '</div>';
     }
     if (tasks.length) {
       anyNext = true;
       tasks.forEach(function (t, i) {
-        var r = questRoute(t.label);
+        var r = questRoute(t);
         var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
         // Rewards are plain numbers in the data ("400"). Pairing them with the
         // gold glyph is what makes a number read as currency instead of as a
@@ -469,7 +478,8 @@
           (rewardHtml ? '<span class="r">' + rewardHtml + '</span>' : '') + '</div>' +
           '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + pct + '%"></i></div>' +
           '</div>' +
-          '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '">' + r.verb + '</button>' +
+          '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '"' +
+            (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' + esc(r.verb) + '</button>' +
           '</div>';
       });
     }
@@ -624,7 +634,7 @@
           else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
-          else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t.label).go(); }
+          else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t).go(); }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }

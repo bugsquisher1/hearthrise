@@ -4585,7 +4585,7 @@ const TESTS = [
     assert(AC && typeof AC.strip === 'function', 'HearthriseArtisanCat missing');
     const prev = JSON.parse(JSON.stringify(window._artisanCat || {}));
     const prevViewed = window.__viewedSkillId;
-    const startTab = window.activeTab;
+    const startTab = window.activeTab || 'profile';
     try {
       window.showTab('skills');
       window.openSkillDetail('smithing');
@@ -8716,6 +8716,188 @@ const TESTS = [
     const minutes = actions * window.pacedActionMs(3000) / 60000;
     assert(minutes < 45,
       'a level-50 member must still fill the ' + CS.DAILY_LABOUR_CAP + ' labour cap in under 45 min, needs ' + minutes.toFixed(1));
+  }),
+
+  /* ══ b227 — quest navigation (audit finding #2) ═══════════════════════════
+     "Take me to the area that the quest is asking me to complete." Before
+     this, the Quests modal had no navigation at all and Home's quest buttons
+     said View and opened a modal that did not contain the quest. These four
+     tests hold the three things that can rot: the mapping's TOTALITY, the
+     mapping's ANSWERS, ARRIVAL (right panel AND right thing on it), and the
+     modal button actually being wired.                                      */
+
+  () => tryRun('b227: the quest resolver is TOTAL over every live goal pool', () => {
+    const QN = window.HearthriseQuestNav;
+    assert(QN && typeof QN.destination === 'function', 'HearthriseQuestNav missing — quest rows cannot route');
+    const live = QN.livePools();
+    assert(live.length >= 20,
+      'expected the daily + weekly + task pools + starter quests, got ' + live.length);
+    // The fallback exists so a click is never dead. It must never be the
+    // answer for shipped content — that is how "every card is a door" rots
+    // into "every card is the skills grid".
+    const orphans = QN.unmapped(live);
+    assert(orphans.length === 0,
+      'these live goals fall through to the skills-grid fallback: ' +
+      JSON.stringify(orphans.map((g) => g.id || g.label || g.name)));
+    // And the fallback is still reachable, so an unknown goal is safe.
+    assert(QN.destination({ id: 'x', name: 'zzzz' }).via === 'fallback',
+      'an unrecognisable goal must still resolve to the skills grid');
+    assert(QN.destination(null).tab === 'skills', 'the resolver must be total for null too');
+  }),
+
+  () => tryRun('b227: the type -> destination table, as shipped', () => {
+    const QN = window.HearthriseQuestNav;
+    const at = (goal) => { const d = QN.destination(goal); return d.tab + (d.skillId ? '/' + d.skillId : ''); };
+    const byId = (pool, id) => (window[pool] || []).find((g) => g.id === id);
+
+    // Daily goals route on what they MEASURE (`source`).
+    assert(at(byId('DAILY_GOAL_POOL', 'fish')) === 'skills/fishing', 'Catch 15 fish -> fishing');
+    assert(at(byId('DAILY_GOAL_POOL', 'gather_logs')) === 'skills/woodcutting', 'Gather 25 logs -> woodcutting');
+    assert(at(byId('DAILY_GOAL_POOL', 'mine_ore')) === 'skills/mining', 'Mine 25 ores -> mining');
+    assert(at(byId('DAILY_GOAL_POOL', 'cook')) === 'skills/cooking', 'Cook 5 dishes -> cooking');
+    assert(at(byId('DAILY_GOAL_POOL', 'kill_any')) === 'combat', 'Slay 10 monsters -> combat');
+    assert(at(byId('DAILY_GOAL_POOL', 'plant')) === 'farming', 'Plant 5 crops -> the farm');
+    assert(at(byId('DAILY_GOAL_POOL', 'gold_500')) === 'market', 'Earn 500 gold -> the market');
+    assert(at(byId('DAILY_GOAL_POOL', 'level_up')) === 'skills', 'Gain a level -> the skills grid (any skill will do)');
+    assert(at(byId('WEEKLY_GOAL_POOL', 'wk_logs')) === 'skills/woodcutting', 'Cut 250 logs -> woodcutting');
+    assert(at(byId('WEEKLY_GOAL_POOL', 'wk_gather')) === 'skills/mining', 'Gather 250 ores -> mining (it reads stats.mined)');
+
+    // Daily TASKS route on `type` — updateDaily()'s own action vocabulary.
+    assert(at({ type: 'smithed', label: 'Smith 8 items' }) === 'skills/smithing', 'smithed -> smithing');
+    assert(at({ type: 'crafted', label: 'Craft 8 items' }) === 'skills/crafting', 'crafted -> crafting');
+    assert(at({ type: 'harvest', label: 'Harvest 24 crops' }) === 'farming', 'harvest -> the farm');
+    assert(at({ type: 'gather', label: 'Gather 50 resources' }) === 'skills', 'a generic gather -> the grid, not a guess');
+
+    // The gathering third of the source table is INVERTED from the map the
+    // game writes those counters through — one list, not two.
+    assert(window.SKILL_ACTION_STAT && window.SKILL_ACTION_STAT.fishing === 'fished',
+      'SKILL_ACTION_STAT must be published — quest-nav inverts it');
+
+    // A bounty is a goal too, and its "where" is the board.
+    assert(at({ id: 'b1', type: 'cull', target: 'wolf', tier: 1, difficulty: 'easy', required: 8 }) === 'bounty',
+      'a bounty contract -> the bounty board');
+
+    // Copy honesty: a goal that names a thing gets a button that names it.
+    assert(QN.destination(byId('DAILY_GOAL_POOL', 'fish')).verb === 'Go fish', 'the fish daily should say Go fish');
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+    QN.livePools().forEach((g) => {
+      const d = QN.destination(g);
+      assert(!EMOJI.test(d.verb + d.label), 'destination copy must carry no emoji: ' + d.verb);
+    });
+  }),
+
+  () => tryRun('b227: Go lands you ON the thing, not just on the right tab', () => {
+    const QN = window.HearthriseQuestNav;
+    const startTab = window.activeTab || 'profile';
+    const prevCat = JSON.parse(JSON.stringify(window._artisanCat || {}));
+    const prevViewed = window.__viewedSkillId;
+    try {
+      // 1 — a gathering daily opens the SKILL's detail, not the grid.
+      const fish = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'fish');
+      QN.go(fish);
+      assert(document.getElementById('panel-skills').classList.contains('active'),
+        'Catch 15 fish must land on the skills panel');
+      assert(window.__viewedSkillId === 'fishing',
+        'it must OPEN fishing, not leave the player on the grid (got ' + window.__viewedSkillId + ')');
+      // openSkillDetail defers its paint a tick; paint it to see what the
+      // player sees.
+      window.renderSkillDetail('fishing');
+      assert(/Fishing/i.test(document.getElementById('skill-detail').textContent),
+        'the fishing screen is not what rendered');
+
+      // 2 — combat and farm goals leave the skills tab behind.
+      QN.go({ type: 'kill_any', label: 'Kill 25 monsters' });
+      assert(document.getElementById('panel-combat').classList.contains('active'), 'kill_any must land on combat');
+      QN.go({ type: 'harvest', label: 'Harvest 24 crops' });
+      assert(document.getElementById('panel-farming').classList.contains('active'), 'harvest must land on the farm');
+
+      // 3 — an artisan goal that implies a LANE arrives with the lane picked.
+      const d = QN.go({ type: 'smithed', label: 'Smith 8 platebodies' });
+      assert(d.skillId === 'smithing' && d.detail === 'armour',
+        'a goal naming armour should carry the armour lane, got ' + JSON.stringify([d.skillId, d.detail]));
+      assert(window._artisanCat.smithing === 'armour', 'the lane was not selected before arrival');
+      window.renderSkillDetail('smithing');
+      const chip = document.querySelector('#skill-detail .act-cats .chip.active');
+      assert(chip && chip.getAttribute('data-artcat') === 'armour',
+        'the armour lane is not the one on screen: ' + (chip && chip.getAttribute('data-artcat')));
+
+      // 4 — a lane is only ever one that EXISTS. A goal naming a lane the
+      // skill does not have must not persist a dead key.
+      const noLane = QN.destination({ type: 'cooked', label: 'Cook 12 platebodies' });
+      assert(noLane.detail !== 'armour', 'cooking has no armour lane — it must not be selected');
+    } finally {
+      window._artisanCat = prevCat;
+      window.__viewedSkillId = prevViewed;
+      try { window.showTab(startTab); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b227: the Quests modal row Go button navigates and closes', () => {
+    const startTab = window.activeTab || 'profile';
+    const prevViewed = window.__viewedSkillId;
+    try {
+      window.showTab('profile');
+      window.openQuestsModal();
+      const overlay = document.getElementById('quests-modal-overlay');
+      assert(overlay, 'the quests modal did not open');
+      const gos = overlay.querySelectorAll('.qm-q-go');
+      assert(gos.length > 0,
+        'no Go button on any unfinished quest row — the modal is a dead end again');
+      // Claim must stay the only action on a finished row.
+      overlay.querySelectorAll('.qm-quest').forEach((row) => {
+        if (row.querySelector('.qm-q-claim') || row.querySelector('.qm-q-claimed')) {
+          assert(!row.querySelector('.qm-q-go'),
+            'a claimable/claimed row must not also offer Go — one primary action per row');
+        }
+      });
+      const btn = gos[0];
+      const goal = (window.getGoalsForToday() || []).find((g) => g.id === btn.dataset.goto);
+      assert(goal, 'the Go button points at a quest id the pool does not know: ' + btn.dataset.goto);
+      const want = window.HearthriseQuestNav.destination(goal);
+      btn.click();
+      assert(!document.getElementById('quests-modal-overlay'),
+        'the modal must close on Go — an overlay over the destination is the same dead end');
+      // `activeTab` is a legacy `let`, so it is NOT on window — read the DOM,
+      // which is what the player sees anyway.
+      const landed = document.getElementById('panel-' + want.tab);
+      assert(landed && landed.classList.contains('active'),
+        'Go did not land on the ' + want.tab + ' panel for "' + goal.name + '"');
+      if (want.skillId) {
+        assert(window.__viewedSkillId === want.skillId,
+          'Go landed on the ' + want.tab + ' tab but did not open ' + want.skillId);
+      }
+    } finally {
+      try { window.closeQuestsModal(); } catch (e) {}
+      window.__viewedSkillId = prevViewed;
+      try { window.showTab(startTab); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b227: Home\'s milestone Train button opens the milestone\'s OWN skill', () => {
+    // `var sid` in getNextMilestone's for-loop was function-scoped, so every
+    // deepLink closure read the loop's final value — Train always opened
+    // Bounty Hunter, whatever the milestone said.
+    const LP = window.HearthriseLaunchpad;
+    assert(LP && typeof LP.getNextMilestone === 'function', 'launchpad missing');
+    const snap = snapshotG();
+    const startTab = window.activeTab || 'profile';
+    const prevViewed = window.__viewedSkillId;
+    try {
+      // Park one skill a hair from levelling so it is unambiguously closest.
+      const G = window.G;
+      G.quests = []; G.daily = { lastReset: null, tasks: [] };
+      G.skills = Object.assign({}, G.skills, { mining: window.XP_TABLE[1] - 1 });
+      const mile = LP.getNextMilestone();
+      assert(mile && mile.kind === 'skill', 'expected a skill milestone, got ' + (mile && mile.kind));
+      assert(/Mining/i.test(mile.label), 'expected the mining milestone, got ' + mile.label);
+      mile.deepLink();
+      assert(window.__viewedSkillId === 'mining',
+        'Train opened ' + window.__viewedSkillId + ' instead of the milestone\'s own skill');
+    } finally {
+      window.__viewedSkillId = prevViewed;
+      restoreG(snap);
+      try { window.showTab(startTab); } catch (e) {}
+    }
   }),
 ];
 

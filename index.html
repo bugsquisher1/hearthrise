@@ -757,6 +757,11 @@
   <script src="src/data/glyphs.js?v=226"></script>
   <!-- b159: cohesive icon system (game-icons.net, recolored + medallioned) -->
   <script src="src/features/icon-set.js?v=226"></script>
+  <!-- b227: one quest -> destination resolver, shared by every quest surface
+       (Quests modal rows, Home's "Next up", the strip). Loads after legacy.js
+       so SKILLS_DEF / SKILL_ACTION_STAT exist; it only READS them at click
+       time, so order here is a preference, not a hard dep. -->
+  <script src="src/features/quest-nav.js?v=226"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
   <script src="src/features/home-dashboard.js?v=226"></script>

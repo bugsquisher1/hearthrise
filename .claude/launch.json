@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8149"],
       "port": 8149
+    },
+    {
+      "name": "hearthrise-questnav",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8166"],
+      "port": 8166
     }
   ]
 }

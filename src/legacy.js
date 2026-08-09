@@ -38,6 +38,17 @@ const XP_TABLE=[0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2
    leaderboard, whose score IS computeRenown. One assignment fixes all three. */
 function levelFromXp(xp){for(let i=XP_TABLE.length-1;i>=0;i--)if(xp>=XP_TABLE[i])return Math.min(i+1,99);return 1}
 window.XP_TABLE=XP_TABLE;
+/* b227: the inverse of levelFromXp — total XP required to REACH level `lv`.
+   It never existed. profile-launchpad.js's getNextMilestone() has guarded on
+   `typeof window.xpForLevel === 'function'` since b138, so the entire SKILL
+   half of Home's "Next up" ladder has never run once: the milestone row could
+   only ever show a quest, and the closest-to-levelling skill — the thing an
+   idle game's home screen most wants to point at — was silently unreachable.
+   Found while wiring quest navigation into that same ladder.
+   XP_TABLE[i] is the threshold for level i+1, so level 1 costs nothing and
+   level `lv` costs XP_TABLE[lv-1]. Same maths admin.js already inlines. */
+function xpForLevel(lv){const n=Math.max(1,Math.min(99,lv|0));return n<=1?0:XP_TABLE[n-1];}
+window.xpForLevel=xpForLevel;
 function xpToNext(xp){const lv=levelFromXp(xp);if(lv>=99)return 0;return XP_TABLE[lv]-xp}
 function xpPct(xp){const lv=levelFromXp(xp);if(lv>=99)return 1;const a=XP_TABLE[lv-1],b=XP_TABLE[lv];return(xp-a)/(b-a)}
 
@@ -1968,6 +1979,15 @@ function stopSkill(){
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
   renderSkillsList();
 }
+/* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
+   This map was an inline object literal inside doSkillAction(), which made it
+   invisible to everything else: `stats.chopped` / `stats.mined` /
+   `stats.fished` are what the daily and weekly goals READ, and quest-nav.js
+   inverts this same map to answer "which skill screen does this goal live on".
+   One list, written here and read there, so adding a gathering skill wires
+   both its counter and its quest navigation in a single edit. */
+const SKILL_ACTION_STAT={woodcutting:'chopped',mining:'mined',fishing:'fished'};
+window.SKILL_ACTION_STAT=SKILL_ACTION_STAT;
 function doSkillAction(silent){
   const type=G.activeSkill,tid=G.skillTargetId;if(!type||!tid)return;
   G.skillProgress=0;
@@ -1987,7 +2007,7 @@ function doSkillAction(silent){
      progress on "Gather 25 logs", and "Catch 15 fish" was unachievable for
      anyone past Shrimp unless they deliberately downgraded. The goals got
      harder the better you were, which is backwards. */
-  const _perSkill={woodcutting:'chopped',mining:'mined',fishing:'fished'}[type];
+  const _perSkill=SKILL_ACTION_STAT[type];
   if(_perSkill) G.stats[_perSkill]=(G.stats[_perSkill]||0)+qty;
   updateDaily('gather',qty);updateQuest('gather',qty);
   addXp(type,act.xp);
@@ -12486,6 +12506,38 @@ console.log('[Bundle Icons v1] applied:',
     return window.readSource(path);
   }
 
+  /* b227 — where a quest is PLAYED. src/features/quest-nav.js owns the whole
+     mapping; this is the read-only edge of it. Same cross-scope discipline as
+     src() above: quest-nav is a separate <script>, so a missing resolver is a
+     wiring break and must be loud, not a silently missing button. */
+  var _navWarned = false;
+  function destOf(goal){
+    var QN = window.HearthriseQuestNav;
+    if(!QN || typeof QN.destination !== 'function'){
+      if(!_navWarned){
+        _navWarned = true;
+        console.error('[Quests] window.HearthriseQuestNav is missing — quest rows cannot route');
+      }
+      return null;
+    }
+    try { return QN.destination(goal); } catch(e){ return null; }
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+  /* b224's lookup, factored out — Claim and Go must resolve a row id through
+     exactly the same path or the two buttons can disagree about which quest a
+     row is. getGoalsForToday() is the exported view of the block-16 daily pool
+     AND is already narrowed to today's three picks. */
+  function goalById(goalId, isWeekly){
+    if(isWeekly) return WEEKLY_GOAL_POOL.find(function(p){return p.id===goalId;}) || null;
+    return (typeof window.getGoalsForToday === 'function')
+      ? (window.getGoalsForToday().find(function(p){return p.id===goalId;}) || null)
+      : null;
+  }
+
   function thisWeekKey(){
     var d = new Date();
     var ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -12572,11 +12624,7 @@ console.log('[Bundle Icons v1] applied:',
        the Claim button was inert even for a finished quest. getGoalsForToday()
        is the exported view of that pool AND it is already narrowed to today's
        three picks, which is exactly the set a player may claim. */
-    var goal = isWeekly
-      ? WEEKLY_GOAL_POOL.find(function(p){return p.id===goalId;})
-      : (typeof window.getGoalsForToday === 'function'
-          ? window.getGoalsForToday().find(function(p){return p.id===goalId;})
-          : null);
+    var goal = goalById(goalId, isWeekly);
     if(!goal) return;
     if(!isComplete(goal, isWeekly)) return;
     if(isClaimed(goal, isWeekly)) return;
@@ -12689,6 +12737,21 @@ console.log('[Bundle Icons v1] applied:',
       var isWeekly = btn.dataset.weekly === '1';
       if(qid && typeof window.claimQuestReward === 'function') window.claimQuestReward(qid, isWeekly);
     });
+    /* b227 — Go. Registered AFTER the claim handler and scoped to [data-goto],
+       which a claimable row never carries, so a Claim click can never be read
+       as a navigation. The whole row is the target (mobile), the button is the
+       visible affordance. Closing the modal is part of arriving: leaving an
+       overlay on top of the screen you were just sent to is the same dead end
+       this fixes. */
+    overlay.addEventListener('click', function(e){
+      var hit = e.target.closest && e.target.closest('[data-goto]');
+      if(!hit || !overlay.contains(hit)) return;
+      var goal = goalById(hit.dataset.goto, hit.dataset.weekly === '1');
+      if(!goal) return;
+      closeQuestsModal();
+      var QN = window.HearthriseQuestNav;
+      if(QN && typeof QN.go === 'function') QN.go(goal);
+    });
     document.body.appendChild(overlay);
     renderModal();
   }
@@ -12732,7 +12795,20 @@ console.log('[Bundle Icons v1] applied:',
         var claimBtn = '';
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
         else if(done) claimBtn = '<button class="qm-q-claim" data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
-        return '<div class="qm-quest '+(done&&!claimed?'claimable':done?'done':'')+'">'
+        /* b227 (audit finding #2) — "take me to the area the quest is asking
+           me to complete". Until now this modal was a dead end: it told you to
+           catch fish and offered no way to reach fishing, so the player closed
+           it and hunted for the tab themselves. An unfinished quest gets a Go
+           button carrying its own verb ("Go fish"); a finished one does not,
+           because the only thing left to do there is Claim, and one row should
+           only ever have one primary action. */
+        var goDest = destOf(g);
+        var goBtn = (!done && goDest)
+          ? '<button class="qm-q-go" data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"'
+            +' title="'+esc(goDest.label)+'">'+esc(goDest.verb)+'</button>'
+          : '';
+        return '<div class="qm-quest '+(done&&!claimed?'claimable':done?'done':'')+'"'
+          +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
           +'<div class="qm-q-icon">'+(g.emoji||'🎯')+'</div>'
           +'<div class="qm-q-info">'
             +'<div class="qm-q-name">'+g.name+'</div>'
@@ -12741,6 +12817,7 @@ console.log('[Bundle Icons v1] applied:',
             +'<div class="qm-q-progtext">'+Math.min(prog,g.target)+' / '+g.target+' ('+pct.toFixed(0)+'%)</div>'
           +'</div>'
           +rewardHtml
+          +goBtn
           +claimBtn
         +'</div>';
       }).join('');

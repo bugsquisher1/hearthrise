@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 228 — 2026-08-09 (Small numbers, real feelings)
+
+- 📉 **Every boost in the game came down — all of them, on purpose.** A room used to grant +50% smithing; it grants +10% now, and the whole boost economy is rebuilt on 2% steps (1% for the wide ones like all-XP). **Nothing you own changed** — same rooms, same levels, same prices, same castle. Only the size of the number each one grants. Boosts stop being a hidden second pacing dial and become a *feel* system, which is the point: when the plain is small, the peak is visible. A Last Call feast used to be lost among a pile of other big numbers; now it's the largest thing on your screen.
+- 🎉 **One ceiling, and you can see it.** No single bonus can pass +20% from everything you've permanently earned, +15% from everything the realm temporarily grants, or +30% together. Line up the right weekly, the right daily, a Last Call and a draught and you'll hit it — and the game says so, out loud: *"the realm's blessing is at its limit."*
+- 😴 **Rested XP finally pays something you can feel.** A banked charge stopped being a small percentage of one action and became a flat grant of XP — up to **1,600 XP per charge**, and the Great Library deepens your bank to 120 charges. Both the Library and the castle Tavern lead there; you only need one.
+- 👑 **Two royal ranks stopped paying pocket change.** Count now grants **+1 market listing slot** and King grants **+1 daily task** — real, permanent, useful — instead of a percent nobody could feel.
+- 🐾 **Five companions have been paying you nothing since launch.** The Fox, Lichling, Raccoon, Owl and Grave Wisp all had a typo where their bonus should have been. Fixed. Every pet's bonus was also being counted **twice** by the engine — also fixed — and pets can finally reach level 30 (the cap stopped them dead at 14).
+- 🏹 **Ranged and Magic get their combat-XP bonus.** Your Trophy Room, Watchtower, War Drums and Hunter's Moon paid four combat styles and silently skipped two. All six now.
+- 🌾 **Five farm perks that paid literally zero now pay.** The Scarecrow, the Bunny, the Squirrel, Carrot Stew and Roasted Pumpkin all granted a fraction of a crop, and the game rounded it away every single harvest.
+- 🏅 **The Throne screen finally explains itself** — a "How renown is earned" section listing every source and what it's worth, read live from the scoring itself, plus how much renown you've earned today. And **renown climbs a lot slower**: Serf in a day or two, Squire in your first week, Knight in three or four, Baron in your second month. **No one is ever demoted** — the rank you hold is yours for good.
+- 🧪 418 tests green.
+
 ## v0.9.2-beta build 227 — 2026-08-09 (The realm's blessing)
 
 - 🌤️ **The blessing calendar is the reason to play live.** The flat "+12% present" bonus is gone; in its place, the day's and the week's world blessings now pay **only while you're actually playing**. One week the realm grants +12% to all XP, another +10% gold find, another +15% gather speed — check what's blessed and train into it.

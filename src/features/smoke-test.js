@@ -773,20 +773,23 @@ const TESTS = [
       assert(!(Math.abs(rung.bv - 0.25) < 1e-9 || Math.abs(rung.bv - 0.5) < 1e-9),
         id + ' L' + (i + 1) + ' is still on the pre-rebase 25/50 curve');
     }));
-    // Library L4/L5 pay in allXP ALONE — the Rested potency payload is
-    // deliberately not shipped (dead on arrival at small numbers) and is
-    // stated on the rung instead of promised.
+    // b228: the reserved payload is PAID. Library L4/L5 pay Rested XP as a flat
+    // QUANTUM per banked charge (capacity, outside the percent grammar) instead
+    // of the percentage potency that was provably worth nothing, and L5 also
+    // deepens the bank. What must never come back is a `restedXp` PERCENTAGE.
+    assert(window.ROOMS.library.levels[3].rested === 800, 'Library L4 must pay 800 XP per rested charge');
+    assert(window.ROOMS.library.levels[4].rested === 1600, 'Library L5 must pay 1,600 XP per rested charge');
+    assert(window.ROOMS.library.levels[4].restedCap === 120, 'the Great Library must deepen the bank to 120 charges');
     [3, 4].forEach((i) => {
       const rung = window.ROOMS.library.levels[i];
-      assert(!rung.bx, 'Library L' + (i + 1) + ' must not ship a secondary payload yet');
-      assert(typeof rung.resv === 'string' && /[Rr]ested/.test(rung.resv),
-        'Library L' + (i + 1) + ' must SAY that its Rested payload is reserved, not drop it silently');
+      assert(!rung.resv, 'Library L' + (i + 1) + ' must no longer say "reserved" — the payload shipped');
+      assert(/[Rr]ested/.test(rung.bonus || ''), 'Library L' + (i + 1) + ' must SAY it pays Rested XP');
     });
     let restedProducers = 0;
     Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r) => {
       if (r.bk === 'restedXp' || (r.bx && r.bx.restedXp != null)) restedProducers++;
     }));
-    assert(restedProducers === 0, 'no homestead rung may promise Rested XP potency until the rework lands');
+    assert(restedProducers === 0, 'no homestead rung may promise Rested XP as a PERCENTAGE — it is a flat quantum now');
 
     // COSTS AND LEVELS ARE UNTOUCHED. This is the half of the corollary that
     // still stands, so it is frozen literally.
@@ -913,15 +916,24 @@ const TESTS = [
        (world-events, companions, clans, clan-seat-ui, muster + two in
        legacy.js), and a clamp in the base function is escaped by every wrapper
        above it. Both fuses therefore moved to the point of consumption. */
+    /* b228: the chain-wide budget moved to features/power-budget.js as the
+       FINAL wrapper (its own tests are below), and speedClamp stayed exactly
+       where it is — as the last line of defence at `ms × (1 − speed)`. Its
+       constant came to 0.70: the largest legal reading is gatherSpeed at the
+       0.30 absolute peak plus the out-of-budget tool ladder's 0.35 = 0.65, so
+       the fuse sits five points clear and never binds on a legal stack.
+       RESTED_POTENCY_CAP is gone — Rested is a flat XP quantum now. */
     assert(typeof window.speedClamp === 'function', 'the speed fuse choke-point is not published');
-    assert(window.SPEED_FUSE === 0.85, 'the speed fuse should be 0.85, got ' + window.SPEED_FUSE);
-    assert(window.RESTED_POTENCY_CAP === 0.50, 'the rested cap should be 0.50');
+    assert(window.SPEED_FUSE === 0.70, 'the speed fuse should be 0.70, got ' + window.SPEED_FUSE);
+    assert(window.RESTED_POTENCY_CAP === undefined, 'the rested POTENCY cap must be retired, not left behind');
+    assert(window.SPEED_FUSE > 0.30 + 0.35,
+      'the speed fuse must sit above the highest legal gatherSpeed + tool ladder, or it silently nerfs a legal stack');
 
     // (a) The clamp clamps, at any input a wrapper chain could produce.
     assert(Math.abs(window.speedClamp(0.60) - 0.40) < 1e-9, 'an in-budget speed must pass through untouched');
-    assert(Math.abs(window.speedClamp(0.90) - 0.15) < 1e-9, 'an over-budget speed must clamp to the fuse');
-    assert(Math.abs(window.speedClamp(4) - 0.15) < 1e-9, 'an absurd total must still land on the fuse');
-    assert(Math.abs(window.speedClamp(1) - 0.15) < 1e-9, 'speed 1.0 must never produce a zero interval');
+    assert(Math.abs(window.speedClamp(0.90) - 0.30) < 1e-9, 'an over-budget speed must clamp to the fuse');
+    assert(Math.abs(window.speedClamp(4) - 0.30) < 1e-9, 'an absurd total must still land on the fuse');
+    assert(Math.abs(window.speedClamp(1) - 0.30) < 1e-9, 'speed 1.0 must never produce a zero interval');
     assert(window.speedClamp(2) > 0, 'the multiplier must never go negative — setInterval would spin');
     // A debuff still slows you: the fuse is a ceiling on fast, not a floor on slow.
     assert(Math.abs(window.speedClamp(-0.5) - 1.5) < 1e-9, 'a negative speed must still lengthen the action');
@@ -2357,8 +2369,9 @@ const TESTS = [
       // perk can never be wired half-way.
       window.getBonus = (k) => (k === 'raidPower' ? 0 : 0);
       assert(R.raidPower() === 0 && R.raidPowerMult() === 1, 'no War Room means no multiplier');
-      window.getBonus = (k) => (k === 'raidPower' ? 0.10 : 0);
-      assert(Math.abs(R.raidPowerMult() - 1.10) < 1e-9, 'War Room L10 is +10%');
+      // b228: the War Room ladder rebased to +1% at levels 4, 7 and 10.
+      window.getBonus = (k) => (k === 'raidPower' ? 0.03 : 0);
+      assert(Math.abs(R.raidPowerMult() - 1.03) < 1e-9, 'War Room L10 is +3%');
       // A negative contributor must never make an honest strike weaker.
       window.getBonus = () => -5;
       assert(R.raidPowerMult() === 1, 'raidPower is clamped at >= 0');
@@ -2959,7 +2972,10 @@ const TESTS = [
     if (typeof window.equipCompanion === 'function') window.equipCompanion('fox');
     if (typeof window.getCompanionBonus === 'function') {
       const b = window.getCompanionBonus();
-      assert(b.xpB > 0, 'fox xpB should apply');
+      /* b228: `xpB` was a misspelling of `allXP` and the Fox therefore paid
+         nothing from the day it shipped. The corrected key is the contract. */
+      assert(b.allXP > 0, 'fox allXP should apply');
+      assert(b.xpB === undefined, 'the misspelled xpB key must not come back');
     }
     assert(document.getElementById('panel-stable'), 'panel-stable missing');
     assert(document.getElementById('stable-body'), 'stable-body missing');
@@ -7993,29 +8009,37 @@ const TESTS = [
   }),
 
   // #10f: SEAM 3 — the Rested XP bank, consumed by the XP grant path.
-  () => tryRun('b222 SEAM 3: G.restedXp is spent by addXp, and is inert while potency is 0', () => {
+  () => tryRun('b228 SEAM 3: a Rested charge is a flat XP QUANTUM, spent exactly once per grant', () => {
+    /* b228 respec (bonus-rebase.md §5.3). Rested used to be a percentage
+       potency multiplying one XP grant per charge — inert at +20% and provably
+       worth single-digit XP at the rebased scale. It is now a flat quantum, so
+       this test measures XP DELTA rather than a multiplier, and pins the two
+       properties that actually protect the bank: one charge per grant, and
+       nothing spent when the quantum is zero. */
     const snap = snapshotG();
-    const origBonus = window.getBonus;
+    const origQ = window.restedQuantum;
     try {
       // Level 99 woodcutting so no level-up fires mid-measurement.
       window.G.skills.woodcutting = 12000000;
       const xpNow = () => window.G.skills.woodcutting;
 
-      // Inert: charges banked, but nothing grants potency, so nothing is spent.
+      // Inert: charges banked, but neither road is built, so nothing is spent.
+      window.restedQuantum = () => 0;
       window.G.restedXp = 3;
       const before = xpNow();
       window.addXp('woodcutting', 1000);
       const plain = xpNow() - before;
       assert(window.G.restedXp === 3, 'a charge was burned for no benefit — the seam is not inert');
 
-      // Potency stubbed at +100%: exactly one charge is spent, and the grant
-      // is strictly larger than the same grant without it.
-      window.getBonus = (k) => (k === 'restedXp' ? 1 : origBonus(k));
+      // A quantum of 1,600: exactly one charge is spent, and the grant is
+      // larger by EXACTLY the quantum — a flat grant no perk may scale.
+      window.restedQuantum = () => 1600;
       const b2 = xpNow();
       window.addXp('woodcutting', 1000);
       const rested = xpNow() - b2;
       assert(window.G.restedXp === 2, 'exactly one charge must be spent per grant, bank is ' + window.G.restedXp);
-      assert(rested > plain, 'rested XP did not increase the grant: ' + rested + ' vs ' + plain);
+      assert(rested === plain + 1600,
+        'a charge must add exactly its quantum, not a multiple of it: ' + rested + ' vs ' + (plain + 1600));
       // Draining the bank must stop the bonus, not go negative.
       window.G.restedXp = 1;
       window.addXp('woodcutting', 10);
@@ -8026,9 +8050,32 @@ const TESTS = [
       window.addXp('woodcutting', 0);
       assert(window.G.restedXp === 1, 'a 0-XP grant must not burn a rested charge');
     } finally {
-      window.getBonus = origBonus;
+      window.restedQuantum = origQ;
       restoreG(snap);
     }
+  }),
+
+  // b228: the two roads to Rested, and the one ceiling they share.
+  () => tryRun('b228: Rested XP — two roads, one ceiling, and the deeper bank', () => {
+    const snap = snapshotG();
+    try {
+      assert(window.RESTED_QUANTUM_CAP === 1600, 'the aggregate Rested ceiling should be 1,600 XP/charge');
+      window.G.rooms = window.G.rooms || {};
+      window.G.rooms.library = 0;
+      assert(window.restedQuantum() === 0, 'no Library and no Tavern must mean no quantum');
+      assert(window.restedCap() === window.RESTED_CAP, 'the base bank is 80 charges');
+      window.G.rooms.library = 4;
+      assert(window.restedQuantum() === 800, 'the Scriptorium road pays 800 XP/charge');
+      window.G.rooms.library = 5;
+      assert(window.restedQuantum() === 1600, 'the Great Library road pays 1,600 XP/charge');
+      assert(window.restedCap() === 120, 'the Great Library deepens the bank to 120');
+      // The castle road, mirrored from the clan-seat reducer.
+      const CS = window.HearthriseClanSeat;
+      assert(CS.restedQuantum(0) === 0 && CS.restedQuantum(10) === 1600,
+        'the castle road must reach the same ceiling by Tavern 10');
+      assert(CS.restedQuantum(10) <= window.RESTED_QUANTUM_CAP,
+        'neither road may exceed the shared ceiling');
+    } finally { restoreG(snap); }
   }),
 
   // #10g: SEAM 3, THE ONE THAT MATTERS. b214 shipped offline rewards paid two
@@ -8286,24 +8333,33 @@ const TESTS = [
   () => tryRun('b222: Tavern, withdrawal-delay and succession maths match the spec', () => {
     const C = window.HearthriseClanSeat;
     // The Hearth feeds registerBuffScaler; the Common Room feeds G.restedXp.
+    /* b228 (bonus-rebase.md §3.2): DURATION is exempt from the percent grammar
+       and holds at +4%/level; MAGNITUDE is throughput and comes to +1%/level. */
     const h10 = C.hearthScale(10);
-    assert(Math.abs(h10.duration - 1.4) < 1e-9 && Math.abs(h10.magnitude - 1.2) < 1e-9,
-      'Tavern 10 Hearth should be +40% duration / +20% strength');
+    assert(Math.abs(h10.duration - 1.4) < 1e-9 && Math.abs(h10.magnitude - 1.10) < 1e-9,
+      'Tavern 10 Hearth should be +40% duration / +10% strength');
     assert(C.hearthScale(0).duration === 1 && C.hearthScale(0).magnitude === 1, 'no Tavern = identity scale');
     assert(Math.abs(C.leftoversChance(10) - 0.05) < 1e-9, 'Leftovers should reach 5% at Tavern 10');
-    assert(Math.abs(C.restedPotency(10) - 0.20) < 1e-9, 'a rested charge is worth +20% at Tavern 10');
-    assert(C.restedPotency(0) === 0, 'no Tavern means no rested potency — the seam stays inert');
+    /* Rested converted from a potency to a flat XP quantum. */
+    assert(C.restedPotency === undefined, 'restedPotency must be retired, not left beside its replacement');
+    assert(C.restedQuantum(10) === 1600, 'a rested charge is worth 1,600 XP at Tavern 10');
+    assert(C.restedQuantum(0) === 0, 'no Tavern means no quantum — the seam stays inert');
     assert(C.RESTED_CHARGE_MS === window.RESTED_CHARGE_MS && C.RESTED_CAP === window.RESTED_CAP,
       'the spec constants and the engine seam disagree about rest');
     // Feasts. 20h cooldown, deliberately NOT 24 — it drifts round the clock so
     // one timezone never owns Last Call.
     assert(C.FEAST_COOLDOWN_MS === 20 * 3600000, 'the Feast cooldown must be 20h, not 24h');
     assert(C.feastMeterCap(10) === 1800 && C.feastMeterCap(1) === 720, 'the meter cap drifted');
-    assert(C.feastEffect(10).allXP === 0.18 && C.feastEffect(10).hours === 4, 'the Tavern-10 Feast drifted');
-    assert(C.feastEffect(1).allXP === 0.08 && C.feastEffect(5).yield === 0.08, 'the Feast ladder drifted');
+    /* b228: the ladder rebased; the HOURS did not move — a feast's length is
+       what makes it an event the clan schedules around, and duration is outside
+       the percent grammar. */
+    assert(C.feastEffect(10).allXP === 0.04 && C.feastEffect(10).hours === 4, 'the Tavern-10 Feast drifted');
+    assert(C.feastEffect(1).allXP === 0.01 && C.feastEffect(5).yield === 0.01, 'the Feast ladder drifted');
+    assert(C.feastEffect(7).hours === 3 && C.feastEffect(4).hours === 2 && C.feastEffect(1).hours === 1,
+      'the feast HOURS must not move — only the magnitudes were rebased');
     // Last Call doubles everything for the final 30 minutes at Tavern 7+.
     const lc = C.feastEffectAt(10, 10 * 60000);
-    assert(lc.lastCall === true && Math.abs(lc.allXP - 0.36) < 1e-9, 'Last Call must double every effect');
+    assert(lc.lastCall === true && Math.abs(lc.allXP - 0.08) < 1e-9, 'Last Call must double every effect');
     assert(!C.feastEffectAt(6, 10 * 60000).lastCall, 'Last Call is Tavern 7+ only');
     assert(!C.feastEffectAt(10, 90 * 60000).lastCall, 'Last Call is the final 30 minutes only');
     // A withdrawal over 10% of the treasury is delayed 24h and announced.
@@ -8436,32 +8492,43 @@ const TESTS = [
       UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
       UI._setSeat(maxed(), 'test-hold');
 
-      // §8.2's table, exactly.
+      /* b228 (bonus-rebase.md §3.1) — the rebased table, exactly.
+         Each wing pays +1% at levels 4, 7 and 10 → +3% at max, in place of
+         0.005/level. The Great Hall pays +1% per tier ABOVE THE FIRST → +4% at
+         tier 5. `restedXp` has left the audit entirely: Rested is a flat XP
+         quantum now, not a getBonus key the castle produces. */
       const a = UI.budgetAudit();
-      assert(near(a.keys.allXP, 0.05), 'Great Hall at tier 5 must be +5% allXP, got ' + a.keys.allXP);
-      assert(near(a.keys.goldFind, 0.05), 'Treasury 10 must be +5% goldFind, got ' + a.keys.goldFind);
-      assert(near(a.keys.craftSpeed, 0.05), 'Sawmill 10 must be +5% craftSpeed, got ' + a.keys.craftSpeed);
-      assert(near(a.keys.smithSpeed, 0.05), 'Smeltery 10 must be +5% smithSpeed, got ' + a.keys.smithSpeed);
-      assert(near(a.keys.raidPower, 0.10), 'War Room 10 must be +10% raidPower, got ' + a.keys.raidPower);
-      assert(near(a.keys.restedXp, 0.20), 'Tavern 10 must be +20% rested XP, got ' + a.keys.restedXp);
+      assert(near(a.keys.allXP, 0.04), 'Great Hall at tier 5 must be +4% allXP, got ' + a.keys.allXP);
+      assert(near(a.keys.goldFind, 0.03), 'Treasury 10 must be +3% goldFind, got ' + a.keys.goldFind);
+      assert(near(a.keys.craftSpeed, 0.03), 'Sawmill 10 must be +3% craftSpeed, got ' + a.keys.craftSpeed);
+      assert(near(a.keys.smithSpeed, 0.03), 'Smeltery 10 must be +3% smithSpeed, got ' + a.keys.smithSpeed);
+      assert(near(a.keys.raidPower, 0.03), 'War Room 10 must be +3% raidPower, got ' + a.keys.raidPower);
+      assert(a.keys.restedXp === undefined, 'restedXp must not be audited as a castle throughput key any more');
+      assert(UI.castlePermanent('restedXp') === 0, 'the castle must publish no restedXp percentage at all');
+      // The three rungs are FELT steps, not a smear: nothing at levels 1-3.
+      assert(UI.perkAtLevel(3) === 0 && near(UI.perkAtLevel(4), 0.01)
+          && near(UI.perkAtLevel(7), 0.02) && near(UI.perkAtLevel(10), 0.03),
+        'the castle perk rungs must land at 4 / 7 / 10, and nowhere else');
+      // The Great Hall pays for CLIMBING the tier ladder, not for arriving on it.
+      assert(UI.greatHallAllXp(1) === 0 && near(UI.greatHallAllXp(5), 0.04),
+        'tier 1 must grant nothing and tier 5 must grant +4%');
 
-      // §8.1 rule 2: no single key above +10% FROM THE CASTLE. raidPower sits
-      // exactly on the ceiling, which is what makes this a live rule.
+      // The castle's own SHARE of the per-key budget (§2.2): ≤ +5% from the
+      // castle on any one key, enforced where it is granted.
       assert(a.largest <= UI.CASTLE_KEY_CAP + 1e-9,
         'a castle key exceeded the per-key cap: ' + a.largest);
-      // §8.1 rule 1: the throughput a single action can actually use is allXP +
-      // one speed key + goldFind. Well inside +25%.
-      assert(a.keys.allXP + a.keys.craftSpeed + a.keys.goldFind <= UI.CASTLE_TOTAL_CAP + 1e-9,
-        'the per-action castle throughput exceeded the budget');
+      assert(UI.CASTLE_KEY_CAP === 0.05, 'the castle share should be 0.05');
+      assert(UI.CASTLE_TOTAL_CAP === undefined && UI.PERMANENT_ALLXP_CAP === undefined,
+        'the mid-chain caps must be retired — the budget lives in power-budget.js now');
 
       // It really flows: getBonus is higher by exactly the castle's share.
-      assert(near(window.getBonus('craftSpeed') - base.craftSpeed, 0.05), 'craftSpeed did not reach getBonus');
-      assert(near(window.getBonus('goldFind') - base.goldFind, 0.05), 'goldFind did not reach getBonus');
+      assert(near(window.getBonus('craftSpeed') - base.craftSpeed, 0.03), 'craftSpeed did not reach getBonus');
+      assert(near(window.getBonus('goldFind') - base.goldFind, 0.03), 'goldFind did not reach getBonus');
 
       // §10: a strained hold runs at 60%, a dormant one at 0 — and NOTHING is
       // de-levelled either way, which is why the levels are still readable.
       UI._setSeat(maxed('strained'), 'test-hold');
-      assert(near(UI.castlePermanent('goldFind'), 0.03), 'strained must scale perks to 60%');
+      assert(near(UI.castlePermanent('goldFind'), 0.018), 'strained must scale perks to 60%');
       assert(UI.buildingLevel('sawmill') === 10, 'a strained hold keeps every level it earned');
       UI._setSeat(maxed('dormant'), 'test-hold');
       assert(UI.castlePermanent('goldFind') === 0, 'a dormant hold grants nothing');
@@ -8470,11 +8537,16 @@ const TESTS = [
     } finally { UI._reset(); }
   }),
 
-  // THE FUSE (§8.3, and the open CONFLICTS entry "Perk stacking power budget").
-  // The ruling: the cap is a fuse on PERMANENT power, applied where permanence
-  // is knowable, and the newest system yields. Temporary power — the Feast — is
-  // budgeted separately (§8.4) and is deliberately allowed above the ceiling.
-  () => tryRun('b223: homestead + renown + castle can never stack past the allXP ceiling', () => {
+  /* b228 — THE FUSE LEFT THE CASTLE (bonus-rebase.md §4.1, §6 conflict 1).
+     b223 shipped the fuse at layer 4 of a seven-layer chain, where it reduced
+     only the castle's OWN contribution and was escaped by companions, buffs,
+     the muster aura and the blessing calendar. It also policed one key. This
+     test therefore inverts: what it now guards is that the castle does NOT
+     self-clamp (the newest-system-yields rule is gone — every source states its
+     honest number) and that the real ceiling is enforced at the END of the
+     chain, where nothing can be added after it. The end-of-chain clamp has its
+     own tests further down. */
+  () => tryRun('b228: the castle states its honest share — the ceiling is enforced end-of-chain', () => {
     const UI = window.HearthriseClanSeatUI;
     const near = (a, b) => Math.abs(a - b) < 1e-9;
     const R = window.HearthriseRenown, H = window.HearthriseHomestead;
@@ -8486,46 +8558,46 @@ const TESTS = [
                     upgrades: { treasury: 10, tavern: 10, sawmill: 10, smeltery: 10, war_room: 10 },
                     stores: {}, orders: [] }, 'test-hold');
 
-      // The real ceiling, with every permanent source at ITS OWN maximum:
-      // homestead castle capstone 5 + renown High King 22 + clan ladder 0
-      // (re-scoped) + Great Hall 5 = 32%. Down from the +72% the spec found.
-      if (R) R.getPerks = () => ({ allXP: 0.22, offlineHours: 3 });
+      // The real permanent allXP stack with every source at ITS OWN maximum:
+      // homestead capstone 2 + renown High King 4 + clan ladder 0 (re-scoped)
+      // + Great Hall 4 = 10%. Down from the +32% b223 measured and the +72%
+      // the census found before that.
+      if (R) R.getPerks = () => ({ allXP: 0.04, offlineHours: 12 });
       if (H) H.isCastle = () => true;
-      assert(near(UI.permanentAllXp(), 0.32),
-        'the real permanent ceiling should be +32%, got ' + UI.permanentAllXp());
-      assert(UI.permanentAllXp() <= UI.PERMANENT_ALLXP_CAP,
-        'the permanent stack must sit inside the ceiling');
+      assert(near(UI.permanentAllXp(), 0.10),
+        'the real permanent allXP stack should be +10%, got ' + UI.permanentAllXp());
+      assert(UI.permanentAllXp() <= window.HearthrisePowerBudget.PERMANENT_CAP,
+        'the permanent stack must sit inside the fuse');
       // The clan ladder really contributes nothing any more.
       assert(!window.HearthriseClans.perksFor(10).allXP, 'the clan ladder must add no allXP');
 
-      // The fuse binds on the CASTLE. Push the rest of the stack to the edge
-      // and the Great Hall gives up exactly as much as it must. (Homestead is
-      // dropped here so the 58% is the WHOLE of the non-castle stack.)
+      // NO MID-CHAIN YIELDING. However hot the rest of the stack runs, the
+      // castle keeps stating what it actually grants — a source that lies about
+      // its own number to compensate for another source is unreadable, and it
+      // was also escapable, which is why the clamp moved.
       if (H) H.isCastle = () => false;
       if (R) R.getPerks = () => ({ allXP: 0.58 });
-      assert(near(UI.castleBonus('allXP', true), 0.02),
-        'with 58% already banked the castle may add only 2%, got ' + UI.castleBonus('allXP', true));
-      assert(near(UI.permanentAllXp(), 0.60), 'the fuse must land the stack exactly on the cap');
-      // And it can be reduced to nothing without ever going negative or
-      // subtracting somebody else's perk.
+      assert(near(UI.castleBonus('allXP', true), 0.04),
+        'the castle must state its honest +4%, not yield mid-chain, got ' + UI.castleBonus('allXP', true));
       if (R) R.getPerks = () => ({ allXP: 0.70 });
-      assert(UI.castleBonus('allXP', true) === 0, 'past the cap the castle adds nothing');
-      assert(near(UI.permanentAllXp(), 0.70), 'the fuse must never subtract another system\'s perk');
+      assert(near(UI.castleBonus('allXP', true), 0.04), 'still honest with an absurd stack beneath it');
+      assert(near(UI.permanentAllXp(), 0.74), 'permanentAllXp is a plain audit sum now, not a fuse');
 
-      // THE FEAST IS EXEMPT — deliberately, and this is the test that records it.
-      if (R) R.getPerks = () => ({ allXP: 0.22 });
+      // THE FEAST — temporary, budgeted separately, and rebased.
+      if (R) R.getPerks = () => ({ allXP: 0.04 });
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: { tavern: 10 }, stores: {}, orders: [],
                     feast_until: new Date(Date.now() + 3 * 3600000).toISOString() }, 'test-hold');
-      assert(near(UI.feastBonus('allXP'), 0.18), 'a Tavern-10 feast is +18% allXP, got ' + UI.feastBonus('allXP'));
+      assert(near(UI.feastBonus('allXP'), 0.04), 'a Tavern-10 feast is +4% allXP, got ' + UI.feastBonus('allXP'));
       assert(UI.castleBonus('allXP') > UI.castleBonus('allXP', true),
         'the feast must reach getBonus on top of the permanent share');
-      // Last Call: the final 30 minutes double every effect (Tavern 7+).
+      // Last Call: the final 30 minutes double every effect (Tavern 7+). At +8%
+      // on a +15% permanent stack this is a 53% uplift — the ceremony peak.
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: { tavern: 10 }, stores: {}, orders: [],
                     feast_until: new Date(Date.now() + 10 * 60000).toISOString() }, 'test-hold');
-      assert(near(UI.feastBonus('allXP'), 0.36), 'Last Call must double the feast, got ' + UI.feastBonus('allXP'));
-      assert(near(UI.feastBonus('craftSpeed'), 0.24), 'Last Call must double the artisan line too');
+      assert(near(UI.feastBonus('allXP'), 0.08), 'Last Call must double the feast, got ' + UI.feastBonus('allXP'));
+      assert(near(UI.feastBonus('craftSpeed'), 0.08), 'Last Call must double the artisan line too');
       // A dormant hold throws no feast, whatever the timestamp says.
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'dormant',
                     upgrades: { tavern: 10 }, stores: {}, orders: [],
@@ -8604,46 +8676,59 @@ const TESTS = [
   // §9.4 — the Common Room. The b222 seam (G.restedXp, watermarked accrual)
   // was inert because nothing granted a potency. The Tavern grants it, and the
   // rest of the chain was already built.
-  () => tryRun('b223: the Tavern makes Rested XP live — potency, and a charge really burns', () => {
+  () => tryRun('b228: the Tavern makes Rested XP live — a flat quantum, and a charge really burns', () => {
+    /* b228 respec: the Tavern's Common Room pays XP PER CHARGE, not a potency
+       percentage (bonus-rebase.md §5.3). `restedXp` is not a getBonus key any
+       more, so every assertion here moved onto the quantum — including the
+       upkeep scaling, which still dims a strained hold and closes a dormant one. */
     const UI = window.HearthriseClanSeatUI;
     const G = window.G;
     const near = (a, b) => Math.abs(a - b) < 1e-9;
-    const saved = { rested: G.restedXp, crafting: G.skills.crafting };
+    const saved = { rested: G.restedXp, crafting: G.skills.crafting, rooms: G.rooms };
     try {
       UI._reset();
+      G.rooms = Object.assign({}, G.rooms, { library: 0 });   // isolate the castle road
       UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'member' });
 
-      // No Tavern → the bank is real and the potency is zero, so a charge is
+      // No Tavern → the bank is real and the quantum is zero, so a charge is
       // never burned. That is the inert state, and it is correct.
       UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: {}, stores: {}, orders: [] }, 'test-hold');
-      assert(window.getBonus('restedXp') === 0, 'no Tavern must mean no potency');
+      assert(window.getBonus('restedXp') === 0, 'restedXp must not be a getBonus key any more');
+      assert(UI.restedQuantum() === 0, 'no Tavern must mean no quantum');
       G.restedXp = 3; G.skills.crafting = 0;
       window.addXp('crafting', 100);
       assert(G.restedXp === 3, 'a charge must never burn while it is worth nothing');
-      const plain = G.skills.crafting;
 
-      // Tavern 10 → +2% per level per charge.
+      // Tavern 10 → 160 XP per level per charge = 1,600.
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
-      assert(near(window.getBonus('restedXp'), 0.20), 'Tavern 10 must publish +20% rested XP');
-      assert(near(window.getBonus('restedXp'), window.HearthriseClanSeat.restedPotency(10)),
-        'the potency must come from the tested reducer, not a second copy');
-      G.skills.crafting = 0;
+      assert(near(UI.restedQuantum(), 1600), 'Tavern 10 must pour 1,600 XP per charge, got ' + UI.restedQuantum());
+      assert(near(UI.restedQuantum(), window.HearthriseClanSeat.restedQuantum(10)),
+        'the quantum must come from the tested reducer, not a second copy');
+      assert(near(window.restedQuantum(), 1600), 'and the engine must read the castle road');
+      /* The baseline is measured UNDER THE SAME SEAT — the Great Hall's allXP
+         differs between tier 2 and tier 5, so an earlier baseline would drift
+         the comparison by a point of XP and hide the real question. */
+      G.restedXp = 0; G.skills.crafting = 0;
+      window.addXp('crafting', 100);
+      const plain = G.skills.crafting;
+      G.restedXp = 3; G.skills.crafting = 0;
       window.addXp('crafting', 100);
       assert(G.restedXp === 2, 'exactly one charge is spent per XP grant, got bank ' + G.restedXp);
-      assert(G.skills.crafting > plain, 'a rested grant must be worth strictly more than an ordinary one');
+      assert(G.skills.crafting === plain + 1600,
+        'a rested grant must add exactly the quantum, got ' + (G.skills.crafting - plain));
 
       // A strained hold pours a weaker rest; a dormant one pours none.
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'strained',
                     upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
-      assert(near(window.getBonus('restedXp'), 0.12), 'a strained hold rests at 60%');
+      assert(near(UI.restedQuantum(), 960), 'a strained hold rests at 60%, got ' + UI.restedQuantum());
       UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'dormant',
                     upgrades: { tavern: 10 }, stores: {}, orders: [] }, 'test-hold');
-      assert(window.getBonus('restedXp') === 0, 'a dormant hold rests nobody');
+      assert(UI.restedQuantum() === 0, 'a dormant hold rests nobody');
     } finally {
       UI._reset();
-      G.restedXp = saved.rested; G.skills.crafting = saved.crafting;
+      G.restedXp = saved.rested; G.skills.crafting = saved.crafting; G.rooms = saved.rooms;
     }
   }),
 
@@ -9241,8 +9326,11 @@ const TESTS = [
       const war = UI.roomDescriptor('war_room');
       assert(JSON.stringify(war.sections).indexOf('Tier ceiling') >= 0,
         'the War Room must display the Hunt tier ceiling');
-      assert(Math.abs(UI.castlePermanent('raidPower') - 0.06) < 1e-9,
-        'War Room 6 must publish +6% raidPower for simulateStrike, got ' + UI.castlePermanent('raidPower'));
+      /* b228: the War Room's ladder is +1% at levels 4, 7 and 10, so a level-6
+         room publishes +1%. Its real payload is the tier ceiling asserted just
+         above — access, not throughput (bonus-rebase.md §5.3). */
+      assert(Math.abs(UI.castlePermanent('raidPower') - 0.01) < 1e-9,
+        'War Room 6 must publish +1% raidPower for simulateStrike, got ' + UI.castlePermanent('raidPower'));
 
       // The component itself knows nothing about clans — that is what makes it
       // reusable by the homestead next wave.
@@ -10983,11 +11071,12 @@ const TESTS = [
       });
       NS.setMode('ok');
 
-      // The b226 fuse still has to hold with a blessing live — the whole point
-      // of putting the blessing INSIDE the additive channel is that the fuse
-      // can see it. A blessing hidden outside the fuse is an unbudgeted bonus.
-      assert(window.getBonus('allXP') <= 0.60,
-        'the ≤0.60 allXP fuse must hold with the blessing live, got ' + window.getBonus('allXP'));
+      /* The budget still has to hold with a blessing live — the whole point of
+         putting the blessing INSIDE the additive channel is that the clamp can
+         see it. A blessing hidden outside the budget is an unbudgeted bonus.
+         b228: the bound is the absolute peak, 0.30, not the retired 0.60. */
+      assert(window.getBonus('allXP') <= window.HearthrisePowerBudget.TOTAL_CAP + 1e-9,
+        'the absolute allXP peak must hold with the blessing live, got ' + window.getBonus('allXP'));
     } finally { NS.setMode('ok'); restoreG(snap); }
   }),
 
@@ -11120,7 +11209,16 @@ const TESTS = [
       E._force({ daily: E.QUIET, weekly: E.QUIET });
       const quiet = runNight();
       E._force({ daily: LOUD, weekly: LOUD });
+      /* `bonusFor` is the calendar's RAW offer, read before the power budget's
+         end-of-chain clamp — which is why this assertion is made here and not
+         through getBonus. b228 added that clamp, and it must never become the
+         reason the two nights come out equal: what holds the offline boundary
+         is the REPLAY LATCH, and a clamp doing the latch's job by accident
+         would be an untested boundary wearing a passing test.
+         So the claim is split in two, explicitly. */
       assert(E.bonusFor('allXP') === 1.0, 'the loud blessing must actually be on the calendar');
+      const clamped = window.HearthrisePowerBudget.applyBudget('allXP', 1.0);
+      assert(clamped > 0, 'and it must still reach the player ONLINE — clamped, never erased (' + clamped + ')');
       const loud = runNight();
       E._force(null);
 
@@ -11590,11 +11688,31 @@ const TESTS = [
     } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
   }),
 
-  () => tryRun('b226: renown weights only rose, and the ratchet can never demote', () => {
+  () => tryRun('b228: renown weights came down, thresholds did NOT, and the ratchet still holds', () => {
+    /* Tyler, 2026-08-09: *"It also seems to be going way too fast."* Every W
+       weight is retuned toward Serf day 1-2 / Squire week 1 / Knight week 3-4 /
+       Baron month 2+ (see the derivation in renown.js).
+
+       b226 asserted the opposite direction — "weights only rose" — because a
+       kill-heavy veteran whose score fell could be DEMOTED. That protection is
+       real and it is unchanged; what changed is WHERE it comes from. The
+       `renownHigh` ratchet makes it structural: rank is decided on the
+       high-water mark, so a weight may now fall in any direction without
+       clawing back a single rank. Which is exactly why the safe lever is the
+       weights and never the THRESHOLDS — those are compared against the banked
+       mark, and raising one would demote everybody at once. This test pins
+       both halves. */
     const R = window.HearthriseRenown;
-    assert(R.WEIGHTS.totalLevel === 14, 'totalLevel weight must be 14 (was 10)');
-    assert(R.WEIGHTS.skill99 === 900, 'skill99 weight must be 900 (was 600)');
-    assert(R.WEIGHTS.kill === 0.5, 'the kill weight must NEVER be lowered — that demotes veterans');
+    assert(R.WEIGHTS.totalLevel === 2, 'totalLevel weight must be 2');
+    assert(R.WEIGHTS.skill99 === 100, 'skill99 weight must be 100');
+    assert(R.WEIGHTS.kill === 0.05, 'the kill weight must be 0.05');
+    assert(R.WEIGHTS.questDone === 25 && R.WEIGHTS.collection === 3 && R.WEIGHTS.streakBest === 5,
+      'the rest of the pace retune drifted');
+    // THE THRESHOLDS ARE FROZEN. They are compared against the banked ratchet,
+    // so moving one is the one edit that can demote a live player.
+    const MINS = [0, 400, 900, 2200, 4500, 8000, 13500, 21000, 32000, 48000, 72000, 120000];
+    R.RANKS.forEach((r, i) => assert(r.min === MINS[i],
+      'rank threshold ' + r.id + ' moved to ' + r.min + ' — thresholds may never move'));
     assert(typeof R.effective === 'function', 'the ratcheted score must be published');
     const snap = snapshotG();
     try {
@@ -12552,6 +12670,492 @@ const TESTS = [
       restoreG(snap);
       try { window.HearthriseHome.render(); } catch (e) {}
     }
+  }),
+
+
+  // ══════════════════════════════════════════════════════════════════════
+  // b228 — THE BONUS REBASE (docs/design/bonus-rebase.md)
+  //
+  // Tyler, binding: "the % boosts across the board are way too high. 50%
+  // smithing? it should be like increments of 2%."
+  //
+  // The first test below is the one that matters. Everything else in this
+  // block pins a number; the grammar test pins the SHAPE, and a shape is what
+  // survives the next feature. There was nothing like it in the suite before,
+  // which is precisely how forty-two bonus sources drifted from 0.1% to 50%
+  // with no rule anybody could state.
+  // ══════════════════════════════════════════════════════════════════════
+
+  () => tryRun('b228 GRAMMAR: every percentage magnitude in the game is a whole percent', () => {
+    /* Walks every table that grants a getBonus-class percentage and asserts
+       `v × 100` is an integer. A rung at 0.075 would pass every ceiling test in
+       this suite and still be exactly what the directive exists to stop.
+
+       The allow-list is EXPLICIT rather than a default, because "everything not
+       named" is how an exemption quietly becomes a loophole. Four classes are
+       outside the percent grammar and each is outside it for a stated reason
+       (bonus-rebase.md §2.5): counts, reliability, duration, and flat XP. */
+    const FLAT = { farmYield: 1, hpRegen: 1, strB: 1, atkB: 1, defB: 1, rested: 1, restedCap: 1 };
+    const EXEMPT = { noBurn: 1, buffDuration: 1 };
+    const bad = [];
+    const check = (where, key, v) => {
+      if (FLAT[key] || EXEMPT[key] || typeof v !== 'number' || v === 0) return;
+      const pts = v * 100;
+      if (Math.abs(pts - Math.round(pts)) > 1e-9) bad.push(where + ' ' + key + ' = ' + pts + ' points');
+    };
+
+    // 1 — homestead rooms (bk/bv + the secondary bx map)
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r, i) => {
+      const at = 'ROOMS.' + id + ' L' + (i + 1);
+      if (r.bk) check(at, r.bk, r.bv);
+      if (r.bx) Object.keys(r.bx).forEach((k) => check(at, k, r.bx[k]));
+    }));
+
+    // 2 — renown rank perks
+    window.HearthriseRenown.RANKS.forEach((r) => {
+      if (!r.perk) return;
+      Object.keys(r.perk).forEach((k) => {
+        if (k === 'offlineHours' || k === 'bankSlots' || k === 'marketSlots' || k === 'dailyTasks') return;
+        check('RANKS.' + r.id, k, r.perk[k]);
+      });
+    });
+
+    // 3 — the castle: the perk rungs and the Great Hall
+    const UI = window.HearthriseClanSeatUI;
+    for (let lv = 0; lv <= 10; lv++) check('castle rung L' + lv, 'perk', UI.perkAtLevel(lv));
+    for (let t = 1; t <= 5; t++) check('Great Hall T' + t, 'allXP', UI.greatHallAllXp(t));
+
+    // 4 — the feast ladder, at every Tavern level, and at Last Call
+    const CS = window.HearthriseClanSeat;
+    for (let lv = 1; lv <= 10; lv++) {
+      ['allXP', 'yield', 'artisan'].forEach((k) => {
+        check('feast T' + lv, k, CS.feastEffect(lv)[k]);
+        check('lastCall T' + lv, k, CS.feastEffectAt(lv, 60000)[k]);
+      });
+    }
+    check('hearthScale magnitude', 'x', CS.hearthScale(10).magnitude - 1);
+
+    // 5 — both blessing pools
+    const E = window.HearthriseWorldEvents;
+    E.DAILY.concat(E.WEEKLY).forEach((ev) => {
+      Object.keys(ev.bonus).forEach((k) => check('blessing ' + ev.id, k, ev.bonus[k]));
+    });
+
+    // 6 — the muster aura
+    check('muster', 'allXP', window.HearthriseMuster.LIVE_XP_AURA);
+
+    // 7 — companions, base values AND the level-30 proc chances
+    Object.keys(window.COMPANIONS).forEach((id) => {
+      const def = window.COMPANIONS[id];
+      Object.keys(def.bonus || {}).forEach((k) => check('COMPANIONS.' + id, k, def.bonus[k]));
+      if (def.proc) check('COMPANIONS.' + id + ' proc', 'chance', def.proc.chance);
+    });
+
+    // 8 — every food and draught buff (stored as integer percentage points)
+    Object.keys(window.ITEMS).forEach((id) => {
+      const b = window.ITEMS[id].buff;
+      if (!b) return;
+      const def = window.BUFFS_DEF[b.type];
+      const key = def ? def.bonusKey : b.type;
+      if (FLAT[key] || EXEMPT[key]) return;
+      if (Math.abs(b.magnitude - Math.round(b.magnitude)) > 1e-9) {
+        bad.push('ITEMS.' + id + ' buff ' + b.type + ' = ' + b.magnitude + ' points');
+      }
+    });
+
+    assert(bad.length === 0, bad.length + ' magnitude(s) are not whole percentages:\n  ' + bad.join('\n  '));
+
+    // The step itself: nothing anywhere grants more than the absolute peak.
+    const PEAK = window.HearthrisePowerBudget.TOTAL_CAP;
+    Object.keys(window.ROOMS).forEach((id) => window.ROOMS[id].levels.forEach((r, i) => {
+      if (!r.bk || FLAT[r.bk] || EXEMPT[r.bk]) return;
+      assert(r.bv <= PEAK + 1e-9, 'ROOMS.' + id + ' L' + (i + 1) + ' grants more than the absolute peak');
+    }));
+  }),
+
+  () => tryRun('b228 FUSE: every permanent source at max, and NO key passes +20%', () => {
+    /* The census found no aggregate ceiling test for any non-allXP key. That
+       gap is how smithSpeed reached +90% unnoticed: the only fuse in the game
+       policed allXP, from the middle of a seven-layer chain, and everything
+       added above it escaped. This maxes out every permanent source at once —
+       every room at L5, High King, a tier-5 castle with all five wings at 10, a
+       level-30 companion, both plot buildings — and asks the question of EVERY
+       governed key. */
+    const PB = window.HearthrisePowerBudget;
+    const UI = window.HearthriseClanSeatUI;
+    const R = window.HearthriseRenown, H = window.HearthriseHomestead;
+    const E = window.HearthriseWorldEvents;
+    const savedR = R.getPerks, savedH = H && H.isCastle;
+    const snap = snapshotG();
+    try {
+      E._force({ daily: E.QUIET, weekly: E.QUIET });     // no calendar in a PERMANENT test
+      window.G.buffs = [];
+      window.G.rooms = {};
+      Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
+      window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
+      R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
+      if (H) H.isCastle = () => true;
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { treasury: 10, tavern: 10, sawmill: 10, smeltery: 10, war_room: 10 },
+                    stores: {}, orders: [] }, 'test-hold');
+      // The strongest pet for each key, at level 30 (×2.45).
+      const worst = {};
+      Object.keys(window.COMPANIONS).forEach((id) => {
+        Object.keys(window.COMPANIONS[id].bonus || {}).forEach((k) => {
+          if (!PB.governed(k)) return;
+          if (!worst[k] || window.COMPANIONS[id].bonus[k] > window.COMPANIONS[worst[k]].bonus[k]) worst[k] = id;
+        });
+      });
+      Object.keys(PB.GOVERNED).forEach((k) => {
+        const pet = worst[k];
+        window.G.companions = pet
+          ? { ownedIds: [pet], xp: { [pet]: 50000 }, equipped: pet }
+          : { ownedIds: [], xp: {}, equipped: null };
+        const v = window.getBonus(k);
+        assert(v <= PB.PERMANENT_CAP + 1e-9,
+          'the permanent fuse leaked on ' + k + ': ' + v + ' (pet ' + (pet || 'none') + ')');
+      });
+      // And the DESIGN ceiling — what the pillars are meant to sum to — is not
+      // wildly under the fuse either, or the fuse is theatre.
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      assert(Math.abs(window.getBonus('allXP') - 0.15) < 1e-9,
+        'a fully decorated allXP stack should land on the +15% design ceiling, got ' + window.getBonus('allXP'));
+    } finally {
+      E._force(null);
+      R.getPerks = savedR;
+      if (H && savedH) H.isCastle = savedH;
+      UI._reset();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b228 CEREMONY: the temporary budget is ≤15%, and the absolute peak is 30%', () => {
+    /* "The realm can never hand you more than you have earned." The maximal
+       conjunction — the right weekly, the right daily, a Last Call feast, the
+       muster aura and a draught in hand — is deliberately ABOVE the clamp, so
+       the ceiling is a thing players can reach and chase rather than a bound
+       nothing ever touches. */
+    const PB = window.HearthrisePowerBudget;
+    const UI = window.HearthriseClanSeatUI;
+    const E = window.HearthriseWorldEvents;
+    const snap = snapshotG();
+    try {
+      window.G.rooms = {}; window.G.plotBuildings = []; window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 5, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: { tavern: 10 }, stores: {}, orders: [],
+                    feast_until: new Date(Date.now() + 10 * 60000).toISOString() }, 'test-hold');
+      E._force({ daily: E.DAILY.find((d) => d.id === 'scholars_day'),
+                 weekly: E.WEEKLY.find((w) => w.id === 'grand_fair') });
+      // A tier-5 draught on top.
+      window.G.buffs = [{ type: 'all_xp', magnitude: 5, remainingMs: 600000 }];
+
+      const raw = PB.rawFor('allXP');
+      const paid = window.getBonus('allXP');
+      assert(PB.temporaryFor('allXP') > PB.TEMPORARY_CAP,
+        'the maximal conjunction must actually exceed the ceremony budget, or this test proves nothing');
+      assert(paid <= PB.TOTAL_CAP + 1e-9, 'the absolute peak leaked: ' + paid);
+      assert(paid < raw, 'the clamp must actually bite here');
+      assert(PB.atLimit('allXP') === true, 'and the game must be able to SAY it is at the limit');
+      // …and it really does say it, on the activity the player is watching.
+      window.G.activeSkill = 'woodcutting'; window.G.skillTargetId = 'normal_tree';
+      assert(/at its limit/.test(window.HearthriseBlessingLimitNote()),
+        'a clamp the player cannot see reads as a bug — the note must appear');
+
+      // Every governed key, under the same conjunction.
+      Object.keys(PB.GOVERNED).forEach((k) => {
+        assert(window.getBonus(k) <= PB.TOTAL_CAP + 1e-9, 'the peak leaked on ' + k);
+      });
+
+      // The exempt classes are NOT clamped — a 25% noBurn blessing on a 25%
+      // Kitchen is reliability, not throughput, and clamping it to 30% would be
+      // the grammar eating a mechanic it was told to leave alone.
+      assert(PB.applyBudget('noBurn', 0.5) === 0.5, 'noBurn must pass the budget untouched');
+      assert(PB.applyBudget('farmYield', 12) === 12, 'farmYield is a crop count, not a percentage');
+      assert(PB.applyBudget('buffDuration', 1.4) === 1.4, 'duration is exempt');
+      // A debuff is never turned into a blessing by a ceiling.
+      assert(PB.applyBudget('allXP', -0.5) === -0.5, 'a negative total must pass through');
+    } finally { E._force(null); UI._reset(); restoreG(snap); }
+  }),
+
+  () => tryRun('b228 FUSE: the power budget is the OUTERMOST getBonus wrapper', () => {
+    /* The architectural claim, asserted rather than assumed. If any module ever
+       wraps getBonus after this one, its contribution is added outside the clamp
+       and the budget silently becomes advice. */
+    assert(window.getBonus.__hrPowerBudget === true,
+      'something wrapped getBonus after the power budget — the clamp is escapable again');
+    // And it heals: wrap it, and the watchdog puts the budget back on top.
+    const saved = window.getBonus;
+    try {
+      window.getBonus = function (k) { return saved(k) + 5; };
+      assert(window.getBonus.__hrPowerBudget !== true, 'setup: the intruder must be outermost');
+      window.HearthrisePowerBudget.ensureOutermost();
+      assert(window.getBonus.__hrPowerBudget === true, 'ensureOutermost must re-take the outermost position');
+      assert(window.getBonus('allXP') <= window.HearthrisePowerBudget.TOTAL_CAP + 1e-9,
+        'and the re-taken clamp must actually clamp the intruder');
+    } finally { window.getBonus = saved; }
+  }),
+
+  () => tryRun('b228: renown rank perks, pinned literally', () => {
+    /* The +22% allXP figure existed nowhere except a stub and two comments —
+       the suite only ever asserted `perks.allXP > 0`. Pinned now, rank by rank,
+       including the two that CONVERTED from a percentage to a slot. */
+    const R = window.HearthriseRenown;
+    const byId = (id) => R.RANKS.find((r) => r.id === id);
+    assert(byId('squire').perk.allXP === 0.01, 'Squire is +1% XP');
+    assert(byId('baron').perk.allXP === 0.01, 'Baron is +1% XP');
+    assert(byId('duke').perk.allXP === 0.01, 'Duke is +1% XP');
+    assert(byId('highking').perk.allXP === 0.01, 'High King is +1% XP');
+    // The two conversions (bonus-rebase.md §5.3): a slot, not a percentage.
+    assert(byId('count').perk.marketSlots === 1 && byId('count').perk.allXP === undefined,
+      'Count converts to a market listing slot');
+    assert(byId('king').perk.dailyTasks === 1 && byId('king').perk.allXP === undefined,
+      'King converts to a daily task slot');
+    // The aggregate, at the top of the ladder.
+    const snap = snapshotG();
+    try {
+      window.G.renownHigh = 10000000;
+      const p = R.getPerks(window.G);
+      assert(Math.abs(p.allXP - 0.04) < 1e-9, 'the whole ladder is +4% allXP, got ' + p.allXP);
+      assert(p.offlineHours === 12, 'the offline ladder is unchanged at +12h, got ' + p.offlineHours);
+      assert(p.marketSlots === 1 && p.dailyTasks === 1, 'both converted slots must be granted');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b228: the two converted renown slots are actually READ, not just declared', () => {
+    /* `marketSlots` and `dailyTasks` were declared in getPerks() from the day
+       renown shipped and nothing ever granted or read either one. A perk with no
+       reader is a ghost, and converting a rank onto a ghost would have been a
+       worse reward than the +1% it replaced. Both readers are wired here. */
+    const R = window.HearthriseRenown;
+    const snap = snapshotG();
+    const savedPerks = R.getPerks;
+    try {
+      R.getPerks = () => ({ allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
+      const baseListings = window.HearthriseMarket.listingLimit();
+      assert(baseListings === window.HearthriseMarket.PER_CHAR_LIMIT,
+        'without the Count rank the cap is the base 12, got ' + baseListings);
+      window.G.daily = { lastReset: null, tasks: [] };
+      window.generateDailyTasks(false);
+      const baseTasks = window.G.daily.tasks.length;
+      assert(baseTasks === 3, 'the base daily board is 3 tasks, got ' + baseTasks);
+
+      R.getPerks = () => ({ allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 1, dailyTasks: 1, dropRate: 0 });
+      assert(window.HearthriseMarket.listingLimit() === baseListings + 1,
+        'the Count rank must buy a real listing slot');
+      window.G.daily = { lastReset: null, tasks: [] };
+      window.generateDailyTasks(false);
+      assert(window.G.daily.tasks.length === baseTasks + 1,
+        'the King rank must buy a real daily task, got ' + window.G.daily.tasks.length);
+    } finally { R.getPerks = savedPerks; restoreG(snap); }
+  }),
+
+  () => tryRun('b228 P1: combatXP pays RANGED and MAGIC, not four styles out of six', () => {
+    /* Pre-existing, ~unknown lifetime: addXp listed attack/strength/defense/
+       hitpoints and silently skipped ranged and magic, so the Trophy Room, the
+       Watchtower, War Drums and Hunter's Moon paid nothing to two of the combat
+       styles. A player who trained a bow got a worse return from the same
+       300,000-gold room than a player who trained a sword. */
+    const snap = snapshotG();
+    const savedBonus = window.getBonus;
+    try {
+      assert(window.COMBAT_XP_SKILLS.indexOf('ranged') >= 0 && window.COMBAT_XP_SKILLS.indexOf('magic') >= 0,
+        'ranged and magic must be in the combatXP list');
+      window.G.restedXp = 0;
+      window.getBonus = (k) => (k === 'combatXP' ? 1 : 0);   // +100%, so the delta is unmissable
+      const measure = (sk) => {
+        window.G.skills[sk] = 12000000;                      // 99, so no level-up fires
+        const before = window.G.skills[sk];
+        window.addXp(sk, 1000, { authored: true });
+        return window.G.skills[sk] - before;
+      };
+      const sword = measure('attack');
+      ['ranged', 'magic'].forEach((sk) => {
+        assert(measure(sk) === sword, sk + ' must earn the same combatXP bonus as attack');
+      });
+      // …and a non-combat skill must NOT pick it up.
+      assert(measure('woodcutting') < sword, 'combatXP must not leak into gathering');
+    } finally { window.getBonus = savedBonus; restoreG(snap); }
+  }),
+
+  () => tryRun('b228 P0: a companion bonus is counted EXACTLY ONCE, under its real key', () => {
+    /* Found by the rebase, live for ~26 builds: a getBonus wrapper adding the
+       companion bonus existed in BOTH legacy.js and features/companions.js, so
+       every pet paid twice — a level-30 Forge Imp was +49% smithing, not the
+       +24.5% the census budgeted. Neither wrapper was wrong on its own, which is
+       why only a behavioural test can hold this. */
+    const snap = snapshotG();
+    const E = window.HearthriseWorldEvents;
+    try {
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      window.G.buffs = [];
+      const delta = (id, key) => {
+        window.G.companions = { ownedIds: [id], xp: { [id]: 0 }, equipped: id };
+        const on = window.getBonus(key);
+        window.G.companions = { ownedIds: [id], xp: { [id]: 0 }, equipped: null };
+        return on - window.getBonus(key);
+      };
+      assert(Math.abs(delta('forge_imp', 'smithSpeed') - window.COMPANIONS.forge_imp.bonus.smithSpeed) < 1e-9,
+        'the Forge Imp must move smithSpeed by its bonus exactly once');
+      // The five pets whose keys were MISSPELLED and therefore paid nothing.
+      assert(delta('fox', 'allXP') > 0, 'the Fox must finally pay allXP (was the misspelled xpB)');
+      assert(delta('lichling', 'allXP') > 0, 'the Lichling must finally pay allXP');
+      assert(delta('raccoon', 'goldFind') > 0, 'the Raccoon must finally pay goldFind (was goldBonus)');
+      assert(delta('owl', 'prayerSpeed') > 0, 'the Owl must finally pay prayerSpeed (was prayerXp)');
+      assert(delta('grave_wisp', 'prayerSpeed') > 0, 'the Grave Wisp must finally pay prayerSpeed');
+      // The old names are gone from the data entirely, in both directions.
+      Object.keys(window.COMPANIONS).forEach((id) => {
+        const b = window.COMPANIONS[id].bonus || {};
+        ['xpB', 'goldBonus', 'prayerXp'].forEach((ghost) => {
+          assert(b[ghost] === undefined, id + ' still carries the ghost key ' + ghost);
+        });
+      });
+      // Level 30 is ×2.45 and stays inside the budget's companion share.
+      const capXp = window.companionXpToReach(30);
+      window.G.companions = { ownedIds: ['forge_imp'], xp: { forge_imp: capXp }, equipped: 'forge_imp' };
+      assert(window.companionLevelFromXp(capXp) === 30, 'setup: the XP cap must actually reach level 30');
+      /* b228: the cap used to be a flat 50,000 against a curve that needs
+         792,783, so every pet stopped at level 14 on a bar drawn as "/ 30". */
+      assert(capXp > 50000, 'the companion XP cap must be derived from the curve, not a stale 50,000');
+      window.G.companions.xp.forge_imp = 1e12;
+      window.awardCompanionXp(0);
+      assert(window.G.companions.xp.forge_imp <= capXp, 'the award path must clamp to the curve cap');
+      window.G.companions.xp.forge_imp = capXp;
+      const maxed = window.getCompanionBonus().smithSpeed;
+      assert(Math.abs(maxed - 0.0245) < 1e-9, 'a level-30 pet is worth +2.45%, got ' + maxed);
+    } finally { E._force(null); restoreG(snap); }
+  }),
+
+  () => tryRun('b228: a fractional flat bonus is ROLLED, not floored away', () => {
+    /* harvestPlot spent `farmYield` through Math.floor(), so every fractional
+       grant paid exactly zero: the Scarecrow (+0.1), the Bunny, the Squirrel,
+       Carrot Stew and Roasted Pumpkin — five purchased perks that had paid
+       nothing since launch. The whole part always pays; the fraction pays as its
+       own probability, so the EXPECTED yield is exactly the bonus. */
+    assert(typeof window.rollFlatBonus === 'function', 'the flat-bonus roller must be published');
+    assert(window.rollFlatBonus(0) === 0 && window.rollFlatBonus(-1) === 0, 'nothing and debt both pay nothing');
+    assert(window.rollFlatBonus(3, () => 0.99) === 3, 'a whole bonus always pays in full');
+    // Both sides of the coin, deterministically — no flaking on a real draw.
+    assert(window.rollFlatBonus(2.4, () => 0.39) === 3, 'a fraction that hits pays the extra unit');
+    assert(window.rollFlatBonus(2.4, () => 0.41) === 2, 'a fraction that misses pays only the whole part');
+    assert(window.rollFlatBonus(0.1, () => 0.05) === 1, 'the Scarecrow can finally pay');
+    // And the expectation is the bonus itself, which is the whole point.
+    let total = 0;
+    for (let i = 0; i < 1000; i++) total += window.rollFlatBonus(0.25, () => i / 1000);
+    assert(total === 250, 'the expected value must equal the bonus, got ' + (total / 1000));
+    // The producers really are non-fractional or rollable now.
+    const snap = snapshotG();
+    try {
+      window.G.rooms = {}; window.G.plotBuildings = [{ id: 'scarecrow' }];
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      assert(window.getBonus('farmYield') >= 1, 'the Scarecrow must grant a whole crop, got ' + window.getBonus('farmYield'));
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b228: the Throne ladder EXPLAINS how renown is earned, from the live weights', () => {
+    /* Tyler, 2026-08-09: "we need to explain how to gain renown, because I
+       don't even know." The screen showed twelve thresholds and never said what
+       moved the number. The explainer is GENERATED from `W` — the same object
+       computeRenown scores against — so it cannot go stale the way a
+       hand-written help text always does. This test proves that link. */
+    const R = window.HearthriseRenown;
+    const rows = R.earnRows();
+    assert(/How|per|[0-9]/.test(rows) && rows.length > 100, 'the explainer must produce real rows');
+    ['Every skill level', 'Each quest finished', 'Each monster slain'].forEach((phrase) => {
+      assert(rows.indexOf(phrase) >= 0, 'the explainer must name "' + phrase + '"');
+    });
+    // It prints the LIVE weight, not a copy: move the weight, move the text.
+    const saved = R.WEIGHTS.totalLevel;
+    try {
+      assert(R.earnRows().indexOf('>' + saved + '<') >= 0,
+        'the live totalLevel weight must appear in the rows');
+      R.WEIGHTS.totalLevel = 7;
+      assert(R.earnRows().indexOf('>7<') >= 0, 'changing the weight must change the explanation');
+    } finally { R.WEIGHTS.totalLevel = saved; }
+    // Sub-1 weights are inverted into something a person can act on.
+    assert(R.earnRows().indexOf('1 per 20') >= 0, 'a 0.05 weight must read as "1 per 20", not as "0.05"');
+    // The ladder renders it, with the rank rows still intact.
+    try {
+      R.openLadder();
+      const wrap = document.querySelector('#hr-rn-modal .hr-rn-wrap');
+      assert(wrap, 'the ladder must open');
+      assert(wrap.textContent.indexOf('How renown is earned') >= 0, 'the section must be on the screen');
+      assert(wrap.querySelectorAll('.hr-rn-earn').length >= 8, 'every scoring term must be listed');
+      assert(wrap.querySelectorAll('.hr-rn-rank').length === R.RANKS.length, 'the twelve ranks must still be there');
+    } finally { const m = document.getElementById('hr-rn-modal'); if (m) m.remove(); }
+  }),
+
+  () => tryRun('b228: renown pace — a fresh account is a Peasant, and the ratchet still protects veterans', () => {
+    /* Tyler: "It also seems to be going way too fast." At the b226 weights a
+       brand-new account scored ~380 before taking a single action — Serf was
+       almost free, and one full day of play reached Knight. The retune targets
+       Serf day 1-2 / Squire week 1 / Knight week 3-4 / Baron month 2+. */
+    const R = window.HearthriseRenown;
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.renownHigh = 0;
+      G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
+      G.stats = { kills: 0 }; G.bestiary = {}; G.collection = {}; G.quests = [];
+      G.streak = { best: 0, count: 0 }; G.gold = 0; G.bountyHunter = { completed: 0 };
+      const fresh = R.compute(G);
+      assert(fresh < 400, 'a brand-new account must NOT start most of the way to Serf, scored ' + fresh);
+      assert(R.rankIndexFor(fresh) === 0, 'a fresh account is a Peasant');
+
+      /* Three modelled saves, each built from the pacing model's own numbers
+         (~228K XP/day at PACE, spread across the skills a player is actually
+         training). The assertions are BRACKETS, not points — the claim is the
+         shape of the curve, and a point estimate would fail on any content
+         change while telling us nothing. */
+      const T = window.XP_TABLE;
+      const setLevels = (skills, lvl) => skills.forEach((s) => { G.skills[s] = T[lvl - 1]; });
+      const rank = () => R.RANKS[R.rankIndexFor(R.compute(G))].id;
+
+      // ~day 2 — three skills going, a first quest, a few log entries.
+      setLevels(['woodcutting', 'mining', 'fishing'], 52);
+      G.stats.kills = 600; G.quests = [{ done: true }];
+      G.collection = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1 };
+      G.streak = { best: 2, count: 2 };
+      assert(rank() === 'serf', 'about day 2 should be a Serf, got ' + rank() + ' at ' + R.compute(G));
+
+      // ~week 1 — six skills, a real kill count, a handful of quests.
+      setLevels(['woodcutting', 'mining', 'fishing', 'cooking', 'smithing', 'crafting'], 60);
+      G.stats.kills = 3000;
+      G.quests = [1, 2, 3, 4].map(() => ({ done: true }));
+      G.collection = {}; for (let i = 0; i < 40; i++) G.collection['c' + i] = 1;
+      G.streak = { best: 7, count: 7 };
+      assert(rank() === 'squire', 'week 1 should be a Squire, got ' + rank() + ' at ' + R.compute(G));
+
+      // ~week 3-4 — ten skills, the grind showing.
+      setLevels(Object.keys(window.SKILLS_DEF).slice(0, 10), 68);
+      G.stats.kills = 12000;
+      G.quests = new Array(10).fill(0).map(() => ({ done: true }));
+      G.collection = {}; for (let i = 0; i < 90; i++) G.collection['c' + i] = 1;
+      G.streak = { best: 24, count: 24 }; G.bountyHunter = { completed: 60 };
+      assert(rank() === 'knight', 'week 3-4 should be a Knight, got ' + rank() + ' at ' + R.compute(G));
+
+      // ~month 2 — and Baron is still ahead of, not behind, a month of play.
+      setLevels(Object.keys(window.SKILLS_DEF).slice(0, 13), 75);
+      G.stats.kills = 35000;
+      G.quests = new Array(20).fill(0).map(() => ({ done: true }));
+      G.collection = {}; for (let i = 0; i < 150; i++) G.collection['c' + i] = 1;
+      G.streak = { best: 60, count: 60 }; G.bountyHunter = { completed: 180 };
+      const m2 = R.rankIndexFor(R.compute(G));
+      assert(m2 >= R.rankIndexFor(4500) && m2 < R.rankIndexFor(13500),
+        'month 2 should be a Baron or Viscount, got ' + R.RANKS[m2].id + ' at ' + R.compute(G));
+
+      // The ratchet: a veteran scored under the OLD weights keeps their rank.
+      G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
+      G.stats = { kills: 0 }; G.collection = {}; G.quests = [];
+      G.streak = { best: 0, count: 0 }; G.bountyHunter = { completed: 0 };
+      G.renownHigh = 3136;                     // a real Knight, pre-retune
+      assert(R.compute(G) < 3136, 'setup: the live score really is lower after the retune');
+      assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
+        'a pre-retune Knight must still be a Knight — the ratchet is the promise');
+    } finally { restoreG(snap); }
   }),
 
 ];

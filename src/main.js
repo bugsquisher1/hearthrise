@@ -139,6 +139,11 @@ function tryBootFeatures() {
   setupActivitiesGrid();
   setupCharacterPage();
   setupCombatRender();
+  /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
+     any boot path installs. Hand the per-key power budget back the outermost
+     position immediately rather than waiting for its 1s watchdog — otherwise
+     there is a window in which a pet's bonus is added outside the clamp. */
+  try { window.HearthrisePowerBudget?.ensureOutermost(); } catch (e) {}
   console.log('[Hearthrise ESM] Features booted');
   return true;
 }

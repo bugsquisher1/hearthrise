@@ -943,5 +943,13 @@
        feature scripts on purpose: it installs wrappers on window.addXp,
        killMonster, celebrate etc., and every seam must exist first. -->
   <script src="src/features/chronicle.js?v=227"></script>
+  <!-- b228 — THE PER-KEY POWER BUDGET (docs/design/bonus-rebase.md §4.1).
+       This MUST be the last thing that wraps window.getBonus: it clamps the
+       whole chain, and anything installed after it would be added outside the
+       clamp — which is exactly the escaped-fuse bug it replaces. Loading last
+       is necessary but not sufficient (clan-seat-ui retries on a timer and the
+       ESM boot installs after every classic script), so the module also
+       re-wraps itself whenever it detects it is no longer outermost. -->
+  <script src="src/features/power-budget.js?v=227"></script>
 </body>
 </html>

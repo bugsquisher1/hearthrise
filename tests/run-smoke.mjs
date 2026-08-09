@@ -16,7 +16,7 @@
 
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -116,6 +116,37 @@ async function wallGuard(browser, url) {
   return problems;
 }
 
+// ── The migration guard (b228) ───────────────────────────────────────────────
+// A `</content>` tag leaked into a migration file yesterday: a tool artifact,
+// invisible in review, and fatal the moment anyone runs the SQL. Nothing in the
+// suite could catch it, because the browser never loads these files.
+//
+// So this is a repo-content check, run at the same layer as the wall guard.
+// Two claims, both cheap:
+//   1. No file contains a tool/markup artifact (an XML-ish tag on its own).
+//   2. Every file ENDS on a real SQL terminator — `end $$;` or a bare `;` —
+//      which is what a truncated or artifact-suffixed file fails.
+async function migrationGuard() {
+  const dir = join(ROOT, 'supabase', 'migrations');
+  const problems = [];
+  let names = [];
+  try {
+    names = (await readdir(dir)).filter((n) => n.endsWith('.sql')).sort();
+  } catch {
+    return ['could not read supabase/migrations'];
+  }
+  if (!names.length) problems.push('no migrations found — the guard is checking nothing');
+  for (const name of names) {
+    const text = await readFile(join(dir, name), 'utf8');
+    const artifact = text.match(/<\/?(content|antml|invoke|parameter|function_results)\b[^>]*>/i);
+    if (artifact) problems.push(`${name}: tool artifact in the file — ${artifact[0]}`);
+    const lines = text.replace(/\r\n/g, '\n').split('\n').map((l) => l.trim()).filter(Boolean);
+    const last = lines[lines.length - 1] || '';
+    if (!/;$/.test(last)) problems.push(`${name}: last line is not a SQL terminator — "${last.slice(0, 60)}"`);
+  }
+  return problems;
+}
+
 const run = async () => {
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
@@ -151,6 +182,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it.');
+    }
+
+    const migProblems = await migrationGuard();
+    if (migProblems.length) {
+      console.log('\nMigration guard — FAILED:');
+      for (const p of migProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Migration guard — every migration ends on a SQL terminator, no tool artifacts.');
     }
 
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });

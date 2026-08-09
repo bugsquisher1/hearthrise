@@ -64,37 +64,50 @@
   // `raidPower` (raids are join-gated live content, which this rework leaves
   // untouched by design).
   //
-  // MAGNITUDES. These are TEMPORARY power, which the clan-overhaul §8.4
-  // budget accounts for separately from the ≤+52% permanent stack. They are
-  // unchanged from b204 (plus the new families at comparable strength)
-  // because presence-gating SHRANK their real contribution enormously: a
-  // blessing used to be paid across all ~14.5 effective hours of a day, and
-  // now rides only the ~2.5 hours the player is actually at the screen. The
-  // headline day-average uplift from the whole calendar is ~+1.7%, against
-  // the flat +12%-on-active-hours it replaces — so keeping the numbers is
-  // the conservative choice, not the generous one.
+  // MAGNITUDES — b228, the bonus rebase (docs/design/bonus-rebase.md §3.2).
+  //
+  // Every percentage here came down roughly 4×, and NOT to the 2% grammar the
+  // permanent sources use. That difference is deliberate and it is the whole
+  // argument for where blessings sit in the hierarchy:
+  //
+  //   A blessing is discounted TWICE already — it is temporary, and it is
+  //   presence-gated to roughly the 2.5 active hours of a 14.5-hour effective
+  //   day. The Grand Fair at +4% allXP is worth 4% × (2.5/14.5) = 0.69% of the
+  //   week. The Great Library at +5% allXP, permanent, is worth 5.00% of every
+  //   week forever — SEVEN TIMES as much. So a blessing may carry a bigger
+  //   headline than the thing you paid 300,000 gold and two Keystones for and
+  //   still be worth a seventh of it, and that is the correct shape: the
+  //   calendar is a reason to look, the Library is a reason to build.
+  //
+  //   Cutting them to 2% instead would take the calendar's expected value to
+  //   +0.3% on the day, which is not a small bonus but an absent one — and
+  //   b227 shipped the calendar as the ENTIRE online-pays mechanic.
+  //
+  // Flat-unit and reliability grants are outside the percent grammar and do
+  // NOT move: `farmYield` is a count of crops, `noBurn` is the removal of a
+  // failure state and cannot stack into a faucet (burn-proof is burn-proof).
 
   var DAILY = [
-    { id: 'gather_surge',  name: 'Gathering Surge',   desc: '+25% gather speed',                bonus: { gatherSpeed: 0.25 } },
-    { id: 'forge_fires',   name: 'Forge Fires',       desc: '+30% smithing & crafting speed',   bonus: { smithSpeed: 0.30, craftSpeed: 0.30 } },
-    { id: 'harvest_fest',  name: 'Harvest Festival',  desc: '+2 farm yield',                    bonus: { farmYield: 2 } },
-    { id: 'scholars_day',  name: "Scholar's Day",     desc: '+15% all XP',                      bonus: { allXP: 0.15 } },
-    { id: 'hunters_moon',  name: "Hunter's Moon",     desc: '+20% combat XP',                   bonus: { combatXP: 0.20 } },
-    { id: 'feast_day',     name: 'Feast Day',         desc: '+30% cooking speed',               bonus: { cookSpeed: 0.30 } },
-    { id: 'quiet_vigil',   name: 'Quiet Vigil',       desc: '+30% prayer speed',                bonus: { prayerSpeed: 0.30 } },
+    { id: 'gather_surge',  name: 'Gathering Surge',   desc: '+4% gather speed',                bonus: { gatherSpeed: 0.04 } },
+    { id: 'forge_fires',   name: 'Forge Fires',       desc: '+4% smithing & crafting speed',   bonus: { smithSpeed: 0.04, craftSpeed: 0.04 } },
+    { id: 'harvest_fest',  name: 'Harvest Festival',  desc: '+2 farm yield',                   bonus: { farmYield: 2 } },
+    { id: 'scholars_day',  name: "Scholar's Day",     desc: '+3% all XP',                      bonus: { allXP: 0.03 } },
+    { id: 'hunters_moon',  name: "Hunter's Moon",     desc: '+3% combat XP',                   bonus: { combatXP: 0.03 } },
+    { id: 'feast_day',     name: 'Feast Day',         desc: '+4% cooking speed',               bonus: { cookSpeed: 0.04 } },
+    { id: 'quiet_vigil',   name: 'Quiet Vigil',       desc: '+4% prayer speed',                bonus: { prayerSpeed: 0.04 } },
     // b227 — the two families the daily pool never covered.
-    { id: 'open_coffers',  name: 'The Open Coffers',  desc: '+15% gold find',                   bonus: { goldFind: 0.15 } },
-    { id: 'steady_fire',   name: 'The Steady Fire',   desc: '−25% burn chance · +10% cooking speed', bonus: { noBurn: 0.25, cookSpeed: 0.10 } }
+    { id: 'open_coffers',  name: 'The Open Coffers',  desc: '+3% gold find',                   bonus: { goldFind: 0.03 } },
+    { id: 'steady_fire',   name: 'The Steady Fire',   desc: '−25% burn chance · +2% cooking speed', bonus: { noBurn: 0.25, cookSpeed: 0.02 } }
   ];
 
   var WEEKLY = [
-    // Tyler's two worked examples are entries 1 and 2, at his numbers.
-    { id: 'grand_fair',   name: 'The Grand Fair',   desc: '+12% all XP',                   bonus: { allXP: 0.12 } },
-    { id: 'kings_bounty', name: "The King's Bounty", desc: '+10% gold find',               bonus: { goldFind: 0.10 } },
-    { id: 'deep_veins',   name: 'Deep Veins',       desc: '+15% gather speed',             bonus: { gatherSpeed: 0.15 } },
-    { id: 'war_drums',    name: 'War Drums',        desc: '+15% combat XP',                bonus: { combatXP: 0.15 } },
-    { id: 'guild_works',  name: 'Guild Works',      desc: '+20% artisan speed',            bonus: { cookSpeed: 0.20, smithSpeed: 0.20, craftSpeed: 0.20 } },
-    { id: 'long_harvest', name: 'The Long Harvest', desc: '+1 farm yield · +8% gather speed', bonus: { farmYield: 1, gatherSpeed: 0.08 } }
+    // A weekly is worth "about a whole Library, for a week you are present."
+    { id: 'grand_fair',   name: 'The Grand Fair',   desc: '+4% all XP',                    bonus: { allXP: 0.04 } },
+    { id: 'kings_bounty', name: "The King's Bounty", desc: '+4% gold find',                bonus: { goldFind: 0.04 } },
+    { id: 'deep_veins',   name: 'Deep Veins',       desc: '+6% gather speed',              bonus: { gatherSpeed: 0.06 } },
+    { id: 'war_drums',    name: 'War Drums',        desc: '+4% combat XP',                 bonus: { combatXP: 0.04 } },
+    { id: 'guild_works',  name: 'Guild Works',      desc: '+6% artisan speed',             bonus: { cookSpeed: 0.06, smithSpeed: 0.06, craftSpeed: 0.06 } },
+    { id: 'long_harvest', name: 'The Long Harvest', desc: '+1 farm yield · +4% gather speed', bonus: { farmYield: 1, gatherSpeed: 0.04 } }
   ];
 
   // How each key reads in a sentence. One map, so the activity note, the

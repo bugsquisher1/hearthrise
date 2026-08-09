@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <li>Recipes: <b>${counts.recipes}</b> · Companions: <b>${counts.companions}</b></li>
     </ul>
     <p style="color:#5fcc7c">✓ Modules: ${window.__esmBoot.modules.join(', ')}</p>
-    <p style="color:#9aa3b0;font-size:13.5px">Cloud sync is in offline mode — events buffered to localStorage.<br>
+    <p style="color:#9aa3b0;font-size:calc(14.5px * var(--ui-scale, 1))">Cloud sync is in offline mode — events buffered to localStorage.<br>
        See <code>src/net/SUPABASE_SETUP.md</code> for live config.</p>
   `;
 });

@@ -43,7 +43,7 @@
     'background:rgba(28,22,18,.97);border:1px solid var(--accent,#7f9a4f);'+
     'border-radius:8px;padding:4px;min-width:180px;'+
     'box-shadow:0 8px 24px rgba(0,0,0,.4);'+
-    'font-family:inherit;font-size:13.5px;color:#ede4cf';
+    'font-family:inherit;font-size:calc(14.5px * var(--ui-scale, 1));color:#ede4cf';
   document.body.appendChild(menu);
 
   function hideMenu(){
@@ -215,7 +215,7 @@
       var cls = o.disabled ? 'inv-ctx-item disabled' : 'inv-ctx-item';
       return '<button class="' + cls + '" data-idx="' + i + '"' + dis +
         ' style="display:block;width:100%;text-align:left;background:transparent;border:0;color:inherit;'+
-        'padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13.5px">' + o.label + '</button>';
+        'padding:7px 10px;border-radius:6px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">' + o.label + '</button>';
     }).join('');
     // Hover highlight
     Array.prototype.forEach.call(menu.querySelectorAll('.inv-ctx-item:not(.disabled)'), function(b){

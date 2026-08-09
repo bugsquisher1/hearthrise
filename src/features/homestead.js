@@ -239,13 +239,13 @@
     var IS = window.HearthriseIconSet;
     var houseIco = (IS && IS.path && IS.path('navHouse'))
       ? '<svg viewBox="0 0 512 512" style="width:30px;height:30px;flex:0 0 auto" aria-hidden="true"><path fill="var(--gold-2,#cda24a)" d="' + IS.path('navHouse') + '"/></svg>'
-      : '<span style="font-size:28px">' + cur.icon + '</span>';
+      : '<span style="font-size:calc(29px * var(--ui-scale, 1))">' + cur.icon + '</span>';
     var body =
       '<div class="card-head"><div class="card-title">Property</div><div class="card-sub">Tier ' + (t + 1) + ' / ' + TIERS.length + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
           houseIco +
-          '<div><div style="font-family:var(--f-display);font-size:15px;color:var(--gold-2)">' + cur.name + '</div>' +
+          '<div><div style="font-family:var(--f-display);font-size:calc(16px * var(--ui-scale, 1));color:var(--gold-2)">' + cur.name + '</div>' +
           '<div class="tiny muted">' + pips + '</div></div>' +
         '</div>' +
         '<div class="tiny muted" style="margin-bottom:8px">' + cur.desc + '</div>' +

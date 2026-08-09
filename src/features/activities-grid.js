@@ -73,14 +73,14 @@ function buildHead(skillId) {
   const isMyGoal = !!(goal.enabled && goal.skillId === skillId);
   const goalLv = isMyGoal && goal.targetLevel ? goal.targetLevel : (lv + 5);
   const goalControl = lv >= 99 ? '' : `
-    <div class="ah-traingoal" style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--ink-3)">
+    <div class="ah-traingoal" style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">
       <label><input type="checkbox" ${isMyGoal ? 'checked' : ''}
         onchange="if(window.HearthriseAuto){window.HearthriseAuto.setTrainGoal({enabled:this.checked, skillId:'${skillId}', targetLevel:Math.max(${lv + 1}, parseInt(document.getElementById('hr-goal-${skillId}').value,10) || ${lv + 1})});if(this.checked)window.notify?.('Stop ${s.name} at Lv '+document.getElementById('hr-goal-${skillId}').value,'info');}"
         style="margin:0"
       /> Stop at Lv</label>
       <input id="hr-goal-${skillId}" type="number" min="${lv + 1}" max="99" value="${goalLv}"
         onchange="if(window.HearthriseAuto && document.querySelector('.ah-traingoal input[type=checkbox]').checked){window.HearthriseAuto.setTrainGoal({skillId:'${skillId}', targetLevel:Math.max(${lv + 1}, parseInt(this.value,10) || ${lv + 1}), enabled:true});}"
-        style="width:50px;padding:2px 4px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:4px;color:var(--ink);font-size:13.5px"
+        style="width:50px;padding:2px 4px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:4px;color:var(--ink);font-size:calc(14.5px * var(--ui-scale, 1))"
       />
     </div>`;
 

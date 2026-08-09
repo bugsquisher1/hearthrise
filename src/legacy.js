@@ -511,7 +511,12 @@ let G={
   account:null,           /* {id, displayName, avatar, provider} once signed in */
   cloudSyncedAt:null,
   /* settings */
-  settings:{sfx:true,reduceFx:false,leftHand:false,scale:'auto'},
+  /* b227: `scale:'auto'` lived here for the dead "UI scale" select the
+     click-through audit found (finding #2) — six options, no consumer. The
+     working control is `uiScale` (0.90-1.30), seeded and owned by
+     settings-page.js; this default is gone so the dead key stops riding
+     every save. */
+  settings:{sfx:true,reduceFx:false,leftHand:false},
 };
 
 /* ════════════════════════════════════════════════
@@ -589,7 +594,8 @@ function loadLocal(){
   G.entitlements=G.entitlements||{};
   G.ownedThemes=G.ownedThemes||['default'];
   G.ownedCosmetics=G.ownedCosmetics||[];
-  G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false,scale:'auto'},G.settings||{});
+  G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false},G.settings||{});
+  delete G.settings.scale;   // b227: migrate old saves off the dead UI-scale key
   G.gems=G.gems||0;
   generateDailyTasks(false);
   G.playerMaxHp=levelFromXp(G.skills.hitpoints||0);
@@ -1074,17 +1080,17 @@ function confirmIAP(p,platform){
     const m=document.getElementById('iap-modal');
     document.getElementById('iap-modal-body').innerHTML=`
       <div style="text-align:center;padding:8px 0 16px">
-        <div style="font-size:54px">${p.icon}</div>
-        <h3 style="font-family:var(--f-display);font-size:18px;color:var(--gold-2);margin:6px 0">${p.title}</h3>
-        <div style="color:var(--ink-2);font-size:13.5px;margin-bottom:14px">${p.desc}</div>
-        <div style="font-size:24px;font-weight:800;color:var(--ink)">${p.price}</div>
+        <div style="font-size:calc(54px * var(--ui-scale, 1))">${p.icon}</div>
+        <h3 style="font-family:var(--f-display);font-size:calc(19px * var(--ui-scale, 1));color:var(--gold-2);margin:6px 0">${p.title}</h3>
+        <div style="color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:14px">${p.desc}</div>
+        <div style="font-size:calc(25px * var(--ui-scale, 1));font-weight:800;color:var(--ink)">${p.price}</div>
         <div class="status-pill" style="margin-top:10px"><span class="dot"></span><span>Platform: ${platform}</span></div>
       </div>
       <div class="row" style="gap:8px">
         <button class="btn btn-block" id="iap-cancel">Cancel</button>
         <button class="btn btn-block btn-gem" id="iap-confirm">Confirm</button>
       </div>
-      <div style="font-size:13.5px;color:var(--ink-3);text-align:center;margin-top:10px">Receipts validated server-side. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Apple In-App Purchase.':platform==='android'?'Google Play Billing.':platform==='steam'?'Steamworks Microtransactions.':'Mock billing.'}</div>`;
+      <div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;margin-top:10px">Receipts validated server-side. ${platform==='web'?'Web checkout uses Stripe.':platform==='ios'?'Apple In-App Purchase.':platform==='android'?'Google Play Billing.':platform==='steam'?'Steamworks Microtransactions.':'Mock billing.'}</div>`;
     m.classList.add('show');
     const cleanup=v=>{m.classList.remove('show');res(v);};
     document.getElementById('iap-cancel').onclick=()=>cleanup(false);
@@ -2563,7 +2569,7 @@ function renderProfile(){
       // point of the feature for the most likely user.
       const canRename = true;
       const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:13.5px;opacity:.7">✏️</button>`
+        ? `<button class="btn btn-icon btn-ghost" title="Rename" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.setDisplayName(prompt('Display name:', window.G.playerName||'Adventurer')||window.G.playerName)" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">✏️</button>`
         : '';
       return `<div class="activity-card">
       <div class="ac-icon">🧙</div>
@@ -2917,9 +2923,9 @@ function renderSkillDetail(id){
   }
   document.getElementById('skill-detail').innerHTML=`
     <div class="row" style="gap:14px;margin-bottom:12px">
-      <div style="font-size:54px">${s.icon}</div>
+      <div style="font-size:calc(54px * var(--ui-scale, 1))">${s.icon}</div>
       <div style="flex:1">
-        <div style="font-family:var(--f-display);font-size:22px;color:var(--gold-2)">Level ${lv}</div>
+        <div style="font-family:var(--f-display);font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2)">Level ${lv}</div>
         <div class="muted tiny">${xp.toLocaleString()} XP${lv<99?` · ${toNext.toLocaleString()} to next`:' · MAX'}${blessingNote()}</div>
         <div class="bar xp" style="margin-top:6px"><i style="width:${pct.toFixed(1)}%"></i></div>
       </div>
@@ -3203,7 +3209,7 @@ function renderHouse(){
       const newCropsLabel = newCrops.length ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id}`).join(', ') : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
       const canUpgrade = lv < max && have >= need;
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
-        <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:32px">🌾</span>
+        <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:calc(33px * var(--ui-scale, 1))">🌾</span>
         <div class="info">
           <b>Farm Plot · Lv ${lv}/${max}</b>
           <span>${lv >= max ? '✨ Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
@@ -3318,7 +3324,7 @@ async function renderSocial(){
       /* b213 (phase 2): medal emoji → tinted rank numerals; stat emoji → labels */
       const rankBadge=(n)=>{
         const c=n===1?'#e8b84a':n===2?'#b9c0cc':n===3?'#c98a4b':null;
-        return c?`<b style="color:${c};font-family:var(--f-display);font-size:15px">${n}</b>`:String(n);
+        return c?`<b style="color:${c};font-family:var(--f-display);font-size:calc(16px * var(--ui-scale, 1))">${n}</b>`:String(n);
       };
       lbEl.innerHTML=r.list.map(u=>`<div class="lb-row ${u.you?'you':''}"><span class="lb-rank">${rankBadge(u.rank)}</span><span class="lb-name">${u.displayName}</span><span class="lb-stat">Lv ${u.total}</span><span class="lb-stat" title="Combat level">CL ${u.combat}</span><span class="lb-stat gold">${(u.gold||0).toLocaleString()}g</span></div>`).join('');
     }
@@ -4617,7 +4623,7 @@ function renderInvNew(){
   const toolbarHtml = `
     <div class="inv-toolbar">
       <div class="inv-search">
-        <span style="font-size:15px">🔍</span>
+        <span style="font-size:calc(16px * var(--ui-scale, 1))">🔍</span>
         <input type="text" placeholder="Search…" value="${(window._invSearch||'').replace(/"/g,'&quot;')}" oninput="invSetSearch(this.value)">
       </div>
       <select class="inv-sort" onchange="invSetSort(this.value)">
@@ -4643,7 +4649,7 @@ function renderInvNew(){
       const qShow = qty>=10000?(qty/1000).toFixed(1)+'k':qty>=1000?(qty/1000).toFixed(1)+'k':qty;
       return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${vendorPrice(id)}🪙 each">
         <span class="selbox"></span>
-        <span style="font-size:24px;line-height:1">${it.icon}</span>
+        <span style="font-size:calc(25px * var(--ui-scale, 1));line-height:1">${it.icon}</span>
         <span class="qty">${qShow}</span>
         <span class="nm">${_shortName(it.n)}</span>
         ${tier?`<span class="tier">T${tier}</span>`:''}
@@ -4893,7 +4899,7 @@ window._itemSVG = {
       /* If the icon span already exists (from a previous pass) skip */
       if(node.querySelector('.item-svg')) return;
       /* Find the emoji-bearing first text node / span and replace */
-      const emojiSpan = node.querySelector('span[style*="font-size:24px"]') || null;
+      const emojiSpan = node.querySelector('span[style*="font-size:calc(25px * var(--ui-scale, 1))"]') || null;
       if(emojiSpan){
         emojiSpan.innerHTML = '<span class="item-svg">'+svg+'</span>';
       } else {
@@ -5165,7 +5171,7 @@ function openMonsterDetail(monsterId){
     const pctStr = pct >= 1 ? pct.toFixed(0)+'%' : pct.toFixed(2)+'%';
     return `<div class="mon-loot-row ${rare?'rare':''}">
       <span class="mli">${it.icon||'❓'}</span>
-      <span class="mln">${it.n||d.id}${rare?' <span style="font-size:13.5px;color:var(--purple)">RARE</span>':''}</span>
+      <span class="mln">${it.n||d.id}${rare?' <span style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--purple)">RARE</span>':''}</span>
       <span class="mlc">${pctStr}</span>
     </div>`;
   }).join('') : '<div class="muted tiny">No loot drops listed.</div>';
@@ -5770,7 +5776,7 @@ console.log('Activity bar: loaded');
     var path = window._monsterIcon && window._monsterIcon[id];
     var m = window.MONSTERS && window.MONSTERS[id];
     if(path) return '<img src="'+path+'" alt="" />';
-    return '<span style="font-size:96px">'+(m && m.icon || '👾')+'</span>';
+    return '<span style="font-size:calc(96px * var(--ui-scale, 1))">'+(m && m.icon || '👾')+'</span>';
   }
 
   function lootRowHtml(d){
@@ -7493,7 +7499,7 @@ window.openBestiary = function(){
     var entry = G.bestiary[id] || {kills:0};
     var disc = entry.kills > 0;
     var path = window._monsterIcon && window._monsterIcon[id];
-    var img = path ? '<img src="'+path+'" />' : '<span style="font-size:18px">'+m.icon+'</span>';
+    var img = path ? '<img src="'+path+'" />' : '<span style="font-size:calc(19px * var(--ui-scale, 1))">'+m.icon+'</span>';
     return '<div class="bestiary-row '+(disc?'discovered':'undiscovered')+'">'+
       '<div class="br-icon">'+img+'</div>'+
       '<div class="br-info"><b>'+(disc?m.name:'???')+'</b><small>Tier '+m.tier+(disc?' · '+m.hp+' HP':'')+'</small></div>'+
@@ -9449,7 +9455,7 @@ function renderInvFancy(){
       '<div class="invc-bag-col">'+
         '<div class="invc-grid">'+
           (visible.length === 0 ?
-            '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:13.5px">No items in this category</div>' :
+            '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No items in this category</div>' :
             /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
                inventory rather than a handful of tiles above a black void.
                A uniform filled grid is what makes a bag scannable — you learn
@@ -10527,7 +10533,7 @@ function addButton(){
   b.title = 'Run smoke test (Ctrl+Shift+T)';
   b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'+
     'background:#3a4154;color:#dfe9ee;border:1px solid #7f9a4f;border-radius:4px;'+
-    'padding:4px 10px;font-size:13.5px;cursor:pointer;opacity:.6;font-weight:700';
+    'padding:4px 10px;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;opacity:.6;font-weight:700';
   b.onmouseenter = function(){b.style.opacity='1';};
   b.onmouseleave = function(){b.style.opacity='.6';};
   b.onclick = function(){
@@ -10765,7 +10771,7 @@ function showProc(label){
     var el = document.createElement('div');
     el.textContent = label;
     el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'+
-      'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:13.5px;'+
+      'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));'+
       'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
     document.body.appendChild(el);
     setTimeout(function(){el.remove();}, 1700);
@@ -10984,9 +10990,9 @@ function renderStable(){
       + '<div class="sc-bonuses">'+bonuses+'</div>';
     if(owned){
       html += '<div class="sc-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
-            + '<div style="font-size:13.5px;color:var(--ink-3)">'+xp.toLocaleString()+' / '+nextXp.toLocaleString()+' XP</div>';
+            + '<div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">'+xp.toLocaleString()+' / '+nextXp.toLocaleString()+' XP</div>';
       if(def.proc){
-        html += '<div class="sc-bonuses" style="font-size:13.5px;font-style:italic">⚡ '+def.proc.label
+        html += '<div class="sc-bonuses" style="font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic">⚡ '+def.proc.label
               + ' ('+(def.proc.chance*100).toFixed(0)+'% on '+def.proc.trigger+')</div>';
       }
       html += '<button class="sc-equip" onclick="'+(equipped ? "window.unequipCompanion()" : "window.equipCompanion('"+id+"')")+'">'
@@ -11316,7 +11322,7 @@ function buildCombatCard(){
 function buildRatesCard(){
   var rates = gatherRates();
   if(!rates.length){
-    return '<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div><div style="color:var(--ink-3);font-size:13.5px">Train a skill to see your rates.</div></div>';
+    return '<div class="cr-card"><div class="cr-section-title">📈 Active Rates</div><div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Train a skill to see your rates.</div></div>';
   }
   var rows = rates.map(function(r){
     var skillIcon = window._skillIcon && window._skillIcon[r.id]
@@ -11353,7 +11359,7 @@ function buildEquipSummaryCard(){
     + '<div class="cr-stat-row"><span>Total +STR</span><b>+'+totalBonus.str+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +ATK</span><b>+'+totalBonus.atk+'</b><span></span></div>'
     + '<div class="cr-stat-row"><span>Total +DEF</span><b>+'+totalBonus.def+'</b><span></span></div>'
-    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:13.5px;font-weight:700">Manage gear →</button></div>'
+    + '<div style="margin-top:8px"><button onclick="showTab(\'inventory\')" style="width:100%;padding:6px;background:rgba(201,162,74,.18);border:1px solid rgba(201,162,74,.35);border-radius:5px;color:#e3c77e;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700">Manage gear →</button></div>'
   + '</div>';
 }
 
@@ -11433,7 +11439,7 @@ function parseSource(src){
             t.textContent = '🎉 New companion unlocked: '+def.icon+' '+def.n+'!';
             t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
               'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'+
-              'font-weight:800;font-size:15px;box-shadow:0 8px 32px rgba(0,0,0,.5);'+
+              'font-weight:800;font-size:calc(16px * var(--ui-scale, 1));box-shadow:0 8px 32px rgba(0,0,0,.5);'+
               'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
             document.body.appendChild(t);
             setTimeout(function(){t.remove();}, 4500);
@@ -11848,7 +11854,7 @@ window.__renderBuffsSection = function(){
   }
   if(!host) return;
   if(!G.buffs || G.buffs.length === 0){
-    host.innerHTML = '<div style="color:var(--ink-3);font-size:13.5px;font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
+    host.innerHTML = '<div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
     return;
   }
   host.innerHTML = G.buffs.map(function(b, i){
@@ -12903,7 +12909,7 @@ console.log('[Bundle Icons v1] applied:',
     var meta = strip.querySelector('#gq-reset');
     var goals = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
     if(!goals.length){
-      if(list) list.innerHTML = '<span style="color:var(--ink-3);font-style:italic;font-size:13.5px">No active quests.</span>';
+      if(list) list.innerHTML = '<span style="color:var(--ink-3);font-style:italic;font-size:calc(14.5px * var(--ui-scale, 1))">No active quests.</span>';
       if(meta) meta.textContent = '';
       return;
     }
@@ -12940,7 +12946,7 @@ console.log('[Bundle Icons v1] applied:',
         + '<aside class="qm-aside">'
           + '<div><h4>Quest Info</h4>'
           + '<div class="qm-summary" id="qm-summary"></div></div>'
-          + '<div><h4 style="font-size:13.5px">About Quests</h4>'
+          + '<div><h4 style="font-size:calc(14.5px * var(--ui-scale, 1))">About Quests</h4>'
           + '<p class="qm-info-text">Daily quests refresh every 24 hours at UTC midnight. Weekly quests refresh every Monday. Complete them to claim gold, XP, gems, and rare items.</p></div>'
           + '<div class="qm-reset" id="qm-reset"></div>'
         + '</aside>'

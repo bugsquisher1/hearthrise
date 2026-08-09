@@ -9,6 +9,43 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-08 · b227 — the floor again (14.5), and the dial that ends the argument (branch `agent-typescale`)
+
+**Tyler said "too small" a THIRD time. The measurement is the whole entry.** b218 multiplied (×1.13). b225 set a floor (13.5). I swept every visible text element across 19 surfaces again and got the answer both passes had missed:
+
+| | at 13.5px exactly | total visible text | |
+|---|---|---|---|
+| after b225, 1440×900 | **1,093** | 2,112 | **51.8 %** |
+
+**Half the game was standing ON the floor.** That is the failure mode nobody names: a floor stops being a safety net the moment the majority of your type is resting on it — at that point *the floor value is the reading experience*, and 13.5px is the size you pick when you are asking "what is the minimum I can defend", not "what is comfortable at arm's length from a monitor". b225's own log said *never answer "too small" with a multiplier; answer it with a floor.* The correction it needed: **and never set that floor to the minimum acceptable value, because most of the game will end up sitting exactly on it.**
+
+**What moved.** Floor 13.5 → **14.5**; every step +1 so the separations are byte-identical (`--t-small` 15→16, `--t-body` 16→17, `--t-lead` 17.5→18.5, `--t-h3` 15.5→16.5, `--t-h2` 21.5→22.5, `--t-h1` 30→31, `--t-num` 26→27). Result: **51.8 % → 2.7 %** below the floor, and every one of the remaining 58 elements is in a file another agent was holding this wave (handed off, table in `HANDOFFS.md`).
+
+**The real fix is the dial, not the number.** The click-through audit found Settings › Display › UI scale writing `G.settings.scale` with **no consumer anywhere** — at 150 % it left `documentElement` zoom at 1 and font-size at 16px. It is the control a player reaches for *before* filing "text is too small", so it was actively teaching players that the game could not be made readable. It now works: 90–130 %, 5 % steps, live preview while dragging, persisted to `G.settings.uiScale` (rides the per-account save) **and** to the platform storage seam (so the first painted frame is already at the player's size instead of flashing 100 %). Verified end to end: drag to 125 % → body type 17 → **21.25px live**, readout tracks, survives close/reopen **and a full page reload**.
+
+**How it reaches px-authored CSS — the decision.** `documentElement.style.fontSize` moves nothing here (the codebase is px-authored, not rem-authored). CSS `zoom` scales everything but does **not** change computed font-size, so no test could ever assert on it. So: one `--ui-scale` custom property, and **877 font-size declarations mechanically rewritten** into `calc(<n>px * var(--ui-scale, 1))` across five sheets and 25 JS modules. **95.6 % of rendered text obeys the dial** (1,616 / 1,690); the missing 4.4 % is exactly the five handed-off files and nothing else. `git diff -U0 | grep -v font-size` is comments plus four shorthand expansions — not one line of logic.
+
+**Three traps, all found by measurement, all worth remembering.**
+1. **A variable declared in a shared `:root, body[...]` block cannot be driven from `<html>`.** My first cut put `--ui-scale: 1` in the existing token block. The copy on `<body>` re-declared it one level below the inline value and swallowed it whole — the dial moved **0 of 1,694** elements while looking completely correct in the source. It now lives in its own `:root { --ui-scale: 1 }` rule. **Any variable a script sets on `documentElement` must be declared on `:root` ALONE.**
+2. **`transition: all .15s` makes a computed font-size read lie.** Four elements measured as "the dial can't reach them" until the probe waited 450 ms. A probe that changes a token and reads immediately is reading the pre-transition value.
+3. **The `font:` shorthand is a permanent straggler factory.** Its `<font-size>` slot cannot carry a calc, and it silently resets every `font-*` longhand around it. b225 needed a second regex to find 7; b227 found 4 more — including `.hr-gate-go`, the **account wall's primary button** — and expanded them all to longhands, so the class of bug is gone rather than re-found next pass.
+
+**Layout fallout — one real regression, found and fixed.** At 900×760 the raised type pushed the **fifth monster in the combat picker 39px BELOW its clipped edge** (last row bottom 779 against a picker bottom of 740, where it had been 68px *inside*). A monster you cannot click is not a cosmetic overflow. The card still clips — it is a framed card with a header — and its `.card-body` scrolls instead; `min-height:0` is what makes that scroller real. Same answer b225 gave the sidebar.
+Everything else is identical to the pre-pass baseline, verified by measuring **main at the same viewports**: 1440×900 **0 clips**, 900×760 `combat-arena dx15` (baseline), 880×420 `cr-name` +1px and `#panel-combat dy313` (pre-existing, documented), cozy-light the same 5 `.td-slot` clips ±2px. `span.bb-cut dy7` recurs in runs before *and* after — it is a 44px circular **image** crop, deliberate, not type.
+
+**The ceiling is measured, not chosen.** 130 % is the largest value at which **zero text is cut anywhere in the game**. Getting there took two fixes: the doll tabs ("Equipment"/"Companion", ellipsised by ~15px) now let the strip wrap and refuse to shrink under their own words; and `--nav-w` scales with the dial, because the rail holds nothing but text and without it 130 % pushed the wordmark flush against the left edge and wrapped "Bounty Board" onto two lines — the dial was making type bigger without giving it anywhere to go. At 100 % both compute to exactly what they always were. The 64px icon rail deliberately does **not** scale: it shows no labels, so its width is an icon measurement.
+
+**Guards 19a–19e (331 → 333), every one proved by poisoning the tree and watching it go red.**
+19a ramp + ordering · 19b no declared sub-floor size — **now parses the calc form too**, since `calc(9px * var(--ui-scale))` would have sailed straight past the old `^([0-9.]+)px$` regex · 19c nothing *renders* below the floor · **19d every font-size in the five owned sheets is dial-reachable** (a bare px is a size no player setting can move — the exact shape of the bug the audit found) · **19e the dial moves a real computed size, clamps 400→130 and 10→90, snaps to the 5 % grid, and persists to both the seam and the save**.
+19d guards itself with `sheetsSeen >= 4`: b225 shipped a vacuous 19b, and a sheet-scan test that stops matching its own hrefs passes on nothing. My first 19a poison also failed to fire, for trap #1 above — I poisoned `--t-micro` on `<html>` and body's copy overrode it. **Poison at the level the value actually resolves.**
+
+**Known limitations / handoffs.**
+- **58 rendered elements stay under the floor**, all in five files other agents hold this wave — **50 of them on Home**, the landing screen. Exact declaration lists in `HANDOFFS.md`; enumerated in `TYPE_PENDING_HANDOFF` in `smoke-test.js` so they are counted rather than ignored, and each entry must be deleted as its file lands.
+- `index.html` ships **literal emoji as chrome** — `⚙️ Settings` (modal title + mobile button, lines 493/502) and `💬 Chat` (line 491), plus a `💬` in a chat notification (`chat.js:1019`). Live 0-emoji-rule violations in permanent chrome, seen on every screen. Not a type surface. **Systems + Asset Director.**
+- `#panel-combat` still clips ~313px of content on a 420px-tall landscape phone (was 290 pre-pass). Pre-existing unreachable content, grown by the type raise but not caused by it. **Systems/mobile.**
+- Portrait 420×820: topbar overflow 100 → 119px. Explicitly abandoned form factor.
+- `HearthriseUIScale.apply()` paints without writing (it is the live-preview path), so a direct call can leave the Settings readout disagreeing with the paint. Reachable from code only, never from the UI.
+
 ### 2026-08-08 · b227 — the castle FOUNDATION, and the 2px that ate a T (branch `agent-clanscene`)
 
 **Tyler, two things.** (1) *"The clan banner should look more like a castle layout rather than a farm layout… I'm thinking 'castle foundation'."* (2) A screenshot of the clan panel with "The Great Hall" / "TIER 1" clipped in the door strip.
@@ -42,7 +79,6 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Cozy Day still paints the hold's name near-black on its own dark scrim — that theme's mirror blanket, pre-existing, and Cozy Day is not selectable.
 - The site furniture (lean-to, cart, stacks) sits partly over the ghosted wings at tiers 1-2. It reads as objects standing in front of planned buildings, which is true, but a wider ward would let them breathe.
 - Still SVG silhouette, not painting. The b219 brief stands: painted dusk plates would beat it.
-
 ### 2026-08-08 · Backlog #19 — the type FLOOR (b225, branch `agent-type-floor`)
 
 **Why b218 didn't fix it, stated plainly.** b218 multiplied every size by ~1.13 (body 14→16). A proportional scale keeps the ratio between the top and the bottom of a ramp — so a tier that started at 11px landed at 12.5px, which is still unreadable at a monitor's viewing distance. Tyler's second complaint was correct and specific: *"in a lot of places"*, not *"everywhere"*. **Never answer "too small" with a multiplier. Answer it with a floor.**

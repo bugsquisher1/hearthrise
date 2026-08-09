@@ -962,9 +962,9 @@
       /* ── the topbar pill ── it must never grow taller than a .t-stat chip ── */
       '#hr-muster-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;',
       '  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink-2);',
-      '  font-size:13.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;white-space:nowrap;',
+      '  font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;letter-spacing:.02em;cursor:pointer;white-space:nowrap;',
       '  line-height:1.2;max-height:30px}',
-      '#hr-muster-pill .mp-lab{text-transform:uppercase;font-size:13.5px;letter-spacing:.08em;color:var(--ink-3)}',
+      '#hr-muster-pill .mp-lab{text-transform:uppercase;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.08em;color:var(--ink-3)}',
       '#hr-muster-pill .mp-t{font-variant-numeric:tabular-nums}',
       '#hr-muster-pill:hover{border-color:var(--line-strong,rgba(201,162,74,.45))}',
       '#hr-muster-pill[data-tone="quiet"]{color:var(--ink-3)}',
@@ -977,7 +977,7 @@
       '#hr-muster-pill[data-tone="claim"] .mp-dot{width:7px;height:7px;border-radius:50%;background:var(--gold-2);display:inline-block}',
       '@keyframes hr-mu-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,162,74,.30)}50%{box-shadow:0 0 0 5px rgba(201,162,74,0)}}',
       '@media (prefers-reduced-motion: reduce){#hr-muster-pill[data-tone="gold-pulse"]{animation:none}}',
-      '@media (max-width:540px){#hr-muster-pill{padding:4px 7px;font-size:13.5px}#hr-muster-pill .mp-lab{display:none}}',
+      '@media (max-width:540px){#hr-muster-pill{padding:4px 7px;font-size:calc(14.5px * var(--ui-scale, 1))}#hr-muster-pill .mp-lab{display:none}}',
       /* ── the Events panel ──
          .panel.active is display:grid with no template, which sizes injected
          cards as implicit rows against a fixed-height container — that is what
@@ -988,20 +988,20 @@
       '#panel-events #panel-dungeons{display:block;padding:0;overflow:visible;min-height:0;flex:none}',
       '#panel-events #hr-raid-card{display:block;height:auto;min-height:0;margin-bottom:0}',
       '#panel-events #hr-dungeons-back{display:none}',
-      '.ev-eyebrow{font-family:var(--f-display,inherit);font-size:13.5px;font-weight:800;color:var(--gold-2);',
+      '.ev-eyebrow{font-family:var(--f-display,inherit);font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);',
       '  letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px}',
       '.mu-bar{height:10px;background:rgba(0,0,0,.35);border-radius:99px;overflow:hidden;border:1px solid var(--line-soft)}',
       '.mu-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2),#e3c77e)}',
       '.mu-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}',
       '.mu-slot{border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.02)}',
       '.mu-slot.is-live{border-color:rgba(201,162,74,.55);background:var(--gold-bg,rgba(201,162,74,.08))}',
-      '.mu-slot .mu-when{font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700}',
+      '.mu-slot .mu-when{font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700}',
       '.mu-slot .mu-nm{font-weight:800;color:var(--ink);margin:2px 0}',
-      '.mu-slot .mu-what{font-size:13.5px;color:var(--ink-3)}',
+      '.mu-slot .mu-what{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}',
       /* the pre-selection footer — one line, never taller than the card it sits in */
       '.mu-slot.is-mine{border-color:rgba(201,162,74,.45)}',
       '.mu-slot .mu-foot{margin-top:8px}',
-      '.mu-slot .mu-pledged{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:700;',
+      '.mu-slot .mu-pledged{display:flex;align-items:center;gap:5px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;',
       '  color:var(--gold-2);letter-spacing:.02em}',
       '.mu-slot .mu-pledge{width:100%}',
       /* ── the shared modal (reuses the renown/daily scrim pattern) ── */
@@ -1009,7 +1009,7 @@
       '  display:flex;align-items:center;justify-content:center;padding:18px}',
       '.hr-mu-wrap{background:var(--surface-2,#221b14);border:1px solid var(--line);border-radius:14px;',
       '  max-width:520px;width:100%;padding:20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.9)}',
-      '.hr-mu-wrap h3{margin:0 0 4px;font-family:var(--f-display,inherit);font-size:20px;color:var(--ink)}',
+      '.hr-mu-wrap h3{margin:0 0 4px;font-family:var(--f-display,inherit);font-size:calc(21px * var(--ui-scale, 1));color:var(--ink)}',
       '.hr-mu-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}',
       /* mobile: the More button is the only spare surface in a 6-tab nav */
       '.bn-btn.more.hr-mu-alert{position:relative}',

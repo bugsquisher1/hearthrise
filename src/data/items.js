@@ -1,7 +1,7 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=240';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=240';
+import { GEAR_ITEMS } from './gear-tiers.js?v=241';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=241';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

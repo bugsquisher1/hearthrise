@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=240';
+import { setupSync, pullLatest } from './sync.js?v=241';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -255,7 +255,12 @@ function renderAuthUi() {
     const label = banner.querySelector('span:last-child') || banner;
     if (session?.user) {
       banner.classList.remove('off');
-      label.textContent = session.user.email || 'Online';
+      /* b241 (paione): this printed the raw account EMAIL on the topbar status
+         pill — long enough to overlap the stat chips on a phone, and it leaked
+         the address into every screenshot. The pill is a CONNECTION indicator
+         (the green dot is the signal); the player's name is already shown beside
+         it. So it reads "Online", not an email. */
+      label.textContent = 'Online';
     } else {
       banner.classList.add('off');
       /* b224: was "Offline · sign in to sync" / "Offline play" — a standing

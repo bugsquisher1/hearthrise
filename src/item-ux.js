@@ -223,7 +223,15 @@
 
   // Delegated mouseover/mouseout on all inventory-style tiles.
   // Covers: .invc-tile, .item-slot (legacy), .inv-bag-tile, etc.
+  // b241 (paione): the hover tooltip is a DESKTOP-only affordance. On touch there
+  // is no reliable mouseleave, so a tap-synthesised mouseover left this tooltip
+  // STUCK over the inventory + the tap flyout until you scrolled. The tap flyout
+  // (openInvDetail) already shows all of this on mobile, so we skip the hover tip
+  // entirely when the primary pointer can't hover — and dismiss on any touch as
+  // a belt-and-braces guard.
+  var canHover = !(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
   document.addEventListener('mouseover', function(e){
+    if(!canHover) return;
     var tile = e.target.closest && e.target.closest('.invc-tile, .item-slot, [data-item-id]');
     if(!tile) return;
     var id = getItemIdFromTile(tile);
@@ -238,6 +246,7 @@
     hideTip();
   }, true);
   document.addEventListener('scroll', hideTip, true);
+  document.addEventListener('touchstart', hideTip, true);   // b241: a tap clears any stray tip
 
   // ---- Quantity slider modal ----------------------------------
   var slider = document.createElement('div');

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=240' directly.
+// modularised, will import { G } from '../state/game.js?v=241' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=240';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=240';
+import { on, snapshot } from '../net/events.js?v=241';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=241';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=240';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=241';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11281,6 +11281,14 @@ const TESTS = [
       span = document.querySelector('#skill-detail .at-inputs .at-have[data-have="' + inputId + '"]');
       assert(span && /4\.2K|4242/.test(span.textContent), 'the owned count must reflect real inventory live, got "' + (span && span.textContent) + '"');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b241: a stray item tooltip is dismissed by a tap (mobile stuck-tooltip fix)', () => {
+    const tip = document.getElementById('item-tooltip');
+    assert(tip, 'the item hover-tooltip element must exist');
+    tip.style.display = 'block';                 // simulate a stuck tip
+    document.dispatchEvent(new Event('touchstart'));
+    assert(tip.style.display === 'none', 'a touch anywhere must clear a stray tooltip (it used to stick until you scrolled)');
   }),
 
   () => tryRun('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', () => {

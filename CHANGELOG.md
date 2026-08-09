@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 241 — 2026-08-09 (Mobile tidy-up)
+
+- 👆 **The item tooltip stops sticking on mobile.** On a phone the hover tooltip could pop up and stay there over everything until you scrolled. It's a desktop-hover feature — on touch it now stays out of the way (tap an item to see its full details), and any stray one clears the moment you tap. (Thanks, paione.)
+- 🧹 **No more email + jumbled text on the topbar.** The status pill was printing your whole account email up top, which overlapped the stats on a phone (and showed up in screenshots). It just says "Online" now — the green dot is the signal, your name's already there.
+- 🧪 445 tests green.
+
 ## v0.9.2-beta build 240 — 2026-08-09 (Never lose an item)
 
 - 🔒 **Lock items so they can't be sold by accident.** In an item's menu, tap **Lock** — a locked item shows no Sell buttons at all until you Unlock it. Bulk-sell skips your locked items too.

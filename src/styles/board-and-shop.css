@@ -658,3 +658,125 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) {
   body[data-theme] #panel-bounty .bb-notice { transform: none; }
 }
+
+/* ── THE SHOPS TOGGLE (b230) ──────────────────────────────────────────────
+ * One destination, three toggles: Local Shop / Market / Premium Shop.
+ *
+ * It is deliberately NOT the `.chips` row. The Local Shop pane already owns a
+ * chip row (Seeds / Equipment / Cosmetics) directly underneath, and two
+ * identical pill rows stacked 40px apart say nothing about which one is the
+ * bigger decision. This is a segmented control on a sunken plate — one rung
+ * up the surface ladder, so the hierarchy reads before the labels do.
+ *
+ * The Premium segment carries sapphire in EVERY state, selected or not
+ * (art-direction.css §6: real money is sapphire and only sapphire). Its two
+ * neighbours spend gold. A player must never have to read a label to know
+ * which of the three toggles is about to charge a card. It is carved out of
+ * the hearthlight + Cozy Day readability blankets in theme-cozy.css for
+ * exactly that reason — see the b222 add-a-root note there.
+ * ---------------------------------------------------------------------- */
+.shops-tabs {
+  display: flex;
+  align-items: stretch;
+  justify-self: start;
+  align-self: start;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .45);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.shops-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+  transition: color .12s ease, background .12s ease;
+}
+.shops-tab + .shops-tab { margin-left: 2px; }
+.shops-tab:hover { color: var(--ink); }
+.shops-tab .ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  color: var(--gold-2);
+}
+.shops-tab.active {
+  background: var(--surf-raised);
+  border-color: rgba(201, 162, 74, .34);
+  box-shadow: var(--surf-raised-edge), inset 0 2px 0 var(--gold);
+  color: var(--gold-2);
+}
+.shops-tab:focus-visible {
+  outline: 2px solid var(--gold-2);
+  outline-offset: -2px;
+}
+/* Real money. Sapphire in every state. */
+.shops-tab.is-premium,
+.shops-tab.is-premium .ic { color: var(--sc-prem-ink); }
+.shops-tab.is-premium:hover { color: var(--sc-prem-ink2); }
+.shops-tab.is-premium.active {
+  background: var(--sc-prem-bg);
+  border-color: var(--sc-prem-line);
+  box-shadow: inset 0 2px 0 var(--gem);
+  color: var(--sc-prem-ink2);
+}
+.shops-tab.is-premium:focus-visible { outline-color: var(--sc-prem-ink); }
+
+/* Which of the two local panes #panel-shop is showing. The Market is its own
+ * section, so it needs no rule here. */
+#panel-shop[data-shops-pane="local"]   #shops-pane-premium,
+#panel-shop[data-shops-pane="premium"] #shops-pane-local { display: none; }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
+  /* Three segments have to share a phone's width, so the strip stops hugging
+   * its content and the labels take the type floor (13.5px) rather than
+   * wrapping mid-word — the b225 .td-tab lesson. */
+  .shops-tabs { width: 100%; }
+  .shops-tab {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 8px 6px;
+    gap: 5px;
+    font-size: var(--t-micro);
+  }
+  .shops-tab .ic { width: 15px; height: 15px; flex: 0 0 15px; }
+}
+
+/* Two things the toggle changed about its hosts, both measured (b230).
+ *
+ * 1. THE CONTROL MUST NOT MOVE WHEN YOU USE IT. #panel-market carried
+ *    `padding:16px` from audit-overrides while every other panel uses
+ *    var(--gap) — so the strip sat 6px lower and 6px further right on the
+ *    Market than on the other two, and a segmented control that shifts under
+ *    the cursor as you click through it reads as a bug even when nothing is
+ *    wrong. The Market joins the rest.
+ *
+ * 2. The Premium pane went from a ~330px sidecar column to the full panel
+ *    when it became its own toggle, and `.card-head` is space-between — so
+ *    "Premium Store" and "Real-money packs" ended up 1,100px apart with a
+ *    void between them (the exact b225 lesson: re-check every space-between
+ *    row when you widen a screen). The pair reads as one line instead.
+ * ---------------------------------------------------------------------- */
+body[data-theme] #panel-market.active { padding: var(--gap); padding-bottom: 78px; }
+#shops-pane-premium > .card-head { justify-content: flex-start; gap: 12px; }
+#shops-pane-premium > .card-head .card-sub { margin-left: 0; }

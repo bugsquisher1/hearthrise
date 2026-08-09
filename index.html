@@ -165,6 +165,14 @@
          spans at runtime, so no emoji ever renders in chrome. -->
     <button class="nav-btn active" data-tab="profile"><span class="ic"></span><span class="lbl">Home</span></button>
     <button class="nav-btn" data-tab="character"><span class="ic"></span><span class="lbl">Character</span></button>
+    <!-- b230 (Tyler): "Inventory should be under Character." The bag is the
+         character's, not the economy's — you open it to see what you own and
+         what you are wearing, and the doll on the Character screen is the
+         other half of the same object. It sits in the unlabelled head block
+         with Home and Character because that block IS "you"; giving it a
+         "Character" group label would put a group and an entry of the same
+         name one row apart. -->
+    <button class="nav-btn" data-tab="inventory"><span class="ic"></span><span class="lbl">Inventory</span></button>
 
     <div class="nav-group-label">Adventure</div>
     <button class="nav-btn" data-tab="combat"><span class="ic"></span><span class="lbl">Combat</span></button>
@@ -177,9 +185,12 @@
     <button class="nav-btn" data-tab="bounty"><span class="ic"></span><span class="lbl">Bounty Board</span></button>
     <button class="nav-btn" data-tab="skills"><span class="ic"></span><span class="lbl">Skills</span></button>
 
-    <div class="nav-group-label">Economy</div>
-    <button class="nav-btn" data-tab="inventory"><span class="ic"></span><span class="lbl">Inventory</span></button>
-    <button class="nav-btn" data-tab="shop"><span class="ic"></span><span class="lbl">Store</span></button>
+    <!-- b230 (Tyler): the ECONOMY group is gone. It held exactly two entries —
+         Inventory (which belongs to the character) and Store, which was
+         `display:none !important` in theme-cozy.css. The only economy entry a
+         player could actually SEE was the Market button market.js injected at
+         runtime, which is why "it's hard to find the in-game shop": the
+         in-game shop had no visible door at all. -->
 
     <div class="nav-group-label">Homestead</div>
     <button class="nav-btn" data-tab="farming"><span class="ic"></span><span class="lbl">Farm</span></button>
@@ -202,6 +213,17 @@
          disappears. Smoke tests guard the entry and the routing. -->
     <div class="nav-group-label">Realm</div>
     <button class="nav-btn" data-tab="clan"><span class="ic"></span><span class="lbl">Clan</span></button>
+    <!-- b230 (Tyler): "'shops' should be under Realm". Trade is something you
+         do with the realm — the counter in the village, the boards other
+         players post to, and the merchant who takes real coin. One door,
+         three toggles behind it (Local Shop / Market / Premium Shop). It sits
+         between Clan and Social rather than at the foot of the group because
+         Clan must stay adjacent to House across the divider (b225's twin
+         pillars) and burying the entry Tyler could not find at the very
+         bottom of the rail would repeat the original mistake. Static markup —
+         an injected-then-hidden nav entry is exactly how the in-game shop
+         disappeared in the first place. -->
+    <button class="nav-btn" data-tab="shops"><span class="ic"></span><span class="lbl">Shops</span></button>
     <button class="nav-btn" data-tab="social"><span class="ic"></span><span class="lbl">Social</span></button>
 
     <div class="nav-spacer"></div>
@@ -452,14 +474,31 @@
       </div>
     </section>
 
-    <!-- ── SHOP / STORE ── -->
-    <section class="panel" id="panel-shop">
-      <div class="card layout-2col-a">
-        <div class="card-head"><div class="card-title">Premium Store</div><span class="card-sub">Real-money packs</span></div>
-        <div class="card-body" id="iap-panel"></div>
+    <!-- ── SHOPS ──────────────────────────────────────────────────────────
+         ONE destination, three toggles (Tyler, b230): Local Shop = the
+         village counter, Market = the player exchange, Premium Shop = real
+         money and gems.
+
+         Two of the three panes share this section because they always did —
+         every `#panel-shop …` rule in board-and-shop.css / theme-cozy.css /
+         art-direction.css (the whole b221 shopfront, the sapphire premium
+         card treatment, both themes' readability blankets) is written against
+         this id, and renaming the host would have quietly re-opened all of
+         it. The Market keeps its own section for the same reason. What the
+         player sees is one door with three toggles; `data-shops-pane` on the
+         section decides which of the two local panes is showing, and the
+         strip is duplicated (not injected) into the Market section so it
+         cannot be destroyed by a re-render — see nav-consolidation.js. -->
+    <section class="panel" id="panel-shop" data-shops-pane="local">
+      <div class="shops-tabs" role="tablist" aria-label="Shops">
+        <button class="shops-tab active" role="tab" aria-selected="true" data-shops-pane="local"><span class="ic"></span><span class="lbl">Local Shop</span></button>
+        <button class="shops-tab" role="tab" aria-selected="false" data-shops-pane="market"><span class="ic"></span><span class="lbl">Market</span></button>
+        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium"><span class="ic"></span><span class="lbl">Premium Shop</span></button>
       </div>
-      <div class="card layout-2col-b">
-        <div class="card-head"><div class="card-title">In-Game Shop</div></div>
+      <!-- b230: the card head used to read "In-Game Shop" directly under a
+           panel that is now titled "Local Shop" by the toggle above it. Two
+           names for one thing, 40px apart. The toggle names the pane. -->
+      <div class="card shops-pane" id="shops-pane-local">
         <!-- b217: the sub-tab labels carried raw emoji. icon-set.js used to
              strip them at runtime with a regex sweep, which left the labels
              correct but only after a repaint. Ship them clean. -->
@@ -470,6 +509,26 @@
         </div>
         <div class="card-body" id="shop-panel"></div>
       </div>
+      <div class="card shops-pane" id="shops-pane-premium">
+        <div class="card-head"><div class="card-title">Premium Store</div><span class="card-sub">Real-money packs</span></div>
+        <div class="card-body" id="iap-panel"></div>
+      </div>
+    </section>
+
+    <!-- ── MARKET (the player exchange) ────────────────────────────────────
+         b230: static, like every other destination. market.js used to create
+         this section AND a sidebar nav button at runtime; the button carried
+         a 📈 emoji and the panel was the only reason the in-game shop had no
+         visible door. market.js now renders into #market-root and leaves the
+         host alone, which is also what stops the toggle strip from being
+         wiped by every market re-render. -->
+    <section class="panel" id="panel-market">
+      <div class="shops-tabs" role="tablist" aria-label="Shops">
+        <button class="shops-tab" role="tab" aria-selected="false" data-shops-pane="local"><span class="ic"></span><span class="lbl">Local Shop</span></button>
+        <button class="shops-tab active" role="tab" aria-selected="true" data-shops-pane="market"><span class="ic"></span><span class="lbl">Market</span></button>
+        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium"><span class="ic"></span><span class="lbl">Premium Shop</span></button>
+      </div>
+      <div id="market-root"></div>
     </section>
 
   </main>
@@ -503,7 +562,14 @@
       <button class="btn tap" data-tab="inventory">🎒 Items</button>
       <button class="btn tap" data-tab="house">🏠 House</button>
       <button class="btn tap" data-tab="social">🏆 Social</button>
-      <button class="btn tap btn-gem" data-tab="shop">💎 Store</button>
+      <!-- b230: was "💎 Store", which routed to the premium packs and was the
+           ONLY commerce entry on mobile — the in-game shop and the player
+           market had no mobile route at all (the Market nav button market.js
+           injected lives in the desktop sidebar, which is display:none on a
+           phone). One "Shops" entry now opens the same three-toggle
+           destination the sidebar does. It is not btn-gem any more: this door
+           leads to gold spending first, and sapphire means real money. -->
+      <button class="btn tap" data-tab="shops">Shops</button>
       <button class="btn tap" id="btn-chat-mobile">💬 Chat</button>
       
       <button class="btn tap" id="btn-settings-mobile">⚙️ Settings</button>

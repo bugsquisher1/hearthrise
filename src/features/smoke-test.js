@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=266' directly.
+// modularised, will import { G } from '../state/game.js?v=267' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=266';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=266';
+import { on, snapshot } from '../net/events.js?v=267';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=267';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=266';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=267';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11390,6 +11390,33 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {
+    if(typeof window.openAutoEatPicker !== 'function' || typeof window.closeAutoEatPicker !== 'function'){ assert(true, 'no picker'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5, cooked_trout: 3 });
+      window.openAutoEatPicker();
+      const ov = document.getElementById('aep-overlay');
+      assert(ov && getComputedStyle(ov).display !== 'none', 'the picker overlay must open');
+      assert(ov.querySelectorAll('.aep-row').length >= 1, 'the picker must render at least the Off row');
+      assert(/Off/.test(ov.textContent), 'the picker must offer an Off option');
+      // Choosing a food routes through setCombatAutoEat (only if an eligible food rendered).
+      const foodRow = [...ov.querySelectorAll('.aep-row')].find(r => /Shrimp|Trout/i.test(r.textContent));
+      if(foodRow){
+        foodRow.click();   // sets it + closes
+        const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+        assert(cfg && cfg.foodId, 'picking a food must set the auto-eat food');
+      }
+      // Close is reliable regardless.
+      window.closeAutoEatPicker();
+      assert(getComputedStyle(document.getElementById('aep-overlay')).display === 'none', 'close must hide the picker');
+    } finally {
+      const ov = document.getElementById('aep-overlay'); if(ov) ov.remove();
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b266: combat activity bar shows trained-skill XP to next level (tester: see Strength XP while fighting)', () => {

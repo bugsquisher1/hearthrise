@@ -25,7 +25,7 @@
 // known v1 limitation).
 // ============================================================
 
-import { getSession } from './auth.js?v=266';
+import { getSession } from './auth.js?v=267';
 
 function getCfg() {
   return (window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig()) || null;

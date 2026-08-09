@@ -5222,6 +5222,43 @@ window.setCombatAutoEat = function(value){
   return window.setAutoEatFood(value);
 };
 
+/* b267: Auto-eat food PICKER — a compact modal so the choice is reachable from
+   the always-visible arena HUD (the old in-combat <select> sat below the fold on
+   landscape; paione: "on landscape I don't have the option to select food").
+   Lists every eligible Provision + an Off option; picking one sets it and closes. */
+window.openAutoEatPicker = function(){
+  if(typeof G==='undefined'||!G) return;
+  const foods = Object.entries(G.inventory||{}).filter(([id])=> (typeof _autoEatOk==='function') ? _autoEatOk(id) : false);
+  const cur = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? (window.HearthriseAuto.getEat().foodId||null) : null;
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const rows = foods.map(([id,q])=>{
+    const it=ITEMS[id]; if(!it) return '';
+    const on = cur===id;
+    return `<button class="aep-row${on?' is-on':''}" onclick="setCombatAutoEat('${id}');closeAutoEatPicker()">
+        <span class="aep-ic">${it.icon||''}</span>
+        <span class="aep-nm">${esc(it.n)}</span>
+        <span class="aep-heal">+${it.heals||0} HP</span>
+        <span class="aep-q">×${(q||0).toLocaleString()}</span>
+      </button>`;
+  }).join('');
+  const offRow = `<button class="aep-row${!cur?' is-on':''}" onclick="setCombatAutoEat('');closeAutoEatPicker()">
+      <span class="aep-ic">—</span><span class="aep-nm">Off — heal by hand</span></button>`;
+  const empty = foods.length ? '' : '<div class="aep-empty">No Provisions in your bag. Cook fish or bake bread first — Feasts &amp; Draughts are eaten by hand only.</div>';
+  let ov = document.getElementById('aep-overlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id='aep-overlay'; ov.className='aep-overlay';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target===ov) window.closeAutoEatPicker(); });
+  }
+  ov.innerHTML = `<div class="aep-modal" role="dialog" aria-label="Choose auto-eat food">
+      <div class="aep-head"><span>Auto-eat food</span><button class="aep-x" onclick="closeAutoEatPicker()" aria-label="Close">✕</button></div>
+      <div class="aep-body">${empty}${offRow}${rows}</div>
+      <div class="aep-note">Spends one Provision when your HP drops low. Feasts &amp; Draughts are never auto-eaten.</div>
+    </div>`;
+  ov.style.display = 'flex';
+};
+window.closeAutoEatPicker = function(){ const ov=document.getElementById('aep-overlay'); if(ov) ov.style.display='none'; };
+
 /* ───── Item detail flyout ───── */
 function openInvDetail(id){
   const it = ITEMS[id]; if(!it) return;

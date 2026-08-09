@@ -14,8 +14,8 @@
 // Imports: MONSTERS, ITEMS
 // Exports: setupCombatRender()
 
-import { MONSTERS } from '../data/monsters.js?v=266';
-import { ITEMS } from '../data/items.js?v=266';
+import { MONSTERS } from '../data/monsters.js?v=267';
+import { ITEMS } from '../data/items.js?v=267';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -199,15 +199,31 @@ const HUD = (() => {
   function paintPlayer(mount) {
     const s = eatState();
     if (!s) { mount.innerHTML = ''; mount.dataset.sig = ''; return; }
-    const sig = [s.key, s.label, s.meta].join('|');
+    /* b267 (paione, Android landscape): the auto-eat FOOD PICKER lived only in the
+       scrolling combat area, which is below the fold on a short landscape screen —
+       "on landscape I don't have the option to select food". Surface it here in
+       the always-visible HUD, beside the Eat button, when the player owns the
+       Auto-Eat trait. */
+    const hasAuto = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
+    const eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+    const autoName = hasAuto
+      ? ((eatCfg && eatCfg.enabled && eatCfg.foodId && window.ITEMS[eatCfg.foodId]) ? window.ITEMS[eatCfg.foodId].n : 'Off')
+      : '';
+    const sig = [s.key, s.label, s.meta, autoName].join('|');
     if (mount.dataset.sig === sig) return;
     mount.dataset.sig = sig;
     const on = s.key === 'eat';
-    mount.innerHTML =
+    let html =
       `<button type="button" class="btn arena-eat${on ? ' btn-primary' : ' is-idle'}"` +
       `${on ? '' : ' disabled'} data-arena-act="eat" title="${esc(s.title)}">` +
       `<span class="ae-lbl">${esc(s.label)}</span>` +
       `<span class="ae-meta">${esc(s.meta)}</span></button>`;
+    if (hasAuto) {
+      html +=
+        `<button type="button" class="btn btn-sm arena-autoeat" data-arena-act="autoeat" ` +
+        `title="Choose which food auto-eat uses">Auto-eat: ${esc(autoName)} ▾</button>`;
+    }
+    mount.innerHTML = html;
   }
 
   /* ── Paint: the foe's two reference chips ───────────────────────────────*/
@@ -231,6 +247,7 @@ const HUD = (() => {
       refresh();
     } else if (act === 'loot') { openLoot(); }
     else if (act === 'stats') { openStats(); }
+    else if (act === 'autoeat') { if (typeof window.openAutoEatPicker === 'function') window.openAutoEatPicker(); }
   }
 
   // ── The Loot modal ──────────────────────────────────────────────────────

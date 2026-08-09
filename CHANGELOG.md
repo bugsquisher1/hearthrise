@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 267 — 2026-08-09 (Pick your auto-eat food anywhere)
+
+- 🍖 **The auto-eat food picker is reachable in landscape now.** It used to live at the bottom of the combat screen, off the bottom of the fold on a landscape phone. There's now an **"Auto-eat: [food] ▾"** button right next to your Eat button (always visible) that opens a clean picker — choose any Provision, or turn it off. *(Thanks paione.)*
+
 ## v0.9.2-beta build 266 — 2026-08-09 (See your combat XP while you fight)
 
 - 📊 **Your combat-skill progress now shows in the top bar during a fight.** It displays the skill your current style trains (e.g. STR) with your level and the XP left to the next level — no need to leave combat to check how close you are. *(Thanks tester!)*

@@ -4,6 +4,10 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-09 · Rally pledges v2: auto-join when online, themed loot, no plumbing copy (Tyler, binding)
+**Decision:** (1) Pledge rule simplifies — pledged + ONLINE during the window = full participation automatically (no separate live-join click); pledged + offline = half honors on return. (2) A visible "Switch to <the other rally>" affordance on the pledged card until the window opens. (3) Chest contents are THEMED to the event: Forge Levy pays smithing/crafting XP + forge-domain items; each rally's reward table derives from its blessing domain. (4) NO implementation-state copy ever — "provisional / recorded on this device" class of strings is banned; if the server can't hold a pledge, the UI degrades silently or hides the affordance.
+**Affected agents:** Systems (rally v2), Designer (themed reward tables ratification).
+
 ### 2026-08-09 · Bonus magnitudes rebase: "increments of 2%" (Tyler, binding, global)
 **Decision:** All percentage boosts across the game are far too large (rooms at +50% smithing etc.). Rebase to a small-increment grammar (~2% steps). Provisional applied to homestead ladders mid-build (speed rooms +2..10%, Library/Trophy +1..5%); the Designer re-derives the FULL bonus table (castle buildings, blessings, feasts, ales, renown perks, workers?) as one coherent budget with a much lower total ceiling, then Systems applies (b228). Levels/costs owned by players never change — only the magnitude a level grants (owner-stated global rebalance, announced in the changelog, never silent). NOTE (flagged to Tyler): this shrinks the boost headroom — typical engaged pace moves toward the 57-day floor.
 **Affected agents:** Designer (retune spec NOW), Systems (apply), homestead agent (provisional relayed mid-build).

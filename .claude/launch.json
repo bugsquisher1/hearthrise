@@ -42,6 +42,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8174"],
       "port": 8174
+    },
+    {
+      "name": "hearthrise-clangov",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8178"],
+      "port": 8178
     }
   ]
 }

@@ -401,7 +401,23 @@
     bad_amount:        'That is not a quantity the Storehouse accepts',
     daily_cap:         'You have supplied all the hold can take from you today',
     no_slot:           'Every build slot is already in use',
-    not_steward:       'Only the leader or a Steward may commission work',
+    /* Two codes, one sentence. 'not_steward' is what a server that has not run
+       the governance migration still answers; 'not_vice' is what one that has
+       answers. A player must never be shown a raw error code because their
+       clan's project is a migration behind. */
+    not_steward:       'Only the leader or a vice leader can post a work order',
+    not_vice:          'Only the leader or a vice leader can post a work order',
+    not_leader:        'Only the leader can do that',
+    not_permitted:     'You cannot do that to this member',
+    vote_open:         'A vote is already running — close it first',
+    vote_closed:       'That vote has already closed',
+    no_vote:           'That vote no longer exists',
+    bad_candidates:    'A vote needs between 2 and 4 choices',
+    not_candidate:     'That is not one of the choices',
+    already_open:      'That building already has a work order open',
+    no_building:       'The hold has no such building',
+    bad_level:         'Your panel is out of date — reopen the hold',
+    no_ballots:        'Nobody voted, so nothing was posted',
     too_high:          'The Great Hall is not large enough for that level yet',
     materials_short:   'The Work Order still needs materials',
     labour_short:      'The Work Order still needs labour',
@@ -498,6 +514,155 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     9. GOVERNANCE — who may post, and the opt-in vote (b228)
+
+     Tyler, 2026-08-09: only the Leader and Vice Leaders post Work Orders, and
+     leadership MAY put the next one to the hold. Both rules are enforced in
+     supabase/migrations/2026-08-09-clan-governance.sql; everything here is the
+     client's copy of the same reasoning, so the panel can grey a button out and
+     SAY WHY instead of letting the player press it and read a refusal.
+
+     THE CLIENT IS ALWAYS THE NARROWER ANSWER. `mayPostOrder` recognises the
+     leader and the vice charge; a server that grants more would still grant it.
+     A client that guesses WIDER than the server shows a button that fails, and
+     that is the failure mode this pair of functions exists to prevent.
+     ══════════════════════════════════════════════════════════════ */
+  var VOTE_MIN_CANDIDATES = 2;
+  var VOTE_MAX_CANDIDATES = 4;
+  var VOTE_DEFAULT_HOURS = 24;
+  var VOTE_MAX_HOURS = 168;
+
+  /* 'steward' was this charge's name before Tyler named the office. A hold that
+     granted one before the governance migration keeps it — a rename must never
+     quietly demote somebody. */
+  function mayPostOrder(role, charge) {
+    if (role === 'leader') return true;
+    return charge === 'vice' || charge === 'steward';
+  }
+
+  /* The tally, normalised from whatever the server sent: {building: n}. Rows
+     that are not positive integers are dropped rather than coerced — a NaN in a
+     tally would render as a blank bar and read as "nobody voted for this". */
+  function voteTally(raw) {
+    var out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    if (Object.prototype.toString.call(raw) === '[object Array]') {
+      raw.forEach(function (r) {
+        if (!r) return;
+        var k = r.building || r.b;
+        if (!k) return;
+        out[k] = (out[k] || 0) + Math.max(0, Math.floor(Number(r.n != null ? r.n : 1) || 0));
+      });
+      return out;
+    }
+    Object.keys(raw).forEach(function (k) {
+      var v = Math.floor(Number(raw[k]));
+      if (isFinite(v) && v > 0) out[k] = v;
+    });
+    return out;
+  }
+  function voteTotal(tally) {
+    var t = 0;
+    Object.keys(tally || {}).forEach(function (k) { t += tally[k]; });
+    return t;
+  }
+  /* Every building holding the top count. One entry is a winner; two or more is
+     a TIE, and a tie is reported rather than broken — breaking it by row order
+     would be a coin flip the player cannot see. */
+  function voteLeaders(tally) {
+    var keys = Object.keys(tally || {});
+    if (!keys.length) return [];
+    var top = 0;
+    keys.forEach(function (k) { if (tally[k] > top) top = tally[k]; });
+    return keys.filter(function (k) { return tally[k] === top; }).sort();
+  }
+  function voteIsTie(tally) { return voteLeaders(tally).length > 1; }
+  function voteExpired(deadlineMs, nowMs) {
+    var d = Number(deadlineMs);
+    if (!isFinite(d) || d <= 0) return false;
+    return (Number(nowMs) || Date.now()) >= d;
+  }
+
+  /* One shape for the vote everywhere in the client, so a renderer never has to
+     know whether the server sent `winner_building` or `winner`. */
+  function normalizeVote(v) {
+    if (!v || typeof v !== 'object') return null;
+    var cands = [];
+    (v.candidates || []).forEach(function (c) {
+      if (!c) return;
+      if (typeof c === 'string') { cands.push({ building: c, to_level: 0 }); return; }
+      if (c.building) cands.push({ building: c.building, to_level: Math.max(0, c.to_level | 0) });
+    });
+    var tally = voteTally(v.tally);
+    var deadline = Date.parse(v.deadline);
+    return {
+      id: v.id || null,
+      candidates: cands,
+      tally: tally,
+      votes: voteTotal(tally),
+      voters: Math.max(0, +v.voters || 0),
+      members: Math.max(0, +v.members || 0),
+      myVote: v.my_vote || null,
+      deadline: isFinite(deadline) ? deadline : 0,
+      closed: !!v.closed_at,
+      closedAt: v.closed_at ? Date.parse(v.closed_at) : 0,
+      outcome: v.outcome || null,
+      reason: v.outcome_error || null,
+      winner: v.winner_building || null,
+      orderId: v.order_id || null,
+      leaders: voteLeaders(tally),
+      tie: voteIsTie(tally)
+    };
+  }
+
+  function reduceVoteRead(status, out) {
+    return reduceEnvelope(status, out, function (o) {
+      return { vote: normalizeVote(o.vote), mayOpen: !!o.may_open };
+    });
+  }
+  function reduceVoteOpen(status, out) {
+    return reduceEnvelope(status, out, function (o) {
+      return { voteId: o.vote_id || null, hours: Math.max(0, +o.hours || 0) };
+    });
+  }
+  /* A ballot cast into a vote that has just closed is not a FAILURE the player
+     did anything wrong to earn — it is the deadline arriving. It gets its own
+     action so the panel can re-read and show the result instead of a red toast. */
+  function reduceVoteCast(status, out) {
+    var d = reduceEnvelope(status, out, function (o) {
+      var t = voteTally(o.tally);
+      return { myVote: o.my_vote || null, tally: t, votes: voteTotal(t),
+               voters: Math.max(0, +o.voters || 0) };
+    });
+    if (d.action === 'fail' && d.error === 'vote_closed') {
+      return { action: 'expired', error: 'vote_closed', message: errorText('vote_closed') };
+    }
+    return d;
+  }
+  /* Close answers with an OUTCOME, not a boolean. 'posted' built something,
+     'tie' did not and says who tied, 'void' did not and says why. */
+  function reduceVoteClose(status, out) {
+    return reduceEnvelope(status, out, function (o) {
+      var t = voteTally(o.tally);
+      var oc = (o.outcome === 'posted' || o.outcome === 'tie' || o.outcome === 'void') ? o.outcome : 'void';
+      return {
+        outcome: oc,
+        winner: o.winner || null,
+        orderId: o.order_id || null,
+        reason: o.reason || null,
+        tally: t,
+        tied: oc === 'tie' ? (o.tied && o.tied.length ? o.tied.slice().sort() : voteLeaders(t)) : [],
+        alreadyClosed: !!o.already_closed
+      };
+    });
+  }
+  function reduceViceSet(status, out) {
+    return reduceEnvelope(status, out, function (o) {
+      return { userId: o.user_id || null, charge: o.charge || null, granted: !!o.granted };
+    });
+  }
+
   /* ══════════════════════════════════════════════════════════════ */
   window.HearthriseClanSeat = {
     // contribution
@@ -536,6 +701,15 @@
     // reducers
     isMissingRpc: isMissingRpc, errorText: errorText, reduceEnvelope: reduceEnvelope,
     reduceDeposit: reduceDeposit, reduceWorkLabour: reduceWorkLabour,
-    reduceTierUp: reduceTierUp, reduceUpkeep: reduceUpkeep, reduceWithdraw: reduceWithdraw
+    reduceTierUp: reduceTierUp, reduceUpkeep: reduceUpkeep, reduceWithdraw: reduceWithdraw,
+    // governance + the opt-in vote
+    VOTE_MIN_CANDIDATES: VOTE_MIN_CANDIDATES, VOTE_MAX_CANDIDATES: VOTE_MAX_CANDIDATES,
+    VOTE_DEFAULT_HOURS: VOTE_DEFAULT_HOURS, VOTE_MAX_HOURS: VOTE_MAX_HOURS,
+    mayPostOrder: mayPostOrder,
+    voteTally: voteTally, voteTotal: voteTotal, voteLeaders: voteLeaders,
+    voteIsTie: voteIsTie, voteExpired: voteExpired, normalizeVote: normalizeVote,
+    reduceVoteRead: reduceVoteRead, reduceVoteOpen: reduceVoteOpen,
+    reduceVoteCast: reduceVoteCast, reduceVoteClose: reduceVoteClose,
+    reduceViceSet: reduceViceSet
   };
 })();

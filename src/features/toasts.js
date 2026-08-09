@@ -113,58 +113,64 @@
   // column out from under all of them. Pure geometry — no assumptions
   // about which piece of chrome lives where, so moving the chat pill
   // (backlog #8) is handled by re-running this.
+  // Pure placement math (no DOM) so the landscape behaviour is unit-testable.
+  // `obstacles` is an array of {left, right, top} rects in the column's band.
+  function computeOffsets(vw, vh, obstacles) {
+    var colW  = Math.min(COL_W, vw - BASE_INSET * 2);
+    var bandR = vw - BASE_INSET;
+    var bandL = bandR - colW;
+
+    var lift = 0, leftMost = vw, blocked = false;
+    for (var i = 0; i < (obstacles || []).length; i++) {
+      var r = obstacles[i];
+      if (!r) continue;
+      if (r.right < bandL - GAP || r.left > bandR + GAP) continue; // not in band
+      blocked = true;
+      lift = Math.max(lift, vh - r.top + GAP);
+      leftMost = Math.min(leftMost, r.left);
+    }
+
+    var bottom = BASE_INSET, right = BASE_INSET;
+    if (blocked) {
+      var sideRight = Math.round(Math.max(BASE_INSET, vw - leftMost + GAP));
+      var sideFits  = (sideRight + colW <= vw - BASE_INSET);
+      // Landscape phones are SHORT — a lift that's fine on desktop (a small
+      // corner button forces ~112px) drops the column into the middle of the
+      // screen, over content (paione's landscape shot). When the viewport is
+      // short and we can step LEFT of a narrow obstacle (e.g. the bug button)
+      // while staying on-screen, do that and keep the column at the bottom.
+      var shortView = vh <= 560;
+      if (sideFits && (shortView || lift > vh * MAX_LIFT_FRAC)) {
+        right = sideRight;                                   // step beside it
+      } else if (lift <= vh * MAX_LIFT_FRAC) {
+        bottom = Math.round(lift);                           // small lift, keep corner
+      } else {
+        bottom = Math.round(Math.min(lift, vh * MAX_LIFT_FRAC)); // tall obstacle, cap
+      }
+    }
+    return { bottom: bottom, right: right };
+  }
+
   function layout() {
     var el = container();
     if (!el) return null;
     var vw = window.innerWidth || 1024;
     var vh = window.innerHeight || 768;
 
-    // The column's horizontal band, computed from constants rather than
-    // the container's own rect so the measurement can't chase itself.
-    var colW    = Math.min(COL_W, vw - BASE_INSET * 2);
-    var bandR   = vw - BASE_INSET;
-    var bandL   = bandR - colW;
-
-    var lift = 0;
-    var leftMost = vw;
-    var blocked = false;
-
+    var rects = [];
     for (var i = 0; i < OBSTACLES.length; i++) {
       var ob = document.querySelector(OBSTACLES[i]);
       if (!ob) continue;
       var r;
       try { r = ob.getBoundingClientRect(); } catch (e) { continue; }
       if (!r || r.width <= 0 || r.height <= 0) continue;
-      // Only chrome that actually shares the column's horizontal band
-      // and sits low enough to collide matters.
-      if (r.right < bandL - GAP || r.left > bandR + GAP) continue;
-      blocked = true;
-      lift = Math.max(lift, vh - r.top + GAP);
-      leftMost = Math.min(leftMost, r.left);
+      rects.push({ left: r.left, right: r.right, top: r.top });
     }
 
-    var bottom = BASE_INSET;
-    var right  = BASE_INSET;
-    if (blocked) {
-      if (lift <= vh * MAX_LIFT_FRAC) {
-        bottom = Math.round(lift);
-      } else {
-        // The obstacle is tall (an expanded chat panel). Lifting the
-        // column most of the way up the screen looks broken — step to
-        // the left of it instead and stay at the bottom.
-        right = Math.round(Math.max(BASE_INSET, vw - leftMost + GAP));
-        // If side-stepping would push the column off-screen, fall back
-        // to the (capped) lift.
-        if (right + colW > vw - BASE_INSET) {
-          right = BASE_INSET;
-          bottom = Math.round(Math.min(lift, vh * MAX_LIFT_FRAC));
-        }
-      }
-    }
-
-    el.style.bottom = 'calc(' + bottom + 'px + var(--safe-b, 0px))';
-    el.style.right  = 'calc(' + right + 'px + var(--safe-r, 0px))';
-    return { bottom: bottom, right: right };
+    var off = computeOffsets(vw, vh, rects);
+    el.style.bottom = 'calc(' + off.bottom + 'px + var(--safe-b, 0px))';
+    el.style.right  = 'calc(' + off.right + 'px + var(--safe-r, 0px))';
+    return off;
   }
 
   function register(selector) {
@@ -366,6 +372,7 @@
       };
     },
     // Exposed for the regression tests / tuning, not for gameplay code.
+    computeOffsets: computeOffsets,
     config: {
       MAX_VISIBLE: MAX_VISIBLE, MAX_PENDING: MAX_PENDING,
       MIN_MS: MIN_MS, MAX_MS: MAX_MS,

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 253 — 2026-08-09 (Toasts stay out of the way)
+
+- 💬 **Pop-up messages no longer float over the middle of the screen in landscape.** To avoid the bug-report button, the notification column was lifting itself up — which on a short landscape phone dropped it right on top of your content. It now steps neatly beside the button and stays pinned to the bottom corner. *(Thanks paione.)*
+- 🧪 458 tests green.
+
 ## v0.9.2-beta build 252 — 2026-08-09 (Tap the bar, go to the activity)
 
 - 🧭 **The activity bar is now a shortcut back to what you're doing.** Tap the "current activity" strip at the top from any screen and it jumps you straight to that activity — the fight, the skill you're training, or the recipe you're crafting. (When you're idle it still opens the Activities list.) *(Thanks Tyler.)*

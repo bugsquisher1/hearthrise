@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=252' directly.
+// modularised, will import { G } from '../state/game.js?v=253' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=252';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=252';
+import { on, snapshot } from '../net/events.js?v=253';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=253';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=252';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=253';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11329,6 +11329,23 @@ const TESTS = [
     }
     assert(found, 'landscape side-rail rule (.bottom-nav position:fixed) must be present in the loaded CSS');
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
+  }),
+
+  () => tryRun('b253: toasts side-step a corner button on a short landscape screen (paione: toasts over content)', () => {
+    const T = window.HearthriseToasts;
+    assert(T && typeof T.computeOffsets === 'function', 'toast placement math must be exposed');
+    // paione's case: 812x375 landscape, the bug button sits bottom-right (~62px up).
+    const bugBtn = { left: 755, right: 800, top: 273 };
+    const land = T.computeOffsets(812, 375, [bugBtn]);
+    assert(land.bottom <= 20, 'on a short screen the column must stay pinned at the bottom, got bottom=' + land.bottom);
+    assert(land.right > 20, 'it must step LEFT of the corner button instead of lifting, got right=' + land.right);
+    // Desktop is unchanged: a small lift keeps the column in its corner.
+    const desk = T.computeOffsets(1280, 900, [{ left: 1210, right: 1268, top: 800 }]);
+    assert(desk.right <= 20, 'desktop must keep the column in the right corner, got right=' + desk.right);
+    assert(desk.bottom > 20, 'desktop clears the button with a small lift, got bottom=' + desk.bottom);
+    // No obstacles → resting bottom-right.
+    const rest = T.computeOffsets(812, 375, []);
+    assert(rest.bottom <= 20 && rest.right <= 20, 'with nothing in the way it rests in the corner');
   }),
 
   () => tryRun('b252: topbar activity bar routes to the CURRENT activity when busy (Tyler)', () => {

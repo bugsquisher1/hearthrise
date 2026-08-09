@@ -706,7 +706,26 @@
   //     lit is the payoff the entire Work Order loop is built to deliver, and it
   //     only works if the unbuilt state is structurally different rather than
   //     the same shape at lower opacity.
+  //
+  // 3 · (b227) THE FOOTPRINT IS THE SPINE OF THE PROGRESSION. Tier 1 was a camp
+  //     — two tents and a fire, which is the HOMESTEAD's vocabulary and told a
+  //     clan its shared castle began as somebody's smallholding. It is now the
+  //     same castle's FOUNDATION: the exact rectangle the tier-4 curtain wall
+  //     stands on, set out on the ground in stakes and cord, with the first
+  //     course of footings laid along it. Every tier after it fills that same
+  //     rectangle in — footings, then a plinth with a wall rising on it, then a
+  //     finished wall, then masonry, then masonry and trophies — so a player who
+  //     has seen tier 1 recognises tier 4 as the thing they were promised.
+  //     The constants below are that promise, and every tier reads them.
   var GY = 252;
+
+  var WALL_L = 516;                 // the curtain run — tier 4's `crenel(lo,…)`
+  var WALL_R = 1084;
+  var TOWER_W = 48;                 // the corner tower pads, straddling the ends
+  var TOWER_L = WALL_L - 16;        // 500 — tier 4's left tower, exactly
+  var TOWER_R = WALL_R - 32;        // 1052 — and its right one
+  var GATE_L = 756;                 // the opening the gatehouse (766–834) fills
+  var GATE_R = 844;
 
   function starField(n, w, h) {
     var s = '';
@@ -777,48 +796,313 @@
   }
   function litRect(x, y, w, h) { return '<rect class="hrcs-lit" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1"/>'; }
 
+  /* Close-set vertical timbers. `planks()` draws boards lying down (long
+     horizontal joints); a palisade is the same material stood up, and drawing it
+     with the horizontal helper is what made the old tier-2 wall read as farm
+     fencing rather than as a wall under construction. */
+  function staves(x, y, w, h, sw) {
+    sw = sw || 13;
+    var s = '<g class="hrcs-mortar">';
+    for (var i = x + sw; i < x + w - 1; i += sw) s += '<path d="M' + i.toFixed(1) + ',' + y + ' V' + (y + h) + '"/>';
+    return s + '</g>';
+  }
+
+  /* ── THE BUILDING SITE ────────────────────────────────────────────────────
+     The vocabulary of a castle that is being MADE. Every mark here is a real
+     mason's-yard object drawn in the scene's own silhouette idiom — the point
+     is that tier 1 is not "a small castle", it is "this castle, before it".
+
+     ONE MEASURED CONSTRAINT GOVERNS ALL OF IT. Hearthlight's ground tokens are
+     `--scene-build #090705`, `--scene-ridge-near #0b0806`, `--scene-ridge-mid
+     #120e0a`: three values inside 9/255 of each other. Every structure in this
+     picture that reads, reads because it is silhouetted against the SKY — and
+     the whole foundation stage is, by definition, shorter than the horizon.
+     My first pass drew a correct, complete building site that was invisible.
+     The terrace below is the fix: the levelled platform a castle is actually
+     begun on, drawn in `--scene-ridge-far #1a150f` — the only ground token with
+     real separation from the build colour — so that a 22-unit footing course
+     has something to be seen against. */
+
+  /* The cut-and-fill platform. Its far edge is the light band behind the wall
+     line; everything on the site stands in front of it. */
+  function terrace() {
+    var t = GY - 34, x0 = 452, x1 = 1104;
+    // No highlight along the far edge: an unbroken 2px line 650 units long
+    // reads as a wire stretched across the picture, not as ground. The value
+    // step between ridge-far and ridge-mid is the edge.
+    return '<path class="hrcs-terrace" d="M' + (x0 - 42) + ',' + GY + ' L' + x0 + ',' + t +
+        ' H' + x1 + ' L' + (x1 + 42) + ',' + GY + ' Z"/>' +
+      // the ward, lit low and warm — a worked site at dusk, not an empty field
+      '<ellipse class="hrcs-glow" cx="800" cy="' + (GY - 6) + '" rx="330" ry="54"/>';
+  }
+
+  /* A driven post. Everything on a site starts as one. */
+  function post(x, h, w) { w = w || 4; return '<rect x="' + (x - w / 2) + '" y="' + (GY - h) + '" width="' + w + '" height="' + h + '"/>'; }
+
+  /* Setting-out: short stakes at a pace apart with a taut cord strung between
+     them. This is the line the wall will stand on, and at tier 4 it does. */
+  function stakeRun(x0, x1, h) {
+    h = h || 13;
+    var s = '<g class="hrcs-site">';
+    for (var x = x0; x <= x1 + 0.5; x += 34) s += post(x, h);
+    return s + '</g><path class="hrcs-cord" d="M' + x0 + ',' + (GY - h + 2) + ' H' + x1 + '"/>';
+  }
+
+  /* Batter boards — the pair of posts with a board nailed across that a mason
+     sets at every corner so the cord can be re-strung true after digging. They
+     are the single most legible "this is a foundation" object there is. */
+  function batterBoard(x, w, h) {
+    h = h || 52;
+    return '<g class="hrcs-site">' + post(x, h) + post(x + w, h) +
+      '<rect x="' + (x - 7) + '" y="' + (GY - h + 2) + '" width="' + (w + 14) + '" height="5"/></g>';
+  }
+
+  /* Dressed footing stone with its joints and the catch-light along the top
+     arris. `ch` is the course height: pass the block's full height for a single
+     course (a footing), or a fraction of it for a plinth several courses deep.
+     The whole castle grows off this line. */
+  function footing(x, w, h, ch) {
+    h = h || 22;
+    return '<g class="hrcs-wall"><rect x="' + x + '" y="' + (GY - h) + '" width="' + w + '" height="' + h + '"/></g>' +
+      courses(x, GY - h, w, h, ch || h, 30) +
+      '<path class="hrcs-arris" d="M' + x + ',' + (GY - h) + ' H' + (x + w) + '"/>';
+  }
+
+  /* THE PLAN. The mason's drawing of the thing being built, set out over the
+     ground it will stand on — the tier-4 curtain, its two corner towers and its
+     gatehouse, at the exact coordinates tier 4 draws them.
+
+     This is the answer to "does tier 1 promise a castle". Every other mark on
+     the site says *work is happening here*; only this one says *and this is
+     what it will be*. It is deliberately NOT the `.is-ghost` dash the unbuilt
+     wings wear — a ghosted wing is a building that is absent, and this is not a
+     building at all, it is a drawing. Gilt, finer, longer dashes, lower
+     opacity: a survey line, in the same colour the tier name above it is set. */
+  function castlePlan(tier) {
+    if (tier > 2) return '';
+    return '<g class="hrcs-plan">' +
+        crenel(WALL_L, GY - 62, WALL_R - WALL_L, 62, 13) +
+        crenel(TOWER_L, GY - 96, TOWER_W, 96, 14) +
+        crenel(TOWER_R, GY - 96, TOWER_W, 96, 14) +
+        '<rect x="766" y="' + (GY - 86) + '" width="68" height="86"/>' +
+        '<path d="M780,' + GY + ' v-40 a20,20 0 0 1 40,0 v40"/>' +
+      '</g>';
+  }
+
+  /* A cresset — a fire basket on a post. The site is worked after dark, and a
+     picture whose only warm light is in one corner has nothing holding its
+     middle together. */
+  function cresset(x, h) {
+    return '<ellipse class="hrcs-glow" cx="' + x + '" cy="' + (GY - h + 4) + '" rx="58" ry="40"/>' +
+      '<g class="hrcs-site">' + post(x, h, 4) +
+        '<path d="M' + (x - 11) + ',' + (GY - h) + ' h22 l-4,11 h-14 z"/></g>' +
+      '<path class="hrcs-lit" d="M' + (x - 7) + ',' + (GY - h) + ' q4,-15 8,-4 q4,-16 7,2 q6,-8 3,2 z"/>';
+  }
+
+  /* An open trench with its spoil thrown up alongside — the footing that has
+     been dug and not yet filled. This is what makes the tier-1 line read as
+     WORK IN PROGRESS rather than as a low decorative kerb. */
+  function trench(x, w) {
+    return '<path class="hrcs-ridge-near" d="M' + (x - 10) + ',' + GY + ' q' + (w / 2 + 10) + ',-17 ' + (w + 20) + ',0 z"/>' +
+      '<rect class="hrcs-trench" x="' + x + '" y="' + (GY - 8) + '" width="' + w + '" height="8"/>' +
+      '<path class="hrcs-cord" d="M' + x + ',' + (GY - 8) + ' H' + (x + w) + '"/>';
+  }
+
+  /* Dressed blocks stacked to hand, waiting on the wall. */
+  function stoneStack(x) {
+    return '<g class="hrcs-wall">' +
+        '<rect x="' + x + '" y="' + (GY - 13) + '" width="56" height="13"/>' +
+        '<rect x="' + (x + 7) + '" y="' + (GY - 24) + '" width="42" height="11"/>' +
+        '<rect x="' + (x + 15) + '" y="' + (GY - 34) + '" width="27" height="10"/></g>' +
+      '<g class="hrcs-mortar"><path d="M' + (x + 28) + ',' + (GY - 13) + ' V' + GY + '"/>' +
+        '<path d="M' + (x + 28) + ',' + (GY - 24) + ' V' + (GY - 13) + '"/></g>' +
+      '<path class="hrcs-rim2" d="M' + (x + 15) + ',' + (GY - 34) + ' h27"/>';
+  }
+
+  /* The mason's lean-to: a one-slope roof off two posts, a banker (the trestle
+     a block is dressed on) under it, and the lamp that is the only warm light
+     on the site. A camp's fire says "we are sleeping here"; a lamp over a
+     banker says "we are working here", and that is the whole difference between
+     the old tier 1 and this one. */
+  function leanTo(x) {
+    return '<ellipse class="hrcs-glow" cx="' + (x + 58) + '" cy="' + (GY - 26) + '" rx="86" ry="46"/>' +
+      '<g class="hrcs-site">' +
+        post(x + 4, 74, 5.5) + post(x + 100, 52, 5.5) +
+        '<path d="M' + (x - 10) + ',' + (GY - 74) + ' L' + (x + 114) + ',' + (GY - 52) +
+          ' L' + (x + 114) + ',' + (GY - 45) + ' L' + (x - 10) + ',' + (GY - 67) + ' Z"/>' +
+        '<rect x="' + (x + 24) + '" y="' + (GY - 29) + '" width="56" height="5"/>' +
+        post(x + 31, 24, 4.5) + post(x + 73, 24, 4.5) +
+        '<rect x="' + (x + 36) + '" y="' + (GY - 44) + '" width="30" height="15"/>' +
+      '</g>' +
+      '<g class="hrcs-mortar"><path d="M' + (x + 51) + ',' + (GY - 44) + ' V' + (GY - 29) + '"/></g>' +
+      '<g class="hrcs-site"><rect x="' + (x + 84) + '" y="' + (GY - 66) + '" width="4" height="9"/></g>' +
+      litRect(x + 81, GY - 57, 10, 13);
+  }
+
+  /* A two-wheeled tip cart with its shafts down and stone on the bed. */
+  function toolCart(x) {
+    return '<g class="hrcs-site">' +
+        '<rect x="' + x + '" y="' + (GY - 28) + '" width="74" height="12"/>' +
+        '<path d="M' + (x + 72) + ',' + (GY - 26) + ' l32,-13 l3.5,6 l-32,13 z"/>' +
+        '<rect x="' + (x + 9) + '" y="' + (GY - 41) + '" width="21" height="13"/>' +
+        '<rect x="' + (x + 34) + '" y="' + (GY - 39) + '" width="17" height="11"/>' +
+        '<circle cx="' + (x + 17) + '" cy="' + (GY - 11) + '" r="11"/>' +
+        '<circle cx="' + (x + 58) + '" cy="' + (GY - 11) + '" r="11"/>' +
+      '</g>' +
+      '<g class="hrcs-mortar"><path d="M' + (x + 6) + ',' + (GY - 11) + ' a11,11 0 0 1 22,0"/>' +
+        '<path d="M' + (x + 47) + ',' + (GY - 11) + ' a11,11 0 0 1 22,0"/></g>';
+  }
+
+  /* The pole that says this ground is spoken for. It stands on the gate line,
+     so at tier 4 the gatehouse rises exactly where the banner was planted.
+     NOT called `banner` — the room interiors already declare one further down
+     this file, and a hoisted duplicate silently ate this one's arguments. */
+  function claimPole(x, h) {
+    var y = GY - h + 6;
+    return '<g class="hrcs-site">' + post(x, h, 4.5) +
+        '<path d="M' + (x - 5) + ',' + (GY - h + 1) + ' l5,-10 l5,10 z"/></g>' +
+      '<path class="hrcs-wall-2" d="M' + (x + 2) + ',' + y + ' L' + (x + 58) + ',' + (y + 6) +
+        ' L' + (x + 42) + ',' + (y + 13) + ' L' + (x + 58) + ',' + (y + 20) +
+        ' L' + (x + 2) + ',' + (y + 26) + ' Z"/>';
+  }
+
+  /* Putlog scaffolding with a lifting gin on top and a block on the rope.
+     Nothing states "this wall is going up" as plainly as stone in mid-air. */
+  function scaffold(x, w, h) {
+    var s = '<g class="hrcs-frame">' +
+      '<path d="M' + x + ',' + GY + ' V' + (GY - h) + '"/>' +
+      '<path d="M' + (x + w) + ',' + GY + ' V' + (GY - h) + '"/>';
+    for (var i = 1; i <= 3; i++) {
+      var ly = GY - Math.round(h * i / 3);
+      s += '<path d="M' + (x - 7) + ',' + ly + ' H' + (x + w + 7) + '"/>';
+    }
+    s += '<path d="M' + x + ',' + GY + ' L' + (x + w) + ',' + (GY - Math.round(h * 0.66)) + '"/>';
+    // the gin: an A-frame, a rope, and a dressed block hanging off it
+    s += '<path d="M' + (x + 5) + ',' + (GY - h) + ' L' + (x + w / 2) + ',' + (GY - h - 42) +
+      ' L' + (x + w - 5) + ',' + (GY - h) + '"/>' +
+      '<path d="M' + (x + w / 2) + ',' + (GY - h - 40) + ' V' + (GY - h + 26) + '"/></g>' +
+      '<g class="hrcs-wall"><rect x="' + (x + w / 2 - 12) + '" y="' + (GY - h + 26) + '" width="24" height="15"/></g>' +
+      '<path class="hrcs-rim2" d="M' + (x + w / 2 - 12) + ',' + (GY - h + 26) + ' h24"/>';
+  }
+
+  /* The yard. It lives OUTSIDE every clickable group on purpose: a tool cart is
+     not a door, and a hover halo that lit up because the pointer crossed a
+     wheelbarrow would teach the player the wrong thing about this picture. */
+  function siteWorks(tier) {
+    if (tier > 2) return '';
+    // Kept out of the left third: that is where the hold's name stands on its
+    // scrim, and a lamp behind a wordmark is a lamp nobody sees.
+    var out = toolCart(566) + stoneStack(662) + stoneStack(878) + leanTo(1124);
+    if (tier === 2) out += scaffold(958, 76, 76);
+    return out;
+  }
+
   /* ── THE DEFENCES ─────────────────────────────────────────────────────────
-     A Wayside Camp has none — it is a muddy clearing with two tents and a fire,
-     and that is the honest picture of a clan on its first day. Then stakes,
-     then carpentry, then masonry. */
+     One rectangle, five states of completion.
+
+       1  the ground is set out and the first footings are in — batter boards at
+          both corners, cord strung along the run, one course laid where the
+          masons have got to, an open trench where they have not, and bare
+          stakes where they have only measured. A banner on the gate line.
+       2  the plinth is complete and a boarded wall is rising on it, unevenly,
+          with a scaffold and a lifting gin at the far end.
+       3  that wall finished: full height, roofed corner towers, a gate leaf —
+          timber over the tier-1 stone, which is exactly how a real hold got
+          defensible before it got rich.
+       4  the timber is replaced in coursed masonry, crenellated, with the
+          gatehouse standing on the gate line the banner marked at tier 1.
+       5  the same, thickened outward, wearing its trophies.
+
+     Tiers 1-4 share WALL_L/WALL_R/GATE_L/GATE_R to the unit. That is not tidy
+     bookkeeping — it is the entire reason tier 1 promises a castle. */
+  /* THE LADDER, in one place so it can be read as a ladder. Wall crest, corner
+     tower and gate, per tier, in viewBox units above the ground line. Nothing
+     in this list may go down as the tier goes up — that is the whole contract
+     the picture makes with the player. */
+  //                     t1   t2   t3   t4/5
+  //   wall crest        22   42   54    62 (+13 of merlon)
+  //   corner            38   54   76    96
+  //   gate              44   60   —     86
   function defences(tier) {
+    var pad = TOWER_W;                             // the corner pads, both ends
     if (tier <= 1) {
-      return '<g class="hrcs-wall">' +
-          '<path d="M700,' + GY + ' L742,' + (GY - 60) + ' L784,' + GY + ' Z"/>' +
-          '<path d="M812,' + GY + ' L842,' + (GY - 44) + ' L872,' + GY + ' Z"/>' +
-          '<path d="M740,' + (GY - 60) + ' l-3,-15 l15,6 l-12,4 z"/>' +
-        '</g>' +
-        '<path class="hrcs-lit" d="M726,' + GY + ' L742,' + (GY - 34) + ' L758,' + GY + ' Z"/>' +
-        '<ellipse class="hrcs-glow" cx="896" cy="' + (GY - 8) + '" rx="70" ry="34"/>' +
-        '<path class="hrcs-lit" d="M886,' + GY + ' q4,-20 11,-6 q5,-20 10,3 q7,-11 4,3 z"/>' +
-        smoke(897, GY - 24);
+      // The boards straddle the corner pads and stand clear above them — set
+      // level with the pad tops they were invisible, which is the same lesson
+      // the terrace taught: at the ground, only height reads.
+      return castlePlan(tier) +
+        batterBoard(TOWER_L - 10, pad + 20, 52) + batterBoard(TOWER_R + 2, pad + 4, 52) +
+        // the corner pads go in first and go in deepest — two courses
+        footing(TOWER_L, pad, 38, 19) + footing(TOWER_R, pad, 38, 19) +
+        // laid → dug → the gate → laid → merely measured, left to right
+        footing(WALL_L, 700 - WALL_L, 22) +
+        trench(700, GATE_L - 700) +
+        footing(GATE_R, 940 - GATE_R, 22) +
+        stakeRun(946, WALL_R, 20) +
+        // the gate piers, begun, with the pole planted between them and a
+        // cresset burning beside it — the one warm light in the middle third
+        footing(GATE_L + 8, 26, 44, 22) + footing(GATE_R - 34, 26, 44, 22) +
+        cresset(742, 62) +
+        claimPole(800, 118);
     }
     if (tier === 2) {
-      var s = '<g class="hrcs-pale">';
-      for (var x = 560; x <= 1060; x += 15) {
-        if (x > 770 && x < 830) continue;                 // the gate
-        s += '<path d="M' + x + ',' + GY + ' V' + (GY - 46) + '"/>';
-      }
-      s += '</g><g class="hrcs-wall">' +
-        '<rect x="556" y="' + (GY - 52) + '" width="10" height="52"/>' +
-        '<rect x="1054" y="' + (GY - 52) + '" width="10" height="52"/>' +
-        '<rect x="762" y="' + (GY - 62) + '" width="76" height="14"/></g>';
+      // The plinth: the tier-1 footing carried all the way round and brought up
+      // to a level course. Everything above it is carpentry.
+      var pl = 26, top = GY - pl;
+      var s = castlePlan(tier) +
+        footing(TOWER_L, pad, 54, 18) + footing(TOWER_R, pad, 54, 18) +
+        footing(WALL_L, GATE_L - WALL_L, pl, 13) + footing(GATE_R, WALL_R - GATE_R, pl, 13);
+      // Four runs in four STATES, not four heights. Four heights of the same
+      // mark reads as a wall that was built badly. A clad run, a bare run with
+      // the next course landed on it waiting to be set, another clad run, and a
+      // run that is standarded but not yet clad — that reads as a wall being
+      // built, and the eye can follow the masons from left to right.
+      var tb = 24;
+      var runs = [[WALL_L, 664, 'clad'], [664, GATE_L, 'bare'],
+                  [GATE_R, 944, 'clad'], [944, WALL_R, 'framed']];
+      runs.forEach(function (r) {
+        var w = r[1] - r[0];
+        if (r[2] === 'clad') {
+          s += '<g class="hrcs-wall"><rect x="' + r[0] + '" y="' + (top - tb) + '" width="' + w + '" height="' + tb + '"/></g>' +
+            staves(r[0], top - tb, w, tb, 12) +
+            '<path class="hrcs-arris" d="M' + r[0] + ',' + (top - tb) + ' H' + r[1] + '"/>';
+        } else if (r[2] === 'bare') {
+          s += '<g class="hrcs-wall"><rect x="' + (r[0] + 14) + '" y="' + (top - 11) + '" width="' + (w - 46) + '" height="11"/></g>' +
+            '<path class="hrcs-arris" d="M' + (r[0] + 14) + ',' + (top - 11) + ' H' + (r[1] - 32) + '"/>';
+        } else {
+          // standarded and not yet clad: posts, one rail, and sky between them
+          s += '<g class="hrcs-frame"><path d="M' + (r[0] + 8) + ',' + top + ' V' + (top - tb - 6) + '"/>' +
+            '<path d="M' + ((r[0] + r[1]) / 2) + ',' + top + ' V' + (top - tb - 6) + '"/>' +
+            '<path d="M' + (r[1] - 8) + ',' + top + ' V' + (top - tb - 6) + '"/>' +
+            '<path d="M' + r[0] + ',' + (top - tb - 3) + ' H' + r[1] + '"/></g>';
+        }
+      });
+      // the gateway: two stone piers framing the hall, and a timber lintel
+      s += footing(GATE_L, 22, 60, 15) + footing(GATE_R - 22, 22, 60, 15) +
+        '<g class="hrcs-site"><rect x="' + (GATE_L - 7) + '" y="' + (GY - 71) + '" width="' + (GATE_R - GATE_L + 14) + '" height="11"/></g>' +
+        cresset(722, 64);
       return s;
     }
     if (tier === 3) {
-      return '<g class="hrcs-wall">' +
-          '<rect x="540" y="' + (GY - 54) + '" width="540" height="54"/>' +
-          '<rect x="536" y="' + (GY - 76) + '" width="24" height="76"/>' +
-          '<rect x="1060" y="' + (GY - 76) + '" width="24" height="76"/>' +
-          '<path d="M528,' + (GY - 76) + ' L548,' + (GY - 96) + ' L568,' + (GY - 76) + ' Z"/>' +
-          '<path d="M1052,' + (GY - 76) + ' L1072,' + (GY - 96) + ' L1092,' + (GY - 76) + ' Z"/>' +
-          '<rect x="772" y="' + (GY - 40) + '" width="56" height="40"/></g>' +
-        planks(540, GY - 54, 540, 54, 13) +
-        '<path class="hrcs-rim2" d="M540,' + (GY - 54) + ' H1080"/>';
+      // The timber wall the last two tiers were laying the stone for. Its
+      // silhouette is unchanged from b223 — crest 54, towers 76, roofs 96 — but
+      // it now stands on the footing course tier 1 set out, on tier 4's lines.
+      var base = 18;
+      return footing(WALL_L, WALL_R - WALL_L, base, 18) +
+        '<g class="hrcs-wall">' +
+          '<rect x="' + WALL_L + '" y="' + (GY - 54) + '" width="' + (WALL_R - WALL_L) + '" height="' + (54 - base) + '"/>' +
+          '<rect x="510" y="' + (GY - 76) + '" width="28" height="76"/>' +
+          '<rect x="1062" y="' + (GY - 76) + '" width="28" height="76"/>' +
+          '<path d="M498,' + (GY - 76) + ' L524,' + (GY - 96) + ' L550,' + (GY - 76) + ' Z"/>' +
+          '<path d="M1050,' + (GY - 76) + ' L1076,' + (GY - 96) + ' L1102,' + (GY - 76) + ' Z"/>' +
+          '<rect x="772" y="' + (GY - 42) + '" width="56" height="42"/></g>' +
+        planks(WALL_L, GY - 54, WALL_R - WALL_L, 54 - base, 12) +
+        courses(510, GY - 18, 28, 18, 18, 22) + courses(1062, GY - 18, 28, 18, 18, 22) +
+        staves(772, GY - 42, 56, 42, 11) +
+        '<path class="hrcs-rim2" d="M' + WALL_L + ',' + (GY - 54) + ' H' + WALL_R + '"/>';
     }
     // Masonry: crenellated curtain wall, corner towers, a gatehouse — all coursed.
-    var lo = tier >= 5 ? 500 : 516;
-    var hi = tier >= 5 ? 1100 : 1084;
+    var lo = tier >= 5 ? TOWER_L : WALL_L;
+    var hi = tier >= 5 ? WALL_R + 16 : WALL_R;
     var out = '<g class="hrcs-wall">' +
         crenel(lo, GY - 62, hi - lo, 62, 13) +
         crenel(lo - 16, GY - 96, 48, 96, 14) +
@@ -974,8 +1258,11 @@
       var m = MARKS[id], b = buildingDef(id);
       wings += clickable(id, (b && b.name) || id, m.box, m.draw(st(id)));
     });
+    // The hall's door. At tier 1 there is no hall yet, so the door is the thing
+    // that stands for it: the gate piers and the banner planted between them —
+    // the exact ground the gatehouse occupies from tier 4 on.
     var hallBox = tier >= 4 ? [736, GY - 266, 128, 266] : tier >= 3 ? [736, GY - 190, 128, 190]
-      : tier >= 2 ? [744, GY - 144, 112, 144] : [694, GY - 66, 186, 66];
+      : tier >= 2 ? [744, GY - 144, 112, 144] : [GATE_L - 6, GY - 128, GATE_R - GATE_L + 12, 128];
     return '<svg class="hrcs-svg" viewBox="0 0 1600 300" preserveAspectRatio="xMidYMax slice" focusable="false">' +
       '<defs>' +
         '<linearGradient id="hrcsSky" x1="0" y1="0" x2="0" y2="1">' +
@@ -999,6 +1286,8 @@
       '<rect x="0" y="152" width="1600" height="88" fill="url(#hrcsHaze)"/>' +
       pineRow([70, 112, 158, 1470, 1516, 1560], 198, .7) +
       '<path class="hrcs-ridge-mid" d="M0,216 Q300,192 640,214 T1240,210 T1600,200 V300 H0 Z"/>' +
+      terrace() +
+      siteWorks(tier) +
       wings +
       clickable('great_hall', 'The Great Hall', hallBox, greatHallMark(tier, dorm) + defences(tier)) +
       '<path class="hrcs-ridge-near" d="M0,' + (GY + 6) + ' Q340,' + (GY - 10) + ' 700,' + (GY + 5) +

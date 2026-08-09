@@ -7134,6 +7134,145 @@ const TESTS = [
     }
   }),
 
+  // b227 · THE DOOR STRIP CONTAINS ITS OWN TEXT.
+  // The strip bleeds past the card body with a negative margin so its mortar
+  // reaches the frame, and `#clan-panel` hides its overflow. Those two facts
+  // met at the first cell: its 10px inset landed "The Great Hall" and "TIER 1"
+  // two pixels OUTSIDE the clipping box, and the b225 type floor (12.5 → 13.5)
+  // made the shave visible enough to be reported as a bug. This is the rect
+  // containment test the bounty board's notices already get: measured ink
+  // against a real clipping box, not eyeballed.
+  () => tryRun('b227: no door-strip label is clipped by the panel that bleeds it', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const prevTab = window.activeTab;
+    assert(UI, 'HearthriseClanSeatUI missing');
+    try {
+      window.showTab('clan');
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Emberfall Watch', level: 1, treasury: 1, myRole: 'leader' });
+      const problems = [];
+      [1, 3, 5].forEach((tier) => {
+        UI._setSeat({ castle_tier: tier, standing: 1000 * tier, treasury: 1, upkeep_state: 'active',
+                      upgrades: tier >= 3 ? { tavern: tier, sawmill: 2, treasury: 2 } : {},
+                      stores: {}, orders: [], members: 3, member_cap: 10 }, 'test-hold');
+        UI.render(document.getElementById('clan-panel'));
+        const strip = document.querySelector('#panel-clan .hr-cs-doors');
+        assert(strip, 'tier ' + tier + ' rendered no door strip');
+        const cells = strip.querySelectorAll('.hr-cs-door');
+        assert(cells.length === 6, 'tier ' + tier + ' posted ' + cells.length + ' doors, not 6');
+        // Every ancestor that hides its overflow is a box the ink must sit in.
+        const clips = [];
+        for (let a = strip; a && a !== document.body; a = a.parentElement) {
+          const cs = getComputedStyle(a);
+          if (cs.overflowX === 'hidden' || cs.overflowX === 'clip' ||
+              cs.overflowY === 'hidden' || cs.overflowY === 'clip') clips.push(a);
+        }
+        cells.forEach((cell, i) => {
+          const cr = cell.getBoundingClientRect();
+          if (cr.height < 46) problems.push('t' + tier + ' cell ' + i + ' is only ' + Math.round(cr.height) + 'px tall');
+          cell.querySelectorAll('.hr-cs-door-nm, .hr-cs-door-lv').forEach((label) => {
+            const rg = document.createRange();
+            rg.selectNodeContents(label);
+            const ink = rg.getBoundingClientRect();
+            if (!ink.height) return;
+            // the label's own box first — `overflow:hidden` for the ellipsis
+            // makes it exactly one line box tall, so tight leading shears it
+            const lr = label.getBoundingClientRect();
+            if (ink.top < lr.top - 0.6 || ink.bottom > lr.bottom + 0.6) {
+              problems.push('t' + tier + ' "' + label.textContent + '" ink escapes its own line box — leading is tighter than the face');
+            }
+            clips.forEach((a) => {
+              const b = a.getBoundingClientRect(), cs = getComputedStyle(a);
+              const l = b.left + parseFloat(cs.borderLeftWidth);
+              const r = b.right - parseFloat(cs.borderRightWidth);
+              const t = b.top + parseFloat(cs.borderTopWidth);
+              const bo = b.bottom - parseFloat(cs.borderBottomWidth);
+              const scrolls = a.scrollHeight > a.clientHeight + 1 &&
+                (cs.overflowY === 'auto' || cs.overflowY === 'scroll');
+              if (ink.left < l - 0.6 || ink.right > r + 0.6) {
+                problems.push('t' + tier + ' "' + label.textContent + '" is cut sideways by ' +
+                  (a.id || a.className) + ' (ink ' + Math.round(ink.left) + '–' + Math.round(ink.right) +
+                  ' vs ' + Math.round(l) + '–' + Math.round(r) + ')');
+              }
+              if (!scrolls && (ink.top < t - 0.6 || ink.bottom > bo + 0.6)) {
+                problems.push('t' + tier + ' "' + label.textContent + '" is cut top/bottom by ' + (a.id || a.className));
+              }
+            });
+            // and it must not have been ellipsised away
+            if (label.scrollWidth - label.clientWidth > 1) {
+              problems.push('t' + tier + ' "' + label.textContent + '" is truncated by ' +
+                Math.round(label.scrollWidth - label.clientWidth) + 'px');
+            }
+          });
+        });
+      });
+      assert(problems.length === 0, problems.slice(0, 4).join(' | '));
+    } finally {
+      UI._reset();
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  // b227 · THE FOOTPRINT IS THE PROGRESSION.
+  // Tier 1 used to be a camp — tents and a fire, the homestead's vocabulary on
+  // the clan's shared castle. It is now the same castle's foundation, and the
+  // thing that makes that true rather than merely claimed is that tier 1 sets
+  // out the EXACT rectangle tier 4 builds on. If someone moves one of them,
+  // the promise breaks silently: the picture still looks fine, it just stops
+  // being the same castle. This guard holds the two ends of that together.
+  () => tryRun('b227: every tier draws the castle on one footprint, and the ladder only goes up', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const host = document.createElement('div');
+    // getBBox() is a LAYOUT query: on a detached node every box is 0x0 and this
+    // guard passes vacuously. It has to be in the render tree.
+    host.style.cssText = 'position:fixed;left:-4000px;top:0;width:1200px';
+    document.body.appendChild(host);
+    try {
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 1, myRole: 'leader' });
+      const crest = [];
+      [1, 2, 3, 4, 5].forEach((tier) => {
+        UI._setSeat({ castle_tier: tier, standing: 1, treasury: 1, upkeep_state: 'active',
+                      upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+        UI.render(host);
+        const svg = host.querySelector('.hrcs-svg');
+        assert(svg, 'tier ' + tier + ' drew no scene');
+        // The Great Hall group holds the tier's defences. Its own drawn extent
+        // (hitbox and halo excluded — those are affordances, not the castle)
+        // is the wall the tier has.
+        const hall = svg.querySelector('[data-b="great_hall"]');
+        assert(hall, 'tier ' + tier + ' has no Great Hall door in the picture');
+        let lo = Infinity, hi = -Infinity, hiTop = Infinity;
+        hall.querySelectorAll('rect, path').forEach((n) => {
+          if (n.classList.contains('hrcs-hitbox') || n.classList.contains('hrcs-halo')) return;
+          if (n.closest('.hrcs-plan')) return;                 // the plan is a drawing, not stone
+          const b = n.getBBox ? n.getBBox() : null;
+          if (!b || !b.width) return;
+          lo = Math.min(lo, b.x); hi = Math.max(hi, b.x + b.width);
+          hiTop = Math.min(hiTop, b.y);
+        });
+        assert(lo <= 512 && hi >= 1088,
+          'tier ' + tier + ' spans ' + Math.round(lo) + '–' + Math.round(hi) +
+          ', not the shared 500–1100 footprint — the tiers are drifting apart');
+        crest.push(hiTop);
+      });
+      // Nothing in the hold may get shorter as the hold rises.
+      for (let i = 1; i < crest.length; i++) {
+        assert(crest[i] <= crest[i - 1] + 0.5,
+          'tier ' + (i + 1) + ' is SHORTER than tier ' + i + ' (crest ' +
+          Math.round(crest[i]) + ' vs ' + Math.round(crest[i - 1]) + ')');
+      }
+      // And tier 1 must promise the castle rather than pitch a camp.
+      UI._setSeat({ castle_tier: 1, standing: 1, treasury: 1, upkeep_state: 'active',
+                    upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+      UI.render(host);
+      assert(host.querySelector('.hrcs-plan'),
+        'tier 1 draws no castle plan over its foundation — nothing tells the player what is being built');
+      assert(host.querySelector('.hrcs-terrace'),
+        'the hold stands on no levelled ground — at these tokens the foundation is invisible without it');
+    } finally { UI._reset(); host.remove(); }
+  }),
+
   // b223 P1: the three b215 endgame crops (farming 62/75/88) were absent from
   // every plot-tier unlock list, so `canPlantCrop()` hard-refused them even at
   // MAX plot level — farming's last 37 levels had nothing new to plant, and

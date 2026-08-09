@@ -147,6 +147,90 @@ async function migrationGuard() {
   return problems;
 }
 
+// ── The landscape guard (b260) ───────────────────────────────────────────────
+// Landscape is now the ONLY mobile orientation (portrait is gated, b259). The
+// in-page suite runs at desktop width, so it never sees the cramped landscape
+// phone layout where every mobile bug this program chased actually lived
+// (topbar overlap, rail, toasts, cards spilling). This pass boots the game at a
+// landscape-PHONE viewport with a representative FILLED save and asserts no
+// screen scrolls sideways — the "everything overflows / must scroll sideways"
+// report that kicked off the whole mobile effort. Horizontal overflow only: a
+// vertical scroll is legitimate, a horizontal one is a broken layout.
+async function landscapeGuard(browser, url) {
+  const TABS = ['home','profile','character','combat','skills','farming','house',
+    'social','clan','shop','market','bounty','stable','events','dungeons','inventory'];
+  const ctx = await browser.newContext({
+    viewport: { width: 820, height: 360 },
+    hasTouch: true, isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  const problems = [];
+  try {
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.waitForFunction(() => typeof window.G !== 'undefined', { timeout: 60_000 });
+    await page.waitForTimeout(4_000);
+
+    // Seed a representative filled save so panels render real content, not empty
+    // states (empty screens never overflow — a full inventory grid does).
+    await page.evaluate(() => {
+      const G = window.G; if (!G) return;
+      try {
+        const itemIds = Object.keys(window.ITEMS || {});
+        itemIds.slice(0, 80).forEach((id, i) => { G.inventory[id] = (i % 9) + 1; });
+        Object.keys(window.SKILLS_DEF || {}).forEach((s) => { G.skills[s] = 200000; });
+        G.gold = 12345678; G.gems = 137;
+        G.activeMonster = 'goblin'; G.monsterHp = 15; G.monsterMaxHp = 15;
+        G.playerHp = 90; G.playerMaxHp = 99;
+        if (typeof window.refreshAll === 'function') window.refreshAll();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(500);
+
+    // The portrait gate must NOT be showing in landscape.
+    const gateShown = await page.evaluate(() => {
+      const g = document.getElementById('hr-rotate-gate');
+      return g ? getComputedStyle(g).display !== 'none' : false;
+    });
+    if (gateShown) problems.push('the portrait gate is visible in LANDSCAPE (should be hidden)');
+
+    for (const tab of TABS) {
+      const res = await page.evaluate(async (t) => {
+        try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {}
+        await new Promise((r) => setTimeout(r, 180));
+        const vw = document.documentElement.clientWidth;
+        // getBoundingClientRect reports an element's TRUE position even when an
+        // overflow:hidden ancestor visually clips it — so this catches content
+        // that spills off the right edge whether the page scrolls sideways OR
+        // the app clips it (and the player just loses the cut-off part).
+        let worst = 0, offender = '';
+        document.querySelectorAll('.panel.active, .panel.active *').forEach((el) => {
+          const cs = getComputedStyle(el);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return;
+          if (cs.position === 'fixed') return;               // fixed chrome (rail) sits by design
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 || r.height <= 0) return;
+          const past = r.right - vw;
+          if (past > worst) {
+            worst = past;
+            offender = el.tagName + (el.id ? '#' + el.id : '') +
+              (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '');
+          }
+        });
+        return { over: Math.round(worst), offender };
+      }, tab);
+      if (res.over > 8) {
+        problems.push(`${tab}: content spills ${res.over}px past the right edge — widest: ${res.offender}`);
+      }
+    }
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 const run = async () => {
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
@@ -191,6 +275,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Migration guard — every migration ends on a SQL terminator, no tool artifacts.');
+    }
+
+    const landProblems = await landscapeGuard(browser, url);
+    if (landProblems.length) {
+      console.log('\nLandscape guard (820×360 phone) — FAILED:');
+      for (const p of landProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Landscape guard — every screen fits a landscape phone, no sideways scroll.');
     }
 
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });

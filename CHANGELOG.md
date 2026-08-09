@@ -24,6 +24,14 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 - ⚙️ Your activity now re-times itself as bonuses come and go, so a new axe or a fresh blessing is felt on the very next swing instead of after a restart.
 - 🧪 337 tests green.
 
+## v0.9.2-beta build 229 — 2026-08-09 (One character screen, and your heroes on the hearth)
+
+- 🧬 **Character and Skills are one screen now.** Open Character and you land on a proper skills grid — every skill with its level and progress, and clicking one takes you straight to where you train it. Equipment (your full doll) and Hero are a tab away.
+- 📊 **Hero tab tells your story.** Combat level, total level, total XP, quests, bounties, collections, your renown rank — the whole account at a glance. And Time Played, which the game now actually tracks (click to reveal).
+- 🧙 **Your heroes live on Home.** Switch between characters right from the home screen. (The old placeholder that couldn't actually switch is gone.)
+- 🏰 A House room's level badge is readable again (it was gold-on-gold).
+- 🧪 435 tests green.
+
 ## v0.9.2-beta build 228 — 2026-08-09 (Your homestead, your hold, and honest numbers)
 
 - 🏡 **The House is a place you build.** Every room — Kitchen, Forge, Workshop and the rest — shows whether you own it, its level, and exactly what the next upgrade costs in plain words ("700 Gold · 15 Normal Log"). Click a room to step inside its own panel. (Two real bugs died here: you could "build the forge" over and over with no feedback, and the Workshop needed planks that needed the Workshop — a dead end for new players.)

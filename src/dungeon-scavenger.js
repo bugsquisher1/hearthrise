@@ -39,7 +39,7 @@
       timeBudgetS: 360,           // 6 min total budget
       bossHp: 1000,
       bossDps: 18,                // boss damage per second
-      bossName: 'The Bone Lord',
+      bossName: 'The Marrow King',   /* Wave 2: match DUNGEONS[crypt_of_bones].boss.name (b268 rename); was 'The Bone Lord' — the card and the fight named two different bosses */
       bossIcon: '💀',
       rooms: [
         {

@@ -1373,6 +1373,13 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   maxHit = Math.max(1, Math.floor(maxHit - (defScore * 0.03)));
   maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
   maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
+  /* Wave 2 (audit fix): the `damage` food buff had ZERO engine readers — Cooked
+     Shark / Swordfish Steak / Bear Claw Pie showed "+N% Damage" counting down
+     while maxHit ignored it entirely. It maps to getBonus('damage') (BUFFS_DEF,
+     isPercent) exactly like the defence buff that getMonsterCombatRolls already
+     reads. Apply it as a % boost to max hit so the flagship combat foods are honest. */
+  const dmgBuff = (typeof getBonus==='function') ? (getBonus('damage')||0) : 0;
+  if(dmgBuff) maxHit = Math.max(1, Math.floor(maxHit * (1 + dmgBuff)));
   /* b235: crit chance = gear critB + the damage_crit food buff, clamped. Read
      here so every caller (the live tick AND the stats panel) sees one number. */
   const critBuff = (typeof getBonus==='function') ? (getBonus('crit')||0) : 0;
@@ -4132,9 +4139,22 @@ function upgradeRoom(id){
      b227: …and gates the upper rungs of rooms you already own. */
   const gate=roomRungGate(id,lv+1);
   if(!gate.ok){notify(gate.reason,'kill');return false;}
+  /* Wave 2 (audit P0 fix): housing blueprints were INERT — upgradeRoom never
+     consumed them, so the single most common dungeon reward did nothing. Every
+     blueprint item declares `unlocks:'<room>.<tier>'`; if a blueprint exists for
+     the tier being built, it is now REQUIRED and consumed. Blueprints gate room
+     tiers 2-3 only (never the initial build / skill unlock), so this deepens the
+     dungeon→homestead loop without deadlocking core progression. */
+  let _bpId=null; const _unlockKey=id+'.'+(lv+1);
+  for(const _iid in ITEMS){ if(ITEMS[_iid] && ITEMS[_iid].unlocks===_unlockKey){ _bpId=_iid; break; } }
+  if(_bpId && (G.inventory[_bpId]||0) < 1){
+    notify('Requires a '+((ITEMS[_bpId]&&ITEMS[_bpId].n)||_bpId)+' — they drop from dungeons.','kill');
+    return false;
+  }
   const missing=describeMissingCost(nx.cost);
   if(missing){notify('Missing: '+missing,'kill');return false;}
   for(const [k,v] of Object.entries(nx.cost)){if(k==='gold')G.gold-=v;else removeItem(k,v);}
+  if(_bpId) removeItem(_bpId,1);
   G.rooms[id]=lv+1;G.stats.roomsBuilt=(G.stats.roomsBuilt||0)+1;
   /* "upgraded" was the word for a first BUILD too, which is the one moment the
      player most wants told plainly that the room is now theirs. */
@@ -6989,27 +7009,37 @@ console.log('Activity bar: loaded');
   // uses (best-effort — fallback to coarse approximation if engine helpers
   // aren't exposed).
   function estimateCombat(m){
-    var atkLv = (typeof getLevel === 'function') ? getLevel('attack') : 1;
-    var strLv = (typeof getLevel === 'function') ? getLevel('strength') : 1;
-    var defLv = (typeof getLevel === 'function') ? getLevel('defense') : 1;
-    var hpLv  = (typeof getLevel === 'function') ? getLevel('hitpoints') : 1;
-    var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {atk:0, str:0, def:0};
-    var weakness = m.weaponWeak || null;
-    var weaponType = (typeof window.getEquippedWeaponType === 'function') ? window.getEquippedWeaponType() : 'sword';
-    var weaknessBonus = (weakness && weaponType === weakness) ? 1.20 : 1.0;
-    var maxHit = Math.max(1, Math.floor((strLv + (eq.str||0)) * 0.18 * weaknessBonus + 1));
-    var minHit = Math.max(1, Math.floor(maxHit * 0.3));
-    var hitChance = Math.min(0.95, Math.max(0.20, ((atkLv + (eq.atk||0)) - (m.def||0)) / Math.max(1, (atkLv + (eq.atk||0)) + (m.def||0)) + 0.55));
-    var avgDmg = ((minHit + maxHit) / 2) * hitChance;
-    var tickMs = (typeof window.COMBAT_BALANCE === 'object' && window.COMBAT_BALANCE.tickMs) ? window.COMBAT_BALANCE.tickMs : 2400;
+    /* Wave 1 (audit fix): the preview MUST use the same engine the fight uses,
+       or every number it shows before a fight is fiction. Route through
+       getPlayerCombatRolls (the real accuracy/maxHit/crit) and combatTickMs (the
+       real attack speed) instead of a second, divergent formula. Damage per swing
+       matches the engine's `Math.random()<accuracy ? rand(1,maxHit) : 0`, with the
+       1.5× crit factored in at its rolled chance. */
+    var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {};
+    var pr = (typeof getPlayerCombatRolls === 'function') ? getPlayerCombatRolls(m, eq) : null;
+    var CB = (typeof window.COMBAT_BALANCE === 'object') ? window.COMBAT_BALANCE : {tickMs:2400, critMult:1.5};
+    var maxHit, accuracy, critChance, weaknessBonus;
+    if(pr){
+      maxHit = pr.maxHit; accuracy = pr.accuracy; critChance = pr.critChance || 0;
+      weaknessBonus = (pr.weak && pr.weak.matched) ? (WEAKNESS_BONUS ? WEAKNESS_BONUS.damage : 1.2) : 1.0;
+    } else {
+      // Defensive fallback only if the engine helper is somehow unavailable.
+      var strLv = (typeof getLevel === 'function') ? getLevel('strength') : 1;
+      maxHit = Math.max(1, Math.floor(strLv*0.35 + 2)); accuracy = 0.75; critChance = 0; weaknessBonus = 1.0;
+    }
+    var minHit = 1;                                   // engine rolls rand(1, maxHit)
+    var meanHit = (1 + maxHit) / 2;                   // uniform mean
+    var critMult = CB.critMult || 1.5;
+    var avgDmg = accuracy * meanHit * (1 + critChance * (critMult - 1));
+    var tickMs = (typeof combatTickMs === 'function') ? combatTickMs() : (CB.tickMs || 2400);
     var dps = avgDmg * (1000 / tickMs);
-    var killTimeS = m.hp / dps;
+    var killTimeS = m.hp / Math.max(0.01, dps);
     var killsHr = 3600 / killTimeS;
     var xpHr = killsHr * (m.xp || 0);
     var goldHr = killsHr * (((m.gp && m.gp[0])||0) + ((m.gp && m.gp[1])||0))/2;
     return {
       minHit: minHit, maxHit: maxHit,
-      hitChance: hitChance,
+      hitChance: accuracy, critChance: critChance,
       dps: dps, killTimeS: killTimeS,
       killsHr: killsHr, xpHr: xpHr, goldHr: goldHr,
       weaknessBonus: weaknessBonus,
@@ -7030,12 +7060,27 @@ console.log('Activity bar: loaded');
     var icon = item && item.icon ? item.icon : '📦';
     var iconPath = window._itemPath && window._itemPath[id];
     var iconHtml = iconPath ? '<img src="'+iconPath+'" />' : '<span>'+icon+'</span>';
-    var chance = (typeof d === 'object' && d.chance) ? Math.round(d.chance*100)+'%' : 'common';
-    var qty = (typeof d === 'object' && d.qty) ? d.qty.join('-') : '1';
+    /* Wave 1 (audit fix): monster drops carry `ch` (0..1) and no `qty`. The old
+       code read `d.chance`/`d.qty`, which monster rows never have, so EVERY drop
+       rendered as "1× common" — the rarity structure was invisible at the exact
+       moment the player decides what to farm. Read the real chance, show a real
+       percentage, and band it so rares read as rare. */
+    var ch = (typeof d === 'object')
+      ? (typeof d.ch === 'number' ? d.ch : (typeof d.chance === 'number' ? d.chance : null))
+      : null;
+    var chanceStr, band = 'mp-common';
+    if(ch == null){ chanceStr = '—'; band = ''; }
+    else if(ch >= 1){ chanceStr = 'Always'; band = 'mp-always'; }
+    else {
+      var pct = ch * 100;
+      chanceStr = (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + '%';
+      band = ch <= 0.02 ? 'mp-rare' : (ch <= 0.15 ? 'mp-uncommon' : 'mp-common');
+    }
+    var qtyStr = (typeof d === 'object' && d.qty) ? (d.qty[0] === d.qty[1] ? d.qty[0] : d.qty.join('-')) + '× · ' : '';
     return '<div class="mp-loot-row">'+
       '<div class="mp-loot-icon">'+iconHtml+'</div>'+
       '<div class="mp-loot-name">'+name+'</div>'+
-      '<div class="mp-loot-meta">'+qty+'× · '+chance+'</div>'+
+      '<div class="mp-loot-meta '+band+'">'+qtyStr+chanceStr+'</div>'+
     '</div>';
   }
 
@@ -7149,6 +7194,10 @@ console.log('Activity bar: loaded');
     ov.classList.add('open');
   }
   window.openMobPreview = renderPreview;
+  /* Wave 1: test seams so the smoke suite can assert the preview reads the real
+     engine (forecast) and the real drop chances (loot rows). */
+  window.__estimateCombat = estimateCombat;
+  window.__lootRowHtml = lootRowHtml;
 
   // ── Wire monster row clicks to open the preview instead of starting
   //    combat directly. Walks .monster-row in #panel-combat after every
@@ -11251,9 +11300,16 @@ function tileForGather(action, skillId){
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
   /* b226: the tile is a price tag — it must state the PACED duration, tool
      speed included, because that is what startSkill() will actually set. */
-  var toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
+  var bestT = (window.HearthriseTools && window.HearthriseTools.bestTool) ? window.HearthriseTools.bestTool(skillId) : null;
+  var toolSpeed = (bestT && bestT.toolSpeed) ? bestT.toolSpeed : 0;
   var speed = ((typeof getBonus==='function') ? getBonus('gatherSpeed') : 0) + toolSpeed;
   var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp(speed)));
+  /* Wave 1 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
+     tool DID apply, but nothing on screen said so — the rod read as inert. Name the
+     active tool and its bonus on the tile so the effect is legible. */
+  var toolLine = (bestT && toolSpeed > 0)
+    ? '<div class="at-tool">'+(bestT.n||'Tool')+' <b>+'+Math.round(toolSpeed*100)+'% speed</b></div>'
+    : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
@@ -11273,6 +11329,7 @@ function tileForGather(action, skillId){
     +'<div class="at-icon">'+actIconHtml(action.prod, action.icon)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)))+' XP · '+fmtSec(ms)+'</div>'
+    +(unlocked ? toolLine : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
     +(active ? '<span class="at-stop">Active</span>' : '')
@@ -11281,21 +11338,61 @@ function tileForGather(action, skillId){
 }
 
 /* ── Build an artisan tile ── */
+/* Wave 1 (audit fix, Tyler: "the only tool I can craft is a fishing rod"):
+   handle a click on a GATED artisan tile — say exactly why it's locked and, for
+   a missing workbench, route the player to the House to go build it. The old tile
+   only checked level, rendered fully enabled without the Forge, and failed on
+   click with a toast that flashed away — reading as a broken button. */
+window.hrArtisanGateClick = function(skillId, recipeId){
+  var recipes = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[skillId];
+  var r = recipes && recipes.find(function(x){ return x.id === recipeId; });
+  if(!r) return;
+  var sName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
+  if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Requires '+sName+' Lv '+r.req, 'kill'); return; }
+  if(window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function'){
+    var wb = window.HearthriseHomestead.hasWorkbench(skillId);
+    if(wb && wb.ok === false){
+      if(typeof notify==='function') notify('🔨 '+(wb.reason||'Build the workbench first'), 'kill');
+      if(typeof showTab==='function') showTab('house');
+      return;
+    }
+  }
+  if(typeof gateOk==='function' && !gateOk(r)){
+    if(typeof notify==='function') notify('Needs recipe scroll: '+((ITEMS[r.gated]&&ITEMS[r.gated].n)||r.gated), 'kill');
+    return;
+  }
+  if(typeof window.startArtisan==='function') window.startArtisan(skillId, recipeId);
+};
+
 function tileForArtisan(recipe, skillId){
   var lv = getLevel(skillId);
-  var unlocked = lv >= recipe.req;
   var active = (G.activeSkill === skillId && G.skillTargetId === recipe.id) || G.activeArtisanRecipe === recipe.id; /* b226: startArtisan never writes activeArtisanRecipe */
+  /* Wave 1 (audit fix): a tile is "unlocked" only when EVERY gate passes — level,
+     workbench (Forge/Workshop built) AND recipe scroll. Before, it checked level
+     only, so smithing tiles showed enabled with no Forge and died silently on
+     click. Now the tile shows a persistent lock naming the FIRST failing gate. */
+  var levelOk = lv >= recipe.req;
+  var wbInfo = (window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function') ? window.HearthriseHomestead.hasWorkbench(skillId) : { ok: true };
+  var wbOk = !(wbInfo && wbInfo.ok === false);
+  var scrollOk = (typeof gateOk === 'function') ? gateOk(recipe) : true;
+  var unlocked = levelOk && wbOk && scrollOk;
+  var lockLabel = '', benchLock = false;
+  if(!levelOk){ lockLabel = 'Level ' + recipe.req; }
+  else if(!wbOk){
+    var benchId = (window.HearthriseHomestead && window.HearthriseHomestead.WORKBENCH && window.HearthriseHomestead.WORKBENCH[skillId]) || '';
+    var benchName = (window.ROOMS && window.ROOMS[benchId] && window.ROOMS[benchId].name) || (benchId ? benchId.charAt(0).toUpperCase()+benchId.slice(1) : 'Workbench');
+    lockLabel = 'Build the ' + benchName; benchLock = true;
+  }
+  else if(!scrollOk){ lockLabel = 'Recipe scroll'; benchLock = true; }
   var outId = recipe.output;
   var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;
-  /* stopSkill is wrapped to also clear artisan intervals (line 7382) */
-  // b129: locked artisan tiles toast req level
   var skillName2 = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
     ? "stopSkill()"
     : (unlocked
         ? "window.startArtisan('"+skillId+"','"+recipe.id+"')"
-        : "notify('Requires "+skillName2+" Lv "+recipe.req+"','kill')");
+        : "window.hrArtisanGateClick('"+skillId+"','"+recipe.id+"')");
   var inputs = recipe.inputs || (recipe.input ? (function(){var o={};o[recipe.input]=recipe.inputQty||1;return o;})() : {});
   /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
      planks → watch your log count fall), red when short of one action. data-have/
@@ -11320,7 +11417,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +burnLine
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
-    +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+recipe.req+'</div>')
+    +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
     +(active ? '<span class="at-stop">Active</span>' : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';

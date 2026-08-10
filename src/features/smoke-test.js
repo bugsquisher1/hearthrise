@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=271' directly.
+// modularised, will import { G } from '../state/game.js?v=272' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=271';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=271';
+import { on, snapshot } from '../net/events.js?v=272';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=272';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=271';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=272';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2108,6 +2108,130 @@ const TESTS = [
         assert(l.id !== 'hearth_token',
           'dungeon ' + id + ' must not drop hearth_token (premium currency is IAP-mint-only)');
       });
+    });
+  }),
+
+  () => tryRun('WAVE1: artisan tiles show a persistent workbench lock when the room is not built', () => {
+    // Tyler: "the only tool I can craft is a fishing rod." Smithing needs the
+    // Forge; without it the tile used to render enabled and die silently on click.
+    if (typeof window.tileForArtisan !== 'function' || !window.ARTISAN_RECIPES) return;
+    const rec = (window.ARTISAN_RECIPES.smithing || []).find(r => r.req <= 5) || (window.ARTISAN_RECIPES.smithing || [])[0];
+    if (!rec) return;
+    const G = window.G; const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      G.rooms = Object.assign({}, G.rooms, { forge: 0 });            // no Forge
+      G.skills = Object.assign({}, G.skills, { smithing: 5000000 }); // level is NOT the blocker
+      const html = window.tileForArtisan(rec, 'smithing');
+      assert(/at-lock-bench/.test(html), 'smithing tile must carry the actionable bench lock when no Forge');
+      assert(/Build the/.test(html), 'the lock must name the room to build, got: ' + html.slice(0, 240));
+      assert(/hrArtisanGateClick/.test(html), 'a locked tile must route through hrArtisanGateClick, not startArtisan');
+      // and once the Forge exists, the same tile unlocks
+      G.rooms.forge = 3;
+      const html2 = window.tileForArtisan(rec, 'smithing');
+      assert(!/at-lock-bench/.test(html2) && /startArtisan/.test(html2), 'with the Forge built the smithing tile must be craftable');
+    } finally { G.rooms = saved.rooms; G.skills = saved.skills; }
+  }),
+
+  () => tryRun('WAVE1: gather tile names the active tool and its bonus', () => {
+    // Tyler: "the fishing rod doesn't seem to do anything." The rod worked but was
+    // never surfaced. The tile must now name the tool + its speed bonus.
+    if (typeof window.tileForGather !== 'function' || !window.HearthriseTools || !window.FISH_SPOTS) return;
+    const spot = window.FISH_SPOTS[0]; const G = window.G;
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      G.skills = Object.assign({}, G.skills, { fishing: 5000000 });
+      G.inventory = Object.assign({}, G.inventory, { willow_rod: 1 });
+      const html = window.tileForGather(spot, 'fishing');
+      assert(/at-tool/.test(html), 'the gather tile must render the tool line when a rod is owned');
+      assert(/% speed/.test(html), 'the tool line must state the speed bonus, got: ' + html.slice(0, 240));
+    } finally { G.inventory = saved.inv; G.skills = saved.skills; }
+  }),
+
+  () => tryRun('WAVE1: fight preview shows the REAL drop chance, not "1x common"', () => {
+    // The loot rows read d.chance/d.qty which monster drops never have, so every
+    // drop rendered as "common". Now they read d.ch and show a real percentage.
+    if (typeof window.__lootRowHtml !== 'function') return;
+    const html = window.__lootRowHtml({ id: 'bones', ch: 0.25 });
+    // The old bug rendered the literal chance text "common"; now it must show a
+    // real percentage. (The band CSS class mp-common is fine — check the number.)
+    assert(/25%/.test(html), 'a ch:0.25 drop must render "25%", got: ' + html);
+    assert(!/>\s*1×\s*·\s*common\s*</.test(html), 'must not fall back to the "1× · common" meta');
+    const rare = window.__lootRowHtml({ id: 'bones', ch: 0.01 });
+    assert(/mp-rare/.test(rare) && /1%|1\.0%/.test(rare), 'a 1% drop must band as rare with its real %');
+    const always = window.__lootRowHtml({ id: 'bones', ch: 1 });
+    assert(/Always/.test(always), 'a guaranteed drop must read "Always"');
+  }),
+
+  () => tryRun('WAVE1: fight-preview forecast uses the real engine rolls', () => {
+    // estimateCombat used a divergent formula, so pre-fight DPS/kills were fiction.
+    // It must now agree with getPlayerCombatRolls on maxHit.
+    if (typeof window.__estimateCombat !== 'function' || typeof window.getPlayerCombatRolls !== 'function') return;
+    const m = window.MONSTERS && (window.MONSTERS.slime || Object.values(window.MONSTERS)[0]);
+    if (!m) return;
+    const est = window.__estimateCombat(m);
+    const real = window.getPlayerCombatRolls(m);
+    assert(est.maxHit === real.maxHit,
+      'preview maxHit (' + est.maxHit + ') must equal the engine maxHit (' + real.maxHit + ')');
+    assert(Math.abs(est.hitChance - real.accuracy) < 1e-9,
+      'preview hit-chance must equal the engine accuracy');
+  }),
+
+  () => tryRun('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', () => {
+    // The most common dungeon reward was inert — upgradeRoom never touched it.
+    const G = window.G;
+    if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.kitchen || !window.ITEMS) return;
+    const bp = 'kitchen_blueprint_t2';
+    if (!window.ITEMS[bp]) return;
+    const snap = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), homestead: JSON.parse(JSON.stringify(G.homestead || {})), inv: JSON.parse(JSON.stringify(G.inventory || {})), gold: G.gold };
+    try {
+      G.homestead = { tier: 6 };                              // property tier high enough that the rung gate passes
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });   // built; upgrading to tier 2
+      const inv = {}; Object.keys(window.ITEMS).forEach(id => inv[id] = 100000); delete inv[bp]; // everything EXCEPT the blueprint
+      G.inventory = inv; G.gold = 1e9;
+      const before = G.rooms.kitchen;
+      const noBp = window.upgradeRoom('kitchen');
+      assert(noBp === false && G.rooms.kitchen === before, 'kitchen tier 2 must be blocked without the blueprint');
+      G.inventory[bp] = 1;
+      const withBp = window.upgradeRoom('kitchen');
+      assert(withBp === true && G.rooms.kitchen === before + 1, 'with the blueprint kitchen must upgrade');
+      assert((G.inventory[bp] || 0) === 0, 'the blueprint must be consumed on upgrade');
+    } finally { G.rooms = snap.rooms; G.homestead = snap.homestead; G.inventory = snap.inv; G.gold = snap.gold; }
+  }),
+
+  () => tryRun('WAVE2: the damage food buff actually raises max hit (Cooked Shark honest)', () => {
+    const G = window.G;
+    if (typeof window.applyBuff !== 'function' || typeof window.getPlayerCombatRolls !== 'function') return;
+    const m = window.MONSTERS && (window.MONSTERS.slime || Object.values(window.MONSTERS)[0]);
+    if (!m) return;
+    const snap = { buffs: JSON.parse(JSON.stringify(G.buffs || [])), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      G.buffs = [];
+      G.skills = Object.assign({}, G.skills, { strength: 50, attack: 50 }); // maxHit big enough for a % to move it
+      const before = window.getPlayerCombatRolls(m).maxHit;
+      window.applyBuff({ type: 'damage', magnitude: 25, durationMs: 600000 }); // +25%
+      const after = window.getPlayerCombatRolls(m).maxHit;
+      assert(after > before, 'a damage buff must raise max hit (before ' + before + ', after ' + after + ')');
+    } finally { G.buffs = snap.buffs; G.skills = snap.skills; }
+  }),
+
+  () => tryRun('WAVE2: turnip has a cooking recipe (was the only dead-end crop)', () => {
+    const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.cooking;
+    if (!R) return;
+    const r = R.find(x => x.id === 'cook_turnip');
+    assert(r, 'cook_turnip recipe must exist');
+    const inputs = r.inputs || (r.input ? { [r.input]: 1 } : {});
+    assert(inputs.turnip, 'cook_turnip must consume turnip');
+    assert(window.ITEMS && window.ITEMS[r.output], 'cook_turnip output item must exist: ' + r.output);
+  }),
+
+  () => tryRun('WAVE2: a dungeon boss has ONE name — card matches the fight', () => {
+    const D = window.DUNGEONS, S = window.SCAVENGER_CONFIGS;
+    if (!D || !S) return;
+    Object.keys(S).forEach(id => {
+      if (D[id] && D[id].boss && S[id].bossName) {
+        assert(D[id].boss.name === S[id].bossName,
+          id + ': card boss "' + D[id].boss.name + '" must equal fight boss "' + S[id].bossName + '"');
+      }
     });
   }),
 
@@ -5515,12 +5639,13 @@ const TESTS = [
   // to heal, and the only pool auto-eat may touch) vs Feasts & Draughts (what
   // you spend for a timed buff). The mapping is authored per item, so it is
   // the one part of the taxonomy that CAN drift. Lock the totals: 13 / 14.
-  () => tryRun('b220: cooking splits 13 Provisions / 14 Feasts & Draughts', () => {
+  () => tryRun('b220: cooking splits 14 Provisions / 14 Feasts & Draughts', () => {
     const cz = window.categorizeRecipes;
     assert(typeof cz === 'function', 'categorizeRecipes not published on window');
     const res = cz('cooking', window.ARTISAN_RECIPES.cooking, window.ITEMS);
     const of = (k) => (res.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
-    assert(of('provisions').length === 13, 'expected 13 Provisions, got ' + of('provisions').length);
+    // Wave 2 added Turnip Mash (a healing Provision), so Provisions went 13 → 14.
+    assert(of('provisions').length === 14, 'expected 14 Provisions, got ' + of('provisions').length);
     assert(of('feasts').length === 14, 'expected 14 Feasts & Draughts, got ' + of('feasts').length);
     // Spot-check the two ends of the ruling: the top heal is a Provision even
     // though it carries a damage buff; the endgame feast never is.

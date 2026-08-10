@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 272 — 2026-08-09 (Progression rework, wave 1 & 2: truth + repairs)
+
+- 🔨 **Crafting tells you the truth now.** Smithing/crafting tiles that need a workbench you haven't built show a clear **"Build the Forge"** (or Workshop) lock and take you to your House to build it — instead of looking available and silently doing nothing. Scroll-locked recipes say so too.
+- 🎣 **Your gathering tools are visible.** Fishing/woodcutting/mining tiles now name your active tool and its bonus (e.g. **"Willow Rod +5% speed"**), so a rod no longer feels like it does nothing.
+- ⚔️ **The fight preview is honest.** Before a fight you now see each drop's **real chance** (25%, 1%, Always — banded by rarity) instead of everything reading "common," and the damage/kills-per-hour forecast now uses the **actual** combat math.
+- 📜 **Housing blueprints finally work.** They were the most common dungeon reward and did nothing — now they're **required and consumed** to upgrade Kitchen/Forge/Library/Trophy to their higher tiers, so dungeon runs feed your homestead.
+- 🍣 **Combat foods actually buff damage.** Cooked Shark, Swordfish Steak and Bear Claw Pie promised "+% Damage" that the engine ignored — the buff now really raises your max hit.
+- 🥣 **You can cook a turnip.** The starter crop finally has a recipe (Turnip Mash), so brand-new farmers can cook their first harvest.
+- 🩹 Fixed the Crypt boss showing two different names (card vs. fight).
+
 ## v0.9.2-beta build 271 — 2026-08-09 (Bank starts leaner)
 
 - 🎒 **New accounts now start with 100 bank slots** (was 200) — the "Buy space" expansions matter a little sooner. Existing players are unaffected: your cap is re-granted to comfortably cover everything you already own, so nobody logs in full.

@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=271';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=271';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=271';
+import { GEAR_ITEMS } from './gear-tiers.js?v=272';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=272';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=272';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -106,6 +106,13 @@ export const ITEMS={
          potion. Auto-eat must never burn one.
      Cooking's two sub-tabs (Provisions / Feasts & Draughts) are derived from
      this field — see foodClassOf() at the bottom of this file. */
+  /* Wave 2 (audit fix): the FIRST crop a new player grows (Turnip) had no cooking
+     recipe at all — every other crop feeds cooking, turnip was the lone dead end.
+     Turnip Mash is the starter cook (Cooking 1), so a brand-new farmer/cook can
+     actually cook their first harvest. */
+  turnip_mash: {
+    n:'Turnip Mash', icon:'🥣', v:14, heals:5, foodTier:1, foodClass:'healing',
+  },
   cooked_shrimp: {
     n:'Cooked Shrimp', icon:'🍤', v:18, heals:8, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1,  durationMs:120000},

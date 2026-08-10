@@ -13,9 +13,9 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=271';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=271';
-import { ITEMS, foodClassOf } from './items.js?v=271';
+import { GEAR_RECIPES } from './gear-tiers.js?v=272';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=272';
+import { ITEMS, foodClassOf } from './items.js?v=272';
 
 const BASE_RECIPES = {
   cooking: [
@@ -33,6 +33,8 @@ const BASE_RECIPES = {
     {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:5,  ms:2400},
     {id:'cook_panther_meat', name:'Cook Panther Meat', icon:'🥩', inputs:{raw_panther_meat:1}, output:'cooked_panther_meat', xp:60,  req:25, ms:2800},
     {id:'cook_bear_meat',    name:'Cook Bear Meat',    icon:'🥩', inputs:{raw_bear_meat:1},    output:'cooked_bear_meat',    xp:120, req:40, ms:3400},
+    // Crops — starter cook (Wave 2: turnip was the only crop with no recipe)
+    {id:'cook_turnip',      name:'Boil Turnip Mash', icon:'🥣', inputs:{turnip:1},                       output:'turnip_mash',    xp:8,   req:1,  ms:1600},
     // Tier 2 buff foods
     {id:'cook_carrot',      name:'Roast Carrot',     icon:'🥕', inputs:{carrot:1},                       output:'roasted_carrot', xp:20,  req:5,  ms:1500},
     {id:'cook_wheat_bread', name:'Bake Wheat Bread', icon:'🍞', inputs:{wheat:3},                        output:'wheat_bread',    xp:55,  req:20, ms:3000},

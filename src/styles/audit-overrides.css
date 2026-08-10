@@ -768,7 +768,12 @@ body.in-combat #combat-area {
 .mp-loot-icon img { width: 100%; height: 100%; object-fit: contain; }
 .mp-loot-icon span { font-size:calc(21.5px * var(--ui-scale, 1)); }
 .mp-loot-name { flex: 1; font-size:calc(14.5px * var(--ui-scale, 1)); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-loot-meta { font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-3); font-family: monospace; }
+.mp-loot-meta { font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-3); font-family: monospace; white-space: nowrap; }
+/* Wave 1: real drop bands so rarity reads at a glance in the fight preview */
+.mp-loot-meta.mp-always   { color: var(--gold-2, #c9a24a); font-weight: 700; }
+.mp-loot-meta.mp-common   { color: var(--ink-3); }
+.mp-loot-meta.mp-uncommon { color: #6fae7f; }
+.mp-loot-meta.mp-rare     { color: #d9a441; font-weight: 700; }
 .mp-empty { grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--ink-3); font-style: italic; }
 .mp-footer { display: flex; align-items: center; gap: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
 .mp-food { display: flex; align-items: center; gap: 10px; flex: 1; background: rgba(0,0,0,.3); padding: 8px 12px; border-radius: 8px; }

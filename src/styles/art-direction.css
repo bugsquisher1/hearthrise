@@ -919,6 +919,15 @@ body[data-theme] .at-lock {
   margin-top: 8px;
   font-size: var(--t-micro); font-weight: 600; color: var(--ink-3);
 }
+/* Wave 1: a workbench/scroll lock is ACTIONABLE (go build the room) — gild it so
+   it reads as "do this next", not the grey "not yet" of a level lock. */
+body[data-theme] .at-lock.at-lock-bench { color: var(--gold-2); }
+/* Wave 1: the active gathering tool + its bonus, named on the tile. */
+body[data-theme] .at-tool {
+  margin-top: 4px; font-size: var(--t-micro); color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .at-tool b { color: var(--gold-2); font-weight: 700; }
 /* Locked was `opacity:.55 + grayscale(.3)` — a dimmed copy of the unlocked
  * tile, which reads as "broken" rather than "not yet". A lock line and a
  * deeper recess reads as a door you haven't opened. */

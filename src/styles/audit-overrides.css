@@ -565,7 +565,11 @@ body.in-combat #panel-combat.active {
 body.in-combat #panel-combat.active .combat-picker { display: none !important; }
 /* b256: the Boss of the Day card belongs with the picker ("choose a fight"),
    so it follows the picker out of view during an active fight on desktop too. */
-body.in-combat #panel-combat.active #hr-botd-card { display: none !important; }
+/* b290 (paione): the b275 WEEKLY card is a separate element, so the rule that
+   hides the daily card during a fight never covered it — it sat on top of the
+   arena with no way to close it. Both cards, one rule. */
+body.in-combat #panel-combat.active #hr-botd-card,
+body.in-combat #panel-combat.active #hr-weekly-card { display: none !important; }
 #panel-combat.active .combat-arena .card-head { display: none !important; }
 #panel-combat.active .combat-arena #combat-stop,
 #panel-combat.active .combat-arena .btn-danger { display: none !important; }

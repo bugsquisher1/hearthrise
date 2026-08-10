@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 290 — 2026-08-10 (Weekly boss card & weekly quests)
+
+- ⚔️ **Fixed: the Weekly Boss card covered the fight and couldn't be dismissed.** It now hides during combat and on the Arena/Style tabs, exactly like the Boss of the Day card. *(Thanks paione — this one was ours, introduced with the weekly boss.)*
+- 📜 **Fixed: weekly quests looked like they never reset.** They *were* resetting, but the pool only held five goals and the game picks three — so most weeks handed you the same three back. There are twelve now, so a new week actually looks new. *(Thanks paione.)*
+
 ## v0.9.2-beta build 288 — 2026-08-10 (Your whole save syncs now)
 
 - ☁️ **Fixed: a lot of your progress was never saved to the cloud.** Signing in on a second device gave you a save with **no Bestiary, no Achievements, no quest progress, and no daily-login streak** — and it also **reset your dungeon cooldowns, daily reward and weekly clan-boss claim**, so those could be taken again. The cloud save only ever carried 17 hand-listed fields while the game has grown well past that; it now saves everything except what genuinely belongs to the device you're playing on (the fight you're currently in). *(Thanks paione — this was a serious one.)*

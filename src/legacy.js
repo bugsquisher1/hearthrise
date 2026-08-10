@@ -14349,7 +14349,19 @@ console.log('[Bundle Icons v1] applied:',
   // Weekly pool — bigger targets, bigger rewards. Phase B will let players claim
   // these on the same flow.
   window.WEEKLY_GOAL_POOL = window.WEEKLY_GOAL_POOL || [
+    /* b290 (paione: "Weekly Quests did not reset — timer went to 7 days but no new
+       quests"). The reset logic was fine; the POOL was the bug. It held five goals
+       and the picker takes three, so most weeks handed back the same three — which
+       reads to a player as "they never changed". Widened to twelve, all sourced from
+       counters the engine really increments, so a week now looks different from the
+       last one. */
     {id:'wk_kills',    emoji:'⚔️', name:'Slay 100 monsters', target:100, source:'stats.kills',           reward:{gold:2500, gems:3, xp:{combat:1000}}},
+    {id:'wk_smith',    emoji:'🔨', name:'Smith 60 items',    target:60,  source:'stats.smithed',         reward:{gold:2200, xp:{smithing:600}}},
+    {id:'wk_craft',    emoji:'🪡', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}}},
+    {id:'wk_harvest',  emoji:'🌾', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}}},
+    {id:'wk_bury',     emoji:'🦴', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}}},
+    {id:'wk_rare',     emoji:'🍀', name:'Find 5 rare drops', target:5,   source:'stats.rareDrops',       reward:{gold:3000, gems:4}},
+    {id:'wk_gold',     emoji:'💰', name:'Earn 50,000 gold',  target:50000, source:'stats.totalGoldEarned', reward:{gold:2500, gems:2}},
     {id:'wk_gather',   emoji:'⛏️', name:'Gather 250 ores',  target:250, source:'stats.mined',           reward:{gold:2000, xp:{mining:500}}},
     {id:'wk_logs',     emoji:'🪵', name:'Cut 250 logs',     target:250, source:'stats.chopped',         reward:{gold:2000, xp:{woodcutting:500}}},
     {id:'wk_cook',     emoji:'🍳', name:'Cook 50 dishes',    target:50,  source:'stats.cooked',         reward:{gold:1500, xp:{cooking:400}}},

@@ -1235,7 +1235,9 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
      top on every sub-tab and dropped into the middle of an active fight on the
      Arena tab (paione). */
   #panel-combat[data-mobile-sub="style"] #hr-botd-card,
-  #panel-combat[data-mobile-sub="arena"] #hr-botd-card {
+  #panel-combat[data-mobile-sub="arena"] #hr-botd-card,
+  #panel-combat[data-mobile-sub="style"] #hr-weekly-card,
+  #panel-combat[data-mobile-sub="arena"] #hr-weekly-card {
     display: none !important;
   }
   /* DUNGEONS button always visible regardless of sub-tab */

@@ -853,35 +853,29 @@ function loadLocal(){
   resumeActiveActivity();
 }
 /* ════════════════════════════════════════════════════════════════
-   b226 — THE OFFLINE DAILY BUDGET. (docs/design/pacing-overhaul.md §5.4)
+   b307 — THE OFFLINE CAP IS PER-ABSENCE (Tyler, 2026-08-10).
 
-   The cap used to be per LOGIN GAP: a player who slept 9h and worked 9h
-   banked 18–19 hours of full-rate progress every day and still had their
-   evening free. That, not the XP table, is why the first 99 landed in 4.5
-   days — the game converted wall-clock, not attention, and it converted 21.5
-   hours of every 24.
+   REPLACES the b226 "rolling daily allowance". That model kept ONE daily
+   bucket (`usedMs`) that reset at 00:00 UTC while the watermark did NOT — so
+   the FIRST return of a new day computed elapsed = now − last-session (often
+   the overnight gap), which alone filled `usedMs` to the whole daily cap. The
+   rest of that day credited ZERO offline. In the wild every tester's save was
+   pinned to EXACTLY its cap (12/14/15h) and offline "stopped working" (paione:
+   smithing not progressing after the morning login ate the day).
 
-   Same size, same perks, but it is now a ROLLING DAILY ALLOWANCE that
-   refills at 00:00 UTC. It targets the degenerate pattern precisely: the
-   honest sleeper is untouched (they never banked 19h), the twice-a-day
-   thirty-second banker loses the extra bank and nothing else. Nothing earned
-   is removed — this is a forward-looking accrual rule, not a reset.
+   The new rule is what an idle game is supposed to do, and what players expect:
+   the cap applies to a SINGLE ABSENCE. You earn offline progress for up to
+   `offlineCapHours()` of the time since you were last here; signing in resets
+   the timer, so the next absence starts fresh. No shared daily bucket, no
+   "0h left" dead state. Premium/perks raise your personal per-absence cap
+   ("earn longer while away"), which keeps those perks meaningful.
 
-   It also rescues four near-dead perks. `offlineHours` from Offline+, the
-   renown ranks, the property ladder (+1…+4h) and clan level used to matter
-   only to a player asleep for more than twelve hours. As a DAILY budget
-   every player reaches the ceiling, so every extra hour is felt every day.
-
-   ── WATERMARKED, NOT ELAPSED-BASED ──
-   `G.offlineBudget.at` is the exact instant already accounted for, exactly
-   like Rested XP's `restedAt` and for exactly the same reason: the b214
-   double-pay class of bug, where processOffline() and two catch-up systems
-   each re-read one unrefreshed `G.lastSeen` and paid the same hours two and
-   three times over. A watermark cannot be double-read — the second reader
-   sees an already-advanced clock. It advances to `now` on EVERY call, even
-   when nothing was running and nothing was credited, because the wall-clock
-   passed either way; and saveLocal() keeps it level with `lastSeen` during a
-   live session so an evening of play is never mistaken for an absence.
+   ── STILL WATERMARKED (the b214 double-pay guard is unchanged) ──
+   `G.offlineBudget.at` is the instant already accounted for. It advances to
+   `now` on every VISIBLE claim (the "sign-in resets the timer" behaviour) and
+   saveLocal() keeps it level with `lastSeen` during a live session, so online
+   time is never mistaken for an absence and no gap is ever paid twice. The
+   legacy `usedMs`/`dayKey` fields are now ignored (tolerated on old saves).
    ════════════════════════════════════════════════════════════════ */
 function offlineCapHours(){
   // 12h F2P, 16h with the Offline+ entitlement, plus perk hours.
@@ -907,19 +901,17 @@ function ensureOfflineBudget(now){
   now=(typeof now==='number'&&isFinite(now))?now:Date.now();
   let b=G.offlineBudget;
   if(!b||typeof b!=='object'){
-    /* First run on an existing save: seed the watermark from `lastSeen` so the
-       player is credited for the absence they actually had, and start the day
-       with a FULL budget — no hours already banked are revoked (§9.1). */
-    b=G.offlineBudget={dayKey:utcDayKey(now),usedMs:0,at:(typeof G.lastSeen==='number'?G.lastSeen:now)};
+    /* Seed the watermark from `lastSeen` so a returning player is credited for
+       the absence they actually had. (Legacy usedMs/dayKey are no longer used.) */
+    b=G.offlineBudget={at:(typeof G.lastSeen==='number'?G.lastSeen:now)};
   }
-  if(typeof b.usedMs!=='number'||!isFinite(b.usedMs)||b.usedMs<0) b.usedMs=0;
   if(typeof b.at!=='number'||!isFinite(b.at)||b.at>now) b.at=now;
-  if(b.dayKey!==utcDayKey(now)){ b.dayKey=utcDayKey(now); b.usedMs=0; }
   return b;
 }
-/* Draw from today's allowance. Returns the milliseconds of progress to
-   simulate. Advances the watermark unconditionally; consumes budget only for
-   time that actually bought progress. */
+/* b307: credit ONE absence, capped per-absence. Returns the milliseconds of
+   progress to simulate: min(time since last here, the per-absence cap). Advances
+   the watermark to `now` (this IS "signing in resets the timer"); the next
+   absence is measured from here. No daily bucket. */
 function claimOfflineMs(now,active,minMs){
   now=(typeof now==='number'&&isFinite(now))?now:Date.now();
   const b=ensureOfflineBudget(now);
@@ -938,13 +930,13 @@ function claimOfflineMs(now,active,minMs){
      but the watermark still moves, because the wall-clock did. */
   if(!active||elapsed<(minMs||0)) return 0;
   const capMs=offlineCapHours()*3600000;
-  const grant=Math.min(elapsed,Math.max(0,capMs-b.usedMs));
-  b.usedMs+=grant;
-  return grant;
+  return Math.min(elapsed,capMs);   // PER-ABSENCE cap — no daily accumulation
 }
+/* b307: the per-absence cap in ms (what "your offline max" means now). Kept for
+   any legacy caller + the offline summary; the old daily-remaining meaning is
+   gone because there is no longer a daily bucket. */
 function offlineBudgetRemainingMs(){
-  const b=ensureOfflineBudget(Date.now());
-  return Math.max(0,offlineCapHours()*3600000-b.usedMs);
+  return offlineCapHours()*3600000;
 }
 window.utcDayKey=utcDayKey;
 window.offlineCapHours=offlineCapHours;
@@ -1057,15 +1049,15 @@ function processOffline(){
   const offlineBurnt = window._hrOfflineBurns || 0;
   window._hrOfflineBurns = 0;
   /* b226: the budget is on the summary, because a player must never discover
-     a cap by noticing an absence. The welcome-back line names how much of
-     today's allowance this catch-up spent and what is left. */
-  const remainMs=offlineBudgetRemainingMs();
+     a cap by noticing an absence. b307: the cap is now PER-ABSENCE, so the
+     welcome-back line only mentions it when this trip actually HIT the cap. */
+  const capped = hrs >= (cap - 0.05);
   G.lastOfflineSummary={
     hrs:+hrs.toFixed(1), gainedItems, gainedXp,
     gainedGold, gainedKills, burnt: offlineBurnt,
     combat: combatSummary,
-    budgetHrs: cap,
-    remainingHrs: +(remainMs/3600000).toFixed(2),
+    budgetHrs: cap,        // b307: now the PER-ABSENCE cap ("your offline max")
+    capped: capped,        // b307: true when this absence was longer than the cap
     at: Date.now(),
     /* b227: a machine-readable statement that this catch-up was paid at the
        base rate. The summary must never quote a blessing it did not apply —
@@ -1073,7 +1065,10 @@ function processOffline(){
        instead of leaving each renderer to guess. */
     blessed: false,
   };
-  const budgetNote = ` · ${fmtHm(hrs*3600000)} of your ${cap}h daily offline banked, ${fmtHm(remainMs)} left`;
+  /* b307: no daily bucket to report. Only speak up when the absence was long
+     enough to hit the per-absence cap, so the player learns the ceiling by
+     bumping it rather than by seeing an accusatory "0h left" every login. */
+  const budgetNote = capped ? ` · capped at your ${cap}h offline max — upgrades raise this` : '';
   /* b227: the rate, stated in the ONE offline surface a player actually sees.
      The day's blessing is announced on Home and in Events as something that is
      alive while you are in the game; a welcome-back line that said nothing

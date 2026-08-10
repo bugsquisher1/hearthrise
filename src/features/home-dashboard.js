@@ -618,8 +618,10 @@
       if (_off.gainedGold) _bits.push('+' + _off.gainedGold.toLocaleString() + ' gold');
       if (_off.gainedKills) _bits.push('+' + _off.gainedKills.toLocaleString() + ' kills');
       if (_off.burnt) _bits.push(_off.burnt.toLocaleString() + ' burnt on the fire');
-      var _budget = (_off.budgetHrs && _off.remainingHrs != null)
-        ? _off.hrs.toFixed(1) + 'h of your ' + _off.budgetHrs + 'h daily offline banked · ' + _off.remainingHrs.toFixed(1) + 'h left'
+      // b307: per-absence cap. Only mention the ceiling when this trip hit it;
+      // otherwise the honest line is simply that it was earned at the base rate.
+      var _budget = _off.capped
+        ? 'capped at your ' + (_off.budgetHrs || 12) + 'h offline max — upgrades raise this'
         : 'earned at the base rate';
       html += '<div><div class="hd-h"><h3>While you were away</h3></div>' +
         '<div class="hd-card hd-duo">' +

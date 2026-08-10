@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=306' directly.
+// modularised, will import { G } from '../state/game.js?v=307' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=306';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=306';
+import { on, snapshot } from '../net/events.js?v=307';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=307';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=306';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=307';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -13656,62 +13656,50 @@ const TESTS = [
     } finally { E._force(null); restoreG(snap); }
   }),
 
-  () => tryRun('b226: the offline cap is a DAILY budget — two 9h gaps bank 12h, not 18h', () => {
-    // The old cap was per LOGIN GAP, so a player who slept 9h and worked 9h
-    // banked 18-19 hours of full-rate progress every day. The budget is
-    // watermarked (G.offlineBudget.at) exactly like Rested XP's restedAt, so
-    // the same absence can never be paid for twice.
+  () => tryRun('b307: the offline cap is PER-ABSENCE — each trip caps on its own, no daily bucket', () => {
+    // b307 replaces b226's daily bucket (which pinned every save to its cap and
+    // killed offline for the rest of the day — paione's report). The cap now
+    // applies to a SINGLE absence; signing in resets the timer.
     const G = window.G;
     const snap = snapshotG();
+    const hidden = Object.getOwnPropertyDescriptor(document, 'hidden');
     try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       G.entitlements = {}; G.rooms = {}; G.clanName = null;
       const cap = window.offlineCapHours();
-      const day = window.utcDayKey(Date.now());
-      // Gaps are sized as a FRACTION of the cap, not as a literal 9h: this
-      // save may carry renown/property/clan offline hours, and a pair of
-      // literal 9h gaps is not a violation for a player whose cap is 18h.
-      // Two three-quarter-cap gaps always overrun, whatever the cap is.
       const gap = cap * 0.75;
 
-      G.offlineBudget = { dayKey: day, usedMs: 0, at: Date.now() - gap * 3600000 };
+      // A gap inside the cap banks in full.
+      G.offlineBudget = { at: Date.now() - gap * 3600000 };
       const first = window.claimOfflineMs(Date.now(), true) / 3600000;
-      assert(Math.abs(first - gap) < 0.01, 'a gap inside the budget banks in full, got ' + first);
+      assert(Math.abs(first - gap) < 0.01, 'a gap inside the cap banks in full, got ' + first);
 
-      // Second gap, same UTC day: only the remainder is left.
-      G.offlineBudget.at = Date.now() - gap * 3600000;
+      // THE WHOLE CHANGE: a SECOND absence the same day ALSO banks in full.
+      // There is no shared daily bucket to deplete — each absence caps alone.
+      G.offlineBudget = { at: Date.now() - gap * 3600000 };
       const second = window.claimOfflineMs(Date.now(), true) / 3600000;
-      assert(Math.abs(second - (cap - gap)) < 0.01,
-        'the second gap may only bank the remaining ' + (cap - gap).toFixed(2) + 'h, got ' + second);
-      assert(Math.abs((first + second) - cap) < 0.01,
-        'two ' + gap.toFixed(1) + 'h gaps in one UTC day must total exactly the ' + cap + 'h cap, got ' + (first + second));
-      assert((first + second) < gap * 2 - 0.01,
-        'the daily budget must actually TRUNCATE the second bank — this is the whole change');
+      assert(Math.abs(second - gap) < 0.01,
+        'a second absence must bank in full per-absence (not truncated by a daily bucket), got ' + second);
 
-      // A single gap longer than the whole allowance is truncated to it.
-      G.offlineBudget = { dayKey: day, usedMs: 0, at: Date.now() - (cap + 6) * 3600000 };
+      // A single absence longer than the cap truncates to exactly the cap.
+      G.offlineBudget = { at: Date.now() - (cap + 6) * 3600000 };
       const huge = window.claimOfflineMs(Date.now(), true) / 3600000;
-      assert(Math.abs(huge - cap) < 0.01, 'a gap longer than the cap banks exactly the cap, got ' + huge);
-      G.offlineBudget.at = Date.now() - 3 * 3600000;
+      assert(Math.abs(huge - cap) < 0.01, 'an absence longer than the cap banks exactly the cap, got ' + huge);
+
+      // Signing in resets the timer: an immediate re-claim banks nothing. This is
+      // also the b214 double-pay guard — the watermark cannot be read twice.
       assert(window.claimOfflineMs(Date.now(), true) === 0,
-        'once the day is spent, further absence banks nothing');
+        'a second read of the same instant must bank nothing (timer reset / double-pay guard)');
 
-      // Watermarked: claiming again immediately banks nothing.
-      assert(window.claimOfflineMs(Date.now(), true) === 0,
-        'a second read of the same instant must bank nothing (b214 double-pay class)');
-
-      // Rolls at UTC midnight — a new day refills the whole allowance.
-      G.offlineBudget = { dayKey: day - 1, usedMs: cap * 3600000, at: Date.now() - 9 * 3600000 };
-      const nextDay = window.claimOfflineMs(Date.now(), true) / 3600000;
-      assert(Math.abs(nextDay - 9) < 0.01, 'a new UTC day must refill the budget, got ' + nextDay);
-
-      // Time spent with nothing running costs wall-clock but no budget.
-      G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: Date.now() - 5 * 3600000 };
-      const idle = window.claimOfflineMs(Date.now(), false);
-      assert(idle === 0, 'an absence with no activity running banks nothing');
-      assert(G.offlineBudget.usedMs === 0, 'and it must not spend the allowance either');
-      assert(Math.abs(G.offlineBudget.at - Date.now()) < 2000,
-        'but the watermark still advances — the wall-clock passed either way');
-    } finally { restoreG(snap); }
+      // An absence with nothing running banks nothing, but the watermark still
+      // advances because the wall-clock passed.
+      G.offlineBudget = { at: Date.now() - 5 * 3600000 };
+      assert(window.claimOfflineMs(Date.now(), false) === 0, 'an absence with no activity banks nothing');
+      assert(Math.abs(G.offlineBudget.at - Date.now()) < 2000, 'the watermark still advances');
+    } finally {
+      if(hidden) Object.defineProperty(document, 'hidden', hidden); else { try{ delete document.hidden; }catch(e){} }
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b226: the four offlineHours perks extend the daily budget', () => {

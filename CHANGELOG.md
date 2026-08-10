@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 307 — 2026-08-10 (Offline rewards fixed — per-absence)
+
+- ⏰ **Offline progress now works the way it should.** The old system used one shared daily budget, and a quirk meant your *first* time away each day (usually overnight) ate the whole day's allowance — so any time you were away later, your skills earned **nothing** offline. Now the cap applies to **each absence on its own**: every time you're away, you earn offline progress for up to your offline-cap hours, and signing in resets the clock. No more "used it up" dead state. *(Thanks paione & Xarnathos — this is why smithing/etc. stopped banking offline.)*
+- ⬆️ **Offline-time upgrades (Offline+, renown, homestead, clan) now let you stay away *longer* before your progress stops counting** — they raise your per-absence cap.
+
 ## v0.9.2-beta build 306 — 2026-08-10 (Anti-cheat lockdowns)
 
 - 🔐 **Closed two ways to cheat.** A hidden developer panel could be opened on the live site by anyone who knew the trick, and an internal purchase function was reachable from the browser console — both could hand out currency and items. They're now locked to developer/owner accounts only. (Also audited the whole backend: confirmed no player can read or alter another player's save, and that raids, world events, and reward claims are all validated on the server.)

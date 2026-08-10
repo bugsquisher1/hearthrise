@@ -49,7 +49,47 @@ export function emit(type, payload = {}) {
 }
 
 /** Snapshot the persistent slice of game state we'd ship to the server. */
+/* b288 — THE CLOUD SAVE HOLE (paione: "some stuff is not reloaded through the
+   cloud — Bestiary, Achievements, quests, daily login bonus, dungeon times reset,
+   clan boss can be re-attacked").
+
+   ROOT CAUSE: this was an ALLOWLIST of 17 fields while G carries ~40. Anything a
+   feature added after this list was written silently never reached the cloud — so
+   a second device restored a save with no bestiary, no achievements, no quest
+   progress, and — far worse — **reset cooldowns**: dungeon lastRun, the daily
+   reward claim and the weekly clan-boss claim all live in unlisted fields, so
+   switching devices RE-GRANTED them. That is an economy exploit, not just data loss.
+
+   FIX: invert it. Persist everything EXCEPT a small denylist of genuinely
+   device-local / derived runtime state. New features now persist by default —
+   the failure mode becomes "syncs something harmless" instead of "silently loses
+   your progress and hands out free cooldown resets". */
+const NO_SYNC = new Set([
+  // in-flight combat — belongs to the device you are fighting on
+  'activeMonster', 'monsterHp', 'monsterMaxHp', 'playerHp', 'playerMaxHp',
+  // in-flight activity loop — same reason
+  'activeSkill', 'skillTargetId', 'skillProgress', 'skillMs', 'activeArtisanRecipe',
+  // transient UI / derived
+  'combatLog', 'lastOfflineSummary', 'totalLevel', 'combatLevel',
+]);
+
 export function snapshot(G) {
+  if (!G) return null;
+  const out = { schemaVersion: 1 };
+  for (const k in G) {
+    if (!Object.prototype.hasOwnProperty.call(G, k)) continue;
+    if (NO_SYNC.has(k)) continue;
+    if (k.charAt(0) === '_') continue;               // internal scratch (_toolCarry etc.)
+    const v = G[k];
+    if (typeof v === 'function' || typeof v === 'undefined') continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+/* The previous hand-maintained list, kept ONLY as the documented contract of what
+   the leaderboard/server reads. The denylist above is now the source of truth. */
+export function snapshotLegacyFields(G) {
   if (!G) return null;
   return {
     schemaVersion: 1,

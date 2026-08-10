@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 288 — 2026-08-10 (Your whole save syncs now)
+
+- ☁️ **Fixed: a lot of your progress was never saved to the cloud.** Signing in on a second device gave you a save with **no Bestiary, no Achievements, no quest progress, and no daily-login streak** — and it also **reset your dungeon cooldowns, daily reward and weekly clan-boss claim**, so those could be taken again. The cloud save only ever carried 17 hand-listed fields while the game has grown well past that; it now saves everything except what genuinely belongs to the device you're playing on (the fight you're currently in). *(Thanks paione — this was a serious one.)*
+
 ## v0.9.2-beta build 287 — 2026-08-10 (The Sign in button actually signs you in)
 
 - 🔑 **Fixed: the "Sign in" button on the Clan screen did nothing useful.** It called a function that never existed, so it just showed a message telling you to go find sign-in on another screen. It now opens the sign-in prompt directly — and every "Sign in" in the game goes through one shared path.

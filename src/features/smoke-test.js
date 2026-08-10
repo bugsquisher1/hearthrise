@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=287' directly.
+// modularised, will import { G } from '../state/game.js?v=288' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=287';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=287';
+import { on, snapshot } from '../net/events.js?v=288';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=288';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=287';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=288';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2338,6 +2338,31 @@ const TESTS = [
       delete G.equipment.belt; delete G.equipment.gloves;
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('b288: the cloud snapshot carries progress AND cooldowns (paione: cross-device reset/exploit)', () => {
+    // paione: "some stuff is not reloaded through the cloud — Bestiary,
+    // Achievements, new quests and daily login bonus, Dungeon times are reset,
+    // Clan boss can be re-attacked". The snapshot was a 17-field ALLOWLIST while G
+    // carries ~40, so unlisted state never synced — and because dungeon lastRun,
+    // the daily claim and the raid claim are unlisted, switching devices RE-GRANTED
+    // them. Data loss AND an economy exploit.
+    const ev = window.HearthriseEvents;
+    assert(ev && typeof ev.snapshot === 'function', 'HearthriseEvents.snapshot missing');
+    const G = window.G;
+    const snap = ev.snapshot(G);
+    assert(snap, 'snapshot must produce a payload');
+    // Everything a second device must not lose or be re-granted.
+    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'dungeons', 'traits',
+      'streak', 'lockedItems', 'wieldGrandfather', 'offlineBudget', 'homestead', 'v']
+      .forEach((k) => {
+        if (G[k] === undefined) return;                 // field not present in this save
+        assert(k in snap, 'cloud snapshot must carry "' + k + '" or a second device loses/re-earns it');
+      });
+    // Device-local in-flight state must NOT cross devices.
+    ['activeMonster', 'monsterHp', 'combatLog', 'activeSkill'].forEach((k) => {
+      assert(!(k in snap), '"' + k + '" is device-local and must not sync');
+    });
   }),
 
   () => tryRun('b287: no visible control calls a function that does not exist (dead-button guard)', () => {

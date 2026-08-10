@@ -12313,7 +12313,11 @@ const TESTS = [
       assert(window.bountyProofHave(a) === 0, 'progress must read 0 right after accept, got ' + window.bountyProofHave(a));
       // Collect the required NEW items → it completes.
       G.inventory[proof] = 999 + 3;
-      window.handleBountyKill(monId, window.MONSTERS[monId]);
+      // completeBounty() rolls a 10% BONUS-marks turn-in (Math.random<0.10) — real
+      // game behaviour, but it made this exact-marks assertion flaky. Suppress the
+      // roll deterministically so we test the base 5-mark payout.
+      const _rand = Math.random; Math.random = () => 0.99;
+      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { Math.random = _rand; }
       assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
       assert((G.bountyHunter.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
     } finally { restoreG(snap); }

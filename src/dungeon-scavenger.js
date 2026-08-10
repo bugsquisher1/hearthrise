@@ -510,6 +510,10 @@
         if(typeof window.addItem === 'function') window.addItem(a.id, a.qty);
         else window.G.inventory[a.id] = (window.G.inventory[a.id]||0) + a.qty;
       });
+      /* b281: Dungeon Scrip scaled by how much of the boss you took down. */
+      if(typeof window.awardDungeonScrip === 'function'){
+        window.awardDungeonScrip(run.dungeonId, Math.max(0.1, 1 - bossHp / bossMaxHp));
+      }
       // Manual scavenger runs do NOT impose a cooldown — players who put in
       // the time/effort can keep running. Only the auto-run path stamps lastRun.
       var rewardHtml = awarded.length ? awarded.map(function(a){

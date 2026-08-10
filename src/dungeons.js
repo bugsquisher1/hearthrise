@@ -197,6 +197,94 @@
   };
   window.DUNGEONS = DUNGEONS;
 
+  /* b281 — award Dungeon Scrip on a clear, scaled by the dungeon's level. `fraction`
+     lets the scavenger pay partial scrip for a partial boss kill. Shared by all
+     three completion paths (auto-run, manual phases, scavenger). */
+  function awardDungeonScrip(id, fraction){
+    var d = DUNGEONS[id]; if(!d || !window.G) return 0;
+    var base = Math.max(5, Math.round((d.reqLv || 10) * 0.6));
+    var amt = Math.max(1, Math.round(base * (fraction == null ? 1 : Math.max(0, fraction))));
+    if(typeof window.addItem === 'function') window.addItem('dungeon_scrip', amt);
+    else window.G.inventory.dungeon_scrip = (window.G.inventory.dungeon_scrip || 0) + amt;
+    if(typeof window.notify === 'function') window.notify('+' + amt + ' Dungeon Scrip', 'loot');
+    return amt;
+  }
+  window.awardDungeonScrip = awardDungeonScrip;
+
+  /* b281 — THE QUARTERMASTER: spend Dungeon Scrip. Keys let you re-run without
+     waiting on a key drop; blueprints buy homestead tiers; and the signature boss
+     weapons are purchasable for a LOT of scrip — a deterministic path so a 3% drop
+     isn't the only way to the weapon you're chasing. This is the cohesion loop:
+     run dungeons → scrip → the exact reward you want. */
+  var QM_STOCK = [
+    { id:'bone_key', scrip:18 }, { id:'goblin_seal', scrip:24 }, { id:'arcane_tome', scrip:30 },
+    { id:'obsidian_sigil', scrip:45 }, { id:'void_fragment', scrip:60 }, { id:'dragonsbane_key', scrip:85 },
+    { id:'kitchen_blueprint_t2', scrip:55 }, { id:'forge_blueprint_t2', scrip:55 }, { id:'library_blueprint_t2', scrip:55 }, { id:'trophy_blueprint_t2', scrip:55 },
+    { id:'kitchen_blueprint_t3', scrip:160 }, { id:'forge_blueprint_t3', scrip:160 }, { id:'library_blueprint_t3', scrip:160 }, { id:'trophy_blueprint_t3', scrip:160 },
+    { id:'wartusk_cleaver', scrip:150 }, { id:'whispering_codex', scrip:180 }, { id:'ashcrown_greatsword', scrip:340 }, { id:'voidmaw_scepter', scrip:500 }, { id:'dragonfang_pike', scrip:800 },
+  ];
+  window.QM_STOCK = QM_STOCK;
+  function scripHeld(){ return (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0; }
+
+  function buyFromQuartermaster(id){
+    var entry = QM_STOCK.find(function(e){ return e.id === id; });
+    if(!entry) return false;
+    if(scripHeld() < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
+    if(typeof window.removeItem === 'function') window.removeItem('dungeon_scrip', entry.scrip);
+    else window.G.inventory.dungeon_scrip = scripHeld() - entry.scrip;
+    if(typeof window.addItem === 'function') window.addItem(id, 1);
+    else window.G.inventory[id] = (window.G.inventory[id] || 0) + 1;
+    var it = window.ITEMS && window.ITEMS[id];
+    if(window.notify) window.notify('Bought ' + (it ? it.n : id) + ' for ' + entry.scrip + ' Scrip', 'levelup');
+    renderQuartermaster();
+    if(typeof window.updateTopbar === 'function') window.updateTopbar();
+    if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+    return true;
+  }
+  window.buyFromQuartermaster = buyFromQuartermaster;
+
+  function renderQuartermaster(){
+    var line = document.getElementById('qm-scrip-line');
+    if(line) line.innerHTML = 'You have <b>' + scripHeld() + ' Dungeon Scrip</b> — earned by clearing dungeons.';
+    var body = document.getElementById('quartermaster-body');
+    if(!body) return;
+    var groups = [
+      { label:'Keys — re-run any dungeon', ids:['bone_key','goblin_seal','arcane_tome','obsidian_sigil','void_fragment','dragonsbane_key'] },
+      { label:'Housing blueprints', ids:['kitchen_blueprint_t2','forge_blueprint_t2','library_blueprint_t2','trophy_blueprint_t2','kitchen_blueprint_t3','forge_blueprint_t3','library_blueprint_t3','trophy_blueprint_t3'] },
+      { label:'Signature boss weapons — guaranteed, no RNG', ids:['wartusk_cleaver','whispering_codex','ashcrown_greatsword','voidmaw_scepter','dragonfang_pike'] },
+    ];
+    body.innerHTML = groups.map(function(g){
+      var rows = g.ids.map(function(id){
+        var e = QM_STOCK.find(function(x){ return x.id === id; });
+        if(!e) return '';
+        var it = window.ITEMS && window.ITEMS[id];
+        var can = scripHeld() >= e.scrip;
+        return '<div class="qm-row"><span class="qm-name">' + (it ? it.n : id) + '</span>' +
+          '<span class="qm-cost">' + e.scrip + ' Scrip</span>' +
+          '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" ' + (can ? '' : 'disabled') +
+          ' onclick="window.buyFromQuartermaster(\'' + id + '\')">Buy</button></div>';
+      }).join('');
+      return '<div class="qm-group-label">' + g.label + '</div>' + rows;
+    }).join('');
+  }
+  window.renderQuartermaster = renderQuartermaster;
+
+  function openQuartermaster(){
+    var old = document.getElementById('quartermaster-overlay'); if(old) old.remove();
+    var ov = document.createElement('div');
+    ov.className = 'qm-overlay'; ov.id = 'quartermaster-overlay';
+    ov.innerHTML = '<div class="qm-modal quartermaster-modal" style="max-width:540px;position:relative">' +
+      '<button class="qm-close" aria-label="Close">✕</button>' +
+      '<h3 style="margin:0 0 4px">Quartermaster</h3>' +
+      '<div class="qm-scrip-line" id="qm-scrip-line"></div>' +
+      '<div id="quartermaster-body"></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('.qm-close').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+    renderQuartermaster();
+  }
+  window.openQuartermaster = openQuartermaster;
+
   // ---- State ----
   function ensureState(){
     if(!window.G) return;
@@ -259,6 +347,7 @@
       }
     });
     window.G.dungeons.lastRun[id] = Date.now();
+    awardDungeonScrip(id, 1);
     if(typeof window.notify === 'function'){
       window.notify('Cleared ' + d.name + '! ' + awarded.length + ' rewards', 'levelup');
       awarded.forEach(function(a){
@@ -312,7 +401,12 @@
        multiplayer. Real multiplayer raiding is the weekly clan raid card
        above (b209). */
     var sectionLabel = { dungeon: 'Dungeons (Solo)', raid: 'Epic Dungeons (Solo)', worldboss: 'Legendary Hunts (Solo)' };
-    var html = '';
+    /* b281: Scrip banner + Quartermaster entry at the top of the dungeon panel. */
+    var _scrip = (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0;
+    var html = '<div class="dgn-scrip-bar">' +
+      '<span class="dgn-scrip-have">🎟️ <b>' + _scrip + '</b> Dungeon Scrip</span>' +
+      '<button class="btn btn-sm dgn-qm-btn" onclick="window.openQuartermaster()">Quartermaster</button>' +
+      '</div>';
     ['dungeon','raid','worldboss'].forEach(function(kind){
       if(!grouped[kind].length) return;
       html += '<div class="dgn-section"><h3>' + sectionLabel[kind] + '</h3><div class="dgn-grid">';
@@ -351,7 +445,15 @@
               '</div>' +
             '</div>' +
             '<div class="dgn-desc">' + d.desc + '</div>' +
-            (d.boss ? '<div class="dgn-boss-line"><span class="dgn-boss-skull">☠</span> Final boss: <b>' + d.boss.name + '</b></div>' : '') +
+            (function(){
+              if(!d.boss) return '';
+              /* b281: enrich the boss line from the data-driven registry (weakness
+                 to route your loadout, plus the fight's signature mechanic). */
+              var br = window.BOSS_BY_DUNGEON && window.BOSS_BY_DUNGEON[id];
+              return '<div class="dgn-boss-line"><span class="dgn-boss-skull">☠</span> Final boss: <b>' + d.boss.name + '</b>' +
+                (br && br.weakness ? ' <span class="dgn-boss-weak">weak to ' + br.weakness + '</span>' : '') + '</div>' +
+                (br && br.mechanic ? '<div class="dgn-boss-mech">' + br.mechanic + '</div>' : '');
+            })() +
             '<div class="dgn-loot-row">' + lootHtml + '</div>' +
             '<div class="dgn-foot">' +
               '<div class="dgn-cost">Entry: <b>' + costStr + '</b></div>' +
@@ -488,6 +590,7 @@
     var mult = 0.4 + pct * 1.6;
     var bop = pct >= 1 ? 0.20 : pct >= 0.66 ? 0.10 : 0;
     var awarded = awardLoot(runState.dungeonId, mult, bop);
+    awardDungeonScrip(runState.dungeonId, pct);   // b281: scrip scales with phases cleared
     // Pay cooldown
     if(window.G && window.G.dungeons) window.G.dungeons.lastRun[runState.dungeonId] = Date.now();
     var rewardHtml = awarded.map(function(a){

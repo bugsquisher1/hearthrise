@@ -1186,6 +1186,20 @@ body.in-combat #combat-area {
 }
 /* b278: armour archetype tag in the item tooltip (the combat triangle) */
 .ttl-archetype { font-size: calc(14.5px * var(--ui-scale, 1)); color: var(--gold-2); font-weight: 600; margin: 2px 0 6px; letter-spacing: .02em; }
+/* b281: Dungeon Scrip bar + Quartermaster shop */
+.dgn-scrip-bar { display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin:0 0 14px; padding:8px 12px; border:1px solid var(--gold-2); border-radius:9px;
+  background:rgba(201,162,74,.10); }
+.dgn-scrip-have { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
+.dgn-scrip-have b { color:var(--gold-2); font-variant-numeric:tabular-nums; }
+.qm-scrip-line { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink-2); margin:2px 0 12px; }
+.qm-scrip-line b { color:var(--gold-2); }
+.qm-group-label { font-family:var(--f-display,inherit); font-size:calc(15px * var(--ui-scale,1)); color:var(--gold-2);
+  letter-spacing:.02em; margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--line-soft,rgba(255,255,255,.08)); }
+.qm-row { display:flex; align-items:center; gap:10px; padding:6px 0; }
+.qm-row .qm-name { flex:1; font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
+.qm-row .qm-cost { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--gold-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.quartermaster-modal { max-height:80vh; overflow-y:auto; }
 /* Wave 5c: armour set-bonus line in the Equipment stats panel */
 .eqb-set { margin: 8px 0; padding: 7px 11px; border-radius: 8px;
   background: rgba(201,162,74,.12); border: 1px solid var(--gold-2);
@@ -1200,6 +1214,9 @@ body.in-combat #combat-area {
 }
 .dgn-boss-line b { color: var(--gold-2); font-family: var(--font-display, inherit); letter-spacing: .01em; }
 .dgn-boss-skull { color: #c96; font-size: 1.05em; }
+/* b281: boss weakness tag + one-line mechanic from the data-driven registry */
+.dgn-boss-weak { font-size: calc(14.5px * var(--ui-scale,1)); color: #6fae7f; font-weight: 600; margin-left: 4px; }
+.dgn-boss-mech { font-size: calc(14.5px * var(--ui-scale,1)); color: var(--ink-3); font-style: italic; margin: 2px 0 6px; }
 .dgn-bop {
   font-size:calc(14.5px * var(--ui-scale, 1));
   font-weight: 800;

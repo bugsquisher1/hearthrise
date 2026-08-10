@@ -23,12 +23,13 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=280';
-import { MONSTERS } from './data/monsters.js?v=280';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=280';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=280';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=280';
-import { COMPANIONS } from './data/companions.js?v=280';
+import { SKILLS_DEF } from './data/skills.js?v=281';
+import { MONSTERS } from './data/monsters.js?v=281';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=281';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=281';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=281';
+import { COMPANIONS } from './data/companions.js?v=281';
+import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=281';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -73,6 +74,9 @@ Object.assign(window, {
   FISH_SPOTS:      unifyArray('FISH_SPOTS', FISH_SPOTS),
   EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
+  // b281 — the canonical data-driven boss registry (data/bosses.js). A new global
+  // object, so no merge needed; surfaces read boss identity/weakness/mechanic by id.
+  BOSSES, BOSS_BY_DUNGEON,
   // b220 — artisan taxonomy + food classification, published for the classic
   // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
   ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,
@@ -89,31 +93,31 @@ Object.assign(window, {
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=280';
-import './net/sync.js?v=280';
-import './net/auth.js?v=280';
-import './net/supabase-bootstrap.js?v=280';
+import './net/events.js?v=281';
+import './net/sync.js?v=281';
+import './net/auth.js?v=281';
+import './net/supabase-bootstrap.js?v=281';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=280';
-import './utils/dom.js?v=280';
-import './utils/safe.js?v=280';
-import './utils/profile.js?v=280';
-import './utils/data-integrity.js?v=280';
-import './utils/image-fallback.js?v=280';
+import './config.js?v=281';
+import './utils/dom.js?v=281';
+import './utils/safe.js?v=281';
+import './utils/profile.js?v=281';
+import './utils/data-integrity.js?v=281';
+import './utils/image-fallback.js?v=281';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=280';
-import { setupCompanions } from './features/companions.js?v=280';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=280';
-import { setupCharacterPage } from './features/character-page.js?v=280';
-import { setupCombatRender } from './features/combat-render.js?v=280';
-import { setupRecipeBook } from './features/recipe-book.js?v=280';
-import { setupItemIndex } from './features/item-index.js?v=280';
+import { setupSmokeTest } from './features/smoke-test.js?v=281';
+import { setupCompanions } from './features/companions.js?v=281';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=281';
+import { setupCharacterPage } from './features/character-page.js?v=281';
+import { setupCombatRender } from './features/combat-render.js?v=281';
+import { setupRecipeBook } from './features/recipe-book.js?v=281';
+import { setupItemIndex } from './features/item-index.js?v=281';
 
 // Boot diagnostics
 const counts = {

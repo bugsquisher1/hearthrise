@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=280' directly.
+// modularised, will import { G } from '../state/game.js?v=281' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=280';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=280';
+import { on, snapshot } from '../net/events.js?v=281';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=281';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=280';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=281';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2388,6 +2388,44 @@ const TESTS = [
       if (av) av.style.display = '';
       var pet = document.getElementById('arena-player-pet'); if (pet) pet.style.display = 'none';
     }
+  }),
+
+  () => tryRun('WAVE4c: data-driven boss registry — full schema + one source of truth', () => {
+    const B = window.BOSSES, BD = window.BOSS_BY_DUNGEON, D = window.DUNGEONS;
+    if (!B || !D) return;
+    const REQ = ['id', 'name', 'title', 'tier', 'reqLv', 'style', 'weakness', 'mechanic', 'signature'];
+    Object.entries(B).forEach(([id, b]) => {
+      REQ.forEach(f => assert(b[f] != null, 'boss ' + id + ' missing field: ' + f));
+      assert(['melee', 'ranged', 'magic'].includes(b.style), b.id + ' style must be a real combat style');
+      assert(Array.isArray(b.signature) && b.signature.every(s => window.ITEMS[s]), b.id + ' signature items must exist');
+    });
+    // single source of truth: a dungeon's boss name must match its registry record
+    Object.entries(D).forEach(([did, d]) => {
+      const rec = BD && BD[did];
+      if (rec && d.boss) assert(rec.name === d.boss.name,
+        did + ': registry boss "' + rec.name + '" must match the dungeon card "' + d.boss.name + '"');
+    });
+  }),
+
+  () => tryRun('WAVE3d: dungeon Scrip economy — earn on clear, spend at the Quartermaster', () => {
+    const G = window.G;
+    if (typeof window.awardDungeonScrip !== 'function' || typeof window.buyFromQuartermaster !== 'function' || !window.DUNGEONS) return;
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})) };
+    try {
+      G.inventory = Object.assign({}, G.inventory); delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
+      const dId = Object.keys(window.DUNGEONS)[0];
+      const got = window.awardDungeonScrip(dId, 1);
+      assert(got > 0 && (G.inventory.dungeon_scrip || 0) === got, 'clearing a dungeon must grant scrip');
+      // buy a key at the Quartermaster
+      const key = (window.QM_STOCK || []).find(e => e.id === 'bone_key');
+      assert(key, 'Quartermaster must stock dungeon keys');
+      G.inventory.dungeon_scrip = key.scrip;                 // exactly enough
+      const ok = window.buyFromQuartermaster('bone_key');
+      assert(ok && (G.inventory.bone_key || 0) === 1, 'buying a key must grant it');
+      assert((G.inventory.dungeon_scrip || 0) === 0, 'the scrip must be spent');
+      // can't overspend
+      assert(window.buyFromQuartermaster('dragonfang_pike') === false, 'must refuse a purchase you can\'t afford');
+    } finally { G.inventory = snap.inv; }
   }),
 
   () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
@@ -12438,7 +12476,7 @@ const TESTS = [
     // The clan Hunt's signature materials (raids.js) — obtainable via the weekly boss.
     ['slagheart_core', 'abyssal_pearl', 'choirbone', 'warden_seal', 'wyrm_gilding', 'hollow_sigil', 'wyrm_scale', 'void_core'].forEach(add);
     // Coded drops the engine grants outside the drop tables.
-    ['farm_deed', 'hearth_token'].forEach(add);
+    ['farm_deed', 'hearth_token', 'dungeon_scrip'].forEach(add);  // b281: scrip awarded on dungeon clears
 
     const inputsOf = (r) => { if (r.inputs) return r.inputs; const i = {}; if (r.input) i[r.input] = r.inputQty || 1; if (r.secondary) Object.entries(r.secondary).forEach(([k, v]) => { i[k] = v; }); return i; };
     const reach = new Set(base);

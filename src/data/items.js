@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=280';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=280';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=280';
+import { GEAR_ITEMS } from './gear-tiers.js?v=281';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=281';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=281';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -529,6 +529,13 @@ export const ITEMS={
   voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
+
+  /* b281 — DUNGEON SCRIP: the dungeon economy currency. Earned on every dungeon
+     clear (scaled by the dungeon's level), spent at the Quartermaster for keys,
+     blueprints and — the point — a DETERMINISTIC path to the signature boss
+     weapons, so chasing a 3% drop isn't the only way. Bind-on-pickup (earned, not
+     traded) and never touches hearth_token/muster_seal (mint-leak guards). */
+  dungeon_scrip: {n:'Dungeon Scrip', icon:'🎟️', v:0, bop:true, tag:'currency', rarity:'uncommon', musterOnly:false},
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
   dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, spdB:.03, reqSkill:'attack', reqLv:95, rarity:'legendary'},

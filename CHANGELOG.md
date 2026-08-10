@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 281 — 2026-08-09 (Dungeon Scrip & the Quartermaster)
+
+- 🎟️ **Dungeons now pay Scrip.** Every dungeon clear earns **Dungeon Scrip** (more from tougher dungeons). Spend it at the new **Quartermaster** on the Dungeons screen:
+  - **Keys** to re-run any dungeon without waiting on a key drop,
+  - **housing blueprints**,
+  - and — the big one — the **signature boss weapons for a guaranteed, no-RNG price**. Chasing a 3% drop is no longer the only path to the weapon you want.
+- ☠️ **Boss cards tell you more.** Each dungeon boss now shows what it's **weak to** (so you know which style to bring) and its **signature mechanic** — powered by a new unified boss registry behind the scenes, so bosses have one consistent home.
+
 ## v0.9.2-beta build 280 — 2026-08-09 (No more dead-end loot)
 
 - 🧹 **Cohesion guard:** a new safety net makes sure every item that drops from a monster or dungeon actually has a purpose (a recipe, a use, or intentional sell-for-gold). Only four early trash drops are exempt on purpose. Behind the scenes — it keeps future content from adding loot that goes nowhere.

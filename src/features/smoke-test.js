@@ -2340,6 +2340,59 @@ const TESTS = [
     } finally { G.equipment = snap.eq; }
   }),
 
+  () => tryRun('b283: currency ignores the bank cap; a full-bag purchase never eats scrip (data-loss fix)', () => {
+    const G = window.G;
+    if (typeof window.addItem !== 'function' || !window.ITEMS || !window.ITEMS.dungeon_scrip || typeof window.bankCap !== 'function') return;
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})) };
+    try {
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      const cap = window.bankCap();
+      // Fill the bag to cap with non-currency items.
+      const inv = {}; let n = 0;
+      for (const id in window.ITEMS) { if (n >= cap) break; const t = window.ITEMS[id].tag; if (t !== 'currency' && t !== 'key' && !window.ITEMS[id].premium) { inv[id] = 1; n++; } }
+      G.inventory = inv; delete G.inventory.dungeon_scrip;
+      // Currency must NEVER be refused by the cap.
+      assert(window.addItem('dungeon_scrip', 50) !== false && (G.inventory.dungeon_scrip || 0) === 50, 'currency must ignore the bank cap');
+      // A full-bag purchase of a NON-exempt item must fail WITHOUT spending scrip.
+      if (typeof window.buyFromQuartermaster === 'function') {
+        G.inventory.dungeon_scrip = 999; delete G.inventory.kitchen_blueprint_t2;
+        const before = G.inventory.dungeon_scrip;
+        const bought = window.buyFromQuartermaster('kitchen_blueprint_t2');
+        assert(bought === false, 'a full-bag purchase must fail');
+        assert(G.inventory.dungeon_scrip === before, 'a failed purchase must NOT spend scrip (no data loss)');
+        assert(!G.inventory.kitchen_blueprint_t2, 'no item granted on a failed purchase');
+      }
+    } finally { G.inventory = snap.inv; G.bank = snap.bank; }
+  }),
+
+  () => tryRun('b283: armour set bonus requires same ARCHETYPE + tier (no mixed-loadout trigger)', () => {
+    const G = window.G;
+    if (typeof window.getArmorSetBonus !== 'function' || !window.ITEMS) return;
+    const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})) };
+    try {
+      // 3 dawn plate + 2 dawn cloth: 5 same-tier pieces, but only 3 of one class → NO set.
+      if (window.ITEMS.dawn_helm && window.ITEMS.archmage_body) {
+        G.equipment = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', gloves: 'archmage_gloves', belt: 'apprentice_belt' };
+        const mixed = window.getArmorSetBonus();
+        assert(!mixed || mixed.pieces < 5, 'a mixed-archetype loadout must NOT grant a set bonus');
+        // a full same-class set still triggers
+        G.equipment = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets' };
+        const set = window.getArmorSetBonus();
+        assert(set && set.armourClass === 'plate' && set.pieces >= 5, 'a full same-class set must still grant the bonus');
+      }
+    } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('b283: the Character card reads attack per active style (plate warrior not dragged negative)', () => {
+    // getEquipmentTotals keeps atkB / rangeAtkB / magicAtkB as SEPARATE fields, and
+    // character-page reads the active style's field — so a melee warrior in plate
+    // (which carries a magicAtkB penalty) never sees that penalty in their Attack.
+    if (typeof window.getEquipmentTotals !== 'function') return;
+    const fields = window.getEquipmentTotals().fields.map(f => f[0]);
+    assert(fields.includes('atkB') && fields.includes('magicAtkB') && fields.includes('rangeAtkB'),
+      'attack must be reported per style, never merged into one total');
+  }),
+
   () => tryRun('b282: leather/cloth armour never borrows PLATE art (no wrong-silhouette icon)', () => {
     // Tyler: "hovering an item shows a completely different asset." The auto-mapper's
     // '_helm'/'belt' suffix match was painting cloth mage-hats + leather coifs as an

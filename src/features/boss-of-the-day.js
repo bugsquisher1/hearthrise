@@ -133,6 +133,15 @@
     return p >= 1 ? Math.round(p) + '%' : p.toFixed(1) + '%';
   }
 
+  /* b283 (studio-review P1): draw the PAINTED monster portrait when one exists —
+     many featured mobs (dragon, lich, death_knight…) already have 128px art that
+     was being ignored in favour of the data emoji. Emoji only as last resort. */
+  function bossIconHtml(id, m) {
+    var path = window._monsterIcon && window._monsterIcon[id];
+    if (path) return '<img src="' + path + '" alt="" style="width:100%;height:100%;object-fit:contain">';
+    return m && m.icon ? m.icon : '';
+  }
+
   // ── The card ──────────────────────────────────────────────
   function ensureCard() {
     var panel = document.getElementById('panel-combat');
@@ -188,7 +197,7 @@
         '<span class="botd-timer" id="hr-botd-timer">new in ' + fmtCountdown(msUntilRotate()) + '</span>' +
       '</div>' +
       '<div class="botd-body">' +
-        '<span class="botd-icon">' + (m.icon || '') + '</span>' +
+        '<span class="botd-icon">' + bossIconHtml(id, m) + '</span>' +
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
@@ -252,7 +261,7 @@
         '<span class="botd-timer" id="hr-weekly-timer">resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()) + '</span>' +
       '</div>' +
       '<div class="botd-body">' +
-        '<span class="botd-icon">' + (m.icon || '') + '</span>' +
+        '<span class="botd-icon">' + bossIconHtml(id, m) + '</span>' +
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +

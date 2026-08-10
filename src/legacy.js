@@ -1431,11 +1431,14 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
    (Dawnsteel full set = +7%). Derived from item.tier — no per-item authoring. */
 function getArmorSetBonus(){
   if(typeof G==='undefined' || !G || !G.equipment) return null;
+  /* b283 (studio-review P1): a SET is 5+ pieces of the same material tier AND the
+     same armour archetype (plate/leather/cloth) — a mix-and-match loadout must not
+     trigger it. Key on tier+class so completing one true set is the goal. */
   const counts={};
-  Object.values(G.equipment).forEach(id=>{ const it=ITEMS[id]; if(it && it.type==='armor' && it.tier){ counts[it.tier]=(counts[it.tier]||0)+1; } });
-  let bestTier=0, bestCount=0;
-  for(const t in counts){ if(counts[t]>bestCount){ bestCount=counts[t]; bestTier=+t; } }
-  if(bestCount>=5 && bestTier>0) return { tier:bestTier, pieces:bestCount, critB: bestTier*0.01 };
+  Object.values(G.equipment).forEach(id=>{ const it=ITEMS[id]; if(it && it.type==='armor' && it.tier){ const cls=it.armourClass||'plate'; const k=it.tier+'|'+cls; counts[k]=(counts[k]||0)+1; } });
+  let bestKey=null, bestCount=0;
+  for(const k in counts){ if(counts[k]>bestCount){ bestCount=counts[k]; bestKey=k; } }
+  if(bestCount>=5 && bestKey){ const [t,cls]=bestKey.split('|'); return { tier:+t, armourClass:cls, pieces:bestCount, critB:(+t)*0.01 }; }
   return null;
 }
 window.getArmorSetBonus=getArmorSetBonus;
@@ -2147,7 +2150,13 @@ try{
 
 function addItem(id,qty=1,track=true){
   if(!ITEMS[id])return false;
-  if(!G.inventory[id]){                     /* a new (or emptied) stack needs a slot */
+  /* b283 (studio-review P0): currencies and keys must NEVER be refused by the bank
+     cap — they aren't grid clutter, and a blocked scrip/token/key on a full bag was
+     silent loss (you cleared a dungeon and got nothing). Only real stackable goods
+     are gated. */
+  var _t = ITEMS[id].tag;
+  var _exemptCap = (_t==='currency' || _t==='key' || ITEMS[id].premium);
+  if(!G.inventory[id] && !_exemptCap){       /* a new (or emptied) stack needs a slot */
     if(bankUsed() >= bankCap()){ notifyBankFull(); return false; }
   }
   G.inventory[id]=(G.inventory[id]||0)+qty;

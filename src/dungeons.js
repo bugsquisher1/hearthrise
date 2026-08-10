@@ -230,10 +230,13 @@
     var entry = QM_STOCK.find(function(e){ return e.id === id; });
     if(!entry) return false;
     if(scripHeld() < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
+    /* b283 (studio-review P0): add the item FIRST and only spend scrip if it lands.
+       The old order (spend, then add) lost the scrip AND gave nothing when the bag
+       was full. addItem returns false on a full bag; bail without charging. */
+    var gained = (typeof window.addItem === 'function') ? window.addItem(id, 1) : (function(){ window.G.inventory[id]=(window.G.inventory[id]||0)+1; return true; })();
+    if(gained === false){ if(window.notify) window.notify('Your bag is full — buy bank space first.', 'kill'); return false; }
     if(typeof window.removeItem === 'function') window.removeItem('dungeon_scrip', entry.scrip);
     else window.G.inventory.dungeon_scrip = scripHeld() - entry.scrip;
-    if(typeof window.addItem === 'function') window.addItem(id, 1);
-    else window.G.inventory[id] = (window.G.inventory[id] || 0) + 1;
     var it = window.ITEMS && window.ITEMS[id];
     if(window.notify) window.notify('Bought ' + (it ? it.n : id) + ' for ' + entry.scrip + ' Scrip', 'levelup');
     renderQuartermaster();
@@ -259,7 +262,10 @@
         if(!e) return '';
         var it = window.ITEMS && window.ITEMS[id];
         var can = scripHeld() >= e.scrip;
-        return '<div class="qm-row"><span class="qm-name">' + (it ? it.n : id) + '</span>' +
+        /* b283 (studio-review P1): the shop was pure text — give each row an icon. */
+        var ipath = window._itemPath && window._itemPath[id];
+        var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + (it && it.icon ? it.icon : '📦') + '</span>';
+        return '<div class="qm-row"><span class="qm-icon">' + iconHtml + '</span><span class="qm-name">' + (it ? it.n : id) + '</span>' +
           '<span class="qm-cost">' + e.scrip + ' Scrip</span>' +
           '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" ' + (can ? '' : 'disabled') +
           ' onclick="window.buyFromQuartermaster(\'' + id + '\')">Buy</button></div>';
@@ -546,9 +552,14 @@
     var awarded = [];
     d.loot.forEach(function(roll){
       var rollChance = roll.chance;
-      // BoP items get an extra chance bump in manual runs
+      // BoP items get an extra chance bump in manual runs.
       if(window.ITEMS && window.ITEMS[roll.id] && window.ITEMS[roll.id].bop){
-        rollChance = Math.min(1, rollChance + bonusBopChance);
+        /* b283 (studio-review P1 exploit): the flat +bonus turned a 3% signature
+           weapon into 23% on a perfect clear, collapsing the chase. Cap the additive
+           bonus for genuinely rare drops (<=5%) so the prestige weapons stay rare;
+           common BoP still gets the full bump. */
+        var addBonus = roll.chance <= 0.05 ? Math.min(bonusBopChance, 0.02) : bonusBopChance;
+        rollChance = Math.min(1, rollChance + addBonus);
       }
       if(Math.random() <= rollChance){
         var qBase = roll.qty[0] + Math.floor(Math.random() * (roll.qty[1] - roll.qty[0] + 1));

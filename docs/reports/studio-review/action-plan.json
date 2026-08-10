@@ -1,0 +1,164 @@
+[
+  {
+    "priority": "P0",
+    "item": "Fix both scrip-loss paths: exempt currency-tagged items from the bank-cap check in addItem (or store scrip on a G.scrip scalar) and add a rollback on failed addItem in buyFromQuartermaster — resolves earn-at-cap and purchase order-of-operations (dungeons.js:203-243, legacy.js:2148-2152).",
+    "role": "Systems Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P0",
+    "item": "Gate the '_helm' substring match to plate ids only so caster/ranged helmets stop rendering an iron plate-helm on robe sets (legacy.js:14086-14089).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P0",
+    "item": "Split Total ATK by style on the Character Equipment card so plate warriors stop seeing a negative total.",
+    "role": "Systems Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P0",
+    "item": "Paint 12 base armour silhouettes (heavy/leather/cloth x body/legs/boots/gloves), add boots/pants/body keys to SLOT_ART, tier via rarity border — clears ~69 emoji pieces (gear-tiers.js:112-131, legacy.js:14063-14072).",
+    "role": "Asset Director",
+    "effort": "L"
+  },
+  {
+    "priority": "P0",
+    "item": "Paint 5 bespoke signature dungeon weapons and hand-map in LOCAL_ITEM_ICON — highest art ROI in the game (items.js:518-541).",
+    "role": "Asset Director",
+    "effort": "M"
+  },
+  {
+    "priority": "P0",
+    "item": "Replace all dungeon-encounter emoji (84px boss, phase buttons, puzzle options) with the painted-asset pipeline and styled .drm-btn SVG/text controls (dungeons.js:660,664,671,836,99,158; audit-overrides.css:1323,1377).",
+    "role": "Art Director / Engineer",
+    "effort": "M"
+  },
+  {
+    "priority": "P1",
+    "item": "Theme-prefix the 44px touch-target rule (or load it after art-direction.css) so it wins on the live theme; add a smoke assertion for >=44px at 820x360 (art-direction.css:238, audit-overrides.css:2482).",
+    "role": "QA-Mobile / Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Make the perfect-clear BoP drop bonus multiplicative or cap it at +0.02 for sub-5% drops so the signature-weapon chase survives (dungeons.js:591).",
+    "role": "Economy Designer / Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Key the armour set bonus on tier AND armourClass (5+ same-class same-tier) and test that a mixed-class loadout does not trigger it (legacy.js:1432-1439).",
+    "role": "Systems Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Swap Boss of the Day + Weekly cards and the dungeon reward-summary row to painted portraits/_itemPath with emoji fallback — pure render fixes, zero new art (boss-of-the-day.js:191,255; dungeons.js:598).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Add an icon cell to Quartermaster shop rows (_itemPath + emoji fallback) (dungeons.js:262-265).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Paint 3 artisan-tool silhouettes (hammer/needle/knife) and hand-map all 9 tool ids (items.js:40-48).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Route every new radius through --r/--r-sm/--r-lg and every colour through role tokens; delete the one-off hexes and the resurrected moss-green #7f9a4f (audit-overrides.css:1191,1204,1216,1218,1481,1482).",
+    "role": "Art Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P1",
+    "item": "Migrate surfaces to READ bosses.js (dungeon cards, scavenger, daily/weekly), delete duplicated names from DUNGEONS.boss, and add a smoke test asserting name equality across surfaces (bosses.js:32-75, dungeons.js:453, dungeon-scavenger.js:42).",
+    "role": "Systems Engineer",
+    "effort": "M"
+  },
+  {
+    "priority": "P1",
+    "item": "Extend the landscape smoke guard to open Quartermaster/More/settings overlays, drop the blanket fixed-skip for opened modals, and assert viewport-height fit + no clipped child + tap-target >=44px (run-smoke.mjs:207-213).",
+    "role": "QA-Mobile",
+    "effort": "M"
+  },
+  {
+    "priority": "P1",
+    "item": "Add regression tests for scrip award-at-cap, purchase-at-cap, and a tool-tier double-yield/XP E2E (smoke-test.js:2394-2425).",
+    "role": "Systems Engineer / QA",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Fix --font-display -> --f-display (restores Cinzel on boss names) and use --f-label for Quartermaster group labels (audit-overrides.css:1197,1215).",
+    "role": "Art Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Give the Quartermaster its own overlay/modal class instead of piggy-backing the Quests .qm-modal chrome (dungeons.js:276).",
+    "role": "Art Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Paint the scrip token + 4 trophy/mat icons and hand-map (items.js:519-542).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Reuse the t5 axe/pick/rod silhouette with ember/dawn rarity border for tiers 6-7 gathering tools — zero new base art (items.js:213-218).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Add an icon/portrait field to the bosses.js schema, paint 6 boss portraits, and wire dungeon cards + boss phase + Final-boss line (bosses.js:32-75, dungeons.js:453).",
+    "role": "Asset Director",
+    "effort": "L"
+  },
+  {
+    "priority": "P2",
+    "item": "Enlarge .qm-close to 44x44 in the mobile block and add flex-wrap:wrap to .dgn-boss-line (legacy.css:3447, audit-overrides.css:1209-1214).",
+    "role": "QA-Mobile",
+    "effort": "S"
+  },
+  {
+    "priority": "P2",
+    "item": "Surface the combat-triangle downside (penalty line in --role-danger) on the archetype tag so both sides of the loadout decision are legible (item-ux.js:121-125).",
+    "role": "Art Director / Engineer",
+    "effort": "S"
+  },
+  {
+    "priority": "P3",
+    "item": "Extract scrip + Quartermaster into src/features/quartermaster.js reading DUNGEONS/BOSSES as data; leave dungeons.js as the run engine and update the stale SKELETON header (dungeons.js:1-18).",
+    "role": "Systems Engineer",
+    "effort": "M"
+  },
+  {
+    "priority": "P3",
+    "item": "Paint gold ring + amulet or tint copper pieces with a gold rarity border and hand-map (items.js:77-78).",
+    "role": "Asset Director",
+    "effort": "S"
+  },
+  {
+    "priority": "P3",
+    "item": "Pin the Quartermaster header + scrip balance and scroll only #quartermaster-body, mirroring the existing .qm-body pattern (audit-overrides.css:1202).",
+    "role": "QA-Mobile",
+    "effort": "S"
+  },
+  {
+    "priority": "P3",
+    "item": "Verify the arena pet badge on a real 360px landscape device with a pet equipped; tuck to right:-4px/bottom:-2px or 24px if it overlaps the name/HP row (audit-overrides.css:634-642).",
+    "role": "QA-Mobile",
+    "effort": "S"
+  }
+]

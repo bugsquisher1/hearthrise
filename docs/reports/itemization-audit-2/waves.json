@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Truth in UI",
+    "goal": "Nothing lies to the player; every gate and tool is visible before the click. Directly kills the named complaints 'Forge gate invisible', 'can only craft a fishing rod', and 'tools do nothing'.",
+    "deliverables": [
+      "Make tileForArtisan surface hasWorkbench() and gateOk() with persistent locked tile states (Build the Forge / Needs recipe scroll)",
+      "Add a bench banner to the artisan header routing to House -> Farmstead -> Forge",
+      "Surface the active tool name+bonus on gather/artisan tiles (e.g. 'Willow Rod +5%')",
+      "Fix combat preview to read d.ch with real percentages",
+      "Fix combat preview forecast to call getPlayerCombatRolls/getMonsterCombatRolls instead of the wrong formula",
+      "Smoke tests: Forge-less save shows smithing tiles locked; preview odds equal drop table"
+    ],
+    "priority": "now",
+    "phaseRefs": [
+      "Philosophy R1 (visible gates)",
+      "Philosophy R2 (felt stats)",
+      "Section 3",
+      "Section 7 bench-gate link"
+    ]
+  },
+  {
+    "name": "Repair the broken loops",
+    "goal": "No dead rewards, no inert flagship items, one source of truth. Fixes the P0 and the honesty violations.",
+    "deliverables": [
+      "P0: wire upgradeRoom to consume housing blueprints",
+      "Add a damage buff reader in maxHit so Cooked Shark/Swordfish/Bear Claw Pie are honest",
+      "Add cook_turnip recipe",
+      "Give gold_bar a real jewelry/gem sink",
+      "Delete the four stale duplicate blocks (inline MONSTERS, ITEMS food twin, Phase A.1 recipes, dead renderArtisanActivities) and add divergence smoke tests",
+      "Fix the stale power-budget.js no-reader comment"
+    ],
+    "priority": "now",
+    "phaseRefs": [
+      "Philosophy R3 (real sinks)",
+      "Philosophy R4 (one source of truth)",
+      "Section 7 blueprint P0 link",
+      "Section 9 economy"
+    ]
+  },
+  {
+    "name": "Tools become real",
+    "goal": "A tool changes the loop in a way the player can name, for gathering AND artisan skills.",
+    "deliverables": [
+      "Add toolXpB and toolDoubleChance routed through the single activityIntervalMs/produce path",
+      "Bump the entry tool tier and/or make a basic tool a soft gather requirement",
+      "Introduce artisan tools (hammer/chisel/needle/knife) by extending the d.artisan branch and existing craftSave/yield gating"
+    ],
+    "priority": "next",
+    "phaseRefs": [
+      "Philosophy R8 (tools are felt)",
+      "Section 7 tool links",
+      "Section 8 fields"
+    ]
+  },
+  {
+    "name": "Standardize the reward layer",
+    "goal": "Bands not magic numbers; one boss schema consumed by every surface; every mat has a sink.",
+    "deliverables": [
+      "Define shared rarity/drop-band constants; replace the three hardcoded 0.05 checks; author drop tables by band",
+      "Author src/data/bosses.js and refactor DUNGEONS + Boss of the Day + Hunt to reference boss records by id; reconcile the Marrow King/Bone Lord split",
+      "Add a sink-side reachability guard; give every combat mat a recipe or turn-in; retire or convert redundant below-tier monster gear drops"
+    ],
+    "priority": "next",
+    "phaseRefs": [
+      "Philosophy R7 (bands)",
+      "Philosophy R10 (one schema)",
+      "Section 5 boss schema",
+      "Section 8 guards"
+    ]
+  },
+  {
+    "name": "Gear identity & combat feel",
+    "goal": "Make progression horizontal as well as vertical; every gear stat felt; prestige gear plays differently.",
+    "deliverables": [
+      "Give each weapon family a speedMod identity (Warhammer slow/heavy) to end its strict dominance",
+      "Bake small crit/spd/passives onto the generated gear ladder per family",
+      "Add an armor damage-reduction term to monster maxHit",
+      "Rework the accuracy clamp / raise boss & dungeon DEF so weapon atkB matters; steepen the weapon share of max hit",
+      "Give Hunt-forged and dungeon signature armor set bonuses/passives; add weakness off-type XP catch-up"
+    ],
+    "priority": "later",
+    "phaseRefs": [
+      "Philosophy R5 (vertical+horizontal)",
+      "Philosophy R6 (identity)",
+      "Section 4 tiers"
+    ]
+  },
+  {
+    "name": "Dungeon & boss ecosystem",
+    "goal": "Dungeons are a real grind loop with identity; the daily boss axis is met; the idle buff loop is closed.",
+    "deliverables": [
+      "Add dungeon scrip + quartermaster + per-dungeon signature mats feeding recipes (copy the Hunt loop)",
+      "Give each dungeon boss one signature mechanic; build real encounters for voidbringer and ancient_wyrm; replace farm_deed filler",
+      "Rotate a real Boss/Dungeon of the Day roster toward the 7+ daily target",
+      "Build the deferred drinks/auto-buff consumer and raise buff magnitudes toward the 15% budget",
+      "Pacing: break the fishing 20-40 dead zone and finish the coal 30-52 relief"
+    ],
+    "priority": "later",
+    "phaseRefs": [
+      "Philosophy R6 (identity)",
+      "Philosophy R9 (idle loop)",
+      "Section 6 dungeon ecosystem",
+      "Section 5 daily/progression axes"
+    ]
+  }
+]

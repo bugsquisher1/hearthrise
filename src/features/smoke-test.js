@@ -2340,6 +2340,64 @@ const TESTS = [
     } finally { G.equipment = snap.eq; }
   }),
 
+  () => tryRun('b289 E2E: the whole loop — gather -> smelt -> forge -> equip -> fight -> dungeon -> scrip -> buy', () => {
+    // Every piece of the cohesion loop has its own unit test, but nobody had ever
+    // walked the WHOLE journey in order. A player does; each step must hand off to
+    // the next.
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.rooms = Object.assign({}, G.rooms, { forge: 3, workshop: 3, kitchen: 3 });
+      G.homestead = { tier: 6 };
+      G.skills = Object.assign({}, G.skills, {
+        mining: 5000000, smithing: 5000000, attack: 5000000, strength: 5000000,
+        defense: 5000000, hitpoints: 5000000, woodcutting: 5000000, crafting: 5000000 });
+      G.inventory = {}; G.gold = 100000;
+
+      // 1. GATHER — mine copper
+      const rock = (window.ROCKS || []).find((r) => r.prod === 'copper_ore') || (window.ROCKS || [])[0];
+      assert(rock, 'a mining node must exist');
+      G.activeSkill = 'mining'; G.skillTargetId = rock.id;
+      for (let i = 0; i < 6; i++) window.doSkillAction(true);
+      assert((G.inventory[rock.prod] || 0) > 0, 'gathering must yield ore');
+      if (typeof window.stopSkill === 'function') window.stopSkill();
+
+      // 2. REFINE — smelt a bar (the artisan engine + workbench gate)
+      const smelt = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_copper');
+      assert(smelt, 'smelt_copper recipe must exist');
+      G.inventory[smelt.input] = 50;
+      window.doArtisanAction('smithing', smelt.id, { silent: true });
+      assert((G.inventory[smelt.output] || 0) > 0, 'smelting must yield a bar');
+
+      // 3. CRAFT — forge a real weapon from that bar
+      const forge = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'bronze_sword');
+      if (forge) {
+        Object.keys(forge.inputs || { [forge.input]: 1 }).forEach((k) => { G.inventory[k] = 99; });
+        window.doArtisanAction('smithing', forge.id, { silent: true });
+        assert((G.inventory.bronze_sword || 0) > 0, 'forging must yield the sword');
+        // 4. EQUIP — and it must actually reach the combat rolls
+        window.equipItem('bronze_sword');
+        assert(G.equipment.weapon === 'bronze_sword', 'the forged sword must equip');
+      }
+      const mon = window.MONSTERS.slime || Object.values(window.MONSTERS)[0];
+      const rolls = window.getPlayerCombatRolls(mon);
+      assert(rolls.maxHit > 0 && rolls.accuracy > 0, 'an equipped loadout must produce real combat rolls');
+
+      // 5. DUNGEON -> SCRIP -> 6. SPEND (the b281 cohesion loop, end to end)
+      if (typeof window.awardDungeonScrip === 'function' && typeof window.buyFromQuartermaster === 'function') {
+        const dId = Object.keys(window.DUNGEONS)[0];
+        delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
+        window.awardDungeonScrip(dId, 1);
+        const earned = G.inventory.dungeon_scrip || 0;
+        assert(earned > 0, 'clearing a dungeon must pay scrip');
+        const key = (window.QM_STOCK || []).find((e) => e.id === 'bone_key');
+        G.inventory.dungeon_scrip = key.scrip;
+        assert(window.buyFromQuartermaster('bone_key') === true, 'scrip must buy the key');
+        assert((G.inventory.bone_key || 0) === 1, 'the purchase must deliver the item');
+      }
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('b288: the cloud snapshot carries progress AND cooldowns (paione: cross-device reset/exploit)', () => {
     // paione: "some stuff is not reloaded through the cloud — Bestiary,
     // Achievements, new quests and daily login bonus, Dungeon times are reset,

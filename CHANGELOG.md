@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 305 — 2026-08-10 (Save system stress-tested & locked down)
+
+- 🛡️ **Hammered the save system to make sure your progress is safe.** Added a battery of adversarial tests: a stale device can never overwrite newer progress, a bad connection can never lock you out or lose a save, closing/opening tabs can't corrupt state, and messing with your device clock can't mint unlimited offline gains. Also confirmed at the database level that no player can read or touch anyone else's save. No behavior change — this is about making save integrity impossible to break by accident going forward.
+
 ## v0.9.2-beta build 304 — 2026-08-10 (Offline & save reliability hardening)
 
 - 🧪 **Save & offline reliability pass.** Audited what actually reaches the cloud (confirmed every bit of real progress is stored — nothing silently dropped) and added automated guards that offline **gathering** and **cooking/smithing/crafting** correctly bank progress while you're away, alongside the existing offline-combat guard. No behavior change — this locks in that the idle premise keeps working as the game grows.

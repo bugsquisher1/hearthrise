@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=304' directly.
+// modularised, will import { G } from '../state/game.js?v=305' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=304';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=304';
+import { on, snapshot } from '../net/events.js?v=305';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=305';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=304';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=305';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12234,6 +12234,103 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  // ═══ b305: SAVE-SYSTEM STRESS + SECURITY BATTERY ═══════════════════════════
+  // The cloud save is the backbone now, so these tests try to BREAK it: garbage
+  // inputs, adversarial timestamps, the anti-rollback invariant, the upload
+  // contract, and clock-manipulation caps. Each is a rule that must never regress.
+
+  // (1) decideRestore must survive garbage and NEVER roll a newer local back.
+  () => tryRun('b305: decideRestore is robust vs garbage + enforces anti-rollback', () => {
+    const T = 1_700_000_000_000;
+    // Garbage cloud timestamps must never win.
+    assert(decideRestore({ lastSeen:T, totalLevel:700 }, { __cloudSavedAt:NaN, totalLevel:800 }).action === 'adopt', 'NaN cloud time must not restore');
+    assert(decideRestore({ lastSeen:T, totalLevel:700 }, { __cloudSavedAt:-5, totalLevel:800 }).action === 'adopt', 'negative cloud time must not restore');
+    assert(decideRestore({ lastSeen:T, totalLevel:700 }, {}).action === 'adopt', 'empty snap → adopt');
+    assert(decideRestore({ lastSeen:T }, null).action === 'none', 'null snap → none');
+    // THE ANTI-ROLLBACK INVARIANT: a strictly-newer local is NEVER overwritten,
+    // no matter how high the cloud level claims to be.
+    [0, 1, 700, 999999].forEach((cl) => {
+      const d = decideRestore({ lastSeen:T + 10000, totalLevel:700 }, { __cloudSavedAt:T, totalLevel:cl });
+      assert(d.action === 'adopt', 'local-newer must never be rolled back (cloudTL=' + cl + '): ' + d.action);
+    });
+    // A newer cloud with a garbage/absurd level still can't crash the decision.
+    assert(typeof decideRestore({ lastSeen:T, totalLevel:700 }, { __cloudSavedAt:T + 1, totalLevel:'900' }).action === 'string', 'string level tolerated');
+    // Timeless cloud (no timestamp at all) must not beat a real local.
+    assert(decideRestore({ lastSeen:T, totalLevel:700 }, { totalLevel:5000 }).action === 'adopt', 'a cloud with no timestamp must not win on level alone');
+  }),
+
+  // (2) THE UPLOAD CONTRACT: the snapshot must carry all persistent progress and
+  // NEVER carry in-flight/transient state or internal scratch. This is the guard
+  // that catches someone adding a progress field to NO_SYNC (silent cloud loss)
+  // or leaking transient combat state into the save.
+  () => tryRun('b305: cloud snapshot carries progress, never transient/in-flight/scratch', () => {
+    const E = window.HearthriseEvents;
+    assert(E && typeof E.snapshot === 'function', 'snapshot must be exposed');
+    const G = window.G;
+    const saved = { am:G.activeMonster, mh:G.monsterHp, cl:G.combatLog, as:G.activeSkill, sp:G.skillProgress, los:G.lastOfflineSummary };
+    try {
+      // Force transient state to be present so the exclusion is actually exercised.
+      G.activeMonster = 'slime'; G.monsterHp = 7; G.combatLog = ['x']; G.activeSkill = 'woodcutting'; G.skillProgress = 0.5; G.lastOfflineSummary = { hrs:1 };
+      const snap = E.snapshot(G);
+      assert(snap && typeof snap === 'object', 'snapshot must return an object');
+      ['activeMonster','monsterHp','monsterMaxHp','playerHp','playerMaxHp','activeSkill','skillTargetId','skillProgress','skillMs','activeArtisanRecipe','combatLog','lastOfflineSummary']
+        .forEach((k) => assert(!(k in snap), 'transient/in-flight key must NOT be uploaded: ' + k));
+      Object.keys(snap).forEach((k) => assert(k.charAt(0) !== '_', 'internal scratch key must not be uploaded: ' + k));
+      ['skills','inventory','gold','bank','equipment','stats'].forEach((k) => assert(k in snap, 'persistent progress key MUST be uploaded: ' + k));
+      // Must be JSON-safe (no functions/circular) — a throw here would mean a save that silently fails to upload.
+      const rt = JSON.parse(JSON.stringify(snap));
+      assert(rt.gold === snap.gold, 'snapshot must round-trip through JSON without loss');
+    } finally {
+      G.activeMonster = saved.am; G.monsterHp = saved.mh; G.combatLog = saved.cl; G.activeSkill = saved.as; G.skillProgress = saved.sp; G.lastOfflineSummary = saved.los;
+    }
+  }),
+
+  // (3) CLOCK MANIPULATION: a forward clock jump (or a very long absence) must be
+  // CAPPED at the daily offline budget — it can never mint unbounded progress.
+  () => tryRun('b305: offline catch-up is capped — a forward clock jump cannot mint unlimited progress', () => {
+    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    const G = window.G;
+    const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, activeMonster:G.activeMonster, activeSkill:G.activeSkill, activeArtisanRecipe:G.activeArtisanRecipe, los:G.lastOfflineSummary };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
+      G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;   // no activity — just testing the cap
+      const now = Date.now();
+      G.lastSeen = now - (3650 * 24 * 3600000);                       // "10 years" ago
+      G.offlineBudget = { dayKey:0, usedMs:0, at: now - (3650 * 24 * 3600000) };
+      window.processOffline();
+      const s = G.lastOfflineSummary;
+      assert(s && typeof s.hrs === 'number', 'a long absence must still produce a summary');
+      assert(s.hrs <= (s.budgetHrs || 12) + 0.2, 'offline hours (' + s.hrs + ') must be capped at the daily budget (' + s.budgetHrs + ')');
+    } finally {
+      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
+      Object.assign(G, { offlineBudget:save.offlineBudget, lastSeen:save.lastSeen, activeMonster:save.activeMonster, activeSkill:save.activeSkill, activeArtisanRecipe:save.activeArtisanRecipe, lastOfflineSummary:save.los });
+    }
+  }),
+
+  // (4) BACKWARD clock: a watermark in the FUTURE (clock set back, or a bad synced
+  // timestamp) must not grant negative/garbage progress — it clamps to zero.
+  () => tryRun('b305: a future watermark (backward clock) grants nothing, never garbage', () => {
+    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    const G = window.G;
+    const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, gold:G.gold, skills:G.skills, activeMonster:G.activeMonster, activeSkill:G.activeSkill };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
+      G.activeSkill = null; G.activeMonster = null;
+      const now = Date.now();
+      const beforeGold = G.gold, beforeWc = (G.skills && G.skills.woodcutting) || 0;
+      G.lastSeen = now + (365 * 24 * 3600000);                        // watermark 1 year in the FUTURE
+      G.offlineBudget = { dayKey:0, usedMs:0, at: now + (365 * 24 * 3600000) };
+      window.processOffline();
+      assert((G.gold||0) === beforeGold, 'a future watermark must not change gold (was ' + beforeGold + ', now ' + G.gold + ')');
+      assert(((G.skills && G.skills.woodcutting)||0) === beforeWc, 'a future watermark must not grant XP');
+    } finally {
+      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
+      Object.assign(G, { offlineBudget:save.offlineBudget, lastSeen:save.lastSeen, gold:save.gold, skills:save.skills, activeMonster:save.activeMonster, activeSkill:save.activeSkill });
+    }
   }),
 
   // b303: OFFLINE IS THE PREMISE. Guard that a gathering session credits XP

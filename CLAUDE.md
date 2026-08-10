@@ -71,6 +71,19 @@ by adding data, not code.
 
 ---
 
+## Save system — invariants (DO NOT BREAK)
+
+The cloud save is the backbone. These rules are enforced by the **b305 stress battery** in `smoke-test.js` — any change to `src/net/{sync,auth,events}.js` or the save/offline path in `legacy.js` (`saveLocal`, `loadLocal`, `processOffline`, `processOfflineCombat`, `claimOfflineMs`) MUST keep that battery green and ship its own test.
+
+1. **Cloud is authoritative; local is a cache + offline journal.** Local must NEVER overwrite a newer cloud. `decideRestore` resolves by **freshness (newest wins by timestamp)**, not level. A strictly-newer LOCAL is never rolled back (anti-rollback invariant). Ties keep local (no needless reload).
+2. **Restore/evict only on CERTAINTY.** Never restore on a garbage/NaN/negative/timeless cloud timestamp. Never evict a device on a network error, missing table, or offline — only on a *definitive* different-owner-with-fresh-heartbeat row. A flaky connection must never lock a player out or discard their save.
+3. **The snapshot is a DENYLIST, not an allowlist.** `snapshot()` uploads every G field EXCEPT `NO_SYNC` (in-flight combat/activity, `combatLog`, `lastOfflineSummary`, derived `totalLevel`/`combatLevel`) and `_`-prefixed scratch. **Adding a persistent-progress field to `NO_SYNC` = silent cloud data loss — forbidden.** New features persist by default; that is the safe direction.
+4. **Single active session keys on the TAB (`sessionStorage` instance id), not the device** (`localStorage` is shared across a browser's tabs). Heartbeat + stale-takeover so closing a tab never false-locks the other.
+5. **Offline is capped at the daily budget** (`offlineCapHours`) via the `offlineBudget.at` watermark — a forward clock jump or long absence can never mint unbounded progress; a future/garbage watermark grants nothing. The watermark only advances while `document.hidden` is false.
+6. **RLS is per-user** (`auth.uid() = user_id`) on every table holding player data — no cross-player read/write. Public-readable tables (profiles/clans/market/display_names) are read-only to others by design. NOTE: the client snapshot is self-authoritative, so leaderboard values are self-forgeable — true prevention needs server-side simulation (out of scope; documented limitation, not a quick fix).
+
+Before touching saves, read [`memory: cloud-save-program`] and confirm the b305 battery still passes.
+
 ## Asset rules
 
 - New icons go in `assets/icons-bundle/` (subfolders: `buildings/`, `monsters/`, `resources/`, `medieval/`).

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 297 — 2026-08-10 (Kills you can feel)
+
+- 💀 **A defeated foe now dies on screen.** Before, landing the killing blow — especially a one-shot — showed nothing but a little corner message; the enemy just silently reset. Now the killing hit lands big, the enemy portrait flashes, staggers and collapses with a **Defeated** stamp before the next foe steps up. *(Thanks paione.)*
+- 🔎 Groundwork to track down a reported offline-combat issue (kills not being credited after a full logout).
+
 ## v0.9.2-beta build 296 — 2026-08-10 (Bug-report screenshots work again)
 
 - 🐛 **Bug reports now capture their screenshot again.** The screenshot tool choked on a modern CSS colour format the game uses, so every report came through without the picture. Screenshots are back, which makes reported problems far faster to diagnose.

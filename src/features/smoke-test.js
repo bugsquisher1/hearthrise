@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=296' directly.
+// modularised, will import { G } from '../state/game.js?v=297' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=296';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=296';
+import { on, snapshot } from '../net/events.js?v=297';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=297';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=296';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=297';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12224,6 +12224,46 @@ const TESTS = [
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
   }),
 
+  // b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the b267
+  // test above calls processOfflineCombat() DIRECTLY, bypassing the real gated
+  // entry point processOffline() (budget watermark + visibility + the activeMonster
+  // branch). This exercises that real path end-to-end so a regression in the GATE
+  // — not just the sim — is caught.
+  () => tryRun('b297: offline combat credits kills through the gated processOffline() path', () => {
+    if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
+    const G = window.G;
+    const save = {
+      skills: G.skills, playerHp: G.playerHp, playerMaxHp: G.playerMaxHp,
+      activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      activeSkill: G.activeSkill, activeArtisanRecipe: G.activeArtisanRecipe,
+      stats: G.stats, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen,
+    };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      // The harness reports document.hidden===true; the gate returns 0 while
+      // hidden by design, so a returning-player load must be simulated as VISIBLE.
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+      G.playerMaxHp = 9999; G.playerHp = 9999;
+      const id = window.MONSTERS && window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+      const m = window.MONSTERS[id];
+      G.activeMonster = id; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
+      const now = Date.now();
+      G.lastSeen = now - 3600000;                                  // away 1 hour
+      G.offlineBudget = { dayKey: 0, usedMs: 0, at: now - 3600000 };
+      G.stats = Object.assign({}, G.stats); const k0 = G.stats.kills || 0;
+      window.processOffline();
+      const credited = (G.stats.kills || 0) - k0;
+      assert(credited > 0, 'offline combat credited nothing through the real gate (kills +' + credited + ') — paione\'s 71→71 bug');
+    } finally {
+      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch(e){} }
+      Object.assign(G, save);
+      if(typeof window.stopCombat === 'function' && !save.activeMonster) try{ window.stopCombat(); }catch(e){}
+    }
+  }),
+
   () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
     if(typeof window.processOfflineCombat !== 'function'){ assert(true, 'no offline combat'); return; }
     const snap = snapshotG();
@@ -12244,6 +12284,43 @@ const TESTS = [
       assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
       assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
     } finally { restoreG(snap); }
+  }),
+
+  // b297: a killing blow must be VISIBLE on the stage. killMonster() respawns
+  // the foe to full HP in the same tick, so the HP-diff that pops damage numbers
+  // saw "full→full" on a one-shot and drew nothing — you only got a corner toast.
+  // The wrapper now detects a kill via the kills counter and plays a death FX.
+  () => tryRun('b297: a kill triggers the arena death FX (foe-dying / Defeated stamp)', () => {
+    if(typeof window.combatTick !== 'function' || !window.HearthriseArenaStage){ assert(true, 'no combat engine'); return; }
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      // Pick any real monster and stage the arena.
+      const id = Object.keys(window.MONSTERS || {})[0];
+      assert(id, 'need at least one monster');
+      G.activeMonster = id;
+      const m = window.MONSTERS[id];
+      G.playerHp = G.playerMaxHp = 100000;   // never die mid-test
+      window.HearthriseArenaStage.refresh();  // builds + shows the arena-vs
+      const foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
+      if(!foeP){ assert(true, 'arena not mounted in harness'); return; }
+      // Force a one-shot each attempt until a kill lands (accuracy is < 100%).
+      let killed = false;
+      for(let i=0;i<80 && !killed;i++){
+        G.monsterMaxHp = m.hp; G.monsterHp = 1; G.playerHp = G.playerMaxHp;
+        const k0 = (G.stats && G.stats.kills) || 0;
+        window.combatTick();
+        if(((G.stats && G.stats.kills) || 0) > k0) killed = true;
+      }
+      assert(killed, 'a 1-HP foe should die within a few ticks');
+      // The FX children/classes persist synchronously (their removal is on a timer).
+      assert(foeP.classList.contains('foe-dying') || foeP.querySelector('.defeat-tag'),
+        'a kill must show the death FX on the foe portrait');
+    } finally {
+      const foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
+      if(foeP){ foeP.classList.remove('foe-dying'); const t=foeP.querySelector('.defeat-tag'); if(t) t.remove(); }
+      restoreG(snap);
+    }
   }),
 
   // b295: bug-report screenshots crashed with "unsupported color function

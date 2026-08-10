@@ -981,6 +981,23 @@ function processOffline(){
      visible, a genuine 1–3 min AFK is credited instead of silently dropped;
      sub-minute tab-flips still cost nothing. */
   const hrs=claimOfflineMs(_now,active,60000)/3600000;
+  /* b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the offline
+     pipeline credits correctly in an end-to-end test, so a real 0-credit is an
+     INPUT problem — no active loop in the loaded save, or the watermark measured
+     no elapsed time. This black-box breadcrumb records the decision inputs on
+     EVERY call (including the early return below), persisted so it survives the
+     reload, so the next occurrence is diagnosable instead of a guessing game.
+     `_`-prefixed + localStorage-only → never enters the cloud snapshot. */
+  try{
+    const _diag={ t:new Date(_now).toISOString(),
+      hidden:(typeof document!=='undefined' && document.hidden),
+      active:active, activeMonster:G.activeMonster||null,
+      activeSkill:G.activeSkill||null, hrs:+hrs.toFixed(3),
+      budgetAt:(G.offlineBudget&&G.offlineBudget.at)||null, lastSeen:G.lastSeen||null,
+      kills:(G.stats&&G.stats.kills)||0 };
+    window._hrOfflineDiag=_diag;
+    localStorage.setItem('hr:offlineDiag', JSON.stringify(_diag));
+  }catch(e){}
   if(hrs<=0) return;
   const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -7012,7 +7029,16 @@ console.log('Activity bar: loaded');
     var pn = document.getElementById('arena-foe-name');
     var phb = document.getElementById('arena-foe-hp');
     var pht = document.getElementById('arena-foe-hp-text');
-    if(pf) pf.innerHTML = foeIcon;
+    /* b297: only rewrite the foe icon when it actually changes. This tick runs
+       every 200ms; blindly setting innerHTML wiped any floating damage number
+       or DEFEATED stamp appended to the portrait within 200ms — the death FX
+       had nothing to render into. Keyed on monster + icon string so a late
+       icon-load still swaps in, while a respawn of the same foe leaves the
+       overlay children alone. */
+    if(pf){
+      var wantFoe = window.G.activeMonster + '|' + foeIcon;
+      if(pf.getAttribute('data-foe') !== wantFoe){ pf.innerHTML = foeIcon; pf.setAttribute('data-foe', wantFoe); }
+    }
     if(pn) pn.textContent = m?.name || window.G.activeMonster;
     var foePct = window.G.monsterMaxHp ? Math.max(0, (window.G.monsterHp/window.G.monsterMaxHp)*100) : 0;
     if(phb) phb.style.width = foePct.toFixed(1)+'%';
@@ -7070,7 +7096,7 @@ console.log('Activity bar: loaded');
   function popDmg(target, value, opts){
     if(!target) return;
     var num = document.createElement('div');
-    num.className = 'dmg-num-vs' + (opts && opts.crit ? ' crit' : '') + (opts && opts.miss ? ' miss' : '');
+    num.className = 'dmg-num-vs' + (opts && opts.kill ? ' kill' : '') + (opts && opts.crit ? ' crit' : '') + (opts && opts.miss ? ' miss' : '');
     num.textContent = (opts && opts.miss) ? 'miss' : (value > 0 ? '-' + value : '0');
     target.appendChild(num);
     if(!opts || !opts.miss){
@@ -7079,17 +7105,38 @@ console.log('Activity bar: loaded');
     }
     setTimeout(function(){ num.remove(); }, 1100);
   }
+  /* b297: the death throe. killMonster() has already respawned the foe to full
+     HP by the time we get here, so we can't read the killing damage off the HP
+     diff — pass in the HP the foe had before the fatal swing (a faithful stand-in
+     for the killing hit). Shows that number big, stamps DEFEATED, and plays the
+     collapse animation on the portrait, which the icon-guard now lets survive. */
+  function deathFx(target, killDmg){
+    if(!target) return;
+    popDmg(target, killDmg > 0 ? killDmg : 1, { kill: true, crit: !!(window.G && window.G._lastPlayerCrit) });
+    var tag = document.createElement('div');
+    tag.className = 'defeat-tag';
+    tag.textContent = 'Defeated';
+    target.appendChild(tag);
+    setTimeout(function(){ if(tag.parentNode) tag.parentNode.removeChild(tag); }, 1300);
+    target.classList.add('foe-dying');
+    setTimeout(function(){ target.classList.remove('foe-dying'); }, 760);
+  }
   var _origTick = window.combatTick;
   if(typeof _origTick === 'function'){
     window.combatTick = function(){
       var beforeP = window.G && window.G.playerHp;
       var beforeM = window.G && window.G.monsterHp;
+      var beforeKills = (window.G && window.G.stats && window.G.stats.kills) || 0;
       var r = _origTick.apply(this, arguments);
       var afterP = window.G && window.G.playerHp;
       var afterM = window.G && window.G.monsterHp;
+      var afterKills = (window.G && window.G.stats && window.G.stats.kills) || 0;
       var foeP = document.querySelector('#panel-combat .arena-vs .arena-side.foe .arena-portrait');
       var youP = document.querySelector('#panel-combat .arena-vs .arena-side.player .arena-portrait');
-      if(beforeM != null && afterM < beforeM){
+      if(afterKills > beforeKills){
+        /* A foe died this tick. beforeM is the HP it had before the fatal blow. */
+        deathFx(foeP, beforeM != null ? beforeM : 0);
+      } else if(beforeM != null && afterM < beforeM){
         popDmg(foeP, beforeM - afterM, { crit: !!(window.G && window.G._lastPlayerCrit) });
       } else if(beforeM != null && afterM === beforeM && window.G && window.G.activeMonster){
         var last = window.G.combatLog && window.G.combatLog[window.G.combatLog.length-1] || '';

@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=312';
-import { emit } from '../net/events.js?v=312';
+import { COMPANIONS } from '../data/companions.js?v=313';
+import { emit } from '../net/events.js?v=313';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -107,7 +107,16 @@ export function awardCompanionXp(amount) {
   const next = Math.min(COMPANION_XP_CAP, before + amount);
   window.G.companions.xp[eq] = next;
   const afterLv = companionLevelFromXp(next);
-  if (afterLv > beforeLv) emit('companionLevelUp', { id: eq, level: afterLv });
+  if (afterLv > beforeLv) {
+    emit('companionLevelUp', { id: eq, level: afterLv });
+    /* b313 (paione — companion stats mismatch): the equipment doll's Companion
+       pane is only rebuilt when the doll is, so after a pet LEVELS UP it kept
+       showing the old level/stats while inventory + combat (which read the live
+       companion bonus every call) already showed the higher numbers. Refresh the
+       doll on the level change so both agree. Guarded; only fires on a level-up. */
+    try { if (typeof window.refreshAllDolls === 'function') window.refreshAllDolls(); } catch (e) {}
+    try { if (typeof window.renderStable === 'function' && window.activeTab === 'stable') window.renderStable(); } catch (e) {}
+  }
 }
 
 export function unlockCompanion(id) {

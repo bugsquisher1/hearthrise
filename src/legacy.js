@@ -12454,6 +12454,10 @@ window.getCompanionBonus = function(){
 // Award XP to the equipped companion. b228: the cap is DERIVED from the curve
 // (companionXpToReach(30)) — the old flat 50,000 stopped every pet at level 14
 // on a bar the Stable draws as "/ 30".
+/* NOTE: the LIVE awardCompanionXp is the ESM one in features/companions.js
+   (it assigns window.awardCompanionXp after this file loads). This classic-script
+   copy is the pre-ESM fallback and is overridden in production. The b313
+   level-up doll-refresh lives in the ESM copy. */
 window.awardCompanionXp = function(amount){
   ensureCompanionState();
   var eq = G.companions && G.companions.equipped;

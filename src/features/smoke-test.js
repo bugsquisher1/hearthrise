@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=312' directly.
+// modularised, will import { G } from '../state/game.js?v=313' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=312';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=312';
+import { on, snapshot } from '../net/events.js?v=313';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=313';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=312';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=313';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12266,6 +12266,34 @@ const TESTS = [
     assert(typeof m.dpr === 'number', 'dpr must be a number, got ' + typeof m.dpr);
     assert(typeof m.screen === 'string', 'screen must be a string');
     assert(typeof m.desktopMode === 'boolean' || m.desktopMode === null, 'desktopMode must be boolean/null');
+  }),
+
+  // b313 (paione): a companion LEVEL-UP must refresh the doll so the Companion
+  // pane's stats stop lagging behind inventory/combat. Refresh fires only on an
+  // actual level change, never on an ordinary XP tick.
+  () => tryRun('b313: companion level-up refreshes the doll; a plain XP tick does not', () => {
+    if(typeof window.awardCompanionXp !== 'function' || typeof window.companionXpToReach !== 'function'
+       || typeof window.companionLevelFromXp !== 'function' || !window.COMPANIONS){ assert(true, 'no companion api'); return; }
+    const G = window.G;
+    const savedComp = G.companions;
+    const origRefresh = window.refreshAllDolls;
+    try {
+      const id = Object.keys(window.COMPANIONS)[0];
+      assert(id, 'need at least one companion');
+      G.companions = { ownedIds: [id], equipped: id, xp: {} };
+      const l2 = window.companionXpToReach(2);
+      G.companions.xp[id] = Math.max(0, l2 - 1);          // one XP shy of level 2
+      let refreshed = 0;
+      window.refreshAllDolls = function(){ refreshed++; };
+      window.awardCompanionXp(0);                          // no gain → no level change
+      assert(refreshed === 0, 'a plain XP tick must NOT refresh the doll');
+      window.awardCompanionXp(l2 + 5);                     // cross into level 2+
+      assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2, 'setup: companion should have leveled');
+      assert(refreshed >= 1, 'a companion level-up MUST refresh the doll');
+    } finally {
+      window.refreshAllDolls = origRefresh;
+      G.companions = savedComp;
+    }
   }),
 
   // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.

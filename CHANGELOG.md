@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 313 — 2026-08-10 (Companion stats stay in sync)
+
+- 🐾 **Your companion's stats now update everywhere the moment it levels up.** The Companion panel used to keep showing the old level/bonuses until you left and came back, even though your inventory and combat already reflected the new ones. Now a level-up refreshes the panel right away, so the numbers always agree. *(Thanks paione.)*
+
 ## v0.9.2-beta build 312 — 2026-08-10 (Full scrollable nav rail on phones)
 
 - 📱 **The left nav rail now holds every section and scrolls** — Home, Character, Bag, Skills, Combat, Events, Bounty, Farm, House, Clan, Shops, Social — instead of tucking half the game behind "More." Same one-tap access as the desktop rail, on your phone. *(Thanks paione — the slick scrollable rail is back.)*

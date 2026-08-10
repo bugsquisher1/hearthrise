@@ -61,8 +61,16 @@ const SCREENS = ['profile', 'character', 'combat', 'skills', 'farming', 'invento
 // Injected into the page — runs against a REAL rendered layout.
 function SWEEP(label) {
   const vw = innerWidth, out = { screen: label, vw, vh: innerHeight, issues: [], stats: {} };
-  const add = (sev, kind, detail, el) => out.issues.push({ sev, kind, detail,
-    el: el ? ((el.id ? '#' + el.id : '') + '.' + (String(el.className || '').split(' ')[0] || el.tagName)).slice(0, 44) : '' });
+  // SVG elements have an SVGAnimatedString className -> "[object ..." . Build a
+  // real selector so a finding actually tells you WHICH element to fix.
+  const nameOf = (el) => { if (!el) return '';
+    const cls = (typeof el.className === 'string' ? el.className : (el.getAttribute && el.getAttribute('class')) || '').trim().split(/\s+/)[0];
+    const path = [];
+    let p = el.parentElement, hops = 0;
+    while (p && p !== document.body && hops < 3) { const pc = (typeof p.className === 'string' ? p.className : '').trim().split(/\s+/)[0];
+      if (p.id) { path.unshift('#' + p.id); break; } if (pc) path.unshift('.' + pc); p = p.parentElement; hops++; }
+    return (path.join('>') + '>' + (el.id ? '#' + el.id : '') + el.tagName.toLowerCase() + (cls ? '.' + cls : '')).slice(0, 72); };
+  const add = (sev, kind, detail, el) => out.issues.push({ sev, kind, detail, el: nameOf(el) });
   const vis = (el) => { const c = getComputedStyle(el); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity < 0.05) return false;
     // Screen-reader-only text (the standard 1px/clip-path pattern) is deliberately
     // invisible — counting it as "clipped" is a false positive.
@@ -112,13 +120,28 @@ function SWEEP(label) {
       if (ov > 3 && r.left < br.right && r.right > br.left)
         add('P1', 'under-fixed-bar', `"${t.slice(0, 24)}" ${ov | 0}px under .${String(b.className).split(' ')[0] || b.id}`, el); }); });
 
+  // Genuine spill only: an element that pokes past the viewport but is CLIPPED by
+  // an ancestor (e.g. paths inside a decorative <svg> scene) causes no scrollbar and
+  // is not a bug. Report only when nothing clips it.
+  const clippedByAncestor = (el) => { let p = el.parentElement;
+    while (p && p !== document.documentElement) { const c = getComputedStyle(p);
+      if (['hidden', 'clip', 'auto', 'scroll'].includes(c.overflowX) || p.tagName.toLowerCase() === 'svg') {
+        if (p.getBoundingClientRect().right <= vw + 2) return true; }
+      p = p.parentElement; }
+    return false; };
   all.forEach((el) => { const r = el.getBoundingClientRect();
-    if (r.width > 2 && (r.right > vw + 2 || r.left < -2)) add('P1', 'offscreen-x', `${Math.round(r.right - vw)}px past right`, el); });
+    if (r.width > 2 && (r.right > vw + 2 || r.left < -2) && !clippedByAncestor(el))
+      add('P1', 'offscreen-x', `${Math.round(r.right - vw)}px past right`, el); });
 
   const small = [];
   scope.forEach((n) => n.querySelectorAll('button,.btn,.chip,[onclick]').forEach((el) => { if (!vis(el)) return;
-    const r = el.getBoundingClientRect(); if (r.height < 44) small.push(Math.round(r.height)); }));
-  if (small.length) add(vw <= 900 ? 'P1' : 'P3', 'small-target', `${small.length} controls <44px (min ${Math.min(...small)}px)`, panel);
+    const r = el.getBoundingClientRect(); if (r.height < 44) small.push({ h: Math.round(r.height), n: nameOf(el), t: TXT(el).slice(0, 14) }); }));
+  // Honest thresholds: <36px is genuinely too small for a thumb (P1); 36-43px is a
+  // deliberate density tradeoff on a short landscape screen (P3), not a defect.
+  if (small.length) { small.sort((a, b) => a.h - b.h);
+    const worst = small[0].h;
+    add(vw <= 900 ? (worst < 36 ? 'P1' : 'P3') : 'P3', 'small-target',
+      `${small.length} controls <44px — worst: ` + small.slice(0, 3).map((x) => `${x.h}px "${x.t}" ${x.n}`).join(' | '), panel); }
 
   const pr = panel.getBoundingClientRect(); let maxRight = 0, maxBottom = 0;
   all.forEach((el) => { const r = el.getBoundingClientRect(); if (r.width > 4 && r.height > 4) { maxRight = Math.max(maxRight, r.right); maxBottom = Math.max(maxBottom, r.bottom); } });

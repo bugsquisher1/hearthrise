@@ -23,13 +23,13 @@
 // be deleted.
 
 // 1. Data — single source of truth
-import { SKILLS_DEF } from './data/skills.js?v=284';
-import { MONSTERS } from './data/monsters.js?v=284';
-import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=284';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=284';
-import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=284';
-import { COMPANIONS } from './data/companions.js?v=284';
-import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=284';
+import { SKILLS_DEF } from './data/skills.js?v=285';
+import { MONSTERS } from './data/monsters.js?v=285';
+import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=285';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=285';
+import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=285';
+import { COMPANIONS } from './data/companions.js?v=285';
+import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=285';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -93,31 +93,31 @@ Object.assign(window, {
 //    auto-wires auth + sync + realtime backends if found. Until the player
 //    enters Supabase URL/anonKey via Settings → Account, everything stays
 //    in offline mode and no network requests are made.
-import './net/events.js?v=284';
-import './net/sync.js?v=284';
-import './net/auth.js?v=284';
-import './net/supabase-bootstrap.js?v=284';
+import './net/events.js?v=285';
+import './net/sync.js?v=285';
+import './net/auth.js?v=285';
+import './net/supabase-bootstrap.js?v=285';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
 //   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
 //     HearthriseIdentity for classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=284';
-import './utils/dom.js?v=284';
-import './utils/safe.js?v=284';
-import './utils/profile.js?v=284';
-import './utils/data-integrity.js?v=284';
-import './utils/image-fallback.js?v=284';
+import './config.js?v=285';
+import './utils/dom.js?v=285';
+import './utils/safe.js?v=285';
+import './utils/profile.js?v=285';
+import './utils/data-integrity.js?v=285';
+import './utils/image-fallback.js?v=285';
 
 // 3. Feature modules — each registers itself on setup()
-import { setupSmokeTest } from './features/smoke-test.js?v=284';
-import { setupCompanions } from './features/companions.js?v=284';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=284';
-import { setupCharacterPage } from './features/character-page.js?v=284';
-import { setupCombatRender } from './features/combat-render.js?v=284';
-import { setupRecipeBook } from './features/recipe-book.js?v=284';
-import { setupItemIndex } from './features/item-index.js?v=284';
+import { setupSmokeTest } from './features/smoke-test.js?v=285';
+import { setupCompanions } from './features/companions.js?v=285';
+import { setupActivitiesGrid } from './features/activities-grid.js?v=285';
+import { setupCharacterPage } from './features/character-page.js?v=285';
+import { setupCombatRender } from './features/combat-render.js?v=285';
+import { setupRecipeBook } from './features/recipe-book.js?v=285';
+import { setupItemIndex } from './features/item-index.js?v=285';
 
 // Boot diagnostics
 const counts = {

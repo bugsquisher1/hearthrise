@@ -950,12 +950,34 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     padding: 3px 4px !important;
     margin: -8px -8px 4px !important;
   }
+  /* b285 (player's-eye QA): these sub-tab strips are the PRIMARY in-screen
+     navigation (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip) and were 32px — too
+     small for a thumb. 40px is a real improvement while staying compact enough for
+     a 393px-tall landscape screen (44px everywhere would eat the viewport). */
   .cmb-mob-tabs .cmt-btn,
   .inv-mob-tabs .imt-btn,
   .act-mob-strip .ams-btn {
-    min-height: 32px !important;
-    padding: 3px 6px !important;
+    min-height: 40px !important;
+    padding: 5px 8px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
+  }
+  /* b285: the other constantly-tapped in-panel controls — filter chips (Rooms /
+     Themes / leaderboard categories / shop tabs) and the inventory action row —
+     were 34-35px. Same 40px floor. The topbar stays deliberately slim (32px strip)
+     because raising it costs scarce vertical space on a landscape phone. */
+  /* b285: the "Bigger plot" badge is a real shortcut (onclick -> House/Plot) but
+     rendered as a 20px inline label — the smallest tap target in the game. If it
+     is clickable it gets a real target. */
+  .panel .mr-lock[onclick] {
+    min-height: 40px !important;
+    display: inline-flex !important; align-items: center;
+    padding: 0 10px !important;
+  }
+  .panel .chip,
+  .panel .shops-tab,
+  .invc-topbar .invc-actions button,
+  .invc-topbar .invc-actions .btn {
+    min-height: 40px !important;
   }
   .cmb-mob-tabs .cmt-btn .cmt-ic,
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }

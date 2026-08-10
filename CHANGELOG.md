@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 285 — 2026-08-10 (Bigger buttons, cleaner topbar)
+
+- 👆 **Buttons you tap constantly are bigger on phones.** The in-screen tabs (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip), the filter chips, the shop tabs and the inventory action row went from 32–35px up to 40px — noticeably easier to hit in landscape. The little "Bigger plot" shortcut on the Farm was a 20px target; it's a proper button now.
+- 🏷️ **Fixed the topbar reading "RALLY Rally in 10:19".** It just says "Rally in 10:19" now.
+- ⚔️ **Fixed the Goblin Warcamp card showing a raw emoji** instead of its painted goblin warlord portrait — it was the one dungeon missing from the art map.
+
 ## v0.9.2-beta build 284 — 2026-08-09 (Nothing cut off)
 
 - 📱 **Fixed: the landscape nav labels were sliced in half.** On a landscape phone the side rail was showing "HARACT" instead of "CHARACTER" — the words physically couldn't fit the rail at our minimum readable text size. The rail is now clean icon-only (the icon plus the highlight tells you where you are), so nothing is chopped and the panels get their full width back.

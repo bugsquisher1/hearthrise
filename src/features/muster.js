@@ -1323,7 +1323,14 @@
     var s = pillState();
     var t = el.querySelector('.mp-t'), lab = el.querySelector('.mp-lab');
     if (t && t.textContent !== s.copy) t.textContent = s.copy;
-    if (lab) lab.style.display = (s.state === 'live' || s.state === 'reward' || s.state === 'signedout') ? 'none' : '';
+    /* b285 (player's-eye QA, Tyler's screenshot): the pill printed the static
+       "RALLY" label AND copy that already begins "Rally in …", so the topbar read
+       "RALLY Rally in 10:19:42". Hide the label whenever the copy already leads
+       with it — the countdown says what it is. */
+    if (lab) {
+      var _redundant = /^\s*(rally|answering)\b/i.test(s.copy || '');
+      lab.style.display = (s.state === 'live' || s.state === 'reward' || s.state === 'signedout' || _redundant) ? 'none' : '';
+    }
     if (el.getAttribute('data-tone') !== s.tone) el.setAttribute('data-tone', s.tone);
     if (el.getAttribute('data-state') !== s.state) el.setAttribute('data-state', s.state);
 

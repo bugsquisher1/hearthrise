@@ -375,6 +375,11 @@
      only as the pre-cache fallback. */
   var DGN_GLYPH = {
     crypt_of_bones: { kind: 'mon', key: 'weak_skeleton' },
+    /* b285 (player's-eye QA): goblin_warcamp was MISSING from this map, so it was
+       the one dungeon card falling through to a raw 33px "⚔️" emoji — a FINAL
+       DIRECTIVE violation sitting on the Events screen. Grimtusk is a goblin
+       warlord and that portrait is already shipped. */
+    goblin_warcamp: { kind: 'mon', key: 'goblin_warlord' },
     haunted_archive: { kind: 'ui', key: 'uiQuests' },
     obsidian_keep: { kind: 'ui', key: 'navDungeons' },
     voidbringer: { kind: 'mon', key: 'lesser_demon' },

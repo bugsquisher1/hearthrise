@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 295 — 2026-08-10 (Desktop-site warning for phones)
+
+- 📱 **If your phone browser has "Desktop site" turned on, the game now tells you.** That setting squashes the full desktop layout onto a phone screen and makes the whole UI look like a jumbled mess. A banner now appears with one-tap instructions to turn it off (Chrome menu → uncheck Desktop site → reload). *(Thanks paione.)*
+
 ## v0.9.2-beta build 294 — 2026-08-10 (Auto-eat can find your food again)
 
 - 🍞 **Fixed the auto-eat food picker saying "No Provisions in your bag" when your bag was full of cooked food.** The picker was checking eligibility with a helper it couldn't actually see, so it rejected everything and left you unable to choose a food. It now lists every Provision you're carrying. *(Thanks for the report.)*

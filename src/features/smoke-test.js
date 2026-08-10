@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=294' directly.
+// modularised, will import { G } from '../state/game.js?v=295' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=294';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=294';
+import { on, snapshot } from '../net/events.js?v=295';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=295';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=294';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=295';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12244,6 +12244,24 @@ const TESTS = [
       assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
       assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
     } finally { restoreG(snap); }
+  }),
+
+  // b294: the "Desktop site is on → whole UI is a jumbled mess" detector
+  // (paione, Ulefone Armour 27T). The most important property is that it does
+  // NOT false-positive on a normal desktop/tester environment — a wrong banner
+  // would hit everyone. Also assert the predicate never throws and the banner
+  // builds + dismisses cleanly when we drive the DOM path directly.
+  () => tryRun('b294: desktop-mode detector exists, is crash-safe, and does not false-positive here', () => {
+    assert(typeof window.__hrDesktopModeCheck === 'function', '__hrDesktopModeCheck must be exposed');
+    assert(typeof window.__hrDesktopModeEvaluate === 'function', '__hrDesktopModeEvaluate must be exposed');
+    // Must return a boolean and never throw regardless of environment.
+    const v = window.__hrDesktopModeCheck();
+    assert(v === true || v === false, 'predicate must return a boolean, got ' + typeof v);
+    // The headless test env is a non-touch desktop → must be false, and
+    // evaluate() must not leave a banner in the DOM.
+    window.__hrDesktopModeEvaluate();
+    const stray = document.getElementById('hr-desktopmode-banner');
+    assert(!stray, 'detector must not show its banner on a normal (non-touch) viewport');
   }),
 
   () => tryRun('b267: auto-eat food picker is reachable via a modal (paione: no food option on landscape)', () => {

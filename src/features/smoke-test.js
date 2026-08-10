@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=302' directly.
+// modularised, will import { G } from '../state/game.js?v=303' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=302';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=302';
+import { on, snapshot } from '../net/events.js?v=303';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=303';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=302';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=303';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12374,7 +12374,7 @@ const TESTS = [
     const sc = S.checkSessionClaim();
     assert(sc && typeof sc.then === 'function', 'checkSessionClaim must return a promise');
     sc.then(function(r){
-      assert(r && ['skip','error','owner','evicted','paused'].indexOf(r.status) !== -1, 'claim status must be known: ' + (r && r.status));
+      assert(r && ['skip','error','owner','evicted','reclaimed','claimed','paused'].indexOf(r.status) !== -1, 'claim status must be known: ' + (r && r.status));
       assert(r.status !== 'evicted', 'an unconfigured/offline poll must NEVER evict');
       assert(S.isPaused() === false, 'a poll that could not confirm ownership must not pause sync');
     }, function(){ /* offline in harness is fine */ });

@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=302';
+//   import { setupSync } from './net/sync.js?v=303';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=302';
+import { on, snapshot } from './events.js?v=303';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -27,6 +27,12 @@ const MAX_BUFFER = 500;
 // window reliably catches a genuinely concurrent session without false-positiving
 // on a device you closed a few minutes ago.
 const CONCURRENT_WINDOW_MS = 150000;
+// b303: how long an owner's heartbeat can go quiet before another tab may take
+// over its claim. Poll is ~15s and heartbeat rides every poll, so 3 missed beats
+// = the owner is really gone (tab closed), and the surviving tab reclaims instead
+// of falsely locking itself out.
+const CLAIM_STALE_MS = 50000;
+const INSTANCE_KEY = 'hr:instanceId';
 
 let config = null;
 let buffer = [];
@@ -51,6 +57,22 @@ function getDeviceId() {
     if (!id) { id = 'd-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36); localStorage.setItem(DEVICE_KEY, id); }
     return id;
   } catch (e) { return 'd-ephemeral'; }
+}
+
+/**
+ * b303 — a per-TAB instance id, stored in sessionStorage. Unlike the device id
+ * (localStorage, shared by every tab of a browser), sessionStorage is scoped to
+ * a single tab and SURVIVES a reload — so it is exactly "one running game
+ * instance". This is what the single-active-session claim keys on: two tabs of
+ * the same browser are two instances and must not both run. The device id was
+ * wrong for this (both tabs shared it, so neither ever saw a "different owner").
+ */
+function getInstanceId() {
+  try {
+    let id = sessionStorage.getItem(INSTANCE_KEY);
+    if (!id) { id = 'i-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36); sessionStorage.setItem(INSTANCE_KEY, id); }
+    return id;
+  } catch (e) { return getDeviceId(); }
 }
 
 /** Load the offline buffer (events captured while offline / pre-config). */
@@ -434,13 +456,13 @@ export async function checkConcurrentDevice() {
 // never on a network error, a missing table, or being signed out — or a flaky
 // connection would lock a player out of their own account.
 
-/** Claim the account's single active-session slot for THIS device. */
+/** Claim the account's single active-session slot for THIS tab (instance). */
 export async function claimSession() {
   if (!config?.claimEndpoint) return false;
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return false;
   const now = new Date().toISOString();
-  const body = { user_id: userId, device_id: getDeviceId(), claimed_at: now, heartbeat_at: now };
+  const body = { user_id: userId, device_id: getInstanceId(), claimed_at: now, heartbeat_at: now };
   const res = await fetchWithAuthRetry(`${config.claimEndpoint}?on_conflict=user_id`, () => ({
     method: 'POST',
     headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
@@ -450,27 +472,53 @@ export async function claimSession() {
   return !!(res && res.ok);
 }
 
+/** Refresh our heartbeat — ONLY updates the row while WE still own it (the
+ *  device_id filter means an evicted instance can never resurrect its claim). */
+async function heartbeatClaim() {
+  if (paused || !config?.claimEndpoint || !navigator.onLine) return;
+  const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+  if (!userId) return;
+  const url = `${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&device_id=eq.${encodeURIComponent(getInstanceId())}`;
+  try {
+    await fetch(url, {
+      method: 'PATCH',
+      headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({ heartbeat_at: new Date().toISOString() }),
+    });
+  } catch (e) { /* a missed heartbeat is harmless — the next poll retries */ }
+}
+
 /**
- * Poll the claim. Returns {status}: 'owner' | 'evicted' | 'skip' | 'error'.
- * Fires config.onEvicted ONCE when — and only when — a different device owns the
- * account. Errors/absent rows/offline are non-events (never evict).
+ * Poll the claim. Returns {status}: 'owner'|'evicted'|'reclaimed'|'claimed'|'skip'|'error'.
+ * Fires config.onEvicted ONCE when — and only when — a DIFFERENT, still-alive
+ * instance owns the account. An owner whose heartbeat has gone stale (a closed
+ * tab) is taken over silently, so closing one tab never locks out the other.
+ * Errors/absent rows/offline never evict.
  */
 export async function checkSessionClaim() {
   if (paused) return { status: 'paused' };
   if (!config?.claimEndpoint || !navigator.onLine) return { status: 'skip' };
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return { status: 'skip' };
+  const me = getInstanceId();
   let res;
-  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id`, { headers: withAuthHeaders({}) }); }
+  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at`, { headers: withAuthHeaders({}) }); }
   catch (e) { return { status: 'error' }; }              // network error → NEVER evict
   if (!res.ok) return { status: 'error' };               // table missing / auth → NEVER evict
   let rows; try { rows = await res.json(); } catch (e) { return { status: 'error' }; }
-  const owner = rows && rows[0] && rows[0].device_id;
-  if (owner && owner !== getDeviceId()) {                // definitive: someone else owns it
+  const row = rows && rows[0];
+  const owner = row && row.device_id;
+  if (!owner) { await claimSession(); return { status: 'claimed' }; }   // nobody owns → take it
+  if (owner === me) { heartbeatClaim(); return { status: 'owner' }; }   // still ours → keep alive
+  // A different instance owns it. Is it actually still alive?
+  const hb = row.heartbeat_at ? Date.parse(row.heartbeat_at) : 0;
+  const fresh = hb && (Date.now() - hb) < CLAIM_STALE_MS;
+  if (fresh) {                                            // genuinely active elsewhere → evict us
     if (!evicted) { evicted = true; safeCall(config.onEvicted, { owner }); }
     return { status: 'evicted', owner };
   }
-  return { status: 'owner' };
+  await claimSession();                                   // owner abandoned (stale) → take over
+  return { status: 'reclaimed', from: owner };
 }
 
 /** Stop ALL cloud writes from this device (used when evicted). Idempotent. */

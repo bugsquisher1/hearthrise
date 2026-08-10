@@ -63,3 +63,6 @@ build/
 ~$*
 .claude/worktrees/
 docs/reports/visual-qa/*.png
+
+# Local MCP server config (points at Supabase project; no secret, but dev-only)
+.mcp.json

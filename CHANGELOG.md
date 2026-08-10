@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 303 — 2026-08-10 (One device — now counts browser tabs too)
+
+- 🔒 **Single-session enforcement now catches two tabs of the same browser**, not just two separate devices. It previously keyed on the device, so two Chrome tabs looked like one and both kept running; it now keys on the individual tab. Opening a second tab moves your session there and locks the first.
+- 🔁 **Closing a tab no longer risks locking out the other** — a heartbeat lets the remaining tab reclaim an abandoned session automatically after a few seconds.
+
 ## v0.9.2-beta build 302 — 2026-08-10 (One device at a time)
 
 - 🔒 **Your account now runs on one device at a time.** Signing in on a new device moves your session there and signs the old one out with a clear "your account was opened on another device" screen — so two devices can never quietly overwrite each other's saves. The kicked device can tap "Use this device instead" to move the session back.

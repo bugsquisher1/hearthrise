@@ -133,6 +133,49 @@ function buildVersionString() {
 // screenshot shows what the user was actually looking at, not the modal
 // they just opened. Also filter the chat dock if it's open — those float
 // over content and aren't usually what the report is about.
+// b295: html2canvas ships a CSS-Color-3 parser and throws
+// "Attempting to parse an unsupported color function 'color'" the moment it
+// meets a `color(srgb …)` value. Modern browsers serialise the COMPUTED result
+// of our `color-mix(in srgb, …)` rules (20+ of them) in exactly that form, so a
+// single such element anywhere on screen killed the whole screenshot — the one
+// thing we most need from a bug report. Rather than tear color-mix out of the
+// stylesheets, rewrite the offending computed values to plain rgb()/rgba() in
+// the cloned DOM html2canvas is about to read. `in srgb` means the channels are
+// already sRGB 0–1, so this is a lossless remap; display-p3/other spaces are
+// approximated (fine for a screenshot).
+// Pure: rewrite every CSS-Color-4 `color(<space> r g b [/ a])` token in a value
+// string to plain rgb()/rgba(). Exposed for the smoke test. `in srgb` channels
+// are already 0–1 sRGB, so this is exact; wide-gamut spaces are approximated.
+function convertColorFns(v) {
+  return String(v).replace(
+    /color\(\s*(?:srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+%?)\s*)?\)/gi,
+    (_, r, g, b, a) => {
+      const c = (x) => Math.max(0, Math.min(255, Math.round(parseFloat(x) * 255)));
+      return a != null ? `rgba(${c(r)},${c(g)},${c(b)},${a})` : `rgb(${c(r)},${c(g)},${c(b)})`;
+    });
+}
+if (typeof window !== 'undefined') window.__hrConvertColorFns = convertColorFns;
+
+function normalizeModernColors(doc) {
+  const CONV = convertColorFns;
+  const win = doc.defaultView || window;
+  const PROPS = ['color', 'backgroundColor', 'backgroundImage', 'background',
+    'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+    'outlineColor', 'boxShadow', 'textShadow', 'fill', 'stroke', 'caretColor'];
+  const all = doc.querySelectorAll('*');
+  for (let i = 0; i < all.length; i++) {
+    const el = all[i];
+    let cs; try { cs = win.getComputedStyle(el); } catch (e) { continue; }
+    for (let j = 0; j < PROPS.length; j++) {
+      const p = PROPS[j];
+      const val = cs[p];
+      if (val && val.indexOf('color(') !== -1) {
+        try { el.style[p] = CONV(val); } catch (e) {}
+      }
+    }
+  }
+}
+
 async function captureScreenshot() {
   try {
     // Dynamic import keeps html2canvas (~50KB) out of the main bundle.
@@ -149,6 +192,8 @@ async function captureScreenshot() {
       // we want a screenshot, not a perfect render.
       imageTimeout: 1500,
       removeContainer: true,
+      // b295: neutralise color(srgb …) values the parser can't read (see above).
+      onclone: function(clonedDoc) { try { normalizeModernColors(clonedDoc); } catch (e) {} },
       // Exclude floating UI that obscures the actual game state.
       ignoreElements: function(el) {
         if (!el || !el.id) return false;

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=295' directly.
+// modularised, will import { G } from '../state/game.js?v=296' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=295';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=295';
+import { on, snapshot } from '../net/events.js?v=296';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=296';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=295';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=296';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12244,6 +12244,27 @@ const TESTS = [
       assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
       assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
     } finally { restoreG(snap); }
+  }),
+
+  // b295: bug-report screenshots crashed with "unsupported color function
+  // 'color'" because html2canvas can't parse the color(srgb …) form that
+  // browsers serialise our color-mix() rules into. convertColorFns() rewrites
+  // those to rgb()/rgba() in the cloned DOM before capture. Guard the converter.
+  () => tryRun('b295: bug-report color() → rgb() converter (html2canvas screenshot fix)', () => {
+    const f = window.__hrConvertColorFns;
+    assert(typeof f === 'function', '__hrConvertColorFns must be exposed');
+    assert(f('color(srgb 0.5 0.25 0.125)') === 'rgb(128,64,32)',
+      'srgb triple must map to rgb, got ' + f('color(srgb 0.5 0.25 0.125)'));
+    assert(f('color(srgb 1 0 0 / 0.5)') === 'rgba(255,0,0,0.5)',
+      'alpha must be preserved, got ' + f('color(srgb 1 0 0 / 0.5)'));
+    // display-p3 is approximated but must still become a parseable rgb().
+    assert(/^rgb\(/.test(f('color(display-p3 0 1 0)')), 'display-p3 must convert');
+    // A value with color() embedded in a shadow keeps the rest intact.
+    assert(f('0 2px 4px color(srgb 0 0 0 / 0.3)') === '0 2px 4px rgba(0,0,0,0.3)',
+      'must rewrite color() inside a shadow value');
+    // Plain colours are untouched.
+    assert(f('rgb(10,20,30)') === 'rgb(10,20,30)', 'plain rgb must pass through');
+    assert(f('#abc') === '#abc', 'hex must pass through');
   }),
 
   // b294: the "Desktop site is on → whole UI is a jumbled mess" detector

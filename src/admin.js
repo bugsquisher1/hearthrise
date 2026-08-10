@@ -13,7 +13,43 @@
 (function(){
   'use strict';
 
-  // -- Activation gate --
+  // -- b306 SECURITY: OWNER/DEV-ONLY activation --
+  // This panel mints gold/gems/items and jumps skills. It shipped to production
+  // and self-enabled via `?admin=1` on the URL — meaning ANY player could open
+  // the full cheat panel on the live site. It is now gated: on a real player
+  // host it activates ONLY for a signed-in OWNER account; on a dev origin
+  // (localhost etc.) it stays fully available for testing. The gate is a pure
+  // function so the smoke test can prove a random player on the live host is
+  // refused.
+  var PLAYER_HOSTS = ['hearthrise.net', 'www.hearthrise.net', 'bugsquisher1.github.io'];
+  var ADMIN_UIDS = [
+    '53e3c6a4-1168-47fb-a0c2-c7e6dc9a7acc', // Tyler (khemphill22, main save)
+    '52dcd2bc-63c2-488a-998a-e0899084be38', // Tyler (themphill22+1)
+    '39e28e92-b519-4d11-a918-feab730c0ca2', // Tyler (themphill22+2)
+    '6fc9a60d-8eb2-4797-83b2-4e1f2adb8925', // Tyler (themphill22+3)
+  ];
+  // Pure + exposed for the guard test: dev origin → always allowed; player host
+  // → only an allowlisted owner uid. Never allowed for an unknown/absent uid on a
+  // player host, no matter what URL flag or localStorage key is set.
+  function adminGate(hostname, uid){
+    var isPlayerHost = PLAYER_HOSTS.indexOf(String(hostname||'').toLowerCase()) !== -1;
+    if(!isPlayerHost) return true;
+    return !!uid && ADMIN_UIDS.indexOf(uid) !== -1;
+  }
+  window.__hrAdminGate = adminGate;
+  // The signed-in uid is read SYNCHRONOUSLY from the cached Supabase session
+  // (written by auth.js), so the gate is decided correctly at load without
+  // waiting on the async auth round-trip.
+  function cachedUid(){
+    try { var s = JSON.parse(localStorage.getItem('hearthrise:supabaseSession')||'null'); return (s && s.user && s.user.id) || null; }
+    catch(e){ return null; }
+  }
+  if(!adminGate(location.hostname, cachedUid())){
+    // Not authorised on this host: register NOTHING, define NO window.Admin,
+    // honour no URL flag. A player cannot reach the panel by any means here.
+    return;
+  }
+
   var url = new URL(location.href);
   var optIn = url.searchParams.get('admin') === '1' ||
               localStorage.getItem('hearthrise:admin') === '1';
@@ -25,7 +61,7 @@
     return;
   }
 
-  // Keyboard toggle still works even without opt-in (you have to know it)
+  // Keyboard toggle (owner/dev only — we already passed the gate above)
   window.addEventListener('keydown', function(e){
     if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a'){
       e.preventDefault();

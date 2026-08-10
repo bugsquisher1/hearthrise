@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=305' directly.
+// modularised, will import { G } from '../state/game.js?v=306' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=305';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=305';
+import { on, snapshot } from '../net/events.js?v=306';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=306';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=305';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=306';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12234,6 +12234,28 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.
+  () => tryRun('b306: IAP.grant is not exposed on window (console gem/token mint closed)', () => {
+    assert(window.IAP && typeof window.IAP === 'object', 'window.IAP must exist for platform wrappers');
+    assert(typeof window.IAP.grant === 'undefined', 'IAP.grant must NOT be exposed — it mints currency/entitlements with no validation');
+    assert(typeof window.IAP.buy === 'function', 'IAP.buy must still be available');
+  }),
+
+  // b306 SECURITY: the admin cheat panel must be owner/dev-only, never openable by
+  // a random player on the live host via ?admin=1.
+  () => tryRun('b306: admin panel gate refuses non-owners on player hosts', () => {
+    const gate = window.__hrAdminGate;
+    assert(typeof gate === 'function', '__hrAdminGate must be exposed');
+    const OWNER = '53e3c6a4-1168-47fb-a0c2-c7e6dc9a7acc';
+    // On a live player host: no session and a random uid are BOTH refused.
+    assert(gate('hearthrise.net', null) === false, 'player host + no account must be refused');
+    assert(gate('hearthrise.net', 'some-random-player-uid') === false, 'player host + non-owner must be refused');
+    assert(gate('bugsquisher1.github.io', 'some-random-player-uid') === false, 'other player host + non-owner refused');
+    // The owner is allowed on the live host; dev origins are always allowed.
+    assert(gate('hearthrise.net', OWNER) === true, 'owner must be allowed on the live host');
+    assert(gate('localhost', null) === true, 'a dev origin is always allowed (testing)');
   }),
 
   // ═══ b305: SAVE-SYSTEM STRESS + SECURITY BATTERY ═══════════════════════════

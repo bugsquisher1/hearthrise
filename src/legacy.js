@@ -1347,9 +1347,14 @@ const IAP=(()=>{
        multiplier, which is pay-to-win on public leaderboards and against the
        design rule that premium is convenience/cosmetic only. */
   }
-  return {buy,detectPlatform,grant};
+  /* b306 SECURITY: `grant` is NOT exported. It mints gems/gold/tokens/entitlements
+     with no validation, so exposing it on window.IAP made `IAP.grant({gems:1e9})`
+     a one-line console cheat that also forged the paid subscription entitlement.
+     It stays a private closure member — confirmIAP() (above, same IIFE) still
+     calls it after a validated purchase. Only buy/detectPlatform are public. */
+  return {buy,detectPlatform};
 })();
-window.IAP=IAP; /* b206: expose for platform wrappers (Steam/iOS bridges) + tests */
+window.IAP=IAP; /* b206: expose for platform wrappers (Steam/iOS bridges) */
 
 function confirmIAP(p,platform){
   return new Promise(res=>{

@@ -5477,7 +5477,16 @@ window.setCombatAutoEat = function(value){
    Lists every eligible Provision + an Off option; picking one sets it and closes. */
 window.openAutoEatPicker = function(){
   if(typeof G==='undefined'||!G) return;
-  const foods = Object.entries(G.inventory||{}).filter(([id])=> (typeof _autoEatOk==='function') ? _autoEatOk(id) : false);
+  /* b294: the eligibility helper `_autoEatOk` is a const scoped inside the
+     combat-render function, NOT visible here — this is a separate top-level
+     function. Referencing it made `typeof _autoEatOk` resolve to 'undefined',
+     so the filter rejected EVERY item and the picker always claimed the bag
+     held no Provisions (tester: "won't let me pick food … says no provisions").
+     Use the same authority the engine eats from, inline, so the two can't drift. */
+  const _aeOk = (id)=> (window.HearthriseAuto && typeof window.HearthriseAuto.isAutoEatable==='function')
+    ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
+    : !!(ITEMS[id] && ITEMS[id].heals && ITEMS[id].foodClass!=='buff');
+  const foods = Object.entries(G.inventory||{}).filter(([id])=> _aeOk(id));
   const cur = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? (window.HearthriseAuto.getEat().foodId||null) : null;
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const rows = foods.map(([id,q])=>{

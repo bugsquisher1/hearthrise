@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=293' directly.
+// modularised, will import { G } from '../state/game.js?v=294' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=293';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=293';
+import { on, snapshot } from '../net/events.js?v=294';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=294';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=293';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=294';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12257,13 +12257,17 @@ const TESTS = [
       assert(ov && getComputedStyle(ov).display !== 'none', 'the picker overlay must open');
       assert(ov.querySelectorAll('.aep-row').length >= 1, 'the picker must render at least the Off row');
       assert(/Off/.test(ov.textContent), 'the picker must offer an Off option');
-      // Choosing a food routes through setCombatAutoEat (only if an eligible food rendered).
+      // b294 regression: the picker MUST list the Provisions actually in the bag.
+      // The old helper `_autoEatOk` was a const scoped to the combat-render fn,
+      // out of scope here, so the filter silently rejected every item and the
+      // picker always claimed "No Provisions in your bag" (tester report).
+      // This assertion (was previously behind `if(foodRow)`) fails without the fix.
+      assert(!/No Provisions/i.test(ov.textContent), 'picker wrongly reports no Provisions despite owned cooked food');
       const foodRow = [...ov.querySelectorAll('.aep-row')].find(r => /Shrimp|Trout/i.test(r.textContent));
-      if(foodRow){
-        foodRow.click();   // sets it + closes
-        const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-        assert(cfg && cfg.foodId, 'picking a food must set the auto-eat food');
-      }
+      assert(foodRow, 'the picker must list owned Provisions (Cooked Shrimp/Trout)');
+      foodRow.click();   // sets it + closes
+      const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+      assert(cfg && cfg.foodId, 'picking a food must set the auto-eat food');
       // Close is reliable regardless.
       window.closeAutoEatPicker();
       assert(getComputedStyle(document.getElementById('aep-overlay')).display === 'none', 'close must hide the picker');

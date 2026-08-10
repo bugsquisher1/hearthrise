@@ -182,6 +182,19 @@ function SWEEP(label) {
   return out;
 }
 
+// A brand-new player: no gold, nothing gathered, nothing unlocked. The path most
+// likely to show empty states, broken values and dead ends — and the first thing a
+// launch player sees.
+const FRESH_GAME = () => {
+  const G = window.G; if (!G) return;
+  G.gold = 0; G.gems = 0;
+  Object.keys(G.skills || {}).forEach((s) => { G.skills[s] = 0; });
+  G.inventory = {};
+  G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
+  G.rooms = {}; G.farmPlots = []; G.companions = { ownedIds: [], xp: {}, equipped: null };
+};
+const SAVE_STATE = (process.env.HR_SAVE || 'mid');
+
 const MID_GAME = () => {
   const G = window.G; if (!G) return;
   G.gold = 250000; G.gems = 40;
@@ -201,11 +214,17 @@ const MID_GAME = () => {
 
   for (const vp of VIEWPORTS) {
     const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+    // FUNCTIONAL: a screen that throws while rendering still "looks" fine in a
+    // screenshot — capture runtime errors and console errors per screen.
+    const runtimeErrs = [];
+    page.on('pageerror', (e) => runtimeErrs.push('pageerror: ' + String(e.message || e).slice(0, 140)));
+    page.on('console', (m) => { if (m.type() === 'error') runtimeErrs.push('console: ' + m.text().slice(0, 140)); });
+    page.__errs = runtimeErrs;
     await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
     await page.waitForFunction(() => typeof window.G !== 'undefined', { timeout: 60_000 });
     await page.evaluate(() => { try { if (window.HearthriseGate) window.HearthriseGate.isOpen = () => true; } catch (e) {} });
-    await page.evaluate(MID_GAME);
+    await page.evaluate(SAVE_STATE === 'fresh' ? FRESH_GAME : MID_GAME);
     await page.waitForTimeout(1800);   // let ESM merge + icon mapping settle
     // Dismiss the FTUE tour + any open modal/toast, or every screen gets measured
     // (and screenshotted) from BEHIND the tutorial — the sweep would be worthless.
@@ -235,6 +254,11 @@ const MID_GAME = () => {
       await page.waitForTimeout(120);
       const res = await page.evaluate(SWEEP, s).catch((e) => ({ screen: s, issues: [{ sev: 'ERR', kind: 'sweep-threw', detail: String(e).slice(0, 120) }], stats: {} }));
       res.viewport = vp.key;
+      // attribute any runtime/console errors raised while this screen rendered
+      if (runtimeErrs.length) {
+        [...new Set(runtimeErrs)].slice(0, 4).forEach((e) => res.issues.push({ sev: 'P1', kind: 'runtime-error', detail: e, el: '' }));
+        runtimeErrs.length = 0;
+      }
       findings.push(res);
       await page.screenshot({ path: join(OUT, `${vp.key}-${s}.png`) }).catch(() => {});
     }

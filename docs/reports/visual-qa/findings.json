@@ -12,8 +12,8 @@
       }
     ],
     "stats": {
-      "els": 478,
-      "chars": 2455
+      "els": 475,
+      "chars": 2386
     },
     "viewport": "desktop"
   },
@@ -30,8 +30,8 @@
       }
     ],
     "stats": {
-      "els": 367,
-      "chars": 387
+      "els": 353,
+      "chars": 371
     },
     "viewport": "desktop"
   },
@@ -43,13 +43,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "17 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Fight Zombie\" #hr-botd-card>.botd-foot>button.btn | 31px \"Unlocks at Com\" #hr-weekly-card>.botd-foot>button.btn",
+        "detail": "17 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Unlocks at Com\" #hr-botd-card>.botd-foot>button.btn | 31px \"Unlocks at Com\" #hr-weekly-card>.botd-foot>button.btn",
         "el": "#app>.main>#panel-combatsection.panel"
       }
     ],
     "stats": {
-      "els": 431,
-      "chars": 1332
+      "els": 433,
+      "chars": 1345
     },
     "viewport": "desktop"
   },
@@ -66,8 +66,8 @@
       }
     ],
     "stats": {
-      "els": 335,
-      "chars": 495
+      "els": 321,
+      "chars": 368
     },
     "viewport": "desktop"
   },
@@ -79,13 +79,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "13 controls <44px — worst: 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock",
+        "detail": "8 controls <44px — worst: 29px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 31px \"Plant all\" #farm-panel>.farm-status>.row>button.btn | 31px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
         "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
-      "els": 284,
-      "chars": 585
+      "els": 283,
+      "chars": 570
     },
     "viewport": "desktop"
   },
@@ -102,8 +102,8 @@
       }
     ],
     "stats": {
-      "els": 534,
-      "chars": 577
+      "els": 395,
+      "chars": 549
     },
     "viewport": "desktop"
   },
@@ -120,8 +120,8 @@
       }
     ],
     "stats": {
-      "els": 366,
-      "chars": 686
+      "els": 365,
+      "chars": 682
     },
     "viewport": "desktop"
   },
@@ -138,8 +138,8 @@
       }
     ],
     "stats": {
-      "els": 422,
-      "chars": 2742
+      "els": 420,
+      "chars": 2791
     },
     "viewport": "desktop"
   },
@@ -156,7 +156,7 @@
       }
     ],
     "stats": {
-      "els": 432,
+      "els": 431,
       "chars": 1442
     },
     "viewport": "desktop"
@@ -174,7 +174,7 @@
       }
     ],
     "stats": {
-      "els": 173,
+      "els": 172,
       "chars": 194
     },
     "viewport": "desktop"
@@ -192,7 +192,7 @@
       }
     ],
     "stats": {
-      "els": 213,
+      "els": 212,
       "chars": 393
     },
     "viewport": "desktop"
@@ -210,8 +210,8 @@
       }
     ],
     "stats": {
-      "els": 346,
-      "chars": 744
+      "els": 345,
+      "chars": 752
     },
     "viewport": "desktop"
   },
@@ -228,8 +228,8 @@
       }
     ],
     "stats": {
-      "els": 380,
-      "chars": 2457
+      "els": 378,
+      "chars": 2386
     },
     "viewport": "landscape"
   },
@@ -246,8 +246,8 @@
       }
     ],
     "stats": {
-      "els": 269,
-      "chars": 387
+      "els": 256,
+      "chars": 371
     },
     "viewport": "landscape"
   },
@@ -265,7 +265,7 @@
     ],
     "stats": {
       "els": 196,
-      "chars": 1332
+      "chars": 1345
     },
     "viewport": "landscape"
   },
@@ -282,8 +282,8 @@
       }
     ],
     "stats": {
-      "els": 256,
-      "chars": 495
+      "els": 243,
+      "chars": 368
     },
     "viewport": "landscape"
   },
@@ -295,13 +295,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "11 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Plant all\" #farm-panel>.farm-status>.row>button.btn",
+        "detail": "6 controls <44px — worst: 36px \"RallyRally in \" .main>.topbar>.top-stats>#hr-muster-pillbutton | 36px \"Quests0\" .main>.topbar>.top-stats>#hr-quests-btnbutton.no-active | 40px \"Plant all\" #farm-panel>.farm-status>.row>button.btn",
         "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
       "els": 186,
-      "chars": 585
+      "chars": 570
     },
     "viewport": "landscape"
   },
@@ -318,8 +318,8 @@
       }
     ],
     "stats": {
-      "els": 369,
-      "chars": 577
+      "els": 229,
+      "chars": 568
     },
     "viewport": "landscape"
   },
@@ -337,7 +337,7 @@
     ],
     "stats": {
       "els": 268,
-      "chars": 686
+      "chars": 682
     },
     "viewport": "landscape"
   },
@@ -354,8 +354,8 @@
       }
     ],
     "stats": {
-      "els": 324,
-      "chars": 2742
+      "els": 323,
+      "chars": 2791
     },
     "viewport": "landscape"
   },
@@ -409,7 +409,7 @@
     ],
     "stats": {
       "els": 115,
-      "chars": 393
+      "chars": 391
     },
     "viewport": "landscape"
   },
@@ -427,7 +427,7 @@
     ],
     "stats": {
       "els": 248,
-      "chars": 743
+      "chars": 727
     },
     "viewport": "landscape"
   }

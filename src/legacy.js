@@ -107,6 +107,10 @@ const COMBAT_BALANCE={
    Multiplies the swing interval, so DPS trades off against per-hit burst (the
    hammer's big hits favour crit / high-DEF targets). Tunable in one place. */
 const WEAPON_SPEED_MOD = { sword:1.0, hammer:1.35, ranged:0.88, magic:1.05, neutral:1.0 };
+/* Wave 5b: endgame DEF scaling for ACCURACY only — makes weapon atkB matter at the
+   top of the ladder (tiers 1-3 unchanged). Gentle so under-geared players still land
+   ~70% vs tier-6, well-geared reach the 0.95 cap. Tune here, playtest the feel. */
+const ACC_DEF_MUL = { 4:1.15, 5:1.30, 6:1.50 };
 /* Wave 4 (audit fix): ONE definition of what a drop's chance means, so "rare" is
    the same number everywhere instead of a 0.05 magic constant copy-pasted across
    the combat loop, the drop log and the loot preview. */
@@ -1381,8 +1385,15 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   Object.values(G.equipment||{}).forEach(id=>{const it=ITEMS[id];if(!it)return; accBonus+=(it[profile.accuracyBonusField]||0); strBonus+=(it[profile.strengthBonusField]||0);});
   const accLvl = getLevel(profile.accuracySkill);
   const dmgLvl = getLevel(profile.damageSkill);
-  const defScore = m?.def||0;
-  /* ChatGPT spec: accuracy = 0.55 + ((lvl+bonus)-mob.def)*0.01 */
+  /* Wave 5b (audit fix): weapon ACCURACY (atkB) was a near-dead stat at endgame —
+     player attack (→99) + atkB (→48) dwarfs monster DEF (max 62), so accuracy
+     pinned at the 0.95 cap and better weapons stopped improving your hit rate. Fix:
+     scale DEF up for high-tier content (ACCURACY only — damage untouched), so at
+     endgame your weapon's atkB is what carries you from ~0.7 to 0.95. Early/low-tier
+     combat is unchanged (mult 1). Tunable in one place. */
+  const _mTier = (m && m.tier) || 1;
+  const defScore = (m?.def||0) * (ACC_DEF_MUL[_mTier] || 1);
+  /* accuracy = 0.55 + ((lvl+bonus) - effectiveDef) * 0.01 */
   let accuracy = 0.55 + (((accLvl+accBonus) - defScore) * 0.01);
   accuracy *= (style.accuracyMod || 1);
   accuracy *= weak.accuracyMult;
@@ -1402,9 +1413,26 @@ function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   /* b235: crit chance = gear critB + the damage_crit food buff, clamped. Read
      here so every caller (the live tick AND the stats panel) sees one number. */
   const critBuff = (typeof getBonus==='function') ? (getBonus('crit')||0) : 0;
-  const critChance = clamp((eq.critB||0) + critBuff, 0, COMBAT_BALANCE.critCap);
+  /* Wave 5c (audit fix — horizontal progression): a full same-material armour SET
+     grants a crit passive scaled by tier, so completing a Dawnsteel set is a real
+     endgame goal that plays differently from mix-and-match best-in-slot. */
+  const _set = (typeof getArmorSetBonus==='function') ? getArmorSetBonus() : null;
+  const critChance = clamp((eq.critB||0) + critBuff + (_set ? _set.critB : 0), 0, COMBAT_BALANCE.critCap);
   return {accuracy,maxHit,critChance,weak,profile,style};
 }
+/* Wave 5c: armour SET bonus. Count equipped armour pieces by material tier; the
+   dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit
+   (Dawnsteel full set = +7%). Derived from item.tier — no per-item authoring. */
+function getArmorSetBonus(){
+  if(typeof G==='undefined' || !G || !G.equipment) return null;
+  const counts={};
+  Object.values(G.equipment).forEach(id=>{ const it=ITEMS[id]; if(it && it.type==='armor' && it.tier){ counts[it.tier]=(counts[it.tier]||0)+1; } });
+  let bestTier=0, bestCount=0;
+  for(const t in counts){ if(counts[t]>bestCount){ bestCount=counts[t]; bestTier=+t; } }
+  if(bestCount>=5 && bestTier>0) return { tier:bestTier, pieces:bestCount, critB: bestTier*0.01 };
+  return null;
+}
+window.getArmorSetBonus=getArmorSetBonus;
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
   const b=COMBAT_BALANCE;
   const playerDefense=getLevel('defense')+(eq.defB||0)+((typeof getBonus==='function')?(getBonus('defense')||0):0); // b238: defense food buff, finally read
@@ -10296,7 +10324,12 @@ window.renderEquipmentStatsHTML = function(){
         return '<div class="eqb-worn"><span>'+lbl+'</span><b>'+w.name+'</b></div>';
       }).join('')
     : '';
-  return '<div class="eqb-grid">'+rows+'</div>'+
+  /* Wave 5c: surface the armour SET bonus so completing a set is a legible goal. */
+  var _set = (typeof getArmorSetBonus==='function') ? getArmorSetBonus() : null;
+  var setHtml = _set
+    ? '<div class="eqb-set">🛡️ Set bonus · <b>'+_set.pieces+'-piece '+((window.MATERIAL_TIER_NAME&&window.MATERIAL_TIER_NAME[_set.tier])||('Tier '+_set.tier))+'</b> — +'+Math.round(_set.critB*100)+'% crit</div>'
+    : '';
+  return '<div class="eqb-grid">'+rows+'</div>'+ setHtml +
     (wornList ? '<div class="eqb-sub">Equipped</div><div class="eqb-wornlist">'+wornList+'</div>' : '');
 };
 

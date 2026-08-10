@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 276 — 2026-08-09 (Progression rework: accuracy + armour sets)
+
+- 🎯 **Your weapon's accuracy matters again at endgame.** Tough high-tier monsters and bosses now have enough defence that a better weapon genuinely lands more hits (early fights are unchanged) — so weapon upgrades are felt all the way up, not just in damage.
+- 🛡️ **Armour set bonus.** Wear a full set of the same material (e.g. a complete Dawnsteel set) and you gain a **crit passive that scales with the set's tier** — a real reason to complete a set instead of mixing pieces. Shown in your Equipment panel.
+
 ## v0.9.2-beta build 275 — 2026-08-09 (Progression rework, wave 6: the Weekly Boss)
 
 - ★ **New: a Weekly Boss.** Alongside the daily boss, a bigger apex boss is now featured each week — fighting it pays **double drops and +50% combat XP** all week. Its own card sits on the Combat screen with a loot preview and a 7-day countdown. A real "make sure you do this this week" reason to return.

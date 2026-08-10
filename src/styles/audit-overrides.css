@@ -1174,6 +1174,11 @@ body.in-combat #combat-area {
   color: var(--ink-2);
   font-family: monospace;
 }
+/* Wave 5c: armour set-bonus line in the Equipment stats panel */
+.eqb-set { margin: 8px 0; padding: 7px 11px; border-radius: 8px;
+  background: rgba(201,162,74,.12); border: 1px solid var(--gold-2);
+  color: var(--ink); font-size: calc(14.5px * var(--ui-scale, 1)); }
+.eqb-set b { color: var(--gold-2); }
 /* b268: named end-boss line on each dungeon card (the boss ecosystem) */
 .dgn-boss-line {
   font-size:calc(14.5px * var(--ui-scale, 1));

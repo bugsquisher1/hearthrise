@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=275' directly.
+// modularised, will import { G } from '../state/game.js?v=276' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=275';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=275';
+import { on, snapshot } from '../net/events.js?v=276';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=276';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=275';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=276';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2294,6 +2294,49 @@ const TESTS = [
       const bowMs = window.combatTickMs();
       assert(hammerMs > swordMs, 'a warhammer must swing slower than a sword (' + hammerMs + ' vs ' + swordMs + ')');
       assert(bowMs < swordMs, 'a bow must swing faster than a sword (' + bowMs + ' vs ' + swordMs + ')');
+    } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('WAVE5b: weapon accuracy (atkB) matters vs high-tier DEF, low tiers unchanged', () => {
+    const G = window.G;
+    if (typeof window.getPlayerCombatRolls !== 'function' || !window.MONSTERS || !window.ITEMS) return;
+    if (!window.ITEMS.dawn_sword || !window.ITEMS.bronze_sword) return;
+    const t6 = Object.values(window.MONSTERS).filter(m => m.tier === 6).sort((a, b) => (b.def || 0) - (a.def || 0))[0];
+    const t1 = Object.values(window.MONSTERS).find(m => m.tier === 1);
+    if (!t6) return;
+    const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000 }); // XP → level 99
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });  // atkB 4
+      const lowAcc = window.getPlayerCombatRolls(t6).accuracy;
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'dawn_sword' });    // atkB 42
+      const highAcc = window.getPlayerCombatRolls(t6).accuracy;
+      assert(highAcc > lowAcc, 'a high-atkB weapon must land more often vs a tier-6 boss (' + highAcc.toFixed(2) + ' vs ' + lowAcc.toFixed(2) + ')');
+      if (t1) {
+        G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+        assert(window.getPlayerCombatRolls(t1).accuracy >= 0.9, 'tier-1 accuracy must stay high (early game unchanged)');
+      }
+    } finally { G.equipment = snap.eq; G.skills = snap.skills; }
+  }),
+
+  () => tryRun('WAVE5c: a full same-tier armour set grants a crit passive', () => {
+    const G = window.G;
+    if (typeof window.getArmorSetBonus !== 'function' || !window.ITEMS) return;
+    const set = ['dawn_helm', 'dawn_platebody', 'dawn_platelegs', 'dawn_boots', 'dawn_gauntlets', 'dawn_belt'].filter(id => window.ITEMS[id]);
+    if (set.length < 5) return;
+    const slots = { dawn_helm: 'helmet', dawn_platebody: 'body', dawn_platelegs: 'pants', dawn_boots: 'boots', dawn_gauntlets: 'gloves', dawn_belt: 'belt' };
+    const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})) };
+    try {
+      G.equipment = {};
+      set.forEach(id => { G.equipment[slots[id] || window.ITEMS[id].slot] = id; });
+      const sb = window.getArmorSetBonus();
+      assert(sb && sb.pieces >= 5, 'a full dawn set must register (got ' + (sb && sb.pieces) + ')');
+      assert(sb.tier === 7 && Math.abs(sb.critB - 0.07) < 1e-9, 'dawn (tier 7) set → +7% crit, got ' + (sb && sb.critB));
+      // the crit passive must reach the combat rolls
+      const m = window.MONSTERS && Object.values(window.MONSTERS)[0];
+      if (m) assert(window.getPlayerCombatRolls(m).critChance >= 0.07, 'the set crit must flow into getPlayerCombatRolls');
+      delete G.equipment.belt; delete G.equipment.gloves;
+      assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
   }),
 

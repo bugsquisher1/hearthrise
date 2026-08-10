@@ -92,8 +92,32 @@ function gameStateSnapshot() {
     device: describeDevice(),
     orientation: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
     ua: navigator.userAgent.slice(0, 200),
+    // b308: the metrics that actually explain a "crunched UI" on one device but
+    // not another — DPR, the physical screen vs the layout viewport (a big gap =
+    // Desktop-site mode), page zoom, and the root font-size (a value above ~16px
+    // means the OS Display/Font size is boosted, which squeezes every layout).
+    metrics: deviceMetrics(),
   };
 }
+
+// b308 — layout-diagnostic metrics for the "works on my other Android, not this
+// one" class of report. All best-effort; never throws.
+function deviceMetrics() {
+  const m = {};
+  try { m.dpr = +(window.devicePixelRatio || 1).toFixed(2); } catch (e) {}
+  try { m.screen = (window.screen ? `${screen.width}x${screen.height}` : '—'); } catch (e) {}
+  try { m.zoom = (window.visualViewport && window.visualViewport.scale) ? +window.visualViewport.scale.toFixed(2) : 1; } catch (e) {}
+  try { m.rootFont = getComputedStyle(document.documentElement).fontSize; } catch (e) {}
+  // Layout-viewport-wider-than-physical-screen is the Desktop-site signature.
+  try {
+    const vw = window.innerWidth || 0, sw = screen.width || 0;
+    m.desktopMode = (typeof window.__hrDesktopModeCheck === 'function')
+      ? window.__hrDesktopModeCheck()
+      : (sw > 0 && vw > sw * 1.4);
+  } catch (e) {}
+  return m;
+}
+if (typeof window !== 'undefined') window.__hrDeviceMetrics = deviceMetrics; // b308: exposed for the guard test
 
 // A one-line human device/OS summary parsed from the UA — so a bug report reads
 // "Android phone · landscape · build 262" at a glance instead of a raw UA blob.
@@ -286,6 +310,14 @@ async function sendDiscord(payload) {
       { name: 'Player',   value: payload.user || 'guest',    inline: true },
       { name: 'Tab',      value: String(payload.state.activeTab || '—'), inline: true },
       { name: 'Viewport', value: String(payload.state.viewport || '—'), inline: true },
+      // b308: the crunched-UI triage line — layout viewport vs physical screen,
+      // DPR, zoom, root font, and a desktop-mode flag, all in one glance.
+      { name: 'Screen', value: (function(){
+          const m = payload.state.metrics || {};
+          return `vp ${payload.state.viewport || '—'} · screen ${m.screen || '—'} · dpr ${m.dpr != null ? m.dpr : '—'}`
+               + ` · zoom ${m.zoom != null ? m.zoom : '—'} · root ${m.rootFont || '—'}`
+               + (m.desktopMode ? ' · ⚠️ DESKTOP-MODE' : '');
+        })(), inline: false },
       { name: 'State',    value: '```json\n' + JSON.stringify(payload.state, null, 2).slice(0, 900) + '\n```' },
       { name: 'Recent errors', value: payload.errors.length
           ? '```\n' + payload.errors.map(e => `[${e.level}] ${e.msg}`).join('\n').slice(0, 900) + '\n```'

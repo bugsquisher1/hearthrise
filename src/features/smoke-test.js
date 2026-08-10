@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=307' directly.
+// modularised, will import { G } from '../state/game.js?v=308' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=307';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=307';
+import { on, snapshot } from '../net/events.js?v=308';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=308';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=307';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=308';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12234,6 +12234,17 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  // b308: the bug report captures layout-diagnostic metrics (for "crunched UI on
+  // one device only" reports). Guard the shape + that it never throws.
+  () => tryRun('b308: bug-report device metrics are captured and well-formed', () => {
+    assert(typeof window.__hrDeviceMetrics === 'function', '__hrDeviceMetrics must be exposed');
+    const m = window.__hrDeviceMetrics();
+    assert(m && typeof m === 'object', 'metrics must be an object');
+    assert(typeof m.dpr === 'number', 'dpr must be a number, got ' + typeof m.dpr);
+    assert(typeof m.screen === 'string', 'screen must be a string');
+    assert(typeof m.desktopMode === 'boolean' || m.desktopMode === null, 'desktopMode must be boolean/null');
   }),
 
   // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.

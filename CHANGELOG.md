@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 308 — 2026-08-10 (Better bug reports for display issues)
+
+- 🐛 **Bug reports now include your device's display details** (screen size, zoom, pixel ratio, text scale, desktop-site flag) — so when someone's layout looks cramped on one phone but fine on another, we can pinpoint the cause instantly instead of guessing.
+
 ## v0.9.2-beta build 307 — 2026-08-10 (Offline rewards fixed — per-absence)
 
 - ⏰ **Offline progress now works the way it should.** The old system used one shared daily budget, and a quirk meant your *first* time away each day (usually overnight) ate the whole day's allowance — so any time you were away later, your skills earned **nothing** offline. Now the cap applies to **each absence on its own**: every time you're away, you earn offline progress for up to your offline-cap hours, and signing in resets the clock. No more "used it up" dead state. *(Thanks paione & Xarnathos — this is why smithing/etc. stopped banking offline.)*

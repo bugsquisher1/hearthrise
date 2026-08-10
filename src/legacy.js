@@ -14075,6 +14075,15 @@ window._monsterIcon = window._monsterIcon || {};
       if (LOCAL_ITEM_ICON[id]) return;                  // hand-mapped art wins
       var def = ITEMS_[id];
       if (!def || !def.tier) return;                    // only generated tier gear
+      /* b282 fix (Tyler: "hovering an item shows a completely different asset"):
+         the b278 armour triangle added leather/cloth lines whose ids (leather_helmet,
+         apprentice_helmet, …) match the plate SLOT_ART suffixes ('_helm', 'belt'),
+         so a cloth mage-hat and a leather coif were being painted as an IRON PLATE
+         HELM — the wrong silhouette, worse than an emoji. Only the PLATE line may
+         borrow the plate art here; leather/cloth fall to their honest fallback until
+         their own art ships (asset backlog). Weapons carry no armourClass, so they
+         pass through unaffected. */
+      if (def.type === 'armor' && def.armourClass && def.armourClass !== 'plate') return;
       /* b224 fix: a bare `id.indexOf(k) === id.length - k.length` is TRUE by
          coincidence whenever k is absent (indexOf === -1) AND k is exactly one
          character longer than id (id.length - k.length === -1 too) — it was

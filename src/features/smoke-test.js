@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=281' directly.
+// modularised, will import { G } from '../state/game.js?v=282' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=281';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=281';
+import { on, snapshot } from '../net/events.js?v=282';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=282';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=281';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=282';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2338,6 +2338,21 @@ const TESTS = [
       delete G.equipment.belt; delete G.equipment.gloves;
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('b282: leather/cloth armour never borrows PLATE art (no wrong-silhouette icon)', () => {
+    // Tyler: "hovering an item shows a completely different asset." The auto-mapper's
+    // '_helm'/'belt' suffix match was painting cloth mage-hats + leather coifs as an
+    // iron plate helm. Only the plate line may borrow the plate SLOT_ART now.
+    if (typeof window.__mapGeneratedGearIcons !== 'function' || !window.ITEMS) return;
+    window.__mapGeneratedGearIcons();
+    const P = window._itemPath || {};
+    ['apprentice_helmet', 'leather_helmet', 'archmage_helmet', 'dragonhide_helmet'].forEach(id => {
+      if (window.ITEMS[id]) assert(!/(_helm|platebody|_platebody)\.png/.test(P[id] || ''),
+        id + ' (leather/cloth) must not borrow plate art, got: ' + (P[id] || '(none)'));
+    });
+    // the plate line still resolves to its plate art
+    if (window.ITEMS.bronze_helm) assert(/helm/.test(P.bronze_helm || ''), 'plate helm must still map to plate art');
   }),
 
   () => tryRun('WAVE-armor: the combat triangle — cloth boosts magic accuracy, plate penalises it', () => {

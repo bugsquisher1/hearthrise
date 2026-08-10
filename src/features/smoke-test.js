@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=286' directly.
+// modularised, will import { G } from '../state/game.js?v=287' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=286';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=286';
+import { on, snapshot } from '../net/events.js?v=287';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=287';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=286';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=287';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2338,6 +2338,26 @@ const TESTS = [
       delete G.equipment.belt; delete G.equipment.gloves;
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('b287: no visible control calls a function that does not exist (dead-button guard)', () => {
+    // The recurring defect in this codebase: a handler calls a global that was never
+    // exported, so the button looks fine and silently does nothing (quest strip,
+    // bounty repaint, stopSkill, combatXP, and the Clan "Sign in" all shipped so).
+    assert(typeof window.hrPromptSignIn === 'function', 'the shared sign-in opener must exist');
+    const RESERVED = /^(if|for|while|switch|return|typeof|function|catch|new|do|else|delete|void)$/;
+    const dead = [];
+    document.querySelectorAll('[onclick]').forEach((el) => {
+      if (!el.getBoundingClientRect().width) return;               // visible controls only
+      const code = el.getAttribute('onclick') || '';
+      [...code.matchAll(/([A-Za-z_$][\w$.]*)\s*\(/g)].map((m) => m[1]).forEach((path) => {
+        if (RESERVED.test(path)) return;
+        let ref = window;
+        for (const p of path.replace(/^window\./, '').split('.')) { if (ref == null) break; ref = ref[p]; }
+        if (typeof ref !== 'function') dead.push(path + '() on "' + (el.textContent || '').trim().slice(0, 16) + '"');
+      });
+    });
+    assert(dead.length === 0, 'controls calling missing functions: ' + [...new Set(dead)].slice(0, 6).join(', '));
   }),
 
   () => tryRun('b283: currency ignores the bank cap; a full-bag purchase never eats scrip (data-loss fix)', () => {

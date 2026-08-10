@@ -298,7 +298,12 @@
       cl.innerHTML =
         '<div class="clan-empty"><h4>Your hold awaits</h4>' +
         '<p>Clans are live multiplayer — sign in to found one, join one, and raise a castle together.</p></div>' +
-        '<button class="btn btn-primary btn-sm" onclick="(window.HearthriseAuth&&window.HearthriseAuth.showSignIn)?window.HearthriseAuth.showSignIn():notify(\'Open Home → Sign in\',\'info\')">Sign in</button>';
+        /* b287 (functional QA): this called HearthriseAuth.showSignIn(), which has
+           never existed (auth.js exports signIn/signOut/getSession, no UI opener), so
+           the button always fell through to a toast telling you to go find sign-in
+           somewhere else — a "Sign in" button that doesn't sign you in. The real
+           prompt is HearthriseGate.promptReauth(); the toast stays as a last resort. */
+        '<button class="btn btn-primary btn-sm" onclick="window.hrPromptSignIn&&window.hrPromptSignIn()">Sign in</button>';
       return;
     }
     if (!_myClan) await fetchMyClan();

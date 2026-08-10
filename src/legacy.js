@@ -3263,6 +3263,18 @@ function notify(text,type='info'){
   while(el.children.length>5)el.children[0].remove();
 }
 
+/* b287 (functional QA): ONE way to open the sign-in prompt, so a "Sign in" button
+   anywhere in the game actually signs you in. Several surfaces called
+   HearthriseAuth.showSignIn() — a function that has never existed — and fell
+   through to a toast telling the player to go find sign-in somewhere else. */
+window.hrPromptSignIn = function(){
+  var G_ = window.HearthriseGate;
+  if(G_ && typeof G_.promptReauth === 'function'){ try{ G_.promptReauth(); return true; }catch(e){} }
+  if(typeof window.showTab === 'function') window.showTab('profile');
+  if(typeof notify === 'function') notify('Sign in from the Home screen to play online.','info');
+  return false;
+};
+
 /* ════════════════════════════════════════════════
    UI ROUTING
    ════════════════════════════════════════════════ */

@@ -160,6 +160,25 @@ function SWEEP(label) {
       const fs = parseFloat(getComputedStyle(el).fontSize) || 0;
       if (fs >= 26) add('P1', 'emoji-as-art', `${fs | 0}px "${t}"`, el); } });
 
+  /* FUNCTIONAL — dead controls. This codebase's recurring defect is a control whose
+     handler calls a global that was never exported (quest strip, bounty repaint,
+     stopSkill and combatXP all shipped broken this way): the button looks perfectly
+     fine and silently does nothing. Resolve every function an inline onclick calls. */
+  const RESERVED = /^(if|for|while|switch|return|typeof|function|catch|new|do|else|delete|void)$/;
+  scope.forEach((n) => n.querySelectorAll('[onclick]').forEach((el) => {
+    if (!vis(el)) return;
+    const code = el.getAttribute('onclick') || '';
+    const calls = [...code.matchAll(/([A-Za-z_$][\w$.]*)\s*\(/g)].map((m) => m[1]);
+    calls.forEach((path) => {
+      if (RESERVED.test(path)) return;
+      const parts = path.replace(/^window\./, '').split('.');
+      let ref = window;
+      for (const p of parts) { if (ref == null) break; ref = ref[p]; }
+      if (typeof ref !== 'function')
+        add('P1', 'dead-control', `"${TXT(el).slice(0, 18)}" calls ${path}() -> ${ref === undefined ? 'undefined' : typeof ref}`, el);
+    });
+  }));
+
   return out;
 }
 

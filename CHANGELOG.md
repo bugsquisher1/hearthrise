@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 312 — 2026-08-10 (Full scrollable nav rail on phones)
+
+- 📱 **The left nav rail now holds every section and scrolls** — Home, Character, Bag, Skills, Combat, Events, Bounty, Farm, House, Clan, Shops, Social — instead of tucking half the game behind "More." Same one-tap access as the desktop rail, on your phone. *(Thanks paione — the slick scrollable rail is back.)*
+
 ## v0.9.2-beta build 311 — 2026-08-10 (Wide landscape phones: fitted layout, kept)
 
 - 📱 **Wide landscape phones keep the fitted (non-crunched) layout** — the resolution fix from b309 is back in place after a brief revert. Your screen gets the layout sized for it, not the desktop layout squeezed onto a short screen.

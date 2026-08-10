@@ -95,28 +95,69 @@ export const WEAPON_FAMILIES = [
 
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
+/* ── Armour ARCHETYPES — the combat triangle (b278). ───────────────────────
+   Three lines per tier so armour finally participates in the melee/ranged/magic
+   triangle instead of one generic "plate" fitting everyone:
+     • PLATE (heavy): the highest defence, but it TANKS your ranged and (badly)
+       your magic accuracy — a warrior's armour.
+     • LEATHER (ranged): ~half the defence, but boosts ranged accuracy + a little
+       crit; a mild magic penalty.
+     • CLOTH (robes, magic): the least defence, but the only armour that boosts
+       magic accuracy AND magic damage; poor for melee/ranged.
+   The whole triangle is DATA: getPlayerCombatRolls already sums the active style's
+   accuracy field (atkB / rangeAtkB / magicAtkB) and damage field across every
+   equipped item, so an item carrying a negative magicAtkB literally lowers a
+   mage's hit rate. No combat-code change. Plate keeps its exact ids (save-safe);
+   the penalty fields are added to it. */
+const ARMOUR_LINES = [
+  { key: 'plate', vmul: 1.00, defMul: 1.00, icon: '🛡️',
+    id: (mat, slot) => mat.id + '_' + slot.key,          // UNCHANGED existing ids
+    name: (mat, slot) => mat.name + ' ' + slot.label,
+    fields: (def, i) => ({ rangeAtkB: -Math.round(def * 0.25), magicAtkB: -Math.round(def * 0.5) }) },
+  { key: 'leather', vmul: 0.70, defMul: 0.55, icon: '🎽', craftMat: 'plank',
+    tierNames: ['Leather', 'Studded Leather', 'Boarhide', 'Snakeskin', 'Wyvernhide', 'Dragonhide', 'Voidhide'],
+    tierIds:   ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide', 'voidhide'],
+    slotLabels: { helmet: 'Coif', body: 'Body', pants: 'Chaps', boots: 'Boots', gloves: 'Vambraces', belt: 'Belt' },
+    id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
+    name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
+    fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },
+  { key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'cloth',
+    tierNames: ['Apprentice', 'Adept', 'Scholar', 'Warlock', 'Sorcerer', 'Archmage', 'Voidweave'],
+    tierIds:   ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'voidweave'],
+    slotLabels: { helmet: 'Hat', body: 'Robe Top', pants: 'Robe Bottom', boots: 'Slippers', gloves: 'Gloves', belt: 'Sash' },
+    id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
+    name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
+    fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.4), atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },
+];
+
 // ── Generate the gear items ──────────────────────────────────────────
 export const GEAR_ITEMS = (() => {
   const out = {};
 
-  // Armour — every slot at every tier.
-  ARMOUR_SLOTS.forEach((slotDef) => {
-    MATERIAL_TIERS.forEach((mat, i) => {
-      out[mat.id + '_' + slotDef.key] = {
-        n: mat.name + ' ' + slotDef.label,
-        icon: '🛡️',
-        v: round5(slotDef.vmul * mat.value),
-        type: 'armor',
-        slot: slotDef.slot,
-        defB: slotDef.def[i],
-        rarity: mat.rarity,
-        tier: mat.tier,
-        /* b246: armour is gated on DEFENCE at the tier's level, so wielding it is
-           a real progression gate (enforced at equipItem, grandfathered for gear
-           already worn). Bronze (Lv 1) is effectively ungated. */
-        reqSkill: 'defense',
-        reqLv: mat.smith,
-      };
+  // Armour — every archetype × every slot × every tier (the combat triangle).
+  ARMOUR_LINES.forEach((line) => {
+    ARMOUR_SLOTS.forEach((slotDef) => {
+      MATERIAL_TIERS.forEach((mat, i) => {
+        const def = Math.max(1, Math.round(slotDef.def[i] * line.defMul));
+        const item = {
+          n: line.name(mat, slotDef, line, i),
+          icon: line.icon,
+          v: round5(slotDef.vmul * mat.value * line.vmul),
+          type: 'armor',
+          slot: slotDef.slot,
+          defB: def,
+          armourClass: line.key,          // heavy / leather / cloth — read by UI + item flyout
+          rarity: mat.rarity,
+          tier: mat.tier,
+          /* b246: armour is gated on DEFENCE at the tier's level. */
+          reqSkill: 'defense',
+          reqLv: mat.smith,
+        };
+        // Fold in the archetype's per-style accuracy/damage fields (the triangle).
+        const f = line.fields(slotDef.def[i], i);
+        Object.keys(f).forEach((k) => { if (f[k]) item[k] = f[k]; });
+        out[line.id(mat, slotDef, line, i)] = item;
+      });
     });
   });
 
@@ -155,20 +196,35 @@ export const GEAR_RECIPES = (() => {
   const smithing = [];
   const crafting = [];
 
-  ARMOUR_SLOTS.forEach((slotDef) => {
-    MATERIAL_TIERS.forEach((mat, i) => {
-      const inputs = {};
-      inputs[mat.bar] = slotDef.bars;
-      smithing.push({
-        id: 'forge_' + mat.id + '_' + slotDef.key,
-        name: 'Forge ' + mat.name + ' ' + slotDef.label,
-        icon: '🛡️',
-        inputs,
-        output: mat.id + '_' + slotDef.key,
-        // XP tracks material value and bulk — deeper tiers are worth the trip.
-        xp: Math.round(20 * slotDef.bars * (1 + mat.tier * 0.85)),
-        req: Math.min(99, mat.smith + slotDef.lvOff),
-        ms: 2400 + mat.tier * 320,
+  // Armour recipes for all three archetypes (b278): plate is forged (smithing,
+  // bars); leather and cloth are crafted (crafting) from planks/thread/essence, so
+  // the ranged- and mage-armour lines are a real reason to level Crafting.
+  ARMOUR_LINES.forEach((line) => {
+    ARMOUR_SLOTS.forEach((slotDef) => {
+      MATERIAL_TIERS.forEach((mat, i) => {
+        const output = line.id(mat, slotDef, line, i);
+        if (line.key === 'plate') {
+          const inputs = {}; inputs[mat.bar] = slotDef.bars;
+          smithing.push({
+            id: 'forge_' + output, name: 'Forge ' + line.name(mat, slotDef, line, i), icon: line.icon,
+            inputs, output,
+            xp: Math.round(20 * slotDef.bars * (1 + mat.tier * 0.85)),
+            req: Math.min(99, mat.smith + slotDef.lvOff),
+            ms: 2400 + mat.tier * 320,
+          });
+        } else {
+          const inputs = {};
+          if (line.key === 'leather') { inputs[mat.plank] = slotDef.bars; inputs.silk_thread = 1 + i; }
+          else { inputs.silk_thread = 2 + i; inputs.magic_essence = 1 + (i >= 3 ? 1 : 0); } // cloth
+          crafting.push({
+            id: 'craft_' + output, name: (line.key === 'cloth' ? 'Weave ' : 'Stitch ') + line.name(mat, slotDef, line, i), icon: line.icon,
+            inputs, output,
+            xp: Math.round(18 * slotDef.bars * (1 + mat.tier * 0.85)),
+            // Cap below 95 so the Hunt-forged Wyrmgilt Mantle stays the pinnacle crafting rung.
+            req: Math.min(94, mat.craft + slotDef.lvOff),
+            ms: 2400 + mat.tier * 320,
+          });
+        }
       });
     });
   });

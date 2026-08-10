@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=277' directly.
+// modularised, will import { G } from '../state/game.js?v=278' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=277';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=277';
+import { on, snapshot } from '../net/events.js?v=278';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=278';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=277';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=278';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2338,6 +2338,29 @@ const TESTS = [
       delete G.equipment.belt; delete G.equipment.gloves;
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('WAVE-armor: the combat triangle — cloth boosts magic accuracy, plate penalises it', () => {
+    const G = window.G, I = window.ITEMS;
+    if (typeof window.getPlayerCombatRolls !== 'function' || !I) return;
+    if (!I.dawn_platebody || !I.archmage_body || !I.dragonhide_body || !I.dawn_staff) return;
+    // archetype data is present
+    assert(I.archmage_body.armourClass === 'cloth' && I.dawn_platebody.armourClass === 'plate', 'armourClass must be set');
+    assert(I.archmage_body.magicAtkB > 0 && I.dawn_platebody.magicAtkB < 0, 'cloth +magicAtkB, plate -magicAtkB');
+    assert(I.dragonhide_body.rangeAtkB > 0, 'leather must boost ranged accuracy');
+    assert(I.archmage_body.defB < I.dawn_platebody.defB, 'cloth must have less defence than plate');
+    // and it flows through combat: a mage lands more often in cloth than plate vs a high-DEF foe
+    const m = Object.values(window.MONSTERS || {}).filter(x => x.tier >= 5).sort((a, b) => (b.def || 0) - (a.def || 0))[0];
+    if (!m) return;
+    const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    try {
+      G.skills = Object.assign({}, G.skills, { magic: 5000000, defense: 5000000 });
+      G.equipment = { weapon: 'dawn_staff', body: 'archmage_body' };
+      const clothAcc = window.getPlayerCombatRolls(m).accuracy;
+      G.equipment = { weapon: 'dawn_staff', body: 'dawn_platebody' };
+      const plateAcc = window.getPlayerCombatRolls(m).accuracy;
+      assert(clothAcc > plateAcc, 'a mage must land more often in cloth than plate (' + clothAcc.toFixed(2) + ' vs ' + plateAcc.toFixed(2) + ')');
+    } finally { G.equipment = snap.eq; G.skills = snap.skills; }
   }),
 
   () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {

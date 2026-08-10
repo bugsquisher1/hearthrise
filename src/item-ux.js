@@ -118,7 +118,14 @@
       (qty > 1 ? '<div class="ttl-qty">×' + qty + '</div>' : '') +
     '</div>';
 
-    var statsBlock = '';
+    /* b278: name the armour archetype so the combat triangle is unmistakable —
+       the per-style stat lines below already show the +/− accuracy it grants. */
+    var _armLabel = { plate: 'Heavy armour · melee', leather: 'Leather · ranged', cloth: 'Cloth · magic' };
+    var archetypeTag = (item.type === 'armor' && item.armourClass && _armLabel[item.armourClass])
+      ? '<div class="ttl-archetype">' + _armLabel[item.armourClass] + '</div>'
+      : '';
+
+    var statsBlock = archetypeTag;
     if(item.slot && (item.type === 'weapon' || item.type === 'armor' || item.type === 'jewelry')){
       var cmp = compareToEquipped(itemId);
       if(cmp){

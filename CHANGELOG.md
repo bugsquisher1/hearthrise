@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 278 — 2026-08-09 (The armour triangle — dress for your style)
+
+- 🛡️🎽🧥 **Armour now has three archetypes, and your style matters.** Every tier now comes in three lines:
+  - **Heavy / Plate** (forged from bars) — the most defence, for **melee**. But it *tanks your magic and ranged accuracy* — don't cast in a full suit of plate.
+  - **Leather / Hide** (crafted) — medium defence, boosts **ranged** accuracy and a little crit.
+  - **Cloth / Robes** (crafted) — the least defence, but the only armour that boosts **magic** accuracy *and* magic damage.
+- This is the classic combat triangle: dressing for your style genuinely improves your hit rate, and wearing the wrong armour works against you. The item tooltip labels each piece and shows its melee/ranged/magic bonuses so you can compare.
+
 ## v0.9.2-beta build 277 — 2026-08-09 (Endgame dungeons get a real fight)
 
 - 🐉 **The Voidbringer and the Ancient Wyrm are real encounters now.** The two highest-end instances used to be a single button that just rolled loot — they now have proper 3-phase fights (seal the rift / dodge the tendrils / face the Riftmaw; dodge dragonfire / load the ballista / slay Elderscale), like the other dungeons.

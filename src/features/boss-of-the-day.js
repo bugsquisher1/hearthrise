@@ -303,8 +303,24 @@
 
   // Just update the countdown text cheaply each second; full re-render on the
   // slower tick (and whenever the card is missing / the day rolled over).
+  /* b292 (paione: "Weekly and daily boss keeps coming out in the middle of combat").
+     b290 added CSS to hide both cards during a fight, but CSS alone proved fragile
+     (cascade order / stale cached sheets / desktop widths where the mobile sub-tab
+     rules never apply). Enforce it in JS on the same tick that drives the cards, so
+     the moment a fight starts they are gone regardless of stylesheet state. */
+  function applyCombatVisibility() {
+    var fighting = !!(window.G && window.G.activeMonster);
+    ['hr-botd-card', 'hr-weekly-card'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (fighting) el.style.setProperty('display', 'none', 'important');
+      else el.style.removeProperty('display');
+    });
+  }
+
   var lastDay = null, lastWeek = null;
   function tick() {
+    applyCombatVisibility();
     var we = WE();
     var today = we ? we.utcDayKey() : null;
     var thisWeek = weekKey();
@@ -314,6 +330,7 @@
     var wcard = document.getElementById('hr-weekly-card');
     if (!wcard || thisWeek !== lastWeek) { lastWeek = thisWeek; renderWeekly(); }
     else { var wtimer = document.getElementById('hr-weekly-timer'); if (wtimer) wtimer.textContent = 'resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()); }
+    applyCombatVisibility();   // after any re-render, so it cannot re-show mid-fight
   }
 
   function boot() {

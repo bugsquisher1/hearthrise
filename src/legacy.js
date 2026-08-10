@@ -8453,7 +8453,11 @@ function readSource(path){
      "Earn 500 gold" daily read G._dailyGoldDelta (undefined → 0) and stayed at
      0 even once the renderer could see it. readPath() (block 17) already
      derives it exactly this way. */
-  if(path === '_dailyGoldDelta') return Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
+  /* b292: ONE definition of daily gold income — delegate, never re-derive. Three
+     copies of this maths existed and the goal read a net-balance one. */
+  if(path === '_dailyGoldDelta') return (typeof window._dailyGoldDelta === 'function')
+    ? window._dailyGoldDelta()
+    : Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
   var parts = path.split('.');
   var cur = G;
   for(var i = 0; i < parts.length; i++){
@@ -8736,7 +8740,10 @@ window.ACHIEVEMENTS = ACHIEVEMENTS;
 function readPath(path){
   if(typeof G !== 'object' || !G) return 0;
   if(path === '_dailyGoldDelta'){
-    return Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
+    /* b292: delegate to the single income definition (see _dailyGoldDelta). */
+    return (typeof window._dailyGoldDelta === 'function')
+      ? window._dailyGoldDelta()
+      : Math.max(0, (G.gold||0) - ((G.dailyGoldStart||{}).gold||0));
   }
   if(path === 'highest_skill'){
     if(typeof getLevel !== 'function') return 1;
@@ -9229,11 +9236,31 @@ window._stopArtisan = function(){
     if(typeof G !== 'object') return;
     var today = todayKey();
     if(!G.dailyGoldStart || G.dailyGoldStart.day !== today){
-      G.dailyGoldStart = {day: today, gold: G.gold||0};
+      G.dailyGoldStart = {day: today, gold: G.gold||0, earned: 0};
     }
+    if(typeof G.dailyGoldStart.earned !== 'number') G.dailyGoldStart.earned = 0;
   }
   setTimeout(checkDailyGold, 200);
   setInterval(checkDailyGold, 60000);
+
+  /* b292 (paione: "I sold about 10k in items didn't get the quest to earn 500 gold").
+     "Earn 500 gold" measured `G.gold - goldAtDayStart` — a NET BALANCE delta, not
+     income. Sell 10,000g and then spend it (gear, bank space, seeds) and your net is
+     flat, so the quest paid nothing even though you plainly earned the gold. Gold is
+     added from eight different places, so instead of touching every call site we
+     accumulate only the POSITIVE changes — real income, from any source, and spending
+     can never claw it back. */
+  var _goldSeen = null;
+  setInterval(function(){
+    if(typeof G !== 'object' || !G) return;
+    var g = G.gold || 0;
+    if(_goldSeen === null){ _goldSeen = g; return; }
+    if(g > _goldSeen){
+      checkDailyGold();
+      G.dailyGoldStart.earned = (G.dailyGoldStart.earned || 0) + (g - _goldSeen);
+    }
+    _goldSeen = g;
+  }, 500);
 })();
 
 // ===== block 19: goldfix-js =====
@@ -9241,6 +9268,11 @@ window._stopArtisan = function(){
   var origRead = window.readPath;
   window._dailyGoldDelta = function(){
     if(!G || !G.dailyGoldStart) return 0;
+    /* b292: prefer REAL income (accumulated positive gold changes) over the old
+       net-balance delta, so selling then spending still counts. Falls back to the
+       old maths for a save that predates the counter. */
+    var earned = G.dailyGoldStart.earned;
+    if(typeof earned === 'number') return Math.max(0, earned);
     return Math.max(0, (G.gold||0) - (G.dailyGoldStart.gold||0));
   };
 })();

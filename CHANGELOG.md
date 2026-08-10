@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 292 — 2026-08-10 (Boss cards out of your fight, and gold quests that count)
+
+- ⚔️ **The Daily/Weekly Boss cards no longer sit in the middle of your fight.** The previous fix relied on styling alone, which didn't hold on every screen size — they're now hidden the moment a fight starts, full stop. *(Thanks paione.)*
+- 🪙 **"Earn 500 gold" now counts gold you actually earn.** It was measuring your *balance* rather than your income, so if you sold 10,000g of loot and then spent it, the quest showed nothing. Selling, looting, quest payouts — it all counts now, and spending can't take the credit back. *(Thanks paione.)*
+
 ## v0.9.2-beta build 291 — 2026-08-10 (Weekly quests really do reset on Monday)
 
 - 📜 **Fixed the real cause of weekly quests not resetting.** The panel promised "refresh every Monday" and the countdown targeted Monday, but the reset itself was landing on **Thursday** — so on Monday your timer went back to 7 days while the same three completed quests stayed on screen. Weeks are now aligned to Monday UTC, exactly as advertised. You'll get a fresh set as soon as you load this build. *(Thanks paione for pushing on this — the earlier fix widened the quest pool, which was a separate problem and never addressed this.)*

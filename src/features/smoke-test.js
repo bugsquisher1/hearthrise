@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=291' directly.
+// modularised, will import { G } from '../state/game.js?v=292' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=291';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=291';
+import { on, snapshot } from '../net/events.js?v=292';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=292';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=291';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=292';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2396,6 +2396,30 @@ const TESTS = [
         assert((G.inventory.bone_key || 0) === 1, 'the purchase must deliver the item');
       }
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b292: "Earn 500 gold" counts INCOME, not net balance (paione: sold 10k, no credit)', () => {
+    // paione sold ~10k in items and the daily never moved. It measured
+    // G.gold - goldAtDayStart — a NET BALANCE delta — so earning then spending
+    // scored zero. It must count income.
+    const G = window.G;
+    if (typeof window._dailyGoldDelta !== 'function') return;
+    const saved = { dgs: JSON.parse(JSON.stringify(G.dailyGoldStart || {})), gold: G.gold };
+    try {
+      const day = (new Date()).getUTCFullYear() * 10000 + ((new Date()).getUTCMonth() + 1) * 100 + (new Date()).getUTCDate();
+      // Earned 10,000 today, then spent nearly all of it: balance is flat, income is not.
+      G.dailyGoldStart = { day: day, gold: 5000, earned: 10000 };
+      G.gold = 5200;
+      assert(window._dailyGoldDelta() === 10000,
+        'income must be 10000 even though the balance barely moved, got ' + window._dailyGoldDelta());
+      // and the goal reader must agree (three copies of this maths existed)
+      if (typeof window.readSource === 'function') {
+        assert(window.readSource('_dailyGoldDelta') === 10000, 'the goal reader must use the same income figure');
+      }
+      // a save with no counter yet falls back to the old maths rather than breaking
+      G.dailyGoldStart = { day: day, gold: 1000 }; G.gold = 1600;
+      assert(window._dailyGoldDelta() === 600, 'legacy saves must still report something sane');
+    } finally { G.dailyGoldStart = saved.dgs; G.gold = saved.gold; }
   }),
 
   () => tryRun('b291: weekly quests reset on MONDAY, matching what the panel promises (paione)', () => {

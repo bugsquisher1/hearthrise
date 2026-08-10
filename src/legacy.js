@@ -14417,12 +14417,20 @@ console.log('[Bundle Icons v1] applied:',
       : null;
   }
 
+  /* b291 (paione, "the quests did not reset" — the REAL cause).
+     This bucketed weeks as `floor(daysSinceEpoch / 7)`. Epoch day 0 (1 Jan 1970) is a
+     THURSDAY, so the key rolled over every Thursday — while the panel tells the
+     player "Weekly quests refresh every Monday" and its countdown targets Monday.
+     So on Monday the timer reset to 7d and the quests did NOT change; they only
+     changed three days later. Offsetting by 3 days aligns the bucket to Monday UTC,
+     which is what we advertise. (b290 widened the goal pool, which was a real but
+     SEPARATE problem — it could never have fixed this.) */
   function thisWeekKey(){
     var d = new Date();
     var ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    var weekIdx = Math.floor(ms / (7*86400000));
-    return weekIdx;
+    return Math.floor((ms / 86400000 + 3) / 7);   // +3: shift Thursday-epoch onto Monday
   }
+  window.__thisWeekKey = thisWeekKey;   // test seam
   window.getWeeklyGoals = function(){
     var key = thisWeekKey();
     if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key){

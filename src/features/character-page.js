@@ -20,9 +20,9 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=290';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=290';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=290';
+import { SKILLS_DEF } from '../data/skills.js?v=291';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=291';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=291';
 
 function deriveClass() {
   const G = window.G;

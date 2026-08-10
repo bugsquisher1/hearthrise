@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=290' directly.
+// modularised, will import { G } from '../state/game.js?v=291' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=290';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=290';
+import { on, snapshot } from '../net/events.js?v=291';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=291';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=290';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=291';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2396,6 +2396,30 @@ const TESTS = [
         assert((G.inventory.bone_key || 0) === 1, 'the purchase must deliver the item');
       }
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b291: weekly quests reset on MONDAY, matching what the panel promises (paione)', () => {
+    // paione: "the quests did not reset" — with the panel showing "Resets in 7d
+    // (Monday UTC)" while all three sat Claimed. The key bucketed weeks as
+    // floor(daysSinceEpoch/7); epoch day 0 is a THURSDAY, so it rolled over on
+    // Thursdays while the UI (and its countdown) promised Monday.
+    const wk = window.__thisWeekKey;
+    if (typeof wk !== 'function') return;
+    // Pure re-implementation of the shipped formula, evaluated across a fortnight.
+    const keyFor = (y, m, d) => Math.floor((Date.UTC(y, m, d) / 86400000 + 3) / 7);
+    let rollovers = [];
+    for (let i = 0; i < 21; i++) {
+      const d = new Date(Date.UTC(2026, 7, 3 + i));
+      if (i > 0) {
+        const prev = new Date(Date.UTC(2026, 7, 3 + i - 1));
+        if (keyFor(2026, 7, 3 + i) !== keyFor(2026, 7, 3 + i - 1)) rollovers.push(d.getUTCDay());
+      }
+    }
+    assert(rollovers.length >= 2, 'the weekly key must roll over at least twice in three weeks');
+    assert(rollovers.every((day) => day === 1), 'every weekly rollover must land on a MONDAY (got days ' + rollovers.join(',') + ')');
+    // and the live function must use that same formula
+    assert(wk() === keyFor(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()),
+      'the shipped thisWeekKey must match the Monday-aligned formula');
   }),
 
   () => tryRun('b289: CROSS-DEVICE ROUND TRIP — save on device A, restore on device B, nothing lost or re-granted', () => {

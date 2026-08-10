@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 298 — 2026-08-10 (Bug-report screenshots — actually fixed)
+
+- 🐛 **Bug-report screenshots now capture reliably.** The previous fix didn't fully hold: the screenshot tool (html2canvas) has its own colour parser that can't read a modern CSS colour format the game uses in themed styles — including on pseudo-elements the earlier patch couldn't reach, so it kept crashing. The capture now renders through the browser's own engine, which supports every style the game uses. Verified against the exact failing case. *(Thanks paione for pushing on this.)*
+
 ## v0.9.2-beta build 297 — 2026-08-10 (Kills you can feel)
 
 - 💀 **A defeated foe now dies on screen.** Before, landing the killing blow — especially a one-shot — showed nothing but a little corner message; the enemy just silently reset. Now the killing hit lands big, the enemy portrait flashes, staggers and collapses with a **Defeated** stamp before the next foe steps up. *(Thanks paione.)*

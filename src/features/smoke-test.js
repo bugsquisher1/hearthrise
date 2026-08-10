@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=297' directly.
+// modularised, will import { G } from '../state/game.js?v=298' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=297';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=297';
+import { on, snapshot } from '../net/events.js?v=298';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=298';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=297';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=298';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 

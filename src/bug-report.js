@@ -176,37 +176,72 @@ function normalizeModernColors(doc) {
   }
 }
 
+// Floating UI that sits over the game and isn't what a report is about.
+function isOverlayChrome(el) {
+  if (!el || el.nodeType !== 1 || !el.id) return false;
+  return el.id === 'hr-bug-modal'
+      || el.id === 'hr-bug-btn'
+      || el.id === 'chat-dock'
+      || el.id === 'more-modal';
+}
+
+// b298 — THE ROOT-CAUSE FIX (proven in-browser, not guessed).
+//
+// html2canvas ships its OWN JavaScript CSS parser, and that parser predates
+// CSS Color 4. The moment it meets a `color(srgb …)` value — which every modern
+// browser produces as the COMPUTED form of our 20+ `color-mix(in srgb, …)` rules
+// — it throws "Attempting to parse an unsupported color function 'color'" and the
+// whole screenshot dies. b295/b296 tried to pre-rewrite those values in an
+// onclone hook, but that can only touch element inline styles: it can NEVER reach
+// PSEUDO-ELEMENTS (::before/::after), which is exactly where our themed color-mix
+// rules live — so the crash kept happening (paione, twice).
+//
+// html-to-image takes a fundamentally different approach: it serialises the DOM
+// into an SVG <foreignObject> and lets the BROWSER'S OWN renderer draw it. There
+// is no JS color parser, so every CSS feature the browser supports — color-mix,
+// color(), oklch, gradients, pseudo-elements — renders correctly. A minimal
+// repro (docs: color-mix on an element AND a ::before) confirmed html2canvas
+// FAILS with the exact error and html-to-image SUCCEEDS. This kills the entire
+// bug class, permanently, regardless of what CSS we add later.
 async function captureScreenshot() {
+  // Primary: foreignObject renderer — supports all modern CSS.
   try {
-    // Dynamic import keeps html2canvas (~50KB) out of the main bundle.
+    const mod = await import('https://cdn.skypack.dev/html-to-image');
+    // pixelRatio 0.5 halves resolution (~25% file size) — plenty for a bug shot,
+    // and mobile reports benefit most from the smaller payload. skipFonts avoids
+    // fetching/inlining Google Fonts (slow, occasionally CORS-blocked); the
+    // screenshot is about layout/state, not typography. cacheBust dodges stale
+    // cross-origin image caching that can taint the canvas.
+    return await mod.toJpeg(document.body, {
+      quality: 0.7,
+      pixelRatio: 0.5,
+      backgroundColor: '#12161c',
+      skipFonts: true,
+      cacheBust: true,
+      filter: (node) => !isOverlayChrome(node),
+    });
+  } catch (err) {
+    console.warn('[bug-report] html-to-image failed, falling back to html2canvas:', err && err.message);
+  }
+  // Fallback: html2canvas with the color() normaliser. Kept only as a safety net
+  // if the foreignObject path ever fails; it cannot handle pseudo-element
+  // color-mix (see above), so it is second, not first.
+  try {
     const mod = await import('https://cdn.skypack.dev/html2canvas');
     const h2c = mod.default || mod;
-    // scale: 0.5 cuts resolution in half — usable detail at ~25% file size.
-    // Mobile bug reports especially benefit from smaller payloads.
     const canvas = await h2c(document.body, {
       scale: 0.5,
       logging: false,
       backgroundColor: null,
       useCORS: true,
-      // Skip pseudo-elements + bg images that often cause CORS errors —
-      // we want a screenshot, not a perfect render.
       imageTimeout: 1500,
       removeContainer: true,
-      // b295: neutralise color(srgb …) values the parser can't read (see above).
       onclone: function(clonedDoc) { try { normalizeModernColors(clonedDoc); } catch (e) {} },
-      // Exclude floating UI that obscures the actual game state.
-      ignoreElements: function(el) {
-        if (!el || !el.id) return false;
-        return el.id === 'hr-bug-modal'
-            || el.id === 'hr-bug-btn'
-            || el.id === 'chat-dock'
-            || el.id === 'more-modal';
-      },
+      ignoreElements: isOverlayChrome,
     });
-    // 0.7 quality JPEG keeps file size ~30-80KB at 0.5 scale.
     return canvas.toDataURL('image/jpeg', 0.7);
   } catch (err) {
-    console.warn('[bug-report] screenshot capture failed:', err.message);
+    console.warn('[bug-report] screenshot capture failed (both engines):', err && err.message);
     return null;
   }
 }

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 279 — 2026-08-09 (Your pet fights beside you)
+
+- 🐾 **Your equipped pet now appears in the combat arena**, perched beside your champion during a fight — so you can actually see your companion in the battle, not just on the top bar.
+
 ## v0.9.2-beta build 278 — 2026-08-09 (The armour triangle — dress for your style)
 
 - 🛡️🎽🧥 **Armour now has three archetypes, and your style matters.** Every tier now comes in three lines:

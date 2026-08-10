@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=278' directly.
+// modularised, will import { G } from '../state/game.js?v=279' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=278';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=278';
+import { on, snapshot } from '../net/events.js?v=279';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=279';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=278';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=279';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2361,6 +2361,33 @@ const TESTS = [
       const plateAcc = window.getPlayerCombatRolls(m).accuracy;
       assert(clothAcc > plateAcc, 'a mage must land more often in cloth than plate (' + clothAcc.toFixed(2) + ' vs ' + plateAcc.toFixed(2) + ')');
     } finally { G.equipment = snap.eq; G.skills = snap.skills; }
+  }),
+
+  () => tryRun('WAVE-pet: the equipped pet renders beside the hero in the combat arena', () => {
+    const G = window.G, A = window.HearthriseArenaStage;
+    if (!A || typeof A.ensure !== 'function' || !window.COMPANIONS || !window.companionIconHtml || !window.MONSTERS) return;
+    const arena = A.ensure();
+    if (!arena) return; // no combat arena in this harness view — skip
+    const petId = window.COMPANIONS.fox ? 'fox' : Object.keys(window.COMPANIONS)[0];
+    if (!petId) return;
+    const snap = { comp: JSON.parse(JSON.stringify(G.companions || {})), am: G.activeMonster };
+    try {
+      G.companions = Object.assign({}, G.companions, { equipped: petId, ownedIds: [petId], xp: { [petId]: 0 } });
+      G.activeMonster = Object.keys(window.MONSTERS)[0];
+      A.refresh();
+      const pet = document.getElementById('arena-player-pet');
+      assert(pet && pet.closest('.arena-side.player'), 'the equipped pet must mount inside the player side of the arena');
+      assert(pet.style.display !== 'none', 'the pet must be visible when one is equipped');
+      G.companions.equipped = null; A.refresh();
+      assert(document.getElementById('arena-player-pet').style.display === 'none', 'no pet equipped → the badge hides');
+    } finally {
+      G.companions = snap.comp; G.activeMonster = snap.am;
+      // Don't leave the arena hidden (refresh with no monster would) — restore the
+      // visible default so later combat tests find a laid-out stage.
+      var av = document.querySelector('#panel-combat .combat-arena > .arena-vs');
+      if (av) av.style.display = '';
+      var pet = document.getElementById('arena-player-pet'); if (pet) pet.style.display = 'none';
+    }
   }),
 
   () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {

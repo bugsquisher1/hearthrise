@@ -630,6 +630,16 @@ body.in-combat #combat-area {
   border-radius: 50%;
 }
 .arena-vs .arena-side.foe .arena-portrait { border-color: #e36161; }
+/* b278: the equipped pet perched beside the hero in the arena */
+.arena-vs .arena-side.player .arena-portrait .arena-pet {
+  position: absolute; right: -8px; bottom: -6px;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(0,0,0,.55); border: 2px solid var(--gold-2);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 3;
+}
+.arena-vs .arena-side.player .arena-portrait .arena-pet img { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 50%; }
+@media (max-width:540px),(max-height:540px) and (max-width:900px){ .arena-vs .arena-side.player .arena-portrait .arena-pet { width: 28px; height: 28px; } }
 .arena-vs .arena-name {
   font-family: var(--f-display); font-weight: 800; font-size:calc(17px * var(--ui-scale, 1));
   letter-spacing: .04em; color: var(--ink); text-transform: uppercase;

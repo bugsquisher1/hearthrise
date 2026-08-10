@@ -6990,6 +6990,25 @@ console.log('Activity bar: loaded');
     var pPct = window.G.playerMaxHp ? Math.max(0, (window.G.playerHp/window.G.playerMaxHp)*100) : 0;
     if(php) php.style.width = pPct.toFixed(1)+'%';
     if(phpt) phpt.textContent = (window.G.playerHp||0)+' / '+(window.G.playerMaxHp||0);
+    /* b278 (Tyler: "I don't see my pet in the combat UI"): perch the equipped
+       companion beside the hero in the arena, so it reads as fighting alongside
+       you. Lives inside the player portrait (position:relative, overflow:visible).
+       Painted icon only; hidden when no pet is equipped. The data-pet guard makes
+       the 200ms refresh a no-op once drawn. */
+    if(pp){
+      var petHost = document.getElementById('arena-player-pet');
+      if(!petHost){ petHost = document.createElement('div'); petHost.id='arena-player-pet'; petHost.className='arena-pet'; pp.appendChild(petHost); }
+      var petId = (window.G.companions && window.G.companions.equipped) || null;
+      if(petId && window.COMPANIONS && window.COMPANIONS[petId] && typeof window.companionIconHtml==='function'){
+        var wantPet = 'pet:'+petId;
+        if(petHost.getAttribute('data-pet')!==wantPet){
+          petHost.innerHTML = window.companionIconHtml(petId, 30);
+          petHost.setAttribute('data-pet', wantPet);
+          petHost.title = (window.COMPANIONS[petId].n||'Companion') + ' — fighting with you';
+        }
+        petHost.style.display = '';
+      } else if(petHost) { petHost.style.display = 'none'; }
+    }
 
     /* b227: the two action slots ride the same 200ms tick as the HP bars, so
        "Eat · +8 HP · 12 left" can never disagree with the HP number printed

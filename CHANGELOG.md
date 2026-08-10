@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 300 — 2026-08-10 (Cloud save you can trust — part 2)
+
+- ☁️ **The cloud is now the single source of truth for your save.** On sign-in, whichever save is *newest* wins automatically (no more "which is bigger" guess, no prompt) — so a stale phone can't overwrite the progress you just made on your desktop, and vice-versa. Your local save is now purely a fast cache and offline-progress journal.
+- 🛡️ **A damaged or partial cloud save can never roll a real one back** — if the newer save is suspiciously small, we keep the bigger one.
+- 🔄 When your newer cloud save is pulled in on a new device, you'll see a "Restored your latest progress from the cloud" note so it's never a silent swap.
+
 ## v0.9.2-beta build 299 — 2026-08-10 (Cloud save you can trust — part 1)
 
 - ☁️ **The "Last synced" time in Settings now tells the truth.** It was wired to an old, dead sync path and always said "never," even while your save was uploading fine every 30 seconds — which made cloud save feel broken when it wasn't. It now updates on every real sync.

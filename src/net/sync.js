@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=299';
+//   import { setupSync } from './net/sync.js?v=300';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=299';
+import { on, snapshot } from './events.js?v=300';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -309,7 +309,16 @@ export async function pullLatest() {
     const res = await fetch(`${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`, { headers });
     if (!res.ok) return null;
     const rows = await res.json();
-    return rows?.[0]?.snapshot || null;
+    const row = rows && rows[0];
+    const snap = row && row.snapshot;
+    if (!snap || typeof snap !== 'object') return null;
+    // b300: attach the authoritative server save time (ms) so decideRestore can
+    // compare freshness. Namespaced key, stripped before it is ever merged into G.
+    try {
+      const t = row.saved_at ? Date.parse(row.saved_at) : 0;
+      if (t) snap.__cloudSavedAt = t;
+    } catch (e) {}
+    return snap;
   } catch (e) {
     console.warn('[sync] pull failed:', e.message);
     return null;

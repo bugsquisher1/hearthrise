@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=299' directly.
+// modularised, will import { G } from '../state/game.js?v=300' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=299';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=299';
+import { on, snapshot } from '../net/events.js?v=300';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=300';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=299';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=300';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -10807,26 +10807,38 @@ const TESTS = [
   // save and an empty cloud. "Adoption" is mechanically: we change nothing,
   // and sync.js uploads what is already there. The rule has exactly three
   // outcomes and none of them is a silent overwrite.
-  () => tryRun('b224: a local save is adopted on first sign-in and never silently discarded', () => {
+  // b300: CLOUD IS AUTHORITATIVE. The conflict rule now compares TIMESTAMPS
+  // (newest wins, cloud is the store), not total level. Local is a cache/journal.
+  () => tryRun('b300: save conflict resolves by freshness — newest wins, thin cloud can never roll back', () => {
     assert(typeof decideRestore === 'function', 'auth.js no longer exports the save-conflict rule');
-    // No cloud row at all — the overwhelmingly common first sign-in.
-    assert(decideRestore(742, null).action === 'none', 'no cloud snapshot must leave the local save alone');
-    assert(decideRestore(742, undefined).action === 'none', 'an undefined snapshot must leave the local save alone');
-    // Cloud exists but is behind: local stays live and gets uploaded.
-    const behind = decideRestore(742, { totalLevel: 100 });
-    assert(behind.action === 'adopt', 'a weaker cloud save must not displace the local one: ' + behind.action);
-    assert(behind.localTotalLv === 742 && behind.cloudTotalLv === 100, 'the verdict must carry both levels');
-    // Dead heat still favours the save in the player's hand.
-    assert(decideRestore(300, { totalLevel: 300 }).action === 'adopt', 'a tie must keep the local save');
-    // Cloud is ahead: the player is ASKED. Never resolved for them.
-    assert(decideRestore(19, { totalLevel: 900 }).action === 'prompt',
-      'a stronger cloud save must PROMPT, never auto-apply');
-    // A fresh account with a fresh device is not a conflict.
-    assert(decideRestore(0, { totalLevel: 0 }).action === 'adopt', 'two empty saves are not a conflict');
-    // The rule must never invent an outcome that discards without asking.
-    [[742, null], [742, { totalLevel: 100 }], [19, { totalLevel: 900 }], [0, {}]].forEach(([lv, snap]) => {
-      const a = decideRestore(lv, snap).action;
-      assert(['none', 'adopt', 'prompt'].indexOf(a) !== -1, 'unknown restore action: ' + a);
+    const T = 1_700_000_000_000;   // an arbitrary fixed "now" in ms
+    // No cloud row at all — first sign-in on an account. Local is adopted.
+    assert(decideRestore({ lastSeen: T, totalLevel: 742 }, null).action === 'none', 'no cloud → none/adopt local');
+    assert(decideRestore({ lastSeen: T, totalLevel: 742 }, undefined).action === 'none', 'undefined cloud → none');
+    // Cloud is NEWER → cloud wins (restore). This is the data-loss path the old
+    // level-tie rule missed: newer cloud with equal/greater progress.
+    const newer = decideRestore({ lastSeen: T, totalLevel: 700 }, { __cloudSavedAt: T + 60000, totalLevel: 710 });
+    assert(newer.action === 'restore', 'a newer cloud save must win: ' + newer.action + '/' + newer.reason);
+    // Local is NEWER (offline play / a failed prior sync) → keep local, never roll back.
+    const localNewer = decideRestore({ lastSeen: T + 60000, totalLevel: 700 }, { __cloudSavedAt: T, totalLevel: 700 });
+    assert(localNewer.action === 'adopt', 'a newer local save must be kept, not overwritten: ' + localNewer.action);
+    // Dead heat → keep local (no needless reload on a same-device reopen).
+    assert(decideRestore({ lastSeen: T, totalLevel: 500 }, { __cloudSavedAt: T, totalLevel: 500 }).action === 'adopt', 'a timestamp tie keeps local');
+    // THIN/CORRUPT GUARD: cloud is newer but its total level is a fraction of
+    // local's → it's a partial/damaged save and must NOT roll a real one back.
+    const thin = decideRestore({ lastSeen: T, totalLevel: 800 }, { __cloudSavedAt: T + 99999, totalLevel: 30 });
+    assert(thin.action === 'adopt', 'a newer-but-thin cloud must be refused: ' + thin.action + '/' + thin.reason);
+    // Fresh device (no local save) pulling an established account → restore.
+    const freshDevice = decideRestore({ lastSeen: 0, totalLevel: 0 }, { __cloudSavedAt: T, totalLevel: 640 });
+    assert(freshDevice.action === 'restore', 'a fresh device must pull the account down from cloud');
+    // lastSeen is the fallback freshness signal when __cloudSavedAt is absent.
+    const viaLastSeen = decideRestore({ lastSeen: T, totalLevel: 400 }, { lastSeen: T + 5000, totalLevel: 420 });
+    assert(viaLastSeen.action === 'restore', 'cloud.lastSeen must serve as the freshness fallback');
+    // Never invent an outcome, and never restore when local is strictly newer.
+    [[{lastSeen:T,totalLevel:742}, null], [{lastSeen:T+1,totalLevel:700},{__cloudSavedAt:T,totalLevel:700}],
+     [{lastSeen:T,totalLevel:700},{__cloudSavedAt:T+1,totalLevel:710}], [{lastSeen:0,totalLevel:0},{}]].forEach(([loc, snap]) => {
+      const a = decideRestore(loc, snap).action;
+      assert(['none', 'adopt', 'restore'].indexOf(a) !== -1, 'unknown restore action: ' + a);
     });
   }),
 

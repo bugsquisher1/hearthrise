@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=299';
+import { setupSync, pullLatest } from './sync.js?v=300';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -142,61 +142,99 @@ function enableLiveSync() {
 
 /**
  * THE SAVE-CONFLICT RULE, pure and exported so it can be tested without a
- * network, a session, or a live G. (b224 — it used to be inlined inside
- * pullAndMaybeRestore(), which made the one promise this project cannot break
- * — "a local save is never discarded silently" — unprovable.)
+ * network, a session, or a live G.
  *
- * The account wall means every player now signs in, and a beta player signing
- * in for the first time arrives here with a real local save and (usually) an
- * empty cloud. The three outcomes, and why:
+ * b300 — CLOUD IS AUTHORITATIVE (Tyler). The old rule compared TOTAL LEVEL and
+ * prompted when cloud was ahead. That was wrong twice over: total level ignores
+ * everything non-level (gold, items, kills gained since), and a level TIE kept
+ * local — so a stale local save could silently overwrite newer cloud progress.
+ * In an online-only, account-walled game the cloud is the single source of
+ * truth and local is a cache; the correct question is not "who has more levels"
+ * but "which save is NEWER". So we compare timestamps and the freshest wins,
+ * with cloud as the canonical store.
  *
- *   'adopt'  — the cloud has nothing (or nothing better). The LOCAL save stays
- *              live and sync.js's next snapshot uploads it. This is what
- *              "adoption" mechanically is: we do nothing, and the local save
- *              becomes the account's save.
- *   'prompt' — both exist and the cloud is further along. The player is ASKED.
- *              Never resolved for them.
- *   'none'   — no cloud snapshot at all. Same practical effect as 'adopt',
- *              reported separately so the caller can tell "nothing to compare"
- *              from "compared, local won".
+ *   'restore' — the cloud save is NEWER than local. Cloud wins: the caller
+ *               overlays it and reloads. (No prompt — auto-newest, per Tyler.)
+ *   'adopt'   — local is same-age-or-newer (offline play, a failed prior sync,
+ *               or a same-device reopen where they match). Local stays live and
+ *               sync.js uploads it. Ties favour local so a same-device reopen
+ *               never needlessly reloads.
+ *   'none'    — no cloud snapshot at all (first sign-in on an account). Local
+ *               is adopted; reported separately from 'adopt' for clarity.
  *
- * There is deliberately NO branch that overwrites a local save without asking.
- * @returns {{action:'none'|'adopt'|'prompt', localTotalLv:number, cloudTotalLv:number}}
+ * SAFETY GUARD: a cloud save only wins if it is newer AND not obviously thin /
+ * corrupt — its total level must be at least half of local's. Total level only
+ * ever grows, so a newer cloud that is dramatically smaller is a partial or
+ * damaged save (e.g. a pre-b288 thin snapshot with a fresh timestamp), and must
+ * never be allowed to roll a real save back. When in doubt, keep local.
+ *
+ * @param {{lastSeen:number, totalLevel:number}} local  local freshness + size
+ * @param {object|null} snap  cloud snapshot; reads snap.__cloudSavedAt (ms) with
+ *                            snap.lastSeen as a fallback, and snap.totalLevel.
+ * @returns {{action:'none'|'adopt'|'restore', localAt:number, cloudAt:number,
+ *            localTotalLv:number, cloudTotalLv:number, reason:string}}
  */
-export function decideRestore(localTotalLv, snap) {
-  const local = Number(localTotalLv) || 0;
-  if (!snap || typeof snap !== 'object') return { action: 'none', localTotalLv: local, cloudTotalLv: 0 };
-  const cloud = Number(snap.totalLevel) || 0;
-  if (cloud > local) return { action: 'prompt', localTotalLv: local, cloudTotalLv: cloud };
-  return { action: 'adopt', localTotalLv: local, cloudTotalLv: cloud };
+export function decideRestore(local, snap) {
+  local = local || {};
+  const localAt = Number(local.lastSeen) || 0;
+  const localTL = Number(local.totalLevel) || 0;
+  const base = { localAt, cloudAt: 0, localTotalLv: localTL, cloudTotalLv: 0 };
+  if (!snap || typeof snap !== 'object') return { action: 'none', reason: 'no-cloud', ...base };
+  const cloudAt = Number(snap.__cloudSavedAt) || Number(snap.lastSeen) || 0;
+  const cloudTL = Number(snap.totalLevel) || 0;
+  const full = { ...base, cloudAt, cloudTotalLv: cloudTL };
+  // Cloud must be strictly newer to win; ties keep local (no needless reload).
+  if (cloudAt > localAt) {
+    // Thin/corrupt guard: don't let a newer-but-tiny cloud roll a real save back.
+    if (localTL > 0 && cloudTL < localTL * 0.5) return { action: 'adopt', reason: 'cloud-newer-but-thin', ...full };
+    return { action: 'restore', reason: 'cloud-newer', ...full };
+  }
+  return { action: 'adopt', reason: 'local-fresh', ...full };
 }
 
 async function pullAndMaybeRestore() {
   try {
+    // b300: one cloud-restore per tab session. The restore path reloads, and
+    // after the reload local == cloud so decideRestore returns 'adopt' — but this
+    // guard is belt-and-suspenders against clock skew making cloudAt persistently
+    // look newer and re-triggering a reload loop.
+    let restoredAlready = false;
+    try { restoredAlready = sessionStorage.getItem('hr:cloudRestoreDone') === '1'; } catch (e) {}
+
     const snap = await pullLatest();
-    // NOTE: G has no stored `totalLevel` — it's computed from skills via
-    // getTotalLevel(). Using G.totalLevel (undefined) made this gate always
-    // 0 > 0 = false, so cloud restore NEVER fired and cross-device / fresh-
-    // login progress silently failed to load.
-    const localTotalLv = (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
-      || (window.G && window.G.totalLevel) || 0;
-    const d = decideRestore(localTotalLv, snap);
-    if (d.action === 'none') return;
-    if (d.action === 'adopt') {
-      // The local save wins and is about to be uploaded by sync.js. Say so —
-      // an existing beta player deserves to know their save was carried in.
-      console.log(`[Auth] local save kept (Total Lv ${d.localTotalLv} vs cloud ${d.cloudTotalLv}) — it will be synced to this account.`);
+    const local = {
+      lastSeen: (window.G && Number(window.G.lastSeen)) || 0,
+      totalLevel: (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
+        || (window.G && window.G.totalLevel) || 0,
+    };
+    const d = decideRestore(local, snap);
+
+    if (d.action !== 'restore' || restoredAlready || !window.G) {
+      // 'none'/'adopt' → local stays live and sync.js uploads it (that IS adoption
+      // in a cloud-authoritative model: cloud simply catches up to local).
+      console.log(`[Auth] keeping local save (${d.action}/${d.reason}; localAt ${d.localAt} vs cloudAt ${d.cloudAt}, Lv ${d.localTotalLv} vs ${d.cloudTotalLv}).`);
       return;
     }
-    const ok = confirm(
-      `Cloud save found (Total Lv ${d.cloudTotalLv} vs local Lv ${d.localTotalLv}).\n\n` +
-      `Restore from cloud?`
-    );
-    if (ok && window.G) {
-      Object.assign(window.G, snap);
-      if (typeof window.saveLocal === 'function') window.saveLocal();
-      location.reload();
+
+    // Cloud is newer → it is authoritative. Overlay its fields onto G. Because
+    // snapshot() excludes the NO_SYNC device-local journal (activeMonster,
+    // activeSkill, lastSeen, offlineBudget…), those survive the overlay — the
+    // cloud wins only for the SYNCED progress (skills/gold/items/quests/…).
+    const cloudAt = d.cloudAt || Date.now();
+    delete snap.__cloudSavedAt;                       // never let our meta key land in G
+    Object.assign(window.G, snap);
+    // Reset the offline watermark to the cloud's save time so the returning-
+    // player catch-up credits the gap since the account was LAST active anywhere,
+    // not since this (possibly long-idle) device last saved.
+    window.G.lastSeen = cloudAt;
+    if (window.G.offlineBudget && typeof window.G.offlineBudget === 'object') {
+      window.G.offlineBudget.at = cloudAt;
     }
+    try { sessionStorage.setItem('hr:cloudRestoreDone', '1'); } catch (e) {}
+    try { sessionStorage.setItem('hr:restoredFromCloud', '1'); } catch (e) {}   // toast after reload
+    console.log(`[Auth] restoring newer cloud save (cloudAt ${cloudAt} > localAt ${d.localAt}; Lv ${d.cloudTotalLv}).`);
+    if (typeof window.saveLocal === 'function') window.saveLocal();
+    location.reload();
   } catch (e) {
     console.warn('[Auth] pull failed:', e.message);
   }
@@ -337,3 +375,12 @@ if (document.readyState === 'loading') {
 } else {
   setTimeout(renderAuthUi, 500);
 }
+
+// b300: after a cloud-restore reload, tell the player their newer save was
+// pulled in — a silent state swap on sign-in would otherwise look like a bug.
+try {
+  if (sessionStorage.getItem('hr:restoredFromCloud') === '1') {
+    sessionStorage.removeItem('hr:restoredFromCloud');
+    setTimeout(() => { if (typeof window.notify === 'function') window.notify('☁️ Restored your latest progress from the cloud.', 'info'); }, 1800);
+  }
+} catch (e) {}

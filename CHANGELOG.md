@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 299 — 2026-08-10 (Cloud save you can trust — part 1)
+
+- ☁️ **The "Last synced" time in Settings now tells the truth.** It was wired to an old, dead sync path and always said "never," even while your save was uploading fine every 30 seconds — which made cloud save feel broken when it wasn't. It now updates on every real sync.
+- ✅ **New "Verify" button in Settings → Account.** It uploads your save, reads it straight back from the server, and confirms your progress round-tripped correctly — so you can *know* cloud save is working, not just hope.
+- 💾 **Your save is now forced to the cloud when you close or background the game**, instead of waiting for the next 30-second tick — so the last few minutes of a session can't be lost on the way out.
+- *(Groundwork for part 2: making the cloud the single source of truth so a stale device can never overwrite newer progress.)*
+
 ## v0.9.2-beta build 298 — 2026-08-10 (Bug-report screenshots — actually fixed)
 
 - 🐛 **Bug-report screenshots now capture reliably.** The previous fix didn't fully hold: the screenshot tool (html2canvas) has its own colour parser that can't read a modern CSS colour format the game uses in themed styles — including on pseudo-elements the earlier patch couldn't reach, so it kept crashing. The capture now renders through the browser's own engine, which supports every style the game uses. Verified against the exact failing case. *(Thanks paione for pushing on this.)*

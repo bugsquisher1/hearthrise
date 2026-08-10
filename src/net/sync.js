@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=298';
+//   import { setupSync } from './net/sync.js?v=299';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=298';
+import { on, snapshot } from './events.js?v=299';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -26,6 +26,7 @@ let config = null;
 let buffer = [];
 let flushTimer = null;
 let lastSnapshotAt = 0;
+let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
 
 /** Load the offline buffer (events captured while offline / pre-config). */
 function loadBuffer() {
@@ -240,21 +241,28 @@ export function derivedSnapshotFields(cfg, win) {
   return out;
 }
 
-/** Periodically snapshot full game state to the server (idempotent upsert). */
-async function snapshotIfDue() {
-  if (!config?.snapshotEndpoint) return;
+/**
+ * Snapshot full game state to the server (idempotent upsert).
+ * @param {boolean} force  bypass the interval throttle (used on hide/close so a
+ *                         session's tail isn't lost to the 60s cadence).
+ * @param {boolean} keepalive  use fetch keepalive so the request survives the
+ *                         page being torn down (pagehide/unload).
+ * @returns {boolean} true if an upload was attempted and the server accepted it.
+ */
+async function snapshotIfDue(force, keepalive) {
+  if (!config?.snapshotEndpoint) return false;
   const now = Date.now();
-  if (now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return;
+  if (!force && now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return false;
   lastSnapshotAt = now;
   const snap = snapshot(window.G);
-  if (!snap) return;
+  if (!snap) return false;
   // Stamp the derived, server-sortable fields (totalLevel, combatLevel, renown,
   // bossKills). See derivedSnapshotFields for why each one has to be written
   // down rather than computed server-side.
   Object.assign(snap, derivedSnapshotFields(config, window));
   // Always cache locally for offline-load
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
-  if (!navigator.onLine) return;
+  if (!navigator.onLine) return false;
 
   const userId = config.userId
     ? (typeof config.userId === 'function' ? config.userId() : config.userId)
@@ -262,11 +270,27 @@ async function snapshotIfDue() {
   const req = buildSnapshotRequest(config, userId, snap, now);
   // Auth-aware: refresh + retry once on an expired token, and surface failures
   // instead of swallowing them. Headers rebuilt per attempt for the fresh token.
-  await fetchWithAuthRetry(req.url, () => ({
-    method: req.method,
-    headers: withAuthHeaders(req.headers),
-    body: JSON.stringify(req.body),
-  }), 'snapshot');
+  const res = await fetchWithAuthRetry(req.url, () => {
+    const init = {
+      method: req.method,
+      headers: withAuthHeaders(req.headers),
+      body: JSON.stringify(req.body),
+    };
+    if (keepalive) init.keepalive = true;   // survive page teardown on close
+    return init;
+  }, 'snapshot');
+  const ok = !!(res && res.ok);
+  /* b299: the REAL sync now records that it succeeded, on G where the player can
+     see it (Settings "Last synced"). Before this, cloudSyncedAt was only ever set
+     by the DEAD mock cloudSync() path (legacy NetClient, no endpoint), so the
+     indicator said "never" forever even while snapshots uploaded fine — which is
+     exactly why cloud save felt unverifiable. Also tracked as lastCloudSaveAt for
+     the verify tool + health readout. */
+  if (ok && window.G) {
+    window.G.cloudSyncedAt = now;
+    lastCloudSaveAt = now;
+  }
+  return ok;
 }
 
 /** Replay-from-server stub — call after sign-in to pull the latest snapshot. */
@@ -292,6 +316,48 @@ export async function pullLatest() {
   }
 }
 
+/**
+ * b299 — CLOUD SAVE SELF-TEST. Forces an upload, pulls it straight back, and
+ * diffs the round-tripped fields against the live game. This is the answer to
+ * "how do I know cloud save is actually working?": it exercises the real write
+ * AND read path end-to-end and reports, in plain terms, what matched.
+ * Returns { ok, error, offline, signedIn, checks:[{label,cloud,local,match}] }.
+ */
+export async function verifyCloudSave() {
+  const out = { ok: false, error: null, offline: false, signedIn: false, checks: [] };
+  try {
+    if (!config?.snapshotEndpoint) { out.error = 'Cloud is not configured (offline mode).'; return out; }
+    if (!navigator.onLine) { out.offline = true; out.error = 'You are offline — connect to test cloud save.'; return out; }
+    const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+    if (!userId) { out.error = 'Not signed in — cloud save needs an account.'; return out; }
+    out.signedIn = true;
+
+    const uploaded = await snapshotIfDue(true, false);      // force a fresh upload
+    if (!uploaded) { out.error = 'Upload was rejected (auth or network). Try again in a moment.'; return out; }
+
+    const cloud = await pullLatest();                        // read it straight back
+    if (!cloud) { out.error = 'Uploaded, but reading it back returned nothing.'; return out; }
+
+    const G = window.G || {};
+    const invCount = (o) => (o && typeof o === 'object') ? Object.keys(o).length : 0;
+    const rows = [
+      ['Total level', cloud.totalLevel, (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : undefined)],
+      ['Gold', cloud.gold, G.gold],
+      ['Gems', cloud.gems, G.gems],
+      ['Kills', cloud.stats && cloud.stats.kills, G.stats && G.stats.kills],
+      ['Inventory item types', invCount(cloud.inventory), invCount(G.inventory)],
+      ['Name', cloud.playerName, G.playerName],
+    ];
+    out.checks = rows.map(([label, c, l]) => ({ label, cloud: c, local: l, match: String(c) === String(l) }));
+    out.ok = out.checks.every((c) => c.match);
+    if (!out.ok) out.error = 'Round-trip completed but some fields did not match — see the details.';
+    return out;
+  } catch (e) {
+    out.error = (e && e.message) || String(e);
+    return out;
+  }
+}
+
 /** Setup. Pass config on first call; passing nothing keeps offline mode active. */
 export function setupSync(opts = {}) {
   config = { ...config, ...opts };
@@ -309,10 +375,15 @@ export function setupSync(opts = {}) {
     snapshotIfDue();
   }, config.batchIntervalMs || 5000);
 
-  // Flush immediately on visibility change (best effort, don't rely on it)
+  // b299: on hide/close, force BOTH the event flush AND a full cloud snapshot,
+  // with keepalive so it survives the page being torn down. Before this only the
+  // event buffer flushed on hide; the authoritative save (game_saves) waited for
+  // the 60s timer, so closing the app could leave the cloud up to a minute stale
+  // — or empty for a short session. Now the tail is captured on the way out.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flush();
+    if (document.visibilityState === 'hidden') { flush(); snapshotIfDue(true, true); }
   });
+  window.addEventListener('pagehide', () => { flush(); snapshotIfDue(true, true); });
 
   // And one immediate attempt
   setTimeout(flush, 1000);
@@ -325,9 +396,10 @@ export function setupSync(opts = {}) {
 // e.g. assert snapshotEndpoint targets game_saves, not game_snapshots.
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
-  derivedSnapshotFields, countBossKills,
+  derivedSnapshotFields, countBossKills, verifyCloudSave,
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
+  getLastCloudSaveAt: () => lastCloudSaveAt,
 };
 
 // Default: kick off in offline mode so the buffer + snapshot start populating

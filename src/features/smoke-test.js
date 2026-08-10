@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=298' directly.
+// modularised, will import { G } from '../state/game.js?v=299' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=298';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=298';
+import { on, snapshot } from '../net/events.js?v=299';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=299';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=298';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=299';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12321,6 +12321,25 @@ const TESTS = [
       if(foeP){ foeP.classList.remove('foe-dying'); const t=foeP.querySelector('.defeat-tag'); if(t) t.remove(); }
       restoreG(snap);
     }
+  }),
+
+  // b299: the cloud-save observability tools — status API + verify self-test.
+  // The real sync path now records success (cloudSyncedAt) and exposes a
+  // round-trip verifier. Guard the CONTRACT synchronously (the verify itself
+  // hits the network; the harness runs offline, so we only assert it's wired,
+  // safe, and returns a promise instead of throwing).
+  () => tryRun('b299: cloud verify tool + status API are wired and offline-safe', () => {
+    const S = window.HearthriseSync;
+    assert(S && typeof S.verifyCloudSave === 'function', 'verifyCloudSave must be exposed');
+    assert(typeof S.getLastCloudSaveAt === 'function', 'getLastCloudSaveAt must be exposed');
+    assert(typeof S.getLastCloudSaveAt() === 'number', 'getLastCloudSaveAt must return a number');
+    assert(typeof S.snapshotIfDue === 'function', 'snapshotIfDue must be exposed');
+    const p = S.verifyCloudSave();                     // must not throw synchronously
+    assert(p && typeof p.then === 'function', 'verifyCloudSave must return a promise');
+    p.then(function(r){
+      // When unconfigured/offline it must fail cleanly with a reason, never throw.
+      assert(!r || typeof r === 'object', 'verify result must be an object');
+    }, function(){ /* swallow: offline rejection is fine in the harness */ });
   }),
 
   // b295: bug-report screenshots crashed with "unsupported color function

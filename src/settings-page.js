@@ -519,9 +519,13 @@
       + nameInput
       + auth
       + '<div class="ss-row"><div class="ss-label">Cloud sync</div>'
-      +   '<button class="btn btn-sm" id="set-cloud-sync">Sync now</button>'
+      +   '<div style="display:flex;gap:8px">'
+      +     '<button class="btn btn-sm" id="set-cloud-sync">Sync now</button>'
+      +     '<button class="btn btn-sm" id="set-cloud-verify">Verify</button>'
+      +   '</div>'
       + '</div>'
       + '<div class="ss-hint">' + esc(cloudMeta) + '</div>'
+      + '<div class="ss-hint" id="set-cloud-verify-out" style="white-space:pre-line"></div>'
       + beta
       + cloudSetup;
   }
@@ -741,9 +745,38 @@
         }
       });
     });
+    var vout = root.querySelector('#set-cloud-verify-out');
     var cloud = root.querySelector('#set-cloud-sync');
-    if(cloud) cloud.addEventListener('click', function(){
-      if(typeof window.cloudSync === 'function') window.cloudSync();
+    if(cloud) cloud.addEventListener('click', async function(){
+      // b299: use the REAL sync (snapshotIfDue), not the dead mock window.cloudSync
+      // (legacy NetClient, no endpoint) that this button used to call.
+      var old = cloud.textContent; cloud.disabled = true; cloud.textContent = 'Syncing…';
+      var ok = false;
+      try { if(window.HearthriseSync && window.HearthriseSync.snapshotIfDue) ok = await window.HearthriseSync.snapshotIfDue(true); }
+      catch(e){}
+      cloud.textContent = old; cloud.disabled = false;
+      if(vout) vout.textContent = ok
+        ? '✓ Synced to the cloud just now.'
+        : '✗ Sync did not complete (offline, not signed in, or a server hiccup).';
+    });
+    var verify = root.querySelector('#set-cloud-verify');
+    if(verify) verify.addEventListener('click', async function(){
+      var old = verify.textContent; verify.disabled = true; verify.textContent = 'Testing…';
+      if(vout) vout.textContent = 'Running a cloud save round-trip test…';
+      var r = { ok:false, error:'Cloud sync is unavailable in this build.' };
+      try { if(window.HearthriseSync && window.HearthriseSync.verifyCloudSave) r = await window.HearthriseSync.verifyCloudSave(); }
+      catch(e){ r = { ok:false, error:(e && e.message) || String(e) }; }
+      verify.textContent = old; verify.disabled = false;
+      if(!vout) return;
+      if(r.ok){
+        vout.textContent = '✓ Cloud save verified — your progress uploaded and read back correctly.';
+      } else {
+        var lines = ['✗ ' + (r.error || 'Cloud save could not be verified.')];
+        (r.checks || []).forEach(function(c){
+          lines.push((c.match ? '✓ ' : '✗ ') + c.label + ': cloud ' + c.cloud + ' / local ' + c.local);
+        });
+        vout.textContent = lines.join('\n');
+      }
     });
 
     // ── Theme picker ──

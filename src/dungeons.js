@@ -150,6 +150,19 @@
         { id: 'voidmaw_scepter', qty: [1, 1], chance: .04 },
         { id: 'farm_deed', qty: [1, 2], chance: .32 },
       ],
+      /* Wave 6b (audit fix): the two marquee endgame instances were pure one-button
+         loot rolls with NO encounter. Give them a real 3-phase fight like the others. */
+      phases: [
+        { type:'puzzle', label:'Seal the rift', icon:'🌀',
+          question: 'A rift tears the sky. Which sigil closes the void?',
+          options: ['🕸️ Voidwoven', '☀️ Sun', '🌊 Tide', '🔥 Ember'],
+          correct: 0,
+          desc: 'Choose the sigil that binds the tear before more pour through.' },
+        { type:'dodge', label:'Rift tendrils', icon:'🐙', target: 10, durationS: 60,
+          desc: 'Dodge the lashing tendrils — click DODGE as each strikes.' },
+        { type:'fight', label:'The Riftmaw', icon:'🌌', enemyHp: 720, durationS: 150, boss: true,
+          desc: 'The Devouring Rift itself. Time your attacks through the churn.' },
+      ],
     },
 
     // ---- World Bosses ----
@@ -170,6 +183,15 @@
         { id: 'elderscale_heart', qty: [1, 1], chance: .25 },
         { id: 'dragonfang_pike', qty: [1, 1], chance: .03 },
         { id: 'farm_deed', qty: [2, 3], chance: .35 },
+      ],
+      /* Wave 6b: the capstone gets a real dragonslayer encounter. */
+      phases: [
+        { type:'dodge', label:'Dragonfire', icon:'🔥', target: 12, durationS: 55,
+          desc: 'Elderscale breathes. Dodge each gout of flame.' },
+        { type:'gather', label:'Load the ballista', icon:'🎯', target: 14, durationS: 45,
+          desc: 'Grab dragonbane bolts and load the ballista before it lands.' },
+        { type:'fight', label:'Elderscale, the Great Wyrm', icon:'🐲', enemyHp: 1050, durationS: 170, boss: true,
+          desc: 'The Eldest of Dragons. Only a true dragonslayer stands here.' },
       ],
     },
   };

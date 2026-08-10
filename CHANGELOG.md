@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 277 — 2026-08-09 (Endgame dungeons get a real fight)
+
+- 🐉 **The Voidbringer and the Ancient Wyrm are real encounters now.** The two highest-end instances used to be a single button that just rolled loot — they now have proper 3-phase fights (seal the rift / dodge the tendrils / face the Riftmaw; dodge dragonfire / load the ballista / slay Elderscale), like the other dungeons.
+
 ## v0.9.2-beta build 276 — 2026-08-09 (Progression rework: accuracy + armour sets)
 
 - 🎯 **Your weapon's accuracy matters again at endgame.** Tough high-tier monsters and bosses now have enough defence that a better weapon genuinely lands more hits (early fights are unchanged) — so weapon upgrades are felt all the way up, not just in damage.

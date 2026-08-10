@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=276' directly.
+// modularised, will import { G } from '../state/game.js?v=277' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=276';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=276';
+import { on, snapshot } from '../net/events.js?v=277';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=277';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=276';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=277';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2338,6 +2338,15 @@ const TESTS = [
       delete G.equipment.belt; delete G.equipment.gloves;
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {
+    const D = window.DUNGEONS, S = window.SCAVENGER_CONFIGS || {};
+    if (!D) return;
+    Object.entries(D).forEach(([id, d]) => {
+      const hasEncounter = (Array.isArray(d.phases) && d.phases.length) || S[id];
+      assert(hasEncounter, id + ' must have a manual encounter (phases or a scavenger config), not just an auto-run loot roll');
+    });
   }),
 
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {

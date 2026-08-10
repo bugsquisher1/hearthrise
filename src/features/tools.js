@@ -35,8 +35,28 @@
     return t ? (t.toolSpeed || 0) : 0;
   }
 
+  /* Wave 3 (audit fix — "tools don't feel like they do anything"): a tool now
+     does THREE things, not just a tiny speed nudge. XP and a double-yield chance
+     are DERIVED from the tool's tier so they scale on the same ladder the player
+     already climbs, and a per-item override (`toolXpB` / `toolDouble`) wins when
+     set. Tier 1 = +2% / 2%; Tier 7 (Dawnsteel) = +14% / 14% — a felt reason to
+     upgrade, well under the power budget. Gathering AND artisan tools share this,
+     so a Forge Hammer speeds smithing exactly as a Rune Axe speeds woodcutting. */
+  function bestToolXpB(skill) {
+    var t = bestTool(skill);
+    if (!t) return 0;
+    return (typeof t.toolXpB === 'number') ? t.toolXpB : (t.toolTier || 0) * 0.02;
+  }
+  function bestToolDouble(skill) {
+    var t = bestTool(skill);
+    if (!t) return 0;
+    return (typeof t.toolDouble === 'number') ? t.toolDouble : (t.toolTier || 0) * 0.02;
+  }
+
   window.HearthriseTools = {
     bestTool: bestTool,
-    bestToolSpeed: bestToolSpeed
+    bestToolSpeed: bestToolSpeed,
+    bestToolXpB: bestToolXpB,
+    bestToolDouble: bestToolDouble
   };
 })();

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=272' directly.
+// modularised, will import { G } from '../state/game.js?v=273' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=272';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=272';
+import { on, snapshot } from '../net/events.js?v=273';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=273';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=272';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=273';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2233,6 +2233,51 @@ const TESTS = [
           id + ': card boss "' + D[id].boss.name + '" must equal fight boss "' + S[id].bossName + '"');
       }
     });
+  }),
+
+  () => tryRun('WAVE3: tools grant tier-scaled XP + double, for gathering AND artisan', () => {
+    const T = window.HearthriseTools, G = window.G;
+    if (!T || typeof T.bestToolXpB !== 'function') return;
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})) };
+    try {
+      G.inventory = Object.assign({}, G.inventory, { rune_axe: 1, rune_hammer: 1 });
+      assert(Math.abs(T.bestToolXpB('woodcutting') - 0.10) < 1e-9, 'rune axe (T5) → +10% woodcutting XP, got ' + T.bestToolXpB('woodcutting'));
+      assert(Math.abs(T.bestToolDouble('woodcutting') - 0.10) < 1e-9, 'rune axe (T5) → 10% double, got ' + T.bestToolDouble('woodcutting'));
+      // artisan tools now count too
+      assert(T.bestToolSpeed('smithing') > 0, 'a Rune Hammer must apply tool speed to smithing');
+      assert(Math.abs(T.bestToolDouble('smithing') - 0.10) < 1e-9, 'a Rune Hammer (T5) → 10% double-craft');
+    } finally { G.inventory = snap.inv; }
+  }),
+
+  () => tryRun('WAVE3: artisan tools exist and are craftable', () => {
+    const I = window.ITEMS, R = window.ARTISAN_RECIPES;
+    if (!I || !R) return;
+    ['bronze_hammer', 'rune_hammer', 'bone_needle', 'rune_needle', 'bronze_knife', 'rune_knife'].forEach(id => {
+      assert(I[id] && I[id].type === 'tool', id + ' must be a tool item');
+    });
+    const allRec = [].concat(R.smithing || [], R.crafting || []);
+    ['forge_rune_hammer', 'craft_rune_needle', 'forge_rune_knife'].forEach(rid => {
+      assert(allRec.find(r => r.id === rid), 'recipe ' + rid + ' must exist');
+    });
+  }),
+
+  () => tryRun('WAVE3: a gathering tool deterministically adds extra yield over time', () => {
+    // The double is a fractional carry (no RNG), so N actions with a 10% tool grant
+    // ~N*0.1 extra — testable silently and byte-identical offline.
+    const G = window.G;
+    if (typeof window.doSkillAction !== 'function' || !window.TREES || !window.HearthriseTools) return;
+    const node = window.TREES.find(t => t.qty[0] === 1 && t.qty[1] === 1) || window.TREES[0];
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})), as: G.activeSkill, tid: G.skillTargetId, carry: G._toolCarry };
+    try {
+      G._toolCarry = {};
+      G.inventory = Object.assign({}, G.inventory, { rune_axe: 1 }); delete G.inventory[node.prod];
+      G.skills = Object.assign({}, G.skills, { woodcutting: 5000000 });
+      G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
+      for (let i = 0; i < 10; i++) window.doSkillAction(true);   // silent: no timers, no RNG
+      const gained = (G.inventory[node.prod] || 0);
+      // 10 base + floor(10 * 0.10) = 11 for a T5 (rune) tool
+      assert(gained === 11, '10 actions with a 10% tool must yield 11 (got ' + gained + ')');
+    } finally { G.inventory = snap.inv; G.skills = snap.skills; G.activeSkill = snap.as; G.skillTargetId = snap.tid; G._toolCarry = snap.carry; }
   }),
 
   () => tryRun('b268: every solo dungeon has a named end-boss', () => {

@@ -2776,7 +2776,9 @@ function activityIntervalMs(){
   const d=currentActionDef();
   if(!d) return null;
   let speed=(typeof getBonus==='function')?(getBonus(d.key)||0):0;
-  if(!d.artisan && window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
+  /* Wave 3: tool speed now applies to ARTISAN skills too, not just gathering — a
+     Forge Hammer speeds smithing exactly as a Rune Axe speeds woodcutting. */
+  if(window.HearthriseTools && typeof window.HearthriseTools.bestToolSpeed==='function'){
     try{ speed += (window.HearthriseTools.bestToolSpeed(G.activeSkill)||0); }catch(e){}
   }
   /* b228 merge: the bonus-census fuse applies at THE consumption point — this
@@ -2907,7 +2909,18 @@ function doSkillAction(silent){
   if(type==='fishing')act=FISH_SPOTS.find(f=>f.id===tid);
   if(!act)return;
   if(getLevel(type)<act.req){stopSkill();return;}
-  const qty=rand(act.qty[0],act.qty[1]);
+  let qty=rand(act.qty[0],act.qty[1]);
+  /* Wave 3: the equipped tool grants extra yield. DETERMINISTIC (a fractional
+     carry, never RNG) so the offline replay stays byte-identical run to run — each
+     action banks `qty × toolDouble` into a per-skill carry and pays out whole
+     units as they accrue (a 10%-double tool = one bonus every ~10 actions). */
+  const _toolDbl=(window.HearthriseTools&&HearthriseTools.bestToolDouble)?HearthriseTools.bestToolDouble(type):0;
+  if(_toolDbl>0){
+    G._toolCarry=G._toolCarry||{};
+    const _c=(G._toolCarry[type]||0)+qty*_toolDbl;
+    const _ex=Math.floor(_c+1e-9); G._toolCarry[type]=_c-_ex;   // +epsilon: 0.1×10 floats to 0.9999…
+    if(_ex>0){ qty+=_ex; G.stats.toolDoubles=(G.stats.toolDoubles||0)+_ex; }
+  }
   addItem(act.prod,qty);
   G.stats.gathered=(G.stats.gathered||0)+qty;
   /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for "logs"
@@ -2920,7 +2933,9 @@ function doSkillAction(silent){
   const _perSkill=SKILL_ACTION_STAT[type];
   if(_perSkill) G.stats[_perSkill]=(G.stats[_perSkill]||0)+qty;
   updateDaily('gather',qty);updateQuest('gather',qty);
-  addXp(type,act.xp);
+  /* Wave 3: the tool also grants a small XP bonus (derived from its tier). */
+  const _toolXp=(window.HearthriseTools&&HearthriseTools.bestToolXpB)?HearthriseTools.bestToolXpB(type):0;
+  addXp(type, _toolXp>0 ? act.xp*(1+_toolXp) : act.xp);
   /* b227: re-derive the interval after each live action, so a blessing that
      lapses when the player goes idle (or arrives when they come back) is felt
      on the very next swing rather than at the next restart. Silent = the
@@ -9743,8 +9758,21 @@ window.doArtisanAction = function(skillId, recipeId, opts){
      is a thing you can see in the bag where "+15% faster" is a thing you have
      to believe. */
   var extra = (r.output && isMaterialOutput(r) && Math.random() < getBonus('yield_'+skillId)) ? 1 : 0;
-  if(r.output && typeof addItem==='function') addItem(r.output, (r.outputQty || 1) + extra);
-  if(typeof addXp==='function') addXp(skillId, r.xp);
+  /* Wave 3: an artisan tool (Forge Hammer / Sewing Needle / Cook's Knife) can
+     double a craft — the same felt payoff a Rune Axe gives a gatherer. */
+  var _aToolDbl = (window.HearthriseTools && window.HearthriseTools.bestToolDouble) ? window.HearthriseTools.bestToolDouble(skillId) : 0;
+  var _outQty = (r.outputQty || 1) + extra;
+  /* Wave 3: deterministic carry (same as gathering) — never RNG, so offline replay
+     stays byte-identical. */
+  if(_aToolDbl > 0){
+    G._toolCarry = G._toolCarry || {};
+    var _cc = (G._toolCarry[skillId]||0) + _outQty*_aToolDbl;
+    var _ce = Math.floor(_cc+1e-9); G._toolCarry[skillId] = _cc - _ce;
+    if(_ce > 0){ _outQty += _ce; G.stats = G.stats || {}; G.stats.toolDoubles = (G.stats.toolDoubles||0) + _ce; }
+  }
+  if(r.output && typeof addItem==='function') addItem(r.output, _outQty);
+  var _aToolXp = (window.HearthriseTools && window.HearthriseTools.bestToolXpB) ? window.HearthriseTools.bestToolXpB(skillId) : 0;
+  if(typeof addXp==='function') addXp(skillId, _aToolXp > 0 ? r.xp*(1+_aToolXp) : r.xp);
   // b217: this (the LIVE doArtisanAction) previously updated only G.stats and
   // NOT the daily/quest trackers, so the daily "Cook/Smith/Craft N" tasks were
   // un-completable and the onboarding "Cook 5 dishes" prep quest couldn't
@@ -11293,6 +11321,17 @@ function patchSkillsList(){
 }
 
 /* ── Build a gather tile ── */
+/* Wave 3: one tool-line renderer for gather AND artisan tiles — names the best
+   owned tool and its full effect (speed + double-yield chance). */
+window.hrToolLineHtml = function(skillId){
+  var T = window.HearthriseTools; if(!T || typeof T.bestTool!=='function') return '';
+  var t = T.bestTool(skillId); if(!t) return '';
+  var spd = Math.round((t.toolSpeed||0)*100);
+  var dbl = Math.round((typeof T.bestToolDouble==='function' ? T.bestToolDouble(skillId) : 0)*100);
+  if(spd<=0 && dbl<=0) return '';
+  return '<div class="at-tool">'+(t.n||'Tool')+' <b>+'+spd+'% spd</b>'+(dbl>0 ? ' · <b>+'+dbl+'% ×2</b>' : '')+'</div>';
+};
+
 function tileForGather(action, skillId){
   var lv = getLevel(skillId);
   var unlocked = lv >= action.req;
@@ -11304,12 +11343,10 @@ function tileForGather(action, skillId){
   var toolSpeed = (bestT && bestT.toolSpeed) ? bestT.toolSpeed : 0;
   var speed = ((typeof getBonus==='function') ? getBonus('gatherSpeed') : 0) + toolSpeed;
   var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp(speed)));
-  /* Wave 1 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
-     tool DID apply, but nothing on screen said so — the rod read as inert. Name the
-     active tool and its bonus on the tile so the effect is legible. */
-  var toolLine = (bestT && toolSpeed > 0)
-    ? '<div class="at-tool">'+(bestT.n||'Tool')+' <b>+'+Math.round(toolSpeed*100)+'% speed</b></div>'
-    : '';
+  /* Wave 1/3 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
+     tool DID apply, but nothing on screen said so. Name the active tool and ALL its
+     bonuses (speed + double-yield) so the effect is legible. Shared with artisan tiles. */
+  var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = active
@@ -11416,6 +11453,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,recipe.xp)))+' XP · '+fmtSec(window.pacedActionMs(recipe.ms||3000))+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +burnLine
+    +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
     +(active ? '<span class="at-stop">Active</span>' : '')

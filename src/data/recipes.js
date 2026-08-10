@@ -13,9 +13,9 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=272';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=272';
-import { ITEMS, foodClassOf } from './items.js?v=272';
+import { GEAR_RECIPES } from './gear-tiers.js?v=273';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=273';
+import { ITEMS, foodClassOf } from './items.js?v=273';
 
 const BASE_RECIPES = {
   cooking: [
@@ -77,6 +77,14 @@ const BASE_RECIPES = {
     {id:'forge_dawn_axe',      name:'Forge Dawnsteel Axe',       icon:'🪓', inputs:{dawn_bar:2, duskwood_plank:1},  output:'dawn_axe',      xp:4200, req:92, ms:6400},
     {id:'forge_ember_pickaxe', name:'Forge Emberforged Pickaxe', icon:'⛏️', inputs:{ember_bar:2, runewood_plank:1}, output:'ember_pickaxe', xp:2600, req:80, ms:5800},
     {id:'forge_dawn_pickaxe',  name:'Forge Dawnsteel Pickaxe',   icon:'⛏️', inputs:{dawn_bar:2, duskwood_plank:1},  output:'dawn_pickaxe',  xp:4200, req:92, ms:6400},
+    /* Wave 3: ARTISAN tools forged at the anvil — hammers (smithing) and knives
+       (cooking) speed their skill + grant XP + a double-craft chance. */
+    {id:'forge_bronze_hammer', name:'Forge Bronze Hammer', icon:'🔨', inputs:{bronze_bar:2},  output:'bronze_hammer', xp:45,   req:5,  ms:2600},
+    {id:'forge_steel_hammer',  name:'Forge Steel Hammer',  icon:'🔨', inputs:{steel_bar:2},   output:'steel_hammer',  xp:330,  req:35, ms:3800},
+    {id:'forge_rune_hammer',   name:'Forge Rune Hammer',   icon:'🔨', inputs:{rune_bar:2},    output:'rune_hammer',   xp:1500, req:75, ms:5500},
+    {id:'forge_bronze_knife',  name:'Forge Bronze Knife',  icon:'🔪', inputs:{bronze_bar:1},  output:'bronze_knife',  xp:40,   req:5,  ms:2400},
+    {id:'forge_steel_knife',   name:'Forge Steel Knife',   icon:'🔪', inputs:{steel_bar:1},   output:'steel_knife',   xp:320,  req:35, ms:3600},
+    {id:'forge_rune_knife',    name:'Forge Rune Knife',    icon:'🔪', inputs:{rune_bar:1},    output:'rune_knife',    xp:1500, req:75, ms:5500},
     // Forge weapons — use the new bars now that they exist
     {id:'forge_bronze_sword',  name:'Forge Bronze Sword',  icon:'⚔️', inputs:{bronze_bar:2, normal_plank:1},                output:'bronze_sword',  xp:60,    req:5,  ms:2500},
     {id:'forge_iron_sword',    name:'Forge Iron Sword',    icon:'⚔️', inputs:{iron_bar:3, oak_plank:1},                     output:'iron_sword',    xp:180,   req:20, ms:3000},
@@ -161,6 +169,10 @@ const BASE_RECIPES = {
     {id:'carve_maple_rod',    name:'Carve Maple Rod',    icon:'🎣', inputs:{willow_plank:2, silk_thread:2},  output:'maple_rod',    xp:340,  req:38, ms:3800},
     {id:'carve_yew_rod',      name:'Carve Yew Rod',      icon:'🎣', inputs:{maple_plank:2, silk_thread:3},   output:'yew_rod',      xp:750,  req:58, ms:4500},
     {id:'carve_runewood_rod', name:'Carve Runewood Rod', icon:'🎣', inputs:{yew_plank:3, silk_thread:4, magic_essence:2}, output:'runewood_rod', xp:1600, req:78, ms:5500},
+    /* Wave 3: ARTISAN tools — sewing needles speed crafting + grant XP + double-craft. */
+    {id:'craft_bone_needle',  name:'Carve Bone Needle',  icon:'🪡', inputs:{bones:3, silk_thread:1},      output:'bone_needle',  xp:45,   req:5,  ms:2600},
+    {id:'craft_steel_needle', name:'Forge Steel Needle', icon:'🪡', inputs:{steel_bar:1, silk_thread:2}, output:'steel_needle', xp:330,  req:35, ms:3800},
+    {id:'craft_rune_needle',  name:'Forge Rune Needle',  icon:'🪡', inputs:{rune_bar:1, silk_thread:3},  output:'rune_needle',  xp:1500, req:75, ms:5500},
     /* b215: the last two planks + rods — crafting stopped at 78 before this. */
     {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', input:'runewood_log', output:'runewood_plank', xp:260, req:75, ms:6500},
     {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', input:'duskwood_log', output:'duskwood_plank', xp:380, req:90, ms:7200},

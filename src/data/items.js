@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=272';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=272';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=272';
+import { GEAR_ITEMS } from './gear-tiers.js?v=273';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=273';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=273';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -34,6 +34,18 @@ export const ITEMS={
   maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
   yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
   runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
+  /* Wave 3: ARTISAN tools — the counterpart to gathering tools, so tools improve
+     crafting/smithing/cooking too (Tyler). Best owned auto-applies (tools.js);
+     each grants speed + tier-derived XP + a double-craft chance. */
+  bronze_hammer:{n:'Bronze Hammer',icon:'🔨',v:70,type:'tool',toolSkill:'smithing',toolTier:1,toolSpeed:.05},
+  steel_hammer:{n:'Steel Hammer',icon:'🔨',v:950,type:'tool',toolSkill:'smithing',toolTier:3,toolSpeed:.15},
+  rune_hammer:{n:'Rune Hammer',icon:'🔨',v:9200,type:'tool',toolSkill:'smithing',toolTier:5,toolSpeed:.25},
+  bone_needle:{n:'Bone Needle',icon:'🪡',v:70,type:'tool',toolSkill:'crafting',toolTier:1,toolSpeed:.05},
+  steel_needle:{n:'Steel Needle',icon:'🪡',v:950,type:'tool',toolSkill:'crafting',toolTier:3,toolSpeed:.15},
+  rune_needle:{n:'Rune Needle',icon:'🪡',v:9200,type:'tool',toolSkill:'crafting',toolTier:5,toolSpeed:.25},
+  bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
+  steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
+  rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
   slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},

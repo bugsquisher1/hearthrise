@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 273 — 2026-08-09 (Progression rework, wave 3: tools that matter)
+
+- 🪓 **Your tools now do three things, not one.** Every gathering tool (axe/pickaxe/rod) grants **speed + bonus XP + a steady chance at double resources**, scaled by its tier — so a Rune Axe genuinely out-earns a Bronze one, and you can see the bonus on the tile.
+- 🔨 **New: artisan tools.** Forge a **Hammer** (smithing), a **Sewing Needle** (crafting), or a **Cook's Knife** (cooking) — each speeds its skill, grants XP, and can double a craft, in three tiers (Bronze → Rune). Tools finally help your workbench skills, not just gathering.
+
 ## v0.9.2-beta build 272 — 2026-08-09 (Progression rework, wave 1 & 2: truth + repairs)
 
 - 🔨 **Crafting tells you the truth now.** Smithing/crafting tiles that need a workbench you haven't built show a clear **"Build the Forge"** (or Workshop) lock and take you to your House to build it — instead of looking available and silently doing nothing. Scroll-locked recipes say so too.

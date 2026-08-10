@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 304 — 2026-08-10 (Offline & save reliability hardening)
+
+- 🧪 **Save & offline reliability pass.** Audited what actually reaches the cloud (confirmed every bit of real progress is stored — nothing silently dropped) and added automated guards that offline **gathering** and **cooking/smithing/crafting** correctly bank progress while you're away, alongside the existing offline-combat guard. No behavior change — this locks in that the idle premise keeps working as the game grows.
+
 ## v0.9.2-beta build 303 — 2026-08-10 (One device — now counts browser tabs too)
 
 - 🔒 **Single-session enforcement now catches two tabs of the same browser**, not just two separate devices. It previously keyed on the device, so two Chrome tabs looked like one and both kept running; it now keys on the individual tab. Opening a second tab moves your session there and locks the first.

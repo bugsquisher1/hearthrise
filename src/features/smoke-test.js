@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=303' directly.
+// modularised, will import { G } from '../state/game.js?v=304' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=303';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=303';
+import { on, snapshot } from '../net/events.js?v=304';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=304';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=303';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=304';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12234,6 +12234,66 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  // b303: OFFLINE IS THE PREMISE. Guard that a gathering session credits XP
+  // through the real gated processOffline() (only combat was guarded before).
+  () => tryRun('b303: offline GATHER credits XP through processOffline (idle premise)', () => {
+    if(typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length){ assert(true, 'no gather'); return; }
+    const G = window.G;
+    const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
+      activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
+      inventory:G.inventory, offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, stats:G.stats };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
+      const tree = window.TREES[0];
+      G.skills = Object.assign({}, G.skills, { woodcutting: 5_000_000 });   // clears any level req
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
+      G.inventory = Object.assign({}, G.inventory);
+      const beforeXp = G.skills.woodcutting;
+      const now = Date.now();
+      G.lastSeen = now - 3600000;                                           // away 1 hour
+      G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
+      window.processOffline();
+      assert(G.skills.woodcutting > beforeXp, 'offline woodcutting gained no XP (' + (G.skills.woodcutting - beforeXp) + ')');
+    } finally {
+      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
+      Object.assign(G, save);
+      if(typeof window.stopSkill === 'function' && !save.activeSkill) try{ window.stopSkill(); }catch(e){}
+    }
+  }),
+
+  // b303: and that an ARTISAN session (cooking) credits offline too.
+  () => tryRun('b303: offline ARTISAN credits XP through processOffline', () => {
+    if(typeof window.processOffline !== 'function' || !window.ARTISAN_RECIPES || !window.ARTISAN_RECIPES.cooking){ assert(true, 'no artisan'); return; }
+    const rec = window.ARTISAN_RECIPES.cooking.find(r => r.id === 'cook_shrimp') || window.ARTISAN_RECIPES.cooking[0];
+    if(!rec){ assert(true, 'no cooking recipe'); return; }
+    const G = window.G;
+    const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
+      activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
+      inventory:G.inventory, offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, stats:G.stats };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
+      G.skills = Object.assign({}, G.skills, { cooking: 5_000_000 });
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.activeSkill = 'cooking'; G.skillTargetId = rec.id;
+      // Stock the recipe's inputs generously (shape: {input:'shrimp'} → qty 1 each).
+      G.inventory = Object.assign({}, G.inventory);
+      if(rec.input) G.inventory[rec.input] = (G.inventory[rec.input] || 0) + 100000;
+      const beforeXp = G.skills.cooking;
+      const now = Date.now();
+      G.lastSeen = now - 3600000;
+      G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
+      window.processOffline();
+      assert(G.skills.cooking > beforeXp, 'offline cooking gained no XP (' + (G.skills.cooking - beforeXp) + ')');
+    } finally {
+      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
+      Object.assign(G, save);
+      if(typeof window.stopSkill === 'function' && !save.activeSkill) try{ window.stopSkill(); }catch(e){}
+    }
   }),
 
   // b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the b267

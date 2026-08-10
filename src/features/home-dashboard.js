@@ -126,7 +126,7 @@
          object, because it is the only thing on the screen that is urgent. */
 
       R + '.hd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;align-items:start}',
-      '@media(max-width:900px), (max-height:540px) and (max-width:1024px){' + R + '.hd-grid{grid-template-columns:1fr;gap:22px}}',
+      '@media(max-width:900px){' + R + '.hd-grid{grid-template-columns:1fr;gap:22px}}',
       R + '.hd-col{display:flex;flex-direction:column;gap:22px;min-width:0}',
 
       /* Section heading — small caps over a fading incised rule. This is the
@@ -248,7 +248,7 @@
          rename glyph, and the daily ledger relocated (below) instead of hidden.
          Same selector prefix as the base rules (no !important on those props),
          so these later declarations win at equal specificity. */
-      '@media (max-width:540px),(max-height:540px) and (max-width:1024px){' +
+      '@media (max-width:540px),(max-height:540px) and (max-width:900px){' +
         /* P2: Claim/Train/Build/Play buttons were 34px — under the 44px touch min. */
         R + '.hd-cta,' + R + '.hd-cta.ghost{min-height:44px;padding:0 18px}' +
         /* P3: rename glyph was an ~18px target beside the name — grow it, keep glyph centred. */

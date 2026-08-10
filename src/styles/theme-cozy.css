@@ -562,7 +562,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
  *   #5 Topbar player name ellipsis instead of mid-word clip
  *   #6 Combat-style block stacks DUNGEONS below the title
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* #5 — Player name ellipsis */
   .topbar h1,
   .topbar .player-name,
@@ -916,7 +916,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
  * compacts the chrome only when we're in landscape on a phone,
  * giving the actual game content most of the screen.
  * ============================================================ */
-@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 900px) {
   /* Topbar — single short row, no wrap */
   .topbar {
     padding: 2px 6px !important;
@@ -1026,7 +1026,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 
 /* Inventory sub-tab strip — hidden by default, mobile-only */
 .inv-mob-tabs { display: none; }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* b218: STRUCTURE is un-prefixed so ALL themes (incl. live hearthlight)
    * render the bar. The live theme is pinned to hearthlight, so the old
    * cozy-light-only structural rules meant the strip never appeared on real
@@ -1093,7 +1093,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 
 /* Activities skill strip — horizontal-scroll across the top */
 .act-mob-strip { display: none; }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* b218: STRUCTURE un-prefixed so all themes render the strip (see inv note). */
   .act-mob-strip {
     display: flex !important;
@@ -1168,7 +1168,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 .cmb-mob-tabs {
   display: none;
 }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* b218: STRUCTURE un-prefixed so all themes render the STYLE/FOES/ARENA bar
    * (see inv note — this was the P0: the bar was cozy-light-only, invisible on
    * the live hearthlight theme, so combat sub-sections never showed on phones). */
@@ -1276,7 +1276,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   }
   
   /* Hide bounty-style verbose chips on mobile bounty board too */
-  @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  @media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
     .bounty-option {
       padding: 8px 10px !important;
       min-height: 60px !important;
@@ -1313,7 +1313,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
  * way too much scrolling overall. b108 over-padded everything.
  * b109 walks that back to a denser, less-floaty layout.
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* CHAT PILL — was sitting at bottom:16px directly on top of the
    * 60px+safe-b bottom nav. Lift it above the nav so it stops
    * blocking taps and stops looking like a stuck-on overlay. */
@@ -1515,7 +1515,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
 }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .bottom-nav {
     padding-bottom: var(--safe-b) !important;
     height: calc(60px + var(--safe-b)) !important;
@@ -1530,7 +1530,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 }
 
 /* #1 — Tap targets ≥44px on key interactive elements */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .bn-btn,
   .bottom-nav button {
     min-height: 52px !important;
@@ -1582,7 +1582,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 }
 
 /* #8 — Reduce visual cramping. Bigger base text + breathing room. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body {
     font-size:calc(16px * var(--ui-scale, 1));
     line-height: 1.45;
@@ -1602,7 +1602,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* #6 — Soft-keyboard handling: when chat input or any text field
  * is focused on phone, keep it visible above the keyboard. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body.kb-open #chat-dock.full {
     bottom: 0 !important;
     height: 50vh !important;
@@ -2325,7 +2325,7 @@ body[data-theme="cozy-light"] .panel.active:not(#panel-profile) .card {
 }
 
 /* Smaller padding for non-profile panels on narrower screens */
-@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 900px) {
   body[data-theme="cozy-light"] .panel.active:not(#panel-profile) {
     padding: 24px 18px 36px;
   }
@@ -3609,7 +3609,7 @@ body[data-theme="classic"] .modal-card {
  *  - Combat FOES sub-tab DUNGEONS button → wraps cleanly
  *  - Inventory buttons get wax-stamp red theme
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* --- Wax seal off on mobile (was bottom-right ornament that
          covered Lifetime Stats + Save Status cards on small
          viewports) --- */
@@ -3735,7 +3735,7 @@ body[data-theme="cozy-light"] #panel-inventory .btn.btn-ghost {
 }
 
 /* Portrait-only: 2x2 grid; landscape gets a horizontal scroll */
-@media (max-height: 540px) and (max-width: 1024px) and (orientation: landscape) {
+@media (max-height: 540px) and (max-width: 900px) and (orientation: landscape) {
   #panel-profile .feat-buttons {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
@@ -3757,7 +3757,7 @@ body[data-theme="cozy-light"] #panel-inventory .btn.btn-ghost {
  * Fix: re-apply the same mobile rules but with the matching
  * theme-prefix selectors so specificity ties (last one wins).
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* b124: keep .prof-toolbar HIDDEN on mobile — it's the desktop
      duplicate. The visible mobile container is .feat-buttons. */
 body[data-theme="cozy-light"] #panel-profile .prof-toolbar {
@@ -3822,7 +3822,7 @@ body[data-theme="cozy-light"] .topbar .top-stats {
 
   /* Landscape phones can fit a tiny bit more — undo overflow scroll */
 }
-@media (max-height: 540px) and (max-width: 1024px) and (orientation: landscape) {
+@media (max-height: 540px) and (max-width: 900px) and (orientation: landscape) {
   .topbar .top-stats { overflow-x: visible !important; }
   .topbar .t-stat .lab { display: inline !important; }
 }
@@ -3914,7 +3914,7 @@ body[data-theme="cozy-light"] .qm-close:hover {
  * Fix: collapse to single column, stack info + reward vertically
  * inside each quest card, hide the side QUEST INFO panel.
  * ============================================================ */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .qm-body {
     grid-template-columns: 1fr !important;
     overflow: visible !important;
@@ -4995,7 +4995,7 @@ body[data-theme="hearthlight"] .td-tab span { display: none; }
 /* b218: On phones the doll's Equipment/Stats/Companion tabs are icon-only and
    ambiguous — keep the text labels so the tabs are identifiable. Same
    specificity as the base rule, declared later, so it wins in the mobile query. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body[data-theme="hearthlight"] .td-tab span { display: inline; }
 }
 

@@ -630,7 +630,7 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
  * changes the composition — the notices simply stop being a multi-column grid
  * before they get too narrow to read, and the scene loses some height.
  * ---------------------------------------------------------------------- */
-@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 900px) {
   /* NOT forced to one column — the mobile card is still ~740px wide, which
      auto-fill fills with three readable notices. Forcing 1fr here produced
      760px-wide sheets, which is what the max-width above now also guards. */
@@ -639,7 +639,7 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
   body[data-theme] #panel-bounty .bb-lantern { width: 46px; height: 60px; right: 8px; }
   body[data-theme] #panel-shop .sc-scene { min-height: 92px; max-height: 132px; }
 }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   body[data-theme] #panel-bounty .bb-board { padding: 11px 9px 9px; }
   body[data-theme] #panel-bounty .bb-board::before { inset: 11px 9px 9px; }
   body[data-theme] #panel-shop .sc-counter .shop-row .si { width: 38px; height: 38px; flex: 0 0 38px; }
@@ -755,7 +755,7 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
 #panel-shop[data-shops-pane="local"]   #shops-pane-premium,
 #panel-shop[data-shops-pane="premium"] #shops-pane-local { display: none; }
 
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   /* Three segments have to share a phone's width, so the strip stops hugging
    * its content and the labels take the type floor (13.5px) rather than
    * wrapping mid-word — the b225 .td-tab lesson. */

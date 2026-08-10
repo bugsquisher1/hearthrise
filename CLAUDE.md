@@ -94,7 +94,7 @@ Before touching saves, read [`memory: cloud-save-program`] and confirm the b305 
 
 ## Mobile rules
 
-- Mobile media query is `@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px)` — covers portrait phones AND landscape phones. **b309: the landscape ceiling is 1024, not 900** — wide landscape phones (e.g. 922×423, paione's Ulefone) exceeded 900 and got the desktop layout crunched onto a short screen. The `max-height: 540px` half is what keeps this off tall desktop windows. If you add a mobile breakpoint, use the full comma form (or append `, (max-height: 540px) and (max-width: 1024px)` to a standalone `max-width` block) so wide landscape phones aren't missed.
+- Mobile media query is `@media (max-width: 540px), (max-height: 540px) and (max-width: 900px)` — covers portrait phones AND landscape phones. **b310: phones are LANDSCAPE-ONLY (portrait gated), and a landscape phone should get the SCALED-DESKTOP layout (left rail + two columns), NOT the phone bottom-nav.** A wide landscape phone (e.g. 922×423, paione's Ulefone — wider than 900) therefore correctly falls into the desktop/rail layout; b309 briefly forced those into the bottom-nav and was reverted. The rail is made scrollable so it fits short screens. Don't push wide landscape phones into the bottom-nav layout.
 - Bottom-nav: 6 tabs (Home/Character/Combat/Skills/Farm/More). Sidebar hidden on mobile.
 - The desktop-only `.prof-toolbar` must stay `display:none` on mobile. The mobile-equivalent is `.feat-buttons`.
 

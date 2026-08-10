@@ -267,7 +267,7 @@
       + '.hr-pet-chip .hpc-icon img{width:24px !important;height:24px !important}'
       + '.hr-pet-chip .hpc-lv{white-space:nowrap}'
       + '.hr-pet-scene{display:flex;align-items:center;justify-content:center;padding:6px 0}'
-      + '@media (max-width:540px),(max-height:540px) and (max-width:1024px){'
+      + '@media (max-width:540px),(max-height:540px) and (max-width:900px){'
       + '.hr-pet-chip .hpc-lv{display:none}.hr-pet-chip{padding:3px}}';
     document.head.appendChild(s);
   }

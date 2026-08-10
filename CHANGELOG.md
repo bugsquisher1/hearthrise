@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 310 — 2026-08-10 (Landscape phones keep the slick left rail)
+
+- 📱 **Reverted the layout swap for wide landscape phones.** b309 pushed them onto the phone bottom-nav layout, but the left-rail (scaled-desktop) layout is nicer on a landscape phone and is the intended one — so wide landscape phones now keep the **slick left rail**, and it scrolls so every section is reachable on shorter screens. *(Thanks paione — you were right, the rail is better.)*
+
 ## v0.9.2-beta build 309 — 2026-08-10 (Wide landscape phones get the mobile layout)
 
 - 📱 **Fixed the cramped/desktop-looking layout on wider landscape phones.** The mobile layout only kicked in up to 900px wide, but some phones are a bit wider than that in landscape (e.g. ~922px) — so they got the *desktop* layout squeezed onto a short screen, which looked crunched. The cutoff is now 1024px, so those phones get the proper mobile layout. Verified at the exact size that was breaking. *(Thanks paione — this was the Ulefone crunch.)*

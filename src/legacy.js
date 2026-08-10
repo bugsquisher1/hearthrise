@@ -14405,7 +14405,7 @@ console.log('[Bundle Icons v1] applied:',
       // hundreds of pixels down. Auto-scroll the detail into view on
       // narrow viewports so the click is acknowledged.
       try {
-        if (window.innerWidth <= 540 || (window.innerHeight <= 540 && window.innerWidth <= 1024)) {
+        if (window.innerWidth <= 540 || (window.innerHeight <= 540 && window.innerWidth <= 900)) {
           var d = document.getElementById('skill-detail');
           if (d && typeof d.scrollIntoView === 'function') {
             // rAF to let the renderSkillDetail innerHTML complete first.

@@ -407,7 +407,7 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
    The project's standard breakpoint (portrait phones AND landscape phones).
    One column, and the scene gets shorter because on a phone the card's job is
    the badge and the name, not the furniture. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   .hh-rooms { grid-template-columns: 1fr; gap: 8px; }
   .hh-room-art { aspect-ratio: 620 / 132; }
   .hh-room-txt { padding: 9px 11px 10px; }

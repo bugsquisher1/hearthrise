@@ -20,9 +20,9 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=309';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=309';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=309';
+import { SKILLS_DEF } from '../data/skills.js?v=308';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=308';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=308';
 
 function deriveClass() {
   const G = window.G;
@@ -576,7 +576,7 @@ function ensureCharStyle() {
       + 'color:var(--gold-2);border-color:var(--gold-2)}',
     // b230 mobile: the 3 top tabs were ~36px tall (under the 44px tap floor)
     // and the strip could not wrap. Taller padding + wrap so they never clip.
-    '@media (max-width:540px),(max-height:540px) and (max-width:1024px){'
+    '@media (max-width:540px),(max-height:540px) and (max-width:900px){'
       + R + '.char-subtabs{flex-wrap:wrap}'
       + R + '.char-subtab{padding:11px 16px}}',
     R + '.char-pane{min-width:0}',
@@ -599,7 +599,7 @@ function ensureCharStyle() {
     R + '.cs-cols .card{min-width:0}',
     R + '#char-skills #skills-list{max-height:calc(100vh - 320px);overflow-y:auto}',
     R + '#char-skills #skill-detail{display:flex;flex-direction:column;gap:10px;min-height:0}',
-    '@media (max-width:900px), (max-height:540px) and (max-width:1024px){' + R + '.cs-cols{grid-template-columns:1fr}'
+    '@media (max-width:900px){' + R + '.cs-cols{grid-template-columns:1fr}'
       + R + '.cs-idstrip{flex-wrap:wrap}}',
     // ── Skills OVERVIEW (b232): identity banner + dense skill grid + account ──
     R + '#char-skills{display:flex;flex-direction:column;gap:14px}',
@@ -670,7 +670,7 @@ function ensureCharStyle() {
     '#panel-skills.panel.active > .card{min-width:0}',
     '#panel-skills #skills-list{max-height:calc(100vh - 220px);overflow-y:auto}',
     // !important because the legacy rule it overrides is itself !important.
-    '@media (max-width:900px), (max-height:540px) and (max-width:1024px){#panel-skills.panel.active{grid-template-columns:1fr !important}}',
+    '@media (max-width:900px){#panel-skills.panel.active{grid-template-columns:1fr !important}}',
   ].join('\n');
   document.head.appendChild(s);
 }

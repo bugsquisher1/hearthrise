@@ -199,7 +199,7 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
  * panel keeps the padding audit-overrides gives it with `!important`, so the
  * bottom of the arena — the row the Eat button is now in — ran underneath the
  * nav bar. Give it the same clearance every other panel gets. */
-@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 900px) {
   #panel-combat.active { padding-bottom: calc(72px + var(--safe-b, 0px)) !important; }
 }
 
@@ -259,7 +259,7 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
  * undoing one — the desktop grid is told to stop applying where a desktop grid
  * cannot fit. The mobile query is the project's own (CLAUDE.md § Mobile rules),
  * copied exactly so this tracks the sub-tab bar it shares a layout with. */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+@media (max-width: 540px), (max-height: 540px) and (max-width: 900px) {
   #panel-combat.active,
   body.in-combat #panel-combat.active {
     display: block !important;

@@ -3754,9 +3754,13 @@ function renderLoadout(){
       }).join('')}
     </div>
     <div class="stat-grid">
-      <div class="stat"><b>+${s.atkB}</b><span>Atk</span></div>
-      <div class="stat"><b>+${s.strB}</b><span>Str</span></div>
-      <div class="stat"><b>+${s.defB}</b><span>Def</span></div>
+      ${/* b293 (Xarnathos: "+18.799999999999997 STR"). Bonuses are summed from
+            fractional sources (companion scaling, set/tier multipliers), so raw
+            floats leaked straight into the panel. Round for DISPLAY only — the
+            engine keeps full precision. */''}
+      <div class="stat"><b>+${fmtStat(s.atkB)}</b><span>Atk</span></div>
+      <div class="stat"><b>+${fmtStat(s.strB)}</b><span>Str</span></div>
+      <div class="stat"><b>+${fmtStat(s.defB)}</b><span>Def</span></div>
       <div class="stat"><b>+${Math.round(s.critB*100)}%</b><span>Crit</span></div>
       <div class="stat"><b>+${Math.round(s.xpB*100)}%</b><span>XP</span></div>
       <div class="stat"><b>+${Math.round(s.spdB*100)}%</b><span>Spd</span></div>
@@ -11015,7 +11019,25 @@ function renderInvFancy(){
       '<div class="invc-bag-col">'+
         '<div class="invc-grid">'+
           (visible.length === 0 ?
-            '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No items in this category</div>' :
+            /* b293 (Xarnathos: "when you get a recipe it is not listed in the
+               inventory under recipe"). Recipe scrolls are READ ON PICKUP — addItem
+               unlocks them into G.unlockedRecipes and deletes the item — so this tab
+               could never hold anything and read as a bug. Show the recipes you have
+               actually learned instead of a dead "no items" wall. */
+            (f.category === 'recipes'
+              ? (function(){
+                  var known = Object.keys((G && G.unlockedRecipes) || {}).filter(function(id){ return ITEMS[id]; });
+                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters and are learned the moment you pick them up.</div>';
+                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes are learned the moment you pick up the scroll, so they live here rather than in your bag — these are yours permanently.</div>'
+                    + known.map(function(id){
+                        var d = ITEMS[id];
+                        var makes = d.recipe && ITEMS[d.recipe] ? ITEMS[d.recipe].n : null;
+                        return '<div class="inv-slot" title="'+(d.n||id)+(makes?' — unlocks '+makes:'')+'">'
+                          + '<span class="inv-ic">'+((window._itemPath && window._itemPath[id]) ? '<img src="'+window._itemPath[id]+'" alt="">' : (d.icon||''))+'</span>'
+                          + '<span class="inv-nm">'+(makes || d.n || id)+'</span></div>';
+                      }).join('');
+                })()
+              : '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No items in this category</div>') :
             /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
                inventory rather than a handful of tiles above a black void.
                A uniform filled grid is what makes a bag scannable — you learn
@@ -11385,6 +11407,18 @@ setTimeout(wireDragDrop, 600);
 "use strict";
 
 function fmtSec(ms){return (ms/1000).toFixed(1)+'s';}
+/* b293 (Xarnathos: the loadout showed "+18.799999999999997 STR"). Gear bonuses
+   are summed from fractional sources (companion level scaling, tier/set
+   multipliers), so binary float drift printed in full wherever a raw value was
+   interpolated. ONE display formatter: whole numbers stay whole, genuine
+   fractions keep a single decimal, and 18.799999999999997 reads "18.8".
+   Display only — the engine keeps full precision. */
+function fmtStat(n){
+  n = Number(n) || 0;
+  var r = Math.round(n * 10) / 10;
+  return (Math.abs(r - Math.round(r)) < 1e-9) ? String(Math.round(r)) : r.toFixed(1);
+}
+window.fmtStat = fmtStat;
 function fmtQty(n){
   n = n || 0;
   if(n>=1000000) return (n/1000000).toFixed(1).replace('.0','')+'M';

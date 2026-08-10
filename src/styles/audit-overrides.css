@@ -3205,3 +3205,6 @@ body.in-combat #combat-area {
   .ss-row .ss-slider { margin-left: auto; }
   .ss-slider { min-width: 100%; }
 }
+
+/* b293: a learned recipe reads as an achievement, not a gap */
+.hr-cl-drop .hr-cl-learned { color: var(--role-success, #6fae7f); font-style: normal; font-weight: 600; }

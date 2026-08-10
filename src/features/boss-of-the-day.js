@@ -56,10 +56,14 @@
     return WEEKLY_POOL.filter(function (id) { return M[id]; });
   }
   // Deterministic UTC week number (days since epoch / 7) — same idea as utcDayKey.
+  /* b293: align the weekly boss to MONDAY UTC, matching the weekly quests (b291)
+     and the rest of the game's weekly language. Epoch day 0 is a THURSDAY, so the
+     bare floor(days/7) rotated the boss on Thursdays — a player whose quests reset
+     on Monday would reasonably expect the same boss week. +3 shifts it to Monday. */
   function weekKey() {
     var d = new Date();
     var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
-    return Math.floor(dayNum / 7);
+    return Math.floor((dayNum + 3) / 7);
   }
   function weeklyId(wk) {
     var we = WE(), p = weeklyPool();
@@ -70,7 +74,7 @@
   function msUntilWeeklyRotate() {
     var d = new Date();
     var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
-    var daysIntoWeek = dayNum % 7;
+    var daysIntoWeek = (dayNum + 3) % 7;      // b293: Monday-aligned, matches weekKey
     var nextWeekMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + (7 - daysIntoWeek), 0, 0, 0, 0);
     return Math.max(0, nextWeekMidnight - d.getTime());
   }

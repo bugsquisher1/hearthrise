@@ -123,7 +123,13 @@
       var it = (window.ITEMS || {})[d.id];
       var pct = (d.ch || 0) * 100;
       var found = window.G.collection && window.G.collection[d.id];
-      return '<div class="hr-cl-drop"><span>' + (it ? it.icon : '❔') + ' ' + (it ? it.n : d.id) + (found ? '' : ' <em>· not yet found</em>') + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';
+      /* b293 (Tyler/Xarnathos): a recipe scroll is READ ON PICKUP — it never sits in
+         the bag — so "not yet found" was the only signal and a learned recipe looked
+         identical to one you'd never seen. Say plainly that you already know it. */
+      var learned = !!(it && it.recipe && window.G.unlockedRecipes && window.G.unlockedRecipes[d.id]);
+      var mark = learned ? ' <em class="hr-cl-learned">· recipe learned</em>'
+                         : (found ? '' : ' <em>· not yet found</em>');
+      return '<div class="hr-cl-drop"><span>' + (it ? it.icon : '❔') + ' ' + (it ? it.n : d.id) + mark + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';
     }).join('') || '<div class="hr-cl-drop"><span>No drops</span></div>';
     return '<div class="hr-cl-detail">' +
       '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +

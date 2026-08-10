@@ -2398,6 +2398,53 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  () => tryRun('b289: CROSS-DEVICE ROUND TRIP — save on device A, restore on device B, nothing lost or re-granted', () => {
+    // The definitive test for paione's report. Simulates the actual journey:
+    // play on phone -> snapshot to cloud -> sign in on tablet (fresh G) -> restore
+    // via the REAL restore path (Object.assign, auth.js pullAndMaybeRestore) and
+    // assert (a) progress survived and (b) SPENT COOLDOWNS ARE STILL SPENT.
+    const ev = window.HearthriseEvents;
+    if (!ev || typeof ev.snapshot !== 'function') return;
+    const G = window.G;
+    const snapSaved = snapshotG();
+    try {
+      const DAY = 'test-day-key';
+      const t = Date.now();
+      // --- DEVICE A: a played account ---
+      G.bestiary = { slime: { kills: 42 } };
+      G.achievements = { first_kill: { unlocked: true } };
+      G.quests = [{ id: 'q1', progress: 7, done: false }];
+      G.daily = { lastReset: DAY, tasks: [{ id: 'd1', progress: 3 }] };
+      G.streak = { days: 5, lastClaimDayKey: DAY };      // daily reward ALREADY claimed
+      G.dungeons = { lastRun: { crypt_of_bones: t } };   // cooldown ALREADY spent
+      G.collection = { bones: 12 };
+      G.traits = { autoEat: true };                      // PURCHASED with gold
+      G.homestead = { tier: 4 };
+
+      const cloud = JSON.parse(JSON.stringify(ev.snapshot(G)));   // what reaches the server
+
+      // --- DEVICE B: a fresh install signs in ---
+      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'dungeons', 'collection', 'traits', 'homestead']
+        .forEach((k) => { delete G[k]; });
+      Object.assign(G, cloud);                            // the real restore path (auth.js)
+
+      // (a) progress survived
+      assert(G.bestiary && G.bestiary.slime.kills === 42, 'Bestiary must survive the restore');
+      assert(G.achievements && G.achievements.first_kill.unlocked, 'Achievements must survive');
+      assert(G.quests && G.quests[0].progress === 7, 'Quest progress must survive');
+      assert(G.collection && G.collection.bones === 12, 'Collection log must survive');
+      assert(G.traits && G.traits.autoEat === true, 'Purchased traits must survive (paid with gold)');
+      assert(G.homestead && G.homestead.tier === 4, 'Homestead/castle tier must survive');
+
+      // (b) THE EXPLOIT: spent cooldowns must still be spent on the new device
+      assert(G.dungeons && G.dungeons.lastRun.crypt_of_bones === t,
+        'dungeon cooldown must carry over — otherwise switching device resets it (free runs)');
+      assert(G.streak && G.streak.lastClaimDayKey === DAY,
+        'daily-reward claim must carry over — otherwise switching device re-grants it');
+      assert(G.daily && G.daily.lastReset === DAY, 'daily task state must carry over');
+    } finally { restoreG(snapSaved); }
+  }),
+
   () => tryRun('b288: the cloud snapshot carries progress AND cooldowns (paione: cross-device reset/exploit)', () => {
     // paione: "some stuff is not reloaded through the cloud — Bestiary,
     // Achievements, new quests and daily login bonus, Dungeon times are reset,

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=279' directly.
+// modularised, will import { G } from '../state/game.js?v=280' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=279';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=279';
+import { on, snapshot } from '../net/events.js?v=280';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=280';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=279';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=280';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2388,6 +2388,39 @@ const TESTS = [
       if (av) av.style.display = '';
       var pet = document.getElementById('arena-player-pet'); if (pet) pet.style.display = 'none';
     }
+  }),
+
+  () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
+    const I = window.ITEMS, M = window.MONSTERS, D = window.DUNGEONS, AR = window.ARTISAN_RECIPES;
+    if (!I || !M || !AR) return;
+    // Everything that drops from a monster or a dungeon.
+    const drops = new Set();
+    Object.values(M).forEach(m => (m.drops || []).forEach(d => drops.add(d.id)));
+    if (D) Object.values(D).forEach(d => (d.loot || []).forEach(l => drops.add(l.id)));
+    // Everything consumed as a recipe input.
+    const usedAsInput = new Set();
+    Object.values(AR).forEach(list => (list || []).forEach(r => {
+      const ins = r.inputs || (r.input ? { [r.input]: 1 } : {});
+      Object.keys(ins).forEach(k => usedAsInput.add(k));
+      if (r.secondary) Object.keys(r.secondary).forEach(k => usedAsInput.add(k));
+    }));
+    // A drop has a "use" if it is: a recipe input, equippable, consumable (heals/buff),
+    // buriable (bones), or a tagged currency/key/housing/cosmetic/castle good.
+    const hasUse = (id) => {
+      const it = I[id]; if (!it) return true; // unknown → not our concern here
+      if (usedAsInput.has(id)) return true;
+      if (['weapon', 'armor', 'jewelry', 'tool', 'ammo', 'companion'].includes(it.type)) return true;
+      if (it.heals || it.buff || it.buryXp) return true;
+      if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
+      if (it.unlocks || it.recipe || it.premium || it.musterOnly) return true;
+      return false;
+    };
+    // Known, intentional vendor-trash (sold for gold) — an EXPLICIT exemption so the
+    // guard is a tripwire for NEW dead-ends, not a demand to route every legacy drop.
+    const VENDOR_TRASH = window.__DROP_SINK_EXEMPT || [];
+    const orphans = [...drops].filter(id => I[id] && !hasUse(id) && !VENDOR_TRASH.includes(id));
+    assert(orphans.length === 0,
+      orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to __DROP_SINK_EXEMPT: ' + orphans.slice(0, 30).join(', '));
   }),
 
   () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {

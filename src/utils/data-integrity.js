@@ -14,11 +14,11 @@
 // to captureException so Sentry shows the divergence in production.
 //
 // Imported for side effects only:
-//   import './utils/data-integrity.js?v=279';
+//   import './utils/data-integrity.js?v=280';
 // ============================================================
 
-import { ITEMS as ESM_ITEMS } from '../data/items.js?v=279';
-import { MONSTERS as ESM_MONSTERS } from '../data/monsters.js?v=279';
+import { ITEMS as ESM_ITEMS } from '../data/items.js?v=280';
+import { MONSTERS as ESM_MONSTERS } from '../data/monsters.js?v=280';
 
 const RUN_DELAY_MS = 1500;        // wait for legacy.js to finish populating
 

@@ -122,6 +122,12 @@ function dropBand(ch){
   return 'common';
 }
 window.dropBand = dropBand; window.DROP_BAND_MAX = DROP_BAND_MAX;
+/* Wave 4b (audit — sink-side reachability): these four early drops have no craft
+   use ON PURPOSE — they are vendor-trash whose job is to sell for a little gold, a
+   deliberate early gold faucet (slime/rat/goblin tier). The smoke guard exempts
+   exactly this list so that any NEW dead-end drop fails the test. Route a drop into
+   a recipe or use rather than growing this list. */
+window.__DROP_SINK_EXEMPT = ['sticky_core', 'rat_tail', 'goblin_ear', 'goblin_totem'];
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
 /* b227: the combat HUD (src/features/combat-render.js) speaks the engine's

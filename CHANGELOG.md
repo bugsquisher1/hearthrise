@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 275 — 2026-08-09 (Progression rework, wave 6: the Weekly Boss)
+
+- ★ **New: a Weekly Boss.** Alongside the daily boss, a bigger apex boss is now featured each week — fighting it pays **double drops and +50% combat XP** all week. Its own card sits on the Combat screen with a loot preview and a 7-day countdown. A real "make sure you do this this week" reason to return.
+
 ## v0.9.2-beta build 274 — 2026-08-09 (Progression rework, wave 4 & 5: weapons with identity)
 
 - ⚔️ **Weapons now have a real identity.** Each family swings at its own speed: **warhammers hit hard but slow, bows are fast, swords are the steady baseline.** The Warhammer used to be strictly the best weapon in the game — now it's a genuine tradeoff (big burst vs. steady DPS), and the fight preview shows your real attack speed.

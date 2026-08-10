@@ -3527,6 +3527,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 /* ── Boss of the Day card (b254) — the featured solo boss surface. ──
    Token-only so it themes with everything else. Sits atop the Combat panel. */
 .hr-botd{border:1px solid var(--line);border-left:3px solid var(--gold-2);padding:10px 12px}
+/* Wave 6: the weekly boss reads as the bigger event — a gilt wash + heavier rule. */
+.hr-weekly{border-left-width:4px;background:linear-gradient(90deg,rgba(201,162,74,.10),transparent 60%)}
+.hr-weekly .botd-kicker{color:var(--gold-1,var(--gold-2))}
 .hr-botd .botd-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .hr-botd .botd-kicker{text-transform:uppercase;letter-spacing:.09em;font-size:calc(14.5px * var(--ui-scale,1));font-weight:700;color:var(--gold-2)}
 .hr-botd .botd-timer{font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}

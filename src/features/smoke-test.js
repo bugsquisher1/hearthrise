@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=274' directly.
+// modularised, will import { G } from '../state/game.js?v=275' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=274';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=274';
+import { on, snapshot } from '../net/events.js?v=275';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=275';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=274';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=275';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2295,6 +2295,18 @@ const TESTS = [
       assert(hammerMs > swordMs, 'a warhammer must swing slower than a sword (' + hammerMs + ' vs ' + swordMs + ')');
       assert(bowMs < swordMs, 'a bow must swing faster than a sword (' + bowMs + ' vs ' + swordMs + ')');
     } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
+    const B = window.HearthriseBossOfDay;
+    if (!B || typeof B.weeklyId !== 'function' || !window.MONSTERS) return;
+    const wid = B.weeklyId();
+    assert(wid && window.MONSTERS[wid], 'weeklyId must resolve to a real monster (' + wid + ')');
+    const wb = B.killBonuses(wid);
+    assert(wb.dropMult === B.WEEKLY_BONUS.dropMult && wb.dropMult > B.BONUS.dropMult,
+      'the weekly boss must pay the bigger weekly bonus (' + wb.dropMult + ' vs daily ' + B.BONUS.dropMult + ')');
+    const plain = Object.keys(window.MONSTERS).find(id => id !== wid && id !== B.featuredId());
+    if (plain) assert(B.killBonuses(plain).dropMult === 1, 'a non-featured kill must be 1x');
   }),
 
   () => tryRun('WAVE4: shared drop bands + gold_bar has a real sink', () => {

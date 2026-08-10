@@ -36,11 +36,43 @@
 
   var BONUS = { dropMult: 1.5, xpMult: 1.25 };  // while a monster is featured
 
+  /* Wave 6: the WEEKLY boss — a bigger, rarer event on a 7-day clock. Drawn from
+     the apex end of the roster so it always feels like the week's marquee fight,
+     and it pays double drops + 50% XP (vs the daily's +50%/+25%). "I need to make
+     sure I do this this week." */
+  var WEEKLY_POOL = [
+    'death_knight', 'archmage', 'war_king', 'ancient_bear', 'lich', 'dragon', 'void_parasite'
+  ];
+  var WEEKLY_BONUS = { dropMult: 2.0, xpMult: 1.5 };
+
   function WE() { return window.HearthriseWorldEvents; }
 
   function pool() {
     var M = window.MONSTERS || {};
     return POOL.filter(function (id) { return M[id]; });
+  }
+  function weeklyPool() {
+    var M = window.MONSTERS || {};
+    return WEEKLY_POOL.filter(function (id) { return M[id]; });
+  }
+  // Deterministic UTC week number (days since epoch / 7) — same idea as utcDayKey.
+  function weekKey() {
+    var d = new Date();
+    var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+    return Math.floor(dayNum / 7);
+  }
+  function weeklyId(wk) {
+    var we = WE(), p = weeklyPool();
+    if (!we || !p.length) return null;
+    return p[we._hash('hr-weekly-boss-' + (wk == null ? weekKey() : wk)) % p.length];
+  }
+  function isWeekly(id) { return !!id && id === weeklyId(); }
+  function msUntilWeeklyRotate() {
+    var d = new Date();
+    var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+    var daysIntoWeek = dayNum % 7;
+    var nextWeekMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + (7 - daysIntoWeek), 0, 0, 0, 0);
+    return Math.max(0, nextWeekMidnight - d.getTime());
   }
 
   // Deterministic daily pick — same hash/day-key machinery as the blessing.
@@ -53,8 +85,10 @@
 
   function isFeatured(id) { return !!id && id === featuredId(); }
 
-  // Read by killMonster — 1× multipliers when the kill isn't the featured boss.
+  // Read by killMonster — 1× multipliers when the kill isn't a featured boss.
+  // The WEEKLY boss (bigger bonus) takes precedence over the daily.
   function killBonuses(id) {
+    if (isWeekly(id)) return { dropMult: WEEKLY_BONUS.dropMult, xpMult: WEEKLY_BONUS.xpMult };
     return isFeatured(id)
       ? { dropMult: BONUS.dropMult, xpMult: BONUS.xpMult }
       : { dropMult: 1, xpMult: 1 };
@@ -166,6 +200,82 @@
       '<div class="botd-foot">' + btn + '</div>';
   }
 
+  function fmtWeekCountdown(ms) {
+    var d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+    return d + 'd ' + h + 'h ' + m + 'm';
+  }
+
+  // ── The weekly card (sits directly under the daily card) ──
+  function ensureWeeklyCard() {
+    var panel = document.getElementById('panel-combat');
+    if (!panel) return null;
+    var card = document.getElementById('hr-weekly-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'hr-weekly-card';
+      card.className = 'card hr-botd hr-weekly';
+    }
+    var daily = document.getElementById('hr-botd-card');
+    if (daily && daily.parentElement === panel) {
+      if (card.previousElementSibling !== daily) panel.insertBefore(card, daily.nextSibling);
+    } else if (card.parentElement !== panel) {
+      var picker = panel.querySelector('.combat-picker');
+      panel.insertBefore(card, picker || panel.firstChild);
+    }
+    return card;
+  }
+
+  function renderWeekly() {
+    var card = ensureWeeklyCard();
+    if (!card) return;
+    var M = window.MONSTERS || {};
+    var id = weeklyId();
+    var m = id && M[id];
+    if (!m) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    var req = (m.tier - 1) * 15;
+    var unlocked = combatLevel() >= req;
+    var fighting = window.G && window.G.activeMonster === id;
+    var lootHtml = notableDrops(m, 4).map(function (d) {
+      var it = (window.ITEMS || {})[d.id];
+      return '<span class="botd-drop"><b>' + esc(it && it.n ? it.n : d.id) + '</b><em>' + pct(d.ch) + '</em></span>';
+    }).join('') || '<span class="botd-drop muted">Gold &amp; common spoils</span>';
+    var weak = (window.WEAPON_TYPES && window.WEAPON_TYPES[m.weaponWeak]) || m.weaponWeak || '—';
+    var btn = fighting
+      ? '<button class="btn btn-sm" disabled>In the fight…</button>'
+      : unlocked
+        ? '<button class="btn btn-sm btn-primary" onclick="window.HearthriseBossOfDay.fightWeekly()">Fight ' + esc(m.name) + '</button>'
+        : '<button class="btn btn-sm" disabled>Unlocks at Combat Lv ' + req + '</button>';
+    card.innerHTML =
+      '<div class="botd-head">' +
+        '<span class="botd-kicker">★ Weekly Boss</span>' +
+        '<span class="botd-timer" id="hr-weekly-timer">resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()) + '</span>' +
+      '</div>' +
+      '<div class="botd-body">' +
+        '<span class="botd-icon">' + (m.icon || '') + '</span>' +
+        '<div class="botd-main">' +
+          '<div class="botd-name">' + esc(m.name) + '</div>' +
+          '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
+          '<div class="botd-bonus">+' + Math.round((WEEKLY_BONUS.dropMult - 1) * 100) + '% drops · +' +
+             Math.round((WEEKLY_BONUS.xpMult - 1) * 100) + '% combat XP this week</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="botd-loot"><span class="botd-loot-lab">Notable drops</span>' + lootHtml + '</div>' +
+      '<div class="botd-foot">' + btn + '</div>';
+  }
+
+  function fightWeekly() {
+    var id = weeklyId(); if (!id) return;
+    var m = (window.MONSTERS || {})[id]; if (!m) return;
+    if (combatLevel() < (m.tier - 1) * 15) {
+      if (window.notify) window.notify('You are not strong enough for ' + m.name + ' yet.', 'kill');
+      return;
+    }
+    if (typeof window.showTab === 'function') window.showTab('combat');
+    if (typeof window.selectTier === 'function') { try { window.selectTier(m.tier); } catch (e) {} }
+    if (typeof window.startCombat === 'function') window.startCombat(id);
+  }
+
   // Jump into the featured fight (level-gated at the button, re-checked here).
   function fight() {
     var id = featuredId();
@@ -184,18 +294,22 @@
 
   // Just update the countdown text cheaply each second; full re-render on the
   // slower tick (and whenever the card is missing / the day rolled over).
-  var lastDay = null;
+  var lastDay = null, lastWeek = null;
   function tick() {
     var we = WE();
     var today = we ? we.utcDayKey() : null;
+    var thisWeek = weekKey();
     var card = document.getElementById('hr-botd-card');
-    if (!card || today !== lastDay) { lastDay = today; render(); return; }
-    var timer = document.getElementById('hr-botd-timer');
-    if (timer) timer.textContent = 'new in ' + fmtCountdown(msUntilRotate());
+    if (!card || today !== lastDay) { lastDay = today; render(); }
+    else { var timer = document.getElementById('hr-botd-timer'); if (timer) timer.textContent = 'new in ' + fmtCountdown(msUntilRotate()); }
+    var wcard = document.getElementById('hr-weekly-card');
+    if (!wcard || thisWeek !== lastWeek) { lastWeek = thisWeek; renderWeekly(); }
+    else { var wtimer = document.getElementById('hr-weekly-timer'); if (wtimer) wtimer.textContent = 'resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()); }
   }
 
   function boot() {
     render();
+    renderWeekly();
     setInterval(tick, 1000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
@@ -203,11 +317,17 @@
 
   window.HearthriseBossOfDay = {
     POOL: POOL, BONUS: BONUS,
+    WEEKLY_POOL: WEEKLY_POOL, WEEKLY_BONUS: WEEKLY_BONUS,
     featuredId: featuredId,
     isFeatured: isFeatured,
+    weeklyId: weeklyId,
+    isWeekly: isWeekly,
     killBonuses: killBonuses,
     msUntilRotate: msUntilRotate,
+    msUntilWeeklyRotate: msUntilWeeklyRotate,
     render: render,
-    fight: fight
+    renderWeekly: renderWeekly,
+    fight: fight,
+    fightWeekly: fightWeekly
   };
 })();

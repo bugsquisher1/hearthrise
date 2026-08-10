@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=301';
+//   import { setupSync } from './net/sync.js?v=302';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=301';
+import { on, snapshot } from './events.js?v=302';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -32,9 +32,12 @@ let config = null;
 let buffer = [];
 let flushTimer = null;
 let concurrencyTimer = null;
+let claimTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
 let concurrentWarned = false;
+let paused = false;        // b302: set when this device is evicted — stops all cloud writes
+let evicted = false;       // b302: latch so we fire onEvicted once
 
 /**
  * b301 — a stable per-DEVICE id (not per-account). Persisted in localStorage so
@@ -136,6 +139,7 @@ async function fetchWithAuthRetry(url, initFn, label) {
 
 /** Flush buffered events to the configured endpoint. */
 async function flush() {
+  if (paused) return;                   // b302: evicted device stops all cloud writes
   if (!config?.endpoint) return;        // No endpoint configured — stay in offline mode
   if (buffer.length === 0) return;
   if (!navigator.onLine) return;        // Browser offline — keep buffered
@@ -272,6 +276,7 @@ export function derivedSnapshotFields(cfg, win) {
  * @returns {boolean} true if an upload was attempted and the server accepted it.
  */
 async function snapshotIfDue(force, keepalive) {
+  if (paused) return false;                 // b302: evicted device must not clobber the cloud
   if (!config?.snapshotEndpoint) return false;
   const now = Date.now();
   if (!force && now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return false;
@@ -422,6 +427,60 @@ export async function checkConcurrentDevice() {
   return out;
 }
 
+// ── b302: SINGLE ACTIVE DEVICE (session claim) ──────────────────────────────
+// "New device wins." claimSession() takes ownership (upsert); checkSessionClaim()
+// polls and, if another device now owns the account, evicts THIS device. The
+// cardinal rule: evict ONLY on a definitive "a different device owns this" row —
+// never on a network error, a missing table, or being signed out — or a flaky
+// connection would lock a player out of their own account.
+
+/** Claim the account's single active-session slot for THIS device. */
+export async function claimSession() {
+  if (!config?.claimEndpoint) return false;
+  const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+  if (!userId) return false;
+  const now = new Date().toISOString();
+  const body = { user_id: userId, device_id: getDeviceId(), claimed_at: now, heartbeat_at: now };
+  const res = await fetchWithAuthRetry(`${config.claimEndpoint}?on_conflict=user_id`, () => ({
+    method: 'POST',
+    headers: withAuthHeaders({ 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify(body),
+  }), 'claim');
+  if (res && res.ok) { evicted = false; }   // we are the owner now
+  return !!(res && res.ok);
+}
+
+/**
+ * Poll the claim. Returns {status}: 'owner' | 'evicted' | 'skip' | 'error'.
+ * Fires config.onEvicted ONCE when — and only when — a different device owns the
+ * account. Errors/absent rows/offline are non-events (never evict).
+ */
+export async function checkSessionClaim() {
+  if (paused) return { status: 'paused' };
+  if (!config?.claimEndpoint || !navigator.onLine) return { status: 'skip' };
+  const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+  if (!userId) return { status: 'skip' };
+  let res;
+  try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id`, { headers: withAuthHeaders({}) }); }
+  catch (e) { return { status: 'error' }; }              // network error → NEVER evict
+  if (!res.ok) return { status: 'error' };               // table missing / auth → NEVER evict
+  let rows; try { rows = await res.json(); } catch (e) { return { status: 'error' }; }
+  const owner = rows && rows[0] && rows[0].device_id;
+  if (owner && owner !== getDeviceId()) {                // definitive: someone else owns it
+    if (!evicted) { evicted = true; safeCall(config.onEvicted, { owner }); }
+    return { status: 'evicted', owner };
+  }
+  return { status: 'owner' };
+}
+
+/** Stop ALL cloud writes from this device (used when evicted). Idempotent. */
+export function pauseSync() {
+  paused = true;
+  if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+  if (concurrencyTimer) { clearInterval(concurrencyTimer); concurrencyTimer = null; }
+  if (claimTimer) { clearInterval(claimTimer); claimTimer = null; }
+}
+
 /** Setup. Pass config on first call; passing nothing keeps offline mode active. */
 export function setupSync(opts = {}) {
   config = { ...config, ...opts };
@@ -458,6 +517,18 @@ export function setupSync(opts = {}) {
     setTimeout(() => { checkConcurrentDevice(); }, 4000);
   }
 
+  // b302: single active device. Claim the account for THIS device on connect
+  // (new device wins), then poll for eviction. Inert until the session_claims
+  // table + claimEndpoint exist — claim/poll simply no-op or error out safely.
+  if (claimTimer) clearInterval(claimTimer);
+  if (config.claimEndpoint && !paused) {
+    setTimeout(() => { claimSession(); }, 1500);                       // take ownership
+    setTimeout(() => { checkSessionClaim(); }, 6000);                  // first eviction check
+    claimTimer = setInterval(() => { checkSessionClaim(); }, config.claimIntervalMs || 15000);
+    // Re-check the moment the tab regains focus, so a kicked device locks out on return.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSessionClaim(); });
+  }
+
   // And one immediate attempt
   setTimeout(flush, 1000);
 
@@ -470,10 +541,12 @@ export function setupSync(opts = {}) {
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
+  claimSession, checkSessionClaim, pauseSync,
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
   getLastCloudSaveAt: () => lastCloudSaveAt,
   getDeviceId,
+  isPaused: () => paused,
 };
 
 // Default: kick off in offline mode so the buffer + snapshot start populating

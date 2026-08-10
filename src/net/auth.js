@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=301';
+import { setupSync, pullLatest } from './sync.js?v=302';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -106,6 +106,7 @@ function enableLiveSync() {
   setupSync({
     endpoint: `${authConfig.url}/rest/v1/game_events`,
     snapshotEndpoint: `${authConfig.url}/rest/v1/game_saves`,
+    claimEndpoint: `${authConfig.url}/rest/v1/session_claims`,   // b302 single-active-device
     apiKey: authConfig.anonKey,
     authToken: () => session?.access_token,
     userId: () => session?.user?.id,
@@ -141,6 +142,10 @@ function enableLiveSync() {
         window.notify('⚠️ This account is being played on another device. Two at once can overwrite each other — close one to keep your progress safe.', 'kill');
       }
     },
+    // b302: this device LOST the single-active-session claim — the account was
+    // opened on another device (new device wins). Stop everything that could
+    // clobber the new device's save, and lock this one out with a clear notice.
+    onEvicted: () => { showEvictedGate(); },
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
@@ -373,6 +378,45 @@ function showAuthModal() {
   overlay.querySelector('[data-action="signin"]').onclick = (e) => { e.preventDefault(); attempt(signIn); };
   overlay.querySelector('[data-action="signup"]').onclick = (e) => { e.preventDefault(); attempt(signUp); };
   document.body.appendChild(overlay);
+}
+
+// b302: this device was kicked (account opened elsewhere). Stop everything that
+// could overwrite the new device's save, then show a blocking, self-contained
+// lock screen. Inline styles + max z-index on purpose — it must render even if
+// the game's own CSS is mid-teardown. "Use here instead" re-claims for this
+// device and reloads (which then evicts the other one on its next poll).
+function showEvictedGate() {
+  try { if (window.HearthriseSync && window.HearthriseSync.pauseSync) window.HearthriseSync.pauseSync(); } catch (e) {}
+  try { if (typeof window.stopCombat === 'function') window.stopCombat(); } catch (e) {}
+  try { if (typeof window.stopSkill === 'function') window.stopSkill(); } catch (e) {}
+  if (document.getElementById('hr-evicted-gate')) return;
+  const el = document.createElement('div');
+  el.id = 'hr-evicted-gate';
+  el.setAttribute('role', 'dialog');
+  el.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:2147483647',
+    'background:rgba(9,12,17,.94)', 'color:#f2e9d8',
+    'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
+    'text-align:center', 'padding:24px', 'box-sizing:border-box',
+    'font:400 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    'backdrop-filter:blur(3px)'
+  ].join(';');
+  el.innerHTML =
+    '<div style="max-width:460px">' +
+    '<div style="font-size:44px;margin-bottom:8px">🔒</div>' +
+    '<h2 style="font-family:Cinzel,serif;font-size:24px;margin:0 0 10px">Signed out here</h2>' +
+    '<p style="margin:0 0 6px">Your account was just opened on another device.</p>' +
+    '<p style="margin:0 0 20px;opacity:.8">Hearthrise runs on one device at a time, so this one has paused to keep your progress safe.</p>' +
+    '<button id="hr-evicted-usehere" style="font:600 16px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:10px;padding:14px 22px;cursor:pointer">Use this device instead</button>' +
+    '<div style="margin-top:14px;font-size:13px;opacity:.6">Tap above to move your session here (this will sign the other device out).</div>' +
+    '</div>';
+  (document.body || document.documentElement).appendChild(el);
+  const btn = el.querySelector('#hr-evicted-usehere');
+  if (btn) btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = 'Moving your session…';
+    try { if (window.HearthriseSync && window.HearthriseSync.claimSession) await window.HearthriseSync.claimSession(); } catch (e) {}
+    location.reload();
+  });
 }
 
 // Expose for legacy callers

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=301' directly.
+// modularised, will import { G } from '../state/game.js?v=302' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=301';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=301';
+import { on, snapshot } from '../net/events.js?v=302';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=302';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=301';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=302';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12362,6 +12362,22 @@ const TESTS = [
     assert(cp && typeof cp.then === 'function', 'checkConcurrentDevice must return a promise');
     cp.then(function(r){ assert(r && typeof r.concurrent === 'boolean', 'result has a boolean concurrent flag'); },
             function(){ /* offline in harness is fine */ });
+    // b302: single-active-device enforcement contract. The cardinal safety
+    // property — never evict on error/offline — is asserted here: with no
+    // claimEndpoint configured (harness), a poll must resolve to skip/error and
+    // must NOT pause sync.
+    assert(typeof S.claimSession === 'function', 'claimSession must be exposed');
+    assert(typeof S.checkSessionClaim === 'function', 'checkSessionClaim must be exposed');
+    assert(typeof S.pauseSync === 'function', 'pauseSync must be exposed');
+    assert(typeof S.isPaused === 'function', 'isPaused must be exposed');
+    assert(S.isPaused() === false, 'a fresh session must not be paused');
+    const sc = S.checkSessionClaim();
+    assert(sc && typeof sc.then === 'function', 'checkSessionClaim must return a promise');
+    sc.then(function(r){
+      assert(r && ['skip','error','owner','evicted','paused'].indexOf(r.status) !== -1, 'claim status must be known: ' + (r && r.status));
+      assert(r.status !== 'evicted', 'an unconfigured/offline poll must NEVER evict');
+      assert(S.isPaused() === false, 'a poll that could not confirm ownership must not pause sync');
+    }, function(){ /* offline in harness is fine */ });
   }),
 
   // b295: bug-report screenshots crashed with "unsupported color function

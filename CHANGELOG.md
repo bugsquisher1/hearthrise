@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 302 — 2026-08-10 (One device at a time)
+
+- 🔒 **Your account now runs on one device at a time.** Signing in on a new device moves your session there and signs the old one out with a clear "your account was opened on another device" screen — so two devices can never quietly overwrite each other's saves. The kicked device can tap "Use this device instead" to move the session back.
+- 🛡️ Built defensively: a flaky connection can *never* lock you out of your own account — a device only steps aside on a definite "someone else is here," never on a network error.
+
 ## v0.9.2-beta build 301 — 2026-08-10 (Two-device warning)
 
 - 📵 **The game now warns you if your account is being played on another device at the same time.** Playing in two places at once makes the two saves overwrite each other, so if we detect a second active device you'll get a heads-up to close one. Settings → Account → **Verify** also now tells you whether any other device is currently active on your account.

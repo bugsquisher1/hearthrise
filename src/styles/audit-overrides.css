@@ -73,6 +73,13 @@
   pointer-events: none;
   max-width: min(380px, calc(100vw - 24px));
 }
+/* b286 (player's-eye QA): on a landscape phone a 380px toast column is ~45% of the
+   screen width and sits on top of real content (the blessing toast was covering the
+   NOTABLE DROPS row on Combat). Short viewports get a narrower column so a transient
+   message never blankets the panel it is reporting on. */
+@media (max-height: 560px) {
+  #hr-toasts, .toast-col, #notifs { max-width: min(280px, calc(100vw - 24px)) !important; }
+}
 
 /* zone-popups: top-right vertical strip, slides in from right.
    Sits BELOW the topbar so it doesn't collide with the bell/gold/etc. */

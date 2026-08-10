@@ -116,7 +116,10 @@
   // Pure placement math (no DOM) so the landscape behaviour is unit-testable.
   // `obstacles` is an array of {left, right, top} rects in the column's band.
   function computeOffsets(vw, vh, obstacles) {
-    var colW  = Math.min(COL_W, vw - BASE_INSET * 2);
+    /* b286: match the narrower column the CSS uses on short (landscape) viewports —
+       a 380px column is ~45% of an 852px-wide phone and blankets the very panel the
+       toast is reporting on. Kept in step with the @media (max-height:560px) rule. */
+    var colW  = Math.min((vh <= 560 ? 280 : COL_W), vw - BASE_INSET * 2);
     var bandR = vw - BASE_INSET;
     var bandL = bandR - colW;
 

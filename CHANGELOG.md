@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 286 — 2026-08-10 (Notifications stop covering the screen)
+
+- 🔔 **Pop-up messages no longer blanket the panel on a phone.** In landscape the notification column was ~45% of the screen wide, so a toast (e.g. the daily blessing) sat on top of the content it was telling you about — it covered the drop list on the Combat screen. It's a narrower column on short screens now.
+
 ## v0.9.2-beta build 285 — 2026-08-10 (Bigger buttons, cleaner topbar)
 
 - 👆 **Buttons you tap constantly are bigger on phones.** The in-screen tabs (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip), the filter chips, the shop tabs and the inventory action row went from 32–35px up to 40px — noticeably easier to hit in landscape. The little "Bigger plot" shortcut on the Farm was a 20px target; it's a proper button now.

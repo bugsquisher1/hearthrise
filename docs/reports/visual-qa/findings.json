@@ -1,0 +1,494 @@
+[
+  {
+    "screen": "profile",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "16px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "16px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "12px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "12px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "12 controls <44px (min 18px)",
+        "el": "#panel-profile.panel"
+      }
+    ],
+    "stats": {
+      "els": 479,
+      "chars": 2455
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "character",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "7 controls <44px (min 29px)",
+        "el": "#panel-character.panel"
+      }
+    ],
+    "stats": {
+      "els": 368,
+      "chars": 387
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "combat",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "17 controls <44px (min 29px)",
+        "el": "#panel-combat.panel"
+      }
+    ],
+    "stats": {
+      "els": 432,
+      "chars": 1332
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "skills",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "5 controls <44px (min 29px)",
+        "el": "#panel-skills.panel"
+      }
+    ],
+    "stats": {
+      "els": 336,
+      "chars": 495
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "farming",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "13 controls <44px (min 21px)",
+        "el": "#panel-farming.panel"
+      }
+    ],
+    "stats": {
+      "els": 285,
+      "chars": 585
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "inventory",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "22 controls <44px (min 29px)",
+        "el": "#panel-inventory.panel"
+      }
+    ],
+    "stats": {
+      "els": 535,
+      "chars": 577
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "house",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "8 controls <44px (min 29px)",
+        "el": "#panel-house.panel"
+      }
+    ],
+    "stats": {
+      "els": 367,
+      "chars": 686
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "events",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "7 controls <44px (min 29px)",
+        "el": "#panel-events.panel"
+      },
+      {
+        "sev": "P1",
+        "kind": "emoji-as-art",
+        "detail": "33px \"⚔️\"",
+        "el": ".dgn-icon"
+      }
+    ],
+    "stats": {
+      "els": 420,
+      "chars": 2762
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "shops",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "20 controls <44px (min 29px)",
+        "el": "#panel-shop.panel"
+      }
+    ],
+    "stats": {
+      "els": 433,
+      "chars": 1442
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "clan",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "5 controls <44px (min 29px)",
+        "el": "#panel-clan.panel"
+      }
+    ],
+    "stats": {
+      "els": 174,
+      "chars": 194
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "social",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "10 controls <44px (min 29px)",
+        "el": "#panel-social.panel"
+      }
+    ],
+    "stats": {
+      "els": 214,
+      "chars": 391
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "bounty",
+    "vw": 1440,
+    "vh": 900,
+    "issues": [
+      {
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "13 controls <44px (min 29px)",
+        "el": "#panel-bounty.panel"
+      }
+    ],
+    "stats": {
+      "els": 347,
+      "chars": 751
+    },
+    "viewport": "desktop"
+  },
+  {
+    "screen": "profile",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "8px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "8px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "5px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "offscreen-x",
+        "detail": "5px past right",
+        "el": ".[object"
+      },
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "2 controls <44px (min 36px)",
+        "el": "#panel-profile.panel"
+      }
+    ],
+    "stats": {
+      "els": 381,
+      "chars": 2457
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "character",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "2 controls <44px (min 36px)",
+        "el": "#panel-character.panel"
+      }
+    ],
+    "stats": {
+      "els": 270,
+      "chars": 387
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "combat",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "14 controls <44px (min 32px)",
+        "el": "#panel-combat.panel"
+      }
+    ],
+    "stats": {
+      "els": 197,
+      "chars": 1332
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "skills",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "12 controls <44px (min 32px)",
+        "el": "#panel-skills.panel"
+      }
+    ],
+    "stats": {
+      "els": 257,
+      "chars": 495
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "farming",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "11 controls <44px (min 20px)",
+        "el": "#panel-farming.panel"
+      }
+    ],
+    "stats": {
+      "els": 187,
+      "chars": 585
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "inventory",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "16 controls <44px (min 34px)",
+        "el": "#panel-inventory.panel"
+      }
+    ],
+    "stats": {
+      "els": 370,
+      "chars": 577
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "house",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "6 controls <44px (min 35px)",
+        "el": "#panel-house.panel"
+      }
+    ],
+    "stats": {
+      "els": 269,
+      "chars": 686
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "events",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "5 controls <44px (min 36px)",
+        "el": "#panel-events.panel"
+      },
+      {
+        "sev": "P1",
+        "kind": "emoji-as-art",
+        "detail": "33px \"⚔️\"",
+        "el": ".dgn-icon"
+      }
+    ],
+    "stats": {
+      "els": 322,
+      "chars": 2762
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "shops",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "18 controls <44px (min 35px)",
+        "el": "#panel-shop.panel"
+      }
+    ],
+    "stats": {
+      "els": 335,
+      "chars": 1442
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "clan",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "3 controls <44px (min 36px)",
+        "el": "#panel-clan.panel"
+      }
+    ],
+    "stats": {
+      "els": 76,
+      "chars": 194
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "social",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "8 controls <44px (min 35px)",
+        "el": "#panel-social.panel"
+      }
+    ],
+    "stats": {
+      "els": 116,
+      "chars": 391
+    },
+    "viewport": "landscape"
+  },
+  {
+    "screen": "bounty",
+    "vw": 852,
+    "vh": 393,
+    "issues": [
+      {
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "11 controls <44px (min 36px)",
+        "el": "#panel-bounty.panel"
+      }
+    ],
+    "stats": {
+      "els": 249,
+      "chars": 723
+    },
+    "viewport": "landscape"
+  }
+]

@@ -20,9 +20,9 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=282';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=282';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=282';
+import { SKILLS_DEF } from '../data/skills.js?v=284';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=284';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=284';
 
 function deriveClass() {
   const G = window.G;
@@ -619,7 +619,11 @@ function ensureCharStyle() {
       + 'line-height:1;font-variant-numeric:tabular-nums}',
     R + '.csk-hero-total span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);'
       + 'text-transform:uppercase;letter-spacing:.06em;margin-top:4px}',
-    R + '.csk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}',
+    /* b284 (player's-eye QA): 150px tiles were too narrow for the longest skill
+       names — "Woodcutting" (79px) and "Bounty Hunter" (89px) ellipsis-truncated
+       even on a 1440px desktop, which reads as broken rather than dense. 178px
+       fits every name in SKILLS_DEF with the icon + level chip beside it. */
+    R + '.csk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}',
     R + '.csk-tile{position:relative;display:flex;align-items:center;gap:10px;padding:11px 12px 13px;'
       + 'background:var(--bg-card);border:1px solid var(--line);border-radius:9px;cursor:pointer;text-align:left;'
       + 'font-family:var(--f-ui);transition:border-color .12s,background .12s}',

@@ -62,3 +62,4 @@ build/
 # but ignore Office lock files)
 ~$*
 .claude/worktrees/
+docs/reports/visual-qa/*.png

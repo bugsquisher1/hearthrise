@@ -753,7 +753,11 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     top: 0 !important;
     bottom: 0 !important;
     right: auto !important;
-    width: calc(64px + var(--safe-l, 0px)) !important;
+    /* b284 (player's-eye QA): the rail was 64px with overflow-x:hidden, but
+       "CHARACTER" in Cinzel at the 14.5px type floor needs ~80px — so the label
+       was physically sliced mid-word ("HARACT"). One token now drives the rail
+       width and everything offset by it, so they can never drift apart. */
+    width: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
     height: 100vh !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
@@ -793,6 +797,18 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     font-weight: 600 !important;
     letter-spacing: .04em;
   }
+  /* b284 (player's-eye QA): the rail label was being sliced mid-word ("HARACT").
+     At the mandated 14.5px type floor "CHARACTER" measures ~99px, which cannot fit
+     a phone rail without stealing the width the panels need (widening it to 126px
+     made the Shop spill 21px past the edge — caught by the landscape guard). So the
+     phone rail is ICON-ONLY: the icon plus the active-state highlight carries it,
+     and the word stays available to screen readers via the button's aria-label.
+     No clipped text, no stolen width. */
+  .bn-btn > span:not(.ic), .bottom-nav button > span:not(.ic) {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  .bn-btn, .bottom-nav button { position: relative; }
   .bn-btn .ic, .bottom-nav button .ic {
     font-size:calc(19px * var(--ui-scale, 1)) !important;
     margin-bottom: 0 !important;
@@ -812,7 +828,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   /* Push the entire layout right so the rail doesn't overlap.
    * Apply to .app (the grid) — its children inherit the offset. */
   .app, #app {
-    padding-left: calc(64px + var(--safe-l, 0px)) !important;
+    padding-left: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
   }
   /* Topbar — slim strip, no extra padding-left because .app already padded */
   .topbar {
@@ -883,7 +899,7 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
    * full dock should respect the side-rail offset too. */
   #chat-dock.mini { display: none !important; }
   #chat-dock.full {
-    left: calc(64px + var(--safe-l, 0px)) !important;
+    left: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
     right: 0 !important;
     bottom: 0 !important;
     width: auto !important;

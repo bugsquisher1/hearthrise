@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 284 — 2026-08-09 (Nothing cut off)
+
+- 📱 **Fixed: the landscape nav labels were sliced in half.** On a landscape phone the side rail was showing "HARACT" instead of "CHARACTER" — the words physically couldn't fit the rail at our minimum readable text size. The rail is now clean icon-only (the icon plus the highlight tells you where you are), so nothing is chopped and the panels get their full width back.
+- 🧾 **Fixed: skill names were truncated on the Character screen** ("Woodcutting", "Bounty Hunter" cut short) even on a big desktop window. The skill tiles are now wide enough for every skill name.
+
 ## v0.9.2-beta build 282 — 2026-08-09 (Right armour, right icon)
 
 - 🛡️ **Fixed: leather and cloth armour was showing a plate-helm icon.** The new archetype gear was accidentally borrowing the heavy-plate art for its helmets (a mage's cloth hat drawn as an iron helm). Those pieces now show their own placeholder until their painted art ships — no more wrong-silhouette icons.

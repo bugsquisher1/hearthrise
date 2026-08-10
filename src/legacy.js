@@ -4722,9 +4722,20 @@ function renderShop(){
   /* b221: the scene and the offers are ONE object — the counter's top surface
      runs out of the picture and under the wares. Assign once; the old code
      wrote innerHTML twice, which re-parsed and re-laid-out the whole list. */
+  /* b311 (Tyler): vendor Buy-Back lives HERE, in the Local Shop where you sold
+     to the vendor — NOT as a button on every inventory item's detail (which is
+     where it used to appear the moment you sold anything). Only shown when there
+     is something to undo. */
+  const _buyback = (Array.isArray(G.buyback) && G.buyback.length)
+    ? `<div class="sc-sep">Vendor buy-back</div>`
+      + `<div class="shop-row"><div class="info"><b>Buy back sold items</b>`
+      + `<span>${G.buyback.length} recent sale${G.buyback.length>1?'s':''} you can undo</span></div>`
+      + `<button class="btn btn-sm btn-primary" onclick="openBuyback()">Buy Back…</button></div>`
+    : '';
   el.innerHTML=SHOP_SCENE
     +`<div class="sc-counter">${offers}`
     +`<div class="sc-sep">Under the counter</div>`+_traitRows
+    + _buyback
     +`</div>`;
 }
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
@@ -5628,7 +5639,8 @@ function openInvDetail(id){
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold">Lock</button>`);
     }
-    if(Array.isArray(G.buyback) && G.buyback.length) acts.push(`<button class="btn" onclick="openBuyback()">Buy Back…</button>`);
+    /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
+       no longer clutters every item's detail popup. */
     if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
   }
 
@@ -14405,7 +14417,7 @@ console.log('[Bundle Icons v1] applied:',
       // hundreds of pixels down. Auto-scroll the detail into view on
       // narrow viewports so the click is acknowledged.
       try {
-        if (window.innerWidth <= 540 || (window.innerHeight <= 540 && window.innerWidth <= 900)) {
+        if (window.innerWidth <= 540 || (window.innerHeight <= 540 && window.innerWidth <= 1024)) {
           var d = document.getElementById('skill-detail');
           if (d && typeof d.scrollIntoView === 'function') {
             // rAF to let the renderSkillDetail innerHTML complete first.

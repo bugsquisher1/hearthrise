@@ -696,7 +696,7 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── phone (<=900px): bottom nav, single column ─── */
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
   .main{grid-column:1}
@@ -1030,7 +1030,7 @@ img,svg{display:block;max-width:100%}
 .cbt-food-note{line-height:1.5;max-width:62ch}
 .inv-detail-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
 
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   #panel-inventory.active{display:block !important}
   #panel-inventory .card{margin-bottom:8px;max-height:none}
   .inv-doll{grid-template-columns:1fr 1fr 1fr}
@@ -1764,7 +1764,7 @@ body[data-theme="lane1"] .topbar .idle-hint{color:#fdde98 !important;text-shadow
   gap:16px;align-items:start;
 }
 .hmstead-col{display:flex;flex-direction:column;min-width:0}
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   .hmstead-grid{grid-template-columns:1fr;gap:10px}
 }
 
@@ -2836,13 +2836,13 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 
 /* Mobile: even bigger slots for touch */
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   .td-doll{grid-template-columns:130px 130px 130px;grid-template-rows:repeat(6,130px);gap:6px}
   .td-doll .td-slot{font-size:calc(33px * var(--ui-scale, 1))}
   .td-doll .td-slot small{font-size:calc(14.5px * var(--ui-scale, 1))}
 }
 /* Mobile: collapse to single column */
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   .invc-main{grid-template-columns:1fr}
   .invc-cat-strip{flex-direction:row}
   .invc-equip-col{order:-1}
@@ -3518,7 +3518,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .qm-info-text{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6}
 .qm-reset{margin-top:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-family:monospace;text-align:center;padding-top:10px;border-top:1px dashed var(--line)}
 
-@media (max-width:900px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px){
   .global-quests-strip{flex-wrap:wrap;gap:6px}
   .qm-body{grid-template-columns:1fr}
   .qm-aside{border-left:none;border-top:1px solid var(--line)}

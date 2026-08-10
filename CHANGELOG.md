@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 311 — 2026-08-10 (Wide landscape phones: fitted layout, kept)
+
+- 📱 **Wide landscape phones keep the fitted (non-crunched) layout** — the resolution fix from b309 is back in place after a brief revert. Your screen gets the layout sized for it, not the desktop layout squeezed onto a short screen.
+- 🛒 **"Buy Back" moved to the Local Shop.** Undoing a vendor sale now lives in the shop (where you sold the item), instead of appearing on every item's detail popup.
+
 ## v0.9.2-beta build 310 — 2026-08-10 (Landscape phones keep the slick left rail)
 
 - 📱 **Reverted the layout swap for wide landscape phones.** b309 pushed them onto the phone bottom-nav layout, but the left-rail (scaled-desktop) layout is nicer on a landscape phone and is the intended one — so wide landscape phones now keep the **slick left rail**, and it scrolls so every section is reachable on shorter screens. *(Thanks paione — you were right, the rail is better.)*

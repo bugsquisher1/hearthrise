@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 309 — 2026-08-10 (Wide landscape phones get the mobile layout)
+
+- 📱 **Fixed the cramped/desktop-looking layout on wider landscape phones.** The mobile layout only kicked in up to 900px wide, but some phones are a bit wider than that in landscape (e.g. ~922px) — so they got the *desktop* layout squeezed onto a short screen, which looked crunched. The cutoff is now 1024px, so those phones get the proper mobile layout. Verified at the exact size that was breaking. *(Thanks paione — this was the Ulefone crunch.)*
+- 🐛 **Bug reports now show correct data** (they were reporting all skills as 0 and empty inventory even for maxed accounts) — so we can actually trust them for diagnosing issues.
+
 ## v0.9.2-beta build 308 — 2026-08-10 (Better bug reports for display issues)
 
 - 🐛 **Bug reports now include your device's display details** (screen size, zoom, pixel ratio, text scale, desktop-site flag) — so when someone's layout looks cramped on one phone but fine on another, we can pinpoint the cause instantly instead of guessing.

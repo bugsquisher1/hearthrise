@@ -74,18 +74,30 @@ function installConsoleHook() {
 function gameStateSnapshot() {
   const G = window.G || {};
   // Keep this small + safe — no full save dump, no PII.
+  // b309: skills are stored as XP NUMBERS (not {level} objects), so the old
+  // `v.level` read reported every skill as 0 while totalLevel showed 483 — the
+  // report was self-contradicting garbage. Convert XP → level properly.
   const skills = G.skills || {};
+  const lvl = (typeof window.levelFromXp === 'function') ? window.levelFromXp : null;
   const skillLevels = Object.fromEntries(
-    Object.entries(skills).map(([k, v]) => [k, (v && v.level) || 0])
+    Object.entries(skills).map(([k, v]) => [k, lvl ? lvl(v || 0) : (typeof v === 'number' ? v : ((v && v.level) || 0))])
   );
+  // b309: inventory is an OBJECT {itemId: qty}, not an array — Array.isArray was
+  // always false so this always reported 0. And derive the real current activity
+  // + tab from the fields the engine actually uses.
+  const inv = G.inventory && typeof G.inventory === 'object' ? Object.keys(G.inventory).length : 0;
+  const activity = G.activeMonster ? ('combat:' + G.activeMonster)
+    : (G.activeSkill ? (G.activeSkill + (G.skillTargetId ? ':' + G.skillTargetId : '')) : null);
+  let tab = window.activeTab || G.activeTab || null;
+  if (!tab) { try { const p = document.querySelector('#app .panel.active, .panel.active'); tab = p ? p.id : null; } catch (e) {} }
   return {
     playerName: G.playerName || null,
-    activeTab: window.activeTab || G.activeTab || null,
-    totalLevel: G.totalLevel || 0,
+    activeTab: tab,
+    totalLevel: (typeof window.getTotalLevel === 'function') ? window.getTotalLevel() : (G.totalLevel || 0),
     gold: G.gold || 0,
-    activity: G.activity || G.currentActivity || null,
+    activity: activity,
     skillLevels,
-    inventoryCount: Array.isArray(G.inventory) ? G.inventory.length : 0,
+    inventoryCount: inv,
     sessionMin: G.sessionStart ? Math.round((Date.now() - G.sessionStart) / 60000) : null,
     online: navigator.onLine,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -572,6 +584,7 @@ window.HearthriseBugReport = {
   bridgeUrl: BRIDGE_URL,
   captureScreenshot,
   flushQueue,
+  _stateSnapshot: gameStateSnapshot,   // b309: exposed for the guard test
 };
 
 if (document.readyState === 'loading') {

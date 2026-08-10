@@ -1075,7 +1075,7 @@
       // spans into slivers on a phone. Wrap + full-width children stack them.
       '#hr-raid-card .hunt-you{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 10px;',
       '  border-top:1px solid var(--line-soft);margin-top:10px;padding-top:8px}',
-      '@media (max-width:540px),(max-height:540px) and (max-width:900px){',
+      '@media (max-width:540px),(max-height:540px) and (max-width:1024px){',
       '  #hr-raid-card .hunt-you>span{flex:1 1 100%;min-width:0}}'
     ].join('');
     (document.head || document.documentElement).appendChild(s);

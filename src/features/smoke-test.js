@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=308' directly.
+// modularised, will import { G } from '../state/game.js?v=309' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=308';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=308';
+import { on, snapshot } from '../net/events.js?v=309';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=309';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=308';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=309';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12234,6 +12234,27 @@ const TESTS = [
     const card = document.getElementById('hr-botd-card');
     assert(card && /Boss of the Day/.test(card.textContent), 'the featured-boss card must render in the combat panel');
     assert(card.querySelector('.botd-foot button'), 'the card must offer a fight/unlock button');
+  }),
+
+  // b309: the bug report used to misread the data shapes — skills reported as 0
+  // (read .level off an XP number) and inventory as 0 (Array.isArray on an
+  // object). That made every report self-contradicting ("Total 483, all skills
+  // 0"). Guard the real extraction against the actual G shapes.
+  () => tryRun('b309: bug-report state snapshot reads skills + inventory correctly', () => {
+    const B = window.HearthriseBugReport;
+    assert(B && typeof B._stateSnapshot === 'function', 'bug-report state snapshot must be exposed');
+    const G = window.G;
+    const save = { skills: G.skills, inventory: G.inventory };
+    try {
+      // Skills are XP NUMBERS; a level-99 XP must report a real level, not 0.
+      const xp99 = (window.XP_TABLE && window.XP_TABLE[98]) || 13034431;
+      G.skills = Object.assign({}, G.skills, { mining: xp99, fishing: 0 });
+      G.inventory = { bones: 3, coal: 10, iron_ore: 5 };
+      const s = B._stateSnapshot();
+      assert(s.skillLevels.mining >= 90, 'a maxed skill must report a high level, got ' + s.skillLevels.mining);
+      assert(s.skillLevels.fishing === 1 || s.skillLevels.fishing === 0, 'zero XP maps to level 1/0, got ' + s.skillLevels.fishing);
+      assert(s.inventoryCount === 3, 'inventory count must count object keys, got ' + s.inventoryCount);
+    } finally { G.skills = save.skills; G.inventory = save.inventory; }
   }),
 
   // b308: the bug report captures layout-diagnostic metrics (for "crunched UI on

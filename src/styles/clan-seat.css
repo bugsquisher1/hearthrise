@@ -658,7 +658,7 @@
 /* b230 mobile: landscape phones (short but wide) never hit max-width:640px, so
  * the room modal stayed a floating card on a phone held sideways. Add the
  * landscape phone query so it fullscreens there too. */
-@media (max-width: 640px), (max-height: 540px) and (max-width: 900px) {
+@media (max-width: 640px), (max-height: 540px) and (max-width: 1024px) {
   .hr-cs-hold { height: 168px; }
   .hr-cs-name { font-size: 19px; }
   .hr-room-scrim { padding: 0; align-items: stretch; }

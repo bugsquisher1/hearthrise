@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 301 — 2026-08-10 (Two-device warning)
+
+- 📵 **The game now warns you if your account is being played on another device at the same time.** Playing in two places at once makes the two saves overwrite each other, so if we detect a second active device you'll get a heads-up to close one. Settings → Account → **Verify** also now tells you whether any other device is currently active on your account.
+
 ## v0.9.2-beta build 300 — 2026-08-10 (Cloud save you can trust — part 2)
 
 - ☁️ **The cloud is now the single source of truth for your save.** On sign-in, whichever save is *newest* wins automatically (no more "which is bigger" guess, no prompt) — so a stale phone can't overwrite the progress you just made on your desktop, and vice-versa. Your local save is now purely a fast cache and offline-progress journal.

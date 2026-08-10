@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=300';
+//   import { setupSync } from './net/sync.js?v=301';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,17 +16,39 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=300';
+import { on, snapshot } from './events.js?v=301';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
+const DEVICE_KEY = 'hr:deviceId';
 const MAX_BUFFER = 500;
+// b301: how recently ANOTHER device must have written for us to call the account
+// "active elsewhere". Two devices both save on the ~60s cadence, so a 2.5-min
+// window reliably catches a genuinely concurrent session without false-positiving
+// on a device you closed a few minutes ago.
+const CONCURRENT_WINDOW_MS = 150000;
 
 let config = null;
 let buffer = [];
 let flushTimer = null;
+let concurrencyTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
+let concurrentWarned = false;
+
+/**
+ * b301 — a stable per-DEVICE id (not per-account). Persisted in localStorage so
+ * it survives reloads; a fresh install / cleared storage gets a new one. Stamped
+ * into every uploaded snapshot so any device can tell whether the last cloud
+ * write came from ITSELF or from another device signed into the same account.
+ */
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) { id = 'd-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36); localStorage.setItem(DEVICE_KEY, id); }
+    return id;
+  } catch (e) { return 'd-ephemeral'; }
+}
 
 /** Load the offline buffer (events captured while offline / pre-config). */
 function loadBuffer() {
@@ -260,6 +282,10 @@ async function snapshotIfDue(force, keepalive) {
   // bossKills). See derivedSnapshotFields for why each one has to be written
   // down rather than computed server-side.
   Object.assign(snap, derivedSnapshotFields(config, window));
+  // b301: stamp the writing device so any client can detect a concurrent session
+  // on the same account. `__`-prefixed so snapshot() never re-reads it off G and
+  // restore strips it before merge.
+  snap.__device = getDeviceId();
   // Always cache locally for offline-load
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
   if (!navigator.onLine) return false;
@@ -367,6 +393,35 @@ export async function verifyCloudSave() {
   }
 }
 
+/**
+ * b301 — CONCURRENT-DEVICE DETECTION. Pull the latest cloud save and see who
+ * wrote it and when. If the last writer was a DIFFERENT device within the recent
+ * window, the account is being played in two places at once — which, in a
+ * last-writer-wins model, silently clobbers whichever device saves second.
+ * We can only WARN (a web idle game can't force-log-out another tab), but a
+ * warning lets the player stop before they lose progress.
+ *
+ * Reuses game_saves (device id lives inside the snapshot JSON) — no schema change.
+ * Returns { concurrent, otherDevice, agoMs }.
+ */
+export async function checkConcurrentDevice() {
+  const out = { concurrent: false, otherDevice: null, agoMs: null };
+  if (!config?.snapshotEndpoint || !navigator.onLine) return out;
+  const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
+  if (!userId) return out;
+  const snap = await pullLatest();
+  if (!snap) return out;
+  const me = getDeviceId();
+  const other = snap.__device;
+  const at = Number(snap.__cloudSavedAt) || 0;
+  const ago = at ? (Date.now() - at) : Infinity;
+  if (other && other !== me && ago >= 0 && ago < CONCURRENT_WINDOW_MS) {
+    out.concurrent = true; out.otherDevice = other; out.agoMs = ago;
+    if (!concurrentWarned) { concurrentWarned = true; safeCall(config.onConcurrentDevice, out); }
+  }
+  return out;
+}
+
 /** Setup. Pass config on first call; passing nothing keeps offline mode active. */
 export function setupSync(opts = {}) {
   config = { ...config, ...opts };
@@ -394,6 +449,15 @@ export function setupSync(opts = {}) {
   });
   window.addEventListener('pagehide', () => { flush(); snapshotIfDue(true, true); });
 
+  // b301: poll for a concurrent session on its own slower cadence (a GET each
+  // time — kept off the 5s flush loop). One check shortly after connect catches
+  // the "already open elsewhere" case fast.
+  if (concurrencyTimer) clearInterval(concurrencyTimer);
+  if (config.snapshotEndpoint) {
+    concurrencyTimer = setInterval(() => { checkConcurrentDevice(); }, config.concurrencyIntervalMs || 45000);
+    setTimeout(() => { checkConcurrentDevice(); }, 4000);
+  }
+
   // And one immediate attempt
   setTimeout(flush, 1000);
 
@@ -405,10 +469,11 @@ export function setupSync(opts = {}) {
 // e.g. assert snapshotEndpoint targets game_saves, not game_snapshots.
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
-  derivedSnapshotFields, countBossKills, verifyCloudSave,
+  derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
   getLastCloudSaveAt: () => lastCloudSaveAt,
+  getDeviceId,
 };
 
 // Default: kick off in offline mode so the buffer + snapshot start populating

@@ -766,16 +766,26 @@
       var r = { ok:false, error:'Cloud sync is unavailable in this build.' };
       try { if(window.HearthriseSync && window.HearthriseSync.verifyCloudSave) r = await window.HearthriseSync.verifyCloudSave(); }
       catch(e){ r = { ok:false, error:(e && e.message) || String(e) }; }
+      // b301: also report whether the account is active on another device.
+      var devLine = '';
+      try {
+        if(window.HearthriseSync && window.HearthriseSync.checkConcurrentDevice){
+          var dev = await window.HearthriseSync.checkConcurrentDevice();
+          devLine = dev && dev.concurrent
+            ? '\n⚠️ This account is ALSO active on another device — close it to avoid save conflicts.'
+            : '\n✓ Only this device is active on your account.';
+        }
+      } catch(e){}
       verify.textContent = old; verify.disabled = false;
       if(!vout) return;
       if(r.ok){
-        vout.textContent = '✓ Cloud save verified — your progress uploaded and read back correctly.';
+        vout.textContent = '✓ Cloud save verified — your progress uploaded and read back correctly.' + devLine;
       } else {
         var lines = ['✗ ' + (r.error || 'Cloud save could not be verified.')];
         (r.checks || []).forEach(function(c){
           lines.push((c.match ? '✓ ' : '✗ ') + c.label + ': cloud ' + c.cloud + ' / local ' + c.local);
         });
-        vout.textContent = lines.join('\n');
+        vout.textContent = lines.join('\n') + devLine;
       }
     });
 

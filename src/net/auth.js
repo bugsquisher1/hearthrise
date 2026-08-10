@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=300';
+import { setupSync, pullLatest } from './sync.js?v=301';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -133,6 +133,14 @@ function enableLiveSync() {
       if (typeof window.notify === 'function') window.notify('✅ Back online — progress synced.', 'info');
       renderAuthUi();
     },
+    // b301: another device is signed into this account and actively saving. We
+    // can't force it out, but we warn — two devices at once clobber each other's
+    // saves (last writer wins). Fired once per session.
+    onConcurrentDevice: () => {
+      if (typeof window.notify === 'function') {
+        window.notify('⚠️ This account is being played on another device. Two at once can overwrite each other — close one to keep your progress safe.', 'kill');
+      }
+    },
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
@@ -221,7 +229,8 @@ async function pullAndMaybeRestore() {
     // activeSkill, lastSeen, offlineBudget…), those survive the overlay — the
     // cloud wins only for the SYNCED progress (skills/gold/items/quests/…).
     const cloudAt = d.cloudAt || Date.now();
-    delete snap.__cloudSavedAt;                       // never let our meta key land in G
+    delete snap.__cloudSavedAt;                       // never let our meta keys land in G
+    delete snap.__device;                             // (b301 concurrent-device marker)
     Object.assign(window.G, snap);
     // Reset the offline watermark to the cloud's save time so the returning-
     // player catch-up credits the gap since the account was LAST active anywhere,

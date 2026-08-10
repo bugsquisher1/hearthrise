@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=300' directly.
+// modularised, will import { G } from '../state/game.js?v=301' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=300';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=300';
+import { on, snapshot } from '../net/events.js?v=301';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=301';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=300';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=301';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12352,6 +12352,16 @@ const TESTS = [
       // When unconfigured/offline it must fail cleanly with a reason, never throw.
       assert(!r || typeof r === 'object', 'verify result must be an object');
     }, function(){ /* swallow: offline rejection is fine in the harness */ });
+    // b301: concurrent-device detection contract.
+    assert(typeof S.checkConcurrentDevice === 'function', 'checkConcurrentDevice must be exposed');
+    assert(typeof S.getDeviceId === 'function', 'getDeviceId must be exposed');
+    const dev = S.getDeviceId();
+    assert(typeof dev === 'string' && dev.length > 0, 'getDeviceId must return a stable non-empty id');
+    assert(S.getDeviceId() === dev, 'device id must be stable across calls');
+    const cp = S.checkConcurrentDevice();
+    assert(cp && typeof cp.then === 'function', 'checkConcurrentDevice must return a promise');
+    cp.then(function(r){ assert(r && typeof r.concurrent === 'boolean', 'result has a boolean concurrent flag'); },
+            function(){ /* offline in harness is fine */ });
   }),
 
   // b295: bug-report screenshots crashed with "unsupported color function

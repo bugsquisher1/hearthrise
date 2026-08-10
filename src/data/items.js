@@ -1,8 +1,8 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=273';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=273';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=273';
+import { GEAR_ITEMS } from './gear-tiers.js?v=274';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=274';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=274';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -71,6 +71,11 @@ export const ITEMS={
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01},
   copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1},
   hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2},
+  /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
+     with one necklace as its only sink. These give gold_bar real demand and flesh
+     out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
+  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',atkB:3,strB:3},
+  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:60,type:'ammo',slot:'ammo',atkB:2,critB:.01},

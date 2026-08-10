@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=273' directly.
+// modularised, will import { G } from '../state/game.js?v=274' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=273';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=273';
+import { on, snapshot } from '../net/events.js?v=274';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=274';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=273';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=274';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2278,6 +2278,38 @@ const TESTS = [
       // 10 base + floor(10 * 0.10) = 11 for a T5 (rune) tool
       assert(gained === 11, '10 actions with a 10% tool must yield 11 (got ' + gained + ')');
     } finally { G.inventory = snap.inv; G.skills = snap.skills; G.activeSkill = snap.as; G.skillTargetId = snap.tid; G._toolCarry = snap.carry; }
+  }),
+
+  () => tryRun('WAVE5: weapon family sets attack speed — warhammer slow, bow fast', () => {
+    const G = window.G;
+    if (typeof window.combatTickMs !== 'function' || !window.ITEMS) return;
+    if (!window.ITEMS.rune_sword || !window.ITEMS.rune_warhammer || !window.ITEMS.longbow) return;
+    const snap = { eq: JSON.parse(JSON.stringify(G.equipment || {})) };
+    try {
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'rune_sword' });
+      const swordMs = window.combatTickMs();
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'rune_warhammer' });
+      const hammerMs = window.combatTickMs();
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'longbow' });
+      const bowMs = window.combatTickMs();
+      assert(hammerMs > swordMs, 'a warhammer must swing slower than a sword (' + hammerMs + ' vs ' + swordMs + ')');
+      assert(bowMs < swordMs, 'a bow must swing faster than a sword (' + bowMs + ' vs ' + swordMs + ')');
+    } finally { G.equipment = snap.eq; }
+  }),
+
+  () => tryRun('WAVE4: shared drop bands + gold_bar has a real sink', () => {
+    if (typeof window.dropBand === 'function') {
+      assert(window.dropBand(1) === 'always', '100% → always');
+      assert(window.dropBand(0.03) === 'rare', '3% → rare');
+      assert(window.dropBand(0.10) === 'uncommon', '10% → uncommon');
+      assert(window.dropBand(0.5) === 'common', '50% → common');
+    }
+    const R = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.crafting;
+    if (R && window.ITEMS) {
+      const gr = R.find(r => r.output === 'gold_ring');
+      assert(gr && gr.inputs && gr.inputs.gold_bar, 'gold_ring recipe must consume gold_bar (the gold sink)');
+      assert(window.ITEMS.gold_ring && window.ITEMS.gold_ring.type === 'jewelry', 'gold_ring must be equippable jewelry');
+    }
   }),
 
   () => tryRun('b268: every solo dungeon has a named end-boss', () => {

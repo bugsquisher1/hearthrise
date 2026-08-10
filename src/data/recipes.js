@@ -13,9 +13,9 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=273';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=273';
-import { ITEMS, foodClassOf } from './items.js?v=273';
+import { GEAR_RECIPES } from './gear-tiers.js?v=274';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=274';
+import { ITEMS, foodClassOf } from './items.js?v=274';
 
 const BASE_RECIPES = {
   cooking: [
@@ -169,6 +169,9 @@ const BASE_RECIPES = {
     {id:'carve_maple_rod',    name:'Carve Maple Rod',    icon:'🎣', inputs:{willow_plank:2, silk_thread:2},  output:'maple_rod',    xp:340,  req:38, ms:3800},
     {id:'carve_yew_rod',      name:'Carve Yew Rod',      icon:'🎣', inputs:{maple_plank:2, silk_thread:3},   output:'yew_rod',      xp:750,  req:58, ms:4500},
     {id:'carve_runewood_rod', name:'Carve Runewood Rod', icon:'🎣', inputs:{yew_plank:3, silk_thread:4, magic_essence:2}, output:'runewood_rod', xp:1600, req:78, ms:5500},
+    /* Wave 4: gold jewelry — the real sink that gives Gold ore/bar a purpose. */
+    {id:'craft_gold_ring',   name:'Craft Gold Ring',   icon:'💍', inputs:{gold_bar:1},         output:'gold_ring',   xp:80,  req:25, ms:3000},
+    {id:'craft_gold_amulet', name:'Craft Gold Amulet', icon:'📿', inputs:{gold_bar:2, ruby:1}, output:'gold_amulet', xp:180, req:40, ms:3600},
     /* Wave 3: ARTISAN tools — sewing needles speed crafting + grant XP + double-craft. */
     {id:'craft_bone_needle',  name:'Carve Bone Needle',  icon:'🪡', inputs:{bones:3, silk_thread:1},      output:'bone_needle',  xp:45,   req:5,  ms:2600},
     {id:'craft_steel_needle', name:'Forge Steel Needle', icon:'🪡', inputs:{steel_bar:1, silk_thread:2}, output:'steel_needle', xp:330,  req:35, ms:3800},

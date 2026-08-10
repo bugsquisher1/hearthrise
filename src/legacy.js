@@ -99,6 +99,25 @@ const COMBAT_BALANCE={
   critMult:1.5,
   critCap:0.60
 };
+/* Wave 5 (audit fix): weapon-family SPEED identity. Before this, every melee
+   weapon swung at the same 2.4s and the Warhammer — carrying ~2× a sword's
+   strength with no downside — was strictly the best weapon in the game, so weapon
+   choice collapsed to "most strB wins". Now each family swings at its own pace:
+   the Warhammer hits hard but SLOW, the Bow is quick, swords are the baseline.
+   Multiplies the swing interval, so DPS trades off against per-hit burst (the
+   hammer's big hits favour crit / high-DEF targets). Tunable in one place. */
+const WEAPON_SPEED_MOD = { sword:1.0, hammer:1.35, ranged:0.88, magic:1.05, neutral:1.0 };
+/* Wave 4 (audit fix): ONE definition of what a drop's chance means, so "rare" is
+   the same number everywhere instead of a 0.05 magic constant copy-pasted across
+   the combat loop, the drop log and the loot preview. */
+const DROP_BAND_MAX = { rare:0.05, uncommon:0.15, common:1.0 };
+function dropBand(ch){
+  if(ch >= 1) return 'always';
+  if(ch <= DROP_BAND_MAX.rare) return 'rare';
+  if(ch <= DROP_BAND_MAX.uncommon) return 'uncommon';
+  return 'common';
+}
+window.dropBand = dropBand; window.DROP_BAND_MAX = DROP_BAND_MAX;
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
 /* b227: the combat HUD (src/features/combat-render.js) speaks the engine's
@@ -1103,7 +1122,7 @@ function processOfflineCombat(maxHrs){
         const chance = d.ch >= 1 ? d.ch : Math.min(.95, d.ch * dropMult);
         if(Math.random() < chance){
           addItem(d.id, 1);
-          if(d.ch <= 0.05){ G.stats.rareDrops = (G.stats.rareDrops||0) + 1; }
+          if(dropBand(d.ch)==='rare'){ G.stats.rareDrops = (G.stats.rareDrops||0) + 1; }  /* Wave 4: shared band */
         }
       });
       // Bounty Hunter offline progress
@@ -2600,8 +2619,11 @@ window.fightBountyTarget=function(mId){
    matters, and it scales as speed gear is added. Computed at fight start (and on
    resume); re-tap a foe to apply a fresh loadout. */
 function combatTickMs(){
-  const spd=Math.max(0,Math.min(0.20,(getEquipmentStats().spdB)||0));
-  return Math.max(600,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)));
+  const eq=getEquipmentStats();
+  const spd=Math.max(0,Math.min(0.20,(eq.spdB)||0));
+  /* Wave 5: apply the equipped weapon family's speed identity. */
+  const wmod=WEAPON_SPEED_MOD[eq.weaponType]||1;
+  return Math.max(600,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)*wmod));
 }
 window.combatTickMs=combatTickMs;
 function startCombat(mId){
@@ -2706,7 +2728,7 @@ function killMonster(m){
       addItem(d.id,1);
       _droppedThisKill[d.id] = (_droppedThisKill[d.id] || 0) + 1;
       const itemName=ITEMS[d.id]?.n||d.id;
-      const rare=d.ch<=0.05;
+      const rare=dropBand(d.ch)==='rare';
       if(rare){G.stats.rareDrops=(G.stats.rareDrops||0)+1;log.push(`<span class="rare">✨ RARE: ${itemName}</span>`);notify(`✨ Rare: ${itemName}!`,'levelup');}
       else log.push(`📦 ${itemName}`);
     }
@@ -6411,7 +6433,7 @@ function openMonsterDetail(monsterId){
   const lootHtml = drops.length ? drops.map(d=>{
     const it = ITEMS[d.id] || {n:d.id, icon:'❓'};
     const pct = (d.ch*100);
-    const rare = d.ch <= 0.05;
+    const rare = dropBand(d.ch)==='rare';
     const pctStr = pct >= 1 ? pct.toFixed(0)+'%' : pct.toFixed(2)+'%';
     return `<div class="mon-loot-row ${rare?'rare':''}">
       <span class="mli">${it.icon||'❓'}</span>
@@ -7089,7 +7111,7 @@ console.log('Activity bar: loaded');
     else {
       var pct = ch * 100;
       chanceStr = (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + '%';
-      band = ch <= 0.02 ? 'mp-rare' : (ch <= 0.15 ? 'mp-uncommon' : 'mp-common');
+      band = 'mp-' + ((typeof dropBand==='function') ? dropBand(ch) : (ch<=0.05?'rare':(ch<=0.15?'uncommon':'common')));  // Wave 4: shared bands
     }
     var qtyStr = (typeof d === 'object' && d.qty) ? (d.qty[0] === d.qty[1] ? d.qty[0] : d.qty.join('-')) + '× · ' : '';
     return '<div class="mp-loot-row">'+
@@ -7150,7 +7172,7 @@ console.log('Activity bar: loaded');
 
       <div class="mp-info-row">
         <div><span class="mp-info-label">Weakness</span><span class="mp-info-val">${weaknessLabel} ${weaknessTag}</span></div>
-        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((window.COMBAT_BALANCE && window.COMBAT_BALANCE.tickMs) || 2400)/1000}s</span></div>
+        <div><span class="mp-info-label">Attack speed</span><span class="mp-info-val">${((typeof combatTickMs==='function'?combatTickMs():((window.COMBAT_BALANCE&&window.COMBAT_BALANCE.tickMs)||2400))/1000).toFixed(2)}s</span></div>
       </div>
 
       <div class="mp-grid">

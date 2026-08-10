@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 274 — 2026-08-09 (Progression rework, wave 4 & 5: weapons with identity)
+
+- ⚔️ **Weapons now have a real identity.** Each family swings at its own speed: **warhammers hit hard but slow, bows are fast, swords are the steady baseline.** The Warhammer used to be strictly the best weapon in the game — now it's a genuine tradeoff (big burst vs. steady DPS), and the fight preview shows your real attack speed.
+- 💍 **Gold has a purpose.** Gold ore/bars were a near dead-end — now you can craft a **Gold Ring** and **Gold Amulet**, real equippable jewelry, giving that whole mining tier a reason to exist.
+- 🎯 Drop rarities read consistently everywhere now (one shared definition of common/uncommon/rare).
+
 ## v0.9.2-beta build 273 — 2026-08-09 (Progression rework, wave 3: tools that matter)
 
 - 🪓 **Your tools now do three things, not one.** Every gathering tool (axe/pickaxe/rod) grants **speed + bonus XP + a steady chance at double resources**, scaled by its tier — so a Rune Axe genuinely out-earns a Bronze one, and you can see the bonus on the tile.

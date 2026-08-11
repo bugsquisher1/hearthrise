@@ -525,7 +525,21 @@ begin
     --   it — zero rows matched, no error, and the trigger never fires. A probe
     --   that only catches 42501 would have called that a PASS while proving
     --   nothing, which is the always-null-probe shape exactly.
-    update public.market_sales set collected = false where id = v_sid;
+    -- CORRECTION (apply attempt 1 aborted here): the comment above is true as
+    -- `authenticated`, and false as the role a migration actually runs as.
+    -- Measured: the apply role is `postgres`, `rolbypassrls = true`, and
+    -- `market_sales.relforcerowsecurity = false` — so RLS is NOT applied during
+    -- apply. The row is therefore visible, the trigger fires, and an uncaught
+    -- 42501 aborted the whole migration. Proven mechanically on a throwaway
+    -- table: as-owner 42501 / as-authenticated no-error, `collected` staying
+    -- true in both. The security property is correct and stronger than the test
+    -- expected; the DEFECT WAS IN THE TEST. Failing closed here was the system
+    -- working. Catch the owner-path raise, then assert the VALUE either way —
+    -- which is what the ⚠ note above was actually asking for.
+    begin
+      update public.market_sales set collected = false where id = v_sid;
+    exception when sqlstate '42501' then null;  -- owner path: RLS bypassed, the trigger is the lock
+    end;
     if not (select collected from public.market_sales where id = v_sid) then
       raise exception 'A8: `collected` was flipped BACK to false — a sale can be collected twice';
     end if;

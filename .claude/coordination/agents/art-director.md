@@ -9,6 +9,117 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-11 · b327 — the bag on a 423px-tall screen (paione bug #24, LIVE)
+
+**The report, and it was literally true.** "inventory screen is like overlapping, can't see my
+inventory... the words are too big and only have like a 5mm viewing window." Android landscape,
+**922x423**. Reproduced at exactly that viewport before touching anything: `.invc-bag-col` **h=20px**
+— one clipped row of tiles — with the HERO stat card at 298..411 over a bag whose visible box was
+283..303. A real rectangle intersection, not a perceived one.
+
+**922 > 900, so this device is CORRECTLY in the scaled-desktop rail layout (b310).** The premise the
+brief handed me was right and worth restating: the layout choice is not the bug; the bug is that the
+rail layout **had never been given a short-viewport treatment**. Four independent things ate the 423px:
+
+1. **A phantom bottom-nav reserve, 68px — 16% of the screen.** `theme-cozy.css`'s mobile block sets
+   `padding-bottom: calc(60px + safe-b + 8px) !important` on `.main, #app .main, .panel.active`.
+   **b317 reclaimed it on `.panel.active` and `#panel-combat.active` and missed `.main`** — so the
+   panel could never be taller than 287px of the 423, no matter what I did inside it. My own previous
+   pass left this; finding your own miss is the cheapest 68px in the game.
+2. **Four full-width chrome bands before the first item** — sub-tabs 47 + slots/actions 54 + search 40
+   + category chips 36 + gaps = ~211 of the 287 that remained.
+3. **The Bag/Equip/Saved buttons stacked an icon ABOVE the label — and the icon line was EMPTY.** The
+   strip shipped literal 🎒/🛡️/⭐, and `icon-set.js`'s `stripChromeEmoji` sweep (which lists `.imt-btn`)
+   had been deleting them at runtime for months. So 47px of height bought one word in a 14.5px face.
+   The 0-emoji rule was being *enforced* by a sweep that left a hole where the icon should be.
+4. **The overlap is a MISSED SELECTOR, not a stacking bug.** b111's `[data-mobile-sub="bag"]` rule
+   hides `.invc-equip-col`. `.invc-stats-col` (Hero / Weapon Styles / Bonuses) was added to the
+   renderer **later** and was never added to that rule — so in BAG mode the right-hand region still
+   laid itself out, as the second row of a one-column grid whose single row track was already
+   overfull, and painted across the bag. **Fix hides the REGION (`.invc-right`), not one of its
+   children**, so the next column added there cannot repeat this. That is the whole lesson.
+
+**The two hours I lost, and the discovery that came out of it.** My panel-level grid "worked" but
+`grid-column: 1 / -1` laid out at the width of column 1, and in equip/loadouts mode the 30px sub-tab
+strip measured **106px**. Cause: `legacy.css`'s mobile `.panel.active` declares
+`grid-template-columns: 1fr !important; grid-template-rows: auto !important`. One explicit track per
+axis means (a) `-1` resolves to line 2, so "span everything" spans one column, and (b) everything you
+place lands in **implicit** rows, which `align-content: stretch` then splits **evenly**. Neither errors;
+`getComputedStyle` faithfully reports the implicit tracks, so the source looks correct and the pixels
+are wrong. **Any track list you author on `.panel.active` inside a mobile media query must be
+`!important`.** Filed in DISCOVERIES — this will bite the next screen.
+
+**What shipped** (one documented block, `art-direction.css` §15b, keyed on `max-height`, so it reaches
+any short screen regardless of width; geometry and tokens only, zero new colour):
+`.main` reserve reclaimed (landscape-rail only — portrait's bottom nav is real); the panel becomes a
+3-row grid so **the slot counter+actions and the search+Reset share one line**; the sub-tab icon moves
+BESIDE its label (47 -> 30px) — **height bought by re-flowing the button, not by shrinking the words,
+every label still on the 14.5 floor**; chrome type down from 16/17 to the floor and boxes to 34px
+(34 not b285's 40: on a 423px screen the header is not where the thumb lives, and the tiles stay at
+58-64px); category chips one non-wrapping 30px rank; and **the bag is the scroller with a 132px
+min-height floor** — if chrome ever grows again the PANEL runs out of room first, which is a visible
+bug instead of a silent 20px slit.
+
+**Measured, 922x423:** bag **20 -> 222px**, **39 item tiles fully visible** (was ~9, all clipped
+mid-icon), HERO 113px-and-drawn -> 0x0, panel 287 -> 347, no horizontal overflow, 0 clipped strings,
+every visible string 15px.
+
+**Two adjacent defects I found by walking the other two tabs, and fixed rather than filed.**
+- **EQUIP had the same disease worse: ZERO gear slots visible.** b216's doll is a 4-wide grid of
+  SQUARE cells, so across an 842px column each cell became 200px and four rows measured 544px inside
+  a 256px scroller. On a short-but-WIDE screen the answer is to spend the axis you have: doll and stat
+  sheet side by side, doll capped so its squares stay ~48px. **0 -> 14 of 14 gear slots above the
+  fold, column scrollHeight == clientHeight.** (The doll also declares SIX row tracks for a layout
+  that uses four — two empty 90px rows ship on every screen. Overridden here, handed to Systems.)
+- **SAVED rendered an empty column.** b111 hides `.invc-equip-col` in loadouts mode and the loadout
+  picker lives *inside* it. Show the column, drop the doll.
+
+**A live bug found on the way.** `renderInvFancy()` does `panel.innerHTML = …` on every combat/skill
+tick, which **deletes the Bag/Equip/Saved strip** — the screen's primary navigation — and the only
+thing restoring it was a `setInterval(…, 1500)`. The b230 `market.js` finding, verbatim, in another
+file. MutationObserver now restores it within one microtask (verified: `syncAfterRender:false,
+afterMicrotask:true`); `window.HearthriseInvSubTabs = {install, paintIcons, subs}` is published so a
+caller — or a test — can do it synchronously. The structural fix (own a container, don't rebuild the
+panel) is Systems' and is in HANDOFFS.
+
+**The guard, and the rig behind it — `b327`, worth reusing.** The suite runs at desktop size, so to
+measure 922x423 I build a **922x423 iframe**, inline the four inventory stylesheets' `cssText` and the
+REAL rendered panel markup, and `document.write` + `close()`. Media queries inside an iframe evaluate
+against the iframe's viewport and inline `<style>` parses **synchronously**, so it is a true
+device-geometry measurement with no `await` — which is what `tryRun` requires. It reproduced the live
+numbers to the pixel (panel h287 broken / h347 fixed). Asserts: `.main` doesn't reserve a nav that
+isn't there · BAG mode hides the whole `.invc-right` REGION · the HERO card shares **no pixel** with
+the bag (rectangle intersection, not `top >= bottom` — "beside" is also a correct answer) · bag ≥140px
+and >50% of the panel · the BAG is the scroller and the panel is not · strip ≤44px with ≥3 atlas
+glyphs and no emoji. Guarded against vacuity with `sheetsSeen >= 4` + a CSS-length floor.
+**Proved red three ways**, each by re-introducing the exact historical bug: media block neutralised
+(bag 257 -> 26px), b111's `.invc-equip-col`-only rule restored (names itself: "found display:flex"),
+`.main` reserve restored (68px). Smoke **577 -> 578/578, 0 runtime errors**; `bump-version.sh --check`
+OK; **no version bump** — the Coordinator integrates.
+
+**Verified in-browser** at 922x423 (the reported device), 852x339 (Tyler's iPhone landscape — bag
+138px, 22 tiles, equip 12/14 slots, no overflow), 1280x800 desktop (**byte-identical to the pre-pass
+baseline**: panel 91..800 h709, bag 542, tile 74, cat chip 36, doll 544, slot 75, hero 844..958, 0
+clipped, 0 overflow) and 375x812 portrait (unchanged by design — the bottom nav is real there, so the
+reserve stays; the only change that reaches it is the emoji -> glyph swap: 3 glyphs, 0 emoji).
+Console: only Supabase 401s from the unauthenticated local session, no layout or JS errors.
+
+**Known limitations — be honest.**
+- **No screenshots.** The Browser pane in this session never composited (`screenshot failed: the
+  Browser pane is not displayed`), at every viewport, before and after. Everything above is
+  `getBoundingClientRect` / `getComputedStyle` measurement and a sorted visible-text ladder, not a
+  picture. Someone with a working pane should eyeball it once.
+- In **portrait** BAG mode the stats column still renders below the bag. It stacks (the panel scrolls
+  there), so there is no overlap and no reported symptom — but it is the same missed selector, left
+  alone deliberately because portrait is a gated form factor and I did not want the risk.
+- At **852x339** the equip column still needs a ~50px scroll for the last gear row. 423px is fine.
+- The cozy-light copy of the sub-tab strip's colours is still hardcoded in `theme-cozy.css`
+  (pre-existing; I changed geometry there, not colour). cozy-light remains unreachable through the UI,
+  so none of this is visually confirmed in that theme — all new rules are token-only and
+  theme-agnostic under `body[data-theme]`.
+- `.invc-topbar`'s copy now reads "133,682 items · 71,416,410 gp" — the slot count the bug report
+  quoted ("53/100 SLOTS") is gone from this build. Not mine, not touched.
+
 ### 2026-08-11 · b326 — the away-honesty surfaces (the game finally says what it paid you)
 
 **The brief.** b325's engine returns `{blessed:false, buffsPaused, crits, featuredMs, capped, rateMult, combat:{segments[]}}`; nobody had written the UI. The Designer ruled the surfaces are part of the ruling, not a follow-up — *the silent penalty was the actual sin*.

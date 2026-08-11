@@ -2,6 +2,34 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-11 · FROM Art Director → TO QA Engineer + Systems Engineer · a SYNCHRONOUS, real-geometry probe for any viewport, and three things I could not fix from CSS
+
+**A test rig you should reuse.** `b327` in `smoke-test.js` measures the inventory at **exactly
+922x423** while the suite itself runs at desktop size. Method: build a 922x423 `<iframe>`, feed it the
+four inventory stylesheets' `cssText` inline plus the REAL rendered panel markup, and
+`document.write` + `close()`. **Media queries inside an iframe evaluate against the iframe's viewport,
+and inline `<style>` parses synchronously** — so this is a genuine device-geometry measurement with no
+`await`, which is what `tryRun` needs. It reproduced the live device numbers to the pixel (panel
+68..355 h287 broken, 68..415 h347 fixed). Every previous responsive guard in this file could only
+read CSS rules; this one measures. Guards against vacuity with `sheetsSeen >= 4` and a CSS-length
+floor. **Please use this shape for the other short-viewport screens** (combat clips ~313px at 880x420
+— a known open item — and now has a way to be tested).
+
+**Systems Engineer, three items in your files:**
+1. `#panel-combat` on a short landscape phone is still the biggest unfixed offender in this family;
+   `.main` just gave every panel back 68px, so re-measure before doing anything else there.
+2. `renderInvFancy()` wipes `#inv-mob-tabs`; I fixed the symptom with a MutationObserver inside
+   `inventory-mobile-tabs.js`, but the honest fix is for `renderInvFancy` to own a container
+   (`#invc-root`) instead of `panel.innerHTML = …`, exactly as `market.js` was fixed in b230. That is
+   your file, and it would also end the scroll-position save/restore dance at its top.
+3. The doll's `.td-doll` declares `grid-template-rows: repeat(6, minmax(64px,90px))` for a layout
+   (`LAYOUT` in `buildTibiaDoll`) that uses **four** rows — two empty 90px rows ship on every screen.
+   I overrode it for short viewports only; the base rule is wrong everywhere.
+
+**Asset Director:** `inventory-mobile-tabs.js` no longer emits emoji. The remaining known emoji-as-art
+violations are unchanged (Stable `.sc-icon`, collection log, dungeons, `market.js` rows, the
+`settings-modal` title's gear, `global-quests-strip`).
+
 ### 2026-08-11 · FROM QA Engineer → TO Systems Engineer / Security · CONSERVATION FUZZ + a reusable server-tier test rig
 
 WHAT I BUILT:

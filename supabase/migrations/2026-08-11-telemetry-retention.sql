@@ -43,9 +43,19 @@
 --   schedule). No player data outside public.game_events is touched, and
 --   game_events is pure telemetry — nothing reads it for gameplay. Every cron
 --   block is exception-wrapped so a project without pg_cron still applies.
+--
+-- ⚠ NO TOP-LEVEL `begin;` / `commit;`. (Review S5.) This file used to open and
+--   close a transaction itself, which meant NO transactional applier could run
+--   it at all: Supabase MCP apply_migration, `supabase db push`, psql -1 and
+--   every migration runner already wrap the file, and a nested `begin` is
+--   either an error or a silent no-op followed by a `commit` that ends the
+--   OUTER transaction early — the worst of the three outcomes, because the
+--   remainder of the file then runs unprotected. Net effect: the retention fix
+--   sat undeployed while reading as shipped. A migration must be a sequence of
+--   statements and let its runner own the transaction. Anything that genuinely
+--   needs atomicity goes in a `do $$ … $$` block, which is one statement.
+--   tests/run-sql-tests.mjs lints for this.
 -- ============================================================================
-
-begin;
 
 -- ── 1. Maintenance bookkeeping ─────────────────────────────────────────────
 -- A job that runs 100 times and reports nothing is indistinguishable from a job
@@ -283,5 +293,3 @@ begin
   raise notice 'self-check ok: retention pass deleted % row(s)', v_deleted;
   perform public.hr_cron_health();
 end $$;
-
-commit;

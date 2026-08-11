@@ -605,8 +605,14 @@ create table if not exists public.hr_rejections (
 create index if not exists hr_rejections_incident_idx
   on public.hr_rejections (last_at desc) where severity = 'incident';
 
+-- Revision 3 shipped this without p_count. Adding a parameter WITH a default
+-- creates a second, overlapping signature rather than replacing the first, and
+-- a 5-argument call would then be ambiguous — so the old one must go first.
+drop function if exists public.hr_record_rejection(uuid, int, text, text, jsonb);
+
 create or replace function public.hr_record_rejection(
-  p_user uuid, p_slot int, p_intent text, p_code text, p_detail jsonb default '{}'::jsonb)
+  p_user uuid, p_slot int, p_intent text, p_code text, p_detail jsonb default '{}'::jsonb,
+  p_count bigint default 1)
 returns void language plpgsql security definer set search_path = public as $$
 declare
   -- A rejection is an INCIDENT when it means a caller proposed something an
@@ -628,31 +634,44 @@ declare
   -- automation signal the server produces, so it escalates on the DAILY
   -- counter this table already keeps: past the threshold the same row is
   -- promoted to 'incident' in place. One row per player per day either way.
-  c_escalating constant text[] := array['rate_limited'];
+  --
+  -- `own_listing` joins the list (review S9). Buying your own listing once is a
+  -- misclick; doing it over and over is the wash-trading signature — the shape
+  -- of someone probing for a way to launder gold between two accounts they
+  -- control, or testing whether the self-trade guard can be raced. It was
+  -- returning silently, so it left no trace at all.
+  c_escalating constant text[] := array['rate_limited','own_listing'];
   c_escalate_at constant bigint := 50;
 begin
   if p_user is null or p_code is null then return; end if;
+  -- p_count is the number of real occurrences this call REPRESENTS. It is 1 for
+  -- everything except a sampled rate-limit record, where the caller passes the
+  -- gap since the previous sample so that `n` — and therefore the escalation
+  -- threshold above — keeps counting actual events rather than samples. See
+  -- hr_rate_sample_weight() in §6c. (Review S6.)
   insert into public.hr_rejections as r
     (user_id, slot, day, code, severity, intent, n, last_detail)
   values (p_user, coalesce(p_slot, 0), current_date, p_code,
           case when p_code = any (c_incident) then 'incident' else 'normal' end,
-          left(coalesce(p_intent, ''), 64), 1,
+          left(coalesce(p_intent, ''), 64), greatest(1, coalesce(p_count, 1)),
           coalesce(p_detail, '{}'::jsonb))
   on conflict (user_id, slot, day, code) do update
-    set n = r.n + 1, last_at = now(), last_detail = excluded.last_detail,
+    set n = r.n + greatest(1, coalesce(p_count, 1)),
+        last_at = now(), last_detail = excluded.last_detail,
         intent = excluded.intent,
         -- Severity only ever ratchets UP, and only for a code that is on the
         -- escalating list. It is never downgraded by a later hit.
         severity = case
           when r.severity = 'incident' then 'incident'
-          when p_code = any (c_escalating) and r.n + 1 >= c_escalate_at then 'incident'
+          when p_code = any (c_escalating)
+               and r.n + greatest(1, coalesce(p_count, 1)) >= c_escalate_at then 'incident'
           else r.severity end;
 exception when others then
   -- Recording a rejection must NEVER turn a clean rejection into a 500. If the
   -- bookkeeping fails we lose one observation, not the player's request.
   null;
 end $$;
-revoke execute on function public.hr_record_rejection(uuid, int, text, text, jsonb)
+revoke execute on function public.hr_record_rejection(uuid, int, text, text, jsonb, bigint)
   from public, anon, authenticated, service_role;
 
 create or replace function public.hr_rejections_prune(p_older interval default interval '180 days')
@@ -698,6 +717,67 @@ begin
   return v_n <= greatest(1, p_limit);
 end $$;
 revoke execute on function public.hr_rate_ok(uuid, text, int, interval)
+  from public, anon, authenticated, service_role;
+
+-- ── 6c-ii. SAMPLING THE RATE-LIMIT LOG (review S6) ───────────────────────
+-- C2 was right that a rate-limited call must not vanish without trace. But the
+-- fix it produced turned the CHEAPEST possible rejection — an early return
+-- before the intent claim, before any lock — into a logged UPSERT on a hot row.
+-- The cost of that under the thing it is meant to detect:
+--
+--   a retry storm at 3,000 requests/minute against one character produces
+--   3,000 UPSERTs/minute on ONE hr_rejections row. Every one is a row lock the
+--   next request queues behind, a new row version, and a WAL record. That is a
+--   self-inflicted amplifier: the harder someone hammers the server, the more
+--   durable work the server does about it, and it all serialises on one tuple.
+--   hr_rate_counters is UNLOGGED precisely to avoid this; hr_rejections cannot
+--   be, because it is evidence.
+--
+-- Detection does not need every event, it needs to know the event is happening
+-- and roughly how much. So record the 1st, 10th and 50th rejection in a window
+-- and then every 1000th, carrying the GAP as p_count so the daily counter stays
+-- numerically honest and the 'incident' escalation at n >= 50 fires at exactly
+-- the same real-world point it did before. A 3,000/min storm goes from 3,000
+-- writes to about 6. Detection unchanged, WAL ~1000× lower.
+--
+-- Two functions instead of changing hr_rate_ok's return type: the boolean
+-- signature is what tests/run-sql-tests.mjs' C2 lint keys on, and an
+-- already-reviewed rejection shape is not worth churning to save one index
+-- lookup on an unlogged table whose page is already pinned by the upsert above.
+
+-- Reads back the counter hr_rate_ok just wrote. Same transaction, same page.
+create or replace function public.hr_rate_over(p_user uuid, p_bucket text)
+returns bigint language sql stable security definer set search_path = public as $$
+  select coalesce((select rc.n from public.hr_rate_counters rc
+                    where rc.user_id = p_user and rc.bucket = p_bucket), 0)::bigint
+$$;
+revoke execute on function public.hr_rate_over(uuid, text)
+  from public, anon, authenticated, service_role;
+
+-- p_over is how many calls INTO the rejected region this one is (hits - limit).
+-- Returns 0 to say "do not record", or the number of real rejections this
+-- record stands for. The gaps are exact: 1, then 9 (to reach 10), then 40 (to
+-- reach 50), then 950 (to reach 1000), then 1000 for each further thousand — so
+-- the sum of everything recorded always equals p_over at the last sample point.
+-- search_path is pinned even though this function references NOTHING — no
+-- table, no other function, only built-in operators. It was flagged by
+-- `get_advisors` as function_search_path_mutable on first apply, and the right
+-- response to "this one is harmless" is to pin it anyway: an advisor with one
+-- accepted exception is an advisor people stop reading. pg_catalog, not public,
+-- because there is nothing in public it needs.
+create or replace function public.hr_rate_sample_weight(p_over bigint)
+returns bigint language sql immutable set search_path = pg_catalog as $$
+  select case
+    when p_over is null or p_over < 1 then 0::bigint
+    when p_over = 1    then 1::bigint
+    when p_over = 10   then 9::bigint
+    when p_over = 50   then 40::bigint
+    when p_over = 1000 then 950::bigint
+    when p_over % 1000 = 0 then 1000::bigint
+    else 0::bigint
+  end
+$$;
+revoke execute on function public.hr_rate_sample_weight(bigint)
   from public, anon, authenticated, service_role;
 
 -- ── 6d. The server-only PRNG secret ──────────────────────────────────────
@@ -755,8 +835,17 @@ begin
                            'player_ledger','player_ledger_rollup'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists %I on public.%I', t || ' own read', t);
+    -- (select auth.uid()), NOT auth.uid(). Bare auth.uid() in a policy is
+    -- re-evaluated PER ROW, because the planner cannot prove a volatile-ish
+    -- function is constant for the scan; wrapping it in a scalar subquery turns
+    -- it into an InitPlan evaluated ONCE. `get_advisors` flags the bare form as
+    -- auth_rls_initplan, and it flagged all eight of these on first apply.
+    -- It matters most exactly where it is least visible: player_ledger and
+    -- player_inventory are the tables that grow, and a per-row function call on
+    -- a sequential scan of a player's ledger is the difference between an index
+    -- scan and a scan that cannot be pushed down at all.
     execute format(
-      'create policy %I on public.%I for select using (auth.uid() = user_id)',
+      'create policy %I on public.%I for select using ((select auth.uid()) = user_id)',
       t || ' own read', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role, hr_engine', t);
     execute format('grant select on public.%I to authenticated, service_role', t);
@@ -860,8 +949,13 @@ begin
     -- The review named four rate-limit sites; the lint in tests/run-sql-tests.mjs
     -- found this one and hr_load as well, which is the point of having a lint
     -- rather than a list.
-    perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'create_character',
-      'rate_limited', jsonb_build_object('limit', 6, 'per', '1 hour'));
+    -- (S6) Sampled — 1st, 10th, 50th, then every 1000th rejection in the
+    -- window, carrying the gap so the daily counter stays exact.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'create_character') - 6) > 0 then
+      perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'create_character',
+        'rate_limited', jsonb_build_object('limit', 6, 'per', '1 hour'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'create_character') - 6));
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then
@@ -1041,7 +1135,8 @@ begin
   select count(*) into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
-     and p.proname in ('hr_total_level','hr_seed','hr_rate_ok',
+     and p.proname in ('hr_total_level','hr_seed','hr_rate_ok','hr_rate_over',
+                       'hr_rate_sample_weight',
                        'hr_intents_prune','hr_ledger_immutable','hr_ledger_prune',
                        'hr_progress_prune','hr_rejections_prune','hr_record_rejection',
                        'hr_cron_ensure','hr_cron_drop')
@@ -1145,5 +1240,26 @@ begin
     when sqlstate 'HR001' then null;   -- every probe row is now undone
   end;
 
-  raise notice 'PLAYER STATE foundation OK — tables, RLS, grants, hr_engine, XP curve, PRNG seed, retention jobs and ledger immutability verified.';
+  -- (i) THE RATE-LIMIT LOG SAMPLER (review S6). The whole point of carrying a
+  --     weight is that the recorded counter still equals the real number of
+  --     rejections at every sample point — otherwise the 'incident' escalation
+  --     at n >= 50 silently moves to n >= 46,000 and the loudest automation
+  --     signal the server produces stops firing. Arithmetic, asserted:
+  --       1 + 9 + 40 + 950 = 1000, then +1000 per thousand.
+  if public.hr_rate_sample_weight(null) <> 0
+  or public.hr_rate_sample_weight(0)    <> 0
+  or public.hr_rate_sample_weight(2)    <> 0
+  or public.hr_rate_sample_weight(49)   <> 0
+  or public.hr_rate_sample_weight(1)    <> 1
+  or public.hr_rate_sample_weight(10)   <> 9
+  or public.hr_rate_sample_weight(50)   <> 40
+  or public.hr_rate_sample_weight(1000) <> 950
+  or public.hr_rate_sample_weight(2000) <> 1000
+  or public.hr_rate_sample_weight(1) + public.hr_rate_sample_weight(10)
+     + public.hr_rate_sample_weight(50) + public.hr_rate_sample_weight(1000) <> 1000 then
+    raise exception 'hr_rate_sample_weight drifted — the sampled rejection counter no longer '
+                    'equals the real rejection count, so the incident threshold has moved';
+  end if;
+
+  raise notice 'PLAYER STATE foundation OK — tables, RLS, grants, hr_engine, XP curve, PRNG seed, rate-log sampler, retention jobs and ledger immutability verified.';
 end $$;

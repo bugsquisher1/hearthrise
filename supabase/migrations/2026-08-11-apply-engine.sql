@@ -118,8 +118,16 @@ begin
   -- The rejection recorder is how a fired clamp survives the rollback that
   -- fires it (review R4). Without it hr_apply would compile and then silently
   -- lose every incident, which is the exact defect being fixed.
-  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb)') is null then
-    raise exception 'hr_record_rejection missing — re-run 2026-08-11-player-state.sql (revision 3)';
+  -- Signature includes p_count (review S6): the rate-limit sites pass the
+  -- sample weight. Naming the OLD 5-argument signature here would make this
+  -- precondition permanently false against a correct database — the same class
+  -- of always-null probe as the to_regproc bug fixed above.
+  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)') is null then
+    raise exception 'hr_record_rejection missing — re-run 2026-08-11-player-state.sql (revision 4)';
+  end if;
+  if to_regprocedure('public.hr_rate_sample_weight(bigint)') is null
+     or to_regprocedure('public.hr_rate_over(uuid,text)') is null then
+    raise exception 'the rate-limit log sampler is missing — re-run 2026-08-11-player-state.sql (revision 4)';
   end if;
 end $$;
 
@@ -248,8 +256,12 @@ begin
     -- (C2) A read path, but three loads a second sustained is a poller, not a
     -- player, and the record costs one row per character per day whatever the
     -- rate — the counter is incremented in place.
-    perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'load', 'rate_limited',
-      jsonb_build_object('limit', 180, 'per', '1 minute'));
+    -- (S6) Sampled: 1st, 10th, 50th, then every 1000th.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'load') - 180) > 0 then
+      perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'load', 'rate_limited',
+        jsonb_build_object('limit', 180, 'per', '1 minute'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'load') - 180));
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   return public.hr_state_of(v_uid, coalesce(p_slot, 0));
@@ -417,8 +429,17 @@ begin
     -- hr_record_rejection aggregates per (character, code, day) and promotes
     -- the row to severity 'incident' past its daily threshold, so this costs
     -- one row per player per day, not one row per rejected call.
-    perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'rate_limited',
-      jsonb_build_object('limit', 240, 'per', '1 minute'));
+    --
+    -- (S6) …but still one WRITE per rejected call, which under the retry storm
+    -- this exists to detect is a row lock plus a WAL record per request, all
+    -- serialised on one tuple. So it is SAMPLED: the 1st, 10th and 50th
+    -- rejection in the window, then every 1000th, each carrying the gap it
+    -- stands for so `n` and the 'incident' escalation are unchanged.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply') - 240) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'rate_limited',
+        jsonb_build_object('limit', 240, 'per', '1 minute'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply') - 240));
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 

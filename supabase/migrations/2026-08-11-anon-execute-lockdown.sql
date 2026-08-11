@@ -67,6 +67,42 @@
 -- entries whose grantor we are a member of; `postgres` owns the entries that
 -- apply to everything our migrations create. The `supabase_admin` entries are
 -- platform-owned and remain — which is exactly why step 5 exists.
+--
+-- ⚠⚠ CORRECTION (2026-08-11, review finding C-a). An earlier revision of this
+--    file — and commit 37a3eab, which claimed to have fixed the problem —
+--    asserted that the three SCHEMA-SCOPED statements below were sufficient to
+--    stop a new function from being born PUBLIC-executable. THAT WAS WRONG, and
+--    it was wrong in a way that reads as correct, which is why it survived a
+--    review. The mechanism:
+--
+--      • A function's initial ACL is NOT "empty plus whatever pg_default_acl
+--        says". It is `acldefault('f', owner)` — a HARDWIRED base that always
+--        contains  owner=X  AND  PUBLIC=EXECUTE.
+--      • A default-privileges entry is applied ON TOP of that base. A SCHEMA-
+--        SCOPED entry (`in schema public`) can only ADD grants to the base; it
+--        never replaces it. So `alter default privileges … in schema public
+--        revoke execute on functions from anon, authenticated` removed the two
+--        Supabase-added grants and left  PUBLIC=X  standing. anon and
+--        authenticated are both members of PUBLIC. Net effect on reachability:
+--        ZERO. The hole was renamed, not closed.
+--      • A GLOBAL entry (no `IN SCHEMA`) is different: it REPLACES the hardwired
+--        base entirely. That is the only statement that can take PUBLIC=X away
+--        from newly created functions.
+--
+--    So the load-bearing statement is the GLOBAL one, applied to production on
+--    2026-08-11 and verified: a freshly created function in `public` is now born
+--        {postgres=X/postgres,service_role=X/postgres}
+--    with has_function_privilege('anon', …) = false and no PUBLIC entry.
+--    The schema-scoped statements are kept because they are still correct and
+--    still remove the Supabase-added anon/authenticated grants for objects the
+--    global row does not cover the way we want; they are simply not the fix.
+--
+--    hr_assert_grant_hygiene() (§5, rewritten 2026-08-11) now asserts the
+--    POSITIVE property — that a global row exists for every role that owns
+--    functions in public and that it grants EXECUTE to none of PUBLIC / anon /
+--    authenticated — because the old negative check could not see this.
+alter default privileges for role postgres
+  revoke execute on functions from public, anon, authenticated;
 alter default privileges for role postgres in schema public
   revoke execute on functions from anon, authenticated;
 alter default privileges for role postgres in schema public
@@ -151,52 +187,24 @@ begin
   raise notice 'narrowed % relations', v_n;
 end $$;
 
--- ── 5. THE RECURRENCE DETECTOR ───────────────────────────────────────────
--- Wire this into tests/run-sql-tests.mjs and call it at the end of every
--- future migration. Silence is where exploits live; this makes the silence
--- audible.
-create or replace function public.hr_assert_grant_hygiene(p_strict boolean default true)
-returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare
-  v_anon_secdef  jsonb;
-  v_client_trunc jsonb;
-  v_open_default int;
-  v_report jsonb;
-  -- The ONLY function a request holding nothing but the anon key may execute.
-  -- Adding to this array is a security decision; say why in the commit.
-  c_anon_ok constant text[] := array['hr_leaderboard'];
-begin
-  select coalesce(jsonb_agg(p.proname order by p.proname), '[]'::jsonb) into v_anon_secdef
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.prosecdef
-     and has_function_privilege('anon', p.oid, 'execute')
-     and p.proname <> all (c_anon_ok);
-
-  select coalesce(jsonb_agg(distinct table_name), '[]'::jsonb) into v_client_trunc
-    from information_schema.role_table_grants
-   where table_schema = 'public' and grantee in ('anon','authenticated')
-     and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER');
-
-  -- Platform-owned default ACLs we cannot edit. Reported, not fatal, so the
-  -- residual stays visible instead of being forgotten.
-  select count(*) into v_open_default
-    from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace
-   where n.nspname = 'public' and d.defaclobjtype = 'f'
-     and d.defaclacl::text ~ '(anon|authenticated)=X';
-
-  v_report := jsonb_build_object(
-    'anon_security_definer_functions',   v_anon_secdef,
-    'client_truncate_grants',            v_client_trunc,
-    'platform_default_acls_still_open',  v_open_default);
-
-  if p_strict and (jsonb_array_length(v_anon_secdef) > 0
-                   or jsonb_array_length(v_client_trunc) > 0) then
-    raise exception 'GRANT HYGIENE FAILED: %', v_report::text;
-  end if;
-  return v_report;
-end $$;
-revoke execute on function public.hr_assert_grant_hygiene(boolean)
-  from public, anon, authenticated, service_role;
+-- ── 5. THE RECURRENCE DETECTOR — MOVED ───────────────────────────────────
+-- ⚠ hr_assert_grant_hygiene() USED TO BE DEFINED HERE. It is not any more.
+--   The definition lives in 2026-08-11-grant-hygiene.sql and NOWHERE ELSE.
+--
+--   Revision 1 of the detector shipped in this file and had four defects that
+--   made it blind to the exact recurrence it existed to catch (it filtered on
+--   `prosecdef`, so a `create procedure` was invisible; it asked only about
+--   `anon`, while `authenticated` is 65 functions wide and reached all three
+--   confirmed clan holes; it never asked the direct PUBLIC question; and its
+--   default-ACL count was a false negative by construction). All four are
+--   analysed at the top of the new file.
+--
+--   Keeping a second copy here would mean re-applying THIS file silently
+--   downgrades the detector back to the blind version — the single most likely
+--   way this control dies. So this file now only CALLS it, and says so if it
+--   is missing.
+--   The order to apply, on a database that has neither: this file, then
+--   2026-08-11-grant-hygiene.sql.
 
 -- ── 6. Self-verification ─────────────────────────────────────────────────
 do $$
@@ -231,8 +239,15 @@ begin
     raise exception 'hr_leaderboard is no longer anon-readable — the public board breaks';
   end if;
 
-  v := public.hr_assert_grant_hygiene(true);
-  raise notice 'ANON EXECUTE LOCKDOWN OK — %', v::text;
+  -- (c) The detector. Missing is a WARNING, not a failure: this file must stay
+  --     applicable on its own, and the hygiene file is what installs it.
+  if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
+    raise warning 'hr_assert_grant_hygiene() is not installed — apply '
+                  '2026-08-11-grant-hygiene.sql next, or this lockdown has no recurrence detector';
+  else
+    execute 'select public.hr_assert_grant_hygiene(true)' into v;
+    raise notice 'ANON EXECUTE LOCKDOWN OK — %', v::text;
+  end if;
 end $$;
 
 -- ════════════════════════════════════════════════════════════════════════

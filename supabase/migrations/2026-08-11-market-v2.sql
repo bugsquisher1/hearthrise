@@ -95,9 +95,96 @@ begin
      or to_regprocedure('public.hr_cron_drop(text)') is null then
     raise exception 're-run 2026-08-11-player-state.sql (revision 3) — §8b needs the idempotent cron helpers';
   end if;
-  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb)') is null then
-    raise exception 're-run 2026-08-11-player-state.sql (revision 3) — the market RPCs record their rejections';
+  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)') is null then
+    raise exception 're-run 2026-08-11-player-state.sql (revision 4) — the market RPCs record their rejections';
   end if;
+  if to_regprocedure('public.hr_rate_sample_weight(bigint)') is null
+     or to_regprocedure('public.hr_rate_over(uuid,text)') is null then
+    raise exception 're-run 2026-08-11-player-state.sql (revision 4) — the rate-limit log sampler is missing (review S6)';
+  end if;
+end $$;
+
+-- ── 0c. DISARM THE ESCROW-DESTROYING CRON JOBS — FIRST, BEFORE §1 ────────
+-- ⚠⚠ THIS BLOCK MUST STAY AHEAD OF §1. READ WHY BEFORE MOVING IT. ⚠⚠
+--
+-- A live pg_cron job, `trim-expired-listings`, runs nightly at 03:30:
+--
+--     delete from public.market_listings where expires_at < now()
+--
+-- Under market v1 that was harmless housekeeping: a listing was a POINTER, the
+-- goods stayed in the seller's client-side inventory, and deleting the row cost
+-- nothing. Under market v2 A LISTING **IS** THE ESCROW — market_list DELETEs
+-- the items out of player_inventory and the listing row is the only record that
+-- they exist. That statement deletes the row directly, bypassing
+-- market_expire(), and therefore ANNIHILATES THE SELLER'S GOODS.
+--
+-- AND THE MIGRATION IS WHAT ARMS IT. Verified on production 2026-08-11:
+-- market_listings has NO `expires_at` column today, so the job has been FAILING
+-- every night since 2026-08-09 ("ERROR: column expires_at does not exist").
+-- §1 of this file ADDS `expires_at`, which REPAIRS the broken destructive job
+-- and points it at the escrow.
+--
+-- ORDERING (review C-c). Revision 3 did the unschedule in §8b, ~650 lines and
+-- one `create table` after `expires_at` came into existence. Every transactional
+-- apply is fine. A NON-transactional apply — psql without `-1`, a tool that
+-- splits on `;`, an apply that dies halfway, a re-run resumed by hand — leaves a
+-- window in which the column exists and the job is still scheduled. If that
+-- window straddles 03:30, the job runs and the escrow is gone. The dependency
+-- was documented in a 25-line comment; documenting an ordering dependency is
+-- strictly worse than not having one, so it is deleted instead: the disarm
+-- happens before the arming, always, and the two facts can no longer be
+-- separated by a crash.
+--
+-- The REPLACEMENT jobs stay in §8b, because they reference functions that do
+-- not exist yet at this point in the file. Disarming early and rearming late is
+-- the safe order in both directions: the window created by that split is a
+-- window with NO expiry job, which costs a listing a few extra minutes in limbo
+-- and destroys nothing.
+do $$
+declare v_dropped boolean; v_armed int;
+begin
+  -- THE ORDERING ASSERTION. Not "the end state is right" (§9(h) already checks
+  -- that) — this asserts the ORDER, at the only moment the order is observable:
+  -- a bare `delete from market_listings` job must never coexist with an
+  -- expires_at column on that table. On a first apply the column does not exist
+  -- yet, so this passes. On a re-apply the jobs are already gone, so this
+  -- passes. It fails exactly when someone has moved this block below §1.
+  select count(*) into v_armed
+    from cron.job
+   where command ~* 'delete\s+from\s+(public\.)?market_listings'
+     and exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'market_listings'
+                    and column_name = 'expires_at');
+  if v_armed > 0 then
+    raise exception
+      'ORDERING VIOLATION: % cron job(s) DELETE from market_listings directly while an expires_at '
+      'column exists on that table. Under market v2 that job destroys escrowed goods at its next '
+      'run. This disarm block MUST execute before §1 creates the table. Do not move it.', v_armed;
+  end if;
+
+  -- 1. REMOVE THE DESTRUCTIVE JOB. Not "fix its SQL" — delete it. The correct
+  --    behaviour is not a delete at all; it is market_expire(), which returns
+  --    the escrow, bumps the seller's version and journals the return. §8b
+  --    schedules that replacement.
+  v_dropped := public.hr_cron_drop('trim-expired-listings');
+  if v_dropped then
+    raise warning 'unscheduled trim-expired-listings — it would have DESTROYED escrowed goods under market v2';
+  end if;
+
+  -- 2. Job 4, `trim-market-sales`, is the same shape in a milder form: it
+  --    filters on `sold_at`, a column that does not exist (it is `created_at`
+  --    today and `at` after this file), so it has been erroring nightly too.
+  --    It is dropped here rather than in §8b purely so that the two cron
+  --    mutations stay together and neither can be half-applied.
+  v_dropped := public.hr_cron_drop('trim-market-sales');
+  if v_dropped then
+    raise warning 'unscheduled trim-market-sales — it filtered on sold_at, which has never existed on this table';
+  end if;
+
+  -- A marker §9 can assert on, so deleting this block fails the migration
+  -- instead of silently removing the interlock. Session-scoped; it does not
+  -- outlive the apply, which is the point — it proves THIS run did the disarm.
+  perform set_config('hearthrise.market_cron_disarmed', 'yes', false);
 end $$;
 
 -- ── 0b. THE WIPE GATE — a prose comment is not a safety interlock ────────
@@ -113,9 +200,13 @@ end $$;
 --     set hearthrise.market_wipe_ok = 'yes';
 --     \i supabase/migrations/2026-08-11-market-v2.sql
 --
--- Production today: market_listings 0 rows, market_sales 6 rows — so this gate
--- FIRES on production, which is the correct behaviour and is how we know it
--- works. The beta wipe at cutover is exactly the moment the GUC is appropriate.
+-- Production 2026-08-11, re-counted: market_listings **1** row, market_sales 6
+-- rows. (An earlier revision of this comment said 0 listings; a player posted
+-- one between the two audits. Stating a live row count in a comment is a
+-- promise that expires — the GUC gate is what actually protects the data, and
+-- it reads the counts at apply time.) So this gate FIRES on production, which
+-- is the correct behaviour and is how we know it works. The beta wipe at
+-- cutover is exactly the moment the GUC is appropriate.
 --
 -- ⚠ RE-RUNNABILITY DEPENDS ON THE DROPS. The `create table` statements below
 --   are NOT `if not exists`; the drops are what make this file safe to re-run.
@@ -390,8 +481,11 @@ begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_intent_id is null then return jsonb_build_object('ok', false, 'error', 'missing_intent_id'); end if;
   if not public.hr_rate_ok(v_uid, 'market_list', 60, interval '1 minute') then
-    perform public.hr_record_rejection(v_uid, v_slot, 'market_list', 'rate_limited',
-      jsonb_build_object('limit', 60, 'per', '1 minute'));   -- (C2)
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_list') - 60) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, 'market_list', 'rate_limited',
+        jsonb_build_object('limit', 60, 'per', '1 minute'),                 -- (C2)
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_list') - 60));  -- (S6)
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
@@ -499,8 +593,11 @@ begin
   if not public.hr_rate_ok(v_uid, 'market_cancel', 60, interval '1 minute') then
     -- slot 0: cancel takes no slot argument and the listing has not been read
     -- yet. The character is identified by user; the slot is cosmetic here. (C2)
-    perform public.hr_record_rejection(v_uid, 0, 'market_cancel', 'rate_limited',
-      jsonb_build_object('limit', 60, 'per', '1 minute'));
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_cancel') - 60) > 0 then
+      perform public.hr_record_rejection(v_uid, 0, 'market_cancel', 'rate_limited',
+        jsonb_build_object('limit', 60, 'per', '1 minute'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_cancel') - 60));  -- (S6)
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
@@ -604,8 +701,11 @@ begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_intent_id is null then return jsonb_build_object('ok', false, 'error', 'missing_intent_id'); end if;
   if not public.hr_rate_ok(v_uid, 'market_buy', 60, interval '1 minute') then
-    perform public.hr_record_rejection(v_uid, v_slot, 'market_buy', 'rate_limited',
-      jsonb_build_object('limit', 60, 'per', '1 minute'));   -- (C2)
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_buy') - 60) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, 'market_buy', 'rate_limited',
+        jsonb_build_object('limit', 60, 'per', '1 minute'),                -- (C2)
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'market_buy') - 60));  -- (S6)
+    end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   if p_qty is null or p_qty <= 0 then return jsonb_build_object('ok', false, 'error', 'bad_qty'); end if;
@@ -626,7 +726,19 @@ begin
   select * into v_row from public.market_listings where id = p_listing_id for update;
   if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
   if v_row.expires_at <= now() then return jsonb_build_object('ok', false, 'error', 'expired'); end if;
-  if v_row.seller_user_id = v_uid then return jsonb_build_object('ok', false, 'error', 'own_listing'); end if;
+  if v_row.seller_user_id = v_uid then
+    -- (S9) JOURNAL IT. Buying your own listing is refused, but until now it was
+    -- refused SILENTLY, and repeated `own_listing` is the wash-trading
+    -- signature: someone establishing a fake price history, or probing whether
+    -- the self-trade guard can be raced into paying the tax to themselves. A
+    -- refusal that leaves no trace is a refusal nobody can investigate.
+    -- Aggregated per (character, code, day) and escalated to 'incident' past
+    -- the daily threshold — one row per player per day, not one per click.
+    perform public.hr_record_rejection(v_uid, v_slot, 'market_buy', 'own_listing',
+      jsonb_build_object('listing', p_listing_id, 'item', v_row.item_id,
+                         'qty', p_qty, 'ask_each', v_row.ask_each));
+    return jsonb_build_object('ok', false, 'error', 'own_listing');
+  end if;
   if v_row.qty < p_qty then
     return jsonb_build_object('ok', false, 'error', 'not_enough', 'available', v_row.qty);
   end if;
@@ -796,58 +908,21 @@ end $$;
 revoke execute on function public.market_sales_prune(interval)
   from public, anon, authenticated, service_role;
 
--- ── 8b. THE CRON RECONCILIATION — the most dangerous thing in this file ──
--- ⚠⚠ READ THIS BEFORE EDITING ANYTHING BELOW. ⚠⚠
---
--- A live pg_cron job, `trim-expired-listings`, runs nightly at 03:30:
---
---     delete from public.market_listings where expires_at < now()
---
--- Under market v1 that was harmless housekeeping: a listing was a POINTER, the
--- goods stayed in the seller's client-side inventory, and deleting the row cost
--- nothing. Under market v2 A LISTING **IS** THE ESCROW — market_list DELETEs
--- the items out of player_inventory and the listing row is the only record that
--- they exist. That cron statement deletes the row directly, bypassing
--- market_expire(), and therefore ANNIHILATES THE SELLER'S GOODS. Every seller
--- who lets a listing lapse silently loses the items, with a ledger that says
--- they were escrowed and nothing that says they came back.
---
--- AND THE MIGRATION IS WHAT ARMS IT. Verified on production 2026-08-11:
--- market_listings has NO `expires_at` column today, so job 3 has been FAILING
--- every night since 2026-08-09 ("ERROR: column expires_at does not exist").
--- This file adds `expires_at`. Applying market-v2 without this section does not
--- leave a latent risk — it REPAIRS a broken destructive job and points it at
--- the escrow. That is why this is in the migration and not in a runbook: if the
--- file can be applied without it, the hole exists.
---
--- Job 4, `trim-market-sales`, has the same shape of problem in a milder form:
--- it filters on `sold_at`, a column that does not exist (it is `created_at`
--- today and `at` after this file), so it has been erroring nightly too. A cron
--- job that has failed 3 nights running and that nobody noticed is the argument
--- for §9(h) asserting that these jobs are correct rather than merely present.
+-- ── 8b. THE CRON REPLACEMENTS ────────────────────────────────────────────
+-- The DANGEROUS half of the cron reconciliation — unscheduling the two jobs
+-- that would destroy escrow — is in §0c, deliberately ahead of §1. See the
+-- long note there; do not move it back here. What is left is the rearm, which
+-- has to be here because it references functions defined above.
 do $$
-declare v_dropped boolean;
 begin
-  -- 1. REMOVE THE DESTRUCTIVE JOB. Not "fix its SQL" — delete it. The correct
-  --    behaviour is not a delete at all; it is market_expire(), which returns
-  --    the escrow, bumps the seller's version and journals the return.
-  v_dropped := public.hr_cron_drop('trim-expired-listings');
-  if v_dropped then
-    raise warning 'unscheduled trim-expired-listings — it would have DESTROYED escrowed goods under market v2';
-  end if;
-
-  -- 2. THE REPLACEMENT. Every 5 minutes, batched at 200. Frequent because an
-  --    expired listing is a player's property sitting in limbo, and nightly is
-  --    a 24-hour worst case for getting it back.
+  -- 1. THE REPLACEMENT FOR trim-expired-listings. Every 5 minutes, batched at
+  --    200. Frequent because an expired listing is a player's property sitting
+  --    in limbo, and nightly is a 24-hour worst case for getting it back.
   perform public.hr_cron_ensure('hr-market-expire', '*/5 * * * *',
     'select public.market_expire(200)');
 
-  -- 3. REPLACE THE BROKEN SALES TRIM with one that names a column that exists
-  --    and goes through the function that owns the policy.
-  v_dropped := public.hr_cron_drop('trim-market-sales');
-  if v_dropped then
-    raise warning 'unscheduled trim-market-sales — it filtered on sold_at, which has never existed on this table';
-  end if;
+  -- 2. THE REPLACEMENT FOR trim-market-sales: names a column that exists and
+  --    goes through the function that owns the policy.
   perform public.hr_cron_ensure('hr-market-sales-prune', '45 3 * * *',
     'select public.market_sales_prune()');
 end $$;
@@ -929,10 +1004,23 @@ begin
   end if;
 
   -- (h) THE CRON RECONCILIATION HELD. (Review R1/R2.) This is the assertion
-  --     that makes §8b load-bearing rather than decorative: if anyone deletes
-  --     that section, or re-creates the old job by hand, or the unschedule
-  --     silently no-ops, the migration fails here instead of the players
-  --     finding out when their escrow evaporates at 03:30.
+  --     that makes §0c/§8b load-bearing rather than decorative: if anyone
+  --     deletes those sections, or re-creates the old job by hand, or the
+  --     unschedule silently no-ops, the migration fails here instead of the
+  --     players finding out when their escrow evaporates at 03:30.
+  --
+  --     (h-0) …AND THE ORDER HELD (review C-c). The end-state checks below
+  --     cannot tell "disarmed before the column existed" from "disarmed 650
+  --     lines after it did", and only the first is safe under a
+  --     non-transactional apply. §0c sets this marker; if it is missing, the
+  --     disarm either did not run or was moved.
+  if coalesce(current_setting('hearthrise.market_cron_disarmed', true), '') <> 'yes' then
+    raise exception
+      'the §0c cron disarm did not run in this session. It must execute BEFORE §1 creates '
+      'market_listings.expires_at, otherwise a non-transactional apply leaves the nightly '
+      '"delete from market_listings" job armed against live escrow. Do not "fix" this by '
+      'setting the GUC by hand — restore §0c.';
+  end if;
   if exists (select 1 from cron.job where jobname = 'trim-expired-listings') then
     raise exception 'trim-expired-listings is STILL SCHEDULED — it deletes market_listings rows directly, which under v2 destroys the seller''s escrowed goods';
   end if;
@@ -960,8 +1048,13 @@ begin
   --     place the complete list can be checked. Anything not on it is a hole.
   --     (Note this also catches a missing `revoke execute … from public` on any
   --     new function anywhere in schema public, because PUBLIC is a superset of
-  --     hr_engine — Postgres still grants EXECUTE to PUBLIC on every new
-  --     function, and the 2026-08-11 default-ACL lockdown did NOT change that.)
+  --     hr_engine. UPDATED 2026-08-11: the GLOBAL default-privileges row applied
+  --     that day DOES now stop new functions being born PUBLIC-executable — the
+  --     schema-scoped attempt that preceded it did not, which is what this
+  --     comment used to describe. The check is kept anyway: it is cheap, it
+  --     still catches an explicit `grant … to public`, and it is the last line
+  --     of defence if the global row is ever dropped. hr_assert_grant_hygiene()
+  --     asserts the global row itself.)
   select count(*) into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prokind = 'f'

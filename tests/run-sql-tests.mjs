@@ -97,9 +97,22 @@ const BUNDLE = [
   '2026-08-11-apply-engine.sql',
   '2026-08-11-market-v2.sql',
 ];
-// Shipped and reviewed separately (a live impersonation fix), so it is linted
-// but not part of the foundation bundle.
-const ALSO_LINTED = ['2026-08-11-chat-name-authority.sql'];
+// Shipped and reviewed separately, so these are linted but are not part of the
+// foundation bundle. Anything that creates a function in `public` belongs here:
+// the grant-hygiene lints below are the repo's only static defence against a
+// new SECURITY DEFINER function being born reachable, and a file that is not
+// listed is a file that defence does not cover.
+const ALSO_LINTED = [
+  '2026-08-11-chat-name-authority.sql',
+  '2026-08-11-anon-execute-lockdown.sql',
+  '2026-08-11-grant-hygiene.sql',
+  '2026-08-11-telemetry-retention.sql',
+];
+
+// Functions created only to PROVE a check works, inside that check's own
+// self-verification block. They are granted a privilege on purpose and must be
+// dropped in the same file — which is asserted, so this is not an escape hatch.
+const PROBE = /^hr__/;
 
 // ⚠ WITH --emit, STDOUT IS THE SQL BUNDLE AND NOTHING ELSE.
 // The documented gate is `node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"`, and the
@@ -153,6 +166,15 @@ for (const [file, sql] of sources) {
   const created = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)]
     .map((m) => m[1]);
   for (const fn of new Set(created)) {
+    if (PROBE.test(fn)) {
+      // A probe may hold a grant; what it may NOT do is survive the migration.
+      if (new RegExp(`drop\\s+function\\s+if\\s+exists\\s+public\\.${fn}\\s*\\(`, 'i').test(sql)) {
+        pass(`${file}: ${fn}() is a self-check probe and is dropped in-file`);
+      } else {
+        fail(`${file}: ${fn}() looks like a self-check probe but is never dropped — it would be left behind, granted`);
+      }
+      continue;
+    }
     const revoked = new RegExp(
       `revoke\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)[\\s\\S]{0,200}?from[^;]*\\bpublic\\b`,
       'i').test(sql);
@@ -239,7 +261,7 @@ say('── to_regproc vs to_regprocedure');
 // The rate limit returns before the intent claim, so without an explicit
 // hr_record_rejection the loudest automation signal the server produces
 // vanishes: no ledger row, no intent row, nothing. Same defect class as R4.
-say('── rate-limit rejections are observable (C2)');
+say('── rate-limit rejections are observable (C2) and sampled (S6)');
 {
   let bad = 0, seen = 0;
   for (const [file, sql] of code) {
@@ -251,9 +273,44 @@ say('── rate-limit rejections are observable (C2)');
         fail(`${file}: a hr_rate_ok() rejection returns without hr_record_rejection (C2)`);
         bad++;
       }
+      // S6: …and it must be SAMPLED. An unconditional write on the rate-limit
+      // path means a retry storm costs a row lock and a WAL record per request,
+      // all serialised on one tuple — the server doing more durable work the
+      // harder it is hammered. The gate is hr_rate_sample_weight() > 0.
+      if (!/hr_rate_sample_weight/.test(m[0])) {
+        fail(`${file}: a hr_rate_ok() rejection records unconditionally — gate it on hr_rate_sample_weight() (S6)`);
+        bad++;
+      }
     }
   }
-  if (!bad) pass(`all ${seen} rate-limit rejections call hr_record_rejection`);
+  if (!bad) pass(`all ${seen} rate-limit rejections are recorded and sampled`);
+}
+
+// ── PART 1c-iv — no migration may control its own transaction (review S5) ─
+// 2026-08-11-telemetry-retention.sql shipped with a top-level `begin;`/`commit;`
+// and was therefore UNAPPLIABLE by every transactional tool in the toolchain
+// (Supabase MCP apply_migration, `supabase db push`, `psql -1`, every migration
+// runner) — each of those already wraps the file, so the nested `begin` is an
+// error or a no-op and the `commit` closes the OUTER transaction early, leaving
+// the rest of the file running unprotected. The retention fix sat undeployed
+// for a day while reading as shipped. A migration is a sequence of statements;
+// its runner owns the transaction. Atomic sections go in a `do $$ … $$` block.
+say('── no top-level transaction control in a migration (S5)');
+{
+  let bad = 0;
+  for (const [file, sql] of code) {
+    sql.split('\n').forEach((line, i) => {
+      // Column 0 ONLY, and `end;` is deliberately not in the list. Every
+      // PL/pgSQL block in these files is indented inside a `do $$`, and a
+      // nested block legitimately closes with an indented `end;` — matching
+      // those would make this lint noise, and a noisy lint gets deleted.
+      if (/^(begin|commit|rollback|start\s+transaction)\s*;\s*$/i.test(line)) {
+        fail(`${file}:${i + 1}: top-level \`${line.trim()}\` — a migration must not control its own transaction (S5)`);
+        bad++;
+      }
+    });
+  }
+  if (!bad) pass('no migration opens or closes a transaction');
 }
 
 // ── PART 1d — the migrations must be self-verifying ──────────────────────
@@ -285,6 +342,27 @@ say('── destructive-migration interlocks');
     pass('market-v2: unschedules trim-expired-listings in-file (R1)');
   } else {
     fail('market-v2: does NOT unschedule trim-expired-listings — applying it ARMS a nightly job that deletes escrow');
+  }
+  // C-c: …and it must do so BEFORE it creates the column that arms the job.
+  // §9(h) asserts the end state, which cannot distinguish "disarmed first" from
+  // "disarmed 650 lines later" — and only the first is safe if the apply is not
+  // transactional (psql without -1, a tool that splits on `;`, an apply that
+  // dies halfway). Deleting the ordering dependency beats documenting it, so
+  // the order is a lint rather than a paragraph.
+  {
+    const drop = mv2.indexOf("hr_cron_drop('trim-expired-listings')");
+    const create = mv2.search(/create\s+table\s+public\.market_listings/i);
+    if (drop >= 0 && create >= 0 && drop < create) {
+      pass('market-v2: the escrow-destroying job is disarmed BEFORE market_listings.expires_at exists (C-c)');
+    } else {
+      fail('market-v2: hr_cron_drop(\'trim-expired-listings\') must appear BEFORE `create table public.market_listings` '
+         + '— otherwise a non-transactional apply leaves a window where the nightly delete is armed against live escrow (C-c)');
+    }
+    if (/hearthrise\.market_cron_disarmed/.test(mv2)) {
+      pass('market-v2: §9 asserts the disarm actually ran in this session (C-c)');
+    } else {
+      fail('market-v2: nothing asserts that the §0c disarm ran — deleting it would be silent (C-c)');
+    }
   }
   if (/hr_cron_ensure\('hr-market-expire'/.test(mv2)) pass('market-v2: schedules market_expire (R1)');
   else fail('market-v2: market_expire is never scheduled — expiry is assumed, not wired');

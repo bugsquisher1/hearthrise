@@ -145,6 +145,17 @@ grant select on public.display_names to anon, authenticated;
 -- themselves something for weeks is quietly renamed by a newcomer's login
 -- order. Names that no longer validate are simply not claimed — those
 -- players get the modal, which is the intended path anyway.
+--
+-- ⚠ THE auth.users EXISTS CLAUSE IS LOAD-BEARING (review S10). display_names
+--   .user_id is a FK to auth.users. public.profiles is NOT guaranteed to be a
+--   subset of auth.users: profiles rows are created by handle_new_user and by
+--   claim_display_name's `insert into public.profiles (id) … on conflict do
+--   nothing`, and auth.users rows can be deleted by the dashboard or by an
+--   account deletion without the profile going with them (there is no
+--   `on delete cascade` guarantee for every path that has ever written this
+--   table). A single orphan profile turns this whole backfill — and therefore
+--   this whole migration — into a foreign_key_violation, on a file that is
+--   supposed to be re-runnable. Filter, do not gamble.
 insert into public.display_names (canonical, user_id, name, claimed_at)
 select distinct on (public.hr_canon_display_name(p.display_name))
        public.hr_canon_display_name(p.display_name),
@@ -154,6 +165,7 @@ select distinct on (public.hr_canon_display_name(p.display_name))
   from public.profiles p
  where p.display_name is not null
    and (public.hr_validate_display_name(p.display_name)->>'ok')::boolean
+   and exists (select 1 from auth.users u where u.id = p.id)
  order by public.hr_canon_display_name(p.display_name), p.created_at asc, p.id asc
 on conflict do nothing;
 

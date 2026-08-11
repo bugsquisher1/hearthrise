@@ -100,6 +100,77 @@ create trigger hr_chat_immutable
 revoke update, delete, truncate, references, trigger on public.chat_messages
   from anon, authenticated;
 
+-- ════════════════════════════════════════════════════════════════════════
+-- THE OTHER HALF OF THE FIX — profiles.display_name  (review S1, P0)
+--
+-- Everything above derives from_name from public.profiles.display_name. That
+-- is only an authority if the CLIENT CANNOT WRITE public.profiles.
+--
+-- IT COULD. Verified on production 2026-08-11: profiles carried both an
+-- INSERT and an UPDATE policy for `auth.uid() = id`, plus the default-ACL
+-- INSERT/UPDATE/DELETE/TRUNCATE grants. So the attack was two calls, not one:
+--
+--     supabase.from('profiles').update({ display_name: 'Tyler' }).eq('id', me)
+--     supabase.from('chat_messages').insert({ channel:'global', body:'…' })
+--
+-- …and the trigger above would faithfully stamp `Tyler` on the message. The
+-- trigger did not block the forgery, it LAUNDERED it: it turned a
+-- client-asserted name into a server-asserted one. That is strictly worse than
+-- no fix, because everything downstream now treats from_name as trusted.
+--
+-- claim_display_name() (2026-08-08-unique-names.sql) is the only legitimate
+-- writer. It is SECURITY DEFINER, so it keeps working with zero client grants:
+-- it enforces validation, the reserved-word list, and uniqueness through
+-- public.display_names. Taking the direct write away costs the client nothing
+-- and is what makes every name in the game an assertion by the server.
+--
+-- Applied to production 2026-08-11 ahead of this file; recorded here so the
+-- repository matches the database. SAFE TO RE-RUN.
+-- ════════════════════════════════════════════════════════════════════════
+revoke insert, update, delete, truncate, references, trigger on public.profiles
+  from anon, authenticated;
+drop policy if exists "profiles self insert" on public.profiles;
+drop policy if exists "profiles self update" on public.profiles;
+-- Older schema revisions used different names for the same two policies; drop
+-- ANY write policy on the table rather than a list of names that will drift.
+do $$
+declare r record;
+begin
+  for r in select polname from pg_policy
+            where polrelid = 'public.profiles'::regclass and polcmd <> 'r'
+  loop
+    execute format('drop policy %I on public.profiles', r.polname);
+    raise warning 'dropped client write policy %.% on public.profiles', 'profiles', r.polname;
+  end loop;
+end $$;
+
+-- ── Chat retention — codifying a job that only ever existed on the box ───
+-- (Review S10, schema drift.) `trim-chat-messages` has been running nightly on
+-- production since the beta opened and appears in NO migration in this repo. It
+-- was created by hand in a SQL console. That is drift in the direction people
+-- forget to worry about: not "the database is missing something the repo has",
+-- but "the database is DOING something the repo does not know about". Rebuild
+-- production from these files and chat_messages grows forever; and a reviewer
+-- reading the repo cannot see that a nightly DELETE runs against the table.
+--
+-- Codified exactly as it exists, so this is a no-op against production and a
+-- correctness fix against every other environment. Verified live 2026-08-11:
+--   jobname 'trim-chat-messages', schedule '15 3 * * *',
+--   command "delete from public.chat_messages where created_at < now() - interval '60 days'"
+do $$
+begin
+  if to_regprocedure('cron.schedule(text,text,text)') is null then
+    raise warning 'pg_cron unavailable — chat retention is NOT scheduled here. By hand: '
+                  'select cron.schedule(''trim-chat-messages'', ''15 3 * * *'', '
+                  '''delete from public.chat_messages where created_at < now() - interval ''''60 days'''''');';
+    return;
+  end if;
+  -- cron.schedule upserts by job name (pg_cron >= 1.4), so this is idempotent
+  -- and also REPAIRS the schedule/command if someone edited it by hand.
+  perform cron.schedule('trim-chat-messages', '15 3 * * *',
+    'delete from public.chat_messages where created_at < now() - interval ''60 days''');
+end $$;
+
 -- ── Self-verification ────────────────────────────────────────────────────
 do $$
 declare v_n int;
@@ -130,5 +201,24 @@ begin
      and cmd in ('UPDATE','DELETE','ALL');
   if v_n > 0 then raise exception '% mutating policies on chat_messages', v_n; end if;
 
-  raise notice 'CHAT NAME AUTHORITY OK — from_name is derived from profiles, not accepted.';
+  -- (S1) The source of truth must not be client-writable, or the trigger above
+  -- is a laundering step rather than a control.
+  select count(*) into v_n from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'profiles'
+     and grantee in ('anon','authenticated','PUBLIC')
+     and privilege_type <> 'SELECT';
+  if v_n > 0 then
+    raise exception '% client write grants remain on public.profiles — display_name is still PATCHable, which voids the chat name authority', v_n;
+  end if;
+  select count(*) into v_n from pg_policy
+   where polrelid = 'public.profiles'::regclass and polcmd <> 'r';
+  if v_n > 0 then
+    raise exception '% client write policies remain on public.profiles', v_n;
+  end if;
+  -- …and the legitimate writer must still work.
+  if not has_function_privilege('authenticated', 'public.claim_display_name(text)', 'execute') then
+    raise exception 'claim_display_name lost its authenticated grant — players can no longer set a name at all';
+  end if;
+
+  raise notice 'CHAT NAME AUTHORITY OK — from_name is derived from profiles, profiles is server-written only.';
 end $$;

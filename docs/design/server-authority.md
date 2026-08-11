@@ -220,9 +220,31 @@ So the Edge Function decides *what should happen* (needs the data files); Postgr
 ```
 authenticator ──(SET ROLE from the JWT `role` claim)──▶ hr_engine
                                                           ├─ USAGE on schema public
-                                                          ├─ EXECUTE on hr_apply, hr_seed
+                                                          ├─ EXECUTE on exactly 7 functions (below)
                                                           └─ ZERO table privileges. Asserted.
 ```
+
+**The complete EXECUTE list, because a capability table that is missing entries is how the next
+reviewer gets fooled.** An earlier revision of this document said "hr_apply, hr_seed", which was
+wrong — the engine also needs to read state back and derive levels. Verified against production
+2026-08-11 with
+`select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and has_function_privilege('hr_engine', p.oid, 'execute')`:
+
+| Function | Why the engine needs it | Blast radius if abused |
+|---|---|---|
+| `hr_apply` | the only writer | bounded by hr_apply's own re-validation — the point of the design |
+| `hr_state_of` | returns the post-write envelope | read of one character it was already told to act for |
+| `hr_seed` | the accrual PRNG seed | returns a hash, never the secret |
+| `hr_total_level` | derived leaderboard value | read-only, one character |
+| `hr_level_from_xp` | derive a level from XP | pure function of its argument |
+| `hr_xp_for_level` | derive XP for a level | pure function of its argument |
+| `market_expire` | releases lapsed escrow (arrives with market-v2, file 4) | writes, but only the "return the seller's own goods" path |
+
+Six of the seven are on production today; `market_expire` lands with file 4. All of them are
+read-only or self-validating, and none of them accepts a target the caller has not already been
+authorised for — but "bounded and fine" is a conclusion that has to be re-derived every time the
+list changes, which is why the list is written down. `2026-08-11-market-v2.sql` §9(i) asserts this
+exact set, so adding an eighth entry fails a migration rather than passing a review.
 
 The Edge Function **stops using the service role**. Supabase's default ACL grants `service_role`
 `arwdDxtm` on every table in `public` *and* it bypasses RLS — an Edge Function holding that key can
@@ -542,7 +564,23 @@ the market gets *simpler*, not more complex.
   deletes `collect_sales`, the `collected` flag, and the row-level UPDATE policy at
   `schema.sql:212` that let a seller PATCH `gold_total` upward before collecting.
 * `seller_name` is written by the server from `profiles.display_name` (kept in step with the
-  unique-name registry by `2026-08-08-unique-names.sql`). Impersonation closed.
+  unique-name registry by `2026-08-08-unique-names.sql`).
+
+  **Impersonation closed — but only after the 2026-08-11 S1 fix, and it is worth saying why this
+  sentence used to be false.** Deriving a name server-side from `profiles.display_name` is only an
+  authority if the client cannot write `profiles`. It could: the table carried `INSERT` and `UPDATE`
+  policies for `auth.uid() = id` plus the default-ACL write grants, so the attack was two calls —
+  `PATCH /profiles` to set `display_name` to "Tyler", then post. The trigger then stamped that name
+  onto the message *as a server assertion*. That is strictly worse than no fix at all: it did not
+  block the forgery, it **laundered** it, and everything downstream started treating `from_name` as
+  trusted. The same reasoning applies verbatim to `market_listings.seller_name`.
+
+  Write grants and both write policies were revoked from `public.profiles` on production on
+  2026-08-11 and the change is recorded in `2026-08-11-chat-name-authority.sql`, whose self-check
+  now fails if either comes back. `claim_display_name()` is `SECURITY DEFINER` and is unaffected —
+  it remains the only writer, and it is the one that enforces validation, the reserved-word list and
+  uniqueness. **General rule: a server-derived value is only as trustworthy as the write privileges
+  on the column it is derived from. Check the source table, not the derivation.**
 * `for all` on `market_listings` (`schema.sql:169`) is replaced by SELECT-only + RPCs, so
   post-listing qty/price mutation is gone.
 * **No price cap is included, deliberately.** Gold can no longer be conjured, so an absurd

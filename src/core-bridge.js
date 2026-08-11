@@ -29,15 +29,18 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=322';
-import * as xp from './core/xp.js?v=322';
-import * as combat from './core/combat.js?v=322';
-import * as drops from './core/drops.js?v=322';
-import * as pacing from './core/pacing.js?v=322';
-import * as rested from './core/rested.js?v=322';
-import * as tools from './core/tools.js?v=322';
-import * as farm from './core/farm.js?v=322';
-import * as progression from './core/progression.js?v=322';
+import * as rngMod from './core/rng.js?v=323';
+import * as xp from './core/xp.js?v=323';
+import * as combat from './core/combat.js?v=323';
+import * as drops from './core/drops.js?v=323';
+import * as pacing from './core/pacing.js?v=323';
+import * as rested from './core/rested.js?v=323';
+import * as tools from './core/tools.js?v=323';
+import * as farm from './core/farm.js?v=323';
+import * as progression from './core/progression.js?v=323';
+import * as styles from './core/styles.js?v=323';
+import * as artisan from './core/artisan.js?v=323';
+import * as bounty from './core/bounty.js?v=323';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -144,6 +147,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
+  styles, artisan, bounty,
 
   /* The session RNG. */
   get rng() { return rng; },
@@ -200,6 +204,19 @@ Object.assign(window, {
   RESTED_CAP_LIBRARY: rested.RESTED_CAP_LIBRARY,
   RESTED_QUANTUM_CAP: rested.RESTED_QUANTUM_CAP,
   COMBAT_XP_SKILLS: progression.COMBAT_XP_SKILLS,
+
+  /* PHASE A. COMBAT_STYLES was a `window.` assignment inside legacy.js
+     block 10; the bounty tables were top-level `const`s, i.e. invisible to
+     every other file. Both are now authored in src/core and published here,
+     which is what lets the server generate a board and route kill XP from
+     the same table the client renders. */
+  COMBAT_STYLES: styles.COMBAT_STYLES,
+  BOUNTY_KILL_COUNTS: bounty.BOUNTY_KILL_COUNTS,
+  BOUNTY_BASE_REWARDS: bounty.BOUNTY_BASE_REWARDS,
+  BOUNTY_TYPE_MULT: bounty.BOUNTY_TYPE_MULT,
+  BOUNTY_DIFFICULTY_MULT: bounty.BOUNTY_DIFFICULTY_MULT,
+  BOUNTY_TYPE_LABEL: bounty.BOUNTY_TYPE_LABEL,
+  BOUNTY_DIFFICULTY_LABEL: bounty.BOUNTY_DIFFICULTY_LABEL,
 });
 
 console.log('[Hearthrise core] shared simulation core online —',

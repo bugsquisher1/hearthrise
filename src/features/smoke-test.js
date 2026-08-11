@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=322' directly.
+// modularised, will import { G } from '../state/game.js?v=323' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=322';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=322';
+import { on, snapshot } from '../net/events.js?v=323';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=323';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=322';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=323';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11566,7 +11566,10 @@ const TESTS = [
       G.stats = Object.assign({}, G.stats, { cooked: 0, burnt: 0 });
       const xp0 = G.skills.cooking || 0;
 
-      Math.random = () => 0;                          // force a burn
+      /* PHASE A: the artisan rolls take the injected core RNG, so forcing an
+         outcome means injecting a generator — assigning Math.random would
+         now silently do nothing and the test would pass on the wrong path. */
+      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0));
       window.doArtisanAction('cooking', rec.id, { silent: true });
       assert((G.inventory.shrimp || 0) === 9, 'a burn must still consume the ingredient');
       assert((G.inventory.cooked_shrimp || 0) === 0, 'a burn must not yield the dish');
@@ -11585,7 +11588,7 @@ const TESTS = [
         'a burn should pay ' + paced(CF.burnXp(rec)) + ' consolation XP, got ' + burnXp);
       assert(burnXp > 0 && burnXp < paced(rec.xp), 'consolation XP must sting but not be zero');
 
-      Math.random = () => 0.999;                      // force a success
+      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0.999)); // force a success
       const xp1 = G.skills.cooking || 0;
       window.doArtisanAction('cooking', rec.id, { silent: true });
       assert((G.inventory.cooked_shrimp || 0) === 1, 'a successful cook must yield the dish');
@@ -11596,12 +11599,13 @@ const TESTS = [
       // Kitchen L3 is burn-proof: even a rigged roll cannot ruin the dish.
       G.rooms = { kitchen: 3 };
       assert(window.cookBurnChance(rec) === 0, 'a Cast-Iron Range must be burn-proof');
-      Math.random = () => 0;
+      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0));
       window.doArtisanAction('cooking', rec.id, { silent: true });
       assert((G.inventory.burnt_food || 0) === 1, 'Kitchen L3 must never burn, even on a worst-case roll');
       assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
     } finally {
       Math.random = saved.random;
+      window.HearthriseCore.setRng(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
@@ -11624,12 +11628,13 @@ const TESTS = [
       G.inventory = { burnt_food: 0 };
       Object.keys(inputs).forEach((id) => { G.inventory[id] = 20; });
       G.inventory[rec.output] = 0;
-      Math.random = () => 0;                          // the worst possible roll
+      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0)); // the worst possible roll
       window.doArtisanAction('smithing', rec.id, { silent: true });
       assert((G.inventory[rec.output] || 0) === 1, 'smithing must always produce its output');
       assert((G.inventory.burnt_food || 0) === 0, 'smithing must never produce Burnt Food');
     } finally {
       Math.random = saved.random;
+      window.HearthriseCore.setRng(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms;
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
@@ -11718,7 +11723,7 @@ const TESTS = [
       G.inventory = { shrimp: 30, cooked_shrimp: 0, burnt_food: 0 };
       G.activeSkill = 'cooking'; G.skillTargetId = rec.id; G.skillMs = 3000;
       setAway(2);
-      Math.random = () => 0;                    // every offline cook burns
+      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0)); // every offline cook burns
       window.processOffline();
       assert((G.inventory.burnt_food || 0) === 30, 'offline cooking must burn on the same math, got ' + G.inventory.burnt_food);
       assert((G.inventory.cooked_shrimp || 0) === 0, 'a forced burn must not produce dishes offline either');
@@ -11727,6 +11732,7 @@ const TESTS = [
       assert((window._hrOfflineBurns || 0) === 0, 'the offline burn counter must reset, or the next session double-reports');
     } finally {
       Math.random = saved.random;
+      window.HearthriseCore.setRng(null);
       G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
       G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms;
@@ -11939,6 +11945,14 @@ const TESTS = [
       ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
       ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
       ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
+      /* Phase A */
+      ['COMBAT_STYLES', C.styles.COMBAT_STYLES],
+      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS],
+      ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
+      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT],
+      ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
+      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL],
+      ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
     ];
     for (const [name, coreValue] of pairs) {
       assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
@@ -11990,6 +12004,131 @@ const TESTS = [
       assert(/[1-9]/.test(a), 'the replay landed no hits at all, so it proves nothing');
     } finally {
       C.randomSeed();          // back to an unpredictable session stream
+      restoreG(snap);
+    }
+  }),
+
+  /* ══ PHASE A — the rest of the simulation core ═══════════════════════════
+     Three things left the monolith in this pass: doArtisanAction's production
+     step, bounty-board generation, and the killMonster/combatTick XP routing
+     table. Each of the three tests below guards a different property, and
+     between them they are the contract:
+       1. the engine DELEGATES (no second implementation crept back);
+       2. the extracted maths is REPLAYABLE from a seed;
+       3. the delegation is BEHAVIOUR-PRESERVING at runtime, in the browser,
+          through the real wrapped functions — not just in Node.            */
+
+  () => tryRun('Phase A: the artisan bench, bounty board and XP routing all delegate to the core', () => {
+    const C = window.HearthriseCore;
+    assert(C.artisan && C.bounty && C.styles, 'the Phase A core modules are not published on HearthriseCore');
+
+    /* Only the functions the engine actually publishes — getInputs/hasInputs/
+       gateOk live inside the artisan block's scope and are not reachable from
+       here, but doArtisanAction is the single caller of all three and it is
+       checked below. */
+    const delegates = ['isMaterialOutput', 'cookBurnChance',
+      'doArtisanAction', 'generateBountyBoard', 'getActiveCombatStyle'];
+    for (const name of delegates) {
+      const fn = window[name];
+      assert(typeof fn === 'function', name + ' is missing from the engine');
+      assert(/HearthriseCore/.test(String(fn)),
+        name + '() no longer routes through the shared core — a second implementation is back in legacy.js');
+    }
+
+    /* The three bare Math.random() calls the extraction existed to remove.
+       A source scan is crude but it is the only thing that catches a
+       re-introduction, and re-introducing one silently un-replays every
+       future server-side accrual of that bench. */
+    const src = String(window.doArtisanAction);
+    assert(!/Math\s*\.\s*random/.test(src),
+      'doArtisanAction reaches for Math.random again — the craftSave / burn / yield rolls must take the injected RNG');
+
+    /* The cooking-fire module is now a face over the core, not a second copy. */
+    const CF = window.HearthriseCookingFire;
+    assert(CF.BASE === C.artisan.BURN_BASE, 'HearthriseCookingFire.BASE is a COPY of the core burn rate');
+    assert(CF.KITCHEN_NO_BURN === C.artisan.KITCHEN_NO_BURN, 'the Kitchen noBurn ladder exists twice');
+    assert(CF.BURNT_ITEM === C.artisan.BURNT_ITEM, 'the burnt-food item id exists twice');
+  }),
+
+  () => tryRun('Phase A: the bounty board is REPLAYABLE — the same seed offers the same three bounties', () => {
+    /* Before the extraction every bounty id carried Date.now() and a bare
+       Math.random(), so no two generations could ever agree. That made the
+       board impossible to generate server-side and prove. */
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const G = window.G;
+    const gen = (seed) => {
+      C.reseed(seed);
+      /* Pin the clock too: the id embeds it, and this test is about the
+         RANDOM half being seeded, not about freezing time. */
+      const realNow = Date.now;
+      Date.now = () => 1700000000000;
+      try {
+        return JSON.stringify(window.generateBountyBoard());
+      } finally { Date.now = realNow; }
+    };
+    try {
+      window.ensureBountyState();
+      const a = gen(777001);
+      const b = gen(777001);
+      const c = gen(777002);
+      assert(a === b, 'the same seed produced a different board — bounty generation is not replayable\n  ' + a + '\n  ' + b);
+      assert(a !== c, 'a different seed produced the same board — the seed is being ignored');
+      const board = JSON.parse(a);
+      assert(board.length === 3, 'the board must always offer three bounties, got ' + board.length);
+      for (const bt of board) {
+        assert(bt.required > 0, 'a bounty with no target count would complete instantly');
+        assert(window.MONSTERS[bt.target], 'a bounty targets a monster that does not exist: ' + bt.target);
+        assert(!window.MONSTERS[bt.target].boss, 'a board bounty must never target a boss');
+        assert(bt.rewards && bt.rewards.marks >= 1, 'every bounty must pay at least one Mark');
+      }
+      assert(G.bountyHunter.boardGeneratedAt === 1700000000000,
+        'generateBountyBoard must still stamp boardGeneratedAt — the reroll timer reads it');
+    } finally {
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('Phase A: kill XP is routed by the SAME table the live hit uses (and BotD scales it)', () => {
+    /* The routing table used to be four copies of one walk. The away loop
+       omitting the KILL half of it is the ~21%-of-combat-XP hole named in
+       docs/design/away-time-ruling.md — this test pins the route so the
+       accrual engine has something to build parity against. */
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const G = window.G;
+    try {
+      G.equipment = Object.assign({}, G.equipment);
+      delete G.equipment.weapon;                  // bare hands -> sword family
+      G.combatStyle = Object.assign({}, G.combatStyle, { sword: 'aggressive' });
+      const style = window.getActiveCombatStyle();
+      assert(style === C.styles.COMBAT_STYLES.sword.aggressive,
+        'getActiveCombatStyle returned a style object that is not IN the core table');
+
+      const hit = C.styles.hitXpRoute(style, 5);
+      assert(hit.length === 2 && hit[0].skill === 'strength' && hit[0].amount === 20,
+        'an Aggressive hit for 5 must pay 20 Strength XP, got ' + JSON.stringify(hit));
+      assert(hit[1].skill === 'hitpoints' && hit[1].amount === 6,
+        'every landed hit pays floor(dmg x 1.33) Hitpoints XP, got ' + JSON.stringify(hit[1]));
+
+      /* The kill route, and the Boss-of-the-Day multiplier the ruling says
+         must also apply away. */
+      const plain = C.styles.killXpRoute(style, 100, 1);
+      const featured = C.styles.killXpRoute(style, 100, 1.25);
+      assert(plain[0].amount === 100 && featured[0].amount === 125,
+        'the featured-boss combat-XP lift is no longer applied inside the kill route');
+
+      /* And a real kill actually moves the routed skill, through the real
+         (wrapped) addXp — the property a pure-core test cannot make. */
+      G.skills = Object.assign({}, G.skills, { strength: 0, attack: 0 });
+      G.activeMonster = 'goblin';
+      const before = G.skills.strength || 0;
+      const beforeAtk = G.skills.attack || 0;
+      window.killMonster(window.MONSTERS.goblin);
+      assert((G.skills.strength || 0) > before, 'an Aggressive kill paid no Strength XP');
+      assert((G.skills.attack || 0) === beforeAtk, 'an Aggressive kill must not pay Attack XP');
+    } finally {
       restoreG(snap);
     }
   }),

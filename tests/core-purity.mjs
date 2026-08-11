@@ -295,6 +295,158 @@ export async function coreAnchorGuard() {
       { skillId: 'woodcutting', level: 1, rng: createRng(1) });
     if (gated.ok !== false || gated.reason !== 'level') problems.push('the level gate no longer stops an action');
 
+    /* ── Phase A: combat-style XP routing ─────────────────────────────
+       The route used to be four copies of one `Object.entries` walk with
+       two DIFFERENT fallbacks. These anchors pin both, including the
+       asymmetry, so "tidying" one of them fails loudly instead of quietly
+       re-paying Strength on every kill. */
+    const stl = await load('styles.js');
+    if (Object.keys(stl.COMBAT_STYLES).length !== 4) problems.push('a weapon family vanished from COMBAT_STYLES');
+    for (const fam of Object.keys(stl.COMBAT_STYLES)) {
+      for (const key of Object.keys(stl.COMBAT_STYLES[fam])) {
+        const s = stl.COMBAT_STYLES[fam][key];
+        if (!s.xp || !Object.keys(s.xp).length) problems.push(`style ${fam}.${key} trains nothing`);
+        const total = Object.values(s.xp).reduce((a, b) => a + b, 0);
+        if (Math.abs(total - 1) > 1e-9) problems.push(`style ${fam}.${key} splits ${total} XP, not 1.0 — that is a stealth rate change`);
+      }
+    }
+    if (stl.resolveStyle('magic', { magic: 'focus' }).name !== 'Focus') problems.push('resolveStyle ignored the stored key');
+    if (stl.resolveStyle('magic', { magic: 'nonsense' }) !== stl.FALLBACK_STYLE) problems.push('an unknown style key must fall back, not crash');
+    if (stl.resolveStyle('slingshot', null).name !== 'Accurate') problems.push('an unknown weapon type must fall back to sword/accurate');
+    const hit = stl.hitXpRoute(stl.COMBAT_STYLES.sword.aggressive, 5);
+    if (JSON.stringify(hit) !== JSON.stringify([{ skill: 'strength', amount: 20 }, { skill: 'hitpoints', amount: 6 }])) {
+      problems.push('hitXpRoute drifted: ' + JSON.stringify(hit));
+    }
+    if (stl.hitXpRoute(null, 0).length) problems.push('a miss must pay nothing');
+    const hitFallback = stl.hitXpRoute(null, 5);
+    if (hitFallback.length !== 3 || hitFallback[0].skill !== 'attack' || hitFallback[1].skill !== 'strength') {
+      problems.push('the pre-styles hit fallback (attack AND strength) was removed');
+    }
+    const kill = stl.killXpRoute(stl.COMBAT_STYLES.ranged.longrange, 100, 1.25);
+    if (JSON.stringify(kill) !== JSON.stringify([{ skill: 'ranged', amount: 62.5 }, { skill: 'defense', amount: 62.5 }])) {
+      problems.push('killXpRoute drifted (Boss-of-the-Day multiplier?): ' + JSON.stringify(kill));
+    }
+    const killFallback = stl.killXpRoute(null, 100, 1);
+    if (killFallback.length !== 1 || killFallback[0].skill !== 'attack') {
+      problems.push('the kill fallback must pay Attack ONLY — it is deliberately not the hit fallback');
+    }
+    const keys = stl.normaliseStyleKeys({ sword: 'controlled' });
+    if (keys.sword !== 'controlled' || keys.magic !== 'cast') problems.push('normaliseStyleKeys clobbered or under-filled a choice');
+
+    /* ── Phase A: the artisan bench ───────────────────────────────────── */
+    const art = await load('artisan.js');
+    const shrimp = { id: 'cook_shrimp', req: 1, xp: 100, input: 'shrimp', output: 'cooked_shrimp' };
+    if (art.burnChance(shrimp, 1, 0) !== 0.25) problems.push('the open-fire burn rate drifted from 25%');
+    if (Math.abs(art.burnChance(shrimp, 1, 0.13) - 0.12) > 1e-9) problems.push('Kitchen L1 no longer buys 12%');
+    if (art.burnChance(shrimp, 26, 0) !== 0) problems.push('25 levels of mastery must burn-proof the open fire');
+    if (art.burnChance(shrimp, 1, 0.25) !== 0) problems.push('Kitchen L3 must be burn-proof');
+    if (art.burnXp(shrimp) !== 25) problems.push('a burn must pay the 25% consolation share');
+    if (art.burnXp({ xp: 1 }) !== 1) problems.push('a burn must never pay 0 XP');
+    if (art.KITCHEN_NO_BURN.length !== 5) problems.push('the Kitchen ladder is no longer 5 rungs');
+
+    /* Both recipe dialects read by ONE reader. */
+    if (JSON.stringify(art.recipeInputs({ input: 'ore', inputQty: 3, secondary: { coal: 2 } })) !== '{"ore":3,"coal":2}') {
+      problems.push('the legacy input+secondary dialect is no longer understood');
+    }
+    if (art.missingInput({ inputs: { ore: 3 } }, { ore: 2 }) !== 'ore') problems.push('missingInput must name the shortfall');
+    if (art.missingInput({ inputs: { ore: 3 } }, { ore: 3 }) !== null) problems.push('an affordable recipe must report no shortfall');
+
+    const catalogue = { cooked_shrimp: { n: 'Cooked Shrimp' }, plate: { n: 'Platebody', type: 'armor' }, bar: { n: 'Bar' } };
+    if (!art.isMaterialOutput({ output: 'bar' }, catalogue)) problems.push('a bar is a material output');
+    if (art.isMaterialOutput({ output: 'plate' }, catalogue)) problems.push('THE MATERIAL-ONLY YIELD LAW broke — equipment must never take a yield roll');
+
+    /* Real rng objects, not hand-rolled stubs: the chance(0)/chance(1)
+       absorbing cases are part of the contract and a stub that ignores them
+       would test a generator the engine never sees. */
+    const { rngFrom } = await load('rng.js');
+    const always = rngFrom(() => 0);        // worst-case roll: everything fires
+    const never = rngFrom(() => 0.999);     // best-case roll: nothing fires
+    const burnt = art.resolveArtisanAction(shrimp, {
+      skillId: 'cooking', inventory: { shrimp: 5 }, items: catalogue,
+      cookingLevel: 1, noBurn: 0, bonus: () => 0, rng: always,
+    });
+    if (!burnt.ok || !burnt.burnt) problems.push('a forced roll on an open fire must burn');
+    if (burnt.produced.id !== art.BURNT_ITEM || burnt.consumed.shrimp !== 1) problems.push('a burn must cost the ingredient and pay carbon');
+    if (burnt.progress.length) problems.push('a burn must never tick a cook goal');
+    if (burnt.xpAmount !== 25) problems.push('a burn must pay the consolation XP');
+
+    const cooked = art.resolveArtisanAction(shrimp, {
+      skillId: 'cooking', inventory: { shrimp: 5 }, items: catalogue,
+      cookingLevel: 1, noBurn: 0, bonus: () => 0, rng: never,
+    });
+    if (cooked.burnt || cooked.produced.qty !== 1 || cooked.xpAmount !== 100) problems.push('a successful cook drifted');
+    if (cooked.stats.cooked !== 1 || cooked.progress[0] !== 'cooked') problems.push('a successful cook must tick BOTH the stat and the daily/quest key');
+
+    const short = art.resolveArtisanAction(shrimp, { skillId: 'cooking', inventory: {}, items: catalogue, bonus: () => 0, rng: never });
+    if (short.ok !== false || short.reason !== 'inputs' || short.missing !== 'shrimp') problems.push('an empty bag must stop the bench and name the ingredient');
+    const locked = art.resolveArtisanAction({ id: 'x', xp: 1, inputs: {}, output: 'bar', gated: 'pattern' },
+      { skillId: 'crafting', inventory: {}, unlockedRecipes: {}, items: catalogue, bonus: () => 0, rng: never });
+    if (locked.reason !== 'gate') problems.push('a gated recipe must report the gate');
+
+    /* craftSave is scoped to the crafting bench AND to material outputs. */
+    const saveCtx = (skill, output) => art.resolveArtisanAction(
+      { id: 'r', xp: 10, inputs: { bar: 2 }, output },
+      { skillId: skill, inventory: { bar: 9 }, items: catalogue, bonus: (k) => (k === 'craftSave' ? 1 : 0), rng: never });
+    if (saveCtx('crafting', 'bar').saved !== true) problems.push('a 100% Lathe must save the inputs');
+    if (Object.keys(saveCtx('crafting', 'bar').consumed).length) problems.push('a saved craft must consume nothing');
+    if (saveCtx('smithing', 'bar').saved !== false) problems.push('craftSave must not leak onto the forge');
+    if (saveCtx('crafting', 'plate').saved !== false) problems.push('craftSave must not fire on equipment (H6)');
+
+    /* The artisan tool carry: 10 crafts of a 10% tool pay exactly 1 extra. */
+    const aCarry = {};
+    let aBonus = 0;
+    for (let i = 0; i < 10; i++) {
+      const r = art.resolveArtisanAction({ id: 'r', xp: 10, inputs: { bar: 1 }, output: 'bar' }, {
+        skillId: 'smithing', inventory: { bar: 99 }, items: catalogue,
+        bonus: () => 0, toolCarry: aCarry, toolDouble: 0.1, rng: never,
+      });
+      aBonus += r.toolDoubles;
+    }
+    if (aBonus !== 1) problems.push(`a 10% artisan tool over 10 crafts must pay exactly 1 extra, paid ${aBonus}`);
+
+    /* ── Phase A: the bounty board ────────────────────────────────────── */
+    const bty = await load('bounty.js');
+    if (bty.unlockedTier(11) !== 1 || bty.unlockedTier(12) !== 2 || bty.unlockedTier(70) !== 6) problems.push('the bounty tier ladder drifted');
+    if (bty.unlockedTypes(4).length !== 1 || bty.unlockedTypes(40).length !== 6) problems.push('the bounty type ladder drifted');
+    const rw = bty.bountyRewards(3, 'proof', 'hard');
+    if (rw.gold !== 2500 || rw.marks !== 32 || rw.xp !== 281) problems.push('bounty rewards drifted: ' + JSON.stringify(rw));
+    if (bty.bountyRewards(1, 'cull', 'easy').marks < 1) problems.push('a bounty must always pay at least 1 Mark');
+
+    const mons = {
+      rat: { name: 'Rat', tier: 1, weaponWeak: 'sword', xp: 10, drops: [{ id: 'tail', ch: 0.4 }] },
+      goblin: { name: 'Goblin', tier: 1, weaponWeak: 'neutral', xp: 12, drops: [{ id: 'ear', ch: 0.3 }] },
+      ogre: { name: 'Ogre', tier: 2, weaponWeak: 'hammer', xp: 40, drops: [{ id: 'tusk', ch: 0.2 }] },
+      king: { name: 'King', tier: 3, boss: true, weaponWeak: 'sword', xp: 900, drops: [] },
+    };
+    const bItems = { tail: { n: 'Tail' }, ear: { n: 'Ear' }, tusk: { n: 'Tusk' } };
+    const boardCtx = (seed) => ({
+      monsters: mons, items: bItems, combatLevel: 30, bountyLevel: 20,
+      ownedTypes: new Set(['sword', 'hammer']), rng: createRng(seed), now: 1_700_000_000_000,
+    });
+    const b1 = JSON.stringify(bty.generateBountyBoard(boardCtx(4242)).board);
+    const b2 = JSON.stringify(bty.generateBountyBoard(boardCtx(4242)).board);
+    const b3 = JSON.stringify(bty.generateBountyBoard(boardCtx(4243)).board);
+    /* THE point of the extraction: the board used to stamp Date.now() and
+       Math.random() into every id, so no two runs could ever agree. */
+    if (b1 !== b2) problems.push('the same seed produced a different bounty board — the board is not replayable');
+    if (b1 === b3) problems.push('a different seed produced the same board — the seed is being ignored');
+    const board = bty.generateBountyBoard(boardCtx(4242)).board;
+    if (board.length !== 3) problems.push('the board must always offer three bounties');
+    if (board.some((b) => mons[b.target].boss)) problems.push('a normal bounty must never target a boss');
+    if (board.some((b) => !(b.required > 0))) problems.push('a bounty with no target count is instantly complete');
+    if (new Set(board.map((b) => b.target)).size !== 3) problems.push('the three offers must name three different monsters');
+    /* Never offer a weapon bounty the player cannot satisfy. */
+    const poor = bty.generateBountyBoard(Object.assign(boardCtx(4242), { ownedTypes: new Set(['sword']) })).board;
+    for (const b of poor) {
+      if (b.type === 'weapon' && b.requiredWeaponType !== 'neutral' && b.requiredWeaponType !== 'sword') {
+        problems.push('offered a weapon bounty for a weapon the player does not own');
+      }
+    }
+    if (bty.pickProofItem('rat', mons, bItems) !== 'tail') problems.push('pickProofItem no longer picks the commonest non-equipment drop');
+    if (bty.pickProofItem('king', mons, bItems) !== null) problems.push('a drop-less monster must yield no proof item');
+    const owned = bty.ownedWeaponTypes({ bow: 1 }, {}, { bow: { type: 'weapon', weaponType: 'ranged' } });
+    if (!owned.has('ranged') || !owned.has('sword')) problems.push('ownedWeaponTypes must include the bag AND the always-available sword');
+
     const toolsMod = await load('tools.js');
     const toolItems = {
       bronze_axe: { type: 'tool', toolSkill: 'woodcutting', toolTier: 1, toolSpeed: 0.05 },

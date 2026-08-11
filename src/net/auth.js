@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=322';
+import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=323';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}

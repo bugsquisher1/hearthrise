@@ -586,22 +586,14 @@ window.IAP_CATALOG=IAP_CATALOG;
 /* ════════════════════════════════════════════════
    BOUNTY HUNTER DATA
    ════════════════════════════════════════════════ */
-const BOUNTY_KILL_COUNTS={
-  cull:{1:[80,120],2:[75,110],3:[70,100],4:[60,90],5:[55,80],6:[50,70]},
-  proof:{1:[25,35],2:[22,30],3:[20,28],4:[18,25],5:[15,22],6:[12,18]},
-  streak:{1:[40,60],2:[35,55],3:[30,50],4:[25,45],5:[20,40],6:[18,35]},
-};
-const BOUNTY_BASE_REWARDS={
-  1:{gold:320,marks:6,xp:45},2:{gold:800,marks:11,xp:95},3:{gold:1600,marks:18,xp:180},
-  4:{gold:3200,marks:30,xp:340},5:{gold:6500,marks:48,xp:620},6:{gold:13000,marks:78,xp:1100},
-};
-const BOUNTY_TYPE_MULT={
-  cull:{gold:1,marks:1,xp:1}, proof:{gold:1.2,marks:1.35,xp:1.2}, weapon:{gold:1,marks:1.25,xp:1.45},
-  streak:{gold:.9,marks:1.5,xp:1.35}, boss:{gold:3,marks:3.5,xp:3}, chain:{gold:4,marks:4.5,xp:4}
-};
-const BOUNTY_DIFFICULTY_MULT={easy:.85,normal:1,hard:1.3,elite:1.75};
-const BOUNTY_TYPE_LABEL={cull:'Cull',proof:'Proof',weapon:'Weapon',streak:'Streak',boss:'Boss',chain:'Chain'};
-const BOUNTY_DIFFICULTY_LABEL={easy:'Easy',normal:'Normal',hard:'Hard',elite:'Elite'};
+/* PHASE A: the six bounty tables moved to src/core/bounty.js and are
+   published onto `window` by src/core-bridge.js. The bare identifiers below
+   (BOUNTY_TYPE_LABEL etc., used by the board renderer) still resolve — a
+   classic script's global lookup finds the window property — but there is
+   now exactly ONE copy, and the accrual/board-generation engine on the
+   server reads that same copy. A top-level `const` here would have
+   lexically SHADOWED the window property, which is precisely how b222's
+   data double-copy went unnoticed for months. */
 
 /* ════════════════════════════════════════════════
    GAME STATE
@@ -1191,14 +1183,11 @@ function processOfflineCombat(maxHrs){
     const pDmg = window.HearthriseCore.combat.rollAttack(window.HearthriseCore.rng, playerRoll.accuracy, playerRoll.maxHit);
     G.monsterHp = Math.max(0, G.monsterHp - pDmg);
     if(pDmg > 0){
+      /* PHASE A: the SAME route the live tick uses (src/core/styles.js).
+         The away/live divergence that remains is the KILL grant below —
+         this loop still never pays m.xp. See the note at the kill branch. */
       const style = (typeof window.getActiveCombatStyle === 'function') ? window.getActiveCombatStyle() : null;
-      if(style && style.xp){
-        Object.entries(style.xp).forEach(([sk, r]) => addXp(sk, pDmg * 4 * r));
-      } else {
-        addXp('attack', pDmg * 4);
-        addXp('strength', pDmg * 4);
-      }
-      addXp('hitpoints', Math.floor(pDmg * 1.33));
+      for(const g of window.HearthriseCore.styles.hitXpRoute(style, pDmg)) addXp(g.skill, g.amount);
     }
 
     // Kill: award gold + drops, respawn the same monster, continue
@@ -1210,6 +1199,15 @@ function processOfflineCombat(maxHrs){
       G.combatKillsThisFoe = (G.combatKillsThisFoe||0) + 1;
       kills++;
       const dropMult = getWeaknessInfo(m).dropMult;
+      /* AWAY DIVERGENCE (docs/design/away-time-ruling.md §"Bugs the ruling
+         also fixes"): this branch does NOT call killXpRoute, so `m.xp` — about
+         21% of all combat XP — is never granted away. It also skips the drop
+         log, updateDaily('kill_any'), updateQuest, rollKillDeed and
+         stats.deaths. All five are BASE rewards, not bonuses. They are left
+         alone HERE on purpose: the ruling deletes this whole second loop in
+         favour of one simulate*(ctx), and fixing it in place would mean
+         shipping the behaviour change without the parity test that is meant
+         to guard it. The seam it needs now exists (core/styles.js). */
       const _off = window.HearthriseCore.drops.rollDropTable(m.drops || [], { dropMult }, window.HearthriseCore.rng);
       for(const ev of _off.events){
         addItem(ev.id, 1);
@@ -2139,92 +2137,34 @@ function ensureBountyState(){
   if(!G.bountyHunter.board.length)G.bountyHunter.board=generateBountyBoard();
 }
 function getBountyHunterLevel(){return levelFromXp(G.bountyHunter?.xp||0);}
+/* PHASE A — bounty generation delegates to src/core/bounty.js.
+   Everything below is an ADAPTER: it resolves the ambient state (levels,
+   the monster/item catalogues, the bag, the clock) and hands it to the pure
+   generator. No numbers, no draw order and no fallbacks changed; the only
+   real difference is that the board is now REPLAYABLE from a seed, because
+   the id stamp and the third-slot type roll used bare Math.random() before
+   and now take the injected RNG. */
 function getUnlockedBountyTier(){
-  const cl=getCombatLevel();
-  if(cl>=70)return 6;if(cl>=55)return 5;if(cl>=40)return 4;if(cl>=25)return 3;if(cl>=12)return 2;return 1;
+  return window.HearthriseCore.bounty.unlockedTier(getCombatLevel());
 }
 function getUnlockedBountyTypes(){
-  const lv=getBountyHunterLevel();
-  const t=['cull'];
-  if(lv>=5)t.push('proof');
-  if(lv>=10)t.push('weapon');
-  if(lv>=15)t.push('streak');
-  if(lv>=30)t.push('boss');
-  if(lv>=40)t.push('chain');
-  return t;
+  return window.HearthriseCore.bounty.unlockedTypes(getBountyHunterLevel());
 }
 function getPlayerWeaponTypes(){
-  const types=new Set(['sword']);
-  Object.values(G.inventory||{});
-  Object.keys(ITEMS).forEach(id=>{const it=ITEMS[id];if(it?.type==='weapon'&&it.weaponType&&(G.inventory[id]||Object.values(G.equipment||{}).includes(id)))types.add(it.weaponType);});
-  return types;
-}
-function pickBountyMonster(tier,mode='normal',avoid=[]){
-  let tiers=mode==='safe'?[tier,Math.max(1,tier-1)]:mode==='interesting'?[tier]:[tier,Math.max(1,tier-1),Math.max(1,tier-2)];
-  const avoidSet=new Set(avoid);
-  let pool=Object.entries(MONSTERS).filter(([id,m])=>tiers.includes(m.tier)&&!avoidSet.has(id)&&!m.boss);
-  if(mode==='interesting'){
-    pool.sort((a,b)=>((b[1].weaponWeak==='neutral')-(a[1].weaponWeak==='neutral'))||((b[1].tier||0)-(a[1].tier||0)));
-    pool=pool.slice(0,Math.max(3,pool.length));
-  }
-  if(!pool.length)pool=Object.entries(MONSTERS).filter(([id,m])=>m.tier<=tier&&!m.boss&&!avoidSet.has(id));
-  return pool[rand(0,pool.length-1)]?.[0]||'goblin';
-}
-function pickProofItem(monsterId){
-  const m=MONSTERS[monsterId];
-  if(!m?.drops?.length)return null;
-  const candidates=m.drops.filter(d=>d.ch<1&&ITEMS[d.id]&&!ITEMS[d.id].type).sort((a,b)=>b.ch-a.ch);
-  return candidates[0]?.id||m.drops.find(d=>d.ch<1)?.id||null;
-}
-function bountyCount(type,tier){
-  if(type==='weapon')return Math.round(bountyCount('cull',tier)*0.85);
-  const table=BOUNTY_KILL_COUNTS[type]||BOUNTY_KILL_COUNTS.cull;
-  const r=table[tier]||table[1];return rand(r[0],r[1]);
-}
-function bountyRewards(tier,type,difficulty){
-  const base=BOUNTY_BASE_REWARDS[tier]||BOUNTY_BASE_REWARDS[1],tm=BOUNTY_TYPE_MULT[type]||BOUNTY_TYPE_MULT.cull,dm=BOUNTY_DIFFICULTY_MULT[difficulty]||1;
-  return {
-    gold:Math.round((base.gold*tm.gold*dm)/10)*10,
-    marks:Math.max(1,Math.round(base.marks*tm.marks*dm)),
-    xp:Math.round(base.xp*tm.xp*dm)
-  };
-}
-function makeBounty(type,monsterId,difficulty='normal'){
-  const m=MONSTERS[monsterId],tier=m?.tier||1;
-  const id=`${type}_${monsterId}_${Date.now()}_${Math.floor(Math.random()*9999)}`;
-  const b={id,type,target:monsterId,difficulty,tier,progress:0,createdAt:Date.now(),rewards:bountyRewards(tier,type,difficulty)};
-  if(type==='proof'){
-    b.proofItem=pickProofItem(monsterId);
-    if(!b.proofItem){b.type='cull';}
-    b.required=bountyCount('proof',tier);
-  }else if(type==='weapon'){
-    b.required=bountyCount('weapon',tier);
-    b.requiredWeaponType=m.weaponWeak==='neutral'?'neutral':m.weaponWeak;
-  }else if(type==='streak'){
-    b.required=bountyCount('streak',tier);b.streak=0; b.failOnDeath=true;
-  }else{
-    b.required=bountyCount('cull',tier);
-  }
-  return b;
+  return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, G.equipment, ITEMS);
 }
 function generateBountyBoard(){
-  const tier=getUnlockedBountyTier();
-  const types=getUnlockedBountyTypes();
-  const used=[];
-  const board=[];
-  const m1=pickBountyMonster(tier,'safe',used);used.push(m1);board.push(makeBounty('cull',m1,'easy'));
-  const secondType=types.includes('proof')?'proof':'cull';
-  const m2=pickBountyMonster(tier,'normal',used);used.push(m2);board.push(makeBounty(secondType,m2,'normal'));
-  let thirdType=types.includes('streak')?(Math.random()<0.5?'streak':(types.includes('weapon')?'weapon':'cull')):(types.includes('weapon')?'weapon':'cull');
-  const ownedTypes=getPlayerWeaponTypes();
-  const m3=pickBountyMonster(tier,'interesting',used);used.push(m3);
-  if(thirdType==='weapon'){
-    const weak=MONSTERS[m3]?.weaponWeak;
-    if(weak!=='neutral'&&!ownedTypes.has(weak))thirdType='cull';
-  }
-  board.push(makeBounty(thirdType,m3,types.includes('streak')?'hard':'normal'));
-  G.bountyHunter.boardGeneratedAt=Date.now();
-  return board;
+  const CK=window.HearthriseCore;
+  const out=CK.bounty.generateBountyBoard({
+    monsters:MONSTERS, items:ITEMS,
+    combatLevel:getCombatLevel(),
+    bountyLevel:getBountyHunterLevel(),
+    ownedTypes:getPlayerWeaponTypes(),
+    rng:CK.rng,
+    now:Date.now(),
+  });
+  G.bountyHunter.boardGeneratedAt=out.generatedAt;
+  return out.board;
 }
 /* Proof progress counts ONLY items collected AFTER the bounty was accepted.
    Tester report (paione): accepting a "collect N proof" task paid out instantly
@@ -2677,15 +2617,12 @@ function combatTick(){
   const log=G.combatLog;
   log.push(pDmg>0?`${didCrit?'💥 CRIT! ':'⚔️ '}You hit ${m.name} for ${pDmg}`:`💨 You miss!`);
   if(pDmg>0){
-    /* Route XP via active combat style (e.g. staff→Magic, bow→Ranged, sword 'aggressive'→Strength) */
+    /* Route XP via active combat style (e.g. staff→Magic, bow→Ranged, sword 'aggressive'→Strength).
+       PHASE A: the route is src/core/styles.js `hitXpRoute` — the same list
+       the away loop and the server accrual engine use. addXp stays here
+       because it is the wrapped, side-effecting grant. */
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
-    if(_style && _style.xp){
-      Object.entries(_style.xp).forEach(([sk,r])=>addXp(sk,pDmg*4*r));
-    } else {
-      /* Fallback if styles haven't loaded yet */
-      addXp('attack',pDmg*4);addXp('strength',pDmg*4);
-    }
-    addXp('hitpoints',Math.floor(pDmg*1.33));
+    for(const g of window.HearthriseCore.styles.hitXpRoute(_style,pDmg)) addXp(g.skill,g.amount);
   }
   if(G.monsterHp<=0){killMonster(m);return;}
   const monsterRoll=getMonsterCombatRolls(m,eq);
@@ -2760,15 +2697,13 @@ function killMonster(m){
   if(window.HearthriseFarm && typeof window.HearthriseFarm.rollKillDeed === 'function'){
     window.HearthriseFarm.rollKillDeed(m);
   }
-  /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc. */
+  /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc.
+     PHASE A: src/core/styles.js `killXpRoute` owns the route AND the b254
+     featured-boss multiplier. The away ruling says BotD pays away too, so
+     the server calls this exact function with the segment's multiplier. */
   {
     const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
-    const _xp = m.xp * _feat.xpMult; // b254: featured-boss XP bonus
-    if(_style && _style.xp){
-      Object.entries(_style.xp).forEach(([sk,r])=>addXp(sk,_xp*r));
-    } else {
-      addXp('attack',_xp);
-    }
+    for(const g of window.HearthriseCore.styles.killXpRoute(_style,m.xp,_feat.xpMult)) addXp(g.skill,g.amount);
   }
   updateDaily('kill_any',1);updateQuest('kill_any',1,{target:G.activeMonster});updateQuest('kill_monster',1,{target:G.activeMonster});
   handleBountyKill(G.activeMonster,m);
@@ -7795,38 +7730,28 @@ console.log('Lifetime stats: loaded');
 (function(){
 "use strict";
 
-window.COMBAT_STYLES = {
-  sword: {
-    accurate:{name:"Accurate",trains:"Attack",accuracyMod:1.05,damageMod:1.00,defenseMod:1.00,xp:{attack:1}},
-    aggressive:{name:"Aggressive",trains:"Strength",accuracyMod:1.00,damageMod:1.05,defenseMod:1.00,xp:{strength:1}},
-    defensive:{name:"Defensive",trains:"Defense",accuracyMod:1.00,damageMod:1.00,defenseMod:1.05,xp:{defense:1}},
-    controlled:{name:"Controlled",trains:"Atk/Str/Def",accuracyMod:1.02,damageMod:1.02,defenseMod:1.02,xp:{attack:.33,strength:.33,defense:.34}},
-  },
-  hammer: {
-    smash:{name:"Smash",trains:"Strength",accuracyMod:1.00,damageMod:1.12,defenseMod:1.00,xp:{strength:1}},
-    crush:{name:"Crush",trains:"Atk/Str",accuracyMod:1.03,damageMod:1.08,defenseMod:1.00,xp:{attack:.5,strength:.5}},
-    guard:{name:"Guarded Smash",trains:"Def/Str",accuracyMod:1.00,damageMod:1.04,defenseMod:1.05,xp:{defense:.5,strength:.5}},
-  },
-  ranged: {
-    rapid:{name:"Rapid",trains:"Ranged",accuracyMod:1.00,damageMod:1.00,defenseMod:1.00,xp:{ranged:1}},
-    precise:{name:"Precise",trains:"Ranged",accuracyMod:1.08,damageMod:1.00,defenseMod:1.00,xp:{ranged:1}},
-    longrange:{name:"Longrange",trains:"Ranged/Def",accuracyMod:1.04,damageMod:0.98,defenseMod:1.05,xp:{ranged:.5,defense:.5}},
-  },
-  magic: {
-    cast:{name:"Cast",trains:"Magic",accuracyMod:1.00,damageMod:1.00,defenseMod:1.00,xp:{magic:1}},
-    focus:{name:"Focus",trains:"Magic",accuracyMod:1.08,damageMod:1.03,defenseMod:1.00,xp:{magic:1}},
-    warded:{name:"Warded Cast",trains:"Magic/Def",accuracyMod:1.02,damageMod:0.98,defenseMod:1.05,xp:{magic:.5,defense:.5}},
-  }
-};
+/* PHASE A: the COMBAT_STYLES table now lives in src/core/styles.js and is
+   published onto `window` by src/core-bridge.js — ONE object, read by the
+   style picker here, by the XP router, and by the server-side accrual
+   engine, which cannot import a classic script. The literal that used to
+   sit here was deleted rather than left in place: two copies reconciled by
+   load order is the exact failure mode b222 cost us.
+
+   Load order note: core-bridge.js is a module and therefore runs AFTER
+   every classic script, so nothing in this block may read
+   window.COMBAT_STYLES at parse time. Everything below reads it from
+   inside a function, which runs later. */
 
 /* Migrate state immediately and on every G access (covers post-load) */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
   G.skills = G.skills || {};
   if(typeof G.skills.ranged !== 'number') G.skills.ranged = 0;
-  if(!G.combatStyle || typeof G.combatStyle !== 'object'){
-    G.combatStyle = {sword:'accurate', hammer:'smash', ranged:'rapid', magic:'cast'};
-  } else {
+  var CK = window.HearthriseCore;
+  if(!G.combatStyle || typeof G.combatStyle !== 'object') G.combatStyle = {};
+  if(CK) CK.styles.normaliseStyleKeys(G.combatStyle);
+  else {
+    /* Pre-core fallback (a timer can fire before the module graph settles). */
     if(!G.combatStyle.sword)  G.combatStyle.sword  = 'accurate';
     if(!G.combatStyle.hammer) G.combatStyle.hammer = 'smash';
     if(!G.combatStyle.ranged) G.combatStyle.ranged = 'rapid';
@@ -7843,10 +7768,12 @@ window.getWeaponType = function(){
 };
 window.getActiveCombatStyle = function(){
   migrate(); // make sure G.combatStyle is set before reading
-  var t = window.getWeaponType();
-  var key = (typeof G==='object' && G && G.combatStyle && G.combatStyle[t])
-            || Object.keys(window.COMBAT_STYLES[t] || window.COMBAT_STYLES.sword)[0];
-  return (window.COMBAT_STYLES[t] && window.COMBAT_STYLES[t][key]) || window.COMBAT_STYLES.sword.accurate;
+  /* One-line hand-off to src/core/styles.js — same lookup, same fallbacks,
+     but now a function the Edge Function can call with a state row. */
+  return window.HearthriseCore.styles.resolveStyle(
+    window.getWeaponType(),
+    (typeof G==='object' && G && G.combatStyle) || null
+  );
 };
 window.getCombatStatProfile = function(){
   var t = window.getWeaponType();
@@ -7866,6 +7793,12 @@ function renderStyleSelector(){
   ].filter(Boolean);
   if(!hosts.length) return;
   var host = hosts[0];
+
+  /* PHASE A: the style table lives in the core, which is a deferred MODULE —
+     on a slow load this 400ms timer can fire before the module graph has
+     evaluated. Re-arm rather than throw; the picker appears a beat later
+     instead of a red console and a missing panel. */
+  if(!window.HearthriseCore || !window.COMBAT_STYLES){ setTimeout(renderStyleSelector, 200); return; }
 
   /* Avoid duplicates */
   var prev = document.querySelector('.combat-style-block');
@@ -7933,7 +7866,16 @@ function hook(){
 setTimeout(hook, 0);
 setTimeout(renderStyleSelector, 400);
 
-console.log('Combat styles v2 loaded. weaponType:', window.getWeaponType(), 'styles for that:', Object.keys(window.COMBAT_STYLES[window.getWeaponType()] || {}));
+/* The old parse-time "Combat styles v2 loaded" log read window.COMBAT_STYLES
+   directly, which is no longer populated at parse time (core-bridge is a
+   deferred module). Deferred by a tick so it reports the real table. */
+setTimeout(function(){
+  try{
+    var t = window.getWeaponType();
+    console.log('Combat styles v2 loaded (core). weaponType:', t,
+      'styles for that:', Object.keys((window.COMBAT_STYLES||{})[t] || {}));
+  }catch(e){}
+}, 0);
 })();
 
 // ===== block 11: theme-controller =====
@@ -9772,27 +9714,18 @@ function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(functio
 ].forEach(function(r){ if(!has('crafting', r.id)) add('crafting', r); });
 
 /* ─── Patch artisan loop to support multi-input recipes (inputs dict) ─── */
-function getInputs(recipe){
-  if(recipe.inputs) return recipe.inputs;
-  /* Legacy: input + secondary */
-  var i = {};
-  if(recipe.input) i[recipe.input] = recipe.inputQty || 1;
-  if(recipe.secondary) Object.entries(recipe.secondary).forEach(function(kv){ i[kv[0]] = kv[1]; });
-  return i;
-}
-function hasInputs(recipe){
-  var inp = getInputs(recipe);
-  for(var id in inp){ if((G.inventory[id]||0) < inp[id]) return false; }
-  return true;
-}
-function consumeInputs(recipe){
-  var inp = getInputs(recipe);
-  Object.entries(inp).forEach(function(kv){ if(typeof removeItem==='function') removeItem(kv[0], kv[1]); });
-}
-function gateOk(recipe){
-  if(!recipe.gated) return true;
-  return !!(G.unlockedRecipes && G.unlockedRecipes[recipe.gated]);
-}
+/* PHASE A: the recipe-shape readers live in src/core/artisan.js now — one
+   reader for both dialects (`inputs:{}` and legacy `input`+`secondary`), so
+   a new consumer cannot learn only half the schema. These stay as thin
+   named wrappers because the artisan renderer and the auto-actions feature
+   both call them. */
+function getInputs(recipe){ return window.HearthriseCore.artisan.recipeInputs(recipe); }
+function hasInputs(recipe){ return window.HearthriseCore.artisan.hasInputs(recipe, G.inventory); }
+/* consumeInputs() was deleted with this pass: resolveArtisanAction returns a
+   `consumed` map and doArtisanAction applies it, so a helper that removed
+   items without knowing whether craftSave had refunded them had no honest
+   caller left. */
+function gateOk(recipe){ return window.HearthriseCore.artisan.gateOk(recipe, G.unlockedRecipes); }
 
 /* b227 — THE MATERIAL-ONLY YIELD LAW (homestead-deepening.md §3.5 / H6).
    A hard rule, not a tuning knob: `yield_*` and `craftSave` may fire ONLY on
@@ -9804,10 +9737,7 @@ function gateOk(recipe){
    should do. Any future building in EITHER pillar that grants extra output
    must carry this same predicate (spec §9.4). */
 function isMaterialOutput(recipe){
-  var out = recipe && recipe.output;
-  if(!out) return false;
-  var def = (typeof ITEMS!=='undefined' && ITEMS[out]) || null;
-  return !!def && !def.type;
+  return window.HearthriseCore.artisan.isMaterialOutput(recipe, (typeof ITEMS!=='undefined' && ITEMS) || null);
 }
 window.isMaterialOutput = isMaterialOutput;
 
@@ -9820,11 +9750,15 @@ window.isMaterialOutput = isMaterialOutput;
    tile all call THIS — so the number the player is shown is by construction
    the number that is rolled. */
 window.cookBurnChance = function(recipe){
-  var CF = window.HearthriseCookingFire;
-  if(!CF || !recipe) return 0;
+  if(!recipe) return 0;
   var lv = (typeof getLevel==='function') ? getLevel('cooking') : 1;
   var noBurn = (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0;
-  return CF.burnChance(recipe, lv, noBurn);
+  /* PHASE A: the rate itself is src/core/artisan.js. Still routed via
+     window.HearthriseCookingFire so anything that has substituted that
+     module (the suite does) is not silently bypassed. */
+  var CF = window.HearthriseCookingFire;
+  if(CF && typeof CF.burnChance==='function') return CF.burnChance(recipe, lv, noBurn);
+  return window.HearthriseCore.artisan.burnChance(recipe, lv, noBurn);
 };
 
 /* The comprehension surface for the burn mechanic (b224's food lesson: never
@@ -9879,49 +9813,61 @@ window.doArtisanAction = function(skillId, recipeId, opts){
      Skip on silent offline-replay ticks — those never render and startArtisan
      re-zeroes progress on resume anyway. */
   if(!(opts && opts.silent)) G.skillProgress = 0;
-  if(!hasInputs(r)){
+
+  /* ── PHASE A: ONE call does the whole production step ─────────────────
+     src/core/artisan.js `resolveArtisanAction` owns the input check, the
+     gate, craftSave, the burn roll, the yield_* roll, the deterministic
+     tool carry and the XP amount. It reads nothing off a global and writes
+     nothing to the world — it returns a description, and everything below
+     this line is the client APPLYING that description (bag writes, XP,
+     toasts, counters, renders). The server applies the same description to
+     player_inventory / player_progress rows.
+
+     G._toolCarry is passed BY REFERENCE and mutated in place, exactly as
+     before, so the fractional carry survives across actions and saves. */
+  var CK = window.HearthriseCore;
+  G._toolCarry = G._toolCarry || {};
+  var res = CK.artisan.resolveArtisanAction(r, {
+    skillId: skillId,
+    inventory: G.inventory,
+    unlockedRecipes: G.unlockedRecipes,
+    items: (typeof ITEMS!=='undefined' && ITEMS) || null,
+    cookingLevel: (typeof getLevel==='function') ? getLevel('cooking') : 1,
+    noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
+    bonus: function(k){ return (typeof getBonus==='function') ? (getBonus(k)||0) : 0; },
+    toolCarry: G._toolCarry,
+    /* Through window.HearthriseTools, not straight to core: that object is a
+       published API other feature modules wrap, and resolving the tool here
+       would silently escape whoever replaced it. */
+    toolDouble: (window.HearthriseTools && window.HearthriseTools.bestToolDouble) ? window.HearthriseTools.bestToolDouble(skillId) : 0,
+    toolXpB: (window.HearthriseTools && window.HearthriseTools.bestToolXpB) ? window.HearthriseTools.bestToolXpB(skillId) : 0,
+    rng: CK.rng,
+  });
+
+  if(!res.ok){
     /* b228 (Tyler): "I ran out of iron ore but the game is still showing me as
        smithing." _stopArtisan only killed the timers — activeSkill, the Active
        tile and the topbar card all kept claiming work was happening. Stop the
        WHOLE activity honestly and say why, naming the missing ingredient. */
-    var missing = null;
-    try{
-      var need = r.inputs || (r.input ? (function(o){o[r.input]=1;return o;})({}) : {});
-      for(var k in need){ if(((G.inventory&&G.inventory[k])||0) < need[k]){ missing = (ITEMS[k]&&ITEMS[k].n)||k; break; } }
-    }catch(e){}
     if(typeof window.stopSkill==='function') window.stopSkill(); else if(window._stopArtisan) window._stopArtisan();
-    if(typeof notify==='function') notify('Out of '+(missing||'materials')+' — '+skillId+' stopped','kill');
+    if(typeof notify==='function'){
+      if(res.reason === 'gate') notify('Recipe locked — '+skillId+' stopped','kill');
+      else {
+        var missing = res.missing ? ((ITEMS[res.missing] && ITEMS[res.missing].n) || res.missing) : 'materials';
+        notify('Out of '+missing+' — '+skillId+' stopped','kill');
+      }
+    }
     return;
   }
-  if(!gateOk(r)){
-    if(typeof window.stopSkill==='function') window.stopSkill(); else if(window._stopArtisan) window._stopArtisan();
-    if(typeof notify==='function') notify('Recipe locked — '+skillId+' stopped','kill');
-    return;
-  }
-  /* b227 — `craftSave` (Workshop L4/L5, homestead-deepening §3.3). One of the
-     six ghost keys: declared in the House bonus display since it shipped and
-     produced by nothing. The Workshop's Lathe finally produces it.
 
-     Rolled HERE rather than inside consumeInputs because the roll needs the
-     skillId and consumeInputs only receives a recipe — and `craftSave` must
-     not silently pay out on cooking or smithing, which share that function.
-     Scoped to the bench that sells it. Subject to H6 below for the same
-     reason yield_* is: a free craft of a 270,000g platebody is a gold faucet,
-     not a better workshop. */
-  if(!(skillId==='crafting' && isMaterialOutput(r) && Math.random() < getBonus('craftSave'))) consumeInputs(r);
+  /* Inputs. `consumed` is empty when craftSave refunded them. */
+  Object.keys(res.consumed).forEach(function(id){ if(typeof removeItem==='function') removeItem(id, res.consumed[id]); });
 
-  /* ── The burn roll (cooking only; a forge does not "burn" a sword) ── */
-  var CF = window.HearthriseCookingFire;
-  var burnt = false;
-  if(skillId==='cooking' && r.output && CF){
-    var chance = window.cookBurnChance(r);
-    if(chance > 0 && Math.random() < chance) burnt = true;
-  }
-  if(burnt){
+  if(res.burnt){
     /* The ingredients are already gone — that is the honest cost the
        amendment asks for. You get carbon and a fraction of the lesson. */
-    if(typeof addItem==='function') addItem(CF.BURNT_ITEM, 1);
-    if(typeof addXp==='function') addXp(skillId, CF.burnXp(r));
+    if(res.produced && typeof addItem==='function') addItem(res.produced.id, res.produced.qty);
+    if(typeof addXp==='function') addXp(res.xpSkill, res.xpAmount);
     var outName = (ITEMS[r.output] && ITEMS[r.output].n) || r.name || 'dish';
     if(!(opts && opts.silent)){
       if(typeof notify==='function') notify('The fire claims your ' + outName + ' — Burnt Food','kill');
@@ -9929,59 +9875,28 @@ window.doArtisanAction = function(skillId, recipeId, opts){
       window._hrOfflineBurns = (window._hrOfflineBurns||0) + 1;
     }
     G.stats = G.stats || {};
-    G.stats.burnt = (G.stats.burnt||0) + 1;
-    /* NO cooked/daily/quest counter. A "cook N dishes" goal counts SUCCESSFUL
-       cooks only — a burn is the failure it is named for, and letting it tick
-       the quest would make the mechanic invisible AND dishonest. Nothing here
-       can deadlock: raw ingredients are infinitely gatherable, so the goal
-       just costs a few more shrimp. */
+    Object.keys(res.stats).forEach(function(k){ G.stats[k] = (G.stats[k]||0) + res.stats[k]; });
+    /* res.progress is empty on a burn: a "cook N dishes" goal counts
+       SUCCESSFUL cooks only. Nothing can deadlock — raw ingredients are
+       infinitely gatherable, so the goal just costs a few more shrimp. */
     if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
     if(typeof updateTopbar==='function') updateTopbar();
     return;
   }
 
-  /* b227 — `yield_<skill>` (Kitchen L4/L5, Forge L4/L5; spec §8's one-line
-     seam). The top rungs of a bench pay in OUTPUT, not speed, for two reasons:
-     `ms × (1 − speed)` runs out of room at 1.0 (H3), and an extra Cooked Shark
-     is a thing you can see in the bag where "+15% faster" is a thing you have
-     to believe. */
-  var extra = (r.output && isMaterialOutput(r) && Math.random() < getBonus('yield_'+skillId)) ? 1 : 0;
-  /* Wave 3: an artisan tool (Forge Hammer / Sewing Needle / Cook's Knife) can
-     double a craft — the same felt payoff a Rune Axe gives a gatherer. */
-  var _aToolDbl = (window.HearthriseTools && window.HearthriseTools.bestToolDouble) ? window.HearthriseTools.bestToolDouble(skillId) : 0;
-  var _outQty = (r.outputQty || 1) + extra;
-  /* Wave 3: deterministic carry (same as gathering) — never RNG, so offline replay
-     stays byte-identical. */
-  if(_aToolDbl > 0){
-    G._toolCarry = G._toolCarry || {};
-    var _cc = (G._toolCarry[skillId]||0) + _outQty*_aToolDbl;
-    var _ce = Math.floor(_cc+1e-9); G._toolCarry[skillId] = _cc - _ce;
-    if(_ce > 0){ _outQty += _ce; G.stats = G.stats || {}; G.stats.toolDoubles = (G.stats.toolDoubles||0) + _ce; }
-  }
-  if(r.output && typeof addItem==='function') addItem(r.output, _outQty);
-  var _aToolXp = (window.HearthriseTools && window.HearthriseTools.bestToolXpB) ? window.HearthriseTools.bestToolXpB(skillId) : 0;
-  if(typeof addXp==='function') addXp(skillId, _aToolXp > 0 ? r.xp*(1+_aToolXp) : r.xp);
+  if(res.produced && typeof addItem==='function') addItem(res.produced.id, res.produced.qty);
+  if(typeof addXp==='function') addXp(res.xpSkill, res.xpAmount);
   // b217: this (the LIVE doArtisanAction) previously updated only G.stats and
   // NOT the daily/quest trackers, so the daily "Cook/Smith/Craft N" tasks were
   // un-completable and the onboarding "Cook 5 dishes" prep quest couldn't
-  // progress. Route the counters through updateDaily + updateQuest here.
-  if(skillId==='cooking'){
-    G.stats.cooked = (G.stats.cooked||0)+1;
-    if(typeof updateDaily==='function') updateDaily('cooked', 1);
-    if(typeof updateQuest==='function') updateQuest('cooked', 1);
-  }
-  if(skillId==='smithing'){
-    G.stats.refined = (G.stats.refined||0)+1;
-    G.stats.smithed = (G.stats.smithed||0)+1;
-    if(typeof updateDaily==='function') updateDaily('smithed', 1);
-    if(typeof updateQuest==='function') updateQuest('smithed', 1);
-  }
-  if(skillId==='crafting'){
-    G.stats.refined = (G.stats.refined||0)+1;
-    G.stats.crafted = (G.stats.crafted||0)+1;
-    if(typeof updateDaily==='function') updateDaily('crafted', 1);
-    if(typeof updateQuest==='function') updateQuest('crafted', 1);
-  }
+  // progress. Both now come off ONE table (core BENCH_COUNTERS), so they
+  // cannot half-update again.
+  G.stats = G.stats || {};
+  Object.keys(res.stats).forEach(function(k){ G.stats[k] = (G.stats[k]||0) + res.stats[k]; });
+  res.progress.forEach(function(key){
+    if(typeof updateDaily==='function') updateDaily(key, 1);
+    if(typeof updateQuest==='function') updateQuest(key, 1);
+  });
   /* b227: re-derive the interval after each LIVE action so a speed blessing
      turns on and off with presence, exactly as its XP side already does. The
      offline replay passes {silent:true} and must never touch a live timer. */

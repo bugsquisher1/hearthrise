@@ -63,10 +63,22 @@
 (function () {
   'use strict';
 
-  var BASE = 0.25;              // open-fire burn chance at the recipe's req level
-  var PER_LEVEL_RELIEF = 0.01;  // −1 percentage point per cooking level above req
-  var BURN_XP_SHARE = 0.25;     // consolation XP as a share of the recipe's XP
-  var BURNT_ITEM = 'burnt_food';
+  /* ── PHASE A: the ARITHMETIC moved to src/core/artisan.js ───────────────
+     Not because it was impure — it never was — but because it is a RATE the
+     server must compute when it prices an overnight of cooking, and Deno
+     cannot import a classic <script>. This module is now the client-facing
+     face of that maths: the functions delegate, the constants are GETTERS
+     onto the core values (so CF.BASE IS core.BURN_BASE, one number, not
+     two), and the player-facing advice sentence stays here — copy is not
+     simulation.
+
+     Load order: this file is a classic script and runs BEFORE core-bridge.js
+     (a deferred module), so nothing may read the core at IIFE time. Every
+     reference below is inside a function or a getter, which run later. */
+  function core() {
+    var C = window.HearthriseCore;
+    return (C && C.artisan) || null;
+  }
 
   // The `noBurn` value each Kitchen rung contributes to getBonus('noBurn').
   // Exported so the House panel, the smoke suite and any future Kitchen rung
@@ -80,7 +92,7 @@
   // restate 0.25 because a rung's bonus map REPLACES the rung below it rather
   // than adding to it, so an L4 that omitted noBurn would silently un-burn-
   // proof a player as a reward for upgrading.
-  var KITCHEN_NO_BURN = [0.13, 0.19, 0.25, 0.25, 0.25];
+  /* (the array itself now lives in src/core/artisan.js as KITCHEN_NO_BURN) */
 
   /**
    * The odds this cook is ruined.
@@ -91,25 +103,20 @@
    * @returns {number} 0…BASE
    */
   function burnChance(recipe, cookingLevel, noBurn) {
-    var req = (recipe && typeof recipe.req === 'number') ? recipe.req : 1;
-    var lv = (typeof cookingLevel === 'number' && isFinite(cookingLevel)) ? cookingLevel : 1;
-    var relief = (typeof noBurn === 'number' && isFinite(noBurn)) ? Math.max(0, noBurn) : 0;
-    var mastery = Math.max(0, lv - req) * PER_LEVEL_RELIEF;
-    var c = BASE - relief - mastery;
-    if (!(c > 0)) return 0;
-    return Math.min(BASE, c);
+    var A = core();
+    return A ? A.burnChance(recipe, cookingLevel, noBurn) : 0;
   }
 
   /** Whole-percent form for UI copy. burnChance(…)=0.12 → 12 */
   function burnPct(recipe, cookingLevel, noBurn) {
-    return Math.round(burnChance(recipe, cookingLevel, noBurn) * 100);
+    var A = core();
+    return A ? A.burnPct(recipe, cookingLevel, noBurn) : 0;
   }
 
   /** XP still awarded when a cook burns. Always at least 1 — never a zero. */
   function burnXp(recipe) {
-    var xp = (recipe && Number(recipe.xp)) || 0;
-    if (xp <= 0) return 0;
-    return Math.max(1, Math.round(xp * BURN_XP_SHARE));
+    var A = core();
+    return A ? A.burnXp(recipe) : 0;
   }
 
   /* The one advisory sentence, so the tile tooltip, the list row and any
@@ -122,15 +129,24 @@
                   : 'build a Kitchen or level up to improve.');
   }
 
-  window.HearthriseCookingFire = {
-    BASE: BASE,
-    PER_LEVEL_RELIEF: PER_LEVEL_RELIEF,
-    BURN_XP_SHARE: BURN_XP_SHARE,
-    BURNT_ITEM: BURNT_ITEM,
-    KITCHEN_NO_BURN: KITCHEN_NO_BURN,
+  var API = {
     burnChance: burnChance,
     burnPct: burnPct,
     burnXp: burnXp,
     burnAdvice: burnAdvice
   };
+
+  /* Constants as GETTERS — one identity with src/core/artisan.js. A plain
+     copy taken here would also have been `undefined`, because the core
+     module has not evaluated when this classic script runs. */
+  [['BASE', 'BURN_BASE'], ['PER_LEVEL_RELIEF', 'BURN_PER_LEVEL_RELIEF'],
+   ['BURN_XP_SHARE', 'BURN_XP_SHARE'], ['BURNT_ITEM', 'BURNT_ITEM'],
+   ['KITCHEN_NO_BURN', 'KITCHEN_NO_BURN']].forEach(function (pair) {
+    Object.defineProperty(API, pair[0], {
+      enumerable: true,
+      get: function () { var A = core(); return A ? A[pair[1]] : undefined; }
+    });
+  });
+
+  window.HearthriseCookingFire = API;
 })();

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 323 — 2026-08-11 (Foundation: crafting, bounties and combat styles)
+
+- 🏗️ **More of the game's maths moved into the shared core** that will run on the server — crafting and cooking (including burn chance and double-craft), bounty board generation, and combat-style XP routing. No gameplay changes; every number behaves exactly as before.
+- 🎯 **Bounty boards are now reproducible.** Board generation runs through the seeded generator like combat does, which is what lets the server verify them.
+
 ## v0.9.2-beta build 322 — 2026-08-11 (Bug reports go through the server)
 
 - 🔒 **Bug reports now go through the server instead of straight to Discord.** The delivery address used to be embedded in the game itself, where anyone could read it. It now lives server-side, and reports are attributed to your real account rather than whatever the sender claims. Sending a report works exactly as before.

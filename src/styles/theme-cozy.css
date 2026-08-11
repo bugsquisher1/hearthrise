@@ -825,17 +825,26 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(60,40,16,.3) !important;
   }
 
-  /* Push the entire layout right so the rail doesn't overlap.
+  /* Push the layout clear of the left rail; RECLAIM the right width.
    * Apply to .app (the grid) — its children inherit the offset.
-   * b315: reserve the RIGHT safe-area inset too. In landscape iOS reserves an
-   * inset on the home-indicator/rounded-corner side; content was running under
-   * it and the strip behind showed the (now themed) html background. Padding the
-   * grid keeps tappable UI clear of the inset while the dark edge fill bleeds
-   * through behind it. --safe-r is 0 on every device without an inset (desktop,
-   * Android), so this is a no-op off real notched hardware. */
+   * b317 (Tyler: "use the full screen like Idle Clans"): the b315 version put a
+   * FULL safe-area inset on BOTH sides — padding-left = rail-w + safe-l AND
+   * padding-right = safe-r — so on a 852x339 landscape iPhone the content sat in
+   * a ~658px column with a fat ~59px dead margin on the right (and the panel's
+   * own 12px padding stacked on top of it → ~71px of wasted right edge). That
+   * symmetric fat margin is the wasted-space complaint.
+   *   The Dynamic Island is a SINGLE physical zone; in landscape the left NAV
+   * RAIL already occupies (and internally clears, via safe-l padding) that side,
+   * so the island is legitimately absorbed by chrome. The right edge therefore
+   * needs only rounded-CORNER clearance, not a second island-sized reserve. So:
+   * remove the right app padding entirely — panel BACKGROUNDS now bleed to the
+   * true right screen edge (the full-bleed body::before sits behind them, so the
+   * surface reads continuous edge-to-edge) — and let the panel supply a modest,
+   * inset-aware right pad for tappable content (below). Left keeps its full
+   * rail+safe-l offset. All token-driven; --safe-* is 0 off notched hardware. */
   .app, #app {
     padding-left: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
-    padding-right: var(--safe-r, 0px) !important;
+    padding-right: 0 !important;
   }
   /* Topbar — slim strip, no extra padding-left because .app already padded */
   .topbar {
@@ -891,7 +900,26 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
    * Tyler reported. A little more side/foot breathing than a raw 6px so the
    * content reads as deliberately fitted, not shrink-wrapped. */
   body[data-theme] .panel.active {
-    padding: 8px 12px max(10px, var(--safe-b, 0px)) !important;
+    /* b317: right pad is inset-AWARE but reclaims the island-sized reserve.
+     * .app no longer adds safe-r, so this is the ONLY right inset on content.
+     * The left rail already absorbs the Dynamic Island, so the right side needs
+     * corner clearance only — cap it well below the full 59px island reserve.
+     * max(12px, safe-r - 36px): 0 → 12px (desktop/Android no-op); 59px → 23px
+     * (clears the rounded corner, reclaims ~48px of the old 71px right margin).
+     * Left keeps 12px — the .app padding already cleared the rail. */
+    padding: 8px max(12px, calc(var(--safe-r, 0px) - 36px)) max(10px, var(--safe-b, 0px)) 12px !important;
+  }
+  /* b317 bottom-reserve reclaim. In this landscape RAIL layout the nav is the
+   * LEFT rail, so there is NO bottom nav bar — but #panel-combat.active (1,1,0,
+   * combat-hud.css) still reserves `72px + safe-b` to clear a bottom nav that
+   * only exists in the PORTRAIT phone layout. That id-level rule outranks the
+   * body[data-theme] .panel.active reset above, leaving a fat ~72px dead band at
+   * the foot of the combat screen that reads as a bottom black bar. Match its ID
+   * specificity (1,2,1 > 1,1,0) to reclaim it: only the real home-indicator inset
+   * (safe-b, ~20px) plus a small pad is owed here. Portrait (where the bottom nav
+   * IS present) keeps combat-hud's 72px — that block is not this media query. */
+  body[data-theme] #panel-combat.active {
+    padding-bottom: max(10px, var(--safe-b, 0px)) !important;
   }
 
   /* DUNGEONS button — was overflowing right. Constrain to inline width. */

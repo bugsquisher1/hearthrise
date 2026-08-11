@@ -86,15 +86,36 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
-/* b315 · safe-area edge fill. With viewport-fit=cover, iOS paints the region
-   behind the notch / home-indicator insets with the ROOT element's background —
-   and <html> had none, so those strips rendered flat BLACK, framing the game in
-   a letterbox on a landscape iPhone. Giving <html> the theme's darkest stone
-   token (never hardcoded) bleeds the dark surface out to the physical screen
-   edges; the body gradient still covers the whole content area on top of it, so
-   this is invisible everywhere except inside the safe-area insets. Token-driven,
-   so cozy-light's parchment would carry its own edge value if it were ever shown
-   on a phone (it is desktop-only, where there are no insets). */
+/* b317 · safe-area edge fill — the REAL fix.
+   With viewport-fit=cover in an INSTALLED PWA (display-mode:standalone), a
+   landscape iPhone frames the game in black bars: the safe-area insets (device
+   data, iOS 18.7: left/right 59px for the Dynamic Island reserved both sides in
+   landscape, bottom 20px for the home indicator). The b315 attempt —
+   `html{background:var(--bg-0)}` below — did NOT clear them on device: the ROOT
+   element's painted background does not reliably cover the inset region under
+   standalone viewport-fit=cover, so those strips stayed black.
+   The fix that DOES reach the insets is a FIXED, full-viewport layer:
+   `position:fixed; inset:0` is sized to the whole screen INCLUDING the inset
+   regions, so it paints edge-to-edge behind everything. It uses `body::before`
+   (not `html::before`) so `--bg-0` resolves in the body[data-theme] token scope
+   — the active theme's darkest stone (#0a0806), never a hardcoded colour, never
+   the base fallback. Because <body> is not itself a stacking context, a
+   negative-z-index ::before paints in the ROOT stacking context BEFORE body's
+   own radial-gradient background (CSS painting order): the layer bleeds into the
+   insets while the gradient still covers the whole content area on top of it —
+   zero change to the content look. CONTENT still respects the insets via the
+   existing --safe-* padding on .app / panels; only this background bleeds out.
+   Token-driven, so cozy-light (desktop-only, no insets) carries its own value
+   and is never affected. The html rule below is kept belt-and-suspenders (it too
+   resolves to a themed value); the fixed layer is what actually clears the bars. */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:var(--bg-0);
+  z-index:-1;
+  pointer-events:none;
+}
 html{background:var(--bg-0);}
 body{
   font-family:var(--f-ui);

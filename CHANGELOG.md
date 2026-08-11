@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 321 — 2026-08-11 (Landscape: full-screen, no black bars)
+
+- 📱 **The black bars around the edges are gone.** The dark stone background now bleeds all the way to the edges of your screen — behind the notch and the home bar — so the game looks like one continuous surface instead of sitting in a black picture frame. Your buttons and text still stay clear of the notch.
+- 📱 **Landscape phones use the full width.** A chunk of dead margin was being reserved on each side and at the bottom for a nav bar that isn't there in landscape. That space is reclaimed, so content fills the screen.
+- 📱 **The home banner is a compact strip on phones** instead of a tall header eating a third of the screen — your "Next up" quest and its button are back in reach. Desktop is unchanged.
+
 ## v0.9.2-beta build 320 — 2026-08-11 (Housekeeping)
 
 - 🧹 **Behind-the-scenes cleanup.** Trimmed a large amount of unnecessary diagnostic data the game was uploading in the background. No effect on gameplay — the game just does a lot less needless chatter with the server.

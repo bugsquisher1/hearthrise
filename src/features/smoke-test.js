@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=320' directly.
+// modularised, will import { G } from '../state/game.js?v=321' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=320';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=320';
+import { on, snapshot } from '../net/events.js?v=321';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=321';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=320';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=321';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12408,43 +12408,110 @@ const TESTS = [
     assert(bugMoved, 'the bug-report FAB must be lifted out of the bottom-right corner (left:calc / right:auto) in the landscape rail block so it stops covering the quest CTAs');
   }),
 
-  () => tryRun('b315: hero band collapses to a bounded strip on a short landscape phone + the safe-area edge is themed, not black (Tyler: WANDERER\'S CAMP banner ate a third of a 430px screen; black bars behind the notch/home-indicator insets)', () => {
-    // The Home hero band (.hd-hearth) is normally clamp(104px,24vh,204px) — on a
-    // ~430px-tall landscape screen that plus its skirt shoved "Next up" off the
-    // bottom. A landscape-scoped rule must cap it to a compact strip. Separately,
-    // <html> had NO background, so with viewport-fit=cover iOS painted the safe-area
-    // insets flat BLACK; it must carry a themed (token) background, and the landscape
-    // app grid must reserve the RIGHT inset so content clears it. Read the ACTUAL
-    // loaded CSS (injected <style> sheets are in document.styleSheets) — no resize.
-    let heroCapped = false, heroHeightPx = null, appReservesRight = false, htmlEdgeFill = false, htmlEdgeHardcoded = false;
+  () => tryRun('b317: landscape iPhone uses the full screen — a token full-bleed bg layer clears the black safe-area bars, and content reclaims the wasted side + bottom reserve (Tyler PWA: 852x339, insets L/R 59px, B 20px; b315 html-bg + double safe padding left a narrow column framed in black)', () => {
+    // Device data (Tyler's bug report, installed PWA / display-mode:standalone,
+    // iOS 18.7, landscape): viewport 852x339, safe-area top 0 / right 59 / bottom
+    // 20 / left 59. The black "frame" is the safe area. b315 gave <html> a token
+    // background, but the ROOT element's paint does not reliably cover the inset
+    // region under standalone viewport-fit=cover, so the bars stayed black.
+    // THE FIX (verified in-browser by reading computed style):
+    //  (1) A FIXED, full-viewport background LAYER (body::before, position:fixed;
+    //      inset:0; z-index<0; background: a theme token) that paints edge-to-edge
+    //      INCLUDING behind the insets, behind all content. Uses body::before so
+    //      --bg-0 resolves in the body[data-theme] scope (themed dark stone), and
+    //      because <body> is not a stacking context a negative-z ::before paints
+    //      behind body's own gradient — the content look is unchanged.
+    //  (2) WIDTH reclaim: the landscape .app grid must NOT stack a full safe-r on
+    //      the right (that plus the panel's own padding was ~71px of dead margin);
+    //      it drops to 0 and the panel supplies a reduced, inset-aware right pad
+    //      (capped well below the 59px island reserve — the left rail absorbs the
+    //      Dynamic Island). Net: content uses most of the 852px width.
+    //  (3) BOTTOM reserve reclaim: no bottom-nav in the rail layout, so panels
+    //      (incl. #panel-combat, which carries its own id-level 72px reserve) must
+    //      NOT reserve a bottom-nav-height pad — only the ~20px home-indicator inset.
+    // Read the ACTUAL loaded CSS (injected <style> sheets live in document.styleSheets).
+    let fullBleed = false, bleedHardcoded = false, bleedTransparent = false;
+    let heroCapped = false, heroHeightPx = null, htmlEdgeFill = false, htmlEdgeHardcoded = false;
+    let appRightReclaimed = false, appRuleSeen = false, appRightVal = null;
+    let contentRightReclaimed = false, panelActiveSeen = false, panelRightVal = null;
+    let combatBottomReclaimed = false, combatSeen = false, combatBottomVal = null;
+    let panelBottomOK = false, panelBottomVal = null;
+    const NAVSIZED = /(?:^|[^0-9])(?:56|60|62|68|72|76)px/; // bottom-nav-height reserves we must NOT keep
+
     for (const sheet of document.styleSheets) {
       let rules; try { rules = sheet.cssRules; } catch (e) { continue; } // skip cross-origin
       for (const rule of rules) {
-        // Top-level html edge-fill (not inside a media query): background must be a token, not black/hardcoded.
-        if (rule.type === CSSRule.STYLE_RULE && rule.selectorText && /(^|,)\s*html\s*(,|$)/.test(rule.selectorText) && rule.style && rule.style.background) {
-          const bg = rule.style.background;
-          if (/var\(--/.test(bg)) htmlEdgeFill = true;
-          else if (/#|rgb|black/i.test(bg)) htmlEdgeHardcoded = true;
+        // (1) Top-level full-bleed layer + belt-and-suspenders html bg (not in a media query).
+        if (rule.type === CSSRule.STYLE_RULE && rule.selectorText && rule.style) {
+          const sel = rule.selectorText;
+          if (/body\s*::?before/.test(sel)) {
+            const s = rule.style;
+            const bg = s.background || s.backgroundColor || s.backgroundImage || '';
+            const fixed = /fixed/.test(s.position || '');
+            const zNeg = parseInt(s.zIndex, 10) < 0;
+            const spans = (s.inset && /(^|\s)0/.test(s.inset)) ||
+                          ((s.top === '0px' || s.top === '0') && (s.left === '0px' || s.left === '0') &&
+                           (s.right === '0px' || s.right === '0') && (s.bottom === '0px' || s.bottom === '0'));
+            if (fixed && zNeg && spans) {
+              if (/var\(--/.test(bg)) fullBleed = true;
+              else if (/transparent|none|rgba\([^)]*,\s*0\s*\)/.test(bg) || !bg) bleedTransparent = true;
+              else if (/#|rgb|hsl|black/i.test(bg)) bleedHardcoded = true;
+            }
+          }
+          if (/(^|,)\s*html\s*(,|$)/.test(sel) && s_bg(rule)) {
+            const bg = rule.style.background;
+            if (/var\(--/.test(bg)) htmlEdgeFill = true;
+            else if (/#|rgb|black/i.test(bg)) htmlEdgeHardcoded = true;
+          }
         }
         if (rule.type !== CSSRule.MEDIA_RULE) continue;
         const mt = (rule.media && rule.media.mediaText) || rule.conditionText || '';
         if (!(/max-height:\s*540px/.test(mt) && /landscape/.test(mt))) continue;
         for (const r of rule.cssRules || []) {
           if (!r.selectorText || !r.style) continue;
-          if (/\.hd-hearth\b/.test(r.selectorText) && r.style.height) {
+          const sel = r.selectorText;
+          if (/\.hd-hearth\b/.test(sel) && r.style.height) {
             const m = /^([0-9.]+)px$/.exec(r.style.height.trim());
             if (m) { heroHeightPx = parseFloat(m[1]); if (heroHeightPx <= 72) heroCapped = true; }
           }
-          if (/(^|,)\s*(\.app|#app)\b/.test(r.selectorText) && /safe-r/.test(r.style.paddingRight || '')) {
-            appReservesRight = true;
+          // (2) .app / #app must NOT re-add a full safe-r on the right.
+          if (/(^|,)\s*(\.app|#app)\b/.test(sel) && r.style.paddingRight) {
+            appRuleSeen = true; appRightVal = r.style.paddingRight;
+            if (!/safe-r/.test(r.style.paddingRight)) appRightReclaimed = true;
+          }
+          // (2) .panel.active right pad must be reduced (capped below the full inset), not a bare var(--safe-r).
+          // Read cssText: the value is a `padding:` shorthand with max()/calc(), which
+          // some CSSOM implementations do not expand into the paddingRight longhand.
+          if (/\.panel\.active\b/.test(sel) && !/#panel-combat/.test(sel) && /padding/.test(r.style.cssText || r.cssText || '')) {
+            const txt = r.cssText || r.style.cssText || '';
+            panelActiveSeen = true; panelRightVal = txt.replace(/\s+/g, ' ').slice(0, 160);
+            // reclaimed = the right/inset reserve is CAPPED via calc(var(--safe-r…) - Npx), not applied full
+            if (/calc\([^)]*var\(--safe-r[^)]*\)\s*-\s*\d+px/.test(txt)) contentRightReclaimed = true;
+            // bottom slot must not carry a bottom-nav-height reserve
+            panelBottomVal = txt.replace(/\s+/g, ' ').slice(0, 160);
+            if (/safe-b/.test(txt) && !NAVSIZED.test(txt)) panelBottomOK = true;
+          }
+          // (3) #panel-combat.active bottom reserve reclaimed (no bottom-nav-sized pad).
+          if (/#panel-combat\.active\b/.test(sel) && r.style.paddingBottom) {
+            combatSeen = true; combatBottomVal = r.style.paddingBottom;
+            if (!NAVSIZED.test(r.style.paddingBottom)) combatBottomReclaimed = true;
           }
         }
       }
     }
-    assert(heroCapped, 'a landscape-rail rule must cap .hd-hearth to a bounded strip (≤72px) so the hero band cannot balloon back to the clamp(104px…) picture and push "Next up" off a 430px screen — found height=' + (heroHeightPx == null ? 'none' : heroHeightPx + 'px'));
-    assert(htmlEdgeFill, 'the <html> element must carry a TOKEN background so the safe-area insets (viewport-fit=cover) render the themed dark surface, not flat black');
-    assert(!htmlEdgeHardcoded, 'the <html> edge-fill background must be a theme token, not a hardcoded colour (HARD RULE: no hardcoded colours)');
-    assert(appReservesRight, 'the landscape app grid must reserve the RIGHT safe-area inset (padding-right: var(--safe-r)) so content clears the notch/rounded-corner side while the themed edge bleeds behind it');
+    function s_bg(rule){ return rule.style && rule.style.background; }
+
+    assert(fullBleed, 'a FIXED, full-viewport background LAYER (body::before; position:fixed; inset:0; negative z-index; token background) must exist so the safe-area insets paint the themed dark surface edge-to-edge instead of black — this is what b315\'s html-only background could not do on a standalone PWA');
+    assert(!bleedHardcoded, 'the full-bleed layer background must be a theme token, not a hardcoded colour (HARD RULE: no hardcoded colours)');
+    assert(!bleedTransparent, 'the full-bleed layer background must be an opaque token surface, not transparent — a transparent layer lets the black inset show through');
+    assert(heroCapped, 'a landscape-rail rule must cap .hd-hearth to a bounded strip (≤72px) — found height=' + (heroHeightPx == null ? 'none' : heroHeightPx + 'px'));
+    assert(htmlEdgeFill, 'the <html> element must still carry a TOKEN background (belt-and-suspenders behind the fixed layer)');
+    assert(!htmlEdgeHardcoded, 'the <html> edge-fill background must be a theme token, not a hardcoded colour');
+    assert(appRuleSeen && appRightReclaimed, 'the landscape .app/#app grid must NOT re-add a full var(--safe-r) on the right — that symmetric inset (plus the panel\'s own padding) was the wasted ~59px column; it must be reclaimed (found padding-right: ' + (appRightVal || 'none') + ')');
+    assert(panelActiveSeen && contentRightReclaimed, 'the landscape .panel.active right padding must CAP the safe-area inset (reclaim the island-sized reserve), not apply the full var(--safe-r) — found padding-right: ' + (panelRightVal || 'none'));
+    assert(panelBottomOK, 'the landscape .panel.active must NOT reserve a bottom-nav-height pad (there is no bottom nav in the rail layout) — found padding-bottom: ' + (panelBottomVal || 'none'));
+    assert(combatSeen, 'a landscape-scoped #panel-combat.active rule must exist to reclaim combat-hud\'s id-level 72px bottom reserve');
+    assert(combatBottomReclaimed, 'the landscape #panel-combat.active must NOT keep a bottom-nav-height (60/68/72px) reserve — only the home-indicator inset is owed; found padding-bottom: ' + (combatBottomVal || 'none'));
   }),
 
   () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {

@@ -205,16 +205,53 @@ prove it can see failure is treated as broken, not as a pass.
    the market tables and needs `hearthrise.market_wipe_ok = 'yes'`.
 4. Cutover + wipe.
 
+## ⚠ PRODUCTION'S `hr_apply` IS A STALE REVISION (found 2026-08-11, by execution)
+
+`supabase/migrations/2026-08-11-apply-engine.sql` at HEAD is **not what production runs.**
+Measured directly: production's `hr_apply` body is 25,966 chars against the file's 40,754, it
+declares `c_max_xp_delta := 5000000` (the file says 12,000,000 — the Security ruling never
+landed), it carries **no `intent_mismatch` branch** (the S6 accrual self-DoS is open), and its
+clamp header still says *"treat any rejection as an incident, not a tuning problem"*, a sentence
+the current file explicitly records as deleted. The file's own §6(e-ii) textual assertion would
+**fail** against production today, which is proof the current revision was never applied.
+
+Consequence: several things this handoff describes as live are only live *in the repo*. Applying
+the file is required and safe (`player_state` has 0 rows, `hr_apply` is `hr_engine`-only and the
+Edge Function is not deployed) — but it is a larger change than any single diff, so it needs its
+own review pass rather than riding along with someone else's migration.
+
 ## CUTOVER BLOCKERS (Security's, still open)
-- **C5 / X3** — ledger-derived daily budget. Now also a *blocking precondition* for
-  the first client-reachable combat accrual intent.
-- **Phase-D S4/S5** — fail-closed `active_since`, and `accrued_to = now()` on any
-  activity- or equipment-changing write. **This is an OVER-payment path**: the engine
-  prices a past absence with equipment read at collect time — measured 12.8× gold and
-  20× XP for the same window and seed. Deferred only because `player_state` has 0 rows
-  and no client path can create an activity yet.
-- **True concurrency** — the conservation fuzz is single-backend, so locks are
-  exercised but never raced. Needs a Supabase branch.
+- **C5 / X3 — ledger-derived daily budget: BUILT, and HALF LIVE.**
+  `supabase/migrations/2026-08-11-daily-budget.sql` is **applied to production** (migrations
+  `daily_budget_c5_x3_ledger_derived` + `daily_budget_pin_search_path`) and verified there:
+  limits `{gold 25M, xp 40M, qty 1M}` per character-day, breach detail correct, **zero grants to
+  any client role or to `hr_engine`**, `hr_assert_grant_hygiene` still clean, the 3 residue
+  ledger rows untouched. Design + numbers: `docs/design/server-authority.md` §3 "Daily caps".
+  **The ENFORCEMENT half is not live**, because it lives in `hr_apply` — see the stale-revision
+  note above. `2026-08-11-apply-engine.sql` now (a) fails closed in §0 without
+  `hr_day_budget_check`, (b) checks the budget after the per-call clamps and before the state
+  UPDATE, (c) stamps `gold_in/xp_in/qty_in` on every ledger row it writes, and (d) proves all of
+  that behaviourally in §6(g) with a real character inside a rolled-back subtransaction.
+  **Applying that file is the remaining step.**
+  Also needed, and NOT done (owned by whoever holds `supabase/functions/**`): add
+  `'daily_budget'` to `DEGRADABLE` in `hr-accrue/index.ts`, so an honest accrual that lands on
+  the ceiling costs part of one absence instead of bricking the watermark.
+- **Phase-D S4/S5 — HALF CLOSED.** `accrued_to = now()` on any equipment- or activity-changing
+  write is now in `hr_apply` (same file), which makes the 12.8×/20× over-payment
+  *arithmetically empty* rather than merely detected: after an equip there is no unpaid window
+  left for the new gear to price. **The other half is open and is not SQL:** the intent surface
+  must COLLECT BEFORE IT EQUIPS (otherwise the same rule confiscates the elapsed window — an
+  under-payment), and the fail-closed `active_since` rule lives in `hr-accrue/accrual.js`'s
+  preconditions. Both are in `supabase/functions/**`.
+- **True concurrency — STILL OPEN, and still not raced.** The daily-budget work did not
+  close this and does not claim to. PGlite is one backend; `create_branch` needs a
+  `confirm_cost` tool that is not exposed in this environment; `execute_sql` cannot hold a
+  transaction open across calls. So the budget's serialisation chain (advisory lock →
+  `for update` → VOLATILE ledger sum → insert, all in one transaction) is **exercised on every
+  fuzz run and contended by nothing.** The one word that would break it — `STABLE` instead of
+  `VOLATILE` on `hr_day_budget_used` — is asserted structurally by the migration
+  (`provolatile = 'v'`), which is the same strength of guard `apply-engine` §6(f) uses for
+  `hr_state_of`. It is not a substitute for a race.
 - **16 of 43 SECURITY DEFINER bodies are NOT AUDITED** — Security said so explicitly
   rather than implying coverage. Budget another pass.
 

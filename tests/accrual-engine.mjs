@@ -769,6 +769,88 @@ async function clampGuard() {
   }
 }
 
+// ── 5b. THE DAILY-BUDGET HEADROOM (C5 / X3) ─────────────────────────────────
+// The per-call clamps above bound ONE delta. The daily budget
+// (2026-08-11-daily-budget.sql) bounds a UTC DAY, and it is the control that
+// actually caps a compromised engine — 30 accrues/minute makes the per-call XP
+// clamp worth 518 BILLION XP/day on its own.
+//
+// The budget is a FUSE, not a pacing control, and the difference is the whole
+// argument for why it does not resurrect b226's daily away-time bucket (which
+// was replaced by b307's per-absence cap precisely because it pinned every save
+// to its cap — see docs/design/away-time-ruling.md). A fuse that honest play can
+// reach IS a pacing control, whatever the header calls it. So this guard fails
+// the build the moment the honest maximum crosses the line.
+//
+// THE HONEST MAXIMUM IS MEASURED, NOT ASSUMED: every monster in the catalogue,
+// maxed skills, best-in-slot gear, at the 24h span, summed ACROSS skills and
+// ACROSS item ids (the budget's dimensions are totals, so a per-call maximum
+// would understate them). Times TWO, because a single UTC day's ledger can hold
+// two such windows — a 24h-capped absence collected at 00:01, which paid for
+// yesterday, plus a full 24h of today.
+const DAY_HEADROOM = 0.35;
+const DAY_WINDOWS_PER_UTC_DAY = 2;
+
+function dayBudgetsFromMigration(sql) {
+  const out = {};
+  for (const m of sql.matchAll(/c_day_([a-z_]+)_budget\s+constant\s+bigint\s*:=\s*(\d+)/g)) {
+    out[m[1]] = Number(m[2]);
+  }
+  return out;
+}
+
+async function dayBudgetGuard() {
+  const sql = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-daily-budget.sql'), 'utf8');
+  const B = dayBudgetsFromMigration(sql);
+  for (const need of ['gold', 'xp', 'qty']) {
+    ok(B[need] > 0,
+      `DAY BUDGET: could not read c_day_${need}_budget out of 2026-08-11-daily-budget.sql — `
+      + 'the guard would be vacuous, which is the always-null-probe failure this file exists to avoid.');
+  }
+  if (!B.xp) return;
+
+  /* The per-call XP clamp must stay STRICTLY BELOW the day ceiling, or the day
+     ceiling pre-empts it and c_max_xp_delta becomes a control that can never
+     fire. (The gold pair is deliberately the other way round — see the
+     ordering comment at hr_apply's (4b) — and is not asserted here.) */
+  const clamps = clampsFromMigration(
+    await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-apply-engine.sql'), 'utf8'));
+  ok(clamps.max_xp_delta && clamps.max_xp_delta * 2 <= B.xp,
+    `DAY BUDGET: c_day_xp_budget (${B.xp}) leaves room for fewer than two per-call XP clamps `
+    + `(${clamps.max_xp_delta}). The day ceiling would fire before the per-call clamp could, and a `
+    + 'clamp that cannot fire is not a control.');
+
+  const worst = { gold: [0, ''], xp: [0, ''], qty: [0, ''] };
+  const bump = (k, v, where) => { if (v > worst[k][0]) worst[k] = [v, where]; };
+  for (const id of Object.keys(MONSTERS)) {
+    const r = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: NOW_MS - 24 * 3600000, activeSinceMs: NOW_MS - 24 * 3600000,
+      activeKind: 'combat', activeId: id, capMs: 24 * 3600000, seed: SEED,
+      hp: 9999, maxHp: 9999, gold: 0, skills: MAXED, equipment: EQUIPMENT,
+      items: ITEMS, monsters: MONSTERS,
+    });
+    if (!r.accrued) continue;
+    const d = r.delta;
+    bump('gold', d.gold || 0, `24h ${id}`);
+    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), `24h ${id}`);
+    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), `24h ${id}`);
+  }
+
+  dayBudgetGuard.report = [];
+  for (const [k, [v, where]] of Object.entries(worst)) {
+    const perDay = v * DAY_WINDOWS_PER_UTC_DAY;
+    const pct = perDay / B[k];
+    dayBudgetGuard.report.push(`${k} ${perDay}/${B[k]} = ${(pct * 100).toFixed(1)}% (${where} x${DAY_WINDOWS_PER_UTC_DAY})`);
+    ok(pct < DAY_HEADROOM,
+      `DAY BUDGET HEADROOM: honest play reaches ${perDay} ${k} in a UTC day against a ceiling of `
+      + `${B[k]} — ${(pct * 100).toFixed(1)}%, over the ${DAY_HEADROOM * 100}% line, at ${where}. `
+      + 'The daily budget is an ABUSE CEILING and must never clip a player; the per-absence offline '
+      + 'cap (b307) is the pacing control and it WINS when the two conflict. Raise c_day_'
+      + `${k}_budget in supabase/migrations/2026-08-11-daily-budget.sql — do NOT let this fire.`);
+  }
+}
+
 // ── 6. THE DEPLOY CONTRACT ──────────────────────────────────────────────────
 // D2's second lock. In-function verification is the primary control, but
 // `verify_jwt = true` must also exist as a committed artefact, and nothing in
@@ -881,6 +963,7 @@ export async function runAll() {
   requestGuard();
   await shellGuard();
   await clampGuard();
+  await dayBudgetGuard();
   await deployGuard();
   await packerGuard();
   return problems.slice();
@@ -898,6 +981,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   /* Printed on every run, deliberately. A headroom number nobody sees is a
      number nobody notices tightening. */
   for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);
+  for (const line of dayBudgetGuard.report || []) console.log(`  day-budget headroom: ${line}`);
   console.log(`  fixture: ${MONSTER} · ${SPAN_MS / 3600000}h · tick ${s.tickMs}ms · ` +
     `${s.summary.ticks} ticks · ${s.summary.kills} kills · ${s.summary.crits} crits · ` +
     `${s.summary.gold}g · ${Object.keys(s.summary.xp).length} skills · ` +

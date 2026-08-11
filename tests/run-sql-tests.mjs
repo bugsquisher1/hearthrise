@@ -94,6 +94,11 @@ const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const BUNDLE = [
   '2026-08-11-player-state.sql',
   '2026-08-11-catalogue.generated.sql',
+  // The C5/X3 daily budget. BEFORE apply-engine because apply-engine's §0 now
+  // fails closed without hr_day_budget_check — the order in this list is the
+  // order the migration bundle is applied in, and getting it wrong is a refused
+  // migration rather than a subtle degradation.
+  '2026-08-11-daily-budget.sql',
   '2026-08-11-apply-engine.sql',
   '2026-08-11-market-v2.sql',
 ];

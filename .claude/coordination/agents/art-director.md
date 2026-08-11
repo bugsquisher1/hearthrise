@@ -9,6 +9,26 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-10 · b315 — compact hero strip + safe-area edge fill (short landscape phone)
+
+**Ask (Tyler, follow-up to b314).** The Home hero band ("WANDERER'S CAMP" backdrop + big avatar + "TYLER" + rank/status) was desktop-sized on a ~430px-tall landscape phone, eating a third of the screen and pushing "Next up" off the bottom. Plus black bars behind the notch/home-indicator safe-area insets (a letterbox frame), and a suspicious RIGHT bar.
+
+**Root cause of the height.** `.hd-hearth` is `height:clamp(104px,24vh,204px)` with a 22px bottom skirt — at 430px tall that's 104+22 = 126px, and the topbar sits above it, so ~192px (45%) was gone before any content. The existing `@media(max-width:640px),(max-height:520px)` block only shrank the avatar to 52px and the name to 23px; the band itself stayed at the 104px floor.
+
+**Fix (landscape-scoped, `@media (max-height:540px) and (orientation:landscape) and (max-width:1024px)`, added INSIDE `home-dashboard.js`'s `css()` next to the other responsive rules).** The `.hd-*` rules are injected with a two-ID prefix (`#panel-profile #hd-root`), so a `body[data-theme]` selector (0,2,1) CANNOT beat them — b314's trick doesn't apply here. Co-located the override under the same prefix + later source order instead, which wins cleanly. Band → `height:56px`, skirt 22→10px, avatar 40px, name 19px, ledger numerals 22→19px, `.hd-eyebrow` (homestead name) `display:none` — the one line dropped, least load-bearing, name carries identity. Every readable string stays ≥14.5px (sub measured 14.5px, name is a 19px display face). Measured band footprint 126→66px; "Next up" h3 moved from off-screen up to top≈261px on a 430 screen, and the Attack quest + Train CTA are fully visible.
+
+**Safe-area black bars — root cause + fix.** `<html>` had NO background (`backgroundColor: rgba(0,0,0,0)`), and with `viewport-fit=cover` iOS paints the region behind the insets with the ROOT element's background → flat black letterbox. Gave `html` a token background `var(--bg-0)` (dark stone; the body radial gradient still covers the whole content area on top, so this only ever shows inside the insets — zero desktop/content change, verified html computes to a dark stone value, body unchanged). The RIGHT bar was NOT a stray max-width/margin — I measured the app/panels reaching R=932 (full width) in the emulator; it's a genuine `safe-area-inset-right` (landscape reserves both sides). Added `padding-right: var(--safe-r)` to `.app,#app` in the landscape block so tappable UI clears the inset while the themed edge bleeds behind it. `--safe-r` is 0 off notched hardware → no-op on desktop/Android.
+
+**Guard.** `b315` (CSS-reading family, next to b314): asserts a landscape rule caps `.hd-hearth ≤72px`, that `<html>` carries a TOKEN background (not hardcoded, not black), and that the landscape app grid reserves `var(--safe-r)`. Proved red by bumping the band to 96px → "found height=96px". Smoke 532→**533/533 green, 0 runtime errors**.
+
+**Verified in-browser** at 932×430 and 844×390 (compact strip, no horizontal scroll, Next up + Train visible, html edge = dark stone) and desktop 1143×909 (hearth 204px, avatar 74px, eyebrow visible, name 31px — UNCHANGED). Emulated Chromium reports `--safe-*`=0 so the inset strips can't be seen here; the html-background + safe-r fixes are verified by reading computed values, not by faking an iOS inset.
+
+**Files.** `src/features/home-dashboard.js` (compact landscape hero block), `src/styles/legacy.css` (`html{background:var(--bg-0)}` edge fill), `src/styles/theme-cozy.css` (`.app,#app` padding-right safe-r in the landscape block), `src/features/smoke-test.js` (b315 guard). Untouched: backdrop.js (scene just crops), the b314 rail/FAB rules, portrait blocks, cozy-light.
+
+**Known limitations / handoffs.**
+- In the landscape RAIL layout the panels still inherit the b108/b109 `padding-bottom: calc(60px + safe-b + 8px)` (there's no bottom nav to clear), reserving ~60px of dead space at the foot. b314 boosted `.panel.active` to reclaim it — worth confirming that boost still wins after this pass; if the foot still feels short, that's the next lever. Left it to avoid scope-creep into b314's rule.
+- The compact strip's ledger (XP/Kills/Harvest) is kept in-band; on the very narrowest landscape phones it could be dropped in favour of the name if width ever gets tight (it doesn't at 844–932).
+
 ### 2026-08-08 · b230 — Shops: one door, three toggles (branch `agent-shopsia`)
 
 **The ask (Tyler).** "Market tabs need some organization. Right now it's hard to find the in-game shop." · "Inventory should be under Character and 'shops' should be under Realm." · three toggles behind Shops: Local Shop / Market / Premium Shop. · "Just remove the Economy tab for now."

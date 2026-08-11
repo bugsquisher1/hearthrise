@@ -86,6 +86,16 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+/* b315 · safe-area edge fill. With viewport-fit=cover, iOS paints the region
+   behind the notch / home-indicator insets with the ROOT element's background —
+   and <html> had none, so those strips rendered flat BLACK, framing the game in
+   a letterbox on a landscape iPhone. Giving <html> the theme's darkest stone
+   token (never hardcoded) bleeds the dark surface out to the physical screen
+   edges; the body gradient still covers the whole content area on top of it, so
+   this is invisible everywhere except inside the safe-area insets. Token-driven,
+   so cozy-light's parchment would carry its own edge value if it were ever shown
+   on a phone (it is desktop-only, where there are no insets). */
+html{background:var(--bg-0);}
 body{
   font-family:var(--f-ui);
   font-size:calc(17px * var(--ui-scale, 1));

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=314' directly.
+// modularised, will import { G } from '../state/game.js?v=315' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=314';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=314';
+import { on, snapshot } from '../net/events.js?v=315';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=315';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=314';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=315';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12214,6 +12214,45 @@ const TESTS = [
     assert(panelBoosted, 'the landscape rail panel padding must be boosted with body[data-theme] so it beats the b108/b109 bottom-nav reserves (a bare .panel.active loses the cascade and the 68px dead strip returns)');
     assert(!panelReReserves, 'the boosted rail panel rule must NOT itself re-reserve a bottom-nav height (40/56/60/72px) at the foot of a short landscape screen');
     assert(bugMoved, 'the bug-report FAB must be lifted out of the bottom-right corner (left:calc / right:auto) in the landscape rail block so it stops covering the quest CTAs');
+  }),
+
+  () => tryRun('b315: hero band collapses to a bounded strip on a short landscape phone + the safe-area edge is themed, not black (Tyler: WANDERER\'S CAMP banner ate a third of a 430px screen; black bars behind the notch/home-indicator insets)', () => {
+    // The Home hero band (.hd-hearth) is normally clamp(104px,24vh,204px) — on a
+    // ~430px-tall landscape screen that plus its skirt shoved "Next up" off the
+    // bottom. A landscape-scoped rule must cap it to a compact strip. Separately,
+    // <html> had NO background, so with viewport-fit=cover iOS painted the safe-area
+    // insets flat BLACK; it must carry a themed (token) background, and the landscape
+    // app grid must reserve the RIGHT inset so content clears it. Read the ACTUAL
+    // loaded CSS (injected <style> sheets are in document.styleSheets) — no resize.
+    let heroCapped = false, heroHeightPx = null, appReservesRight = false, htmlEdgeFill = false, htmlEdgeHardcoded = false;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; } // skip cross-origin
+      for (const rule of rules) {
+        // Top-level html edge-fill (not inside a media query): background must be a token, not black/hardcoded.
+        if (rule.type === CSSRule.STYLE_RULE && rule.selectorText && /(^|,)\s*html\s*(,|$)/.test(rule.selectorText) && rule.style && rule.style.background) {
+          const bg = rule.style.background;
+          if (/var\(--/.test(bg)) htmlEdgeFill = true;
+          else if (/#|rgb|black/i.test(bg)) htmlEdgeHardcoded = true;
+        }
+        if (rule.type !== CSSRule.MEDIA_RULE) continue;
+        const mt = (rule.media && rule.media.mediaText) || rule.conditionText || '';
+        if (!(/max-height:\s*540px/.test(mt) && /landscape/.test(mt))) continue;
+        for (const r of rule.cssRules || []) {
+          if (!r.selectorText || !r.style) continue;
+          if (/\.hd-hearth\b/.test(r.selectorText) && r.style.height) {
+            const m = /^([0-9.]+)px$/.exec(r.style.height.trim());
+            if (m) { heroHeightPx = parseFloat(m[1]); if (heroHeightPx <= 72) heroCapped = true; }
+          }
+          if (/(^|,)\s*(\.app|#app)\b/.test(r.selectorText) && /safe-r/.test(r.style.paddingRight || '')) {
+            appReservesRight = true;
+          }
+        }
+      }
+    }
+    assert(heroCapped, 'a landscape-rail rule must cap .hd-hearth to a bounded strip (≤72px) so the hero band cannot balloon back to the clamp(104px…) picture and push "Next up" off a 430px screen — found height=' + (heroHeightPx == null ? 'none' : heroHeightPx + 'px'));
+    assert(htmlEdgeFill, 'the <html> element must carry a TOKEN background so the safe-area insets (viewport-fit=cover) render the themed dark surface, not flat black');
+    assert(!htmlEdgeHardcoded, 'the <html> edge-fill background must be a theme token, not a hardcoded colour (HARD RULE: no hardcoded colours)');
+    assert(appReservesRight, 'the landscape app grid must reserve the RIGHT safe-area inset (padding-right: var(--safe-r)) so content clears the notch/rounded-corner side while the themed edge bleeds behind it');
   }),
 
   () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {

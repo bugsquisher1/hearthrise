@@ -826,9 +826,16 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   }
 
   /* Push the entire layout right so the rail doesn't overlap.
-   * Apply to .app (the grid) — its children inherit the offset. */
+   * Apply to .app (the grid) — its children inherit the offset.
+   * b315: reserve the RIGHT safe-area inset too. In landscape iOS reserves an
+   * inset on the home-indicator/rounded-corner side; content was running under
+   * it and the strip behind showed the (now themed) html background. Padding the
+   * grid keeps tappable UI clear of the inset while the dark edge fill bleeds
+   * through behind it. --safe-r is 0 on every device without an inset (desktop,
+   * Android), so this is a no-op off real notched hardware. */
   .app, #app {
     padding-left: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
+    padding-right: var(--safe-r, 0px) !important;
   }
   /* Topbar — slim strip, no extra padding-left because .app already padded */
   .topbar {

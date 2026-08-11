@@ -112,6 +112,30 @@
         R + '.hd-name{font-size:23px}' + R + '.hd-ava{width:52px;height:52px}' +
         R + '.hd-sub{font-size:calc(14.5px * var(--ui-scale, 1))}' + R + '.hd-hearth-in{padding:0 12px 11px;gap:12px}}',
 
+      /* b315 · COMPACT HERO STRIP for the short landscape phone.
+         On a ~430px-tall landscape screen the clamp(104px…) picture plus its
+         22px skirt ate a third of the viewport and shoved "Next up" off the
+         bottom. Here the band collapses to a single ~56px strip: a small
+         avatar beside the name, rank/status on a tight second line, the
+         backdrop reduced to a thin lit horizon. The homestead eyebrow is the
+         one line dropped — it is the least load-bearing, and the name below it
+         already carries identity. Every readable string stays ≥14.5px; only
+         the CHROME (backdrop height, avatar, vertical padding, the big ledger
+         numerals) shrinks. Same #panel-profile #hd-root prefix + later source
+         order as the base rules, so it wins without a specificity fight.
+         Scoped to the landscape-rail query only → desktop + portrait untouched. */
+      '@media (max-height:540px) and (orientation:landscape) and (max-width:1024px){' +
+        R + '.hd-hearth{height:56px;margin:-10px -10px 10px}' +
+        R + '.hd-hearth-in{padding:0 12px;align-items:center;gap:12px}' +
+        R + '.hd-who{align-items:center;gap:11px}' +
+        R + '.hd-ava{width:40px;height:40px}' +
+        R + '.hd-eyebrow{display:none}' +
+        R + '.hd-name{font-size:19px}' +
+        R + '.hd-sub{margin-top:1px}' +
+        R + '.hd-ledger{align-items:center;padding-bottom:0}' +
+        R + '.hd-led b{font-size:19px}' +
+      '}',
+
       /* ── b217 art direction ───────────────────────────────────────────────
          Home was seventeen bordered rounded boxes of identical weight: five
          stat pills that duplicated the topbar verbatim, six hero/quest cards,

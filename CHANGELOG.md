@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 315 — 2026-08-10 (Landscape: compact hero + edge-to-edge)
+
+- 📱 **The home banner is now a compact strip on landscape phones**, instead of a tall desktop-sized header that ate a third of the screen. Your "Next up" quest and its button are back on-screen where you can reach them. Desktop is unchanged. *(Thanks Tyler.)*
+- 📱 **No more black bars framing the screen.** The dark stone background now bleeds all the way to the edges (behind the notch and home-indicator), so the game looks like one continuous surface instead of sitting in a black picture frame. Your content still stays clear of the notch and home bar. *(Thanks Tyler.)*
+
 ## v0.9.2-beta build 314 — 2026-08-10 (Mobile: no more freeze, roomier landscape)
 
 - 🐛 **Sending a bug report can never freeze the game anymore.** On some phones (especially iOS Safari) the screenshot step could hang forever, leaving the report stuck on "Sending…" and locking up the whole game. Now the screenshot has a hard time limit — if it can't finish quickly, the report just sends without it instead of freezing. A report that arrives beats one that never does. *(Thanks Tyler.)*

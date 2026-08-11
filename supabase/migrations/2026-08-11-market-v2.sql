@@ -85,6 +85,76 @@ begin
   if to_regprocedure('public.hr_reject(text,jsonb)') is null then
     raise exception 'run 2026-08-11-apply-engine.sql first (hr_reject is the rollback primitive)';
   end if;
+  if to_regproc('cron.schedule(text,text,text)') is null then
+    raise exception 'pg_cron is required — §8b of this file replaces a live cron job that would otherwise destroy escrowed goods';
+  end if;
+  if to_regprocedure('public.hr_cron_ensure(text,text,text)') is null
+     or to_regprocedure('public.hr_cron_drop(text)') is null then
+    raise exception 're-run 2026-08-11-player-state.sql (revision 3) — §8b needs the idempotent cron helpers';
+  end if;
+  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb)') is null then
+    raise exception 're-run 2026-08-11-player-state.sql (revision 3) — the market RPCs record their rejections';
+  end if;
+end $$;
+
+-- ── 0b. THE WIPE GATE — a prose comment is not a safety interlock ────────
+-- (Reliability RL6.) The next two statements DROP … CASCADE two live tables.
+-- Revision 2's only protection was a paragraph at the top of the file asking
+-- the reader not to run it on a database whose market matters. Every
+-- destructive migration that has ever gone wrong was run by someone who did not
+-- read that paragraph, or who read it three files ago.
+--
+-- So the drops now REFUSE unless either the tables are empty or the operator
+-- has said, in the same session, that a wipe is intended:
+--
+--     set hearthrise.market_wipe_ok = 'yes';
+--     \i supabase/migrations/2026-08-11-market-v2.sql
+--
+-- Production today: market_listings 0 rows, market_sales 6 rows — so this gate
+-- FIRES on production, which is the correct behaviour and is how we know it
+-- works. The beta wipe at cutover is exactly the moment the GUC is appropriate.
+--
+-- ⚠ RE-RUNNABILITY DEPENDS ON THE DROPS. The `create table` statements below
+--   are NOT `if not exists`; the drops are what make this file safe to re-run.
+--   If you ever remove them you must add `if not exists` to both creates in the
+--   same edit, or the second run fails on an existing relation. The two facts
+--   are coupled and are stated here together on purpose.
+--
+-- CASCADE dependents are enumerated before the drop rather than discovered
+-- afterwards: `cascade` silently removes views and foreign keys that this file
+-- does not recreate. Verified on production 2026-08-11: zero dependents.
+do $$
+declare v_l bigint := 0; v_s bigint := 0; v_dep text;
+begin
+  if to_regclass('public.market_listings') is not null then
+    execute 'select count(*) from public.market_listings' into v_l;
+  end if;
+  if to_regclass('public.market_sales') is not null then
+    execute 'select count(*) from public.market_sales' into v_s;
+  end if;
+
+  select string_agg(distinct c.relname, ', ') into v_dep
+    from pg_depend d
+    join pg_rewrite r on r.oid = d.objid
+    join pg_class c on c.oid = r.ev_class
+   where d.refobjid in (coalesce(to_regclass('public.market_listings'), 0::oid),
+                        coalesce(to_regclass('public.market_sales'), 0::oid))
+     and c.relname not in ('market_listings','market_sales');
+  if v_dep is not null then
+    raise warning 'CASCADE will also drop these dependents, which this file does NOT recreate: %', v_dep;
+  end if;
+
+  if (v_l > 0 or v_s > 0)
+     and coalesce(current_setting('hearthrise.market_wipe_ok', true), '') <> 'yes' then
+    raise exception
+      'REFUSING TO WIPE THE MARKET: % listing row(s) and % sale row(s) would be destroyed by this migration. '
+      'It drops and recreates market_listings/market_sales — there is no in-place upgrade path. '
+      'If that is intended (the beta wipe at cutover), run  set hearthrise.market_wipe_ok = ''yes'';  '
+      'in the SAME session first.', v_l, v_s;
+  end if;
+  if v_l > 0 or v_s > 0 then
+    raise warning 'market_wipe_ok is set — destroying % listing row(s) and % sale row(s)', v_l, v_s;
+  end if;
 end $$;
 
 -- ── 1. Tables ────────────────────────────────────────────────────────────
@@ -263,6 +333,27 @@ $$;
 revoke execute on function public.hr_intent_record(uuid, uuid, jsonb)
   from public, anon, authenticated, service_role, hr_engine;
 
+-- ── 4c. THE LOCK ORDER, stated once for the whole file ───────────────────
+-- (Review R6 and R7.) Revision 2 had three functions taking the same four
+-- resources in three different orders. None of them was exploitable — the
+-- per-character advisory lock mutually excludes the pairs that could otherwise
+-- cycle — but "not exploitable today because of a property in another
+-- function" is how deadlocks arrive later, and hr_apply states an order that
+-- market_cancel then inverted. One order, obeyed everywhere:
+--
+--   1. the ACTING character's advisory lock   pg_advisory_xact_lock(user:slot)
+--   2. the market_listings row                select … for update
+--   3. player_state rows                      ascending (user_id, slot)
+--   4. player_inventory / player_equipment rows
+--
+-- hr_apply takes 3 then 4 and never touches 2, so it is consistent by
+-- construction. The one wrinkle is market_cancel: the advisory key depends on
+-- seller_slot, which lives on the listing — so it reads the listing UNLOCKED to
+-- derive the key, takes the lock, and then re-reads FOR UPDATE and re-validates
+-- everything. That is safe because seller_user_id and seller_slot are immutable
+-- after insert: no statement in this file ever updates them. The unlocked read
+-- is used for ROUTING only; every decision is made under the lock.
+
 -- Old signatures, if a previous revision was ever applied. Dropped so an
 -- overload cannot survive with weaker checks and a shorter argument list.
 drop function if exists public.market_list(int, text, bigint, bigint);
@@ -315,11 +406,21 @@ begin
       perform public.hr_reject('not_tradeable', jsonb_build_object('item_id', p_item_id));
     end if;
 
-    select count(*) into v_open from public.market_listings
-     where seller_user_id = v_uid and seller_slot = v_slot;
+    -- Bounded: the question is "at the cap?", not "how many exactly?".
+    select count(*) into v_open from (
+      select 1 from public.market_listings
+       where seller_user_id = v_uid and seller_slot = v_slot
+       limit v_cfg.max_listings) s;
     if v_open >= v_cfg.max_listings then
       perform public.hr_reject('too_many_listings', jsonb_build_object('limit', v_cfg.max_listings));
     end if;
+
+    -- LOCK ORDER step 3 before step 4 (review R7). player_state is taken first
+    -- even though only its `version` changes, so that this function agrees with
+    -- hr_apply and with market_buy about the order these two tables are locked
+    -- in. Revision 2 took the inventory row first.
+    perform 1 from public.player_state
+      where user_id = v_uid and slot = v_slot for update;
 
     -- ESCROW. This is the possession check — there is nothing else to check.
     select qty into v_have from public.player_inventory
@@ -358,6 +459,12 @@ begin
   end;
 
   perform public.hr_intent_record(v_uid, p_intent_id, v_out);
+  -- Outside the protected block, so a rejection leaves a durable trace after
+  -- player_intents is pruned (review R4). Aggregated per character/code/day.
+  if coalesce(v_out->>'ok', 'false') <> 'true' then
+    perform public.hr_record_rejection(v_uid, v_slot, 'market_list',
+                                       v_out->>'error', v_out - 'ok' - 'error');
+  end if;
   return v_out;
 end $$;
 revoke execute on function public.market_list(int, text, bigint, bigint, uuid)
@@ -380,13 +487,23 @@ begin
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
-  select * into v_row from public.market_listings where id = p_listing_id for update;
+  -- ROUTING READ, unlocked (see §4c). seller_user_id and seller_slot are
+  -- immutable after insert, so this is only used to derive the advisory key and
+  -- to fail fast; everything is re-read and re-checked under the lock below.
+  select * into v_row from public.market_listings where id = p_listing_id;
   if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
   if v_row.seller_user_id <> v_uid then
     return jsonb_build_object('ok', false, 'error', 'not_yours');
   end if;
 
+  -- LOCK ORDER step 1, then step 2 (review R6/R7).
   perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_row.seller_slot::text, 0));
+
+  select * into v_row from public.market_listings where id = p_listing_id for update;
+  if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
+  if v_row.seller_user_id <> v_uid then
+    return jsonb_build_object('ok', false, 'error', 'not_yours');
+  end if;
 
   select prior, claimed into v_prior, v_claimed
     from public.hr_intent_claim(v_uid, p_intent_id, v_row.seller_slot, 'market_cancel');
@@ -394,16 +511,25 @@ begin
 
   begin
     delete from public.market_listings where id = p_listing_id;
+
+    -- LOCK ORDER step 3 before step 4 (review R7). Revision 2 wrote the
+    -- inventory row and only then locked player_state, inverting hr_apply's
+    -- order. Not exploitable — the advisory lock above mutually excludes the
+    -- only other writers of this character — but a stated invariant that one
+    -- of three functions ignores is not an invariant.
+    select bank_cap into v_cap from public.player_state
+      where user_id = v_uid and slot = v_row.seller_slot for update;
+
     insert into public.player_inventory as pi (user_id, slot, item_id, qty)
       values (v_uid, v_row.seller_slot, v_row.item_id, v_row.qty)
       on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
 
     -- The returning stack can push the seller over the bank cap. Revision 1 let
     -- it, quietly making the cap advisory for anyone who listed at cap.
-    select count(*) into v_stacks from public.player_inventory
-      where user_id = v_uid and slot = v_row.seller_slot;
-    select bank_cap into v_cap from public.player_state
-      where user_id = v_uid and slot = v_row.seller_slot for update;
+    select count(*) into v_stacks from (
+      select 1 from public.player_inventory
+       where user_id = v_uid and slot = v_row.seller_slot
+       limit coalesce(v_cap, 100) + 1) s;
     if v_stacks > coalesce(v_cap, 100) then
       perform public.hr_reject('bank_full', jsonb_build_object('stacks', v_stacks, 'cap', v_cap));
     end if;
@@ -425,6 +551,10 @@ begin
   end;
 
   perform public.hr_intent_record(v_uid, p_intent_id, v_out);
+  if coalesce(v_out->>'ok', 'false') <> 'true' then
+    perform public.hr_record_rejection(v_uid, v_row.seller_slot, 'market_cancel',
+                                       v_out->>'error', v_out - 'ok' - 'error');
+  end if;
   return v_out;
 end $$;
 revoke execute on function public.market_cancel(uuid, uuid) from public, anon, service_role;
@@ -463,7 +593,17 @@ begin
 
   select * into v_cfg from public.hr_market_config;
 
-  -- (1) The listing, first, always.
+  -- (0) THE BUYER'S ADVISORY LOCK, FIRST (review R6). Revision 2 had none, so
+  --     the idempotency claim below — a read of player_intents followed by an
+  --     insert — sat outside any mutual exclusion. Two simultaneous retries of
+  --     the SAME intent id could both see "not found"; one insert wins on the
+  --     primary key and the other raises unique_violation, which nothing in
+  --     market_buy catches, so a duplicate-delivery retry surfaced as a 500
+  --     instead of the stored answer. market_list and market_cancel already
+  --     took this lock. This also makes the file's lock order uniform (§4c).
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+
+  -- (1) The listing, under the buyer's lock.
   select * into v_row from public.market_listings where id = p_listing_id for update;
   if not found then return jsonb_build_object('ok', false, 'error', 'gone'); end if;
   if v_row.expires_at <= now() then return jsonb_build_object('ok', false, 'error', 'expired'); end if;
@@ -508,7 +648,10 @@ begin
       values (v_uid, v_slot, v_row.item_id, p_qty)
       on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
 
-    select count(*) into v_stacks from public.player_inventory where user_id = v_uid and slot = v_slot;
+    select count(*) into v_stacks from (
+      select 1 from public.player_inventory
+       where user_id = v_uid and slot = v_slot
+       limit coalesce(v_cap, 100) + 1) s;
     if v_stacks > v_cap then perform public.hr_reject('bank_full'); end if;
 
     -- SELLER: paid now, online or not. No collect step, so no collect exploit.
@@ -553,6 +696,10 @@ begin
   end;
 
   perform public.hr_intent_record(v_uid, p_intent_id, v_out);
+  if coalesce(v_out->>'ok', 'false') <> 'true' then
+    perform public.hr_record_rejection(v_uid, v_slot, 'market_buy',
+                                       v_out->>'error', v_out - 'ok' - 'error');
+  end if;
   return v_out;
 end $$;
 revoke execute on function public.market_buy(int, uuid, bigint, uuid) from public, anon, service_role;
@@ -565,8 +712,9 @@ grant execute on function public.market_buy(int, uuid, bigint, uuid) to authenti
 -- and 5,000 ledger inserts, repeatedly. That is write amplification with an
 -- anon key, which is a denial-of-service primitive, not a housekeeping call.
 --
--- Now: cron/engine only, and the batch is capped at 200. Schedule it with
---   select cron.schedule('hr-market-expire', '*/5 * * * *', 'select public.market_expire(200)');
+-- Now: cron/engine only, and the batch is capped at 200. It is SCHEDULED in
+-- §8b of this same file — not left as a suggestion in a comment, which is what
+-- revision 2 did and which is the whole subject of §8b.
 create or replace function public.market_expire(p_limit int default 200)
 returns int language plpgsql security definer set search_path = public as $$
 declare v_row public.market_listings; v_n int := 0;
@@ -594,6 +742,81 @@ end $$;
 revoke execute on function public.market_expire(int)
   from public, anon, authenticated, service_role;
 grant execute on function public.market_expire(int) to hr_engine;
+
+-- ── 8a. market_sales retention ───────────────────────────────────────────
+-- (Reliability RL3.) The receipt table is append-only in intent but is a
+-- straightforward growth table in practice: one row per trade, forever. Unlike
+-- player_ledger it carries no immutability trigger, so retention is a plain
+-- delete — but the policy still has to SHIP HERE, with the table, or it does
+-- not exist. 180 days is well past the 30-day window market_price_history
+-- reads, so pruning can never empty the public price chart.
+create or replace function public.market_sales_prune(p_older interval default interval '180 days')
+returns int language plpgsql security definer set search_path = public as $$
+declare v_n int;
+begin
+  delete from public.market_sales
+   where at < now() - greatest(interval '31 days', coalesce(p_older, interval '180 days'));
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke execute on function public.market_sales_prune(interval)
+  from public, anon, authenticated, service_role;
+
+-- ── 8b. THE CRON RECONCILIATION — the most dangerous thing in this file ──
+-- ⚠⚠ READ THIS BEFORE EDITING ANYTHING BELOW. ⚠⚠
+--
+-- A live pg_cron job, `trim-expired-listings`, runs nightly at 03:30:
+--
+--     delete from public.market_listings where expires_at < now()
+--
+-- Under market v1 that was harmless housekeeping: a listing was a POINTER, the
+-- goods stayed in the seller's client-side inventory, and deleting the row cost
+-- nothing. Under market v2 A LISTING **IS** THE ESCROW — market_list DELETEs
+-- the items out of player_inventory and the listing row is the only record that
+-- they exist. That cron statement deletes the row directly, bypassing
+-- market_expire(), and therefore ANNIHILATES THE SELLER'S GOODS. Every seller
+-- who lets a listing lapse silently loses the items, with a ledger that says
+-- they were escrowed and nothing that says they came back.
+--
+-- AND THE MIGRATION IS WHAT ARMS IT. Verified on production 2026-08-11:
+-- market_listings has NO `expires_at` column today, so job 3 has been FAILING
+-- every night since 2026-08-09 ("ERROR: column expires_at does not exist").
+-- This file adds `expires_at`. Applying market-v2 without this section does not
+-- leave a latent risk — it REPAIRS a broken destructive job and points it at
+-- the escrow. That is why this is in the migration and not in a runbook: if the
+-- file can be applied without it, the hole exists.
+--
+-- Job 4, `trim-market-sales`, has the same shape of problem in a milder form:
+-- it filters on `sold_at`, a column that does not exist (it is `created_at`
+-- today and `at` after this file), so it has been erroring nightly too. A cron
+-- job that has failed 3 nights running and that nobody noticed is the argument
+-- for §9(h) asserting that these jobs are correct rather than merely present.
+do $$
+declare v_dropped boolean;
+begin
+  -- 1. REMOVE THE DESTRUCTIVE JOB. Not "fix its SQL" — delete it. The correct
+  --    behaviour is not a delete at all; it is market_expire(), which returns
+  --    the escrow, bumps the seller's version and journals the return.
+  v_dropped := public.hr_cron_drop('trim-expired-listings');
+  if v_dropped then
+    raise warning 'unscheduled trim-expired-listings — it would have DESTROYED escrowed goods under market v2';
+  end if;
+
+  -- 2. THE REPLACEMENT. Every 5 minutes, batched at 200. Frequent because an
+  --    expired listing is a player's property sitting in limbo, and nightly is
+  --    a 24-hour worst case for getting it back.
+  perform public.hr_cron_ensure('hr-market-expire', '*/5 * * * *',
+    'select public.market_expire(200)');
+
+  -- 3. REPLACE THE BROKEN SALES TRIM with one that names a column that exists
+  --    and goes through the function that owns the policy.
+  v_dropped := public.hr_cron_drop('trim-market-sales');
+  if v_dropped then
+    raise warning 'unscheduled trim-market-sales — it filtered on sold_at, which has never existed on this table';
+  end if;
+  perform public.hr_cron_ensure('hr-market-sales-prune', '45 3 * * *',
+    'select public.market_sales_prune()');
+end $$;
 
 -- ── 9. Self-verification ─────────────────────────────────────────────────
 do $$
@@ -643,7 +866,8 @@ begin
   -- (e) NO market/hr function defined here may be anon-executable, and
   --     market_expire must not be player-callable at all. (Review S6/S7.)
   foreach v_fn in array array['market_list','market_cancel','market_buy','market_expire',
-                              'hr_display_name_of','hr_intent_claim','hr_intent_record'] loop
+                              'market_sales_prune','hr_display_name_of',
+                              'hr_intent_claim','hr_intent_record'] loop
     select count(*) into v_bad
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname = v_fn
@@ -670,5 +894,55 @@ begin
     raise exception 'hr_market_config.max_qty has no upper bound';
   end if;
 
-  raise notice 'MARKET v2 OK — escrow is real, the seller is paid at sale time, sales are private, no client writes.';
+  -- (h) THE CRON RECONCILIATION HELD. (Review R1/R2.) This is the assertion
+  --     that makes §8b load-bearing rather than decorative: if anyone deletes
+  --     that section, or re-creates the old job by hand, or the unschedule
+  --     silently no-ops, the migration fails here instead of the players
+  --     finding out when their escrow evaporates at 03:30.
+  if exists (select 1 from cron.job where jobname = 'trim-expired-listings') then
+    raise exception 'trim-expired-listings is STILL SCHEDULED — it deletes market_listings rows directly, which under v2 destroys the seller''s escrowed goods';
+  end if;
+  if exists (select 1 from cron.job where jobname = 'trim-market-sales') then
+    raise exception 'trim-market-sales is still scheduled — it filters on a column that does not exist';
+  end if;
+  -- ...and no OTHER job may issue a bare delete against the escrow table
+  -- either. Catches the same mistake arriving under a different name.
+  select count(*) into v_bad from cron.job
+   where command ~* 'delete\s+from\s+(public\.)?market_listings';
+  if v_bad > 0 then
+    raise exception '% cron job(s) DELETE from market_listings directly — escrow must only be released by market_expire()', v_bad;
+  end if;
+  foreach v_fn in array array['hr-market-expire','hr-market-sales-prune'] loop
+    if not exists (select 1 from cron.job where jobname = v_fn and active) then
+      raise exception 'job % is not scheduled — expiry/retention must ship with the table', v_fn;
+    end if;
+  end loop;
+
+  -- (i) THE hr_engine CAPABILITY LIST, WIDENED (review R8). The per-file
+  --     assertions check that hr_engine holds no TABLE grants. That is not the
+  --     whole capability surface: what hr_engine can EXECUTE is the rest of it,
+  --     and a function reachable through a forgotten PUBLIC grant is reachable
+  --     by hr_engine too. This is the last file in the bundle, so this is the
+  --     place the complete list can be checked. Anything not on it is a hole.
+  --     (Note this also catches a missing `revoke execute … from public` on any
+  --     new function anywhere in schema public, because PUBLIC is a superset of
+  --     hr_engine — Postgres still grants EXECUTE to PUBLIC on every new
+  --     function, and the 2026-08-11 default-ACL lockdown did NOT change that.)
+  select count(*) into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f'
+     and has_function_privilege('hr_engine', p.oid, 'execute')
+     and p.proname <> all (array['hr_apply','hr_seed','hr_state_of','hr_total_level',
+                                 'hr_xp_for_level','hr_level_from_xp','market_expire']);
+  if v_bad > 0 then
+    raise exception 'hr_engine can execute % function(s) outside its allowlist — run: select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=''public'' and has_function_privilege(''hr_engine'', p.oid, ''execute'')', v_bad;
+  end if;
+  -- Column-level grants are invisible to role_table_grants; check them too.
+  select count(*) into v_bad from information_schema.role_column_grants
+   where table_schema = 'public' and grantee in ('hr_engine','PUBLIC');
+  if v_bad > 0 then
+    raise exception 'hr_engine or PUBLIC holds % column privileges in public', v_bad;
+  end if;
+
+  raise notice 'MARKET v2 OK — escrow is real, the seller is paid at sale time, sales are private, no client writes, and the escrow-destroying cron job is gone.';
 end $$;

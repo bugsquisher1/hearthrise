@@ -564,6 +564,371 @@ begin
   perform set_config('request.jwt.claims', '', true);
 end $$;
 
+-- ── Fixture repair ───────────────────────────────────────────────────────
+-- Section 11's last assertion DELETES character A's player_state (to prove a
+-- sale to a missing seller is refused rather than paid to nobody), and that
+-- cascades to skills, inventory, farm and progress. Everything after this point
+-- needs a character again. Rebuilt rather than reordered, because "the seller
+-- vanished mid-trade" is a destructive test by nature and the next section
+-- should not have to know that.
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+begin
+  perform pg_temp.as_user(a);
+  if not exists (select 1 from public.player_state where user_id = a and slot = 0) then
+    perform public.hr_create_character(0);
+  end if;
+  perform set_config('request.jwt.claims', '', true);
+  raise notice 'fixture A rebuilt';
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 12. RL1 — CHAINED APPLIES. The version hr_apply RETURNS must be the one the
+--     next apply can present.
+--
+--     This is the regression test for the reliability review's correctness
+--     finding: hr_apply builds its response with hr_state_of AFTER writing, and
+--     if that function is STABLE it is entitled to the calling statement's
+--     snapshot and may hand back the PRE-write version. The client then sends
+--     that version on its next apply and gets version_conflict — every second
+--     apply, in production, from day one. Reading player_state directly (as
+--     every other section here does) would NOT catch it; only chaining does.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        r1 jsonb; r2 jsonb; r3 jsonb; v0 bigint;
+begin
+  raise notice '-- RL1 chained applies';
+  v0 := pg_temp.ver(a);
+  r1 := pg_temp.eapply(a, v0, '{"gold":1}'::jsonb);
+  perform pg_temp.ok(r1->>'ok' = 'true', 'first apply succeeds');
+  perform pg_temp.ok((r1->>'version')::bigint = v0 + 1,
+    format('the RETURNED version is post-write (got %s want %s)', r1->>'version', v0 + 1));
+  perform pg_temp.ok((r1#>>'{state,gold}')::bigint = pg_temp.gold(a),
+    'the returned gold matches the committed gold');
+
+  -- The chain. No re-read of player_state anywhere: exactly what the Edge
+  -- Function does.
+  r2 := pg_temp.eapply(a, (r1->>'version')::bigint, '{"gold":1}'::jsonb);
+  perform pg_temp.ok(r2->>'ok' = 'true',
+    format('SECOND apply using the version the FIRST returned succeeds (got %s)', r2->>'error'));
+  r3 := pg_temp.eapply(a, (r2->>'version')::bigint, '{"gold":1}'::jsonb);
+  perform pg_temp.ok(r3->>'ok' = 'true', 'and a third, so it is not an off-by-one that self-corrects');
+  perform pg_temp.ok((r3->>'version')::bigint = v0 + 3, 'three applies moved the version by exactly three');
+
+  -- The declared volatility is asserted too, so the property cannot be undone
+  -- by a one-word edit without a test failing.
+  perform pg_temp.ok(
+    (select provolatile from pg_proc where oid = to_regprocedure('public.hr_state_of(uuid,int)')) = 'v',
+    'hr_state_of is declared VOLATILE');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 13. R11 — `activity` is validated as a whole, so `restart` cannot arrive
+--     alone and restamp the accrual clock without a catalogue or skill check
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa'; r jsonb; t0 timestamptz;
+begin
+  raise notice '-- R11 activity validation';
+  select active_since into t0 from public.player_state where user_id = a and slot = 0;
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"activity":{"restart":true}}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'bad_activity',
+                     'restart WITHOUT a kind is refused — it used to skip every check');
+  perform pg_temp.ok(
+    (select active_since from public.player_state where user_id = a and slot = 0) is not distinct from t0,
+    'and the activity clock was not restamped');
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"activity":{}}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'bad_activity', 'an empty activity object is an error, not a silent no-op');
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"activity":{"kind":"idle","restart":"yes"}}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'bad_activity', 'a non-boolean restart is refused');
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"activity":{"kind":"idle","speed":9}}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'bad_activity', 'an unknown activity key is refused');
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"activity":"gather"}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'bad_activity', 'a non-object activity is refused');
+
+  -- The legitimate shape still works.
+  r := pg_temp.eapply(a, pg_temp.ver(a),
+        '{"activity":{"kind":"idle","id":null,"restart":true}}'::jsonb);
+  perform pg_temp.ok(r->>'ok' = 'true', 'a complete idle statement with restart is accepted');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 14. R4 — A REJECTION LEAVES A DURABLE TRACE OUTSIDE THE ROLLED-BACK BLOCK
+--     The clamps are documented as "any rejection is an incident". Revision 2
+--     wrote the only evidence inside the block the rejection rolls back.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa'; r jsonb; v_n bigint; v_sev text;
+begin
+  raise notice '-- R4 rejection record';
+  delete from public.hr_rejections where user_id = a;
+
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"gold":99999999999}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'gold_clamp', 'an absurd gold grant hits the blast-radius clamp');
+  select n, severity into v_n, v_sev from public.hr_rejections
+   where user_id = a and code = 'gold_clamp' and day = current_date;
+  perform pg_temp.ok(v_n = 1, 'the clamp SURVIVED its own rollback as an hr_rejections row');
+  perform pg_temp.ok(v_sev = 'incident', 'and it is classified as an incident, by the server');
+
+  -- Aggregated, not one row per rejection: the whole point of not rebuilding
+  -- game_events inside the security table.
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"gold":99999999999}'::jsonb);
+  r := pg_temp.eapply(a, pg_temp.ver(a), '{"gold":99999999999}'::jsonb);
+  select n into v_n from public.hr_rejections
+   where user_id = a and code = 'gold_clamp' and day = current_date;
+  perform pg_temp.ok(v_n = 3, 'three clamps are ONE row with n = 3, not three rows');
+  perform pg_temp.ok(
+    (select count(*) from public.hr_rejections where user_id = a and code = 'gold_clamp') = 1,
+    'still exactly one row for the code today');
+
+  -- An ordinary contention outcome is recorded but NOT flagged as an incident.
+  r := pg_temp.eapply(a, null, '{"gold":1}'::jsonb);
+  perform pg_temp.ok(r->>'error' = 'version_conflict', 'a null version is still a conflict');
+  select severity into v_sev from public.hr_rejections
+   where user_id = a and code = 'version_conflict' and day = current_date;
+  perform pg_temp.ok(v_sev = 'normal',
+                     'version_conflict is recorded as normal — optimistic concurrency is not an attack');
+
+  -- Impersonation is recorded even though it never reaches the protected block.
+  perform pg_temp.as_user('00000000-0000-4000-8000-00000000bbbb'::uuid);
+  r := public.hr_apply(a, 0, pg_temp.ver(a), gen_random_uuid(), '{"gold":1}'::jsonb);
+  perform set_config('request.jwt.claims', '', true);
+  perform pg_temp.ok(r->>'error' = 'forbidden_impersonation', 'impersonation is refused');
+  perform pg_temp.ok(exists (select 1 from public.hr_rejections
+                              where code = 'forbidden_impersonation' and severity = 'incident'),
+                     'and it is recorded as an incident against the CALLER');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 15. R5 — player_intents stores the DECISION, not the whole state envelope
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        k uuid := gen_random_uuid(); k2 uuid := gen_random_uuid();
+        r1 jsonb; r2 jsonb; v_stored jsonb; v_bytes int;
+begin
+  raise notice '-- R5 intent result is compact';
+  r1 := pg_temp.eapply(a, pg_temp.ver(a), '{"gold":7}'::jsonb, k);
+  perform pg_temp.ok(r1->>'ok' = 'true', 'the apply succeeds');
+
+  select result into v_stored from public.player_intents where user_id = a and intent_id = k;
+  perform pg_temp.ok(not (v_stored ? 'state'), 'the stored result does NOT carry the state envelope');
+  perform pg_temp.ok(not (v_stored ? 'inventory'), 'nor the inventory');
+  perform pg_temp.ok(not (v_stored ? 'skills'), 'nor fifteen skills');
+  perform pg_temp.ok(v_stored = '{"ok": true}'::jsonb, 'it is exactly {"ok":true}');
+  v_bytes := pg_column_size(v_stored);
+  perform pg_temp.ok(v_bytes < 64, format('and it is %s bytes, not kilobytes', v_bytes));
+
+  -- The contract that matters is unchanged: replay applies nothing and answers.
+  r2 := pg_temp.eapply(a, pg_temp.ver(a), '{"gold":7}'::jsonb, k);
+  perform pg_temp.ok(r2->>'replayed' = 'true', 'the replay is recognised');
+  perform pg_temp.ok(r2->>'ok' = 'true', 'and reports success');
+  perform pg_temp.ok(r2 ? 'state', 'a replayed SUCCESS re-derives current state rather than returning a stale copy');
+  perform pg_temp.ok((r2#>>'{state,gold}')::bigint = pg_temp.gold(a), 'and that state is current');
+
+  -- A replayed REJECTION returns the same rejection, and the reason survives.
+  r1 := pg_temp.eapply(a, pg_temp.ver(a), '{"items":{"totally_made_up_item":1}}'::jsonb, k2);
+  perform pg_temp.ok(r1->>'error' = 'unknown_item', 'the rejection happens');
+  r2 := pg_temp.eapply(a, pg_temp.ver(a), '{"items":{"totally_made_up_item":1}}'::jsonb, k2);
+  perform pg_temp.ok(r2->>'error' = 'unknown_item' and r2->>'replayed' = 'true',
+                     'and a replay returns the SAME rejection, not a re-run');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 16. RL2 — the ledger row is small, editable by nobody, prunable when old
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        r jsonb; v_meta jsonb; v_bytes int; v_denied boolean; v_id bigint;
+begin
+  raise notice '-- RL2 ledger shape and retention';
+  r := pg_temp.eapply(a, pg_temp.ver(a),
+        '{"items":{"normal_log":3},"xp":{"woodcutting":50},"accrued_to":"now",'
+        '"journal":{"kind":"gather","intent":"collect"}}'::jsonb);
+  perform pg_temp.ok(r->>'ok' = 'true', 'a representative gather apply succeeds');
+
+  select meta into v_meta from public.player_ledger
+   where user_id = a order by at desc, id desc limit 1;
+  v_bytes := pg_column_size(v_meta);
+  perform pg_temp.ok(v_bytes < 300, format('the ledger meta is %s bytes (was the whole delta)', v_bytes));
+  perform pg_temp.ok(v_meta#>'{delta,i}' = '{"normal_log": 3}'::jsonb,
+                     'the VALUE that moved is still recorded itemised');
+  perform pg_temp.ok(v_meta#>'{delta,x}' = '{"woodcutting": 50}'::jsonb, 'so is the xp');
+  perform pg_temp.ok(not (v_meta#>'{delta}' ? 'accrued_to'),
+                     'but accrued_to is not duplicated — player_state is its record');
+  perform pg_temp.ok(v_meta#>'{delta,k}' @> '["accrued_to"]'::jsonb,
+                     'it is named in the key list instead, so the ledger still says what happened');
+
+  -- A 200-key delta must not write a 200-key ledger row.
+  r := pg_temp.eapply(a, pg_temp.ver(a),
+        (select jsonb_build_object('items', jsonb_object_agg(item_id, 1))
+           from (select item_id from public.hr_items order by item_id limit 60) s));
+  select meta into v_meta from public.player_ledger where user_id = a order by at desc, id desc limit 1;
+  perform pg_temp.ok(v_meta#>>'{delta,i_n}' = '60',
+                     'a 60-item delta is journalled as an AGGREGATE, not 60 keys');
+  perform pg_temp.ok(pg_column_size(v_meta) < 300, 'and the row stays small');
+
+  -- The PK carries `at`, so partitioning stays possible without a rebuild.
+  perform pg_temp.ok(
+    (select array_agg(att.attname::text order by k.ord)
+       from pg_constraint c
+       cross join lateral unnest(c.conkey) with ordinality as k(attnum, ord)
+       join pg_attribute att on att.attrelid = c.conrelid and att.attnum = k.attnum
+      where c.conrelid = 'public.player_ledger'::regclass and c.contype = 'p')
+    = array['at','id'],
+    'player_ledger PK is (at, id) — partitioning does not require a rebuild');
+
+  -- Immutable where it matters, prunable where it does not.
+  insert into public.player_ledger (user_id, slot, kind, intent, at)
+    values (a, 0, 'admin', 'probe', now() - interval '400 days') returning id into v_id;
+  v_denied := false;
+  begin update public.player_ledger set gold = 1 where id = v_id;
+  exception when check_violation then v_denied := true; end;
+  perform pg_temp.ok(v_denied, 'a ledger row can never be UPDATEd, at any age');
+
+  delete from public.player_ledger where id = v_id;
+  perform pg_temp.ok(not exists (select 1 from public.player_ledger where id = v_id),
+                     'a 400-day-old row CAN be deleted — retention is possible at all');
+
+  insert into public.player_ledger (user_id, slot, kind, intent)
+    values (a, 0, 'admin', 'probe') returning id into v_id;
+  v_denied := false;
+  begin delete from public.player_ledger where id = v_id;
+  exception when check_violation then v_denied := true; end;
+  perform pg_temp.ok(v_denied, 'a FRESH row cannot be deleted — recent history is untouchable');
+
+  v_denied := false;
+  begin truncate table public.player_ledger;
+  exception when check_violation then v_denied := true; end;
+  perform pg_temp.ok(v_denied, 'and TRUNCATE is still refused outright');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 17. R1/R2/RL3 — THE CRON RECONCILIATION
+--     The single most dangerous finding in the review: a live nightly job
+--     `delete from market_listings where expires_at < now()` which, once this
+--     migration adds `expires_at`, starts working again and annihilates every
+--     expired seller's escrowed goods.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare v_n int;
+begin
+  raise notice '-- R1/R2 cron reconciliation';
+  perform pg_temp.ok(not exists (select 1 from cron.job where jobname = 'trim-expired-listings'),
+    'the escrow-destroying job trim-expired-listings is UNSCHEDULED by the migration itself');
+  perform pg_temp.ok(not exists (select 1 from cron.job where jobname = 'trim-market-sales'),
+    'the broken sold_at job is gone too');
+
+  select count(*) into v_n from cron.job
+   where command ~* 'delete\s+from\s+(public\.)?market_listings';
+  perform pg_temp.ok(v_n = 0, format('NO cron job deletes from market_listings directly (found %s)', v_n));
+
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-market-expire' and active),
+    'market_expire IS scheduled — expiry returns the escrow instead of destroying it');
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-market-sales-prune' and active),
+    'market_sales retention is scheduled');
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-intents-prune' and active),
+    'player_intents retention is scheduled (R5)');
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-ledger-prune' and active),
+    'player_ledger retention is scheduled (RL2)');
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-progress-prune' and active),
+    'player_progress retention is scheduled (RL3)');
+  perform pg_temp.ok(exists (select 1 from cron.job where jobname = 'hr-rejections-prune' and active),
+    'hr_rejections retention is scheduled');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 18. R1 (behavioural) — an expired listing returns the goods, it does not
+--     eat them. Proves market_expire is the correct replacement, not just a
+--     differently-named job.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        r jsonb; lid uuid; v_before bigint; v_ver bigint; v_n int;
+begin
+  raise notice '-- R1 expiry returns escrow';
+  -- Rebuild character A: section 11 deleted its player_state to test S11.
+  perform pg_temp.as_user(a);
+  if not exists (select 1 from public.player_state where user_id = a and slot = 0) then
+    perform public.hr_create_character(0);
+  end if;
+  perform pg_temp.eapply(a, pg_temp.ver(a), '{"items":{"normal_log":40}}'::jsonb);
+
+  -- Relative, not absolute: earlier sections hand this character an arbitrary
+  -- number of logs, and a test that hard-codes 15 breaks the next time one of
+  -- them changes. What matters is the DELTA of 25.
+  v_before := pg_temp.inv(a, 'normal_log');
+  perform pg_temp.as_user(a);
+  r := public.market_list(0, 'normal_log', 25, 5, gen_random_uuid());
+  perform pg_temp.ok(r->>'ok' = 'true', 'listed 25 logs');
+  lid := (r->>'listing_id')::uuid;
+  perform pg_temp.ok(pg_temp.inv(a, 'normal_log') = v_before - 25, 'escrow left the bank');
+  v_before := pg_temp.inv(a, 'normal_log');
+  v_ver := pg_temp.ver(a);
+
+  -- Age the listing past its TTL, then run the scheduled function.
+  update public.market_listings set expires_at = now() - interval '1 minute' where id = lid;
+  perform set_config('request.jwt.claims', '', true);
+  v_n := public.market_expire(200);
+  perform pg_temp.ok(v_n >= 1, 'market_expire processed the expired listing');
+  perform pg_temp.ok(not exists (select 1 from public.market_listings where id = lid),
+                     'the listing is gone');
+  perform pg_temp.ok(pg_temp.inv(a, 'normal_log') = v_before + 25,
+                     'AND THE 25 LOGS CAME BACK — this is what the cron delete would have destroyed');
+  perform pg_temp.ok(pg_temp.ver(a) = v_ver + 1, 'the seller version was bumped (S15)');
+  perform pg_temp.ok(exists (select 1 from public.player_ledger
+                              where user_id = a and intent = 'market_expire'),
+                     'and the return is journalled');
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 19. R8 — hr_engine's COMPLETE capability surface, not just its table grants
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare v_bad int; v_list text;
+begin
+  raise notice '-- R8 hr_engine capability';
+  select count(*), string_agg(p.proname, ', ' order by p.proname) into v_bad, v_list
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f'
+     and has_function_privilege('hr_engine', p.oid, 'execute')
+     and p.proname <> all (array['hr_apply','hr_seed','hr_state_of','hr_total_level',
+                                 'hr_xp_for_level','hr_level_from_xp','market_expire']);
+  perform pg_temp.ok(v_bad = 0,
+    format('hr_engine can execute NOTHING outside its allowlist (found %s: %s)', v_bad, coalesce(v_list,'-')));
+
+  select count(*) into v_bad from information_schema.role_column_grants
+   where table_schema = 'public' and grantee in ('hr_engine','PUBLIC');
+  perform pg_temp.ok(v_bad = 0, format('no COLUMN grants to hr_engine or PUBLIC (found %s)', v_bad));
+
+  select count(*) into v_bad from information_schema.role_table_grants
+   where table_schema = 'public' and grantee in ('hr_engine','PUBLIC');
+  perform pg_temp.ok(v_bad = 0, format('no TABLE grants to hr_engine or PUBLIC (found %s)', v_bad));
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 20. RL6 — the market wipe gate is a real interlock
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare v_ok boolean := false;
+begin
+  raise notice '-- RL6 wipe gate';
+  -- The gate reads a GUC. Prove it defaults to refusing rather than to wiping.
+  perform pg_temp.ok(
+    coalesce(current_setting('hearthrise.market_wipe_ok', true), 'unset') <> 'unset',
+    'the harness set market_wipe_ok explicitly — the migration cannot wipe by accident');
+  perform set_config('hearthrise.market_wipe_ok', 'no', true);
+  perform pg_temp.ok(current_setting('hearthrise.market_wipe_ok', true) = 'no',
+    'and any value other than yes is a refusal');
+  perform set_config('hearthrise.market_wipe_ok', 'yes', true);
+end $$;
+
 do $$
 begin
   raise notice ' ';

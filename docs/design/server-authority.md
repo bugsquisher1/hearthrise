@@ -67,7 +67,8 @@ illegal.
 |---|---|
 | **Executed against the live database, inside a transaction rolled back to zero effect** | The chat impersonation fix, end to end: trigger attaches, a forged `from_name` is overwritten from `profiles`, a forged `from_id` is pinned to `auth.uid()`, a missing profile yields `Adventurer` (never the client string), the row cannot be PATCHed afterwards, and no client write grant remains. Plus a construct probe of every risky primitive the foundation depends on: the `hr_engine` role lifecycle, `hr_reject`'s rollback semantics (a mixed item delta really does leave zero rows and an unbumped version), the `bad_delta` cast handler, the rate-limiter upsert, the BEFORE TRUNCATE statement trigger, the canonical multi-row `FOR UPDATE`, `hr_seed`'s determinism, the definer-boundary role read, and the sales-table/price-view grant split. Zero objects leaked — re-checked afterwards. |
 | **Executed locally** | `tools/gen-catalogues.mjs` generates and `--check` detects drift (400 items, 15 `bop`, 192 slot pairs, 318 activities). `tests/run-sql-tests.mjs` static gate passes. `node tests/run-smoke.mjs` → **540/540 green** with the catalogue preflight wired in. |
-| **NOT executed — must be run before merge** | The **full four-file apply plus the behavioural suite**. A Supabase branch could not be created (the `confirm_cost` tool is not exposed in this environment and `list_branches` errors), and the ~140 KB bundle exceeds what can be pushed through the SQL tool in one call. The command exists and is the merge gate: `node tests/run-sql-tests.mjs --emit \| psql "$DATABASE_URL"` — it wraps everything in `begin; … rollback;`, so it is safe to point at any database. **Treat the foundation as unproven until that command is green.** |
+| **Executed against the live database (revision 3), inside `begin … rollback`** | The mechanics revision 3 introduces, each proven on the real engine rather than reasoned about: (a) **a STABLE function called from a VOLATILE PL/pgSQL function after a write DOES see that write** — `stable=1 volatile=1 actual=1` — so the reliability review's RL1 diagnosis is a false positive on PG17 (hardened anyway, see §8); (b) the ledger trigger matrix — UPDATE refused, TRUNCATE refused, a fresh DELETE refused, a 400-day-old DELETE permitted; (c) `hr_ledger_prune`'s rollup-then-delete data-modifying CTE — 6 rows pruned, 1 rollup row, `gold_in` correct, proving the unreferenced INSERT CTE executes and reads pre-delete rows; (d) the cron helpers — `hr_cron_drop` returns false for an absent job, `cron.schedule` upserts by name to the *same* jobid, and unscheduling `trim-expired-listings` + `trim-market-sales` inside a transaction is fully rolled back (production's five jobs re-verified unchanged afterwards); (e) `current_setting('hearthrise.market_wipe_ok', true)` is NULL when unset, so the wipe gate fails closed; (f) the compact ledger `meta` builder emits exactly `{"g":50,"i":{"normal_log":3},"k":["accrued_to"],"x":{"woodcutting":50}}` at 136 bytes; (g) the R8 capability queries run clean (0 PUBLIC column grants, 0 PUBLIC-executable functions in `public`). |
+| **NOT executed — must be run before merge** | The **full four-file apply plus the behavioural suite**. A Supabase branch could not be created (the `confirm_cost` tool is not exposed in this environment). The revision-2 run used the `http` extension to have Postgres fetch the migrations from `hearthrise.net` and sha256-verify them; **that route is unavailable for revision 3 because the changed files are uncommitted and therefore not published**, and the bundle exceeds one SQL-tool call. The command is unchanged and is the merge gate: `node tests/run-sql-tests.mjs --emit \| psql "$DATABASE_URL"`. **Treat revision 3 as unproven at the whole-bundle level until that command is green.** The cheapest unblock is to push the branch so the four files are fetchable again, then re-run the http recipe in the header of `tests/run-sql-tests.mjs`. |
 
 ---
 
@@ -238,6 +239,81 @@ primary control is the GRANT, which the migration and the test suite both assert
 The consequence worth stating plainly: **if the Edge Function is compromised, the attacker's entire
 capability is "propose a delta to a function that re-validates every invariant."** They cannot
 `UPDATE player_state`, because they hold no `UPDATE` on `player_state`.
+
+### §2a-i How the engine authenticates — DECIDED, and it is not the legacy JWT secret
+
+**Condition R3 from the security review.** The paragraph above says the Edge Function mints
+`{"role":"hr_engine", …}` signed with `SUPABASE_JWT_SECRET`. That is the **legacy shared-secret
+(HS256)** signing key, and Supabase is moving projects to **asymmetric JWT signing keys**
+(RS256/ECC) with a public JWKS endpoint. The whole point of asymmetric signing is that the
+**private key never leaves the auth server** — so once this project rotates, *nothing outside
+Supabase Auth can mint a token at all*, and an Edge Function certainly cannot mint one claiming
+`role: hr_engine`.
+
+That is a scheduled outage of the identity seam. And the shape of the pressure when it happens is
+predictable and dangerous: the quickest unblock is to hand the Edge Function the **service role**
+key, which has `arwdDxtm` on every table in `public` and bypasses RLS — precisely the defect S1
+fixed. The decision therefore has to be made now, before an Edge Function exists, not during an
+incident.
+
+**DECISION: the engine does not use a JWT. It connects to Postgres directly as a dedicated login
+role, through the transaction-mode pooler.**
+
+```
+Edge Function (Deno)
+  └─ verifies the PLAYER's JWT with the project JWKS  (asymmetric-safe: verification
+  │                                                    only needs the PUBLIC key)
+  └─ opens a pooled Postgres connection as `hr_engine_login`
+        password: HR_ENGINE_DB_PASSWORD (Edge Function secret)
+        host:     <project>.pooler.supabase.com : 6543   (transaction mode — see §2a-ii)
+  └─ select public.hr_apply($1 /* verified player id */, $2, $3, $4, $5)
+```
+
+* `hr_engine_login` is `LOGIN NOINHERIT`, granted **only** `SET ROLE hr_engine`, and the session
+  does `set role hr_engine` before the call. Its capability set is therefore *identical* to today's
+  design — `EXECUTE hr_apply`, `EXECUTE hr_seed`, zero table privileges — and the migration's
+  existing assertions cover it unchanged, because they assert about `hr_engine`.
+* `hr_apply` reads the `role` GUC to decide whether `p_user` is honoured. `set role hr_engine` sets
+  exactly that GUC, so **the identity seam and every assertion around it work without modification**
+  whether the caller arrives via PostgREST-with-a-JWT or via a direct connection. This is why the
+  seam was written against the GUC and not against `current_user`, and it is what makes this
+  migration path a configuration change rather than a redesign.
+
+Why this and not the alternatives:
+
+| Option | Verdict |
+|---|---|
+| Keep minting HS256 with `SUPABASE_JWT_SECRET` | **Rejected.** Breaks on rotation, and it is the one credential whose disclosure lets anyone mint `role: service_role`. Building a new dependency on it now is building a migration for later. |
+| Mint RS256 with our own key pair and register it with Supabase | **Rejected for now.** It depends on the project being able to import a custom signing key, which is a platform capability we do not control and which would have to be re-verified on every platform change. It also leaves us operating a private key. |
+| Give the Edge Function the service role | **Rejected, permanently.** This is the S1 defect. `service_role` bypasses RLS and holds every table privilege; `hr_apply`'s validation becomes optional the moment the caller can skip `hr_apply`. |
+| Dedicated DB role + pooled direct connection | **Chosen.** No token to mint, so no signing algorithm to depend on; the capability is a `GRANT`, which is the same thing the rest of this design is built on; and it is verifiable by the assertions that already exist. |
+
+Residual risks, stated:
+
+* **A password is now a secret the Edge Function holds.** Its blast radius is `EXECUTE hr_apply`
+  and nothing else — strictly smaller than the engine JWT it replaces (a JWT signing secret can
+  mint *any* role). Rotate it with `alter role hr_engine_login password …`; no code change.
+* **Connections.** See §2a-ii — this is the real operational constraint, and it is a hard rule.
+* `hr_engine_login` must be created **outside** the committed migrations (the password would
+  otherwise be in git). The migration creates `hr_engine`; the login role and its grant are a
+  one-line operator step recorded in the cutover plan (§6).
+
+### §2a-ii Connections are the first thing that will break at 10× — HARD RULE
+
+Measured on `nezapsylztqbbwuwembx`, 2026-08-11: **`max_connections` = 60, with 23 already in use at
+six players.** Edge Functions are invoked per request and an unpooled driver opens a connection per
+invocation. At 10× players that exhausts the pool long before CPU or disk becomes interesting, and
+the failure is total (nobody can connect, including the dashboard).
+
+**All Edge Function database traffic goes through the transaction-mode pooler on port 6543.
+Never port 5432, never a direct connection, no exceptions.** Transaction mode is compatible with
+everything this design does, because *every* engine call is a single `select hr_apply(…)` — one
+statement, one implicit transaction, and `pg_advisory_xact_lock`/`select … for update` are all
+transaction-scoped and therefore released at statement end. (Session-scoped state — `set role`
+included — must be issued as part of the same transaction, e.g. `begin; set local role hr_engine;
+select hr_apply(…); commit;`, because transaction mode does not keep a backend between
+transactions. This is the one place a direct-connection engine differs from the JWT design and it
+is a two-line difference.)
 
 ### Error taxonomy
 
@@ -577,4 +653,41 @@ the first shippable milestone.
    is not. It should still be load-tested (WS-H) before cutover, not after.
 6. **Nothing here has been executed.** No migration has been applied, no Edge Function exists.
    Everything in §1–§5 is verified by reading, not by running. The branch apply in WS-B is the
-   first real proof.
+   first real proof. (Amended: the *primitives* have now been executed against production inside
+   `begin … rollback` — see §0b — but no file has been applied.)
+7. **`hp` is a client-proposed absolute and a compromised engine can full-heal at will.**
+   Reviewed and **accepted for now**, deliberately, with the full argument written at the top of
+   `hr_apply`'s delta contract in `supabase/migrations/2026-08-11-apply-engine.sql` §4. The short
+   version: combat is not yet server-resolved, so there is no server-side fact to validate an HP
+   value against; and HP is not tradeable, rankable or contributable, so it cannot cross into
+   another player's economy or ranking — which is the target property. It closes when combat moves
+   server-side, at which point `hp` leaves the intent contract and becomes an output.
+   **Do not add other absolutes to the delta contract.**
+8. **The `hr_engine` login role is created outside git.** §2a-i's decision replaces the engine JWT
+   with a dedicated login role, whose password cannot live in a committed migration. That makes
+   the seam's provisioning a manual cutover step (§6) rather than something a migration asserts,
+   which is a real weakening of "the migration is the record". Mitigated by the fact that every
+   *capability* assertion is about `hr_engine`, which the migration does create and does assert.
+
+### Retention — the policy ships with the table
+
+Non-negotiable, added in revision 3 after the reliability audit and after `game_events` had to be
+truncated by hand (1.6M rows / 229 MB from **six** players in 3.45 days; the database went
+245 MB → 16 MB). **Every append-only or monotonically-growing table in this foundation schedules
+its own prune in the migration that creates it**, and each migration asserts the job exists.
+`pg_cron` is a hard precondition of files 1 and 4 for exactly this reason.
+
+| Table | Growth driver | Policy | Job |
+|---|---|---|---|
+| `player_ledger` | 1 row/apply | rolled up into `player_ledger_rollup` (per character/month/kind) then deleted at 90 days; batched 20k/run | `hr-ledger-prune`, hourly |
+| `player_intents` | up to 240/min/player | deleted at 24h; stores `{ok}` only, never the state envelope | `hr-intents-prune`, hourly |
+| `player_progress` | 1 row/counter/**period**/player, forever | period rows deleted at 31 days (permanent `period_key=''` rows kept); `hr_state_of` reads the *same* 31-day window so the read and the policy cannot disagree | `hr-progress-prune`, daily |
+| `hr_rejections` | aggregated per character/code/day | deleted at 180 days | `hr-rejections-prune`, daily |
+| `market_listings` | escrow, released on expiry | `market_expire(200)` **returns the goods** — a bare delete would destroy them | `hr-market-expire`, every 5 min |
+| `market_sales` | 1 row/trade | deleted at 180 days (past the 30-day price-chart window) | `hr-market-sales-prune`, daily |
+
+`player_ledger`'s primary key is **`(at, id)`**, not `(id)`, so range-partitioning by `at` never
+requires a table rebuild. Its immutability trigger refuses every `UPDATE` and every `TRUNCATE`, and
+refuses a `DELETE` **inside** the retention window — so history cannot be rewritten or erased, and
+retention is still possible. Revision 2 refused all deletes unconditionally, which made retention
+literally impossible without disabling the control.

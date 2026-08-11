@@ -115,6 +115,12 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'hr_engine') then
     raise exception 'hr_engine role missing — run 2026-08-11-player-state.sql first';
   end if;
+  -- The rejection recorder is how a fired clamp survives the rollback that
+  -- fires it (review R4). Without it hr_apply would compile and then silently
+  -- lose every incident, which is the exact defect being fixed.
+  if to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb)') is null then
+    raise exception 'hr_record_rejection missing — re-run 2026-08-11-player-state.sql (revision 3)';
+  end if;
 end $$;
 
 -- ── 1. The rejection primitive ───────────────────────────────────────────
@@ -139,8 +145,22 @@ revoke execute on function public.hr_reject(text, jsonb)
 -- on auth.uid(): when the engine role calls, the acting user is p_user, not the
 -- JWT subject. Revision 1's hr_apply ended with `return hr_load(v_slot)`, which
 -- would have read the wrong (or no) user.
+--
+-- ⚠ VOLATILE, NOT STABLE (reliability RL1). This function is called by hr_apply
+--   as the LAST thing it does, immediately after writing player_state,
+--   player_inventory and friends, and its return value is the envelope the
+--   client uses as the `version` for its NEXT apply. A STABLE function is
+--   allowed to reuse the snapshot of the calling statement; in current
+--   PL/pgSQL a volatile caller does bump the command counter between
+--   statements, so it happens to see its own writes — but "happens to" is not
+--   a contract, and the failure mode if it ever stops holding is the nastiest
+--   kind: every second apply returns version_conflict, in production, on day
+--   one. VOLATILE forces a fresh snapshot and costs nothing here (hr_load is
+--   already volatile because it rate-limits, so nothing was being inlined or
+--   cached anyway). The behaviour is pinned by a regression test —
+--   tests/sql/server-authority.test.sql §12, "chained applies".
 create or replace function public.hr_state_of(p_user uuid, p_slot int)
-returns jsonb language plpgsql stable security definer set search_path = public as $$
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
 declare v_st public.player_state%rowtype;
 begin
   select * into v_st from public.player_state
@@ -174,10 +194,32 @@ begin
                                           'planted_at', planted_at, 'watered_at', watered_at)
                        order by plot_idx)
         from public.player_farm where user_id = p_user and slot = v_st.slot), '[]'::jsonb),
+    -- BOUNDED (reliability RL4). Revision 2 read every player_progress row a
+    -- character had ever accumulated, on every session start, with no filter
+    -- and no limit — and player_progress mints a permanent row per counter per
+    -- PERIOD. At 6 dailies that is +2,190 rows/player/year that this query
+    -- would keep dragging across the wire forever.
+    --   • period rows are filtered to the SAME window hr_progress_prune keeps
+    --     (31 days), so the read and the retention policy cannot disagree;
+    --   • permanent rows (period_key = '') are unfiltered — they are bounded by
+    --     content, and dropping one would hide a completed quest;
+    --   • a hard LIMIT is the backstop, and `progress_truncated` tells the
+    --     client the truth instead of silently shortening its world.
     'progress', coalesce((
       select jsonb_agg(jsonb_build_object('kind', kind, 'key', key, 'value', value,
                                           'period', period_key, 'state', state))
-        from public.player_progress where user_id = p_user and slot = v_st.slot), '[]'::jsonb),
+        from (select kind, key, value, period_key, state
+                from public.player_progress
+               where user_id = p_user and slot = v_st.slot
+                 and (period_key = '' or updated_at >= now() - interval '31 days')
+               order by period_key, kind, key
+               limit 1000) p), '[]'::jsonb),
+    'progress_truncated', (
+      select count(*) > 1000 from (
+        select 1 from public.player_progress
+         where user_id = p_user and slot = v_st.slot
+           and (period_key = '' or updated_at >= now() - interval '31 days')
+         limit 1001) t),
     'total_level', public.hr_total_level(p_user, v_st.slot)
   );
 end $$;
@@ -233,6 +275,30 @@ grant execute on function public.hr_load(int) to authenticated;
 --   "progress_claim": [ {"kind":"quest","key":"…","period":""}, … ],
 --   "journal":     { "kind":"gather", "intent":"collect", "meta":{…} }
 -- }
+--
+-- ⚠ `hp` IS A CLIENT-PROPOSED ABSOLUTE, AND THAT IS A DECISION, NOT AN
+--   OVERSIGHT. (Review R10.) The server clamps it to [0, max_hp] and validates
+--   nothing else, so an Edge Function — or anything that can reach one — can
+--   set HP to max at will. A free full heal.
+--
+--   Why it is accepted, for now:
+--     • Combat is not yet server-resolved. Until it is, the ONLY thing that
+--       knows the outcome of a fight is the JS simulation in the Edge Function,
+--       and it necessarily reports an absolute. There is no server-side fact to
+--       validate against — a "hp delta" would be equally forgeable and would
+--       additionally desynchronise on any missed apply.
+--     • The blast radius is bounded by design: HP is not tradeable, not
+--       rankable and not contributable. It cannot cross into another player's
+--       economy or ranking, which is the target property stated in CLAUDE.md.
+--       The worst case is that the offender does not die, which costs them
+--       nothing another player can feel.
+--     • hearth_tokens, gold, gems and items — everything that CAN cross — are
+--       deltas with clamps and floors, not absolutes.
+--
+--   What closes it, and when: when combat moves server-side (the accrual engine
+--   owns the fight), `hp` leaves this contract entirely and becomes an OUTPUT.
+--   Until then it is listed here, in the intent spec, so that nobody has to
+--   rediscover it in a review. Do NOT add other absolutes to this contract.
 --
 -- ⚠ NOTE WHAT IS ABSENT: there is no "hearth_tokens" key, and no "version",
 --   "bank_cap", "max_hp" or "slot" key either. The bond is minted by exactly
@@ -304,6 +370,10 @@ begin
   else
     v_uid := auth.uid();
     if p_user is not null and p_user is distinct from v_uid then
+      -- Recorded even though it never reaches the protected block: this is the
+      -- single most interesting thing anyone can do to this function. (R4.)
+      perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'forbidden_impersonation',
+        jsonb_build_object('claimed_user', p_user, 'role', v_role));
       return jsonb_build_object('ok', false, 'error', 'forbidden_impersonation');
     end if;
   end if;
@@ -319,9 +389,15 @@ begin
   -- function does not implement must never look like it worked.
   if exists (select 1 from jsonb_object_keys(p_delta) as t(dk)
               where dk <> all (c_delta_keys)) then
-    return jsonb_build_object('ok', false, 'error', 'unknown_delta_key',
+    v_out := jsonb_build_object('ok', false, 'error', 'unknown_delta_key',
       'keys', (select jsonb_agg(dk) from jsonb_object_keys(p_delta) as t(dk)
                 where dk <> all (c_delta_keys)));
+    -- An unknown key means the Edge Function and this contract have diverged,
+    -- or someone is probing for one that is not implemented. Both are worth
+    -- knowing about tomorrow, not just for the next 24 hours. (R4.)
+    perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'unknown_delta_key',
+      jsonb_build_object('keys', v_out->'keys'));
+    return v_out;
   end if;
 
   -- ── (1) Rate limit. OUTSIDE the protected block on purpose: a rejected call
@@ -339,11 +415,29 @@ begin
   --        cannot interleave. A replay returns the FIRST answer — success or
   --        rejection — because "same key, same answer" is the contract that
   --        makes a client retry safe.
+  --
+  --        WHAT IS STORED IS THE DECISION, NOT THE ENVELOPE (review R5).
+  --        Revision 2 stored the ENTIRE hr_state_of envelope — inventory,
+  --        fifteen skills, farm plots, progress — in player_intents.result, per
+  --        intent, at up to 240 applies/min/player. That is a full state
+  --        snapshot roughly every quarter second per player, retained 24 hours:
+  --        ~2 KB × 240 × 60 × 24 = 690 MB PER PLAYER PER DAY at the rate limit,
+  --        and this repo already has the receipt for what an unbounded journal
+  --        does here (game_events: 1.6M rows / 229 MB, six players, 3.45 days).
+  --        Now only `{ok}` (plus the error and its detail on a rejection) is
+  --        stored — tens of bytes — and a REPLAY OF A SUCCESS RE-DERIVES the
+  --        current state. That is strictly better for the caller too: a retry
+  --        gets fresh state and a fresh version instead of a stale snapshot it
+  --        would then have to discard. The contract is unchanged and is the one
+  --        that matters: the same key applies the effect exactly once.
   select result into v_prev from public.player_intents
    where user_id = v_uid and intent_id = p_intent_id;
   if found then
     if v_prev is null then
       return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
+    end if;
+    if coalesce(v_prev->>'ok', 'false') = 'true' then
+      return public.hr_state_of(v_uid, v_slot) || jsonb_build_object('replayed', true);
     end if;
     return v_prev || jsonb_build_object('replayed', true);
   end if;
@@ -551,9 +645,14 @@ begin
     --   then returned, committing the items it had already written.
     --   A NEW stack is what costs space, so a player at cap can still gain more
     --   of what they already hold.
+    --   BOUNDED COUNT (reliability RL4): the question is "> cap?", not "how
+    --   many?", so the scan stops at cap+1 rows instead of walking a 100,000-
+    --   stack bank on every item-touching apply.
     if (p_delta ? 'items') or (p_delta ? 'equip') then
-      select count(*) into v_stacks from public.player_inventory
-        where user_id = v_uid and slot = v_slot;
+      select count(*) into v_stacks from (
+        select 1 from public.player_inventory
+         where user_id = v_uid and slot = v_slot
+         limit v_st.bank_cap + 1) s;
       if v_stacks > v_st.bank_cap then
         perform public.hr_reject('bank_full',
           jsonb_build_object('stacks', v_stacks, 'cap', v_st.bank_cap));
@@ -657,8 +756,28 @@ begin
     end if;
 
     -- ── ACTIVITY ─────────────────────────────────────────────────────────
+    -- (Review R11.) Revision 2 gated the whole block on `v_act ? 'kind'`, so
+    -- `{"activity":{"restart":true}}` skipped EVERY check and still reached the
+    -- UPDATE, where `restart` resets active_since to now(). A caller could
+    -- therefore restamp the activity clock — the input to accrual — without
+    -- naming an activity, without a catalogue lookup and without the skill
+    -- gate. `{"activity":{}}` was likewise accepted and did nothing, which is
+    -- the "silently dropped effect" this contract explicitly refuses elsewhere.
+    -- Now: an `activity` key means a complete, validated activity statement.
     v_act := p_delta->'activity';
-    if v_act ? 'kind' then
+    if p_delta ? 'activity' then
+      if jsonb_typeof(v_act) <> 'object' then perform public.hr_reject('bad_activity'); end if;
+      if not (v_act ? 'kind') then
+        perform public.hr_reject('bad_activity',
+          jsonb_build_object('why', 'activity requires kind; restart alone is not an activity'));
+      end if;
+      if exists (select 1 from jsonb_object_keys(v_act) as t(ak)
+                  where ak <> all (array['kind','id','restart'])) then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'unknown activity key'));
+      end if;
+      if (v_act ? 'restart') and jsonb_typeof(v_act->'restart') <> 'boolean' then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'restart must be boolean'));
+      end if;
       -- The (kind ⇔ id) invariant is a table CHECK, and hitting a CHECK yields
       -- an opaque 23514. Answer it here so a caller bug reads as a caller bug.
       if (v_act->>'kind' = 'idle') <> (nullif(v_act->>'id','') is null) then
@@ -724,15 +843,50 @@ begin
     --   repo has the receipt: game_events, 1.6M rows / 229 MB, six players,
     --   four days. A very large delta is summarised rather than stored whole,
     --   so one pathological call cannot write a megabyte.
+    --
+    --   AND ONE ROW IS NOT ENOUGH IF THE ROW IS HUGE (reliability RL2(b)).
+    --   Revision 2 stored `p_delta - 'journal'` — the WHOLE proposed delta, up
+    --   to 200 item keys plus farm ops plus progress ops — as meta. Measured
+    --   projection: ~2.5× a game_events row, ×2 indexes, 600 MB/day at 600
+    --   players. Rebuilding game_events under a new name is exactly the mistake
+    --   this comment block was written to prevent.
+    --
+    --   What is kept is what a ledger is FOR: the value that moved. Gold, gems,
+    --   items, xp and equipment transfers are recorded (they are the audit
+    --   trail, and they are small — a real accrual apply touches 1-5 item
+    --   kinds). Everything else is recorded as a KEY NAME only, because the
+    --   authoritative record of it is the row it wrote: farm state is in
+    --   player_farm, progress is in player_progress, the activity pointer and
+    --   accrued_to are in player_state, and all of them are reachable from this
+    --   row's timestamp. `k` is the list of those keys, so the ledger still
+    --   says what kind of thing happened.
     v_j    := coalesce(p_delta->'journal', '{}'::jsonb);
     v_kind := coalesce(v_j->>'kind', 'admin');
     if v_kind <> all (c_ledger_kinds) then v_kind := 'admin'; end if;
-    v_meta := p_delta - 'journal';
-    if pg_column_size(v_meta) > 8000 then
-      v_meta := jsonb_build_object(
-        'summary', true,
-        'bytes', pg_column_size(p_delta),
-        'keys', (select jsonb_agg(dk) from jsonb_object_keys(v_meta) as t(dk)));
+    v_meta := jsonb_strip_nulls(jsonb_build_object(
+      'g',  nullif(coalesce((p_delta->>'gold')::bigint, 0), 0),
+      'm',  nullif(coalesce((p_delta->>'gems')::bigint, 0), 0),
+      'i',  case when p_delta ? 'items'
+                 and (select count(*) from jsonb_object_keys(p_delta->'items')) <= 24
+                 then p_delta->'items' end,
+      'x',  case when p_delta ? 'xp' then p_delta->'xp' end,
+      'e',  case when p_delta ? 'equip' then p_delta->'equip' end,
+      'k',  (select jsonb_agg(dk order by dk) from jsonb_object_keys(p_delta) as t(dk)
+              where dk <> all (array['gold','gems','items','xp','equip','journal']))
+    ));
+    -- If items were too numerous to itemise, say so with an aggregate rather
+    -- than dropping the fact that a large transfer happened.
+    if p_delta ? 'items' and not (v_meta ? 'i') then
+      v_meta := v_meta || jsonb_build_object('i_n',
+        (select count(*) from jsonb_object_keys(p_delta->'items')),
+        'i_sum', (select sum(coalesce(nullif(value,'')::bigint, 0))
+                    from jsonb_each_text(p_delta->'items')));
+    end if;
+    -- Backstop. Nothing above should be able to reach this, which is why it is
+    -- 2 KB and not 8 KB: if it ever fires, the shape has regressed.
+    if pg_column_size(v_meta) > 2000 then
+      v_meta := jsonb_build_object('summary', true, 'bytes', pg_column_size(p_delta),
+        'k', (select jsonb_agg(dk order by dk) from jsonb_object_keys(p_delta) as t(dk)));
     end if;
     insert into public.player_ledger
       (user_id, slot, kind, intent, gold, meta)
@@ -762,11 +916,35 @@ begin
                                   'sqlstate', v_sqlstate, 'detail', v_msg);
   end;
 
-  -- ── (5) Record the answer under the idempotency key. This row is OUTSIDE
-  --        the protected block, so it survives a rejection: a replay of a
-  --        rejected intent returns the same rejection instead of re-running it.
-  update public.player_intents set result = v_out
+  -- ── (5) Record the DECISION under the idempotency key. This statement is
+  --        OUTSIDE the protected block, so it survives a rejection: a replay of
+  --        a rejected intent returns the same rejection instead of re-running
+  --        it. Only the decision is stored, never the state envelope (R5, and
+  --        the reasoning is at step (3)) — on a success that is literally
+  --        `{"ok": true}`.
+  update public.player_intents
+     set result = case when coalesce(v_out->>'ok','false') = 'true'
+                       then jsonb_build_object('ok', true)
+                       else v_out end
    where user_id = v_uid and intent_id = p_intent_id;
+
+  -- ── (6) THE REJECTION RECORD (review R4). Also outside the protected block,
+  --        and that is the entire point: the ledger insert that revision 2
+  --        relied on for an audit trail sits INSIDE the block, so a rejection
+  --        rolled it back and the only trace of a fired clamp was
+  --        player_intents.result — which hr_intents_prune deletes after 24
+  --        hours. The design says "treat any rejection as an incident"; an
+  --        incident nobody can see the next morning is not one.
+  --
+  --        hr_record_rejection aggregates per (character, code, day) and
+  --        classifies incident vs normal itself, so this is a bounded write —
+  --        one UPSERT, not a row per rejection. See player-state.sql §6b-ii for
+  --        why that shape and not a log.
+  if coalesce(v_out->>'ok', 'false') <> 'true' then
+    perform public.hr_record_rejection(
+      v_uid, v_slot, coalesce(p_delta #>> '{journal,intent}', 'apply'),
+      v_out->>'error', v_out - 'ok' - 'error');
+  end if;
 
   return v_out;
 end $$;
@@ -842,5 +1020,15 @@ begin
   exception when sqlstate 'HR000' then null;
   end;
 
-  raise notice 'APPLY ENGINE OK — hr_apply is hr_engine-only, rejections roll back, catalogue is live.';
+  -- (f) hr_state_of must be VOLATILE (reliability RL1). If someone "optimises"
+  --     it back to STABLE, hr_apply's returned envelope is no longer guaranteed
+  --     to reflect the writes hr_apply just made, and the client's next apply
+  --     fails with version_conflict. That is a production-day-one outage caused
+  --     by a one-word change, so it gets an assertion rather than a comment.
+  if (select provolatile from pg_proc
+       where oid = to_regprocedure('public.hr_state_of(uuid,int)')) <> 'v' then
+    raise exception 'hr_state_of is not VOLATILE — hr_apply may return pre-write state (see RL1)';
+  end if;
+
+  raise notice 'APPLY ENGINE OK — hr_apply is hr_engine-only, rejections roll back and are recorded, catalogue is live.';
 end $$;

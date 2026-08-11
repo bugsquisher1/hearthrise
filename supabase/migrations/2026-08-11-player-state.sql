@@ -89,6 +89,16 @@ begin
   if to_regclass('public.profiles') is null then
     raise exception 'public.profiles is missing — run supabase/schema.sql on a FRESH project first';
   end if;
+  -- pg_cron is a HARD dependency of this foundation, not a deploy step.
+  -- Every append-only table created below ships its retention policy in the
+  -- same file (reliability RL2/RL3), and a retention policy that is "scheduled
+  -- separately, later, by hand" is a retention policy that does not exist. The
+  -- receipt: game_events reached 1.6M rows / 229 MB from six players in 3.45
+  -- days and had to be truncated by hand on 2026-08-11.
+  -- Installed on this project as pg_cron 1.6.4 (verified).
+  if to_regproc('cron.schedule(text,text,text)') is null then
+    raise exception 'pg_cron is required — enable the pg_cron extension before applying the server-authority foundation';
+  end if;
 end $$;
 
 -- ── 0b. THE ENGINE ROLE ──────────────────────────────────────────────────
@@ -300,14 +310,56 @@ create table if not exists public.player_progress (
   foreign key (user_id, slot) references public.player_state(user_id, slot) on delete cascade
 );
 
+-- RELIABILITY RL3/RL4 — THE TWO POPULATIONS IN THIS TABLE ARE NOT THE SAME.
+--   period_key = ''   PERMANENT state: quest completion, lifetime stats,
+--                     collection flags. Bounded by CONTENT (a few hundred rows
+--                     per character at most), so it is kept forever and read
+--                     in full.
+--   period_key <> ''  PERIODIC state: one row per daily/weekly per period, per
+--                     character, FOREVER. That is the unbounded population.
+--                     600 players × 6 dailies × 365 days = 1.3M rows/year, and
+--                     revision 2 read ALL of them on every hr_load.
+-- So: a partial index that only covers the periodic rows (the permanent ones
+-- are never scanned this way and should not pay for the index), a prune, and a
+-- matching read filter in hr_state_of. The read filter and the prune window are
+-- deliberately the SAME number — if they ever diverge, the client silently
+-- stops seeing rows that still exist.
+create index if not exists player_progress_period_idx
+  on public.player_progress (updated_at)
+  where period_key <> '';
+
+create or replace function public.hr_progress_prune(p_older interval default interval '31 days')
+returns int language plpgsql security definer set search_path = public as $$
+declare v_n int;
+begin
+  delete from public.player_progress
+   where period_key <> ''
+     and updated_at < now() - greatest(interval '7 days', coalesce(p_older, interval '31 days'));
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke execute on function public.hr_progress_prune(interval)
+  from public, anon, authenticated, service_role;
+
 -- ── 6. THE JOURNAL ───────────────────────────────────────────────────────
 -- Every mutation of every table above writes here, in the same transaction.
 -- ONE ROW PER APPLY, never one per tick. Live evidence for why: game_events
 -- reached 1.6M rows / 229 MB from SIX players in four days by logging every
 -- kill and every gather. The accrual model already collapses a session into a
 -- single apply; the journal must not undo that.
+-- ⚠ THE PRIMARY KEY IS (at, id), NOT (id). (Reliability RL2(d).)
+--   `id bigserial primary key` looks harmless and is a one-way door: Postgres
+--   requires the partition key to be part of every unique constraint, so a
+--   PK on (id) alone makes "partition by range (at)" a full table REBUILD
+--   later, on the largest table in the database, at exactly the moment volume
+--   is the problem. Putting `at` in front of `id` costs nothing today (the
+--   table is empty) and keeps the option open. It also gives the retention job
+--   the index it needs for free — which is why player_ledger_kind_idx is gone:
+--   two secondary indexes on the hottest insert path in the game is three
+--   writes per apply, and the (at, id) PK already serves "recent rows by kind"
+--   well enough for an admin query.
 create table if not exists public.player_ledger (
-  id       bigserial primary key,
+  id       bigserial,
   user_id  uuid not null,
   slot     int  not null,
   kind     text not null check (kind in
@@ -320,14 +372,82 @@ create table if not exists public.player_ledger (
   skill_id text,
   xp       bigint,
   meta     jsonb not null default '{}'::jsonb,
-  at       timestamptz not null default now()
+  at       timestamptz not null default now(),
+  primary key (at, id)
 );
 create index if not exists player_ledger_user_idx on public.player_ledger (user_id, slot, at desc);
-create index if not exists player_ledger_kind_idx on public.player_ledger (kind, at desc);
+-- Retired: see the PK comment above. Dropped explicitly so a database that ran
+-- an earlier revision of this file converges on the same shape.
+drop index if exists public.player_ledger_kind_idx;
+
+-- If an earlier revision created the table with `id` as the sole PK, migrate it
+-- — but ONLY while it is empty. A rebuild of a populated ledger is a decision
+-- for a maintenance window, not a side effect of re-running a migration.
+do $$
+declare v_pk text; v_rows bigint;
+begin
+  select conname into v_pk from pg_constraint
+   where conrelid = 'public.player_ledger'::regclass and contype = 'p';
+  -- attname is `name`, not `text`; without the cast this comparison is
+  -- `name[] = text[]`, which is not an operator that exists and which fails at
+  -- RUNTIME, not at create time. Caught by executing the block, not reading it.
+  if v_pk is not null and (
+       select array_agg(a.attname::text order by k.ord)
+         from pg_constraint c
+         cross join lateral unnest(c.conkey) with ordinality as k(attnum, ord)
+         join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
+        where c.conname = v_pk and c.conrelid = 'public.player_ledger'::regclass
+     ) = array['id'] then
+    execute 'select count(*) from public.player_ledger' into v_rows;
+    if v_rows = 0 then
+      execute format('alter table public.player_ledger drop constraint %I', v_pk);
+      execute 'alter table public.player_ledger add primary key (at, id)';
+      raise notice 'player_ledger PK migrated (id) -> (at, id) while empty';
+    else
+      raise warning 'player_ledger PK is (id) and the table holds % rows — '
+                    'partitioning will require a rebuild. Not doing it implicitly.', v_rows;
+    end if;
+  end if;
+end $$;
+
+-- ── 6a. APPEND-ONLY, BUT PRUNABLE (Reliability RL2(a)) ───────────────────
+-- Revision 2 raised on `before update OR DELETE` unconditionally, which made a
+-- retention job IMPOSSIBLE: the only way to shrink the ledger was to drop the
+-- trigger, and a control you have to disable to operate the system is a control
+-- that will be left off. Meanwhile the projection is 600 MB/day at 600 players
+-- — Pro's 8 GB disk in a fortnight — and this repo has already lived that once
+-- (game_events: 1.6M rows / 229 MB from SIX players in 3.45 days, truncated
+-- 2026-08-11, database 245 MB → 16 MB).
+--
+-- The property that actually matters is not "no row may ever be removed" — it
+-- is "NOBODY CAN REWRITE OR ERASE RECENT HISTORY". So:
+--   • UPDATE      — always refused. A ledger row is never edited, at any age.
+--   • DELETE      — refused inside the retention window; permitted outside it,
+--                   which is precisely what hr_ledger_prune() needs and nothing
+--                   more. An attacker covering their tracks is interested in
+--                   the last hour, not in rows from a quarter ago.
+--   • TRUNCATE    — always refused. It is indiscriminate and it bypasses RLS.
+-- No client role holds UPDATE/DELETE/TRUNCATE on this table anyway (§7); the
+-- trigger is the second, independent lock.
+create table if not exists public.hr_ledger_config (
+  only_row      boolean primary key default true check (only_row),
+  retain_days   int not null default 90 check (retain_days between 7 and 3650)
+);
+insert into public.hr_ledger_config (only_row) values (true) on conflict do nothing;
+alter table public.hr_ledger_config enable row level security;
 
 create or replace function public.hr_ledger_immutable()
 returns trigger language plpgsql set search_path = public as $$
+declare v_keep int;
 begin
+  if tg_op = 'DELETE' then
+    select retain_days into v_keep from public.hr_ledger_config;
+    if old.at >= now() - make_interval(days => coalesce(v_keep, 90)) then
+      raise exception 'player_ledger row is inside the % day retention window and cannot be deleted',
+        coalesce(v_keep, 90) using errcode = 'check_violation';
+    end if;
+    return old;
+  end if;
   raise exception 'player_ledger is append-only (attempted %)', tg_op
     using errcode = 'check_violation';
 end $$;
@@ -346,6 +466,63 @@ drop trigger if exists hr_ledger_no_truncate on public.player_ledger;
 create trigger hr_ledger_no_truncate
   before truncate on public.player_ledger
   for each statement execute function public.hr_ledger_immutable();
+
+-- ── 6a-ii. THE ROLLUP — what survives the prune ──────────────────────────
+-- Deleting the ledger outright would destroy the only long-term record of value
+-- movement, which is the thing the ledger exists for. So the prune ROLLS UP
+-- before it deletes: one row per (character, month, kind) carrying the totals.
+-- 600 players × 12 months × 13 kinds = ~94k rows PER YEAR, permanently — three
+-- orders of magnitude below the raw rows it replaces, and it still answers
+-- "where did this player's gold come from" a year later.
+create table if not exists public.player_ledger_rollup (
+  user_id   uuid not null,
+  slot      int  not null,
+  month     date not null,
+  kind      text not null,
+  n         bigint not null default 0,
+  gold_in   bigint not null default 0,
+  gold_out  bigint not null default 0,
+  primary key (user_id, slot, month, kind)
+);
+
+-- Batched on purpose: an unbounded `delete from … where at < …` on a table that
+-- has been left alone for a month is a multi-minute exclusive-ish operation
+-- competing with live traffic. p_limit rows per call, called hourly.
+create or replace function public.hr_ledger_prune(p_limit int default 20000)
+returns int language plpgsql security definer set search_path = public as $$
+declare v_keep int; v_cut timestamptz; v_n int;
+begin
+  select retain_days into v_keep from public.hr_ledger_config;
+  -- One second of slack so the prune never argues with the trigger's own
+  -- boundary check about which side of `now()` a row is on.
+  v_cut := now() - make_interval(days => coalesce(v_keep, 90)) - interval '1 second';
+
+  with doomed as (
+    select id, at from public.player_ledger
+     where at < v_cut
+     order by at, id
+     limit greatest(1, least(100000, coalesce(p_limit, 20000)))
+     for update skip locked
+  ),
+  rolled as (
+    insert into public.player_ledger_rollup as r (user_id, slot, month, kind, n, gold_in, gold_out)
+      select l.user_id, l.slot, date_trunc('month', l.at)::date, l.kind,
+             count(*), sum(greatest(coalesce(l.gold,0), 0)), sum(greatest(-coalesce(l.gold,0), 0))
+        from public.player_ledger l join doomed d on d.id = l.id and d.at = l.at
+       group by 1,2,3,4
+    on conflict (user_id, slot, month, kind) do update
+      set n = r.n + excluded.n,
+          gold_in = r.gold_in + excluded.gold_in,
+          gold_out = r.gold_out + excluded.gold_out
+    returning 1
+  )
+  delete from public.player_ledger l
+   using doomed d where l.id = d.id and l.at = d.at;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke execute on function public.hr_ledger_prune(int)
+  from public, anon, authenticated, service_role;
 
 -- ── 6b. Idempotency ──────────────────────────────────────────────────────
 -- Every state-changing intent carries a client-generated uuid. A replay — a
@@ -379,6 +556,89 @@ begin
   return v_n;
 end $$;
 revoke execute on function public.hr_intents_prune(interval) from public, anon, authenticated, service_role;
+
+-- ── 6b-ii. THE REJECTION RECORD (review R4) ──────────────────────────────
+-- hr_apply's blast-radius clamps (gold_clamp, gem_clamp, item_clamp, xp_clamp,
+-- progress_clamp) are documented as "treat any rejection as an incident, not a
+-- tuning problem". Revision 2 then wrote the only trace of them INSIDE the
+-- block that a rejection rolls back, so the trace rolled back with it: the sole
+-- surviving evidence was player_intents.result, which hr_intents_prune deletes
+-- after 24 hours. A control nobody can observe firing is not a control.
+--
+-- WHY THIS IS AN AGGREGATE AND NOT A ROW PER REJECTION.
+--   Journal rule 6 in this codebase exists because game_events reached 1.6M
+--   rows from six players. `version_conflict` is a NORMAL outcome of optimistic
+--   concurrency — two tabs, a retry, a slow network — and at 240 applies/min/
+--   player a row per rejection rebuilds game_events in the security table.
+--   So: one row per (character, code, DAY), counter incremented in place.
+--   Bounded by players × codes × days: 600 players × ~8 codes × 365 = 1.75M
+--   rows/YEAR worst case if every player trips every code every day, and
+--   realistically three orders of magnitude less. Pruned at 180 days.
+--
+--   `severity` is derived from the code by the recorder, not supplied, so
+--   "show me every incident this week" is one indexed query and cannot be
+--   mislabelled by a caller.
+create table if not exists public.hr_rejections (
+  id        bigserial,
+  user_id   uuid not null,
+  slot      int  not null,
+  day       date not null,
+  code      text not null,
+  severity  text not null check (severity in ('incident','normal')),
+  intent    text,
+  n         bigint not null default 0,
+  first_at  timestamptz not null default now(),
+  last_at   timestamptz not null default now(),
+  last_detail jsonb not null default '{}'::jsonb,
+  primary key (user_id, slot, day, code)
+);
+create index if not exists hr_rejections_incident_idx
+  on public.hr_rejections (last_at desc) where severity = 'incident';
+
+create or replace function public.hr_record_rejection(
+  p_user uuid, p_slot int, p_intent text, p_code text, p_detail jsonb default '{}'::jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  -- A rejection is an INCIDENT when it means a caller proposed something an
+  -- honest game loop cannot propose. Everything else is ordinary contention or
+  -- an ordinary "you cannot afford that".
+  c_incident constant text[] := array[
+    'gold_clamp','gem_clamp','item_clamp','xp_clamp','progress_clamp',
+    'too_many_item_kinds','too_many_equip_ops','too_many_farm_ops',
+    'too_many_progress_ops','unknown_item','unknown_skill','unknown_activity',
+    'unknown_crop','unknown_equip_slot','unknown_delta_key','wrong_slot',
+    'requirement_not_met','activity_locked','bad_progress_state','overflow',
+    'seller_unavailable','forbidden_impersonation'];
+begin
+  if p_user is null or p_code is null then return; end if;
+  insert into public.hr_rejections as r
+    (user_id, slot, day, code, severity, intent, n, last_detail)
+  values (p_user, coalesce(p_slot, 0), current_date, p_code,
+          case when p_code = any (c_incident) then 'incident' else 'normal' end,
+          left(coalesce(p_intent, ''), 64), 1,
+          coalesce(p_detail, '{}'::jsonb))
+  on conflict (user_id, slot, day, code) do update
+    set n = r.n + 1, last_at = now(), last_detail = excluded.last_detail,
+        intent = excluded.intent;
+exception when others then
+  -- Recording a rejection must NEVER turn a clean rejection into a 500. If the
+  -- bookkeeping fails we lose one observation, not the player's request.
+  null;
+end $$;
+revoke execute on function public.hr_record_rejection(uuid, int, text, text, jsonb)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.hr_rejections_prune(p_older interval default interval '180 days')
+returns int language plpgsql security definer set search_path = public as $$
+declare v_n int;
+begin
+  delete from public.hr_rejections
+   where last_at < now() - greatest(interval '30 days', coalesce(p_older, interval '180 days'));
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke execute on function public.hr_rejections_prune(interval)
+  from public, anon, authenticated, service_role;
 
 -- ── 6c. Rate limiting ────────────────────────────────────────────────────
 -- UNLOGGED on purpose: a rate counter is worth exactly zero bytes of WAL and
@@ -465,7 +725,7 @@ declare t text;
 begin
   foreach t in array array['player_state','player_skills','player_inventory',
                            'player_equipment','player_farm','player_progress',
-                           'player_ledger'] loop
+                           'player_ledger','player_ledger_rollup'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists %I on public.%I', t || ' own read', t);
     execute format(
@@ -479,7 +739,8 @@ begin
   -- has no business reading either: player_intents would leak the result
   -- envelope of every recent call, and hr_rate_counters would tell an attacker
   -- exactly how much budget is left. RLS on, zero policies, zero grants.
-  foreach t in array array['player_intents','hr_rate_counters','hr_server_secrets'] loop
+  foreach t in array array['player_intents','hr_rate_counters','hr_server_secrets',
+                           'hr_ledger_config','hr_rejections'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role, hr_engine', t);
   end loop;
@@ -488,6 +749,7 @@ begin
   -- ACL. Harmless on its own; removed because "harmless on its own" is how a
   -- gap survives three reviews.
   execute 'revoke all on sequence public.player_ledger_id_seq from public, anon, authenticated, service_role, hr_engine';
+  execute 'revoke all on sequence public.hr_rejections_id_seq from public, anon, authenticated, service_role, hr_engine';
 end $$;
 
 -- ── 8. Derived values, defined ONCE, server-side ─────────────────────────
@@ -601,6 +863,58 @@ revoke execute on function public.hr_create_character(int)
   from public, anon, service_role;
 grant execute on function public.hr_create_character(int) to authenticated;
 
+-- ── 9b. SCHEDULED MAINTENANCE — the retention policy, wired ──────────────
+-- THE RULE THIS ENFORCES: an append-only table's retention policy ships in the
+-- migration that creates the table. Not in a runbook, not in a deploy step, not
+-- in a comment saying "schedule this with…". Every unbounded table in this file
+-- gets its job here; market-v2.sql does the same for its own.
+--
+-- The two helpers below exist so that "schedule this" is idempotent and
+-- re-runnable. cron.schedule() already upserts by job name (pg_cron >= 1.4),
+-- but cron.unschedule() RAISES on a name that is not there, which would make a
+-- second run of any migration that removes a job fail.
+create or replace function public.hr_cron_ensure(p_name text, p_schedule text, p_command text)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare v_id bigint;
+begin
+  select cron.schedule(p_name, p_schedule, p_command) into v_id;
+  return v_id;
+end $$;
+revoke execute on function public.hr_cron_ensure(text, text, text)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.hr_cron_drop(p_name text)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from cron.job where jobname = p_name) then return false; end if;
+  perform cron.unschedule(p_name);
+  return true;
+end $$;
+revoke execute on function public.hr_cron_drop(text)
+  from public, anon, authenticated, service_role;
+
+do $$
+begin
+  -- The ledger. Hourly, batched, rolls up before it deletes. Offset off the
+  -- hour so it never lands on top of the leaderboard refresh.
+  perform public.hr_cron_ensure('hr-ledger-prune', '7 * * * *',
+    'select public.hr_ledger_prune(20000)');
+  -- Idempotency keys. The dedupe window only has to outlive a client's retry
+  -- budget; 24 hours is already generous. Hourly, because at 240 applies/min/
+  -- player this is the fastest-growing table in the foundation.
+  perform public.hr_cron_ensure('hr-intents-prune', '17 * * * *',
+    'select public.hr_intents_prune()');
+  -- Periodic quest/daily rows. Daily is plenty — the population only turns over
+  -- once a day by construction.
+  perform public.hr_cron_ensure('hr-progress-prune', '25 4 * * *',
+    'select public.hr_progress_prune()');
+  -- The rejection record. 180 days of security history is more than anyone will
+  -- ever look back, and it is an aggregate, so it is small either way.
+  perform public.hr_cron_ensure('hr-rejections-prune', '35 4 * * *',
+    'select public.hr_rejections_prune()');
+  raise notice 'retention jobs scheduled: ledger, intents, progress, rejections';
+end $$;
+
 -- ── 10. Self-verification ────────────────────────────────────────────────
 -- Everything below is a property this file is responsible for. If a later edit
 -- breaks one, the migration fails on its next run and the reviewer finds out
@@ -633,8 +947,9 @@ begin
    where table_schema = 'public'
      and table_name in ('player_state','player_skills','player_inventory',
                         'player_equipment','player_farm','player_progress',
-                        'player_ledger','player_intents','hr_rate_counters',
-                        'hr_server_secrets')
+                        'player_ledger','player_ledger_rollup','player_intents',
+                        'hr_rate_counters','hr_server_secrets','hr_ledger_config',
+                        'hr_rejections')
      and grantee in ('anon','authenticated','service_role','PUBLIC','hr_engine')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then
@@ -658,6 +973,16 @@ begin
   if v_bad > 0 then
     raise exception '% table privileges are granted to PUBLIC in schema public — hr_engine inherits them', v_bad;
   end if;
+  -- (c-ii) WIDENED (review R8). role_table_grants only sees TABLE-level grants.
+  --   A COLUMN-level grant — `grant update (gold) on player_state to hr_engine`
+  --   — does not appear there at all, so the assertion above would have passed
+  --   with the single most dangerous privilege in the database handed to the
+  --   engine role. Check the column catalogue too.
+  select count(*) into v_bad from information_schema.role_column_grants
+   where table_schema = 'public' and grantee in ('hr_engine','PUBLIC');
+  if v_bad > 0 then
+    raise exception 'hr_engine (or PUBLIC) holds % COLUMN privileges in public — it must hold ZERO', v_bad;
+  end if;
 
   -- (d) The append-only ledger really is append-only, TRUNCATE included.
   foreach v_t in array array['hr_ledger_immutable','hr_ledger_no_truncate'] loop
@@ -673,10 +998,19 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in ('hr_create_character','hr_total_level','hr_seed','hr_rate_ok',
-                       'hr_intents_prune','hr_ledger_immutable')
-     and has_function_privilege('anon', p.oid, 'execute');
+                       'hr_intents_prune','hr_ledger_immutable','hr_ledger_prune',
+                       'hr_progress_prune','hr_rejections_prune','hr_record_rejection',
+                       'hr_cron_ensure','hr_cron_drop')
+     and (has_function_privilege('anon', p.oid, 'execute')
+       or has_function_privilege('authenticated', p.oid, 'execute'));
   if v_bad > 0 then
-    raise exception '% functions in this file are anon-executable', v_bad;
+    raise exception '% maintenance functions in this file are client-executable', v_bad;
+  end if;
+  -- hr_cron_ensure in particular: it is `execute arbitrary SQL on a schedule,
+  -- as the owner`. If a client role can ever reach it, the database is theirs.
+  if has_function_privilege('authenticated', 'public.hr_cron_ensure(text,text,text)', 'execute')
+  or has_function_privilege('anon', 'public.hr_cron_ensure(text,text,text)', 'execute') then
+    raise exception 'hr_cron_ensure is client-callable — that is arbitrary scheduled code execution';
   end if;
   -- hr_seed must not be reachable by a player: it is the accrual PRNG.
   if has_function_privilege('authenticated', 'public.hr_seed(uuid,int,text)', 'execute') then
@@ -701,5 +1035,63 @@ begin
     raise exception 'hr_seed does not vary with its label';
   end if;
 
-  raise notice 'PLAYER STATE foundation OK — tables, RLS, grants, hr_engine, XP curve and PRNG seed verified.';
+  -- (h) RETENTION IS WIRED, not merely available. (Reliability RL2/RL3.)
+  --     The failure mode this catches is the one that already happened with
+  --     game_events: a prune function exists, everybody assumes it runs, and
+  --     nobody notices for four days that nothing is deleting anything.
+  foreach v_t in array array['hr-ledger-prune','hr-intents-prune',
+                             'hr-progress-prune','hr-rejections-prune'] loop
+    if not exists (select 1 from cron.job where jobname = v_t and active) then
+      raise exception 'retention job % is not scheduled — this file creates an unbounded table and must wire its own prune', v_t;
+    end if;
+  end loop;
+
+  -- (i) The ledger is append-only WHERE IT MATTERS and prunable where it does
+  --     not. Both halves are asserted, because a change to either one silently
+  --     breaks the other's justification.
+  --     The whole probe runs inside a sub-block that deliberately raises at the
+  --     end, so PL/pgSQL's subtransaction rollback removes every synthetic row
+  --     it wrote. A self-test that leaves data behind is a data source.
+  declare
+    v_id bigint; v_denied boolean; v_deleted boolean;
+    c_probe constant uuid := '00000000-0000-0000-0000-000000000000';
+  begin
+    insert into public.player_ledger (user_id, slot, kind, intent, at)
+      values (c_probe, 0, 'admin', 'selftest', now() - interval '3650 days')
+      returning id into v_id;
+
+    v_denied := false;
+    begin
+      update public.player_ledger set gold = 1 where id = v_id;
+    exception when check_violation then v_denied := true;
+    end;
+    if not v_denied then
+      raise exception 'player_ledger accepted an UPDATE — it must never be editable';
+    end if;
+
+    -- Old enough to be outside the window: the prune MUST be able to remove it.
+    delete from public.player_ledger where id = v_id;
+    v_deleted := not exists (select 1 from public.player_ledger where id = v_id);
+    if not v_deleted then
+      raise exception 'a 10-year-old ledger row could not be deleted — retention is impossible';
+    end if;
+
+    -- ...and a fresh row must NOT be removable, or "append-only" means nothing.
+    insert into public.player_ledger (user_id, slot, kind, intent)
+      values (c_probe, 0, 'admin', 'selftest') returning id into v_id;
+    v_denied := false;
+    begin
+      delete from public.player_ledger where id = v_id;
+    exception when check_violation then v_denied := true;
+    end;
+    if not v_denied then
+      raise exception 'a fresh ledger row was deletable — recent history must be untouchable';
+    end if;
+
+    raise exception using errcode = 'HR001', message = 'ledger-probe-rollback';
+  exception
+    when sqlstate 'HR001' then null;   -- every probe row is now undone
+  end;
+
+  raise notice 'PLAYER STATE foundation OK — tables, RLS, grants, hr_engine, XP curve, PRNG seed, retention jobs and ledger immutability verified.';
 end $$;

@@ -27,6 +27,27 @@
 //
 //       node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"
 //
+//     ⚠ THIS BUNDLE IS *NOT* "SAFE AGAINST ANY DATABASE". (Review R9. An
+//       earlier revision of this header claimed it was, which was wrong in two
+//       specific ways that matter operationally:)
+//
+//       1. LOCKS. 2026-08-11-market-v2.sql does `drop table market_listings
+//          cascade` and `create table market_listings`, so it holds ACCESS
+//          EXCLUSIVE on the live market table for the ENTIRE run — every
+//          statement of four migrations plus twenty test sections. Against a
+//          production database with players trading, that is a stall, not a
+//          no-op, even though nothing is committed. The emitted bundle
+//          therefore sets `lock_timeout` so it FAILS FAST instead of queueing
+//          in front of real traffic, and `statement_timeout` so a pathological
+//          statement cannot sit there.
+//       2. WORK. Rolled back is not free: the run writes and then discards
+//          WAL, bloats catalogs, and leaves dead tuples for autovacuum.
+//
+//       So `--emit` now REFUSES to target production unless you say so:
+//       pass `--allow-production` (and read the two points above first).
+//       Without it the bundle carries a guard that aborts if it finds live
+//       player data. The default is the safe one.
+//
 //     No Postgres driver is vendored on purpose: this repo is a static site
 //     with one devDependency, and adding `pg` to run one script is a worse
 //     trade than emitting SQL.
@@ -78,16 +99,23 @@ const BUNDLE = [
 ];
 // Shipped and reviewed separately (a live impersonation fix), so it is linted
 // but not part of the foundation bundle.
-// b319: telemetry retention + cron health. Operator-only functions, so the
-// grant-hygiene lint is exactly the check that matters for it.
-const ALSO_LINTED = ['2026-08-11-chat-name-authority.sql', '2026-08-11-telemetry-retention.sql'];
+const ALSO_LINTED = ['2026-08-11-chat-name-authority.sql'];
 
+// ⚠ WITH --emit, STDOUT IS THE SQL BUNDLE AND NOTHING ELSE.
+// The documented gate is `node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"`, and the
+// progress lines below used to go to stdout — so the very command in the header piped
+// `── catalogue drift` and thirty `ok …` lines straight into psql ahead of `begin;`. Every one of
+// them is a syntax error, and the ones after `begin;` would have aborted the transaction. Found
+// 2026-08-11 while re-running the gate. All human-facing output now goes to stderr, which is also
+// where it belongs when the tool's product is a stream.
+const EMIT = process.argv.includes('--emit');
+const say = (msg) => (EMIT ? process.stderr : process.stdout).write(msg + '\n');
 let failures = 0;
-const fail = (msg) => { failures++; console.error(`  FAIL  ${msg}`); };
-const pass = (msg) => console.log(`  ok    ${msg}`);
+const fail = (msg) => { failures++; process.stderr.write(`  FAIL  ${msg}\n`); };
+const pass = (msg) => say(`  ok    ${msg}`);
 
 // ── PART 1a — catalogue drift ────────────────────────────────────────────
-console.log('── catalogue drift');
+say('── catalogue drift');
 {
   const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'gen-catalogues.mjs'), '--check'],
     { encoding: 'utf8' });
@@ -101,7 +129,7 @@ console.log('── catalogue drift');
 // A new SECURITY DEFINER function with no revoke is therefore anon-callable
 // the moment it is created — which is exactly what the review found on six of
 // them. The rule this enforces: revoke before you grant, every time.
-console.log('── grant hygiene (revoke before grant)');
+say('── grant hygiene (revoke before grant)');
 const sources = new Map();
 for (const f of [...BUNDLE, ...ALSO_LINTED]) {
   try { sources.set(f, await readFile(MIG(f), 'utf8')); }
@@ -156,7 +184,7 @@ for (const [file, sql] of sources) {
 // ── PART 1c — rollback hygiene (the S2 lint) ─────────────────────────────
 // Inside hr_apply's protected block, a bare `return` after a write commits the
 // write. Every rejection there must go through hr_reject(), which raises.
-console.log('── rollback hygiene (no bare return after a write in hr_apply)');
+say('── rollback hygiene (no bare return after a write in hr_apply)');
 {
   const sql = sources.get('2026-08-11-apply-engine.sql') || '';
   const start = sql.indexOf('THE PROTECTED BLOCK');
@@ -173,32 +201,123 @@ console.log('── rollback hygiene (no bare return after a write in hr_apply)'
 }
 
 // ── PART 1d — the migrations must be self-verifying ──────────────────────
-console.log('── self-verification blocks');
+say('── self-verification blocks');
 for (const [file, sql] of sources) {
   if (/raise\s+exception/i.test(sql) && /do\s+\$\$/.test(sql)) pass(`${file}: has assertions`);
   else fail(`${file}: no self-verifying do-block`);
 }
 
+// ── PART 1e — the destructive-migration interlocks must still be there ───
+// These are the two properties that stop a migration from being a footgun. A
+// lint is the only thing that notices when someone "simplifies" one away.
+say('── destructive-migration interlocks');
+{
+  const mv2 = sources.get('2026-08-11-market-v2.sql') || '';
+  if (/hearthrise\.market_wipe_ok/.test(mv2) && /REFUSING TO WIPE THE MARKET/.test(mv2)) {
+    pass('market-v2: drop is gated on hearthrise.market_wipe_ok, not on a comment');
+  } else {
+    fail('market-v2: the DROP TABLE has no wipe gate — a prose warning is not an interlock');
+  }
+  if (/drop table if exists public\.market_listings cascade/i.test(mv2)
+      && !/create table if not exists public\.market_listings/i.test(mv2)) {
+    pass('market-v2: re-runnability comes from the drops (documented coupling holds)');
+  } else if (/create table if not exists public\.market_listings/i.test(mv2)) {
+    pass('market-v2: creates are if-not-exists, so the drops are no longer load-bearing');
+  }
+  // R1: the escrow-destroying cron job must be removed BY THE MIGRATION.
+  if (/trim-expired-listings/.test(mv2) && /hr_cron_drop\('trim-expired-listings'\)/.test(mv2)) {
+    pass('market-v2: unschedules trim-expired-listings in-file (R1)');
+  } else {
+    fail('market-v2: does NOT unschedule trim-expired-listings — applying it ARMS a nightly job that deletes escrow');
+  }
+  if (/hr_cron_ensure\('hr-market-expire'/.test(mv2)) pass('market-v2: schedules market_expire (R1)');
+  else fail('market-v2: market_expire is never scheduled — expiry is assumed, not wired');
+  if (/hr_cron_drop\('trim-market-sales'\)/.test(mv2)) pass('market-v2: retires the broken sold_at job (R2)');
+  else fail('market-v2: trim-market-sales is left erroring nightly (R2)');
+}
+
+// ── PART 1f — every unbounded table ships its retention policy ───────────
+// The rule, and the reason it is a lint: game_events had a prune function and
+// no schedule, and reached 1.6M rows / 229 MB from six players in 3.45 days.
+say('── retention policies are wired');
+{
+  const ps = sources.get('2026-08-11-player-state.sql') || '';
+  const mv2 = sources.get('2026-08-11-market-v2.sql') || '';
+  const all = ps + mv2;
+  for (const job of ['hr-ledger-prune', 'hr-intents-prune', 'hr-progress-prune',
+                     'hr-rejections-prune', 'hr-market-expire', 'hr-market-sales-prune']) {
+    if (new RegExp(`hr_cron_ensure\\('${job}'`).test(all)) pass(`${job} is scheduled in-migration`);
+    else fail(`${job} is not scheduled — a retention policy that is a runbook step does not exist`);
+  }
+  // RL2: the ledger must be deletable at all, or retention is impossible.
+  if (/before update or delete on public\.player_ledger/i.test(ps)
+      && /tg_op = 'DELETE'/.test(ps) && /retention window/.test(ps)) {
+    pass('player_ledger: UPDATE always refused, DELETE refused only inside the retention window');
+  } else {
+    fail('player_ledger: the immutability trigger must allow deletes OUTSIDE the retention window (RL2)');
+  }
+  if (/primary key \(at, id\)/.test(ps)) pass('player_ledger PK is (at, id) — partitionable without a rebuild');
+  else fail('player_ledger PK does not lead with `at` (RL2d)');
+}
+
 // ── PART 2 — emit the behavioural bundle ─────────────────────────────────
 if (process.argv.includes('--emit')) {
+  const allowProd = process.argv.includes('--allow-production');
   const suite = await readFile(join(ROOT, 'tests', 'sql', 'server-authority.test.sql'), 'utf8');
-  const parts = ['-- GENERATED by tests/run-sql-tests.mjs --emit. Runs and rolls back.\nbegin;\n'];
+  const parts = [
+    '-- GENERATED by tests/run-sql-tests.mjs --emit. Runs and rolls back.\n',
+    `-- production target: ${allowProd ? 'EXPLICITLY ALLOWED (--allow-production)' : 'refused (default)'}\n`,
+    'begin;\n',
+    // R9: market-v2 takes ACCESS EXCLUSIVE on market_listings for the whole
+    // run. Fail fast rather than queue in front of live traffic.
+    "set local lock_timeout = '5s';\n",
+    "set local statement_timeout = '300s';\n",
+    // RL6: the bundle DOES wipe the market tables. Inside begin/rollback that
+    // is harmless, and stating it here is what makes it a decision.
+    "set local hearthrise.market_wipe_ok = 'yes';  -- rolled back; see market-v2.sql §0b\n",
+  ];
+  if (!allowProd) {
+    parts.push(`
+-- ── PRODUCTION GUARD (review R9) ─────────────────────────────────────────
+-- Without --allow-production the bundle refuses a database that is carrying
+-- live players. Rolled back is not the same as harmless: this run holds ACCESS
+-- EXCLUSIVE on market_listings from here to the rollback.
+do $$
+declare v_saves bigint := 0;
+begin
+  if to_regclass('public.game_saves') is not null then
+    execute 'select count(*) from public.game_saves' into v_saves;
+  end if;
+  if v_saves > 0 then
+    raise exception 'REFUSING: this looks like production (% game_saves rows). '
+      'This bundle drops and recreates market_listings/market_sales and holds ACCESS '
+      'EXCLUSIVE on the live market for its whole run. Re-emit with --allow-production '
+      'if you have read tests/run-sql-tests.mjs'' header and accept that.', v_saves;
+  end if;
+end $$;
+`);
+  }
   for (const f of BUNDLE) parts.push(`\n-- ══ ${f} ══\n${sources.get(f)}\n`);
   parts.push(`\n-- ══ tests/sql/server-authority.test.sql ══\n${suite}\n`);
   parts.push('\nrollback;\n');
   process.stdout.write(parts.join(''));
+  if (allowProd) {
+    process.stderr.write('\n⚠ emitted WITHOUT the production guard (--allow-production).\n'
+      + '  market-v2 holds ACCESS EXCLUSIVE on market_listings for the whole run.\n'
+      + '  lock_timeout is 5s so it fails fast instead of blocking players.\n\n');
+  }
   process.exit(failures ? 1 : 0);
 }
 
-console.log('');
+say('');
 if (failures) {
   console.error(`${failures} static check(s) failed.`);
   console.error('The behavioural suite is tests/sql/server-authority.test.sql —');
   console.error('run it with:  node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"');
   process.exit(1);
 }
-console.log('static server-tier checks passed.');
-console.log('Behavioural suite (needs a database):');
-console.log('  node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"');
-console.log('  (no psql? see the header for the single-call begin/rollback');
-console.log('   recipe that runs the same bundle through Supabase MCP)');
+say('static server-tier checks passed.');
+say('Behavioural suite (needs a database):');
+say('  node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"');
+say('  (no psql? see the header for the single-call begin/rollback');
+say('   recipe that runs the same bundle through Supabase MCP)');

@@ -308,7 +308,14 @@ if (CHECK) {
     console.error(`catalogue drift: ${OUT} is missing. Run: node tools/gen-catalogues.mjs`);
     process.exit(1);
   }
-  if (existing !== sql) {
+  // Compare on NORMALISED line endings. git's autocrlf checks this file out as
+  // CRLF on Windows while the generator writes LF, so a byte-exact comparison
+  // reported "catalogue drift" on every Windows clone even when the content was
+  // identical — verified 2026-08-11, the reported drift was 100% line endings.
+  // A guard that cries wolf on a whole platform is a guard people learn to skip,
+  // which is worse than not having it. Content is what this check is about.
+  const norm = (s) => s.replace(/\r\n/g, '\n');
+  if (norm(existing) !== norm(sql)) {
     console.error('catalogue drift: src/data/*.js no longer matches the generated SQL.');
     console.error(`  expected digest ${DIGEST}`);
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');

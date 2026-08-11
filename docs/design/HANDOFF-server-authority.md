@@ -100,13 +100,51 @@ intent id carrying a HOSTILE delta (`gold:999999, xp.attack:999999`) returned
 another slot → refused. The ledger holds exactly ONE compact aggregated row (not per-tick),
 and deletion from it is refused. Only the HTTP/JWT/pooler shell is unverified.
 
-**WHAT BLOCKS THE DEPLOY NOW: a `SUPABASE_ACCESS_TOKEN`.** `deploy_edge_function` needs the
-225 KB payload passed inline as tool arguments (~60k tokens), which is beyond one response
-budget, and the management tools were refused by the permission classifier. A CLI-deployable
-tree is staged in the scratchpad; `npx supabase functions deploy hr-accrue --project-ref
-nezapsylztqbbwuwembx` gets as far as `LegacyPlatformAuthRequiredError: Access token not
-provided`. Tyler generates one at supabase.com/dashboard/account/tokens. Payload sha256 to
-verify against the deployed `GET`: `6de4f8cdd8a6d70f4db157f32b835f9e31b2ac3d52397b999791590b05a5d727`.
+**WHAT BLOCKS THE DEPLOY: a `SUPABASE_ACCESS_TOKEN` — and the reason is NOT the one
+previously recorded here.** This was re-examined 2026-08-11 on the theory that "needs a
+token" was a context-budget limit misfiled as an authorization limit. It is not. The
+budget arithmetic is real (230,698 chars ≈ 64–68k output tokens in ONE tool call, plus
+~67k to read the files in), but the disqualifying problem is deeper and independent of
+budget:
+
+**`deploy_edge_function` takes file contents as tool ARGUMENTS, so the agent hand-authors
+all 230,698 bytes — including `payload-hash.js`, which is where `PAYLOAD_SHA256` is
+typed.** The deployed `GET` returns that constant, and `deployedPayloadGuard` compares
+against it. A transcription slip anywhere in the other 21 files therefore yields a payload
+that REPORTS A HASH IT DOES NOT HAVE, and the guard passes on it. `ezbr_sha256` is
+Supabase's own eszip digest with no local reference, so there is no independently-sourced
+second value to catch it. A corrupted number inside the 63 KB of `items.js` / `gear-tiers.js`
+would be silent — in the component that is about to own every progression value in the game.
+That is the tenth instance of the assertion-that-asserts-nothing family, pre-registered.
+**Do not "unblock" this by hand-transcribing the payload.** Tyler generates a token at
+supabase.com/dashboard/account/tokens; the mechanical path is in
+`.claude/coordination/HANDOFFS.md`. If an agent should ever do this unattended, the fix is
+a `tools/deploy-edge.mjs` that reads the packed directory off disk and POSTs multipart to
+the Management API — deliberately NOT written yet, because an untested deploy client is the
+same decoration problem in a new file.
+
+**CANONICAL PAYLOAD SHA256: `7466c50ebdecf4e24a932d829fdd6b1fc5647dd7fbd274b603139f5ae36dca4f`**
+(22 files, 230,698 bytes, all LF). The old `6de4f8cd…` was WRONG TWICE OVER: `core.autocrlf=true`
+with no `.gitattributes` meant the index held LF while the worktree held CRLF for whichever
+payload files an editor had rewritten (`index.ts` 430 CRLFs, `accrual.js` 451), so one commit
+packed to different hashes on different machines — it was reproducible on exactly one box.
+The b329 combat merge then moved it again. Fixed in `60df672`: `.gitattributes` pins
+`supabase/functions/**`, `src/core/**`, `src/data/**` to `eol=lf`, and the payload
+fingerprint is now a property of the commit. **The deploy is NOT deployed** — proven by
+execution, not by reading: three controls firing 401 / 400 / 404 differently, against a
+uniform 404 on every `hr-accrue` verb and auth shape.
+
+**The D3 failure mode is genuinely closed** — all five functions `index.ts` calls
+(`hr_rate_gate`, `hr_state_of`, `hr_offline_cap_ms`, `hr_seed`, `hr_apply`) exist and are
+`hr_engine`-only, `authenticated`/`anon` false. `hr_rate_ok` is still NOT engine-executable,
+so the engine cannot name its own limit.
+
+**First test to run AFTER the deploy** (cheapest honest end-to-end): sign in as any existing
+player and POST `{"slot":5}`. An empty slot returns `409 no_character` **after** a successful
+`hr_rate_gate` + `hr_state_of` round trip — which proves the pooler string, the
+`set local role`, and all five grants at once, while writing nothing but a rate-bucket row.
+Everything reachable without a real user JWT stops at 401, so "deployed and correctly
+refusing" cannot otherwise be told apart from "deployed but 500ing on `HR_ENGINE_DB_URL`".
 
 **Residue:** 3 rows remain in `player_ledger` from that verification (append-only refused
 deletion, correctly). All player-facing tables are back to 0 rows. Beta wipes at cutover.

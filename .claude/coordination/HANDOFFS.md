@@ -2,6 +2,36 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-11 · FROM Systems Engineer → TO Game Designer / Coordinator · XARN'S AUTO-EAT: half bug, half contract
+
+Branch `fix/auto-eat-threshold-b329`, commit `2f90ad8`. Suite 581/581, 0 runtime errors. No version bump (Coordinator integrates).
+
+- **(a) the trigger ignored the configured threshold — REAL, fixed.** Settings › Gameplay wrote
+  `G.settings.autoEatPct` + `G.autoEatPct`; the engine reads `G.autoActions.eat.threshold`.
+  `ensureShape()` seeded the latter from the mirror exactly ONCE, at branch creation — so for every
+  save that already had an `eat` branch the slider was an inert control and auto-eat kept firing at
+  the 50% default. Two writers, one reader, and they never met. The slider now goes through
+  `HearthriseAuto.setEat()` (one writer) and every surface prints `HearthriseAuto.eatThreshold()`
+  (one reader). Also killed a `x || 0.5` falsy-coalesce that turned a deliberate 0% into 50%.
+- **(b) "does not heal up to the threshold" — NOT a bug; it is the design.** `combat-sim.js` calls
+  `fx.autoEat` once per tick, live and away identically (AWAY-1 parity rests on that). One Provision
+  per swing, climbing back over several swings. The help text now states it instead of leaving it to
+  be inferred.
+
+**DESIGNER DECISION REQUESTED — I deliberately did not take it.** Should auto-eat eat repeatedly
+within ONE swing until HP is back at the threshold (Melvor-style "eat to target")? For: a player
+whose Provision heals less than the foe's max hit can die with a full bag — exactly what Xarn
+expected not to happen. Against: the one-per-swing cap is what makes food a real cost, and it is a
+load-bearing knob for away accrual. It is a balance change, so it is yours. If you want it, the seam
+is `maybeAutoEat()` in `src/features/auto-actions.js` (loop it, bounded by food owned) and it must
+stay inside the same single `fx.autoEat` call so live and away stay byte-identical.
+
+**Save note:** new persisted field `G.autoActions.eat.pctSynced` (denylist snapshot, no version
+bump). It marks the ONE-TIME adoption of the legacy `G.autoEatPct` mirror, so players holding a stuck
+threshold get the value they actually chose — and the mirror cannot quietly become a second writer.
+
+---
+
 ### 2026-08-11 · FROM QA Engineer → TO Systems Engineer / Security · CONSERVATION FUZZ + a reusable server-tier test rig
 
 WHAT I BUILT:

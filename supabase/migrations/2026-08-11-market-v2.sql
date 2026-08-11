@@ -1059,8 +1059,22 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prokind = 'f'
      and has_function_privilege('hr_engine', p.oid, 'execute')
+     -- ENTRY 8, added 2026-08-11 with the Phase C accrual engine
+     -- (2026-08-11-accrual.sql). `hr_offline_cap_ms` is STABLE, reads only
+     -- clan_members/clans, returns a single integer bounded at 24h by its own
+     -- ceiling, and takes a user the engine has already verified a JWT for. It
+     -- writes nothing. It is on this list because the accrual engine must not
+     -- be the authority for its own cap — capMs multiplies an entire night's
+     -- grant, so it belongs in Postgres beside accrued_to and now().
+     --
+     -- ⚠ This list is deliberately hard to extend. Adding an entry is a claim
+     --   that the function is read-only or self-validating and that it accepts
+     --   no target the caller is not already authorised for. Re-derive that
+     --   claim for the WHOLE list every time it changes — "bounded and fine" is
+     --   a conclusion, not a property that survives an addition.
      and p.proname <> all (array['hr_apply','hr_seed','hr_state_of','hr_total_level',
-                                 'hr_xp_for_level','hr_level_from_xp','market_expire']);
+                                 'hr_xp_for_level','hr_level_from_xp','market_expire',
+                                 'hr_offline_cap_ms']);
   if v_bad > 0 then
     raise exception 'hr_engine can execute % function(s) outside its allowlist — run: select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=''public'' and has_function_privilege(''hr_engine'', p.oid, ''execute'')', v_bad;
   end if;

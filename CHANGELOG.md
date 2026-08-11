@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 327 — 2026-08-11 (Server-side progress engine)
+
+- 🏗️ **The server can now compute your away progress itself.** Groundwork only — nothing about how you play changes yet. This is the engine that will eventually decide what you earn, so that no one can edit their way to it.
+- 🧹 **Fixed the cleanup job that was letting diagnostic data pile up.** It had been running daily and deleting nothing at all, because it was looking for data older than anything that existed. It now also raises an alarm if a maintenance job silently starts failing — which two of them had been doing for days.
+
 ## v0.9.2-beta build 326 — 2026-08-11 (The game tells you what your time away paid)
 
 - 📋 **A welcome-back summary now leads the Home screen** when you return: how long you were away, the XP, items and gold you earned, and your kills and crits. It only shows for half an hour, then gets out of the way.

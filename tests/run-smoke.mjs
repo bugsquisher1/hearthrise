@@ -16,6 +16,7 @@
 
 import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
+import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -455,6 +456,26 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nCore guard — src/core imports in plain Node, is DOM-free, and replays from a seed.');
+    }
+
+    /* ── The accrual guard (Phase C, server authority) ──────────────────
+       Also outside the browser, and for a stronger reason than the core
+       guard: the thing under test is the SERVER's copy of the simulation,
+       and the property that matters is that it is not a copy at all — a
+       span computed by supabase/functions/hr-accrue must equal the span
+       the client computes for the same state and the same seed. A browser
+       test cannot see the Edge Function, and a deployed Edge Function
+       cannot be diffed against the client without one of these. It also
+       pins the hostile-input contract (no client-supplied tickMs,
+       minTickMs, atMs, capMs or elapsed can inflate a grant) and the
+       packer's drift guard. See tests/accrual-engine.mjs. */
+    const accrualProblems = await accrualGuards();
+    if (accrualProblems.length) {
+      console.log('\nAccrual guard (server accrual == client simulation) — FAILED:');
+      for (const p of accrualProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nAccrual guard — server accrual matches the client for the same seed; hostile inputs inert.');
     }
 
     // Wall guard FIRST, in its own clean context, before the harness page below

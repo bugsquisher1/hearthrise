@@ -239,6 +239,7 @@ wrong — the engine also needs to read state back and derive levels. Verified a
 | `hr_level_from_xp` | derive a level from XP | pure function of its argument |
 | `hr_xp_for_level` | derive XP for a level | pure function of its argument |
 | `market_expire` | releases lapsed escrow (arrives with market-v2, file 4) | writes, but only the "return the seller's own goods" path |
+| `hr_offline_cap_ms` | the per-absence offline cap (arrives with Phase C, `2026-08-11-accrual.sql`) | read-only, one integer, bounded at 24h by its own ceiling. On the list because `capMs` multiplies a whole night's grant, so the accrual engine must not be its own authority for it |
 
 Six of the seven are on production today; `market_expire` lands with file 4. All of them are
 read-only or self-validating, and none of them accepts a target the caller has not already been

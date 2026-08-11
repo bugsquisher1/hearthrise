@@ -146,7 +146,13 @@ $fn$;
 -- Operator/cron only. (Grant hygiene per tests/run-sql-tests.mjs: revoke from
 -- PUBLIC before anything can call it — a new SECURITY DEFINER function is
 -- anon-callable by default on Supabase.)
-revoke execute on function public.hr_trim_game_events(int, int) from public, anon, authenticated;
+-- ⚠ ALL FOUR ROLES. Revoking three of them leaves the privilege intact via the
+--   fourth: Supabase's default ACL grants EXECUTE to anon, authenticated AND
+--   service_role, on top of Postgres's own grant to PUBLIC. service_role can
+--   already delete this table directly, so the capability removed is small —
+--   but `hr_trim_game_events(1)` is a one-request six-day telemetry delete, and
+--   "the other three were enough" is how a key ends up under the mat.
+revoke execute on function public.hr_trim_game_events(int, int) from public, anon, authenticated, service_role;
 
 -- Make the retention delete cheap regardless of which column exists.
 do $$
@@ -180,6 +186,8 @@ declare
   v_alerts int := 0;
   r        record;
   v_bytes  bigint;
+  v_sev    text;
+  v_msg    text;
 begin
   if to_regclass('cron.job_run_details') is not null then
     -- (a) FAILED RUNS — one alert per run id, so re-running the check is free.
@@ -202,24 +210,51 @@ begin
       end if;
     end loop;
 
-    -- (b) SILENTLY STOPPED — an active job with no successful run in 48h.
+    -- (b) STOPPED vs NEVER STARTED — an active job with no successful run in 48h.
+    --
+    -- ⚠ REVISION 2, and it was found the hard way: this check fired FIVE
+    --   warn-level alerts the moment this migration was applied to production,
+    --   because rescheduling a job gives it a NEW jobid and therefore no run
+    --   history — so every freshly (re)scheduled job read as "has not succeeded
+    --   since never". Those five sat in the same list as the two genuine
+    --   failures this check exists to surface. That is precisely how a monitor
+    --   dies: not by missing an incident, but by being noisy enough after a
+    --   deploy that nobody reads it the next morning.
+    --
+    --   pg_cron records no creation time for a job, so "brand new" and "has
+    --   never fired" are genuinely indistinguishable from cron.job alone. This
+    --   does not pretend otherwise — it splits the two claims by SEVERITY, so
+    --   the actionable one (something that used to work has stopped) is never
+    --   buried by the ambiguous one. `any_run` counts runs of ANY status, so a
+    --   job that has only ever failed still counts as "has run" and correctly
+    --   escalates to 'warn'.
     for r in
-      select j.jobid, j.jobname, max(d.start_time) as last_run
+      select j.jobid, j.jobname,
+             max(d.start_time) filter (where d.status = 'succeeded') as last_run,
+             count(d.runid)                                          as any_run
         from cron.job j
-        left join cron.job_run_details d
-               on d.jobid = j.jobid and d.status = 'succeeded'
+        left join cron.job_run_details d on d.jobid = j.jobid
        where j.active
        group by j.jobid, j.jobname
-      having coalesce(max(d.start_time), 'epoch'::timestamptz) < now() - interval '48 hours'
+      having coalesce(max(d.start_time) filter (where d.status = 'succeeded'),
+                      'epoch'::timestamptz) < now() - interval '48 hours'
     loop
+      if r.any_run = 0 then
+        v_sev := 'info';
+        v_msg := format('cron job %s has no run history yet (new, or it has never fired)', r.jobname);
+      else
+        v_sev := 'warn';
+        v_msg := format('cron job %s has not succeeded since %s', r.jobname, coalesce(r.last_run::text, 'never'));
+      end if;
       insert into public.maintenance_alerts (source, ref, severity, message, detail)
-      values ('cron', 'cron-stale:' || r.jobname || ':' || to_char(now(), 'YYYY-MM-DD'), 'warn',
-              format('cron job %s has not succeeded since %s', r.jobname, coalesce(r.last_run::text, 'never')),
-              jsonb_build_object('jobid', r.jobid, 'jobname', r.jobname, 'last_success', r.last_run))
+      values ('cron', 'cron-stale:' || r.jobname || ':' || to_char(now(), 'YYYY-MM-DD'), v_sev, v_msg,
+              jsonb_build_object('jobid', r.jobid, 'jobname', r.jobname,
+                                 'last_success', r.last_run, 'runs_seen', r.any_run))
       on conflict (ref) do nothing;
       if found then
         v_alerts := v_alerts + 1;
-        raise warning '[cron-health] % has not succeeded since %', r.jobname, coalesce(r.last_run::text, 'never');
+        if v_sev = 'warn' then raise warning '[cron-health] %', v_msg;
+        else raise notice '[cron-health] %', v_msg; end if;
       end if;
     end loop;
   else
@@ -251,7 +286,7 @@ begin
 end;
 $fn$;
 
-revoke execute on function public.hr_cron_health(interval) from public, anon, authenticated;
+revoke execute on function public.hr_cron_health(interval) from public, anon, authenticated, service_role;
 
 -- ── 4. Schedule ────────────────────────────────────────────────────────────
 -- Retune the EXISTING trim-game-events job (30 days -> 7) rather than adding a

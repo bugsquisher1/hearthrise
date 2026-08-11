@@ -2,6 +2,37 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-12 · The Hunt band — the mechanic where one player's good week deleted another's chest
+
+Called it, implemented it, staged it. Migration `2026-08-12-raid-band-fairness.sql`, tests
+`raid-band-denial.mjs` (+`--selftest`) and `raid-card-copy.mjs`. Decision in `DECISIONS.md`.
+
+**The learning worth keeping.** The security pass handed me two remedies — "floor it at partisan, or
+band against `max_hp`" — and my instinct (and the Coordinator's lean) was `max_hp`, because it looks
+like it removes the primitive rather than pricing it. It doesn't, on its own. **Total damage is
+bounded by the pool.** Σshare = max_hp by construction, so shares are a contended resource: a member
+who takes 70% of the boss (7 days × the 10% clamp) leaves less HP for everyone else to earn a share
+out of. Banding against the boss with the denial still in place just launders the same primitive
+through a different pipe. It is the FLOOR that closes it — with no unpaid band there is no action any
+player can take that moves any other player below being paid. Both, or neither works.
+
+**Second learning: the failure was invisible at the size the design was reasoned about.** b223's
+comment argues the median is size-independent, and it is, for the *bar*. But `percentile_cont`
+interpolates, so in a clan of TWO the median is the mean and the stronger member's damage sets the
+weaker one's bar one-for-one. Everyone reasons about mechanics at the size where they feel good (a
+ten-person roster) and ships them at the size players actually meet them (two friends, week one).
+**When a rule reads another player's number, test it at n=2 before n=10.**
+
+**Third: I nearly shipped a double penalty.** Swapping median → boss silently made a failed week worse
+— band 0.6 × factor 0.3 = 0.18 where the old rule paid 0.30 — because on a partial week everyone's
+ratio is depressed by definition AND the payout was already scaled by the factor. Caught it by doing
+the arithmetic on the consolation case rather than the happy case. **Check what your change does to
+the week that went badly, not the week that went well.**
+
+Open, mine, not done: banding is clan-size-neutral in shape but the share carries the whole `base` in
+a duo (5,500/head at n=2 vs 3,125 at n=40). Intended and documented, worth revisiting if duo clans
+start feeling the Hunt as a chore.
+
 ## 2026-08-09 · Itemization audit — Slice C (gathering/refine/craft/skills/tools/cross-system map)
 READ-ONLY audit for the re-Master Itemization program, Phase 1. No game code touched. Report: `docs/reports/itemization-audit/C-gathering-crafting-progression.md`. Grounded in the actual data (gear-tiers.js, gathering.js, recipes.js, items.js, homestead.js, farm-progression.js, tools.js, workers.js, raids.js, monsters.js) + the artisan action path in legacy.js.
 

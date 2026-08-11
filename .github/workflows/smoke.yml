@@ -54,6 +54,20 @@ jobs:
       - name: Conservation fuzz + injection selftest
         run: node tests/conservation-fuzz.mjs --selftest --ops=400
 
+      # THE HUNT BAND. Proves, by running the real migration bodies on an
+      # in-process PostgreSQL, that the retired median rule DID let one member's
+      # honest good week pay a teammate nothing, that the shipped rule does not,
+      # and that a free-rider still collects nothing either way. --selftest
+      # mutates the real fix SQL five ways and demands every mutation is caught.
+      - name: Hunt band — denial before, gone after, free-rider still refused
+        run: node tests/raid-band-denial.mjs --selftest
+
+      # ...and that the rule is READABLE. A reward rule a player cannot see is
+      # the same failure as a stat that renders no number. Drives the real
+      # raids.js in real Chromium and asserts on the card's own text.
+      - name: Hunt card states the band rule
+        run: node tests/raid-card-copy.mjs
+
       # THE POSTGREST RPC RESOLUTION GATE.
       # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
       # keep the original PARAMETER NAMES, because that is what PostgREST resolves

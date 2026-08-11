@@ -3113,51 +3113,60 @@ const TESTS = [
     assert(R.tierCeiling() >= 1 && R.tierCeiling() <= 5, 'the ceiling is always a legal tier');
   }),
 
-  () => tryRun('b223: contribution bands are measured against the median, not the pool', () => {
+  /* REPLACES the b223 median test. That test was the CONTRACT for the median
+     ladder, so retuning the ladder without rewriting it would have been
+     disabling a failing test to unblock a push. The rule it guarded is gone —
+     see 2026-08-12-raid-band-fairness.sql for why, and
+     tests/raid-band-denial.mjs for the executed proof that the old rule let
+     one member's honest good week pay a teammate nothing. */
+  () => tryRun('b331: bands are measured against the boss, and there is no unpaid band', () => {
     const R = window.HearthriseRaids;
-    // §8.6 — the spec's worked case, with the strike counts that make the
-    // median legal. Contributions of 100 / 500 / 1000 / 5000, median 750.
-    const rows = [
-      { user_id: 'a', damage: 100,  strikes: 4 },
-      { user_id: 'b', damage: 500,  strikes: 4 },
-      { user_id: 'c', damage: 1000, strikes: 4 },
-      { user_id: 'd', damage: 5000, strikes: 4 },
-    ];
-    const med = R.medianContribution(rows);
-    assert(med === 750, 'median of 100/500/1000/5000 is 750, got ' + med);
-    assert(R.bandFor(500, med, 4).key === 'full', '500 vs 750 is a Full share');
-    assert(R.bandFor(1000, med, 4).key === 'full', '1000 vs 750 is a Full share');
-    assert(R.bandFor(5000, med, 4).key === 'champion', '5000 vs 750 is a Champion');
-    /* SPEC DISCREPANCY, decided and recorded here rather than papered over:
-       §8.6 expects the 100-damage contributor to take a Partisan share, but
-       §5.2's own table puts the Partisan floor at 20% of the median, and
-       100/750 = 13%. The two cannot both be true. §5.2 is the normative rule
-       (it is the design body, with the reasoning); §8.6 is a test expectation
-       written against it. The rule wins, the expectation is corrected, and the
-       discrepancy is flagged to the Designer in the Wave-3b change contract. */
-    assert(R.bandFor(100, med, 4) === null, '100 vs 750 is 13% — below the 20% Partisan floor');
-    assert(R.bandFor(150, med, 4).key === 'partisan', 'exactly 20% of the median is a Partisan share');
-    assert(R.bandFor(300, med, 4).key === 'partisan', '300 vs 750 is a Partisan share');
-    assert(R.bandFor(10, med, 4) === null, 'below 20% of the median earns nothing');
-    // §5.2 — the minimum that kills the one-tap, and the whole reason a
-    // one-strike contributor used to earn the same chest as a seven-striker.
-    assert(R.bandFor(5000, med, 1) === null, 'one strike is not turning up — no chest');
-    assert(R.bandFor(5000, med, 2).key === 'champion', 'two strikes qualify');
+    // Tier I declared by a clan of ten: pool 5,000 + 3,000×10 = 35,000,
+    // so one head of it is 3,500. Mirrors the server's hr_hunt_share.
+    const share = R.shareFor(R.poolFor(1, 10), 10);
+    assert(share === 3500, 'a Tier I pool for ten members is 3,500 a head, got ' + share);
+    assert(R.shareFor(35000, 0) === 35000, 'a zero roster must not divide by zero');
+    assert(R.shareFor(0, 10) === 1, 'a zero pool floors at 1, never 0');
+
+    // The ladder.
+    assert(R.bandFor(5250, share, 4).key === 'champion', '1.5× your share is a Champion');
+    assert(R.bandFor(5249, share, 4).key === 'full', 'just under 1.5× is a Full share');
+    assert(R.bandFor(3500, share, 4).key === 'full', 'exactly your share is a Full share');
+    assert(R.bandFor(1750, share, 4).key === 'full', 'half your share is a Full share');
+    assert(R.bandFor(1749, share, 4).key === 'partisan', 'just under half is a Partisan share');
+
+    /* THE REGRESSION THIS EXISTS FOR. Under the median rule a contributor at
+       13% of the bar was refused outright — and the bar was other players'
+       damage, so a clanmate having a good week moved it. There is no longer
+       any damage above zero that earns nothing. */
+    assert(R.bandFor(100, share, 4).key === 'partisan', '100 of a 3,500 share is still a share');
+    assert(R.bandFor(1, share, 7).key === 'partisan', 'one point of damage over seven days still pays');
+    assert(R.BANDS.every((b) => b.scale > 0), 'no band may pay zero');
+
+    // The anti-freeload gates are ABSOLUTE, and they are the only refusals.
+    assert(R.bandFor(0, share, 7) === null, 'no damage is no chest, however many strikes');
+    assert(R.bandFor(99999, share, 1) === null, 'one strike is not turning up, however big the number');
+    assert(R.bandFor(99999, share, 2).key === 'champion', 'two strikes qualify');
     assert(R.MIN_STRIKES_FOR_CHEST === 2, 'the strike minimum is 2');
-    // §5.2 — the median is computed over ≥3-strike members ONLY, so a swarm of
-    // one-strike alts cannot depress it to farm the Champion band.
-    const swarmed = rows.concat([
-      { user_id: 'x1', damage: 5, strikes: 1 }, { user_id: 'x2', damage: 5, strikes: 1 },
-      { user_id: 'x3', damage: 5, strikes: 1 }, { user_id: 'x4', damage: 5, strikes: 1 },
-      { user_id: 'x5', damage: 5, strikes: 1 }, { user_id: 'x6', damage: 5, strikes: 1 },
-    ]);
-    assert(R.medianContribution(swarmed) === 750,
-      'one-strike alts must not move the median, got ' + R.medianContribution(swarmed));
-    assert(R.MEDIAN_MIN_STRIKES === 3, 'the median floor is 3 strikes');
-    // A clan with no distribution to rank against: turning up IS the effort.
-    // A zero median must NEVER read as "everyone is a Champion".
-    assert(R.medianContribution([]) === 0, 'no contributors → no median');
-    assert(R.bandFor(1, 0, 2).key === 'full', 'with no median, two strikes earn a full share');
+
+    /* THE PROPERTY, stated as a property: the band is a function of YOUR
+       damage and THE BOSS. bandFor has no argument through which another
+       player's number could arrive — sweep every legal teammate week and the
+       victim's verdict cannot move, because there is nowhere to put it. */
+    assert(R.bandFor.length === 4, 'bandFor takes (damage, share, strikes, partial) — nothing else');
+    const victim = R.bandFor(1200, share, 3).key;
+    for (let mate = 0; mate <= 35000; mate += 2500) {
+      const again = R.previewScale({ damage: 1200, strikes: 3, pool: 35000, members: 10,
+                                     downed: true, clanDamage: 1200 + mate });
+      assert(again.band === victim,
+        'a clanmate dealing ' + mate + ' moved an unchanged player from ' + victim + ' to ' + again.band);
+    }
+
+    // A partial week is penalised once, by the factor — not twice, by the band.
+    assert(R.bandFor(100, share, 4, true).key === 'full',
+      'a week the boss survived does not ALSO step the band down');
+    assert(R.bandFor(5250, share, 4, true).key === 'champion',
+      'champion is still earnable on a week that fell short');
   }),
 
   () => tryRun('b223: partial credit has no all-or-nothing cliff, and is capped at 0.6', () => {
@@ -3170,14 +3179,14 @@ const TESTS = [
     assert(R.partialFactor(5000, 0) === 0, 'a zero pool cannot be divided by');
     // The kill must stay strictly better than the best possible partial —
     // otherwise a clan is rewarded for stopping short.
-    const kill = R.previewScale({ damage: 1000, median: 1000, strikes: 5, downed: true });
-    const near = R.previewScale({ damage: 1000, median: 1000, strikes: 5, downed: false,
+    const kill = R.previewScale({ damage: 1000, share: 1000, strikes: 5, downed: true });
+    const near = R.previewScale({ damage: 1000, share: 1000, strikes: 5, downed: false,
                                  clanDamage: 99000, pool: 100000 });
     assert(kill.scale === 1 && near.scale === 0.6 && kill.scale > near.scale,
       'a kill must beat the best partial week');
     assert(near.partial === true && kill.partial === false, 'the preview must say which it is');
     // Two strikes and a Champion share, partially credited, still beats nothing.
-    const champ = R.previewScale({ damage: 5000, median: 1000, strikes: 3, downed: false,
+    const champ = R.previewScale({ damage: 5000, share: 1000, strikes: 3, downed: false,
                                    clanDamage: 50000, pool: 100000 });
     assert(Math.abs(champ.scale - 1.3 * 0.5) < 1e-9, 'band × factor, got ' + champ.scale);
   }),
@@ -3452,7 +3461,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b223: the Hunt card shows the tier, the median and a way to declare', () => {
+  () => tryRun('b223: the Hunt card shows the tier, your share and a way to declare', () => {
     const R = window.HearthriseRaids;
     const prevTab = window.activeTab;
     const G = window.G;

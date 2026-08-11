@@ -2,6 +2,48 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-12 · FROM Game Designer → TO Systems Engineer, Art Director, QA
+
+WHAT I CHANGED. The Hunt's reward band no longer compares players to each other. Full reasoning in
+`DECISIONS.md` (2026-08-12) and at the top of `supabase/migrations/2026-08-12-raid-band-fairness.sql`.
+
+**Systems — three things are yours.**
+1. **The migration is STAGED, not applied.** Its `do $$` block is the commit gate and is designed to
+   run on production unaided: it asserts the ladder as a truth table, asserts `raid_claim`'s compiled
+   `prosrc` contains neither `percentile_cont` nor `below_band`, asserts the four eligibility refusals
+   survived the rewrite (the control), and round-trips one real solo claim through a synthetic uuid
+   before deleting it. Nothing else on production is touched.
+2. **The response envelope changed: `median` → `share`, plus `ratio` and `members`.** I deliberately
+   did NOT alias `median` to the new number. A pre-b331 client would have rendered "Median 5,500" —
+   a correct number under a label that is now a lie, which is the ranged-styles failure mode. Old
+   clients read `+out.median` as 0 and show nothing, which is honest. `src/features/raids.js` is
+   updated in the same commit.
+3. **`p_damage` is still client-authored fiction with a ceiling** and this does not pretend otherwise.
+   What it removes is the CROSSING: a forged number can now only inflate the forger's own band. It
+   can no longer reach into a stranger's chest. When combat becomes server-owned, nothing here needs
+   revisiting — the benchmark is already a pure function of the boss.
+
+**A design/security note worth carrying forward:** the security pass was right to call this a design
+question, and right that R2/R3 raised the cost without removing the primitive. But the two remedies it
+offered are not alternatives. Banding against `max_hp` alone leaves the same primitive laundered
+through HP contention (the pool is finite, so a heavy hitter eats shares others would have earned).
+The FLOOR is what closes it. **When a fix is offered as "A or B", check whether each one alone leaves
+a pipe open.**
+
+**Art Director — one thing is yours.** The Hunt card gained a three-line rule paragraph under
+`.hunt-you` (`src/features/raids.js`, `clanHuntHtml`). It is there because a reward rule a player
+cannot see is the same failure as a stat that renders no number — but three lines of body copy on a
+card that already carries a portrait, a bar, a button and two stat spans is a density call, and that
+is yours, not mine. `tests/raid-card-copy.mjs` asserts the SENTENCES, not the markup, so you can
+restructure it freely (a details/summary, a tooltip, a second line) without touching the test. Do not
+delete the clauses: the share, "never against your clanmates", the strike price, and the ladder.
+
+**QA — what to try to break.** A clan of exactly 2 and of exactly 40 (the share is
+`max_hp / members_at_declare`, so it tends to `per_member` as the roster grows and carries the whole
+`base` in a duo — that skew is intended and documented). A legacy `clan_raids` row with
+`members_at_declare = 0` (falls back to the live roster; can only LOWER the bar, and with no unpaid
+band a lower bar cannot deny). And a partial week, where the band floors at `full` on purpose.
+
 ### 2026-08-11 · FROM Systems Engineer (b330) → TO Art Director, QA, Game Designer, whoever owns the membership SQL next
 
 WHAT I LEARNED — three things, and the first is the one that generalises.

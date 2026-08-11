@@ -308,6 +308,23 @@ export async function coreAnchorGuard() {
         if (!s.xp || !Object.keys(s.xp).length) problems.push(`style ${fam}.${key} trains nothing`);
         const total = Object.values(s.xp).reduce((a, b) => a + b, 0);
         if (Math.abs(total - 1) > 1e-9) problems.push(`style ${fam}.${key} splits ${total} XP, not 1.0 — that is a stealth rate change`);
+        /* b329: `speedMod` is a COST, never a gift. If a style could dip below
+           1.00 it would (a) become a second speed ladder beside the unresolved
+           spdB question and (b) shrink the divisor the accrual engine divides
+           elapsed time by. Pinned in the DATA as well as clamped in the formula. */
+        if (!(s.speedMod >= 1 && s.speedMod <= 2)) problems.push(`style ${fam}.${key} has speedMod ${s.speedMod} — must be within [1.00, 2.00]`);
+        if (!s.desc) problems.push(`style ${fam}.${key} has no player-facing desc`);
+        if (/slower/i.test(s.desc || '') !== (s.speedMod > 1)) problems.push(`style ${fam}.${key} desc and speedMod disagree about speed`);
+      }
+      /* Every family must have exactly one baseline (1.00) style, or its whole
+         ladder has silently drifted slower than the pacing anchor. */
+      const fastest = Math.min(...Object.values(stl.COMBAT_STYLES[fam]).map((s) => s.speedMod));
+      if (fastest !== 1) problems.push(`weapon family ${fam} has no 1.00-speed style — its baseline moved off the pacing anchor`);
+    }
+    {
+      const R = stl.COMBAT_STYLES.ranged;
+      if (!(R.rapid.speedMod < R.precise.speedMod && R.precise.speedMod < R.longrange.speedMod)) {
+        problems.push('b329 (Xarn): Rapid / Precise / Longrange must be strictly ordered fastest-to-slowest');
       }
     }
     if (stl.resolveStyle('magic', { magic: 'focus' }).name !== 'Focus') problems.push('resolveStyle ignored the stored key');

@@ -70,6 +70,14 @@ export const DEFAULT_PROFILE = {
 };
 export const DEFAULT_STYLE = { accuracyMod: 1, damageMod: 1, defenseMod: 1, speedMod: 1 };
 
+/* A style may only ever COST speed, never grant it. See the b329 header in
+   src/core/styles.js: making this an invariant of the FORMULA (rather than a
+   promise about the table) is what stops combat styles from becoming a second
+   speed ladder next to the unresolved `spdB` question, and it means a garbage
+   or hostile style row can never shrink the divisor the accrual engine uses. */
+export const STYLE_SPEED_MIN = 1.00;
+export const STYLE_SPEED_MAX = 2.00;
+
 // ── Derived equipment state ──────────────────────────────────────────────
 
 export function equipmentStats(equipment, items) {
@@ -83,6 +91,42 @@ export function equipmentStats(equipment, items) {
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
   return s;
+}
+
+/**
+ * THE SWING INTERVAL. **One formula, three callers.**
+ *
+ * This expression existed TWICE before b329 — `combatTickMs()` in legacy.js and
+ * `deriveTickMs()` in supabase/functions/hr-accrue/accrual.js — with a comment
+ * in the second promising it was "byte-for-byte the same expression as the
+ * client's". Two copies reconciled by a comment is precisely how a hammer came
+ * to swing 26% more often asleep than awake (combat-sim.js header, omission 10),
+ * so adding a THIRD term (`style.speedMod`) to two copies was not an option.
+ * Both callers now delegate here. There is nowhere left to add a term to only
+ * one of them.
+ *
+ * interval = clamp_floor( base × (1 − spdB) × familyMod × styleSpeedMod )
+ *
+ *   spdB           gear speed, clamped to 20% (b245)
+ *   familyMod      the weapon family's speed identity (Wave 5)
+ *   styleSpeedMod  the chosen style's cost, clamped to [1.00, 2.00] (b329) —
+ *                  a style can only ever be SLOWER than its family baseline
+ *
+ * The `minTickMs` floor is the last word for the same reason it always was: on
+ * the accrual path this number is a DIVISOR of elapsed time.
+ *
+ * @param eq     equipmentStats() output
+ * @param style  the resolved COMBAT_STYLES row (null/undefined = no modifier)
+ */
+export function swingIntervalMs(eq, style) {
+  const spd = clamp(((eq && eq.spdB) || 0), 0, 0.20);
+  const wmod = WEAPON_SPEED_MOD[(eq && eq.weaponType)] || 1;
+  const raw = Number(style && style.speedMod);
+  const smod = isFinite(raw) ? clamp(raw, STYLE_SPEED_MIN, STYLE_SPEED_MAX) : STYLE_SPEED_MIN;
+  return Math.max(
+    COMBAT_BALANCE.minTickMs,
+    Math.floor(COMBAT_BALANCE.tickMs * (1 - spd) * wmod * smod),
+  );
 }
 
 /* Wave 5c / b283: a SET is 5+ pieces of the same material tier AND the same

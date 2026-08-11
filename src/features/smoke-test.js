@@ -14106,6 +14106,102 @@ const TESTS = [
     } finally { delete window.ITEMS.__test_speed; restoreG(snap); }
   }),
 
+  /* ── b329 (Xarn, live report) ────────────────────────────────────────────
+     "The attack speed for Rapid, Precise and Longrange is the same."
+     He was right: no combat style has ever had a speed term — `combatTickMs()`
+     read gear speed and the weapon FAMILY only — so a style literally named
+     *Rapid* swung at exactly the rate of the two it is meant to beat.
+
+     This test is the contract for the fix, and it fails on every way the fix
+     could rot: the differential being removed from the table, the term being
+     dropped from the formula, a style sneaking BELOW the family baseline (which
+     would make styles a second speed ladder beside the unresolved `spdB`
+     question), the away replay being handed a different interval than the live
+     scheduler, or — the reported bug in reverse — the copy promising a slower,
+     more accurate style that the simulation does not actually run. */
+  () => tryRun('b329 (Xarn): Rapid / Precise / Longrange swing at three DIFFERENT speeds, and the copy states the number the sim runs', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const savedStyle = JSON.parse(JSON.stringify(G.combatStyle || {}));
+    try {
+      assert(C && C.combat && typeof C.combat.swingIntervalMs === 'function',
+        'src/core/combat.js must export swingIntervalMs — the ONE swing formula both the live tick and hr-accrue call');
+      const STYLES = C.styles.COMBAT_STYLES;
+
+      // ── 1. The invariant: a style may only ever COST speed, never grant it.
+      Object.entries(STYLES).forEach(([fam, rows]) => {
+        Object.entries(rows).forEach(([k, s]) => {
+          assert(typeof s.speedMod === 'number' && isFinite(s.speedMod),
+            fam + '.' + k + ' has no numeric speedMod — every style row must state its swing cost');
+          assert(s.speedMod >= 1,
+            fam + '.' + k + ' has speedMod ' + s.speedMod + ' < 1 — a style must never swing FASTER than its weapon family baseline');
+        });
+      });
+      // And the clamp is in the FORMULA, not merely in the table: a hostile row
+      // cannot shrink the divisor the accrual engine divides elapsed time by.
+      const bareEq = { weaponType: 'sword', spdB: 0 };
+      assert(C.combat.swingIntervalMs(bareEq, { speedMod: 0.01 }) === C.combat.swingIntervalMs(bareEq, { speedMod: 1 }),
+        'swingIntervalMs must clamp a sub-1 speedMod to the baseline — otherwise a bad style row is an away-accrual exploit');
+
+      // ── 2. The reported bug: three ranged styles, three distinct swings.
+      G.equipment = { weapon: 'shortbow' };            // no spdB gear anywhere
+      G.combatStyle = Object.assign({}, G.combatStyle, { ranged: 'rapid' });
+      assert(window.getWeaponType() === 'ranged', 'the test needs a bow equipped');
+
+      const msOf = (key) => { G.combatStyle.ranged = key; return window.combatTickMs(); };
+      const rapid = msOf('rapid'); const precise = msOf('precise'); const longr = msOf('longrange');
+
+      assert(rapid < precise, 'Rapid must swing FASTER than Precise — got ' + rapid + 'ms vs ' + precise + 'ms (the reported bug)');
+      assert(precise < longr, 'Precise must swing FASTER than Longrange — got ' + precise + 'ms vs ' + longr + 'ms (the reported bug)');
+
+      // Pinned to the published table, so shaving the differential to nothing
+      // fails here rather than passing on a 1ms ordering.
+      const base = window.COMBAT_BALANCE.tickMs * window.WEAPON_SPEED_MOD.ranged;
+      [['rapid', rapid], ['precise', precise], ['longrange', longr]].forEach(([k, got]) => {
+        const want = Math.floor(base * STYLES.ranged[k].speedMod);
+        assert(got === want, 'ranged ' + k + ' should swing at ' + want + 'ms, got ' + got + 'ms');
+      });
+      assert(longr - rapid >= 150,
+        'the Rapid-to-Longrange spread is only ' + (longr - rapid) + 'ms — too small for a player to feel, which is the bug');
+
+      // ── 3. ONE formula: the away replay divides by exactly this number.
+      // (AWAY-12 greps simulateAwayCombat for `combatTickMs()`; this pins the
+      // value that call produces to the core function hr-accrue imports.)
+      ['rapid', 'precise', 'longrange'].forEach((k) => {
+        G.combatStyle.ranged = k;
+        const eq = window.getEquipmentStats();
+        assert(C.combat.swingIntervalMs(eq, STYLES.ranged[k]) === window.combatTickMs(),
+          'the live scheduler and the shared swing formula disagree for ranged ' + k + ' — that is how a hammer once swung 26% more often asleep than awake');
+      });
+      // The consequence a player actually collects: a 12h absence buys strictly
+      // fewer Longrange swings than Rapid swings.
+      const span = 12 * 3600000;
+      assert(Math.floor(span / rapid) > Math.floor(span / precise)
+          && Math.floor(span / precise) > Math.floor(span / longr),
+        'the style speed differential must change the AWAY tick budget too, not only the live interval');
+
+      // ── 4. The bug in reverse: the copy must match the numbers.
+      Object.entries(STYLES).forEach(([fam, rows]) => {
+        Object.entries(rows).forEach(([k, s]) => {
+          const where = fam + '.' + k;
+          assert(typeof s.desc === 'string' && s.desc.length > 3, where + ' has no player-facing desc');
+          const claimsSlower = /slower/i.test(s.desc);
+          assert(claimsSlower === (s.speedMod > 1),
+            where + ' desc says "' + s.desc + '" but speedMod is ' + s.speedMod + ' — a style that reads slower and is not (or is and does not say so) is the reported bug in reverse');
+          /* `defenseMod` is authored on 6 style rows and read by NOTHING (see
+             the handoff). Until it is wired, no style may promise defence. */
+          assert(!/defen[cs]e/i.test(s.desc) || /XP/i.test(s.desc),
+            where + ' promises defence as a STAT, but style defenseMod is applied by nothing — only the XP route is real');
+        });
+      });
+
+      // ── 5. Switching style mid-fight retimes the running loop.
+      assert(typeof window.retimeCombat === 'function',
+        'retimeCombat() must exist — otherwise picking a style changes nothing until you re-tap the monster');
+    } finally { G.combatStyle = savedStyle; restoreG(snap); }
+  }),
+
   () => tryRun('b244: the item-id migration layer remaps a renamed/retired id across every store', () => {
     const G = window.G;
     const snap = snapshotG();

@@ -45,7 +45,7 @@ import { simulateSpan } from '../src/core/combat-sim.js?v=326';
 import { killBonusesFor } from '../src/core/botd.js?v=326';
 import { createRng } from '../src/core/rng.js?v=326';
 import { grantXp } from '../src/core/progression.js?v=326';
-import { resolveStyle } from '../src/core/styles.js?v=326';
+import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js?v=326';
 import { ITEMS } from '../src/data/items.js?v=326';
 import { MONSTERS } from '../src/data/monsters.js?v=326';
 
@@ -138,11 +138,18 @@ const EQUIPMENT = pickEquipment();
 // Written out rather than imported so it is a genuinely independent second
 // construction. If it were `computeAccrual` in a hat, it would prove nothing.
 
-function clientCombatTickMs(eqStats) {
+function clientCombatTickMs(eqStats, style) {
   const spd = Math.max(0, Math.min(0.20, (eqStats.spdB) || 0));
   const wmod = WEAPON_SPEED_MOD[eqStats.weaponType] || 1;
+  /* b329: the third term. Written out here, deliberately, rather than calling
+     core's swingIntervalMs — this reference exists to be an INDEPENDENT second
+     construction, so it has to spend the style cost independently too. Today
+     every family's DEFAULT style is 1.00, so omitting it would have kept parity
+     green while the term rotted; that is exactly the silent drift this file is
+     supposed to catch. */
+  const smod = Math.max(1, Math.min(2, Number(style && style.speedMod) || 1));
   return Math.max(COMBAT_BALANCE.minTickMs,
-    Math.floor(COMBAT_BALANCE.tickMs * (1 - spd) * wmod));
+    Math.floor(COMBAT_BALANCE.tickMs * (1 - spd) * wmod * smod));
 }
 
 function clientProfile(weaponType) {
@@ -186,7 +193,7 @@ function clientAwaySpan(opts) {
   const ctx = {
     away: (opts.away !== undefined) ? opts.away : true,
     fromMs: opts.fromMs, toMs: opts.toMs,
-    tickMs: clientCombatTickMs(eqStats),
+    tickMs: clientCombatTickMs(eqStats, style),
     capped: !!opts.capped,
     rng: createRng(opts.seed),
     monsters, items, bonus, style,
@@ -251,7 +258,8 @@ function parityGuard() {
     });
 
     const P = (m) => `PARITY [${f.name}]: ${m}`;
-    eq(s.tickMs, clientCombatTickMs(equipmentStats(EQUIPMENT, ITEMS)),
+    const pEq = equipmentStats(EQUIPMENT, ITEMS);
+    eq(s.tickMs, clientCombatTickMs(pEq, resolveStyle(pEq.weaponType, null)),
       P('derived tickMs differs from the client combatTickMs()'));
     eq(s.summary.ticks, c.summary.ticks, P('tick count differs'));
     eq(s.summary.kills, c.summary.kills, P('kill count differs'));
@@ -431,6 +439,23 @@ function hostileGuard() {
     const t = deriveTickMs(bogus, ITEMS);
     ok(t >= COMBAT_BALANCE.minTickMs, `TICK: bogus equipment ${JSON.stringify(bogus)} produced ${t}ms, below the ${COMBAT_BALANCE.minTickMs}ms floor`);
   }
+  /* b329 (Xarn): the chosen STYLE now carries a speed cost, and the server has
+     to spend it too — otherwise a Longrange player earns Rapid's tick budget
+     overnight, which is the away/live divergence class this whole program
+     exists to end. Also pins the direction: a style may only ever be SLOWER,
+     because tickMs is a divisor of elapsed time on this path. */
+  const bow = Object.keys(ITEMS).find((id) => ITEMS[id]?.weaponType === 'ranged');
+  if (bow) {
+    const R = COMBAT_STYLES.ranged;
+    const fast = deriveTickMs({ weapon: bow }, ITEMS, R.rapid);
+    const slow = deriveTickMs({ weapon: bow }, ITEMS, R.longrange);
+    ok(deriveTickMs({ weapon: bow }, ITEMS) === fast,
+      'TICK: no style must derive the same interval as the baseline style');
+    ok(slow > fast,
+      `TICK: Longrange must swing slower than Rapid on the SERVER too — got ${slow}ms vs ${fast}ms`);
+    ok(deriveTickMs({ weapon: bow }, ITEMS, { speedMod: 0.01 }) === fast,
+      'TICK: a sub-1 speedMod must clamp to the baseline — a style can never shrink the away tick divisor');
+  }
   ok(zeroBonus('goldFind') === 0 && zeroBonus('dropRate') === 0 && zeroBonus('allXP') === 0,
     'BONUS: the server perk stack is not inert');
 }
@@ -497,8 +522,15 @@ async function shapeGuard() {
      the assignment, not the identifier. */
   ok(!/\bminTickMs\s*:/.test(engineCode),
     'SOURCE: accrual.js sets minTickMs in a ctx — the accrual path must use the real 600ms floor');
-  ok(/COMBAT_BALANCE\.minTickMs/.test(engineCode),
-    'SOURCE: accrual.js must floor the derived tick at COMBAT_BALANCE.minTickMs');
+  /* b329: the floor moved INTO `swingIntervalMs` (src/core/combat.js) when the
+     hand-copied interval expression here was replaced by a call to the one the
+     client uses. The grep follows it: the requirement is still "the derived tick
+     is floored", it is just no longer floored by a second copy of the clamp.
+     Either shape satisfies this — what must never happen is deriveTickMs
+     open-coding an interval with no floor at all. The NUMERIC proof that the
+     floor holds is the bogus-equipment loop above; this is the shape guard. */
+  ok(/COMBAT_BALANCE\.minTickMs/.test(engineCode) || /swingIntervalMs\s*\(/.test(engineCode),
+    'SOURCE: accrual.js must floor the derived tick — via core swingIntervalMs() or COMBAT_BALANCE.minTickMs');
   ok(!/\bMath\s*\.\s*random\s*\(/.test(engineCode) && !/\bMath\s*\.\s*random\s*\(/.test(shellCode),
     'SOURCE: Math.random() is banned server-side — accrual must be replayable');
   ok(!/\bDate\s*\.\s*now\s*\(\)/.test(engineCode),

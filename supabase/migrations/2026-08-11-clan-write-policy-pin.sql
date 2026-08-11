@@ -47,25 +47,27 @@ create policy "clans creatable" on public.clans
     and upkeep_settled_at is null
   );
 
-drop policy if exists "join as self" on public.clan_members;
-create policy "join as self" on public.clan_members
-  for insert to authenticated
-  with check (
-    auth.uid() = user_id
-    and contributed = 0
-    and cp          = 0
-    and charge      is null
-    and (
-      role = 'member'
-      or (
-        role = 'leader'
-        and exists (select 1 from public.clans c
-                     where c.id = clan_id and c.created_by = auth.uid())
-        and not exists (select 1 from public.clan_members m
-                         where m.clan_id = clan_members.clan_id)
-      )
-    )
-  );
+-- ── OWNERSHIP CEDED (2026-08-11, Backend Architect) ────────────────────────
+-- The `create policy "join as self"` that stood HERE has moved to
+-- 2026-08-11-clan-membership-authority.sql §11, which is now its single owner.
+--
+-- THREE files ended up defining this one policy on 2026-08-11 — this one (A1,
+-- the clan takeover), 2026-08-11-raid-claim-authority.sql (R4, the backdated
+-- `joined_at`) and 2026-08-11-clan-membership-authority.sql (S-CAP-1, the
+-- invite-only door). In filename order THIS file sorts LAST, so a replay of the
+-- migrations would have installed the shortest of the three definitions and
+-- silently deleted both the joined_at pin and the door — while every one of the
+-- three self-checks still passed, because each only asserts its own terms.
+-- Found by the new one-owner lint in tests/run-sql-tests.mjs, not by review.
+--
+-- NOTHING IS LOST. A1's pins (user_id, contributed, cp, charge, and `leader`
+-- reachable only by the founder of an empty clan) survive verbatim in the
+-- merged policy, and the ASSERTION below is kept exactly as written — it now
+-- guards whatever definition is live rather than the one this file used to
+-- install, which is strictly the better guard.
+--
+-- The `clans creatable` policy above is still owned HERE; only the
+-- clan_members one moved.
 
 do $$
 declare v_clans text; v_mem text;

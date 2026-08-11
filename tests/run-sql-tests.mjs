@@ -110,6 +110,7 @@ const ALSO_LINTED = [
   '2026-08-11-clan-write-policy-pin.sql',
   '2026-08-11-authenticated-surface-lockdown.sql',
   '2026-08-11-live-market-rls.sql',
+  '2026-08-11-clan-membership-authority.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -193,6 +194,18 @@ const CLIENT_CALLABLE = new Map([
   ['market_buy', ['authenticated']],
   ['hr_server_now', ['authenticated']],
   ['beta_invite_check', ['anon', 'authenticated']],
+  // 2026-08-11-clan-membership-authority.sql — S-CAP-1 / S-KICK. These are the
+  // server-side join/kick path that `clan-write-policy-pin.sql` recorded as
+  // "QUEUED, NOT DONE". All eight are player actions, all eight are gated
+  // through hr_rpc_gate, and none is reachable by anon.
+  ['clan_create', ['authenticated']],
+  ['clan_join', ['authenticated']],
+  ['clan_leave', ['authenticated']],
+  ['clan_kick', ['authenticated']],
+  ['clan_invite', ['authenticated']],
+  ['clan_invite_revoke', ['authenticated']],
+  ['clan_invites_list', ['authenticated']],
+  ['clan_join_policy_set', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {
@@ -388,6 +401,59 @@ say('── no top-level transaction control in a migration (S5)');
     });
   }
   if (!bad) pass('no migration opens or closes a transaction');
+}
+
+// ── PART 1c-iii — ONE OWNER FOR clan_members."join as self" ──────────────
+// On 2026-08-11 two parallel security passes defined this one policy within an
+// hour of each other. `raid-claim-authority` (R4) pinned `joined_at`, which is
+// an authorisation input for raid_claim's joined_after_kill /
+// joined_after_declare and for clan-seat's 72h alt gate.
+// `clan-membership-authority` (S-CAP-1) added the invite-only door plus the
+// cp_at / last_seen pins. `c` sorts before `r`, so a replay of the migrations
+// in filename order would have run R4's shorter definition LAST and silently
+// deleted the door — while R4's own assertion still passed, because it only
+// checks that `joined_at` appears.
+//
+// This is the same hazard 2026-08-11-authenticated-surface-lockdown.sql §2b
+// names about hr_rpc_gate's `case`, in a place where the two owners cannot be
+// split into separate objects. So the rule is enforced statically instead:
+// exactly ONE migration may define this policy, and that definition must carry
+// every term the live policy is relied upon for. A file that reintroduces a
+// second definition fails the build rather than the game.
+say('── one owner for clan_members."join as self"');
+{
+  const DEF = /create\s+policy\s+"join as self"/i;
+  // COMMENTS MUST BE STRIPPED FIRST. The two files that ceded ownership each
+  // say so in a comment that quotes the statement they removed — and without
+  // this, that sentence re-registers them as owners and the check reports a
+  // conflict that does not exist. Caught by running it, not by reading it.
+  const uncommented = (sql) => sql.replace(/--[^\n]*/g, '');
+  const owners = [...sources.entries()]
+    .filter(([, sql]) => DEF.test(uncommented(sql))).map(([f]) => f);
+  if (owners.length !== 1) {
+    fail(`clan_members."join as self" is defined in ${owners.length} migration(s) [${owners.join(', ')}] — `
+       + 'exactly one file may own it. Whichever applies second silently deletes the other\'s terms; '
+       + 'that is how the invite-only door (S-CAP-1) gets dropped without any assertion noticing.');
+  } else {
+    const sql = sources.get(owners[0]);
+    // Everything the live policy is depended on for, by the system that depends
+    // on it. Each term is here because something else would break without it.
+    const TERMS = [
+      ['auth.uid() = user_id', /auth\.uid\(\)\s*=\s*user_id/,          'a caller could insert somebody else'],
+      ['joined_at',            /joined_at\s+between/i,                  'R4: raid_claim / the 72h alt gate read it'],
+      ['cp_at',                /cp_at\s+between/i,                      'a future cp_at makes CP immune to decay'],
+      ['last_seen',            /last_seen\s+is\s+null/i,                'rested-XP charges are keyed on it'],
+      ['join_policy',          /join_policy\s*=\s*'open'/i,             'S-CAP-1: the invite-only door'],
+      ['contributed',          /contributed\s*=\s*0/i,                  'a forged contribution ranks on the clan board'],
+      ['cp',                   /\bcp\s*=\s*0/i,                         'CP is castle standing'],
+      ['charge',               /charge\s+is\s+null/i,                   'a forged charge is an officer commission'],
+    ];
+    let bad = 0;
+    for (const [name, re, why] of TERMS) {
+      if (!re.test(sql)) { bad++; fail(`${owners[0]}: the join policy no longer pins \`${name}\` — ${why}`); }
+    }
+    if (!bad) pass(`${owners[0]} is the sole owner of "join as self" and pins all ${TERMS.length} load-bearing terms`);
+  }
 }
 
 // ── PART 1d — the migrations must be self-verifying ──────────────────────

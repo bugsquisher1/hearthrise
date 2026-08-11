@@ -191,6 +191,60 @@ PostgREST probes on every push, reads url/key from `supabase-bootstrap.js` rathe
 duplicating them, and **exits 1 if its own control stops firing** — a probe that cannot
 prove it can see failure is treated as broken, not as a pass.
 
+## STATE OF PRODUCTION AT END OF 2026-08-11 (each line verified by query, by the Coordinator, after the agent reported it)
+
+Applied today beyond the three security files: `clan_member_cap`, `raid_claim_authority`,
+`daily_budget`, `clan_membership_authority`, `clan_leaderboard_join_policy`,
+`clan_join_policy_merge_r4_tolerance`.
+
+Confirmed live by direct query: all eight new clan RPCs (`clan_join`, `clan_kick`,
+`clan_leave`, `clan_create`, `clan_invite`, `clan_invite_revoke`, `clan_invites_list`,
+`clan_join_policy_set`) are `SECURITY DEFINER`, `search_path` pinned, `authenticated`-only,
+`anon` FALSE; `hr_clan_may_admit` is not client-executable at all; `clans.join_policy`
+exists defaulting to `'open'`; `clan_bans` exists.
+
+**The C5 daily-budget primitives are INERT in production** — they exist, nothing calls
+them, and no role can execute them. `apply-engine.sql` (the enforcement half) is
+deliberately NOT applied; see the stale-`hr_apply` section below.
+
+⚠ **TWO DEBTS CREATED TODAY, both deliberate:**
+
+1. **db ≠ repo, textually, for `2026-08-11-clan-membership-authority.sql`.** What was
+   applied used a `format()` grant loop; the committed file uses literal
+   `revoke`/`grant` statements so `run-sql-tests.mjs`'s static lints can see them
+   (a dynamic grant would have opted eight brand-new client-callable RPCs out of the
+   repo's only static defence). The differences are privilege-identical and already
+   reconciled by the third migration — verified live: the `clan_members` INSERT policy
+   carries ALL THREE concerns at once (A1's column pins, R4's ±2min `joined_at`/`cp_at`
+   pin, and the `join_policy = 'open'` door). The file is idempotent; re-apply it
+   **from a file, via CLI/psql — NOT by pasting it into a tool argument.** Hand-authoring
+   61 KB of security SQL is the same transcription-risk class that correctly stopped the
+   Edge Function deploy.
+2. **`2026-08-12-clan-members-rls-drop.sql` is staged, NOT applied**, and its own
+   self-check refuses to run until a real `clan_ledger` row of `kind='member'` exists —
+   i.e. until a live player has actually joined through the RPC. Until then, joining an
+   **open** clan by raw INSERT still bypasses the ban list, invite bookkeeping, journal
+   and rate limit. It does NOT bypass the member cap (trigger), one-clan-per-account
+   (unique index), the timestamp pins, or the invite-only door (all policy-enforced).
+   What remains open there is bookkeeping, not authority.
+
+**A LATENT BUG WORTH MORE THAN THE FEATURE THAT FOUND IT:** three separate migrations
+had each defined `clan_members."join as self"` — `clan-write-policy-pin` (A1),
+`raid-claim-authority` (R4) and `clan-membership-authority` (the door). **In filename
+order the shortest sorts last**, so a clean replay of the migration set would have
+installed A1's version and SILENTLY DELETED both R4's timestamp pin and the door — and
+all three self-checks would still have passed, because each asserts only its own terms.
+Now one file owns the definition, the other two cede it and assert against whatever is
+live (their guards got stronger), and `tests/run-sql-tests.mjs` fails the build on a
+second definition or on the loss of any of eight load-bearing terms. **Generalise this:
+a self-check that only tests its own file's terms cannot detect a later file undoing it.**
+
+**MIGRATIONS ARE NO LONGER APPLIED BY AGENTS.** Two were flagged for applying schema
+changes to a live database on a Coordinator's authorization rather than Tyler's. Agents
+now stage the file, commit, and report; the Coordinator reviews and applies. Rolled-back
+single-call `begin … rollback` probes and read-only queries are unchanged — that is how
+an exploit gets proven open before it is closed, and that bar stays.
+
 ## NEXT, IN ORDER
 1. Get a `SUPABASE_ACCESS_TOKEN` from Tyler and deploy the Edge Function from the staged tree; then set `HR_ACCRUE_URL` so `deployedPayloadGuard` stops skipping. Re-confirmed 2026-08-11: `list_edge_functions` returns `bug-report-bridge` ONLY, so this is still the live blocker.
 1b. **After the next client bump ships**, apply `2026-08-11-live-market-rls.sql` a SECOND

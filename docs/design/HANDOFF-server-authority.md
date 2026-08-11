@@ -38,21 +38,38 @@ capped; Discord webhook removed from the client; mobile freeze/settings/landscap
   connlimit 20, member of exactly `{hr_engine}`, zero own grants, password set).
   Tyler stored `HR_ENGINE_DB_URL` as an Edge Function secret (pooler port 6543).
 
-## ⚠️ IN FLIGHT WHEN THE SESSION ENDED — VERIFY BEFORE ASSUMING
-Two agents were running and their results were never seen. **Check actual state; do
-not assume either completed.**
-1. **Applying three security migrations to production** in order:
-   `2026-08-11-authenticated-surface-lockdown.sql` → `-live-market-rls.sql` →
-   `-grant-hygiene.sql`. Check: does `clan_upkeep_pay` still lack a period guard?
-   Do `%__ungated` functions exist? What does `hr_assert_grant_hygiene(false)` report
-   for the A9 count (41 = not applied, 0 = applied)?
-   **The untested risk: the retrofit wraps 35 RPC bodies and PostgREST resolution was
-   never exercised over HTTP.** If the game is broken for players, this is why —
-   check `POST /rest/v1/rpc/hr_leaderboard` first.
-2. **Deploying the accrual Edge Function.** Check `list_edge_functions`. Unknowns it
-   was sent to settle: whether Supabase's Deno bundler accepts `?v=` on relative
-   imports (fallback: `tools/pack-edge.mjs --strip-query`), and whether the pooler
-   connection as `hr_engine_login` actually works.
+## ⚠️ PARTIAL APPLY — VERIFIED STATE AT HANDOFF (checked directly, not assumed)
+
+**File 1 `2026-08-11-authenticated-surface-lockdown.sql` IS APPLIED.** Confirmed:
+35 `%__ungated` wrappers exist, `hr_rpc_gate` exists, `hr_utc_day_key` is no longer
+executable by `authenticated`, and `clan_upkeep_pay` (the confirmed treasury drain) is
+revoked.
+
+**THE GAME IS WORKING.** The biggest risk in that file was that the 35-RPC wrapper
+retrofit had never been exercised over HTTP. Verified after the apply:
+`POST /rest/v1/rpc/hr_leaderboard` with the anon key returns **HTTP 200** with correct
+data, and live players were active minutes before. PostgREST resolution survives the
+retrofit.
+
+**File 2 `2026-08-11-live-market-rls.sql` is NOT applied.** `beta_invite_check` does not
+exist, `market_listings` has 0 triggers, its `FOR ALL` policy is still present, and
+`market_sales` still has its row-level UPDATE policy. **So A6 (market seller_name
+impersonation + post-listing mutation), A8 (market_sales column freedom) and A11
+(world-readable beta_invites) are ALL STILL LIVE AND EXPLOITABLE.** Apply this next.
+
+**File 3 `2026-08-11-grant-hygiene.sql` is NOT applied** in its updated form —
+`hr_assert_grant_hygiene` exists but does not yet contain the S9 `hr_engine` capability
+pin. Apply it AFTER file 2 (it deliberately fails if A9 is not done; A9 is done, so it
+should pass now).
+
+**Edge Function deploy status: UNKNOWN** — check `list_edge_functions`. Unknowns it was
+sent to settle: whether Supabase's Deno bundler accepts `?v=` on relative imports
+(fallback `tools/pack-edge.mjs --strip-query`), and whether the pooler connection as
+`hr_engine_login` actually works. `hr_engine_login` exists with a password and Tyler has
+stored `HR_ENGINE_DB_URL`.
+
+Note cron is at 9 jobs (was 10) — consistent with the two disarmed market crons plus the
+retention/hygiene additions; re-derive rather than trusting this number.
 
 ## NEXT, IN ORDER
 1. Confirm the two in-flight items above; finish or fix whatever is half-done.

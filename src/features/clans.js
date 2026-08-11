@@ -98,11 +98,65 @@
     return res.json();
   }
 
+  /* ── SERVER-AUTHORITATIVE MEMBERSHIP (2026-08-11, S-CAP-1 / S-KICK) ────────
+     Founding, joining, leaving, kicking, inviting and the door policy are RPCs
+     now — `supabase/migrations/2026-08-11-clan-membership-authority.sql`. This
+     file used to POST straight at `/rest/v1/clan_members`, which was the whole
+     of the join path: no invite, no ban, no journal, no rate limit, and no way
+     for a clan to say no. A security audit joined an outsider into a live clan
+     from a REST call and then acted on that clan's shared surfaces.
+
+     The refusals are NAMED, not numbered, because a player who is told "(403)"
+     learns nothing. Every error string below is one the server can actually
+     return; anything unrecognised falls through to the raw code rather than
+     being dressed up as a sentence we have not verified.
+
+     There is deliberately NO fallback to the old table write. A project without
+     the migration answers PGRST202 and the player is told the server is behind,
+     which is true — silently reopening the hole would be worse than the outage. */
+  var JOIN_ERRORS = {
+    not_signed_in: 'Sign in to join a clan',
+    rate_limited: 'Slow down a moment, then try again',
+    no_clan: 'That hold no longer exists',
+    already_in_clan: 'Leave your current clan first',
+    invite_only: 'That hold is invite-only — ask a member for an invitation',
+    banned: 'You have been removed from that hold and cannot rejoin yet',
+    clan_full: 'That hold is full',
+    bad_name: 'Clan name must be 3–24 characters',
+    name_taken: 'That clan name is taken',
+    bad_policy: 'Unknown join policy',
+    not_member: 'You are not in a clan',
+    not_permitted: 'Only the hold’s leadership can do that',
+    cannot_kick_self: 'Use Leave rather than removing yourself',
+    cannot_kick_leader: 'The leader cannot be removed',
+    no_such_player: 'No player by that name',
+    cannot_invite_self: 'You are already here',
+    target_in_clan: 'That player already belongs to another hold',
+    already_member: 'That player is already in your hold'
+  };
+  function sayError(out, status, fallback) {
+    var code = out && out.error;
+    var msg = (code && JOIN_ERRORS[code]) || (code ? fallback + ' (' + code + ')' : fallback + ' (' + status + ')');
+    notify(msg, 'kill');
+    return false;
+  }
+
+  // Single place that speaks RPC, so the auth header and the JSON shape cannot
+  // drift between six call sites.
+  async function rpc(name, body) {
+    var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
+      method: 'POST', headers: headers(true), body: JSON.stringify(body || {})
+    });
+    var out = null;
+    try { out = await res.json(); } catch (e) {}
+    return { status: res.status, ok: res.ok, out: out };
+  }
+
   async function fetchMyClan() {
     _myClan = null;
     if (!online() || !signedIn()) return null;
     var uid = session().user.id;
-    var res = await fetch(cfg().url + '/rest/v1/clan_members?user_id=eq.' + uid + '&select=clan_id,role,contributed,clans(id,name,level,treasury,castle_tier,upgrades)', { headers: headers() });
+    var res = await fetch(cfg().url + '/rest/v1/clan_members?user_id=eq.' + uid + '&select=clan_id,role,contributed,clans(id,name,level,treasury,castle_tier,upgrades,join_policy)', { headers: headers() });
     if (!res.ok) return null;
     var rows = await res.json();
     if (!rows.length || !rows[0].clans) return null;
@@ -114,51 +168,90 @@
     return _myClan;
   }
 
-  async function createClan(name) {
-    name = (name || '').trim();
-    if (name.length < 3 || name.length > 24) { notify('Clan name must be 3–24 characters', 'kill'); return null; }
-    if (!requireOnline()) return null;
-    var uid = session().user.id;
-    var res = await fetch(cfg().url + '/rest/v1/clans', {
-      method: 'POST', headers: headers(true),
-      body: JSON.stringify({ name: name, created_by: uid })
-    });
-    if (!res.ok) {
-      notify(res.status === 409 ? 'That clan name is taken' : 'Could not create clan (' + res.status + ')', 'kill');
-      return null;
-    }
-    var clan = (await res.json())[0];
-    await joinById(clan.id, 'leader');
-    notify(name + ' is founded — the foundation is laid, and it is yours. Rally your allies.', 'levelup');
-    return clan;
-  }
-
-  async function joinById(clanId, role) {
-    if (!requireOnline()) return false;
-    var uid = session().user.id;
-    var res = await fetch(cfg().url + '/rest/v1/clan_members', {
-      method: 'POST', headers: headers(true),
-      body: JSON.stringify({ clan_id: clanId, user_id: uid, role: role || 'member' })
-    });
-    if (!res.ok) { notify('Could not join (' + res.status + ')', 'kill'); return false; }
+  // Shared tail: membership changed, so re-read it FROM THE SERVER rather than
+  // patching the local cache from the RPC's reply. The reply is the truth about
+  // what happened; the roster read is the truth about what now is.
+  async function afterMembershipChange() {
     await fetchMyClan();
     if (typeof window.saveLocal === 'function') saveLocal();
     refreshClanScreens();
     if (typeof window.updateTopbar === 'function') updateTopbar();
+  }
+
+  async function createClan(name, joinPolicy) {
+    name = (name || '').trim();
+    if (name.length < 3 || name.length > 24) { notify('Clan name must be 3–24 characters', 'kill'); return null; }
+    if (!requireOnline()) return null;
+    // The server re-validates the name, the policy and "are you already in a
+    // clan"; these local checks exist only to save a round trip.
+    var r = await rpc('clan_create', { p_name: name, p_join_policy: joinPolicy === 'invite' ? 'invite' : 'open' });
+    if (!r.ok || !r.out || r.out.ok === false) { sayError(r.out, r.status, 'Could not found the hold'); return null; }
+    await afterMembershipChange();
+    notify(name + ' is founded — the foundation is laid, and it is yours. Rally your allies.', 'levelup');
+    return { id: r.out.clan_id, name: r.out.name, join_policy: r.out.join_policy };
+  }
+
+  async function joinById(clanId) {
+    if (!requireOnline()) return false;
+    var r = await rpc('clan_join', { p_clan_id: clanId });
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not join');
+    await afterMembershipChange();
     return true;
   }
 
   async function leave() {
     if (!requireOnline()) return false;
-    var uid = session().user.id;
-    var id = _myClan && _myClan.id;
-    if (!id) { finishLeave(); return true; }
-    var res = await fetch(cfg().url + '/rest/v1/clan_members?clan_id=eq.' + id + '&user_id=eq.' + uid, {
-      method: 'DELETE', headers: headers()
-    });
-    if (!res.ok) { notify('Could not leave (' + res.status + ')', 'kill'); return false; }
+    var r = await rpc('clan_leave', {});
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not leave');
     finishLeave();
+    /* Leaving can promote somebody or disband the hold entirely, and the reply
+       says which. Say it — a player who has just dissolved a castle should be
+       told, not left to notice. */
+    if (r.out.disbanded) notify('The hold is disbanded — you were the last of it.', 'info');
     return true;
+  }
+
+  // ── leadership: the S-KICK remedy, plus the door ──────────────────────────
+  // No UI is wired here on purpose; that belongs to the clan panel and to the
+  // Systems Engineer. These are the transport.
+  async function kick(userId, banHours) {
+    if (!requireOnline()) return false;
+    var body = { p_user_id: userId };
+    if (banHours != null) body.p_ban_hours = Math.max(0, Math.min(720, Math.floor(+banHours || 0)));
+    var r = await rpc('clan_kick', body);
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not remove that member');
+    refreshClanScreens();
+    return r.out;
+  }
+  async function invite(displayName) {
+    if (!requireOnline()) return false;
+    var r = await rpc('clan_invite', { p_display_name: String(displayName || '').trim() });
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not send the invitation');
+    notify(r.out.display_name + ' has been invited to the hold.', 'info');
+    return r.out;
+  }
+  async function inviteRevoke(userId) {
+    if (!requireOnline()) return false;
+    var r = await rpc('clan_invite_revoke', { p_user_id: userId });
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not withdraw the invitation');
+    return r.out;
+  }
+  async function myInvites() {
+    if (!online() || !signedIn()) return [];
+    var r = await rpc('clan_invites_list', {});
+    if (!r.ok || !r.out || r.out.ok === false) return [];
+    return r.out.invites || [];
+  }
+  async function setJoinPolicy(policy) {
+    if (!requireOnline()) return false;
+    var r = await rpc('clan_join_policy_set', { p_policy: policy });
+    if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not change the door policy');
+    if (_myClan) _myClan.join_policy = r.out.join_policy;
+    notify(r.out.join_policy === 'invite'
+      ? 'The hold is now invite-only.'
+      : 'The hold is now open to all.', 'info');
+    refreshClanScreens();
+    return r.out;
   }
   function finishLeave() {
     _myClan = null;
@@ -405,6 +498,12 @@
     createClan: createClan,
     joinById: joinById,
     leave: leave,
+    // 2026-08-11 membership authority — transport only; the panel owns the UI.
+    kick: kick,
+    invite: invite,
+    inviteRevoke: inviteRevoke,
+    myInvites: myInvites,
+    setJoinPolicy: setJoinPolicy,
     contribute: contribute,
     nextTreasuryGoal: nextTreasuryGoal,
     roster: roster,

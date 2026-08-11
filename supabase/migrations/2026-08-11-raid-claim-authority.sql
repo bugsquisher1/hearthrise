@@ -362,15 +362,26 @@ end $body$;
 -- NOTE: this does NOT close S-CAP-1 (any authenticated account can still join
 -- ANY clan, because this policy is the only join path there is). That needs a
 -- server-side clan_join RPC and is reported, not patched here.
-drop policy if exists "join as self" on public.clan_members;
-create policy "join as self" on public.clan_members for insert to authenticated
-with check (
-  (auth.uid() = user_id) and (contributed = 0) and (cp = 0) and (charge is null)
-  and (joined_at between now() - interval '2 minutes' and now() + interval '2 minutes')
-  and ((role = 'member') or ((role = 'leader')
-    and exists (select 1 from clans c where c.id = clan_members.clan_id and c.created_by = auth.uid())
-    and not exists (select 1 from clan_members m where m.clan_id = clan_members.clan_id)))
-);
+-- ── OWNERSHIP CEDED (2026-08-11, Backend Architect) ────────────────────────
+-- The `create policy "join as self"` that stood HERE has moved to
+-- 2026-08-11-clan-membership-authority.sql §11, which closes S-CAP-1 by adding
+-- the invite-only door (plus `cp_at` and `last_seen` pins) to this same policy.
+--
+-- WHY IT MOVED RATHER THAN COEXISTED: two migrations defining one policy is the
+-- hazard 2026-08-11-authenticated-surface-lockdown.sql §2b names about
+-- hr_rpc_gate's `case` — whichever applies SECOND silently deletes the other's
+-- terms. 'c' sorts before 'r', so on a replay THIS file would have run last and
+-- removed the door, leaving R4's pin in place and S-CAP-1 wide open again. That
+-- is a regression nobody would have noticed, because R4's own assertion below
+-- would still have passed.
+--
+-- NOTHING IS LOST. R4's pin survives verbatim in the merged policy, with the
+-- SAME two-minute tolerance and the same reasoning, and the assertion below is
+-- kept exactly as written — it now guards whatever definition is live rather
+-- than the one this file used to install, which is strictly the better guard.
+-- tests/run-sql-tests.mjs fails the build if a second definition reappears.
+--
+-- The merged text is in 2026-08-11-clan-membership-authority.sql §11.
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- SELF-VERIFYING COMMIT GATE. apply_migration is atomic here, so a raise in

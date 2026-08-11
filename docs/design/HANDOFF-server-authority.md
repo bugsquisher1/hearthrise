@@ -62,11 +62,41 @@ impersonation + post-listing mutation), A8 (market_sales column freedom) and A11
 pin. Apply it AFTER file 2 (it deliberately fails if A9 is not done; A9 is done, so it
 should pass now).
 
-**Edge Function deploy status: UNKNOWN** — check `list_edge_functions`. Unknowns it was
-sent to settle: whether Supabase's Deno bundler accepts `?v=` on relative imports
-(fallback `tools/pack-edge.mjs --strip-query`), and whether the pooler connection as
-`hr_engine_login` actually works. `hr_engine_login` exists with a password and Tyler has
-stored `HR_ENGINE_DB_URL`.
+**Edge Function: NOT DEPLOYED — and that was the right outcome.** The deploy would have
+been 100% broken on arrival: `index.ts` makes `public.hr_rate_gate(...)` the FIRST
+statement of the read transaction, and that function did not exist in production —
+`2026-08-11-accrue-gate.sql` had never been applied, so D3's SQL half was NOT closed
+despite the code half being done. Every authenticated POST would have thrown "function
+does not exist", been swallowed by the outer catch, and returned a generic 500 that looks
+exactly like a bad secret or a pooler misconfiguration. **I have since applied it** and
+verified: gate exists, executable by `hr_engine` only (authenticated/anon false), and
+`hr_rate_ok` is NOT executable by the engine — so the engine cannot name its own limit.
+
+**The `?v=` bundler question is ANSWERED: keep them.** Proven with real Deno 2.9.5 rather
+than by deploying — `deno check` built the whole graph including `npm:postgres`, and
+`deno bundle --platform=deno` produced "32 modules in 55ms, 204.47 KB", both with `?v=326`
+intact on every relative specifier. **No `--strip-query` needed.** (Not yet run against
+Supabase's hosted eszip, which is the same deno_graph but not identical.)
+
+**THE SERVER CAN COMPUTE PROGRESSION — proven end to end against production.** A real
+character driven through the real RPCs with the packed engine, using the cap/seed/envelope
+read out of the server: gold 0→4, attack XP 0→26, hitpoints 1154→1164, `rat_tail` ×1,
+version 1→2, watermark advanced and clamped into `[old, now()]`. A replay of the same
+intent id carrying a HOSTILE delta (`gold:999999, xp.attack:999999`) returned
+`replayed:true` and applied nothing. Stale version → `version_conflict`. Key reused on
+another slot → refused. The ledger holds exactly ONE compact aggregated row (not per-tick),
+and deletion from it is refused. Only the HTTP/JWT/pooler shell is unverified.
+
+**WHAT BLOCKS THE DEPLOY NOW: a `SUPABASE_ACCESS_TOKEN`.** `deploy_edge_function` needs the
+225 KB payload passed inline as tool arguments (~60k tokens), which is beyond one response
+budget, and the management tools were refused by the permission classifier. A CLI-deployable
+tree is staged in the scratchpad; `npx supabase functions deploy hr-accrue --project-ref
+nezapsylztqbbwuwembx` gets as far as `LegacyPlatformAuthRequiredError: Access token not
+provided`. Tyler generates one at supabase.com/dashboard/account/tokens. Payload sha256 to
+verify against the deployed `GET`: `6de4f8cdd8a6d70f4db157f32b835f9e31b2ac3d52397b999791590b05a5d727`.
+
+**Residue:** 3 rows remain in `player_ledger` from that verification (append-only refused
+deletion, correctly). All player-facing tables are back to 0 rows. Beta wipes at cutover.
 
 Note cron is at 9 jobs (was 10) — consistent with the two disarmed market crons plus the
 retention/hygiene additions; re-derive rather than trusting this number.

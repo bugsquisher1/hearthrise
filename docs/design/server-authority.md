@@ -389,6 +389,7 @@ Machine codes only, never prose. Rejections merge a detail payload into the enve
 | Identity / protocol | `not_signed_in`, `auth_unavailable`, `forbidden_impersonation`, `missing_intent_id`, `bad_delta`, `unknown_delta_key`, `rate_limited`, `intent_in_flight`, `intent_mismatch` |
 | Concurrency | `version_conflict`, `no_character` |
 | Currency | `insufficient_gold`, `insufficient_gems`, `gold_clamp`, `gem_clamp` |
+| Daily budget (C5/X3) | `daily_budget` — detail `{dim: 'gold'\|'xp'\|'qty', used, add, limit, day}`. The per-UTC-day ceiling, derived by summing `player_ledger`. **Belongs on `DEGRADABLE` in `hr-accrue/index.ts`** for the same reason `bank_full` does: halving the span reduces the proposed inflow, so an honest accrual that lands on the ceiling costs part of an absence instead of bricking the watermark. |
 | Items | `unknown_item`, `insufficient_item`, `item_clamp`, `too_many_item_kinds`, `bank_full` |
 | Skills / activity | `unknown_skill`, `xp_clamp`, `unknown_activity`, `activity_locked`, `bad_activity` |
 | Equipment | `unknown_equip_slot`, `wrong_slot`, `requirement_not_met`, `bad_equip`, `too_many_equip_ops` |
@@ -599,6 +600,42 @@ Every cap is read from an append-only ledger rather than a stored counter, which
 `clan_deposit` budget pattern (`2026-08-08-clan-seat.sql:579-589`): one fewer counter to reset,
 and it is auditable by construction. `player_ledger` already carries `at`, `kind` and `intent`,
 so "how much did this account gain today" is one indexed query.
+
+**BUILT — `supabase/migrations/2026-08-11-daily-budget.sql` (C5/X3), 2026-08-11.** Per
+`(user, slot)`, per UTC day, three dimensions, sized as a fuse and not as balance:
+
+| | ceiling / character-day | measured honest max | headroom |
+|---|---|---|---|
+| gold | 25,000,000 | 1,049,186 | 4.2% |
+| XP (all skills) | 40,000,000 | 7,102,490 | 17.8% |
+| item units (all ids) | 1,000,000 | 127,662 | 12.8% |
+
+The honest maxima are *measured*, by running the real accrual engine over every monster at
+maxed skills and best-in-slot gear at the 24h span and doubling (one UTC day can hold two such
+windows — a 24h-capped absence collected at 00:01 plus a full day of today).
+`dayBudgetGuard` in `tests/accrual-engine.mjs` fails the build at 35% of any ceiling.
+
+Four properties, each of which the implementation had to be shaped around:
+
+* **Summed, never counted.** `hr_apply` stamps `player_ledger.{gold_in, xp_in, qty_in}` on every
+  row it writes; usage is `sum()` over the day's rows. A counter is a value something can move;
+  a sum over a table that refuses UPDATE, TRUNCATE and in-window DELETE is a consequence.
+* **Gross inflow, not net** — otherwise "mint the ceiling, spend it, mint it again" is free.
+* **`journal.kind` is not consulted**, because `kind` is caller-chosen and would therefore be a
+  door. Real transfers do not pass through `hr_apply` — `market_buy` credits gold itself and
+  leaves the stamp NULL — so a trader's sales do not eat their progression.
+* **Serialised by the locks `hr_apply` already holds** (advisory lock on `user:slot`, then
+  `select … for update` on `player_state`), with `hr_day_budget_used` marked **VOLATILE** so the
+  sum takes a fresh snapshot after a concurrent sibling commits. STABLE would let two
+  simultaneous collects both pass and both spend; the migration asserts `provolatile = 'v'`.
+
+**It does not resurrect b226's daily away-time bucket**, and the reason is structural rather than
+a promise: the per-absence offline cap acts on *elapsed time*, before the simulation, and
+**clamps** (it is supposed to fire, every overnight). The daily budget acts on *minted value*,
+after the simulation, and **rejects** — it never reduces a grant, never pays part of one. A
+control with only "pay in full" or "refuse" as outcomes cannot pin output at a cap. If a balance
+change ever makes honest play approach these numbers, **the per-absence cap wins and the budget is
+raised**; that is what `dayBudgetGuard` enforces.
 
 ### §3.4 The single-source-of-truth rule for game data
 

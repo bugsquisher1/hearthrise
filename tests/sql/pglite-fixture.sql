@@ -68,6 +68,21 @@ language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
 
+-- ONE PROBE IDENTITY, and it is not padding. 2026-08-11-apply-engine.sql §6(g)
+-- proves the C5 daily budget BEHAVIOURALLY — it stands up a real player_state
+-- row, drives the real hr_apply over its ceiling and rolls the whole thing back
+-- — and player_state.user_id is an FK to auth.users. With no user in the table
+-- the probe SKIPS, which would mean the conservation fuzz applied the migration
+-- with its strongest assertion silently switched off. That is the "always-null
+-- probe" failure this harness exists to hunt, so the row is seeded here.
+--
+-- It is deliberately OUTSIDE the fuzz's own uuid space (the fuzz builds
+-- `000000NN-0000-4000-a000-…`), it gets no profile, no player_state and no
+-- character, and the probe rolls back, so it never appears in any conservation
+-- aggregate.
+insert into auth.users (id) values ('00000000-0000-4000-b000-c5c5c5c5c5c5')
+  on conflict (id) do nothing;
+
 -- ── public.profiles ──────────────────────────────────────────────────────
 -- The real table has more columns; the migrations read `id` and
 -- `display_name` and nothing else (hr_display_name_of, market_v2 §4).

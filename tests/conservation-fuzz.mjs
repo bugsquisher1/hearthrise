@@ -116,6 +116,10 @@ const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const MIGRATIONS = [
   ['player-state', MIG('2026-08-11-player-state.sql')],
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
+  // daily-budget is BEFORE apply-engine because apply-engine fails closed
+  // without hr_day_budget_check (C5/X3). Applying them the other way round is
+  // not a slow degradation, it is a refused migration — which is the point.
+  ['daily-budget', MIG('2026-08-11-daily-budget.sql')],
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
   ['grant-hygiene', MIG('2026-08-11-grant-hygiene.sql')],
   ['market-v2', MIG('2026-08-11-market-v2.sql')],
@@ -204,6 +208,15 @@ const INJECTIONS = {
   reject_mutates: {
     what: 'a REJECTED op still writes: hr_record_rejection (outside the protected block) credits gold',
     file: 'player-state',
+    // 2026-08-11: this used to be caught by reconcile() at op #N. It is now
+    // caught EARLIER — apply-engine §6(g)'s C5 probe drives a real rejection
+    // and asserts the character's gold did not move, which is the same property
+    // one layer up. A bug that cannot be installed beats a bug that is detected
+    // at runtime, so the gate is recorded rather than weakened; the
+    // conservation model's ability to see this class is still proven by
+    // cancel_vanish / gold_double / buy_no_debit / tax_skim / equip_dupe /
+    // expire_double.
+    gate: /a daily_budget rejection still moved gold/,
     patches: [[
       `  if p_user is null or p_code is null then return; end if;`,
       `  if p_user is null or p_code is null then return; end if;
@@ -287,6 +300,101 @@ const INJECTIONS = {
       values (v_row.seller_user_id, v_row.seller_slot, v_row.item_id, v_row.qty)
       on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
     -- Bump \`version\` (review S15)`,
+    ]],
+  },
+
+  // ── THE LEDGER-DERIVED DAILY BUDGET (C5 / X3) ─────────────────────────
+  // Six plants. THREE ARE `gate: true` — the migration's own do$$ block is
+  // expected to refuse to install them, which is a stronger outcome than the
+  // fuzz catching them at runtime and is the whole reason apply-engine §6(g)
+  // stands up a real character instead of grepping prosrc. The other three are
+  // deliberately chosen to be INVISIBLE to those migration probes (which only
+  // exercise the gold dimension, and cannot see market-v2 at all), so
+  // conservation-fuzz's own PHASE 3 has to be the thing that catches them.
+  // Without that split, the phase assertions would be unproven decoration.
+
+  budget_not_enforced: {
+    what: 'hr_apply computes the daily-budget check and then ignores the answer',
+    file: 'apply-engine',
+    gate: /daily budget|daily_budget/i,
+    patches: [[
+      `      perform public.hr_reject('daily_budget', v_bud);`,
+      `      perform 1;  -- INJECTED budget_not_enforced: the ceiling is computed and discarded`,
+    ]],
+  },
+
+  budget_kind_scoped: {
+    what: "the budget only counts kind='accrue' rows — and journal.kind is caller-chosen",
+    file: 'daily-budget',
+    // caught by daily-budget.sql §8(e): the market-credit row is kind='trade',
+    // so a kind-scoped sum sees one row where the probe planted two.
+    gate: /hr_day_budget_used saw \d+ rows in the day window/,
+    patches: [[
+      `   where user_id = p_user
+     and slot    = p_slot
+     and at >= public.hr_utc_day_start(p_at)`,
+      `   where user_id = p_user
+     and slot    = p_slot
+     and kind    = 'accrue'  -- INJECTED budget_kind_scoped
+     and at >= public.hr_utc_day_start(p_at)`,
+    ]],
+  },
+
+  budget_no_day_window: {
+    what: 'the budget sums ALL time instead of the UTC day — one big day locks the account out forever',
+    file: 'daily-budget',
+    gate: /day|budget/i,
+    patches: [[
+      `     and at >= public.hr_utc_day_start(p_at)
+     and at <  public.hr_utc_day_start(p_at) + interval '1 day';`,
+      `     and at >= '-infinity'::timestamptz  -- INJECTED budget_no_day_window
+     and at <  public.hr_utc_day_start(p_at) + interval '1 day';`,
+    ]],
+  },
+
+  budget_ignores_xp: {
+    what: 'hr_apply never stamps xp_in — XP is minted outside the daily ceiling',
+    // Invisible to both migration probes: §8 and §6(g) exercise gold only.
+    // PHASE 3 leg 5 is the only thing that can see it.
+    file: 'apply-engine',
+    patches: [[
+      `    if jsonb_typeof(p_delta->'xp') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_xp_in from jsonb_each_text(p_delta->'xp');
+    end if;`,
+      `    -- INJECTED budget_ignores_xp: v_xp_in stays 0`,
+    ]],
+  },
+
+  budget_ignores_qty: {
+    what: 'hr_apply never stamps qty_in — item units are minted outside the daily ceiling',
+    file: 'apply-engine',
+    patches: [[
+      `    if jsonb_typeof(p_delta->'items') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_qty_in from jsonb_each_text(p_delta->'items');
+    end if;`,
+      `    -- INJECTED budget_ignores_qty: v_qty_in stays 0`,
+    ]],
+  },
+
+  budget_market_credit_charged: {
+    what: "market_buy stamps the seller's credit as progression inflow — selling a hoard burns the "
+      + 'seller\'s whole day of progression',
+    file: 'market-v2',
+    patches: [[
+      `    insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, meta)
+      values (v_uid, v_slot, 'trade', 'market_buy', v_row.item_id, p_qty, -v_gross,
+              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each)),
+             (v_row.seller_user_id, v_row.seller_slot, 'trade', 'market_sold',
+              v_row.item_id, -p_qty, v_net,
+              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each, 'tax', v_tax));`,
+      `    insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, gold_in, meta)
+      values (v_uid, v_slot, 'trade', 'market_buy', v_row.item_id, p_qty, -v_gross, 0,
+              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each)),
+             (v_row.seller_user_id, v_row.seller_slot, 'trade', 'market_sold',
+              v_row.item_id, -p_qty, v_net, v_net,  -- INJECTED budget_market_credit_charged
+              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each, 'tax', v_tax));`,
     ]],
   },
 };
@@ -381,10 +489,59 @@ async function boot(injectionId) {
     // database, which exists only in this process's memory.
     await db.exec("select set_config('hearthrise.market_wipe_ok','yes',false)");
     await db.exec(fixture);
+    // hr_utc_day_key is a PRE-EXISTING production object (it ships in
+    // 2026-08-08-clan-seat.sql, applied months before this bundle) and
+    // 2026-08-11-daily-budget.sql fails closed without it. Restating it in the
+    // fixture would put a SECOND definition of "what a UTC day is" in the tree,
+    // which is the drift generator this whole program is organised around — and
+    // the budget's day boundary is derived from it. So the EXACT BYTES are
+    // lifted out of the migration that owns it. If that file's definition ever
+    // changes, the fuzz picks the change up; if the anchor stops matching, the
+    // harness aborts rather than quietly stubbing.
+    const seat = await readFile(MIG('2026-08-08-clan-seat.sql'), 'utf8');
+    const dayKey = seat.match(/create or replace function public\.hr_utc_day_key[\s\S]*?\$\$;/);
+    if (!dayKey) throw new Error('could not lift hr_utc_day_key out of 2026-08-08-clan-seat.sql');
+    await db.exec(dayKey[0]);
+    // …and put it back in the posture production actually holds it in.
+    // 2026-08-11-authenticated-surface-lockdown.sql §1b revoked hr_utc_day_key
+    // from every client role (it is the day boundary for daily gates, and a
+    // client that can ask the server what day it thinks it is gets a free
+    // oracle). Without this line the lifted function arrives with Postgres'
+    // default PUBLIC EXECUTE and hr_assert_grant_hygiene fails the bundle —
+    // which is the detector working correctly, on scaffolding rather than on
+    // anything under test.
+    await db.exec(`revoke execute on function public.hr_utc_day_key(timestamptz)
+                     from public, anon, authenticated, service_role`);
     for (const [name] of MIGRATIONS) await db.exec(sources.get(name));
   } catch (e) {
+    // A `gate: true` injection is one the MIGRATION'S OWN do$$ block is
+    // supposed to refuse. That is a stronger result than the fuzz catching it
+    // at runtime — the bug cannot even be installed — so it is reported as a
+    // CATCH rather than as a harness failure.
+    //
+    // ⚠ THE MESSAGE HAS TO MATCH. Without `gateMatch` this would count a
+    //   SYNTAX ERROR caused by a badly written patch as a successful catch,
+    //   which is the "planted bug that was never planted" defect wearing a
+    //   different hat: the injection would be graded on breaking the migration
+    //   rather than on being detected by it.
+    const inj = injectionId ? INJECTIONS[injectionId] : null;
+    if (inj && inj.gate && inj.gate.test(e.message)) {
+      process.stdout.write(`CAUGHT at op #migration\n  the migration REFUSED TO INSTALL the planted bug:\n`
+        + `  ${e.message}\n`);
+      process.exit(0);
+    }
     process.stderr.write(`HARNESS: migrations would not apply: ${e.message}\n`);
+    if (inj && inj.gate) {
+      process.stderr.write('  (this injection declares gate:, but the failure message did not match it —\n'
+        + '   the patch probably broke the SQL instead of being detected by the self-check)\n');
+    }
     process.exit(2);
+  }
+  if (injectionId && INJECTIONS[injectionId].gate) {
+    // The gate did NOT fire. Do not exit here — let the fuzz run, so the plant
+    // still gets a fair chance to be caught at runtime and the result reads as
+    // SLIPPED only if nothing at all noticed.
+    process.stderr.write(`NOTE: injection "${injectionId}" declares gate: but the migration installed it anyway.\n`);
   }
   return db;
 }
@@ -1126,10 +1283,301 @@ async function runFuzz({ seed, ops, injection }) {
   // ── PHASE 2 — the real accrual engine, and the b328 degrade ladder ────
   const accrual = await accrualPhase(db, books, keys, rng, applyAs, q, divergences);
 
+  // ── PHASE 3 — the ledger-derived daily budget (C5/X3) ─────────────────
+  // Runs LAST because it deliberately saturates a character's gold ceiling,
+  // which is a state nothing after it should have to reason about.
+  const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP);
+
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
   if (!final.ok) return { ok: false, seed, detail: final.detail, opsRun: ops, counts, verdicts, divergences };
-  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual };
+  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PHASE 3 — THE LEDGER-DERIVED DAILY BUDGET (C5 / X3).
+//
+// The budget is not a conservation property, so reconcile() cannot see it: a
+// budget that never fires and a budget that fires on everything both conserve
+// value perfectly. It needs its own assertions, and they have to be the ones
+// that discriminate between "derived by summing an append-only ledger" and the
+// four cheaper things it could accidentally be:
+//
+//   a stored counter        → a spend would give budget back
+//   a signed sum            → same, via the `gold` column instead of the stamp
+//   an all-time sum         → yesterday would still be charged, forever
+//   a kind-scoped sum       → journal.kind is caller-chosen, so it is a door
+//   a whole-ledger sum      → a market sale would eat a trader's progression
+//
+// Every assertion below is a HARD failure (thrown, with .detail) rather than a
+// divergence, because divergences do not fail a run and an injection catalogue
+// entry that produces only a divergence is decoration.
+//
+// The one thing this phase does NOT prove is the RACE. PGlite is a single
+// backend, so the advisory lock + `for update` + VOLATILE-snapshot chain that
+// makes two simultaneous collects impossible is EXERCISED here and never
+// CONTENDED. See the header's "WHAT THIS DOES NOT TEST".
+// ════════════════════════════════════════════════════════════════════════
+async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP) {
+  const fail = (msg, extra) => {
+    throw Object.assign(new Error('daily-budget violation'),
+      { detail: `DAILY BUDGET: ${msg}${extra ? `\n    ${extra}` : ''}` });
+  };
+
+  const LIM = (await q('select hr_day_budget_limits() r'))[0].r;
+  for (const d of ['gold', 'xp', 'qty']) {
+    if (!(Number(LIM[d]) > 0)) fail(`hr_day_budget_limits() has no positive ${d} limit`, JSON.stringify(LIM));
+  }
+
+  // A character of its own. The ones the op loop used carry whatever usage the
+  // seed happened to produce, and an assertion of the form "used went up by
+  // exactly N" wants a clean starting point it did not have to guess.
+  const uid = '000000ff-0000-4000-a000-0000000000ff';
+  await db.query('insert into auth.users(id) values ($1)', [uid]);
+  await db.query('insert into profiles(id, display_name) values ($1,$2)', [uid, 'BudgetProbe']);
+  await asUser(uid);
+  const cr = await rpc('select hr_create_character($1) r', [0]);
+  if (cr.ok !== true) fail('could not create the budget probe character', JSON.stringify(cr));
+  const key = `${uid}:0`;
+  keys.push(key);
+  const c = { uid, slot: 0, gold: 0, inv: new Map(), equip: new Map(), version: 0, bankCap: 100 };
+  books.chars.set(key, c);
+
+  const used = async (at = 'now()') => {
+    const r = (await db.query(
+      `select hr_day_budget_used($1,$2,${at}) r`, [uid, 0])).rows[0].r;
+    return { gold: Number(r.gold), xp: Number(r.xp), qty: Number(r.qty), rows: Number(r.rows), day: r.day };
+  };
+  // Every apply goes through the REAL hr_apply as the REAL engine role.
+  const apply = async (delta) => {
+    const r = await applyAs(c, c.version, uuidOf(rng), delta);
+    if (r.ok === true) c.version += 1;
+    return r;
+  };
+  const jr = (kind, intent) => ({ kind, intent });
+  const stats = { checks: 0 };
+  const step = async (what, fn) => { await fn(); stats.checks++; if (VERBOSE) process.stderr.write(`  budget: ${what}\n`); };
+
+  const u0 = await used();
+  if (u0.gold !== 0 || u0.xp !== 0 || u0.qty !== 0) {
+    fail('a brand-new character already has daily-budget usage', JSON.stringify(u0));
+  }
+
+  // ── 1. A MINT IS CHARGED, EXACTLY ONCE, AND A SPEND DOES NOT REFUND IT ──
+  // This is the property that separates a ledger sum from a counter. With the
+  // budget summing the signed `gold` column (a plausible "we already have that
+  // column" bug) the spend below would hand the budget straight back.
+  await step('mint charges, spend does not refund', async () => {
+    const A = 100000;
+    let r = await apply({ gold: A, journal: jr('admin', 'budget_mint') });
+    if (r.ok !== true) fail(`a ${A} gold mint was refused`, JSON.stringify(r));
+    c.gold += A; books.mintGold += A;
+    let u = await used();
+    if (u.gold !== A) fail(`after minting ${A} gold, usage is ${u.gold}`, JSON.stringify(u));
+
+    r = await apply({ gold: -A, journal: jr('shop', 'budget_spend') });
+    if (r.ok !== true) fail(`spending ${A} gold was refused`, JSON.stringify(r));
+    c.gold -= A; books.burnGold += A;
+    u = await used();
+    if (u.gold !== A) {
+      fail(`spending gold changed the day's usage from ${A} to ${u.gold} — the budget is a NET counter, `
+        + 'which means "mint the ceiling, spend it, mint it again" is free', JSON.stringify(u));
+    }
+  });
+
+  // ── 2. journal.kind IS NOT A DOOR ───────────────────────────────────────
+  // `kind` is chosen by the caller. A budget that only counted kind='accrue'
+  // would be evaded by a compromised engine writing kind='craft'.
+  await step('every ledger kind is charged, not just accrue', async () => {
+    const id = ITEMS[0];
+    const before = await used();
+    const r = await apply({ items: { [id]: 500 }, journal: jr('craft', 'budget_kind') });
+    if (r.ok !== true) fail('a craft-kind item mint was refused', JSON.stringify(r));
+    books.invAdd(c, id, 500); books.mint(id, 500);
+    const after = await used();
+    if (after.qty - before.qty !== 500) {
+      fail(`500 units minted under kind='craft' moved the qty budget by ${after.qty - before.qty} — `
+        + 'journal.kind is caller-chosen, so a kind-scoped budget is an open door', JSON.stringify(after));
+    }
+  });
+
+  // ── 3. THE DAY WINDOW, IN BOTH DIRECTIONS ───────────────────────────────
+  // A direct INSERT, deliberately: there is no RPC that can write a row dated
+  // yesterday, and "the window is real" is exactly the assertion that a
+  // same-day-only harness cannot make. gold is left at 0 on the planted row so
+  // it is invisible to every conservation aggregate.
+  await step('yesterday does not consume today', async () => {
+    const before = await used();
+    await db.query(
+      `insert into player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, at)
+       values ($1, 0, 'accrue', 'budget_yesterday', 0, $2, $2, $2, now() - interval '1 day')`,
+      [uid, 999999999]);
+    const after = await used();
+    if (after.gold !== before.gold || after.xp !== before.xp || after.qty !== before.qty) {
+      fail('a ledger row dated yesterday consumed today\'s budget — the window is not a UTC day, '
+        + 'so one big day would lock the account out permanently',
+        `${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+    }
+    const y = await used("now() - interval '1 day'");
+    if (y.gold !== 999999999) {
+      fail(`asked for yesterday, the sum returned ${y.gold} — the window excludes rows it should include, `
+        + 'which is the same defect pointed the other way', JSON.stringify(y));
+    }
+  });
+
+  // ── 4. A MARKET CREDIT IS NOT PROGRESSION ───────────────────────────────
+  // market_buy pays the seller directly and journals it. That gold was already
+  // charged to whoever minted it. Charging it again would lock a trader out of
+  // progression for selling a hoard — the fuse firing on the most honest
+  // behaviour there is.
+  await step('a market sale does not consume the seller\'s budget', async () => {
+    const id = ITEMS[1];
+    // give the probe something to sell, and the buyer something to pay with
+    let r = await apply({ items: { [id]: 5 }, journal: jr('admin', 'budget_sellstock') });
+    if (r.ok !== true) fail('could not stock the budget probe', JSON.stringify(r));
+    books.invAdd(c, id, 5); books.mint(id, 5);
+
+    // Fund a buyer rather than hoping the seed left one solvent: a leg that
+    // silently skips is a leg that stops catching its injection on a bad seed.
+    let buyerKey = keys.find((k) => k !== key && books.char(k).gold > 5000);
+    if (!buyerKey) {
+      buyerKey = keys.find((k) => k !== key);
+      const bb = books.char(buyerKey);
+      const fr = await applyAs(bb, bb.version, uuidOf(rng),
+        { gold: 20000, journal: jr('admin', 'budget_fund_buyer') });
+      if (fr.ok !== true) fail('could not fund a buyer for the market leg', JSON.stringify(fr));
+      bb.version += 1; bb.gold += 20000; books.mintGold += 20000;
+    }
+    const b = books.char(buyerKey);
+
+    await asUser(uid);
+    const lr = await rpc('select market_list($1,$2,$3,$4,$5) r', [0, id, 5, 100, uuidOf(rng)]);
+    if (lr.ok !== true) { if (VERBOSE) process.stderr.write(`  budget: market_list refused (${lr.error}) — market leg skipped\n`); return; }
+    c.version += 1; books.invAdd(c, id, -5);
+    books.listings.set(lr.listing_id, { key, item: id, qty: 5, ask: 100, aged: false });
+
+    const before = await used();
+    await asUser(b.uid);
+    const br = await rpc('select market_buy($1,$2,$3,$4) r', [b.slot, lr.listing_id, 5, uuidOf(rng)]);
+    if (br.ok !== true) { if (VERBOSE) process.stderr.write(`  budget: market_buy refused (${br.error}) — market leg skipped\n`); return; }
+    const gross = 500; const tax = Math.trunc((gross * TAX_BP) / 10000);
+    b.gold -= gross; b.version += 1; c.gold += gross - tax; c.version += 1;
+    books.tax += tax; books.invAdd(b, id, 5); books.listings.delete(lr.listing_id);
+
+    const after = await used();
+    if (after.gold !== before.gold) {
+      fail(`a market sale moved the seller's daily budget by ${after.gold - before.gold} — `
+        + 'transfers are not mints, and charging them locks honest traders out',
+        `${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+    }
+  });
+
+  // ── 5. THE XP CEILING CATCHES WHAT NO PER-CALL CLAMP CAN ────────────────
+  // c_max_xp_delta is 12,000,000 and the day ceiling is 40,000,000, so four
+  // legal calls walk straight past the per-call clamp and only the DAY budget
+  // stops the fifth. That gap is the entire reason this control exists.
+  await step('the XP ceiling stops a sequence of individually-legal calls', async () => {
+    const perCall = 10000000;
+    const limXp = Number(LIM.xp);
+    let n = 0; let last = null;
+    for (let k = 0; k < 20; k++) {
+      const u = await used();
+      if (u.xp + perCall > limXp) break;
+      const r = await apply({ xp: { woodcutting: perCall }, journal: jr('accrue', 'budget_xp') });
+      if (r.ok !== true) fail(`a ${perCall} XP grant was refused at usage ${u.xp}`, JSON.stringify(r));
+      n++;
+    }
+    if (n < 2) fail(`only ${n} individually-legal XP calls fitted under the ceiling — the day budget `
+      + 'is at or below the per-call clamp, which makes the per-call clamp unreachable');
+    // The loop must have stopped because USAGE filled the ceiling, not because
+    // it ran out of iterations. If xp_in is never stamped, usage stays 0 and
+    // the loop mints 200,000,000 XP without ever noticing — which is precisely
+    // the failure mode, and it must be named as that rather than showing up
+    // later as an incidental xp_clamp.
+    if (n >= 20) {
+      fail(`20 grants of ${perCall} XP each all fitted under a ${limXp} ceiling — the day's XP usage `
+        + 'never accumulated, so xp_in is not being stamped and XP is minted outside the budget entirely',
+        JSON.stringify(await used()));
+    }
+    const u = await used();
+    last = await apply({ xp: { woodcutting: limXp - u.xp + 1 }, journal: jr('accrue', 'budget_xp_over') });
+    if (last.error !== 'daily_budget') {
+      fail(`crossing the XP ceiling answered "${last.error ?? `ok:${last.ok}`}" — it must be daily_budget`,
+        JSON.stringify(last));
+    }
+    if (last.dim !== 'xp') fail(`the XP breach reported dim="${last.dim}"`, JSON.stringify(last));
+    if (Number(last.used) !== u.xp) {
+      fail(`the breach detail says used=${last.used} but the ledger sum is ${u.xp} — the detail is not `
+        + 'the sum, so it is a counter', JSON.stringify(last));
+    }
+    if (Number(last.limit) !== limXp) fail(`the breach reported limit=${last.limit}, not ${limXp}`);
+    const after = await used();
+    if (after.xp !== u.xp) fail(`a rejected XP grant still moved the budget: ${u.xp} → ${after.xp}`);
+  });
+
+  // ── 6. THE QTY CEILING IS A SUM ACROSS ITEM IDS ─────────────────────────
+  // c_max_item_delta is per-item, so no per-call clamp can express "a million
+  // units in total". Two ids, each individually legal, together over the day
+  // ceiling.
+  await step('the qty ceiling sums across item ids', async () => {
+    const limQty = Number(LIM.qty);
+    const u = await used();
+    const room = limQty - u.qty;
+    if (room < 4) { if (VERBOSE) process.stderr.write('  budget: no qty room — leg skipped\n'); return; }
+    const a = ITEMS[2]; const b = ITEMS[3];
+    const half = Math.floor((room + 2) / 2);
+    const r = await apply({ items: { [a]: half, [b]: half }, journal: jr('gather', 'budget_qty_over') });
+    if (r.error !== 'daily_budget' || r.dim !== 'qty') {
+      fail(`${half}+${half} units against ${room} of room answered "${r.error ?? `ok:${r.ok}`}" (dim ${r.dim}) `
+        + '— the qty budget must sum across item ids', JSON.stringify(r));
+    }
+    const after = await used();
+    if (after.qty !== u.qty) fail(`a rejected item mint still moved the budget: ${u.qty} → ${after.qty}`);
+  });
+
+  // ── 7. THE GOLD CEILING: ENFORCED, EXACT, AND NOT A LATCH ───────────────
+  await step('the gold ceiling is a sum, not a latch', async () => {
+    const limGold = Number(LIM.gold);
+    let u = await used();
+    const room = limGold - u.gold;
+
+    // one over → refused, and inert
+    let r = await apply({ gold: room + 1, journal: jr('accrue', 'budget_gold_over') });
+    if (r.error !== 'daily_budget' || r.dim !== 'gold') {
+      fail(`one gold over the ceiling answered "${r.error ?? `ok:${r.ok}`}"`, JSON.stringify(r));
+    }
+    if ((await used()).gold !== u.gold) fail('a rejected gold mint still moved the budget');
+
+    // exactly the remaining room → paid. THIS is the latch test: a control that
+    // simply trips on first breach would refuse this too.
+    r = await apply({ gold: room, journal: jr('accrue', 'budget_gold_exact') });
+    if (r.ok !== true) fail(`exactly the remaining ${room} gold was refused — the budget is a latch`, JSON.stringify(r));
+    c.gold += room; books.mintGold += room;
+    u = await used();
+    if (u.gold !== limGold) fail(`after filling the ceiling exactly, usage is ${u.gold}, not ${limGold}`);
+
+    // …and now one more gold is refused.
+    r = await apply({ gold: 1, journal: jr('accrue', 'budget_gold_after') });
+    if (r.error !== 'daily_budget') fail(`one gold past a full ceiling answered "${r.error ?? `ok:${r.ok}`}"`);
+
+    // ── the escape hatch that keeps a saturated character playable ─────────
+    // A zero-inflow apply is never refused, which is what keeps the b328
+    // degrade ladder's last rung — the watermark-only accrue_forfeit — reachable
+    // for a character that has spent its whole budget. Without it a breach
+    // would brick accrual instead of costing one span.
+    r = await apply({ accrued_to: 'now', journal: jr('accrue', 'accrue_forfeit') });
+    if (r.ok !== true) fail('a watermark-only accrue_forfeit was refused on a saturated character — '
+      + 'a budget breach now bricks accrual instead of costing one span', JSON.stringify(r));
+    r = await apply({ gold: -1, journal: jr('shop', 'budget_spend_after') });
+    if (r.ok !== true) fail('a pure SPEND was refused on a saturated character', JSON.stringify(r));
+    c.gold -= 1; books.burnGold += 1;
+  });
+
+  const rec = await reconcile(db, books, { i: 'budget', op: 'budget' });
+  if (!rec.ok) throw Object.assign(new Error('daily-budget conservation violation'), { detail: rec.detail });
+
+  const fin = await used();
+  return { ran: true, checks: stats.checks, limits: LIM, finalUsed: fin };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1339,7 +1787,7 @@ if (SELFTEST) {
   process.stdout.write(''.padEnd(78, '─') + '\n');
   process.stdout.write(`  ${results.length - slipped.length}/${results.length} caught · `
     + `clean run ${clean.ok ? 'green' : 'RED'} · ${((Date.now() - t0) / 1000).toFixed(1)}s\n`);
-  if (clean.ok) process.stdout.write(clean.detail.split('\n').filter((l) => /^\s{2}(operations|verdicts|accrual|DIVERG)/.test(l) || /^\s{4}\S/.test(l)).join('\n') + '\n');
+  if (clean.ok) process.stdout.write(clean.detail.split('\n').filter((l) => /^\s{2}(operations|verdicts|accrual|day budget|DIVERG)/.test(l) || /^\s{4}\S/.test(l)).join('\n') + '\n');
   process.exit(slipped.length || !clean.ok ? 1 : 0);
 }
 
@@ -1385,6 +1833,11 @@ function summarise(res) {
     process.stdout.write(`  accrual    : ${res.accrual.grants} grants, ${res.accrual.replays} replays, `
       + `${res.accrual.degraded} degrade ladders, ${res.accrual.forfeits} forfeits, `
       + `${res.accrual.minted} gold minted\n`);
+  }
+  if (res.budget && res.budget.ran) {
+    const L = res.budget.limits; const U = res.budget.finalUsed;
+    process.stdout.write(`  day budget : ${res.budget.checks}/7 legs · ceilings gold ${L.gold} / xp ${L.xp} / qty ${L.qty}`
+      + ` · probe finished at gold ${U.gold} xp ${U.xp} qty ${U.qty} over ${U.rows} ledger rows\n`);
   }
   if (res.divergences && res.divergences.length) {
     process.stdout.write('  DIVERGENCES (harness model vs server — not conservation violations):\n');

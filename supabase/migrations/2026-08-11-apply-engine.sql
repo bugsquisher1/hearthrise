@@ -129,6 +129,21 @@ begin
      or to_regprocedure('public.hr_rate_over(uuid,text)') is null then
     raise exception 'the rate-limit log sampler is missing — re-run 2026-08-11-player-state.sql (revision 4)';
   end if;
+  -- THE DAILY BUDGET (C5/X3). Fail closed, and for the same reason the
+  -- catalogue does: without it hr_apply still COMPILES — PL/pgSQL resolves
+  -- function calls at runtime — and would then throw `undefined_function` on
+  -- the first value-minting apply, at 3am, from inside the protected block,
+  -- where it is caught as… nothing (undefined_function is not in the handler
+  -- list, so it surfaces as a 500). A control that degrades into an outage
+  -- instead of into an absence is worse than one that refuses to install.
+  if to_regprocedure('public.hr_day_budget_check(uuid,int,bigint,bigint,bigint)') is null then
+    raise exception 'hr_day_budget_check missing — apply 2026-08-11-daily-budget.sql first';
+  end if;
+  if (select count(*) from information_schema.columns
+       where table_schema = 'public' and table_name = 'player_ledger'
+         and column_name in ('gold_in','xp_in','qty_in')) <> 3 then
+    raise exception 'player_ledger has no gold_in/xp_in/qty_in stamp columns — apply 2026-08-11-daily-budget.sql first';
+  end if;
 end $$;
 
 -- ── 1. The rejection primitive ───────────────────────────────────────────
@@ -402,6 +417,13 @@ declare
   v_new_gold bigint; v_new_gems bigint;
   v_act   jsonb; v_accrued timestamptz; v_rows int;
   v_meta  jsonb;
+  -- THE DAILY BUDGET (C5/X3). Gross inflow proposed by THIS delta, per
+  -- dimension. Computed here from the delta, never accepted from the caller —
+  -- there is no delta key for them and the ledger has no client write grant, so
+  -- a compromised engine cannot understate its own consumption.
+  -- See supabase/migrations/2026-08-11-daily-budget.sql for the whole design.
+  v_gold_in bigint := 0; v_xp_in bigint := 0; v_qty_in bigint := 0;
+  v_bud   jsonb;
 begin
   -- ── (0) THE IDENTITY SEAM (review S1) ──────────────────────────────────
   -- hr_apply is granted to exactly one role. `hr_engine` may act for a user it
@@ -923,6 +945,64 @@ begin
       end if;
     end if;
 
+    -- ── (4b) THE LEDGER-DERIVED DAILY BUDGET (C5 / X3) ───────────────────
+    -- The per-call clamps below are a blast radius for ONE call. Nothing
+    -- restricts a compromised engine to one call — hr_rate_gate allows 30
+    -- accrues/minute — so without a per-DAY ceiling the reachable rate is
+    -- 518 BILLION XP/day, i.e. every skill in the game to 99 every two seconds.
+    -- This is the ceiling. Design, numbers and the composition argument against
+    -- the b307 per-absence cap: supabase/migrations/2026-08-11-daily-budget.sql.
+    --
+    -- WHERE IT SITS, AND WHY EXACTLY HERE:
+    --   • AFTER the advisory lock and the `for update` above, so the sum and
+    --     the row it will insert are inside one serialised critical section for
+    --     this character. Two concurrent applies cannot both read a
+    --     pre-insert world (hr_day_budget_used is VOLATILE — see its header).
+    --   • AFTER the version check, so a stale caller pays `version_conflict`
+    --     without a ledger scan.
+    --   • AFTER the per-call clamps, and that ordering was decided by a test
+    --     rather than by taste. With the budget checked first, the conservation
+    --     fuzz's `gold_clamp` op — a deliberate 6.8e9-class delta — came back
+    --     `daily_budget`, because the day's gold ceiling (25,000,000) is BELOW
+    --     the per-call gold clamp (50,000,000). c_max_gold_delta would have
+    --     become unreachable: a control that reads as a control in review and
+    --     can never fire. Clamps answer "this ONE delta is insane"; the budget
+    --     answers "you have had enough today". The specific diagnosis wins.
+    --   • STILL INSIDE the protected block, before the state UPDATE and before
+    --     the ledger row, so a breach rolls back everything the earlier blocks
+    --     wrote through the same hr_reject/HR000 path as any other rejection.
+    --     `daily_budget` never half-applies; the fuzz asserts that by
+    --     reconciling after it.
+    --   • GROSS inflow only. Netting a spend against a mint would give the
+    --     budget a free reset button (mint 25M, buy something, mint again).
+    --   • UNCONDITIONAL on journal.kind. `kind` is chosen by the caller; a
+    --     budget that only counted kind='accrue' would be evaded by writing
+    --     kind='trade'. Real transfers do not pass through hr_apply — market_buy
+    --     credits gold itself and leaves gold_in NULL — so honest trading is
+    --     not charged for this either.
+    v_gold_in := greatest(0, coalesce((p_delta->>'gold')::bigint, 0));
+    -- The typeof guards keep a malformed delta reaching its OWN error below
+    -- (bad_xp / bad_items) instead of erroring out of jsonb_each_text here with
+    -- an sqlstate the handler does not cover.
+    if jsonb_typeof(p_delta->'xp') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_xp_in from jsonb_each_text(p_delta->'xp');
+    end if;
+    if jsonb_typeof(p_delta->'items') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_qty_in from jsonb_each_text(p_delta->'items');
+    end if;
+    v_bud := public.hr_day_budget_check(v_uid, v_slot, v_gold_in, v_xp_in, v_qty_in);
+    if v_bud is not null then
+      -- The detail carries used / add / limit / dim / day, so a fired fuse is
+      -- diagnosable from the response alone. `daily_budget` is on the degrade
+      -- ladder's DEGRADABLE list in hr-accrue/index.ts for the same reason
+      -- bank_full is: halving the span reduces the proposed inflow, so an
+      -- honest accrual that lands on the ceiling costs part of an absence
+      -- rather than bricking the watermark.
+      perform public.hr_reject('daily_budget', v_bud);
+    end if;
+
     -- ── ACCRUAL WATERMARK (review S19) ───────────────────────────────────
     -- Revision 1 set accrued_to = now() AT APPLY TIME while the ticks had been
     -- computed from the READ time, so every round trip silently confiscated the
@@ -939,6 +1019,38 @@ begin
         v_accrued := (p_delta->>'accrued_to')::timestamptz;
       end if;
       v_accrued := least(now(), greatest(v_st.accrued_to, v_accrued));
+    end if;
+
+    -- ── S5 (HALF) — AN EQUIPMENT OR ACTIVITY CHANGE CLOSES THE WINDOW ────
+    -- docs/design/server-authority.md §3 "⚠ Under-payment is the only direction
+    -- we are wrong in — THAT IS NOT TRUE": the accrual engine prices an absence
+    -- with the equipment read at COLLECT time, so logging off naked and putting
+    -- on best-in-slot before collecting is paid for the whole night at
+    -- best-in-slot rates. Measured on an identical seed and window: 12.8x gold
+    -- and 20x XP.
+    --
+    -- The close is structural rather than a rule the engine has to remember: any
+    -- apply that changes equipment or the activity pointer ALSO stamps
+    -- accrued_to = now(), so after an equip there is no unpaid window left for
+    -- the new gear to be applied to. The exploit is not "detected", it is
+    -- arithmetically empty.
+    --
+    -- ⚠ THE OTHER HALF IS NOT HERE, AND IT IS NOT MINE. This closes the
+    --   OVER-payment. It creates a matching UNDER-payment if the engine changes
+    --   equipment without collecting first — the elapsed time since the last
+    --   watermark is forfeited. The intent surface must therefore COLLECT
+    --   BEFORE IT EQUIPS, exactly as start_activity already collects the
+    --   previous activity first (design §2, "Where each one runs"). That is a
+    --   change in supabase/functions/hr-accrue, not in this file. It is safe to
+    --   ship this half alone today ONLY because no client-reachable path can
+    --   equip or start an activity yet; it must not stay alone past the first
+    --   one that can.
+    --
+    --   Also still open: the fail-closed `active_since` rule (an activity with a
+    --   NULL active_since must not be priced), which lives in accrual.js's
+    --   preconditions and is likewise not this file's to make.
+    if p_delta ? 'equip' or p_delta ? 'activity' then
+      v_accrued := now();
     end if;
 
     update public.player_state
@@ -1007,11 +1119,20 @@ begin
       v_meta := jsonb_build_object('summary', true, 'bytes', pg_column_size(p_delta),
         'k', (select jsonb_agg(dk order by dk) from jsonb_object_keys(p_delta) as t(dk)));
     end if;
+    --
+    --   THE THREE STAMP COLUMNS ARE THE DAILY BUDGET'S ONLY INPUT. They are
+    --   written UNCONDITIONALLY, on every row hr_apply writes, from the same
+    --   three variables the check at (4b) was made against — so what was
+    --   checked and what is charged cannot disagree. NULL in these columns
+    --   means "not written by hr_apply", which is exactly the set of rows
+    --   (market_buy's seller credit, market_list's escrow) that must not
+    --   consume progression budget.
     insert into public.player_ledger
-      (user_id, slot, kind, intent, gold, meta)
+      (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta)
     values
       (v_uid, v_slot, v_kind, v_j->>'intent',
        coalesce((p_delta->>'gold')::bigint, 0),
+       v_gold_in, v_xp_in, v_qty_in,
        jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta', '{}'::jsonb));
 
     v_out := public.hr_state_of(v_uid, v_slot);
@@ -1204,6 +1325,106 @@ begin
        where oid = to_regprocedure('public.hr_state_of(uuid,int)')) <> 'v' then
     raise exception 'hr_state_of is not VOLATILE — hr_apply may return pre-write state (see RL1)';
   end if;
+
+  -- (g) THE DAILY BUDGET IS ACTUALLY ENFORCED BY hr_apply (C5/X3).
+  --     BEHAVIOURAL, and it has to be: every cheap version of this assertion is
+  --     an always-null probe. `prosrc like '%daily_budget%'` passes on a
+  --     function that computes the check and ignores it. `to_regprocedure(...)
+  --     is not null` proves the primitive exists, not that anything calls it.
+  --     So this runs the REAL hr_apply against a REAL player_state row with a
+  --     REAL ledger row placing the character one step from its ceiling, and
+  --     requires the three outcomes that matter:
+  --        i.  a delta that crosses is refused with `daily_budget`,
+  --        ii. and moves NOTHING (a rejection that half-applies is worse than
+  --            no control),
+  --        iii.a smaller delta that fits still succeeds — which is what proves
+  --            the budget is a SUM and not a latch that trips permanently.
+  --
+  --     The whole probe runs inside a subtransaction that is rolled back by a
+  --     raised HR999. PL/pgSQL variables survive that rollback; the rows do
+  --     not. That matters more than usual here: player_ledger refuses DELETE
+  --     inside its 90-day retention window, so a probe that merely "cleaned up
+  --     after itself" could not, and would leave permanent residue in the audit
+  --     trail. §(g-ii) re-checks afterwards that nothing survived.
+  --
+  --     It needs an auth.users row to hang a player_state FK on, and it borrows
+  --     an existing one rather than inserting one (auth.users carries an
+  --     on_auth_user_created trigger on this project — a probe should not be
+  --     firing application triggers). On a database with no users at all it
+  --     SKIPS, loudly. tests/sql/pglite-fixture.sql seeds one probe user for
+  --     exactly that reason, so the conservation fuzz never runs this file with
+  --     the strongest assertion in it silently switched off.
+  declare
+    v_u     uuid;
+    v_slot  int;
+    v_lim   bigint := (public.hr_day_budget_limits()->>'gold')::bigint;
+    v_ver   bigint;
+    v_over  jsonb; v_fits jsonb;
+    v_gold  bigint; v_left bigint;
+  begin
+    select u.id into v_u from auth.users u
+      where not exists (select 1 from public.player_state s
+                         where s.user_id = u.id and s.slot = 5)
+      limit 1;
+    if v_u is null then
+      raise notice 'C5 enforcement probe SKIPPED: no auth.users row with a free slot 5 to hang a '
+                   'player_state FK on. The daily budget is NOT behaviourally proven on this database.';
+    else
+      begin
+        insert into public.player_state (user_id, slot) values (v_u, 5)
+          returning version into v_ver;
+        -- One step from the gold ceiling. Stamped the way hr_apply stamps.
+        insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in)
+          values (v_u, 5, 'admin', 'c5_probe_seed', v_lim - 1000, v_lim - 1000, 0, 0);
+        perform set_config('request.jwt.claim.sub', v_u::text, true);
+
+        -- (i) crosses the ceiling by 1000
+        v_over := public.hr_apply(null, 5, v_ver, gen_random_uuid(),
+          jsonb_build_object('gold', 2000,
+            'journal', jsonb_build_object('kind','admin','intent','c5_probe_over')));
+        -- (ii) nothing moved
+        select gold into v_gold from public.player_state where user_id = v_u and slot = 5;
+        -- (iii) a delta that still fits is still paid
+        v_fits := public.hr_apply(null, 5, v_ver, gen_random_uuid(),
+          jsonb_build_object('gold', 500,
+            'journal', jsonb_build_object('kind','admin','intent','c5_probe_fits')));
+        select (public.hr_day_budget_limits()->>'gold')::bigint
+               - (public.hr_day_budget_used(v_u, 5, now())->>'gold')::bigint
+          into v_left;
+        perform set_config('request.jwt.claim.sub', '', true);
+        raise exception 'c5 probe rollback' using errcode = 'HR999';
+      exception when sqlstate 'HR999' then
+        perform set_config('request.jwt.claim.sub', '', true);
+      end;
+
+      if coalesce(v_over->>'error', '') <> 'daily_budget' then
+        raise exception 'hr_apply answered % to a delta over the daily gold budget — it must be '
+                        'daily_budget. The C5 ceiling is not enforced.',
+                        coalesce(v_over->>'error', 'ok:' || coalesce(v_over->>'ok','?'));
+      end if;
+      if coalesce(v_gold, -1) <> 0 then
+        raise exception 'a daily_budget rejection still moved gold (player_state.gold = %) — the '
+                        'rejection does not roll back', v_gold;
+      end if;
+      if coalesce(v_fits->>'ok','false') <> 'true' then
+        raise exception 'hr_apply refused a delta that FITS inside the remaining daily budget (%) — '
+                        'the budget is behaving as a latch, not as a sum',
+                        coalesce(v_fits->>'error','?');
+      end if;
+      -- The successful apply must have consumed exactly its own inflow, which
+      -- is what "derived by summing the ledger" means operationally.
+      if v_left <> 500 then
+        raise exception 'after a 500-gold apply against a ceiling with 1000 left, % remained — the '
+                        'budget is not the ledger sum', v_left;
+      end if;
+      -- (g-ii) the probe left nothing in an append-only table.
+      if exists (select 1 from public.player_ledger where user_id = v_u and slot = 5)
+         or exists (select 1 from public.player_state where user_id = v_u and slot = 5) then
+        raise exception 'the C5 enforcement probe left rows behind';
+      end if;
+      raise notice 'C5 enforcement probe PASSED — over-budget refused and inert, in-budget paid, sum exact.';
+    end if;
+  end;
 
   raise notice 'APPLY ENGINE OK — hr_apply is hr_engine-only, rejections roll back and are recorded, catalogue is live.';
 end $$;

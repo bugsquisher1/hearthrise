@@ -118,6 +118,7 @@ end $$;
 -- ════════════════════════════════════════════════════════════════════════
 do $$
 declare v_n int;
+        v_new text[];
 begin
   raise notice '-- grants and policies';
 
@@ -141,13 +142,32 @@ begin
    where table_schema = 'public' and grantee = 'hr_engine';
   perform pg_temp.ok(v_n = 0, format('hr_engine holds ZERO table privileges (found %s)', v_n));
 
-  -- S6/S7: no new function is anon-executable.
+  -- S6/S7: no function THIS BUNDLE creates is anon-executable.
+  --
+  -- Scoped to the bundle's own functions on purpose. The first revision matched
+  -- every public hr_*/market_* function, which on a database that already has
+  -- the clan/rally/leaderboard migrations also swept up their 36 pre-existing
+  -- functions and failed. This suite is documented as runnable against
+  -- production, so it must assert about what it INSTALLS, not about what it
+  -- happens to find. The existence check below is what stops a rename from
+  -- quietly turning the privilege check into an assertion about nothing.
+  v_new := array[
+    'hr_apply','hr_create_character','hr_display_name_of','hr_intent_claim',
+    'hr_intent_record','hr_intents_prune','hr_ledger_immutable','hr_level_from_xp',
+    'hr_load','hr_rate_ok','hr_reject','hr_seed','hr_state_of','hr_total_level',
+    'hr_xp_for_level','market_buy','market_cancel','market_expire','market_list'];
+
+  select count(distinct p.proname) into v_n
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = any(v_new);
+  perform pg_temp.ok(v_n = array_length(v_new, 1),
+    format('all %s bundle functions exist (found %s)', array_length(v_new, 1), v_n));
+
   select count(*) into v_n
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public'
-     and (p.proname like 'hr\_%' or p.proname like 'market\_%')
+   where n.nspname = 'public' and p.proname = any(v_new)
      and has_function_privilege('anon', p.oid, 'execute');
-  perform pg_temp.ok(v_n = 0, format('no hr_*/market_* function is anon-executable (found %s)', v_n));
+  perform pg_temp.ok(v_n = 0, format('no bundle function is anon-executable (found %s)', v_n));
 
   -- S6: market_expire is not a player-triggerable write amplifier.
   perform pg_temp.ok(
@@ -443,22 +463,39 @@ do $$
 declare a uuid := '00000000-0000-4000-8000-00000000aaaa'; r jsonb; t0 timestamptz;
 begin
   raise notice '-- S19 accrual watermark';
+
+  -- The engine's rule is  least(now(), greatest(old, requested))  — monotonic
+  -- and bounded above by the server clock. Testing that inside one transaction
+  -- needs care: now() is FROZEN for the whole transaction, and player_state
+  -- defaults accrued_to to now() at character creation, so the fixture starts
+  -- pinned to the ceiling and no forward move is expressible at all. The first
+  -- revision of this section asserted `accrued_to < now()` after a request of
+  -- now() - 1s and could never pass — the engine was right and the test was
+  -- unsatisfiable. Park the watermark a day in the past first (as the owner,
+  -- not as a client) so that "advance", "refuse to go backwards" and "clamp to
+  -- the ceiling" are three distinguishable instants.
+  update public.player_state set accrued_to = now() - interval '1 day'
+   where user_id = a and slot = 0;
   select accrued_to into t0 from public.player_state where user_id = a and slot = 0;
 
   r := pg_temp.eapply(a, pg_temp.ver(a),
         jsonb_build_object('accrued_to', (t0 - interval '1 hour')::text));
   perform pg_temp.ok((r#>>'{state,accrued_to}')::timestamptz = t0,
-                     'a backwards watermark is clamped to the old one');
+    format('a backwards watermark is clamped to the old one (got %s want %s)',
+           r#>>'{state,accrued_to}', t0));
+
+  -- Honoured EXACTLY: not confiscated back to t0, not rounded up to the ceiling.
+  r := pg_temp.eapply(a, pg_temp.ver(a),
+        jsonb_build_object('accrued_to', (now() - interval '1 second')::text));
+  perform pg_temp.ok((r#>>'{state,accrued_to}')::timestamptz = now() - interval '1 second',
+    format('a read-time watermark is honoured (the round trip is not confiscated) (got %s want %s)',
+           r#>>'{state,accrued_to}', now() - interval '1 second'));
 
   r := pg_temp.eapply(a, pg_temp.ver(a),
         jsonb_build_object('accrued_to', (now() + interval '10 years')::text));
-  perform pg_temp.ok((r#>>'{state,accrued_to}')::timestamptz <= now(),
-                     'a future watermark is clamped to now()');
-
-  r := pg_temp.eapply(a, pg_temp.ver(a),
-        jsonb_build_object('accrued_to', (now() - interval '1 second')::text));
-  perform pg_temp.ok((r#>>'{state,accrued_to}')::timestamptz < now(),
-                     'a read-time watermark is honoured (the round trip is not confiscated)');
+  perform pg_temp.ok((r#>>'{state,accrued_to}')::timestamptz = now(),
+    format('a future watermark is clamped to now() (got %s want %s)',
+           r#>>'{state,accrued_to}', now()));
 
   r := pg_temp.eapply(a, pg_temp.ver(a), '{"accrued_to":"not-a-timestamp"}'::jsonb);
   perform pg_temp.ok(r->>'error' = 'bad_delta', 'a malformed timestamp is a rejection, not a 500');

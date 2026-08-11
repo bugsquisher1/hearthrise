@@ -31,6 +31,32 @@
 //     with one devDependency, and adding `pg` to run one script is a worse
 //     trade than emitting SQL.
 //
+//     IF YOU HAVE NO psql AND NO DATABASE_URL (the usual case on Tyler's box),
+//     the bundle can still be run against a live database through the Supabase
+//     MCP `execute_sql` tool, which is worth writing down because two of the
+//     obvious ways to do it are unsafe:
+//
+//       • Each execute_sql call is a SEPARATE backend and a separate implicit
+//         transaction — verified: pg_backend_pid() changes per call and a temp
+//         table does not survive. So you CANNOT chunk the bundle across calls
+//         inside one `begin`. A chunked `begin` silently does not hold, and
+//         market-v2's `drop table market_listings` would then be permanent.
+//       • An explicit `begin; … rollback;` inside a SINGLE call IS honoured,
+//         including for DDL, CREATE ROLE and CREATE EXTENSION — also verified.
+//
+//     The bundle is ~215 KB, which is too big for one call, so the trick is to
+//     let Postgres fetch its own source: the migrations are served publicly at
+//     https://hearthrise.net/<repo path>. One call, one transaction:
+//
+//       begin;
+//       create extension if not exists http with schema extensions;
+//       do $$ … for each file: http_get, CHECK ITS sha256, execute … $$;
+//       rollback;
+//
+//     Verify the sha256 of every fetched file against the local working copy
+//     before executing it — otherwise a CDN error page becomes something you
+//     hand to EXECUTE. PL/pgSQL EXECUTE does accept a multi-statement string.
+//
 // Exit codes: 0 = clean · 1 = a check failed · 2 = harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -172,3 +198,5 @@ if (failures) {
 console.log('static server-tier checks passed.');
 console.log('Behavioural suite (needs a database):');
 console.log('  node tests/run-sql-tests.mjs --emit | psql "$DATABASE_URL"');
+console.log('  (no psql? see the header for the single-call begin/rollback');
+console.log('   recipe that runs the same bundle through Supabase MCP)');

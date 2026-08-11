@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatest } from './sync.js?v=316';
+import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=317';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -181,12 +181,36 @@ function enableLiveSync() {
  * damaged save (e.g. a pre-b288 thin snapshot with a fresh timestamp), and must
  * never be allowed to roll a real save back. When in doubt, keep local.
  *
+ * SYMMETRIC ANTI-CLOBBER GUARD (b314): the mirror of the thin-cloud guard. That
+ * one stops a newer-but-tiny CLOUD from rolling back a real LOCAL. This one stops
+ * a fresh/empty LOCAL from clobbering a real CLOUD even though local wins on time.
+ * It closes the hole that reset a live account: a freshly-added iOS Home Screen
+ * PWA gets its OWN empty storage sandbox, boots an EMPTY character with a current
+ * lastSeen (so local is "newer"), then uploads that emptiness over a substantial
+ * cloud. Total level only ever grows, so a local still at the fresh-character
+ * FLOOR while the cloud holds real, much larger progress is not "newer play" — it
+ * is a fresh/cleared/corrupt local and must NEVER win. We key on LOCAL's OWN total
+ * (which this device can trust) sitting at the floor, NOT on the cloud's
+ * (self-forgeable) size being large — so it cannot be tripped by a garbage-inflated
+ * cloud level, and it cannot regress the anti-rollback invariant for a genuinely
+ * progressed local (a real save sits far above FRESH_FLOOR, so that branch is
+ * never entered). Known limitation: two BOTH-near-floor saves (local & cloud each
+ * ≤ FRESH_FLOOR) still resolve by time — an intentionally conservative choice, as
+ * a sub-floor save is worth only minutes and we refuse to risk a false restore.
+ *
  * @param {{lastSeen:number, totalLevel:number}} local  local freshness + size
  * @param {object|null} snap  cloud snapshot; reads snap.__cloudSavedAt (ms) with
  *                            snap.lastSeen as a fallback, and snap.totalLevel.
  * @returns {{action:'none'|'adopt'|'restore', localAt:number, cloudAt:number,
  *            localTotalLv:number, cloudTotalLv:number, reason:string}}
  */
+// A brand-new Hearthrise character's total level: 12 skills at level 1 plus
+// hitpoints seeded to level 10 (1154 xp) = 22. A save still at or below this
+// floor has effectively no progress; a real save climbs far past it quickly. We
+// leave headroom above the true floor so a few minutes of first-session play is
+// still treated as "fresh" for the anti-clobber guard.
+const FRESH_FLOOR = 40;
+
 export function decideRestore(local, snap) {
   local = local || {};
   const localAt = Number(local.lastSeen) || 0;
@@ -202,10 +226,28 @@ export function decideRestore(local, snap) {
     if (localTL > 0 && cloudTL < localTL * 0.5) return { action: 'adopt', reason: 'cloud-newer-but-thin', ...full };
     return { action: 'restore', reason: 'cloud-newer', ...full };
   }
+  // Local wins on time — but a fresh/empty local (fresh-storage sandbox: a
+  // re-added PWA, cleared cache, corrupt save) must NEVER upload over a real,
+  // substantial cloud. See the SYMMETRIC ANTI-CLOBBER GUARD note above.
+  if (localTL <= FRESH_FLOOR && cloudTL > FRESH_FLOOR && cloudTL >= localTL * 2) {
+    return { action: 'restore', reason: 'local-fresh-vs-substantial-cloud', ...full };
+  }
   return { action: 'adopt', reason: 'local-fresh', ...full };
 }
 
+// b314: bounded retry counter for a cloud pull that keeps failing. While the
+// pull is UNKNOWN (network down / non-200) the snapshot gate stays HELD so a
+// fresh/empty local can never upload over a cloud we could not read — the exact
+// data-loss the reconcile gate exists to prevent. Local persistence (saveLocal +
+// the event buffer) is untouched, so nothing is lost; uploads simply wait until
+// we get a definitive read. Backoff caps so we don't hammer a dead endpoint.
+let reconcileAttempts = 0;
+const RECONCILE_MAX_DELAY = 30000;
+
 async function pullAndMaybeRestore() {
+  // b314: hold snapshot uploads until we have pulled the cloud and reconciled.
+  // A fresh/empty local must never race an upload out ahead of this decision.
+  try { holdSnapshots(); } catch (e) {}
   try {
     // b300: one cloud-restore per tab session. The restore path reloads, and
     // after the reload local == cloud so decideRestore returns 'adopt' — but this
@@ -214,7 +256,21 @@ async function pullAndMaybeRestore() {
     let restoredAlready = false;
     try { restoredAlready = sessionStorage.getItem('hr:cloudRestoreDone') === '1'; } catch (e) {}
 
-    const snap = await pullLatest();
+    const pull = await pullLatestDetailed();
+
+    // UNKNOWN cloud (network error / non-200). We must NOT release the gate and
+    // let a possibly-fresh local upload over a cloud we never read. Stay held and
+    // retry with backoff; a returning device keeps playing offline meanwhile.
+    if (pull.status === 'error') {
+      reconcileAttempts++;
+      const delay = Math.min(RECONCILE_MAX_DELAY, 4000 * reconcileAttempts);
+      console.warn(`[Auth] cloud pull failed (attempt ${reconcileAttempts}); snapshot uploads held, retrying in ${delay}ms.`);
+      setTimeout(() => { pullAndMaybeRestore(); }, delay);
+      return;   // gate stays HELD — the finally below must not run a release for this path
+    }
+    reconcileAttempts = 0;
+
+    const snap = pull.snap;   // null for 'empty'/'skip' → decideRestore returns none/adopt
     const local = {
       lastSeen: (window.G && Number(window.G.lastSeen)) || 0,
       totalLevel: (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
@@ -226,6 +282,7 @@ async function pullAndMaybeRestore() {
       // 'none'/'adopt' → local stays live and sync.js uploads it (that IS adoption
       // in a cloud-authoritative model: cloud simply catches up to local).
       console.log(`[Auth] keeping local save (${d.action}/${d.reason}; localAt ${d.localAt} vs cloudAt ${d.cloudAt}, Lv ${d.localTotalLv} vs ${d.cloudTotalLv}).`);
+      releaseSnapshots();   // definitive decision reached → uploads may resume
       return;
     }
 
@@ -247,10 +304,17 @@ async function pullAndMaybeRestore() {
     try { sessionStorage.setItem('hr:cloudRestoreDone', '1'); } catch (e) {}
     try { sessionStorage.setItem('hr:restoredFromCloud', '1'); } catch (e) {}   // toast after reload
     console.log(`[Auth] restoring newer cloud save (cloudAt ${cloudAt} > localAt ${d.localAt}; Lv ${d.cloudTotalLv}).`);
+    releaseSnapshots();   // we have the authoritative save; the reload re-reconciles cleanly
     if (typeof window.saveLocal === 'function') window.saveLocal();
     location.reload();
   } catch (e) {
-    console.warn('[Auth] pull failed:', e.message);
+    // An UNEXPECTED failure mid-reconcile is treated exactly like an unknown
+    // cloud: keep the gate HELD (never upload a possibly-fresh local over an
+    // unread cloud) and retry with backoff.
+    console.warn('[Auth] reconcile failed:', e && e.message);
+    reconcileAttempts++;
+    const delay = Math.min(RECONCILE_MAX_DELAY, 4000 * reconcileAttempts);
+    setTimeout(() => { pullAndMaybeRestore(); }, delay);
   }
 }
 

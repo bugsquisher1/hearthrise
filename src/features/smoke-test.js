@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=316' directly.
+// modularised, will import { G } from '../state/game.js?v=317' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=316';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=316';
+import { on, snapshot } from '../net/events.js?v=317';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=317';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=316';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=317';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12462,6 +12462,75 @@ const TESTS = [
     assert(typeof decideRestore({ lastSeen:T, totalLevel:700 }, { __cloudSavedAt:T + 1, totalLevel:'900' }).action === 'string', 'string level tolerated');
     // Timeless cloud (no timestamp at all) must not beat a real local.
     assert(decideRestore({ lastSeen:T, totalLevel:700 }, { totalLevel:5000 }).action === 'adopt', 'a cloud with no timestamp must not win on level alone');
+  }),
+
+  // (1b) SYMMETRIC ANTI-CLOBBER (b314). The mirror of the thin-cloud guard: a
+  // fresh/empty LOCAL must never overwrite a substantial CLOUD, even when local
+  // wins on timestamp. This is the exact reset a re-added iOS Home Screen PWA
+  // caused — a fresh empty storage sandbox with a current lastSeen uploaded over
+  // a real, high-level account. RED against pre-b314 code (returned 'adopt').
+  () => tryRun('b314: a fresh/empty local NEVER clobbers a substantial cloud, even when local wins on time', () => {
+    const T = 1_700_000_000_000;
+    // THE BUG: fresh PWA sandbox → empty local (fresh floor total ≈ 22) with a
+    // CURRENT lastSeen, so local is NEWER than the real cloud (synced earlier).
+    // Old code returned 'adopt' and uploaded the empty save over a Lv-141 account.
+    const bug = decideRestore({ lastSeen:T + 60000, totalLevel:22 }, { __cloudSavedAt:T, totalLevel:141 });
+    assert(bug.action === 'restore', 'fresh/empty local (newer) must NOT clobber a real cloud: ' + bug.action + '/' + bug.reason);
+    // Even a totally empty (0) local that wins on time must yield to a real cloud.
+    assert(decideRestore({ lastSeen:T + 1, totalLevel:0 }, { __cloudSavedAt:T, totalLevel:200 }).action === 'restore', 'empty local must never overwrite a substantial cloud');
+    // ── the guard must NOT over-fire (no new false restores / rollbacks) ──
+    // Anti-rollback still holds: a REAL, progressed newer local is kept even when
+    // the cloud claims a (possibly forged) far-higher level. This is the case a
+    // naive symmetric 0.5 ratio would have wrongly rolled back.
+    assert(decideRestore({ lastSeen:T + 10000, totalLevel:700 }, { __cloudSavedAt:T, totalLevel:999999 }).action === 'adopt', 'a real newer local must never be rolled back by a bigger cloud level');
+    // Normal offline delta on the real device (local a touch ahead, similar size) → adopt+upload.
+    assert(decideRestore({ lastSeen:T + 5000, totalLevel:143 }, { __cloudSavedAt:T, totalLevel:141 }).action === 'adopt', 'normal offline progress must still adopt+upload');
+    // Brand-new account, no cloud row at all → none (local adopted, uploaded fresh).
+    assert(decideRestore({ lastSeen:T, totalLevel:22 }, null).action === 'none', 'a brand-new account with no cloud must adopt its fresh local');
+    // Brand-new account, empty cloud row (no real progress) → adopt the fresh local, never a bogus restore.
+    assert(decideRestore({ lastSeen:T + 1, totalLevel:22 }, { __cloudSavedAt:T, totalLevel:0 }).action === 'adopt', 'a fresh local vs an empty cloud must adopt, not restore');
+    // A newer, LARGER real local vs an older smaller cloud → adopt (never a false restore).
+    assert(decideRestore({ lastSeen:T + 1, totalLevel:300 }, { __cloudSavedAt:T, totalLevel:141 }).action === 'adopt', 'a larger newer local must adopt');
+  }),
+
+  // (1c) THE RECONCILE GATE — V1, the SHIPPED mechanism (b314). The clobber that
+  // reset the account happened in snapshotIfDue BEFORE decideRestore ever ran: an
+  // upload-before-pull race. setupSync installs a 5s flush loop AND pagehide/
+  // visibilitychange handlers that force snapshotIfDue immediately; with
+  // lastSnapshotAt=0 the first tick (or a pagehide as the PWA is backgrounded in
+  // the first seconds) uploads the fresh/empty default G over the real cloud, and
+  // the later pull then reads the already-destroyed row. The fix: NO upload path
+  // may fire until the first pull+reconcile completes. Every upload entry point
+  // (the timer, the FORCED pagehide/visibilitychange save, verifyCloudSave's
+  // force-upload) routes through snapshotIfDue, which hard-early-returns while
+  // held. RED against pre-b314 code: the seam did not exist and a forced snapshot
+  // uploaded unconditionally.
+  () => tryRun('b314: V1 — all snapshot uploads (incl. forced pagehide) are HELD until reconcile completes', () => {
+    const S = window.HearthriseSync;
+    assert(S && typeof S.holdSnapshots === 'function' && typeof S.releaseSnapshots === 'function' && typeof S.isSnapshotHeld === 'function', 'reconcile-gate seam (hold/release/isSnapshotHeld) must be exposed');
+    // The detailed pull must distinguish an UNKNOWN cloud from a CONFIRMED-empty
+    // one — the difference between "hold + retry" and "safe to adopt".
+    assert(typeof S.pullLatestDetailed === 'function', 'pullLatestDetailed must be exposed');
+    const dp = S.pullLatestDetailed();
+    assert(dp && typeof dp.then === 'function', 'pullLatestDetailed must return a promise');
+    dp.then((r) => { assert(r && ['ok','empty','error','skip'].indexOf(r.status) !== -1, 'detailed pull status must be one of ok/empty/error/skip'); }, () => {});
+    const was = S.isSnapshotHeld();
+    try {
+      assert(S.isSnapshotHeld() === false, 'the gate must default OPEN so offline/normal play uploads');
+      S.holdSnapshots();
+      assert(S.isSnapshotHeld() === true, 'holdSnapshots must engage the gate');
+      // The ordinary cadence upload AND the FORCED pagehide/close upload must both
+      // refuse while held — resolving false without ever POSTing.
+      const pCadence = S.snapshotIfDue(false);
+      const pForced  = S.snapshotIfDue(true, true);   // the pagehide/visibilitychange path
+      assert(pCadence && typeof pCadence.then === 'function', 'snapshotIfDue must return a promise');
+      pCadence.then((r) => { assert(r === false, 'a held cadence snapshot must resolve false (no upload)'); }, () => {});
+      pForced.then((r) => { assert(r === false, 'a held FORCED (pagehide) snapshot must resolve false (no upload)'); }, () => {});
+      S.releaseSnapshots();
+      assert(S.isSnapshotHeld() === false, 'releaseSnapshots must open the gate');
+    } finally {
+      if (was) S.holdSnapshots(); else S.releaseSnapshots();
+    }
   }),
 
   // (2) THE UPLOAD CONTRACT: the snapshot must carry all persistent progress and

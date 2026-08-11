@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 317 — 2026-08-10 (Save integrity: no more empty-save clobber)
+
+- 🛡️ **Fixed a critical save bug that could wipe your progress.** On a fresh install or a new device, the game could upload an empty save over your real cloud save before it finished loading your cloud data — resetting your character. Now no save is ever uploaded until the game has pulled and reconciled your cloud save first, and an empty/fresh local save can never overwrite a real cloud one. Your progress is protected. *(Thanks Tyler — found the hard way.)*
+
 ## v0.9.2-beta build 316 — 2026-08-10 (Mobile blockers: report + Settings reachable)
 
 - 🐛 **The bug reporter no longer freezes the game on phones.** The screenshot step was the culprit — it now sends your report instantly on mobile without it, so tapping "Send" just works. Your report also now includes your screen's safe-area measurements, which helps us fix mobile layout issues faster. *(Thanks Tyler.)*

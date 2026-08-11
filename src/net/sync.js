@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=316';
+//   import { setupSync } from './net/sync.js?v=317';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=316';
+import { on, snapshot } from './events.js?v=317';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -44,6 +44,13 @@ let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify 
 let concurrentWarned = false;
 let paused = false;        // b302: set when this device is evicted — stops all cloud writes
 let evicted = false;       // b302: latch so we fire onEvicted once
+// b314: hold ALL snapshot uploads until the first cloud pull + reconcile has run.
+// Without this a fresh/empty local can upload over a real cloud in the ~5s before
+// pullAndMaybeRestore() finishes its network read (the flush loop's first
+// snapshotIfDue fires with lastSnapshotAt=0, so it is immediately "due"). auth.js
+// holds before the pull and releases after decideRestore resolves — so the
+// reconcile decision, not a race, decides whether local ever reaches the cloud.
+let snapshotHold = false;
 
 /**
  * b301 — a stable per-DEVICE id (not per-account). Persisted in localStorage so
@@ -299,6 +306,7 @@ export function derivedSnapshotFields(cfg, win) {
  */
 async function snapshotIfDue(force, keepalive) {
   if (paused) return false;                 // b302: evicted device must not clobber the cloud
+  if (snapshotHold) return false;           // b314: reconcile not done — never upload local yet
   if (!config?.snapshotEndpoint) return false;
   const now = Date.now();
   if (!force && now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return false;
@@ -346,11 +354,24 @@ async function snapshotIfDue(force, keepalive) {
   return ok;
 }
 
-/** Replay-from-server stub — call after sign-in to pull the latest snapshot. */
-export async function pullLatest() {
-  if (!config?.snapshotEndpoint) return null;
+/**
+ * b314 — DETAILED pull. The reconcile gate needs to tell three cases apart that
+ * pullLatest() collapses into a single `null`:
+ *   'ok'    — a real cloud snapshot was read (snap is the row).
+ *   'empty' — the server answered, DEFINITIVELY, that there is no save row yet
+ *             (a brand-new account). Safe to adopt+upload the fresh local.
+ *   'error' — we could NOT read the cloud (network down, non-200, exception).
+ *             The cloud's state is UNKNOWN, so a thin local must NOT be uploaded
+ *             over it — the gate stays held and the caller retries.
+ *   'skip'  — sync isn't configured / not signed in.
+ * Distinguishing 'empty' from 'error' is the whole point: only a CONFIRMED empty
+ * lets a fresh local reach the cloud; an unreadable cloud never does.
+ * @returns {Promise<{status:'ok'|'empty'|'error'|'skip', snap:object|null}>}
+ */
+export async function pullLatestDetailed() {
+  if (!config?.snapshotEndpoint) return { status: 'skip', snap: null };
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
-  if (!userId) return null;
+  if (!userId) return { status: 'skip', snap: null };
   try {
     const headers = {};
     if (config.authToken) {
@@ -360,22 +381,31 @@ export async function pullLatest() {
     if (config.apiKey) headers['apikey'] = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
     const slot = (config.slot != null) ? config.slot : 0;
     const res = await fetch(`${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`, { headers });
-    if (!res.ok) return null;
-    const rows = await res.json();
+    if (!res.ok) return { status: 'error', snap: null };            // could not read — UNKNOWN cloud
+    let rows;
+    try { rows = await res.json(); } catch (e) { return { status: 'error', snap: null }; }
     const row = rows && rows[0];
     const snap = row && row.snapshot;
-    if (!snap || typeof snap !== 'object') return null;
+    if (!snap || typeof snap !== 'object') return { status: 'empty', snap: null };   // CONFIRMED no save row
     // b300: attach the authoritative server save time (ms) so decideRestore can
     // compare freshness. Namespaced key, stripped before it is ever merged into G.
     try {
       const t = row.saved_at ? Date.parse(row.saved_at) : 0;
       if (t) snap.__cloudSavedAt = t;
     } catch (e) {}
-    return snap;
+    return { status: 'ok', snap };
   } catch (e) {
     console.warn('[sync] pull failed:', e.message);
-    return null;
+    return { status: 'error', snap: null };
   }
+}
+
+/** Replay-from-server — call after sign-in to pull the latest snapshot. Thin
+ *  wrapper over pullLatestDetailed() for callers that only want the snap or null
+ *  (checkConcurrentDevice, verifyCloudSave, the suite). */
+export async function pullLatest() {
+  const r = await pullLatestDetailed();
+  return r.snap;
 }
 
 /**
@@ -521,6 +551,17 @@ export async function checkSessionClaim() {
   return { status: 'reclaimed', from: owner };
 }
 
+/**
+ * b314 — RECONCILE GATE. Between sign-in and the first cloud pull+reconcile,
+ * snapshot uploads are held so a fresh/empty local can't win a race and clobber a
+ * real cloud save. auth.js calls holdSnapshots() before pullLatest() and
+ * releaseSnapshots() once decideRestore has resolved (or the pull failed). Default
+ * OPEN, so offline mode and every non-reconcile path upload normally.
+ */
+export function holdSnapshots() { snapshotHold = true; }
+export function releaseSnapshots() { snapshotHold = false; }
+export function isSnapshotHeld() { return snapshotHold; }
+
 /** Stop ALL cloud writes from this device (used when evicted). Idempotent. */
 export function pauseSync() {
   paused = true;
@@ -589,7 +630,8 @@ export function setupSync(opts = {}) {
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
-  claimSession, checkSessionClaim, pauseSync,
+  claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
+  holdSnapshots, releaseSnapshots, isSnapshotHeld,
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
   getLastCloudSaveAt: () => lastCloudSaveAt,

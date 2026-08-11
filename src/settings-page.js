@@ -829,6 +829,11 @@
         if(window.HearthriseAuth && window.HearthriseAuth.signOut){ await window.HearthriseAuth.signOut(); }
         if(typeof window.notify === 'function') window.notify('Signed out.', 'info');
         if(typeof window.renderSettings === 'function') window.renderSettings();
+        /* b318: signing out PARKS the local save (see auth.js signOut), so this
+           page is now running a character it can no longer persist. Reload so the
+           account wall re-engages on a clean state — otherwise the player keeps
+           playing a session whose progress is deliberately no longer written. */
+        setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700);
       } catch(e){
         if(typeof window.notify === 'function') window.notify('Sign-out failed: ' + (e.message || e), 'warn');
       }

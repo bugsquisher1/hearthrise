@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=317' directly.
+// modularised, will import { G } from '../state/game.js?v=318' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=317';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=317';
+import { on, snapshot } from '../net/events.js?v=318';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=318';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=317';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=318';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12530,6 +12530,102 @@ const TESTS = [
       assert(S.isSnapshotHeld() === false, 'releaseSnapshots must open the gate');
     } finally {
       if (was) S.holdSnapshots(); else S.releaseSnapshots();
+    }
+  }),
+
+  // (1d) V2 — CROSS-ACCOUNT CLOBBER + ACCOUNT-DATA BLEED (b318). signOut() used
+  // to clear only the session key, leaving account A's SAVE_KEY blob live. B
+  // signs in on the same device, loadLocal() reads A's save into G, and
+  // decideRestore compares A's LOCAL against B's CLOUD on timestamp alone. A is
+  // newer → 'adopt' → the next snapshot uploads A's character over B's cloud:
+  // B's save destroyed, B playing A's character. Neither b314 guard fires (A's
+  // save is substantial, nowhere near FRESH_FLOOR). RED against pre-b318 code:
+  // the assertion below returned 'adopt'.
+  () => tryRun('b318: V2 — a local save owned by ANOTHER account is never adopted or uploaded over this account\'s cloud', () => {
+    const T = Date.now();
+    const A = 'user-aaaa-1111', B = 'user-bbbb-2222';
+    assert(typeof decideLocalOwnership === 'function', 'auth.js must export the save-ownership rule');
+    assert(decideLocalOwnership(A, B) === 'foreign', 'a save stamped with a different user is foreign');
+    assert(decideLocalOwnership(B, B) === 'same', 'a save stamped with the signed-in user is its own');
+    // THE BUG, exactly: A's local is NEWER and LARGER than B's cloud.
+    const v2 = decideRestore({ lastSeen: T + 60000, totalLevel: 1500, owner: A, currentUser: B },
+                             { __cloudSavedAt: T, totalLevel: 1200 });
+    assert(v2.action !== 'adopt', 'a foreign local must NEVER be adopted (it would upload A over B\'s cloud)');
+    assert(v2.action === 'foreign', 'a foreign local must be reported as foreign so the caller parks it');
+    // …and identity beats freshness in BOTH directions: a foreign local must not
+    // be uploaded even when there is no cloud at all to compare it against
+    // (a brand-new second account would otherwise be born as account A).
+    assert(decideRestore({ lastSeen: T + 60000, totalLevel: 1500, owner: A, currentUser: B }, null).action === 'foreign',
+      'a foreign local with no cloud must not be adopted as this account\'s save');
+    // The device-side half: park is a MOVE, not a delete, and it stops autosave.
+    assert(typeof window.parkLocalSave === 'function' && typeof window.unparkOwnSave === 'function',
+      'legacy.js must expose the park/unpark primitives the reconcile path calls');
+    // The stamp is DEVICE-LOCAL identity. If it ever synced, every device would
+    // inherit the first device's owner and the guard would mis-fire account-wide.
+    const snapOut = window.HearthriseEvents.snapshot(Object.assign({}, window.G, { _saveOwner: A }));
+    assert(!('_saveOwner' in snapOut), 'the owner stamp must never ride to the cloud (it is `_`-prefixed scratch)');
+  }),
+
+  // (1e) The two ways this fix could itself cause data loss. Both must be safe.
+  () => tryRun('b318: V2 — same-owner sign-out→sign-in keeps the save, and a legacy UNSTAMPED save is never discarded', () => {
+    const T = Date.now();
+    const B = 'user-bbbb-2222';
+    // Same owner: ordinary rules, unchanged. Offline progress still adopts+uploads.
+    assert(decideRestore({ lastSeen: T + 5000, totalLevel: 143, owner: B, currentUser: B }, { __cloudSavedAt: T, totalLevel: 141 }).action === 'adopt',
+      'a same-owner local with offline progress must still adopt (no false wipe of unsynced progress)');
+    // LEGACY POLICY: every save that predates b318 has no stamp. Discarding those
+    // would wipe the entire live beta on upgrade, so unstamped == adopt-and-stamp.
+    assert(decideLocalOwnership(null, B) === 'unstamped', 'a pre-b318 save has no owner stamp');
+    assert(decideRestore({ lastSeen: T + 5000, totalLevel: 900, currentUser: B }, { __cloudSavedAt: T, totalLevel: 890 }).action === 'adopt',
+      'a legacy unstamped save must NOT be treated as foreign and discarded');
+    // Never accuse on a guess: if we cannot tell who is signed in, behaviour is
+    // exactly the pre-b318 behaviour.
+    assert(decideLocalOwnership('someone', null) === 'unknown-session', 'no session → we cannot judge ownership');
+    assert(decideRestore({ lastSeen: T + 5000, totalLevel: 900, owner: 'someone' }, { __cloudSavedAt: T, totalLevel: 890 }).action === 'adopt',
+      'an unknown session must not turn a save foreign');
+    // The b314 invariants are untouched by the ownership layer.
+    assert(decideRestore({ lastSeen: T + 10000, totalLevel: 700, owner: B, currentUser: B }, { __cloudSavedAt: T, totalLevel: 999999 }).action === 'adopt',
+      'anti-rollback: a real newer local is still never rolled back');
+    assert(decideRestore({ lastSeen: T + 60000, totalLevel: 22, owner: B, currentUser: B }, { __cloudSavedAt: T, totalLevel: 141 }).action === 'restore',
+      'V7 thin-guard: a fresh local still never clobbers a substantial cloud');
+    assert(decideRestore({ lastSeen: T, totalLevel: 742, owner: B, currentUser: B }, null).action === 'none', 'no cloud → none');
+    // Un-parking is same-owner ONLY — a park must never be handed to another user.
+    const raw = JSON.stringify({ _saveOwner: B, lastSeen: T, gold: 12345 });
+    const key = 'hearthrise:save-backup:signout:' + B;
+    const pick = window.chooseParkedSave([{ key, raw }, { key: 'x', raw: 'not json' }]);
+    assert(pick && pick.key === key && pick.at === T, 'the freshest parseable parked save wins; garbage is never chosen');
+    assert(window.chooseParkedSave([{ key: 'x', raw: '{{' }]) === null, 'an unparseable park is never restored');
+  }),
+
+  // (1f) The park/unpark ROUND TRIP against real storage. A park is a MOVE, and
+  // the move must be reversible for its owner — that is the whole reason
+  // signOut() parks instead of deleting. If this ever became a delete, every
+  // sign-out would cost the player any progress not yet in the cloud.
+  () => tryRun('b318: V2 — parking a save is recoverable (sign-out never destroys unsynced progress)', () => {
+    const SAVE_KEY = 'hearthbound-save-v2';
+    const OWNER = 'smoke-owner-' + Date.now();
+    const liveBefore = localStorage.getItem(SAVE_KEY);
+    const parkedWas = window.__saveParked;
+    const probe = JSON.stringify({ _saveOwner: OWNER, lastSeen: Date.now(), gold: 987654 });
+    const parkKey = 'hearthrise:save-backup:signout:' + OWNER;
+    try {
+      localStorage.setItem(SAVE_KEY, probe);
+      const key = window.parkLocalSave('signout');
+      assert(key === parkKey, 'a park lands in a namespaced, owner-keyed backup slot');
+      assert(localStorage.getItem(parkKey) === probe, 'the parked copy must be byte-identical — a park is never a delete');
+      assert(localStorage.getItem(SAVE_KEY) === null, 'the parked save must leave the live slot so the next account boots clean');
+      assert(window.__saveParked === true, 'autosave must be suppressed after a park or it would resurrect the save');
+      // A DIFFERENT account must not be given this park back…
+      assert(window.chooseParkedSave([]) === null, 'no candidates → nothing restored');
+      // …but the owner gets it back verbatim.
+      const restored = window.chooseParkedSave([{ key: parkKey, raw: localStorage.getItem(parkKey) }]);
+      assert(restored && restored.raw === probe, 'the owner\'s parked save is returned intact');
+      assert(JSON.parse(restored.raw).gold === 987654, 'parked progress survives the round trip');
+    } finally {
+      try { localStorage.removeItem(parkKey); } catch (e) {}
+      if (liveBefore === null) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+      else { try { localStorage.setItem(SAVE_KEY, liveBefore); } catch (e) {} }
+      window.__saveParked = parkedWas;
     }
   }),
 

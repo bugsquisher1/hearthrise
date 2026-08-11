@@ -723,6 +723,21 @@ function saveLocal(){
      must never cost anybody their save, so persistence is simply off until
      the player is through the door. */
   if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
+  /* b318 (V2): the save has been PARKED (sign-out, or a foreign save set aside
+     for its owner). Writing G back out now would resurrect it under the next
+     account. Persistence resumes after the reload that follows a park. */
+  if(window.__saveParked) return;
+  /* b318 (V2) OWNER STAMP. Binds this local save to the account that owns it so
+     it can never be adopted by — or uploaded over — a different account. Kept
+     under a `_` key on purpose: events.js snapshot() skips `_`-prefixed scratch,
+     so this device-local identity marker never reaches the cloud.
+     WRITTEN ONLY WHEN ABSENT. That is the load-bearing detail: if it re-stamped
+     on every save, an autosave firing between boot and reconcile would relabel
+     the previous account's save as the current player's and walk it straight
+     past the foreign-save guard. Absent-only means an unstamped legacy save is
+     claimed once (by whoever is actually playing) and a foreign save keeps its
+     true owner. */
+  if(!G._saveOwner){ const _uid=currentSaveOwnerId(); if(_uid) G._saveOwner=_uid; }
   G.lastSeen=Date.now();
   /* b226: the offline-budget watermark tracks lastSeen while the tab is open,
      so an evening of active play is never mistaken for an absence and charged
@@ -744,6 +759,99 @@ function _readSave(key){
   try{ return window.HearthriseStorage ? window.HearthriseStorage.get(key) : localStorage.getItem(key); }
   catch(e){ try{ return localStorage.getItem(key); }catch(_){ return null; } }
 }
+function _removeSave(key){
+  try{ if(window.HearthriseStorage){window.HearthriseStorage.remove(key);} else {localStorage.removeItem(key);} }
+  catch(e){ try{ localStorage.removeItem(key); }catch(_){ } }
+}
+/* ══════════════════════════════════════════════════════════════════════
+   b318 — SAVE OWNERSHIP (V2: cross-account clobber + account-data bleed).
+
+   Two accounts on one device (a shared/family tablet, a tester with two logins,
+   a handed-off phone) used to share one SAVE_KEY blob, because signOut() cleared
+   the session and nothing else. See the long note on decideLocalOwnership() in
+   src/net/auth.js for the exact data-loss path. These three primitives are the
+   device-side half of the fix:
+
+     currentSaveOwnerId() — who is signed in, readable at any point in boot.
+     parkLocalSave()      — set the save aside RECOVERABLY (never a delete).
+     unparkOwnSave()      — give it back when its owner returns.
+
+   Parking is deliberately not deletion. Signing out and back into the SAME
+   account must not cost a player the offline progress that had not yet synced,
+   so a park is a move, not a wipe, and loadLocal() reverses it.
+   ══════════════════════════════════════════════════════════════════════ */
+const PARK_PREFIX='hearthrise:save-backup:';
+function currentSaveOwnerId(){
+  try{ if(window.HearthriseAuth && typeof window.HearthriseAuth.currentUserId==='function') return window.HearthriseAuth.currentUserId(); }catch(_){ }
+  /* auth.js may not have initialised yet (loadLocal runs early). The cached
+     session blob is the same source auth.js reads, so this is not a second
+     source of truth — just an order-independent reader of the first. */
+  try{
+    const s=JSON.parse(localStorage.getItem('hearthrise:supabaseSession')||'null');
+    const id=s&&s.user&&s.user.id;
+    return (typeof id==='string'&&id)?id:null;
+  }catch(_){ return null; }
+}
+function _parkKey(tag,owner){ return PARK_PREFIX+(tag||'parked')+':'+(owner||'unknown'); }
+/* Move the live save to a namespaced, owner-keyed backup slot and take it out of
+   play. Returns the backup key, or null if there was nothing to park. */
+function parkLocalSave(tag){
+  let raw=_readSave(SAVE_KEY);
+  window.__saveParked=true;              /* stop autosaves resurrecting it */
+  if(!raw) return null;
+  let owner=null;
+  try{
+    const blob=JSON.parse(raw);
+    owner=blob._saveOwner||null;
+    /* A legacy save that has not been stamped yet would park under 'unknown' and
+       could never be handed back — the one way this fix could itself lose data.
+       At PARK time we know exactly whose it is (the account signing out / the
+       account that was live), so stamp it now and keep it recoverable. */
+    if(!owner){ const uid=currentSaveOwnerId(); if(uid){ owner=uid; blob._saveOwner=uid; raw=JSON.stringify(blob); } }
+  }catch(_){ }
+  const key=_parkKey(tag,owner);
+  try{ localStorage.setItem(key,raw); }catch(_){ return null; }   /* never remove what we failed to copy */
+  _removeSave(SAVE_KEY);
+  return key;
+}
+/* Pure: of the parked blobs belonging to `owner`, which one should come back?
+   The freshest by lastSeen — a player may have been parked by a sign-out AND by
+   a foreign-save reconcile, and only the newest is their real progress. */
+function chooseParkedSave(candidates){
+  let best=null;
+  (candidates||[]).forEach(function(c){
+    if(!c||typeof c.raw!=='string') return;
+    let at=0; try{ at=Number(JSON.parse(c.raw).lastSeen)||0; }catch(_){ return; }   /* unparseable → never chosen */
+    if(!best||at>best.at) best={key:c.key,raw:c.raw,at:at};
+  });
+  return best;
+}
+/* If this device has a parked save belonging to the CURRENT account and no live
+   save, put it back. Same-owner only — a park is never handed to another user. */
+function unparkOwnSave(){
+  const owner=currentSaveOwnerId();
+  if(!owner) return null;
+  const cands=['signout','foreign','parked'].map(function(t){
+    const k=_parkKey(t,owner);
+    let raw=null; try{ raw=localStorage.getItem(k); }catch(_){ }
+    return raw?{key:k,raw:raw}:null;
+  }).filter(Boolean);
+  const best=chooseParkedSave(cands);
+  if(!best) return null;
+  /* Verify the stamp inside the blob too — the key is a convenience, the stamp
+     is the truth. */
+  try{ if(JSON.parse(best.raw)._saveOwner!==owner) return null; }catch(_){ return null; }
+  try{
+    if(window.HearthriseStorage&&typeof window.HearthriseStorage.set==='function') window.HearthriseStorage.set(SAVE_KEY,best.raw);
+    else localStorage.setItem(SAVE_KEY,best.raw);
+  }catch(_){ try{ localStorage.setItem(SAVE_KEY,best.raw); }catch(__){ return null; } }
+  window.__saveParked=false;
+  return best.key;
+}
+window.parkLocalSave=parkLocalSave;
+window.unparkOwnSave=unparkOwnSave;
+window.chooseParkedSave=chooseParkedSave;
+window.currentSaveOwnerId=currentSaveOwnerId;
 /* ══════════════════════════════════════════════════════════════════════
    b244 — THE ITEM-ID MIGRATION / ALIAS LAYER (itemization spec §4).
    The rework will RENAME and RETIRE item ids (Wave 3 routes the orphan drops
@@ -793,6 +901,11 @@ function loadLocal(){
   // after loadLocal(), window.G.gold still held the pre-load mutation.
   // Object.assign keeps the same reference, so window.G stays correct.
   let raw=_readSave(SAVE_KEY);
+  /* b318 (V2): no live save, but this account has one parked here (they signed
+     out on this device, or another account's boot set theirs aside). Give it
+     back BEFORE the v1 migration path — a returning player must never be handed
+     a fresh character while their real save sits in a backup slot. */
+  if(!raw){ try{ if(unparkOwnSave()) raw=_readSave(SAVE_KEY); }catch(_){ } }
   if(!raw){
     /* migrate from v1 if present */
     raw=_readSave(LEGACY_KEY);

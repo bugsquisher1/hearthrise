@@ -5,7 +5,7 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=317';
+import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=318';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -211,11 +211,63 @@ function enableLiveSync() {
 // still treated as "fresh" for the anti-clobber guard.
 const FRESH_FLOOR = 40;
 
-export function decideRestore(local, snap) {
+/**
+ * WHO OWNS THE LOCAL SAVE (b318 — V2 cross-account clobber). Pure.
+ *
+ * THE HOLE: signOut() cleared only the session, never SAVE_KEY. Account B signs
+ * in on a device where account A played; loadLocal() reads A's save into G;
+ * decideRestore compares A's local against B's cloud on TIMESTAMP alone, A is
+ * newer, verdict 'adopt' → the next snapshot uploads A's character over B's
+ * cloud save. B's progress is destroyed and B is playing A's character. Neither
+ * existing guard fires: A's save is substantial, so the b314 thin/fresh-floor
+ * guards see two perfectly healthy saves and let time decide.
+ *
+ * The fix is identity, not size: a local save is only a candidate to upload if
+ * it BELONGS to the signed-in account.
+ *
+ *   'same'    — stamped with the signed-in user. Normal freshness rules apply.
+ *   'foreign' — stamped with a DIFFERENT user. Never adoptable, never uploadable.
+ *   'unstamped'      — a pre-b318 install. See the legacy policy below.
+ *   'unknown-session' — we cannot tell who is signed in (auth not up yet, offline
+ *                       boot). Never accuse a save of being foreign on a guess;
+ *                       fall through to the normal rules, which are unchanged.
+ *
+ * LEGACY POLICY (unstamped → treated as 'same', stamped on first save): every
+ * existing player's save predates the stamp, and discarding those would wipe the
+ * entire live beta on upgrade — categorically worse than the bug being fixed.
+ * It is safe against the V2 scenario because the stamp is written on the FIRST
+ * save after upgrade, i.e. by the account that is actually playing: the window
+ * in which a save can be mistaken for someone else's is one boot on a device
+ * that has ALREADY had two accounts on it before ever running b318. From the
+ * first stamped save onward the device is protected forever. And the stamp is
+ * only ever written when ABSENT (legacy.js saveLocal), so a foreign save can
+ * never be re-labelled as the current user's on the way past the guard.
+ */
+export function decideLocalOwnership(localOwner, currentUser) {
+  if (!currentUser || typeof currentUser !== 'string') return 'unknown-session';
+  if (!localOwner || typeof localOwner !== 'string') return 'unstamped';
+  return localOwner === currentUser ? 'same' : 'foreign';
+}
+
+export function decideRestore(local, snap, ownership) {
   local = local || {};
+  // Ownership may be passed explicitly (tests, callers that already resolved it)
+  // or derived from the local descriptor. Absent both, it is 'unknown-session'
+  // and behaviour is byte-for-byte what it was before b318.
+  const own = ownership || decideLocalOwnership(local.owner, local.currentUser);
+  if (own === 'foreign') {
+    // A save belonging to another account. It is not "older" or "smaller" — it
+    // is NOT THIS PLAYER'S, so freshness is meaningless and it must never reach
+    // the cloud. The caller parks it and starts this account clean.
+    return {
+      action: 'foreign', reason: 'local-owned-by-another-account', ownership: own,
+      localAt: Number(local.lastSeen) || 0, cloudAt: Number(snap && (snap.__cloudSavedAt || snap.lastSeen)) || 0,
+      localTotalLv: Number(local.totalLevel) || 0, cloudTotalLv: Number(snap && snap.totalLevel) || 0,
+    };
+  }
   const localAt = Number(local.lastSeen) || 0;
   const localTL = Number(local.totalLevel) || 0;
-  const base = { localAt, cloudAt: 0, localTotalLv: localTL, cloudTotalLv: 0 };
+  const base = { localAt, cloudAt: 0, localTotalLv: localTL, cloudTotalLv: 0, ownership: own };
   if (!snap || typeof snap !== 'object') return { action: 'none', reason: 'no-cloud', ...base };
   const cloudAt = Number(snap.__cloudSavedAt) || Number(snap.lastSeen) || 0;
   const cloudTL = Number(snap.totalLevel) || 0;
@@ -275,8 +327,28 @@ async function pullAndMaybeRestore() {
       lastSeen: (window.G && Number(window.G.lastSeen)) || 0,
       totalLevel: (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
         || (window.G && window.G.totalLevel) || 0,
+      owner: (window.G && window.G._saveOwner) || null,
+      currentUser: currentUserId(),
     };
     const d = decideRestore(local, snap);
+
+    // b318 (V2): the live save belongs to a DIFFERENT account. Do not merge it,
+    // do not upload it, do not reason about its timestamp. Park it (recoverable
+    // — that player gets it back when they sign in here again) and reload, so
+    // this account boots either its own parked save or a clean character and
+    // then reconciles against its own cloud through the normal path.
+    if (d.action === 'foreign') {
+      let already = false;
+      try { already = sessionStorage.getItem('hr:foreignParked') === local.currentUser; } catch (e) {}
+      console.warn(`[Auth] local save is owned by another account (${d.localAt} / Lv ${d.localTotalLv}); parking it instead of uploading.`);
+      if (already) return;   // belt-and-braces: never loop on a park that didn't take. Gate stays HELD.
+      try { sessionStorage.setItem('hr:foreignParked', local.currentUser); } catch (e) {}
+      try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('foreign'); } catch (e) {}
+      // Gate deliberately stays HELD — no snapshot may leave this tab before the
+      // reload replaces G with something this account actually owns.
+      location.reload();
+      return;
+    }
 
     if (d.action !== 'restore' || restoredAlready || !window.G) {
       // 'none'/'adopt' → local stays live and sync.js uploads it (that IS adoption
@@ -286,10 +358,17 @@ async function pullAndMaybeRestore() {
       return;
     }
 
-    // Cloud is newer → it is authoritative. Overlay its fields onto G. Because
-    // snapshot() excludes the NO_SYNC device-local journal (activeMonster,
-    // activeSkill, lastSeen, offlineBudget…), those survive the overlay — the
-    // cloud wins only for the SYNCED progress (skills/gold/items/quests/…).
+    // Cloud is newer → it is authoritative. Overlay its fields onto G. snapshot()
+    // omits the NO_SYNC set (in-flight combat/activity, combatLog,
+    // lastOfflineSummary, derived totalLevel/combatLevel) and `_`-prefixed
+    // scratch — including the b318 `_saveOwner` stamp, which is device-local
+    // identity and must never ride to the cloud — so those survive the overlay.
+    // b318 CORRECTION: this comment previously claimed lastSeen and
+    // offlineBudget were NO_SYNC device-local journal. They are NOT in NO_SYNC
+    // (src/net/events.js) — both ARE uploaded, and both are explicitly
+    // re-stamped to cloudAt immediately below precisely because the overlay
+    // brings the cloud's copies with it. Behaviour unchanged; the comment was
+    // simply wrong and would have misled the next person to touch this.
     const cloudAt = d.cloudAt || Date.now();
     delete snap.__cloudSavedAt;                       // never let our meta keys land in G
     delete snap.__device;                             // (b301 concurrent-device marker)
@@ -336,10 +415,37 @@ export async function signIn(email, password) {
 }
 
 export async function signOut() {
-  if (!supabase) return;
+  // b318 (V2): signing out used to remove ONLY the session key, leaving this
+  // account's SAVE_KEY blob live in localStorage. The next account to sign in on
+  // this device booted the PREVIOUS player's character and — if it was newer —
+  // uploaded it over their own cloud save. Park the save (never destroy it: a
+  // same-owner sign-in un-parks it, so unsynced offline progress survives) and
+  // stop uploads so nothing can be written after the session ends.
+  try { holdSnapshots(); } catch (e) {}
+  try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('signout'); } catch (e) {}
+  if (!supabase) { session = null; try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} return; }
   await supabase.auth.signOut();
   session = null;
   localStorage.removeItem(LOCAL_KEY);
+}
+
+/** The user id carried by a supabase session object, or null. Pure. */
+export function readUserIdFromSession(s) {
+  const id = s && s.user && s.user.id;
+  return (typeof id === 'string' && id) ? id : null;
+}
+
+/**
+ * The signed-in user id, readable at ANY point in boot — from the live session
+ * if setupAuth() has run, otherwise from the cached session blob. legacy.js
+ * needs this inside loadLocal()/saveLocal(), which run before this module's
+ * session variable is necessarily populated, so it must not depend on init order.
+ */
+export function currentUserId() {
+  const live = readUserIdFromSession(session);
+  if (live) return live;
+  try { return readUserIdFromSession(JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null')); }
+  catch (e) { return null; }
 }
 
 export function getSession() {
@@ -484,7 +590,7 @@ function showEvictedGate() {
 }
 
 // Expose for legacy callers
-window.HearthriseAuth = { setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient };
+window.HearthriseAuth = { setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId, decideLocalOwnership };
 
 // Auto-render banner state once on load (in case the user is already signed in)
 if (document.readyState === 'loading') {

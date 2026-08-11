@@ -591,3 +591,34 @@ Wrote `docs/reports/itemization-audit/A-items-economy.md`. No game code touched 
 **Top-5 changes:** (1) one item source + id-alias/migration layer BEFORE renames; (2) delete/repurpose 34 orphans + make vendor-trash derived not hand-listed; (3) kill-or-wire dead stats/buffs; (4) extend gear-tiers generator to a full content schema, rarity decoupled from v; (5) make tier/level_req/source legible in UI + per-slot gear icons.
 
 Handoff to synthesis: §7 (migration) is a hard blocker for the whole program; §4 (dead buffs) crosses into the combat slice.
+
+---
+
+## 2026-08-11 — WS0 pivot → SERVER-AUTHORITY FOUNDATION (design + schema, not applied)
+
+Economy-containment work (market caps, forensic audit, save amnesty) was cancelled mid-task by
+the Coordinator: the beta is wiped at cutover, so protecting existing data has no value. Nothing
+from that brief was written. Re-scoped to the greenfield foundation design.
+
+**Delivered (review-only, nothing applied, no version bump, no commit):**
+- `docs/design/server-authority.md` — data model, intent protocol, accrual engine, logic-reuse
+  findings with line refs, cutover plan, ~92 engineer-day costing.
+- `supabase/migrations/2026-08-11-player-state.sql` — real tables replacing `game_saves.snapshot`.
+- `supabase/migrations/2026-08-11-apply-engine.sql` — `hr_load` (client) + `hr_apply`
+  (service-role only) — the single transactional commit point for Deno Edge Functions.
+- `supabase/migrations/2026-08-11-market-v2.sql` — market with real escrow + seller paid at sale.
+
+**The finding that matters most:** `processOffline()` (`legacy.js:1073`) is ALREADY the accrual
+engine — it replays the same action functions the live loop uses, behind a `silent` flag, inside
+`withOfflineReplay()`. The server engine is that loop with `G` swapped and the render calls
+removed. That de-risks the highest-risk workstream.
+
+**Second finding:** `hr_castle_items` (`2026-08-08-clan-seat.sql:154`) is hand-seeded "from
+items.js" by comment only, with NO drift guard. Latent hole; the catalogue generator should
+absorb it.
+
+**Ordering rule handed to the Coordinator:** Phase 0 (extract shared sim core, client still
+calling it, 540-suite as the equivalence proof) gates every later phase. Do not move authority
+for a domain before its logic is extracted and proven.
+
+Smoke: 540/540 green, migration guard green. No `src/` files touched.

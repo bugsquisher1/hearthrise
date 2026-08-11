@@ -101,8 +101,47 @@ deletion, correctly). All player-facing tables are back to 0 rows. Beta wipes at
 Note cron is at 9 jobs (was 10) — consistent with the two disarmed market crons plus the
 retention/hygiene additions; re-derive rather than trusting this number.
 
+
+## SEQUENCE COMPLETE + TWO CORRECTIONS (verified after the handoff was first written)
+
+**All three security migrations are APPLIED.** `live_market_rls_a6_a8_a11`
+(`20260811143110`) and `grant_hygiene_v3_detector` (`20260811143332`) both applied first
+try, self-checks passed, transcriptions sha-verified. `hr_assert_grant_hygiene(true)` is
+clean with **`ungated_client_rpcs: []`** — the A9 detector is live and reporting 0.
+A6/A8 re-verified as the real `authenticated` role: forged `seller_name` overwritten,
+`seller_user_id` pinned, bop item refused (22023), `ask_each`/`gold_total`/`buyer_name`
+PATCH all 42501, double-collect refused — while collect, cancel and **`buy_listing`
+end-to-end** still work. PostgREST probe 41/41 identical. `2026-08-11-accrue-gate.sql`
+also applied (D3's missing SQL half).
+
+**CORRECTION 1 — the org IS on Pro, not Free.** An agent report claimed "Free tier, no
+backups, no PITR" and carried it as the biggest open risk. `get_organization` says
+`plan: "pro"`, so **daily backups with 7-day retention exist**. The database is not a
+single point of total loss. What remains true and still matters: **no restore has ever
+been tested**, and Pro's daily backups accept up to 24h of loss where PITR (a separate
+add-on) accepts minutes. Before cutover makes the DB the sole record of progression,
+do one real restore test and decide on PITR.
+
+**CORRECTION 2 — C4 did NOT ship, and Security's own wording for it is wrong.**
+`hr_engine_login` appears nowhere in `supabase/migrations/*.sql`; file 3 asserts only
+`hr_engine`'s allowlist and zero grants. Every property was verified by hand and holds
+today, but **drift in it is currently undetectable.** And the assertion as specified —
+"`hr_engine` has no members other than `postgres`" — would now FAIL: its members are
+`{hr_engine_login, postgres}`, and `hr_engine_login` MUST be a member, because that is
+the entire point of the login/capability split. The correct form is **"no members
+outside `{postgres, hr_engine_login}`"**. Fix the wording before implementing it.
+
+**A11 remains open by design** — an anon key still returns the invite codes. The RPC half
+shipped; the read-lockdown half waits on the one-line `src/settings-page.js:279` swap,
+then a second apply of the file.
+
+**New permanent guard:** `tests/rpc-resolution.mjs` (+ targets/baseline JSON) runs 41
+PostgREST probes on every push, reads url/key from `supabase-bootstrap.js` rather than
+duplicating them, and **exits 1 if its own control stops firing** — a probe that cannot
+prove it can see failure is treated as broken, not as a pass.
+
 ## NEXT, IN ORDER
-1. Confirm the two in-flight items above; finish or fix whatever is half-done.
+1. Get a `SUPABASE_ACCESS_TOKEN` from Tyler and deploy the Edge Function from the staged tree; then set `HR_ACCRUE_URL` so `deployedPayloadGuard` stops skipping.
 2. **The client rewire** — the largest remaining risk, explicitly low confidence. It
    touches `legacy.js` everywhere, so agents cannot parallelise on it. Must NOT be
    wired to a non-deployed engine.

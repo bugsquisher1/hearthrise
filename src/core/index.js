@@ -15,15 +15,15 @@
 // If you add a module here, add it to CORE_MODULES in tests/core-purity.mjs.
 // ============================================================
 
-export * as rng from './rng.js?v=323';
-export * as xp from './xp.js?v=323';
-export * as combat from './combat.js?v=323';
-export * as drops from './drops.js?v=323';
-export * as pacing from './pacing.js?v=323';
-export * as rested from './rested.js?v=323';
-export * as tools from './tools.js?v=323';
-export * as farm from './farm.js?v=323';
-export * as progression from './progression.js?v=323';
-export * as styles from './styles.js?v=323';
-export * as artisan from './artisan.js?v=323';
-export * as bounty from './bounty.js?v=323';
+export * as rng from './rng.js?v=324';
+export * as xp from './xp.js?v=324';
+export * as combat from './combat.js?v=324';
+export * as drops from './drops.js?v=324';
+export * as pacing from './pacing.js?v=324';
+export * as rested from './rested.js?v=324';
+export * as tools from './tools.js?v=324';
+export * as farm from './farm.js?v=324';
+export * as progression from './progression.js?v=324';
+export * as styles from './styles.js?v=324';
+export * as artisan from './artisan.js?v=324';
+export * as bounty from './bounty.js?v=324';

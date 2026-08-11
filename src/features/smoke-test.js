@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=323' directly.
+// modularised, will import { G } from '../state/game.js?v=324' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=323';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=323';
+import { on, snapshot } from '../net/events.js?v=324';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=324';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=323';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=324';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11931,6 +11931,47 @@ const TESTS = [
     assert(window.levelFromXp(83) === 2 && window.levelFromXp(13034431) === 99, 'the XP curve answers wrongly');
     assert(window.dropBand(0.01) === 'rare' && window.dropBand(1) === 'always', 'the drop bands answer wrongly');
     assert(window.speedClamp(0.1) === 0.9, 'the speed fuse answers wrongly');
+  }),
+
+  /* b323 REGRESSION — the core readiness gate.
+     Phase 0 moved ~50 simulation call sites in legacy.js onto a MODULE
+     (core-bridge.js), which is deferred; legacy.js is a CLASSIC script and
+     registers 21 top-level setTimeout/setInterval calls at parse time. On a
+     cold load those fired into a coreless engine — six pageerrors from
+     getCombatLevel/getLevel/getArmorSetBonus via renderMonsterList, applyAll
+     and checkAchievements. src/core-ready.js parks boot-window timers and
+     releases them when the core lands.
+
+     This test can only assert the CONTRACT (the page it runs in is warm by
+     definition). The cold load itself is proved by the cold-load guard in
+     tests/run-smoke.mjs, which delays the /src/core/ responses and requires
+     zero pageerrors. Both are needed: a warm-page guard would never have
+     caught this, and a node-only guard leaves the API unpinned. */
+  () => tryRun('b323: the core readiness gate is present, satisfied, and uninstalled', () => {
+    assert(typeof window.whenCoreReady === 'function',
+      'window.whenCoreReady is missing — src/core-ready.js did not load (boot timers are unprotected on a cold load)');
+    assert(typeof window.isCoreReady === 'function' && window.isCoreReady() === true,
+      'the gate never released — the engine would be running on parked timers');
+    assert(window.HearthriseCoreReady && typeof window.HearthriseCoreReady.then === 'function',
+      'window.HearthriseCoreReady must be thenable so module code can await the core');
+    assert(!!window.HearthriseCore,
+      'the gate released without a core — core-bridge.js failed to evaluate');
+
+    /* whenCoreReady must run immediately once ready, not queue forever. */
+    let got = null;
+    window.whenCoreReady(function (c) { got = c; });
+    assert(got === window.HearthriseCore, 'whenCoreReady did not fire synchronously after readiness');
+
+    /* THE SELF-UNINSTALL. The shim is a boot-window device; leaving it in place
+       would put a wrapper on every timer in the game forever. Once the core is
+       up, scheduling must be the platform's own function again. */
+    assert(/\[native code\]/.test(String(window.setTimeout)) && /\[native code\]/.test(String(window.setInterval)),
+      'the readiness shim is still wrapping setTimeout/setInterval after the core came online');
+
+    /* And a timer scheduled now must actually be a live platform timer. */
+    const id = window.setTimeout(function () {}, 50);
+    assert(id != null, 'setTimeout returned no id after the gate uninstalled');
+    window.clearTimeout(id);
   }),
 
   () => tryRun('Phase 0: the balance constants are ONE object, not a client copy', () => {

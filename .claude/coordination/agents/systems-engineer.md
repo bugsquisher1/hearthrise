@@ -2,6 +2,53 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-11 · b323 P1 HOTFIX — the core readiness gate (Phase 0 cold-load crash)
+
+**The regression.** Phase 0 rewrote ~50 simulation call sites in `src/legacy.js` (a CLASSIC
+script) onto `window.HearthriseCore`, published by `src/core-bridge.js` (a MODULE, therefore
+deferred). Between "legacy.js parsed" and "core-bridge evaluated" the engine is armed but its
+maths is missing. Nothing on DOMContentLoaded is at risk (that fires AFTER deferred modules, by
+spec — which is why `boot()` was fine). The exposure is work classic scripts SCHEDULE at parse
+time: legacy.js alone registers 21 top-level `setTimeout`/`setInterval`s.
+
+Measured on a cold load (only `/src/core/` + `core-bridge.js` responses delayed): **6 pageerrors**
+— `getCombatLevel` ×3 via `renderMonsterList`, `getArmorSetBonus` ×2 via `applyAll`, `getLevel`
+×1 via `checkAchievements`. A property-getter trap on `window.HearthriseCore` found **49 pre-core
+reads across 8 distinct sites** — three more than the crash showed (`migrate` at legacy.js:7750,
+`renown.js computeRenown`, `_eqStatsTotals`); the visible crashes were only the subset that
+happened to dereference.
+
+**The fix: `src/core-ready.js`** — a classic script placed after the non-engine scripts and
+before every engine script. It parks `setTimeout`/`setInterval` registered in the boot window and
+releases them, in registration order, when `core-bridge.js` calls `window.__hearthriseCoreOnline()`
+as its last statement; then it uninstalls itself. Registration order == file order, so the
+scripts above it (theme-picker, observability, storage seam, account gate) are never delayed.
+
+**Why not the alternatives.** Fifty guards is O(call sites), regresses at site 51, and a guard
+that returns 0 makes a renderer paint a wrong number silently. A synchronous core would need a
+classic mirror of `src/core/*` — a second copy of rules an Edge Function also runs, i.e. exactly
+the "one identity" property Phase 0 bought. The timer queue is the single choke point the whole
+failure class passes through.
+
+Also published: `whenCoreReady(fn)`, `isCoreReady()`, `HearthriseCoreReady` (promise).
+`renderStyleSelector`'s ad-hoc 200ms re-arm poll now uses the gate.
+
+**Two traps found while building it, both fixed:**
+1. A released timeout runs under a NEW platform id, so a caller holding the parked id could not
+   cancel it. Both `clear*` now consult a remap table which self-empties.
+2. Adopting `whenCoreReady` in `renderStyleSelector` created infinite recursion on the *coreless*
+   release path (release sets ready → waiter fires immediately → re-registers). **Anyone adopting
+   `whenCoreReady` for a RETRY must check `isCoreReady()` first and give up if it is already
+   true.**
+
+**Guards added:** `coldLoadGuard` in `tests/run-smoke.mjs` (delays the core module graph 2s via
+Playwright route interception, so it works against `--url` production too) plus one in-page
+contract test in `smoke-test.js`. Both fail without the fix; the node guard reports exactly 6.
+
+Smoke **554/554** green (was 553). Runtime: 0 pageerrors at 0 / 1.5s / 6s module delay, engine
+functional (monster list renders, the 100ms tick survived parking, `saveLocal` works,
+`window.PACE === core.PACE`). No version bump, no commit — Coordinator integrates.
+
 ## 2026-08-11 · PHASE 0 EXECUTED — the shared simulation core (`src/core/`)
 
 Phase A of `docs/design/server-authority.md`. Behaviour-preserving extraction; the client still

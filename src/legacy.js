@@ -7794,11 +7794,21 @@ function renderStyleSelector(){
   if(!hosts.length) return;
   var host = hosts[0];
 
-  /* PHASE A: the style table lives in the core, which is a deferred MODULE —
-     on a slow load this 400ms timer can fire before the module graph has
-     evaluated. Re-arm rather than throw; the picker appears a beat later
-     instead of a red console and a missing panel. */
-  if(!window.HearthriseCore || !window.COMBAT_STYLES){ setTimeout(renderStyleSelector, 200); return; }
+  /* PHASE A: the style table lives in the core, which is a deferred MODULE.
+     b323 replaced this function's ad-hoc 200ms re-arm poll with the shared
+     readiness gate (src/core-ready.js) — same shape, but it fires the moment
+     the core lands instead of up to 200ms later, and it is the same mechanism
+     the whole boot now uses. The check stays because renderStyleSelector is
+     also called directly by the combat renderer, not only from a boot timer. */
+  if(!window.HearthriseCore || !window.COMBAT_STYLES){
+    /* If the gate has ALREADY released and the core still is not here, it is
+       never coming (404 / parse failure) — core-ready.js has logged that
+       loudly. Retrying would recurse forever, so stop. */
+    if(typeof window.isCoreReady === 'function' && window.isCoreReady()) return;
+    if(typeof window.whenCoreReady === 'function') window.whenCoreReady(function(){ renderStyleSelector(); });
+    else setTimeout(renderStyleSelector, 200);
+    return;
+  }
 
   /* Avoid duplicates */
   var prev = document.querySelector('.combat-style-block');

@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 324 — 2026-08-11 (Fixes errors on slow page loads)
+
+- 🐛 **Fixed JavaScript errors that could appear while the game was still loading**, most likely on a slow connection or a first visit with an empty cache. Some parts of the game started before the shared engine had finished loading and threw errors; they now wait for it. Introduced in build 319 — sorry about that.
+
 ## v0.9.2-beta build 323 — 2026-08-11 (Foundation: crafting, bounties and combat styles)
 
 - 🏗️ **More of the game's maths moved into the shared core** that will run on the server — crafting and cooking (including burn chance and double-craft), bounty board generation, and combat-style XP routing. No gameplay changes; every number behaves exactly as before.

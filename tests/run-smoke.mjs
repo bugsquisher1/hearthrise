@@ -234,6 +234,82 @@ async function secretGuard() {
   }
   return problems;
 }
+// ── The cold-load guard (b323) ───────────────────────────────────────────────
+// THE FAILURE IT EXISTS FOR, verbatim from production:
+//
+//   TypeError: Cannot read properties of undefined (reading 'xp')
+//     at getCombatLevel (legacy.js:1508)  <- renderMonsterList  x3
+//   TypeError: Cannot read properties of undefined (reading 'combat')
+//     at getArmorSetBonus (legacy.js:1484) <- applyAll          x2
+//   TypeError: Cannot read properties of undefined (reading 'xp')
+//     at getLevel (legacy.js:1506)         <- checkAchievements x1
+//
+// Six pageerrors on a cold load. legacy.js is a CLASSIC script that registers
+// 21 top-level timers at parse time; src/core-bridge.js is a MODULE and is
+// therefore deferred, so on a slow first load those timers fire into an engine
+// whose maths has not arrived. src/core-ready.js parks them until it has.
+//
+// NO WARM-PAGE TEST CAN SEE THIS — every other pass in this file, and the whole
+// in-page suite, loads a page where the module graph is already there. So this
+// guard MANUFACTURES the cold load: it holds the /src/core/ and core-bridge.js
+// responses back by COLD_DELAY_MS via route interception (which works against a
+// local server AND against --url production) and requires ZERO pageerrors.
+//
+// It also asserts the gate's own contract, because a gate that "passes" by
+// never releasing would freeze the game: the core must be online, the shim must
+// have uninstalled itself, and the Phase-0 constant identity must survive.
+async function coldLoadGuard(browser, url) {
+  const COLD_DELAY_MS = 2_000;
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const problems = [];
+  const pageErrors = [];
+  page.on('pageerror', (e) => pageErrors.push(String(e.message || e).slice(0, 160)));
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  try {
+    // Delay ONLY the simulation core's module graph. Everything else loads at
+    // full speed, which is precisely the shape of the real bug: classic scripts
+    // already running, module not there yet.
+    await page.route(/\/src\/(core-bridge\.js|core\/)/, async (route) => {
+      await new Promise((r) => setTimeout(r, COLD_DELAY_MS));
+      await route.continue();
+    });
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.waitForFunction(() => !!window.HearthriseCore, { timeout: 60_000 })
+      .catch(() => problems.push('the core never came online even after the delayed modules arrived'));
+    await page.waitForTimeout(3_000);   // let every parked boot timer drain
+
+    if (pageErrors.length) {
+      const seen = [...new Set(pageErrors)];
+      problems.push(`${pageErrors.length} uncaught error(s) on a cold load — ` +
+        'a boot timer ran before window.HearthriseCore existed: ' + seen.slice(0, 4).join(' | '));
+    }
+    const gate = await page.evaluate(() => ({
+      gateLoaded: typeof window.whenCoreReady === 'function',
+      released: typeof window.isCoreReady === 'function' ? window.isCoreReady() : null,
+      core: !!window.HearthriseCore,
+      uninstalled: /\[native code\]/.test(String(window.setTimeout)) &&
+                   /\[native code\]/.test(String(window.setInterval)),
+      // Phase 0's load-bearing property: the constants are ONE object, not a copy.
+      paceIdentity: !!window.HearthriseCore && window.PACE === window.HearthriseCore.pacing.PACE,
+      // The engine must actually be alive, not merely quiet.
+      booted: typeof window.G !== 'undefined' && typeof window.getCombatLevel === 'function',
+      combatLevel: (() => { try { return window.getCombatLevel(); } catch (e) { return 'threw: ' + e.message; } })(),
+    }));
+    if (!gate.gateLoaded) problems.push('src/core-ready.js is not loaded — nothing protects the boot window');
+    if (gate.released !== true) problems.push('the readiness gate never released; boot timers are still parked');
+    if (!gate.uninstalled) problems.push('the readiness shim did not uninstall — every timer in the game is wrapped forever');
+    if (!gate.paceIdentity) problems.push('window.PACE is no longer the core PACE object (Phase 0 identity broken)');
+    if (!gate.booted) problems.push('the engine did not boot after the delayed core arrived');
+    if (typeof gate.combatLevel !== 'number') problems.push('getCombatLevel() is not answering after a cold load: ' + gate.combatLevel);
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 // ── The landscape guard (b260) ───────────────────────────────────────────────
 // Landscape is now the ONLY mobile orientation (portrait is gated, b259). The
 // in-page suite runs at desktop width, so it never sees the cramped landscape
@@ -408,6 +484,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Secret guard — no webhook URL, PAT or service-role key anywhere in the repo.');
+    }
+
+    const coldProblems = await coldLoadGuard(browser, url);
+    if (coldProblems.length) {
+      console.log('\nCold-load guard (core modules delayed 2s) — FAILED:');
+      for (const p of coldProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Cold-load guard — a slow core module graph produces zero uncaught errors.');
     }
 
     const landProblems = await landscapeGuard(browser, url);

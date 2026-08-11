@@ -29,18 +29,18 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=323';
-import * as xp from './core/xp.js?v=323';
-import * as combat from './core/combat.js?v=323';
-import * as drops from './core/drops.js?v=323';
-import * as pacing from './core/pacing.js?v=323';
-import * as rested from './core/rested.js?v=323';
-import * as tools from './core/tools.js?v=323';
-import * as farm from './core/farm.js?v=323';
-import * as progression from './core/progression.js?v=323';
-import * as styles from './core/styles.js?v=323';
-import * as artisan from './core/artisan.js?v=323';
-import * as bounty from './core/bounty.js?v=323';
+import * as rngMod from './core/rng.js?v=324';
+import * as xp from './core/xp.js?v=324';
+import * as combat from './core/combat.js?v=324';
+import * as drops from './core/drops.js?v=324';
+import * as pacing from './core/pacing.js?v=324';
+import * as rested from './core/rested.js?v=324';
+import * as tools from './core/tools.js?v=324';
+import * as farm from './core/farm.js?v=324';
+import * as progression from './core/progression.js?v=324';
+import * as styles from './core/styles.js?v=324';
+import * as artisan from './core/artisan.js?v=324';
+import * as bounty from './core/bounty.js?v=324';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -218,6 +218,15 @@ Object.assign(window, {
   BOUNTY_TYPE_LABEL: bounty.BOUNTY_TYPE_LABEL,
   BOUNTY_DIFFICULTY_LABEL: bounty.BOUNTY_DIFFICULTY_LABEL,
 });
+
+/* THE READINESS SIGNAL — must be the last statement in this file.
+   src/core-ready.js (a classic script, so it is up before any engine script)
+   parks every boot timer the classic scripts register and releases them here.
+   Without this call the engine's parse-time setTimeout/setInterval work fires
+   into a coreless window on a slow cold load and throws. See that file's
+   header for the full reasoning; `node tests/visual-qa.mjs --cold` is the
+   guard. Optional-chained so core-bridge still stands alone in a bare page. */
+if (typeof window.__hearthriseCoreOnline === 'function') window.__hearthriseCoreOnline();
 
 console.log('[Hearthrise core] shared simulation core online —',
   Object.keys(window.HearthriseCore).length, 'entries,', xp.XP_TABLE.length, 'XP rungs');

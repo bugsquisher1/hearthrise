@@ -17,6 +17,8 @@
 import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
+import { runAll as jwtGuards } from './jwt-verify.mjs';
+import { pack as packEdge } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -116,6 +118,60 @@ async function wallGuard(browser, url) {
     await ctx.close().catch(() => {});
   }
   return problems;
+}
+
+// ── The deployed-payload guard (review S10) ─────────────────────────────────
+// `tools/pack-edge.mjs --check` calls pack(), re-reads the same paths and
+// re-applies the same pure transform. Both sides of its comparison come from
+// the same bytes through the same function, so it can tell you the function is
+// PACKABLE and nothing at all about what is running in production. That gap is
+// the one that matters: the deploy payload carries a snapshot of src/core and
+// src/data, so an edit to the simulation that was never redeployed means the
+// server and the client disagree about what a night was worth — silently, and
+// in the player's data.
+//
+// So: pack() stamps the payload's sha256 into payload-hash.js, the deployed
+// function returns it from a GET, and this compares the two.
+//
+// Configure with HR_ACCRUE_URL (the function's URL) and, because the function is
+// deployed with verify_jwt = true, HR_ACCRUE_KEY (the project's anon/publishable
+// key — the gateway accepts it as a token, and the GET returns nothing secret).
+// With neither set the check reports SKIPPED and says what it needs. It never
+// passes quietly.
+async function deployedPayloadGuard() {
+  const problems = [];
+  const { hash } = await packEdge('hr-accrue');
+  const url = process.env.HR_ACCRUE_URL;
+  if (!url) {
+    return { problems, note: `repo payload ${hash.slice(0, 16)}… · deployed check SKIPPED (set HR_ACCRUE_URL, and HR_ACCRUE_KEY for the gateway)` };
+  }
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10_000);
+    const key = process.env.HR_ACCRUE_KEY || '';
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      headers: key ? { Authorization: `Bearer ${key}`, apikey: key } : {},
+    });
+    clearTimeout(t);
+    if (!res.ok) {
+      problems.push(`GET ${url} returned ${res.status} — cannot read the deployed payload hash`);
+      return { problems, note: '' };
+    }
+    const body = await res.json();
+    if (body?.payload_sha256 !== hash) {
+      problems.push(
+        `the deployed hr-accrue reports payload ${String(body?.payload_sha256).slice(0, 16)}… but this repo packs to `
+        + `${hash.slice(0, 16)}… — src/core, src/data or the function changed and was never redeployed. `
+        + 'Redeploy with `node tools/pack-edge.mjs hr-accrue --out <dir>`.');
+      return { problems, note: '' };
+    }
+    return { problems, note: `deployed hr-accrue matches this repo (${hash.slice(0, 16)}…)` };
+  } catch (e) {
+    problems.push(`could not reach ${url}: ${e?.message || e}`);
+    return { problems, note: '' };
+  }
 }
 
 // ── The migration guard (b228) ───────────────────────────────────────────────
@@ -476,6 +532,40 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nAccrual guard — server accrual matches the client for the same seed; hostile inputs inert.');
+    }
+
+    /* ── The identity guard (D2) ────────────────────────────────────────
+       The accrual engine's ENTIRE authorisation model is "the sub in this
+       token is the player". It used to be a DECODE — the shell read the
+       claim and believed it — resting on `verify_jwt` being on at a
+       gateway, a setting that lived in no file and no test. This executes
+       the verifier against a real ES256 key pair and against the LIVE
+       published JWKS of the project, and asserts every forgery is refused.
+       See tests/jwt-verify.mjs. */
+    const { problems: jwtProblems, note: jwtNote } = await jwtGuards();
+    if (jwtProblems.length) {
+      console.log('\nIdentity guard (the accrual JWT is VERIFIED, not decoded) — FAILED:');
+      for (const p of jwtProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nIdentity guard — every forged token refused; ${jwtNote}`);
+    }
+
+    /* ── Deployed-vs-repo (S10) ─────────────────────────────────────────
+       `pack-edge --check` re-derives the payload from the same repo it
+       just read, so it structurally cannot answer "do the bytes running in
+       production match this branch?". The function reports the sha256 it
+       was packed with on a GET; this compares that with the digest
+       recomputed here. SKIPPED, LOUDLY, when no URL is configured — a
+       check that prints nothing when it does not run is the failure this
+       program has hit six times. */
+    const deployProblems = await deployedPayloadGuard();
+    if (deployProblems.problems.length) {
+      console.log('\nEdge payload guard (deployed bytes == repo bytes) — FAILED:');
+      for (const p of deployProblems.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`Edge payload guard — ${deployProblems.note}`);
     }
 
     // Wall guard FIRST, in its own clean context, before the harness page below

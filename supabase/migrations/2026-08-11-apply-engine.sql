@@ -350,6 +350,8 @@ declare
 
   v_uid   uuid;
   v_role  text;
+  v_prev_intent text;
+  v_this_intent text;
   v_slot  int  := coalesce(p_slot, 0);
   v_st    public.player_state%rowtype;
   v_j     jsonb;
@@ -466,9 +468,40 @@ begin
   --        gets fresh state and a fresh version instead of a stale snapshot it
   --        would then have to discard. The contract is unchanged and is the one
   --        that matters: the same key applies the effect exactly once.
-  select result into v_prev from public.player_intents
+  --
+  --        ── ONE NAMESPACE, TWO KINDS OF KEY (review S6) ──────────────────
+  --        `player_intents` is keyed on (user_id, intent_id) and NOTHING else,
+  --        so a client-supplied uuid (market_list / market_cancel / market_buy
+  --        all take p_intent_id straight from the browser) shares a namespace
+  --        with keys the SERVER derives — the accrual engine's key is
+  --        sha256(user, slot, watermark, …), and `accrued_to` is a value
+  --        hr_load hands the client so it can render a countdown.
+  --
+  --        Left alone, that is a self-denial-of-service with a nasty shape: a
+  --        player computes their own next accrual key, burns it with a market
+  --        call, and every accrual from then on returns `replayed: true`,
+  --        applies nothing, and never advances the watermark — silently, with
+  --        ok:true, until hr_intents_prune deletes the row 24 hours later.
+  --
+  --        The fix is to notice that a replay must be a replay OF THE SAME
+  --        THING. `player_intents.intent` already records what the key was
+  --        claimed for; if the incoming call names a different one, this is not
+  --        a retry, it is a collision — deliberate or accidental — and the
+  --        honest answer is to refuse rather than to hand back someone else's
+  --        decision. One comparison, and it hardens every intent in the system,
+  --        not just accrual. (The accrual key is ALSO salted with hr_seed's
+  --        server secret now, so it cannot be computed in the first place; these
+  --        are two independent locks and the cheap one lives here.)
+  v_this_intent := p_delta #>> '{journal,intent}';
+  select result, intent into v_prev, v_prev_intent from public.player_intents
    where user_id = v_uid and intent_id = p_intent_id;
   if found then
+    if v_prev_intent is distinct from v_this_intent then
+      perform public.hr_record_rejection(v_uid, v_slot, coalesce(v_this_intent, 'apply'),
+        'intent_mismatch',
+        jsonb_build_object('stored', v_prev_intent, 'sent', v_this_intent));
+      return jsonb_build_object('ok', false, 'error', 'intent_mismatch');
+    end if;
     if v_prev is null then
       return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
     end if;
@@ -487,7 +520,7 @@ begin
   -- that means two different things on two slots is a worse contract than one
   -- that is simply already taken.
   insert into public.player_intents (user_id, intent_id, slot, intent)
-    values (v_uid, p_intent_id, v_slot, p_delta #>> '{journal,intent}')
+    values (v_uid, p_intent_id, v_slot, v_this_intent)
   on conflict (user_id, intent_id) do nothing;
   if not found then
     return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
@@ -1068,6 +1101,62 @@ begin
     raise exception 'hr_reject did not raise';
   exception when sqlstate 'HR000' then null;
   end;
+
+  -- (e-ii) INTENT COLLISION IS REFUSED (review S6). Behavioural, not textual:
+  --     a claimed key whose stored `intent` differs from the incoming one must
+  --     answer `intent_mismatch` rather than handing back the stored decision.
+  --     Provable with no fixture, because the check sits BEFORE the protected
+  --     block and therefore before `no_character` — a synthetic user with no
+  --     player_state row reaches it. Runs as hr_engine so that p_user is
+  --     honoured (the identity seam reads the `role` GUC), and cleans up after
+  --     itself: the probe leaves a player_intents row, a rate counter and a
+  --     rejection row, all keyed on a uuid that belongs to nobody.
+  --
+  --     ⚠ CONDITIONAL, and the condition is not laziness. The engine lockdown
+  --       (review D1) removed the SET option on `hr_engine` from every role
+  --       including the migration owner — `pg_auth_members.set_option = false`
+  --       for postgres, verified on this database — so `set role hr_engine`
+  --       raises. Granting it back here to make an assertion pass would undo the
+  --       control the assertion exists to protect, which is a strictly worse
+  --       trade. When the probe cannot run, the TEXTUAL check below still fires,
+  --       and it is a weaker check honestly labelled rather than a strong one
+  --       quietly skipped. The behavioural probe HAS been executed against
+  --       production, inside a rolled-back transaction, on 2026-08-11: the
+  --       unpatched function answered {"ok":false,"error":"no_character",
+  --       "replayed":true} — another intent's decision — and the patched one
+  --       answered intent_mismatch.
+  if not (select prosrc like '%intent_mismatch%'
+            from pg_proc where oid = to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)')) then
+    raise exception 'hr_apply has no intent_mismatch branch — the S6 collision is open';
+  end if;
+
+  if pg_has_role(current_user, 'hr_engine', 'SET') then
+  declare
+    v_u uuid := gen_random_uuid();
+    v_i uuid := gen_random_uuid();
+    v_r jsonb;
+  begin
+    insert into public.player_intents (user_id, intent_id, slot, intent, result)
+      values (v_u, v_i, 0, 'market_buy', jsonb_build_object('ok', true));
+    perform set_config('role', 'hr_engine', true);
+    v_r := public.hr_apply(v_u, 0, 1::bigint, v_i,
+             jsonb_build_object('journal', jsonb_build_object('kind','accrue','intent','accrue')));
+    perform set_config('role', 'none', true);
+    if coalesce(v_r->>'error', '') <> 'intent_mismatch' then
+      raise exception 'a colliding intent id returned % — it must be intent_mismatch (S6)',
+        coalesce(v_r->>'error', v_r->>'ok');
+    end if;
+    delete from public.player_intents where user_id = v_u;
+    delete from public.hr_rate_counters where user_id = v_u;
+    delete from public.hr_rejections where user_id = v_u;
+  exception when others then
+    perform set_config('role', 'none', true);
+    raise;
+  end;
+  else
+    raise notice 'S6 behavioural probe SKIPPED: % cannot SET ROLE hr_engine (the D1 lockdown). '
+                 'The textual assertion above still holds.', current_user;
+  end if;
 
   -- (f) hr_state_of must be VOLATILE (reliability RL1). If someone "optimises"
   --     it back to STABLE, hr_apply's returned envelope is no longer guaranteed

@@ -1067,6 +1067,18 @@ begin
      -- be the authority for its own cap — capMs multiplies an entire night's
      -- grant, so it belongs in Postgres beside accrued_to and now().
      --
+     -- ENTRY 9, added 2026-08-11 with the accrual rate gate
+     -- (2026-08-11-accrue-gate.sql). `hr_rate_gate` WRITES — one row in the
+     -- UNLOGGED hr_rate_counters table, updated in place, for the user it was
+     -- handed — and it is on the list anyway because the alternative is worse:
+     -- the only other way to gate the engine's expensive read is to grant
+     -- `hr_rate_ok`, whose signature takes the LIMIT AS AN ARGUMENT, and a
+     -- caller that names its own rate limit does not have one. hr_rate_gate
+     -- owns its limits in a `case` the caller cannot reach, refuses an unknown
+     -- bucket, and accepts a user the engine has already verified a JWT for.
+     -- Its worst case if the engine is compromised is "spend a player's own
+     -- accrual budget", which costs that player a minute.
+     --
      -- ⚠ This list is deliberately hard to extend. Adding an entry is a claim
      --   that the function is read-only or self-validating and that it accepts
      --   no target the caller is not already authorised for. Re-derive that
@@ -1074,7 +1086,7 @@ begin
      --   a conclusion, not a property that survives an addition.
      and p.proname <> all (array['hr_apply','hr_seed','hr_state_of','hr_total_level',
                                  'hr_xp_for_level','hr_level_from_xp','market_expire',
-                                 'hr_offline_cap_ms']);
+                                 'hr_offline_cap_ms','hr_rate_gate']);
   if v_bad > 0 then
     raise exception 'hr_engine can execute % function(s) outside its allowlist — run: select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=''public'' and has_function_privilege(''hr_engine'', p.oid, ''execute'')', v_bad;
   end if;

@@ -32,11 +32,19 @@
 --
 -- Three of the five contribute 0 today, so the server cap is currently LOWER
 -- than the client's for an entitled/propertied player. That direction is the
--- correct one to be wrong in: the server under-pays rather than over-pays, and
--- a player who is owed more gets it the moment those sources become server
--- state. The alternative — trusting a client-reported entitlement — is the
--- exact defect this program exists to remove. Each source is closed by moving
--- it into a table, at which point the coalesce below grows one line.
+-- correct one to be wrong in FOR THIS NUMBER: the cap under-pays rather than
+-- over-pays, and a player who is owed more gets it the moment those sources
+-- become server state. The alternative — trusting a client-reported entitlement
+-- — is the exact defect this program exists to remove. Each source is closed by
+-- moving it into a table, at which point the coalesce below grows one line.
+--
+-- ⚠ DO NOT GENERALISE THAT SENTENCE TO THE ACCRUAL ENGINE. It is true of the
+--   cap and false of the grant: `equipment` is read at COLLECT time and prices
+--   the whole window, so logging off naked and equipping best-in-slot before
+--   collecting is paid at best-in-slot rates — measured at 12.8x gold and 20x
+--   XP on an identical seed and window (review S5, docs/design/server-authority.md
+--   §3). That is an OVER-payment path, it is deferred to Phase D, and it has no
+--   live blast radius only because no client path can start an activity yet.
 --
 -- ⚠ A DISCREPANCY THE GAME DESIGNER SHOULD RULE ON. The program brief says
 --   "clan +1..+2h". The shipped client (src/features/clans.js:81 perksFor) sums

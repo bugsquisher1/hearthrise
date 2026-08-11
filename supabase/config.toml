@@ -1,0 +1,43 @@
+# ============================================================================
+# supabase/config.toml — the deploy-time half of the identity guarantee.
+#
+# ── WHY THIS FILE EXISTS (review D2) ────────────────────────────────────────
+# Until now there was NO config.toml in this repository at all, which meant
+# `verify_jwt = true` was a property of whatever command somebody happened to
+# type. `supabase functions deploy --no-verify-jwt` — NEVER USE THIS — is one flag; the cost of it
+# on hr-accrue was an unauthenticated caller reading any player's entire
+# hr_state_of envelope — inventory, fifteen skills, farm, progress — and
+# force-collecting their absence.
+#
+# The PRIMARY fix is not this file: hr-accrue verifies the player's token
+# against the project JWKS itself (supabase/functions/hr-accrue/jwt.js), so the
+# guarantee survives any deploy flag. This file is the SECOND, independent lock —
+# the same posture as RLS + GRANT everywhere else in this program — and it is
+# the one that makes the setting reviewable in a diff.
+#
+# tests/accrual-engine.mjs asserts BOTH: that this file pins verify_jwt = true
+# for every function, and that no script, doc or workflow in the repo contains
+# the flag that turns it off (`--no-verify-jwt` — NEVER USE THIS) anywhere except
+# on a line that says so, which is what these two comment lines are doing.
+#
+# ⚠ This file is deliberately MINIMAL. It is a deploy-flag declaration, not a
+#   local-stack definition: this project develops against the hosted database,
+#   `supabase start` is not part of any workflow here, and a config.toml full of
+#   ports and versions nobody exercises is a file that drifts silently and then
+#   surprises someone. Add a section when a workflow needs it.
+# ============================================================================
+
+project_id = "nezapsylztqbbwuwembx"
+
+# ── hr-accrue — the accrual engine ──────────────────────────────────────────
+# Reads and writes player progression through hr_apply. Every caller must be a
+# signed-in player, and the function proves it a second time in-process.
+[functions.hr-accrue]
+verify_jwt = true
+
+# ── bug-report-bridge — the Discord relay ───────────────────────────────────
+# Its own header already states `verify_jwt = true`: the reporter is auth.uid()
+# and the name printed in Discord is read from public.profiles server-side, so
+# an unauthenticated caller would be an anonymous relay into a private channel.
+[functions.bug-report-bridge]
+verify_jwt = true

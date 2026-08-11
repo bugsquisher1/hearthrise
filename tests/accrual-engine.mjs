@@ -33,7 +33,7 @@
 // Also invoked as a preflight by tests/run-smoke.mjs.
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -53,6 +53,7 @@ import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
+import { parseIntent, readSlot, MAX_SLOT } from '../supabase/functions/hr-accrue/request.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FN_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
@@ -519,12 +520,308 @@ async function shapeGuard() {
   ok(/hr_seed\(/.test(shellCode), 'SOURCE: the PRNG seed must come from hr_seed (server secret), never from visible values');
 }
 
-// ── 4. THE PACKER ───────────────────────────────────────────────────────────
-// The Deno/core sharing mechanism has a drift guard; run it here so a change to
-// src/core that never got repacked fails a test rather than a deploy.
+// ── 4. THE SHELL — THE SURFACE AN ATTACKER ACTUALLY TOUCHES ────────────────
+// Section 2 proves hostile keys are inert ON THE ENGINE'S INPUT OBJECT. Nobody
+// hands the engine an object: an attacker hands an HTTP BODY to index.ts. That
+// surface had no executable test, because index.ts is Deno TypeScript and
+// cannot be imported into Node — so the body reader now lives in request.js,
+// which is pure ESM, and this section runs the exact function the shell calls.
+function requestGuard() {
+  /* Every shape a body can take. The assertion is the same for all of them: the
+     result has exactly one key, `slot`, and it is an integer in range. */
+  const bodies = [
+    null, undefined, 0, 1, '', 'slot', '{"slot":3}', true, [], [3], [{ slot: 3 }],
+    {}, { slot: 3 }, { slot: '3' }, { slot: 3.5 }, { slot: -1 }, { slot: 6 },
+    { slot: 1e9 }, { slot: NaN }, { slot: Infinity }, { slot: null }, { slot: {} },
+    { slot: [3] }, { slot: '3abc' }, { slot: ' 3 ' }, { slot: '0x3' }, { slot: 1n },
+    { slot: 2, capMs: 999999999, tickMs: 1, gold: 1e12, userId: 'someone-else' },
+    { slot: 2, __proto__: { slot: 5 } },
+    JSON.parse('{"__proto__":{"slot":5},"slot":1}'),
+    JSON.parse('{"constructor":{"prototype":{"slot":5}}}'),
+    { get slot() { throw new Error('a getter that fires is a getter that ran'); } },
+    { toJSON: () => ({ slot: 5 }) },
+    Object.create({ slot: 5 }),                       // slot on the PROTOTYPE only
+  ];
+  for (const b of bodies) {
+    let r;
+    try { r = parseIntent(b); }
+    catch (e) {
+      /* A getter is allowed to throw — what matters is that the shell never
+         reaches a state where a thrown getter has already influenced a number.
+         parseIntent reading `body.slot` once is the whole exposure. */
+      ok(String(e?.message || '').includes('getter'),
+        `REQUEST: parseIntent threw on ${JSON.stringify(String(b))}: ${e?.message}`);
+      continue;
+    }
+    const keys = Object.keys(r);
+    ok(keys.length === 1 && keys[0] === 'slot',
+      `REQUEST: parseIntent returned keys [${keys}] for a hostile body — it must return exactly {slot}`);
+    ok(Number.isInteger(r.slot) && r.slot >= 0 && r.slot <= MAX_SLOT,
+      `REQUEST: parseIntent produced slot=${String(r.slot)} — outside [0, ${MAX_SLOT}]`);
+    ok(Object.getPrototypeOf(r) === null,
+      'REQUEST: parseIntent returned an object with a prototype — it must be null-prototype');
+  }
+  /* The prototype was never polluted along the way. */
+  ok(({}).slot === undefined, 'REQUEST: Object.prototype.slot was polluted by a hostile body');
+  /* The legal values survive, so the guard is not just "always 0". */
+  for (let s = 0; s <= MAX_SLOT; s++) {
+    ok(readSlot({ slot: s }) === s, `REQUEST: a legitimate slot ${s} was coerced to ${readSlot({ slot: s })}`);
+  }
+  ok(readSlot({ slot: MAX_SLOT + 1 }) === 0, 'REQUEST: a slot past the bound was not clamped');
+}
+
+/* Source-level rules about the SHELL. `shapeGuard` used to assert things about
+   accrual.js and call that a proof about the request path; these are the ones
+   that are actually about the request path. */
+async function shellGuard() {
+  const shell = await readFile(join(FN_DIR, 'index.ts'), 'utf8');
+  const code = shell.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  // (a) NOTHING request-shaped is ever spread. This is the rule that keeps
+  //     `minTickMs` from riding in through the same door as `tickMs`.
+  ok(!/\.\.\.\s*(body|payload|req|request|json|intent|input|params|query)\b/.test(code),
+    'SHELL: index.ts spreads a request-derived object — the ctx must be built field by field');
+
+  // (b) The body is read ONCE, and the value goes straight into the one function
+  //     that is allowed to interpret it. No intermediate binding means there is
+  //     no identifier for a later edit to reach for.
+  const jsonCalls = (code.match(/req\s*\.\s*json\s*\(/g) || []).length;
+  ok(jsonCalls === 1, `SHELL: req.json() is called ${jsonCalls} times — the body must be read exactly once`);
+  ok(/parseIntent\(\s*await\s+req\.json\(\)[\s\S]{0,40}?\)/.test(code),
+    'SHELL: the req.json() result is not piped directly into parseIntent — that binding is the attack surface');
+  const parseCalls = (code.match(/parseIntent\s*\(/g) || []).length;
+  ok(parseCalls === 1, `SHELL: parseIntent is called ${parseCalls} times — one body, one reader`);
+
+  // (c) The engine call site names only server values. Extract the literal by
+  //     brace matching and check every identifier in it.
+  const at = code.indexOf('computeAccrual({');
+  ok(at >= 0, 'SHELL: index.ts does not call computeAccrual({ … }) with an object literal');
+  if (at >= 0) {
+    let depth = 0; let end = at;
+    for (let i = code.indexOf('{', at); i < code.length; i++) {
+      if (code[i] === '{') depth++;
+      else if (code[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    const lit = code.slice(at, end + 1);
+    for (const bad of ['body', 'req.', 'request', 'payload', 'intent.', 'params', 'headers']) {
+      ok(!lit.includes(bad),
+        `SHELL: the computeAccrual literal references '${bad}' — the only request-derived value permitted is slot`);
+    }
+    ok(/\bslot\b/.test(lit), 'SHELL: the computeAccrual literal does not pass slot at all');
+    ok(!/\.\.\./.test(lit), 'SHELL: the computeAccrual literal contains a spread');
+  }
+
+  // (d) IDENTITY IS VERIFIED, NOT DECODED (review D2).
+  ok(/verifyJwt\(/.test(code),
+    'SHELL: index.ts does not call verifyJwt — a decoded JWT is not a verified one');
+  ok(!/JSON\.parse\(\s*atob\(/.test(code),
+    'SHELL: index.ts decodes a JWT by hand — that is the D2 defect, use jwt.js');
+
+  // (e) THE RATE GATE PRECEDES THE EXPENSIVE READ (review D3).
+  const gateAt = code.indexOf('hr_rate_gate(');
+  const stateAt = code.indexOf('hr_state_of(');
+  ok(gateAt >= 0, 'SHELL: index.ts does not call hr_rate_gate — the non-accruing path would be free to loop');
+  ok(gateAt >= 0 && stateAt >= 0 && gateAt < stateAt,
+    'SHELL: hr_rate_gate is called AFTER hr_state_of — a rejected call must consume budget BEFORE it costs a read');
+  ok(!/hr_rate_ok\(/.test(code),
+    'SHELL: index.ts calls hr_rate_ok directly — its signature takes the LIMIT as an argument, so the engine would name its own rate limit');
+
+  // (f) The replay path must not fabricate a receipt (review S7).
+  ok(/replayed\s*===\s*true/.test(code),
+    'SHELL: index.ts does not branch on res.replayed — a replay would return an `away` block for a delta that was not applied');
+  const replayAt = code.indexOf('replayed === true');
+  const awayAt = code.indexOf('away: {');
+  ok(replayAt >= 0 && awayAt >= 0 && replayAt < awayAt,
+    'SHELL: the replay branch does not precede the away block');
+
+  // (g) The slot bound must agree with the DATABASE, not with a comment. The
+  //     previous shell documented "0…4" while the code and the CHECK both said
+  //     0..5; a comment that disagrees with a constraint is a trap.
+  const ps = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-player-state.sql'), 'utf8');
+  const m = ps.match(/slot\s+int\s+not null default 0 check \(slot between (\d+) and (\d+)\)/);
+  ok(!!m, 'SHELL: could not find the player_state slot CHECK to compare MAX_SLOT against');
+  if (m) {
+    ok(Number(m[2]) === MAX_SLOT,
+      `SHELL: request.js MAX_SLOT is ${MAX_SLOT} but player_state allows 0..${m[2]}`);
+  }
+  ok(!/0…4|0\.\.4\b/.test(shell), 'SHELL: index.ts still documents the slot bound as 0…4');
+}
+
+// ── 5. CLAMP HEADROOM ───────────────────────────────────────────────────────
+// hr_apply's clamps are a BLAST RADIUS, not balance — but a clamp rejection
+// rolls back, watermark included, so before the degrade ladder in index.ts a
+// single trip bricked a character's accrual permanently. The ladder makes that
+// recoverable; this guard makes it unlikely, by failing the BUILD when honest
+// play gets within 60% of any clamp.
+//
+// The clamps are read out of the migration, never restated here: a second copy
+// of a number is a drift generator, which is the failure this whole program is
+// organised around.
+const HEADROOM = 0.60;
+
+function clampsFromMigration(sql) {
+  const out = {};
+  for (const m of sql.matchAll(/c_(max_[a-z_]+)\s+constant\s+(?:bigint|int)\s*:=\s*(\d+)/g)) {
+    out[m[1]] = Number(m[2]);
+  }
+  return out;
+}
+
+async function clampGuard() {
+  const sql = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-apply-engine.sql'), 'utf8');
+  const C = clampsFromMigration(sql);
+  for (const need of ['max_gold_delta', 'max_item_delta', 'max_xp_delta', 'max_item_kinds',
+                      'max_progress_ops', 'max_progress_add']) {
+    ok(C[need] > 0, `CLAMP: could not read c_${need} out of apply-engine.sql — the guard would be vacuous`);
+  }
+  if (!C.max_xp_delta) return;
+
+  /* The whole reachable envelope, not one fixture: EVERY monster in the
+     catalogue, at the two spans that matter (15h, and 24h — the
+     hr_offline_cap_ms ceiling and accrual.js's own ACCRUE_MAX_SPAN_MS), maxed
+     skills and best-in-slot gear. "A new high-XP monster tightens it" is only
+     true as a guard if the guard actually looks at the new monster. */
+  const worst = { max_xp_delta: [0, ''], max_gold_delta: [0, ''], max_item_delta: [0, ''],
+                  max_item_kinds: [0, ''], max_progress_add: [0, ''], max_progress_ops: [0, ''] };
+  const bump = (k, v, where) => { if (v > worst[k][0]) worst[k] = [v, where]; };
+
+  for (const spanH of [15, 24]) {
+    for (const id of Object.keys(MONSTERS)) {
+      const r = computeAccrual({
+        userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+        nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000,
+        activeSinceMs: NOW_MS - spanH * 3600000,
+        activeKind: 'combat', activeId: id, capMs: spanH * 3600000, seed: SEED,
+        hp: 9999, maxHp: 9999, gold: 0, skills: MAXED, equipment: EQUIPMENT,
+        items: ITEMS, monsters: MONSTERS,
+      });
+      if (!r.accrued) continue;
+      const d = r.delta; const where = `${spanH}h ${id}`;
+      bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
+      bump('max_gold_delta', d.gold || 0, where);
+      bump('max_item_delta', Math.max(0, ...Object.values(d.items || {})), where);
+      bump('max_item_kinds', Object.keys(d.items || {}).length, where);
+      bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
+      bump('max_progress_ops', (d.progress || []).length, where);
+    }
+  }
+
+  clampGuard.report = [];
+  for (const [k, [v, where]] of Object.entries(worst)) {
+    if (!C[k]) continue;
+    const pct = v / C[k];
+    clampGuard.report.push(`${k} ${v}/${C[k]} = ${(pct * 100).toFixed(1)}% (${where})`);
+    ok(pct < HEADROOM,
+      `CLAMP HEADROOM: honest play reaches ${v} against c_${k} = ${C[k]} — ${(pct * 100).toFixed(1)}%, `
+      + `over the ${HEADROOM * 100}% line, at ${where}. A clamp that honest play can approach is a clamp that WILL `
+      + `fire, and a fired clamp costs the player part of an absence (index.ts's degrade ladder) instead of `
+      + `bricking it — but it is still an incident. Raise c_${k} in supabase/migrations/2026-08-11-apply-engine.sql `
+      + `(and get it re-reviewed), or reduce the yield.`);
+  }
+}
+
+// ── 6. THE DEPLOY CONTRACT ──────────────────────────────────────────────────
+// D2's second lock. In-function verification is the primary control, but
+// `verify_jwt = true` must also exist as a committed artefact, and nothing in
+// the repo may tell anyone to turn it off.
+async function deployGuard() {
+  const cfgPath = join(ROOT, 'supabase', 'config.toml');
+  let cfg = null;
+  try { cfg = await readFile(cfgPath, 'utf8'); }
+  catch { problems.push('DEPLOY: supabase/config.toml is missing — verify_jwt would live only in a deploy command'); return; }
+
+  const fnDir = join(ROOT, 'supabase', 'functions');
+  const names = (await readdir(fnDir, { withFileTypes: true }))
+    .filter((e) => e.isDirectory() && !e.name.startsWith('_')).map((e) => e.name);
+  for (const n of names) {
+    const head = `[functions.${n}]`;
+    const at = cfg.indexOf(head);
+    if (at < 0) { problems.push(`DEPLOY: supabase/config.toml has no ${head} section`); continue; }
+    const rest = cfg.slice(at + head.length);
+    const next = rest.indexOf('\n[');
+    const block = next >= 0 ? rest.slice(0, next) : rest;
+    ok(/verify_jwt\s*=\s*true/.test(block),
+      `DEPLOY: supabase/config.toml does not pin verify_jwt = true for ${head}`);
+  }
+  ok(!/verify_jwt\s*=\s*false/.test(cfg), 'DEPLOY: config.toml sets verify_jwt = false somewhere');
+
+  /* No file in the repo may hand someone the flag. Documentation that explains
+     WHY NOT to use it is legitimate and worth keeping — the header of jwt.js is
+     the clearest statement of the D2 defect anywhere — so an occurrence is
+     allowed ONLY on a line that also carries the marker below. That makes the
+     exception explicit and countable instead of making the guard blind, and a
+     future deploy script cannot acquire one by accident.
+
+     The pattern is assembled from fragments so that THIS FILE does not match
+     its own search — the self-match is how the first run of this guard failed. */
+  const FLAG = `--no-${'verify'}-jwt`;
+  const MARKER = 'never use this';
+  for (const rel of await repoScripts()) {
+    const body = await readFile(join(ROOT, rel), 'utf8');
+    for (const line of body.split('\n')) {
+      if (!line.includes(FLAG)) continue;
+      ok(line.toLowerCase().includes(MARKER),
+        `DEPLOY: ${rel} contains ${FLAG} on a line with no "${MARKER}" marker — `
+        + 'if this is documentation, say so on the line; if it is a command, delete it');
+    }
+  }
+}
+
+/* Every place a deploy command could plausibly be written down. Kept explicit
+   rather than walking the whole tree: node_modules and assets are large, and a
+   guard that takes four seconds is a guard someone will move out of the
+   preflight. */
+async function repoScripts() {
+  const out = [];
+  const roots = ['', '.github/workflows', 'docs', 'docs/design', 'tools', 'tests', 'supabase'];
+  for (const r of roots) {
+    let entries = [];
+    try { entries = await readdir(join(ROOT, r), { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.isFile()) continue;
+      if (!/\.(sh|mjs|js|ya?ml|md|toml|json)$/.test(e.name)) continue;
+      out.push(r ? `${r}/${e.name}` : e.name);
+    }
+  }
+  return out;
+}
+
+// ── 7. THE PACKER ───────────────────────────────────────────────────────────
+// The Deno/core sharing mechanism has a packability guard; run it here so a
+// change to src/core that never got repacked fails a test rather than a deploy.
+//
+// ⚠ WHAT THIS DOES NOT PROVE (review S10). `check()` cannot answer
+//   "does production match this repo?" — it derives both sides from the same
+//   bytes. The earlier revision claimed otherwise and its central comparison was
+//   unfalsifiable. The deployed-vs-repo question is answered by the payload
+//   hash: pack() stamps it, the function returns it on a GET, and
+//   tests/run-smoke.mjs compares the two when HR_ACCRUE_URL is configured.
 async function packerGuard() {
-  const { runAll: packCheck } = await import('../tools/pack-edge.mjs');
-  for (const p of await packCheck()) problems.push(`PACK: ${p}`);
+  const pe = await import('../tools/pack-edge.mjs');
+  for (const p of await pe.runAll()) problems.push(`PACK: ${p}`);
+
+  const { files, hash } = await pe.pack('hr-accrue');
+  ok(/^[0-9a-f]{64}$/.test(hash || ''), `PACK: the payload hash is '${hash}' — not a sha256`);
+  const stamped = files.find((f) => f.name === pe.HASH_FILE);
+  ok(!!stamped && stamped.content.includes(`'${hash}'`),
+    'PACK: the packed payload-hash.js does not carry the digest the packer computed');
+
+  /* THE GUARD'S OWN GUARD. `check()`'s comparisons are only worth having if a
+     corrupted transform would be caught. Prove the round-trip property is
+     falsifiable rather than assuming it: a transform that drops a character
+     must not round-trip. */
+  const src = await readFile(join(FN_DIR, 'index.ts'), 'utf8');
+  ok(pe.unrewriteFunctionSource(pe.rewriteFunctionSource(src)) === src,
+    'PACK: an honest pack does not round-trip — the check would fail on correct input');
+  const corrupted = pe.rewriteFunctionSource(src).replace('./vendor/data/', './vendor/dat/');
+  ok(pe.unrewriteFunctionSource(corrupted) !== src,
+    'PACK: a CORRUPTED pack still round-trips — the drift check is unfalsifiable');
+
+  /* And the payload hash must actually depend on the payload. */
+  const other = files.map((f) => ({ ...f }));
+  other[0] = { ...other[0], content: `${other[0].content}\n` };
+  ok(pe.payloadHash(files) !== pe.payloadHash(other),
+    'PACK: payloadHash ignored a one-byte change — it cannot detect drift');
 }
 
 export async function runAll() {
@@ -532,6 +829,10 @@ export async function runAll() {
   parityGuard();
   hostileGuard();
   await shapeGuard();
+  requestGuard();
+  await shellGuard();
+  await clampGuard();
+  await deployGuard();
   await packerGuard();
   return problems.slice();
 }
@@ -545,6 +846,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   }
   const s = serverAccrual();
   console.log('Accrual engine guard — server parity with the client, hostile inputs inert.');
+  /* Printed on every run, deliberately. A headroom number nobody sees is a
+     number nobody notices tightening. */
+  for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);
   console.log(`  fixture: ${MONSTER} · ${SPAN_MS / 3600000}h · tick ${s.tickMs}ms · ` +
     `${s.summary.ticks} ticks · ${s.summary.kills} kills · ${s.summary.crits} crits · ` +
     `${s.summary.gold}g · ${Object.keys(s.summary.xp).length} skills · ` +

@@ -57,25 +57,54 @@
 //   Do not upgrade this comment to "verified" until a deploy has actually
 //   succeeded.
 //
+// ── WHAT `--check` PROVES, AND WHAT IT DOES NOT (review S10) ───────────────
+// `--check` is a PACKABILITY check. It answers "can this function be packed,
+// and is the result self-consistent?" — a missing module, a bare specifier, a
+// dynamic import() the walker cannot follow, a specifier escaping the two
+// vendor roots, a leftover `../../../src/` in a packed function file, or a
+// vendored file that packing modified.
+//
+// It is NOT, and cannot be, a check that production matches this repo. An
+// earlier revision claimed to be exactly that — it called pack(), re-read the
+// same paths, re-applied the same pure transform and compared. Both sides came
+// from the same bytes through the same function, so `expect !== f.content` was
+// unfalsifiable. That is the sixth instance of this class in this program (the
+// always-null-probe shape), and it is why the two comparisons below now work
+// AGAINST THE RAW DISK BYTES and through the INVERSE substitution:
+//
+//   • a vendored file must equal `readFile(origin)` verbatim — no transform is
+//     applied to either side, so a future pack() that started rewriting vendored
+//     content would fail here;
+//   • a function file must satisfy `inverse(packed) === readFile(origin)`. The
+//     inverse is a different function from the forward one, so this is a
+//     round-trip property rather than a restatement.
+//
+// THE DRIFT THAT ACTUALLY MATTERS — deployed bytes vs repo bytes — is answered
+// by `payloadHash()`. pack() stamps the sha256 of the payload into the packed
+// copy of `payload-hash.js`; the deployed function returns it from a `GET`; the
+// smoke suite fetches that and compares it with `payloadHash()` recomputed from
+// the repo. That is a comparison between two independently-sourced values, which
+// is the only kind worth making.
+//
 // ── COST, STATED ───────────────────────────────────────────────────────────
 //   • The deployed function carries a snapshot of core+data (~140 KB). It must
 //     be REDEPLOYED when either changes — which is true of any Edge Function
 //     with dependencies, but it is now a release-checklist item rather than
-//     something that happens for free.
-//   • `--check` is the guard: it fails if the packed bytes differ from the repo
-//     bytes, or if a function file reaches outside the two allowed roots.
+//     something that happens for free. The payload hash is what turns "somebody
+//     forgot" into a failing test.
 //   • The two prefix substitutions are a transformation, and a transformation
 //     is a thing that can be wrong. It is confined to files under
-//     supabase/functions/, never to authored game data, and --check re-derives
-//     it rather than trusting it.
+//     supabase/functions/, never to authored game data.
 //
 // Usage:
 //   node tools/pack-edge.mjs hr-accrue            # print the payload as JSON
 //   node tools/pack-edge.mjs hr-accrue --check    # verify, print a summary
+//   node tools/pack-edge.mjs hr-accrue --hash     # print the payload sha256
 //   node tools/pack-edge.mjs hr-accrue --out dir  # write the payload to a dir
 //   node tools/pack-edge.mjs hr-accrue --strip-query   # escape hatch, see below
 // ============================================================================
 
+import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -156,6 +185,32 @@ export function rewriteFunctionSource(src, opts) {
   return opts?.stripQuery ? stripVersionQueries(out) : out;
 }
 
+/** The INVERSE of the two substitutions. Exists so `--check` can verify a
+    ROUND TRIP against the bytes on disk instead of re-running the forward
+    transform and comparing it to itself (review S10). */
+export function unrewriteFunctionSource(packed) {
+  return packed
+    .replaceAll('./vendor/core/', '../../../src/core/')
+    .replaceAll('./vendor/data/', '../../../src/data/');
+}
+
+// ── The payload fingerprint ─────────────────────────────────────────────────
+// `payload-hash.js` ships inside the payload carrying the sha256 of the payload
+// it belongs to. The digest is taken with THIS file's content in its repo
+// (placeholder) form, so it never depends on itself and anyone holding the repo
+// can recompute it exactly.
+export const HASH_FILE = 'payload-hash.js';
+export const HASH_PLACEHOLDER = 'unpacked';
+
+/** sha256 over `name\0content\0` for every file, name-sorted. */
+export function payloadHash(files) {
+  const h = createHash('sha256');
+  for (const f of [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    h.update(f.name); h.update('\0'); h.update(f.content); h.update('\0');
+  }
+  return h.digest('hex');
+}
+
 /** Vendored files ship verbatim — unless the escape hatch is armed. */
 export function vendorSource(src, opts) {
   return opts?.stripQuery ? stripVersionQueries(src) : src;
@@ -228,16 +283,40 @@ export async function pack(fnName, opts) {
     } catch { /* optional */ }
   }
 
-  return {
-    files: [...files].map(([name, f]) => ({ name, content: f.content, origin: f.origin, verbatim: f.verbatim })),
-    problems,
-  };
+  const out = [...files].map(([name, f]) => ({
+    name, content: f.content, origin: f.origin, verbatim: f.verbatim,
+  }));
+
+  /* THE FINGERPRINT. Taken over the payload as it stands — with payload-hash.js
+     still carrying the placeholder — and then stamped into that one file. The
+     digest therefore never depends on itself, and `payloadHash(pack().files)`
+     deliberately does NOT equal it: the value that travels is the one below, and
+     it is the one the deployed function reports. */
+  const hash = payloadHash(out);
+  const stamped = out.find((f) => f.name === HASH_FILE);
+  if (stamped) {
+    if (!stamped.content.includes(`'${HASH_PLACEHOLDER}'`)) {
+      problems.push(`${HASH_FILE}: the placeholder '${HASH_PLACEHOLDER}' is missing — a committed hash is a STALE hash`);
+    }
+    stamped.content = stamped.content.replace(`'${HASH_PLACEHOLDER}'`, `'${hash}'`);
+  }
+
+  return { files: out, problems, hash };
 }
 
 /**
- * THE DRIFT GUARD. Every vendored file must be byte-identical to the repo, and
- * every function file must be exactly the repo file with the two documented
- * substitutions — re-derived here, never trusted.
+ * THE PACKABILITY CHECK. See the header for what this does and does not prove:
+ * it is not, and cannot be, a deployed-vs-repo comparison — `payloadHash()` and
+ * the function's `GET` are what answer that question.
+ *
+ * What it does assert, all against the RAW bytes on disk rather than against a
+ * re-run of the transform under test:
+ *   • every module in the graph exists and is reachable by a static specifier;
+ *   • a vendored file is byte-identical to its source — no transform on either
+ *     side of that comparison;
+ *   • a function file round-trips: `unrewrite(packed) === disk`;
+ *   • no `../../../src/` survived into a packed function file;
+ *   • the repo's payload-hash.js still holds the placeholder, never a stale hash.
  */
 export async function check(fnName, opts) {
   const { files, problems } = await pack(fnName, opts);
@@ -246,15 +325,49 @@ export async function check(fnName, opts) {
 
   for (const f of files) {
     const src = await readFile(join(ROOT, f.origin), 'utf8');
-    const expect = f.verbatim ? vendorSource(src, opts) : rewriteFunctionSource(src, opts);
-    if (expect !== f.content) out.push(`${f.name}: packed bytes differ from ${f.origin}`);
-    if (f.verbatim && !opts?.stripQuery && f.content !== src) {
-      out.push(`${f.name}: a VENDORED file was modified — it must be byte-identical`);
+
+    if (f.name === HASH_FILE) {
+      /* Generated: its packed content is the repo content with the placeholder
+         replaced. Assert both halves of that — the repo copy must still be a
+         placeholder (a committed hash would be stale on the next core edit) and
+         the packed copy must carry a real digest. */
+      if (!src.includes(`'${HASH_PLACEHOLDER}'`)) {
+        out.push(`${f.name}: the repo copy must contain '${HASH_PLACEHOLDER}' — a committed hash is a stale hash`);
+      }
+      if (!/PAYLOAD_SHA256 = '[0-9a-f]{64}'/.test(f.content)) {
+        out.push(`${f.name}: the packed copy was not stamped with a sha256`);
+      }
+      continue;
+    }
+
+    if (f.verbatim) {
+      /* No transform on either side. A future pack() that started rewriting
+         vendored content — the exact failure this whole tool exists to prevent —
+         fails here. (With --strip-query armed the bytes are deliberately
+         modified, so the assertion is the narrower one that only the query
+         strings moved.) */
+      if (!opts?.stripQuery) {
+        if (f.content !== src) out.push(`${f.name}: a VENDORED file was modified — it must be byte-identical to ${f.origin}`);
+      } else if (f.content !== stripVersionQueries(src)) {
+        out.push(`${f.name}: a VENDORED file was modified beyond the ?v= strip`);
+      }
+      continue;
+    }
+
+    /* ROUND TRIP. `unrewriteFunctionSource` is a different function from the one
+       that produced `f.content`, so this cannot pass by construction the way the
+       previous `expect !== f.content` did. */
+    const back = unrewriteFunctionSource(f.content);
+    // The ?v= strip is not invertible, so with the escape hatch armed the disk
+    // side is normalised the same way instead.
+    const want = opts?.stripQuery ? stripVersionQueries(src) : src;
+    if (back !== want) {
+      out.push(`${f.name}: packing is not reversible — unrewrite(packed) differs from ${f.origin}`);
     }
     /* The substitution must be total. A leftover `../../../src/` in a packed
        function file would resolve outside the payload and fail at deploy time
        with a message about a missing module, three layers from the cause. */
-    if (!f.verbatim && f.content.includes('../../../src/')) {
+    if (f.content.includes('../../../src/')) {
       out.push(`${f.name}: an unrewritten '../../../src/' path survived packing`);
     }
   }
@@ -300,11 +413,19 @@ if (import.meta.url === new URL(`file://${process.argv[1].split(sep).join('/')}`
     }
     const names = fn ? [fn] : await functionNames();
     for (const n of names) {
-      const { files } = await pack(n, opts);
+      const { files, hash } = await pack(n, opts);
       const vend = files.filter((f) => f.verbatim && f.name.startsWith('vendor/')).length;
       const bytes = files.reduce((s, f) => s + Buffer.byteLength(f.content), 0);
-      console.log(`${n}: ${files.length} files (${vend} vendored verbatim), ${(bytes / 1024).toFixed(1)} KB`);
+      console.log(`${n}: ${files.length} files (${vend} vendored verbatim), ${(bytes / 1024).toFixed(1)} KB, payload ${hash.slice(0, 16)}…`);
     }
+    process.exit(0);
+  }
+
+  /* The value the DEPLOYED function reports from a GET. Printing it is how a
+     release check is done by hand when the smoke suite has no URL configured. */
+  if (args.includes('--hash')) {
+    const names = fn ? [fn] : await functionNames();
+    for (const n of names) console.log(`${n} ${(await pack(n, opts)).hash}`);
     process.exit(0);
   }
 

@@ -78,6 +78,18 @@ export const SKIP = {
    So the only thing currently missing from an away grant is the permanent
    renown/property/clan perk channel, which under-pays. Under-paying is the
    correct direction to be wrong in, and it closes when those move into tables.
+
+   ⚠ BUT UNDER-PAYING IS NOT THE ONLY DIRECTION THIS ENGINE IS WRONG IN, and
+     saying so anywhere is a claim this file cannot support. `equipment` is read
+     at COLLECT time and prices the WHOLE window: log off naked, equip
+     best-in-slot, collect, and the night is paid at best-in-slot rates.
+     Measured 2026-08-11, same seed and same 12h goblin fixture, varying nothing
+     but the equipment map: 477g / 3,235 Attack XP naked versus 6,103g / 65,029
+     naked→BiS — 12.8x gold and 20x XP. That is review S5, it is an OVER-payment,
+     it is deliberately deferred to Phase D (no client path can start an activity
+     today, so it has no live blast radius), and it must ship in the same
+     migration as the first client-reachable activity intent. See
+     docs/design/server-authority.md §3.
    Named and exported so a test can assert it is inert rather than trusting a
    closure. */
 export function zeroBonus() { return 0; }

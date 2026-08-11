@@ -1,13 +1,13 @@
 // ============================================================================
 // supabase/functions/hr-accrue/index.ts — the accrual Edge Function's I/O shell.
 //
-// This file does four things and nothing else: verify who is asking, read
-// server state, hand it to the pure engine in accrual.js, and hand the
-// engine's proposed delta to hr_apply. It contains no game rule and no
+// This file does five things and nothing else: PROVE who is asking, spend their
+// rate budget, read server state, hand it to the pure engine in accrual.js, and
+// hand the engine's proposed delta to hr_apply. It contains no game rule and no
 // arithmetic on a game value. If a number is computed here, it is in the wrong
 // file.
 //
-// ── THE THREE CONSTRAINTS THIS FILE EXISTS TO HONOUR ────────────────────────
+// ── THE FOUR CONSTRAINTS THIS FILE EXISTS TO HONOUR ─────────────────────────
 //
 // 1. EDGE FUNCTIONS NEVER WRITE TABLES (design §2, "the commit point").
 //    The connection is made as `hr_engine_login`, which is `NOINHERIT` and
@@ -29,17 +29,39 @@
 //    state does not survive, which is why every transaction re-issues
 //    `set local role hr_engine`.
 //
-// 3. THE CLIENT AUTHORS NOTHING. The request body is read for exactly one
-//    value — `slot`, an integer 0…4 selecting a row the caller already owns —
-//    and that value is validated before it is used. Everything else (the
-//    clock, the cap, the equipment, the levels, the activity, the watermark,
-//    the seed) is read from a server table inside the same transaction. The
-//    engine is called with a literal object, field by field; the request body
-//    is never spread into anything.
+// 3. THE CLIENT AUTHORS NOTHING. The request body is read by exactly one
+//    function — `parseIntent` in ./request.js — which returns a freshly built,
+//    null-prototype object holding one integer: `slot`, 0..5 inclusive,
+//    selecting a row the caller already owns. Everything else (the clock, the
+//    cap, the equipment, the levels, the activity, the watermark, the seed) is
+//    read from a server table inside the same transaction. The engine is called
+//    with a literal object, field by field; nothing derived from the body is
+//    spread into anything.
+//
+// 4. IDENTITY IS PROVEN HERE, NOT ASSUMED FROM A DEPLOY FLAG (review D2).
+//    Revision 1 DECODED the JWT and never checked its signature, resting the
+//    whole property on `verify_jwt` being on at the gateway — with no
+//    supabase/config.toml in the repo to hold that setting and no test to
+//    assert it. One `--no-verify-jwt` and an unauthenticated caller could read
+//    any player's full state envelope and force-collect their absence. Now
+//    ./jwt.js verifies against the project's published JWKS (public key only —
+//    this function still holds no signing secret, per design §2a-i), and
+//    config.toml pins `verify_jwt = true` as a second, independent lock.
+//
+// ── WHAT THIS FILE COSTS, PER CALL ──────────────────────────────────────────
+//   • one JWKS fetch per COLD start (cached in module scope thereafter);
+//   • ONE pooled transaction for the rate gate + the state read;
+//   • one pooled transaction for the two seeds;
+//   • one pooled transaction for the apply — SKIPPED entirely when there is
+//     nothing to pay, and the rate gate has already been spent by then, which
+//     is the D3 fix: a loop on the non-accruing path now consumes budget.
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf } from './accrual.js';
+import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
+import { parseIntent } from './request.js';
+import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { ITEMS } from '../../../src/data/items.js?v=326';
 import { MONSTERS } from '../../../src/data/monsters.js?v=326';
 
@@ -79,105 +101,147 @@ function assertPooler(): void {
   }
 }
 
+/* ── Identity configuration ─────────────────────────────────────────────────
+   SUPABASE_URL and SUPABASE_ANON_KEY are injected into every Edge Function by
+   the platform. The anon key is used for exactly one thing — the `apikey`
+   header GoTrue requires on the HS* introspection fallback — and it grants
+   nothing this function does not already have. NO SIGNING SECRET IS READ HERE,
+   and none must ever be: a function that can verify an HS256 token can also
+   mint `role: service_role` (design §2a-i, permanently rejected). */
+const SUPABASE_URL = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/+$/, '');
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const JWKS_URL = SUPABASE_URL ? `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` : '';
+const ISSUER = SUPABASE_URL ? `${SUPABASE_URL}/auth/v1` : '';
+const introspect = SUPABASE_URL ? gotrueIntrospector(SUPABASE_URL, ANON_KEY) : undefined;
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
 
-/* ── Identity ───────────────────────────────────────────────────────────────
-   `verify_jwt` is ON for this function, so the Supabase gateway has already
-   validated the signature, the issuer and the expiry before Deno was reached —
-   an unsigned or expired token never gets here. What is left is to read the
-   subject, and to re-check the claims we actually depend on rather than
-   assuming the gateway checked the ones we care about.
-
-   Note what is NOT done: this function does not mint a token, and it does not
-   hold a signing secret. That is the §2a-i decision — the engine's authority is
-   a GRANT on a database role, not a claim in a JWT — and it is what makes the
-   seam survive the project's migration to asymmetric signing keys, where
-   nothing outside Supabase Auth can mint a token at all. */
-function subjectOf(req: Request): string {
-  const auth = req.headers.get('Authorization') || '';
-  const tok = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const part = tok.split('.')[1];
-  if (!part) throw new Error('not_signed_in');
-  const pad = part.replace(/-/g, '+').replace(/_/g, '/');
-  const claims = JSON.parse(atob(pad + '==='.slice((pad.length + 3) % 4)));
-  const sub = String(claims.sub || '');
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sub)) {
-    throw new Error('not_signed_in');
-  }
-  /* Independent expiry check. The gateway enforces this; duplicating it costs
-     a comparison and means a gateway misconfiguration downgrades to a refusal
-     instead of to an unauthenticated grant. */
-  if (typeof claims.exp === 'number' && claims.exp * 1000 < Date.now()) {
-    throw new Error('not_signed_in');
-  }
-  return sub;
-}
-
 /* ── Idempotency ────────────────────────────────────────────────────────────
    THE KEY IS DERIVED, NOT ACCEPTED. Every other intent takes a
    client-generated uuid, which is right for an intent the client initiates:
    the client knows which retry is which. An accrual is different — it is the
    same operation no matter who asks or how often, and it is defined entirely by
-   (user, slot, the watermark it starts from). Deriving the key from those three
+   (user, slot, the watermark it starts from). Deriving the key from those
    makes a replay idempotent even across two concurrent invocations that have
    never heard of each other, and removes a client-supplied value from the one
    call whose whole job is to pay out.
 
-   Concretely: two tabs returning at the same instant read the same
-   `accrued_to`, derive the same key, and exactly one of them applies. The other
-   receives the stored decision. With a client-generated key both would apply,
-   the second would fail on `version_conflict` instead — correct, but by luck
-   rather than by construction, and luck stops working the moment the first
-   apply is retried.
+   ⚠ AND IT IS SALTED WITH A SERVER SECRET (review S6). A key derived only from
+     (user, slot, watermark) is COMPUTABLE BY THE PLAYER — hr_load returns
+     `accrued_to` so the UI can render a countdown. `player_intents` is one
+     namespace shared with the client-supplied uuids that market_list / cancel /
+     buy accept, so a player could burn their own next accrual key with a market
+     call, after which the accrual replays into a decision that paid nothing and
+     the watermark never advances until the 24h prune. Mixing
+     hr_seed(user, slot, 'intent:accrue:<watermark>') — a hash of a 256-bit
+     secret held in a table with RLS on, no policy and no client grant — makes
+     the key unguessable while keeping it identical across two concurrent
+     invocations, which is the only property the derivation actually needed.
+     hr_apply's `intent_mismatch` check is the second, independent lock.
 
    SHA-256, formatted as a v4-shaped uuid (the version/variant bits are set so
    Postgres's uuid type accepts it and it can never collide with a real v4). */
-async function intentIdFor(user: string, slot: number, watermark: string): Promise<string> {
-  const data = new TextEncoder().encode(`hr-accrue|${user}|${slot}|${watermark}`);
-  const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+async function intentIdFor(
+  user: string, slot: number, watermark: string, salt: string, attempt: number,
+): Promise<string> {
+  const label = `hr-accrue|${user}|${slot}|${watermark}|${salt}|${attempt}`;
+  const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(label)));
   buf[6] = (buf[6] & 0x0f) | 0x40;
   buf[8] = (buf[8] & 0x3f) | 0x80;
   const h = Array.from(buf.slice(0, 16)).map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 
+/* ── The clamps that a smaller span can escape (review S8) ──────────────────
+   Every clamp in hr_apply is a BLAST RADIUS, set far above honest play, and any
+   rejection is an incident. But a rejection ROLLS BACK — including the
+   watermark — so the next call recomputes the identical span, trips the
+   identical clamp, and the character's accrual is bricked forever with no
+   self-service recovery. Measured headroom today is 2,830,315 XP against the
+   5,000,000 per-skill clamp at 24h/maxed/best-in-slot (56.6%), and it tightens
+   with every faster weapon and every higher-XP monster.
+
+   So a clamp rejection is answered by paying LESS: halve the span and try
+   again, up to MAX_DEGRADE times, and if even that trips, advance the watermark
+   alone. The player loses part of one absence — exactly as a cap overflow loses
+   it, because the engine always simulates the window ENDING at now() — instead
+   of losing every absence from here to the end of the account. The incident is
+   already recorded by hr_apply's own hr_record_rejection on each rejected
+   attempt, which is what makes the degradation loud rather than silent. */
+const DEGRADABLE = new Set([
+  'gold_clamp', 'gem_clamp', 'item_clamp', 'xp_clamp', 'progress_clamp',
+  'too_many_item_kinds', 'too_many_equip_ops', 'too_many_farm_ops',
+  'too_many_progress_ops', 'bank_full',
+]);
+const MAX_DEGRADE = 3;
+
+type Row = Record<string, any>;
+
 Deno.serve(async (req: Request): Promise<Response> => {
+  /* The build fingerprint. No identity, no database, no state — it exists so
+     the smoke suite can compare the bytes DEPLOYED against the bytes in the
+     repo, which `pack-edge --check` structurally cannot do (it re-derives the
+     payload from the same repo it just read). Nothing here is a secret. */
+  if (req.method === 'GET') {
+    return json({ ok: true, fn: 'hr-accrue', payload_sha256: PAYLOAD_SHA256 });
+  }
   if (req.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
 
   let user: string;
-  try { user = subjectOf(req); }
-  catch { return json({ ok: false, error: 'not_signed_in' }, 401); }
-
-  /* The ENTIRE read of the request body. One integer, range-checked. */
-  let slot = 0;
   try {
-    const body = await req.json().catch(() => ({}));
-    const n = Number((body as Record<string, unknown>)?.slot ?? 0);
-    slot = Number.isInteger(n) && n >= 0 && n <= 5 ? n : 0;
-  } catch { slot = 0; }
+    if (!JWKS_URL) throw new Error('config:SUPABASE_URL missing — cannot verify a token');
+    user = await verifyJwt(bearerOf(req.headers.get('Authorization')), {
+      jwksUrl: JWKS_URL, issuer: ISSUER, introspect,
+    });
+  } catch (e) {
+    const msg = String((e as Error)?.message || e);
+    if (msg.startsWith('config:')) return json({ ok: false, error: 'engine_unconfigured' }, 503);
+    if (msg === 'auth_unavailable') return json({ ok: false, error: 'auth_unavailable' }, 503);
+    return json({ ok: false, error: 'not_signed_in' }, 401);
+  }
+
+  /* The ENTIRE read of the request body — one call, one integer, in one place
+     that a Node test can execute. See ./request.js. */
+  const slot = parseIntent(await req.json().catch(() => ({}))).slot;
 
   try {
     assertPooler();
     if (!sql) throw new Error('config:no_connection');
 
-    // ── READ. One transaction, engine role, four server facts. ─────────────
+    // ── READ. One transaction, engine role, rate gate FIRST. ───────────────
     // `set local role hr_engine` must be inside the transaction: transaction
     // mode does not keep a backend between transactions, so a session-scoped
     // SET would be silently lost and hr_apply would then refuse to honour
     // p_user. That failure looks like `forbidden_impersonation`, which is a
     // confusing name for a pooler misconfiguration — hence this note.
+    //
+    // ⚠ THE GATE IS THE FIRST STATEMENT (review D3). hr_apply rate-limits
+    //   itself, but the not-accruing path RETURNS BEFORE hr_apply — so before
+    //   this fix a loop on POST /hr-accrue cost two pooled transactions, a full
+    //   hr_state_of (inventory, fifteen skills, farm, progress), hr_seed and
+    //   hr_offline_cap_ms per request and consumed NO budget. At
+    //   max_connections = 60 that is the §2a-ii total outage, dashboard
+    //   included. The same reasoning apply-engine.sql:420 already states: a
+    //   rejected call must still consume budget, otherwise "spam it" is a free
+    //   denial of service. The LIMIT is not passed from here — hr_rate_gate
+    //   owns it per bucket, because a caller that names its own rate limit does
+    //   not have one.
     const read = await sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
+      const [gate] = await tx`select public.hr_rate_gate(${user}::uuid, ${slot}::int, 'accrue') as allowed`;
+      if (!gate?.allowed) return { limited: true } as Row;
       const [row] = await tx`
         select public.hr_state_of(${user}::uuid, ${slot}::int)      as state,
                public.hr_offline_cap_ms(${user}::uuid, ${slot}::int) as cap_ms,
                now()                                                as now`;
-      return row;
+      return row as Row;
     });
+
+    if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
 
     const env = read?.state as Record<string, any> | null;
     if (!env || env.ok !== true) {
@@ -188,26 +252,39 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const nowMs = new Date(read.now as string).getTime();
     const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
-    // The seed is derived from a label that names the watermark, so the SAME
-    // absence always replays to the SAME rolls (a dispute is resolvable from
-    // the ledger) while remaining unpredictable, because hr_seed mixes a
-    // 256-bit secret held in a table with RLS on, no policy and no grant to any
-    // client role. The client can see `accrued_to` — hr_load returns it so the
-    // UI can render a countdown — and that is exactly why the seed may not be a
-    // function of visible values alone (review S20).
+    // Two seeds, one round trip. The PRNG seed is derived from a label that
+    // names the watermark, so the SAME absence always replays to the SAME rolls
+    // (a dispute is resolvable from the ledger) while remaining unpredictable,
+    // because hr_seed mixes a 256-bit secret held in a table with RLS on, no
+    // policy and no grant to any client role. The client can see `accrued_to` —
+    // hr_load returns it so the UI can render a countdown — and that is exactly
+    // why the seed may not be a function of visible values alone (review S20).
+    //
+    // The idempotency salt uses a DIFFERENT LABEL on purpose. The PRNG seed is
+    // masked to 32 bits and its consequences (which drops landed) are visible
+    // to the player; the intent salt must not be inferable from them.
     const seedRow = await sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
       const [r] = await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
-                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed`;
-      return r;
+                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
+               public.hr_seed(${user}::uuid, ${slot}::int,
+                              ${'intent:accrue:' + String(st.accrued_to)})::text as salt`;
+      return r as Row;
     });
+    const salt = String(seedRow?.salt ?? '');
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     const skills: Record<string, number> = {};
     for (const k of Object.keys(env.skills || {})) skills[k] = Number(env.skills[k].xp) || 0;
 
-    const out = computeAccrual({
+    const capMs = Number(read.cap_ms) || 0;
+    const equipment = env.equipment || {};
+
+    /* The engine is called with a LITERAL, field by field, from named server
+       values. `slot` is the only field on this object whose value came from the
+       request, and it selects a row the caller already owns. */
+    const runAccrual = (spanCapMs: number) => computeAccrual({
       userId: user,
       slot,
       nowMs,
@@ -215,34 +292,75 @@ Deno.serve(async (req: Request): Promise<Response> => {
       activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : accruedToMs,
       activeKind: st.active_kind,
       activeId: st.active_id,
-      capMs: Number(read.cap_ms) || 0,
+      capMs: spanCapMs,
       seed: Number(seedRow?.seed) || 0,
       hp: Number(st.hp) || 0,
       maxHp: Number(st.max_hp) || 0,
       gold: Number(st.gold) || 0,
       skills,
-      equipment: env.equipment || {},
+      equipment,
       items: ITEMS,
       monsters: MONSTERS,
     });
 
+    let out = runAccrual(capMs);
+
     if (!out.accrued) {
       // Nothing to pay. NOTHING IS WRITTEN — in particular the watermark is not
       // advanced, so a sub-threshold call cannot confiscate the time it
-      // declined to pay for.
+      // declined to pay for. The rate budget HAS been spent (see the gate
+      // above), so this path is not free to loop.
       return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now });
     }
 
     // ── APPLY. The single writer. ──────────────────────────────────────────
-    const intentId = await intentIdFor(user, slot, String(st.accrued_to));
-    const applied = await sql.begin(async (tx) => {
-      await tx`set local role hr_engine`;
-      const [r] = await tx`
-        select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
-                               ${intentId}::uuid, ${JSON.stringify(out.delta)}::jsonb) as res`;
-      return r;
-    });
-    const res = applied?.res as Record<string, any>;
+    const apply = async (delta: unknown, attempt: number) => {
+      const intentId = await intentIdFor(user, slot, String(st.accrued_to), salt, attempt);
+      const applied = await sql.begin(async (tx) => {
+        await tx`set local role hr_engine`;
+        const [r] = await tx`
+          select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
+                                 ${intentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res`;
+        return r as Row;
+      });
+      return applied?.res as Record<string, any>;
+    };
+
+    let res = await apply(out.delta, 0);
+    let degraded: Record<string, unknown> | null = null;
+
+    /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
+       version conflict, a rate limit, an unknown id or an insufficiency, all of
+       which mean something other than "this span was too big". */
+    for (let attempt = 1;
+         attempt <= MAX_DEGRADE && res && res.ok !== true && DEGRADABLE.has(String(res.error));
+         attempt++) {
+      const smaller = Math.floor(Number(out.grantMs) / 2);
+      degraded = { from: String(res.error), attempt, spanMs: smaller };
+      if (!(smaller > 0)) break;
+      const next = runAccrual(smaller);
+      if (!next.accrued) break;
+      out = next;
+      res = await apply(out.delta, attempt);
+    }
+
+    if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {
+      /* Last resort: pay nothing, but MOVE THE WATERMARK, so the next absence
+         is a fresh span instead of the same poisoned one forever. This is a
+         real loss for the player and it is the smaller of the two losses on
+         offer; hr_apply has recorded an incident for every attempt above. */
+      const forfeit = {
+        accrued_to: 'now',
+        journal: { kind: 'accrue', intent: 'accrue_forfeit', meta: { reason: String(res.error) } },
+      };
+      const rescue = await apply(forfeit, MAX_DEGRADE + 1);
+      if (rescue && rescue.ok === true) {
+        return json({
+          ok: true, accrued: false, reason: 'clamped', degraded,
+          version: rescue.version ?? env.version, now: rescue.now ?? env.now,
+        });
+      }
+    }
 
     if (!res || res.ok !== true) {
       // A rejection here is an INCIDENT, not a tuning problem (design §2): every
@@ -251,12 +369,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: false, error: (res && res.error) || 'apply_failed', detail: res ?? null }, 409);
     }
 
+    /* ── REPLAY HONESTY (review S7) ────────────────────────────────────────
+       hr_apply answers a replayed key with `ok:true` plus a FRESH state
+       envelope, which is right — the effect was applied exactly once and the
+       caller should get current state. What it must not produce is an `away`
+       block: that block is a receipt for a delta, and on a replay THIS
+       invocation's delta was not applied. Returning a freshly recomputed
+       welcome-back summary for work that did not happen is precisely the thing
+       "no renderer can invent a bonus that was not applied" forbids. So the
+       receipt is dropped and the reason is stated. */
+    if (res.replayed === true) {
+      return json({ ...res, ok: true, accrued: false, reason: 'replayed' });
+    }
+
     return json({
       ok: true,
       accrued: true,
       // The authoritative post-apply envelope, straight from hr_state_of —
       // the client renders this and computes nothing.
       ...res,
+      ...(degraded ? { degraded } : {}),
       levels: levelsOf(Object.fromEntries(
         Object.entries(res.skills || {}).map(([k, v]) => [k, (v as any).xp]),
       )),

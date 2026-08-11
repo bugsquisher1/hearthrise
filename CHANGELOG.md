@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 328 — 2026-08-11 (Server engine security hardening)
+
+- 🔒 **Behind-the-scenes security work on the new server engine.** No gameplay changes. Sign-in tokens are now cryptographically verified by the server engine rather than merely read, and a privilege path that could have let a crafted request write to any account has been removed.
+
 ## v0.9.2-beta build 327 — 2026-08-11 (Server-side progress engine)
 
 - 🏗️ **The server can now compute your away progress itself.** Groundwork only — nothing about how you play changes yet. This is the engine that will eventually decide what you earn, so that no one can edit their way to it.

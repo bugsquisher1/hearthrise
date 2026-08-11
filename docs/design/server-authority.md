@@ -239,6 +239,7 @@ wrong — the engine also needs to read state back and derive levels. Verified a
 | `hr_level_from_xp` | derive a level from XP | pure function of its argument |
 | `hr_xp_for_level` | derive XP for a level | pure function of its argument |
 | `market_expire` | releases lapsed escrow (arrives with market-v2, file 4) | writes, but only the "return the seller's own goods" path |
+| `hr_rate_gate` | spends the caller's own rate budget before an expensive read (arrives with `2026-08-11-accrue-gate.sql`) | writes one unlogged counter row for the user it was given, owns its own limits, fails closed on an unknown bucket. On the list because the alternative — granting `hr_rate_ok`, whose signature takes the limit as an argument — would let the engine choose its own rate limit |
 | `hr_offline_cap_ms` | the per-absence offline cap (arrives with Phase C, `2026-08-11-accrual.sql`) | read-only, one integer, bounded at 24h by its own ceiling. On the list because `capMs` multiplies a whole night's grant, so the accrual engine must not be its own authority for it |
 
 Six of the seven are on production today; `market_expire` lands with file 4. All of them are
@@ -338,13 +339,54 @@ select hr_apply(…); commit;`, because transaction mode does not keep a backend
 transactions. This is the one place a direct-connection engine differs from the JWT design and it
 is a two-line difference.)
 
+### §2a-iii Verification is in-process, and the rate gate precedes the read
+
+Two conditions from the pre-deploy review, both about things that were *assumed* rather than
+*enforced*.
+
+**D2 — the token is verified, not decoded.** The paragraph above says the function "verifies the
+player's JWT with the project JWKS". The first implementation did not: it base64-decoded the
+payload and read `sub`. The property rested entirely on `verify_jwt = true` at the gateway, a
+setting that existed in no file in this repository — there was no `supabase/config.toml` at all —
+and in no test. One `--no-verify-jwt` (**never use this**) and an unauthenticated caller could read any player's whole
+`hr_state_of` envelope and force-collect their absence.
+
+`supabase/functions/hr-accrue/jwt.js` now verifies the signature in-process against the project's
+published JWKS (`ES256` today, one key, measured on `nezapsylztqbbwuwembx` 2026-08-11) using
+`crypto.subtle`. It holds **no signing secret** — asymmetric verification needs only the public
+key, which is the entire reason §2a-i chose this seam. Claims are checked before *and* after the
+signature: issuer, uuid `sub`, `role = authenticated` (so the project's own anon key, a perfectly
+valid signed token, still cannot accrue), `aud`, `exp`, `nbf`, `iat`. A project that has not yet
+rotated to asymmetric keys issues HS256, which JWKS structurally cannot cover and which we refuse
+to verify in-process — holding `SUPABASE_JWT_SECRET` would mean holding the ability to mint
+`role: service_role`. Those fall back to asking the issuer (`GET /auth/v1/user`), which is
+secret-free, cached per token for 60s, and never reached for `alg: none`.
+
+`supabase/config.toml` is committed and pins `verify_jwt = true`; the test suite asserts it, and
+asserts that no file in the repo carries the flag that turns it off outside an explicitly marked
+comment. Two independent locks, the same posture as RLS + GRANT.
+
+**D3 — a call that pays nothing still spends budget.** `hr_apply` rate-limits itself, but the
+accrual function returned *before* `hr_apply` whenever there was nothing to pay. That path cost two
+pooled transactions, a full `hr_state_of`, `hr_offline_cap_ms` and `hr_seed` per request and
+consumed no budget at all — at `max_connections = 60` that is the §2a-ii total outage, dashboard
+included.
+
+`hr_rate_gate(user, slot, bucket)` (`2026-08-11-accrue-gate.sql`) is now the first statement of the
+read transaction. It is a new function rather than a grant on `hr_rate_ok` for one specific reason:
+`hr_rate_ok`'s signature takes the **limit as an argument**, and a caller that names its own rate
+limit does not have one. The gate owns the limit per bucket (`accrue` = 30/min — an accrual cannot
+*produce* anything more than once a minute, since `ACCRUE_MIN_MS` is 60,000), fails closed on an
+unknown bucket, and samples its rejections the way §6c-ii established. `hr_rate_ok` stays revoked
+from every role including `hr_engine`, and the migration asserts it.
+
 ### Error taxonomy
 
 Machine codes only, never prose. Rejections merge a detail payload into the envelope.
 
 | Class | Codes |
 |---|---|
-| Identity / protocol | `not_signed_in`, `forbidden_impersonation`, `missing_intent_id`, `bad_delta`, `unknown_delta_key`, `rate_limited`, `intent_in_flight` |
+| Identity / protocol | `not_signed_in`, `auth_unavailable`, `forbidden_impersonation`, `missing_intent_id`, `bad_delta`, `unknown_delta_key`, `rate_limited`, `intent_in_flight`, `intent_mismatch` |
 | Concurrency | `version_conflict`, `no_character` |
 | Currency | `insufficient_gold`, `insufficient_gems`, `gold_clamp`, `gem_clamp` |
 | Items | `unknown_item`, `insufficient_item`, `item_clamp`, `too_many_item_kinds`, `bank_full` |
@@ -356,6 +398,10 @@ Machine codes only, never prose. Rejections merge a detail payload into the enve
 
 A replay of a known idempotency key returns the original envelope with `"replayed": true`.
 
+`auth_unavailable` (503) is deliberately distinct from `not_signed_in` (401): the first is *our*
+outage — the project's JWKS endpoint could not be reached on a cold start — and answering it with
+a 401 would sign every player out on a network blip. `intent_mismatch` is below.
+
 ### Idempotency
 
 Every state-changing call carries a client-generated `uuid`. `player_intents(user_id, intent_id)`
@@ -363,6 +409,28 @@ is claimed under the same advisory lock that serialises the character, and the r
 into that row in the same transaction. Same key ⇒ same answer, success **or** rejection. Rows are
 pruned after 24 hours by `hr_intents_prune()`; a dedupe window only has to outlive a client's retry
 budget.
+
+**One namespace, two kinds of key (review S6).** `player_intents` is keyed on `(user_id,
+intent_id)` and nothing else, so the uuids a browser supplies (`market_list`, `market_cancel`,
+`market_buy`) share a namespace with keys the *server* derives — the accrual engine's key is a hash
+of `(user, slot, accrued_to)`, and `hr_load` hands the client `accrued_to` so the UI can render a
+countdown. Left alone that is a self-denial-of-service: a player computes their own next accrual
+key, burns it with a market call, and every accrual from then on returns `replayed: true`, applies
+nothing, and never advances the watermark — silently, with `ok: true`, until the 24h prune.
+
+Two independent locks close it:
+
+1. **`hr_apply` refuses a replay that is not a replay of the same thing.** `player_intents.intent`
+   already records what the key was claimed for; if the incoming call names a different one, the
+   answer is `intent_mismatch` rather than somebody else's decision. One comparison, and it hardens
+   every intent in the system rather than only accrual. *Verified on production inside a rolled-back
+   transaction: the unpatched function answered `{"ok":false,"error":"no_character","replayed":true}`
+   — the other intent's stored decision — and the patched one answered `intent_mismatch`.*
+2. **The accrual key is salted with a server secret.** `hr_seed(user, slot,
+   'intent:accrue:<watermark>')` mixes the same 256-bit secret the PRNG uses (under a *different*
+   label, so the salt cannot be inferred from observed drops), which makes the key unguessable while
+   keeping it identical across two concurrent invocations — the only property the derivation
+   actually needed.
 
 The clamps in step 3 are *not balance*. They are the blast radius if an Edge Function is ever
 wrong or compromised, exactly as the clamps in `clan_deposit` are
@@ -447,6 +515,37 @@ The current client uses `Math.random()` throughout (`legacy.js:1613 rand`, `:282
 `:2878 killMonster` drop rolls). Threading a seeded PRNG through the extracted core is a small,
 mechanical change and is the single behaviour change the extraction requires. `Math.random()` is
 banned server-side.
+
+#### ⚠ "Under-payment is the only direction we are wrong in" — THAT IS NOT TRUE
+
+Phase C's own documentation says it twice (`2026-08-11-accrual.sql:35`, `accrual.js:79`) and it is
+right about the things it is talking about: three of the five offline-cap sources are not server
+state yet and contribute 0, and the absent `autoEat` handler makes the server's character die
+*earlier* than the client's. Both under-pay. But stated as a general property of the accrual
+engine it is **false**, and the counter-example is not exotic.
+
+**The equipment used to price an absence is read at COLLECT time, not at the time it was worn
+(review S5).** `hr_state_of` returns `player_equipment` as it stands when the player returns, and
+`computeAccrual` prices the entire window with it. A player who logs off naked and equips
+best-in-slot before collecting is paid for the whole night as if they had fought in it.
+
+Measured 2026-08-11 by executing `computeAccrual` twice — identical seed (`0x5eed1234`), identical
+12h window, identical skills and HP, the `goblin` fixture from `tests/accrual-engine.mjs`, varying
+nothing but the equipment map:
+
+| gear worn during the collect | gold | Attack XP | kills |
+|---|---|---|---|
+| nothing equipped | **477 g** | 3,235 | 96 |
+| best-in-slot | **6,103 g** | 65,029 | 1,218 |
+
+That is a **12.8× over-payment in gold and 20× in XP**, available to anyone who notices, and it
+grows with the gear ladder. (The security review's own figures for a different fixture were 1,017 g
+vs 9,801 g — 9.6×. The exact multiple depends on the monster and the skills; the direction does
+not.) It is not a Phase-C blocker (`player_state` has 0 rows and no client path can start an
+activity, so it has no live blast radius today) and it is deliberately deferred to Phase D — but
+it must ship in the same migration as the first client-reachable activity intent, together with
+the fail-closed `active_since` rule and `accrued_to = now()` on any activity or equipment change.
+Until then, no document in this program may claim under-payment is the only direction.
 
 ### Farming — the wall-clock case
 

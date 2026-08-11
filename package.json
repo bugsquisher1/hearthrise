@@ -8,6 +8,8 @@
     "test": "node tests/run-smoke.mjs",
     "test:headed": "node tests/run-smoke.mjs --headed",
     "check:version": "bash bump-version.sh --check",
+    "test:sql": "node tests/run-sql-tests.mjs",
+    "test:market-offers": "node tests/market-offers-guard.mjs",
     "test:conservation": "node tests/conservation-fuzz.mjs --ops=400",
     "test:conservation:selftest": "node tests/conservation-fuzz.mjs --selftest --ops=400",
     "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2"

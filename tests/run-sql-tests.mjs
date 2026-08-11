@@ -116,6 +116,11 @@ const ALSO_LINTED = [
   '2026-08-11-authenticated-surface-lockdown.sql',
   '2026-08-11-live-market-rls.sql',
   '2026-08-11-clan-membership-authority.sql',
+  // O1/O2 on the v1 market_buy_offers + a volume bound on both market tables.
+  // Behaviourally proven, with controls and mutations, by
+  // tests/market-offers-guard.mjs on PGlite. It deliberately does NOT fix M1
+  // (listing an item you do not own) — see that file's header.
+  '2026-08-12-market-offers-authority.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own

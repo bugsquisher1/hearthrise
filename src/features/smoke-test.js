@@ -17495,6 +17495,67 @@ const TESTS = [
     } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
   }),
 
+  /* ───────────────────────────────────────────────────────────────────────
+     b329 regression suite — A11: the invite check must not read the table
+
+     The finding: `beta_invites` carried `for select to PUBLIC using (true)`,
+     and settings-page.js checked a code with
+     `GET /rest/v1/beta_invites?code=eq.X&select=code,used_by` using the ANON
+     key, before sign-up. An anon key therefore returned every code in the
+     closed beta with one request. RLS cannot express "you may read the row you
+     named" — a policy sees rows, never the request's filter — so the read has
+     to become a function, and that function has to be the client's ONLY route.
+     Until this test passed, the server-side policy drop could not be applied
+     without breaking sign-up.
+
+     tryRun is SYNCHRONOUS — an async test body would return a promise that is
+     never awaited and would pass while asserting nothing (the always-null-probe
+     family, nine instances on this project). validateInvite() has no await
+     before its fetch(), so the request is issued synchronously on call and can
+     be asserted synchronously. Do not "fix" this test by making it async.
+     ─────────────────────────────────────────────────────────────────────── */
+  () => tryRun('b329/A11: the invite check calls the beta_invite_check RPC and never reads the beta_invites table', () => {
+    const inv = window.HearthriseInvite;
+    assert(inv && typeof inv.validate === 'function',
+      'HearthriseInvite.validate must be published so the request shape is testable');
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase;
+    const realGetConfig = sb && sb.getConfig;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      };
+
+      const p = inv.validate('FRIEND-001');
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+
+      assert(calls.length === 1, `the invite check must issue exactly one request, saw ${calls.length}`);
+      const c = calls[0];
+
+      /* The control: this substring is what the exploit looked like. */
+      assert(c.url.indexOf('/beta_invites') === -1,
+        'the client must NEVER request the beta_invites table directly — that read returns every code: ' + c.url);
+      assert(c.url.indexOf('/rest/v1/rpc/beta_invite_check') !== -1,
+        'the invite check must go through the beta_invite_check RPC: ' + c.url);
+      assert(String(c.opts.method || 'GET').toUpperCase() === 'POST',
+        'a PostgREST RPC call must be POST — a GET would put the code in the query string');
+      /* The code is a secret in transit: it belongs in the body, never in a URL
+         that lands in proxy and server access logs. */
+      assert(c.url.indexOf('FRIEND-001') === -1,
+        'the invite code must not appear in the URL: ' + c.url);
+      const body = JSON.parse(c.opts.body || '{}');
+      assert(body.p_code === 'FRIEND-001',
+        'the RPC takes the code as p_code in the JSON body, saw: ' + (c.opts.body || '(none)'));
+    } finally {
+      window.fetch = realFetch;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

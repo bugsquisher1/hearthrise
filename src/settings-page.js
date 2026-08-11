@@ -160,6 +160,37 @@
 
   function pct(n){ return Math.round(n * 100) + '%'; }
 
+  // ── Invite code validation (A11) ────────────────────────────────────────
+  // NEVER read `beta_invites` directly. Its SELECT policy was world-readable to
+  // the anon key, so `GET /rest/v1/beta_invites?select=*` handed any visitor
+  // every code in the closed beta. `beta_invite_check()` is SECURITY DEFINER,
+  // rate-gated, and answers only about the ONE code it was given — it never
+  // returns the code list, the note, or who used a code. Module-scope (not a
+  // closure inside the modal) so the smoke test can assert the request shape.
+  async function validateInvite(code){
+    var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
+    if(!cfg) return { ok: false, reason: 'Cloud not configured.' };
+    try {
+      var res = await fetch(cfg.url + '/rest/v1/rpc/beta_invite_check', {
+        method: 'POST',
+        headers: {
+          'apikey': cfg.anonKey,
+          'Authorization': 'Bearer ' + cfg.anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ p_code: code }),
+      });
+      if(!res.ok) return { ok: false, reason: 'Could not check code.' };
+      var out = await res.json();
+      if(!out || typeof out !== 'object') return { ok: false, reason: 'Could not check code.' };
+      if(out.ok) return { ok: true };
+      return { ok: false, reason: out.reason || 'Invalid invite code.' };
+    } catch(e){
+      return { ok: false, reason: 'Network error.' };
+    }
+  }
+  window.HearthriseInvite = { validate: validateInvite };
+
   // Player-facing auth modal — drives Supabase email/pw sign-in or sign-up.
   // Reachable from Settings → Account when cloud is configured.
   function showInlineAuthModal(mode){
@@ -272,22 +303,6 @@
     });
 
     // ── Invite code helpers ──
-    async function validateInvite(code){
-      var cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
-      if(!cfg) return { ok: false, reason: 'Cloud not configured.' };
-      try {
-        var res = await fetch(cfg.url + '/rest/v1/beta_invites?code=eq.' + encodeURIComponent(code) + '&select=code,used_by', {
-          headers: { 'apikey': cfg.anonKey, 'Authorization': 'Bearer ' + cfg.anonKey },
-        });
-        if(!res.ok) return { ok: false, reason: 'Could not check code.' };
-        var rows = await res.json();
-        if(!rows.length) return { ok: false, reason: 'Invalid invite code.' };
-        if(rows[0].used_by) return { ok: false, reason: 'Code already used.' };
-        return { ok: true };
-      } catch(e){
-        return { ok: false, reason: 'Network error.' };
-      }
-    }
     async function claimPendingInvite(){
       var pending = null;
       try { pending = localStorage.getItem('hearthrise:pending-invite'); } catch(e){}

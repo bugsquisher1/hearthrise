@@ -239,10 +239,48 @@ function isOverlayChrome(el) {
 // repro (docs: color-mix on an element AND a ::before) confirmed html2canvas
 // FAILS with the exact error and html-to-image SUCCEEDS. This kills the entire
 // bug class, permanently, regardless of what CSS we add later.
-async function captureScreenshot() {
+// b314 — THE MOBILE FREEZE FIX.
+//
+// Symptom (Tyler, iOS Safari): tapping "Send report" hung the whole game on
+// "Sending…" forever. Root cause: submit() awaits captureScreenshot()
+// UNCONDITIONALLY with no timeout, and captureScreenshot()'s primary path (a) does
+// a bare `import()` of html-to-image from a CDN — which never resolves on a slow or
+// dropped mobile connection — and (b) rasterises the ENTIRE document.body into an
+// SVG <foreignObject>, which on iOS Safari with a large DOM can pin the main thread
+// for tens of seconds or stall outright. Either way the report never sends and the
+// UI is frozen.
+//
+// Fix: the screenshot is a NICE-TO-HAVE; the report is the point. Bound the whole
+// capture with a hard timeout — if it doesn't finish, resolve null and let the
+// report send text-only. Same guard wraps the CDN import so a hung fetch can't
+// block forever. A report that arrives without a screenshot beats one that never
+// arrives and takes the game down with it.
+const CAPTURE_TIMEOUT_MS = 6000;
+
+// Race a promise against a timer; resolve to `fallback` if it doesn't settle in ms.
+// Never rejects — the timeout path is a resolve, so callers can always continue.
+function withTimeout(promise, ms, fallback) {
+  return new Promise((resolve) => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; resolve(fallback); } }, ms);
+    Promise.resolve(promise).then(
+      (v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+      ()  => { if (!done) { done = true; clearTimeout(t); resolve(fallback); } }
+    );
+  });
+}
+if (typeof window !== 'undefined') window.__hrWithTimeout = withTimeout; // b314: exposed for the guard test
+
+// Public entry: bound the real capture so it can NEVER hang the bug report.
+function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS) {
+  return withTimeout(captureScreenshotRaw(), timeoutMs, null);
+}
+
+async function captureScreenshotRaw() {
   // Primary: foreignObject renderer — supports all modern CSS.
   try {
-    const mod = await import('https://cdn.skypack.dev/html-to-image');
+    const mod = await withTimeout(import('https://cdn.skypack.dev/html-to-image'), 4000, null);
+    if (!mod) throw new Error('html-to-image import timed out');
     // pixelRatio 0.5 halves resolution (~25% file size) — plenty for a bug shot,
     // and mobile reports benefit most from the smaller payload. skipFonts avoids
     // fetching/inlining Google Fonts (slow, occasionally CORS-blocked); the
@@ -263,7 +301,8 @@ async function captureScreenshot() {
   // if the foreignObject path ever fails; it cannot handle pseudo-element
   // color-mix (see above), so it is second, not first.
   try {
-    const mod = await import('https://cdn.skypack.dev/html2canvas');
+    const mod = await withTimeout(import('https://cdn.skypack.dev/html2canvas'), 4000, null);
+    if (!mod) throw new Error('html2canvas import timed out');
     const h2c = mod.default || mod;
     const canvas = await h2c(document.body, {
       scale: 0.5,

@@ -875,9 +875,16 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
 
-  /* Panel — fills the rest. No bottom-bar = no bottom padding reserved. */
-  .panel.active {
-    padding: 6px 8px max(6px, var(--safe-b, 0px)) !important;
+  /* Panel — fills the rest. In the landscape RAIL layout the bottom-nav is a
+   * left rail, so there is no bottom bar to clear and no reserve is owed.
+   * Boosted with body[data-theme] (0,2,1) so it beats the b108/b109 portrait
+   * mobile-nav reserves (`.panel.active`, 0,1,1, !important) further down this
+   * file that ALSO match a landscape phone and would otherwise re-add ~68px of
+   * DEAD space at the foot of a 430px-tall screen — the "cramped in landscape"
+   * Tyler reported. A little more side/foot breathing than a raw 6px so the
+   * content reads as deliberately fitted, not shrink-wrapped. */
+  body[data-theme] .panel.active {
+    padding: 8px 12px max(10px, var(--safe-b, 0px)) !important;
   }
 
   /* DUNGEONS button — was overflowing right. Constrain to inline width. */
@@ -894,6 +901,25 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     margin: -6px -8px 6px !important;
     padding: 4px !important;
   }
+
+  /* Bug-report FAB. It lives at right:12/bottom:62 (inline) so it can stack
+   * ABOVE the chat pill on desktop — but in the rail layout the chat pill is
+   * hidden, and on a 430px screen a bottom-RIGHT FAB lands squarely on the
+   * right-aligned primary CTAs (it was covering the quest "Go farm" button in
+   * Tyler's landscape shot). Tuck it into the bottom-LEFT corner against the
+   * rail, where the gameplay panels carry labels/text rather than action
+   * buttons, and quiet it down so it reads as utility chrome, not a CTA.
+   * (toasts.js measures this element at runtime and keeps the toast column
+   * clear of wherever it ends up, so moving it stays safe.) */
+  #hr-bug-btn {
+    left: calc(var(--rail-w, 64px) + var(--safe-l, 0px) + 6px) !important;
+    right: auto !important;
+    bottom: max(6px, var(--safe-b, 0px)) !important;
+    padding: 5px 7px !important;
+    opacity: .7;
+    z-index: 90 !important;
+  }
+  #hr-bug-btn:hover, #hr-bug-btn:focus-visible { opacity: 1; }
 
   /* Chat pill stays hidden, but if user opens chat from More menu, the
    * full dock should respect the side-rail offset too. */
@@ -983,9 +1009,12 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }
   .act-mob-strip .ams-btn .ams-ic { font-size:calc(16px * var(--ui-scale, 1)) !important; }
 
-  /* Panels — minimal padding to give content the most room */
+  /* Panels — minimal padding to give content the most room. No bottom-nav in the
+   * rail layout, so no reserve is owed (the 40px reserve this once carried was a
+   * phantom for a nav that is a LEFT rail here). Kept in lockstep with the boosted
+   * body[data-theme] rule above so whichever wins yields the same fitted padding. */
   .panel.active {
-    padding: 4px 6px calc(40px + var(--safe-b, 0px) + 4px) !important;
+    padding: 8px 12px max(10px, var(--safe-b, 0px)) !important;
   }
   .card { margin-bottom: 4px !important; padding: 6px 8px !important; }
   .card-head, .card-body { padding: 4px 8px !important; }

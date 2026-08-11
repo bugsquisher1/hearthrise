@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=313' directly.
+// modularised, will import { G } from '../state/game.js?v=314' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=313';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=313';
+import { on, snapshot } from '../net/events.js?v=314';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=314';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=313';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=314';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12180,6 +12180,42 @@ const TESTS = [
     assert(!themeLocked, 'the fixed left-rail rule must NOT be scoped to cozy-light (that left hearthlight with a dead offset)');
   }),
 
+  () => tryRun('b314: landscape rail reclaims the phantom bottom-nav reserve + lifts the bug FAB off the CTAs (Tyler: cramped in landscape)', () => {
+    // On a short landscape phone the nav is a LEFT rail, so there is NO bottom bar
+    // to clear. Two portrait-era blocks (b108/b109) still matched a landscape phone
+    // and re-reserved ~68px of DEAD space at the foot of a 430px screen (`.panel.active`,
+    // !important, equal specificity, later in source → they won). The rail panel rule
+    // must therefore be boosted with body[data-theme] (0,2,1) to beat them, and must
+    // not itself re-reserve a bottom-bar's height. Separately the bug-report FAB sat
+    // bottom-right ON the quest CTAs (it covered "Go farm" in Tyler's shot) and must be
+    // moved out of that corner. Read the ACTUAL loaded CSS — no viewport resize needed.
+    let panelBoosted = false, panelReReserves = false, bugMoved = false;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; } // skip cross-origin
+      for (const rule of rules) {
+        if (rule.type !== CSSRule.MEDIA_RULE) continue;
+        const mt = (rule.media && rule.media.mediaText) || rule.conditionText || '';
+        if (!(/max-height:\s*540px/.test(mt) && /landscape/.test(mt))) continue;
+        for (const r of rule.cssRules || []) {
+          if (!r.selectorText || !r.style) continue;
+          if (/\.panel\.active\b/.test(r.selectorText) && (r.style.padding || r.style.paddingBottom)) {
+            const raw = (r.style.padding || '') + ' ' + (r.style.paddingBottom || '');
+            const reserves = /(40|56|60|72)px/.test(raw); // a bottom-nav's worth of reserve
+            if (/body\[data-theme\]/.test(r.selectorText)) {
+              if (!reserves) panelBoosted = true; else panelReReserves = true;
+            }
+          }
+          if (/#hr-bug-btn\b/.test(r.selectorText) && (r.style.right === 'auto' || /calc\(/.test(r.style.left || ''))) {
+            bugMoved = true;
+          }
+        }
+      }
+    }
+    assert(panelBoosted, 'the landscape rail panel padding must be boosted with body[data-theme] so it beats the b108/b109 bottom-nav reserves (a bare .panel.active loses the cascade and the 68px dead strip returns)');
+    assert(!panelReReserves, 'the boosted rail panel rule must NOT itself re-reserve a bottom-nav height (40/56/60/72px) at the foot of a short landscape screen');
+    assert(bugMoved, 'the bug-report FAB must be lifted out of the bottom-right corner (left:calc / right:auto) in the landscape rail block so it stops covering the quest CTAs');
+  }),
+
   () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
     assert(typeof window.processOffline === 'function' && typeof window.processOfflineCombat === 'function', 'offline combat seams must exist');
     const snap = snapshotG();
@@ -12638,6 +12674,37 @@ const TESTS = [
     // Plain colours are untouched.
     assert(f('rgb(10,20,30)') === 'rgb(10,20,30)', 'plain rgb must pass through');
     assert(f('#abc') === '#abc', 'hex must pass through');
+  }),
+
+  // b314: THE MOBILE FREEZE. Tapping "Send report" on iOS Safari hung the whole
+  // game on "Sending…" forever, because submit() awaits captureScreenshot() with
+  // no timeout and the primary path both imports html-to-image from a CDN (can
+  // hang on a dropped mobile connection) and rasterises the full body into a
+  // <foreignObject> (can pin the main thread). The fix bounds the whole capture
+  // with withTimeout(): a hung capture resolves null so the report still sends
+  // text-only. Guard the timeout primitive AND that captureScreenshot is bounded.
+  () => tryRun('b314: bug-report screenshot capture can never hang the report (mobile freeze)', () => {
+    const wt = window.__hrWithTimeout;
+    assert(typeof wt === 'function', '__hrWithTimeout must be exposed');
+    // A never-settling promise must resolve to the fallback, and must return a
+    // promise (never throw synchronously).
+    const never = new Promise(() => {});          // the hung-capture case
+    const p = wt(never, 20, 'FALLBACK');
+    assert(p && typeof p.then === 'function', 'withTimeout must return a promise');
+    p.then(function(v){ assert(v === 'FALLBACK', 'a hung promise must resolve to the fallback, got ' + v); },
+           function(){ assert(false, 'withTimeout must never reject'); });
+    // A promise that settles fast must win the race (fallback ignored).
+    wt(Promise.resolve('REAL'), 5000, 'FB').then(function(v){
+      assert(v === 'REAL', 'a fast promise must win over the timeout, got ' + v);
+    }, function(){ assert(false, 'withTimeout must never reject on a resolved input'); });
+    // captureScreenshot itself must be bounded: calling it must return a promise
+    // and never throw synchronously even in this DOM-light harness.
+    const B = window.HearthriseBugReport;
+    assert(B && typeof B.captureScreenshot === 'function', 'captureScreenshot must be exposed');
+    const cap = B.captureScreenshot(20);          // tiny budget → must resolve (to null) quickly
+    assert(cap && typeof cap.then === 'function', 'captureScreenshot must return a promise');
+    cap.then(function(v){ assert(v === null || typeof v === 'string', 'capture must resolve to a data-url or null, got ' + typeof v); },
+             function(){ assert(false, 'captureScreenshot must never reject — it fails soft to null'); });
   }),
 
   // b294: the "Desktop site is on → whole UI is a jumbled mess" detector

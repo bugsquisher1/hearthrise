@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 314 — 2026-08-10 (Mobile: no more freeze, roomier landscape)
+
+- 🐛 **Sending a bug report can never freeze the game anymore.** On some phones (especially iOS Safari) the screenshot step could hang forever, leaving the report stuck on "Sending…" and locking up the whole game. Now the screenshot has a hard time limit — if it can't finish quickly, the report just sends without it instead of freezing. A report that arrives beats one that never does. *(Thanks Tyler.)*
+- 📱 **Landscape phones stopped feeling cramped.** A leftover rule from the portrait layout was reserving a big empty strip at the bottom of the screen for a nav bar that isn't there in landscape (the nav is the left rail), squeezing everything into the top. That dead space is reclaimed, so the content breathes. The 🐛 report button also moved to the bottom-left so it no longer covers your quest buttons. *(Thanks Tyler.)*
+
 ## v0.9.2-beta build 313 — 2026-08-10 (Companion stats stay in sync)
 
 - 🐾 **Your companion's stats now update everywhere the moment it levels up.** The Companion panel used to keep showing the old level/bonuses until you left and came back, even though your inventory and combat already reflected the new ones. Now a level-up refreshes the panel right away, so the numbers always agree. *(Thanks paione.)*

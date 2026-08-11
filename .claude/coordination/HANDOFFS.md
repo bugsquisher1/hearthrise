@@ -2,6 +2,44 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-11 · FROM QA Engineer → TO Systems Engineer / Security · CONSERVATION FUZZ + a reusable server-tier test rig
+
+WHAT I BUILT:
+- `tests/conservation-fuzz.mjs` — seeded, randomised, interleaved ops across M characters against the
+  FOUR REAL server-authority migrations, asserting per-item and gold conservation against modelled
+  mint/burn counters. `--selftest` plants ten known conservation violations and demands each is caught
+  (10/10). Wired into `.github/workflows/smoke.yml` at 400 ops (~22s).
+- `tests/sql/pglite-fixture.sql` — the Supabase-shaped scaffolding (auth.uid/auth.users/profiles +
+  a pg_cron shim + the pre-market-v2 world) that lets those migrations apply to an in-process
+  PostgreSQL 18. No Docker, no psql, no credentials, no branch, nothing left behind.
+
+WHAT YOU CAN USE IT FOR (this is the real handoff):
+- `tests/sql/server-authority.test.sql` currently runs only by being emitted and pasted at a live
+  database (215 KB, via an HTTP-fetch trick, against production, inside a rolled-back transaction).
+  With this fixture it can run **on every push**. I did not migrate it myself — it is your suite and
+  it asserts RLS/grant semantics this harness deliberately does not model.
+- Any future RPC that moves value gets a row in the fuzz's op table. That is the maintenance contract;
+  without it the fuzz stops being a proof and becomes a habit.
+
+WHAT I COULD NOT EXERCISE (needs a BRANCH, not this rig):
+- **True concurrency.** PGlite is one backend. The advisory locks, `for update`, the canonical lock
+  order and the market_buy deadlock scenario are exercised but never RACED. Two simultaneous buyers on
+  one listing, and two players buying from each other at the same instant, remain unproven.
+- **RLS and EXECUTE grants** — the harness runs as owner. Still owned by `run-sql-tests.mjs` and the
+  behavioural suite.
+- **pg_cron itself.** The shim records jobs; it does not run them. `market_expire` is called directly.
+- **The degrade ladder's driver.** The ladder lives in `hr-accrue/index.ts` (TypeScript, not importable
+  by node), so the loop is re-driven in the harness with `MAX_DEGRADE`/`DEGRADABLE` read out of that
+  file rather than retyped. The APPLIES are real; the DRIVER is a port. If the ladder ever moves to a
+  `.js` module, delete the port and import the real one.
+
+WHAT MUST NOT BE CHANGED:
+- The injection anchors are exact substrings of the migration text. If you edit `hr_apply`,
+  `market_list/cancel/buy/expire` or `hr_record_rejection`, re-run `--selftest`: a stale anchor exits
+  **2 with a loud message**, never silently. Do not "fix" that by loosening an anchor to a regex.
+- The harness must never derive an expectation by reading the database after an op. Every expected
+  delta comes from the op's own parameters × the verdict returned. That is the only reason it can fail.
+
 ## Template
 ```
 ### <DATE> · FROM <agent> → TO <agent(s)>

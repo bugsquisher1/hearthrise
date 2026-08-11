@@ -43,6 +43,17 @@ jobs:
       - name: Smoke suite (headless)
         run: node tests/run-smoke.mjs
 
+      # THE CONSERVATION FUZZ. Randomised, seeded operations across several
+      # characters against the REAL server-authority migrations, running on an
+      # in-process PostgreSQL — no database credentials, no branch, nothing to
+      # clean up. --selftest runs the clean pass AND plants ten known
+      # conservation violations, demanding that every one of them is caught: a
+      # fuzz that cannot fail on a planted bug is decoration, and this repo has
+      # shipped six always-null probes. Bounded op count here (~25s); soak with
+      # `npm run test:conservation:soak`.
+      - name: Conservation fuzz + injection selftest
+        run: node tests/conservation-fuzz.mjs --selftest --ops=400
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

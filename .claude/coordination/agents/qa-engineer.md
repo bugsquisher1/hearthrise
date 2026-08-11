@@ -10,6 +10,37 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Bug flow: reproduce → minimize → severity → root cause → fix/route → reproduce → regression test → verify surroundings.
 
 ## Log
+### 2026-08-11 · CONSERVATION-INVARIANT FUZZ built — `tests/conservation-fuzz.mjs`
+Security's three-times-named cutover blocker. Randomised, seeded, ~61,000 ops exercised; **10/10
+planted conservation violations caught**; no real violation found in the server-authority foundation.
+
+**The unlock:** the four real migrations apply CLEANLY to **PGlite** (WASM PostgreSQL 18) in-process.
+That means the whole server tier is now executable in `node`, with no Docker, no psql, no Supabase
+credentials, no branch and nothing left behind. Scaffolding is `tests/sql/pglite-fixture.sql`
+(auth.uid/auth.users/profiles + a pg_cron shim). **This is reusable far beyond the fuzz** —
+`tests/sql/server-authority.test.sql`, which today can only run by being emitted and pasted at a
+database, could run here on every push. Handed to Systems Engineer.
+
+**Falsifiability first.** Ten known conservation bugs are planted as exact-substring patches to the
+REAL migration text, and an anchor that matches 0 or 2 times aborts as a HARNESS error — a planted
+bug that never got planted is the same defect as an always-null probe. Two of the ten (`gold_double`
+and `reject_becomes_ok`) exist specifically to prove sub-assertions are real rather than decorative.
+
+**A trap I fell into and fixed:** my first draft computed `want` (the verdict the server must give)
+and never compared it — my own always-null probe, in a harness written to hunt exactly that. Now
+divergence on the 14 constructed-rejection ops FAILS the run, and `reject_becomes_ok` proves it.
+
+**Second trap:** the obvious plant for "replay applies twice" (make the intent lookup miss) also
+breaks apply-engine's own S6 self-verification, so the migration refuses to install — the fuzz never
+ran. Good defence, but it hides the bug class. The plant now leaves the collision branch intact and
+removes only the success short-circuit, which is the real b214 double-pay shape and installs fine.
+
+**Third trap:** two PGlite instances in one Node process are not independent — the second boot of the
+same bundle failed an assertion the first had just passed. `--selftest` now forks a process per run.
+
+**Could NOT exercise:** true concurrency (PGlite is one backend — locks are exercised, never raced),
+RLS/EXECUTE grants (harness runs as owner), pg_cron scheduling itself. Needs a branch.
+
 ### 2026-08-08 · systematic click-through, b224+wall (port 8159) → `docs/reports/AUDIT-2026-08-08-clickthrough.md`
 Breadth pass, read-only. **418 controls clicked (177 distinct), 0 console errors, 0 page errors.**
 7 genuinely dead controls · 2 shipped placeholders · 3 mislabeled · 3 stale-screen · 1 validation bypass ·

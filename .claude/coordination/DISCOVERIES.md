@@ -124,3 +124,40 @@ or events until a drop-roll seam reads it.
 **Required action:** Serialize `legacy.js` implementation across waves; parallelize only work with disjoint footprints (CSS vs engine) via worktree isolation, plus read-only design/spec work. Coordinator integrates one logical change at a time.
 
 _(New discoveries below this line, newest first.)_
+
+### 2026-08-11 · QA · The server tier is now RUNNABLE IN `node` — PGlite executes the real migrations
+**Discovery:** all four server-authority migrations (`player-state`, `catalogue.generated`,
+`apply-engine`, `market-v2`) apply **verbatim and clean** to **PGlite 0.5.4 (PostgreSQL 18, WASM)**
+in-process. The only scaffolding needed is `tests/sql/pglite-fixture.sql`: `auth.users`, `auth.uid()`
+(reads `request.jwt.claim.sub`, exactly as Supabase does), `public.profiles`, and a `cron.*` shim
+whose `unschedule()` raises on a missing job (that raise is why `hr_cron_drop` exists, so the shim
+keeps the guard live). The fixture also recreates the **pre-market-v2 world** — the v1 table plus the
+two armed nightly jobs — so market-v2 §0c's escrow-ordering assertion is a real check here and not
+vacuous. `hr_apply` is reachable via `set role hr_engine`; `pg_advisory_xact_lock`,
+`hashtextextended`, `gen_random_uuid`, PL/pgSQL, RLS DDL and `SECURITY DEFINER` all work.
+
+**Affected systems:** the whole server tier's testability.
+**Required action (Systems Engineer):** `tests/sql/server-authority.test.sql` today can only run by
+being emitted and pasted at a live database — 215 KB through an HTTP-fetch trick, against production,
+inside a rolled-back transaction. It could run **on every push** through this fixture instead. Worth
+doing: the S6 intent-collision defect was found only when someone actually executed a block that had
+passed three reviews by being read.
+**Limits, stated:** the harness runs as owner, so RLS and EXECUTE grants are NOT enforced against it
+(those stay with `run-sql-tests.mjs` + the behavioural suite), and PGlite is a single backend, so
+locks are exercised but never raced.
+
+### 2026-08-11 · QA · Conservation fuzz shipped; 10/10 planted violations caught, 0 real ones found
+**Discovery:** `tests/conservation-fuzz.mjs` proves the property Security asked for — after N seeded
+random ops across M characters, `Σ inventory + Σ equipment + Σ listings` per item and
+`Σ gold + Σ market_sales.tax` reconcile against modelled mint/burn counters. ~61,000 ops across 24
+seeds, up to 4,000 ops × 12 characters: **no conservation violation in the foundation.** The escrow
+path (list→cancel, list→buy, list→expire) conserves exactly, rejections move nothing, replays apply
+once, and the b328 degrade ladder reaches `accrue_forfeit` moving the watermark and nothing else.
+**A clean fuzz is worth nothing on its own**, so `--selftest` plants ten real conservation bugs in
+the migration text and demands each is caught. All ten are. Two of the ten exist only to prove
+sub-assertions are not decoration.
+**Affected systems:** market v2, hr_apply, accrual, CI.
+**Required action:** keep `node tests/conservation-fuzz.mjs --selftest --ops=400` green (~22s, wired
+into `.github/workflows/smoke.yml`). **Adding an RPC that moves value without adding an op to the
+fuzz's table is how this stops being a proof.** Anyone editing the migrations must re-check the
+injection anchors — a stale anchor fails LOUD (exit 2) by design, not silently.

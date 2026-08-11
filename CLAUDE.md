@@ -37,9 +37,29 @@ Run the suite with `Ctrl+Shift+T` or the floating 🧪 button.
 
 ---
 
-## Architecture direction (locked 2026-08-07)
+## Server authority (locked 2026-08-10 — Tyler, supersedes where it conflicts)
 
-Goal: scale in content **and ship to Steam + mobile from one web core.** Approach: **incremental refactor-in-place — never a rewrite.** Keep the live beta green. Proof-of-model: Melvor Idle (a web idle-RPG) shipped to Steam (desktop wrapper) and iOS/Android (mobile wrapper) from one web codebase. Steam = Electron/Tauri wrapper; mobile = Capacitor wrapper. The web stack is not the blocker — the monolith + CSS debt are.
+**Hearthrise is a MULTIPLAYER-ONLY, ONLINE-ONLY game. Nothing is authored by the client — ever.** (Tyler, explicit, 2026-08-10.)
+
+A live connection is required to play. There is no offline-capable client and no local simulation to reconcile. Progress still accrues while the player is away — the SERVER computes it (activity + server timestamp → grant on return), exactly like Idle Clans. "Offline progression" means server-side accrual, NOT playing without a connection. This constraint SIMPLIFIES the architecture: no dual client/server simulation, no offline reconciliation, no trust in any local value.
+
+Trigger: a live audit found the economy fully exploitable from browser devtools (`G.gold = 1e12` → autosave → buy out the real market). Gold, inventory, all skill levels and every leaderboard score live in the client-authored `game_saves.snapshot` blob, and `buy_listing` moves no value server-side — the client does. Clan seat / raids / world events were already properly server-authoritative; **the market and the save blob are the two surfaces that never got that treatment.**
+
+The rule going forward:
+
+- **The server owns anything tradeable, rankable, or contributable** — gold, tradeable item quantities, market transactions, leaderboard scores, clan/raid contributions. These live in real tables written ONLY by `SECURITY DEFINER` RPCs, never by a client PATCH/POST. Copy the established pattern in `2026-08-08-clan-seat.sql` (`clan_deposit`: server-side item catalogue, server clock, per-call + per-day clamps read from an append-only ledger, no client UPDATE policy).
+- **Never trust a client-supplied value that crosses to another player** — not gold, not quantity, not price, not a display name (derive names server-side), not a timestamp (use `now()`).
+- **There is NO solo progression. None.** (Tyler, explicit, 2026-08-10 — do not re-propose a client-side "solo tier"; it has been rejected three times.) Every progression value — XP, skill levels, combat outcomes, gathering/crafting yields, farm growth, drops, gold — is computed and owned by the SERVER. The client sends INTENTS ("start mining coal", "craft X", "equip Y") and renders the state the server returns. It never computes an authoritative number.
+- **Offline progression is server-computed**, the Idle Clans way: the server stores the active activity plus a SERVER timestamp; on return the SERVER computes elapsed time against server-known level/gear/caps and grants the result. The client clock and local files are never read for authority. Client-side prediction is allowed for responsiveness but is display-only and always reconciled to server truth.
+- **Every shared-surface write is journalled** so abuse is detectable and reversible.
+
+The target property is not "unhackable" (unachievable in a browser) — it is: **a forged client value cannot cross into another player's economy or ranking.**
+
+## Architecture direction (locked 2026-08-07; amended 2026-08-10)
+
+Goal: scale in content **and ship to Steam + mobile from one web core.** Approach: **incremental refactor-in-place — never a rewrite.**
+
+> **Amendment (2026-08-10, authorized by Tyler):** the no-rewrite rule does NOT block the server-authority program above. That work is still strangler-fig — one domain at a time (market/gold/inventory first), live beta green throughout — but it DOES move authority off the client, which is a deliberate architectural change rather than a refactor. Where the two conflict, **server authority wins.** A full server-side *simulation* rewrite remains rejected (4–8 months, and it would make progression require a live connection). Keep the live beta green. Proof-of-model: Melvor Idle (a web idle-RPG) shipped to Steam (desktop wrapper) and iOS/Android (mobile wrapper) from one web codebase. Steam = Electron/Tauri wrapper; mobile = Capacitor wrapper. The web stack is not the blocker — the monolith + CSS debt are.
 
 Migrate toward four layers, strangler-fig, one domain at a time (combat, skills, farm, world/map, dungeon — this is roadmap task #129):
 1. **Data** — content as data (`src/data/*.js`). Grow by adding data, not code.

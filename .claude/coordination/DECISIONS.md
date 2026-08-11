@@ -4,6 +4,44 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-12 · The Hunt band is measured against the boss, and there is no unpaid band
+**Decision (Game Designer, own authority).** `raid_claim`'s contribution band stops ranking players
+against each other. The bar is now `hr_hunt_share(max_hp, members_at_declare)` — the pool split over
+the roster it was sized for — and the ladder is floored: champion ×1.3 at 1.5× your share, full ×1.0
+at 0.5×, partisan ×0.6 below that. `below_band` is deleted as an outcome; the RPC can no longer
+refuse a chest for being small, only for being absent. On a week the boss survived the band floors
+at `full`, because the payout is already multiplied by the partial factor and a clan that fell short
+must not be cut twice. Staged as `supabase/migrations/2026-08-12-raid-band-fairness.sql`; NOT applied.
+
+**Why.** The median was chosen (b223) to be clan-size-independent, and it is — but it made every
+member's chest a function of every other member's damage, and `percentile_cont` interpolates, so in
+a clan of two the bar simply IS the other player's number. Executed proof
+(`tests/raid-band-denial.mjs`): hold a member's week completely fixed at 1,800 damage over 3 strikes
+in a Tier I Hunt for two, and sweep her clanmate's week across its legal range (3,000 → 25,000, the
+per-day clamp × 5). Her verdict walks full ×1.0 → partisan ×0.6 → **below_band, nothing** — three of
+seven legal clanmate weeks pay her nothing, with no forgery and nobody doing anything wrong. A
+co-operative weekly event in which the selfish play is to hope your friends underperform is the
+inverse of the point.
+
+**Both named remedies, not one.** Banding against `max_hp` alone is insufficient: total damage is
+bounded by the pool, so shares are a contended resource and a heavy hitter still eats HP others would
+have earned out of. The floor is what actually removes the primitive — with no unpaid band, no action
+by any player can move any other player below being paid.
+
+**What still stops a free-rider.** Nothing about that changed: `no_contribution` (zero damage) and
+`too_few_strikes` (fewer than 2 strikes, which are 2 separate UTC days), plus joined-after-declare and
+joined-after-kill. Those gates are absolute and unmovable by anyone else. The bands rank how well you
+did; they were never what decided whether you were allowed to eat.
+
+**Balance.** The chest pays gold/gems/materials, never XP, so this is outside the +52% permanent-power
+fuse and cannot move the 8-week first-99 anchor (pacing-overhaul A.4). The ceiling is unchanged
+(champion ×1.3, once per week, PK-guarded). The floor rises 0 → 0.6 only for members who were being
+denied by other people's arithmetic. Champion inflation is bounded by the boss: Σdamage ≈ max_hp and
+Σshare = max_hp, so at most two thirds of a roster can be at 1.5×.
+
+**Affected agents:** Systems (owns applying the migration and the `median`→`share` envelope key),
+Art Director (the Hunt card gained three lines of rule copy — the density call is theirs).
+
 ### 2026-08-09 · re-Master Itemization & Progression Rework — PROGRAM START, AUDIT FIRST (Tyler)
 **Decision:** The largest program yet — full audit + rework of itemization/progression/equipment/bosses/dungeons/crafting/gathering/combat/rewards into one cohesive loop ("simple to understand, deep to master"). 20-phase brief; details in memory [[itemization-program]]. Coordinator plan: Phase 1 = 4 parallel READ-ONLY domain audits → synthesize master audit + new-itemization DESIGN → **bring to Tyler for approval before ANY implementation**. Implementation waits on that approval AND on b229 (character rework) shipping (clean base). NO code changes in the audit phase.
 **Affected agents:** all (multi-wave). Read-only auditors now; specialists implement per approved design later.

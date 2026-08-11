@@ -37,8 +37,8 @@
 //   • one strike per UTC day                (raid_strike day gate)
 //   • which UTC day/week it is              (hr_utc_day_key / hr_utc_week_key)
 //   • the damage clamp                      (max(5000, pool × 10%))
-//   • the contribution band and the chest   (raid_claim, median over ≥3-strike
-//     contributors — the client may PREVIEW it, never bank it)
+//   • the contribution band and the chest   (raid_claim, your damage against
+//     max_hp/members_at_declare — the client may PREVIEW it, never bank it)
 //   • the clan Standing a kill pays, ONCE   (clan_raids.standing_paid)
 // See supabase/migrations/2026-08-08-hunt.sql, which builds on
 // 2026-08-08-raid-hardening.sql and keeps every one of its rules intact.
@@ -188,20 +188,32 @@
   var LEGACY_CLAMP = 50000;
   var CLAMP_FLOOR = 5000, CLAMP_FRAC = 0.10;
 
-  /* Bands, measured against the clan's MEDIAN contributor (§5.2). An absolute
-     percentage band punishes members of large clans (in a 40-person clan the
-     average member is 2.5% of the pool; in a 10-person clan, 10%). Banding
-     against the median is size-independent and directly anti-freeload.
-     Bands, not a linear share, because a linear split would punish lower-geared
-     members for owning worse gear — and a clan needs its newer members to feel
-     welcome. Anyone who genuinely turned up gets a full share. */
+  /* Bands, measured against YOUR SHARE OF THE BOSS — the pool divided by the
+     roster it was sized for (2026-08-12-raid-band-fairness.sql; mirrors the
+     server's hr_hunt_share / hr_hunt_band, which are authoritative).
+
+     This replaces the b223 median. Banding against the median was chosen to be
+     size-independent, and it is — but it made every member's chest a function
+     of every other member's damage, and percentile_cont interpolates, so in a
+     clan of two the bar simply IS the other player's number. A clanmate
+     playing HARDER, honestly, could drop you from a share to nothing. That is
+     a co-operative event where the selfish play is to hope your friends do
+     badly, which is the exact inverse of the point.
+
+     max_hp / members_at_declare is size-independent for the same reason the
+     median was — the pool is DEFINED as base + per_member × members — while
+     being a pure function of the boss. Nobody else appears in it.
+
+     There is NO unpaid band. The anti-freeload gates are absolute and live
+     above this ladder: no damage at all, or fewer than MIN_STRIKES_FOR_CHEST
+     strikes (which are separate UTC days), and you are refused outright. What
+     the bands rank is how well you did, not whether you are allowed to eat. */
   var BANDS = [
     { key: 'champion', label: 'Champion of the Hunt', ratio: 1.5, scale: 1.3 },
-    { key: 'full',     label: 'Full share',           ratio: 0.6, scale: 1.0 },
-    { key: 'partisan', label: "Partisan's share",     ratio: 0.2, scale: 0.6 }
+    { key: 'full',     label: 'Full share',           ratio: 0.5, scale: 1.0 },
+    { key: 'partisan', label: "Partisan's share",     ratio: 0,   scale: 0.6 }
   ];
   var MIN_STRIKES_FOR_CHEST = 2;   // §5.2 — this alone kills the one-tap
-  var MEDIAN_MIN_STRIKES = 3;      // a swarm of one-strike alts cannot depress it
   var PARTIAL_CAP = 0.6;           // §5.3 — no all-or-nothing cliff
   var FALTERING_AT = 0.10;         // §4.1 — the social moment without a clock
 
@@ -274,34 +286,30 @@
     return Math.max(MIN_TIER, Math.min(MAX_TIER, v));
   }
 
-  /* The median contributor, over members with ≥ MEDIAN_MIN_STRIKES strikes
-     (§5.2). If nobody has struck three times — a young or a quiet clan — the
-     median falls back to every contributor, and then to 0. A 0 median must NOT
-     read as "everyone is a Champion", so bandFor treats it as a full share for
-     anyone who met the strike minimum: the band exists to rank effort against
-     effort, and with no distribution to rank against, turning up IS the effort. */
-  function medianContribution(rows) {
-    var list = (rows || []).filter(function (r) {
-      return r && (r.strikes | 0) >= MEDIAN_MIN_STRIKES && (+r.damage || 0) > 0;
-    });
-    if (!list.length) {
-      list = (rows || []).filter(function (r) { return r && (+r.damage || 0) > 0; });
-    }
-    if (!list.length) return 0;
-    var vals = list.map(function (r) { return +r.damage || 0; }).sort(function (a, b) { return a - b; });
-    var mid = vals.length >> 1;
-    return vals.length % 2 ? vals[mid] : Math.floor((vals[mid - 1] + vals[mid]) / 2);
+  /* YOUR SHARE OF THE HUNT — the client mirror of the server's
+     hr_hunt_share(max_hp, members_at_declare). The pool was sized for that
+     roster, so a head of it is what the design asked one member for. Fixed the
+     moment the Hunt is declared; nothing any player does can move it. */
+  function shareFor(pool, members) {
+    var p = Math.max(1, Math.floor(Number(pool) || 0));
+    var n = Math.max(1, Math.floor(Number(members) || 0));
+    return Math.max(1, Math.floor(p / n));
   }
 
-  function bandFor(damage, median, strikes) {
+  /* The band. `partial` is the week the boss survived: the payout is already
+     multiplied by partialFactor, so a clan that fell short is not ALSO stepped
+     down a band for the shortfall it shared. One penalty, not two — mirrors
+     hr_hunt_band's p_partial term. */
+  function bandFor(damage, share, strikes, partial) {
     var s = Math.max(0, strikes | 0);
     var d = Math.max(0, +damage || 0);
-    if (s < MIN_STRIKES_FOR_CHEST || d <= 0) return null;
-    var m = Math.max(0, +median || 0);
-    if (m <= 0) return BANDS[1];                       // no distribution to rank against
-    var r = d / m;
-    for (var i = 0; i < BANDS.length; i++) if (r >= BANDS[i].ratio) return BANDS[i];
-    return null;
+    if (s < MIN_STRIKES_FOR_CHEST || d <= 0) return null;   // the absolute gates
+    var r = d / Math.max(1, Math.floor(Number(share) || 0));
+    for (var i = 0; i < BANDS.length; i++) if (r >= BANDS[i].ratio) {
+      if (partial && BANDS[i].scale < 1) return BANDS[1];
+      return BANDS[i];
+    }
+    return BANDS[BANDS.length - 1];                          // the floor: never nothing
   }
 
   // §5.3 — partial credit, capped. An idle game cannot punish a clan for one
@@ -318,10 +326,12 @@
   // can say "Full share" before you press Claim, not so the client can bank it.
   function previewScale(o) {
     o = o || {};
-    var band = bandFor(o.damage, o.median, o.strikes);
-    if (!band) return { band: null, label: 'No chest', scale: 0 };
+    var share = o.share != null ? o.share : shareFor(o.pool, o.members);
+    var band = bandFor(o.damage, share, o.strikes, !o.downed);
+    if (!band) return { band: null, label: 'No chest', scale: 0, share: share };
     var f = o.downed ? 1 : partialFactor(o.clanDamage != null ? o.clanDamage : o.damage, o.pool);
-    return { band: band.key, label: band.label, scale: band.scale * f, partial: !o.downed, factor: f };
+    return { band: band.key, label: band.label, scale: band.scale * f,
+             partial: !o.downed, factor: f, share: share };
   }
 
   // §3.5 — the solo pool, calibrated to the player's own measured power.
@@ -526,6 +536,9 @@
     not_downed: 'The boss still stands — keep striking!',
     no_contribution: 'You never struck this boss — no chest this week',
     too_few_strikes: 'Two strikes are the price of a share — one is not turning up',
+    // Retired 2026-08-12: the server can no longer refuse a chest for being
+    // small, only for being absent. Kept so an un-migrated server's answer is
+    // still a truthful sentence rather than the generic refusal.
     below_band: 'Your contribution fell short of a share this week',
     joined_after_kill: 'You joined after the boss fell — no chest this week',
     joined_after_declare: 'You joined after the Hunt was declared — no chest this week',
@@ -619,7 +632,11 @@
       action: 'accept', scale: +out.scale || null, week: out.week,
       tier: out.tier == null ? null : Math.max(1, +out.tier || 1),
       band: out.band || null,
-      median: +out.median || 0,
+      // `share` replaced `median` in the envelope on 2026-08-12. A server that
+      // still sends `median` is the pre-fix body: read it as 0 rather than
+      // relabelling somebody else's number as your share.
+      share: +out.share || 0,
+      ratio: +out.ratio || 0,
       partial: !!out.partial,
       // The signature drop is rolled by the SERVER — a client-rolled drop is a
       // client-chosen drop, and this is the rarest material in the game.
@@ -690,8 +707,10 @@
   }
 
   // The contribution ledger is world-readable (RLS `using (true)`), which is
-  // what lets the card show you your standing against the median BEFORE you
-  // claim. It is a preview; the server recomputes the band.
+  // what lets the card show your own damage and the clan's progress BEFORE you
+  // claim. It is a preview; the server recomputes the band — and since
+  // 2026-08-12 the band no longer depends on these rows at all, only on your
+  // own damage and the boss, so a stale ledger cannot mis-state your share.
   async function contributions(force) {
     if (!inClan()) return [];
     var wk = weekKey();
@@ -1148,17 +1167,18 @@
     var uid = myUserId();
     var mine = null;
     (rows || []).forEach(function (r) { if (uid && r.user_id === uid) mine = r; });
-    var median = medianContribution(rows);
+    var atDeclare = (raid && +raid.members_at_declare) || 0;
+    var share = shareFor(max, atDeclare);
     var clanDamage = (rows || []).reduce(function (a, r) { return a + (+r.damage || 0); }, 0);
     var pv = previewScale({
       damage: mine ? +mine.damage : 0, strikes: mine ? mine.strikes | 0 : 0,
-      median: median, downed: downed, clanDamage: clanDamage, pool: max
+      share: share, downed: downed, clanDamage: clanDamage, pool: max
     });
 
     var title = (tier ? '<span class="hunt-tier">Tier ' + tierRoman(tier) + ' · ' + esc(tierName(tier)) + '</span>' : '') +
       esc(boss.glyph + ' ' + boss.name);
     var sub = tier
-      ? 'Clan Hunt · pool scaled to ' + ((raid && +raid.members_at_declare) || 0) + ' members at declaration'
+      ? 'Clan Hunt · pool scaled to ' + atDeclare + ' members at declaration'
       : 'Clan raid';
 
     var action = downed
@@ -1190,8 +1210,20 @@
         '<div class="hunt-you tiny muted">' +
           '<span>Your damage <b>' + (mine ? (+mine.damage).toLocaleString() : '0') + '</b>' +
             ' · ' + (mine ? (mine.strikes | 0) : 0) + ' strike' + ((mine && (mine.strikes | 0) === 1) ? '' : 's') + '</span>' +
-          '<span>Median <b>' + median.toLocaleString() + '</b> · ' +
+          '<span>Your share <b>' + share.toLocaleString() + '</b> · ' +
             esc(mine ? pv.label : 'strike to earn a share') + '</span>' +
+        '</div>' +
+        /* The rule, in the open. A reward rule a player cannot see is the same
+           failure as a stat that renders no number: they cannot aim at it, and
+           they blame each other for outcomes nobody chose. Every clause here
+           is a thing the server actually does. */
+        '<div class="tiny muted" style="margin-top:6px">' +
+          'Your share is the pool split across the ' + atDeclare + ' member' + (atDeclare === 1 ? '' : 's') +
+          ' it was declared for. Bands are measured against <b>the boss</b>, never against your clanmates — ' +
+          'nobody\'s good week can shrink your chest. ' +
+          '<b>' + MIN_STRIKES_FOR_CHEST + ' strikes on ' + MIN_STRIKES_FOR_CHEST + ' days</b> earn at least a ' +
+          esc(BANDS[BANDS.length - 1].label) + '; half your share is a Full share; ' +
+          'one and a half times it makes you a Champion.' +
         '</div>' +
       '</div>';
   }
@@ -1341,13 +1373,13 @@
     // Pure Hunt maths — no I/O. The castle panel and the suite share these.
     tierDef: tierDef, tierName: tierName, tierRoman: tierRoman,
     poolFor: poolFor, strikeClamp: strikeClamp, maxHuntTier: maxHuntTier,
-    medianContribution: medianContribution, bandFor: bandFor,
+    shareFor: shareFor, bandFor: bandFor, BANDS: BANDS,
     partialFactor: partialFactor, previewScale: previewScale,
     soloPoolFor: soloPoolFor, chestFor: chestFor, soloChestFor: soloChestFor,
     huntGateMet: huntGateMet,
     weekStartMs: weekStartMs, prevWeekKey: prevWeekKey, GRACE_MS: GRACE_MS,
     raidPower: raidPower, raidPowerMult: raidPowerMult,
-    MIN_STRIKES_FOR_CHEST: MIN_STRIKES_FOR_CHEST, MEDIAN_MIN_STRIKES: MEDIAN_MIN_STRIKES,
+    MIN_STRIKES_FOR_CHEST: MIN_STRIKES_FOR_CHEST,
     PARTIAL_CAP: PARTIAL_CAP, SOLO_SCALE: SOLO_SCALE,
     SOLO_POOL_MIN: SOLO_POOL_MIN, SOLO_POOL_MAX: SOLO_POOL_MAX, SOLO_POOL_MULT: SOLO_POOL_MULT,
     SOLO_CLAMP_FRAC: SOLO_CLAMP_FRAC, HUNT_GATE_MS: HUNT_GATE_MS,

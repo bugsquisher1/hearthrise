@@ -4,6 +4,23 @@ _Integrated changes, newest first. This is the team's record of what actually la
 
 ---
 
+### 2026-08-12 · (staged, off b330) · The Hunt band stops being a comparison between players · Game Designer
+Retires the b223 median ladder. The bar is now `hr_hunt_share(max_hp, members_at_declare)` — your
+share of the boss — and the ladder is floored at partisan ×0.6, so `below_band` is deleted as an
+outcome. Partial weeks floor at `full` (the partial factor already scales them; one penalty, not two).
+Anti-freeload is unchanged and unmoved: `no_contribution`, `too_few_strikes` (2 strikes on 2 UTC
+days), joined-after-declare, joined-after-kill. Envelope key `median` → `share` (+`ratio`, `members`),
+deliberately un-aliased. Client preview + Hunt card rewritten to state the rule in the open.
+**Migration STAGED, not applied** — `supabase/migrations/2026-08-12-raid-band-fairness.sql`.
+No build bump.
+**Verification:** `tests/raid-band-denial.mjs --selftest` — real migration bodies on PGlite (PG 18),
+BEFORE shows an unchanged member's verdict walking full → partisan → **nothing** across her
+clanmate's legal week (3 of 7); AFTER shows one constant outcome across the same sweep; controls prove
+a free-rider, a one-tapper and a late joiner all still collect nothing, and that A/B still band
+champion/partisan (the fix is not "pay everyone"). Five mutations of the real fix SQL, all caught.
+`tests/raid-card-copy.mjs` — real raids.js in real Chromium, asserts the card's own text.
+Smoke 590/590; `run-sql-tests` static green. Both new tests wired into `smoke.yml` + `package.json`.
+
 ### 2026-08-08 · `2f6eaa5` · Wave 3b — the Visible Clan Seat (#10 Phase A UI) · Systems Engineer
 Castle scene band (real masonry coursing, tier 1-5 growth), six clickable structures each opening a genuinely-themed room modal (hall/vault/tavern/mill/forge/warroom) per Tyler's directive; Work Orders end-to-end; Tavern feasts + Rested XP potency; perk power-budget fuse (castle share yields at +60% allXP; +10% per-key castle cap); raidPower producer wired; `HearthriseRoomModal` reuse seam (zero clan vocabulary — homestead adopts next). -2 migration: Tavern Board RPCs + widened read. 270/270.
 

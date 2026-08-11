@@ -4,6 +4,31 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 320 — 2026-08-11 (Important: what's happening to Hearthrise)
+
+**Read this one — it affects your character.**
+
+**We are rebuilding how Hearthrise runs, and beta progress will be reset when it lands.**
+
+Right now, your game runs almost entirely on your own device: your levels, gold and items are calculated in your browser and then uploaded. That is how most idle games start, and it has one serious flaw — anything on your device can be edited. In practice that means a determined person could give themselves unlimited gold or items and then sell them on the player market, which quietly ruins the economy for everyone who plays honestly. Leaderboards have the same problem.
+
+So we are moving the whole game to the server. From then on, the server decides what you earn — your browser just shows it. Nothing on your device will be worth editing, because nothing on your device will be trusted.
+
+**What this means for you**
+
+- 🔄 **Your beta character will be wiped when the new system launches.** We are not carrying progress across, because the current saves come from a system we can no longer vouch for. We would rather everyone start the real game on a level field than launch with inflated accounts already in circulation. This is your notice — it is coming, and it applies to everyone including us.
+- 🌐 **Hearthrise will require an internet connection to play.** It is becoming a true multiplayer game. You will still make progress while you are away — the server tracks what you were doing and pays you when you return, exactly as it does now.
+- ⏳ **This will take some weeks, not days.** We would rather do it properly once than patch it forever. New content is mostly on hold until it is done.
+
+**Already fixed and live**
+
+- 🔒 **Chat impersonation is closed.** It was possible to post messages under someone else's name. Names now come from the server and cannot be faked.
+- 🔒 **Several ways to interfere with other players' clans are closed** — including tampering with clan build orders, votes, and members' contribution points.
+- 🛡️ **Your save is much harder to lose.** A fresh install or a new device could previously overwrite your real cloud save with an empty one — that is fixed, and your save is now tied to your account so another account on the same device can never overwrite it.
+- 📱 **Mobile fixes:** the bug reporter no longer freezes the game, Settings is reachable on a landscape phone, the home banner no longer eats a third of the screen, and the black bars around the edges are being removed.
+
+**Thank you for testing.** Finding this now — while the playerbase is small and a reset costs almost nothing — is exactly what a beta is for. The game that comes out of this will be one where your rank and your gold actually mean something.
+
 ## v0.9.2-beta build 319 — 2026-08-11 (Foundation: shared simulation core)
 
 - 🏗️ **Groundwork for the server-authoritative rebuild.** The game's core maths — XP, combat rolls, drops, pacing, farming, rested XP — moved into a shared, self-contained core that can run on the server as well as in your browser. No gameplay changes: every number behaves exactly as before, proven by the full test suite. This is the first step toward all progression being computed server-side, so nothing can be manipulated.

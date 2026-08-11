@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=319';
+//   import { setupSync } from './net/sync.js?v=320';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,7 +16,7 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=319';
+import { on, snapshot } from './events.js?v=320';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -51,6 +51,105 @@ let evicted = false;       // b302: latch so we fire onEvicted once
 // holds before the pull and releases after decideRestore resolves — so the
 // reconcile decision, not a race, decides whether local ever reaches the cloud.
 let snapshotHold = false;
+
+// ── b319: TELEMETRY CONTAINMENT ─────────────────────────────────────────────
+// THE INCIDENT: setupSync subscribed with on('*') and flush() wrote ONE ROW PER
+// EVENT every 5s — no allowlist, no sampling, no cap. Five of the eleven emit
+// sites fire inside per-kill / per-item / per-tick loops, so `game_events` grew
+// to 1,601,032 rows / 229 MB from SIX players in 3.45 days (94% of the whole
+// database; 77,320 rows and 11.1 MB per player per day). Measured mix:
+//   kill 899,745 · gather 403,142 · eat 109,314 · buffApply 108,565 ·
+//   companionProc 73,850   —vs—   companionEquip 1,538 · companionLevelUp 1,063 ·
+//   questClaim 507 · companionUnlock 443 · dungeonClear 102.
+// At ~143 B of row overhead against a ~35 B payload, ROW COUNT is the cost, not
+// size. So the fix is structural, in three layers:
+//   1. ALLOWLIST — only genuinely low-frequency, diagnostically useful events
+//      reach the network. The five loop-driven types are dropped from the
+//      network path entirely; they still fire on the in-process bus
+//      (src/net/events.js), which is what other features actually subscribe to.
+//   2. KILL SWITCH — event logging can be turned off WITHOUT touching cloud
+//      saves. Before this there was no such flag: silencing telemetry meant
+//      killing the save path, which is why nobody did it.
+//   3. RATE CAP — a hard backstop so a future emit site placed inside a loop
+//      cannot recreate this even if someone allowlists it by mistake. Overflow
+//      is DROPPED and COUNTED, never buffered.
+// Every gate lives in enqueue(), the single entry point to the upload buffer, so
+// even a reintroduced on('*') subscription stays contained.
+const EVENT_ALLOWLIST = new Set([
+  'companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear',
+]);
+const EVENT_MAX_PER_FLUSH = 20;    // rows per POST
+const EVENT_MAX_PER_MINUTE = 30;   // ~10x the observed allowlisted peak
+const EVENT_MAX_PER_HOUR = 200;    // ceiling: 4,800 rows/player/day worst case
+const EVENT_LOG_KEY = 'hr:eventLog';   // 'off' disables uploads on this device
+
+let rateMinute = { at: 0, n: 0 };
+let rateHour = { at: 0, n: 0 };
+let eventDrops = { total: 0, notAllowed: 0, disabled: 0, rateLimited: 0, byType: {} };
+// Unsubscribers for our bus subscriptions. setupSync() runs at least twice (once
+// at import in offline mode, once more when auth supplies the cloud config); the
+// old on('*') never unsubscribed, so the second call left TWO subscribers and
+// every event was enqueued — and uploaded — twice.
+let eventUnsubs = [];
+
+/** True if this event type is allowed onto the NETWORK path (the local bus is unaffected). */
+export function isEventAllowed(type) { return EVENT_ALLOWLIST.has(type); }
+
+/** The kill switch. Defaults ON; disables event upload ONLY — cloud saves are untouched. */
+export function isEventLogEnabled() {
+  if (config && config.eventLog === false) return false;
+  try { if (localStorage.getItem(EVENT_LOG_KEY) === 'off') return false; } catch (e) {}
+  return true;
+}
+export function setEventLogEnabled(on) {
+  try { if (on) localStorage.removeItem(EVENT_LOG_KEY); else localStorage.setItem(EVENT_LOG_KEY, 'off'); } catch (e) {}
+  if (config) config.eventLog = on ? true : false;
+  return isEventLogEnabled();
+}
+
+function countDrop(reason, type) {
+  eventDrops.total++;
+  eventDrops[reason] = (eventDrops[reason] || 0) + 1;
+  eventDrops.byType[type] = (eventDrops.byType[type] || 0) + 1;
+}
+
+/**
+ * The admission gate. Returns true if the event may enter the upload buffer.
+ * Pure except for the drop counters + rate windows, so it is directly testable.
+ */
+export function admitEvent(ev, now = Date.now()) {
+  const type = ev && ev.type;
+  if (!type) return false;
+  if (!isEventLogEnabled()) { countDrop('disabled', type); return false; }
+  if (!EVENT_ALLOWLIST.has(type)) { countDrop('notAllowed', type); return false; }
+  if (now - rateMinute.at >= 60000) rateMinute = { at: now, n: 0 };
+  if (now - rateHour.at >= 3600000) rateHour = { at: now, n: 0 };
+  if (rateMinute.n >= EVENT_MAX_PER_MINUTE || rateHour.n >= EVENT_MAX_PER_HOUR) {
+    countDrop('rateLimited', type);
+    return false;
+  }
+  rateMinute.n++; rateHour.n++;
+  return true;
+}
+
+/** Diagnostics for the bug report / console — what got dropped and why. */
+export function getEventStats() {
+  return {
+    enabled: isEventLogEnabled(),
+    allowlist: Array.from(EVENT_ALLOWLIST),
+    buffered: buffer.length,
+    minute: rateMinute.n, hour: rateHour.n,
+    limits: { perFlush: EVENT_MAX_PER_FLUSH, perMinute: EVENT_MAX_PER_MINUTE, perHour: EVENT_MAX_PER_HOUR },
+    dropped: { ...eventDrops, byType: { ...eventDrops.byType } },
+  };
+}
+
+/** Test seam: clear the rate windows + drop counters. */
+export function resetEventLimiter() {
+  rateMinute = { at: 0, n: 0 };
+  rateHour = { at: 0, n: 0 };
+  eventDrops = { total: 0, notAllowed: 0, disabled: 0, rateLimited: 0, byType: {} };
+}
 
 /**
  * b301 — a stable per-DEVICE id (not per-account). Persisted in localStorage so
@@ -88,6 +187,14 @@ function loadBuffer() {
     const raw = localStorage.getItem(BUFFER_KEY);
     if (raw) buffer = JSON.parse(raw);
   } catch {}
+  // b319: a buffer written before the allowlist existed can hold up to MAX_BUFFER
+  // high-frequency rows. Drop them here rather than uploading the backlog on the
+  // first flush after the fix ships.
+  if (Array.isArray(buffer)) {
+    const before = buffer.length;
+    buffer = buffer.filter((ev) => ev && EVENT_ALLOWLIST.has(ev.type));
+    if (buffer.length !== before) saveBuffer();
+  } else buffer = [];
 }
 
 function saveBuffer() {
@@ -96,11 +203,19 @@ function saveBuffer() {
   } catch {}
 }
 
-/** Push an event into the buffer, trimming if too large. */
+/**
+ * Push an event into the buffer, trimming if too large.
+ * b319: THE single entry point to the upload buffer, and therefore where the
+ * allowlist / kill switch / rate cap are enforced. Rejected events are counted
+ * and discarded — never buffered — so an emit site inside a loop costs nothing
+ * but a counter increment.
+ */
 function enqueue(ev) {
+  if (!admitEvent(ev)) return false;
   buffer.push(ev);
   if (buffer.length > MAX_BUFFER) buffer.shift();
   saveBuffer();
+  return true;
 }
 
 // ── Auth-aware fetch with refresh-and-retry (b149) ──────────────────────
@@ -166,10 +281,30 @@ async function fetchWithAuthRetry(url, initFn, label) {
   return res;
 }
 
+/**
+ * b319 — the exact rows flush() POSTs, as a pure function so the suite can
+ * assert on the literal network payload (one row per event; ~143 B of row
+ * overhead each, which is why the allowlist, not the payload shape, is the fix).
+ * A second, belt-and-braces allowlist pass: any row reaching here is already
+ * admitted, but a payload builder that can never emit a high-frequency type is
+ * one fewer way to recreate the incident.
+ */
+export function buildEventRows(batch, userId) {
+  return (batch || [])
+    .filter((ev) => ev && EVENT_ALLOWLIST.has(ev.type))
+    .map((ev) => ({
+      user_id: userId,
+      event_type: ev.type,
+      payload: ev.payload,
+      occurred_at: new Date(ev.ts).toISOString(),
+    }));
+}
+
 /** Flush buffered events to the configured endpoint. */
 async function flush() {
   if (paused) return;                   // b302: evicted device stops all cloud writes
   if (!config?.endpoint) return;        // No endpoint configured — stay in offline mode
+  if (!isEventLogEnabled()) return;     // b319: kill switch — events only; saves unaffected
   if (buffer.length === 0) return;
   if (!navigator.onLine) return;        // Browser offline — keep buffered
 
@@ -177,13 +312,10 @@ async function flush() {
     ? (typeof config.userId === 'function' ? config.userId() : config.userId)
     : null;
 
-  const batch = buffer.slice(0);
-  const payload = batch.map((ev) => ({
-    user_id: userId,
-    event_type: ev.type,
-    payload: ev.payload,
-    occurred_at: new Date(ev.ts).toISOString(),
-  }));
+  // b319: never POST more than EVENT_MAX_PER_FLUSH rows in one request. The
+  // remainder stays buffered (bounded by MAX_BUFFER) for the next tick.
+  const batch = buffer.slice(0, EVENT_MAX_PER_FLUSH);
+  const payload = buildEventRows(batch, userId);
 
   const res = await fetchWithAuthRetry(config.endpoint, () => ({
     method: 'POST',
@@ -575,10 +707,15 @@ export function setupSync(opts = {}) {
   config = { ...config, ...opts };
   loadBuffer();
 
-  // Subscribe to every event
-  on('*', (_payload, ev) => {
-    enqueue(ev);
-  });
+  // b319: subscribe ONLY to the allowlisted, low-frequency event types (was
+  // on('*'), which uploaded a row for every kill / gathered item / bite of food
+  // and filled the production database). The dropped types keep firing on the
+  // in-process bus for the features that subscribe to them locally — this is a
+  // network-path change only. Re-subscribing is idempotent-safe because setupSync
+  // may be called twice (offline boot, then again with cloud config), so we
+  // unsubscribe the previous set first.
+  eventUnsubs.forEach((off) => { try { off(); } catch (e) {} });
+  eventUnsubs = Array.from(EVENT_ALLOWLIST).map((type) => on(type, (_payload, ev) => { enqueue(ev); }));
 
   // Periodic flush (whatever interval is configured, default 5s)
   if (flushTimer) clearInterval(flushTimer);
@@ -632,6 +769,14 @@ window.HearthriseSync = {
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
   claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
   holdSnapshots, releaseSnapshots, isSnapshotHeld,
+  // b319 telemetry containment
+  isEventAllowed, isEventLogEnabled, setEventLogEnabled, admitEvent, getEventStats, resetEventLimiter,
+  buildEventRows,
+  getEventBuffer: () => buffer.slice(0),
+  // Test/diagnostic seam: put the buffer back exactly as it was. The smoke suite
+  // is player-runnable in-game, so its probe events must not survive into a real
+  // player's telemetry — it snapshots the buffer, asserts, and restores.
+  restoreEventBuffer: (rows) => { buffer = Array.isArray(rows) ? rows.slice(0) : []; saveBuffer(); return buffer.length; },
   getConfig: () => (config ? { ...config } : null),
   getSyncHealthy: () => syncHealthy,
   getLastCloudSaveAt: () => lastCloudSaveAt,

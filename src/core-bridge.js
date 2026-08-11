@@ -29,15 +29,15 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=319';
-import * as xp from './core/xp.js?v=319';
-import * as combat from './core/combat.js?v=319';
-import * as drops from './core/drops.js?v=319';
-import * as pacing from './core/pacing.js?v=319';
-import * as rested from './core/rested.js?v=319';
-import * as tools from './core/tools.js?v=319';
-import * as farm from './core/farm.js?v=319';
-import * as progression from './core/progression.js?v=319';
+import * as rngMod from './core/rng.js?v=320';
+import * as xp from './core/xp.js?v=320';
+import * as combat from './core/combat.js?v=320';
+import * as drops from './core/drops.js?v=320';
+import * as pacing from './core/pacing.js?v=320';
+import * as rested from './core/rested.js?v=320';
+import * as tools from './core/tools.js?v=320';
+import * as farm from './core/farm.js?v=320';
+import * as progression from './core/progression.js?v=320';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from

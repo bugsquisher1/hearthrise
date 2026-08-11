@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=319' directly.
+// modularised, will import { G } from '../state/game.js?v=320' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=319';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=319';
+import { on, snapshot } from '../net/events.js?v=320';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=320';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=319';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=320';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -12798,6 +12798,137 @@ const TESTS = [
       assert(rt.gold === snap.gold, 'snapshot must round-trip through JSON without loss');
     } finally {
       G.activeMonster = saved.am; G.monsterHp = saved.mh; G.combatLog = saved.cl; G.activeSkill = saved.as; G.skillProgress = saved.sp; G.lastOfflineSummary = saved.los;
+    }
+  }),
+
+  // ═══ b319: TELEMETRY CONTAINMENT ═══════════════════════════════════════════
+  // THE INCIDENT (production, measured): `game_events` reached 1,601,032 rows /
+  // 229 MB from SIX players in 3.45 days — 94% of the entire database, 77,320
+  // rows per player per day. Cause: sync.js subscribed with on('*') and wrote one
+  // row per event, and five of the eleven emit sites live inside per-kill /
+  // per-item / per-tick loops (kill 899,745 · gather 403,142 · eat 109,314 ·
+  // buffApply 108,565 · companionProc 73,850). These tests are the contract that
+  // it cannot come back. All four are RED against pre-b319 code.
+
+  // (2b-i) The allowlist. The five loop-driven types must never reach the upload
+  // buffer or the POST body; the five low-frequency ones must.
+  () => tryRun('b319: high-frequency events NEVER reach the network; allowlisted ones do', () => {
+    const S = window.HearthriseSync, E = window.HearthriseEvents;
+    assert(S && typeof S.getEventBuffer === 'function' && typeof S.buildEventRows === 'function', 'b319 telemetry seam must be exposed');
+    const HI = ['kill', 'gather', 'eat', 'buffApply', 'companionProc'];
+    const LO = ['companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const saved = S.getEventBuffer();          // the suite must not pollute real telemetry
+    const wasEnabled = S.isEventLogEnabled();
+    try {
+      S.setEventLogEnabled(true); S.resetEventLimiter(); S.restoreEventBuffer([]);
+      // 100 kills + 100 bites of food is 200 rows under the old code.
+      for (let i = 0; i < 100; i++) { E.emit('kill', { monsterId: 'smoke-slime' }); E.emit('eat', { foodId: 'smoke-bread' }); }
+      HI.forEach((t) => E.emit(t, { smoke: true }));
+      assert(S.getEventBuffer().length === 0, 'no high-frequency event may enter the upload buffer (got ' + S.getEventBuffer().length + ')');
+      LO.forEach((t) => E.emit(t, { smoke: true }));
+      const buf = S.getEventBuffer();
+      LO.forEach((t) => assert(buf.some((ev) => ev.type === t), 'allowlisted event must be uploaded: ' + t));
+      // …and the literal POST body flush() builds carries none of the hot types.
+      const rows = S.buildEventRows(buf.concat(HI.map((t) => ({ type: t, payload: {}, ts: Date.now() }))), 'smoke-user');
+      HI.forEach((t) => assert(!rows.some((r) => r.event_type === t), 'network payload must not contain ' + t));
+      assert(rows.length === LO.length, 'the payload is exactly the allowlisted rows');
+      assert(rows[0].user_id === 'smoke-user' && typeof rows[0].occurred_at === 'string', 'row shape unchanged (user_id/event_type/payload/occurred_at)');
+      // Layer 1 is the SUBSCRIPTION: a hot event costs nothing at all because
+      // sync.js never subscribes to it (that is why the 200 emits above did not
+      // even reach the gate, and why the drop counter is still clean here).
+      assert(S.getEventStats().dropped.notAllowed === 0, 'hot events must not even reach the gate — they are never subscribed');
+      HI.forEach((t) => assert(!S.isEventAllowed(t), t + ' must not be on the network allowlist'));
+      LO.forEach((t) => assert(S.isEventAllowed(t), t + ' must be on the network allowlist'));
+      // Layer 2 is the GATE inside enqueue — defence in depth, so a reintroduced
+      // on('*') subscription is still contained, and the drop is COUNTED.
+      HI.forEach((t) => assert(S.admitEvent({ type: t, payload: {}, ts: Date.now() }) === false, 'the enqueue gate must also reject ' + t));
+      const st = S.getEventStats();
+      assert(st.dropped.notAllowed === HI.length, 'a gated drop must be counted (got ' + st.dropped.notAllowed + ')');
+      assert(st.dropped.byType.kill === 1 && st.dropped.byType.eat === 1, 'drops are attributed per type');
+    } finally {
+      S.resetEventLimiter(); S.restoreEventBuffer(saved); S.setEventLogEnabled(wasEnabled);
+    }
+  }),
+
+  // (2b-ii) Removing them from the NETWORK must not remove them from the GAME.
+  // events.js is a pure in-process bus that other features subscribe to; if this
+  // regressed, the fix would have silently broken gameplay instead of the DB.
+  () => tryRun('b319: the in-process bus still delivers every event, including the un-uploaded ones', () => {
+    const E = window.HearthriseEvents;
+    const ALL = ['kill', 'gather', 'eat', 'buffApply', 'companionProc', 'companionLevelUp', 'companionUnlock', 'companionEquip', 'questClaim', 'dungeonClear'];
+    const S = window.HearthriseSync;
+    const saved = S.getEventBuffer();
+    const seen = {}, offs = [];
+    let starSeen = 0;
+    try {
+      ALL.forEach((t) => offs.push(E.on(t, (p) => { seen[t] = p; })));
+      offs.push(E.on('*', () => { starSeen++; }));
+      ALL.forEach((t) => E.emit(t, { probe: t }));
+      ALL.forEach((t) => assert(seen[t] && seen[t].probe === t, 'local subscriber must still receive: ' + t));
+      assert(starSeen === ALL.length, "a local on('*') subscriber still sees every event (got " + starSeen + ')');
+      assert(window.__eventLog.some((e) => e.type === 'kill'), 'the local event log still records dropped-from-network events for debugging');
+    } finally {
+      offs.forEach((off) => { try { off(); } catch (e) {} });
+      S.resetEventLimiter(); S.restoreEventBuffer(saved);
+    }
+  }),
+
+  // (2b-iii) The BACKSTOP. The allowlist is a judgement call; the rate cap is the
+  // guarantee. If someone later allowlists an event and puts its emit inside a
+  // loop, the cap — not the database — absorbs it.
+  () => tryRun('b319: the rate cap engages, drops (never buffers) the overflow, and counts it', () => {
+    const S = window.HearthriseSync;
+    const saved = S.getEventBuffer(), wasEnabled = S.isEventLogEnabled();
+    try {
+      S.setEventLogEnabled(true); S.resetEventLimiter(); S.restoreEventBuffer([]);
+      const lim = S.getEventStats().limits;
+      assert(lim.perMinute > 0 && lim.perHour >= lim.perMinute && lim.perFlush > 0, 'per-flush/per-minute/per-hour caps must all exist');
+      const t0 = 1_700_000_000_000;
+      let ok = 0;
+      for (let i = 0; i < lim.perMinute + 50; i++) if (S.admitEvent({ type: 'questClaim', payload: {}, ts: t0 }, t0 + i)) ok++;
+      assert(ok === lim.perMinute, 'exactly the per-minute cap is admitted (got ' + ok + '/' + lim.perMinute + ')');
+      assert(S.getEventStats().dropped.rateLimited === 50, 'the overflow is counted, not silently lost');
+      assert(S.getEventBuffer().length === 0, 'a rate-limited event must be DROPPED, never buffered (unbounded growth was the bug)');
+      // A new minute reopens the tap — until the hourly ceiling closes it.
+      let hourOk = ok;
+      for (let m = 1; m < 20; m++) for (let i = 0; i < lim.perMinute; i++) if (S.admitEvent({ type: 'questClaim', payload: {}, ts: t0 }, t0 + m * 61000 + i)) hourOk++;
+      assert(hourOk === lim.perHour, 'the hourly ceiling caps a sustained flood at ' + lim.perHour + ' (got ' + hourOk + ')');
+      // Worst case is now ~24x the hourly cap per day vs the 77,320/player/day measured.
+      assert(lim.perHour * 24 < 10000, 'the daily worst case must stay far below the incident rate');
+    } finally {
+      S.resetEventLimiter(); S.restoreEventBuffer(saved); S.setEventLogEnabled(wasEnabled);
+    }
+  }),
+
+  // (2b-iv) THE KILL SWITCH. Before b319 the only way to stop event writes was to
+  // kill the sync config — which also killed cloud saves, so nobody ever did it.
+  // Turning telemetry off must leave the save path completely untouched.
+  () => tryRun('b319: the kill switch stops event upload WITHOUT disabling cloud saves', () => {
+    const S = window.HearthriseSync, E = window.HearthriseEvents;
+    const saved = S.getEventBuffer(), wasEnabled = S.isEventLogEnabled();
+    const wasPaused = S.isPaused(), wasHeld = S.isSnapshotHeld();
+    const before = S.getConfig() || {};
+    try {
+      S.resetEventLimiter(); S.restoreEventBuffer([]);
+      assert(S.setEventLogEnabled(false) === false && S.isEventLogEnabled() === false, 'the switch must actually turn off');
+      ['companionLevelUp', 'questClaim', 'dungeonClear'].forEach((t) => E.emit(t, { smoke: true }));
+      assert(S.getEventBuffer().length === 0, 'no event may be uploaded while logging is off');
+      assert(S.getEventStats().dropped.disabled === 3, 'events dropped by the switch are counted');
+      // THE POINT: the save path is untouched by the telemetry switch.
+      assert(S.isPaused() === wasPaused, 'the event switch must not pause cloud sync');
+      assert(S.isSnapshotHeld() === wasHeld, 'the event switch must not touch the b314 reconcile gate');
+      const snap = E.snapshot(window.G);
+      assert(snap && 'gold' in snap && 'skills' in snap, 'the cloud SAVE snapshot still builds with telemetry off');
+      const cfg = S.getConfig();
+      assert(typeof S.snapshotIfDue === 'function', 'the save path (snapshotIfDue) is still wired');
+      assert(cfg && cfg.eventLog === false, 'the switch lives on its OWN config flag — not on endpoint/snapshotEndpoint');
+      assert(cfg.snapshotEndpoint === before.snapshotEndpoint && cfg.endpoint === before.endpoint, 'disabling telemetry must not unwire any endpoint');
+      // …and it flips back on.
+      assert(S.setEventLogEnabled(true) === true, 'the switch must be reversible');
+      E.emit('questClaim', { smoke: true });
+      assert(S.getEventBuffer().length === 1, 'allowlisted events resume once re-enabled');
+    } finally {
+      S.resetEventLimiter(); S.restoreEventBuffer(saved); S.setEventLogEnabled(wasEnabled);
     }
   }),
 

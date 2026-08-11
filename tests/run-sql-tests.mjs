@@ -78,7 +78,9 @@ const BUNDLE = [
 ];
 // Shipped and reviewed separately (a live impersonation fix), so it is linted
 // but not part of the foundation bundle.
-const ALSO_LINTED = ['2026-08-11-chat-name-authority.sql'];
+// b319: telemetry retention + cron health. Operator-only functions, so the
+// grant-hygiene lint is exactly the check that matters for it.
+const ALSO_LINTED = ['2026-08-11-chat-name-authority.sql', '2026-08-11-telemetry-retention.sql'];
 
 let failures = 0;
 const fail = (msg) => { failures++; console.error(`  FAIL  ${msg}`); };

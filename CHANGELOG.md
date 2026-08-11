@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 329 — 2026-08-11 (Three player-reported fixes)
+
+- 🎒 **The bag is usable on a landscape phone again.** On a short screen the item grid was being squeezed down to a single clipped row while the Hero panel painted over the top of it — thanks Paione for the report and the screenshot. The grid now gets the space, and two things nobody had reported are fixed with it: **Equip was showing no gear slots at all**, and **Saved showed an empty column**.
+- 🍖 **The auto-eat slider works.** It has been ignoring whatever you set and eating at 50% for a long time — thanks Xarn. Whatever you had it on is now what you get, so if you'd set it low, expect it to actually behave that way. Setting it to 0% now genuinely means "never". Auto-eat still spends one Provision per swing; the settings text says so now instead of leaving you to find out.
+- 🏹 **Rapid, Precise and Longrange are three different choices now.** They all swung at exactly the same speed — thanks again Xarn. Rapid stays as fast as it was; Precise trades a little speed for accuracy, and Longrange trades more for Defence XP. Each style now shows its actual swing time so you can see what you're picking. Switching style mid-fight takes effect immediately instead of waiting for your next target.
+- 🔒 Behind the scenes: several server-side holes closed, including one that let anyone join any clan uninvited.
+
 ## v0.9.2-beta build 328 — 2026-08-11 (Server engine security hardening)
 
 - 🔒 **Behind-the-scenes security work on the new server engine.** No gameplay changes. Sign-in tokens are now cryptographically verified by the server engine rather than merely read, and a privilege path that could have let a crafted request write to any account has been removed.

@@ -856,6 +856,12 @@ declare
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rate_ok(v_uid, 'create_character', 6, interval '1 hour') then
+    -- (C2) Six character creations an hour is not a UI misfire, it is a script.
+    -- The review named four rate-limit sites; the lint in tests/run-sql-tests.mjs
+    -- found this one and hr_load as well, which is the point of having a lint
+    -- rather than a list.
+    perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'create_character',
+      'rate_limited', jsonb_build_object('limit', 6, 'per', '1 hour'));
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then

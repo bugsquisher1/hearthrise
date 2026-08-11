@@ -245,6 +245,11 @@ declare v_uid uuid := auth.uid();
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if not public.hr_rate_ok(v_uid, 'load', 180, interval '1 minute') then
+    -- (C2) A read path, but three loads a second sustained is a poller, not a
+    -- player, and the record costs one row per character per day whatever the
+    -- rate — the counter is incremented in place.
+    perform public.hr_record_rejection(v_uid, coalesce(p_slot, 0), 'load', 'rate_limited',
+      jsonb_build_object('limit', 180, 'per', '1 minute'));
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   return public.hr_state_of(v_uid, coalesce(p_slot, 0));

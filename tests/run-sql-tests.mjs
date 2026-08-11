@@ -200,6 +200,62 @@ say('── rollback hygiene (no bare return after a write in hr_apply)');
   }
 }
 
+// ── PART 1c-ii — to_regproc must never be handed an argument list ────────
+// to_regproc takes a bare NAME. It returns NULL for "missing" AND for
+// "ambiguous", and it does not parse an argument list at all — so
+// `to_regproc('cron.schedule(text,text,text)')` is NULL on every database in
+// the world. Two preconditions were written that way, which meant
+// player-state.sql and market-v2.sql aborted on EVERY apply. Nobody caught it
+// in three reviews because reading it looks right; it was found the first time
+// the file was actually executed (branch run, 2026-08-11). The arg-typed form
+// is to_regprocEDURE.
+// Both lints below read CODE, not prose: a `--` comment that quotes the wrong
+// form (this file's own explanations do exactly that) must not trip them. The
+// stripper only removes a `--` that is not inside a string literal, judged by
+// the parity of unescaped quotes ahead of it on the line — enough for SQL we
+// control, and it fails toward keeping text rather than dropping it.
+const stripComments = (sql) => sql.split('\n').map((line) => {
+  let q = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "'") q = !q;
+    else if (!q && line[i] === '-' && line[i + 1] === '-') return line.slice(0, i);
+  }
+  return line;
+}).join('\n');
+const code = new Map([...sources].map(([f, sql]) => [f, stripComments(sql)]));
+
+say('── to_regproc vs to_regprocedure');
+{
+  let bad = 0;
+  for (const [file, sql] of code) {
+    for (const m of sql.matchAll(/to_regproc\s*\(\s*'([^']*)'/gi)) {
+      if (m[1].includes('(')) { fail(`${file}: to_regproc('${m[1]}') is ALWAYS NULL — use to_regprocedure`); bad++; }
+    }
+  }
+  if (!bad) pass('no to_regproc() call is given an argument list');
+}
+
+// ── PART 1c-iii — every rate-limit rejection must be recorded (review C2) ─
+// The rate limit returns before the intent claim, so without an explicit
+// hr_record_rejection the loudest automation signal the server produces
+// vanishes: no ledger row, no intent row, nothing. Same defect class as R4.
+say('── rate-limit rejections are observable (C2)');
+{
+  let bad = 0, seen = 0;
+  for (const [file, sql] of code) {
+    // Each `if not …hr_rate_ok(…) then … end if;` block must mention
+    // hr_record_rejection before it returns.
+    for (const m of sql.matchAll(/if\s+not\s+public\.hr_rate_ok\([\s\S]*?end if;/gi)) {
+      seen++;
+      if (!/hr_record_rejection/.test(m[0])) {
+        fail(`${file}: a hr_rate_ok() rejection returns without hr_record_rejection (C2)`);
+        bad++;
+      }
+    }
+  }
+  if (!bad) pass(`all ${seen} rate-limit rejections call hr_record_rejection`);
+}
+
 // ── PART 1d — the migrations must be self-verifying ──────────────────────
 say('── self-verification blocks');
 for (const [file, sql] of sources) {

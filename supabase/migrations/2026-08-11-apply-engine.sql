@@ -331,11 +331,48 @@ declare
   -- BLAST-RADIUS CLAMPS. NOT balance, NOT player-facing. They are the blast
   -- radius if an Edge Function is ever wrong or compromised, exactly as the
   -- clamps in clan_deposit (2026-08-08-clan-seat.sql:530) are. Set far above
-  -- honest play; treat any rejection as an incident, not a tuning problem.
+  -- honest play.
+  --
+  -- ── WHAT THESE CLAMPS ACTUALLY BUY, STATED HONESTLY (Security, 2026-08-11) ──
+  -- The flattering version of this control is "one compromised call cannot max
+  -- a skill from zero". That is TRUE at 5,000,000 and at 12,000,000 and it is
+  -- nearly WORTHLESS, because nothing limits a compromised engine to one call:
+  -- hr_rate_gate allows 30 accrues/minute, so the reachable rate is 150M XP/min
+  -- at 5M and 360M XP/min at 12M. Against an attacker with the engine, the
+  -- per-call clamp is a speed bump measured in seconds either way.
+  --
+  -- What it DOES buy, and the reason it is worth having:
+  --   1. It stops a single bad delta from an HONEST-BUT-BUGGY engine. The
+  --      `interval_ms` class is the live example: one request field taken from
+  --      the client turns a 12h absence into ~43.2M ticks instead of ~18,000 —
+  --      a ~2400x mint that proposes roughly 6.8 BILLION XP. That is refused
+  --      identically at 5M and at 12M. Almost every real defect looks like
+  --      this: not "slightly too much", but three orders of magnitude too much.
+  --   2. It keeps ledger rows small-grained, so anomaly detection has something
+  --      to detect. A clamp is also a bucket size.
+  --
+  -- ⚠ A clamp rejection is therefore NOT automatically an incident. Before the
+  --   degrade ladder in hr-accrue/index.ts it was closer to one — a rejection
+  --   rolled back the watermark with the payment and bricked accrual. It is now
+  --   recoverable, and honest play at maximum gear over a 24h cap can approach
+  --   these numbers on its own. Read a rejection as EITHER an incident OR a
+  --   balance change that outgrew its blast radius, and check
+  --   tests/accrual-engine.mjs' clamp-headroom report before assuming which.
+  --
+  -- c_max_xp_delta: 5,000,000 -> 12,000,000 on 2026-08-11 (Security ruling).
+  --   At 5M the worst honest case measured by clampGuard was inside the 60%
+  --   HEADROOM line but close enough that a single balance change would fire
+  --   it; at 12M the same worst case is ~23.6%. HEADROOM stays at 0.60 in
+  --   tests/accrual-engine.mjs — moving BOTH the clamp and the line is how you
+  --   arrive at a guard that structurally cannot fire. Only this one clamp
+  --   moved; gold, items, kinds and progress all have real margin already.
+  --   The surviving property is asserted, not documented: clampGuard requires
+  --   c_max_xp_delta < 13,034,431 = xpForLevel(99), i.e. one call can still
+  --   never carry a skill from 0 to the level cap.
   c_max_gold_delta   constant bigint := 50000000;   -- per call
   c_max_gem_delta    constant bigint := 100000;     -- per call  (review S5)
   c_max_item_delta   constant bigint := 1000000;    -- per item per call
-  c_max_xp_delta     constant bigint := 5000000;    -- per skill per call
+  c_max_xp_delta     constant bigint := 12000000;   -- per skill per call (see above)
   c_max_item_kinds   constant int    := 200;
   c_max_equip_kinds  constant int    := 32;
   c_max_farm_ops     constant int    := 64;

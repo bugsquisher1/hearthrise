@@ -107,6 +107,9 @@ const ALSO_LINTED = [
   '2026-08-11-anon-execute-lockdown.sql',
   '2026-08-11-grant-hygiene.sql',
   '2026-08-11-telemetry-retention.sql',
+  '2026-08-11-clan-write-policy-pin.sql',
+  '2026-08-11-authenticated-surface-lockdown.sql',
+  '2026-08-11-live-market-rls.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -149,19 +152,50 @@ for (const f of [...BUNDLE, ...ALSO_LINTED]) {
   catch { console.error(`  harness: cannot read ${f}`); process.exit(2); }
 }
 
-// Functions that are allowed to be reachable by a client role, with the role
-// that may reach them. Everything else must be revoked from all four.
+// ⚠ THE GRANT LINTS READ `code`, NOT `sources`. `code` is the same SQL with
+//   `--` comments removed. Until 2026-08-11 they read the raw text, which meant
+//   a migration could FAIL ITS OWN LINT for a sentence in its reversibility
+//   notes: the §6 "to undo, run `grant execute … to authenticated`" line in
+//   2026-08-11-authenticated-surface-lockdown.sql was read as an actual grant,
+//   and a `create or replace function public.clan_deposit(…)` used to ILLUSTRATE
+//   the footgun was read as an actual definition with no revoke. Both were
+//   false, both were fatal, and the pressure a false-positive lint creates is
+//   to stop writing the comment — i.e. it taxes exactly the documentation this
+//   codebase depends on. The stripper is the same one PART 1c-ii already used;
+//   it has simply been moved above its first consumer.
+const stripComments = (sql) => sql.split('\n').map((line) => {
+  let q = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "'") q = !q;
+    else if (!q && line[i] === '-' && line[i + 1] === '-') return line.slice(0, i);
+  }
+  return line;
+}).join('\n');
+const code = new Map([...sources].map(([f, sql]) => [f, stripComments(sql)]));
+
+// Functions that are allowed to be reachable by a client role, and by WHICH
+// roles. Everything else must be revoked from all four.
+// (Was a name→role Map; became name→role[] on 2026-08-11 because
+// beta_invite_check is legitimately anon-callable — the invite modal checks a
+// code BEFORE sign-up — and a single-role map could only express that by
+// weakening the anon rule for everybody.)
 const CLIENT_CALLABLE = new Map([
-  ['hr_load', 'authenticated'],
-  ['hr_create_character', 'authenticated'],
-  ['hr_xp_for_level', 'authenticated'],
-  ['hr_level_from_xp', 'authenticated'],
-  ['market_list', 'authenticated'],
-  ['market_cancel', 'authenticated'],
-  ['market_buy', 'authenticated'],
+  ['hr_load', ['authenticated']],
+  ['hr_create_character', ['authenticated']],
+  // Both lose their `authenticated` grant in
+  // 2026-08-11-authenticated-surface-lockdown.sql §2 (Group 1) and keep only
+  // hr_engine. Left on the list because the four foundation files still grant
+  // them at creation time and the lockdown revokes afterwards.
+  ['hr_xp_for_level', ['authenticated']],
+  ['hr_level_from_xp', ['authenticated']],
+  ['market_list', ['authenticated']],
+  ['market_cancel', ['authenticated']],
+  ['market_buy', ['authenticated']],
+  ['hr_server_now', ['authenticated']],
+  ['beta_invite_check', ['anon', 'authenticated']],
 ]);
 
-for (const [file, sql] of sources) {
+for (const [file, sql] of code) {
   // Every `create or replace function public.NAME(` in the file.
   const created = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)]
     .map((m) => m[1]);
@@ -185,13 +219,63 @@ for (const [file, sql] of sources) {
     const grants = [...sql.matchAll(
       new RegExp(`grant\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)\\s*to\\s+([^;]+);`, 'gi'))]
       .flatMap((m) => m[1].split(',').map((s) => s.trim()));
+    const allowed = CLIENT_CALLABLE.get(fn) || [];
     for (const g of grants) {
-      if (['anon', 'service_role'].includes(g)) fail(`${file}: ${fn}() granted to ${g}`);
-      if (g === 'authenticated' && CLIENT_CALLABLE.get(fn) !== 'authenticated') {
-        fail(`${file}: ${fn}() granted to authenticated but is not on the client-callable list`);
+      if (g === 'service_role') fail(`${file}: ${fn}() granted to service_role`);
+      if ((g === 'anon' || g === 'authenticated') && !allowed.includes(g)) {
+        fail(`${file}: ${fn}() granted to ${g} but is not on the client-callable list for that role`);
       }
     }
   }
+}
+
+// ── PART 1b-ii — A9: every client-callable SECURITY DEFINER RPC is gated ─
+// The standing rule "rate-limit every player-callable RPC" was met on 2 of 43
+// when the `authenticated`-surface audit measured it. The retrofit lives in
+// 2026-08-11-authenticated-surface-lockdown.sql; THIS is the thing that stops
+// it decaying, and the Security Engineer was explicit that the lint is the more
+// valuable half of the fix. A retrofit is a one-day event; a lint is a policy.
+//
+// The rule, stated exactly: a `create or replace function public.X(...)` that
+// is SECURITY DEFINER and is granted to anon or authenticated (or is on
+// CLIENT_CALLABLE) must reference a rate gate in its own body.
+//
+// ⚠ WHAT THIS CANNOT SEE, said out loud so nobody mistakes green for total
+//   coverage: the A9 retrofit builds its 35 wrappers with dynamic SQL inside a
+//   `do $$` block, so no `create or replace function public.<name>` literal
+//   exists for them and this lint is silent about all 35. That half is covered
+//   at RUNTIME by check (8) inside hr_assert_grant_hygiene(), which runs at
+//   every migration and nightly via pg_cron. Two halves, neither sufficient:
+//   the lint catches a NEW hand-written RPC before it merges; the runtime check
+//   catches a wrapper that a re-applied older migration silently overwrote.
+say('── A9: client-callable SECURITY DEFINER RPCs reference a rate gate');
+{
+  const GATE = /hr_rpc_gate|hr_rate_gate|hr_rate_ok/;
+  let checked = 0;
+  for (const [file, sql] of code) {
+    const defs = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)];
+    for (let i = 0; i < defs.length; i++) {
+      const fn = defs[i][1];
+      if (PROBE.test(fn)) continue;
+      // The body is everything up to the next `create or replace function`.
+      const body = sql.slice(defs[i].index, i + 1 < defs.length ? defs[i + 1].index : sql.length);
+      const header = body.slice(0, body.indexOf('$$') < 0 ? 400 : body.indexOf('$$'));
+      if (!/security\s+definer/i.test(header)) continue;
+      const grantedToClient = new RegExp(
+        `grant\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)\\s*to\\s+[^;]*\\b(anon|authenticated)\\b`,
+        'i').test(sql);
+      if (!grantedToClient && !CLIENT_CALLABLE.has(fn)) continue;
+      checked++;
+      if (!GATE.test(body)) {
+        fail(`${file}: ${fn}() is SECURITY DEFINER and client-callable but references no rate gate. `
+           + 'Add `if not public.hr_rpc_gate(\'<bucket>\') then return … rate_limited … end if;` as its '
+           + 'first statement and add the bucket to hr_rpc_gate\'s `case` in '
+           + '2026-08-11-authenticated-surface-lockdown.sql §2b. A player-callable RPC with no rate '
+           + 'limit is a free denial-of-service against the whole project (A9).');
+      }
+    }
+  }
+  if (!failures) pass(`${checked} client-callable SECURITY DEFINER RPC(s) reference a rate gate`);
 }
 
 // hr_apply in particular: exactly one grantee, and it must be hr_engine.
@@ -236,15 +320,8 @@ say('── rollback hygiene (no bare return after a write in hr_apply)');
 // stripper only removes a `--` that is not inside a string literal, judged by
 // the parity of unescaped quotes ahead of it on the line — enough for SQL we
 // control, and it fails toward keeping text rather than dropping it.
-const stripComments = (sql) => sql.split('\n').map((line) => {
-  let q = false;
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === "'") q = !q;
-    else if (!q && line[i] === '-' && line[i + 1] === '-') return line.slice(0, i);
-  }
-  return line;
-}).join('\n');
-const code = new Map([...sources].map(([f, sql]) => [f, stripComments(sql)]));
+// (`stripComments` and `code` moved above PART 1b on 2026-08-11 so the GRANT
+//  lints get the same treatment — see the note there.)
 
 say('── to_regproc vs to_regprocedure');
 {

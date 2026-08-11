@@ -363,9 +363,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (!res || res.ok !== true) {
-      // A rejection here is an INCIDENT, not a tuning problem (design §2): every
-      // clamp in hr_apply is set far above honest play. It is returned verbatim
-      // so the machine code survives to the client and to hr_rejections.
+      // A rejection here is EITHER an incident OR a balance change that outgrew
+      // its blast radius — see the block above c_max_xp_delta in apply-engine.sql
+      // and docs/design/server-authority.md §2 "What the per-call clamps buy".
+      // (This comment used to say "an INCIDENT, not a tuning problem"; that was
+      // deleted on 2026-08-11 with the 5M -> 12M XP clamp ruling, because honest
+      // play at best-in-slot over a 24h cap can now approach a clamp and the
+      // degrade ladder above makes a trip recoverable rather than fatal.)
+      // Returned verbatim so the machine code survives to the client and to
+      // hr_rejections.
       return json({ ok: false, error: (res && res.error) || 'apply_failed', detail: res ?? null }, 409);
     }
 

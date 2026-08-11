@@ -108,10 +108,16 @@ import { fileURLToPath } from 'node:url';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 
+// grant-hygiene is in this list as of 2026-08-11 because market-v2 §9(i) no
+// longer carries its own copy of the hr_engine capability pin — it DELEGATES to
+// hr_assert_grant_hygiene(), which is where the pin actually runs (review S9).
+// market-v2 fails closed without it, deliberately, so the harness has to apply
+// it too. Side benefit: the detector's own self-check now runs on every fuzz.
 const MIGRATIONS = [
   ['player-state', MIG('2026-08-11-player-state.sql')],
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
+  ['grant-hygiene', MIG('2026-08-11-grant-hygiene.sql')],
   ['market-v2', MIG('2026-08-11-market-v2.sql')],
 ];
 

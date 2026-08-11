@@ -1040,62 +1040,39 @@ begin
     end if;
   end loop;
 
-  -- (i) THE hr_engine CAPABILITY LIST, WIDENED (review R8). The per-file
-  --     assertions check that hr_engine holds no TABLE grants. That is not the
-  --     whole capability surface: what hr_engine can EXECUTE is the rest of it,
-  --     and a function reachable through a forgotten PUBLIC grant is reachable
-  --     by hr_engine too. This is the last file in the bundle, so this is the
-  --     place the complete list can be checked. Anything not on it is a hole.
-  --     (Note this also catches a missing `revoke execute … from public` on any
-  --     new function anywhere in schema public, because PUBLIC is a superset of
-  --     hr_engine. UPDATED 2026-08-11: the GLOBAL default-privileges row applied
-  --     that day DOES now stop new functions being born PUBLIC-executable — the
-  --     schema-scoped attempt that preceded it did not, which is what this
-  --     comment used to describe. The check is kept anyway: it is cheap, it
-  --     still catches an explicit `grant … to public`, and it is the last line
-  --     of defence if the global row is ever dropped. hr_assert_grant_hygiene()
-  --     asserts the global row itself.)
-  select count(*) into v_bad
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.prokind = 'f'
-     and has_function_privilege('hr_engine', p.oid, 'execute')
-     -- ENTRY 8, added 2026-08-11 with the Phase C accrual engine
-     -- (2026-08-11-accrual.sql). `hr_offline_cap_ms` is STABLE, reads only
-     -- clan_members/clans, returns a single integer bounded at 24h by its own
-     -- ceiling, and takes a user the engine has already verified a JWT for. It
-     -- writes nothing. It is on this list because the accrual engine must not
-     -- be the authority for its own cap — capMs multiplies an entire night's
-     -- grant, so it belongs in Postgres beside accrued_to and now().
-     --
-     -- ENTRY 9, added 2026-08-11 with the accrual rate gate
-     -- (2026-08-11-accrue-gate.sql). `hr_rate_gate` WRITES — one row in the
-     -- UNLOGGED hr_rate_counters table, updated in place, for the user it was
-     -- handed — and it is on the list anyway because the alternative is worse:
-     -- the only other way to gate the engine's expensive read is to grant
-     -- `hr_rate_ok`, whose signature takes the LIMIT AS AN ARGUMENT, and a
-     -- caller that names its own rate limit does not have one. hr_rate_gate
-     -- owns its limits in a `case` the caller cannot reach, refuses an unknown
-     -- bucket, and accepts a user the engine has already verified a JWT for.
-     -- Its worst case if the engine is compromised is "spend a player's own
-     -- accrual budget", which costs that player a minute.
-     --
-     -- ⚠ This list is deliberately hard to extend. Adding an entry is a claim
-     --   that the function is read-only or self-validating and that it accepts
-     --   no target the caller is not already authorised for. Re-derive that
-     --   claim for the WHOLE list every time it changes — "bounded and fine" is
-     --   a conclusion, not a property that survives an addition.
-     and p.proname <> all (array['hr_apply','hr_seed','hr_state_of','hr_total_level',
-                                 'hr_xp_for_level','hr_level_from_xp','market_expire',
-                                 'hr_offline_cap_ms','hr_rate_gate']);
-  if v_bad > 0 then
-    raise exception 'hr_engine can execute % function(s) outside its allowlist — run: select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=''public'' and has_function_privilege(''hr_engine'', p.oid, ''execute'')', v_bad;
+  -- (i) THE hr_engine CAPABILITY LIST — MOVED OUT OF THIS FILE (review S9).
+  --
+  --     It used to be an inline check here, and it was three defects at once:
+  --       • it lives in an UNAPPLIED migration, so it has never once executed —
+  --         a pin that does not run is a comment;
+  --       • it matched on `p.proname`, so a NEW OVERLOAD of an approved name
+  --         passed silently;
+  --       • it filtered `p.prokind = 'f'`, so a PROCEDURE was invisible to it —
+  --         defect D1 from 2026-08-11-grant-hygiene.sql, reproduced.
+  --
+  --     The pin now lives in `hr_assert_grant_hygiene()` (check 7), keyed on
+  --     `oid::regprocedure::text` with no prokind filter and with a one-line
+  --     justification per entry, and it runs at every migration AND nightly via
+  --     pg_cron. This file now DELEGATES, which also means the list has exactly
+  --     one home. Adding an eighth/tenth entry still fails a migration rather
+  --     than passing a review — just a different migration.
+  if to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
+    raise exception 'hr_assert_grant_hygiene(boolean) is missing — apply '
+                    '2026-08-11-grant-hygiene.sql first; without it NOTHING pins '
+                    'hr_engine''s EXECUTE surface or its table privileges (S9)';
   end if;
-  -- Column-level grants are invisible to role_table_grants; check them too.
-  select count(*) into v_bad from information_schema.role_column_grants
-   where table_schema = 'public' and grantee in ('hr_engine','PUBLIC');
-  if v_bad > 0 then
-    raise exception 'hr_engine or PUBLIC holds % column privileges in public', v_bad;
-  end if;
+  --     This file DOES widen the client surface — market_list / market_cancel /
+  --     market_buy are new `authenticated` RPCs — and the detector is
+  --     differential against hr_client_rpc_baseline, so it would (correctly)
+  --     report all three as unapproved. Widening is meant to be a DELIBERATE
+  --     act that prints its own diff, which is exactly what
+  --     hr_grant_baseline_sync is: it records the three, names why, and the
+  --     assertion that follows then covers everything else.
+  perform public.hr_grant_baseline_sync(
+    'market v2 (2026-08-11): market_list / market_cancel / market_buy become '
+    || 'client-callable; escrow is a real DELETE from player_inventory and all '
+    || 'three are reviewed in this file''s §4-§7');
+  perform public.hr_assert_grant_hygiene(true);
 
   raise notice 'MARKET v2 OK — escrow is real, the seller is paid at sale time, sales are private, no client writes, and the escrow-destroying cron job is gone.';
 end $$;

@@ -76,6 +76,22 @@
 -- which is exactly what hr_cron_health() in 2026-08-11-telemetry-retention.sql
 -- turns into a maintenance_alerts row.
 --
+-- ── REVISION 3 (2026-08-11) — TWO CHECKS MOVED IN, AND AN APPLY-ORDER RULE ──
+-- (7) THE hr_engine CAPABILITY PIN (review S9), taken over from
+--     2026-08-11-market-v2.sql §9(i), which is an UNAPPLIED migration and
+--     therefore was not a control at all. It is also re-keyed on the full
+--     signature and un-filtered for prokind — see the comment on
+--     c_engine_allow for the three defects and why each mattered.
+-- (8) THE A9 RATE-GATE ASSERTION: no SECURITY DEFINER function in public may be
+--     client-executable without referencing a rate gate.
+--
+-- ⚠ APPLY ORDER. Because (8) is FATAL in strict mode, and because this file
+--   ends by calling itself in strict mode, THIS FILE NOW FAILS ON A DATABASE
+--   WHERE THE A9 RETROFIT HAS NOT BEEN APPLIED — which, on 2026-08-11, is 35
+--   live RPCs. Apply 2026-08-11-authenticated-surface-lockdown.sql FIRST. That
+--   is the intended relationship, not an accident: a detector that passes while
+--   the thing it detects is live is the defect this whole file exists about.
+--
 -- SAFE TO RE-RUN. Additive. No table dropped, no row of player data touched.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -199,7 +215,57 @@ declare
   v_client_trunc  jsonb;   -- TRUNCATE/REFERENCES/TRIGGER on any relation
   v_defacl_open   jsonb;   -- D4: owners with no fail-closed GLOBAL default ACL
   v_platform      jsonb;   -- residual, reported only
+  v_engine_extra  jsonb;   -- S9: hr_engine EXECUTE outside its allowlist
+  v_engine_tables jsonb;   -- S9: hr_engine holding any table privilege
+  v_ungated       jsonb;   -- A9: client-callable SECURITY DEFINER with no rate gate
   v_report jsonb;
+
+  -- ══════════════════════════════════════════════════════════════════════
+  -- S9 — THE hr_engine CAPABILITY PIN, MOVED HERE (Security, 2026-08-11)
+  -- ──────────────────────────────────────────────────────────────────────
+  -- It used to live in 2026-08-11-market-v2.sql §9(i), which is three defects
+  -- at once and the reason it is now here:
+  --
+  --   1. IT DOES NOT RUN. market-v2 is UNAPPLIED and cannot be applied until
+  --      the server owns gold and inventory. A pin inside an unapplied
+  --      migration is a comment. hr_assert_grant_hygiene runs at every apply
+  --      AND nightly via pg_cron, and its failures surface as maintenance_alerts.
+  --   2. IT MATCHED ON `proname`. `p.proname <> all (array[...])` accepts ANY
+  --      overload of an approved name — `hr_seed(text)` added next to
+  --      `hr_seed(uuid,int,text)` would pass silently. Keyed on
+  --      `p.oid::regprocedure::text` an overload is a different string and is
+  --      therefore a finding, which is the correct answer.
+  --   3. IT FILTERED `prokind = 'f'`. A PROCEDURE was invisible to it — exactly
+  --      defect D1 that this file's own rewrite was written to fix, reproduced
+  --      one section later.
+  --
+  -- ⚠ EVERY ENTRY CARRIES A ONE-LINE JUSTIFICATION. In the old list only entry
+  --   8 did, which meant the first seven were "bounded and fine" by tradition.
+  --   Adding an entry is a CLAIM: read-only or self-validating, and it accepts
+  --   no target the caller is not already authorised for. Re-derive that for
+  --   the whole list every time it changes.
+  c_engine_allow constant text[] := array[
+    -- the only writer; bounded by its own re-validation, which is the design
+    'hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    -- returns the post-write envelope for one character the engine was told to act for
+    'hr_state_of(uuid,integer)',
+    -- the accrual PRNG seed; returns a hash, never the 256-bit server secret
+    'hr_seed(uuid,integer,text)',
+    -- derived leaderboard value; read-only, one character
+    'hr_total_level(uuid,integer)',
+    -- pure function of its argument
+    'hr_level_from_xp(bigint)',
+    -- pure function of its argument
+    'hr_xp_for_level(integer)',
+    -- writes, but only the "return the lapsed seller's own goods" path, capped at 200
+    'market_expire(integer)',
+    -- read-only, one integer, bounded at 24h by its own ceiling; on the list because
+    -- capMs multiplies a whole night's grant, so the engine must not own its own cap
+    'hr_offline_cap_ms(uuid,integer)',
+    -- writes one UNLOGGED counter row for the user it was handed; on the list because
+    -- the alternative, granting hr_rate_ok, lets the caller name its own limit
+    'hr_rate_gate(uuid,integer,text)'
+  ];
 begin
   -- (1) PUBLIC=EXECUTE, asked directly.
   --     `proacl is null` is NOT "no grants" — it means the ACL is the hardwired
@@ -283,13 +349,61 @@ begin
    where n.nspname = 'public' and d.defaclobjtype = 'f'
      and d.defaclacl::text ~ '(anon|authenticated)=[a-zA-Z*]*X';
 
+  -- (7) S9 — hr_engine's EXECUTE surface, keyed on the FULL SIGNATURE and with
+  --     no prokind filter, so an overload and a procedure are both visible.
+  --     Skipped silently if the role does not exist: this file must stand alone
+  --     on a database that has not had the server-authority bundle applied.
+  if exists (select 1 from pg_roles where rolname = 'hr_engine') then
+    select coalesce(jsonb_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text), '[]'::jsonb)
+      into v_engine_extra
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind in ('f','p')
+       and has_function_privilege('hr_engine', p.oid, 'execute')
+       and p.oid::regprocedure::text <> all (c_engine_allow);
+    -- "Zero table privileges" is the other half of the capability claim, and
+    -- column grants are invisible to role_table_grants, so both are asked.
+    select coalesce(jsonb_agg(x.g order by x.g), '[]'::jsonb) into v_engine_tables from (
+      select table_name || ':' || privilege_type as g
+        from information_schema.role_table_grants
+       where table_schema = 'public' and grantee = 'hr_engine'
+      union all
+      select table_name || '.' || column_name || ':' || privilege_type
+        from information_schema.role_column_grants
+       where table_schema = 'public' and grantee = 'hr_engine') x;
+  else
+    v_engine_extra  := '[]'::jsonb;
+    v_engine_tables := '[]'::jsonb;
+  end if;
+
+  -- (8) A9 — every client-callable SECURITY DEFINER function must reference a
+  --     rate gate. This is the RUNTIME twin of the static lint in
+  --     tests/run-sql-tests.mjs, and it exists for one specific reason: the A9
+  --     retrofit in 2026-08-11-authenticated-surface-lockdown.sql installs thin
+  --     wrappers over renamed `__ungated` bodies, so RE-APPLYING an older
+  --     migration that `create or replace`s a wrapped name would silently
+  --     replace the wrapper with the ungated body and delete the gate. A repo
+  --     lint cannot see that; this can, within a day.
+  --     Matching on prosrc is deliberately crude — it proves the gate is
+  --     MENTIONED, not that it is reached. It catches the whole class this is
+  --     written for (a body that has never heard of a gate) and nothing subtler.
+  select coalesce(jsonb_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text), '[]'::jsonb)
+    into v_ungated
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind in ('f','p') and p.prosecdef
+     and (has_function_privilege('anon', p.oid, 'execute')
+       or has_function_privilege('authenticated', p.oid, 'execute'))
+     and p.prosrc !~ 'hr_rpc_gate|hr_rate_gate|hr_rate_ok';
+
   v_report := jsonb_build_object(
     'public_execute_functions',        v_public_exec,
     'unapproved_client_rpcs',          v_unapproved,
     'baseline_rows_no_longer_live',    v_lost,
     'client_truncate_grants',          v_client_trunc,
     'owners_without_failclosed_defacl',v_defacl_open,
-    'platform_schema_defacls_open',    v_platform);
+    'platform_schema_defacls_open',    v_platform,
+    'engine_execute_outside_allowlist',v_engine_extra,
+    'engine_table_privileges',         v_engine_tables,
+    'ungated_client_rpcs',             v_ungated);
 
   if jsonb_array_length(v_lost) > 0 then
     raise warning 'GRANT HYGIENE: % approved client RPC(s) are no longer reachable — %',
@@ -299,7 +413,10 @@ begin
   if p_strict and (jsonb_array_length(v_public_exec) > 0
                 or jsonb_array_length(v_unapproved) > 0
                 or jsonb_array_length(v_client_trunc) > 0
-                or jsonb_array_length(v_defacl_open) > 0) then
+                or jsonb_array_length(v_defacl_open) > 0
+                or jsonb_array_length(v_engine_extra) > 0
+                or jsonb_array_length(v_engine_tables) > 0
+                or jsonb_array_length(v_ungated) > 0) then
     raise exception 'GRANT HYGIENE FAILED: %', v_report::text;
   end if;
   return v_report;

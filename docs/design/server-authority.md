@@ -434,8 +434,38 @@ Two independent locks close it:
 
 The clamps in step 3 are *not balance*. They are the blast radius if an Edge Function is ever
 wrong or compromised, exactly as the clamps in `clan_deposit` are
-(`2026-08-08-clan-seat.sql:522-534` states this explicitly). Any rejection is an incident, not a
-tuning problem.
+(`2026-08-08-clan-seat.sql:522-534` states this explicitly).
+
+**What the per-call clamps buy, and what they do not** (Security ruling, 2026-08-11; the
+sentence that used to sit here — *"Any rejection is an incident, not a tuning problem"* — was
+deleted because it is no longer true, and a document that says something false about its own
+controls is how the last audit passed).
+
+* The flattering claim is *"one compromised call cannot max a skill from zero."* That is true at
+  `c_max_xp_delta = 5,000,000` and at `12,000,000`, and it is **nearly worthless**: nothing
+  restricts a compromised engine to one call. `hr_rate_gate` allows 30 accrues/minute, so the
+  reachable rate is **150M XP/min at 5M and 360M at 12M**. Against someone holding the engine the
+  per-call clamp is a speed bump measured in seconds.
+* What it genuinely earns is (a) stopping a single bad delta from an *honest-but-buggy* engine —
+  the `interval_ms` class, a ~2400× mint from one request field that proposes roughly **6.8
+  billion** XP, refused identically at either value — and (b) keeping ledger rows small-grained,
+  because a clamp is also a bucket size and anomaly detection needs buckets.
+* Consequently a rejection is **either** an incident **or** a balance change that outgrew its
+  blast radius. Before the degrade ladder in `hr-accrue/index.ts` it was closer to the former, as
+  a rejection rolled the watermark back with the payment. Check the clamp-headroom report in
+  `tests/accrual-engine.mjs` before deciding which one you are looking at.
+* `c_max_xp_delta` was raised **5,000,000 → 12,000,000** on 2026-08-11. `HEADROOM` in
+  `tests/accrual-engine.mjs` stays at **0.60** — moving both the clamp and the line is how you get
+  a guard that structurally cannot fire. The worst honest case measured across every monster at
+  the 15h and 24h spans is now ~23.6% of the clamp. Only that one clamp moved. The surviving
+  property is asserted in `clampGuard` (`c_max_xp_delta < 13,034,431 = xpForLevel(99)`), not
+  described.
+* **X3, recorded and NOT built here** (it belongs to the combat-accrual workstream, not to this
+  clamp change): raising the XP clamp widens what a compromised engine can pay itself, so **C5 —
+  the equip-at-collect over-payment in §3's "⚠ Under-payment is the only direction we are wrong
+  in" — becomes a BLOCKING precondition for the first client-reachable combat accrual intent.**
+  It must ship in the same migration as that intent, together with the fail-closed `active_since`
+  rule and `accrued_to = now()` on any activity or equipment change.
 
 There is **no `hearth_tokens` key in the delta shape at all.** The bond is minted by one path
 (IAP verification, its own RPC). "Never mintable in PvE" is expressed as an absence rather than

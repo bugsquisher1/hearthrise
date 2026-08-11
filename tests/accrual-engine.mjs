@@ -676,6 +676,23 @@ async function clampGuard() {
   }
   if (!C.max_xp_delta) return;
 
+  /* X4 — THE SURVIVING PROPERTY, ASSERTED RATHER THAN DESCRIBED.
+     c_max_xp_delta was raised 5,000,000 -> 12,000,000 on 2026-08-11. The
+     property that has to hold at ANY value is: one compromised call still
+     cannot carry a skill from 0 to the level cap. xpForLevel(99) = 13,034,431
+     (checked against public.hr_xp_for_level(99) on the live database, and
+     against XP_TABLE in legacy.js, which agree). 12,000,000 lands at level 98.
+     A future "just bump the clamp" therefore fails HERE, in a test, instead of
+     passing a review as a sentence in a comment.
+     Note what this is NOT: it is not a claim that the clamp stops a determined
+     attacker. hr_rate_gate allows 30 calls/min, so 12M/call is 360M XP/min to
+     anyone holding the engine. See the block above c_max_xp_delta in
+     apply-engine.sql for what the clamp genuinely earns. */
+  ok(C.max_xp_delta < 13034431,
+    `CLAMP: c_max_xp_delta is ${C.max_xp_delta}, at or above xpForLevel(99) = 13034431. `
+    + 'One apply could then take a skill from 0 to the cap, which is the only property '
+    + 'the per-call XP clamp still buys. Lower it, or stop calling it a clamp.');
+
   /* The whole reachable envelope, not one fixture: EVERY monster in the
      catalogue, at the two spans that matter (15h, and 24h — the
      hr_offline_cap_ms ceiling and accrual.js's own ACCRUE_MAX_SPAN_MS), maxed

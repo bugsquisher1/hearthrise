@@ -246,6 +246,16 @@
       });
       btn.insertAdjacentHTML('afterbegin', g);
     });
+    // b316: the rail Settings footer actions (desktop sidebar + landscape
+    // bottom-nav rail). Not data-tab nav entries (Settings is a modal), so
+    // paintNav skips them — paint the gilt gear into each .ic, inheriting the
+    // button's colour like the other nav glyphs.
+    document.querySelectorAll('#btn-settings-rail .ic, #btn-settings-rail-m .ic').forEach(function (railSet) {
+      if (paths.uiSettings && !railSet.querySelector('.hr-glyph')) {
+        var sg = glyph('uiSettings', 19, null);
+        if (sg) railSet.innerHTML = sg;
+      }
+    });
     var qic = document.querySelector('#hr-quests-btn .hr-q-ic');
     if (qic && paths.uiQuests && !qic.querySelector('.hr-glyph')) {
       var qg = glyph('uiQuests', 14, '--gold-2');

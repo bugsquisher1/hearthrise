@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 316 — 2026-08-10 (Mobile blockers: report + Settings reachable)
+
+- 🐛 **The bug reporter no longer freezes the game on phones.** The screenshot step was the culprit — it now sends your report instantly on mobile without it, so tapping "Send" just works. Your report also now includes your screen's safe-area measurements, which helps us fix mobile layout issues faster. *(Thanks Tyler.)*
+- ⚙️ **Settings is now reachable from the nav rail.** Previously the only gear was in the top bar, which gets clipped off the edge on a landscape phone — so there was no way to reach Settings. There's now a Settings entry in the rail itself, on both desktop and phone. *(Thanks Tyler.)*
+
 ## v0.9.2-beta build 315 — 2026-08-10 (Landscape: compact hero + edge-to-edge)
 
 - 📱 **The home banner is now a compact strip on landscape phones**, instead of a tall desktop-sized header that ate a third of the screen. Your "Next up" quest and its button are back on-screen where you can reach them. Desktop is unchanged. *(Thanks Tyler.)*

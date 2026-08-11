@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=315' directly.
+// modularised, will import { G } from '../state/game.js?v=316' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=315';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=315';
+import { on, snapshot } from '../net/events.js?v=316';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=316';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent } from '../net/auth.js?v=315';
+import { decideRestore, decideSessionEvent } from '../net/auth.js?v=316';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -7643,6 +7643,52 @@ const TESTS = [
       'the More sheet still points at the old Store-only destination');
   }),
 
+  /* b316: Settings must be REACHABLE FROM THE RAIL. The only two doors were
+     the topbar gear (clips off a narrow landscape phone's right edge) and the
+     More sheet's button (does not exist in the left-rail layout a landscape
+     phone uses) — so Settings was unreachable on a landscape phone. This guard
+     asserts a rail control that OPENS the settings UI, is present + visible in
+     the sidebar (not display:none), carries the atlas gear glyph and no emoji,
+     and — because Settings is a modal — is deliberately NOT a data-tab nav
+     (a data-tab would blank the panel via showTab). Proved red by deleting the
+     #btn-settings-rail button: "no reachable Settings control in the rail". */
+  () => tryRun('b316: Settings is reachable from the nav rail (desktop sidebar + landscape bottom-nav)', () => {
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+    // A landscape phone uses the bottom-nav rotated into a left rail (b310/b312),
+    // NOT the #sidebar (which is display:none there). Both layouts therefore need
+    // their own Settings door, and BOTH must be guarded.
+    const cases = [
+      ['#sidebar', '#btn-settings-rail', 'nav-btn'],       // desktop / wide rail
+      ['#bottom-nav', '#btn-settings-rail-m', 'bn-btn'],   // landscape phone rail
+    ];
+    for (const [host, id, sib] of cases) {
+      const nav = document.querySelector(host);
+      assert(nav, 'no ' + host);
+      const btn = nav.querySelector(id);
+      assert(btn, 'no reachable Settings control in ' + host + ' — Settings is unreachable in that layout');
+      // It rides the same rail rendering as the section entries, so the layout
+      // that shows the sections shows Settings too (it is not separately hidden).
+      assert(btn.classList.contains(sib) || nav.querySelector('.' + sib),
+        'the ' + host + ' Settings control is not a rail entry — it may not appear in the rail');
+      assert(getComputedStyle(btn).display !== 'none' || nav !== document.getElementById('sidebar'),
+        'the visible rail Settings control is display:none — unreachable');
+      assert(/settings/i.test(btn.textContent), 'the ' + host + ' Settings control lost its label');
+      assert(!EMOJI.test(btn.textContent), 'the ' + host + ' Settings control contains emoji');
+      assert(btn.querySelector('.ic .hr-glyph svg'), 'the ' + host + ' Settings control has no atlas glyph');
+      // Settings is a MODAL — a data-tab would route through showTab, which has
+      // no #panel-settings and would blank the active panel.
+      assert(!btn.hasAttribute('data-tab'),
+        'the ' + host + ' Settings control has a data-tab — it would blank the panel instead of opening the modal');
+      // It actually opens the settings UI.
+      document.querySelectorAll('.modal.show, #settings-modal.show').forEach((m) => m.classList.remove('show'));
+      try { btn.click(); } catch (e) { throw new Error(host + ' Settings click threw: ' + e.message); }
+      const modal = document.getElementById('settings-modal');
+      assert(modal && modal.classList.contains('show'),
+        'clicking the ' + host + ' Settings control did not open the settings modal');
+      modal.classList.remove('show');
+    }
+  }),
+
   () => tryRun('b230: every old route into the three shops still resolves, with the right toggle', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
@@ -12744,6 +12790,54 @@ const TESTS = [
     assert(cap && typeof cap.then === 'function', 'captureScreenshot must return a promise');
     cap.then(function(v){ assert(v === null || typeof v === 'string', 'capture must resolve to a data-url or null, got ' + typeof v); },
              function(){ assert(false, 'captureScreenshot must never reject — it fails soft to null'); });
+  }),
+
+  // b316: THE MOBILE FREEZE, CORRECTLY. b314's setTimeout timeout could NOT
+  // interrupt the freeze: the primary capture (html-to-image on document.body) is
+  // a SYNCHRONOUS main-thread lock (walks the DOM, getComputedStyle per node,
+  // serialises an SVG foreignObject), so the event loop is blocked and the timer
+  // never fires until the freeze is already over. The real fix: on a touch/coarse
+  // device, submit() must NEVER invoke the heavy capture and must send text-only.
+  // This test proves it: force a touch env, stub captureScreenshot to a
+  // never-resolving promise, and assert submit() never calls it (and still sends).
+  // Also assert the safe-area insets — Tyler's iPhone diagnostic field — are in
+  // the snapshot. RED against the old `const s = await captureScreenshot()` path:
+  // that invokes the stub synchronously, so capInvoked flips true and the assert
+  // fails (and, without the stub returning, submit would hang forever).
+  () => tryRun('b316: mobile bug-report sends text-only without entering the heavy screenshot capture', () => {
+    const B = window.HearthriseBugReport;
+    assert(B && typeof B.submit === 'function', 'submit must be exposed');
+    assert(typeof window.__hrIsTouchDevice === 'function', '__hrIsTouchDevice must be exposed');
+
+    // Safe-area insets must be captured in the snapshot (present + 4 keys).
+    const snap = B._stateSnapshot ? B._stateSnapshot() : null;
+    assert(snap && snap.metrics && snap.metrics.safeArea, 'snapshot.metrics.safeArea must exist');
+    const sa = snap.metrics.safeArea;
+    ['t', 'b', 'l', 'r'].forEach((k) =>
+      assert(typeof sa[k] === 'string', 'safeArea.' + k + ' must be a string, got ' + typeof sa[k]));
+
+    // Simulate a touch device and a hung capture.
+    const origForce = window.__hrForceTouch;
+    const origCap = B.captureScreenshot;
+    const origFetch = window.fetch;
+    let capInvoked = false;
+    window.__hrForceTouch = true;
+    assert(window.__hrIsTouchDevice() === true, 'forced touch env must read as touch');
+    B.captureScreenshot = function () { capInvoked = true; return new Promise(function () {}); };
+    // Neutralise real network so the send paths resolve without POSTing anywhere.
+    window.fetch = function () { return Promise.resolve({ ok: true, status: 200 }); };
+    try {
+      // submit() is async; its body runs synchronously up to the first real await
+      // (Promise.all of the sends). On touch it must SKIP capture before that,
+      // so capInvoked stays false the instant after the call returns.
+      const pr = B.submit({ summary: 'smoke b316', description: 'auto-test — ignore' });
+      assert(pr && typeof pr.then === 'function', 'submit must return a promise');
+      assert(capInvoked === false, 'submit must NOT invoke the heavy screenshot capture on a touch device');
+    } finally {
+      window.__hrForceTouch = origForce;
+      B.captureScreenshot = origCap;
+      window.fetch = origFetch;
+    }
   }),
 
   // b294: the "Desktop site is on → whole UI is a jumbled mess" detector

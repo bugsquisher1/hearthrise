@@ -127,6 +127,10 @@ function deviceMetrics() {
       ? window.__hrDesktopModeCheck()
       : (sw > 0 && vw > sw * 1.4);
   } catch (e) {}
+  // b316: the resolved safe-area insets (notch / home-indicator / rounded-corner
+  // padding). The single most-requested field for debugging the remaining
+  // iPhone layout bugs — a nonzero top/bottom explains clipped headers & nav.
+  try { m.safeArea = readSafeAreaInsets(); } catch (e) {}
   return m;
 }
 if (typeof window !== 'undefined') window.__hrDeviceMetrics = deviceMetrics; // b308: exposed for the guard test
@@ -154,6 +158,57 @@ function describeDevice() {
       ? ' · installed PWA' : '';
     return `${os} ${form}${pwa}`;
   } catch (e) { return 'Unknown device'; }
+}
+
+// b316 — THE MOBILE FREEZE, CORRECTLY. b314 wrapped capture in withTimeout()
+// using setTimeout, but the primary capture path (html-to-image toJpeg on
+// document.body) walks the ENTIRE DOM calling getComputedStyle on every node and
+// serialises an SVG <foreignObject> — all SYNCHRONOUSLY on the main thread. While
+// that runs the event loop is blocked, so the setTimeout timeout callback CANNOT
+// fire until the freeze is already over. The timeout only bounds the async CDN
+// import(), never the rasterisation itself. So on a real phone the game still
+// froze. The correct fix: never enter the heavy capture on a touch device, and
+// never let the send await it. A text-only report is fully triageable.
+//
+// Detect by CAPABILITY (coarse pointer / touch points), not UA sniffing — that
+// catches iOS Safari, Android, and any touch tablet without a brittle UA regex.
+// `__hrForceTouch` is a test/override seam (true/false forces the answer).
+function isTouchLikeDevice() {
+  try {
+    if (typeof window !== 'undefined' && window.__hrForceTouch === true) return true;
+    if (typeof window !== 'undefined' && window.__hrForceTouch === false) return false;
+    const coarse = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+    const touch = (navigator.maxTouchPoints || 0) > 0;
+    return coarse || touch;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window.__hrIsTouchDevice = isTouchLikeDevice;
+
+// b316 — resolve the four env(safe-area-inset-*) values to ACTUAL pixels. Reading
+// the CSS custom props (--safe-t etc.) directly is useless: a custom property
+// stores the unresolved `env(...)` token, not the computed inset. A hidden probe
+// whose padding is set to the env() functions makes the browser resolve them, and
+// getComputedStyle then returns real px — exactly the notch/home-indicator data
+// needed to debug the other layout bugs. Best-effort; never throws.
+function readSafeAreaInsets() {
+  const out = { t: '0px', b: '0px', l: '0px', r: '0px' };
+  try {
+    if (!document.body) return out;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;'
+      + 'pointer-events:none;padding-top:env(safe-area-inset-top,0px);'
+      + 'padding-bottom:env(safe-area-inset-bottom,0px);'
+      + 'padding-left:env(safe-area-inset-left,0px);'
+      + 'padding-right:env(safe-area-inset-right,0px);';
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    out.t = cs.paddingTop || '0px';
+    out.b = cs.paddingBottom || '0px';
+    out.l = cs.paddingLeft || '0px';
+    out.r = cs.paddingRight || '0px';
+    probe.remove();
+  } catch (e) {}
+  return out;
 }
 
 function buildVersionString() {
@@ -272,7 +327,13 @@ function withTimeout(promise, ms, fallback) {
 if (typeof window !== 'undefined') window.__hrWithTimeout = withTimeout; // b314: exposed for the guard test
 
 // Public entry: bound the real capture so it can NEVER hang the bug report.
-function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS) {
+// b316: on a touch/coarse-pointer device, DO NOT enter the raw capture at all —
+// its foreignObject rasterisation is a synchronous main-thread lock that no
+// timeout can interrupt (see isTouchLikeDevice's note). Skip to null unless a
+// caller explicitly forces it (desktop keeps the screenshot). This makes the
+// capability itself phone-safe even if a future caller forgets to gate.
+function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS, opts) {
+  if ((!opts || !opts.force) && isTouchLikeDevice()) return Promise.resolve(null);
   return withTimeout(captureScreenshotRaw(), timeoutMs, null);
 }
 
@@ -365,8 +426,10 @@ async function sendDiscord(payload) {
       // DPR, zoom, root font, and a desktop-mode flag, all in one glance.
       { name: 'Screen', value: (function(){
           const m = payload.state.metrics || {};
+          const sa = m.safeArea || {};
           return `vp ${payload.state.viewport || '—'} · screen ${m.screen || '—'} · dpr ${m.dpr != null ? m.dpr : '—'}`
                + ` · zoom ${m.zoom != null ? m.zoom : '—'} · root ${m.rootFont || '—'}`
+               + ` · safe(t/r/b/l) ${sa.t || '0px'}/${sa.r || '0px'}/${sa.b || '0px'}/${sa.l || '0px'}`
                + (m.desktopMode ? ' · ⚠️ DESKTOP-MODE' : '');
         })(), inline: false },
       { name: 'State',    value: '```json\n' + JSON.stringify(payload.state, null, 2).slice(0, 900) + '\n```' },
@@ -465,10 +528,18 @@ async function flushQueue() {
 }
 
 async function submit({ summary, description }) {
-  // Capture screenshot first — must happen before the modal closes
-  // (otherwise we'd screenshot the closing modal, which is meaningless).
-  // Fail-soft: if capture errors, payload.screenshot stays null.
-  const screenshot = await captureScreenshot();
+  // b316: the text report is the payload that matters — build, device metrics,
+  // safe-area insets, console errors, game-state snapshot. The screenshot is a
+  // desktop nice-to-have. On a touch device we must NEVER call captureScreenshot
+  // (its raw path is a synchronous main-thread freeze on iOS Safari that no
+  // timeout can break), and the send must NEVER await it. So: skip capture
+  // entirely on touch and send text-only, instantly. On desktop, keep the
+  // existing behaviour — capture first (before the modal closes) and attach it.
+  // Call through the public reference so the capture path is mockable in tests
+  // (the guard test stubs it to prove submit never invokes it on touch).
+  const capFn = (window.HearthriseBugReport && typeof window.HearthriseBugReport.captureScreenshot === 'function')
+    ? window.HearthriseBugReport.captureScreenshot : captureScreenshot;
+  const screenshot = isTouchLikeDevice() ? null : await capFn();
 
   const payload = {
     summary: summary || '(no summary)',
@@ -545,8 +616,11 @@ function openModal() {
     // Captures a screenshot (b117) and embeds it as a base64 data URL —
     // works when pasted into anything that renders markdown (GitHub
     // Issues, our chat, etc.). Discord and similar will show the link.
-    status.textContent = 'Capturing…';
-    const screenshot = await captureScreenshot();
+    // b316: skip the heavy screenshot on touch devices (see submit) — a phone
+    // "Copy" builds a text-only report instantly instead of freezing.
+    const touch = isTouchLikeDevice();
+    status.textContent = touch ? 'Building report…' : 'Capturing…';
+    const screenshot = touch ? null : await captureScreenshot();
     const payload = {
       summary: form.summary.value.trim() || '(no summary)',
       description: form.description.value.trim() || '',

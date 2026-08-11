@@ -205,6 +205,12 @@ img,svg{display:block;max-width:100%}
 /* b229: honest "Reconnecting…" state — amber, distinct from the green
    connected dot and the neutral .off dot (which nothing sets anymore). */
 .nav-foot .dot.warn{background:var(--gold-2);box-shadow:0 0 6px var(--gold-2)}
+/* b316: Settings is a footer utility action, not a section — a hairline over it
+   reads it as chrome sitting apart from the section list, the same way the
+   connection foot is set off. Tokened only; inherits the .nav-btn look and its
+   gilt active/hover states. */
+.nav-util{border-top:1px solid var(--line);border-radius:0;margin-top:2px}
+.nav-util .ic{color:var(--ink-3)}
 
 /* main column */
 .main{

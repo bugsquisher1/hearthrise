@@ -4879,7 +4879,10 @@ function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;',
    ════════════════════════════════════════════════ */
 function bindEvents(){
   /* nav */
-  document.querySelectorAll('.nav-btn,.bn-btn').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+  /* b316: only data-tab nav entries route through showTab. A rail control
+     without a data-tab (the Settings footer action, which opens a MODAL) must
+     NOT hit showTab(undefined) — that blanks the active panel. */
+  document.querySelectorAll('.nav-btn[data-tab],.bn-btn[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
   /* tier chips */
   document.querySelectorAll('#tier-chips .chip').forEach(c=>c.addEventListener('click',()=>selectTier(+c.dataset.tier)));
   /* inv tabs */
@@ -4896,6 +4899,12 @@ function bindEvents(){
   /* b227: manual save button removed — online realm, autosave + sync own persistence */
   document.getElementById('btn-settings').addEventListener('click',openSettings);
   document.getElementById('btn-settings-mobile')?.addEventListener('click',()=>{document.getElementById('more-modal').classList.remove('show');openSettings();});
+  /* b316: the rail's Settings footer action. Settings is a MODAL, so this is
+     NOT a data-tab nav-btn (showTab would blank the panel) — it opens the
+     settings modal directly. window.openSettings is the settings-page.js
+     rebuild; fall back to the legacy modal if it hasn't loaded. This is the
+     only Settings door that exists in the landscape-phone left-rail layout. */
+  ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>(window.openSettings||openSettings)()));
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
   /* b230: the topbar gem counter means "I want gems" — it opens the Premium
      Shop toggle directly, not the shop's front door. */

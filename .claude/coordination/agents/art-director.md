@@ -9,6 +9,24 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-10 · b316 — Settings reachable from the nav rail (landscape phone was locked out)
+
+**Bug (Tyler).** On a landscape phone Settings was UNREACHABLE. Two doors only: the topbar gear `#btn-settings` (clips off the right edge on a narrow landscape screen) and `#btn-settings-mobile` inside `#more-modal`. No direct rail entry.
+
+**The premise correction that mattered.** The brief said add it to `#sidebar`. But the landscape phone rail is NOT `#sidebar` — at 932×430 `.sidebar` is `display:none` and the visible left rail is `#bottom-nav` rotated vertical (b114/b310/b312, in `theme-cozy.css:739` `@media (max-height:540px) and (orientation:landscape) and (max-width:1024px)`). Verified in-browser: `#sidebar` computed `display:none`, `#bottom-nav` rect x0/w64/h430. So a `#sidebar`-only entry would be invisible on the exact device that was locked out. **Both nav hosts need their own Settings door.**
+
+**Shipped.** A footer utility button in each rail, opening the settings modal directly. `#btn-settings-rail` (class `nav-btn nav-util`) in `#sidebar`; `#btn-settings-rail-m` (class `bn-btn nav-util`) in `#bottom-nav`. NEITHER carries `data-tab` — Settings is a modal, and `showTab` has no `#panel-settings`, so a data-tab would blank the active panel. Bound in `bindEvents` to `(window.openSettings||openSettings)()` (the settings-page.js rebuild). icon-set paints the gilt `uiSettings` glyph into each `.ic`; label is sr-only in the icon-only landscape rail. Tokened CSS only (`var(--line)`, `var(--ink-3)`) — a hairline sets it apart as chrome, adapts per theme, no cozy-light leak.
+
+**A latent blank-screen bug fixed on the way.** The generic nav binding was `.nav-btn,.bn-btn → showTab(dataset.tab)`. Any rail control without a data-tab (my utility button, or any future one) would hit `showTab(undefined)` → clears every `.panel.active` and returns → blank screen behind the modal. Narrowed the selector to `.nav-btn[data-tab],.bn-btn[data-tab]`. Verified: clicking the desktop sidebar Settings opens the modal AND leaves `panel-profile` active.
+
+**Reachability.** The rail scrolls (b312). Settings sits at the foot beside the connection indicator; on a short screen it is scrolled-to. Verified at 932×430: button rect 56×52 at the rail foot, glyph rendered, `#bottom-nav` scrollHeight 781 > 430 (scrollable), real click opened the full Settings modal. Desktop 1280×800: sidebar Settings at the rail foot with the hairline separator, real `.click()` opens the modal, panel not blanked.
+
+**Guard.** `b316` (next to the b230 nav-shape family in `smoke-test.js`): loops both hosts — control present, a rail entry (`nav-btn`/`bn-btn`), not `display:none` in the visible layout, labelled, no emoji, atlas glyph present, NO `data-tab`, and clicking opens `#settings-modal`. Proved red by deleting the sidebar button → "no reachable Settings control". Smoke **533→534/534 green, 0 runtime errors**. No version bump — Coordinator integrates.
+
+**Files.** `index.html` (both rail buttons), `src/legacy.js` (data-tab-guarded nav binding + both click bindings), `src/features/icon-set.js` (glyph paint for both), `src/styles/legacy.css` (`.nav-util` footer style), `src/features/smoke-test.js` (b316 guard). Untouched: settings-page.js (the modal it opens), the topbar gear (kept), the More-sheet button (kept), cozy-light rules.
+
+**Known limitations.** The settings-modal TITLE still renders a `⚙️` emoji (`#settings-modal` header) — pre-existing 0-emoji-rule violation in chrome, not something I added; noted for Systems/Asset Director. On an 800px-tall desktop the rail overflows so Settings is a short scroll from the foot (consistent with the b225 scrollable-rail design), not pinned-visible.
+
 ### 2026-08-10 · b315 — compact hero strip + safe-area edge fill (short landscape phone)
 
 **Ask (Tyler, follow-up to b314).** The Home hero band ("WANDERER'S CAMP" backdrop + big avatar + "TYLER" + rank/status) was desktop-sized on a ~430px-tall landscape phone, eating a third of the screen and pushing "Next up" off the bottom. Plus black bars behind the notch/home-indicator safe-area insets (a letterbox frame), and a suspicious RIGHT bar.

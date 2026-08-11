@@ -149,7 +149,15 @@
     if('scale' in d) delete d.scale;
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
-    if(typeof d.autoEatPct    !== 'number')  d.autoEatPct    = (G.autoEatPct != null ? G.autoEatPct : 0.5);
+    /* b326: the slider must SHOW what the engine will DO. The engine's number
+       is HearthriseAuto.eatThreshold(); G.autoEatPct is only its legacy mirror.
+       Re-derived on every open (not just when missing) so the panel can never
+       display a stale threshold after the food picker or a cloud restore. */
+    if(window.HearthriseAuto && typeof window.HearthriseAuto.eatThreshold === 'function'){
+      d.autoEatPct = window.HearthriseAuto.eatThreshold();
+    } else if(typeof d.autoEatPct !== 'number'){
+      d.autoEatPct = (G.autoEatPct != null ? G.autoEatPct : 0.5);
+    }
   }
 
   function esc(s){
@@ -397,7 +405,7 @@
     var d = window.G.settings;
     return ''
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
-      + sliderRow('Auto-eat HP threshold', 'autoEatPct', d.autoEatPct, 0, 1, 0.05, pct(d.autoEatPct), 'Eat food automatically when HP drops below this percentage.')
+      + sliderRow('Auto-eat HP threshold', 'autoEatPct', d.autoEatPct, 0, 1, 0.05, pct(d.autoEatPct), 'Eat one Provision automatically on each swing your HP is below this percentage.')
       + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
       +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>';
   }
@@ -680,6 +688,18 @@
           try { localStorage.setItem('hb-theme', v === 'dark' ? 'dark' : 'cozy'); } catch(_){}
         }
         if(key === 'autoEatPct'){
+          /* b326 (Xarn, live b324): this slider used to write ONLY
+             `G.settings.autoEatPct` + `G.autoEatPct` — neither of which the
+             engine reads. `HearthriseAuto.maybeAutoEat()` triggers on
+             `G.autoActions.eat.threshold`, and `ensureShape()` seeds that from
+             `G.autoEatPct` exactly ONCE (when the branch is first created), so
+             every later move of this slider was inert and auto-eat kept firing
+             at the 50% default no matter what the UI said. Route through the
+             one authoritative writer; it mirrors G.autoEatPct back for the
+             legacy fallback path. */
+          if(window.HearthriseAuto && typeof window.HearthriseAuto.setEat === 'function'){
+            window.HearthriseAuto.setEat({ threshold: v });
+          }
           window.G.autoEatPct = v;
         }
         if(typeof window.saveLocal === 'function') window.saveLocal();

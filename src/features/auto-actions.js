@@ -46,7 +46,9 @@
   // Anything missing from a save defaults to "disabled" — never
   // accidentally start auto-eating someone's food.
   var DEFAULTS = {
-    eat:         { enabled: false, threshold: 0.5, foodId: null },
+    // `pctSynced` — b329: a branch built from these defaults was never subject
+    // to the dead-slider bug, so it must not re-adopt the legacy mirror.
+    eat:         { enabled: false, threshold: 0.5, foodId: null, pctSynced: true },
     trainGoal:   { enabled: false, skillId: null, targetLevel: null },
     farmReplant: { enabled: false, cropId: null },
   };
@@ -68,6 +70,25 @@
         aa.eat.foodId  = window.G.foodSlot;
         if(typeof window.G.autoEatPct === 'number') aa.eat.threshold = window.G.autoEatPct;
       }
+    } else if(!aa.eat.pctSynced){
+      /* b329 (Xarn): the ONE-TIME reconciliation for saves written while the
+       * Settings slider was a dead end. Up to b328 that slider wrote only
+       * `G.autoEatPct`, which nothing read — so a divergence between the two
+       * numbers can mean exactly one thing: the player moved the slider and
+       * the engine never heard about it. The mirror is the only surviving
+       * record of what they actually chose, so it wins — ONCE.
+       *
+       * The `pctSynced` marker is what keeps this a MIGRATION rather than a
+       * rule. Without it, "the mirror wins on divergence" quietly reinstates
+       * `G.autoEatPct` as a permanent second writer that overrides the engine
+       * on every read — which is the exact shape of the bug being fixed, and
+       * it masked a missing write-through when I reverted one to check the
+       * test had teeth. It rides inside `autoActions` (no `_` prefix), so it
+       * persists to the cloud and the adoption cannot repeat after a restore. */
+      if(typeof window.G.autoEatPct === 'number' && isFinite(window.G.autoEatPct)){
+        aa.eat.threshold = Math.max(0, Math.min(1, window.G.autoEatPct));
+      }
+      aa.eat.pctSynced = true;
     }
     if(!aa.trainGoal)   aa.trainGoal   = Object.assign({}, DEFAULTS.trainGoal);
     if(!aa.farmReplant) aa.farmReplant = Object.assign({}, DEFAULTS.farmReplant);
@@ -79,7 +100,40 @@
   function setEat(opts){
     var a = ensureShape(); if(!a) return;
     if(opts && typeof opts === 'object') Object.assign(a.eat, opts);
+    /* b329: clamp here and mirror to `G.autoEatPct` in the SAME breath.
+     *
+     * The mirror is still read by the bare-script fallback in legacy.js
+     * `fx.autoEat` (the path taken before HearthriseAuto loads), and it is the
+     * signal ensureShape() uses to detect a pre-b329 save whose slider never
+     * reached the engine. Writing it here is what makes that detection a
+     * ONE-TIME adoption instead of a permanent second writer.
+     *
+     * Deliberately NOT via eatThreshold(): that re-enters ensureShape(), whose
+     * adoption branch would read the still-stale mirror and claw back the value
+     * we are in the middle of setting. (It did exactly that — caught by the
+     * b133 round-trip guard.) */
+    if(opts && typeof opts.threshold === 'number' && isFinite(opts.threshold)){
+      a.eat.threshold = Math.max(0, Math.min(1, opts.threshold));
+      if(window.G) window.G.autoEatPct = a.eat.threshold;
+    }
     persist();
+  }
+
+  /* b326: the ONE reader of the effective auto-eat trigger point.
+   *
+   * Two bugs lived in the old inline `eat.threshold || 0.5`:
+   *   1. it is a falsy-coalesce on a NUMBER, so a deliberate 0% ("never
+   *      auto-eat") silently became 50%;
+   *   2. every surface that wanted to *display* the threshold re-implemented
+   *      the same expression, so a divergence between engine and UI could not
+   *      be caught in one place.
+   * Returns a clamped fraction in [0,1]; anything non-finite falls back to the
+   * default. Exported so the combat panel prints exactly what the engine uses. */
+  function eatThreshold(){
+    var a = ensureShape();
+    var t = a && a.eat ? a.eat.threshold : null;
+    if(typeof t !== 'number' || !isFinite(t)) return DEFAULTS.eat.threshold;
+    return Math.max(0, Math.min(1, t));
   }
 
   function getTrainGoal(){ var a = ensureShape(); return a ? a.trainGoal : Object.assign({}, DEFAULTS.trainGoal); }
@@ -166,7 +220,7 @@
     var hp = window.G.playerHp, maxHp = window.G.playerMaxHp;
     if(typeof hp !== 'number' || typeof maxHp !== 'number' || maxHp <= 0) return false;
     if(hp <= 0) return false;                    // already dead — respawn handles itself
-    if(hp / maxHp > (eat.threshold || 0.5)) return false;
+    if(hp / maxHp > eatThreshold()) return false;
     // Pick food.
     var foodId = eat.foodId;
     var foodItem = foodId && window.ITEMS ? window.ITEMS[foodId] : null;
@@ -281,6 +335,7 @@
   window.HearthriseAuto = {
     getEat: getEat,
     setEat: setEat,
+    eatThreshold: eatThreshold,
     getTrainGoal: getTrainGoal,
     setTrainGoal: setTrainGoal,
     getFarmReplant: getFarmReplant,

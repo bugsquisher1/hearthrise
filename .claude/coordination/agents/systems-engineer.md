@@ -2,6 +2,31 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-11 · XARN'S AUTO-EAT — a control that wrote to nobody
+
+Branch `fix/auto-eat-threshold-b329`, commit `2f90ad8`. **581/581, 0 runtime errors.**
+
+The bug was not in the combat path at all. Settings › Gameplay's threshold slider wrote
+`G.settings.autoEatPct` + `G.autoEatPct`; the engine (`maybeAutoEat`) reads
+`G.autoActions.eat.threshold`. `ensureShape()` bridged them exactly ONCE, at branch creation.
+So the control was live-looking, saved, rendered its own value back — and reached nothing.
+**A settings control that persists its own copy is indistinguishable from a working one.**
+The class of bug to hunt: config with a UI copy and an engine copy and a one-shot bridge.
+
+Two things I nearly shipped badly, both caught by EXECUTING rather than reading:
+1. `setEat()` mirrored `G.autoEatPct` via `eatThreshold()`, which re-enters `ensureShape()` —
+   whose new adoption branch read the still-stale mirror and clawed back the value being set.
+   The b133 round-trip guard caught it. Never re-enter a normaliser from inside a writer.
+2. The adoption branch ("mirror wins when they diverge") made the slider APPEAR fixed even
+   with the write-through reverted — i.e. it had quietly reinstated the mirror as a permanent
+   second writer, the exact shape of the bug. Only reverting the fix to check the test had
+   teeth exposed it. It is now marked with `eat.pctSynced` so it is a MIGRATION, not a rule.
+
+`x || 0.5` on a numeric config is a bug generator: 0% ("never auto-eat") became 50%. Swept.
+Half the report — "does not heal up to the threshold" — was the DESIGN, not a defect
+(one Provision per `fx.autoEat` call, once per tick, live and away identically). I documented
+it in the UI and handed the balance question to the Designer rather than deciding it.
+
 ## 2026-08-11 · THE UNIFICATION — one combat loop for active and away play
 
 `processOfflineCombat` is DELETED. Live play and away accrual now run one function,

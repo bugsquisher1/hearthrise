@@ -15,6 +15,65 @@ WHAT SHOULD BE TESTED:
 
 ---
 
+### 2026-08-11 · FROM Systems (the away unification) → TO Art Director, Game Designer, QA, whoever builds the accrual Edge Function
+
+WHAT I LEARNED:
+- Two loops for one behaviour is not a maintenance smell, it is a slow data-loss bug. The away
+  loop had drifted from the live one in ELEVEN ways and every single one cost the player. Nine
+  were the same copy-paste gap. Nobody decided any of them.
+- A parity test is worth more than the rule it guards. Within a minute of first running, the
+  seeded away-vs-live diff found two bare `Math.random()` calls in the kill path (dungeon keys,
+  companion drops) that made a kill only partially replayable — nothing to do with away time.
+- Measure before optimising, always. I assumed the new cost was the wrapper chain. The CPU
+  profiler said 46% of it was `observability.js` writing a 500-entry JSON array to localStorage
+  once per engine event.
+
+WHAT I CHANGED:
+- NEW `src/core/{away,botd,buffs,combat-sim}.js`. DELETED `processOfflineCombat`.
+- `killMonster` and `combatTick` are now one-line hand-offs into `combat-sim`.
+- Buffs are FROZEN away (no pay, no drain, no food) — closes a live exploit.
+- `G._toolCarry` → `G.toolCarry` (save migration v12 → v13) so it reaches the cloud.
+- Perf: analytics buffer debounced; two per-kill table rebuilds memoised.
+
+WHAT YOU NEED TO KNOW:
+- **Art Director — the welcome-back renderer.** `G.lastOfflineSummary` now carries
+  `{blessed:false, buffsPaused, crits, featuredMs, capped, rateMult, hrs, gainedXp, gainedGold,
+  gainedItems, combat:{kills, foodEaten, died, crits, ticks, segments[]}}`. Every one of those is
+  stated by the SIMULATION, so no renderer has to infer a bonus. `buffsPaused` is FALSE when the
+  player held no buffs — do not print "your buffs were paused" beside an empty buff list.
+  `featuredMs > 0` is what licenses "· 8h on the Boss of the Day (+50% drops)". I did NOT write
+  any copy; that is yours. A paused buff should render as paused with its time preserved.
+- **Game Designer.** Away combat is measurably richer now: on a level-appropriate foe, kill XP
+  alone is +58%, +65% with a typical 7.5% gear crit. The ruling's ~+30% is a portfolio average.
+  Away also now grants companion/pet/dungeon-key drops, deeds, dailies, quests and collection-log
+  entries that it never did. The 0.95 drop cap IS applied after `dropMult × featuredMult` and
+  guaranteed drops are unscaled — re-asserted under the new path (test AWAY-10).
+- **Whoever builds the accrual Edge Function.** Import `src/core/combat-sim.js` and supply
+  `{away:true, fromMs: server_last_seen, toMs: now(), tickMs, rng: createRng(hashSeed(user,slot,
+  accrued_to)), monsters, bonus, style, playerRolls, monsterRolls, weakness, botdFor, fx}`. `fx`
+  is the only thing you write from scratch: ledger writes instead of client side effects.
+
+WHAT I NEED FROM YOU:
+- QA: `CLAUDE.md`'s save-invariant list still names `processOfflineCombat` as a guarded function.
+  It no longer exists — the Coordinator should update that line to `simulateAwayCombat`.
+- Art Director: `renderProfile` and `renderStrip` still fire during an away replay (~10% of it),
+  reached from `addItem`/companion paths in files I do not own. They repaint a screen nobody can
+  see, during `loadLocal()`. Worth a suppression pass.
+
+WHAT MUST NOT BE CHANGED:
+- Do NOT add away-only behaviour anywhere. Add it to `simulateTick` and gate it through
+  `src/core/away.js`'s channel table. A guard (AWAY-12) fails if `processOfflineCombat` returns
+  or if `combatTick` re-grows its own rolls.
+- Do NOT special-case the `damage_crit` food buff. It is excluded away because it is a BUFF; the
+  moment someone writes an `if` for it, the table stops being the rule.
+- `AWAY_RATE_MULT` is 1.00. Changing it requires a fresh day-model recompute, not feel.
+- `botd.js`'s hash, key formats and pool ORDER are load-bearing. Append to a pool; never reorder.
+
+WHAT SHOULD BE TESTED:
+- AWAY-1 is the contract: same seed, blessings and consumables off, `away:false` vs `away:true`
+  must produce byte-identical XP, gold, kills and drops. If you add anything to the kill path,
+  that test tells you within seconds whether you made it unreplayable.
+
 ### 2026-08-09 · FROM Systems (b228, `agent-rebase`) → TO Game Designer, QA, every future feature author
 **WHAT I LEARNED:** three things, and the first is the one that matters to everyone.
 1. **A bonus source can be correct on its own and still be wrong.** The companion bonus was added to `getBonus` by *two* wrappers — one in `legacy.js`, one in `features/companions.js` — and every pet paid **twice** for ~26 builds. Read either file and it looks right. Only a behavioural delta test (`getBonus(k)` with the pet equipped minus without) can catch that class, and there was no such test. Same shape as the "data double-copy" trap already in Standing Knowledge; this was its bonus-layer twin.

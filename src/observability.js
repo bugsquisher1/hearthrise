@@ -183,14 +183,51 @@
   // ════════════════════════════════════════════════════════════
   // Buffer in localStorage; flush in batches.
   var ANALYTICS_KEY = 'hearthrise:analytics:buffer';
+
+  /* ── THE BUFFER IS IN MEMORY; localStorage IS ITS DURABLE COPY ──────────
+     This used to be a full read-modify-write of a 500-entry JSON array PER
+     EVENT: parse the whole buffer out of localStorage, push one row,
+     stringify the whole thing, write it back. The analytics bridge below
+     subscribes with `on('*')`, so that ran on every kill, every gathered
+     item, every level-up — synchronously, on the main thread.
+
+     Measured with the CPU profiler during a 12-hour away catch-up (~970
+     kills): loadBuffer + saveBuffer + localStorage.setItem were 46% of the
+     entire replay. It is the same shape as the incident sync.js documents at
+     the top of its EVENT_ALLOWLIST — an uncontained `on('*')` — and it costs
+     LIVE play too, on every single kill.
+
+     The buffer is now held in memory and persisted on a 1s trailing debounce,
+     plus IMMEDIATELY on the paths where durability actually matters: an
+     uncaught error, a flush, and page hide. So a crash still lands with its
+     breadcrumbs, and a thousand kills cost one write instead of a thousand. */
+  var _buf = null;
+  var _dirty = false;
+  var _persistTimer = null;
+  var PERSIST_DEBOUNCE_MS = 1000;
+
   function loadBuffer(){
-    try { return JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '[]'); }
-    catch(e){ return []; }
+    if(_buf) return _buf;
+    try { _buf = JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '[]'); }
+    catch(e){ _buf = []; }
+    if(!Array.isArray(_buf)) _buf = [];
+    return _buf;
   }
-  function saveBuffer(arr){
-    try { localStorage.setItem(ANALYTICS_KEY, JSON.stringify(arr)); }
+  function persistNow(){
+    if(_persistTimer != null){ clearTimeout(_persistTimer); _persistTimer = null; }
+    if(!_dirty) return;
+    _dirty = false;
+    try { localStorage.setItem(ANALYTICS_KEY, JSON.stringify(_buf || [])); }
     catch(e){}
   }
+  function saveBuffer(arr){
+    _buf = Array.isArray(arr) ? arr : [];
+    _dirty = true;
+    if(_persistTimer == null) _persistTimer = setTimeout(persistNow, PERSIST_DEBOUNCE_MS);
+  }
+  /* Exposed so the suite can assert the durable copy without waiting a second,
+     and so any future caller that genuinely needs a synchronous write has one. */
+  window.__hrPersistAnalytics = persistNow;
 
   function track(eventName, props){
     var ev = {
@@ -229,15 +266,22 @@
         body: JSON.stringify({ events: buf }),
         keepalive: true,
       }).then(function(r){
-        if(r.ok){ saveBuffer([]); }
+        if(r.ok){ saveBuffer([]); persistNow(); }
       }).catch(function(){ /* keep buffer for next flush */ });
     } catch(e){ /* ditto */ }
   }
   window.flushAnalytics = flush;
   setInterval(flush, CONFIG.flushIntervalMs);
-  // Also flush on page hide (tab close / nav away)
-  window.addEventListener('pagehide', flush);
-  window.addEventListener('beforeunload', flush);
+  /* Page hide / unload: write the in-memory buffer through BEFORE attempting
+     the network flush. The debounce is what makes the hot path cheap; this is
+     what keeps it honest — the durable copy must never be more than one tab
+     close behind. */
+  window.addEventListener('pagehide', function(){ persistNow(); flush(); });
+  window.addEventListener('beforeunload', function(){ persistNow(); flush(); });
+  /* A crash is exactly when the breadcrumbs matter, so those two paths write
+     synchronously rather than waiting out the debounce. */
+  window.addEventListener('error', persistNow);
+  window.addEventListener('unhandledrejection', persistNow);
 
   // Local-only: dump to console for dev visibility
   window.dumpAnalytics = function(){

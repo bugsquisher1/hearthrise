@@ -95,7 +95,9 @@ by adding data, not code.
 
 ## Save system — invariants (DO NOT BREAK)
 
-The cloud save is the backbone. These rules are enforced by the **b305 stress battery** in `smoke-test.js` — any change to `src/net/{sync,auth,events}.js` or the save/offline path in `legacy.js` (`saveLocal`, `loadLocal`, `processOffline`, `processOfflineCombat`, `claimOfflineMs`) MUST keep that battery green and ship its own test.
+The cloud save is the backbone. These rules are enforced by the **b305 stress battery** in `smoke-test.js` — any change to `src/net/{sync,auth,events}.js` or the save/offline path in `legacy.js` (`saveLocal`, `loadLocal`, `processOffline`, `simulateAwayCombat`, `claimOfflineMs`) MUST keep that battery green and ship its own test.
+
+> **b325:** `processOfflineCombat` is GONE. There is now ONE combat loop — `src/core/combat-sim.js`, called with `ctx = {away, atMs}` for both the live tick and away accrual (see [`docs/design/away-time-ruling.md`](./docs/design/away-time-ruling.md)). Do not reintroduce a second away path; the `AWAY-1` parity test asserts that a seeded fight is byte-identical either way, and `AWAY-12` asserts the old loop cannot come back. Which bonus channels pay away is a **table** (`src/core/away.js` `AWAY_SCOPE`), not a code path, and an unknown channel defaults to PAYING — every historical away bug was a base reward silently vanishing.
 
 1. **Cloud is authoritative; local is a cache + offline journal.** Local must NEVER overwrite a newer cloud. `decideRestore` resolves by **freshness (newest wins by timestamp)**, not level. A strictly-newer LOCAL is never rolled back (anti-rollback invariant). Ties keep local (no needless reload).
 2. **Restore/evict only on CERTAINTY.** Never restore on a garbage/NaN/negative/timeless cloud timestamp. Never evict a device on a network error, missing table, or offline — only on a *definitive* different-owner-with-fresh-heartbeat row. A flaky connection must never lock a player out or discard their save.

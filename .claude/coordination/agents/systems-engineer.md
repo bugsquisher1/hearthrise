@@ -2,6 +2,65 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-11 · THE UNIFICATION — one combat loop for active and away play
+
+`processOfflineCombat` is DELETED. Live play and away accrual now run one function,
+`src/core/combat-sim.js simulateTick(state, ctx)`, with `ctx.away` deciding which bonus
+channels are in scope. Ruling: `docs/design/away-time-ruling.md`. **Smoke 569/569 (was
+554/554, +15). Runtime errors 0. No version bump, no commit.**
+
+**The second loop had drifted in ELEVEN ways, all silent losses to the away player** — no
+crits, no `m.xp` (~21% of combat XP), no Boss-of-the-Day lift, no `dropRate` term, no drop
+log, no dailies, no quests, no deeds, no `stats.deaths`, the flat 2.4s tick instead of
+`combatTickMs()` (a hammer swung 26% MORE often asleep than awake), and — the one nobody had
+counted — it never called `window.killMonster`, so the five modules that WRAP that name
+(dungeon keys, companions, pets, collection log, chronicle) were skipped away too. Nine of
+the eleven are one copy-paste gap repeated. That is the whole argument for one formula.
+
+**The rule is a TABLE, not a code path.** `src/core/away.js` publishes `AWAY_SCOPE`
+(permanent/crit/botd/heal = pay away; blessing/buff = do not) and `channelApplies()`. The
+world-events wrapper already asked the b227 latch; the buff-queue wrapper now asks the same
+one. An UNKNOWN channel defaults to PAYING — the five omissions were all base rewards that
+silently vanished, so "quietly missing" must never be the default.
+
+**Three prerequisites, built as core modules.** `botd.js` — the rotation as `botdFor(atMs)`,
+byte-identical hash/keys/pool order so today's boss did not move; `buffs.js` — `BUFFS_DEF`
+plus `tickBuffs(buffs, elapsedMs, ctx)`, a clock that is a function of elapsed time rather
+than a `setInterval`; `combat-sim.js` — the loop. `_toolCarry` → `toolCarry` (migration
+v12→v13): the `_` prefix kept a real, earned fractional carry out of the cloud snapshot, so
+a device switch discarded it.
+
+**A live exploit closed.** Eat a 10-minute buff → shut the tab → collect twelve buffed hours
+→ return with the buff still reading 10:00. Buffs reached the away replay through `getBonus`
+while the clock only ran in a live tab. Frozen now: no pay, no drain, no food consumed.
+
+**Three unseeded rolls found IN the kill path** and routed through the RNG seam:
+`dungeons.js trySpawnKeyDrop` and `companions.js` drop roll were bare `Math.random()`. The
+PARITY test caught the first one within a minute of being written — identical seeds,
+identical drop tables, different key counts. That is the value of the test: it does not just
+guard the ruling, it finds every remaining hole in replayability.
+
+**A P1 perf defect found with the CPU profiler, unrelated to the ruling but on the same hot
+path.** `observability.js` subscribes to the event bus with `on('*')` and its `track()` did a
+full read-modify-write of a 500-entry JSON buffer through localStorage PER EVENT. 46% of a
+12-hour catch-up, and it costs LIVE play on every kill. Same shape as the incident sync.js
+documents above its `EVENT_ALLOWLIST`. Buffer is in memory now, persisted on a 1s trailing
+debounce plus immediately on error/flush/pagehide. Also memoised two per-kill table rebuilds
+(`pets.js parse()` ran on every `addXp` — three to five times per TICK; `companions.js` drop
+sources are indexed by monster now). **12h replay: 848ms → 336ms**, while doing nine more
+systems' work than the loop it replaced (which was 184ms).
+
+**Measured, not asserted.** 12h/18,000 ticks/973 kills: 336ms, 2 UTC segments, `rateMult` 1.00.
+22h: 296ms. Away XP on a level-appropriate foe: kill XP +58.2%, plus a typical 7.5% gear crit
+→ **+65.2%** vs the deleted loop (the ruling's ~+30% is a portfolio average across tiers; the
+share is larger where per-kill XP dominates per-damage XP). `toolCarry` round-trips through
+`saveLocal` AND `events.snapshot`; no `_`-prefixed key reaches the cloud.
+
+**What I could not reconcile, stated plainly:** away no longer calls `stopCombat()` on death
+(it nulls `activeMonster` instead), so the launchpad's `recordStop` still does not fire for an
+away death. Calling it would repaint during `loadLocal()`, before the combat panel exists.
+Status quo, not a regression — flagged rather than guessed at.
+
 ## 2026-08-11 · b323 P1 HOTFIX — the core readiness gate (Phase 0 cold-load crash)
 
 **The regression.** Phase 0 rewrote ~50 simulation call sites in `src/legacy.js` (a CLASSIC

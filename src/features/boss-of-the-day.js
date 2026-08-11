@@ -27,83 +27,72 @@
   // real variety and always lands on something that feels like an event. Ids
   // are filtered against MONSTERS at read time, so a cut/renamed id is skipped
   // rather than crashing.
-  var POOL = [
-    'dark_wizard', 'venom_spider', 'goblin_brute', 'zombie', 'warlock',
-    'plague_swarm', 'goblin_warlord', 'bear', 'wraith', 'lesser_demon', 'mountain_troll',
-    'shadow_creeper', 'warband_captain', 'panther', 'death_knight', 'archmage',
-    'void_parasite', 'war_king', 'ancient_bear', 'lich', 'dragon'
-  ];
+  /* ── THE ROTATION MOVED TO src/core/botd.js ──────────────────────────────
+     Everything below delegates. The pools, the FNV-1a hash, the UTC day key
+     and the Monday-aligned week key are all authored there now, as
+     `botdFor(atMs)` — a PURE FUNCTION OF A TIMESTAMP.
 
-  var BONUS = { dropMult: 1.5, xpMult: 1.25 };  // while a monster is featured
+     Why that mattered enough to move: the away ruling
+     (docs/design/away-time-ruling.md) pays the Boss of the Day while you are
+     away, resolved PER UTC-DAY SEGMENT of the absence. An absence that
+     crossed midnight has to ask "who was featured at 23:00 yesterday?" — a
+     question this file could not answer, because every entry point here read
+     `new Date()` and meant "now". A card in the Combat panel can afford that;
+     an accrual engine replaying a span cannot.
 
-  /* Wave 6: the WEEKLY boss — a bigger, rarer event on a 7-day clock. Drawn from
-     the apex end of the roster so it always feels like the week's marquee fight,
-     and it pays double drops + 50% XP (vs the daily's +50%/+25%). "I need to make
-     sure I do this this week." */
-  var WEEKLY_POOL = [
-    'death_knight', 'archmage', 'war_king', 'ancient_bear', 'lich', 'dragon', 'void_parasite'
-  ];
-  var WEEKLY_BONUS = { dropMult: 2.0, xpMult: 1.5 };
-
-  function WE() { return window.HearthriseWorldEvents; }
-
-  function pool() {
-    var M = window.MONSTERS || {};
-    return POOL.filter(function (id) { return M[id]; });
+     This file keeps what it is actually for: the two cards, the countdowns
+     and the Fight buttons. Values and picks are unchanged — the hash, the key
+     formats and the pool ORDER are preserved byte-for-byte, so today's boss
+     is the same boss it was before the extraction. */
+  function CB() {
+    var C = window.HearthriseCore;
+    return (C && C.botd) || null;
   }
-  function weeklyPool() {
-    var M = window.MONSTERS || {};
-    return WEEKLY_POOL.filter(function (id) { return M[id]; });
-  }
-  // Deterministic UTC week number (days since epoch / 7) — same idea as utcDayKey.
-  /* b293: align the weekly boss to MONDAY UTC, matching the weekly quests (b291)
-     and the rest of the game's weekly language. Epoch day 0 is a THURSDAY, so the
-     bare floor(days/7) rotated the boss on Thursdays — a player whose quests reset
-     on Monday would reasonably expect the same boss week. +3 shifts it to Monday. */
-  function weekKey() {
-    var d = new Date();
-    var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
-    return Math.floor((dayNum + 3) / 7);
-  }
+  function nowMs() { return Date.now(); }
+
+  /* Read through accessors, never cached into a module const: this file is a
+     classic script and core-bridge.js is a module, so at parse time the core
+     is not up yet. A cached null here would render "+NaN% drops" on the first
+     paint of a cold load — the precise class of bug core-ready.js exists for. */
+  var EMPTY_BONUS = { dropMult: 1, xpMult: 1 };
+  function dailyBonus() { var c = CB(); return (c && c.DAILY_BONUS) || EMPTY_BONUS; }
+  function weeklyBonus() { var c = CB(); return (c && c.WEEKLY_BONUS) || EMPTY_BONUS; }
+
   function weeklyId(wk) {
-    var we = WE(), p = weeklyPool();
-    if (!we || !p.length) return null;
-    return p[we._hash('hr-weekly-boss-' + (wk == null ? weekKey() : wk)) % p.length];
+    var c = CB(); if (!c) return null;
+    if (wk != null) {
+      /* An explicit week key is a determinism-test affordance; resolve it
+         against the pool directly rather than inventing a fake timestamp. */
+      var p = c.WEEKLY_POOL.filter(function (id) { return (window.MONSTERS || {})[id]; });
+      return p.length ? p[c.fnv1a('hr-weekly-boss-' + wk) % p.length] : null;
+    }
+    return c.botdFor(nowMs(), window.MONSTERS || {}).weeklyId;
   }
   function isWeekly(id) { return !!id && id === weeklyId(); }
-  function msUntilWeeklyRotate() {
-    var d = new Date();
-    var dayNum = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
-    var daysIntoWeek = (dayNum + 3) % 7;      // b293: Monday-aligned, matches weekKey
-    var nextWeekMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + (7 - daysIntoWeek), 0, 0, 0, 0);
-    return Math.max(0, nextWeekMidnight - d.getTime());
-  }
+  function msUntilWeeklyRotate() { var c = CB(); return c ? c.msUntilWeeklyRotate(nowMs()) : 0; }
 
-  // Deterministic daily pick — same hash/day-key machinery as the blessing.
   function featuredId(dayKey) {
-    var we = WE(), p = pool();
-    if (!we || !p.length) return null;
-    var key = dayKey || we.utcDayKey();
-    return p[we._hash('hr-boss-' + key) % p.length];
+    var c = CB(); if (!c) return null;
+    if (dayKey != null) {
+      var p = c.DAILY_POOL.filter(function (id) { return (window.MONSTERS || {})[id]; });
+      return p.length ? p[c.fnv1a('hr-boss-' + dayKey) % p.length] : null;
+    }
+    return c.botdFor(nowMs(), window.MONSTERS || {}).dailyId;
   }
 
   function isFeatured(id) { return !!id && id === featuredId(); }
 
-  // Read by killMonster — 1× multipliers when the kill isn't a featured boss.
-  // The WEEKLY boss (bigger bonus) takes precedence over the daily.
+  /* Read by the combat simulation for a LIVE kill. The away replay does not
+     come through here — it calls `killBonusesFor(id, segmentAtMs, MONSTERS)`
+     directly, because "now" is the wrong instant for a span that already
+     happened. Same function underneath, different clock. */
   function killBonuses(id) {
-    if (isWeekly(id)) return { dropMult: WEEKLY_BONUS.dropMult, xpMult: WEEKLY_BONUS.xpMult };
-    return isFeatured(id)
-      ? { dropMult: BONUS.dropMult, xpMult: BONUS.xpMult }
-      : { dropMult: 1, xpMult: 1 };
+    var c = CB();
+    if (!c) return { dropMult: 1, xpMult: 1 };
+    return c.killBonusesFor(id, nowMs(), window.MONSTERS || {});
   }
 
-  // ms until the next UTC midnight (when the boss rotates).
-  function msUntilRotate() {
-    var now = new Date();
-    var next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0);
-    return Math.max(0, next - now.getTime());
-  }
+  function msUntilRotate() { var c = CB(); return c ? c.msUntilDailyRotate(nowMs()) : 0; }
 
   function fmtCountdown(ms) {
     var s = Math.floor(ms / 1000);
@@ -205,8 +194,8 @@
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
-          '<div class="botd-bonus">+' + Math.round((BONUS.dropMult - 1) * 100) + '% drops · +' +
-             Math.round((BONUS.xpMult - 1) * 100) + '% combat XP while featured</div>' +
+          '<div class="botd-bonus">+' + Math.round((dailyBonus().dropMult - 1) * 100) + '% drops · +' +
+             Math.round((dailyBonus().xpMult - 1) * 100) + '% combat XP while featured</div>' +
         '</div>' +
       '</div>' +
       '<div class="botd-loot"><span class="botd-loot-lab">Notable drops</span>' + lootHtml + '</div>' +
@@ -269,8 +258,8 @@
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
-          '<div class="botd-bonus">+' + Math.round((WEEKLY_BONUS.dropMult - 1) * 100) + '% drops · +' +
-             Math.round((WEEKLY_BONUS.xpMult - 1) * 100) + '% combat XP this week</div>' +
+          '<div class="botd-bonus">+' + Math.round((weeklyBonus().dropMult - 1) * 100) + '% drops · +' +
+             Math.round((weeklyBonus().xpMult - 1) * 100) + '% combat XP this week</div>' +
         '</div>' +
       '</div>' +
       '<div class="botd-loot"><span class="botd-loot-lab">Notable drops</span>' + lootHtml + '</div>' +
@@ -325,9 +314,11 @@
   var lastDay = null, lastWeek = null;
   function tick() {
     applyCombatVisibility();
-    var we = WE();
-    var today = we ? we.utcDayKey() : null;
-    var thisWeek = weekKey();
+    var c = CB();
+    if (!c) return;                       // core module graph not up yet (cold load)
+    var now = nowMs();
+    var today = c.utcDayKey(now);
+    var thisWeek = c.utcWeekKey(now);
     var card = document.getElementById('hr-botd-card');
     if (!card || today !== lastDay) { lastDay = today; render(); }
     else { var timer = document.getElementById('hr-botd-timer'); if (timer) timer.textContent = 'new in ' + fmtCountdown(msUntilRotate()); }
@@ -346,8 +337,18 @@
   else boot();
 
   window.HearthriseBossOfDay = {
-    POOL: POOL, BONUS: BONUS,
-    WEEKLY_POOL: WEEKLY_POOL, WEEKLY_BONUS: WEEKLY_BONUS,
+    /* The tables are src/core/botd.js's. Exposed as GETTERS so a reader
+       always sees core's object rather than a snapshot this file took before
+       the core module graph had loaded. */
+    get POOL() { var c = CB(); return c ? c.DAILY_POOL : []; },
+    get WEEKLY_POOL() { var c = CB(); return c ? c.WEEKLY_POOL : []; },
+    get BONUS() { return dailyBonus(); },
+    get WEEKLY_BONUS() { return weeklyBonus(); },
+    /* The pure, time-parameterised rotation, re-exported so a caller that
+       needs "who was featured at instant T" does not reach past this module
+       into core and end up with a second convention for the same question. */
+    botdFor: function (atMs) { var c = CB(); return c ? c.botdFor(atMs, window.MONSTERS || {}) : null; },
+    killBonusesFor: function (id, atMs) { var c = CB(); return c ? c.killBonusesFor(id, atMs, window.MONSTERS || {}) : { dropMult: 1, xpMult: 1 }; },
     featuredId: featuredId,
     isFeatured: isFeatured,
     weeklyId: weeklyId,

@@ -51,7 +51,7 @@ export function toolDouble(tool) {
  * `qty × toolDouble` into a per-skill fractional carry and pays out whole
  * units as they accrue (a 10%-double tool = one bonus every ~10 actions).
  *
- * Mutates `carry` (the client's G._toolCarry, the server's equivalent
+ * Mutates `carry` (the client's G.toolCarry, the server's equivalent
  * column) and returns the whole units earned this action.
  *
  * The +1e-9 matters: 0.1 accumulated ten times floats to 0.9999999999999999

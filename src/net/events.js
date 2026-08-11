@@ -79,7 +79,7 @@ export function snapshot(G) {
   for (const k in G) {
     if (!Object.prototype.hasOwnProperty.call(G, k)) continue;
     if (NO_SYNC.has(k)) continue;
-    if (k.charAt(0) === '_') continue;               // internal scratch (_toolCarry etc.)
+    if (k.charAt(0) === '_') continue;               // internal scratch (_saveOwner etc.)
     const v = G[k];
     if (typeof v === 'function' || typeof v === 'undefined') continue;
     out[k] = v;

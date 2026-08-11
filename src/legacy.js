@@ -1063,7 +1063,10 @@ function processOffline(){
   withOfflineReplay(function(){
     // Combat takes priority — if a fight was in progress, simulate that.
     if(G.activeMonster){
-      combatSummary = processOfflineCombat(hrs);
+      /* THE UNIFICATION. This used to call processOfflineCombat(), a second
+         combat loop; it is one span of the SAME simulateTick() the live 2.4s
+         tick runs, with `away:true`. See src/core/combat-sim.js. */
+      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
     } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
       // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
       // sessions used to make ZERO offline progress (the gather replay below
@@ -1120,6 +1123,24 @@ function processOffline(){
        the surest way to guarantee that is for the summary to carry the truth
        instead of leaving each renderer to guess. */
     blessed: false,
+    /* THE HONESTY PAYLOAD (away-time-ruling.md §"Player-facing honesty").
+       Everything a welcome-back renderer needs in order to describe the
+       absence WITHOUT inferring anything:
+         blessed:false   blessings are presence-gated and paid nothing
+         buffsPaused     a timed buff was held and frozen — not ticking, not
+                         paid, no food consumed. False when there were none.
+         crits           away crits, so "142 kills · 21 crits" is sayable
+         featuredMs      ms spent on the Boss of the Day / Week, so the card
+                         can add "· 8h on the Boss of the Day (+50% drops)"
+         capped          this absence hit the per-absence ceiling
+         rateMult        the away rate actually applied (1.00)
+       A renderer that has to guess will eventually quote a bonus nobody
+       paid; this is the cheapest possible way to make that impossible. */
+    buffsPaused: combatSummary ? !!combatSummary.buffsPaused
+      : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
+    crits: combatSummary ? (combatSummary.crits||0) : 0,
+    featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
+    rateMult: window.HearthriseCore.away.AWAY_RATE_MULT,
   };
   /* b307: no daily bucket to report. Only speak up when the absence was long
      enough to hit the per-absence cap, so the player learns the ceiling by
@@ -1154,112 +1175,21 @@ function fmtHm(ms){
   return Math.floor(mins/60)+'h '+(mins%60)+'m';
 }
 
-// ── Offline combat simulator ──────────────────────────────────
-// Mirrors combatTick math without DOM updates. Runs N ticks at the
-// engine's tick rate (2.4s default) until either the cap runs out or
-// the player runs out of HP+food (in which case combat stops).
-// Offline ticks run at the SAME rate as active play — no dampening.
-// Returns a summary { kills, foodEaten, died, hrs }.
-function processOfflineCombat(maxHrs){
-  if(!G.activeMonster) return null;
-  const tickMs = (typeof COMBAT_BALANCE === 'object' && COMBAT_BALANCE.tickMs) ? COMBAT_BALANCE.tickMs : 2400;
-  const totalTicks = Math.max(0, Math.floor(maxHrs * 3600000 / tickMs));
-  let kills = 0, foodEaten = 0, died = false, ticksRun = 0;
+/* ══════════════════════════════════════════════════════════════════════
+   `processOfflineCombat` LIVED HERE, and it is deliberately not replaced by
+   anything in this file.
 
-  for(let i = 0; i < totalTicks; i++){
-    if(!G.activeMonster) break;
-    const m = MONSTERS[G.activeMonster];
-    if(!m){ G.activeMonster = null; break; }
+   It was a second combat loop — ~100 lines that mirrored combatTick() and
+   then drifted from it for two years. The eleven divergences are listed in
+   the header of src/core/combat-sim.js; nine of them were one copy-paste gap
+   repeated, and all eleven cost the away player silently.
 
-    // Player attack
-    const eq = getEquipmentStats();
-    const playerRoll = getPlayerCombatRolls(m, eq);
-    /* PHASE 0: same seeded core helpers the live tick uses. NOTE for whoever
-       builds the accrual Edge Function: this loop is NOT identical to
-       combatTick() — it has never rolled crits, and its drop chance omits the
-       dropRate food buff and the featured-boss lift. That divergence predates
-       the extraction and is a BALANCE question (offline pays less than online),
-       so it is preserved exactly rather than quietly "fixed" here. */
-    const pDmg = window.HearthriseCore.combat.rollAttack(window.HearthriseCore.rng, playerRoll.accuracy, playerRoll.maxHit);
-    G.monsterHp = Math.max(0, G.monsterHp - pDmg);
-    if(pDmg > 0){
-      /* PHASE A: the SAME route the live tick uses (src/core/styles.js).
-         The away/live divergence that remains is the KILL grant below —
-         this loop still never pays m.xp. See the note at the kill branch. */
-      const style = (typeof window.getActiveCombatStyle === 'function') ? window.getActiveCombatStyle() : null;
-      for(const g of window.HearthriseCore.styles.hitXpRoute(style, pDmg)) addXp(g.skill, g.amount);
-    }
-
-    // Kill: award gold + drops, respawn the same monster, continue
-    if(G.monsterHp <= 0){
-      const gp = applyGoldFind(rand(m.gp[0], m.gp[1]));   // b222 SEAM 1
-      G.gold = (G.gold||0) + gp;
-      G.stats = G.stats || {};
-      G.stats.kills = (G.stats.kills||0) + 1;
-      G.combatKillsThisFoe = (G.combatKillsThisFoe||0) + 1;
-      kills++;
-      const dropMult = getWeaknessInfo(m).dropMult;
-      /* AWAY DIVERGENCE (docs/design/away-time-ruling.md §"Bugs the ruling
-         also fixes"): this branch does NOT call killXpRoute, so `m.xp` — about
-         21% of all combat XP — is never granted away. It also skips the drop
-         log, updateDaily('kill_any'), updateQuest, rollKillDeed and
-         stats.deaths. All five are BASE rewards, not bonuses. They are left
-         alone HERE on purpose: the ruling deletes this whole second loop in
-         favour of one simulate*(ctx), and fixing it in place would mean
-         shipping the behaviour change without the parity test that is meant
-         to guard it. The seam it needs now exists (core/styles.js). */
-      const _off = window.HearthriseCore.drops.rollDropTable(m.drops || [], { dropMult }, window.HearthriseCore.rng);
-      for(const ev of _off.events){
-        addItem(ev.id, 1);
-        if(ev.rare){ G.stats.rareDrops = (G.stats.rareDrops||0) + 1; }  /* Wave 4: shared band */
-      }
-      // Bounty Hunter offline progress
-      if(typeof handleBountyKill === 'function') handleBountyKill(G.activeMonster, m);
-      // Respawn
-      G.monsterHp = m.hp;
-      G.monsterMaxHp = m.hp;
-      ticksRun++;
-      continue;
-    }
-
-    // Monster attack
-    const mr = getMonsterCombatRolls(m, eq);
-    const mDmg = window.HearthriseCore.combat.rollAttack(window.HearthriseCore.rng, mr.accuracy, mr.maxHit);
-    G.playerHp = Math.max(0, G.playerHp - mDmg);
-
-    // b134: route auto-eat through HearthriseAuto so config is unified.
-    // Falls back to the legacy inline path if HearthriseAuto isn't loaded
-    // (defensive — production always has it via index.html script order).
-    if(window.HearthriseAuto && typeof window.HearthriseAuto.maybeAutoEat === 'function'){
-      if(window.HearthriseAuto.maybeAutoEat()) foodEaten++;
-    } else if(G.playerHp < G.playerMaxHp * (G.autoEatPct || 0.5) && G.foodSlot && (G.inventory[G.foodSlot]||0) > 0){
-      const fd = ITEMS[G.foodSlot];
-      if(fd && fd.heals){
-        G.playerHp = Math.min(G.playerMaxHp, G.playerHp + fd.heals);
-        removeItem(G.foodSlot, 1);
-        foodEaten++;
-        G.stats.buffsConsumed = (G.stats.buffsConsumed||0) + 1;
-      }
-    }
-
-    // Death — heal up, stop combat, exit loop
-    if(G.playerHp <= 0){
-      G.playerHp = G.playerMaxHp;
-      G.activeMonster = null;
-      G.monsterHp = 0;
-      if(G.bountyHunter && G.bountyHunter.active && G.bountyHunter.active.type === 'streak'){
-        G.bountyHunter.active.progress = 0;
-        G.bountyHunter.active.streak = 0;
-      }
-      died = true;
-      ticksRun++;
-      break;
-    }
-    ticksRun++;
-  }
-  return { kills, foodEaten, died, hrs: +maxHrs.toFixed(2), ticks: ticksRun };
-}
-window.processOfflineCombat = processOfflineCombat;
+   Away combat is now `simulateAwayCombat()` (defined beside combatTick),
+   which is a SPAN of the same simulateTick() the live loop runs. If you are
+   here to add away-only behaviour: don't. Add it to the one loop and gate it
+   on `ctx.away` through src/core/away.js's channel table, so the rule is
+   readable in one place instead of inferable from two.
+   ══════════════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════
    NETCLIENT — backend abstraction
@@ -2590,126 +2520,226 @@ function stopCombat(){
   G.activeMonster=null;
   renderCombat();renderMonsterList();
 }
+/* ══════════════════════════════════════════════════════════════════════
+   THE UNIFICATION (docs/design/away-time-ruling.md, locked 2026-08-11)
+
+   There used to be two combat loops in this file: combatTick() and
+   processOfflineCombat(). They were written from the same sketch and drifted
+   apart in ELEVEN measurable ways, every one of them a silent loss to the
+   away player — no crits, no kill XP (~21% of all combat XP), no featured
+   boss, no drop log, no dailies, no quests, no deeds, no gear speed, and no
+   trip through the five feature modules that wrap window.killMonster.
+
+   There is now ONE loop: src/core/combat-sim.js `simulateTick`, called with
+   `away:false` by the 2.4s tick below and `away:true` by the accrual replay.
+   What remains in this file is the CONTEXT (which globals feed the maths) and
+   the EFFECTS (what the client owes the player when something happens). The
+   Supabase accrual Edge Function builds the same two things from server rows.
+
+   Two ambient signals, and only two, tell the context which world it is in:
+     • `inOfflineReplay()` — the b227 latch. It already gated blessings; it now
+       also gates timed buffs, and it IS `ctx.away`. One away signal, so a
+       future third "is the player here?" question cannot answer differently.
+     • `_awaySegmentAtMs`  — which INSTANT is being simulated. Boss of the Day
+       is resolved per UTC-day segment of an absence, so a replay that crosses
+       midnight must not ask "what is today's boss?" and get the answer for the
+       day the player came back. Live it is null and the clock is now.
+   ══════════════════════════════════════════════════════════════════════ */
+let _awaySegmentAtMs=null;
+function withAwaySegment(atMs,fn){
+  const prev=_awaySegmentAtMs;
+  _awaySegmentAtMs=(typeof atMs==='number'&&isFinite(atMs))?atMs:prev;
+  try{ return fn(); } finally{ _awaySegmentAtMs=prev; }
+}
+/* The instant being simulated. NOT a general-purpose clock — only the pieces
+   of simulation that are a function of TIME (today's boss) may read it. */
+function simAtMs(){ return _awaySegmentAtMs==null?Date.now():_awaySegmentAtMs; }
+
+/* The effect sink. Everything the simulation cannot do itself, in one object,
+   so "what does a kill actually touch?" is answerable by reading a list
+   instead of grepping a loop. Presentation handlers check `ctx.away` and go
+   quiet: a twelve-hour replay would otherwise queue several hundred toasts
+   and repaint the topbar for every one of them. The REWARD handlers never
+   check it — that distinction is the whole ruling. */
+const COMBAT_FX={
+  /* Bare identifiers on purpose. Top-level function declarations in a classic
+     script are global-object properties, so `addXp` here resolves through
+     whatever the wrapper chain last assigned — companions, pets, chronicle,
+     dungeon keys and the collection log all stay in the chain, away included
+     (they never were, because the away loop called none of these). */
+  addXp:function(sk,amt){ addXp(sk,amt); },
+  addItem:function(id,qty){ addItem(id,qty); },
+  killMonster:function(m){ return killMonster(m); },
+  recordKill:function(id,dropped){
+    if(window.HearthriseDropLog&&typeof window.HearthriseDropLog.recordKill==='function'){
+      window.HearthriseDropLog.recordKill(id,dropped);
+    }
+  },
+  rollKillDeed:function(m){
+    if(window.HearthriseFarm&&typeof window.HearthriseFarm.rollKillDeed==='function'){
+      window.HearthriseFarm.rollKillDeed(m);
+    }
+  },
+  updateDaily:function(t,n){ updateDaily(t,n); },
+  updateQuest:function(t,n,meta){ updateQuest(t,n,meta); },
+  handleBountyKill:function(id,m){ handleBountyKill(id,m); },
+  /* Healing auto-eat. Survival, not a bonus — it runs away and it consumes.
+     Heal-only: it never applies a food's timed buff (b163). */
+  autoEat:function(){
+    if(window.HearthriseAuto&&typeof window.HearthriseAuto.maybeAutoEat==='function'){
+      return !!window.HearthriseAuto.maybeAutoEat();
+    }
+    if(G.playerHp<G.playerMaxHp*(G.autoEatPct||0.5)&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
+      const fd=ITEMS[G.foodSlot];
+      if(fd&&fd.heals){
+        G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
+        removeItem(G.foodSlot,1);
+        G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
+        if(Array.isArray(G.combatLog))G.combatLog.push(`🍖 Auto-ate ${fd.n} (+${fd.heals})`);
+        return true;
+      }
+    }
+    return false;
+  },
+  // ── presentation ──────────────────────────────────────────────────────
+  onSwing:function(m,dmg,crit,ctx){
+    if(ctx.away||!Array.isArray(G.combatLog))return;
+    G.combatLog.push(dmg>0?`${crit?'💥 CRIT! ':'⚔️ '}You hit ${m.name} for ${dmg}`:'💨 You miss!');
+  },
+  onMonsterSwing:function(m,dmg,ctx){
+    if(ctx.away||!Array.isArray(G.combatLog))return;
+    G.combatLog.push(dmg>0?`🩸 ${m.name} hits you for ${dmg}`:`🛡️ ${m.name} misses!`);
+  },
+  onLoot:function(gp,m,ctx){
+    if(ctx.away||!gp||!Array.isArray(G.combatLog))return;
+    G.combatLog.push(`💰 Looted ${gp} gold!`);
+  },
+  onDrop:function(ev,m,ctx){
+    const itemName=(ITEMS[ev.id]&&ITEMS[ev.id].n)||ev.id;
+    /* A RARE drop is worth a toast even when it happened at 3am — that is
+       news, not chatter, and the old away loop swallowed it. Ordinary drops
+       stay silent away. */
+    if(ev.rare){
+      if(Array.isArray(G.combatLog))G.combatLog.push(`<span class="rare">✨ RARE: ${itemName}</span>`);
+      notify(`✨ Rare: ${itemName}!`,'levelup');
+      return;
+    }
+    if(ctx.away||!Array.isArray(G.combatLog))return;
+    G.combatLog.push(`📦 ${itemName}`);
+  },
+  onKill:function(info,ctx){
+    if(ctx.away)return;
+    notify(`☠️ Defeated ${info.monster.name}`,'kill');
+    updateTopbar();
+  },
+  onDeath:function(ctx,info){
+    if(ctx.away){
+      /* No stopCombat() away: it repaints, and processOffline runs inside
+         loadLocal() before the combat panel exists. Clearing the target is
+         the whole of the state change; the summary reports `died`. */
+      G.activeMonster=null;
+      return;
+    }
+    const log=G.combatLog;
+    if(Array.isArray(log)){
+      if(info&&info.streakBroken)log.push('🎯 Bounty streak broken. Progress reset.');
+      log.push('💀 You died! Respawning…');
+    }
+    stopCombat();
+    notify('💀 You died!','kill');
+  },
+};
+
+/* Build the context for ONE call site. Cheap (it is a literal), so it is
+   rebuilt per tick rather than cached — a cached loadout is how "I equipped a
+   better sword and nothing changed" bugs happen. */
+function combatSimCtx(){
+  const C=window.HearthriseCore;
+  const atMs=simAtMs();
+  /* One equipment read per tick, shared by the player roll, the monster roll
+     and the weakness lookup — exactly as the old inline loop did. playerRolls
+     is always called first, which is what makes the cache correct. */
+  let eq=null;
+  const eqOf=()=>eq||(eq=getEquipmentStats());
+  return {
+    away:inOfflineReplay(),
+    atMs,
+    rng:C.rng,
+    monsters:MONSTERS,
+    items:ITEMS,
+    bonus:C.bonus,
+    style:(typeof window.getActiveCombatStyle==='function')?window.getActiveCombatStyle():null,
+    /* Through the window.* helpers, not straight to core: getEquipmentStats
+       and getArmorSetBonus are WRAPPED by companions.js and the clan seat, and
+       calling core directly would silently drop those links. */
+    playerRolls:function(m){ eq=getEquipmentStats(); return getPlayerCombatRolls(m,eq); },
+    monsterRolls:function(m){ return getMonsterCombatRolls(m,eqOf()); },
+    weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
+    /* Resolved for THIS instant, which during a replay is the segment's start
+       and not "now". */
+    botd:{ killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } },
+    fx:COMBAT_FX,
+  };
+}
+/* The RAW, unwrapped functions. combat-render.js wraps window.combatTick, so a
+   guard that inspects `String(window.combatTick)` reads the wrapper and cannot
+   see whether the engine still owns a second loop. These references are what
+   the AWAY-12 guard reads. */
+window.HearthriseCombatSim={ ctx:combatSimCtx, withAwaySegment:withAwaySegment, fx:COMBAT_FX,
+  tick:function(){ return _rawCombatTick.apply(this,arguments); },
+  _tickSource:function(){ return String(_rawCombatTick); } };
+
 function combatTick(){
   if(!G.activeMonster)return;
   window._hrCombatBeat=Date.now();   // b260 heartbeat — lets the resume watchdog detect a STALLED (suspended-but-not-cleared) loop, not just a null one
-  const m=MONSTERS[G.activeMonster];
-  const eq=getEquipmentStats();
-  const playerRoll=getPlayerCombatRolls(m,eq);
-  const hitCh=playerRoll.accuracy;
-  const maxHit=playerRoll.maxHit;
-  /* PHASE 0: the swing and the crit roll go through src/core/combat.js and the
-     seeded generator, in the same draw order as before. Client behaviour is
-     unchanged (the stream is seeded from Math.random() at boot); what changed is
-     that the server can replay this exact fight from a seed. */
-  const _C=window.HearthriseCore;
-  let pDmg=_C.combat.rollAttack(_C.rng,hitCh,maxHit);
-  /* b235: roll crit on a landed hit. `_lastPlayerCrit` is read by the combat-render
-     wrapper so the floating "CRIT" is now the REAL event, not the dmg>=8 fake. */
-  let didCrit=false;
-  if(pDmg>0 && _C.combat.rollCrit(_C.rng,playerRoll.critChance)){
-    pDmg=_C.combat.applyCrit(pDmg,COMBAT_BALANCE.critMult);
-    didCrit=true;
-    G.stats.crits=(G.stats.crits||0)+1;
-  }
-  G._lastPlayerCrit=didCrit;
-  G.monsterHp=Math.max(0,G.monsterHp-pDmg);
+  const r=window.HearthriseCore.combatSim.simulateTick(G,combatSimCtx());
+  /* A kill repaints through killMonster; a death repaints through stopCombat;
+     a stop has nothing to show. Only an ordinary exchange falls through. */
+  if(r.outcome!=='hit')return;
   const log=G.combatLog;
-  log.push(pDmg>0?`${didCrit?'💥 CRIT! ':'⚔️ '}You hit ${m.name} for ${pDmg}`:`💨 You miss!`);
-  if(pDmg>0){
-    /* Route XP via active combat style (e.g. staff→Magic, bow→Ranged, sword 'aggressive'→Strength).
-       PHASE A: the route is src/core/styles.js `hitXpRoute` — the same list
-       the away loop and the server accrual engine use. addXp stays here
-       because it is the wrapped, side-effecting grant. */
-    const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
-    for(const g of window.HearthriseCore.styles.hitXpRoute(_style,pDmg)) addXp(g.skill,g.amount);
-  }
-  if(G.monsterHp<=0){killMonster(m);return;}
-  const monsterRoll=getMonsterCombatRolls(m,eq);
-  const monHitCh=monsterRoll.accuracy;
-  const mDmg=_C.combat.rollAttack(_C.rng,monHitCh,monsterRoll.maxHit);
-  G.playerHp=Math.max(0,G.playerHp-mDmg);
-  log.push(mDmg>0?`🩸 ${m.name} hits you for ${mDmg}`:`🛡️ ${m.name} misses!`);
-  /* Defense XP now comes from active combat style (e.g. sword 'defensive' or 'controlled'),
-     not passively from being hit. Old passive grant removed per combat-style spec. */
-  // b134: auto-eat goes through HearthriseAuto.maybeAutoEat() — config
-  // lives on G.autoActions.eat. The engine handles HP threshold check,
-  // food selection (configured or best-in-bag), heal, decrement, log push.
-  // Defensive fallback to legacy inline behaviour if the API hasn't loaded yet.
-  if(window.HearthriseAuto && typeof window.HearthriseAuto.maybeAutoEat === 'function'){
-    window.HearthriseAuto.maybeAutoEat();
-  } else if(G.playerHp<G.playerMaxHp*G.autoEatPct&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
-    const fd=ITEMS[G.foodSlot];
-    if(fd?.heals){G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);removeItem(G.foodSlot,1);G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;log.push(`🍖 Auto-ate ${fd.n} (+${fd.heals})`);}
-  }
-  if(G.playerHp<=0){
-    if(G.bountyHunter?.active?.type==='streak'){G.bountyHunter.active.progress=0;G.bountyHunter.active.streak=0;log.push('🎯 Bounty streak broken. Progress reset.');}
-    log.push('💀 You died! Respawning…');G.playerHp=G.playerMaxHp;stopCombat();notify('💀 You died!','kill');return;
-  }
   while(log.length>30)log.shift();
   renderCombat();updateTopbar();
 }
+/* Captured BEFORE combat-render.js wraps window.combatTick, so the AWAY-12
+   guard inspects the engine's own tick rather than somebody's wrapper. */
+const _rawCombatTick=combatTick;
+/* Still `killMonster(m)`, still on window, still wrapped by dungeons.js,
+   companions.js, pets.js, collection-log.js and chronicle.js — the name is
+   load-bearing. What changed is that the BODY is now one call into the shared
+   simulation, so an away kill and a live kill are the same kill. */
 function killMonster(m){
-  const gp=applyGoldFind(rand(m.gp[0],m.gp[1]));G.gold+=gp;G.stats.kills=(G.stats.kills||0)+1;   // b222 SEAM 1
-  // Per-foe kill counter — drives the activity bar's "this fight" number.
-  // Reset by startCombat() when the player picks a different monster.
-  G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+1;
-  const log=G.combatLog;if(gp>0)log.push(`💰 Looted ${gp} gold!`);
-  const dropMult=getWeaknessInfo(m).dropMult;
-  /* b254: Boss of the Day — fighting today's featured boss lifts its non-guaranteed
-     drop chances and combat XP. Deterministic daily pick; 1× when not featured. */
-  const _feat=(window.HearthriseBossOfDay&&typeof window.HearthriseBossOfDay.killBonuses==='function')
-    ? window.HearthriseBossOfDay.killBonuses(G.activeMonster) : {dropMult:1,xpMult:1};
-  // b133: accumulate the drops that actually rolled so we can record
-  // them in HearthriseDropLog at the end. We only record what dropped,
-  // not the full loot table.
-  /* PHASE 0: the drop-table walk is src/core/drops.js `rollDropTable` — the
-     chance maths (weakness mult, the b238 drop_rate food buff, the b254 featured
-     -boss lift, the 0.95 cap, and "a guaranteed drop is never scaled") and the
-     seeded roll live there. It returns WHAT dropped plus narrative events; the
-     inventory write, the log lines and the toast stay here, because those are
-     the client's job. The server calls the same function and puts the same
-     events in the intent envelope. */
-  const _CK=window.HearthriseCore;
-  const _rolled=_CK.drops.rollDropTable(m.drops,{
-    dropMult,
-    /* b238: drop_rate food buff (Cooked Lobster, Wheat Bread, Tomato Soup,
-       Hunter's Feast) — it lifts the chance of a NON-guaranteed drop. */
-    dropBuff:_CK.bonus('dropRate'),
-    featuredMult:_feat.dropMult,
-  },_CK.rng);
-  const _droppedThisKill = _rolled.dropped;
-  for(const ev of _rolled.events){
-    addItem(ev.id,1);
-    const itemName=ITEMS[ev.id]?.n||ev.id;
-    if(ev.rare){G.stats.rareDrops=(G.stats.rareDrops||0)+1;log.push(`<span class="rare">✨ RARE: ${itemName}</span>`);notify(`✨ Rare: ${itemName}!`,'levelup');}
-    else log.push(`📦 ${itemName}`);
-  }
-  // b133: feed the drop log. Indexed by the active monster id (which
-  // is the canonical key — m.name is for display only). Safe even if
-  // HearthriseDropLog hasn't loaded yet (defensive guard).
-  if(window.HearthriseDropLog && typeof window.HearthriseDropLog.recordKill === 'function'){
-    window.HearthriseDropLog.recordKill(G.activeMonster, _droppedThisKill);
-  }
-  // b136: Farmer's Deed roll for Tier 2+ kills (0.1%). Tier-1 mobs
-  // stay deed-free so early game is pure-progression. The roll itself
-  // and the addItem call live in HearthriseFarm.rollKillDeed.
-  if(window.HearthriseFarm && typeof window.HearthriseFarm.rollKillDeed === 'function'){
-    window.HearthriseFarm.rollKillDeed(m);
-  }
-  /* Kill XP routed by active style — staff kill awards Magic XP, bow kill awards Ranged, etc.
-     PHASE A: src/core/styles.js `killXpRoute` owns the route AND the b254
-     featured-boss multiplier. The away ruling says BotD pays away too, so
-     the server calls this exact function with the segment's multiplier. */
-  {
-    const _style = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
-    for(const g of window.HearthriseCore.styles.killXpRoute(_style,m.xp,_feat.xpMult)) addXp(g.skill,g.amount);
-  }
-  updateDaily('kill_any',1);updateQuest('kill_any',1,{target:G.activeMonster});updateQuest('kill_monster',1,{target:G.activeMonster});
-  handleBountyKill(G.activeMonster,m);
-  notify(`☠️ Defeated ${m.name}`,'kill');
-  G.monsterHp=m.hp;updateTopbar();
+  return window.HearthriseCore.combatSim.resolveKill(G,m,combatSimCtx());
 }
+
+/* The accrual path. `processOfflineCombat` is GONE — this is a span of the
+   same tick, nothing more. */
+function simulateAwayCombat(hrs,nowMs,capped){
+  if(!G.activeMonster)return null;
+  const C=window.HearthriseCore;
+  const toMs=(typeof nowMs==='number'&&isFinite(nowMs))?nowMs:Date.now();
+  const spanMs=Math.max(0,(Number(hrs)||0)*3600000);
+  if(spanMs<=0)return null;
+  const ctx=combatSimCtx();
+  ctx.fromMs=toMs-spanMs;
+  ctx.toMs=toMs;
+  /* THE SAME INTERVAL LIVE PLAY USES. The old away loop divided by the flat
+     COMBAT_BALANCE.tickMs, so gear speed (spdB) and the weapon-family speed
+     identity did not apply away — a hammer swung 26% more often asleep than
+     awake. Weapon speed is gear, gear is permanent, permanent always applies. */
+  ctx.tickMs=combatTickMs();
+  ctx.capped=!!capped;
+  ctx.activeBuffCount=Array.isArray(G.buffs)?G.buffs.filter(b=>b&&b.remainingMs>0).length:0;
+  ctx.botdFor=function(atMs){
+    return { killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } };
+  };
+  /* Pin the ambient instant for the segment's ticks, so the wrapped
+     killMonster() reached through fx resolves that segment's featured boss. */
+  ctx.fx=Object.assign({},COMBAT_FX,{
+    segment:function(atMs,run){ return withAwaySegment(atMs,run); },
+  });
+  return C.combatSim.simulateSpan(G,ctx);
+}
+window.simulateAwayCombat=simulateAwayCombat;
 
 /* ════════════════════════════════════════════════════════════════
    b227 — ONE function that answers "how long should the current action take,
@@ -2887,11 +2917,18 @@ function doSkillAction(silent){
   if(type==='fishing')act=FISH_SPOTS.find(f=>f.id===tid);
   if(!act)return;
   const C=window.HearthriseCore;
-  G._toolCarry=G._toolCarry||{};
+  /* `toolCarry` (was `G._toolCarry`) — the FRACTIONAL remainder of a tool's
+     double-yield chance, carried between actions so a 0.35 tool pays 35 extra
+     items per 100 swings exactly rather than approximately. It is real, earned
+     progress, and it was `_`-prefixed, which means events.js snapshot() skipped
+     it and it never reached the cloud: a device switch silently discarded the
+     carry. Renamed (migration v12 -> v13) so it persists like everything else
+     and so the server has a column to own when accrual moves off the client. */
+  G.toolCarry=G.toolCarry||{};
   const res=C.progression.resolveGatherAction(act,{
     skillId:type,
     level:getLevel(type),
-    toolCarry:G._toolCarry,
+    toolCarry:G.toolCarry,
     toolDouble:(window.HearthriseTools&&HearthriseTools.bestToolDouble)?HearthriseTools.bestToolDouble(type):0,
     toolXpB:(window.HearthriseTools&&HearthriseTools.bestToolXpB)?HearthriseTools.bestToolXpB(type):0,
     rng:C.rng,
@@ -9833,10 +9870,13 @@ window.doArtisanAction = function(skillId, recipeId, opts){
      toasts, counters, renders). The server applies the same description to
      player_inventory / player_progress rows.
 
-     G._toolCarry is passed BY REFERENCE and mutated in place, exactly as
-     before, so the fractional carry survives across actions and saves. */
+     G.toolCarry is passed BY REFERENCE and mutated in place, exactly as
+     before, so the fractional carry survives across actions and saves.
+     (Renamed from G._toolCarry in the away-unification wave: the `_` prefix
+     kept it out of the cloud snapshot, so the carry did not survive a device
+     switch. Migration v12 -> v13.) */
   var CK = window.HearthriseCore;
-  G._toolCarry = G._toolCarry || {};
+  G.toolCarry = G.toolCarry || {};
   var res = CK.artisan.resolveArtisanAction(r, {
     skillId: skillId,
     inventory: G.inventory,
@@ -9845,7 +9885,7 @@ window.doArtisanAction = function(skillId, recipeId, opts){
     cookingLevel: (typeof getLevel==='function') ? getLevel('cooking') : 1,
     noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
     bonus: function(k){ return (typeof getBonus==='function') ? (getBonus(k)||0) : 0; },
-    toolCarry: G._toolCarry,
+    toolCarry: G.toolCarry,
     /* Through window.HearthriseTools, not straight to core: that object is a
        published API other feature modules wrap, and resolving the tool here
        would silently escape whoever replaced it. */
@@ -13229,36 +13269,25 @@ console.log('[Companions D: acquisition] wired — drops, shop, hatch, quest');
 (function(){
 "use strict";
 
-// ── Buff type registry ──
-// Maps buff.type → {label, bonusKey, isPercent}
-// bonusKey is the key getBonus(key) callers use; isPercent governs display.
-const BUFFS_DEF = {
-  // Icons chosen to render unambiguously on Windows (Segoe UI Emoji) and
-  // macOS (Apple Color Emoji) — avoid the abstract chart/graph emoji which
-  // render as similar-looking multicolor blocks on both.
-  gather_speed:    {label:'Gather Speed',     bonusKey:'gatherSpeed',    isPercent:true, icon:'🌿'},
-  all_xp:          {label:'All XP',           bonusKey:'allXP',          isPercent:true, icon:'⭐'},
-  drop_rate:       {label:'Drop Rate',        bonusKey:'dropRate',       isPercent:true, icon:'🍀'},
-  /* b228: `farmYield` is a COUNT of extra crops, never a percentage — the
-     blessing calendar has always granted it as "+2 farm yield". This entry
-     claimed isPercent and getBuffBonuses divided its magnitude by 100, so
-     Carrot Stew's "15" reached the engine as 0.15 of a crop and harvestPlot
-     floored it to nothing. It is flat now, in both the maths and the label. */
-  farm_yield:      {label:'Farm Yield',       bonusKey:'farmYield',      isPercent:false, isFlat:true, icon:'🌾'},
-  damage:          {label:'Damage',           bonusKey:'damage',         isPercent:true, icon:'⚔️'},
-  /* b238 (itemization Wave 1): `defense` was declared on Frostfin Supper but was
-     NOT a key here, so applyBuff() rejected it and the tooltip promised a buff
-     the engine threw away. It is a FLAT bump to your defence stat (a +4 food buff
-     reads as "+4", not "+4%"), wired into playerDefense in getMonsterCombatRolls. */
-  defense:         {label:'Defense',           bonusKey:'defense',        isPercent:false, isFlat:true, icon:'🛡️'},
-  /* b238: `monster_respawn` was dead — this engine re-attacks instantly, there is
-     no respawn timer to speed up. Removed; the two foods that used it (Tomato
-     Soup, Hunter's Feast) are repointed to drop_rate, which is now live. */
-  combat_xp:       {label:'Combat XP',        bonusKey:'combatXP',       isPercent:true, icon:'🗡️'},
-  gold_find:       {label:'Gold Find',        bonusKey:'goldFind',       isPercent:true, icon:'💰'},
-  damage_crit:     {label:'Critical Chance',  bonusKey:'crit',           isPercent:true, icon:'💥'},
-};
-window.BUFFS_DEF = BUFFS_DEF;
+/* ── Buff type registry — AUTHORED IN src/core/buffs.js ──────────────────
+   The table moved to core because the away ruling made it server-relevant:
+   the accrual engine must know that a timed buff is FROZEN (no pay, no
+   drain, no food consumed), and it cannot know that from a const inside an
+   IIFE in a 15,000-line classic script.
+
+   Resolved through a FUNCTION, not a parse-time const: this IIFE runs while
+   legacy.js parses, and core-bridge.js is a module, so window.HearthriseCore
+   does not exist yet. (That load-order trap has already cost this codebase
+   one boot crash — see the core-bridge header.) `window.BUFFS_DEF` is
+   published by the bridge from the same object, so there is one identity.
+
+   The registry itself is DELETED from this file rather than left behind as a
+   commented-out copy: a second copy of a table is how the two combat loops
+   this ruling just deleted got started. */
+function DEF(){
+  const C=window.HearthriseCore;
+  return (C&&C.buffs&&C.buffs.BUFFS_DEF)||window.BUFFS_DEF||{};
+}
 
 // ── State init ──
 function ensureBuffState(){
@@ -13316,8 +13345,8 @@ window.buffScaleFor = function(buff){
 // extend it: take the larger magnitude, add durations.
 window.applyBuff = function(buff){
   ensureBuffState();
-  if(!buff || !buff.type || !BUFFS_DEF[buff.type]) return false;
-  const def = BUFFS_DEF[buff.type];
+  if(!buff || !buff.type || !DEF()[buff.type]) return false;
+  const def = DEF()[buff.type];
   /* b222 SEAM 2 — scale before the queue ever sees it, so the merge branch
      below extends by the SCALED duration too. */
   const scale = window.buffScaleFor(buff);
@@ -13340,19 +13369,32 @@ window.applyBuff = function(buff){
   return true;
 };
 
-// Aggregate active buffs into a {bonusKey: totalPercentDelta} map
+/* Aggregate active buffs into a {bonusKey: total} map.
+
+   ── THE AWAY GATE, and the exploit it closes ─────────────────────────────
+   Timed buffs used to reach the away replay through this function, because
+   getBonus is not presence-gated — while the buff CLOCK was a setInterval
+   that only runs in a live tab. So:
+
+     eat a 10-minute drop-rate buff -> close the tab -> come back twelve
+     hours later -> collect twelve hours of buffed gathering -> and the buff
+     still reads 10:00, because nothing ticked it.
+
+   The ruling freezes buffs while away: they neither pay nor drain, and no
+   food is consumed. Both halves are needed — freezing only the payout would
+   be a nerf, and draining only would be a different theft.
+
+   The gate is `inOfflineReplay()`, the SAME b227 latch blessings use, asked
+   through src/core/away.js's channel table so the client and the accrual
+   Edge Function read one rule. It is asked HERE rather than at the twelve
+   getBonus call sites for the reason b228 documents at length: getBonus is a
+   seven-deep wrapper chain, and a gate below a wrapper is escaped by it. */
 window.getBuffBonuses = function(){
   ensureBuffState();
-  const out = {};
-  for(const b of G.buffs){
-    if(b.remainingMs <= 0) continue;
-    const def = BUFFS_DEF[b.type];
-    if(!def) continue;
-    /* b228: a FLAT key's magnitude is already in its own units (crops), so it
-       is added as-is; every other key is a percentage stored as an integer. */
-    out[def.bonusKey] = (out[def.bonusKey]||0) + (def.isFlat ? b.magnitude : b.magnitude/100);
-  }
-  return out;
+  const C = window.HearthriseCore;
+  const away = (typeof inOfflineReplay === 'function') ? inOfflineReplay() : false;
+  if(C && C.buffs) return C.buffs.buffBonuses(G.buffs, {away:away});
+  return {};
 };
 
 // Remove expired buffs from queue
@@ -13435,22 +13477,42 @@ window.eatFood = function(foodId, opts){
   return true;
 };
 
-// ── Tick: countdown active buffs only while an activity is running ──
+/* ── THE BUFF CLOCK ──────────────────────────────────────────────────────
+   `advanceBuffClock(elapsedMs)` is the clock. The setInterval below only
+   SUPPLIES it with elapsed time — that separation is the whole point.
+
+   An interval can only answer "one more second has passed in a live tab".
+   It cannot answer "twelve hours passed while the tab was shut; did they
+   count?", which is exactly the question the away ruling is about, and the
+   reason a 10-minute buff used to survive a whole night intact while paying
+   out the entire time (see getBuffBonuses above). A function of elapsed time
+   can answer both, and it is the same function the accrual engine calls.
+
+   The drain rules live in src/core/buffs.js `tickBuffs`:
+     • away   -> FROZEN (no drain), matching "no pay"
+     • idle   -> frozen (long-standing: you are not spending an effect that
+                 is not modifying anything)
+     • active -> drains by real elapsed time */
+function advanceBuffClock(elapsedMs){
+  if(typeof G === 'undefined' || !Array.isArray(G.buffs) || G.buffs.length === 0) return null;
+  const C = window.HearthriseCore;
+  if(!C || !C.buffs) return null;
+  const res = C.buffs.tickBuffs(G.buffs, elapsedMs, {
+    away: (typeof inOfflineReplay === 'function') ? inOfflineReplay() : false,
+    active: !!(G.activeSkill || G.activeMonster || G.activeArtisanRecipe),
+  });
+  if(res.changed) window.pruneBuffs();
+  return res;
+}
+window.advanceBuffClock = advanceBuffClock;
+
 let lastBuffTickAt = Date.now();
 setInterval(function(){
   const now = Date.now();
   const elapsedMs = now - lastBuffTickAt;
   lastBuffTickAt = now;
-  if(typeof G === 'undefined' || !Array.isArray(G.buffs) || G.buffs.length === 0) return;
-  // Only tick during an active activity. Idle play doesn't drain buffs.
-  const isActive = G.activeSkill || G.activeMonster || G.activeArtisanRecipe;
-  if(!isActive) return;
-  let changed = false;
-  for(const b of G.buffs){
-    b.remainingMs -= elapsedMs;
-    if(b.remainingMs <= 0) changed = true;
-  }
-  if(changed) window.pruneBuffs();
+  const res = advanceBuffClock(elapsedMs);
+  if(!res) return;
   // Refresh UI without rebuilding everything — just text update on the timer
   refreshBuffTimers();
 }, 1000);
@@ -13540,7 +13602,7 @@ window.__renderBuffsSection = function(){
     return;
   }
   host.innerHTML = G.buffs.map(function(b, i){
-    const def = BUFFS_DEF[b.type] || {label:b.type, isPercent:true, icon:'✨'};
+    const def = DEF()[b.type] || {label:b.type, isPercent:true, icon:'✨'};
     const display = def.isPercent ? '+'+b.magnitude+'%' : '+'+b.magnitude;
     return '<div class="buff-row" data-buff-idx="'+i+'">'
       +'<span class="br-icon">'+def.icon+'</span>'
@@ -13578,7 +13640,9 @@ if(document.readyState === 'loading'){
   setTimeout(boot, 400);
 }
 
-console.log('[Buff Queue v1] loaded — '+Object.keys(BUFFS_DEF).length+' buff types registered');
+/* Deferred: DEF() reads src/core/buffs.js, and core-bridge.js (a module) has
+   not run while this classic script is parsing. */
+setTimeout(function(){ console.log('[Buff Queue v1] loaded — '+Object.keys(DEF()).length+' buff types registered (src/core/buffs.js)'); },0);
 })();
 
 // ===== block 37: script-37 =====

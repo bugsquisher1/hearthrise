@@ -47,7 +47,7 @@
   'use strict';
 
   var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
-  var CURRENT_SCHEMA_VERSION = 12;            // ← bump this when you add a migration
+  var CURRENT_SCHEMA_VERSION = 13;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
   var MIGRATIONS = [
@@ -438,6 +438,32 @@
         var effective = BASE + save.bank.goldBuys*GOLD + save.bank.gemBuys*GEM + save.bank.grandfather;
         var want = used + HEADROOM;
         if(effective < want) save.bank.grandfather += (want - effective);
+      },
+    },
+    {
+      from: 12, to: 13,
+      name: 'v12 → v13 (away unification: _toolCarry → toolCarry, so the carry reaches the cloud)',
+      /* `_toolCarry` holds the FRACTIONAL remainder of a tool's double-yield
+         chance, carried between actions so a 0.35 tool pays exactly 35 extra
+         items per 100 swings instead of approximately. That is earned
+         progress — but `src/net/events.js snapshot()` skips every `_`-prefixed
+         key as device-local scratch, so it never reached the cloud and a
+         device switch silently threw it away.
+
+         Renaming is the whole fix: with no underscore it persists by default,
+         which is the safe direction the denylist exists to give us, and the
+         server-side accrual engine gets a field to own.
+
+         Idempotent by the standard pattern: copy only when the new key is
+         absent, then drop the old one. A save that never had a carry gets an
+         empty object rather than nothing, so `G.toolCarry || {}` at the two
+         read sites is belt-and-braces rather than the only defence. */
+      apply: function(save){
+        if(save.toolCarry == null){
+          save.toolCarry = (save._toolCarry && typeof save._toolCarry === 'object' && !Array.isArray(save._toolCarry))
+            ? save._toolCarry : {};
+        }
+        if(save._toolCarry != null) delete save._toolCarry;
       },
     },
     // Future migrations go here. Example:

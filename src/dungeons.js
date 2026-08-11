@@ -934,7 +934,18 @@
   function trySpawnKeyDrop(monsterId){
     var entry = KEY_DROPS[monsterId];
     if(!entry) return;
-    if(Math.random() > entry.chance) return;
+    /* Through the SEEDED session stream (src/core/rng.js), not Math.random().
+       This roll hangs off window.killMonster, so it is part of what a kill
+       pays — and since the away unification an away kill comes through the
+       same wrapper. A bare Math.random() here made the kill path only
+       PARTIALLY replayable: the away-parity guard caught it immediately
+       (identical seeds, identical drop tables, different key counts), which
+       is exactly the kind of hidden nondeterminism that would have made a
+       server-side accrual dispute impossible to adjudicate.
+       Falls back to Math.random only if the core has not booted. */
+    var C = window.HearthriseCore;
+    var hit = (C && C.rng) ? C.rng.chance(entry.chance) : (Math.random() <= entry.chance);
+    if(!hit) return;
     var keyItem = window.ITEMS && window.ITEMS[entry.keyId];
     var name = keyItem ? keyItem.n : entry.keyId;
     if(typeof window.addItem === 'function') window.addItem(entry.keyId, 1);

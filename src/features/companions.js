@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=324';
-import { emit } from '../net/events.js?v=324';
+import { COMPANIONS } from '../data/companions.js?v=325';
+import { emit } from '../net/events.js?v=325';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -234,6 +234,25 @@ function rollProc(triggerType, ctx) {
   emit('companionProc', { id: G.companions.equipped, effect: e });
 }
 
+/* monsterId -> [[companionId, def]] for every `drop:<monsterId>` source.
+   Built once, lazily, and keyed on the table's identity so a data reload or a
+   test substituting the catalogue invalidates it rather than serving a stale
+   index. Scales with content: adding fifty companions adds fifty rows here,
+   not fifty comparisons per kill. */
+let _dropIndex = null, _dropIndexFor = null;
+function dropSourcesFor(monsterId) {
+  if (_dropIndexFor !== COMPANIONS) {
+    _dropIndexFor = COMPANIONS;
+    _dropIndex = Object.create(null);
+    for (const [id, def] of Object.entries(COMPANIONS)) {
+      const src = parseSource(def.source);
+      if (src?.kind !== 'drop' || !src.arg1) continue;
+      (_dropIndex[src.arg1] || (_dropIndex[src.arg1] = [])).push([id, def]);
+    }
+  }
+  return _dropIndex[monsterId] || [];
+}
+
 function wireKillHook() {
   if (typeof window.killMonster !== 'function') return;
   const orig = window.killMonster;
@@ -248,13 +267,21 @@ function wireKillHook() {
     if (monsterId) {
       awardXpForRole('combat-kill');
       rollProc('kill', {});
-      // Drop check
-      for (const [id, def] of Object.entries(COMPANIONS)) {
-        const src = parseSource(def.source);
-        if (src?.kind !== 'drop' || src.arg1 !== monsterId) continue;
+      /* Drop check, through a PREBUILT index. This used to walk the whole
+         COMPANIONS table (Object.entries + a string split per row) on every
+         kill; a 12-hour away catch-up is ~1,000 kills, and since the away
+         unification an away kill comes through this wrapper too. The index is
+         a pure lookup — same rows, same order, no behaviour change. */
+      for (const [id, def] of dropSourcesFor(monsterId)) {
         if (window.G.companions?.ownedIds?.includes(id)) continue;
         const chance = DROP_CHANCES[id] ?? 0.01;
-        if (Math.random() < chance) {
+        /* Through the SEEDED session stream, not Math.random(): this roll is
+           part of what a kill pays, and a kill must be replayable end to end
+           or a server-side accrual dispute cannot be adjudicated. Falls back
+           only if the core has not booted. */
+        const C = window.HearthriseCore;
+        const hit = (C && C.rng) ? C.rng.chance(chance) : (Math.random() < chance);
+        if (hit) {
           unlockCompanion(id);
           showCompanionUnlockedToast(def);
         }

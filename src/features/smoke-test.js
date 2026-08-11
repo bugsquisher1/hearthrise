@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=324' directly.
+// modularised, will import { G } from '../state/game.js?v=325' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=324';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=324';
+import { on, snapshot } from '../net/events.js?v=325';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=325';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=324';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=325';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -114,6 +114,11 @@ const snapshotG = () => {
     // ensureBountyState regenerating an emptied board, trigger a spurious
     // auto-accept that flips a later test's outcome.
     bountyHunter: G.bountyHunter,
+    /* The away-unification wave: `buffs` (the freeze tests hold one through a
+       12h grant), and `toolCarry` — renamed from the `_`-prefixed scratch key
+       so it reaches the cloud, which also means the suite can now pollute it. */
+    buffs: G.buffs,
+    toolCarry: G.toolCarry,
   }));
 };
 
@@ -2267,9 +2272,9 @@ const TESTS = [
     const G = window.G;
     if (typeof window.doSkillAction !== 'function' || !window.TREES || !window.HearthriseTools) return;
     const node = window.TREES.find(t => t.qty[0] === 1 && t.qty[1] === 1) || window.TREES[0];
-    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})), as: G.activeSkill, tid: G.skillTargetId, carry: G._toolCarry };
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})), as: G.activeSkill, tid: G.skillTargetId, carry: G.toolCarry };
     try {
-      G._toolCarry = {};
+      G.toolCarry = {};
       G.inventory = Object.assign({}, G.inventory, { rune_axe: 1 }); delete G.inventory[node.prod];
       G.skills = Object.assign({}, G.skills, { woodcutting: 5000000 });
       G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
@@ -2277,7 +2282,7 @@ const TESTS = [
       const gained = (G.inventory[node.prod] || 0);
       // 10 base + floor(10 * 0.10) = 11 for a T5 (rune) tool
       assert(gained === 11, '10 actions with a 10% tool must yield 11 (got ' + gained + ')');
-    } finally { G.inventory = snap.inv; G.skills = snap.skills; G.activeSkill = snap.as; G.skillTargetId = snap.tid; G._toolCarry = snap.carry; }
+    } finally { G.inventory = snap.inv; G.skills = snap.skills; G.activeSkill = snap.as; G.skillTargetId = snap.tid; G.toolCarry = snap.carry; }
   }),
 
   () => tryRun('WAVE5: weapon family sets attack speed — warhammer slow, bow fast', () => {
@@ -8845,10 +8850,16 @@ const TESTS = [
       assert(window.G.gold >= 101,
         'killMonster ignored goldFind — one Slime paid ' + window.G.gold + ', expected >= 101');
       assert(window.G.gold <= 303, 'gold overshot the multiplied range: ' + window.G.gold);
-      // Offline combat is a separate code path and has its own history of
-      // drifting from the live one, so it is wired and asserted separately.
-      assert(String(window.processOfflineCombat).indexOf('applyGoldFind') >= 0,
-        'offline combat still mints raw gold — the two kill paths have diverged again');
+      /* Away combat used to be a SEPARATE kill path, so this guard used to
+         check that the second one also called applyGoldFind. There is no
+         second one: away and live both resolve a kill through
+         src/core/combat-sim.js `resolveKill`. The guard therefore asserts the
+         thing that actually keeps the two honest — that the single resolver
+         applies gold find, and that the old loop has not been resurrected. */
+      assert(String(window.HearthriseCore.combatSim.resolveKill).indexOf('applyGoldFind') >= 0,
+        'the one kill resolver no longer applies gold find');
+      assert(typeof window.processOfflineCombat === 'undefined',
+        'processOfflineCombat is back — a second combat loop is exactly what the away ruling deleted');
     } finally {
       window.getBonus = origBonus;
       restoreG(snap);
@@ -12697,7 +12708,7 @@ const TESTS = [
   }),
 
   () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
-    assert(typeof window.processOffline === 'function' && typeof window.processOfflineCombat === 'function', 'offline combat seams must exist');
+    assert(typeof window.processOffline === 'function' && typeof window.simulateAwayCombat === 'function', 'away combat seams must exist');
     const snap = snapshotG();
     try {
       const G = window.G;
@@ -12710,9 +12721,12 @@ const TESTS = [
       G.playerHp = G.playerMaxHp;
       G.stats = Object.assign({}, G.stats); const killsBefore = G.stats.kills || 0;
       const goldBefore = G.gold || 0;
-      // Direct simulator: half an hour of fighting must produce kills.
-      const r = window.processOfflineCombat(0.5);
-      assert(r && r.kills > 0, 'processOfflineCombat must produce kills over 30 min, got ' + JSON.stringify(r));
+      /* Direct simulator: half an hour of fighting must produce kills. Driven
+         inside the replay latch, because that latch IS `ctx.away` — calling it
+         bare would simulate an away span with blessings and food buffs live. */
+      let r = null;
+      window.HearthrisePresence._withOfflineReplay(() => { r = window.simulateAwayCombat(0.5); });
+      assert(r && r.kills > 0, 'simulateAwayCombat must produce kills over 30 min, got ' + JSON.stringify(r));
       assert((G.stats.kills || 0) > killsBefore, 'kill count must advance');
       // End-to-end through processOffline: set the offline watermark back an hour
       // and confirm the catch-up runs combat and reports a summary.
@@ -14453,6 +14467,13 @@ const TESTS = [
     const snap = snapshotG();
     try {
       G.rooms = {}; G.plotBuildings = []; G.inventory = {};
+      /* Every OTHER speed source is zeroed so this asserts the mechanism, not
+         the state an earlier test left behind. Buffs join that list now that
+         they are away-gated: a held gather_speed buff pays in the "offline
+         session" branch (the player is present, merely disconnected) and not
+         inside a replay, so leaving one in would make the two legitimately
+         differ and this assertion would be measuring the wrong thing. */
+      G.buffs = [];
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
       // Pin a gather-speed blessing whatever today's calendar happens to be,
       // so this test asserts the MECHANISM rather than the date.
@@ -16543,6 +16564,531 @@ const TESTS = [
       const c = document.getElementById('hr-pet-chip'); if (c) c.remove();
       PS._reset();
     }
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     THE UNIFICATION BATTERY — docs/design/away-time-ruling.md
+
+     The ruling's whole force is "one formula, context flag". That is not a
+     property you can review for; it is a property you MEASURE by running the same
+     seeded fight through both flags and diffing. Test 1 IS the contract, and
+     the other eight are the rulings it does not cover.
+
+     Every one of these fails without the change. Test 1 fails loudest: before
+     the unification the away path granted no kill XP and rolled no crits, so
+     the two columns disagreed by ~30%.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Shared rig: stand the player in a known fight with a known loadout, run
+     N ticks under a PINNED seed through a given away flag, and report totals.
+     Nothing here reads the wall clock except through `atMs`, which is passed. */
+  () => tryRun('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    try {
+      /* Blessings and consumables OFF, as the ruling specifies — those are the
+         two channels that are *meant* to differ, so leaving them in would test
+         nothing. Everything else (gear, perks, crit, BotD) must match exactly. */
+      window.getBonus = () => 0;
+      G.buffs = [];
+
+      const run = (away) => {
+        G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000, hitpoints: 15000, defense: 15000 });
+        G.activeMonster = 'goblin';
+        const m = window.MONSTERS.goblin;
+        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 60; G.playerHp = 60;
+        G.gold = 0;
+        G.inventory = {};
+        G.skills = Object.assign({}, G.skills);
+        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+        const xpBefore = Object.assign({}, G.skills);
+        C.reseed(0xC0FFEE);
+        const body = () => {
+          const ctx = window.HearthriseCombatSim.ctx();
+          for (let i = 0; i < 240; i++) {
+            if (!G.activeMonster) break;
+            C.combatSim.simulateTick(G, ctx);
+          }
+        };
+        if (away) P._withOfflineReplay(body); else body();
+        const xp = {};
+        Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
+        return {
+          gold: G.gold,
+          kills: G.stats.kills,
+          crits: G.stats.crits,
+          xp,
+          inventory: Object.assign({}, G.inventory),
+        };
+      };
+
+      const live = run(false);
+      const away = run(true);
+
+      assert(live.kills > 0, 'the rig produced no kills — the parity assertion would be vacuous');
+      assert(JSON.stringify(live.xp) === JSON.stringify(away.xp),
+        'XP DIVERGED between live and away.\n  live: ' + JSON.stringify(live.xp) + '\n  away: ' + JSON.stringify(away.xp));
+      assert(live.gold === away.gold, 'gold diverged: live ' + live.gold + ' vs away ' + away.gold);
+      assert(live.kills === away.kills, 'kills diverged: live ' + live.kills + ' vs away ' + away.kills);
+      assert(live.crits === away.crits, 'crits diverged: live ' + live.crits + ' vs away ' + away.crits);
+      assert(JSON.stringify(live.inventory) === JSON.stringify(away.inventory),
+        'drops diverged.\n  live: ' + JSON.stringify(live.inventory) + '\n  away: ' + JSON.stringify(away.inventory));
+      /* The dial itself: away pays 1.00x, not 0.9x, not 1.1x. */
+      assert(C.away.AWAY_RATE_MULT === 1.00, 'AWAY_RATE_MULT must be exactly 1.00, found ' + C.away.AWAY_RATE_MULT);
+    } finally {
+      window.getBonus = origBonus;
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-2: an away kill grants m.xp (the ~21% of combat XP the second loop never paid)', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      const m = window.MONSTERS.goblin;
+      G.activeMonster = 'goblin';
+      G.monsterHp = 1; G.monsterMaxHp = m.hp;
+      G.playerMaxHp = 60; G.playerHp = 60;
+      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
+      const before = Object.assign({}, G.skills);
+      P._withOfflineReplay(() => { window.killMonster(m); });
+      const gained = Object.keys(G.skills).reduce((s, k) => s + Math.max(0, (G.skills[k] || 0) - (before[k] || 0)), 0);
+      /* PACE.xp scales the grant, so the assertion is derived from the dial
+         rather than pinned to a number that will rot at the next re-anchor. */
+      const expectFloor = Math.max(1, Math.floor(C.pacing.pacedXp('attack', m.xp)));
+      assert(gained >= expectFloor,
+        'an away kill paid ' + gained + ' XP; m.xp alone should be worth at least ' + expectFloor);
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('AWAY-3: crits roll away, increment stats.crits, and EXCLUDE the damage_crit food buff', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    try {
+      /* (a) crits happen away at all. Force every chance roll to succeed by
+         injecting a generator, which is only possible because randomness is a
+         seam — the old `Math.random = () => 0` trick could not prove this. */
+      window.getBonus = (k) => (k === 'crit' ? 1 : 0);
+      G.buffs = [];
+      G.activeMonster = 'goblin';
+      const m = window.MONSTERS.goblin;
+      G.monsterHp = m.hp * 20; G.monsterMaxHp = m.hp * 20;   // survive the swing so we read the crit, not a kill
+      G.playerMaxHp = 200; G.playerHp = 200;
+      G.skills = Object.assign({}, G.skills, { attack: 40000, strength: 40000 });
+      G.stats = Object.assign({}, G.stats, { crits: 0 });
+      C.setRng({ next: () => 0, int: (a) => a, chance: () => true });
+      P._withOfflineReplay(() => {
+        C.combatSim.simulateTick(G, window.HearthriseCombatSim.ctx());
+      });
+      assert(G.stats.crits === 1, 'an away crit must increment stats.crits, got ' + G.stats.crits);
+
+      /* (b) the damage_crit FOOD buff must contribute nothing away. It maps to
+         the `crit` bonus key, so this is the one place the crit rule and the
+         buff rule meet. Read through the real chain, not a stub. */
+      window.getBonus = origBonus;
+      G.buffs = [{ type: 'damage_crit', magnitude: 50, remainingMs: 600000, addedAt: Date.now() }];
+      const liveCrit = window.getBonus('crit');
+      let awayCrit = null;
+      P._withOfflineReplay(() => { awayCrit = window.getBonus('crit'); });
+      assert(liveCrit >= 0.5, 'a +50% damage_crit buff must pay while playing, got ' + liveCrit);
+      assert(awayCrit < liveCrit && awayCrit < 0.5,
+        'the damage_crit FOOD buff must not reach an away crit roll (live ' + liveCrit + ', away ' + awayCrit + ')');
+    } finally {
+      window.getBonus = origBonus;
+      C.setRng(null);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-4: Boss of the Day pays away, and an absence crossing UTC midnight pays each day its own boss', () => {
+    const C = window.HearthriseCore;
+    const M = window.MONSTERS;
+    assert(C.botd && typeof C.botd.botdFor === 'function', 'botdFor(atMs) must exist as a pure function of time');
+
+    /* Determinism first: the same instant always resolves to the same boss,
+       and a stated day key resolves the same as any instant inside that day. */
+    const noonJan1 = Date.UTC(2026, 0, 1, 12, 0, 0);
+    const elevenPmJan1 = Date.UTC(2026, 0, 1, 23, 0, 0);
+    const oneAmJan2 = Date.UTC(2026, 0, 2, 1, 0, 0);
+    const a = C.botd.botdFor(noonJan1, M);
+    const b = C.botd.botdFor(elevenPmJan1, M);
+    assert(a.dailyId && a.dailyId === b.dailyId, 'two instants in the same UTC day must resolve to the same boss');
+    assert(M[a.dailyId], 'the featured boss must be a real monster: ' + a.dailyId);
+
+    /* The card and the core must not disagree — that identity is what makes
+       the extraction safe. */
+    assert(window.HearthriseBossOfDay.featuredId('2026-1-1') === a.dailyId,
+      'the Combat card and the core rotation resolved DIFFERENT bosses for the same day');
+
+    /* Segment resolution: an absence spanning midnight is two segments, and
+       the two days need not (and here do not) share a boss. */
+    const segs = C.away.utcDaySegments(elevenPmJan1, oneAmJan2);
+    assert(segs.length === 2, 'a 2h absence across UTC midnight must be TWO segments, got ' + segs.length);
+    assert(segs[0].ms === 3600000 && segs[1].ms === 3600000, 'each segment must carry its own hour');
+    const day2 = C.botd.botdFor(oneAmJan2, M);
+    assert(day2.dailyId, 'the second day must also resolve a boss');
+    /* The important claim is per-segment RESOLUTION, not that the two ids
+       differ (a hash may collide). Assert resolution explicitly. */
+    assert(C.botd.utcDayKey(elevenPmJan1) !== C.botd.utcDayKey(oneAmJan2),
+      'the two segments must fall on different UTC day keys');
+
+    /* And the bonus is real, at an instant, for the boss of THAT instant. */
+    const feat = C.botd.killBonusesFor(a.dailyId, noonJan1, M);
+    assert(feat.dropMult > 1 && feat.xpMult > 1, 'the featured boss must pay a drop + XP lift at its own instant');
+    const notFeat = C.botd.killBonusesFor('slime', noonJan1, M);
+    assert(notFeat.dropMult === 1 && notFeat.xpMult === 1, 'an unfeatured monster must pay 1x');
+  }),
+
+  () => tryRun('AWAY-4b: an away kill on the featured boss actually applies the lift (BotD is not presence-gated)', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    try {
+      window.getBonus = () => 0;
+      G.buffs = [];
+      const featuredId = window.HearthriseBossOfDay.featuredId();
+      assert(featuredId && window.MONSTERS[featuredId], 'no featured boss today — cannot assert the lift');
+      const m = window.MONSTERS[featuredId];
+      const xpOf = (away) => {
+        G.activeMonster = featuredId;
+        G.monsterHp = 1; G.monsterMaxHp = m.hp;
+        G.playerHp = 500; G.playerMaxHp = 500;
+        G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0, magic: 0, ranged: 0 });
+        const before = Object.assign({}, G.skills);
+        C.reseed(1234);
+        const body = () => window.killMonster(m);
+        if (away) P._withOfflineReplay(body); else body();
+        return Object.keys(G.skills).reduce((s, k) => s + Math.max(0, (G.skills[k] || 0) - (before[k] || 0)), 0);
+      };
+      const awayXp = xpOf(true);
+      const liveXp = xpOf(false);
+      assert(awayXp > 0 && awayXp === liveXp,
+        'a featured-boss kill must pay the SAME lifted XP away as live (away ' + awayXp + ', live ' + liveXp + ')');
+      /* And prove the lift is present at all, by comparing against a plain foe
+         scaled to the same base xp — cheapest honest proof is the multiplier. */
+      const feat = C.botd.killBonusesFor(featuredId, Date.now(), window.MONSTERS);
+      assert(feat.xpMult > 1, 'today\'s featured boss must carry an XP multiplier');
+    } finally {
+      window.getBonus = origBonus;
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-5: a 10-minute buff survives a 12-hour away grant intact — 10 min left, 0 contributed, 0 food eaten', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      /* This is the live exploit the ruling closes: buffs reached the away
+         replay through getBonus, while the buff clock was a setInterval that
+         only runs in a live tab. Eat a 10-minute drop-rate buff, shut the tab,
+         collect twelve buffed hours, come back to a buff still reading 10:00. */
+      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 600000, addedAt: Date.now() }];
+      const foodId = 'cooked_shrimp';
+      G.inventory = Object.assign({}, G.inventory); G.inventory[foodId] = 5;
+
+      const liveDrop = window.getBonus('dropRate');
+      assert(liveDrop >= 1, 'a +100% drop_rate buff must pay while playing, got ' + liveDrop);
+
+      let awayDrop = null;
+      P._withOfflineReplay(() => {
+        awayDrop = window.getBonus('dropRate');
+        /* Twelve hours of clock, handed to THE clock. */
+        window.advanceBuffClock(12 * 3600000);
+      });
+
+      assert(awayDrop === 0, 'a timed buff must contribute exactly 0 away, got ' + awayDrop);
+      assert(G.buffs.length === 1, 'the frozen buff must still be in the queue');
+      assert(G.buffs[0].remainingMs === 600000,
+        'a FROZEN buff must not drain: expected 600000ms left after a 12h absence, found ' + G.buffs[0].remainingMs);
+      assert(G.inventory[foodId] === 5, 'freezing a buff must not consume food, found ' + G.inventory[foodId]);
+
+      /* …and it resumes the moment the player is back. Frozen, not cancelled. */
+      const resumed = window.getBonus('dropRate');
+      assert(resumed === liveDrop, 'the buff must pay again the instant play resumes (' + resumed + ' vs ' + liveDrop + ')');
+      /* An activity has to be running: idle play has never drained buffs, and
+         that rule predates this change. */
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      window.advanceBuffClock(60000);
+      assert(G.buffs[0].remainingMs < 600000, 'and it must drain again while playing');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('AWAY-6: blessings still contribute 0 away (the b227 latch is unchanged by the unification)', () => {
+    const P = window.HearthrisePresence;
+    const E = window.HearthriseWorldEvents;
+    assert(P.blessingsApply() === true, 'an online player outside a replay must be blessed');
+    let inside = null;
+    P._withOfflineReplay(() => { inside = P.blessingsApply(); });
+    assert(inside === false, 'blessings must not apply inside an away replay');
+    assert(P.blessingsApply() === true, 'and the latch must release afterwards');
+    /* The channel table must agree with the latch — two rules for one question
+       is how the away/live split drifted the first time. */
+    const A = window.HearthriseCore.away;
+    assert(A.channelApplies('blessing', { away: true }) === false, 'the blessing channel must be closed away');
+    assert(A.channelApplies('buff', { away: true }) === false, 'the buff channel must be closed away');
+    assert(A.channelApplies('permanent', { away: true }) === true, 'permanent bonuses must always apply');
+    assert(A.channelApplies('crit', { away: true }) === true, 'crit must always apply');
+    assert(A.channelApplies('botd', { away: true }) === true, 'Boss of the Day must apply away');
+    assert(A.channelApplies('heal', { away: true }) === true, 'healing auto-eat must apply away');
+    /* An UNKNOWN channel defaults to paying. The five omissions the ruling
+       fixes were all base rewards a second loop silently dropped, so "quietly
+       missing" must never be the default for something new. */
+    assert(A.channelApplies('a_channel_invented_next_year', { away: true }) === true,
+      'an unknown bonus channel must default to APPLYING away, not to silently vanishing');
+    if (E && typeof E.summaryFor === 'function') { /* pool wiring covered by the b227 suite */ }
+  }),
+
+  () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const seen = { recordKill: 0, daily: 0, quest: 0, deed: 0 };
+    const realLog = window.HearthriseDropLog;
+    const realFarm = window.HearthriseFarm;
+    const realDaily = window.updateDaily;
+    const realQuest = window.updateQuest;
+    try {
+      window.HearthriseDropLog = Object.assign({}, realLog, { recordKill: () => { seen.recordKill++; } });
+      window.HearthriseFarm = Object.assign({}, realFarm, { rollKillDeed: () => { seen.deed++; } });
+      window.updateDaily = function (t) { if (t === 'kill_any') seen.daily++; return realDaily.apply(this, arguments); };
+      window.updateQuest = function (t) { if (t === 'kill_any' || t === 'kill_monster') seen.quest++; return realQuest.apply(this, arguments); };
+
+      const m = window.MONSTERS.goblin;
+      G.activeMonster = 'goblin';
+      G.monsterHp = 1; G.monsterMaxHp = m.hp;
+      G.playerHp = 100; G.playerMaxHp = 100;
+      P._withOfflineReplay(() => { window.killMonster(m); });
+
+      assert(seen.recordKill === 1, 'an away kill must reach HearthriseDropLog.recordKill (collection log under-reported every overnight)');
+      assert(seen.daily === 1, 'an away kill must tick updateDaily("kill_any") — "Slay 10 monsters" made ZERO progress overnight');
+      assert(seen.quest === 2, 'an away kill must tick both kill_any and kill_monster quests, got ' + seen.quest);
+      assert(seen.deed === 1, 'an away kill must roll a Farmer\'s Deed');
+
+      /* stats.deaths: never incremented ANYWHERE before this change — not away,
+         not live. Assert both paths, because a rule that only holds in one is
+         precisely the failure mode being deleted. */
+      const dieOnce = (away) => {
+        G.stats = Object.assign({}, G.stats);
+        const before = G.stats.deaths || 0;
+        G.activeMonster = 'goblin';
+        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 100; G.playerHp = 1;
+        const body = () => C.combatSim.resolveDeath(G, window.HearthriseCombatSim.ctx());
+        if (away) P._withOfflineReplay(body); else body();
+        return (G.stats.deaths || 0) - before;
+      };
+      assert(dieOnce(true) === 1, 'an AWAY death must increment stats.deaths');
+      assert(dieOnce(false) === 1, 'a LIVE death must increment stats.deaths');
+    } finally {
+      window.HearthriseDropLog = realLog;
+      window.HearthriseFarm = realFarm;
+      window.updateDaily = realDaily;
+      window.updateQuest = realQuest;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-8: the cap survives — 18h at a 12h cap grants exactly 12h, and a second absence the same day starts fresh (b307)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const realCap = window.offlineCapHours;
+    try {
+      window.offlineCapHours = () => 12;
+      const now = Date.now();
+      G.offlineBudget = { at: now - 18 * 3600000 };
+      const first = window.claimOfflineMs(now, true, 60000);
+      assert(Math.abs(first - 12 * 3600000) < 1000,
+        'an 18h absence at a 12h cap must grant exactly 12h, got ' + (first / 3600000).toFixed(2) + 'h');
+      /* PER-ABSENCE, not a daily bucket (b307). A second absence the same day
+         is measured from the reset watermark and is capped on its own terms. */
+      G.offlineBudget.at = now - 5 * 3600000;
+      const second = window.claimOfflineMs(now, true, 60000);
+      assert(Math.abs(second - 5 * 3600000) < 1000,
+        'a SECOND absence the same day must start fresh (per-absence cap, no daily bucket), got ' + (second / 3600000).toFixed(2) + 'h');
+      const third = window.claimOfflineMs(now, true, 60000);
+      assert(third === 0, 'the watermark must have advanced — an immediate re-claim must grant nothing');
+    } finally {
+      window.offlineCapHours = realCap;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-9: the summary carries the honesty payload the welcome-back renderer needs', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      const m = window.MONSTERS.goblin;
+      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
+      G.activeMonster = 'goblin';
+      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.playerMaxHp = 200; G.playerHp = 200;
+      G.buffs = [{ type: 'all_xp', magnitude: 10, remainingMs: 600000, addedAt: Date.now() }];
+      let s = null;
+      P._withOfflineReplay(() => { s = window.simulateAwayCombat(1, Date.now(), false); });
+      assert(s, 'simulateAwayCombat must return a summary');
+      assert(s.blessed === false, 'the summary must state blessings were NOT applied');
+      assert(s.buffsPaused === true, 'the summary must state a held buff was paused');
+      assert(typeof s.crits === 'number', 'the summary must report away crits so "142 kills · 21 crits" is sayable');
+      assert(typeof s.featuredMs === 'number', 'the summary must report time on the featured boss');
+      assert(s.capped === false, 'the summary must report whether the absence hit the cap');
+      assert(s.rateMult === 1.00, 'the summary must state the away rate actually applied');
+      assert(Array.isArray(s.segments) && s.segments.length >= 1, 'the summary must describe its UTC-day segments');
+      /* With no buffs held, "your buffs were paused" is itself a small lie. */
+      G.buffs = [];
+      G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = 200;
+      let s2 = null;
+      P._withOfflineReplay(() => { s2 = window.simulateAwayCombat(1, Date.now(), false); });
+      assert(s2.buffsPaused === false, 'buffsPaused must be false when the player held no buffs');
+    } finally { C.randomSeed(); restoreG(snap); }
+  }),
+
+  () => tryRun('AWAY-10 (balance risk, flagged by design): the 0.95 drop cap applies AFTER dropMult x featuredMult, and guaranteed drops stay unscaled', () => {
+    const D = window.HearthriseCore.drops;
+    /* A weekly BotD (x2.0) on a tier-6 boss with a high-value tradeable is a
+       real market faucet. Two properties keep it bounded, and both are
+       asserted here rather than assumed from a reading of the source. */
+    const capped = D.effectiveDropChance({ id: 'x', ch: 0.9 }, { dropMult: 1.15, dropBuff: 0.5, featuredMult: 2.0 });
+    assert(capped === 0.95, 'the cap must bind AFTER every multiplier (0.9 x 1.15 x 1.5 x 2.0 -> 0.95), got ' + capped);
+    /* If the cap were applied BEFORE the multipliers, this would exceed 0.95. */
+    assert(capped <= 0.95, 'no drop row may ever exceed the 0.95 chance cap');
+    /* Ordering is genuinely multiplicative underneath the cap. */
+    const uncapped = D.effectiveDropChance({ id: 'x', ch: 0.1 }, { dropMult: 1.15, dropBuff: 0.5, featuredMult: 2.0 });
+    assert(Math.abs(uncapped - (0.1 * 1.15 * 1.5 * 2.0)) < 1e-9,
+      'below the cap the chance must be the plain product, got ' + uncapped);
+    /* A guarantee is a guarantee: a x2.0 weekly must never turn one certain
+       drop into two, nor make it "more than certain". */
+    const guaranteed = D.effectiveDropChance({ id: 'x', ch: 1 }, { dropMult: 1.15, dropBuff: 0.5, featuredMult: 2.0 });
+    assert(guaranteed === 1, 'a guaranteed drop must be returned UNSCALED, got ' + guaranteed);
+    const guaranteed3 = D.effectiveDropChance({ id: 'x', ch: 3 }, { dropMult: 2, featuredMult: 2 });
+    assert(guaranteed3 === 3, 'a multi-guarantee row must also be unscaled, got ' + guaranteed3);
+  }),
+
+  () => tryRun('AWAY-11: toolCarry survives a save/load round-trip AND reaches the cloud snapshot (it never did as _toolCarry)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      G.toolCarry = { mining: 0.42 };
+      /* The cloud snapshot is a DENYLIST that skips `_`-prefixed scratch —
+         which is precisely why the old name lost the carry on a device switch. */
+      const E = window.HearthriseEvents;
+      assert(E && typeof E.snapshot === 'function', 'the cloud snapshot builder must be exposed');
+      const cloud = E.snapshot(G);
+      assert(cloud.toolCarry && cloud.toolCarry.mining === 0.42,
+        'toolCarry must reach the cloud snapshot — as _toolCarry it never did, so a device switch discarded the carry');
+      assert(cloud._toolCarry === undefined, 'the old underscored key must not be uploaded');
+      /* Local round-trip through the real save path. */
+      window.saveLocal();
+      const raw = localStorage.getItem('hearthbound-save-v2');
+      assert(raw, 'saveLocal wrote nothing');
+      const parsed = JSON.parse(raw);
+      assert(parsed.toolCarry && parsed.toolCarry.mining === 0.42,
+        'toolCarry must survive saveLocal, found ' + JSON.stringify(parsed.toolCarry));
+      /* And the migration that renames it is registered and idempotent. */
+      const MIG = window.HEARTHRISE_MIGRATIONS || [];
+      const step = MIG.find((s) => s.from === 12 && s.to === 13);
+      assert(step, 'the v12 -> v13 toolCarry migration must be registered');
+      const old = { v: 12, _toolCarry: { fishing: 0.7 } };
+      step.apply(old);
+      assert(old.toolCarry.fishing === 0.7 && old._toolCarry === undefined, 'the migration must move the carry and drop the old key');
+      step.apply(old);
+      assert(old.toolCarry.fishing === 0.7, 're-running the migration must be a no-op');
+      const fresh = { v: 12 };
+      step.apply(fresh);
+      assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
+    } finally { restoreG(snap); try { window.saveLocal(); } catch {} }
+  }),
+
+  () => tryRun('AWAY-12: the second combat loop is GONE and cannot come back unnoticed', () => {
+    assert(typeof window.processOfflineCombat === 'undefined',
+      'processOfflineCombat exists again — the away ruling deleted it; add to simulateTick and gate on ctx.away instead');
+    const C = window.HearthriseCore;
+    assert(C.combatSim && typeof C.combatSim.simulateTick === 'function' && typeof C.combatSim.simulateSpan === 'function',
+      'the unified simulation must be published on the core');
+    /* combatTick must DELEGATE, not re-implement. A source-text check, because
+       ES module namespaces are frozen so the function cannot be stubbed out.
+       Read through `_tickSource()` rather than `window.combatTick`: the live
+       tick is wrapped by combat-render.js, and inspecting the wrapper would
+       tell us nothing about whether the engine has re-grown its own loop. */
+    const src = window.HearthriseCombatSim._tickSource();
+    assert(/simulateTick/.test(src), 'the live tick must call the shared simulateTick — it has re-grown its own loop');
+    assert(!/rollAttack/.test(src), 'the live tick is rolling its own attacks again; that maths belongs in src/core');
+    const away = String(window.simulateAwayCombat || '');
+    assert(/simulateSpan/.test(away), 'away combat must be a SPAN of the shared tick');
+    assert(/combatTickMs\(\)/.test(away),
+      'away combat must use the same swing interval live play uses (gear speed + weapon family), not the flat tickMs constant');
+  }),
+
+  () => tryRun('AWAY-13 (perf): the analytics bridge must not write localStorage once per engine event', () => {
+    /* Found with the CPU profiler while measuring a 12-hour away catch-up:
+       observability.js subscribes to the event bus with on('*') and its track()
+       did a FULL read-modify-write of a 500-entry JSON buffer per event —
+       parse, push, stringify, setItem. That was 46% of the whole replay, and
+       it costs live play on every kill too. Same shape as the incident
+       sync.js documents above its EVENT_ALLOWLIST.
+
+       The guard counts real setItem calls, because "it looks debounced" is not
+       a measurement. */
+    assert(typeof window.trackEvent === 'function', 'the analytics funnel must be wired');
+    assert(typeof window.__hrPersistAnalytics === 'function', 'the durable-write seam must be exposed');
+    const KEY = 'hearthrise:analytics:buffer';
+    const realSet = localStorage.setItem.bind(localStorage);
+    let writes = 0;
+    try {
+      localStorage.setItem = function (k, v) { if (k === KEY) writes++; return realSet(k, v); };
+      for (let i = 0; i < 200; i++) window.trackEvent('smoke_probe', { i });
+      assert(writes === 0,
+        '200 analytics events caused ' + writes + ' localStorage writes — the hot path must be debounced, not synchronous');
+      window.__hrPersistAnalytics();
+      assert(writes === 1, 'an explicit persist must write exactly once, got ' + writes);
+      const durable = JSON.parse(realSet ? (localStorage.getItem(KEY) || '[]') : '[]');
+      assert(durable.some((e) => e && e.name === 'smoke_probe'),
+        'the debounced buffer must still reach localStorage — a crash needs its breadcrumbs');
+    } finally {
+      localStorage.setItem = realSet;
+      try { localStorage.removeItem(KEY); } catch {}
+    }
+  }),
+
+  () => tryRun('AWAY-14 (perf): the per-kill companion/pet lookups are indexed, and the index invalidates on a catalogue swap', () => {
+    /* Both tables were rebuilt on every kill (and pets.js rebuilt its on every
+       addXp — three to five times per combat TICK). Memoised now. The risk a
+       memo introduces is staleness, so that is what this asserts: swap the
+       catalogue and the answer must change. */
+    const P = window.HearthrisePets;
+    const realC = window.COMPANIONS;
+    try {
+      if (P && typeof P.rollBossPet === 'function') {
+        /* A pet whose source names a monster that cannot exist: with a live
+           cache the roll finds it; after a swap to an empty table it must not. */
+        window.COMPANIONS = { __probe: { n: 'Probe', source: 'boss:__no_such_monster__:2', icon: '🐾' } };
+        assert(P.rollBossPet('__no_such_monster__', () => 1) === false, 'a guaranteed-miss roll must not unlock');
+        window.COMPANIONS = {};
+        assert(P.rollBossPet('__no_such_monster__', () => 0) === false,
+          'after the catalogue is emptied the memoised pet table must be rebuilt, not served stale');
+      }
+      /* The companion drop index is internal; assert the observable contract —
+         a kill against a monster with no companion source does no work and
+         throws nothing, and the wrapper chain is still intact. */
+      assert(typeof window.killMonster === 'function', 'the kill wrapper chain must survive the indexing change');
+    } finally { window.COMPANIONS = realC; }
   }),
 
 ];

@@ -4,6 +4,19 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 325 — 2026-08-11 (Time away now pays properly)
+
+**Away progress was quietly shortchanging you in eleven different ways. It now runs the exact same code as when you're playing.**
+
+- ⚔️ **Kills while you're away now pay full XP.** They were only paying damage XP and skipping the kill bonus entirely — roughly a fifth of all combat XP, missing.
+- 🎯 **Away kills now count for everything else too** — daily tasks, quests, the collection log, Farmer's Deeds, dungeon keys, companion and pet progress. "Slay 10 monsters" used to make *zero* progress overnight.
+- 💥 **Crits now land while you're away**, and they're counted. Previously your gear's crit chance was ignored the moment you closed the tab — the better your gear, the more you lost.
+- 🐉 **Boss of the Day pays while you're away.** Parking on the featured boss before bed is now a real decision instead of a wasted one. If your time away crosses midnight UTC, each day pays its own boss.
+- ⚡ **Your weapon speed applies while away.** Away combat used a flat swing rate, so slow weapons swung *faster* asleep than awake and fast ones swung slower.
+- 🍖 **Food buffs now pause while you're away** instead of being silently ignored — you come back with exactly the time you left with, and no food is eaten. Blessings still only pay while you're playing.
+- 📊 **Away time pays the same rate as playing.** No hidden discount; the only difference is which bonuses are in scope, and the welcome-back summary now tells you.
+- 🚀 **Faster, too** — a long absence is now processed in about a third of the time, and a background logging bug that slowed down every kill during normal play is fixed.
+
 ## v0.9.2-beta build 324 — 2026-08-11 (Fixes errors on slow page loads)
 
 - 🐛 **Fixed JavaScript errors that could appear while the game was still loading**, most likely on a slow connection or a first visit with an empty cache. Some parts of the game started before the shared engine had finished loading and threw errors; they now wait for it. Introduced in build 319 — sorry about that.

@@ -29,18 +29,22 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=324';
-import * as xp from './core/xp.js?v=324';
-import * as combat from './core/combat.js?v=324';
-import * as drops from './core/drops.js?v=324';
-import * as pacing from './core/pacing.js?v=324';
-import * as rested from './core/rested.js?v=324';
-import * as tools from './core/tools.js?v=324';
-import * as farm from './core/farm.js?v=324';
-import * as progression from './core/progression.js?v=324';
-import * as styles from './core/styles.js?v=324';
-import * as artisan from './core/artisan.js?v=324';
-import * as bounty from './core/bounty.js?v=324';
+import * as rngMod from './core/rng.js?v=325';
+import * as xp from './core/xp.js?v=325';
+import * as combat from './core/combat.js?v=325';
+import * as drops from './core/drops.js?v=325';
+import * as pacing from './core/pacing.js?v=325';
+import * as rested from './core/rested.js?v=325';
+import * as tools from './core/tools.js?v=325';
+import * as farm from './core/farm.js?v=325';
+import * as progression from './core/progression.js?v=325';
+import * as styles from './core/styles.js?v=325';
+import * as artisan from './core/artisan.js?v=325';
+import * as bounty from './core/bounty.js?v=325';
+import * as away from './core/away.js?v=325';
+import * as botd from './core/botd.js?v=325';
+import * as buffs from './core/buffs.js?v=325';
+import * as combatSim from './core/combat-sim.js?v=325';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -147,7 +151,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty,
+  styles, artisan, bounty, away, botd, buffs, combatSim,
 
   /* The session RNG. */
   get rng() { return rng; },
@@ -217,6 +221,16 @@ Object.assign(window, {
   BOUNTY_DIFFICULTY_MULT: bounty.BOUNTY_DIFFICULTY_MULT,
   BOUNTY_TYPE_LABEL: bounty.BOUNTY_TYPE_LABEL,
   BOUNTY_DIFFICULTY_LABEL: bounty.BOUNTY_DIFFICULTY_LABEL,
+
+  /* THE UNIFICATION. `BUFFS_DEF` was a `const` inside legacy.js's buff-queue
+     IIFE re-published on window; it is authored in src/core/buffs.js now, so
+     the accrual engine reads the same registry the tooltip does — and the
+     `damage_crit` exclusion the ruling names needs no special case, because
+     it is simply a member of the buff channel.
+     `AWAY_RATE_MULT` is published so the value is inspectable from devtools
+     and from the suite: a dial nobody can read is a dial nobody trusts. */
+  BUFFS_DEF: buffs.BUFFS_DEF,
+  AWAY_RATE_MULT: away.AWAY_RATE_MULT,
 });
 
 /* THE READINESS SIGNAL — must be the last statement in this file.

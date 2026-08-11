@@ -23,16 +23,29 @@
     return !!(G.companions && G.companions.ownedIds && G.companions.ownedIds.indexOf(id) >= 0);
   }
 
+  /* MEMOISED. `parse()` used to walk the whole COMPANIONS table on every call,
+     and rollSkillPet() is hooked onto addXp — which fires three to five times
+     per combat tick. A 12-hour away replay is ~18,000 ticks, so this rebuilt
+     the same array roughly 60,000 times for a table that never changes at
+     runtime. Measured at ~200ms of a single welcome-back catch-up, and it is
+     on the LIVE hot path too.
+
+     Keyed on the table's identity, so a data reload (or a test substituting
+     window.COMPANIONS) invalidates the cache rather than serving a stale one. */
+  var _parseCache = null, _parseFor = null;
   function parse(kind) {
     // returns [{petId, key, n}] for the given source kind
-    var out = [];
     var C = defs();
+    if (_parseFor !== C) { _parseFor = C; _parseCache = {}; }
+    if (_parseCache[kind]) return _parseCache[kind];
+    var out = [];
     Object.keys(C).forEach(function (id) {
       var src = C[id] && C[id].source;
       if (typeof src !== 'string' || src.indexOf(kind + ':') !== 0) return;
       var parts = src.split(':');
       out.push({ petId: id, key: parts[1], n: Math.max(2, parseInt(parts[2], 10) || 2000) });
     });
+    _parseCache[kind] = out;
     return out;
   }
 

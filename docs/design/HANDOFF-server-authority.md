@@ -51,16 +51,29 @@ retrofit had never been exercised over HTTP. Verified after the apply:
 data, and live players were active minutes before. PostgREST resolution survives the
 retrofit.
 
-**File 2 `2026-08-11-live-market-rls.sql` is NOT applied.** `beta_invite_check` does not
-exist, `market_listings` has 0 triggers, its `FOR ALL` policy is still present, and
-`market_sales` still has its row-level UPDATE policy. **So A6 (market seller_name
-impersonation + post-listing mutation), A8 (market_sales column freedom) and A11
-(world-readable beta_invites) are ALL STILL LIVE AND EXPLOITABLE.** Apply this next.
+**File 2 `2026-08-11-live-market-rls.sql` IS APPLIED** (`live_market_rls_a6_a8_a11`,
+2026-08-11 14:31 UTC — after the self-check fix in f4a2915). Re-verified by querying
+production 2026-08-11: `beta_invite_check` exists, `market_listings` carries 2 triggers,
+its `FOR ALL` policy is GONE (only SELECT/INSERT/DELETE remain), and `market_sales`
+keeps exactly one UPDATE policy — the deliberately narrowed
+`USING (uid = seller AND collected = false) WITH CHECK (uid = seller AND collected = true)`
+one-way flip, which is what §2 is supposed to leave behind, not the old row-level policy.
+**A6 and A8 are CLOSED.**
 
-**File 3 `2026-08-11-grant-hygiene.sql` is NOT applied** in its updated form —
-`hr_assert_grant_hygiene` exists but does not yet contain the S9 `hr_engine` capability
-pin. Apply it AFTER file 2 (it deliberately fails if A9 is not done; A9 is done, so it
-should pass now).
+**File 3 `2026-08-11-grant-hygiene.sql` IS APPLIED** (`grant_hygiene_v3_detector`,
+14:33 UTC). `hr_assert_grant_hygiene` exists and its body contains the S9 `hr_engine`
+capability pin.
+
+**A11 — client half DONE (commit efe6539), server half DELIBERATELY NOT APPLIED YET.**
+`src/settings-page.js` no longer reads `beta_invites`; it calls `beta_invite_check`,
+verified over HTTP with the real anon key (valid → `{"ok":true}`, unknown → refused).
+The read is now module-scope and published as `HearthriseInvite.validate` so its request
+shape is testable; the regression test is mutation-proven (577/578 with the table read
+put back). §3b — the world-readable policy drop behind
+`hearthrise.beta_invites_lockdown_ok = 'yes'` — **must be applied only AFTER this client
+is deployed**, because b324 is what players are running and it still reads the table.
+Control run 2026-08-11: the anon key still lists all 20 codes. **A11 remains OPEN
+until the bump ships and the file is applied a second time.**
 
 **Edge Function: NOT DEPLOYED — and that was the right outcome.** The deploy would have
 been 100% broken on arrival: `index.ts` makes `public.hr_rate_gate(...)` the FIRST
@@ -141,7 +154,11 @@ duplicating them, and **exits 1 if its own control stops firing** — a probe th
 prove it can see failure is treated as broken, not as a pass.
 
 ## NEXT, IN ORDER
-1. Get a `SUPABASE_ACCESS_TOKEN` from Tyler and deploy the Edge Function from the staged tree; then set `HR_ACCRUE_URL` so `deployedPayloadGuard` stops skipping.
+1. Get a `SUPABASE_ACCESS_TOKEN` from Tyler and deploy the Edge Function from the staged tree; then set `HR_ACCRUE_URL` so `deployedPayloadGuard` stops skipping. Re-confirmed 2026-08-11: `list_edge_functions` returns `bug-report-bridge` ONLY, so this is still the live blocker.
+1b. **After the next client bump ships**, apply `2026-08-11-live-market-rls.sql` a SECOND
+   time with `set hearthrise.beta_invites_lockdown_ok = 'yes'` — that closes A11's
+   server half. The client half is already in (efe6539); doing it before the deploy
+   would break sign-up for anyone on b324.
 2. **The client rewire** — the largest remaining risk, explicitly low confidence. It
    touches `legacy.js` everywhere, so agents cannot parallelise on it. Must NOT be
    wired to a non-deployed engine.

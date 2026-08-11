@@ -55,6 +55,8 @@ The rule going forward:
 
 The target property is not "unhackable" (unachievable in a browser) — it is: **a forged client value cannot cross into another player's economy or ranking.**
 
+**The beta WILL BE WIPED at cutover** (Tyler, 2026-08-10: "I do not care if anything has been exploited because this beta version is gonna be wiped anyway. I care about doing it correctly from this point forward."). So: no back-compat, no save migration, no amnesty, no forensic audit of existing abuse, and no need to harden an economy that is going away. Design the server-authoritative model **correctly rather than compatibly** — this is effectively greenfield on the server side, which removes the hardest constraint in the whole program.
+
 ## Architecture direction (locked 2026-08-07; amended 2026-08-10)
 
 Goal: scale in content **and ship to Steam + mobile from one web core.** Approach: **incremental refactor-in-place — never a rewrite.**

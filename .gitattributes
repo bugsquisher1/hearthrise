@@ -1,0 +1,9 @@
+# The Edge deploy payload is fingerprinted by sha256 over its exact bytes
+# (tools/pack-edge.mjs -> payload-hash.js -> the deployed GET -> the smoke guard).
+# With core.autocrlf=true a Windows worktree hands the packer CRLF while a Linux
+# checkout hands it LF, so the SAME COMMIT packs to two different hashes and the
+# guard fails on whichever machine did not do the deploy. Pin every file that
+# feeds that payload to LF so the fingerprint is a property of the commit.
+supabase/functions/** text eol=lf
+src/core/** text eol=lf
+src/data/** text eol=lf

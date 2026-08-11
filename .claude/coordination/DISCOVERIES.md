@@ -4,6 +4,37 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-11 · Systems Engineer · A "flaky test" on this project has meant a fixture that does not guarantee what it asserts — twice, and both times the fix was a SEAM, never a tolerance
+**Discovery:** two long-standing intermittent failures were diagnosed to root cause rather than
+patched.
+1. **`b260`** (~1 run in 4) replays five real minutes of away combat through `combat-sim`, whose rng
+   is seeded from `Math.random()` at boot — so **every run fought a different five minutes**, and on
+   the unlucky seeds the player *died*. A death clears `G.activeMonster`, so `resumeActiveActivity()`
+   correctly re-armed nothing and the test called the engine broken. Proven by execution: weakening
+   the fixture on purpose produced 2 failures out of 2 with that exact message.
+2. **`b307`** asserted "a second read of the SAME INSTANT banks nothing" while sampling `Date.now()`
+   five separate times; it only held when two calls landed in the same millisecond (an instrumented
+   run measured 160/200 returning 1–4ms). `claimOfflineMs(now, active)` *takes the instant as a
+   parameter* for exactly this reason.
+**Affected systems:** every test that drives `combat-sim`, `processOffline`, `__hrResume`,
+`claimOfflineMs` or anything else reading the wall clock or the global rng.
+**Required action:** if your test runs the simulator, **pin the seed** (`HearthriseCore.reseed(n)`,
+restore with `randomSeed()`) or make the outcome impossible to vary, and **assert the precondition**
+so a future balance change fails loudly instead of going flaky. If your test names an instant, pass
+that instant — a tolerance on a double-pay guard silently accepts a real double-pay (the b214 class).
+
+### 2026-08-11 · Systems Engineer · `RoomModal.paint()` rebuilt every form control from its descriptor, so any repaint silently reverted what the player had picked or typed
+**Discovery:** `refresh()` is called by an armed button, a finished RPC and a 30-second feast timer.
+Each one destroyed and rebuilt the modal. Found by driving the panel in a browser with a stubbed
+`fetch`: choosing a 24-hour ban and clicking Remove (which arms, which repaints) **sent 168 hours**.
+The Storehouse's deposit picker had the identical latent defect.
+**Affected systems:** every `kind:'field'` control in the clan-seat room modal, and any future
+consumer of the room-modal component (the homestead is specced to reuse it).
+**Required action:** none — fixed in `paint()`, which now carries `[data-cs-sel|qty|txt]` values,
+focus and caret across a repaint (it already carried `scrollTop` for the same reason) and re-fires
+`change` so derived previews stay honest. Guarded by `b330`. **Do not add a new form control that
+keeps its state anywhere other than the DOM**, or it will fall outside this.
+
 ### 2026-08-11 · Art Director · `legacy.css`'s mobile `.panel.active` declares ONE explicit grid track in each axis, `!important` — any panel that tries to become a real grid on a phone silently lands in implicit tracks
 **Discovery:** in `@media (max-width:900px), (max-height:540px) and (max-width:1024px)`,
 `legacy.css` sets `.panel.active { grid-template-columns: 1fr !important; grid-template-rows: auto !important }`.

@@ -638,15 +638,25 @@
 }
 .hr-cs-eyebrow:first-child { margin-top: 0; }
 
-.hr-cs-field { display: flex; gap: 6px; margin: 8px 0 0; }
+/* b330: `flex-wrap` so a field that carries a select AND a text box AND a
+   button (the invite row) stacks instead of squeezing on a 922x423 landscape
+   phone, where the modal is full-bleed and the body is ~890px wide minus
+   padding. The 44px tap floor is honoured by the button's own rule. */
+.hr-cs-field { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
 .hr-cs-field input, .hr-cs-field select {
-  flex: 1; min-width: 0;
-  background: rgba(0, 0, 0, .3);
+  flex: 1 1 160px; min-width: 0;
+  background: var(--field-sunk);
   border: 1px solid var(--line-soft); border-radius: 8px;
   padding: 8px 10px; color: var(--ink);
   font-family: inherit; font-size: 13.5px;
 }
 .hr-cs-field input:focus, .hr-cs-field select:focus { outline: none; border-color: var(--gold-2); }
+
+/* b330 — THE MEMBERSHIP CONTROLS. A roster row can now carry two buttons
+   ("Make vice leader" and "Remove"), and on a short landscape phone the row is
+   ~500px of name + two numbers before them. Let the cluster wrap under the
+   numbers rather than shrinking the name to nothing. */
+.hr-cs-rowacts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
 .hr-cs-preview { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; }
 .hr-cs-preview b { color: var(--gold-2); }
@@ -659,6 +669,12 @@
  * the room modal stayed a floating card on a phone held sideways. Add the
  * landscape phone query so it fullscreens there too. */
 @media (max-width: 640px), (max-height: 540px) and (max-width: 1024px) {
+  /* b330: a roster row on a 922x423 phone is a name, two figures and up to two
+     buttons. Let it wrap so the buttons drop under the name instead of the name
+     being squeezed to an ellipsis — the name is the thing being acted on. */
+  .hr-cs-row { flex-wrap: wrap; }
+  .hr-cs-row .hr-cs-grow { flex: 1 1 100%; }
+  .hr-cs-rowacts { flex: 1 1 100%; }
   .hr-cs-hold { height: 168px; }
   .hr-cs-name { font-size: 19px; }
   .hr-room-scrim { padding: 0; align-items: stretch; }
@@ -735,15 +751,37 @@
   color: var(--gold-2);
 }
 .clan-empty p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
-.clan-found { display: flex; gap: 6px; margin-top: 12px; }
-.clan-found input {
-  flex: 1; min-width: 0;
-  background: rgba(0, 0, 0, .3);
+/* b330: the founding row gained the DOOR select, so it wraps rather than
+   crushing the name box on a landscape phone. The colour is a token now
+   (--field-sunk) — the value is unchanged, so cozy-light is untouched. */
+.clan-found { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.clan-found input, .clan-found select {
+  flex: 1 1 160px; min-width: 0;
+  background: var(--field-sunk);
   border: 1px solid var(--line-soft); border-radius: 8px;
   padding: 8px 10px; color: var(--ink);
   font-family: inherit; font-size: 13.5px;
 }
-.clan-found input:focus { outline: none; border-color: var(--gold-2); }
+.clan-found select { flex: 0 1 auto; }
+.clan-found input:focus, .clan-found select:focus { outline: none; border-color: var(--gold-2); }
+
+/* b330 — THE INVITATION INBOX. An invitation is the one clan surface that
+   arrives unbidden, so it sits above "Find a hold" and is bordered rather than
+   merely listed: a player who has been invited must not have to scroll a
+   recruitment list to discover it. Colours are tokens; the gilt hairline is the
+   same one the signpost uses. */
+#panel-clan .clan-invites { max-width: 760px; }
+.clan-invites {
+  margin: 0 0 16px; padding: 10px 14px 6px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--gold-bg);
+}
+.clan-invites h4 {
+  margin: 0 0 4px;
+  font-family: var(--f-display, serif);
+  font-size: 19px; font-weight: 800; color: var(--gold-2);
+}
+.clan-invites .shop-row { max-width: none; }
 
 /* The signpost left behind in Social. One row, one sentence, one button — it
  * points at the hold, it does not redraw it. */

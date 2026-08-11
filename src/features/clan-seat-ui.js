@@ -1792,11 +1792,72 @@
     }
     function refresh() { if (_build && isOpen()) paint(); }
 
+    /* b330 — A REPAINT MUST NOT SILENTLY UNDO WHAT THE PLAYER JUST CHOSE.
+       paint() rebuilds the whole modal, and refresh() is called by a dozen
+       things (an armed button, a finished RPC, a 30-second feast timer). Before
+       this, every <select>, quantity and text box in the room was reset to its
+       descriptor default on each of those. It was CAUGHT at runtime rather than
+       reasoned about: choosing a 24-hour bar and then clicking Remove — which
+       arms the button, which repaints — sent 168 hours, because the select had
+       silently snapped back to its first option between the two clicks. A
+       control that quietly reverts is worse than one that is missing.
+
+       So the values are carried across, keyed by the control's name, and only
+       when the new DOM still offers that value (an option list can legitimately
+       change under it). Focus and caret come with them, or typing a display
+       name would be interrupted by any background refresh. scrollTop was
+       already preserved for exactly this reason; this is the same idea applied
+       to the thing the player actually typed. */
+    function snapshotFields(root) {
+      var keep = { val: {}, focus: null, sel: null };
+      if (!root) return keep;
+      [].forEach.call(root.querySelectorAll('[data-cs-sel],[data-cs-qty],[data-cs-txt]'), function (el) {
+        keep.val[fieldKey(el)] = el.value;
+      });
+      var a = document.activeElement;
+      if (a && root.contains(a) && a.matches && a.matches('[data-cs-sel],[data-cs-qty],[data-cs-txt]')) {
+        keep.focus = fieldKey(a);
+        try { keep.sel = [a.selectionStart, a.selectionEnd]; } catch (e) { keep.sel = null; }
+      }
+      return keep;
+    }
+    function fieldKey(el) {
+      return (el.getAttribute('data-cs-sel') ? 'sel:' : el.getAttribute('data-cs-qty') ? 'qty:' : 'txt:') +
+        (el.getAttribute('data-cs-sel') || el.getAttribute('data-cs-qty') || el.getAttribute('data-cs-txt'));
+    }
+    function restoreFields(root, keep) {
+      if (!root || !keep) return;
+      [].forEach.call(root.querySelectorAll('[data-cs-sel],[data-cs-qty],[data-cs-txt]'), function (el) {
+        var k = fieldKey(el);
+        if (!(k in keep.val)) return;
+        var v = keep.val[k];
+        if (el.tagName === 'SELECT' && !([].some.call(el.options, function (o) { return o.value === v; }))) return;
+        if (el.value === v) return;
+        el.value = v;
+        /* Anything DERIVED from a field (the Storehouse's payout preview) is
+           rebuilt from the descriptor's defaults, so a restored value has to
+           re-announce itself or the preview would describe a different choice
+           than the one showing. Same event the player's own edit fires. */
+        try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+      });
+      if (!keep.focus) return;
+      var back = null;
+      [].forEach.call(root.querySelectorAll('[data-cs-sel],[data-cs-qty],[data-cs-txt]'), function (el) {
+        if (fieldKey(el) === keep.focus) back = el;
+      });
+      if (!back) return;
+      try {
+        back.focus();
+        if (keep.sel && back.setSelectionRange) back.setSelectionRange(keep.sel[0], keep.sel[1]);
+      } catch (e) {}
+    }
+
     function paint() {
       var d = _build();
       if (!d) { close(); return null; }
       var prev = document.querySelector('.hr-room-scrim');
       var scrollTop = prev ? (prev.querySelector('.hr-room-body') || {}).scrollTop || 0 : 0;
+      var keep = snapshotFields(prev);
       if (prev) prev.remove();
 
       var sc = document.createElement('div');
@@ -1824,6 +1885,7 @@
       document.body.appendChild(sc);
       var body = sc.querySelector('.hr-room-body');
       if (body && scrollTop) body.scrollTop = scrollTop;
+      restoreFields(sc, keep);
       return sc;
     }
 
@@ -1866,9 +1928,23 @@
         return (s.title ? eyebrow(s.title) : '') +
           (s.intro ? '<div class="hr-cs-foot">' + s.intro + '</div>' : '') +
           '<div class="hr-cs-field">' +
-            (s.select ? '<select data-cs-sel="' + esc(s.select.name) + '">' + (s.select.options || []).map(function (o) {
-              return '<option value="' + esc(o.value) + '">' + esc(o.label) + '</option>';
-            }).join('') + '</select>' : '') +
+            /* `value` preselects. Without it a select that reflects live server
+               state (the hold's door) would open showing the wrong answer and
+               invite a leader to "change" it to what it already is. */
+            (s.select ? '<select data-cs-sel="' + esc(s.select.name) + '"' +
+              (s.select.label ? ' aria-label="' + esc(s.select.label) + '"' : '') + '>' +
+              (s.select.options || []).map(function (o) {
+                return '<option value="' + esc(o.value) + '"' +
+                  (s.select.value != null && String(s.select.value) === String(o.value) ? ' selected' : '') +
+                  '>' + esc(o.label) + '</option>';
+              }).join('') + '</select>' : '') +
+            /* A free-text field, for a descriptor that needs a name typed rather
+               than picked from a list. Whatever is typed is a LOOKUP KEY the
+               caller resolves server-side; this component never stores it. */
+            (s.text ? '<input type="text" data-cs-txt="' + esc(s.text.name) + '" maxlength="' +
+              (s.text.maxlength || 24) + '" value="' + esc(s.text.value || '') +
+              '" placeholder="' + esc(s.text.placeholder || '') +
+              '" aria-label="' + esc(s.text.placeholder || s.text.name) + '">' : '') +
             (s.qty ? '<input type="number" min="1" step="1" value="' + esc(s.qty.value == null ? 1 : s.qty.value) +
               '" data-cs-qty="' + esc(s.qty.name) + '" placeholder="' + esc(s.qty.placeholder || 'Quantity') +
               '" aria-label="' + esc(s.qty.placeholder || 'quantity') + '">' : '') +
@@ -1968,6 +2044,14 @@
   function myCharge() { var s = seat(); return (s && s.my_charge) || null; }
   function isVice() { return C().mayPostOrder(myRole(), myCharge()); }
   function isLeader() { return myRole() === 'leader'; }
+  /* WHO MAY WORK THE DOOR. This is not the vice-leader office — it is exactly
+     the predicate the SERVER enforces (`hr_clan_may_admit` returns a row for
+     role in ('leader','officer') and nothing else), restated here so the panel
+     hides controls the server would refuse instead of drawing a button whose
+     only outcome is "Only the hold's leadership can do that". A vice leader is
+     a `charge`, not a role, and it does NOT admit — showing them a kick button
+     would be the panel promising something the migration does not. */
+  function isLeadership() { var r = myRole(); return r === 'leader' || r === 'officer'; }
   /* What the panel calls the office, in running text. */
   function VICE() { return 'vice leader'; }
 
@@ -2539,6 +2623,15 @@
           };
         }) });
 
+      /* MEMBERSHIP sits directly above the roster, because the door, the
+         invitations and the removals are all answers to the question a leader
+         is holding while they read that list. */
+      sections.push(doorSection());
+      if (isLeadership()) {
+        sections.push(inviteSection());
+        sections.push(outstandingSection());
+        sections.push(removalSection());
+      }
       sections.push({ kind: 'rows', title: 'Those sworn to the hold',
         empty: _roster === null ? 'Reading the roster&hellip;' : 'No members yet.',
         rows: (_roster || []).map(rosterRow) });
@@ -2749,6 +2842,107 @@
     if (m.charge === 'marshal') return 'Marshal';
     return m.role === 'officer' ? 'Officer' : 'Member';
   }
+  /* ══════════════════════════════════════════════════════════════════════
+     MEMBERSHIP — the surface the S-KICK remedy was missing
+     ══════════════════════════════════════════════════════════════════════
+     `2026-08-11-clan-membership-authority.sql` shipped clan_kick, clan_invite,
+     clan_invite_revoke and clan_join_policy_set, and `clans.js` wired the
+     transport — but nothing drew a control, so a hold that had been joined
+     uninvited still had no way to act. A kick RPC nobody can click is the same
+     as no remedy. These four blocks are the click.
+
+     Everything here is leadership-only IN THE PANEL and leadership-only ON THE
+     SERVER; the panel's copy is the reason, never the enforcement. */
+  var _invites = null;        // null = not read yet · [] = read, none pending
+  var _inviteRead = 0;
+  var _kickArm = null;        // the user_id whose Remove button is armed
+  var BAN_CHOICES = [
+    { value: 168, label: 'Barred 7 days (default)' },
+    { value: 24,  label: 'Barred 24 hours' },
+    { value: 720, label: 'Barred 30 days' },
+    { value: 0,   label: 'No bar — they may come back' }
+  ];
+  function banHoursPicked(scope) {
+    var el = (scope || document).querySelector('[data-cs-sel="ban"]');
+    var v = el ? +el.value : 168;
+    return isFinite(v) ? Math.max(0, Math.min(720, v)) : 168;
+  }
+  async function readInvites(force) {
+    var Cl = window.HearthriseClans;
+    if (!Cl || typeof Cl.outstandingInvites !== 'function') { _invites = []; return _invites; }
+    if (!force && _invites !== null && (Date.now() - _inviteRead) < 30000) return _invites;
+    try { _invites = await Cl.outstandingInvites(); } catch (e) { _invites = []; }
+    _inviteRead = Date.now();
+    return _invites;
+  }
+  async function refreshMembership() {
+    var Cl = window.HearthriseClans;
+    _roster = null; _kickArm = null;
+    RoomModal.refresh();
+    try { _roster = (Cl && await Cl.roster()) || []; } catch (e) { _roster = []; }
+    await readInvites(true);
+    RoomModal.refresh();
+  }
+  function doorSection() {
+    var clan = myClanObj() || {};
+    var policy = clan.join_policy === 'invite' ? 'invite' : 'open';
+    if (!isLeadership()) {
+      return { kind: 'note', html: 'The hold is <b>' + (policy === 'invite'
+        ? 'invite only' : 'open to all') + '</b>. Only the leader and the hold\'s officers can change that.' };
+    }
+    /* The intro states the LIVE policy in words as well as in the select,
+       because a repaint deliberately preserves a pending, uncommitted choice in
+       the control (losing what a player half-picked is the worse failure) — so
+       the sentence is what stays true when the dropdown is showing an intent. */
+    return { kind: 'field', title: 'The door',
+      intro: 'The hold is currently <b>' + (policy === 'invite' ? 'invite only' : 'open to all') + '</b>. ' +
+        'An <b>open</b> hold may be joined by anyone who finds it. An <b>invite only</b> hold refuses ' +
+        'every uninvited join outright — which is what stops an alt army walking in while you sleep.',
+      select: { name: 'door', label: 'Who may join', value: policy, options: [
+        { value: 'open', label: 'Open to all' },
+        { value: 'invite', label: 'Invite only' }
+      ] },
+      button: { action: 'door-set', label: 'Set the door' } };
+  }
+  function inviteSection() {
+    return { kind: 'field', title: 'Invite a player',
+      intro: 'By the name they play under. The server resolves it &mdash; spelling counts, capitals do not. ' +
+        'An invitation lasts 7 days, opens an invite-only door for that one player, and <b>lifts a bar</b> ' +
+        'if you have one on them.',
+      text: { name: 'invite', placeholder: 'Their display name', maxlength: 24 },
+      button: { action: 'invite-send', label: 'Send it' } };
+  }
+  function outstandingSection() {
+    var rows = (_invites || []).map(function (i) {
+      return {
+        name: esc(i.display_name || 'A player'),
+        meta: 'Invited ' + esc(fmtAgo(i.at)) + ' &middot; lapses ' + esc(whenText(i.expires_at)),
+        right: '<button class="btn btn-sm" data-cs="invite-revoke" data-u="' + esc(i.user_id) + '">Withdraw</button>'
+      };
+    });
+    return { kind: 'rows', title: 'Invitations outstanding',
+      empty: _invites === null ? 'Reading the hold\'s journal&hellip;' : 'Nobody is waiting on an invitation.',
+      rows: rows };
+  }
+  function whenText(iso) {
+    var Cl = window.HearthriseClans;
+    return (Cl && Cl.fmtWhen) ? Cl.fmtWhen(iso) : 'in 7 days';
+  }
+  function fmtAgo(atMs) {
+    var mins = Math.max(0, Math.round((Date.now() - atMs) / 60000));
+    if (mins < 60) return mins + ' minute' + (mins === 1 ? '' : 's') + ' ago';
+    if (mins < 1440) return Math.round(mins / 60) + ' hour' + (Math.round(mins / 60) === 1 ? '' : 's') + ' ago';
+    return Math.round(mins / 1440) + ' day' + (Math.round(mins / 1440) === 1 ? '' : 's') + ' ago';
+  }
+  function removalSection() {
+    return { kind: 'field', title: 'Removals',
+      intro: 'Pick how long a removed member is barred, then use <b>Remove</b> beside their name. A bar is what ' +
+        'makes a removal a remedy rather than a revolving door on an open hold &mdash; and an invitation lifts it. ' +
+        'Their Contribution and Standing stay with the hold.',
+      select: { name: 'ban', label: 'How long a removed member is barred',
+        options: BAN_CHOICES.map(function (b) { return { value: b.value, label: b.label }; }) } };
+  }
+
   function rosterRow(m) {
     var now = Date.now();
     var nm = (m.profiles && m.profiles.display_name) || 'Adventurer';
@@ -2763,13 +2957,27 @@
         esc(m.user_id) + '" data-g="' + (isVice_ ? '0' : '1') + '">' +
         (isVice_ ? 'Remove vice' : 'Make vice leader') + '</button>'
       : '';
+    /* THE REMOVE CONTROL. Two clicks, never one: an eviction forfeits the
+       member's Contribution and Standing and bars them, and there is no undo
+       short of an invitation. The armed state says what it will do, so the
+       confirmation carries the consequence instead of asking "are you sure?"
+       about nothing. The leader can never be removed and neither can you —
+       the server refuses both, so the panel does not offer them. */
+    var armed = _kickArm && _kickArm === m.user_id;
+    var meId = (session() && session().user && session().user.id) || null;
+    var kickable = isLeadership() && m.user_id && m.role !== 'leader' && m.user_id !== meId;
+    var kick = kickable
+      ? '<button class="btn btn-sm' + (armed ? ' btn-danger' : '') + '" data-cs="kick" data-u="' +
+        esc(m.user_id) + '">' + (armed ? 'Remove &mdash; confirm' : 'Remove') + '</button>'
+      : '';
     return {
       name: esc(nm),
       meta: esc(rankWord(m)) +
         (fresh ? ' &middot; joined recently &mdash; counts toward tier gates in ' +
           fmtLeft(C().MEMBERSHIP_GRACE_MS - (now - Date.parse(m.joined_at))) : ''),
       right: '<span class="hr-cs-amt">' + (cp == null ? '&mdash;' : n(cp) + ' CP') + '</span>' +
-        '<span class="hr-cs-amt">' + n(m.contributed) + 'g</span>' + grant
+        '<span class="hr-cs-amt">' + n(m.contributed) + 'g</span>' +
+        (grant || kick ? '<span class="hr-cs-rowacts">' + grant + kick + '</span>' : '')
     };
   }
 
@@ -2863,11 +3071,19 @@
     if (!ROOMS[id]) return;
     _openRoom = id;
     RoomModal.open(function () { return ROOMS[id](); });
-    if (id === 'great_hall' && _roster === null) {
-      window.HearthriseClans.roster().then(function (rows) {
-        _roster = rows || [];
-        if (_openRoom === 'great_hall') RoomModal.refresh();
-      }).catch(function () { _roster = []; if (_openRoom === 'great_hall') RoomModal.refresh(); });
+    if (id === 'great_hall') {
+      _kickArm = null;                       // a room re-opened is never pre-armed
+      if (_roster === null) {
+        window.HearthriseClans.roster().then(function (rows) {
+          _roster = rows || [];
+          if (_openRoom === 'great_hall') RoomModal.refresh();
+        }).catch(function () { _roster = []; if (_openRoom === 'great_hall') RoomModal.refresh(); });
+      }
+      // Only leadership can see or act on invitations, so only leadership reads.
+      if (isLeadership()) {
+        readInvites().then(function () { if (_openRoom === 'great_hall') RoomModal.refresh(); })
+          .catch(function () {});
+      }
     }
     if (id === 'tavern') readBoard().then(function () { if (_openRoom === 'tavern') RoomModal.refresh(); })
       .catch(function () {});
@@ -2954,6 +3170,39 @@
     }
     if (a === 'feast-call') { feastCall(); return; }
     if (a === 'board-claim') { boardClaim(el.getAttribute('data-t')); return; }
+    // ── membership (2026-08-11 authority; the panel side) ──
+    if (a === 'kick') {
+      var ku = el.getAttribute('data-u');
+      if (_kickArm !== ku) { _kickArm = ku; RoomModal.refresh(); return; }   // arm, then act
+      _kickArm = null;
+      var hrs = banHoursPicked(scope);
+      window.HearthriseClans.kick(ku, hrs).then(function (ok) {
+        if (ok) refreshMembership();
+      }).catch(function () {});
+      return;
+    }
+    if (a === 'invite-send') {
+      var it = scope.querySelector('[data-cs-txt="invite"]');
+      var nm = it ? String(it.value || '').trim() : '';
+      if (!nm) { toast('Type the name they play under', 'info'); return; }
+      window.HearthriseClans.invite(nm).then(function (ok) {
+        if (ok) { if (it) it.value = ''; refreshMembership(); }
+      }).catch(function () {});
+      return;
+    }
+    if (a === 'invite-revoke') {
+      window.HearthriseClans.inviteRevoke(el.getAttribute('data-u')).then(function (ok) {
+        if (ok) refreshMembership();
+      }).catch(function () {});
+      return;
+    }
+    if (a === 'door-set') {
+      var ds = scope.querySelector('[data-cs-sel="door"]');
+      window.HearthriseClans.setJoinPolicy(ds ? ds.value : 'open').then(function (ok) {
+        if (ok) RoomModal.refresh();
+      }).catch(function () {});
+      return;
+    }
     // ── governance ──
     if (a === 'vice') { setVice(el.getAttribute('data-u'), el.getAttribute('data-g') === '1'); return; }
     if (a === 'vote-cast') { castVote(el.getAttribute('data-b')); return; }
@@ -3066,6 +3315,12 @@
     },
     _setVotePick: function (list) { _votePick = (list || []).slice(); },
     _setRoster: function (rows) { _roster = rows || null; },
+    // membership seams — state-only, no I/O, same shape the transport returns
+    _setInvites: function (rows) { _invites = rows || null; _inviteRead = Date.now(); },
+    _setKickArm: function (u) { _kickArm = u || null; },
+    _kickArmed: function () { return _kickArm; },
+    isLeadership: isLeadership,
+    BAN_CHOICES: BAN_CHOICES,
     _setViceSupport: function (v) { _viceSupport = v; },
     _setClan: function (c) { _clanStub = c || null; },
     _setSeat: function (s, id) { _seat = s; _seatClan = id || (s ? clanId() : null); _support = s ? 'live' : 'unsupported'; },
@@ -3076,6 +3331,7 @@
       _labour = 0; _labourToday = 0; _labourCapped = false;
       _vote = null; _mayOpenVote = false; _voteSupport = 'unknown'; _voteAt = 0;
       _votePick = []; _viceSupport = 'unknown'; _voteChecking = false;
+      _invites = null; _inviteRead = 0; _kickArm = null;
     },
     _setBoard: function (b) { _board = b; },
     _labour: function () { return { pending: _labour, today: _labourToday, capped: _labourCapped }; },

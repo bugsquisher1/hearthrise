@@ -2,6 +2,35 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-11 · b330 — the clan management surface, and two flakes that were never flaky
+
+Branch `feat/clan-management-b330`, off `173665d` (b329). **590/590, 0 runtime errors.** No version bump.
+
+**The lesson I want to keep.** Both "flaky" tests were tests whose fixtures did not guarantee what
+they asserted, and in both cases the honest fix was a *seam*, never a tolerance.
+
+- `b307` asserted "a second read of the SAME INSTANT banks nothing" while sampling `Date.now()`
+  five separate times. `claimOfflineMs(now, active)` takes the instant as a parameter for exactly
+  this reason. Freezing it made the test say what it meant. A tolerance would have accepted a real
+  few-millisecond double-pay — the b214 class.
+- `b260` replayed five real minutes of away combat with an rng seeded from `Math.random()`. On the
+  unlucky seeds the player *died*, which clears `G.activeMonster`, so the resume correctly re-armed
+  nothing and the test called it a failure. I proved that rather than assuming it: weakening the
+  fixture on purpose produced 2 failures out of 2 with that exact message. Death is now removed by
+  construction, the seed is pinned, and the precondition is an assertion — a future balance change
+  fails loudly instead of going flaky.
+
+**The bug I would not have found by reading.** Arming the two-step Remove repaints the modal, and
+the repaint rebuilt every control from its descriptor — so picking a 24-hour bar and then clicking
+Remove sent **168**. Caught by driving the panel in a browser with a stubbed `fetch` and reading the
+request body. Fixed in `paint()` (which already preserved `scrollTop` for the same reason), so the
+whole `[data-cs-sel|qty|txt]` family is covered, including the Storehouse deposit picker's identical
+latent defect.
+
+**What I deliberately did not do.** No `clan_invites` SELECT policy, no invented decline path, no
+session-only invite list. The outstanding-invitations list is derived from `clan_ledger` (public
+read, journalled by every membership RPC) and the replacement RPC is specified in `CONFLICTS.md`.
+
 ## 2026-08-11 · XARN'S AUTO-EAT — a control that wrote to nobody
 
 Branch `fix/auto-eat-threshold-b329`, commit `2f90ad8`. **581/581, 0 runtime errors.**

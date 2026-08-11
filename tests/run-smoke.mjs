@@ -232,7 +232,28 @@ async function landscapeGuard(browser, url) {
   return problems;
 }
 
+// PREFLIGHT — the server catalogue must match src/data/*.js.
+//
+// Postgres cannot import ESM, so a handful of facts it MUST enforce (which item
+// ids exist, which are bind-on-pickup, which equip slot an item fits) are
+// GENERATED into SQL by tools/gen-catalogues.mjs. A generated file that has
+// fallen behind its source is a silently wrong allowlist — bop items become
+// listable, deleted item ids stay valid — so drift fails the build here, in the
+// suite everyone already runs, rather than in a migration nobody re-applies.
+// Skipped only when the generator is absent (older checkouts), never on drift.
+async function catalogueDriftPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-catalogues.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status === 0) { console.log(`Catalogue preflight: ${out || 'in sync'}`); return 0; }
+  console.error(`\nCatalogue preflight FAILED — src/data/*.js no longer matches the generated SQL.\n${out}\n`);
+  return 1;
+}
+
 const run = async () => {
+  if (await catalogueDriftPreflight()) process.exit(1);
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 

@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 322 — 2026-08-11 (Bug reports go through the server)
+
+- 🔒 **Bug reports now go through the server instead of straight to Discord.** The delivery address used to be embedded in the game itself, where anyone could read it. It now lives server-side, and reports are attributed to your real account rather than whatever the sender claims. Sending a report works exactly as before.
+- 🐛 **Reports no longer get lost.** A queued report could previously be discarded if you were signed out when it tried to send.
+
 ## v0.9.2-beta build 321 — 2026-08-11 (Landscape: full-screen, no black bars)
 
 - 📱 **The black bars around the edges are gone.** The dark stone background now bleeds all the way to the edges of your screen — behind the notch and the home bar — so the game looks like one continuous surface instead of sitting in a black picture frame. Your buttons and text still stay clear of the notch.

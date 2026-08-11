@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=321' directly.
+// modularised, will import { G } from '../state/game.js?v=322' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=321';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=321';
+import { on, snapshot } from '../net/events.js?v=322';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=322';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=321';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=322';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -3922,15 +3922,17 @@ const TESTS = [
     assert(mismatches === 0, mismatches + ' tags with wrong ?v=, expected v=' + expected + ', e.g. ' + sample);
   }),
 
-  // Bug-report pipeline must be configured. Empty webhook = silent
-  // bug reports going nowhere.
-  () => tryRun('bug-report: discord webhook configured', () => {
-    // bug-report.js sets window.HRBugReport when the URL is set.
-    // We can't read the constants directly post-bundle, but we can
-    // check for the floating 🐛 button that only renders when one of
-    // the two delivery paths is wired.
+  // The bug-report pipeline must be reachable. A missing button = silent bug
+  // reports going nowhere, and silence is this feature's failure mode.
+  // b322: delivery is now the `bug-report-bridge` Edge Function (the webhook
+  // moved to a server secret), so the check is "the entry point renders and
+  // the module is wired", not "a webhook constant is filled in".
+  () => tryRun('bug-report: entry point rendered and relay wired', () => {
     const btn = document.getElementById('hr-bug-btn') || document.querySelector('[id*="bug-btn"]');
     assert(btn, 'bug-report 🐛 button not found in DOM');
+    const B = window.HearthriseBugReport;
+    assert(B && typeof B.submit === 'function' && typeof B.relayPath === 'string',
+      'the bug-report module must expose submit() and the relay path');
   }),
 
   // Service-worker registration: when served over https the SW should
@@ -13347,6 +13349,94 @@ const TESTS = [
       B.captureScreenshot = origCap;
       window.fetch = origFetch;
     }
+  }),
+
+  // b322: THE WEBHOOK IS OUT OF THE CLIENT.
+  //
+  // src/bug-report.js hard-coded a LIVE Discord webhook URL for ~200 builds.
+  // hearthrise.net is GitHub Pages serving a PUBLIC repo, so that token was
+  // readable by anyone, in the bundle AND in git history forever — and a
+  // webhook token permits POST, PATCH and DELETE. The repo-wide scan lives in
+  // tests/run-smoke.mjs (secretGuard); this is the RUNTIME half: the module
+  // that is actually loaded must expose no delivery credential on `window`,
+  // because publishing one there is the same exposure as hard-coding it.
+  () => tryRun('b322: the loaded bug-report module exposes no Discord webhook or delivery credential', () => {
+    const B = window.HearthriseBugReport;
+    assert(B, 'HearthriseBugReport must be exposed');
+    assert(!('webhookUrl' in B), 'HearthriseBugReport.webhookUrl must not exist — a credential on window is public');
+    assert(!('bridgeUrl' in B), 'HearthriseBugReport.bridgeUrl must not exist — a credential on window is public');
+    // Nothing reachable on the surface may look like a webhook, of any host.
+    const needle = ['dis', 'cord.com/api/web', 'hooks'].join('');
+    Object.keys(B).forEach(function (k) {
+      const v = B[k];
+      if (typeof v !== 'string') return;
+      assert(v.indexOf(needle) === -1, 'HearthriseBugReport.' + k + ' contains a Discord webhook URL');
+    });
+    // The relay is wired, and it is a same-project Edge Function path (no host,
+    // so it can only ever be joined onto the configured Supabase URL).
+    assert(B.relayPath === '/functions/v1/bug-report-bridge',
+      'the relay path must point at the bug-report-bridge Edge Function, got ' + B.relayPath);
+  }),
+
+  // b322: and the SEND PATH goes to the authenticated relay, never to Discord.
+  // Drives a real submit() with a stubbed session + fetch and inspects every
+  // request it makes. Also re-proves b316 at the payload level: on a touch
+  // device the relay body carries screenshot:null. RED against the old code,
+  // which POSTed straight to discord.com with the webhook in the URL.
+  () => tryRun('b322: bug-report submit posts only to the authenticated relay, text-only on touch', () => {
+    const B = window.HearthriseBugReport;
+    assert(B && typeof B.submit === 'function', 'submit must be exposed');
+    const origFetch = window.fetch;
+    const origTouch = window.__hrForceTouch;
+    const origSupa = window.HearthriseSupabase;
+    const origAuth = window.HearthriseAuth;
+    const calls = [];
+    window.__hrForceTouch = true;                       // phone: text-only
+    window.HearthriseSupabase = { getConfig: function () {
+      return { url: 'https://example-project.supabase.co', anonKey: 'anon-test-key' }; } };
+    window.HearthriseAuth = { getSession: function () {
+      return { access_token: 'a.b.c', user: { id: '00000000-0000-0000-0000-000000000001', email: 'p@example.com' } }; } };
+    window.fetch = function (url, opts) {
+      calls.push({ url: String(url), opts: opts || {} });
+      return Promise.resolve({
+        ok: true, status: 200,
+        json: function () { return Promise.resolve({ ok: true, status: 'accepted', report_id: 1, relayed: true }); },
+      });
+    };
+    // submit() runs synchronously up to its first real await, and on a touch
+    // device that first await is the relay fetch — so the request is already
+    // recorded the instant submit() returns its promise. That is what makes
+    // these assertions synchronous (tryRun cannot await), and it is also what
+    // makes calls.length meaningful: the OLD code fired Promise.all([bridge,
+    // discord, supabase]) and would therefore have recorded 2-3 calls here.
+    let sent = null;
+    try {
+      const pr = B.submit({ summary: 'smoke b322', description: 'auto-test — ignore' });
+      assert(pr && typeof pr.then === 'function', 'submit must return a promise');
+      pr.catch(function () {});                        // no stray rejection
+      assert(calls.length === 1, 'submit must make exactly ONE send call (relay only, no fan-out) — made ' + calls.length);
+      sent = calls[0];
+    } finally {
+      window.fetch = origFetch;
+      window.__hrForceTouch = origTouch;
+      window.HearthriseSupabase = origSupa;
+      window.HearthriseAuth = origAuth;
+    }
+    assert(sent.url.indexOf('/functions/v1/bug-report-bridge') !== -1,
+      'the send must target the relay Edge Function, went to ' + sent.url);
+    assert(sent.url.indexOf('discord') === -1, 'the client must never talk to Discord directly: ' + sent.url);
+    const h = sent.opts.headers || {};
+    assert(String(h.Authorization || '').indexOf('Bearer ') === 0,
+      'the relay call must carry the player\'s Supabase JWT — an unauthenticated relay is a spam relay');
+    const body = JSON.parse(sent.opts.body);
+    assert(body.screenshot === null,
+      'a touch-device report must be text-only (screenshot:null) — b316, the iPhone freeze; got ' + typeof body.screenshot);
+    assert(typeof body.idem_key === 'string' && body.idem_key.length > 0,
+      'every report must carry an idempotency key so a retry cannot double-post');
+    assert(!('user' in body),
+      'the client identity field must NOT be sent — the server derives the reporter from auth.uid()');
+    assert(body.state && body.state.metrics && body.state.metrics.safeArea,
+      'the safe-area/device metrics must survive the rewire — they are the iPhone triage fields');
   }),
 
   // b294: the "Desktop site is on → whole UI is a jumbled mess" detector

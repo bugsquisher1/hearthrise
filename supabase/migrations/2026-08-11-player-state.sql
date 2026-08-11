@@ -96,7 +96,17 @@ begin
   -- receipt: game_events reached 1.6M rows / 229 MB from six players in 3.45
   -- days and had to be truncated by hand on 2026-08-11.
   -- Installed on this project as pg_cron 1.6.4 (verified).
-  if to_regproc('cron.schedule(text,text,text)') is null then
+  --
+  -- ⚠ to_regprocEDURE, not to_regproc. to_regproc takes a bare NAME and returns
+  --   NULL both for "missing" and for "ambiguous" — and cron.schedule has two
+  --   overloads, so `to_regproc('cron.schedule')` is NULL on a database where
+  --   pg_cron is perfectly healthy. Handing it an argument list does not help:
+  --   to_regproc does not parse one, so `to_regproc('cron.schedule(text,text,
+  --   text)')` is NULL ALWAYS. This precondition therefore aborted the whole
+  --   foundation on EVERY database, including the correct one. Caught by the
+  --   behavioural gate on 2026-08-11 — a self-verifying block is only worth
+  --   what executing it is worth.
+  if to_regprocedure('cron.schedule(text,text,text)') is null then
     raise exception 'pg_cron is required — enable the pg_cron extension before applying the server-authority foundation';
   end if;
 end $$;
@@ -609,6 +619,17 @@ declare
     'unknown_crop','unknown_equip_slot','unknown_delta_key','wrong_slot',
     'requirement_not_met','activity_locked','bad_progress_state','overflow',
     'seller_unavailable','forbidden_impersonation'];
+  -- ESCALATING CODES (security review C2). `rate_limited` is deliberately NOT
+  -- an incident on its own: one player behind a flaky connection retrying a
+  -- burst will trip 240 applies/min honestly, and marking that an incident
+  -- would flood hr_rejections_incident_idx — the index exists so that "show me
+  -- every incident this week" is answerable, and an alert that fires for normal
+  -- play is an alert nobody reads. But SUSTAINED rate limiting is the loudest
+  -- automation signal the server produces, so it escalates on the DAILY
+  -- counter this table already keeps: past the threshold the same row is
+  -- promoted to 'incident' in place. One row per player per day either way.
+  c_escalating constant text[] := array['rate_limited'];
+  c_escalate_at constant bigint := 50;
 begin
   if p_user is null or p_code is null then return; end if;
   insert into public.hr_rejections as r
@@ -619,7 +640,13 @@ begin
           coalesce(p_detail, '{}'::jsonb))
   on conflict (user_id, slot, day, code) do update
     set n = r.n + 1, last_at = now(), last_detail = excluded.last_detail,
-        intent = excluded.intent;
+        intent = excluded.intent,
+        -- Severity only ever ratchets UP, and only for a code that is on the
+        -- escalating list. It is never downgraded by a later hit.
+        severity = case
+          when r.severity = 'incident' then 'incident'
+          when p_code = any (c_escalating) and r.n + 1 >= c_escalate_at then 'incident'
+          else r.severity end;
 exception when others then
   -- Recording a rejection must NEVER turn a clean rejection into a 500. If the
   -- bookkeeping fails we lose one observation, not the player's request.
@@ -993,11 +1020,22 @@ begin
     end if;
   end loop;
 
-  -- (e) No function this file defines may be anon-executable. (Review S6/S7.)
+  -- (e) No MAINTENANCE function this file defines may be client-executable.
+  --     (Review S6/S7.)
+  --
+  -- ⚠ hr_create_character is deliberately NOT in this list. It is the ONE
+  --   function here a client may call — the bootstrap that creates the row every
+  --   later intent needs — and it takes no user argument, reading auth.uid()
+  --   itself, so `authenticated` is exactly the right grantee. Revision 3 listed
+  --   it here anyway while granting it to `authenticated` 140 lines earlier, so
+  --   this block raised on every apply and the whole foundation refused to
+  --   install. It is asserted positively below instead, which says what we mean
+  --   rather than the opposite of it. Found by EXECUTING the file on a branch —
+  --   reading it had not caught it in three reviews.
   select count(*) into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
-     and p.proname in ('hr_create_character','hr_total_level','hr_seed','hr_rate_ok',
+     and p.proname in ('hr_total_level','hr_seed','hr_rate_ok',
                        'hr_intents_prune','hr_ledger_immutable','hr_ledger_prune',
                        'hr_progress_prune','hr_rejections_prune','hr_record_rejection',
                        'hr_cron_ensure','hr_cron_drop')
@@ -1005,6 +1043,14 @@ begin
        or has_function_privilege('authenticated', p.oid, 'execute'));
   if v_bad > 0 then
     raise exception '% maintenance functions in this file are client-executable', v_bad;
+  end if;
+  -- The bootstrap, stated positively: signed-in yes, anonymous no.
+  if not has_function_privilege('authenticated', 'public.hr_create_character(int)', 'execute') then
+    raise exception 'hr_create_character must be executable by authenticated — it is the bootstrap '
+                    'every other intent depends on';
+  end if;
+  if has_function_privilege('anon', 'public.hr_create_character(int)', 'execute') then
+    raise exception 'hr_create_character is reachable by anon — a signed-out caller can mint characters';
   end if;
   -- hr_cron_ensure in particular: it is `execute arbitrary SQL on a schedule,
   -- as the owner`. If a client role can ever reach it, the database is theirs.

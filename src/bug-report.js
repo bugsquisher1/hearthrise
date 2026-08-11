@@ -11,29 +11,36 @@
 //   • User-typed description
 //   • SCREENSHOT of the current viewport (b117) via html2canvas
 //
-// Sends to (in order, fan-out via Cloudflare Worker if BRIDGE_URL set):
-//   1. Bridge worker → Discord channel + GitHub Issue (preferred)
-//   2. Discord webhook directly (fallback)
-//   3. Supabase `bug_reports` table (if signed in)
-//   4. localStorage queue (last resort, retried on next load)
+// Sends to (in order — first success wins, no fan-out):
+//   1. Supabase Edge Function `bug-report-bridge` → Discord (preferred)
+//   2. Supabase `bug_reports` table directly (if the relay is unreachable)
+//   3. localStorage queue (last resort, retried on next load)
 //
-// Setup: see BUG_REPORT_PIPELINE.md
-// ============================================================
+// ════════════════════════════════════════════════════════════════════
+// NO SECRETS IN THIS FILE. EVER. THIS IS THE RULE, NOT A PREFERENCE.
+//
+// This file is compiled into the public bundle AND hearthrise.net is GitHub
+// Pages serving a PUBLIC repo, so anything written here is readable by anyone
+// — and stays readable in git history forever, even after it is deleted.
+//
+// Until 2026-08-11 this file hard-coded a LIVE Discord webhook URL. A webhook
+// token permits POST (fake reports), PATCH (rename) and DELETE (destroy the
+// webhook). The failure mode of a bug reporter is SILENCE, so if someone had
+// deleted it, reports would simply have stopped arriving and nobody would have
+// noticed. It has been regenerated; the new value exists ONLY as the Supabase
+// Edge Function secret DISCORD_WEBHOOK_URL and must never re-enter source, a
+// prompt, or a log.
+//
+// Do not add a URL, token, PAT or key constant here — not even a blank one to
+// "fill in later". `tests/run-smoke.mjs` fails the build on any webhook URL
+// found anywhere in the repo. If a delivery target needs a credential, it goes
+// behind an Edge Function, like this one does.
+// ════════════════════════════════════════════════════════════════════
 
-// Bridge worker URL — Cloudflare Worker that forwards to Discord + GitHub.
-// When configured, this single endpoint replaces the Discord-only path:
-// game → BRIDGE_URL → Discord channel + GitHub Issue (with screenshot inline).
-// Until the worker is deployed, leave blank; the direct Discord path below
-// is the active route.
-const BRIDGE_URL = ''; // ← paste Cloudflare Worker URL here once deployed
-
-// Direct Discord webhook URL — TEMPORARY until BRIDGE_URL is configured.
-// This URL is in the public JS bundle, so it's scrapable. Risk profile:
-//   • Worst case: someone scrapes + spams the #bug-reports channel
-//   • Mitigation: regenerate the webhook URL in Discord (30 seconds)
-// Once the bridge worker is deployed, the URL moves to a Cloudflare secret
-// and this constant goes back to ''.
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1500768393299759277/R6nNNFABoL3FeYj3tA9XimwCKW6m1oaYv0LHQYaqEezsdzcSiAouKyYe2Brm8Uzyu5k0';
+// Path of the authenticated relay, appended to the configured Supabase URL.
+// Not a secret: it is a public endpoint that requires a valid user JWT and
+// rate-limits per account server-side.
+const RELAY_PATH = '/functions/v1/bug-report-bridge';
 
 const MAX_CONSOLE_BUFFER = 50;
 const QUEUE_KEY = 'hearthrise:bug-queue';
@@ -382,98 +389,60 @@ async function captureScreenshotRaw() {
   }
 }
 
-// Send to the bridge worker — single endpoint, fans out to Discord + GitHub.
-async function sendBridge(payload) {
-  const url = (window.HearthriseBugReport && window.HearthriseBugReport.bridgeUrl) || BRIDGE_URL;
-  if (!url) return { ok: false, skipped: true };
+// A per-report idempotency key. The relay collapses a replay of the SAME key
+// from the SAME account to the stored row and does NOT re-post to Discord — so
+// a retry (queue flush, double-tap, flaky connection) can never duplicate a
+// report. Generated once when the payload is built and carried through the
+// localStorage queue.
+function newIdemKey() {
   try {
-    const res = await fetch(url, {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+  } catch (e) {}
+  return 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+// Send through the authenticated Edge Function relay.
+//
+// The relay is the ONLY path to Discord. It requires a valid Supabase JWT,
+// attributes the report to the server-verified auth.uid() (the `user` field in
+// the payload is display-only and is ignored server-side, same class of fix as
+// the chat `from_name` bug), rate-limits per account, and holds the webhook as
+// a server secret. Signed out → skipped, and the caller falls back.
+async function sendRelay(payload) {
+  const cfg = window.HearthriseSupabase && window.HearthriseSupabase.getConfig && window.HearthriseSupabase.getConfig();
+  const session = window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession();
+  if (!cfg || !session || !session.access_token) return { ok: false, skipped: true };
+  try {
+    const res = await fetch(cfg.url.replace(/\/$/, '') + RELAY_PATH, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.anonKey,
+        'Authorization': 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        summary: payload.summary,
+        description: payload.description,
+        build: payload.build,
+        state: payload.state,
+        errors: payload.errors,
+        // Desktop only — b316 keeps touch devices text-only, so this is null on
+        // a phone and the relay never sees an image from one.
+        screenshot: payload.screenshot || null,
+        idem_key: payload.idem_key,
+      }),
     });
-    return { ok: res.ok, status: res.status };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-}
-
-// Convert a data: URL into a Blob for FormData attachment.
-function dataUrlToBlob(dataUrl) {
-  const [head, b64] = dataUrl.split(',');
-  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
-
-async function sendDiscord(payload) {
-  const url = (window.HearthriseBugReport && window.HearthriseBugReport.webhookUrl) || DISCORD_WEBHOOK_URL;
-  if (!url) return { ok: false, skipped: true };
-
-  const embed = {
-    title: '🐛 ' + (payload.summary || 'Bug report'),
-    description: payload.description || '(no description)',
-    color: 0xd44a3a,
-    fields: [
-      { name: 'Build',    value: '`' + payload.build + '`', inline: true },
-      { name: 'Device',   value: (payload.state.device || '—') + ' · ' + (payload.state.orientation || '—'), inline: true },
-      { name: 'Player',   value: payload.user || 'guest',    inline: true },
-      { name: 'Tab',      value: String(payload.state.activeTab || '—'), inline: true },
-      { name: 'Viewport', value: String(payload.state.viewport || '—'), inline: true },
-      // b308: the crunched-UI triage line — layout viewport vs physical screen,
-      // DPR, zoom, root font, and a desktop-mode flag, all in one glance.
-      { name: 'Screen', value: (function(){
-          const m = payload.state.metrics || {};
-          const sa = m.safeArea || {};
-          return `vp ${payload.state.viewport || '—'} · screen ${m.screen || '—'} · dpr ${m.dpr != null ? m.dpr : '—'}`
-               + ` · zoom ${m.zoom != null ? m.zoom : '—'} · root ${m.rootFont || '—'}`
-               + ` · safe(t/r/b/l) ${sa.t || '0px'}/${sa.r || '0px'}/${sa.b || '0px'}/${sa.l || '0px'}`
-               + (m.desktopMode ? ' · ⚠️ DESKTOP-MODE' : '');
-        })(), inline: false },
-      { name: 'State',    value: '```json\n' + JSON.stringify(payload.state, null, 2).slice(0, 900) + '\n```' },
-      { name: 'Recent errors', value: payload.errors.length
-          ? '```\n' + payload.errors.map(e => `[${e.level}] ${e.msg}`).join('\n').slice(0, 900) + '\n```'
-          : '_(none)_' },
-    ],
-    timestamp: new Date().toISOString(),
-  };
-
-  // b120: when we have a screenshot, attach it via multipart form-data and
-  // reference it in the embed's image field so Discord renders it inline.
-  // Without this, the screenshot was being captured but never appeared in
-  // the channel — Tyler asked specifically to see it in the message.
-  if (payload.screenshot && payload.screenshot.startsWith('data:image/')) {
-    embed.image = { url: 'attachment://screenshot.jpg' };
-    const body = {
-      username: 'Hearthrise Bug Bot',
-      embeds: [embed],
-      attachments: [{ id: 0, filename: 'screenshot.jpg', description: 'Bug report screenshot' }],
+    let body = null;
+    try { body = await res.json(); } catch (e) {}
+    const status = (body && body.status) || (res.ok ? 'accepted' : 'failed');
+    return {
+      ok: !!res.ok && !!(body && body.ok),
+      http: res.status,
+      status,
+      // 429 means the server said "later" — not a delivery failure to retry now.
+      rateLimited: res.status === 429,
+      retryAfter: (body && body.retry_after_s) || 0,
     };
-    const fd = new FormData();
-    fd.append('payload_json', JSON.stringify(body));
-    fd.append('files[0]', dataUrlToBlob(payload.screenshot), 'screenshot.jpg');
-    try {
-      const res = await fetch(url, { method: 'POST', body: fd });
-      return { ok: res.ok, status: res.status };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  }
-
-  // No screenshot — fall back to JSON-only embed.
-  const body = {
-    username: 'Hearthrise Bug Bot',
-    embeds: [embed],
-  };
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return { ok: res.ok, status: res.status };
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -493,12 +462,19 @@ async function sendSupabase(payload) {
         'Prefer': 'return=minimal',
       },
       body: JSON.stringify({
+        // The RLS INSERT policy pins this to auth.uid() server-side, so a
+        // forged id is rejected rather than silently attributed.
         user_id: session.user.id,
         build_version: payload.build,
         summary: payload.summary,
         description: payload.description,
         state: payload.state,
         errors: payload.errors,
+        // Deliberately NOT sending idem_key / source here. Those columns are
+        // added by 2026-08-11-bug-report-relay.sql, and PostgREST 400s on an
+        // unknown column — so sending them would make this fallback depend on
+        // migration ordering. The fallback's whole job is to work when the
+        // preferred path does not; idempotency is the relay's responsibility.
       }),
     });
     return { ok: res.ok, status: res.status };
@@ -521,8 +497,18 @@ async function flushQueue() {
   if (!q.length) return;
   const remaining = [];
   for (const p of q) {
-    const [a, b] = await Promise.all([sendDiscord(p), sendSupabase(p)]);
-    if (!a.ok && !b.ok && !(a.skipped && b.skipped)) remaining.push(p);
+    // Same ordering as submit(): relay first, direct table write only if the
+    // relay is unavailable. Each queued payload kept its idem_key, so a flush
+    // that races a successful earlier send collapses instead of duplicating.
+    const relay = await sendRelay(p);
+    if (relay.ok) continue;                       // delivered — drop from the queue
+    let direct = { ok: false, skipped: true };
+    if (!relay.rateLimited) direct = await sendSupabase(p);
+    // KEEP anything that was not actually delivered. The old logic dropped the
+    // item when both paths were "skipped" — i.e. flushing while signed out
+    // silently deleted every queued report, which is the one thing a queue
+    // exists to prevent. The queue is capped at 25, so keeping is safe.
+    if (!direct.ok) remaining.push(p);
   }
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining)); } catch {}
 }
@@ -545,27 +531,35 @@ async function submit({ summary, description }) {
     summary: summary || '(no summary)',
     description: description || '',
     build: buildVersionString(),
+    // DISPLAY ONLY, and only for the local "Copy" dump. The relay ignores this
+    // field entirely and derives the reporter from the verified auth.uid() —
+    // never trust a client-supplied identity that crosses to someone else's
+    // screen (the same class of bug as a client-set chat `from_name`).
     user: (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()?.user?.email)
        || (window.G && window.G.playerName) || 'guest',
     state: gameStateSnapshot(),
     errors: consoleBuffer.slice(-20),
     screenshot,
+    idem_key: newIdemKey(),
     ts: new Date().toISOString(),
   };
-  // Fan-out: bridge worker first (covers Discord + GitHub in one POST),
-  // then the legacy direct paths as fallbacks. If bridge succeeds the
-  // others are still useful as redundancy but not required.
-  const [bridge, discord, supabase] = await Promise.all([
-    sendBridge(payload),
-    sendDiscord(payload),
-    sendSupabase(payload),
-  ]);
-  const ok = bridge.ok || discord.ok || supabase.ok;
-  if (!ok && !(bridge.skipped && discord.skipped && supabase.skipped)) {
+  // ORDERED, not fanned out. The relay is the only path to Discord and it
+  // already writes the bug_reports row, so firing the direct table write in
+  // parallel would file every report twice. Direct write is a FALLBACK for
+  // "the relay is unreachable", not redundancy.
+  const relay = await sendRelay(payload);
+  let direct = { ok: false, skipped: true };
+  if (!relay.ok && !relay.rateLimited) direct = await sendSupabase(payload);
+
+  const ok = relay.ok || direct.ok;
+  // A 429 is the server saying "later", not a delivery failure: queuing it
+  // would just replay into the same limit. Everything else that genuinely
+  // failed (and wasn't simply skipped for being signed out) gets queued.
+  if (!ok && !relay.rateLimited && !(relay.skipped && direct.skipped)) {
     // Don't queue the screenshot — too large for localStorage in volume.
     enqueue({ ...payload, screenshot: null });
   }
-  return { ok, bridge, discord, supabase };
+  return { ok, relay, supabase: direct, rateLimited: !!relay.rateLimited, retryAfter: relay.retryAfter || 0 };
 }
 
 // ── UI ────────────────────────────────────────────────────────
@@ -674,9 +668,14 @@ function openModal() {
       status.style.color = '#5fcc7c';
       status.textContent = '✓ Sent. Thanks!';
       setTimeout(close, 1100);
-    } else if (result.discord?.skipped && result.supabase?.skipped) {
+    } else if (result.rateLimited) {
+      // Honest and specific: the report was refused on purpose, not lost.
+      const mins = Math.max(1, Math.round((result.retryAfter || 60) / 60));
       status.style.color = '#e8c878';
-      status.textContent = 'Saved locally — will send when online.';
+      status.textContent = 'That\'s a lot of reports — try again in about ' + mins + ' min.';
+    } else if (result.relay?.skipped && result.supabase?.skipped) {
+      status.style.color = '#e8c878';
+      status.textContent = 'Saved locally — will send when you\'re signed in.';
       setTimeout(close, 1500);
     } else {
       status.style.color = '#e88a8a';
@@ -693,8 +692,10 @@ installConsoleHook();
 window.HearthriseBugReport = {
   open: openModal,
   submit,
-  webhookUrl: DISCORD_WEBHOOK_URL,
-  bridgeUrl: BRIDGE_URL,
+  // No `webhookUrl` / `bridgeUrl` here, ever. Publishing a delivery credential
+  // on `window` is the same exposure as hard-coding it — anyone can read it
+  // from the console. The relay path is derived from the Supabase config.
+  relayPath: RELAY_PATH,
   captureScreenshot,
   flushQueue,
   _stateSnapshot: gameStateSnapshot,   // b309: exposed for the guard test

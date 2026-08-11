@@ -148,6 +148,92 @@ async function migrationGuard() {
   return problems;
 }
 
+// ── The secret guard (b322) ──────────────────────────────────────────────────
+// A LIVE Discord webhook URL sat in src/bug-report.js as a plain constant for
+// ~200 builds. hearthrise.net is GitHub Pages serving a PUBLIC repo, so that
+// token was readable by anyone — in the shipped bundle and in git history
+// forever. A webhook token permits POST (fake reports), PATCH (rename) and
+// DELETE (destroy it), and the failure mode of a bug reporter is SILENCE: had
+// anyone deleted it, reports would simply have stopped arriving.
+//
+// Deleting the constant does not stop this recurring; a guard does. This is the
+// real deliverable of that fix. Two rules, both cheap:
+//
+//   A. ZERO TOLERANCE in shipped client source (src/**, index.html, sw.js and
+//      any root-level .js). Not even a commented-out or blank one — a blank
+//      placeholder is an invitation to paste a real value back in.
+//   B. REPO-WIDE, credential-shaped only: a webhook URL with a real snowflake
+//      id and a long token, a GitHub PAT, or a JWT whose payload claims
+//      service_role. Shaped so documentation placeholders ("…/1234.../abcd…")
+//      do not trip it, because a guard that cries wolf gets deleted.
+//
+// The needles are assembled from fragments so this file cannot match itself.
+async function secretGuard() {
+  const D = ['discord', 'com'].join('.') + '/api/' + 'webhooks';
+  const SHAPED = new RegExp(
+    '(?:discord|discordapp)\\.com/api/webhooks/[0-9]{15,}/[A-Za-z0-9_-]{40,}', 'i');
+  const PAT = /\b(?:ghp|gho|ghs|ghr)_[A-Za-z0-9]{30,}\b|\bgithub_pat_[A-Za-z0-9_]{50,}\b/;
+  const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.([A-Za-z0-9_-]{16,})\.[A-Za-z0-9_-]{8,}\b/g;
+
+  const SKIP_DIRS = new Set(['.git', 'node_modules', 'worktrees', '.venv', 'dist', 'build']);
+  const TEXT_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.html', '.htm',
+    '.css', '.md', '.sql', '.toml', '.yml', '.yaml', '.sh', '.txt', '.webmanifest', '.svg']);
+  const SELF = normalize(join(ROOT, 'tests', 'run-smoke.mjs'));
+
+  const problems = [];
+  const files = [];
+  async function walk(dir) {
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) await walk(full); continue; }
+      if (!TEXT_EXT.has(extname(e.name).toLowerCase())) continue;
+      const info = await stat(full).catch(() => null);
+      if (!info || info.size > 4_000_000) continue;   // skip generated monsters
+      files.push(full);
+    }
+  }
+  await walk(ROOT);
+  if (files.length < 50) problems.push(`only ${files.length} files scanned — the guard is checking nothing`);
+
+  // Client source is everything the browser downloads.
+  const isClientSource = (f) => {
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+    return rel.startsWith('src/') || rel === 'index.html' || rel === 'sw.js'
+      || (!rel.includes('/') && rel.endsWith('.js'));
+  };
+
+  for (const f of files) {
+    if (normalize(f) === SELF) continue;             // the guard states the pattern
+    let text;
+    try { text = await readFile(f, 'utf8'); } catch { continue; }
+    const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
+
+    if (isClientSource(f) && text.includes(D)) {
+      problems.push(`${rel}: a Discord webhook URL is in SHIPPED CLIENT SOURCE — secrets belong in an Edge Function secret, never in the bundle`);
+    }
+    const shaped = text.match(SHAPED);
+    if (shaped) {
+      problems.push(`${rel}: a credential-shaped Discord webhook URL is committed (…${shaped[0].slice(-8)}) — regenerate it in Discord and move it to a server-side secret`);
+    }
+    const pat = text.match(PAT);
+    if (pat) problems.push(`${rel}: a GitHub personal access token is committed (${pat[0].slice(0, 8)}…)`);
+
+    JWT.lastIndex = 0;
+    let m;
+    while ((m = JWT.exec(text)) !== null) {
+      let payload = '';
+      try { payload = Buffer.from(m[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'); }
+      catch { continue; }
+      if (/"role"\s*:\s*"service_role"/.test(payload)) {
+        problems.push(`${rel}: a SERVICE ROLE key is committed — that key bypasses RLS entirely; rotate it now`);
+        break;
+      }
+    }
+  }
+  return problems;
+}
 // ── The landscape guard (b260) ───────────────────────────────────────────────
 // Landscape is now the ONLY mobile orientation (portrait is gated, b259). The
 // in-page suite runs at desktop width, so it never sees the cramped landscape
@@ -313,6 +399,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Migration guard — every migration ends on a SQL terminator, no tool artifacts.');
+    }
+
+    const secretProblems = await secretGuard();
+    if (secretProblems.length) {
+      console.log('\nSecret guard — FAILED:');
+      for (const p of secretProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Secret guard — no webhook URL, PAT or service-role key anywhere in the repo.');
     }
 
     const landProblems = await landscapeGuard(browser, url);

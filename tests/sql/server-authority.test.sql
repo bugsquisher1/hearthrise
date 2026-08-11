@@ -929,6 +929,82 @@ begin
   perform set_config('hearthrise.market_wipe_ok', 'yes', true);
 end $$;
 
+-- ════════════════════════════════════════════════════════════════════════
+-- 21. C2 — A RATE-LIMITED CALL MUST LEAVE A DURABLE TRACE
+--     The rate limit returns before the intent claim and before any other
+--     bookkeeping, so until this it produced no record anywhere: the single
+--     loudest automation signal the server emits was being discarded. Same
+--     defect class as R4. Also pins the escalation policy: one trip is
+--     `normal`, a sustained day is promoted to `incident` IN PLACE, so the
+--     table stays at one row per (character, code, day).
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        r jsonb; i int; v_n bigint; v_sev text; v_rows int;
+begin
+  raise notice '-- C2 rate_limited is observable';
+  delete from public.hr_rejections where user_id = a and code = 'rate_limited';
+  perform pg_temp.as_user(a);
+  for i in 1..90 loop
+    r := public.market_list(0, 'normal_log', 1, 5, gen_random_uuid());
+    exit when r->>'error' = 'rate_limited';
+  end loop;
+  perform pg_temp.ok(r->>'error' = 'rate_limited',
+    format('market_list rate-limits inside a minute (took %s calls)', i));
+
+  select n, severity into v_n, v_sev from public.hr_rejections
+   where user_id = a and slot = 0 and day = current_date and code = 'rate_limited';
+  perform pg_temp.ok(coalesce(v_n, 0) >= 1,
+    format('AND IT IS RECORDED — hr_rejections.n = %s (was: no trace anywhere)', coalesce(v_n, 0)));
+  perform pg_temp.ok(v_sev = 'normal',
+    'one burst is severity normal — a retry storm must not flood the incident index');
+
+  -- Sustained: past the daily threshold the same row escalates.
+  for i in 1..60 loop
+    perform public.hr_record_rejection(a, 0, 'apply', 'rate_limited', '{}'::jsonb);
+  end loop;
+  select severity into v_sev from public.hr_rejections
+   where user_id = a and slot = 0 and day = current_date and code = 'rate_limited';
+  perform pg_temp.ok(v_sev = 'incident',
+    'sustained rate limiting escalates that row to incident');
+  select count(*) into v_rows from public.hr_rejections
+   where user_id = a and code = 'rate_limited' and day = current_date;
+  perform pg_temp.ok(v_rows = 1,
+    format('and it is still exactly ONE row for the day (%s) — journal rule 6', v_rows));
+  perform set_config('request.jwt.claims', '', true);
+end $$;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 22. N2 — THE TAX MULTIPLY AT THE CONFIGURATION CEILING
+--     `gross × house_tax_bp` is a bigint multiply that the old guard did not
+--     cover: at the permitted ceiling (qty 1e8 × ask 1e9) it is 1.5e19 and
+--     raises 22003 BEFORE the affordability check — so a seller could craft a
+--     listing that 500s every buyer who touched it. The listing is inserted
+--     directly on purpose: what is under test is market_buy's arithmetic, not
+--     market_list's clamps.
+-- ════════════════════════════════════════════════════════════════════════
+do $$
+declare a uuid := '00000000-0000-4000-8000-00000000aaaa';
+        b uuid := '00000000-0000-4000-8000-00000000bbbb';
+        lid uuid; r jsonb;
+begin
+  raise notice '-- N2 tax multiply at the ceiling';
+  insert into public.market_listings
+    (seller_user_id, seller_slot, seller_name, item_id, qty, ask_each, expires_at)
+  values (b, 0, 'TestBravo', 'normal_log', 100000000, 1000000000, now() + interval '1 day')
+  returning id into lid;
+
+  perform pg_temp.as_user(a);
+  r := public.market_buy(0, lid, 100000000, gen_random_uuid());
+  perform pg_temp.ok(r->>'ok' = 'false',
+    'a ceiling listing is a clean rejection, not a 22003 numeric_value_out_of_range');
+  perform pg_temp.ok(r->>'error' = 'overflow',
+    format('and the rejection is named `overflow` (got %s)', coalesce(r->>'error','<none>')));
+  perform pg_temp.ok(exists (select 1 from public.market_listings where id = lid),
+    'the listing is untouched by the refused buy');
+  perform set_config('request.jwt.claims', '', true);
+end $$;
+
 do $$
 begin
   raise notice ' ';

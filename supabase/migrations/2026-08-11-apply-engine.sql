@@ -404,6 +404,16 @@ begin
   --        must still consume budget, otherwise "spam invalid deltas" is a free
   --        denial of service against the engine.
   if not public.hr_rate_ok(v_uid, 'apply', 240, interval '1 minute') then
+    -- (C2) Recorded BEFORE the return, and before the intent claim, because
+    -- otherwise a rate-limited caller leaves no durable trace anywhere: the
+    -- early return happens ahead of player_intents, and player_intents is
+    -- pruned after 24h regardless. Sustained rate limiting is the loudest
+    -- automation signal this server produces and it was being discarded.
+    -- hr_record_rejection aggregates per (character, code, day) and promotes
+    -- the row to severity 'incident' past its daily threshold, so this costs
+    -- one row per player per day, not one row per rejected call.
+    perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'rate_limited',
+      jsonb_build_object('limit', 240, 'per', '1 minute'));
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
@@ -441,8 +451,21 @@ begin
     end if;
     return v_prev || jsonb_build_object('replayed', true);
   end if;
+  -- (N3) The advisory lock above is keyed on user:SLOT, but the intent PK is
+  -- (user_id, intent_id) — no slot. Two slots replaying the same intent_id
+  -- concurrently therefore both miss the select and both insert, and the loser
+  -- gets an unhandled unique_violation (a 500) instead of an answer. Exotic
+  -- today (one character is active at a time) but it is a race, and a race
+  -- closed by `on conflict do nothing` costs nothing. The key stays
+  -- user-global rather than slot-scoped on purpose: a client-generated uuid
+  -- that means two different things on two slots is a worse contract than one
+  -- that is simply already taken.
   insert into public.player_intents (user_id, intent_id, slot, intent)
-    values (v_uid, p_intent_id, v_slot, p_delta #>> '{journal,intent}');
+    values (v_uid, p_intent_id, v_slot, p_delta #>> '{journal,intent}')
+  on conflict (user_id, intent_id) do nothing;
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
+  end if;
 
   -- ══ THE PROTECTED BLOCK ═══════════════════════════════════════════════
   -- Everything from here to the handler is all-or-nothing. Every rejection is

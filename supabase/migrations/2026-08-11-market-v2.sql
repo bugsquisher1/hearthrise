@@ -85,7 +85,10 @@ begin
   if to_regprocedure('public.hr_reject(text,jsonb)') is null then
     raise exception 'run 2026-08-11-apply-engine.sql first (hr_reject is the rollback primitive)';
   end if;
-  if to_regproc('cron.schedule(text,text,text)') is null then
+  -- to_regprocEDURE: to_regproc does not parse an argument list and returns
+  -- NULL for an ambiguous name, so the to_regproc form was NULL always. See the
+  -- long note in 2026-08-11-player-state.sql §0.
+  if to_regprocedure('cron.schedule(text,text,text)') is null then
     raise exception 'pg_cron is required — §8b of this file replaces a live cron job that would otherwise destroy escrowed goods';
   end if;
   if to_regprocedure('public.hr_cron_ensure(text,text,text)') is null
@@ -318,8 +321,16 @@ begin
     if prior is null then prior := jsonb_build_object('ok', false, 'error', 'intent_in_flight'); end if;
     return;
   end if;
+  -- (N3) Same race as hr_apply's claim: the PK is user-global, the advisory
+  -- lock is per slot. A concurrent claim of the same key is "already in
+  -- flight", not a 500.
   insert into public.player_intents (user_id, intent_id, slot, intent)
-    values (p_user, p_intent_id, coalesce(p_slot, 0), p_intent);
+    values (p_user, p_intent_id, coalesce(p_slot, 0), p_intent)
+  on conflict (user_id, intent_id) do nothing;
+  if not found then
+    prior := jsonb_build_object('ok', false, 'error', 'intent_in_flight');
+    return;
+  end if;
   claimed := true;
 end $$;
 revoke execute on function public.hr_intent_claim(uuid, uuid, int, text)
@@ -379,6 +390,8 @@ begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_intent_id is null then return jsonb_build_object('ok', false, 'error', 'missing_intent_id'); end if;
   if not public.hr_rate_ok(v_uid, 'market_list', 60, interval '1 minute') then
+    perform public.hr_record_rejection(v_uid, v_slot, 'market_list', 'rate_limited',
+      jsonb_build_object('limit', 60, 'per', '1 minute'));   -- (C2)
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
@@ -484,6 +497,10 @@ begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_intent_id is null then return jsonb_build_object('ok', false, 'error', 'missing_intent_id'); end if;
   if not public.hr_rate_ok(v_uid, 'market_cancel', 60, interval '1 minute') then
+    -- slot 0: cancel takes no slot argument and the listing has not been read
+    -- yet. The character is identified by user; the slot is cosmetic here. (C2)
+    perform public.hr_record_rejection(v_uid, 0, 'market_cancel', 'rate_limited',
+      jsonb_build_object('limit', 60, 'per', '1 minute'));
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
 
@@ -587,6 +604,8 @@ begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_intent_id is null then return jsonb_build_object('ok', false, 'error', 'missing_intent_id'); end if;
   if not public.hr_rate_ok(v_uid, 'market_buy', 60, interval '1 minute') then
+    perform public.hr_record_rejection(v_uid, v_slot, 'market_buy', 'rate_limited',
+      jsonb_build_object('limit', 60, 'per', '1 minute'));   -- (C2)
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
   if p_qty is null or p_qty <= 0 then return jsonb_build_object('ok', false, 'error', 'bad_qty'); end if;
@@ -625,10 +644,25 @@ begin
       order by user_id, slot
       for update;
 
+    -- (N2) The guard used to stop at the gross and forget the step AFTER it.
+    -- `v_gross * house_tax_bp` is a bigint multiply: at the documented max_qty
+    -- ceiling of 1e8 and max ask of 1e9, 1e8 × 1e9 × 150 = 1.5e19 blows past
+    -- bigint's 9.223e18 with a 22003 — an unhandled 500 for the BUYER, raised
+    -- before the affordability check, so any seller could craft a listing that
+    -- 500s everyone who touches it. Unreachable at the default max_qty of 1e6;
+    -- reachable inside the ceiling the config allows, which is what matters.
+    -- Two independent fixes: the tax is computed in numeric (arbitrary
+    -- precision — the multiply cannot overflow at all, and trunc() keeps the
+    -- integer-division rounding the bigint form had), and the guard now covers
+    -- the whole expression so an absurd listing is a clean 'overflow'
+    -- rejection instead of an exception.
     v_gross_n := p_qty::numeric * v_row.ask_each::numeric;
-    if v_gross_n > 9.0e18 then perform public.hr_reject('overflow'); end if;
+    if v_gross_n > 9.0e18
+       or v_gross_n * greatest(coalesce(v_cfg.house_tax_bp, 0), 1)::numeric > 9.0e18 then
+      perform public.hr_reject('overflow');
+    end if;
     v_gross := v_gross_n::bigint;
-    v_tax   := (v_gross * v_cfg.house_tax_bp) / 10000;     -- the gold sink
+    v_tax   := trunc(v_gross_n * v_cfg.house_tax_bp::numeric / 10000)::bigint;  -- the gold sink
     v_net   := v_gross - v_tax;
 
     -- BUYER: funds. The check the old buy_listing never made, because it had

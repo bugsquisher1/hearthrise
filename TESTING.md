@@ -53,7 +53,7 @@ Each fixed bug has a guard so it can't silently come back:
 - **b124** — `prof-toolbar` is `display:none` on mobile + SW kill-switch script in `<head>`
 - **b125** — no references to legacy snapshot HTMLs in DOM
 - **build-version** — every `?v=` cache-buster matches `HearthriseBuild.cache`
-- **bug-report** — 🐛 button renders (Discord webhook configured)
+- **bug-report** — 🐛 button renders and the `bug-report-bridge` relay is wired (b322: the Discord webhook is a server secret, never a client constant)
 - **service-worker** — registered when served over https
 - **cloud-config** — `HearthriseSupabase` has a real URL + JWT anon key
 

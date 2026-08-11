@@ -110,6 +110,16 @@
         "8178"
       ],
       "port": 8178
+    },
+    {
+      "name": "hearthrise-away",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8203"
+      ],
+      "port": 8203
     }
   ]
 }

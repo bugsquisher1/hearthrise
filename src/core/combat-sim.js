@@ -60,12 +60,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=325';
-import { rollDropTable } from './drops.js?v=325';
-import { hitXpRoute, killXpRoute } from './styles.js?v=325';
-import { applyGoldFind } from './pacing.js?v=325';
-import { AWAY_RATE_MULT, rateMult, utcDaySegments } from './away.js?v=325';
-import { NO_BONUS } from './botd.js?v=325';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=326';
+import { rollDropTable } from './drops.js?v=326';
+import { hitXpRoute, killXpRoute } from './styles.js?v=326';
+import { applyGoldFind } from './pacing.js?v=326';
+import { AWAY_RATE_MULT, rateMult, utcDaySegments } from './away.js?v=326';
+import { NO_BONUS } from './botd.js?v=326';
 
 export { AWAY_RATE_MULT };
 
@@ -262,6 +262,11 @@ export function simulateTick(state, ctx) {
  *   tickMs         the swing interval. Pass `combatTickMs()` — the same
  *                  number live play uses, gear speed and weapon family
  *                  included. The old away loop used the flat 2.4s constant.
+ *                  CLAMPED to `COMBAT_BALANCE.minTickMs` (600ms); a hostile
+ *                  or garbage value cannot inflate the tick budget.
+ *   minTickMs      optional, explicit opt-in to a finer floor. Absent, zero,
+ *                  negative or non-numeric = the real floor. Never plumb a
+ *                  client-supplied value into this.
  *   botdFor(atMs)  builds the featured-boss resolver for a segment.
  *   capped         did the caller clamp this span at the offline cap?
  *   fx.segment(atMs, run)  optional: lets the caller pin its ambient
@@ -273,8 +278,32 @@ export function simulateTick(state, ctx) {
  *          honesty" clause requires is in here, so no renderer has to guess
  *          — and none of them can invent a bonus that was not applied.
  */
+export function resolveTickMs(ctx) {
+  const req = Number((ctx || {}).tickMs);
+  const asked = (isFinite(req) && req > 0) ? req : COMBAT_BALANCE.tickMs;
+  /* The opt-in. A finer granularity is a DELIBERATE argument, never a
+     side effect of a permissive floor: a caller that genuinely wants
+     sub-swing resolution (a unit test measuring a single tick, a tuning
+     harness) states `minTickMs` itself and owns the consequence. Anything
+     non-numeric, zero or negative falls back to the real floor. */
+  const optIn = Number((ctx || {}).minTickMs);
+  const floor = (isFinite(optIn) && optIn > 0) ? optIn : COMBAT_BALANCE.minTickMs;
+  return Math.max(floor, asked);
+}
+
 export function simulateSpan(state, ctx) {
-  const tickMs = Math.max(1, Number(ctx.tickMs) || COMBAT_BALANCE.tickMs);
+  /* SAFE BY CONSTRUCTION, not by caller discipline. `tickMs` divides elapsed
+     time, so it is the accrual path's single largest exploit surface: at a
+     1ms floor a twelve-hour absence budgets ~43,200,000 ticks instead of
+     ~18,000. The client call is incidentally safe (gear cannot change while
+     you are away, and `combatTickMs()` already clamps), but this primitive is
+     also the one the accrual Edge Function runs, where `tickMs` would arrive
+     from a request body if anyone let it. It clamps itself.
+
+     THE SERVER RULE (docs/design/server-authority.md §3): the accrual engine
+     DERIVES tickMs from server-owned equipment and never reads it from the
+     client. This clamp is the second line of defence, not the first. */
+  const tickMs = resolveTickMs(ctx);
   const segments = utcDaySegments(ctx.fromMs, ctx.toMs);
   const rate = rateMult(ctx);
 
@@ -296,7 +325,7 @@ export function simulateSpan(state, ctx) {
   }
 
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0;
-  let died = false; let featuredMs = 0;
+  let died = false; let featuredMs = 0; let featuredDropMult = 1;
   let carryMs = 0;
   const segLog = [];
 
@@ -338,7 +367,15 @@ export function simulateSpan(state, ctx) {
     /* Count only the time actually simulated — a death two minutes into a
        segment must not report eight hours on the featured boss. */
     const simulatedMs = Math.min(seg.ms, ran * tickMs);
-    if (wasFeatured) featuredMs += simulatedMs;
+    if (wasFeatured) {
+      featuredMs += simulatedMs;
+      /* The largest drop multiplier this absence actually paid. The welcome-back
+         line has to say "+50% drops" (daily, x1.5) or "+100%" (weekly, x2.0) —
+         a renderer that guessed "daily" would halve a weekly night in the copy,
+         which is the same failure as quoting a bonus nobody paid. Stated by the
+         simulation, exactly like `blessed` and `crits`. */
+      featuredDropMult = Math.max(featuredDropMult, featBonus.dropMult || 1);
+    }
     segLog.push({ fromMs: seg.fromMs, toMs: seg.toMs, ticks: ran, featured: wasFeatured });
     if (died) break;
   }
@@ -361,6 +398,7 @@ export function simulateSpan(state, ctx) {
        list is the same species of lie as quoting a blessing that never paid. */
     buffsPaused: ctx.activeBuffCount == null ? true : (ctx.activeBuffCount > 0),
     featuredMs,              // ms spent on a Boss of the Day / Week
+    featuredDropMult,        // the drop multiplier that featured time paid (1 when none)
     capped: !!ctx.capped,
     rateMult: rate,
     segments: segLog,

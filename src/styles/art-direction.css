@@ -1814,6 +1814,8 @@ body[data-theme] .activity-bar.v2.idle .ab-name { color: var(--ink-3); }
 body[data-theme] .activity-bar.v2 .ab-meta { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 body[data-theme] .activity-bar.v2 .ab-lv b,
 body[data-theme] .activity-bar.v2 .ab-xph b { color: var(--gold-2); }
+/* b326: the away-rate pill stays subordinate under the theme blanket too. */
+body[data-theme] .activity-bar.v2 .ab-xph.ab-away b { color: var(--ink-2); }
 body[data-theme] .activity-bar.v2 .ab-stop {
   font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 600;
   padding: 4px 12px; border-radius: var(--r);

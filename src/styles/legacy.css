@@ -3379,15 +3379,42 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 
 /* ===== block 29: buff-queue-css ===== */
+/* b326: the three hardcoded greens here (rgba(127,154,79,…) / #7f9a4f) were
+   the cozy-era leaf colour baked into a component — the exact debt CLAUDE.md
+   names. They are `--green` / `--green-bg` now, so the row re-tints per theme. */
 .buff-row{
   display:flex;align-items:center;gap:8px;padding:6px 10px;
-  background:rgba(127,154,79,.08);border:1px solid rgba(127,154,79,.3);
+  background:var(--green-bg);border:1px solid var(--green-line);
   border-radius:6px;margin-bottom:6px;font-size:calc(14.5px * var(--ui-scale, 1));
 }
-.buff-row .br-icon{font-size:calc(19px * var(--ui-scale, 1));line-height:1}
+.buff-row .br-icon{font-size:calc(19px * var(--ui-scale, 1));line-height:1;color:var(--green)}
 .buff-row .br-name{flex:1;color:var(--ink);font-weight:700}
-.buff-row .br-mag{color:#7f9a4f;font-weight:800}
+.buff-row .br-mag{color:var(--green);font-weight:800}
 .buff-row .br-time{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-family:monospace}
+
+/* ── b326: A FROZEN BUFF LOOKS FROZEN (away-time-ruling.md, honesty item 3) ──
+   A timed buff neither pays nor drains while you are away, or while nothing
+   is running. The row used to show a live-looking countdown in both states,
+   which taught the rule by surprise. Paused reads as WITHHELD, never as lost:
+   the green is stood down to the neutral surface + ink hairline (this is not
+   a debuff and must not borrow --red), and the preserved time is still fully
+   legible — that IS the reassurance. All tokens, no theme leak. */
+.buff-row.is-paused{background:transparent;border-color:var(--line)}
+.buff-row.is-paused .br-icon,
+.buff-row.is-paused .br-mag{color:var(--ink-3)}
+.buff-row.is-paused .br-name{color:var(--ink-2)}
+.buff-row.is-paused .br-time{color:var(--ink-2)}
+.buff-row .br-paused{
+  display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;
+  font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));
+  letter-spacing:.05em;text-transform:uppercase;font-weight:700;
+  color:var(--ink-3);border:1px solid var(--line);border-radius:999px;
+  padding:1px 8px;white-space:nowrap;
+}
+.buff-frozen-note{
+  margin-top:6px;color:var(--ink-3);line-height:1.4;
+  font-size:calc(14.5px * var(--ui-scale, 1));
+}
 /* b224: .eat-now-btn removed with injectEatNowButtons() — the JS that used it
    had not rendered a button since the bag was rebuilt (see legacy.js). */
 
@@ -3576,6 +3603,16 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .hr-botd .botd-name{font-weight:700;font-size:calc(16px * var(--ui-scale,1));color:var(--ink)}
 .hr-botd .botd-sub{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3)}
 .hr-botd .botd-bonus{font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2);margin-top:2px}
+/* b326: the away promise. Subordinate to the bonus line above it — the
+   percentages are the offer, this is the CONDITION under which they still pay
+   — so it takes the hint ink, not a second gilt line competing with the first. */
+.hr-botd .botd-away{font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);
+  margin-top:8px;display:flex;align-items:baseline;gap:6px;line-height:1.35}
+/* A short gilt rule marks it as a property of the offer above, not a caption
+   on the portrait. Full card width (it sits OUTSIDE .botd-main on purpose —
+   inside the 145px text column this sentence wrapped three ways). */
+.hr-botd .botd-away::before{content:"";flex:0 0 14px;height:1px;background:var(--gold);opacity:.55;
+  align-self:center}
 .hr-botd .botd-loot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
 .hr-botd .botd-loot-lab{text-transform:uppercase;letter-spacing:.06em;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);margin-right:2px}
 .hr-botd .botd-drop{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line-soft);border-radius:999px;background:rgba(255,255,255,.03);font-size:calc(14.5px * var(--ui-scale,1))}

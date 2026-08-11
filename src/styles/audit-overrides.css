@@ -336,7 +336,13 @@ img[src*="assets/raw-bundle"] {
 }
 .activity-bar.v2 .ab-meta .ab-lv b,
 .activity-bar.v2 .ab-meta .ab-xph b { color: var(--gold-2); font-size:calc(16px * var(--ui-scale, 1)); font-weight: 800; }
-.activity-bar.v2 .ab-meta .ab-hp b { color: #7f9a4f; font-weight: 800; }
+.activity-bar.v2 .ab-meta .ab-hp b { color: var(--green); font-weight: 800; }
+/* b326: the away rate, shown only when a blessing/buff makes it differ from
+   the live one. It is a COMPARISON, not a headline — muted ink for both the
+   number and the label so it reads as the quieter half of the pair, and the
+   gilt stays on the rate the player is earning right now. */
+.activity-bar.v2 .ab-meta .ab-xph.ab-away { color: var(--ink-3); }
+.activity-bar.v2 .ab-meta .ab-xph.ab-away b { color: var(--ink-2); }
 /* b262: bounty task progress chip in the combat activity bar (paione — the
    task's kills-left was falling below the fold on landscape). */
 .activity-bar.v2 .ab-meta .ab-bounty b { color: var(--gold-2); font-weight: 800; }
@@ -427,17 +433,22 @@ img[src*="assets/raw-bundle"] {
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+/* b326: this sheet held the OTHER copy of the baked cozy greens — the row's
+   gradient, its border and the magnitude ink. Tokens now (--green-bg /
+   --green-line / --green), so hearthlight and cozy-light both re-tint. */
 .buff-row {
   display: flex !important;
   align-items: center; gap: 12px;
   padding: 8px 12px;
-  background: linear-gradient(90deg, rgba(127,154,79,.08), rgba(127,154,79,.02));
-  border: 1px solid rgba(127,154,79,.2);
+  background: var(--green-bg);
+  border: 1px solid var(--green-line);
   border-radius: 6px;
   margin: 4px 0;
 }
+/* Paused wins over the filled state above — same file, higher specificity. */
+.buff-row.is-paused { background: transparent; border-color: var(--line); }
 .buff-row .br-name { flex: 1; font-family: var(--f-display); font-weight: 700; font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink); }
-.buff-row .br-mag { color: #7f9a4f; font-weight: 800; font-size:calc(16px * var(--ui-scale, 1)); }
+.buff-row .br-mag { color: var(--green); font-weight: 800; font-size:calc(16px * var(--ui-scale, 1)); }
 .buff-row .br-time {
   color: var(--ink-3); font-family: monospace; font-size:calc(14.5px * var(--ui-scale, 1));
   min-width: 50px; text-align: right;

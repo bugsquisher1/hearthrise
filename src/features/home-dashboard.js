@@ -243,9 +243,29 @@
 
       R + '.hd-mini{padding:10px 4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2) !important;display:flex;align-items:center;gap:11px}',
       R + '.hd-mini .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.8}',
-      R + '.hd-mini b{color:var(--ink) !important;font-size:15px;font-weight:700}',
+      R + '.hd-mini b{color:var(--ink) !important;font-size:calc(15px * var(--ui-scale, 1));font-weight:700}',
       R + '.hd-mini div:not([data-hd]),' + R + '.hd-mini span:not([data-hd]){color:var(--ink-2) !important}',
       R + '.hd-mini .go{margin-left:auto}',
+      /* ── b326: the buff ladder (Upkeep) ────────────────────────────────
+         Declared AFTER the generic .hd-mini colour blanket above, at equal
+         specificity, so it wins on source order rather than by escalating
+         another !important war. Running = moss; paused = the muted ink and
+         a pill, never --red: a frozen buff is withheld, not lost, and the
+         preserved time beside it IS the reassurance. */
+      R + '.hd-buff .hd-buff-mag{color:var(--green) !important;font-weight:800}',
+      R + '.hd-buff .hd-buff-time{font-variant-numeric:tabular-nums;color:var(--ink) !important}',
+      R + '.hd-buff.is-paused .hd-buff-mag{color:var(--ink-3) !important}',
+      R + '.hd-buff.is-paused .hd-buff-time{color:var(--ink-2) !important}',
+      R + '.hd-buff .hd-buff-paused{margin-left:auto;font-family:var(--f-label);',
+      'font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.05em;text-transform:uppercase;',
+      'font-weight:700;color:var(--ink-3) !important;border:1px solid var(--line);',
+      'border-radius:999px;padding:0 8px;white-space:nowrap}',
+      /* When the pill is present it takes the auto margin, so the clock must
+         stop claiming it or the two fight over the same slack. */
+      R + '.hd-buff .hd-buff-paused + .hd-buff-time{margin-left:10px}',
+      R + '.hd-buff-note{color:var(--ink-3) !important;align-items:flex-start;padding-top:2px}',
+      R + '.hd-buff-note .mi{margin-top:-4px}',
+      R + '.hd-buff-note div:not([data-hd]){color:var(--ink-3) !important;line-height:1.35}',
 
       /* ── b219 · two-line status row ───────────────────────────────────────
          Used by "The realm" (world events) and the homestead's next tier: a
@@ -254,10 +274,56 @@
       R + '.hd-duo{display:flex;align-items:flex-start;gap:11px;padding:11px 4px}',
       R + '.hd-duo .mi{flex:0 0 30px;height:30px;display:grid;place-items:center;opacity:.85;margin-top:1px}',
       R + '.hd-duo .bd{flex:1;min-width:0}',
-      R + '.hd-duo .t{font-size:15px;font-weight:700;color:var(--ink) !important;line-height:1.2}',
+      R + '.hd-duo .t{font-size:calc(15px * var(--ui-scale, 1));font-weight:700;color:var(--ink) !important;line-height:1.2}',
       R + '.hd-duo .s{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;margin-top:3px;line-height:1.35}',
       R + '.hd-duo .when{flex:0 0 auto;font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.05em;',
       'text-transform:uppercase;color:var(--ink-3) !important;font-weight:700;padding-top:3px;white-space:nowrap}',
+      /* ── b326: the welcome-back honesty band ──────────────────────────────
+         Deliberately NOT a card. The dashboard is a rhythm of unframed rows
+         under section headings (b217 killed the wall-of-cards); this band earns
+         its emphasis from POSITION — it leads the whole grid — and from its own
+         note ladder, not from a box. Every colour is a token, so it keeps its
+         meaning in either theme and cannot drift to a raw gilt.
+
+         The band is a two-part flex: the TOTALS (what you got) and the NOTES
+         (why that is the number). Side by side on desktop, where the width
+         exists; stacked below 640px, where it does not. `flex:1 1 <basis>` on
+         both halves is what makes that one rule instead of two media queries. */
+      R + '.hd-awayband{margin-bottom:20px}',
+      R + '.hd-away{display:flex;align-items:flex-start;gap:10px 22px;flex-wrap:wrap;padding:10px 4px 2px}',
+      R + '.hd-away-sum{flex:1 1 260px;min-width:0;display:flex;align-items:flex-start;gap:11px}',
+      R + '.hd-away .mi{flex:0 0 26px;height:26px;display:grid;place-items:center;opacity:.9;margin-top:1px}',
+      R + '.hd-away .bd{min-width:0}',
+      /* Wide screens only: adopt the dashboard grid's own column ratio so the
+         notes start on exactly the same vertical as the right-hand rail below.
+         A lead band whose second column is 110px off the columns it leads reads
+         as a mistake, and flex basis alone cannot promise that alignment. */
+      '@media(min-width:1000px){' + R + '.hd-away{display:grid;grid-template-columns:1.55fr 1fr;gap:34px}}',
+      R + '.hd-away .t{font-size:calc(16px * var(--ui-scale, 1));font-weight:700;',
+      'color:var(--ink) !important;line-height:1.25}',
+      /* Kills + crits: the PROOF line ("142 kills · 21 crits"). Crits are the
+         thing away combat used never to roll, so the count is evidence and
+         reads a step brighter than a supporting caption. */
+      R + '.hd-away-fight{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));',
+      'color:var(--ink-2) !important;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}',
+      R + '.hd-away-notes{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:4px}',
+      R + '.hd-away-note{display:flex;align-items:flex-start;gap:7px;line-height:1.35;',
+      'font-size:calc(14.5px * var(--ui-scale, 1))}',
+      R + '.hd-away-note .ic{flex:0 0 14px;height:14px;display:grid;place-items:center;margin-top:2px;opacity:.9}',
+      /* Three tones, three roles: the RULE is quiet, what it PAID is gilt,
+         what it HELD BACK is the muted ink — never red. A paused buff is not
+         a penalty; the ruling's whole point is that its time was preserved. */
+      R + '.hd-away-note.is-base{color:var(--ink-3) !important}',
+      R + '.hd-away-note.is-good{color:var(--gold-2) !important}',
+      R + '.hd-away-note.is-held{color:var(--ink-3) !important}',
+      /* Short landscape phone: the band is the first thing on screen and must
+         not eat it. Tighter rhythm only — no size drops, the 14.5px floor
+         holds, and nothing is hidden (every clause is load-bearing honesty). */
+      '@media (max-height:540px) and (orientation:landscape) and (max-width:1024px){',
+      R + '.hd-awayband{margin-bottom:14px}',
+      R + '.hd-away{gap:8px 16px;padding:8px 4px 0}',
+      R + '.hd-away-notes{gap:3px}',
+      '}',
       /* The holding's own line: cost list reads as a shopping list, tabular. */
       R + '.hd-cost{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:calc(14.5px * var(--ui-scale, 1));',
       'color:var(--ink-3) !important;font-variant-numeric:tabular-nums}',
@@ -319,6 +385,113 @@
     return '<svg viewBox="0 0 512 512" style="width:' + (px || 20) + 'px;height:' + (px || 20) + 'px;' +
       'display:inline-block;vertical-align:middle" aria-hidden="true"><path fill="' + (color || 'var(--gold-2)') + '" d="' + p + '"/></svg>';
   }
+  /* ══════════════════════════════════════════════════════════════════════
+     b326 — THE WELCOME-BACK HONESTY CARD
+     (docs/design/away-time-ruling.md §"Player-facing honesty", items 1–3)
+
+     The ruling's point is not decoration: "the silent penalty was the actual
+     sin", so the game must now SAY what it paid you. Every clause below is
+     read from `G.lastOfflineSummary`'s honesty payload — `blessed`,
+     `buffsPaused`, `crits`, `featuredMs`, `featuredDropMult`, `capped`,
+     `rateMult` — and NOTHING is inferred. A renderer that infers a bonus will
+     eventually quote one nobody paid, which is the failure being fixed.
+
+     Two conditional clauses are deliberately conditional:
+       • the Boss-of-the-Day line prints `featuredMs`, NOT the whole absence,
+         because the featured boss is resolved per UTC-day segment and an
+         8h featured stretch inside a 14h night must not read as 14h;
+       • the paused-buff line only appears when a buff was actually HELD
+         (`buffsPaused` is false when there were none) — "your buffs were
+         paused" beside an empty buff list is a lie in the other direction.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* "8h 12m" / "47m". Prefers the exact span (`awayMs`, b326); falls back to
+     the 0.1h-rounded `hrs` for summaries written by an older build. */
+  function fmtAway(off) {
+    var ms = (off && typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
+      ? off.awayMs : Math.max(0, (off && off.hrs) || 0) * 3600000;
+    var mins = Math.max(0, Math.round(ms / 60000));
+    if (mins < 60) return mins + 'm';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? (h + 'h ' + m + 'm') : (h + 'h');
+  }
+  /* Short form for the featured-boss stretch — "8h", "45m". Rounded DOWN to
+     the hour once past one, so the line never claims a minute it did not pay. */
+  function fmtSpanShort(ms) {
+    var mins = Math.max(0, Math.floor((Number(ms) || 0) / 60000));
+    if (mins < 60) return mins + 'm';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m >= 5 ? (h + 'h ' + m + 'm') : (h + 'h');
+  }
+  function pctOver(mult) { return Math.round(((Number(mult) || 1) - 1) * 100); }
+  /* "6:00" / "1:04:30". A buff's preserved time is read as a clock, and a
+     clock is the whole point of clause 3 — it must be legible at a glance and
+     identical to the number the engine is holding. */
+  function fmtClock(ms) {
+    var s = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    return h ? (h + ':' + p2(m) + ':' + p2(sec)) : (m + ':' + p2(sec));
+  }
+
+  function awayCardHtml(off) {
+    var bits = [];
+    if (off.gainedXp) bits.push('+' + num(off.gainedXp) + ' XP');
+    if (off.gainedItems) bits.push('+' + num(off.gainedItems) + ' items');
+    if (off.gainedGold) bits.push('+' + num(off.gainedGold) + ' gold');
+    if (off.burnt) bits.push(num(off.burnt) + ' burnt on the fire');
+
+    /* Ruling item 2 — away combat reports its crits. Crit is GEAR: it applies
+       away, and the count is the proof. Kills and crits ride together on
+       their own line because they are one fact about one night's fighting. */
+    var combatBits = [];
+    if (off.gainedKills) combatBits.push(num(off.gainedKills) + ' kills');
+    if (off.crits) combatBits.push(num(off.crits) + ' crits');
+
+    /* The notes, in the order a returning player needs them: what the rule is,
+       then what it paid on top, then what it held back, then the ceiling. */
+    var notes = [];
+    notes.push({ tone: 'base', icon: 'uiInfo',
+      text: 'At the base rate — blessings and food buffs pay while you play.' });
+    if (off.featuredMs > 0) {
+      /* The multiplier is PRINTED ONLY IF THE PAYLOAD CARRIES IT. A summary
+         written before b326 has no `featuredDropMult`, and defaulting to the
+         daily x1.5 would state a number nobody verified — on a weekly boss it
+         would understate the night by half. No field, no percentage. */
+      var lift = (typeof off.featuredDropMult === 'number') ? pctOver(off.featuredDropMult) : 0;
+      notes.push({ tone: 'good', icon: 'uiSkull',
+        text: fmtSpanShort(off.featuredMs) + ' on the Boss of the Day' +
+          (lift > 0 ? ' (+' + lift + '% drops)' : '') });
+    }
+    if (off.buffsPaused) {
+      notes.push({ tone: 'held', icon: 'uiHourglass',
+        text: 'Food buffs paused — their time was kept, not spent.' });
+    }
+    if (off.capped) {
+      notes.push({ tone: 'held', icon: 'uiClock',
+        text: 'Capped at your ' + (off.budgetHrs || 12) + 'h away max — upgrades raise this.' });
+    }
+
+    var noteHtml = notes.map(function (n) {
+      return '<div class="hd-away-note is-' + n.tone + '">' +
+        '<span class="ic">' + gly(n.icon, 13, '', 'currentColor') + '</span>' +
+        '<span>' + esc(n.text) + '</span></div>';
+    }).join('');
+
+    return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' +
+      '<div class="hd-away">' +
+        '<div class="hd-away-sum">' +
+          '<div class="mi">' + gly('uiIdle', 22, '', 'var(--gold-2)') + '</div>' +
+          '<div class="bd">' +
+            '<div class="t">' + esc(fmtAway(off)) + ' away' +
+              (bits.length ? ' — ' + esc(bits.join(' · ')) : '') + '</div>' +
+            (combatBits.length ? '<div class="hd-away-fight">' + esc(combatBits.join(' · ')) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="hd-away-notes">' + noteHtml + '</div>' +
+      '</div></div>';
+  }
+
   /* b227 — this used to be a private regex table that only ever saw a task's
      LABEL, so it could not tell "Gather 50 resources" from "Gather 250 ores"
      and its gold rule navigated to `market` two builds before a market panel
@@ -464,7 +637,27 @@
       '</div>';
 
     // ── grid ──
-    html += '<div class="hd-wrap"><div class="hd-grid"><div class="hd-col">';
+    html += '<div class="hd-wrap">';
+
+    /* b326 — "While you were away" LEADS THE DASHBOARD, full width, above the
+       two columns (docs/design/away-time-ruling.md §"Player-facing honesty").
+
+       It used to sit in the right-hand rail, fifth item down, and the rail is
+       the SECOND column — so on the 852x339 landscape phone the grid collapses
+       to one column and the one thing a returning player opens the game to read
+       was three screens down, after Next up and Your holding. A welcome-back
+       summary below the fold is not a welcome-back summary.
+
+       Full width also earns its keep on desktop: the ledger of notes lays out
+       beside the totals instead of wrapping in a 300px rail. It is time-boxed
+       to 30 minutes off `summary.at`, so it leads only while it is news and
+       then vanishes — the rest of the session's composition is unchanged. */
+    var _off = G.lastOfflineSummary;
+    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && (_off.hrs || 0) >= 0.1) {
+      html += awayCardHtml(_off);
+    }
+
+    html += '<div class="hd-grid"><div class="hd-col">';
 
     // Daily reward — top priority when a reward is waiting to be claimed
     var DL = window.HearthriseDaily;
@@ -589,6 +782,7 @@
     // This rail used to hold three items and then ~700px of nothing. It now
     // carries the four things a player checks between actions.
 
+
     // Your heroes — the REAL multi-character selector (b229). The fake 3-slot
     // paywall MOCKUP that used to sit on the Character screen is CUT; this
     // account-gated block is the primary switch surface now, and it shares
@@ -625,34 +819,6 @@
           html += '<div><div class="hd-h"><h3>Your heroes</h3></div><div class="hd-rows">' + heroesHtml + '</div></div>';
         }
       } catch (e) { /* multi-character optional */ }
-    }
-
-    // b228 (Tyler): "While you were away". The offline catch-up (G.lastOfflineSummary)
-    // only ever reached the player as a transient toast — b225's burn count, b226's
-    // budget readout and b227's base-rate note were ALSO written into the legacy
-    // #dash-active panel, which is display:none. Three features reporting to a
-    // surface nobody can see. This is the visible home for it: a card at the top of
-    // the status rail, shown only while it is still news (a 30-minute window off
-    // summary.at), so it greets a returning player and then steps aside.
-    var _off = G.lastOfflineSummary;
-    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && (_off.hrs || 0) >= 0.1) {
-      var _bits = [];
-      if (_off.gainedXp) _bits.push('+' + _off.gainedXp.toLocaleString() + ' XP');
-      if (_off.gainedItems) _bits.push('+' + _off.gainedItems.toLocaleString() + ' items');
-      if (_off.gainedGold) _bits.push('+' + _off.gainedGold.toLocaleString() + ' gold');
-      if (_off.gainedKills) _bits.push('+' + _off.gainedKills.toLocaleString() + ' kills');
-      if (_off.burnt) _bits.push(_off.burnt.toLocaleString() + ' burnt on the fire');
-      // b307: per-absence cap. Only mention the ceiling when this trip hit it;
-      // otherwise the honest line is simply that it was earned at the base rate.
-      var _budget = _off.capped
-        ? 'capped at your ' + (_off.budgetHrs || 12) + 'h offline max — upgrades raise this'
-        : 'earned at the base rate';
-      html += '<div><div class="hd-h"><h3>While you were away</h3></div>' +
-        '<div class="hd-card hd-duo">' +
-          '<div class="mi">' + gly('uiIdle', 20, '', 'var(--gold-2)') + '</div>' +
-          '<div class="bd"><div class="t">' + esc(_off.hrs.toFixed(1)) + 'h offline — ' + esc(_bits.join(' · ') || 'nothing to report') + '</div>' +
-          '<div class="s">' + esc(_budget) + '. Blessings apply while online.</div></div>' +
-        '</div></div>';
     }
 
     // Right now / jump back in — first, because "what am I doing" is the
@@ -732,13 +898,44 @@
     }
 
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
-    var hasFood = G.foodSlot || (G.buffs && G.buffs.length);
+    /* b326 — THE BUFF LADDER, and why it had to be built here.
+       The row used to read "Food buff active." — no name, no magnitude, no
+       clock. That was the ONLY visible buff surface in the game: the legacy
+       Active Effects card, which is where `__renderBuffsSection` draws, is
+       `display:none` on Home (this component's own b213 reset hides every
+       legacy `> .card` in the panel). So the ruling's honesty clause 3 —
+       "a paused buff renders as paused with its time preserved" — had nowhere
+       to render at all. It renders here. Each buff states its effect, its
+       PRESERVED time, and whether that clock is running. */
+    var _buffs = (Array.isArray(G.buffs) ? G.buffs : []).filter(function (b) { return b && b.remainingMs > 0; });
+    var _bfrozen = (typeof window.buffsFrozen === 'function') ? window.buffsFrozen() : false;
     html += '<div><div class="hd-h"><h3>Upkeep</h3></div><div class="hd-rows">';
-    html += '<div class="hd-card hd-mini"><div class="mi">' + gly('cooking', 20, '', 'var(--ink-2)') + '</div>' +
-      (hasFood
-        ? '<div>Food buff active.</div>'
-        : '<div>No food buff. <span class="hd-link" data-hd="cook">Cook something →</span></div>') +
-      '</div>';
+    if (!_buffs.length) {
+      html += '<div class="hd-card hd-mini"><div class="mi">' + gly('cooking', 20, '', 'var(--ink-2)') + '</div>' +
+        '<div>No food buff. <span class="hd-link" data-hd="cook">Cook something →</span></div></div>';
+    } else {
+      var BD = window.BUFFS_DEF || {};
+      html += _buffs.map(function (b) {
+        var def = BD[b.type] || { label: b.type, isPercent: true };
+        var mag = (def.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude);
+        return '<div class="hd-card hd-mini hd-buff' + (_bfrozen ? ' is-paused' : '') + '">' +
+          '<div class="mi">' + gly((window.BUFF_GLYPH || {})[b.type] || 'uiPotion', 20, '',
+            _bfrozen ? 'var(--ink-3)' : 'var(--green)') + '</div>' +
+          '<div>' + esc(def.label) + ' <b class="hd-buff-mag">' + esc(mag) + '</b></div>' +
+          (_bfrozen ? '<span class="hd-buff-paused">paused</span>' : '') +
+          '<b class="go hd-buff-time">' + esc(fmtClock(b.remainingMs)) + '</b>' +
+        '</div>';
+      }).join('');
+      if (_bfrozen) {
+        /* The rule, stated once under the ladder rather than on every row.
+           This is the clause the ruling exists for: a frozen buff is not
+           being spent, so the number above is a promise, not a countdown. */
+        html += '<div class="hd-card hd-mini hd-buff-note"><div class="mi">' +
+          gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
+          '<div>Time kept, not spent — buff clocks only run while an activity ' +
+          'is running, and freeze entirely while you are away.</div></div>';
+      }
+    }
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
       try {
         var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);

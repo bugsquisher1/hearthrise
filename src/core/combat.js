@@ -17,7 +17,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=325';
+import { levelOf } from './xp.js?v=326';
 
 export const WEAPON_TYPES = {
   sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',
@@ -42,6 +42,13 @@ export const COMBAT_BALANCE = {
   defenseXpMiss: 1,
   defenseXpDamageScale: 2,
   tickMs: 2400,
+  /* THE FLOOR ON A SWING. `combatTickMs()` clamps to this, and so does
+     `simulateSpan` — because a tick interval is a DIVISOR of elapsed time on
+     the accrual path, and a divisor is an exploit surface. It lives here,
+     beside `tickMs`, so the live scheduler and the away replay cannot be
+     given two different minima the way they were once given two different
+     intervals (see combat-sim.js's header, omission 10). */
+  minTickMs: 600,
   critMult: 1.5,
   critCap: 0.60,
 };

@@ -1098,6 +1098,12 @@ function processOffline(){
     }
   });
 
+  /* b326 (perf): renderProfile() and the quest strip skip their work while the
+     latch is closed — see their guards. The replay is over here, so repaint
+     each exactly once with the finished state. One frame instead of thousands. */
+  try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
+  try{ if(typeof window.renderQuestStrip==='function') window.renderQuestStrip(); }catch(e){}
+
   const gainedItems=Object.keys(G.inventory).reduce((s,id)=>s+Math.max(0,(G.inventory[id]||0)-(beforeInv[id]||0)),0);
   const gainedXp=Object.keys(G.skills).reduce((s,sk)=>s+Math.max(0,(G.skills[sk]||0)-(beforeXp[sk]||0)),0);
   const gainedGold=(G.gold||0)-beforeGold;
@@ -1140,7 +1146,17 @@ function processOffline(){
       : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
     crits: combatSummary ? (combatSummary.crits||0) : 0,
     featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
+    /* The MULTIPLIER that featured time actually paid, so the welcome-back
+       line can say "(+50% drops)" without a renderer inferring which boss it
+       was. Daily is x1.5 and weekly x2.0 — a renderer that assumed "daily"
+       would understate a weekly night by half, which is the same species of
+       lie as quoting a blessing nobody paid, only in the other direction. */
+    featuredDropMult: combatSummary ? (combatSummary.featuredDropMult||1) : 1,
     rateMult: window.HearthriseCore.away.AWAY_RATE_MULT,
+    /* b326: `hrs` is rounded to one decimal for the numeric readouts, which is
+       6-minute granularity — fine for "8.2h", wrong for "8h 12m". The exact
+       span is carried alongside it so a duration can be PRINTED honestly. */
+    awayMs: Math.round(hrs*3600000),
   };
   /* b307: no daily bucket to report. Only speak up when the absence was long
      enough to hit the per-absence cap, so the player learns the ceiling by
@@ -1155,9 +1171,13 @@ function processOffline(){
      rather than two policies. */
   const rateNote = 'at the base rate';
   if(combatSummary){
+    /* b326 (ruling §"Player-facing honesty" 2): away combat REPORTS ITS CRITS.
+       Crits are gear, they apply away, and stating the count is the cheapest
+       proof that they did — the omission was the original sin here. */
+    const critNote = combatSummary.crits ? ` · ${combatSummary.crits} crits` : '';
     const note = combatSummary.died
-      ? `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills, +${gainedXp} XP, +${gainedGold} gold`
-      : `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills, +${gainedItems} items, +${gainedGold} gold`;
+      ? `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — fought to the death after ${combatSummary.kills} kills${critNote}, +${gainedXp} XP, +${gainedGold} gold`
+      : `⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, +${gainedItems} items, +${gainedGold} gold`;
     notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
   } else {
     /* b225: if the fire ruined any of it while you were away, say so — an
@@ -1729,9 +1749,36 @@ function pacedActionMs(ms){ return window.HearthriseCore.pacing.pacedActionMs(ms
    number at all. b227: no presence multiplier here, because there no longer
    is one; a blessed reader sees the blessed rate because getBonus itself
    went up, which is the same number addXp will pay on the next action. */
-function actionRate(skillId, action){
+/* b326 — `opts.away` gives a caller the AWAY rate
+   (docs/design/away-time-ruling.md §"Player-facing honesty" 5: "any
+   away-earnings preview computed with away:true so it can never quote a
+   blessing/buff-inflated rate").
+
+   It is the SAME calculator, and deliberately so — a second "offline rate"
+   function is precisely the duplicated-loop mistake the ruling was written to
+   end. The only difference is the CONTEXT: `rateCtx().bonus` is
+   `window.getBonus`, whose blessing and buff contributions are both gated on
+   the b227 offline-replay latch, so evaluating inside the latch yields exactly
+   the stack the accrual engine will pay. Nothing simulates and nothing is
+   granted here; the latch is depth-counted and released in a `finally`, so a
+   preview can never strand the game in unblessed mode. */
+/* b326 — `opts.away` gives a caller the AWAY rate
+   (docs/design/away-time-ruling.md §"Player-facing honesty" 5: "any
+   away-earnings preview computed with away:true so it can never quote a
+   blessing/buff-inflated rate").
+
+   It is the SAME calculator, and deliberately so — a second "offline rate"
+   function is precisely the duplicated-loop mistake the ruling was written to
+   end. The only difference is the CONTEXT: `rateCtx().bonus` is
+   `window.getBonus`, whose blessing and buff contributions are both gated on
+   the b227 offline-replay latch, so evaluating inside the latch yields exactly
+   the stack the accrual engine will pay. Nothing simulates and nothing is
+   granted here; the latch is depth-counted and released in a `finally`, so a
+   preview can never strand the game in unblessed mode. */
+function actionRate(skillId, action, opts){
   const C=window.HearthriseCore;
-  return C.pacing.actionRate(skillId, action, C.rateCtx());
+  const run=function(){ return C.pacing.actionRate(skillId, action, C.rateCtx()); };
+  return (opts && opts.away) ? withOfflineReplay(run) : run();
 }
 window.pacedXp = pacedXp;
 window.pacedActionMs = pacedActionMs;
@@ -2498,7 +2545,9 @@ function combatTickMs(){
   const spd=Math.max(0,Math.min(0.20,(eq.spdB)||0));
   /* Wave 5: apply the equipped weapon family's speed identity. */
   const wmod=WEAPON_SPEED_MOD[eq.weaponType]||1;
-  return Math.max(600,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)*wmod));
+  /* The floor is COMBAT_BALANCE.minTickMs, the same number simulateSpan clamps
+     to — one constant, so the live scheduler and the away replay cannot drift. */
+  return Math.max(COMBAT_BALANCE.minTickMs,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)*wmod));
 }
 window.combatTickMs=combatTickMs;
 function startCombat(mId){
@@ -3357,6 +3406,16 @@ function updateTopbar(){
    RENDER — Profile dashboard
    ──────────────────────────────────────────────── */
 function renderProfile(){
+  /* b326 (perf, flagged by the Systems Engineer): an away replay grants XP,
+     kills and quest progress thousands of times, and every grant that fired a
+     level-up or an event bus message repainted this whole dashboard — ~10% of
+     replay time spent drawing frames NOBODY SEES, because the replay runs
+     inside loadLocal() before the first paint. Nothing is lost by skipping:
+     the replay is bounded, and processOffline() repaints once when it ends.
+     Guarded through the published seam so this is the same latch blessings and
+     buffs read — there is exactly one "are we replaying?" oracle. */
+  if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
+     && window.HearthrisePresence.inOfflineReplay()) return;
   generateDailyTasks(false);
   /* user card */
   const cl=getCombatLevel(),tl=getTotalLevel();
@@ -6724,6 +6783,34 @@ function _activityXpHr(){
   }
   return null;
 }
+/* b326 — the AWAY rate for the same action, computed with `away:true`
+   (away-time-ruling.md, honesty item 5). Returned only when it genuinely
+   differs from the live rate, because a second identical number beside the
+   first is noise, and this pill lives in a 339px-tall landscape topbar.
+   It differs exactly when a blessing or a food buff is lifting THIS activity
+   — which is the moment the player most needs to know the night pays the
+   base rate, and the moment they are most likely to assume otherwise. */
+let _awayRateMemo = {k:null, v:null};
+function _activityAwayXpHr(live){
+  if(!(live > 0)) return null;
+  if(!(G.activeSkill && G.skillTargetId)) return null;
+  /* This bar refreshes at 10Hz and `actionRate` walks the seven-deep getBonus
+     chain. Memoised on the LIVE rate, which is sound rather than merely cheap:
+     the away stack is a strict subset of the live one, so nothing can move the
+     away number without also moving the live number. */
+  const memoKey = G.activeSkill + '|' + G.skillTargetId + '|' + live;
+  if(_awayRateMemo.k === memoKey) return _awayRateMemo.v;
+  let t = null;
+  if(G.activeSkill === 'woodcutting' && typeof TREES !== 'undefined') t = TREES.find(a=>a.id===G.skillTargetId);
+  else if(G.activeSkill === 'mining' && typeof ROCKS !== 'undefined') t = ROCKS.find(a=>a.id===G.skillTargetId);
+  else if(G.activeSkill === 'fishing' && typeof FISH_SPOTS !== 'undefined') t = FISH_SPOTS.find(a=>a.id===G.skillTargetId);
+  if(!t){ _awayRateMemo = {k:memoKey, v:null}; return null; }
+  const r = actionRate(G.activeSkill, t, {away:true});
+  const away = r ? r.xpPerHour : null;
+  const out = (away && away !== live) ? away : null;
+  _awayRateMemo = {k:memoKey, v:out};
+  return out;
+}
 
 function refreshActivityBar(){
   const bar = document.getElementById('activity-bar'); if(!bar) return;
@@ -6793,7 +6880,11 @@ function refreshActivityBar(){
     const xph = _activityXpHr();
     if(metaEl){
       const lv = (typeof getLevel==='function') ? getLevel(G.activeSkill) : 0;
-      metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`;
+      /* b326: when a blessing or buff is lifting this activity, state the rate
+         an ABSENCE would pay right beside it. Same calculator, `away:true`. */
+      const awayXph = _activityAwayXpHr(xph);
+      metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`
+        + (awayXph?`<span class="ab-xph ab-away" title="Blessings and food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -13555,7 +13646,17 @@ setInterval(function(){
    Combat screen, which is where healing is actually needed. */
 
 // ── UI: refresh just the timer text without re-rendering the whole panel ──
+let _lastBuffFrozen = null;
 function refreshBuffTimers(){
+  /* b326: the paused STATE flips the moment an activity starts or stops, and
+     the 1s timer refresh only rewrites the countdown text. Repaint the whole
+     section on the transition — a row that says "paused" while the clock is
+     visibly draining is worse than no label at all. */
+  const fz = buffFrozen();
+  if(fz !== _lastBuffFrozen){
+    _lastBuffFrozen = fz;
+    if(typeof window.__renderBuffsSection === 'function'){ window.__renderBuffsSection(); return; }
+  }
   const rows = document.querySelectorAll('.buff-row');
   rows.forEach(function(row){
     const t = row.querySelector('.br-time');
@@ -13601,17 +13702,69 @@ window.__renderBuffsSection = function(){
     host.innerHTML = '<div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
     return;
   }
+  /* b326 — A PAUSED BUFF MUST RENDER AS PAUSED (away-time-ruling.md
+     §"Player-facing honesty" 3).
+
+     `tickBuffs` freezes a buff on exactly two conditions: `away` (the whole
+     absence) and `active === false` (nothing running). Both are the SAME
+     rule to the player — "a buff is spent on work, and it is not working" —
+     so the row asks the same question the clock does, rather than inventing
+     a third answer. `buffFrozen()` is that question, in one place.
+
+     Why this and not a welcome-back-only banner: a clock that ticks in front
+     of a player while the engine is not draining it teaches the wrong rule by
+     surprise, which is the exact failure the ruling exists to end. The row
+     states its own clock state, permanently, so the rule is learnable instead
+     of discoverable-by-loss. */
+  const frozen = buffFrozen();
   host.innerHTML = G.buffs.map(function(b, i){
-    const def = DEF()[b.type] || {label:b.type, isPercent:true, icon:'✨'};
+    const def = DEF()[b.type] || {label:b.type, isPercent:true};
     const display = def.isPercent ? '+'+b.magnitude+'%' : '+'+b.magnitude;
-    return '<div class="buff-row" data-buff-idx="'+i+'">'
-      +'<span class="br-icon">'+def.icon+'</span>'
+    return '<div class="buff-row'+(frozen?' is-paused':'')+'" data-buff-idx="'+i+'">'
+      +'<span class="br-icon">'+buffGlyph(b.type)+'</span>'
       +'<span class="br-name">'+def.label+'</span>'
       +'<span class="br-mag">'+display+'</span>'
+      +(frozen ? '<span class="br-paused">'+buffGlyph('_paused', 12)+'paused</span>' : '')
       +'<span class="br-time">'+formatRemaining(b.remainingMs)+'</span>'
     +'</div>';
-  }).join('');
+  }).join('')
+  + (frozen
+    ? '<div class="buff-frozen-note">Buff time is kept, not spent — it only runs down while an activity is running, and freezes entirely while you are away.</div>'
+    : '');
 };
+
+/* The engine's freeze condition, asked once. Mirrors src/core/buffs.js
+   `tickBuffs`: frozen while away, and frozen while nothing is running.
+   PUBLISHED, because Home renders the buff ladder too and two renderers
+   answering "is this clock running?" differently is exactly how the ruling's
+   honesty clause gets quietly undone. One oracle. */
+function buffFrozen(){
+  if(typeof inOfflineReplay === 'function' && inOfflineReplay()) return true;
+  return !(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
+}
+window.buffsFrozen = buffFrozen;
+
+/* THE 0-EMOJI RULE. `BUFFS_DEF[].icon` is a literal emoji (🌿⭐🍀…) chosen
+   for two emoji fonts — it was rendering as ART in the Active Effects panel.
+   The buff TYPE maps to the baked atlas instead, so the panel matches every
+   other icon in the game and draws identically on every platform. The data
+   row keeps its `icon` field (other, non-rendering consumers read it); this
+   is the render-side mapping, which is where the icon language belongs. */
+const BUFF_GLYPH = {
+  gather_speed:'uiLeaf', all_xp:'uiXp', drop_rate:'uiGift', farm_yield:'uiWheat',
+  damage:'uiSword', defense:'uiShield', combat_xp:'uiTarget', gold_find:'uiCoinStack',
+  damage_crit:'uiSpark', _paused:'uiHourglass',
+};
+/* Published: Home renders the same ladder (the legacy Active Effects card it
+   used to live in is display:none under the b213 dashboard), and two icon
+   tables for one buff registry is how a glyph goes stale in one place only. */
+window.BUFF_GLYPH = BUFF_GLYPH;
+function buffGlyph(type, px){
+  const IS = window.HearthriseIconSet;
+  const key = BUFF_GLYPH[type] || 'uiPotion';
+  if(!IS || typeof IS.icon !== 'function') return '';
+  return IS.icon(key, px || 17, 'currentColor') || '';
+}
 
 // Hook renderActiveEffects + renderProfile so our section refreshes
 (function(){
@@ -13620,7 +13773,14 @@ window.__renderBuffsSection = function(){
     const orig = window[fnName];
     window[fnName] = function(){
       const r = orig.apply(this, arguments);
-      setTimeout(window.__renderBuffsSection, 30);
+      /* b326 (perf): an away replay calls renderProfile once per level-up.
+         Un-gated, this queued one 30ms timer PER CALL — thousands of timers
+         scheduled before the first paint, all to repaint one list that nobody
+         can see yet. processOffline() repaints once when the latch opens. */
+      if(!(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
+           && window.HearthrisePresence.inOfflineReplay())){
+        setTimeout(window.__renderBuffsSection, 30);
+      }
       return r;
     };
   });
@@ -14678,6 +14838,11 @@ console.log('[Bundle Icons v1] applied:',
     return strip;
   }
   function renderStrip(){
+    /* b326 (perf): this is subscribed to `HearthriseEvents.on('*')`, so an away
+       replay repainted the quest strip once per kill/grant/drop — thousands of
+       times, before the first paint. Same latch, same reasoning as renderProfile. */
+    if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
+       && window.HearthrisePresence.inOfflineReplay()) return;
     var strip = ensureStrip();
     if(!strip) return;
     var list = strip.querySelector('.gq-list');
@@ -14763,6 +14928,10 @@ console.log('[Bundle Icons v1] applied:',
   }
   window.openQuestsModal = openQuestsModal;
   window.closeQuestsModal = closeQuestsModal;
+  /* b326: published so processOffline() can repaint ONCE when the replay ends,
+     which is what makes the replay-time skip inside renderStrip() lossless
+     rather than "the 2s timer will probably get it". */
+  window.renderQuestStrip = renderStrip;
 
   function renderModal(){
     var overlay = document.getElementById('quests-modal-overlay');

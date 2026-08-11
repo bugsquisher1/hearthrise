@@ -404,6 +404,32 @@ Four properties fall out of that shape:
 * **Rates are the server's** — level, gear and bonuses come from `player_skills` /
   `player_equipment`, so a forged local level buys nothing.
 
+#### `interval_ms` is the accrual engine's largest lever — DERIVE it, never accept it
+
+`ticks = floor(elapsed_ms / interval_ms)` makes the swing interval a **divisor of elapsed time**,
+which makes it the highest-leverage number in the whole grant. A 12-hour absence at the honest
+2.4s swing budgets ~18,000 ticks; the same absence at `interval_ms: 1` budgets ~43,200,000 — a
+~2400× mint of XP, gold and drops from a single request field.
+
+Therefore, in the imperative:
+
+* **The server DERIVES `interval_ms` from server-owned equipment.** It reads `player_equipment`,
+  computes `spdB` and the weapon family through the shared `src/core/combat.js` helpers, and
+  clamps the result to `COMBAT_BALANCE.minTickMs` (600 ms) — exactly what the client's
+  `combatTickMs()` does. One formula, one floor, both sides.
+* **The server NEVER reads `tickMs` (or `interval_ms`, or a tick count, or a span) from the
+  client.** It is not a defaulted field, not an override, not a debug parameter. The Edge
+  Function constructs the simulation ctx field-by-field; it must not spread a request body into
+  it, because `minTickMs` (the deliberate opt-in below) would ride in the same way.
+* `simulateSpan` in `src/core/combat-sim.js` clamps `ctx.tickMs` to `COMBAT_BALANCE.minTickMs`
+  itself, so the primitive is safe by construction rather than by caller discipline. A caller
+  that genuinely needs finer granularity passes an explicit `ctx.minTickMs`. **That is a second
+  line of defence, not permission to skip the first** — a clamped-but-client-chosen 600 ms still
+  pays 4× the honest sword rate.
+* Guarded by `AWAY-12c` in `src/features/smoke-test.js` (hostile `tickMs` of `1 / 0 / -5 / NaN /
+  '1' / Infinity / null / {}` cannot inflate the tick budget) and by `AWAY-12b` (weapon-family
+  speed is carried into accrual numerically, not just textually).
+
 **RNG.** `simulate` must be deterministic and replayable for dispute resolution, *and*
 unpredictable to the player, and those two requirements pull against each other. Revision 1
 seeded from `hash(user_id, slot, accrued_to)` — every input of which `hr_load` hands the client,

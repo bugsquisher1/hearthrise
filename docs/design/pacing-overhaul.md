@@ -811,8 +811,14 @@ get below five.** That is roughly 21 days of headroom between the anchor and the
 budget every future boost and event is spending from.
 
 **All 15 skills to 99.** Gathering is exact (166.6 days at 0%, ~135 at +25%). The artisan block
-scales ×4.10 against today (`actionMs / PACE.xp`); the combat block scales ×2.56 (XP only — the 2.4s
-tick is untouched, §4.4), which is gear-independent and therefore exact. Applied to §0's ~10.3-month
+scales ×4.10 against today (`actionMs / PACE.xp`); the combat block scales ×2.56 at the **0% anchor:
+sword, no speed gear** — consistent with A.4's leftmost column. It is **not** gear-independent:
+`spdB` shortens every swing at no damage cost, so a player at the 20% cap shortens the combat block
+by **16.7%**. Since b325 that applies to away time as well as live, i.e. to the full 14.5 h/day
+rather than only the ~2.5 active hours. *(The 57.2-day first-99 floor above is unchanged and needs
+no recompute: weapon family moves the combat block by ~0, because combat XP/hour is proportional to
+DPS rather than to swing count and the families are damage-normalised against their speed mods.)*
+Applied to §0's ~10.3-month
 figure those two multipliers bracket the total at **≈15–16 months for a player carrying the typical
 +25% stack, and ≈19 months with no permanent perks at all** — inside the 16–18 month target, with
 the combat block the least certain term. Farming runs in parallel (wall-clock) rather than adding.
@@ -841,6 +847,25 @@ woodcutting to 99 goes from 50,705 logs to 216,020. Per session the player sees 
 (1/1.60 the rate, plus the `[1,1]` flattening) and far less gold per item, which is what they
 actually feel — but a finished bank is four times deeper. §6.3's Phase-2 sink scaling (property,
 castle and high-tier recipe costs into the thousands) is now load-bearing rather than a nicety.
+
+## A.7b Two open balance items — QUEUED TO THE GAME DESIGNER, not fixed here
+
+Raised by the Designer during the b325 ratification and recorded so they are not lost. Both are
+**balance calls, not engineering defects**; neither is actioned in b325.
+
+**1. `spdB` sits OUTSIDE the additive +52% permanent-power fuse that §8 is written against.** It
+is clamped independently at 0.20 inside `combatTickMs()`, so the true permanent combat ceiling is
+`+52% XP × 1.25 rate` — above what A.4's ceiling column models — and since b325 it pays 24 h/day
+rather than only the active hours. Today only `leather_boots` grants it (`.02`), so live impact is
+~2% and nothing is broken. But if speed gear ever ships as a real ladder, A.4's "the most decorated
+player cannot get below five weeks" stops being true. Resolution is either folding `spdB` into the
+fuse or giving it its own budgeted line in §8. **Do not ship a speed-gear ladder before that call.**
+
+**2. `atkB` is a dead stat at 99.** `accuracy` clamps at `playerMaxAccuracy` 0.95, and at level 99
+against a tier-6 monster even a *bronze* sword clamps. Accuracy is the sword family's entire
+identity, which makes it the worst endgame family (index 23.8 vs bow 26.5). Pre-existing and
+independent of b325 — it is a consequence of the accuracy cap meeting the level ladder, not of the
+away unification.
 
 ---
 

@@ -4,6 +4,24 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-11 · Art Director · The Active Effects card — the game's ONLY buff panel — has been `display:none` since the Home dashboard shipped
+**Discovery:** `#active-effects-card` (food buffs + house buffs, `renderActiveEffects` in legacy.js
+block 8) is appended to `#panel-profile`. `home-dashboard.js`'s b213 reset hides every legacy card in
+that panel: `#panel-profile.active:has(#hd-root) > .card{display:none !important}`. Measured in-browser:
+computed `display:none`, rect 0x0. So `__renderBuffsSection` has been painting buff rows into an
+invisible container, and the ONLY visible statement about buffs anywhere in the game was Home's
+one-liner **"Food buff active."** — no name, no magnitude, no clock. House buffs have no visible surface
+at all.
+**Affected systems:** `legacy.js` block 8 (`renderActiveEffects`), block 36 (`__renderBuffsSection`,
+`refreshBuffTimers`), `home-dashboard.js`, `audit-overrides.css` + `legacy.css` `.buff-row` /
+`.active-effects-card` rules (~30 selectors styling a hidden element).
+**Required action:** b326 gave buffs a real home — Home's **Upkeep** block now renders the full ladder
+(name · magnitude · preserved time · paused state), which is where the away ruling's "a paused buff
+renders as paused" clause actually lands. The legacy card is still dead: someone should either delete it
+and its food section outright, or **give HOUSE buffs a surface** — they are currently unreadable, and
+`renderActiveEffects` still emits literal emoji for them (🍳🔨⭐🍀🌿🌾🎃🔥🧰), a 0-emoji-rule violation
+that is only invisible by accident. Systems/Asset Director.
+
 ### 2026-08-08 · Systems Engineer · ES modules re-wrap `window.*` AFTER every classic script — never assert a hook by reading a marker off a live global
 **Discovery:** `window.killMonster` / `window.addXp` are wrapped by at least six places (legacy's bestiary
 + level-up IIFEs, `collection-log.js`, `pets.js`, `dungeons.js`, and `companions.js`). Five are classic

@@ -9,6 +9,40 @@ _Your private journal. Append what you learn, decide, and change (newest at top)
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-11 · b326 — the away-honesty surfaces (the game finally says what it paid you)
+
+**The brief.** b325's engine returns `{blessed:false, buffsPaused, crits, featuredMs, capped, rateMult, combat:{segments[]}}`; nobody had written the UI. The Designer ruled the surfaces are part of the ruling, not a follow-up — *the silent penalty was the actual sin*.
+
+**The finding that reframed the job.** Clause 3 ("a paused buff renders as PAUSED with its time preserved") had **nowhere to render**. `#active-effects-card` — the only buff panel in the game — computes `display:none` on Home: `home-dashboard.js`'s own b213 reset hides every legacy `> .card` in `#panel-profile`. Measured in-browser: rect 0x0. `__renderBuffsSection` has been painting into an invisible container, and the entire visible statement about buffs was Home's **"Food buff active."** — no name, no magnitude, no clock. So the honest fix was not to style the paused row; it was to give buffs a surface. Home's **Upkeep** block now carries the ladder: name · magnitude · preserved time · `PAUSED` pill · one rule line. Filed in DISCOVERIES — the legacy card is still dead, and HOUSE buffs still have no surface at all (and still emit 9 literal emoji, invisible only by accident).
+
+**Composition decision that mattered most.** The welcome-back card was in the RIGHT-HAND RAIL, fifth item, under "Your heroes". The rail is the second grid column — so on Tyler's 852×339 landscape phone the grid collapses to one column and the one thing a returning player opens the game to read sat three screens down, after Next up and Your holding. **A welcome-back summary below the fold is not a welcome-back summary.** It is now a full-width band leading the whole grid, above both columns, time-boxed to 30 minutes off `summary.at` so it greets and then vanishes. Above 1000px it adopts `.hd-grid`'s own `1.55fr 1fr` so its notes column lands on exactly the same vertical as the rail below — flex basis alone cannot promise that alignment, and a lead band 110px off the columns it leads reads as a bug.
+
+**Copy, and the two things the payload could not tell me.**
+1. `hrs` is `toFixed(1)` — 6-minute granularity — so the Designer's "8h 12m away" was not printable from it. Added **`awayMs`** to the summary.
+2. `featuredMs` says the boss applied; it does **not** say whether it was the daily (×1.5) or the weekly (×2.0). A renderer defaulting to "daily" halves a weekly night in copy — the same sin pointed the other way. Added **`featuredDropMult`** to `simulateSpan`'s payload (3 lines, additive, next to `featuredMs`) and flagged it to Systems. **The band prints a percentage ONLY if the payload carries one**; a pre-b326 summary reports the boss and quotes no number.
+
+**Three tones, three roles** (`.hd-away-note`): the RULE is quiet ink-3, what it PAID is gilt, what it HELD BACK is muted ink — **never `--red`**. A paused buff is not a penalty; the ruling's whole point is that its time was preserved, and the preserved number beside it IS the reassurance.
+
+**Why the paused state is permanent, not a welcome-back banner.** `tickBuffs` freezes on two conditions — `away`, and `active === false`. Both are the same rule to the player. A clock that ticks in front of you while the engine is not draining it teaches the rule by surprise, which is the failure being fixed. So the row states its own clock state, always, through one published oracle (`window.buffsFrozen()`) that Home and the buff panel both ask.
+
+**Token work.** `--green-line` added to all four theme blocks (the moss hairline was inlined per component). Converted **7 baked cozy greens** — `rgba(127,154,79,.08/.02/.2/.3)` and `#7f9a4f` ×3 — across `legacy.css`, `audit-overrides.css` (`.buff-row` had TWO competing copies) and the activity bar's `.ab-hp`. Converted 2 dial-unreachable bare `font-size:15px` in home-dashboard. Every new colour is a token; no new `!important` war (the buff-ladder rules sit after the generic `.hd-mini` blanket at equal specificity and win on source order).
+
+**The away preview (item 5).** `actionRate(skillId, action, {away:true})` — the SAME calculator, evaluated inside `withOfflineReplay`, because a second "offline rate" function is exactly the duplicated-loop mistake the ruling was written to end. Surfaced where the decision is made: the activity bar prints a muted `5,062 away` beside the gilt live rate **only when they differ** (i.e. only when a blessing/buff is inflating what you see). Memoised on the live rate — sound, not merely cheap: the away stack is a strict subset, so nothing moves away without moving live.
+
+**Perf (the Engineer's flag, and it was worse than 10%).** `renderProfile` and the quest strip now early-return inside the latch and are repainted once when it opens. The real cost was the buff-queue's `renderProfile` wrapper, which scheduled a **30ms `setTimeout` per call** — thousands of timers queued before the first paint of a return.
+
+**Guards `b326-1`…`b326-6`, every one proved red by re-introducing its bug.** Each asserts BOTH directions — the clause appears when the payload carries it and is **absent** when it does not (no crits line with 0 kills, no boss line at `featuredMs:0`, no paused line at `buffsPaused:false`, no percentage without `featuredDropMult`, and the band disappears once the news is an hour old). Smoke **571 → 577/577, 0 runtime errors.** No version bump.
+
+**One test flake I caught and fixed rather than shipped:** b326-5 first used a `gather_speed` buff to prove live ≠ away. Speed passes through `SPEED_FUSE` (0.70), so on a save whose perks and tools saturate the fuse the buff changes nothing and the test is flaky rather than wrong. It uses `all_xp` now — an uncapped additive term — so the divergence is arithmetic, not circumstantial. (Measured in-browser: `getBuffBonuses().allXP = 0.6` but `getBonus('allXP') = 0.15` — the power budget clamps it. Worth knowing before anyone writes another buff-magnitude assertion.)
+
+**Verified in-browser** at 1440×900 and **852×339** (Tyler's real box): band leads and fits in ~110px including its heading, all three notes on one line each at 852; paused ladder legible; both boss cards carry the away line on one line (it sits OUTSIDE `.botd-main` — inside that 145px text column the sentence wrapped three ways); activity bar shows `6,617 xp/hr · 5,062 away` with no overflow at either size. 0 console errors from these screens, 0 emoji in any buff surface.
+
+**Known limitations / handoffs.**
+- The legacy Active Effects card is dead code with ~30 selectors styling it, and HOUSE buffs are invisible + emoji-bearing. Systems/Asset Director (DISCOVERIES).
+- `global-quests-strip` still renders 🎯 / 🎁 as chrome; `settings-modal`'s ⚙️ from b316 is still there. Pre-existing.
+- I could not verify cozy-light deeply — it is unreachable through the UI. All new rules are token-only and theme-agnostic, so it should follow, but it is unproven.
+- `featuredDropMult` must also be computed by the accrual Edge Function or the server-side line silently loses its percentage.
+
 ### 2026-08-10 · b317 — full-bleed safe-area fill (REAL fix) + reclaim the wasted landscape width/bottom (Tyler's iPhone PWA data)
 
 **Device data (Tyler bug report, build b316).** Installed PWA, display-mode:standalone, iOS 18.7, landscape. Viewport 852×339. safe-area insets top 0 / **right 59 / bottom 20 / left 59**. The black "frame" IS the safe area (Dynamic Island reserved both sides in landscape + home indicator).

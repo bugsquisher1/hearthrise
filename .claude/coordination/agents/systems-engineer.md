@@ -781,3 +781,49 @@ calling it, 540-suite as the equivalence proof) gates every later phase. Do not 
 for a domain before its logic is extracted and proven.
 
 Smoke: 540/540 green, migration guard green. No `src/` files touched.
+
+---
+
+## b325 follow-up — the accrual tick interval is now safe by construction (2026-08-11)
+
+Three items from the Designer's b325 ratification, done together. No version bump, no commit.
+
+**1. `simulateSpan`'s 1ms tickMs floor was a latent server exploit.** `ticks = floor(elapsed /
+tickMs)` makes the swing interval a DIVISOR of elapsed time — at a 1ms floor a 12h absence budgets
+43,200,000 ticks instead of ~18,000 (~2400x). The client call was incidentally safe (gear cannot
+change while away); the accrual Edge Function is the exposure. Fixed at the primitive:
+`COMBAT_BALANCE.minTickMs = 600` is now ONE constant shared by `combatTickMs()` (legacy.js:2496)
+and the new `resolveTickMs(ctx)` (combat-sim.js). Finer granularity is an explicit `ctx.minTickMs`
+opt-in, never a permissive default.
+
+Measured: the real minimum `combatTickMs()` can produce today is **1689 ms** (ranged 0.88 at the
+20% `spdB` cap) — sword 1920, hammer 2592, magic 2016. I floored at 600 anyway, matching
+`combatTickMs()`'s own clamp, because 1689 is a function of today's `WEAPON_SPEED_MOD` data and
+would become a silent PIN rather than a floor the day a faster family or a larger spd cap ships.
+**A clamped-but-client-chosen 600 ms still pays 4x the honest sword rate**, so the clamp is the
+second line of defence; the first is the rule now written into `docs/design/server-authority.md`
+§3: the server DERIVES tickMs from server-owned equipment and never reads it from the client, and
+must not spread a request body into the sim ctx (`minTickMs` would ride in the same way).
+
+**2. AWAY-12 was a regex on source text.** It caught a literal revert and nothing else. Added
+`AWAY-12b`, which measures the actual tick budget over a fixed 1h span with real gear equipped:
+sword 1500 · hammer 1111 (want 1111.11) · bow 1704 (want 1704.55), ratios read off
+`WEAPON_SPEED_MOD` rather than pinned. `AWAY-12c` guards the hostile-tickMs class. The regex stays
+as a cheap canary.
+
+**3. Doc drift.** `pacing-overhaul.md` A.4's "gear-independent and therefore exact" went stale at
+**b245**, not b325 — `spdB` + `WEAPON_SPEED_MOD` entered the LIVE half then. Corrected to the 0%
+anchor wording; the 57.2-day floor is unchanged (combat XP/hour tracks DPS, not swing count).
+
+**Handoff to the Game Designer** — recorded in `pacing-overhaul.md` §A.7b, not actioned:
+`spdB` sits OUTSIDE the additive +52% permanent fuse (independently clamped at 0.20 inside
+`combatTickMs()`), so the true permanent combat ceiling is `+52% XP x 1.25 rate` and since b325 it
+pays 24h/day. Only `leather_boots` (.02) grants it today, so live impact is ~2% — but a real
+speed-gear ladder breaks A.4's "cannot get below five weeks". Also: `atkB` is a dead stat at 99
+(accuracy clamps at 0.95 with a bronze sword vs tier 6), making sword the worst endgame family.
+
+**Debt paid:** the 600ms swing floor was a bare literal inside `combatTickMs()`; it is a named
+balance constant now. **Debt noted, not paid:** the 0.20 `spdB` cap is still a bare literal in
+`legacy.js` and belongs in `COMBAT_BALANCE` beside it — it is a Designer-owned value, so I left it.
+
+Smoke: **571/571 green**, 0 runtime errors (569 + the two new guards).

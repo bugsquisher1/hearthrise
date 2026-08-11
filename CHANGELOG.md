@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 326 — 2026-08-11 (The game tells you what your time away paid)
+
+- 📋 **A welcome-back summary now leads the Home screen** when you return: how long you were away, the XP, items and gold you earned, and your kills and crits. It only shows for half an hour, then gets out of the way.
+- 🫱 **It tells you the rules instead of hiding them** — that away time pays the base rate, when the Boss of the Day applied and for how long, when your daily limit was reached, and when your buffs were paused.
+- 🍖 **Paused buffs are now visible.** A food buff you left with 6:00 remaining shows 6:00, clearly marked paused, instead of silently doing nothing.
+- 🐉 **The Boss of the Day card now says it pays while you're away**, so parking on it before bed is an obvious choice rather than something you had to guess.
+- 📊 **Activity rates show your away rate** beside the live one when the two differ, so a preview can never quote you a number you won't actually get.
+- ⚡ Faster returns — a background repaint was scheduling thousands of timers before the first frame after a long absence.
+
 ## v0.9.2-beta build 325 — 2026-08-11 (Time away now pays properly)
 
 **Away progress was quietly shortchanging you in eleven different ways. It now runs the exact same code as when you're playing.**

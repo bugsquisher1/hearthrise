@@ -198,9 +198,21 @@
              Math.round((dailyBonus().xpMult - 1) * 100) + '% combat XP while featured</div>' +
         '</div>' +
       '</div>' +
+      AWAY_LINE +
       '<div class="botd-loot"><span class="botd-loot-lab">Notable drops</span>' + lootHtml + '</div>' +
       '<div class="botd-foot">' + btn + '</div>';
   }
+
+  /* b326 — away-time-ruling.md §"Player-facing honesty" 4: THE CARD MUST SAY
+     IT PAYS WHILE YOU ARE AWAY.
+
+     The Boss of the Day is the one bonus channel that survives an absence
+     intact (blessings and food buffs do not), and it is resolved per UTC-day
+     segment, so leaving the fight set is a real, rewarded decision. Until this
+     line existed, "set the featured boss before bed" was folklore passed
+     between testers — an unstated rule that only rewards the player who
+     already knew it. One line, on the card, where the decision is made. */
+  var AWAY_LINE = '<div class="botd-away">Pays while you\'re away — leave this fight set.</div>';
 
   function fmtWeekCountdown(ms) {
     var d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
@@ -262,6 +274,7 @@
              Math.round((weeklyBonus().xpMult - 1) * 100) + '% combat XP this week</div>' +
         '</div>' +
       '</div>' +
+      AWAY_LINE +
       '<div class="botd-loot"><span class="botd-loot-lab">Notable drops</span>' + lootHtml + '</div>' +
       '<div class="botd-foot">' + btn + '</div>';
   }

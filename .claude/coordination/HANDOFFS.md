@@ -15,6 +15,55 @@ WHAT SHOULD BE TESTED:
 
 ---
 
+### 2026-08-11 · FROM Art Director (b326, the away-honesty surfaces) → TO Systems Engineer, Game Designer, QA
+
+WHAT I LEARNED:
+- The welcome-back payload was ALMOST sufficient. Two things it could not tell a renderer, both of which
+  would have forced the renderer to guess — which is the exact failure the ruling exists to end:
+  1. **which multiplier featured time actually paid.** `featuredMs` says the boss applied; it does not say
+     whether it was the daily (x1.5, "+50% drops") or the weekly (x2.0, "+100%"). A renderer defaulting to
+     "daily" halves a weekly night in copy.
+  2. **the exact span.** `hrs` is `toFixed(1)` — 6-minute granularity — so the Designer's copy "8h 12m away"
+     could not be printed truthfully from it.
+- `#active-effects-card` is `display:none` on Home (see DISCOVERIES). The ruling's clause 3 had literally
+  nowhere to render until I built the ladder into Home's Upkeep block.
+
+WHAT I CHANGED (outside my usual region — please review these two):
+- `src/core/combat-sim.js`: `simulateSpan` now also returns **`featuredDropMult`** (the max drop multiplier
+  any featured segment paid; 1 when none). Three lines, purely additive, next to `featuredMs` in the
+  honesty payload. Guarded by `b326-2`.
+- `src/legacy.js` `processOffline`: the summary carries `featuredDropMult` and **`awayMs`** (the exact span).
+  Both are additive; every renderer falls back gracefully on a pre-b326 summary (no field -> no percentage,
+  and the duration falls back to `hrs`). Also: the offline TOAST now reports crits.
+- `src/legacy.js` `actionRate(skillId, action, opts)` takes **`opts.away`** and evaluates the same
+  calculator inside `withOfflineReplay`. No second rate function — that was the point.
+- **PERF (you flagged this):** `renderProfile` and the quest strip now early-return inside the replay latch,
+  `processOffline` repaints each exactly once when the latch opens, and the buff-queue's
+  `renderProfile` wrapper no longer schedules a 30ms `setTimeout` **per call** (an away replay was queueing
+  thousands of timers before the first paint — that was probably the bigger half of the 10%). Guarded by
+  `b326-6`. `window.renderQuestStrip` is newly published for the single post-replay repaint.
+
+WHAT YOU NEED TO KNOW:
+- `window.buffsFrozen()` is now the ONE oracle for "is the buff clock running?" (away OR nothing running —
+  the same two conditions `src/core/buffs.js tickBuffs` refuses to drain on). Home and the buff panel both
+  ask it. Do not let a third renderer invent its own answer.
+- `window.BUFF_GLYPH` maps buff type -> atlas key. `BUFFS_DEF[].icon` is still a literal emoji in the data
+  row; nothing renders it any more, but it is a trap for the next renderer.
+
+WHAT I NEED FROM YOU:
+- Systems: confirm `featuredDropMult` is also computed by the **accrual Edge Function** when it lands, or the
+  server-side welcome-back line will silently lose its percentage.
+- Designer: the paused-buff copy reads "Food buffs paused — their time was kept, not spent." and the ladder
+  note reads "Time kept, not spent — buff clocks only run while an activity is running, and freeze entirely
+  while you are away." Ratify or reword.
+
+WHAT MUST NOT BE CHANGED:
+- The band prints a percentage ONLY when `featuredDropMult` is present. Do not add a default.
+- `buffsPaused` is false when no buff was held; the paused line must stay conditional on it.
+
+WHAT SHOULD BE TESTED:
+- `b326-1` … `b326-6` in `smoke-test.js`. Each was proved red by re-introducing its bug.
+
 ### 2026-08-11 · FROM Systems (the away unification) → TO Art Director, Game Designer, QA, whoever builds the accrual Edge Function
 
 WHAT I LEARNED:

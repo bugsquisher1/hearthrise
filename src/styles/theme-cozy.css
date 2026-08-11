@@ -75,6 +75,7 @@ body[data-theme="cozy-light"] {
 
   --green:       #5a7c3d;              /* forest green — XP/skill bars */
   --green-bg:    rgba(90,124,61,.14);
+  --green-line:  rgba(90,124,61,.34);   /* b326: the moss HAIRLINE — was inlined per component */
 
   --red:         #a04830;              /* rust red — danger/warn */
   --red-bg:      rgba(160,72,48,.14);
@@ -118,6 +119,7 @@ body[data-theme="cozy-dark"] {
 
   --green:       #7da563;
   --green-bg:    rgba(125,165,99,.18);
+  --green-line:  rgba(125,165,99,.38);
 
   --red:         #d56a4f;
   --red-bg:      rgba(213,106,79,.18);
@@ -160,6 +162,7 @@ body[data-theme="classic"] {
 
   --green:       #5e7d2a;
   --green-bg:    rgba(94,125,42,.18);
+  --green-line:  rgba(94,125,42,.38);
 
   --red:         #8b2e1f;
   --red-bg:      rgba(139,46,31,.18);
@@ -4057,6 +4060,7 @@ body[data-theme="hearthlight"] {
   /* Semantic seals — richer, more material (oxblood / moss / steel) */
   --green:       #7f9a4f;              /* moss — gathering / XP */
   --green-bg:    rgba(127,154,79,.15);
+  --green-line:  rgba(127,154,79,.34);
 
   --red:         #b23a2c;              /* oxblood — combat / danger */
   --red-bg:      rgba(178,58,44,.16);

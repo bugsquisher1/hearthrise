@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=325' directly.
+// modularised, will import { G } from '../state/game.js?v=326' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=325';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=325';
+import { on, snapshot } from '../net/events.js?v=326';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=326';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=325';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=326';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -17036,6 +17036,128 @@ const TESTS = [
       'away combat must use the same swing interval live play uses (gear speed + weapon family), not the flat tickMs constant');
   }),
 
+  () => tryRun('AWAY-12b: weapon speed reaches away accrual NUMERICALLY — a hammer swings 1.35x slower over the same span', () => {
+    /* AWAY-12 above greps `simulateAwayCombat` for the string `combatTickMs()`.
+       That is a cheap canary and it is kept, but it only catches a literal
+       revert: it still passes if someone wraps the call, clamps the result, or
+       hands the interval the wrong equipment. THIS is the test that holds the
+       ruling — it measures the tick budget a real span actually produces with
+       real gear equipped, and reads the expected ratio off WEAPON_SPEED_MOD
+       rather than a pinned number that would rot at the next re-tune. */
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    try {
+      const SPAN_MS = 3600000;
+      /* Mid-day UTC so the span cannot straddle midnight — segment splitting is
+         AWAY-4's subject, not this test's. */
+      const FROM = Date.UTC(2026, 0, 15, 6, 0, 0);
+      /* A rig that never lands a hit: `chance:()=>false` makes every rollAttack
+         a miss, so nothing dies on either side and `ticks` is the pure tick
+         BUDGET. No fx, so no side effects on the real game. */
+      const ticksFor = (tickMs) => C.combatSim.simulateSpan({
+        activeMonster: 'goblin', monsterHp: 1e6, monsterMaxHp: 1e6,
+        playerHp: 1e6, playerMaxHp: 1e6, stats: {},
+      }, {
+        tickMs,
+        rng: { next: () => 0.5, int: (a) => a, chance: () => false },
+        monsters: window.MONSTERS,
+        playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
+        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+        weakness: () => ({ dropMult: 1 }),
+        bonus: () => 0,
+        fromMs: FROM, toMs: FROM + SPAN_MS,
+      }).ticks;
+
+      const MOD = C.combat.WEAPON_SPEED_MOD;
+      const measure = (itemId) => {
+        assert(window.ITEMS[itemId], 'the rig needs ' + itemId + ' in the catalogue; without it this test is vacuous');
+        G.equipment = { weapon: itemId };
+        const ms = window.combatTickMs();
+        return { ms, ticks: ticksFor(ms) };
+      };
+
+      const sword = measure('rune_sword');
+      assert(sword.ticks > 100, 'the rig produced ' + sword.ticks + ' ticks — the ratio assertion would be meaningless');
+
+      /* hammer 1.35 — the exact case the old away loop got wrong (it swung a
+         hammer 26% MORE often asleep than awake). */
+      const hammer = measure('rune_warhammer');
+      const wantHammer = sword.ticks / MOD.hammer;
+      assert(Math.abs(hammer.ticks - wantHammer) <= 1,
+        'a hammer must swing ' + MOD.hammer + 'x slower AWAY too: expected ~' + wantHammer.toFixed(1)
+        + ' ticks, got ' + hammer.ticks + ' (sword ' + sword.ticks + ' @' + sword.ms + 'ms, hammer @' + hammer.ms + 'ms)');
+
+      /* bow 0.88 — the other direction, so a fix that merely slowed everything
+         down uniformly cannot pass. */
+      const bow = measure('yew_bow');
+      const wantBow = sword.ticks / MOD.ranged;
+      assert(Math.abs(bow.ticks - wantBow) <= 1,
+        'a bow must swing ' + MOD.ranged + 'x faster AWAY too: expected ~' + wantBow.toFixed(1)
+        + ' ticks, got ' + bow.ticks + ' (bow @' + bow.ms + 'ms)');
+      assert(bow.ticks > sword.ticks && sword.ticks > hammer.ticks,
+        'the three families must order bow > sword > hammer in swings per hour, got '
+        + bow.ticks + ' / ' + sword.ticks + ' / ' + hammer.ticks);
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('AWAY-12c: a hostile ctx.tickMs cannot inflate the away tick budget', () => {
+    /* The latent exploit in the accrual primitive. `simulateSpan` divides
+       elapsed time by ctx.tickMs, so tickMs is the single largest lever on the
+       accrual path: at the old 1ms floor a 12-hour absence budgets ~43,200,000
+       ticks instead of ~18,000 — a ~2400x mint.
+
+       The CLIENT call was never exploitable (gear cannot change while you are
+       away, and combatTickMs() already clamps). The SERVER is the exposure:
+       the accrual Edge Function runs this exact function, and a tickMs read
+       out of a request body would be sovereign. The rule is written into
+       docs/design/server-authority.md §3 — the server DERIVES tickMs from
+       server-owned equipment and never reads it from the client — and this
+       guard is the second line of defence behind it. */
+    const C = window.HearthriseCore;
+    const CB = C.combat.COMBAT_BALANCE;
+    assert(CB.minTickMs === 600,
+      'the swing floor must be one shared constant at 600ms, found ' + CB.minTickMs);
+    assert(typeof C.combatSim.resolveTickMs === 'function', 'the tick-interval resolver must be exported so it can be guarded');
+
+    const SPAN_MS = 3600000;
+    const FROM = Date.UTC(2026, 0, 15, 6, 0, 0);
+    const MAX_TICKS = Math.floor(SPAN_MS / CB.minTickMs);
+    const run = (ctxOver) => C.combatSim.simulateSpan({
+      activeMonster: 'goblin', monsterHp: 1e6, monsterMaxHp: 1e6,
+      playerHp: 1e6, playerMaxHp: 1e6, stats: {},
+    }, Object.assign({
+      rng: { next: () => 0.5, int: (a) => a, chance: () => false },
+      monsters: window.MONSTERS,
+      playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
+      monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+      weakness: () => ({ dropMult: 1 }),
+      bonus: () => 0,
+      fromMs: FROM, toMs: FROM + SPAN_MS,
+    }, ctxOver)).ticks;
+
+    /* Every shape a forged or corrupt value actually arrives in: a JSON number,
+       zero, negative, NaN, a STRING (a request body's native type), and the
+       infinities. */
+    const hostile = [1, 0.001, 0, -5, NaN, '1', '0', Infinity, -Infinity, null, undefined, {}, '2400abc'];
+    for (const v of hostile) {
+      const resolved = C.combatSim.resolveTickMs({ tickMs: v });
+      assert(resolved >= CB.minTickMs,
+        'resolveTickMs(' + String(v) + ') = ' + resolved + 'ms — below the ' + CB.minTickMs + 'ms floor');
+      const ticks = run({ tickMs: v });
+      assert(ticks <= MAX_TICKS,
+        'ctx.tickMs=' + String(v) + ' budgeted ' + ticks + ' ticks in one hour; the floor caps it at ' + MAX_TICKS);
+    }
+    /* Garbage must fall back to the honest interval, not to the floor. */
+    assert(C.combatSim.resolveTickMs({ tickMs: NaN }) === CB.tickMs, 'a garbage tickMs falls back to the base swing interval');
+    assert(C.combatSim.resolveTickMs({}) === CB.tickMs, 'a missing tickMs falls back to the base swing interval');
+    /* A slower-than-floor interval is honoured — the clamp is a floor, not a pin. */
+    assert(C.combatSim.resolveTickMs({ tickMs: 3240 }) === 3240, 'a legitimate slower interval (hammer) must pass through untouched');
+    /* Finer granularity is an EXPLICIT opt-in, never a permissive default. */
+    assert(C.combatSim.resolveTickMs({ tickMs: 50, minTickMs: 10 }) === 50, 'an explicit minTickMs opt-in must be honoured');
+    assert(C.combatSim.resolveTickMs({ tickMs: 50, minTickMs: 0 }) === CB.minTickMs, 'a zero opt-in must not disable the floor');
+  }),
+
   () => tryRun('AWAY-13 (perf): the analytics bridge must not write localStorage once per engine event', () => {
     /* Found with the CPU profiler while measuring a 12-hour away catch-up:
        observability.js subscribes to the event bus with on('*') and its track()
@@ -17089,6 +17211,288 @@ const TESTS = [
          throws nothing, and the wrapper chain is still intact. */
       assert(typeof window.killMonster === 'function', 'the kill wrapper chain must survive the indexing change');
     } finally { window.COMPANIONS = realC; }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b326 — THE PLAYER-FACING HONESTY SURFACES
+     (docs/design/away-time-ruling.md §"Player-facing honesty", items 1–5)
+
+     The ruling's own framing: "the silent penalty was the actual sin". These
+     guard the CURE, so the failure mode they exist to catch is a renderer that
+     stops saying something — or, worse, starts saying something it was never
+     given. Every one asserts BOTH directions: the clause appears when the
+     payload carries it, and is ABSENT when it does not.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b326-1: the welcome-back band states the rate, the crits, the featured boss and the paused buffs — and invents none of them', () => {
+    const G = window.G;
+    const H = window.HearthriseHome;
+    assert(H && typeof H.render === 'function', 'the Home dashboard must expose render()');
+    const prevSummary = G.lastOfflineSummary;
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('profile');
+      const FULL = {
+        hrs: 8.2, awayMs: 8.2 * 3600000, gainedItems: 38, gainedXp: 12408, gainedGold: 5121,
+        gainedKills: 142, burnt: 0, budgetHrs: 12, capped: false, at: Date.now(),
+        blessed: false, buffsPaused: true, crits: 21,
+        featuredMs: 8 * 3600000, featuredDropMult: 1.5, rateMult: 1.0, combat: null,
+      };
+      G.lastOfflineSummary = FULL;
+      H.render();
+      const root = document.getElementById('hd-root');
+      assert(root, 'the Home dashboard root must exist');
+      const band = root.querySelector('.hd-awayband');
+      assert(band, 'a welcome-back band must render while the summary is still news');
+      const txt = band.textContent.replace(/\s+/g, ' ');
+
+      /* Item 1 — the duration is the REAL span, not the 0.1h-rounded number,
+         and the rate statement is unconditional. */
+      assert(/8h 12m away/.test(txt), 'the band must print the real span ("8h 12m"), got: ' + txt);
+      assert(/base rate/i.test(txt) && /blessings and food buffs pay while you play/i.test(txt),
+        'the band must state that the absence paid the base rate: ' + txt);
+      /* Item 2 — away combat reports its crits. */
+      assert(/142 kills/.test(txt) && /21 crits/.test(txt),
+        'away combat must report kills AND crits ("142 kills · 21 crits"): ' + txt);
+      /* Item 1b — the featured boss, its real duration, and the multiplier the
+         SIMULATION reported (never a guessed default). */
+      assert(/8h on the Boss of the Day/.test(txt), 'the band must report featured time: ' + txt);
+      assert(/\+50% drops/.test(txt), 'the band must quote the multiplier the payload carried: ' + txt);
+      /* Item 3 — a held buff is reported as paused, not as paid. */
+      assert(/paused/i.test(txt), 'the band must say the held buffs were paused: ' + txt);
+      assert(!/blessing.*applied|blessed/i.test(txt.replace(/blessings and food buffs pay while you play/i, '')),
+        'the band must never claim a blessing was applied: ' + txt);
+
+      /* The other direction. A quiet night: no combat, no buffs held, no
+         featured boss. Every conditional clause must DISAPPEAR — a renderer
+         that prints "your buffs were paused" beside an empty buff list is the
+         same species of lie, pointed the other way. */
+      G.lastOfflineSummary = Object.assign({}, FULL, {
+        gainedKills: 0, crits: 0, featuredMs: 0, featuredDropMult: 1, buffsPaused: false,
+      });
+      H.render();
+      const quiet = document.getElementById('hd-root').querySelector('.hd-awayband');
+      const qtxt = quiet ? quiet.textContent.replace(/\s+/g, ' ') : '';
+      assert(quiet, 'the band must still render for a non-combat absence');
+      assert(!/crits/.test(qtxt), 'no crit line when nothing was fought: ' + qtxt);
+      assert(!/Boss of the Day/.test(qtxt), 'no featured-boss line when featuredMs is 0: ' + qtxt);
+      assert(!/paused/i.test(qtxt), 'no paused-buff line when buffsPaused is false: ' + qtxt);
+      assert(/base rate/i.test(qtxt), 'the rate statement is unconditional and must survive: ' + qtxt);
+
+      /* A WEEKLY boss pays x2.0. A renderer that hardcoded the daily x1.5
+         would halve the night in copy — so the number comes from the payload. */
+      G.lastOfflineSummary = Object.assign({}, FULL, { featuredDropMult: 2.0 });
+      H.render();
+      assert(/\+100% drops/.test(document.getElementById('hd-root').textContent),
+        'a weekly featured boss must read +100% drops, not the daily default');
+
+      /* An OLD summary (written before the field existed) must say the boss
+         applied and quote NO percentage, rather than invent the daily one. */
+      const legacySummary = Object.assign({}, FULL);
+      delete legacySummary.featuredDropMult;
+      G.lastOfflineSummary = legacySummary;
+      H.render();
+      const ltxt = document.getElementById('hd-root').textContent.replace(/\s+/g, ' ');
+      assert(/Boss of the Day/.test(ltxt), 'a pre-b326 summary must still report the featured time');
+      assert(!/Boss of the Day \(\+/.test(ltxt),
+        'with no featuredDropMult in the payload the band must quote NO percentage: ' + ltxt);
+
+      /* Stale news steps aside — the band is a greeting, not furniture. */
+      G.lastOfflineSummary = Object.assign({}, FULL, { at: Date.now() - 60 * 60000 });
+      H.render();
+      assert(!document.getElementById('hd-root').querySelector('.hd-awayband'),
+        'the band must disappear once the summary is no longer news');
+    } finally {
+      G.lastOfflineSummary = prevSummary;
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b326-2: the simulation reports the drop multiplier featured time actually paid', () => {
+    const C = window.HearthriseCore;
+    const S = C.combatSim;
+    assert(typeof S.simulateSpan === 'function', 'simulateSpan must exist');
+    /* Read from the SIMULATION, because a renderer that has to guess which
+       boss it was will eventually quote the wrong lift. Asserted structurally:
+       a span with no featured segment reports the neutral 1. */
+    const state = { activeMonster: null, stats: {}, skills: {}, gold: 0 };
+    const out = S.simulateSpan(state, {
+      fromMs: 0, toMs: 3600000, away: true, tickMs: 2400,
+      rng: C.rngMod.createRng(1), bonus: () => 0,
+    });
+    assert(typeof out.featuredDropMult === 'number',
+      'the honesty payload must carry featuredDropMult so the welcome-back line can quote a real number');
+    assert(out.featuredDropMult === 1, 'a span with no featured time must report the neutral multiplier, not a default lift');
+  }),
+
+  () => tryRun('b326-3: a paused buff renders as PAUSED with its time preserved — never as a ticking clock', () => {
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      assert(typeof window.buffsFrozen === 'function',
+        'the freeze condition must be published, so Home and the buff panel cannot disagree about whether the clock is running');
+      window.showTab('profile');
+      G.buffs = [{ type: 'gather_speed', magnitude: 15, remainingMs: 6 * 60000, addedAt: Date.now() }];
+
+      /* FROZEN: nothing running is the same rule as away — src/core/buffs.js
+         `tickBuffs` refuses to drain in both cases. */
+      G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
+      assert(window.buffsFrozen() === true, 'with no activity running the buff clock must be frozen');
+      H.render();
+      const row = document.getElementById('hd-root').querySelector('.hd-buff');
+      assert(row, 'Home must render the buff ladder — it is the only VISIBLE buff surface (the legacy Active Effects card is display:none under the b213 dashboard)');
+      assert(row.classList.contains('is-paused'), 'a frozen buff row must carry the paused state');
+      const rowTxt = row.textContent.replace(/\s+/g, ' ');
+      assert(/paused/i.test(rowTxt), 'a frozen buff must be LABELLED paused: ' + rowTxt);
+      assert(/6:00/.test(rowTxt), 'the paused buff must show its PRESERVED time (6:00), got: ' + rowTxt);
+      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt),
+        'the row must name the buff and its magnitude, not just say "food buff active": ' + rowTxt);
+
+      /* And the clock genuinely does not run: the engine must not drain it. */
+      window.advanceBuffClock(60000);
+      assert(G.buffs[0].remainingMs === 6 * 60000,
+        'a frozen buff must not drain — the label and the engine must agree');
+
+      /* RUNNING: the same row must drop the paused state, or the label becomes
+         noise the player learns to ignore. */
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'oak_tree';
+      assert(window.buffsFrozen() === false, 'with an activity running the clock runs');
+      H.render();
+      const live = document.getElementById('hd-root').querySelector('.hd-buff');
+      assert(live && !live.classList.contains('is-paused'), 'a running buff must NOT render as paused');
+      assert(!/paused/i.test(live.textContent), 'a running buff must not carry the paused label');
+
+      /* 0-EMOJI RULE: the buff registry's `icon` field is a literal emoji, and
+         it used to be rendered as art. Neither surface may draw one. */
+      const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+      assert(!EMOJI.test(live.textContent), 'no emoji may render in the buff ladder: ' + live.textContent);
+      if (typeof window.__renderBuffsSection === 'function') {
+        window.__renderBuffsSection();
+        document.querySelectorAll('.buff-row').forEach((r) => {
+          assert(!EMOJI.test(r.textContent), 'no emoji may render in a buff row: ' + r.textContent);
+        });
+      }
+    } finally {
+      restoreG(snap);
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b326-4: both Boss-of-the-Day cards state that they pay while you are away', () => {
+    const B = window.HearthriseBossOfDay;
+    assert(B, 'the Boss of the Day feature must be loaded');
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      if (typeof B.render === 'function') B.render();
+      if (typeof B.renderWeekly === 'function') B.renderWeekly();
+      ['hr-botd-card', 'hr-weekly-card'].forEach((id) => {
+        const card = document.getElementById(id);
+        if (!card || card.style.display === 'none') return;   // no boss in the pool today
+        const away = card.querySelector('.botd-away');
+        assert(away, id + ' must carry the away line — "set it before bed" must be readable, not folklore');
+        assert(/away/i.test(away.textContent), id + ' away line must actually say it pays while away');
+      });
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('b326-5: an away-earnings preview is computed with away:true and can never quote a blessing- or buff-inflated rate', () => {
+    const G = window.G;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      const tree = (window.TREES || []).find((t) => t.id === 'oak_tree') || (window.TREES || [])[0];
+      assert(tree, 'a gathering action is needed to compare rates');
+      /* A food buff, held. It pays live and is FROZEN away, so the two rates
+         must part company — the exact inflation item 5 forbids a preview from
+         quoting.
+
+         The buff is `all_xp` DELIBERATELY, not `gather_speed`: speed bonuses
+         pass through SPEED_FUSE (0.70), so on a save whose perks and tools
+         already saturate the fuse a speed buff changes nothing and the test
+         would be flaky rather than wrong. `allXP` is an uncapped additive term
+         in actionRate, so the divergence is arithmetic, not circumstantial.
+         (Both channels are gated identically — `buff` is out of scope away —
+         so this proves the gate, not one key's plumbing.) */
+      G.buffs = [
+        { type: 'all_xp', magnitude: 60, remainingMs: 600000, addedAt: Date.now() },
+        { type: 'gather_speed', magnitude: 25, remainingMs: 600000, addedAt: Date.now() },
+      ];
+      const live = window.actionRate('woodcutting', tree);
+      const away = window.actionRate('woodcutting', tree, { away: true });
+      assert(live && away, 'actionRate must answer in both contexts');
+      assert(away.ms >= live.ms,
+        'the away rate must never be FASTER than the live one — a speed buff cannot pay while frozen');
+      assert(away.xpPerHour <= live.xpPerHour, 'the away rate must never exceed the live rate');
+      assert(away.xpPerAction < live.xpPerAction,
+        'with a +60% all-XP buff held, the away preview must quote a LOWER per-action grant than the live one ('
+          + away.xpPerAction + ' vs ' + live.xpPerAction + ')');
+
+      /* It must be the SAME calculator through the SAME latch — not a second
+         "offline rate" function that will drift. Proven by equality with a
+         rate computed inside the replay latch directly. */
+      let inLatch = null;
+      P._withOfflineReplay(() => { inLatch = window.actionRate('woodcutting', tree); });
+      assert(inLatch.xpPerHour === away.xpPerHour && inLatch.ms === away.ms,
+        'actionRate(..., {away:true}) must equal the rate computed inside the offline-replay latch');
+
+      /* The latch is depth-counted and released in a finally: a preview must
+         never leave the game stuck in unblessed mode. */
+      assert(P.inOfflineReplay() === false, 'an away preview must not leave the replay latch closed');
+
+      /* With nothing held the preview must still never quote MORE than live —
+         the invariant that makes the pill safe to show unconditionally. (It is
+         not asserted EQUAL: a live blessing legitimately lifts the live rate,
+         which is precisely the case the pill exists to disclose.) */
+      G.buffs = [];
+      const l2 = window.actionRate('woodcutting', tree);
+      const a2 = window.actionRate('woodcutting', tree, { away: true });
+      assert(a2.xpPerHour <= l2.xpPerHour && a2.xpPerAction <= l2.xpPerAction,
+        'the away preview must never exceed the live rate, buff or no buff');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('b326-6 (perf): the dashboard and the quest strip do no work inside the away-replay latch', () => {
+    const P = window.HearthrisePresence;
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('profile');
+      /* The replay grants XP and kills thousands of times before the first
+         paint. Every grant used to repaint this dashboard and the quest strip.
+         The contract: inside the latch these are no-ops; processOffline()
+         repaints once when it opens. */
+      const sub = document.getElementById('dash-user-sub');
+      if (sub) {
+        const before = sub.textContent;
+        sub.textContent = '__replay_probe__';
+        P._withOfflineReplay(() => { window.renderProfile(); });
+        assert(sub.textContent === '__replay_probe__',
+          'renderProfile must not repaint inside the away-replay latch');
+        window.renderProfile();
+        assert(sub.textContent !== '__replay_probe__',
+          'renderProfile must repaint normally once the latch opens — the skip must be lossless');
+        if (sub.textContent !== before) { /* recomputed from live state; fine */ }
+      }
+      assert(typeof window.renderQuestStrip === 'function',
+        'the quest strip must be published so processOffline can repaint it exactly once');
+      const strip = document.getElementById('global-quests-strip');
+      if (strip) {
+        const list = strip.querySelector('.gq-list');
+        if (list) {
+          list.innerHTML = '<i id="__strip_probe__"></i>';
+          P._withOfflineReplay(() => { window.renderQuestStrip(); });
+          assert(document.getElementById('__strip_probe__'),
+            'the quest strip must not repaint inside the away-replay latch');
+          window.renderQuestStrip();
+          assert(!document.getElementById('__strip_probe__'),
+            'the quest strip must repaint once the latch opens');
+        }
+      }
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
   }),
 
 ];

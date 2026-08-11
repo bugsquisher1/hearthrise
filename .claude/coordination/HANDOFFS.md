@@ -2,6 +2,34 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-11 · FROM Systems Engineer (b330) → TO Art Director, QA, Game Designer, whoever owns the membership SQL next
+
+WHAT I LEARNED — three things, and the first is the one that generalises.
+
+1. **A "flaky test" is nearly always a fixture asserting something its own setup does not guarantee.** `b260` failed ~1 run in 4. Nothing about the resume code was flaky: the test replays five real minutes of away combat through a simulator whose rng is seeded from `Math.random()` at boot, so every run fought a *different* five minutes, and on the unlucky seeds **the player died**. A death clears `G.activeMonster`, so `resumeActiveActivity()` correctly re-armed nothing and "resume must re-arm the live combat loop" failed. I proved the mechanism instead of guessing at it — weakening the fixture on purpose (hitpoints 500) turned it into 2 failures out of 2 with exactly that message. Fixed structurally: death is removed **by construction** (an HP pool five minutes of goblin swings cannot empty; `combat-sim` takes `playerMaxHp` as given), the seed is **pinned** via `HearthriseCore.reseed()` and restored after, and the fixture's own precondition is now an assertion — so if a balance change ever makes it killable again it fails **loudly with the reason** instead of going flaky. **If you write a test that runs the simulator, pin the seed or assert the precondition. Otherwise you have written a dice roll.**
+2. **`b307` was fragile by construction, not by accident.** `claimOfflineMs(Date.now(), true) === 0` only held when two consecutive `Date.now()` calls landed in the same millisecond. `claimOfflineMs` *takes `now` as a parameter* precisely so a caller can be explicit, and the sentence being asserted names one instant — so the test now passes one frozen `NOW` everywhere. **This is a seam, not a tolerance:** a tolerance would have quietly accepted a genuine few-millisecond double-pay, which is the b214 bug class.
+3. **Driving the panel in a browser found a bug that reading it never would have.** The two-step Remove arms on the first click, and arming calls `RoomModal.refresh()`, which rebuilt every control from its descriptor — so a leader who picked a 24-hour bar and then clicked Remove **sent 168**. The choice was silently reverted between the two halves of one action.
+
+WHAT I CHANGED
+- `src/features/clan-seat-ui.js` — the Great Hall now carries **the door** (`clan_join_policy_set`), **invite by display name** (`clan_invite`), **invitations outstanding** with Withdraw (`clan_invite_revoke`), **a surfaced ban-duration picker**, and a **two-step Remove** on every roster row (`clan_kick`). All leadership-only, matching the SERVER's predicate (`role in ('leader','officer')`) rather than the vice-leader *charge* — a vice leader does **not** admit, so drawing them a kick button would be the panel promising what the migration does not.
+- `RoomModal.paint()` now **preserves every `[data-cs-sel|qty|txt]` value, focus and caret across a repaint** (it already preserved `scrollTop` for the same reason), and re-fires `change` so derived previews stay honest. This also silently fixes the Storehouse deposit picker, which had the same defect.
+- `src/features/clans.js` — `errorText()` extracted and exported (one code→sentence map, now testable); kick/revoke say what happened; `outstandingInvites()` derives the pending list from `clan_ledger` (see CONFLICTS); the invitee's **inbox** renders above "Find a hold"; founding now chooses its door.
+- `src/styles/clan-seat.css` + `theme-cozy.css` — new `--field-sunk` token replaces three hardcoded `rgba(0,0,0,.30)` field backgrounds. **Value unchanged in every theme, so cozy-light is byte-identical** — measured, not assumed.
+
+WHAT YOU NEED TO KNOW
+- **Art Director:** the room modal gained a `text` field kind and `select.value` (preselect). `.hr-cs-field` and `.clan-found` now `flex-wrap`, and `.hr-cs-row` wraps inside the short-viewport block so a roster row's buttons drop under the name instead of squeezing it. Measured at **exactly 922×423** with your iframe rig: wrap `0..922`, body 260px over 1308px of scroll, **no horizontal overflow and nothing wider than the viewport**. Row buttons land at **40px tall — under the 44px tap floor**, the same as every other `.btn-sm` in this modal. That is a pre-existing project-wide number and it is yours; I did not unilaterally change button sizing.
+- **QA:** six new `b330` tests, each mutation-proven (each was made to fail by removing its control, by execution). The repaint-preservation one is the interesting shape — it drives `HearthriseRoomModal` directly with a synthetic descriptor, so it guards the component rather than the clan.
+- **Game Designer:** an invitation **lifts a ban** (the server does this, deliberately, so a reconciliation needs no service_role console) and the panel says so. Default bar is 7 days, offered alongside 24h / 30d / none.
+
+WHAT I NEED FROM YOU
+- The `clan_invites_outstanding()` RPC in CONFLICTS — until it exists the panel derives the pending list from the journal.
+- A ruling on **decline**: there is no server path for it, so the inbox offers Accept only and states that an invitation lapses on its own.
+
+WHAT MUST NOT BE CHANGED
+- `joinById` must keep going through `/rest/v1/rpc/clan_join`. `b330` fails if a `/rest/v1/clan_members` write ever returns — that write **is** S-CAP-1, and `2026-08-12-clan-members-rls-drop.sql` is waiting on this client being the only path.
+- The leadership controls must stay gated on `isLeadership()` (leader/officer), not on `isVice()`.
+- Do not make any of these tests `async`. `tryRun` is synchronous; the fetch-shape tests work because the request is issued before the first `await`, and each asserts its own call count so a regression to zero calls fails rather than passes silently.
+
 ### 2026-08-11 · FROM Systems Engineer → TO Game Designer / Coordinator · XARN'S AUTO-EAT: half bug, half contract
 
 Branch `fix/auto-eat-threshold-b329`, commit `2f90ad8`. Suite 581/581, 0 runtime errors. No version bump (Coordinator integrates).

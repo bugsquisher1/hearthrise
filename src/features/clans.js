@@ -132,12 +132,23 @@
     no_such_player: 'No player by that name',
     cannot_invite_self: 'You are already here',
     target_in_clan: 'That player already belongs to another hold',
-    already_member: 'That player is already in your hold'
+    already_member: 'That player is already in your hold',
+    /* clan_kick answers this when p_user_id is null — reachable only from a
+       control that lost its target, which is exactly when a player most needs
+       a sentence rather than a code. */
+    no_target: 'Choose a member to remove first'
   };
+  /* One place turns a server code into a sentence, and it is EXPORTED so a test
+     can walk every code the migration can return and prove each one reads as a
+     refusal. A player told "(403)" learns nothing; a player told "That hold is
+     invite-only" knows what to do next. */
+  function errorText(code, fallback, status) {
+    if (code && JOIN_ERRORS[code]) return JOIN_ERRORS[code];
+    if (code) return (fallback || 'That did not work') + ' (' + code + ')';
+    return (fallback || 'That did not work') + ' (' + (status == null ? 'no reply' : status) + ')';
+  }
   function sayError(out, status, fallback) {
-    var code = out && out.error;
-    var msg = (code && JOIN_ERRORS[code]) || (code ? fallback + ' (' + code + ')' : fallback + ' (' + status + ')');
-    notify(msg, 'kill');
+    notify(errorText(out && out.error, fallback, status), 'kill');
     return false;
   }
 
@@ -172,6 +183,7 @@
   // patching the local cache from the RPC's reply. The reply is the truth about
   // what happened; the roster read is the truth about what now is.
   async function afterMembershipChange() {
+    _invCache = null;                    // membership moved; any cached inbox is stale
     await fetchMyClan();
     if (typeof window.saveLocal === 'function') saveLocal();
     refreshClanScreens();
@@ -220,6 +232,14 @@
     if (banHours != null) body.p_ban_hours = Math.max(0, Math.min(720, Math.floor(+banHours || 0)));
     var r = await rpc('clan_kick', body);
     if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not remove that member');
+    /* An eviction that says nothing reads as a misclick that did nothing. Say
+       what happened, including how long the door is shut — the ban is the half
+       of a kick that a leader most needs to be sure of. */
+    notify(r.out.already_removed
+      ? 'They had already left the hold.'
+      : ('Removed from the hold' + (r.out.banned_until
+          ? ' — barred until ' + fmtWhen(r.out.banned_until) + '. Inviting them lifts it.'
+          : ', with no bar on returning.')), 'info');
     refreshClanScreens();
     return r.out;
   }
@@ -227,21 +247,101 @@
     if (!requireOnline()) return false;
     var r = await rpc('clan_invite', { p_display_name: String(displayName || '').trim() });
     if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not send the invitation');
-    notify(r.out.display_name + ' has been invited to the hold.', 'info');
+    notify(r.out.display_name + ' has been invited to the hold — the invitation lapses ' +
+      fmtWhen(r.out.expires_at) + '.', 'info');
     return r.out;
   }
   async function inviteRevoke(userId) {
     if (!requireOnline()) return false;
     var r = await rpc('clan_invite_revoke', { p_user_id: userId });
     if (!r.ok || !r.out || r.out.ok === false) return sayError(r.out, r.status, 'Could not withdraw the invitation');
+    /* `revoked` is a row count. Zero is not a failure — it is "there was nothing
+       to withdraw", which is a different sentence and the player deserves it. */
+    notify(r.out.revoked ? 'The invitation is withdrawn.' : 'There was no invitation left to withdraw.', 'info');
     return r.out;
   }
-  async function myInvites() {
+  /* A timestamp a player can read. Deliberately relative for anything inside a
+     fortnight — "in 6 days" is the answer to the question actually being asked
+     ("have I got time?"), where an ISO string is a lookup. */
+  function fmtWhen(iso) {
+    var t = Date.parse(iso);
+    if (!isFinite(t)) return 'soon';
+    var ms = t - Date.now();
+    var past = ms < 0;
+    var mins = Math.round(Math.abs(ms) / 60000);
+    var s = mins < 60 ? (mins + ' minute' + (mins === 1 ? '' : 's'))
+      : mins < 1440 ? (Math.round(mins / 60) + ' hour' + (Math.round(mins / 60) === 1 ? '' : 's'))
+      : (Math.round(mins / 1440) + ' day' + (Math.round(mins / 1440) === 1 ? '' : 's'));
+    return past ? (s + ' ago') : ('in ' + s);
+  }
+  /* The clan screen re-renders from three callers (`renderClan`, the Social
+     signpost, every membership change), and this is a rate-limited RPC — so the
+     answer is held briefly rather than re-asked on every repaint. 20s is short
+     enough that accepting an invitation elsewhere still shows up promptly, and
+     any membership change clears it outright. */
+  var _invCache = null, _invCacheAt = 0;
+  async function myInvites(force) {
     if (!online() || !signedIn()) return [];
+    if (!force && _invCache && (Date.now() - _invCacheAt) < 20000) return _invCache;
     var r = await rpc('clan_invites_list', {});
     if (!r.ok || !r.out || r.out.ok === false) return [];
-    return r.out.invites || [];
+    _invCache = r.out.invites || [];
+    _invCacheAt = Date.now();
+    return _invCache;
   }
+  /* ── WHO HAS AN OUTSTANDING INVITATION, derived from the hold's journal ────
+     `clan_invites` has NO client SELECT policy (deliberately — a readable
+     invite table is a readable list of who is being courted), and the
+     membership migration shipped `clan_invites_list()` for the INVITEE only.
+     So leadership has no server read for "who have we invited". Rather than
+     invent one client-side or keep a session-local list that a refresh would
+     erase, this derives the answer from `clan_ledger`, which every RPC in the
+     membership file writes to and which is `select using (true)`:
+
+       invite         → an invitation was issued (or re-issued) at `at`
+       invite_revoke  → withdrawn
+       join_invite    → accepted
+       join / kick    → the person is a member, or barred; either way not pending
+
+     The LATEST row per user decides, and an 'invite' row older than the
+     server's 7-day expiry has lapsed. Every writer of clan_invites journals,
+     so this is complete rather than a guess — but it is a DERIVATION, and the
+     honest fix is a `clan_invites_outstanding()` RPC (raised in HANDOFFS).
+     A stale entry costs nothing: revoking it answers `revoked: 0`, which the
+     transport already reports as "there was nothing to withdraw". */
+  var INVITE_TTL_MS = 7 * 24 * 3600000;
+  async function outstandingInvites() {
+    if (!online() || !signedIn() || !_myClan) return [];
+    var url = cfg().url + '/rest/v1/clan_ledger?clan_id=eq.' + _myClan.id +
+      '&kind=eq.member&select=user_id,item_id,at&order=at.desc&limit=200';
+    var res = await fetch(url, { headers: headers() });
+    if (!res.ok) return [];
+    var rows = await res.json();
+    var seen = {}, pending = [];
+    (rows || []).forEach(function (r) {
+      if (!r.user_id || seen[r.user_id]) return;
+      seen[r.user_id] = 1;                       // ordered desc: first row wins
+      if (r.item_id !== 'invite') return;        // a closer, or an unrelated act
+      var at = Date.parse(r.at);
+      if (!isFinite(at) || (Date.now() - at) >= INVITE_TTL_MS) return;   // lapsed
+      pending.push({ user_id: r.user_id, at: at, expires_at: new Date(at + INVITE_TTL_MS).toISOString() });
+    });
+    if (!pending.length) return [];
+    // Names come from `profiles`, server-authored, never from anything the
+    // inviter typed — the same rule the invite RPC follows.
+    try {
+      var ids = pending.map(function (p) { return p.user_id; }).join(',');
+      var pr = await fetch(cfg().url + '/rest/v1/profiles?id=in.(' + ids + ')&select=id,display_name',
+        { headers: headers() });
+      if (pr.ok) {
+        var names = {};
+        (await pr.json() || []).forEach(function (p) { names[p.id] = p.display_name; });
+        pending.forEach(function (p) { p.display_name = names[p.user_id] || null; });
+      }
+    } catch (e) {}
+    return pending;
+  }
+
   async function setJoinPolicy(policy) {
     if (!requireOnline()) return false;
     var r = await rpc('clan_join_policy_set', { p_policy: policy });
@@ -424,7 +524,14 @@
         '<button class="btn btn-sm btn-danger" onclick="window.HearthriseClans.leave()">Leave</button>';
     } else {
       var cr = await NetClient.clans();
+      /* THE INVITATIONS ADDRESSED TO YOU. clan_invites has no client SELECT
+         policy, so clan_invites_list() is the only way to learn one exists —
+         which means that before this block an invitation was a thing the server
+         knew about and the player could not. Read first, render once. */
+      var invites = [];
+      try { invites = await myInvites(); } catch (e) { invites = []; }
       cl.innerHTML =
+        (invites.length ? inviteInboxHtml(invites) : '') +
         '<div class="clan-empty"><h4>Find a hold, or found one</h4>' +
         '<p>A clan raises a castle together — six rooms, shared Work Orders, clan chat and a weekly boss no one downs alone.</p></div>' +
         (cr.clans.length ? cr.clans.map(function (c) {
@@ -433,8 +540,36 @@
         }).join('') : '<div class="muted tiny" style="margin-bottom:8px">No holds have been chartered yet — found the first one.</div>') +
         '<div class="clan-found">' +
           '<input type="text" id="clan-input" placeholder="Name your own hold" maxlength="24">' +
-          '<button class="btn btn-primary" onclick="window.HearthriseClans.createClan(document.getElementById(\'clan-input\').value)">Found it</button></div>';
+          /* The door is chosen at founding because it is a decision, not a
+             setting — and the RPC has taken it since the membership-authority
+             migration. `open` is first so the default is today\'s behaviour. */
+          '<select id="clan-policy" aria-label="Who may join">' +
+            '<option value="open">Open to all</option>' +
+            '<option value="invite">Invite only</option>' +
+          '</select>' +
+          '<button class="btn btn-primary" onclick="window.HearthriseClans.createClan(document.getElementById(\'clan-input\').value, (document.getElementById(\'clan-policy\')||{}).value)">Found it</button></div>' +
+        '<div class="muted tiny">A hold that is <b>invite only</b> refuses every uninvited join, and you can ' +
+          'change your mind from the Great Hall at any time.</div>';
     }
+  }
+
+  /* The invitee's half of the membership system. There is no decline RPC — an
+     invitation is withdrawn by the hold or it lapses — so this surface offers
+     the two things that are real (accept, or let it lapse) and says which,
+     rather than drawing an Ignore button that would only lie to the player. */
+  function inviteInboxHtml(invites) {
+    return '<div class="clan-invites">' +
+      '<h4>You have been invited</h4>' +
+      invites.map(function (i) {
+        return '<div class="shop-row"><div class="info"><b>' + escapeHtml(i.clan_name || 'A hold') + '</b>' +
+          '<span>' + (i.invited_by ? 'Invited by ' + escapeHtml(i.invited_by) + ' · ' : '') +
+          (i.members != null ? i.members + ' members · ' : '') +
+          'lapses ' + escapeHtml(fmtWhen(i.expires_at)) + '</span></div>' +
+          '<button class="btn btn-sm btn-primary" onclick="window.HearthriseClans.joinById(\'' +
+            escapeHtml(i.clan_id) + '\')">Accept</button></div>';
+      }).join('') +
+      '<div class="muted tiny">An invitation lapses on its own if you do nothing, and the hold can withdraw it.</div>' +
+      '</div>';
   }
 
   /* b225 (#18): the clan half left Social, so this file no longer wraps
@@ -503,7 +638,12 @@
     invite: invite,
     inviteRevoke: inviteRevoke,
     myInvites: myInvites,
+    outstandingInvites: outstandingInvites,
     setJoinPolicy: setJoinPolicy,
+    fmtWhen: fmtWhen,
+    errorText: errorText,
+    // Test seam: pure, DOM-free, no I/O — the invitee's inbox markup.
+    _inviteInboxHtml: inviteInboxHtml,
     contribute: contribute,
     nextTreasuryGoal: nextTreasuryGoal,
     roster: roster,

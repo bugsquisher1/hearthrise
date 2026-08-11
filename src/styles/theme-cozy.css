@@ -59,6 +59,15 @@ body[data-theme="cozy-light"] {
   --line-soft:   rgba(122,94,58,.10);
   --line-strong: rgba(122,94,58,.45);
 
+  /* b330 — the SUNK WELL behind a text input / select. Every field in the clan
+     surfaces hardcoded `rgba(0,0,0,.30)`, which is exactly the debt the
+     no-hardcoded-colour rule exists to stop: a theme could not retune an input
+     without editing components. Declared here on :root ONLY, so every theme
+     inherits it and any theme may override it. The value is deliberately the
+     one the components already carried, so this conversion moves no pixel —
+     cozy-light is unchanged, and Hearthlight keeps the same well. */
+  --field-sunk:  rgba(0,0,0,.30);
+
   /* Text */
   --ink:         #3d2817;             /* primary — dark cocoa */
   --ink-2:       #7a5e3a;             /* secondary — muted brown */

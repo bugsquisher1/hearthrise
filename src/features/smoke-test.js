@@ -13932,9 +13932,33 @@ const TESTS = [
     }
   }),
 
+  /* b260 — and, since b330, a lesson about what makes a test flaky.
+     ─────────────────────────────────────────────────────────────────────────
+     This test failed roughly one run in four and the cause was NOT the code it
+     guards. `__hrResume(true)` replays five minutes of away combat through the
+     real simulator, whose rng is seeded from Math.random() at boot, so every
+     run fought a DIFFERENT five minutes. On the unlucky seeds the player DIED
+     part-way through — a perfectly legitimate outcome — and a death clears
+     `G.activeMonster`, so `resumeActiveActivity()` correctly re-armed nothing
+     and the assertion "resume must re-arm the live combat loop" failed. The
+     test was asserting "resume re-arms the loop" while its fixture allowed the
+     fight to end. Proven by making the fixture weak on purpose (hitpoints 500):
+     the failure became 2 out of 2, with that exact message.
+
+     Two fixes, both structural rather than tolerance-based:
+       1. DEATH IS REMOVED BY CONSTRUCTION, not by luck. The player is given an
+          HP pool no goblin can chew through in a five-minute span, and the test
+          ASSERTS that no death occurred — so if a future balance change ever
+          makes the fixture killable again this fails loudly with the reason,
+          instead of going flaky.
+       2. THE SEED IS PINNED. HearthriseCore.reseed() makes the replayed span
+          byte-identical run to run, which is the same seam AWAY-1 uses. The
+          stream is restored afterwards so no later test inherits it.
+     ───────────────────────────────────────────────────────────────────────── */
   () => tryRun('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
     if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ assert(true, 'seam absent'); return; }
     const snap = snapshotG();
+    const Core = window.HearthriseCore;
     try {
       const G = window.G;
       if(typeof window.stopCombat === 'function') window.stopCombat();     // dead interval
@@ -13942,8 +13966,11 @@ const TESTS = [
       G.activeMonster = 'goblin';
       const m = window.MONSTERS.goblin;
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
-      G.playerHp = G.playerMaxHp;
+      /* Not levelFromXp: an HP pool sized so that five minutes of goblin swings
+         cannot empty it under ANY seed. combat-sim treats playerMaxHp as given
+         (it only floors it at 10), so this is a construction, not a wager. */
+      G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
+      G.stats = Object.assign({}, G.stats, { deaths: 0 });
       // Simulate a 5-minute frozen span with a fresh budget.
       if(typeof window.ensureOfflineBudget === 'function'){
         const b = window.ensureOfflineBudget(Date.now()); b.at = Date.now() - 5 * 60000; b.usedMs = 0;
@@ -13951,7 +13978,13 @@ const TESTS = [
       assert(!window.__isCombatLoopArmed(), 'precondition: combat loop is dead');
       const killsBefore = G.stats.kills || 0;
       // The resume handler runs WITHOUT any visibilitychange event.
+      if(Core && typeof Core.reseed === 'function') Core.reseed(0x6260b260);
       window.__hrResume(true);
+      assert((G.stats.deaths || 0) === 0,
+        'FIXTURE: the player must survive the replayed span, or the fight legitimately ends and there is ' +
+        'nothing left to re-arm — raise playerMaxHp rather than re-rolling the seed');
+      assert(G.activeMonster === 'goblin',
+        'FIXTURE: the fight must still be running after the replay, got activeMonster=' + G.activeMonster);
       assert(window.__isCombatLoopArmed(), 'resume must re-arm the live combat loop');
       assert((G.stats.kills || 0) > killsBefore, 'resume must credit the frozen combat span');
       // The Android case: the interval EXISTS but is stalled (suspended, not
@@ -13962,6 +13995,7 @@ const TESTS = [
         'a stalled combat loop must be restarted (fresh heartbeat), got age ' + (Date.now() - (window._hrCombatBeat || 0)) + 'ms');
     } finally {
       if(typeof window.stopCombat === 'function') window.stopCombat();
+      if(Core && typeof Core.randomSeed === 'function') Core.randomSeed();
       restoreG(snap);
     }
   }),
@@ -14950,6 +14984,17 @@ const TESTS = [
     // b307 replaces b226's daily bucket (which pinned every save to its cap and
     // killed offline for the rest of the day — paione's report). The cap now
     // applies to a SINGLE absence; signing in resets the timer.
+    //
+    // b330 — THE CLOCK IS FROZEN, and that is the fix for a real flake. Every
+    // claim below used to pass its own fresh `Date.now()`, so the "a second read
+    // of the SAME INSTANT must bank nothing" assertion only held when two
+    // consecutive Date.now() calls landed in the same millisecond: an instrumented
+    // run measured 160 of 200 iterations returning 1–4ms of banked time instead
+    // of 0. claimOfflineMs takes `now` as a parameter precisely so a caller can
+    // be explicit about the instant, and the sentence the test is asserting names
+    // one instant — so it passes ONE `NOW` everywhere rather than sampling the
+    // wall clock five times. This is the seam, not a tolerance: a tolerance here
+    // would have quietly accepted a genuine double-pay of a few milliseconds.
     const G = window.G;
     const snap = snapshotG();
     const hidden = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -14958,34 +15003,37 @@ const TESTS = [
       G.entitlements = {}; G.rooms = {}; G.clanName = null;
       const cap = window.offlineCapHours();
       const gap = cap * 0.75;
+      const NOW = Date.now();
 
       // A gap inside the cap banks in full.
-      G.offlineBudget = { at: Date.now() - gap * 3600000 };
-      const first = window.claimOfflineMs(Date.now(), true) / 3600000;
+      G.offlineBudget = { at: NOW - gap * 3600000 };
+      const first = window.claimOfflineMs(NOW, true) / 3600000;
       assert(Math.abs(first - gap) < 0.01, 'a gap inside the cap banks in full, got ' + first);
 
       // THE WHOLE CHANGE: a SECOND absence the same day ALSO banks in full.
       // There is no shared daily bucket to deplete — each absence caps alone.
-      G.offlineBudget = { at: Date.now() - gap * 3600000 };
-      const second = window.claimOfflineMs(Date.now(), true) / 3600000;
+      G.offlineBudget = { at: NOW - gap * 3600000 };
+      const second = window.claimOfflineMs(NOW, true) / 3600000;
       assert(Math.abs(second - gap) < 0.01,
         'a second absence must bank in full per-absence (not truncated by a daily bucket), got ' + second);
 
       // A single absence longer than the cap truncates to exactly the cap.
-      G.offlineBudget = { at: Date.now() - (cap + 6) * 3600000 };
-      const huge = window.claimOfflineMs(Date.now(), true) / 3600000;
+      G.offlineBudget = { at: NOW - (cap + 6) * 3600000 };
+      const huge = window.claimOfflineMs(NOW, true) / 3600000;
       assert(Math.abs(huge - cap) < 0.01, 'an absence longer than the cap banks exactly the cap, got ' + huge);
 
       // Signing in resets the timer: an immediate re-claim banks nothing. This is
       // also the b214 double-pay guard — the watermark cannot be read twice.
-      assert(window.claimOfflineMs(Date.now(), true) === 0,
+      assert(window.claimOfflineMs(NOW, true) === 0,
         'a second read of the same instant must bank nothing (timer reset / double-pay guard)');
 
       // An absence with nothing running banks nothing, but the watermark still
       // advances because the wall-clock passed.
-      G.offlineBudget = { at: Date.now() - 5 * 3600000 };
-      assert(window.claimOfflineMs(Date.now(), false) === 0, 'an absence with no activity banks nothing');
-      assert(Math.abs(G.offlineBudget.at - Date.now()) < 2000, 'the watermark still advances');
+      G.offlineBudget = { at: NOW - 5 * 3600000 };
+      assert(window.claimOfflineMs(NOW, false) === 0, 'an absence with no activity banks nothing');
+      assert(G.offlineBudget.at === NOW,
+        'the watermark still advances, to exactly the instant it was read at — got a drift of ' +
+        (G.offlineBudget.at - NOW) + 'ms');
     } finally {
       if(hidden) Object.defineProperty(document, 'hidden', hidden); else { try{ delete document.hidden; }catch(e){} }
       restoreG(snap);
@@ -17779,6 +17827,280 @@ const TESTS = [
       window.fetch = realFetch;
       if (sb && realGetConfig) sb.getConfig = realGetConfig;
     }
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     b330 — CLAN MEMBERSHIP: the transport, and the surface that makes it real
+     ═══════════════════════════════════════════════════════════════════════
+     `2026-08-11-clan-membership-authority.sql` (APPLIED) exists because any
+     account could POST itself into any clan via /rest/v1/clan_members, and
+     leadership had NO way to remove it (S-CAP-1 / S-KICK). Two halves have to
+     hold for that to be closed in practice:
+
+       1. the client must JOIN THROUGH THE RPC and never through the table —
+          the table write skips the ban list, the invite bookkeeping, the
+          journal and the rate limit;
+       2. the remedy must be CLICKABLE. A kick RPC nobody can reach is the same
+          as no remedy, which is the state this build shipped in.
+
+     tryRun is SYNCHRONOUS. joinById() issues its fetch before its first await
+     (requireOnline() is sync, and rpc() calls fetch as its first statement), so
+     the request shape is assertable synchronously — verified by the call-count
+     assertion below, which would read 0 if the fetch had moved behind an await.
+     Do not make these async. ─────────────────────────────────────────────── */
+  () => tryRun('b330: joinById goes through the clan_join RPC and NEVER writes /rest/v1/clan_members', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && typeof Cl.joinById === 'function', 'HearthriseClans.joinById must be published');
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
+    const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
+    const realNotify = window.notify;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
+      window.notify = () => {};
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, clan_id: 'c1' }) });
+      };
+
+      const p = Cl.joinById('11111111-2222-3333-4444-555555555555');
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+
+      assert(calls.length === 1, 'joining must issue exactly one request, saw ' + calls.length +
+        ' — a 0 here means the fetch moved behind an await and this test is asserting nothing');
+      const c = calls[0];
+
+      /* THE CONTROL: this is what the hole looked like. `/rest/v1/clan_members`
+         with no `/rpc/` in front of it IS the uninvited-join path. */
+      assert(!/\/rest\/v1\/clan_members/.test(c.url),
+        'the client must NEVER write clan_members directly — that is the uninvited-join path S-CAP-1 names: ' + c.url);
+      assert(c.url.indexOf('/rest/v1/rpc/clan_join') !== -1,
+        'joining must go through the clan_join RPC: ' + c.url);
+      assert(String(c.opts.method || 'GET').toUpperCase() === 'POST',
+        'a PostgREST RPC call must be POST');
+      const body = JSON.parse(c.opts.body || '{}');
+      assert(body.p_clan_id === '11111111-2222-3333-4444-555555555555',
+        'the RPC takes the clan as p_clan_id in the JSON body, saw: ' + (c.opts.body || '(none)'));
+      /* The server derives the joiner from auth.uid(); a client-supplied user id
+         would be a forged identity crossing to another player's clan. */
+      assert(body.p_user_id === undefined && body.user_id === undefined,
+        'the client must not name WHO is joining — the server takes that from auth.uid(): ' + c.opts.body);
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      if (au && realGetSession) au.getSession = realGetSession;
+    }
+  }),
+
+  () => tryRun('b330: the kick control sends clan_kick with a CLAMPED ban, and the default is 168h', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && typeof Cl.kick === 'function', 'HearthriseClans.kick must be published');
+    const UI = window.HearthriseClanSeatUI;
+    assert(UI && Array.isArray(UI.BAN_CHOICES) && UI.BAN_CHOICES.length,
+      'the panel must OFFER the ban duration rather than hiding it');
+    assert(+UI.BAN_CHOICES[0].value === 168,
+      'the default (first) ban choice must be the server default of 168h, got ' + UI.BAN_CHOICES[0].value);
+    UI.BAN_CHOICES.forEach((b) => assert(+b.value >= 0 && +b.value <= 720,
+      'every offered ban must be inside the server clamp 0…720h, got ' + b.value));
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
+    const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
+    const realNotify = window.notify;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
+      window.notify = () => {};
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
+      };
+      const p = Cl.kick('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 99999);
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+      assert(calls.length === 1, 'a kick must issue exactly one request, saw ' + calls.length);
+      assert(calls[0].url.indexOf('/rest/v1/rpc/clan_kick') !== -1,
+        'a removal must go through the clan_kick RPC: ' + calls[0].url);
+      const body = JSON.parse(calls[0].opts.body || '{}');
+      assert(body.p_user_id === 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'the target is p_user_id');
+      assert(body.p_ban_hours === 720,
+        'a client ban duration is CLAMPED to 720h before it is sent, got ' + body.p_ban_hours);
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      if (au && realGetSession) au.getSession = realGetSession;
+    }
+  }),
+
+  () => tryRun('b330: every refusal the membership RPCs can return reads as a sentence, never a code', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && typeof Cl.errorText === 'function',
+      'the code→sentence mapping must be published, or nothing can prove a refusal reads as one');
+    /* Every `error` string the eight RPCs in 2026-08-11-clan-membership-authority.sql
+       can return. If a future migration adds one, add it here — an unmapped code
+       reaches the player as "Could not join (some_code)". */
+    const CODES = ['not_signed_in', 'rate_limited', 'no_clan', 'already_in_clan', 'invite_only',
+      'banned', 'clan_full', 'bad_name', 'name_taken', 'bad_policy', 'not_member', 'not_permitted',
+      'cannot_kick_self', 'cannot_kick_leader', 'no_such_player', 'cannot_invite_self',
+      'target_in_clan', 'already_member', 'no_target'];
+    CODES.forEach((code) => {
+      const txt = Cl.errorText(code, 'Could not join', 403);
+      assert(typeof txt === 'string' && txt.length > 8,
+        'the refusal for "' + code + '" must be a sentence, got: ' + txt);
+      assert(txt.indexOf(code) === -1,
+        'the refusal for "' + code + '" leaked the raw code to the player: ' + txt);
+      assert(txt.indexOf('403') === -1 && !/\(\d+\)/.test(txt),
+        'the refusal for "' + code + '" leaked an HTTP status: ' + txt);
+    });
+    // …and an UNKNOWN code must NOT be dressed up as a sentence we never verified.
+    const unknown = Cl.errorText('__not_a_real_code__', 'Could not join', 403);
+    assert(unknown.indexOf('__not_a_real_code__') >= 0,
+      'an unrecognised code must be shown verbatim rather than guessed at, got: ' + unknown);
+  }),
+
+  () => tryRun('b330: the Great Hall carries the door, invitations and removals — for leadership only', () => {
+    const UI = window.HearthriseClanSeatUI;
+    if (!UI || typeof UI.roomDescriptor !== 'function') { assert(true, 'seam absent'); return; }
+    const ROSTER = [
+      { user_id: 'u-lead', role: 'leader', contributed: 10, profiles: { display_name: 'Leader' } },
+      { user_id: 'u-mem', role: 'member', contributed: 5, profiles: { display_name: 'Rank And File' } }
+    ];
+    try {
+      // ── AS THE LEADER ──────────────────────────────────────────────────
+      UI._reset();
+      UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'open', myRole: 'leader' });
+      UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'leader', members: 2, member_cap: 10,
+        stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
+      UI._setRoster(ROSTER);
+      UI._setInvites([{ user_id: 'u-inv', display_name: 'Invited Soul', at: Date.now() - 3600000,
+        expires_at: new Date(Date.now() + 6 * 86400000).toISOString() }]);
+      let d = UI.roomDescriptor('great_hall');
+      let json = JSON.stringify(d.sections);
+
+      assert(d.sections.some((s) => s.title === 'The door'), 'leadership must be able to set the join policy');
+      const door = d.sections.filter((s) => s.title === 'The door')[0];
+      assert(door.select && door.select.value === 'open',
+        'the door control must OPEN ON the hold\'s current policy, got ' + (door.select && door.select.value));
+      assert(door.select.options.map((o) => o.value).join(',') === 'open,invite',
+        'the door offers exactly the two policies the CHECK constraint allows');
+      assert(door.button && door.button.action === 'door-set', 'the door must have a control that acts');
+
+      assert(d.sections.some((s) => s.title === 'Invite a player'), 'leadership must be able to invite');
+      const inv = d.sections.filter((s) => s.title === 'Invite a player')[0];
+      assert(inv.text && inv.text.name === 'invite', 'inviting takes a display name typed in');
+      assert(inv.button.action === 'invite-send', 'the invite field must have a control that acts');
+
+      const out = d.sections.filter((s) => s.title === 'Invitations outstanding')[0];
+      assert(out, 'leadership must see outstanding invitations');
+      assert(out.rows.length === 1 && /Invited Soul/.test(out.rows[0].name),
+        'the outstanding list must name the invited player');
+      assert(/data-cs="invite-revoke"/.test(out.rows[0].right), 'each outstanding invitation must be revocable');
+
+      assert(d.sections.some((s) => s.title === 'Removals'), 'the ban duration must be SURFACED, not hidden');
+      /* THE REMEDY. The whole point of the migration: a leader can remove the
+         rank-and-file member, and cannot remove the leader or themselves. */
+      const roster = d.sections.filter((s) => s.title === 'Those sworn to the hold')[0];
+      const rows = roster.rows;
+      assert(/data-cs="kick"[^>]*data-u="u-mem"/.test(rows[1].right),
+        'leadership must have a Remove control on an ordinary member: ' + rows[1].right);
+      assert(!/data-cs="kick"/.test(rows[0].right),
+        'the leader must not be offered for removal — the server refuses it (cannot_kick_leader)');
+      // The removal is two-step: armed first, acted on second.
+      assert(/>Remove<\/button>/.test(rows[1].right), 'an unarmed Remove must read as Remove');
+      UI._setKickArm('u-mem');
+      const armed = UI.roomDescriptor('great_hall').sections
+        .filter((s) => s.title === 'Those sworn to the hold')[0].rows[1].right;
+      assert(/confirm/i.test(armed) && /btn-danger/.test(armed),
+        'an armed Remove must ask for confirmation and read as destructive: ' + armed);
+
+      // ── AS A RANK-AND-FILE MEMBER ─────────────────────────────────────
+      UI._setKickArm(null);
+      UI._setClan({ id: 'clan-1', name: 'Probe Hold', level: 1, treasury: 0, join_policy: 'invite', myRole: 'member' });
+      UI._setSeat({ castle_tier: 1, standing: 0, upgrades: {}, my_role: 'member', members: 2, member_cap: 10,
+        stores: {}, orders: [], upkeep_state: 'active' }, 'clan-1');
+      d = UI.roomDescriptor('great_hall');
+      json = JSON.stringify(d.sections);
+      assert(!d.sections.some((s) => s.title === 'Invite a player'),
+        'a member must not be shown an invite control the server would refuse (not_permitted)');
+      assert(!d.sections.some((s) => s.title === 'Removals'),
+        'a member must not be shown a removals control');
+      assert(!/data-cs="kick"/.test(json), 'a member must have no kick button anywhere');
+      assert(!/data-cs="door-set"/.test(json), 'a member must not be offered the door switch');
+      assert(/invite only/i.test(json), 'a member must still be TOLD what the hold\'s door is set to');
+    } finally { UI._reset(); }
+  }),
+
+  /* b330 — found by DRIVING the panel in a browser, not by reading it. The
+     two-step Remove arms on the first click, and arming repaints the modal; the
+     repaint rebuilt every control from its descriptor, so a leader who chose a
+     24-hour bar and then clicked Remove sent 168. The choice was silently
+     reverted between the two halves of one action. Fixed in the repaint itself
+     (paint() already preserved scrollTop for the same reason), so the whole
+     control family is covered — including the Storehouse's deposit picker,
+     which had the same defect and nobody had noticed. */
+  () => tryRun('b330: a room repaint preserves what the player typed or picked', () => {
+    const RM = window.HearthriseRoomModal;
+    if (!RM || typeof RM.open !== 'function') { assert(true, 'seam absent'); return; }
+    try {
+      const descriptor = () => ({
+        id: 'probe', theme: 'hall', title: 'Probe', sections: [
+          { kind: 'field', title: 'Pick', select: { name: 'probe', options: [
+            { value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' } ] } },
+          { kind: 'field', title: 'Type', text: { name: 'probetxt', placeholder: 'name' } }
+        ]
+      });
+      RM.open(descriptor);
+      const sel = document.querySelector('[data-cs-sel="probe"]');
+      const txt = document.querySelector('[data-cs-txt="probetxt"]');
+      assert(sel && txt, 'the probe descriptor must render a select and a text field');
+      assert(sel.value === 'a', 'a select with no explicit value opens on its first option');
+      sel.value = 'c';
+      txt.value = 'Half A Name';
+
+      RM.refresh();                       // exactly what arming a button does
+
+      const sel2 = document.querySelector('[data-cs-sel="probe"]');
+      const txt2 = document.querySelector('[data-cs-txt="probetxt"]');
+      assert(sel2 && sel2 !== sel, 'refresh must genuinely rebuild the modal, or this proves nothing');
+      assert(sel2.value === 'c',
+        'a repaint must not revert a chosen value — that sent a 7-day ban when 24 hours was picked, got ' + sel2.value);
+      assert(txt2.value === 'Half A Name',
+        'a repaint must not erase a half-typed name, got: ' + txt2.value);
+
+      // …but a value the rebuilt control no longer offers must NOT be forced on.
+      RM.open(() => ({ id: 'probe', theme: 'hall', title: 'Probe', sections: [
+        { kind: 'field', title: 'Pick', select: { name: 'probe', options: [{ value: 'a', label: 'A' }] } } ] }));
+      const sel3 = document.querySelector('[data-cs-sel="probe"]');
+      assert(sel3.value === 'a',
+        'a restored value that the new option list does not contain must be dropped, got: ' + sel3.value);
+    } finally { RM.close(); }
+  }),
+
+  () => tryRun('b330: an invited player is told, and is offered only what the server can actually do', () => {
+    const Cl = window.HearthriseClans;
+    if (!Cl || typeof Cl._inviteInboxHtml !== 'function') { assert(true, 'seam absent'); return; }
+    const html = Cl._inviteInboxHtml([{
+      invite_id: 'i1', clan_id: 'c-1', clan_name: 'Emberfall Watch', members: 4,
+      invited_by: 'Someone', expires_at: new Date(Date.now() + 6 * 86400000).toISOString()
+    }]);
+    assert(/Emberfall Watch/.test(html), 'the invitation must name the hold');
+    assert(/Someone/.test(html), 'it must say who invited you');
+    assert(/lapses in 6 days/.test(html), 'it must say how long it lasts, got: ' + html);
+    assert(/joinById\('c-1'\)/.test(html), 'accepting must go through joinById, which is the clan_join RPC');
+    /* There is no clan_invite_decline RPC. A Decline button would be a control
+       that cannot do what it says — the exact class of lie this pass exists to
+       remove — so the copy states the truth instead. */
+    assert(!/decline/i.test(html), 'no Decline control may be drawn: the server has no decline path');
+    assert(/lapses on its own/i.test(html), 'the player must be told what happens if they do nothing');
+    // XSS: a hold name is another player's text and it reaches this markup.
+    const evil = Cl._inviteInboxHtml([{ clan_id: 'c-2', clan_name: '<img src=x onerror=alert(1)>',
+      expires_at: new Date(Date.now() + 86400000).toISOString() }]);
+    assert(evil.indexOf('<img') === -1, 'a hold name must be escaped before it reaches the inbox');
   }),
 
   /* ── b329 regression suite — XARN'S AUTO-EAT (live bug, b324) ─────────────

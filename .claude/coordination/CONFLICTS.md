@@ -12,6 +12,15 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-11 · b330 · SERVER GAP — leadership has no read for its own outstanding invitations (Systems → whoever next owns the membership SQL)
+`2026-08-11-clan-membership-authority.sql` shipped `clan_invites_list()` for the **invitee** only, and `clan_invites` deliberately has **no client SELECT policy**. So a leader can send an invitation and revoke one, but the server offers no way to ask *"who have we invited?"* — which the panel needs before it can draw a Withdraw button beside a name.
+
+I did **not** invent a client-side list and I did **not** add a policy to `clan_invites` (a readable invite table is a readable list of who is being courted, and the migration is explicit that the RPCs are the only door). The panel derives the answer from **`clan_ledger`**, which is `for select using (true)` and which every membership RPC journals to (`invite` / `invite_revoke` / `join_invite` / `join` / `kick`): the newest row per user decides, and an `invite` row older than the server's 7-day TTL has lapsed. That is complete rather than a guess — but it is a **derivation of server state on the client**, which is the shape this project has decided against everywhere else.
+
+**The honest fix is a `clan_invites_outstanding()` RPC** (leadership-only, `hr_clan_may_admit`, rate bucket `clan_invites_list`, returning `{user_id, display_name, invited_by, created_at, expires_at}`). When it lands, delete `outstandingInvites()` in `src/features/clans.js` and call it instead — the panel consumes an array of the same shape, so it is a one-function swap. A stale derived entry costs nothing today: revoking it answers `revoked: 0`, which the transport already reports as *"There was no invitation left to withdraw."*
+
+**Also noted, not acted on:** the migration has no **decline** path. An invitee can accept or let it lapse. The inbox therefore draws Accept only and says what happens if you do nothing — a Decline button would be a control that cannot do what it says. If Design wants decline, it needs `clan_invite_decline(p_clan_id)` (sets `revoked_at`, journals `invite_decline`). **→ Game Designer to rule, Systems/SQL to build.**
+
 ### 2026-08-09 · b228 rebase applied — three of the batch below are RESOLVED, two new items open (Systems)
 **Resolved by `agent-rebase` (b228):** items 1, 3, 4, 5 and most of 6 of the batch below. The fuse moved to `src/features/power-budget.js` as the final wrapper; `smoke-test.js`'s offline-latch test already asserted through `bonusFor` (pre-clamp) so it did NOT break structurally — it gained an explicit second assertion that the clamp is not what makes the two nights equal, so the latch keeps doing the latch's job; the `farmYield` flooring fix, the companion key-name fix and the ranged/magic `combatXP` fix all landed inside the rebase commit; `CASTLE_TOTAL_CAP` is deleted rather than enforced (a cap that a later wrapper escapes cannot be given a real job — the real job moved to power-budget.js). Item 7 was already shipped: Workshop and Shrine were at +2/4/6/8/10 when this branch read them.
 

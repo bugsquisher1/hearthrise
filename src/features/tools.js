@@ -11,28 +11,29 @@
 // speed bonus, so a rune axe (+25%) visibly out-chops a bronze axe
 // (+5%). This makes tool upgrades a real, obvious progression lane.
 // ============================================================
+/* PHASE 0 (server authority): the maths moved to src/core/tools.js, which is
+   pure ESM and imports cleanly in Deno. This file is now the CLIENT ADAPTER —
+   it reads window.G / window.ITEMS and hands them to the core. The public
+   window.HearthriseTools API is unchanged, because six callers depend on it.
+   Server-side, the accrual Edge Function calls src/core/tools.js directly with
+   the player's inventory rows. One implementation of "which axe is best". */
 (function () {
   'use strict';
+
+  function core() { return window.HearthriseCore && window.HearthriseCore.tools; }
 
   // Best owned tool for a skill: checks inventory (and equipment, in case
   // a tool ever gets equipped) and returns the highest-tier match.
   function bestTool(skill) {
-    var ITEMS = window.ITEMS || {};
+    var C = core();
+    if (!C) return null;
     var G = window.G || {};
-    var best = null;
-    function consider(id) {
-      var it = ITEMS[id];
-      if (!it || it.type !== 'tool' || it.toolSkill !== skill) return;
-      if (!best || (it.toolTier || 0) > (best.toolTier || 0)) best = Object.assign({ id: id }, it);
-    }
-    Object.keys(G.inventory || {}).forEach(function (id) { if ((G.inventory[id] || 0) > 0) consider(id); });
-    Object.keys(G.equipment || {}).forEach(function (slot) { var id = G.equipment[slot]; if (id) consider(id); });
-    return best;
+    return C.bestTool(skill, G.inventory, G.equipment, window.ITEMS || {});
   }
 
   function bestToolSpeed(skill) {
-    var t = bestTool(skill);
-    return t ? (t.toolSpeed || 0) : 0;
+    var C = core();
+    return C ? C.toolSpeed(bestTool(skill)) : 0;
   }
 
   /* Wave 3 (audit fix — "tools don't feel like they do anything"): a tool now
@@ -43,14 +44,12 @@
      upgrade, well under the power budget. Gathering AND artisan tools share this,
      so a Forge Hammer speeds smithing exactly as a Rune Axe speeds woodcutting. */
   function bestToolXpB(skill) {
-    var t = bestTool(skill);
-    if (!t) return 0;
-    return (typeof t.toolXpB === 'number') ? t.toolXpB : (t.toolTier || 0) * 0.02;
+    var C = core();
+    return C ? C.toolXpB(bestTool(skill)) : 0;
   }
   function bestToolDouble(skill) {
-    var t = bestTool(skill);
-    if (!t) return 0;
-    return (typeof t.toolDouble === 'number') ? t.toolDouble : (t.toolTier || 0) * 0.02;
+    var C = core();
+    return C ? C.toolDouble(bestTool(skill)) : 0;
   }
 
   window.HearthriseTools = {

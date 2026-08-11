@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=318' directly.
+// modularised, will import { G } from '../state/game.js?v=319' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=318';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=318';
+import { on, snapshot } from '../net/events.js?v=319';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=319';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=318';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=319';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -11869,6 +11869,152 @@ const TESTS = [
   }),
 
   // ══════════════════════════════════════════════════════════════════════
+  // PHASE 0 (server authority) — THE SHARED SIMULATION CORE
+  //
+  // src/core/* is the pure, DOM-free simulation that a Supabase Edge Function
+  // will import verbatim, so that the server and the client can never hold two
+  // different opinions about what the game's rules are. Node-side purity and
+  // determinism are proved by tests/core-purity.mjs (which runs as a preflight
+  // in tests/run-smoke.mjs, because no in-page test can prove "works without a
+  // browser" from inside a browser).
+  //
+  // What these four tests prove is the half that only the running game can:
+  // that the engine ACTUALLY DELEGATES. An extraction that leaves a second copy
+  // behind in legacy.js is worse than no extraction — it looks done, and it
+  // drifts silently. So each one reaches through the real player-facing entry
+  // point and checks the core is the thing that answered.
+  // ══════════════════════════════════════════════════════════════════════
+
+  () => tryRun('Phase 0: the shared core is published and the engine delegates to it', () => {
+    const C = window.HearthriseCore;
+    assert(C && typeof C === 'object', 'window.HearthriseCore is missing — src/core-bridge.js did not load');
+    for (const m of ['xp', 'combat', 'drops', 'pacing', 'rested', 'tools', 'farm', 'progression']) {
+      assert(C[m] && typeof C[m] === 'object', 'the core is missing its ' + m + ' module');
+    }
+    assert(typeof C.rng.next === 'function' && typeof C.rng.int === 'function' && typeof C.rng.chance === 'function',
+      'the session RNG must satisfy the next/int/chance contract');
+
+    /* DELEGATION, NOT DUPLICATION. An ES module namespace is frozen, so the
+       core's functions cannot be stubbed to prove the engine calls them — and
+       "the two agree on 50 sample values" would pass happily on the day someone
+       forks the implementation. So this is a STRUCTURAL claim, which is the one
+       that actually catches a re-duplication: the engine's function body must
+       be a one-line hand-off, containing no arithmetic of its own.
+
+       If you are here because this failed: you did not break a test, you
+       reintroduced a second copy of a rule the server also implements. */
+    /* getEquipmentStats is deliberately absent: it is WRAPPED at runtime
+       (companions.js adds the pet's contribution), so the outermost function is
+       a wrapper and its source says nothing about the base. The base still
+       delegates — and the bridge routes through window.getEquipmentStats
+       precisely so the wrapper stays in the chain. */
+    const delegates = ['levelFromXp', 'xpForLevel', 'xpToNext', 'xpPct', 'getLevel', 'getTotalLevel',
+      'getCombatLevel', 'dropBand', 'speedClamp', 'pacedXp', 'pacedActionMs', 'actionRate',
+      'goldFindMult', 'applyGoldFind', 'getWeaknessInfo', 'getArmorSetBonus',
+      'getMonsterCombatRolls', 'getPlayerCombatRolls', 'accrueRestedXp', 'restedQuantum', 'restedCap'];
+    for (const name of delegates) {
+      const fn = window[name];
+      assert(typeof fn === 'function', name + ' is missing from the engine');
+      assert(/HearthriseCore/.test(String(fn)),
+        name + '() no longer routes through the shared core — a second implementation is back in legacy.js');
+    }
+    /* And the answers are still real, so "it delegates" cannot be satisfied by
+       delegating to nothing. */
+    assert(window.levelFromXp(83) === 2 && window.levelFromXp(13034431) === 99, 'the XP curve answers wrongly');
+    assert(window.dropBand(0.01) === 'rare' && window.dropBand(1) === 'always', 'the drop bands answer wrongly');
+    assert(window.speedClamp(0.1) === 0.9, 'the speed fuse answers wrongly');
+  }),
+
+  () => tryRun('Phase 0: the balance constants are ONE object, not a client copy', () => {
+    /* The failure this prevents is the one this codebase has already been
+       burned by (main.js:36 unifyObject): two live copies of the same data,
+       drifting apart in silence. Identity, not equality — an assertion that
+       the numbers merely MATCH would pass on the day someone forks them. */
+    const C = window.HearthriseCore;
+    const pairs = [
+      ['XP_TABLE', C.xp.XP_TABLE], ['COMBAT_BALANCE', C.combat.COMBAT_BALANCE],
+      ['WEAPON_TYPES', C.combat.WEAPON_TYPES], ['WEAKNESS_BONUS', C.combat.WEAKNESS_BONUS],
+      ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
+      ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
+      ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
+    ];
+    for (const [name, coreValue] of pairs) {
+      assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
+    }
+    /* Scalars cannot share identity, so they are pinned by value. */
+    assert(window.SPEED_FUSE === C.pacing.SPEED_FUSE, 'SPEED_FUSE drifted from the core');
+    assert(window.NEUTRAL_DROP_BONUS === C.combat.NEUTRAL_DROP_BONUS, 'NEUTRAL_DROP_BONUS drifted from the core');
+    assert(window.RESTED_CHARGE_MS === C.rested.RESTED_CHARGE_MS, 'RESTED_CHARGE_MS drifted from the core');
+    assert(window.RESTED_CAP === C.rested.RESTED_CAP, 'RESTED_CAP drifted from the core');
+    assert(window.RESTED_QUANTUM_CAP === C.rested.RESTED_QUANTUM_CAP, 'RESTED_QUANTUM_CAP drifted from the core');
+    /* And the curve is still the real one, so "one identity" cannot be
+       satisfied by both sides being wrong together. */
+    assert(window.XP_TABLE.length === 99 && window.XP_TABLE[98] === 13034431,
+      'the XP curve is no longer the 99-rung curve the game is tuned around');
+  }),
+
+  () => tryRun('Phase 0: combat is REPLAYABLE — the same seed fights the same fight', () => {
+    /* This is the property the whole server-accrual model rests on: given a
+       seed derived from (user_id, slot, accrued_to), the server can re-run an
+       absence and prove what it paid. If any roll reaches Math.random() again,
+       the two runs below diverge and this fails. */
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const G = window.G;
+    const runFight = (seed) => {
+      C.reseed(seed);
+      restoreG(snap);
+      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 200000, defense: 50000 });
+      G.playerHp = G.playerMaxHp = 200;
+      G.activeMonster = 'goblin';
+      const m = window.MONSTERS.goblin;
+      G.monsterHp = G.monsterMaxHp = m.hp;
+      G.combatLog = [];
+      G.gold = 0;
+      const swings = [];
+      for (let i = 0; i < 40; i++) {
+        const rolls = window.getPlayerCombatRolls(m);
+        swings.push(C.combat.rollAttack(C.rng, rolls.accuracy, rolls.maxHit));
+      }
+      const loot = C.drops.rollDropTable(m.drops, { dropMult: 1 }, C.rng);
+      return swings.join(',') + '|' + Object.keys(loot.dropped).sort().join(',');
+    };
+    try {
+      const a = runFight(20260810);
+      const b = runFight(20260810);
+      const c = runFight(20260811);
+      assert(a === b, 'the same seed produced a different fight — combat is not replayable\n  ' + a + '\n  ' + b);
+      assert(a !== c, 'a different seed produced an identical fight — the seed is being ignored');
+      assert(/[1-9]/.test(a), 'the replay landed no hits at all, so it proves nothing');
+    } finally {
+      C.randomSeed();          // back to an unpredictable session stream
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('Phase 0: farm growth is derived from the clock the CALLER passes', () => {
+    /* Farming is the domain closest to server-ready: readiness is
+       `now >= plantedAt + growth`, with no stored counter and no cron. The
+       server will call this same function with the DATABASE's clock, so the
+       core must never consult one of its own — and the 2x invariant must hold
+       against any watering array, including a forged one. */
+    const F = window.HearthriseCore.farm;
+    const t0 = 1700000000000;
+    const dry = { cropId: 'turnip', plantedAt: t0, waterings: [] };
+    assert(Math.abs(F.growthHours(dry, t0 + 7200000) - 2) < 1e-9, 'an unwatered crop must grow 1 hour per hour');
+    const wet = { cropId: 'turnip', plantedAt: t0, waterings: [t0] };
+    assert(Math.abs(F.growthHours(wet, t0 + 3600000) - 2) < 1e-9, 'a watered crop must grow 2 hours per hour');
+    const forged = { cropId: 'turnip', plantedAt: t0, waterings: [t0, t0, t0, t0, t0, t0, t0, t0] };
+    assert(F.growthHours(forged, t0 + 3600000) <= 2 + 1e-9,
+      'a forged waterings array beat the hard 2x cap — this is the whole anti-abuse invariant');
+    assert(F.growthHours(dry, t0 - 1) === 0, 'a clock behind plantedAt must grant no growth');
+    /* And the client wrapper still answers with the wall clock. */
+    assert(typeof window.HearthriseFarm.growthHours === 'function', 'the HearthriseFarm API must survive the port');
+    assert(window.HearthriseFarm.MAX_LEVEL === F.MAX_PLOT_LEVEL, 'the plot ladder is a copy again');
+    assert(window.HearthriseFarm.KILL_DEED_CHANCE === F.KILL_DEED_CHANCE, 'the deed chance is a copy again');
+  }),
+
+  // ══════════════════════════════════════════════════════════════════════
   // b227 — THE CALENDAR IS THE ONLINE BONUS
   // (DECISIONS 2026-08-09 "Presence rework"; replaces b226's flat ×1.12)
   //
@@ -13663,7 +13809,7 @@ const TESTS = [
   () => tryRun('b235: crit is a real lever — critB + the damage_crit buff roll a damage multiplier (was dead)', () => {
     const G = window.G;
     const snap = snapshotG();
-    const origRandom = Math.random;
+    const C = window.HearthriseCore;
     try {
       // The damage_crit food buff (Void Banquet) was declared, shown, and read by
       // NOTHING; critB was summed on four screens and rolled into no damage.
@@ -13674,14 +13820,19 @@ const TESTS = [
       G.equipment = {};
       G.stats = G.stats || {};
       window.startCombat(mid);
-      Math.random = () => 0;               // guaranteed hit AND crit (0 < accuracy, 0 < critChance)
+      /* Phase 0: the engine no longer reaches for Math.random — randomness is an
+         injected dependency (src/core/rng.js), so the test injects one that
+         always draws 0: a guaranteed hit AND a guaranteed crit. This is a
+         stronger hook than the old `Math.random = () => 0`, because it can only
+         work if the engine really does take its randomness through the seam. */
+      C.setRng(C.rngMod.rngFrom(() => 0));
       const beforeCrits = G.stats.crits || 0;
       window.combatTick();
       assert((G.stats.crits || 0) > beforeCrits, 'a landed hit at cap crit chance must register a crit — crit is no longer dead');
       assert(G._lastPlayerCrit === true, '_lastPlayerCrit must be set so the floating CRIT is the real event, not the old dmg>=8 fake');
       try { window.stopCombat(); } catch (e) {}
     } finally {
-      Math.random = origRandom;
+      C.setRng(null);
       restoreG(snap);
     }
   }),

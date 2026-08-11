@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 319 — 2026-08-11 (Foundation: shared simulation core)
+
+- 🏗️ **Groundwork for the server-authoritative rebuild.** The game's core maths — XP, combat rolls, drops, pacing, farming, rested XP — moved into a shared, self-contained core that can run on the server as well as in your browser. No gameplay changes: every number behaves exactly as before, proven by the full test suite. This is the first step toward all progression being computed server-side, so nothing can be manipulated.
+- 🎲 **Combat is now replayable.** Randomness runs through a seeded generator, so a fight can be reproduced exactly — the basis for server-verified outcomes.
+
 ## v0.9.2-beta build 318 — 2026-08-10 (Save integrity: your save belongs to you)
 
 - 🛡️ **Your save is now bound to your account.** If two accounts were ever used on the same device, one account's character could overwrite the other's cloud save — and you could end up playing someone else's character. Saves now carry their owner, a save from another account is never adopted, and signing out safely parks your save instead of deleting it (so unsynced progress survives). *(Thanks Tyler.)*

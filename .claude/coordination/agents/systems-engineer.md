@@ -2,6 +2,59 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-11 · PHASE 0 EXECUTED — the shared simulation core (`src/core/`)
+
+Phase A of `docs/design/server-authority.md`. Behaviour-preserving extraction; the client still
+calls everything. **Smoke 544/544 (was 540/540, +4 new). Console clean. No version bump, no commit.**
+
+**Created — 1,529 lines:** `src/core/{rng,xp,combat,drops,pacing,rested,tools,farm,progression,index}.js`
+(911 ln, pure ESM — zero `window`/`document`/`Math.random`/`Date.now`/timers/`console`);
+`src/core-bridge.js` (206 ln, the ONE impure adapter, the only file that knows both worlds);
+`tests/core-purity.mjs` (332 ln — DOM-free guard + PRNG determinism + balance anchors, wired as a
+Node-side preflight in `tests/run-smoke.mjs`).
+**Net `src/legacy.js` 15,050 → 14,915** while ADDING ~90 lines of comment, so ~220 lines of live
+simulation actually left the monolith.
+
+**Three things to know before touching this:**
+
+1. **LOAD ORDER.** `core-bridge.js` is a MODULE: it runs after every classic script but before
+   DOMContentLoaded. So `legacy.js` must do NO parse-time work needing the core. Exactly one such
+   call existed (`migrateBountyHunterSkill` → `ensureBountyState` → `getCombatLevel`, `:6140`) and
+   is deferred to DOMContentLoaded. The account-wall guard fails the build on any console error —
+   that is the net that caught it, and the net for the next one.
+2. **THE CONSTANTS ARE ONE OBJECT.** `XP_TABLE`, `COMBAT_BALANCE`, `PACE`, `DROP_BAND_MAX`,
+   `SPEED_FUSE`, `RESTED_*`, `COMBAT_XP_SKILLS` etc. are deleted from `legacy.js` and published on
+   `window` by the bridge FROM the core. `window.PACE === core PACE` — identity, not a copy, which
+   is why the b226 tests that stub `window.PACE.xp` still move the real grant. They are window
+   properties now, not lexical `const`s: never read them at parse time.
+3. **DELEGATION MUST NOT DROP A LINK.** `getEquipmentStats`, `getArmorSetBonus` and
+   `restedQuantum` are WRAPPED at runtime (companions.js, clan-seat, the suite). The bridge routes
+   through `window.*` for those deliberately — calling core directly would silently escape the
+   wrapper. A smoke test asserts the other 21 entry points are one-line hand-offs (source-text
+   check; ES module namespaces are frozen, so stubbing is not available as a proof).
+
+**The RNG seam.** `Math.random()` is gone from every extracted path; randomness is injected
+(`src/core/rng.js` — mulberry32 + `hashSeed`). The client seeds once from `Math.random()` at boot,
+so behaviour is unchanged. `HearthriseCore.setRng()` replaces the old `Math.random = () => 0` test
+trick (b235's crit test uses it now — strictly stronger, since it can only pass if the engine
+genuinely takes randomness through the seam).
+
+**Divergence found, NOT fixed — Designer call.** `processOfflineCombat` (`:1171`) is a SECOND
+combat loop: it never rolls crits, and its drop chance omits the `dropRate` food buff and the
+Boss-of-the-Day lift. Offline therefore pays less than online, invisibly. Predates this work;
+preserved exactly and flagged in-code rather than quietly "fixed".
+
+**Perf:** 12-hour offline combat replay (~18,000 ticks) measured **184 ms before, 184 ms after**.
+Save/load round-trips `restedXp` / `restedAt` / `_toolCarry` unchanged.
+
+**Remaining Phase A:** `doArtisanAction` (`:9910/:9917/:9947` — three bare `Math.random()`),
+bounty generation (`:2194/:2218/:2314`). Timer/retime machinery deliberately NOT ported (§4.4: the
+server deletes it). `power-budget.js` NOT ported — it polices a wrapper chain, it is not
+simulation; server-side the perk sum is computed directly, so porting it would be cargo cult.
+
+**Pre-existing, not mine:** `src/features/character-page.js:23-25` imports `../data/*.js?v=309`
+against build 318, so `bump-version.sh --check` fails today.
+
 ## 2026-08-09 · Itemization Program Phase 1 — Slice B audit (READ-ONLY, no code changed)
 Deliverable: `docs/reports/itemization-audit/B-combat-bosses-dungeons.md`. Scope: combat/monsters/bosses/dungeons/raids-Hunt/bounties/drop-tables.
 

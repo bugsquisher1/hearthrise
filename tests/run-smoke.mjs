@@ -15,6 +15,7 @@
 // ============================================================
 
 import { chromium } from 'playwright';
+import { runAll as coreGuards } from './core-purity.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -257,6 +258,22 @@ const run = async () => {
 
   let exitCode = 0;
   try {
+    /* ── The core guard (Phase 0, server authority) ─────────────────────
+       Runs FIRST and outside the browser entirely, because that is the
+       whole claim: src/core/* is the shared simulation, and it must import
+       and produce correct numbers in plain Node (and therefore in Deno,
+       where the Edge Functions run). Nothing in the page can prove that —
+       an in-browser test always has `window`. It also pins the seeded-PRNG
+       contract and a set of balance anchors. See tests/core-purity.mjs. */
+    const coreProblems = await coreGuards();
+    if (coreProblems.length) {
+      console.log('\nCore guard (src/core is pure, deterministic, DOM-free) — FAILED:');
+      for (const p of coreProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nCore guard — src/core imports in plain Node, is DOM-free, and replays from a seed.');
+    }
+
     // Wall guard FIRST, in its own clean context, before the harness page below
     // ever declares itself.
     const wallProblems = await wallGuard(browser, url);

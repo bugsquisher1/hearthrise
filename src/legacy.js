@@ -22,22 +22,33 @@
 /* ════════════════════════════════════════════════
    GAME DATA  (preserved from original alpha)
    ════════════════════════════════════════════════ */
-const XP_TABLE=[0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,111945,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,668051,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,11805606,13034431];
-/* b215: 11,805,606 (the level-98 threshold) was missing, so this table held 98
-   entries instead of 99. Two consequences, both bad for a game whose pitch is
-   "every skill to 99": levelFromXp could never return 99 (13,034,431 xp showed
-   as level 98), and the skill header read "13,034,431 / NaN" because
-   XP_TABLE[98] was undefined. The cap is reachable now. */
-/* b222: publish the table on window. `const` at the top level of a classic
-   script lives in the global LEXICAL scope, which is NOT window — so every
-   module that reached for `window.XP_TABLE` silently got undefined and fell
-   back. That was not theoretical: renown.js's lvlFromXp returned 1 for every
-   skill, so the meta-spine scored a fresh save's 24 total levels as 15 (a
-   verified 220 Renown instead of 310), and admin.js's set-level tool short-
-   circuited on `if(!window.XP_TABLE) return;`. Found while building the Throne
-   leaderboard, whose score IS computeRenown. One assignment fixes all three. */
-function levelFromXp(xp){for(let i=XP_TABLE.length-1;i>=0;i--)if(xp>=XP_TABLE[i])return Math.min(i+1,99);return 1}
-window.XP_TABLE=XP_TABLE;
+/* ════════════════════════════════════════════════════════════════════════
+   PHASE 0 (server authority) — WHERE THE SIMULATION CONSTANTS LIVE NOW.
+
+   The XP curve, the combat balance table, the pacing dials, the speed fuse,
+   the drop bands and the Rested constants used to be `const`s here. They are
+   now authored ONCE in src/core/*.js and published onto `window` by
+   src/core-bridge.js, because Supabase Edge Functions import those same files
+   — and a second copy of a balance number is how a server and a client start
+   disagreeing about what the game is.
+
+   Two consequences to know before editing this file:
+
+   1. They are WINDOW PROPERTIES, not lexical `const`s. Bare references
+      (`COMBAT_BALANCE.tickMs`, `WEAPON_TYPES[x]`) still resolve, because a
+      bare name falls through to the global object — but only INSIDE a
+      function, at call time. Do not read them at classic-script parse time;
+      the bridge is a module and has not run yet.
+   2. Because window.PACE is now literally the core's object, the b226 tests
+      that stub `window.PACE.xp` still move the real grant. That is the point:
+      one identity, so a stub cannot lie and neither can a copy.
+
+   b222's lesson is preserved by construction rather than by an assignment: a
+   `const` at classic-script top level is NOT a window property, which is how
+   renown.js and admin.js silently read `undefined` for XP_TABLE for months.
+   Nothing here is a `const` any more, so that failure mode is gone.
+   ════════════════════════════════════════════════════════════════════════ */
+function levelFromXp(xp){return window.HearthriseCore.xp.levelFromXp(xp);}
 /* b227: the inverse of levelFromXp — total XP required to REACH level `lv`.
    It never existed. profile-launchpad.js's getNextMilestone() has guarded on
    `typeof window.xpForLevel === 'function'` since b138, so the entire SKILL
@@ -47,10 +58,10 @@ window.XP_TABLE=XP_TABLE;
    Found while wiring quest navigation into that same ladder.
    XP_TABLE[i] is the threshold for level i+1, so level 1 costs nothing and
    level `lv` costs XP_TABLE[lv-1]. Same maths admin.js already inlines. */
-function xpForLevel(lv){const n=Math.max(1,Math.min(99,lv|0));return n<=1?0:XP_TABLE[n-1];}
+function xpForLevel(lv){return window.HearthriseCore.xp.xpForLevel(lv);}
 window.xpForLevel=xpForLevel;
-function xpToNext(xp){const lv=levelFromXp(xp);if(lv>=99)return 0;return XP_TABLE[lv]-xp}
-function xpPct(xp){const lv=levelFromXp(xp);if(lv>=99)return 1;const a=XP_TABLE[lv-1],b=XP_TABLE[lv];return(xp-a)/(b-a)}
+function xpToNext(xp){return window.HearthriseCore.xp.xpToNext(xp);}
+function xpPct(xp){return window.HearthriseCore.xp.xpPct(xp);}
 
 const SKILLS_DEF={
   attack:{name:'Attack',icon:'⚔️',cat:'combat'},strength:{name:'Strength',icon:'💪',cat:'combat'},
@@ -64,64 +75,12 @@ const SKILLS_DEF={
   bountyHunter:{name:'Bounty Hunter',icon:'🎯',cat:'combat'},
 };
 
-const WEAPON_TYPES={
-  sword:'1H Sword',magic:'Magic',ranged:'Ranged',neutral:'Neutral',hammer:'2H Hammer'
-};
-const WEAKNESS_BONUS={damage:1.20,accuracy:1.15};
-const NEUTRAL_DROP_BONUS=1.15;
-const COMBAT_BALANCE={
-  playerBaseAccuracy:.55,
-  playerAccuracyPerPoint:.01,
-  playerMinAccuracy:.15,
-  playerMaxAccuracy:.95,
-  strengthLevelScale:.35,
-  strengthBonusScale:.60,
-  playerBaseMaxHit:2,
-  monsterDefenseDamageReduction:.03,
-  monsterBaseAccuracy:.50,
-  monsterAccuracyPerPoint:.006,
-  monsterMinAccuracy:.10,
-  monsterMaxAccuracy:.85,
-  monsterAttackDamageScale:.45,
-  defenseXpMiss:1,
-  defenseXpDamageScale:2,
-  /* b227: the swing interval was a bare 2400 written into two setInterval
-     calls, while FIVE readers already probed `COMBAT_BALANCE.tickMs` and
-     silently fell through to their own `|| 2400`. The key that everyone was
-     asking for now exists, so "how fast do I swing" has one answer. */
-  tickMs:2400,
-  /* b235 (itemization Wave 1): crit is a REAL lever now. critB was summed and
-     shown on four screens and rolled into nothing since it shipped; the floating
-     "CRIT" was faked from dmg>=8. A landed hit rolls critChance (gear critB +
-     the damage_crit buff, which also did nothing) and, on a crit, multiplies
-     damage by critMult. Cap keeps a future crit-stacked build from trivialising
-     accuracy. */
-  critMult:1.5,
-  critCap:0.60
-};
-/* Wave 5 (audit fix): weapon-family SPEED identity. Before this, every melee
-   weapon swung at the same 2.4s and the Warhammer — carrying ~2× a sword's
-   strength with no downside — was strictly the best weapon in the game, so weapon
-   choice collapsed to "most strB wins". Now each family swings at its own pace:
-   the Warhammer hits hard but SLOW, the Bow is quick, swords are the baseline.
-   Multiplies the swing interval, so DPS trades off against per-hit burst (the
-   hammer's big hits favour crit / high-DEF targets). Tunable in one place. */
-const WEAPON_SPEED_MOD = { sword:1.0, hammer:1.35, ranged:0.88, magic:1.05, neutral:1.0 };
-/* Wave 5b: endgame DEF scaling for ACCURACY only — makes weapon atkB matter at the
-   top of the ladder (tiers 1-3 unchanged). Gentle so under-geared players still land
-   ~70% vs tier-6, well-geared reach the 0.95 cap. Tune here, playtest the feel. */
-const ACC_DEF_MUL = { 4:1.15, 5:1.30, 6:1.50 };
-/* Wave 4 (audit fix): ONE definition of what a drop's chance means, so "rare" is
-   the same number everywhere instead of a 0.05 magic constant copy-pasted across
-   the combat loop, the drop log and the loot preview. */
-const DROP_BAND_MAX = { rare:0.05, uncommon:0.15, common:1.0 };
-function dropBand(ch){
-  if(ch >= 1) return 'always';
-  if(ch <= DROP_BAND_MAX.rare) return 'rare';
-  if(ch <= DROP_BAND_MAX.uncommon) return 'uncommon';
-  return 'common';
-}
-window.dropBand = dropBand; window.DROP_BAND_MAX = DROP_BAND_MAX;
+/* Wave 4: ONE definition of what a drop's chance means, so "rare" is the same
+   number in the combat loop, the drop log and the loot preview. The bands now
+   live in src/core/drops.js (window.DROP_BAND_MAX is published from there by
+   the bridge), so the server's offline-kill payout uses the same definition. */
+function dropBand(ch){ return window.HearthriseCore.drops.dropBand(ch); }
+window.dropBand = dropBand;
 /* Wave 4b (audit — sink-side reachability): these four early drops have no craft
    use ON PURPOSE — they are vendor-trash whose job is to sell for a little gold, a
    deliberate early gold faucet (slime/rat/goblin tier). The smoke guard exempts
@@ -129,14 +88,6 @@ window.dropBand = dropBand; window.DROP_BAND_MAX = DROP_BAND_MAX;
    a recipe or use rather than growing this list. */
 window.__DROP_SINK_EXEMPT = ['sticky_core', 'rat_tail', 'goblin_ear', 'goblin_totem'];
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
-
-/* b227: the combat HUD (src/features/combat-render.js) speaks the engine's
-   vocabulary rather than re-deriving it — a second copy of the damage maths is
-   how a stats panel starts disagreeing with the fight it describes. `const` in
-   a classic script is not a window property, so the two tables the render layer
-   reads are published deliberately. */
-window.WEAPON_TYPES = WEAPON_TYPES;
-window.COMBAT_BALANCE = COMBAT_BALANCE;
 
 const MONSTERS={
   /* Tier 1 — local threats */
@@ -1231,7 +1182,13 @@ function processOfflineCombat(maxHrs){
     // Player attack
     const eq = getEquipmentStats();
     const playerRoll = getPlayerCombatRolls(m, eq);
-    const pDmg = Math.random() < playerRoll.accuracy ? rand(1, playerRoll.maxHit) : 0;
+    /* PHASE 0: same seeded core helpers the live tick uses. NOTE for whoever
+       builds the accrual Edge Function: this loop is NOT identical to
+       combatTick() — it has never rolled crits, and its drop chance omits the
+       dropRate food buff and the featured-boss lift. That divergence predates
+       the extraction and is a BALANCE question (offline pays less than online),
+       so it is preserved exactly rather than quietly "fixed" here. */
+    const pDmg = window.HearthriseCore.combat.rollAttack(window.HearthriseCore.rng, playerRoll.accuracy, playerRoll.maxHit);
     G.monsterHp = Math.max(0, G.monsterHp - pDmg);
     if(pDmg > 0){
       const style = (typeof window.getActiveCombatStyle === 'function') ? window.getActiveCombatStyle() : null;
@@ -1253,13 +1210,11 @@ function processOfflineCombat(maxHrs){
       G.combatKillsThisFoe = (G.combatKillsThisFoe||0) + 1;
       kills++;
       const dropMult = getWeaknessInfo(m).dropMult;
-      (m.drops||[]).forEach(d => {
-        const chance = d.ch >= 1 ? d.ch : Math.min(.95, d.ch * dropMult);
-        if(Math.random() < chance){
-          addItem(d.id, 1);
-          if(dropBand(d.ch)==='rare'){ G.stats.rareDrops = (G.stats.rareDrops||0) + 1; }  /* Wave 4: shared band */
-        }
-      });
+      const _off = window.HearthriseCore.drops.rollDropTable(m.drops || [], { dropMult }, window.HearthriseCore.rng);
+      for(const ev of _off.events){
+        addItem(ev.id, 1);
+        if(ev.rare){ G.stats.rareDrops = (G.stats.rareDrops||0) + 1; }  /* Wave 4: shared band */
+      }
       // Bounty Hunter offline progress
       if(typeof handleBountyKill === 'function') handleBountyKill(G.activeMonster, m);
       // Respawn
@@ -1271,7 +1226,7 @@ function processOfflineCombat(maxHrs){
 
     // Monster attack
     const mr = getMonsterCombatRolls(m, eq);
-    const mDmg = Math.random() < mr.accuracy ? rand(1, mr.maxHit) : 0;
+    const mDmg = window.HearthriseCore.combat.rollAttack(window.HearthriseCore.rng, mr.accuracy, mr.maxHit);
     G.playerHp = Math.max(0, G.playerHp - mDmg);
 
     // b134: route auto-eat through HearthriseAuto so config is unified.
@@ -1506,89 +1461,40 @@ function ensureStarterCombatKit(){
   if(fresh&&!G.equipment?.weapon&&!G.inventory?.bronze_sword)G.equipment.weapon='bronze_sword';
   if(fresh)G.inventory.shrimp=Math.max(G.inventory.shrimp||0,8);
 }
+/* ── PHASE 0 (server authority) — the combat maths moved to src/core/combat.js.
+   Everything below is a DELEGATION: it collects the ambient state these
+   functions used to read as free variables (G.equipment, G.skills, ITEMS, the
+   getBonus wrapper chain, the combat-style modules) into an explicit context
+   and hands it to the pure core. The formulas, the clamps and the balance
+   comments now live in that file — one implementation, which is what lets a
+   Deno Edge Function resolve an offline kill exactly the way the client does.
+
+   The window.* hops are kept deliberately: getEquipmentStats and
+   getArmorSetBonus are WRAPPED by feature modules (companions.js:501,
+   legacy.js:12565), and calling core directly would silently escape those
+   wrappers. Delegation must not change who is in the chain. ── */
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
-  /* Style-aware formulas. Routes accuracy/damage through the weapon's
-     skill (sword/hammer→atk+str, magic→magic, ranged→ranged). */
-  const weak=getWeaknessInfo(m,eq);
-  const profile = (typeof window.getCombatStatProfile==='function')
-    ? window.getCombatStatProfile()
-    : {type:eq.weaponType||'sword', accuracySkill:'attack', damageSkill:'strength', accuracyBonusField:'atkB', strengthBonusField:'strB'};
-  const style = (typeof window.getActiveCombatStyle==='function')
-    ? window.getActiveCombatStyle()
-    : {accuracyMod:1, damageMod:1, defenseMod:1, speedMod:1};
-  /* Sum typed bonuses from equipment */
-  let accBonus=0, strBonus=0;
-  Object.values(G.equipment||{}).forEach(id=>{const it=ITEMS[id];if(!it)return; accBonus+=(it[profile.accuracyBonusField]||0); strBonus+=(it[profile.strengthBonusField]||0);});
-  const accLvl = getLevel(profile.accuracySkill);
-  const dmgLvl = getLevel(profile.damageSkill);
-  /* Wave 5b (audit fix): weapon ACCURACY (atkB) was a near-dead stat at endgame —
-     player attack (→99) + atkB (→48) dwarfs monster DEF (max 62), so accuracy
-     pinned at the 0.95 cap and better weapons stopped improving your hit rate. Fix:
-     scale DEF up for high-tier content (ACCURACY only — damage untouched), so at
-     endgame your weapon's atkB is what carries you from ~0.7 to 0.95. Early/low-tier
-     combat is unchanged (mult 1). Tunable in one place. */
-  const _mTier = (m && m.tier) || 1;
-  const defScore = (m?.def||0) * (ACC_DEF_MUL[_mTier] || 1);
-  /* accuracy = 0.55 + ((lvl+bonus) - effectiveDef) * 0.01 */
-  let accuracy = 0.55 + (((accLvl+accBonus) - defScore) * 0.01);
-  accuracy *= (style.accuracyMod || 1);
-  accuracy *= weak.accuracyMult;
-  accuracy = Math.max(0.15, Math.min(0.95, accuracy));
-  /* ChatGPT spec: maxHit = floor(lvl*0.35 + strBonus*0.6 + 2) */
-  let maxHit = Math.floor((dmgLvl * 0.35) + (strBonus * 0.6) + 2);
-  maxHit = Math.max(1, Math.floor(maxHit - (defScore * 0.03)));
-  maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
-  maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
-  /* Wave 2 (audit fix): the `damage` food buff had ZERO engine readers — Cooked
-     Shark / Swordfish Steak / Bear Claw Pie showed "+N% Damage" counting down
-     while maxHit ignored it entirely. It maps to getBonus('damage') (BUFFS_DEF,
-     isPercent) exactly like the defence buff that getMonsterCombatRolls already
-     reads. Apply it as a % boost to max hit so the flagship combat foods are honest. */
-  const dmgBuff = (typeof getBonus==='function') ? (getBonus('damage')||0) : 0;
-  if(dmgBuff) maxHit = Math.max(1, Math.floor(maxHit * (1 + dmgBuff)));
-  /* b235: crit chance = gear critB + the damage_crit food buff, clamped. Read
-     here so every caller (the live tick AND the stats panel) sees one number. */
-  const critBuff = (typeof getBonus==='function') ? (getBonus('crit')||0) : 0;
-  /* Wave 5c (audit fix — horizontal progression): a full same-material armour SET
-     grants a crit passive scaled by tier, so completing a Dawnsteel set is a real
-     endgame goal that plays differently from mix-and-match best-in-slot. */
-  const _set = (typeof getArmorSetBonus==='function') ? getArmorSetBonus() : null;
-  const critChance = clamp((eq.critB||0) + critBuff + (_set ? _set.critB : 0), 0, COMBAT_BALANCE.critCap);
-  return {accuracy,maxHit,critChance,weak,profile,style};
+  const C=window.HearthriseCore;
+  const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
+  return C.combat.playerCombatRolls(m, C.combatCtx(eq, _set));
 }
 /* Wave 5c: armour SET bonus. Count equipped armour pieces by material tier; the
    dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit
    (Dawnsteel full set = +7%). Derived from item.tier — no per-item authoring. */
 function getArmorSetBonus(){
   if(typeof G==='undefined' || !G || !G.equipment) return null;
-  /* b283 (studio-review P1): a SET is 5+ pieces of the same material tier AND the
-     same armour archetype (plate/leather/cloth) — a mix-and-match loadout must not
-     trigger it. Key on tier+class so completing one true set is the goal. */
-  const counts={};
-  Object.values(G.equipment).forEach(id=>{ const it=ITEMS[id]; if(it && it.type==='armor' && it.tier){ const cls=it.armourClass||'plate'; const k=it.tier+'|'+cls; counts[k]=(counts[k]||0)+1; } });
-  let bestKey=null, bestCount=0;
-  for(const k in counts){ if(counts[k]>bestCount){ bestCount=counts[k]; bestKey=k; } }
-  if(bestCount>=5 && bestKey){ const [t,cls]=bestKey.split('|'); return { tier:+t, armourClass:cls, pieces:bestCount, critB:(+t)*0.01 }; }
-  return null;
+  return window.HearthriseCore.combat.armorSetBonus(G.equipment, ITEMS);
 }
 window.getArmorSetBonus=getArmorSetBonus;
 function getMonsterCombatRolls(m,eq=getEquipmentStats()){
-  const b=COMBAT_BALANCE;
-  const playerDefense=getLevel('defense')+(eq.defB||0)+((typeof getBonus==='function')?(getBonus('defense')||0):0); // b238: defense food buff, finally read
-  const accuracy=clamp(b.monsterBaseAccuracy+(((m?.atk||1)-playerDefense)*b.monsterAccuracyPerPoint),b.monsterMinAccuracy,b.monsterMaxAccuracy);
-  const maxHit=Math.max(1,Math.floor((m?.atk||1)*b.monsterAttackDamageScale));
-  return {accuracy,maxHit};
+  const C=window.HearthriseCore;
+  return C.combat.monsterCombatRolls(m,{eq,skills:(G&&G.skills)||{},bonus:C.bonus});
 }
 function getEquipmentStats(){
-  const s={atkB:0,strB:0,defB:0,critB:0,xpB:0,spdB:0,weaponType:'neutral'};
-  if(!G.equipment)return s;
-  Object.entries(G.equipment).forEach(([slot,id])=>{const it=ITEMS[id];if(!it)return;s.atkB+=it.atkB||0;s.strB+=it.strB||0;s.defB+=it.defB||0;s.critB+=it.critB||0;s.xpB+=it.xpB||0;s.spdB+=it.spdB||0;if(slot==='weapon'&&it.weaponType)s.weaponType=it.weaponType;});
-  return s;
+  return window.HearthriseCore.combat.equipmentStats(G.equipment, ITEMS);
 }
 function getWeaknessInfo(m,eq=getEquipmentStats()){
-  const weak=m?.weaponWeak||'neutral';
-  const matched=weak!=='neutral'&&eq.weaponType===weak;
-  return {weak,matched,damageMult:matched?WEAKNESS_BONUS.damage:1,accuracyMult:matched?WEAKNESS_BONUS.accuracy:1,dropMult:weak==='neutral'?NEUTRAL_DROP_BONUS:1};
+  return window.HearthriseCore.combat.weaknessInfo(m,eq);
 }
 function getPreferredSlot(def){
   if(!def)return null;
@@ -1599,18 +1505,16 @@ function getPreferredSlot(def){
   if(def.slot==='feet')return 'boots';
   return def.slot||(def.type==='weapon'?'weapon':'body');
 }
-function getLevel(sk){return levelFromXp(G.skills[sk]||0);}
-function getTotalLevel(){return Object.keys(G.skills).reduce((s,k)=>s+getLevel(k),0);}
-function getCombatLevel(){
-  const a=getLevel('attack'),st=getLevel('strength'),d=getLevel('defense'),h=getLevel('hitpoints'),p=getLevel('prayer');
-  const r=getLevel('ranged'), mg=getLevel('magic');
-  const base = (d+h+Math.floor(p/2))*.25;
-  const melee = (a+st)*.325;
-  const range = Math.floor(r*1.5)*.325;
-  const mage  = Math.floor(mg*1.5)*.325;
-  return Math.floor(base + Math.max(melee, range, mage));
-}
-function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function getLevel(sk){return window.HearthriseCore.xp.levelOf(G.skills,sk);}
+function getTotalLevel(){return window.HearthriseCore.xp.totalLevel(G.skills);}
+function getCombatLevel(){return window.HearthriseCore.xp.combatLevel(G.skills);}
+/* PHASE 0 — the randomness SEAM. `rand` used to be Math.random() inline; it is
+   now a draw from the session generator in src/core/rng.js. Client behaviour is
+   identical (the stream is seeded from Math.random() at boot, so it is uniform
+   and unpredictable), but every roll is now REPLAYABLE from a seed — which is
+   what lets the server re-run an offline accrual and prove what it paid.
+   Nothing in src/core may call Math.random(); tests/core-purity.mjs enforces it. */
+function rand(min,max){return window.HearthriseCore.rng.int(min,max);}
 
 /* ══════════════════════════════════════════════════════════════════════
    b227 — THE FUSES, at the only place they cannot be escaped.
@@ -1644,8 +1548,11 @@ function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
    displayed bonus stays the honest sum, and the fuse is applied where the
    number is spent.
    ══════════════════════════════════════════════════════════════════════ */
-const SPEED_KEYS={cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,gatherSpeed:1};
-/* b228 (bonus-rebase.md §4.2): 0.85 → 0.70.
+/* SPEED_KEYS and SPEED_FUSE are authored in src/core/pacing.js and published on
+   window by the bridge — same values, one owner. See the block comment at the
+   top of this file for why they are window properties rather than consts.
+
+   b228 (bonus-rebase.md §4.2): 0.85 → 0.70.
    The per-key power budget now governs the getBonus chain itself
    (features/power-budget.js: permanent ≤ 0.20, temporary ≤ 0.15, total ≤ 0.30),
    so this is no longer the ceiling — it is the LAST LINE OF DEFENCE at the one
@@ -1658,17 +1565,14 @@ const SPEED_KEYS={cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,gatherSpee
    legitimate stack (binding would be a silent nerf the budget did not ask for),
    and it still catches any future unbudgeted source before the interval reaches
    zero and setInterval spins. */
-const SPEED_FUSE=0.70;
 /* Returns the multiplier, not the bonus: `ms * speedClamp(speed)`. A negative
    total (a debuff) is passed through untouched — the fuse is a ceiling on how
    FAST you may go, never a floor on how slow. */
-function speedClamp(speed){return 1-Math.min(SPEED_FUSE,(+speed||0));}
+function speedClamp(speed){return window.HearthriseCore.pacing.speedClamp(speed);}
 /* b228: RESTED_POTENCY_CAP retired — Rested is no longer a percentage at all.
    See the Rested block below (`restedQuantum`), where a charge became a flat
    XP grant and its ceiling became 1,600 XP/charge. */
 window.speedClamp=speedClamp;
-window.SPEED_FUSE=SPEED_FUSE;
-window.SPEED_KEYS=SPEED_KEYS;
 function getBonus(key){
   let t=0;
   /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
@@ -1725,14 +1629,8 @@ function getBonus(key){
    Clamped at ≥ 0 so a future negative contributor can never make a kill pay
    negative gold, and floored so gold stays an integer.
    ════════════════════════════════════════════════════════════════ */
-function goldFindMult(){
-  return 1 + Math.max(0, getBonus('goldFind') || 0);
-}
-function applyGoldFind(base){
-  const n = Number(base) || 0;
-  if(n <= 0) return 0;
-  return Math.floor(n * goldFindMult());
-}
+function goldFindMult(){ return window.HearthriseCore.pacing.goldFindMult(window.HearthriseCore.bonus); }
+function applyGoldFind(base){ return window.HearthriseCore.pacing.applyGoldFind(base, window.HearthriseCore.bonus); }
 window.goldFindMult = goldFindMult;
 window.applyGoldFind = applyGoldFind;
 
@@ -1781,68 +1679,43 @@ window.applyGoldFind = applyGoldFind;
                         bank from 80 charges to 120
      aggregate ceiling  1,600 XP/charge — 120 × 1,600 = 192,000 XP, about five
                         to six hours of retuned gathering. */
-const RESTED_CHARGE_MS   = 6 * 60 * 1000;   // 1 charge per 6 minutes offline (§9.4)
-const RESTED_CAP         = 80;              // 8 hours banked, hard cap (§9.4)
-const RESTED_CAP_LIBRARY = 120;             // the Great Library's raised bank
-const RESTED_QUANTUM_CAP = 1600;            // the one ceiling, both roads
+/* RESTED_CHARGE_MS (6 min), RESTED_CAP (80), RESTED_CAP_LIBRARY (120) and
+   RESTED_QUANTUM_CAP (1600) are authored in src/core/rested.js and published on
+   window by the bridge. */
 /* The larger of the two roads. Defensive on every hop: a missing module or a
    clanless player simply contributes 0, never a throw and never a default. */
+/* PHASE 0 — the bank's arithmetic (the watermark, the cap, the flat quantum)
+   lives in src/core/rested.js. What stays here is only the RESOLUTION of the
+   two roads from the two systems that grant them, which is a client-side
+   lookup; the server resolves the same two numbers from its own tables and
+   calls the identical core functions with them. */
 function restedQuantum(){
-  let q = 0;
-  try{
-    const lv = (G && G.rooms && G.rooms.library) | 0;
-    const rung = (lv > 0 && ROOMS.library) ? ROOMS.library.levels[lv-1] : null;
-    if(rung && rung.rested > 0) q = Math.max(q, rung.rested);
-  }catch(e){}
-  try{
-    if(window.HearthriseClanSeatUI && typeof window.HearthriseClanSeatUI.restedQuantum === 'function'){
-      q = Math.max(q, Number(window.HearthriseClanSeatUI.restedQuantum()) || 0);
-    }
-  }catch(e){}
-  return Math.max(0, Math.min(RESTED_QUANTUM_CAP, q));
+  const C=window.HearthriseCore;
+  return C.rested.restedQuantum(C.restedRoads());
 }
 /* The bank's size, which the Great Library raises. Read everywhere the cap is
    applied, so a player who builds it sees the deeper bank immediately. */
 function restedCap(){
-  try{
-    const lv = (G && G.rooms && G.rooms.library) | 0;
-    const rung = (lv > 0 && ROOMS.library) ? ROOMS.library.levels[lv-1] : null;
-    if(rung && rung.restedCap > 0) return rung.restedCap;
-  }catch(e){}
-  return RESTED_CAP;
+  const C=window.HearthriseCore;
+  return C.rested.restedCap(C.restedLibraryCap());
 }
 function ensureRestedState(now){
-  if(typeof G.restedXp !== 'number' || !isFinite(G.restedXp) || G.restedXp < 0) G.restedXp = 0;
-  if(G.restedXp > restedCap()) G.restedXp = restedCap();
-  /* A fresh save starts its clock NOW — never at epoch, or a brand-new player
-     would log in holding a full bank they did not earn. */
-  if(typeof G.restedAt !== 'number' || !isFinite(G.restedAt) || G.restedAt > now) G.restedAt = now;
+  const C=window.HearthriseCore;
+  C.rested.ensureRestedState(G, now, C.restedLibraryCap());
 }
 function accrueRestedXp(now){
+  const C=window.HearthriseCore;
   now = (typeof now === 'number' && isFinite(now)) ? now : Date.now();
-  ensureRestedState(now);
-  const charges = Math.floor((now - G.restedAt) / RESTED_CHARGE_MS);
-  if(charges <= 0) return 0;
-  G.restedAt += charges * RESTED_CHARGE_MS;      // advance by what we PAID, not to now
-  const before = G.restedXp;
-  G.restedXp = Math.min(restedCap(), before + charges);
-  return G.restedXp - before;                     // what was actually banked
+  return C.rested.accrueRestedXp(G, now, C.restedLibraryCap());
 }
 /* Spend one charge, returning the FLAT XP it is worth (0 = nothing spent).
    A charge is never burned when it would be worth nothing, which is what keeps
    the seam genuinely inert for a player with neither road built. */
 function spendRestedCharge(){
-  if(!(G.restedXp > 0)) return 0;
-  const q = restedQuantum();
-  if(q <= 0) return 0;
-  G.restedXp -= 1;
-  return q;
+  return window.HearthriseCore.rested.spendRestedCharge(G, restedQuantum());
 }
 window.accrueRestedXp = accrueRestedXp;
 window.restedXpCharges = function(){ return (typeof G !== 'undefined' && G.restedXp) || 0; };
-window.RESTED_CHARGE_MS = RESTED_CHARGE_MS;
-window.RESTED_CAP = RESTED_CAP;
-window.RESTED_QUANTUM_CAP = RESTED_QUANTUM_CAP;
 window.restedQuantum = restedQuantum;
 window.restedCap = restedCap;
 
@@ -1880,8 +1753,6 @@ window.restedCap = restedCap;
        would change every monster's difficulty, food burn and death risk at
        once, which is a combat rebalance smuggled in under a pacing task.
    ════════════════════════════════════════════════════════════════ */
-const PACE = { xp: 0.39, actionMs: 1.60 };
-const PACE_EXEMPT_SKILLS = ['farming'];
 
 /* ════════════════════════════════════════════════════════════════
    b226 — THE FOUNDER'S MARK. (spec §9.3)
@@ -1918,17 +1789,10 @@ window.founderTitle = founderTitle;
 /* The XP a grant is actually worth after the pacing dial. One function, so
    the renderers can print the same number the engine grants — a card that
    promises 15 XP and pays 5 is how a retune loses the room. */
-function pacedXp(sk, amt){
-  const n = Number(amt) || 0;
-  if(n <= 0) return 0;
-  if(PACE_EXEMPT_SKILLS.indexOf(sk) >= 0) return n;
-  return n * PACE.xp;
-}
+function pacedXp(sk, amt){ return window.HearthriseCore.pacing.pacedXp(sk, amt); }
 /* The base duration of one action after the pacing dial, before tool and
    perk speed. Floored at 500ms exactly as the interval is. */
-function pacedActionMs(ms){
-  return Math.max(500, Math.floor((Number(ms) || 0) * PACE.actionMs));
-}
+function pacedActionMs(ms){ return window.HearthriseCore.pacing.pacedActionMs(ms); }
 /* The advertised rate, computed the way the engine actually pays: PACE.xp,
    the additive perk stack (which now includes today's blessing exactly when
    the blessing is live), and PACE.actionMs with tool and speed perks. Every
@@ -1938,21 +1802,9 @@ function pacedActionMs(ms){
    is one; a blessed reader sees the blessed rate because getBonus itself
    went up, which is the same number addXp will pay on the next action. */
 function actionRate(skillId, action){
-  if(!action) return null;
-  const gatherKey = ['woodcutting','mining','fishing'].indexOf(skillId) >= 0;
-  const speedKey = gatherKey ? 'gatherSpeed'
-    : ({cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed'}[skillId] || 'gatherSpeed');
-  let speed = (typeof getBonus==='function') ? (getBonus(speedKey)||0) : 0;
-  if(gatherKey && window.HearthriseTools && window.HearthriseTools.bestToolSpeed){
-    try{ speed += (window.HearthriseTools.bestToolSpeed(skillId)||0); }catch(e){}
-  }
-  const ms = Math.max(500, Math.floor(pacedActionMs(action.ms||3000) * speedClamp(speed)));
-  const bonus = ((typeof getBonus==='function') ? getBonus('allXP') : 0)
-    + ((typeof getEquipmentStats==='function') ? (getEquipmentStats().xpB||0) : 0);
-  const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp||0) * (1 + bonus)));
-  return { ms, xpPerAction: per, xpPerHour: Math.floor(3600000 / ms * per) };
+  const C=window.HearthriseCore;
+  return C.pacing.actionRate(skillId, action, C.rateCtx());
 }
-window.PACE = PACE;
 window.pacedXp = pacedXp;
 window.pacedActionMs = pacedActionMs;
 window.actionRate = actionRate;
@@ -2116,8 +1968,6 @@ function blessingNote(){
 window.HearthriseBlessingLimitNote = blessingLimitNote;
 /* Every skill `combatXP` pays. b228: the ONE list — addXp() reads it too, and
    it used to carry its own four-style copy that had dropped ranged and magic. */
-const COMBAT_XP_SKILLS=['attack','strength','defense','hitpoints','ranged','magic'];
-window.COMBAT_XP_SKILLS=COMBAT_XP_SKILLS;
 /* The getBonus keys that actually move what is running right now. One list,
    read by the hint and by the tests, so "does this blessing affect me" can
    never be answered two different ways in two places. */
@@ -2157,44 +2007,26 @@ window.HearthrisePresence = {
   _withOfflineReplay: withOfflineReplay,
 };
 
+/* ── PHASE 0 (server authority) — addXp is now SPLIT.
+   The grant computation (PACE → the additive perk block → one floor → the
+   rested quantum added outside it, and the level-up detection) moved verbatim
+   to src/core/progression.js `grantXp`, where it mutates a passed-in state
+   object instead of the free variable `G` and RETURNS the level-up rather than
+   calling notify(). What is left here is exactly the leaf: the side effects
+   the client owes the player. The server will call the same `grantXp` and put
+   the same event in the intent envelope (design §2, §4.3). */
 function addXp(sk,amt,opts){
-  const bonus=getBonus('allXP')+getEquipmentStats().xpB;
-  /* b228 P1 (bonus-rebase.md §5.4) — `combatXP` used to list four styles and
-     silently skip RANGED and MAGIC. Two of the seven combat skills were paid
-     nothing by the Trophy Room, the Watchtower, War Drums or Hunter's Moon: a
-     player who trained a bow got a worse return from the same Trophy Room than
-     a player who trained a sword, and nothing on any screen said so.
-     COMBAT_XP_SKILLS is the one list; activeBonusKeys() (which already had
-     ranged and magic right) reads the same set, so the hint the player sees and
-     the XP the engine pays can never disagree again. */
-  const cb=COMBAT_XP_SKILLS.indexOf(sk)>=0?getBonus('combatXP'):0;
-  /* b228: a Rested charge is now a FLAT XP quantum, not a multiplier — see the
-     Rested block above. It is added AFTER the perk block on purpose: a welcome-
-     back grant is capacity, and letting +15% allXP scale it would quietly turn
-     the bank back into throughput, which is the thing the conversion exists to
-     stop. It is also outside the `Math.max(1, …)` floor because it is already
-     a whole number of XP. */
-  const rested=amt>0?spendRestedCharge():0;
-  /* PACE first, then the additive perk block, then one floor. A positive grant
-     never rounds to zero — a 1-damage hit must still be worth 1 Hitpoints XP
-     or the low end of combat goes dead. b227: no presence multiplier outside
-     the block any more; the blessing rides INSIDE `allXP`/`combatXP` via the
-     world-events wrapper on getBonus, and gates itself off when the player is
-     not present, so this line is the same arithmetic online and offline. */
-  const base=(opts&&opts.authored)?(Number(amt)||0):pacedXp(sk,amt);
+  const C=window.HearthriseCore;
+  const res=C.progression.grantXp(G, sk, amt, C.xpGrantCtx(opts));
   /* b269: attribute the equipped pet's real marginal allXP share of this grant
      to the session-impact panel. Honest by construction — pet-session asks the
      power budget what the pet actually bought after the clamp, so a clamped-away
      bonus contributes nothing. Cheap no-op when no pet is equipped. */
-  if(window.HearthrisePetSession){ try{ window.HearthrisePetSession.recordXp(base); }catch(e){} }
-  const raw=base*(1+bonus+cb);
-  const gain=(raw>0?Math.max(1,Math.floor(raw)):0)+rested;
-  const old=levelFromXp(G.skills[sk]||0);
-  G.skills[sk]=(G.skills[sk]||0)+gain;
-  const nw=levelFromXp(G.skills[sk]);
-  if(nw>old){
-    if(sk==='hitpoints')G.playerMaxHp=nw;
-    notify(`🎉 ${SKILLS_DEF[sk]?.name||sk} ${nw}!`,'levelup');
+  if(window.HearthrisePetSession){ try{ window.HearthrisePetSession.recordXp(res.base); }catch(e){} }
+  for(const ev of res.events){
+    if(ev.type!=='levelup') continue;
+    if(ev.skill==='hitpoints')G.playerMaxHp=ev.to;
+    notify(`🎉 ${SKILLS_DEF[ev.skill]?.name||ev.skill} ${ev.to}!`,'levelup');
     refreshAll();
     // b134: train-to-level auto-stop. The engine self-disables after
     // firing so re-starting the same skill won't immediately stop again.
@@ -2826,12 +2658,17 @@ function combatTick(){
   const playerRoll=getPlayerCombatRolls(m,eq);
   const hitCh=playerRoll.accuracy;
   const maxHit=playerRoll.maxHit;
-  let pDmg=Math.random()<hitCh?rand(1,maxHit):0;
+  /* PHASE 0: the swing and the crit roll go through src/core/combat.js and the
+     seeded generator, in the same draw order as before. Client behaviour is
+     unchanged (the stream is seeded from Math.random() at boot); what changed is
+     that the server can replay this exact fight from a seed. */
+  const _C=window.HearthriseCore;
+  let pDmg=_C.combat.rollAttack(_C.rng,hitCh,maxHit);
   /* b235: roll crit on a landed hit. `_lastPlayerCrit` is read by the combat-render
      wrapper so the floating "CRIT" is now the REAL event, not the dmg>=8 fake. */
   let didCrit=false;
-  if(pDmg>0 && Math.random()<(playerRoll.critChance||0)){
-    pDmg=Math.max(pDmg+1,Math.floor(pDmg*(COMBAT_BALANCE.critMult||1.5)));
+  if(pDmg>0 && _C.combat.rollCrit(_C.rng,playerRoll.critChance)){
+    pDmg=_C.combat.applyCrit(pDmg,COMBAT_BALANCE.critMult);
     didCrit=true;
     G.stats.crits=(G.stats.crits||0)+1;
   }
@@ -2853,7 +2690,7 @@ function combatTick(){
   if(G.monsterHp<=0){killMonster(m);return;}
   const monsterRoll=getMonsterCombatRolls(m,eq);
   const monHitCh=monsterRoll.accuracy;
-  const mDmg=Math.random()<monHitCh?rand(1,monsterRoll.maxHit):0;
+  const mDmg=_C.combat.rollAttack(_C.rng,monHitCh,monsterRoll.maxHit);
   G.playerHp=Math.max(0,G.playerHp-mDmg);
   log.push(mDmg>0?`🩸 ${m.name} hits you for ${mDmg}`:`🛡️ ${m.name} misses!`);
   /* Defense XP now comes from active combat style (e.g. sword 'defensive' or 'controlled'),
@@ -2889,23 +2726,28 @@ function killMonster(m){
   // b133: accumulate the drops that actually rolled so we can record
   // them in HearthriseDropLog at the end. We only record what dropped,
   // not the full loot table.
-  const _droppedThisKill = {};
-  m.drops.forEach(d=>{
-    /* b238: drop_rate food buff (Cooked Lobster, Wheat Bread, Tomato Soup, Hunter's
-       Feast) finally applies — it lifts the chance of a NON-guaranteed drop. Dead
-       since the buff registry shipped; the tooltip promised a luck bonus that
-       rolled into nothing. Guaranteed drops (ch>=1) are unaffected. */
-    const _dropBuff=(typeof getBonus==='function')?(getBonus('dropRate')||0):0;
-    const chance=d.ch>=1?d.ch:Math.min(.95,d.ch*dropMult*(1+_dropBuff)*_feat.dropMult);
-    if(Math.random()<chance){
-      addItem(d.id,1);
-      _droppedThisKill[d.id] = (_droppedThisKill[d.id] || 0) + 1;
-      const itemName=ITEMS[d.id]?.n||d.id;
-      const rare=dropBand(d.ch)==='rare';
-      if(rare){G.stats.rareDrops=(G.stats.rareDrops||0)+1;log.push(`<span class="rare">✨ RARE: ${itemName}</span>`);notify(`✨ Rare: ${itemName}!`,'levelup');}
-      else log.push(`📦 ${itemName}`);
-    }
-  });
+  /* PHASE 0: the drop-table walk is src/core/drops.js `rollDropTable` — the
+     chance maths (weakness mult, the b238 drop_rate food buff, the b254 featured
+     -boss lift, the 0.95 cap, and "a guaranteed drop is never scaled") and the
+     seeded roll live there. It returns WHAT dropped plus narrative events; the
+     inventory write, the log lines and the toast stay here, because those are
+     the client's job. The server calls the same function and puts the same
+     events in the intent envelope. */
+  const _CK=window.HearthriseCore;
+  const _rolled=_CK.drops.rollDropTable(m.drops,{
+    dropMult,
+    /* b238: drop_rate food buff (Cooked Lobster, Wheat Bread, Tomato Soup,
+       Hunter's Feast) — it lifts the chance of a NON-guaranteed drop. */
+    dropBuff:_CK.bonus('dropRate'),
+    featuredMult:_feat.dropMult,
+  },_CK.rng);
+  const _droppedThisKill = _rolled.dropped;
+  for(const ev of _rolled.events){
+    addItem(ev.id,1);
+    const itemName=ITEMS[ev.id]?.n||ev.id;
+    if(ev.rare){G.stats.rareDrops=(G.stats.rareDrops||0)+1;log.push(`<span class="rare">✨ RARE: ${itemName}</span>`);notify(`✨ Rare: ${itemName}!`,'levelup');}
+    else log.push(`📦 ${itemName}`);
+  }
   // b133: feed the drop log. Indexed by the active monster id (which
   // is the canonical key — m.name is for display only). Safe even if
   // HearthriseDropLog hasn't loaded yet (defensive guard).
@@ -3095,6 +2937,12 @@ window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers gu
    both its counter and its quest navigation in a single edit. */
 const SKILL_ACTION_STAT={woodcutting:'chopped',mining:'mined',fishing:'fished'};
 window.SKILL_ACTION_STAT=SKILL_ACTION_STAT;
+/* PHASE 0: the yield roll, the level gate and the deterministic tool carry
+   moved to src/core/progression.js `resolveGatherAction`. This function keeps
+   the node lookup (which is a catalogue read the server does from the same
+   src/data files) and every side effect: inventory, counters, quests, timers
+   and renders. `silent` still marks the offline-replay path — and it is
+   precisely the set of lines the server will not have. */
 function doSkillAction(silent){
   const type=G.activeSkill,tid=G.skillTargetId;if(!type||!tid)return;
   G.skillProgress=0;
@@ -3103,20 +2951,20 @@ function doSkillAction(silent){
   if(type==='mining')act=ROCKS.find(r=>r.id===tid);
   if(type==='fishing')act=FISH_SPOTS.find(f=>f.id===tid);
   if(!act)return;
-  if(getLevel(type)<act.req){stopSkill();return;}
-  let qty=rand(act.qty[0],act.qty[1]);
-  /* Wave 3: the equipped tool grants extra yield. DETERMINISTIC (a fractional
-     carry, never RNG) so the offline replay stays byte-identical run to run — each
-     action banks `qty × toolDouble` into a per-skill carry and pays out whole
-     units as they accrue (a 10%-double tool = one bonus every ~10 actions). */
-  const _toolDbl=(window.HearthriseTools&&HearthriseTools.bestToolDouble)?HearthriseTools.bestToolDouble(type):0;
-  if(_toolDbl>0){
-    G._toolCarry=G._toolCarry||{};
-    const _c=(G._toolCarry[type]||0)+qty*_toolDbl;
-    const _ex=Math.floor(_c+1e-9); G._toolCarry[type]=_c-_ex;   // +epsilon: 0.1×10 floats to 0.9999…
-    if(_ex>0){ qty+=_ex; G.stats.toolDoubles=(G.stats.toolDoubles||0)+_ex; }
-  }
-  addItem(act.prod,qty);
+  const C=window.HearthriseCore;
+  G._toolCarry=G._toolCarry||{};
+  const res=C.progression.resolveGatherAction(act,{
+    skillId:type,
+    level:getLevel(type),
+    toolCarry:G._toolCarry,
+    toolDouble:(window.HearthriseTools&&HearthriseTools.bestToolDouble)?HearthriseTools.bestToolDouble(type):0,
+    toolXpB:(window.HearthriseTools&&HearthriseTools.bestToolXpB)?HearthriseTools.bestToolXpB(type):0,
+    rng:C.rng,
+  });
+  if(!res.ok){ if(res.reason==='level')stopSkill(); return; }
+  const qty=res.qty;
+  if(res.toolDoubles>0) G.stats.toolDoubles=(G.stats.toolDoubles||0)+res.toolDoubles;
+  addItem(res.product,qty);
   G.stats.gathered=(G.stats.gathered||0)+qty;
   /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for "logs"
      without naming one log. `DAILY_GOAL_POOL` used to read item-specific
@@ -6244,7 +6092,24 @@ console.log('Inventory rework + loadout presets: loaded');
 
 (function migrateBountyHunterSkill(){
   if(!G.skills) G.skills = {};
-  ensureBountyState && ensureBountyState();
+  /* PHASE 0 (server authority) — LOAD-ORDER NOTE, read before adding work here.
+     This IIFE runs at classic-script PARSE time, which is before any <script
+     type="module"> has executed — so window.HearthriseCore (and therefore every
+     delegated simulation function, including getCombatLevel) is not up yet.
+     ensureBountyState() reaches getCombatLevel() via getUnlockedBountyTier(),
+     so the warm-up is deferred to DOMContentLoaded.
+
+     Nothing is lost by deferring it: this IIFE runs against the DEFAULT G —
+     boot() (and therefore loadLocal(), which calls ensureBountyState itself)
+     does not run until DOMContentLoaded either, and boot's listener is
+     registered earlier in this file so it still goes first. The skill
+     migration below stays synchronous because it is pure G arithmetic.
+
+     If you add parse-time work to legacy.js that needs the core, the suite will
+     tell you: the account-wall guard fails the build on any console error. */
+  document.addEventListener('DOMContentLoaded', function(){
+    try{ ensureBountyState && ensureBountyState(); }catch(e){}
+  });
   /* Migrate: take whichever value is higher so we never lose progress on existing saves */
   const fromBH = (G.bountyHunter && typeof G.bountyHunter.xp === 'number') ? G.bountyHunter.xp : 0;
   const fromSk = typeof G.skills.bountyHunter === 'number' ? G.skills.bountyHunter : 0;
@@ -7318,8 +7183,9 @@ console.log('Activity bar: loaded');
        or every number it shows before a fight is fiction. Route through
        getPlayerCombatRolls (the real accuracy/maxHit/crit) and combatTickMs (the
        real attack speed) instead of a second, divergent formula. Damage per swing
-       matches the engine's `Math.random()<accuracy ? rand(1,maxHit) : 0`, with the
-       1.5× crit factored in at its rolled chance. */
+       is the expectation of the engine's swing — src/core/combat.js `rollAttack`,
+       i.e. `chance(accuracy) ? int(1,maxHit) : 0` — with the 1.5× crit factored
+       in at its rolled chance. */
     var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {};
     var pr = (typeof getPlayerCombatRolls === 'function') ? getPlayerCombatRolls(m, eq) : null;
     var CB = (typeof window.COMBAT_BALANCE === 'object') ? window.COMBAT_BALANCE : {tickMs:2400, critMult:1.5};

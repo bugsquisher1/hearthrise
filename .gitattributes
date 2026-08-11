@@ -7,3 +7,15 @@
 supabase/functions/** text eol=lf
 src/core/** text eol=lf
 src/data/** text eol=lf
+
+# Migrations and SQL fixtures are READ OFF DISK AS TEXT by the test harnesses
+# (tests/raid-band-denial.mjs, tests/market-offers-guard.mjs,
+# tests/conservation-fuzz.mjs), which locate anchor strings in them to plant
+# mutations and to truncate at a commit-gate banner. Those anchors are authored
+# with LF. On a CRLF checkout they match NOTHING, and the harness degrades to
+# running zero mutations — b330 hit exactly this: four of five mutations
+# reported "anchor text is not in the migration -- the mutation is decoration".
+# It failed LOUDLY, which is the only reason it was caught. Pin them to LF so a
+# falsifiability check cannot be silently disarmed by a line ending.
+supabase/migrations/** text eol=lf
+tests/sql/** text eol=lf

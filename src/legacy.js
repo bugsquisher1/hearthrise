@@ -3722,11 +3722,16 @@ function renderCombat(){
      watch — so they became the two modals hung off the ENEMY portrait. */
   const _hasAutoEat = (typeof hasTrait === 'function') && hasTrait('auto_eat');
   const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-  const _threshPct = Math.round(((_eatCfg && _eatCfg.threshold) || 0.5) * 100);
+  /* b326: read the engine's own effective threshold rather than re-deriving it
+     here — `x || 0.5` turned a deliberate 0% into 50% and let the printed
+     number drift from the one maybeAutoEat() actually tests. */
+  const _threshPct = Math.round(((window.HearthriseAuto && window.HearthriseAuto.eatThreshold)
+    ? window.HearthriseAuto.eatThreshold()
+    : ((_eatCfg && typeof _eatCfg.threshold === 'number') ? _eatCfg.threshold : 0.5)) * 100);
   const _foodNote = !foods.length
     ? 'No Provisions in your bag. Cook fish or bake bread — Feasts &amp; Draughts heal too, but only when you use them by hand.'
     : _hasAutoEat
-      ? `Auto-eat spends one Provision when your HP falls below ${_threshPct}%. Feasts &amp; Draughts are never auto-eaten.`
+      ? `Auto-eat spends one Provision on each swing your HP falls below ${_threshPct}% — one per swing, so a big heal-back takes a few swings. Feasts &amp; Draughts are never auto-eaten.`
       : `Auto-eat is a Store unlock — until then, healing in combat is manual: press Eat beside your champion.`;
   el.innerHTML=`
     ${renderBountyPanel()}

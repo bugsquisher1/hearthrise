@@ -17495,6 +17495,183 @@ const TESTS = [
     } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
   }),
 
+  /* ── b329 regression suite — XARN'S AUTO-EAT (live bug, b324) ─────────────
+     Reported: "When I have 60%-100% threshold activated, it always starts
+     healing when I am below 50% HP once, and does not heal up to the %
+     threshold."
+
+     Half of that was real. The TRIGGER genuinely ignored the setting: the
+     Settings › Gameplay slider wrote `G.settings.autoEatPct` + `G.autoEatPct`,
+     and NOTHING reads those. The engine (HearthriseAuto.maybeAutoEat) triggers
+     on `G.autoActions.eat.threshold`, which `ensureShape()` seeds from
+     `G.autoEatPct` exactly once — at the moment the branch is first created.
+     So for every player whose save already had an `eat` branch, the slider was
+     an inert control and auto-eat kept firing at the 50% default forever. Two
+     writers, one reader, and they never met.
+
+     The SECOND half is not a bug — it is the design, and now the description
+     says so out loud. Auto-eat spends ONE Provision per swing (combat-sim
+     calls fx.autoEat once per tick, live and away identically). It therefore
+     climbs back to the threshold over several swings rather than in one gulp.
+     That cap is deliberate: it is what makes food a real cost and what keeps
+     away accrual byte-identical to live play. Any "heal to threshold in one
+     swing" upgrade is a DESIGN change for the Game Designer, not a silent
+     edit here. */
+
+  () => tryRun('b329: the Settings auto-eat threshold slider actually reaches the engine (Xarn: fires at 50% no matter what I set)', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    if (!A || typeof window.openSettings !== 'function') { assert(true, 'no settings/auto engine'); return; }
+    const snap = snapshotG();
+    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
+    try {
+      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.settings = Object.assign({}, G.settings || {});
+      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
+
+      // Drive the REAL control the player drove — not the API behind it.
+      window.openSettings();
+      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
+      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
+      el.value = '0.6';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+
+      assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
+        'moving the slider to 60% must set the threshold the ENGINE reads, got ' + A.eatThreshold());
+
+      /* The bug, stated as behaviour: at 58% HP — comfortably ABOVE the old
+         hardcoded 50% default — auto-eat must fire. Before the fix this
+         returned false and the player watched their bag stay full until 50%. */
+      G.playerMaxHp = 100; G.playerHp = 58;
+      const before = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === true,
+        'at 58% HP with a 60% threshold auto-eat MUST fire — it fired at the hardcoded 50% instead');
+      assert(G.inventory.cooked_shrimp === before - 1, 'exactly one Provision may be spent per trigger');
+
+      // …and it must still respect the ceiling: at 65% HP nothing is eaten.
+      G.playerHp = 65;
+      const held = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === false, 'above the threshold auto-eat must not fire');
+      assert(G.inventory.cooked_shrimp === held, 'no food may be spent above the threshold');
+
+      /* 0% is a real setting ("never auto-eat"), not a missing one. The old
+         `eat.threshold || 0.5` falsy-coalesce silently turned it into 50%. */
+      A.setEat({ threshold: 0 });
+      G.playerHp = 1;
+      assert(A.eatThreshold() === 0, 'a 0% threshold must survive as 0, not fall back to 50%');
+      assert(A.maybeAutoEat() === false, 'a 0% threshold means never auto-eat, even at 1 HP');
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('b329: auto-eat is ONE Provision per swing, and keeps eating until HP is back at the threshold', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    if (!A) { assert(true, 'no auto engine'); return; }
+    const snap = snapshotG();
+    const savedTraits = G.traits;
+    try {
+      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      const heals = (window.ITEMS.cooked_shrimp || {}).heals || 0;
+      assert(heals > 0, 'cooked_shrimp must heal for this test to mean anything');
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 50 });
+      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.8 });
+
+      // A wound that one Provision cannot possibly close in a single bite.
+      G.playerMaxHp = heals * 10; G.playerHp = 1;
+
+      // THE CAP: one call spends exactly one food and heals exactly its value.
+      const hp0 = G.playerHp, food0 = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === true, 'auto-eat must fire at 1 HP');
+      assert(G.inventory.cooked_shrimp === food0 - 1, 'one swing may spend exactly ONE Provision, not a stack');
+      assert(G.playerHp === Math.min(G.playerMaxHp, hp0 + heals),
+        'one Provision heals exactly its own value — it does not top you to the threshold in one bite');
+
+      // THE RECOVERY: repeated swings climb back to at/above the threshold…
+      let swings = 0;
+      while (A.maybeAutoEat() && swings < 200) swings++;
+      assert(G.playerHp / G.playerMaxHp >= A.eatThreshold(),
+        'after auto-eat resolves, HP must sit at or above the configured threshold ('
+          + G.playerHp + '/' + G.playerMaxHp + ' vs ' + A.eatThreshold() + ')');
+      assert(swings > 1, 'a deep wound must take several swings — proof the per-swing cap is real, not a heal-to-full');
+      // …and then STOPS. No over-eating past the threshold.
+      const settled = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === false, 'once at the threshold auto-eat must stop');
+      assert(G.inventory.cooked_shrimp === settled, 'no Provision may be spent once HP is back at the threshold');
+    } finally { G.traits = savedTraits; restoreG(snap); }
+  }),
+
+  () => tryRun('b329: a save written while the slider was dead adopts the threshold the player actually chose', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    if (!A) { assert(true, 'no auto engine'); return; }
+    const snap = snapshotG();
+    const savedPct = G.autoEatPct;
+    try {
+      /* Exactly the shape of Xarn's live save: the eat branch exists and is
+         stuck on the 50% default, while the legacy mirror holds the 60% he set
+         in Settings. Nothing else records his choice, so the mirror wins once. */
+      G.autoActions = Object.assign({}, G.autoActions, {
+        eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
+      });
+      G.autoEatPct = 0.6;
+      assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
+        'a b324-era save must adopt the slider value it recorded, got ' + A.eatThreshold());
+      assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
+
+      // Idempotent + inert afterwards: a later engine-side change is NOT undone.
+      A.setEat({ threshold: 0.35 });
+      assert(Math.abs(A.eatThreshold() - 0.35) < 1e-9,
+        'once reconciled, the mirror must never claw a later setting back — got ' + A.eatThreshold());
+      assert(Math.abs(G.autoEatPct - 0.35) < 1e-9, 'setEat must keep the legacy mirror in step so the two can never diverge again');
+
+      // A garbage mirror is ignored rather than adopted.
+      G.autoActions.eat.threshold = 0.7; G.autoEatPct = NaN;
+      assert(Math.abs(A.eatThreshold() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
+    } finally { G.autoEatPct = savedPct; restoreG(snap); }
+  }),
+
+  () => tryRun('b329: every surface that PRINTS the auto-eat threshold reads the engine value (no second copy)', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    if (!A || typeof window.openSettings !== 'function') { assert(true, 'no settings/auto engine'); return; }
+    const snap = snapshotG();
+    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
+    try {
+      G.traits = Object.assign({}, G.traits, { auto_eat: true });
+      G.settings = Object.assign({}, G.settings || {}, { autoEatPct: 0.05 });  // a stale copy
+      G.autoEatPct = 0.05;                                                     // and its stale mirror
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
+      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.75 });
+
+      window.openSettings();
+      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
+      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
+      assert(Math.abs(parseFloat(el.value) - 0.75) < 1e-9,
+        'the slider must show the threshold the engine will USE (0.75), not a stale settings copy — got ' + el.value);
+
+      if (typeof window.renderCombat === 'function') {
+        G.activeMonster = G.activeMonster || Object.keys(window.MONSTERS || {})[0];
+        window.renderCombat();
+        const note = document.querySelector('#panel-combat .cbt-food-note');
+        if (note) {
+          assert(/falls below 75%/.test(note.textContent),
+            'the combat note must quote the engine threshold (75%), got: ' + note.textContent);
+          assert(/one per swing|each swing/i.test(note.textContent),
+            'the description must state the one-Provision-per-swing rule Xarn expected to be heal-to-threshold');
+        }
+      }
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
+      restoreG(snap);
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

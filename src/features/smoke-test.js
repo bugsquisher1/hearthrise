@@ -12707,6 +12707,135 @@ const TESTS = [
     assert(combatBottomReclaimed, 'the landscape #panel-combat.active must NOT keep a bottom-nav-height (60/68/72px) reserve — only the home-indicator inset is owed; found padding-bottom: ' + (combatBottomVal || 'none'));
   }),
 
+  () => tryRun('b327: the bag survives a 423px-tall viewport — paione bug #24 (922x423 Android landscape): "can\'t see my inventory... only have like a 5mm viewing window", HERO panel overlapping the grid', () => {
+    /* Report #24, measured on the live build at EXACTLY 922x423:
+     *   .invc-bag-col  h=20px   (one clipped row of item tiles)
+     *   .invc-stats-col HERO card 298..411, over a bag whose visible box was
+     *                   283..303 — a real rectangle intersection, not a
+     *                   perceived one.
+     *   main.main       padding-bottom 68px reserved for a bottom nav that in
+     *                   this layout is a LEFT RAIL (b310) — 16% of the screen.
+     * 922 is WIDER than the 900px mobile-nav ceiling, so this device correctly
+     * gets the scaled-desktop rail layout; the defect was that the rail layout
+     * had no SHORT-viewport treatment at all.
+     *
+     * HOW THIS MEASURES A VIEWPORT IT IS NOT RUNNING AT: media queries inside
+     * an iframe evaluate against the IFRAME's viewport, so a 922x423 iframe,
+     * fed the four inventory stylesheets verbatim and the REAL rendered panel
+     * markup, reproduces the device geometry exactly (panel 68..415 h347 with
+     * the fix; 68..355 h287 without it — both matching the live measurement).
+     * `document.write` + `close()` with inline <style> parses synchronously, so
+     * no await is needed. The 68px spacer stands in for the topbar + activity
+     * bar, which is what puts the panel's top edge at y=68 on the device.
+     * Proved RED by dropping art-direction.css's @media (max-height:540px)
+     * rules out of the blob: bag h 257 -> 28, HERO 0x0 -> 113px tall and drawn,
+     * main padding-bottom 8px -> 68px, sub-tab strip 37px -> 62px. */
+    const render = window._renderInvFancy || window.renderInvFancy;
+    assert(typeof render === 'function', 'the inventory renderer seam (window._renderInvFancy) must exist to render the bag');
+    const panel = document.getElementById('panel-inventory');
+    assert(panel, '#panel-inventory must exist');
+    render();
+    // The renderer wipes the Bag/Equip/Saved strip; restore it synchronously
+    // through the published seam so the strip is part of what we measure.
+    if (window.HearthriseInvSubTabs) window.HearthriseInvSubTabs.install();
+    const markup = panel.innerHTML;
+    assert(/invc-bag-col/.test(markup) && /invc-stats-col/.test(markup),
+      'the probe needs the real bag + stats markup — renderInvFancy produced neither');
+
+    let css = '';
+    let sheetsSeen = 0;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }   // cross-origin (fonts)
+      const href = sheet.href || '';
+      if (href && !/(legacy|audit-overrides|theme-cozy|art-direction)\.css/.test(href)) continue;
+      if (href) sheetsSeen++;
+      for (const r of rules) css += r.cssText + '\n';
+    }
+    // Guard against the blob silently emptying (a vacuous probe passes on nothing).
+    assert(sheetsSeen >= 4, 'the probe must find all four inventory stylesheets, saw ' + sheetsSeen);
+    assert(css.length > 100000, 'the CSS blob looks empty (' + css.length + ' chars) — the probe would pass vacuously');
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+    document.body.appendChild(frame);
+    let out;
+    try {
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write(
+        '<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
+        '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' +
+        '<div style="flex:0 0 68px;height:68px"></div>' +
+        '<section class="panel active" id="panel-inventory" data-mobile-sub="bag">' + markup + '</section>' +
+        '</main></div></body></html>'
+      );
+      doc.close();
+      const win = frame.contentWindow;
+      const q = (s) => doc.querySelector(s);
+      const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right, w: b.width, h: b.height }; };
+      const heroH4 = [...doc.querySelectorAll('.invc-stat-card h4')]
+        .find((h) => h.textContent.trim().toUpperCase().indexOf('HERO') === 0);
+      const bagEl = q('.invc-bag-col');
+      const rightEl = q('.invc-right');
+      const tabsEl = q('#inv-mob-tabs');
+      out = {
+        vpW: win.innerWidth, vpH: win.innerHeight,
+        panel: rect(q('#panel-inventory')),
+        bag: rect(bagEl),
+        hero: heroH4 ? rect(heroH4.closest('.invc-stat-card')) : null,
+        rightDisplay: rightEl ? win.getComputedStyle(rightEl).display : 'missing',
+        bagOverflowY: bagEl ? win.getComputedStyle(bagEl).overflowY : '',
+        bagScrolls: bagEl ? bagEl.scrollHeight > bagEl.clientHeight : false,
+        panelOverflow: q('#panel-inventory').scrollHeight - q('#panel-inventory').clientHeight,
+        mainPadBottom: parseFloat(win.getComputedStyle(q('main.main')).paddingBottom) || 0,
+        tabs: rect(tabsEl),
+        tabsText: tabsEl ? tabsEl.textContent : '',
+        tabGlyphs: doc.querySelectorAll('#inv-mob-tabs .hr-glyph').length,
+      };
+    } finally {
+      frame.remove();
+    }
+
+    assert(out.vpW === 922 && out.vpH === 423, 'the probe frame must be exactly 922x423, got ' + out.vpW + 'x' + out.vpH);
+
+    // (1) The phantom bottom-nav reserve — 68px of the 423 on a rail layout.
+    assert(out.mainPadBottom < 40,
+      'in the landscape RAIL layout there is no bottom nav, so <main> must not reserve one — found padding-bottom ' + out.mainPadBottom + 'px (the b108/b109 60px+safe-b+8 reserve, which capped the panel at 287px of the 423)');
+
+    // (2) THE OVERLAP. In BAG mode the whole right-hand region is off, so no
+    //     part of it can share a pixel with the bag. Asserted as a rectangle
+    //     intersection rather than "hero.top >= bag.bottom", because with a
+    //     side-by-side layout "beside" is also a correct answer. Checked BEFORE
+    //     the size assertions so re-introducing b111's bug names itself.
+    assert(out.rightDisplay === 'none',
+      'BAG mode must hide the whole right-hand REGION (.invc-right). b111 only hid .invc-equip-col; .invc-stats-col was added later and never joined the rule, which is what painted HERO over the grid — found display:' + out.rightDisplay);
+    const overlaps = out.hero && out.hero.w > 0 && out.bag &&
+      out.hero.l < out.bag.r && out.hero.r > out.bag.l &&
+      out.hero.t < out.bag.b && out.hero.b > out.bag.t;
+    assert(!overlaps,
+      'the HERO stat card must not share any pixel with the item grid — hero ' + JSON.stringify(out.hero) + ' vs bag ' + JSON.stringify(out.bag));
+
+    // (3) The bag gets the majority of what is left, and IT is the scroller.
+    assert(out.bag && out.bag.h >= 140,
+      'the item grid must get a real viewing area on a 423px-tall screen — measured ' + Math.round(out.bag ? out.bag.h : 0) + 'px (the shipped bug was 20px: one clipped row)');
+    assert(out.bag.h > out.panel.h * 0.5,
+      'the bag must own MORE than half the panel; chrome had ' + Math.round(100 - (out.bag.h / out.panel.h) * 100) + '% of it');
+    assert(/auto|scroll/.test(out.bagOverflowY) && out.bagScrolls,
+      'the bag itself must be the scrolling region (overflow-y auto AND actually overflowing), not the page');
+    assert(out.panelOverflow <= 1,
+      'the panel must not scroll as a whole — the bag does; panel overflow ' + out.panelOverflow + 'px');
+
+    // (4) The chrome that caused it: a two-line sub-tab strip with an EMPTY
+    //     icon row (icon-set.js strips emoji, so the glyph line drew nothing).
+    assert(out.tabs && out.tabs.h > 0, 'the Bag/Equip/Saved strip must render at this viewport');
+    assert(out.tabs.h <= 44,
+      'the Bag/Equip/Saved strip must be one compact rank on a short screen — found ' + Math.round(out.tabs.h) + 'px');
+    assert(out.tabGlyphs >= 3,
+      'each sub-tab must carry a baked atlas glyph, not an emoji that the chrome sweep deletes (found ' + out.tabGlyphs + ')');
+    assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(out.tabsText),
+      'no emoji may render in the inventory sub-tab strip');
+  }),
+
   () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
     assert(typeof window.processOffline === 'function' && typeof window.simulateAwayCombat === 'function', 'away combat seams must exist');
     const snap = snapshotG();

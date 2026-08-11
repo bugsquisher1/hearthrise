@@ -4,6 +4,46 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-11 · Art Director · `legacy.css`'s mobile `.panel.active` declares ONE explicit grid track in each axis, `!important` — any panel that tries to become a real grid on a phone silently lands in implicit tracks
+**Discovery:** in `@media (max-width:900px), (max-height:540px) and (max-width:1024px)`,
+`legacy.css` sets `.panel.active { grid-template-columns: 1fr !important; grid-template-rows: auto !important }`.
+Two consequences that look like browser bugs and cost me an hour:
+1. `grid-column: 1 / -1` resolves `-1` against the **explicit** grid, i.e. line 2 — so a "span
+   everything" item is laid out at the width of column 1. Measured: 607px where 842px was expected.
+2. With one explicit row, everything you place lands in implicit `auto` rows, and `align-content`'s
+   default `stretch` then splits the panel's height **evenly** between them. A 30px sub-tab strip
+   measured **106px**.
+Neither declaration errors, neither shows up in `getComputedStyle` as wrong (it faithfully reports
+the implicit tracks), and both are silent.
+**Affected systems:** any panel-level grid authored inside a mobile/short-viewport media query
+(inventory now; combat, skills, farm next).
+**Required action:** when you declare `grid-template-columns/rows` on `.panel.active` inside a mobile
+media query, declare them `!important` — otherwise your track list never applies. Prefer explicit line
+numbers over `-1` there, and set `align-content: start` unless you want the even split.
+
+### 2026-08-11 · Art Director · `.main` still reserves 68px for a bottom nav that is a LEFT RAIL in landscape — 16% of a 423px screen
+**Discovery:** `theme-cozy.css` `@media (max-width:540px), (max-height:540px) and (max-width:1024px)`
+sets `.main, #app .main, .panel.active { padding-bottom: calc(60px + var(--safe-b) + 8px) !important }`.
+b317 reclaimed that reserve on `.panel.active` and `#panel-combat.active` but **not on `.main`**, so
+in the b310 landscape-rail layout (where the bottom nav is a left rail and the reserve is a phantom)
+every panel was capped at 287px of a 423px viewport before it rendered anything. Fixed for landscape
+only — in PORTRAIT the bottom nav is real and the reserve must stay.
+**Affected systems:** every panel on a landscape phone, not just inventory.
+**Required action:** other short-viewport work should assume it now has ~68px more to spend, and
+should not re-add a bottom-nav-sized bottom pad in the landscape-rail block.
+
+### 2026-08-11 · Art Director · `renderInvFancy()` destroys the inventory's own Bag/Equip/Saved navigation on every tick; it was only restored by a 1500ms poll
+**Discovery:** `renderInvFancy()` does `panel.innerHTML = …` on the whole `#panel-inventory`, which
+deletes `#inv-mob-tabs` (inserted by `inventory-mobile-tabs.js` as `firstChild`). The only thing
+putting it back was a `setInterval(…, 1500)`. It fires on every combat/skill tick, so on a phone the
+screen's primary in-screen navigation was blinking out for up to a second and a half at a time.
+Same shape as the b230 finding (`market.js` re-rendering its own nav control away).
+**Affected systems:** `src/inventory-mobile-tabs.js`, `renderInvFancy` in `legacy.js`.
+**Required action:** fixed with a `MutationObserver` on the panel (restores within one microtask; the
+poll stays as a backstop) and `window.HearthriseInvSubTabs = {install, paintIcons, subs}` is now
+published so a caller — or a test — can restore it synchronously. **If you add another strip that a
+wholesale re-render can eat, observe the mutation; do not poll.**
+
 ### 2026-08-11 · Art Director · The Active Effects card — the game's ONLY buff panel — has been `display:none` since the Home dashboard shipped
 **Discovery:** `#active-effects-card` (food buffs + house buffs, `renderActiveEffects` in legacy.js
 block 8) is appended to `#panel-profile`. `home-dashboard.js`'s b213 reset hides every legacy card in

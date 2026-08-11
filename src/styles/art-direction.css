@@ -2132,3 +2132,221 @@ body[data-theme="cozy-light"] .brand-emblem { filter: drop-shadow(0 1px 1px rgba
   body[data-theme] .brand-word { display: none; }
   body[data-theme] .brand::after { left: 8px; right: 8px; }
 }
+
+/* ── 15b. THE BAG ON A SHORT VIEWPORT (b327) ───────────────────────────────
+ * Bug report #24 (paione, Android landscape, 922x423): "inventory screen is
+ * like overlapping, can't see my inventory... the words are too big and only
+ * have like a 5mm viewing window."  Measured at exactly 922x423 it was true to
+ * the pixel — the item grid's scroller was **20px tall** and the HERO stat card
+ * painted over what little of it showed.
+ *
+ * 922 is WIDER than the 900px mobile-nav ceiling, so this device correctly gets
+ * the scaled-desktop rail layout (b310). The defect is not the layout choice —
+ * it is that the rail layout had never been given a SHORT-viewport treatment.
+ * Four separate things were eating the 423px:
+ *
+ *   1. `.main` still reserved `60px + safe-b + 8px` for a bottom nav that in
+ *      this layout is a LEFT RAIL. 68px — 16% of the screen — of nothing.
+ *      (b317 reclaimed this on `.panel.active` and `#panel-combat`; `.main`
+ *      itself was missed, so the panel could never be taller than 287px.)
+ *   2. Four full-width chrome bands stacked before the first item: the
+ *      Bag/Equip/Saved strip, the slots+actions bar, the search row and the
+ *      category chips = ~211px of the 287 that remained.
+ *   3. The Bag/Equip/Saved buttons stacked an icon ABOVE the label — and
+ *      icon-set.js's emoji sweep had already emptied that icon span, so the
+ *      strip was 47px tall to show one word in a 14.5px face.
+ *   4. THE OVERLAP, and it is a missed selector rather than a stacking bug:
+ *      b111's `[data-mobile-sub="bag"]` rule hides `.invc-equip-col`.
+ *      `.invc-stats-col` (Hero / Weapon Styles / Bonuses) was added to the
+ *      renderer LATER and was never added to that rule, so in BAG mode the
+ *      right-hand region still laid itself out — as the second row of a
+ *      one-column grid whose single row track was already overfull — and
+ *      painted across the bag. Hide the REGION (`.invc-right`), not one of its
+ *      children, so the next column added there cannot repeat this.
+ *
+ * Keyed on HEIGHT, not width, so it reaches any short screen. Geometry and
+ * tokens only — no new colour, nothing that leaks across themes.
+ * ------------------------------------------------------------------------- */
+
+/* (1) The phantom bottom-nav reserve. Landscape-rail only: in PORTRAIT the
+ * bottom nav is real and its reserve must stay. */
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
+  body[data-theme] .main,
+  body[data-theme] #app .main {
+    padding-bottom: max(8px, var(--safe-b, 0px)) !important;
+  }
+}
+
+@media (max-height: 540px) {
+  /* (4) The overlap. One region, one switch. */
+  body[data-theme] #panel-inventory[data-mobile-sub="bag"] .invc-right { display: none !important; }
+  /* The search field and the category chips act on the bag; they are noise on
+   * the doll and on the loadout list, and here they cost a third of the screen. */
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-cat-strip,
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-search-row,
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] .invc-cat-strip,
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] .invc-search-row { display: none !important; }
+  /* One region is live per sub-tab, so `.invc-main` holds exactly one visible
+   * child and that child gets the whole row. Leaving an empty `.invc-left` in
+   * place cost the doll 115px to a track with nothing in it. */
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-left,
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] .invc-left { display: none !important; }
+  body[data-theme] #panel-inventory .invc-main {
+    grid-template-rows: minmax(0, 1fr) !important;
+    align-content: stretch;
+  }
+  /* EQUIP had the same disease as the bag: b216's paper-doll is a 4-wide grid
+   * of SQUARE cells, so across an 842px column each cell became 200px and the
+   * four rows measured 544px inside a 256px scroller — ZERO gear slots visible
+   * until you scrolled. On a short-but-wide screen the answer is to spend the
+   * axis we have: doll and stat sheet side by side, doll width capped so its
+   * squares stay ~55px and all four rows land above the fold. The loadout
+   * picker goes with them — SAVED is the tab that owns loadouts. */
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-right {
+    flex-direction: row;
+    gap: 10px;
+    overflow: hidden;
+  }
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-equip-col {
+    flex: 0 0 clamp(180px, 26%, 240px);
+    min-width: 0; min-height: 0;
+    overflow-y: auto !important;
+  }
+  /* The doll declares SIX rows of `minmax(64px,90px)` for a layout that uses
+   * FOUR — two empty 90px rows, and rows 2.3x taller than the square cells
+   * sitting in them. Four content-sized rows. */
+  body[data-theme] #panel-inventory .invc-equip-col .td-doll {
+    grid-template-rows: repeat(4, auto) !important;
+  }
+  /* Equipment / Stats / Companion wrapped to two lines in the narrowed column
+   * (66px for three words). Tighter gutters keep them on one rank without
+   * touching the 14.5px floor. */
+  body[data-theme] #panel-inventory .td-tabs {
+    margin-bottom: 4px !important;
+    gap: 3px !important;
+    flex-wrap: nowrap;
+  }
+  body[data-theme] #panel-inventory .td-tabs .td-tab {
+    padding: 4px 4px !important;
+    min-height: 30px !important;
+    min-width: 0;
+  }
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-stats-col {
+    flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto;
+  }
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-loadout-bar { display: none !important; }
+  /* SAVED showed an empty column: b111 hides `.invc-equip-col` in loadouts
+   * mode, and the loadout bar lives INSIDE it. Show the column, drop the doll. */
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] .invc-equip-col { display: flex !important; }
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] #invc-doll-host,
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"] .invc-stats-col { display: none !important; }
+
+  /* (2) Two chrome bands become one line. The slot counter + its three actions
+   * and the search field + Reset are both single-line chrome; side by side they
+   * cost one row instead of two. Explicit placement (not auto-flow) because the
+   * sub-tab strip is inserted by a script 400ms after boot — a row that is
+   * briefly absent must not shuffle everything else. */
+  /* The `!important`s on the two track lists are LOAD-BEARING, not cargo cult.
+   * legacy.css's mobile `.panel.active` block declares
+   *   `grid-template-columns: 1fr !important; grid-template-rows: auto !important`
+   * — ONE explicit column and ONE explicit row. Without matching !important
+   * here, every placement below lands in an IMPLICIT track: `1 / -1` resolved
+   * to "column 1 only" (the bag lost 235px of width), and the single auto row
+   * meant `align-content: stretch` split the panel's height evenly between the
+   * three implicit rows — a 106px-tall Bag/Equip/Saved strip. Both were
+   * measured; both are silent, and both look like a browser bug until you find
+   * this rule. */
+  body[data-theme] #panel-inventory.active {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 320px) !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    align-content: start;
+    gap: 4px 10px !important;
+    padding: 4px 8px max(6px, var(--safe-b, 0px)) !important;
+  }
+  body[data-theme] #panel-inventory.active > #inv-mob-tabs   { grid-column: 1 / -1; grid-row: 1; }
+  body[data-theme] #panel-inventory.active > .invc-topbar    { grid-column: 1; grid-row: 2; }
+  body[data-theme] #panel-inventory.active > .invc-search-row{ grid-column: 2; grid-row: 2; }
+  body[data-theme] #panel-inventory.active > .invc-main      { grid-column: 1 / -1; grid-row: 3; min-height: 0; }
+  /* With the search row hidden the counter takes the whole line. */
+  body[data-theme] #panel-inventory[data-mobile-sub="equip"].active > .invc-topbar,
+  body[data-theme] #panel-inventory[data-mobile-sub="loadouts"].active > .invc-topbar { grid-column: 1 / -1; }
+
+  /* (3) Icon BESIDE the label, not above it. The height comes back from
+   * re-flowing the button, not from shrinking the words — every label here
+   * stays on the 14.5px floor. */
+  body[data-theme] .inv-mob-tabs {
+    padding: 3px !important;
+    margin: -4px -8px 2px !important;
+  }
+  body[data-theme] .inv-mob-tabs .imt-btn {
+    flex-direction: row !important;
+    align-items: center; justify-content: center;
+    gap: 6px !important;
+    min-height: 30px !important;
+    padding: 3px 8px !important;
+    letter-spacing: .06em;
+  }
+  body[data-theme] .inv-mob-tabs .imt-btn .imt-ic {
+    display: inline-flex; align-items: center; line-height: 0;
+  }
+  body[data-theme] .inv-mob-tabs .imt-btn .imt-ic:empty { display: none; }
+
+  /* Chrome bands: type down to the floor (from 16-17px), boxes down to 34px.
+   * 34 rather than b285's 40 because on a 423px screen the header is not where
+   * the thumb lives — the item tiles are, and they stay well over 44px. */
+  body[data-theme] #panel-inventory .invc-topbar {
+    padding: 0 0 3px !important;
+    gap: 8px; flex-wrap: nowrap;
+  }
+  body[data-theme] #panel-inventory .invc-topbar .invc-space {
+    font-size: var(--t-micro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  body[data-theme] #panel-inventory .invc-topbar .invc-actions { gap: 4px; flex: 0 0 auto; }
+  body[data-theme] #panel-inventory .invc-topbar .invc-actions button,
+  body[data-theme] #panel-inventory .invc-topbar .invc-actions .btn {
+    padding: 4px 9px !important;
+    min-height: 34px !important;
+    font-size: var(--t-micro);
+    white-space: nowrap;
+  }
+  body[data-theme] #panel-inventory .invc-search-row input {
+    padding: 5px 10px; min-height: 34px; font-size: var(--t-micro);
+  }
+  body[data-theme] #panel-inventory .invc-search-row button {
+    padding: 5px 10px !important; min-height: 34px !important; font-size: var(--t-micro);
+  }
+
+  /* Category chips: one non-wrapping scrollable rank of 30px squares. */
+  body[data-theme] #panel-inventory .invc-cat-strip {
+    /* `flex: 0 0 auto` is load-bearing: the bag below it carries `flex:1` with
+     * a 660px content height, so a shrinkable strip was squeezed from 30px to
+     * ELEVEN — ten filter chips sheared in half. Chrome does not shrink. */
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    scrollbar-width: none;
+  }
+  body[data-theme] #panel-inventory .invc-cat-strip::-webkit-scrollbar { height: 0; }
+  body[data-theme] #panel-inventory .invc-cat-btn {
+    width: 30px !important; height: 30px !important;
+    min-height: 30px !important;
+  }
+
+  /* The bag is the scrolling region, and it is guaranteed a real floor. If the
+   * chrome above it ever grows again the PANEL runs out of room before the bag
+   * does, which is a visible bug rather than a silent 20px slit. */
+  body[data-theme] #panel-inventory .invc-left { gap: 4px !important; min-height: 0; }
+  body[data-theme] #panel-inventory .invc-bag-col {
+    flex: 1 1 auto;
+    min-height: 132px;
+    overflow-y: auto;
+    padding: 5px !important;
+  }
+  body[data-theme] #panel-inventory .invc-grid {
+    grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)) !important;
+    gap: 5px !important;
+  }
+  body[data-theme] #panel-inventory .invc-tile .invc-qty { font-size: var(--t-micro); }
+}

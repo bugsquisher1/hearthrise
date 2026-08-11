@@ -2,6 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "hearthrise-qa",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8123"
+      ],
+      "port": 8123
+    },
+    {
       "name": "hearthrise-static",
       "runtimeExecutable": "python",
       "runtimeArgs": [

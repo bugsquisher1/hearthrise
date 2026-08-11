@@ -15,24 +15,24 @@
 // If you add a module here, add it to CORE_MODULES in tests/core-purity.mjs.
 // ============================================================
 
-export * as rng from './rng.js?v=329';
-export * as xp from './xp.js?v=329';
-export * as combat from './combat.js?v=329';
-export * as drops from './drops.js?v=329';
-export * as pacing from './pacing.js?v=329';
-export * as rested from './rested.js?v=329';
-export * as tools from './tools.js?v=329';
-export * as farm from './farm.js?v=329';
-export * as progression from './progression.js?v=329';
-export * as styles from './styles.js?v=329';
-export * as artisan from './artisan.js?v=329';
-export * as bounty from './bounty.js?v=329';
+export * as rng from './rng.js?v=330';
+export * as xp from './xp.js?v=330';
+export * as combat from './combat.js?v=330';
+export * as drops from './drops.js?v=330';
+export * as pacing from './pacing.js?v=330';
+export * as rested from './rested.js?v=330';
+export * as tools from './tools.js?v=330';
+export * as farm from './farm.js?v=330';
+export * as progression from './progression.js?v=330';
+export * as styles from './styles.js?v=330';
+export * as artisan from './artisan.js?v=330';
+export * as bounty from './bounty.js?v=330';
 /* The away/active unification (docs/design/away-time-ruling.md). `away` is
    the contract as data, `botd` the featured-boss rotation as a function of a
    timestamp, `buffs` the registry plus the clock as a function of elapsed
    time, and `combatSim` the ONE loop both the live tick and server accrual
    run. There is deliberately no second combat loop to export. */
-export * as away from './away.js?v=329';
-export * as botd from './botd.js?v=329';
-export * as buffs from './buffs.js?v=329';
-export * as combatSim from './combat-sim.js?v=329';
+export * as away from './away.js?v=330';
+export * as botd from './botd.js?v=330';
+export * as buffs from './buffs.js?v=330';
+export * as combatSim from './combat-sim.js?v=330';

@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 330 — 2026-08-11 (Your hold has a door now)
+
+- 🚪 **Clans can shut their door.** Leadership can set a hold to invite-only, invite players by name, see and withdraw outstanding invitations, and remove a member — with a ban length you choose, so a removal actually sticks. Until now anyone could join any hold uninvited and leadership had no way to undo it.
+- 📨 **Invitations reach you.** If a hold invites you, you'll see it above "Find a hold."
+- ✍️ **The game stops discarding what you typed.** Picking a value in a panel and then having the panel refresh no longer silently reverts your choice — it was possible to select one ban length and send another. The Storehouse deposit box had the same bug.
+- 🗣️ Refusals now read as sentences instead of codes — "That hold is invite-only — ask a member for an invitation."
+
 ## v0.9.2-beta build 329 — 2026-08-11 (Three player-reported fixes)
 
 - 🎒 **The bag is usable on a landscape phone again.** On a short screen the item grid was being squeezed down to a single clipped row while the Hero panel painted over the top of it — thanks Paione for the report and the screenshot. The grid now gets the space, and two things nobody had reported are fixed with it: **Equip was showing no gear slots at all**, and **Saved showed an empty column**.

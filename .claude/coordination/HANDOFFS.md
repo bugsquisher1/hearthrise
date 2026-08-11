@@ -58,6 +58,47 @@ floor. **Please use this shape for the other short-viewport screens** (combat cl
 **Asset Director:** `inventory-mobile-tabs.js` no longer emits emoji. The remaining known emoji-as-art
 violations are unchanged (Stable `.sc-icon`, collection log, dungeons, `market.js` rows, the
 `settings-modal` title's gear, `global-quests-strip`).
+### 2026-08-11 · FROM Game Designer → TO Systems Engineer + Art Director · b329 STYLE SPEED (Xarn)
+
+WHAT I CHANGED:
+- `src/core/styles.js` — every style row gains `speedMod` (a swing-interval MULTIPLIER, i.e. a cost)
+  and a player-facing `desc`. Ranged: Rapid 1.00 / Precise 1.05 / Longrange 1.10. Everything else
+  1.00, so no existing build moved.
+- `src/core/combat.js` — new `swingIntervalMs(eq, style)`. **This is now the only swing formula.**
+- `src/legacy.js` — `combatTickMs()` delegates to it; new `retimeCombat()` re-times a RUNNING fight
+  when the player picks a style; the picker renders each style's real swing time.
+- `supabase/functions/hr-accrue/accrual.js` — `deriveTickMs(equipment, items, style)` delegates too.
+
+WHAT SYSTEMS NEEDS TO KNOW:
+- The client's `combatTickMs()` and the server's `deriveTickMs()` were **two hand-written copies** of
+  the same expression, the second annotated "byte-for-byte the same expression as the client's".
+  They are one function now. Please do not re-open-code an interval anywhere.
+- `swingIntervalMs` clamps `speedMod` to **[1.00, 2.00]**. That is a security property as much as a
+  design one: `tickMs` is a divisor of elapsed time on the accrual path, so a sub-1 style row would
+  be an away-grant inflation lever. `tests/accrual-engine.mjs` pins it.
+- **Not inside the +52% `allXP` fuse.** Style speed is not XP and not gear: it is a free,
+  mutually-exclusive toggle that BUYS speed with accuracy/damage, so it cannot stack or be acquired,
+  and every family's default stays at 1.00. The pacing anchor is untouched; the best-case deviation
+  is Precise at +2.9% combat XP/hr against non-accuracy-capped foes.
+- The `spdB` power-fuse question is **not** pre-empted by this. Nothing here behaves like a speed-gear
+  ladder — that call is still open and still yours.
+
+WHAT ART DIRECTOR NEEDS TO KNOW:
+- The style buttons now carry a second data point in the existing `<small>`: `RANGED · 2.11S`. The
+  sheet uppercases that element, so the seconds unit renders as a capital **S** ("2.11S"). It reads
+  fine and nothing overflows (verified at 1440×900 and by the 820×360 landscape guard), but it is
+  yours if you want it cased properly. I did not touch CSS.
+
+DESIGNER BACKLOG RAISED (mine, not yours):
+- `style.defenseMod` is authored on 13 rows and read by **nothing** — see DISCOVERIES. Four styles
+  silently promise 5% mitigation. Guarded against being written into copy until it is wired.
+- Magic `focus` strictly dominates `cast`.
+
+WHAT MUST NOT BE CHANGED:
+- A style's `speedMod` must never go below 1.00, and every weapon family must keep exactly one
+  1.00-speed style. Both are asserted in `tests/core-purity.mjs`.
+- No style `desc` may claim "slower" unless its `speedMod > 1`, or claim defence as a stat. The
+  reported bug in reverse is a worse bug than the reported bug.
 
 ### 2026-08-11 · FROM QA Engineer → TO Systems Engineer / Security · CONSERVATION FUZZ + a reusable server-tier test rig
 

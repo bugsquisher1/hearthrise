@@ -43,6 +43,57 @@ Same shape as the b230 finding (`market.js` re-rendering its own nav control awa
 poll stays as a backstop) and `window.HearthriseInvSubTabs = {install, paintIcons, subs}` is now
 published so a caller — or a test — can restore it synchronously. **If you add another strip that a
 wholesale re-render can eat, observe the mutation; do not poll.**
+### 2026-08-11 · Designer → QA · TWO smoke tests in the offline area are wall-clock flaky (measured)
+**Discovery:** while verifying b329 I hit intermittent reds in `b307: the offline cap is PER-ABSENCE`
+and `b260: robust resume re-arms combat`. Neither has any causal path to the change under test. I
+measured the b307 one directly: its assertion
+
+```
+assert(window.claimOfflineMs(Date.now(), true) === 0,
+  'a second read of the same instant must bank nothing (timer reset / double-pay guard)');
+```
+
+only passes when the two `Date.now()` calls land in the **same millisecond**. Instrumented in the
+browser, 200 iterations with 0–4 ms of intervening work: **160/200 returned 1–4 ms, not 0.** So the
+test passes today by luck of scheduling and fails whenever the machine is busy or the suite is a
+little slower. The behaviour it guards (no double-pay) is correct — the assertion is just too sharp.
+
+`b260` is in the same family: it drives a real 5-minute away replay through `__hrResume` and asserts
+the combat loop is armed afterwards. Driven 40× in isolation it was 40/40 stable, so it is
+suite-context/timing dependent, not seed dependent.
+
+**Affected systems:** `src/features/smoke-test.js` (b307, b260), CI reliability.
+**Required action (QA):** give the b307 re-claim assertion a tolerance (`< 50` rather than `=== 0`,
+or freeze the clock for the block) and find b260's suite-context dependency. A test that fails ~1 run
+in 3 for reasons unrelated to any change trains the team to re-run instead of investigate, which is
+how a real red gets waved through.
+
+### 2026-08-11 · Designer · Xarn was right — and the same audit found a WHOLLY dead style stat
+**Discovery (the report):** no combat style has EVER had a speed term. `combatTickMs()` read gear
+speed (`spdB`) and the weapon-FAMILY identity (`WEAPON_SPEED_MOD`) and nothing else, so a style
+literally named *Rapid* swung at exactly the interval of Precise and Longrange — 2112 ms on a bare
+bow, all three. Fixed in b329: `speedMod` added to the style table, consumed by a new shared
+`swingIntervalMs(eq, style)` in `src/core/combat.js` that BOTH `combatTickMs()` and the accrual
+engine's `deriveTickMs()` now delegate to (they were two hand-copies reconciled by a comment).
+
+**Discovery (the bigger one — NOT fixed here): `style.defenseMod` is read by NOTHING.** It is
+authored on all 13 style rows (`defensive` 1.05, `guard` 1.05, `longrange` 1.05, `warded` 1.05,
+`controlled` 1.02) and consumed in zero places — `monsterCombatRolls` builds `playerDefense` from
+skill + `defB` + `bonus('defense')` and never looks at the style. Four styles have quietly promised
+5% mitigation since combat styles v2. It never became a complaint only because the picker showed no
+numbers at all — the same root cause as Xarn's report.
+**Deliberately left dead:** wiring it changes monster accuracy against every player on four styles at
+once, i.e. a combat-wide rebalance, not a ranged bug fix. b329's copy therefore never promises
+defence as a stat, and guards in `tests/core-purity.mjs` + the smoke test enforce that until it is.
+
+**Discovery (third): magic `focus` strictly dominates `cast`** — +8% accuracy AND +3% max hit for no
+cost, so `cast` is a dead option for every magic player. Same class of bug as the ranged triple: a
+"choice" that is not one. Untouched here; pricing it needs its own magic pass.
+
+**Affected systems:** combat styles, swing interval, the away tick budget, the style picker.
+**Required action:** `defenseMod` and `focus` are Designer backlog — raised in HANDOFFS.
+
+---
 
 ### 2026-08-11 · Art Director · The Active Effects card — the game's ONLY buff panel — has been `display:none` since the Home dashboard shipped
 **Discovery:** `#active-effects-card` (food buffs + house buffs, `renderActiveEffects` in legacy.js

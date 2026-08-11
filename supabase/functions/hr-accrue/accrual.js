@@ -33,7 +33,7 @@
 // ============================================================================
 
 import {
-  COMBAT_BALANCE, WEAPON_SPEED_MOD, DEFAULT_PROFILE,
+  DEFAULT_PROFILE, swingIntervalMs,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js?v=326';
 import { simulateSpan } from '../../../src/core/combat-sim.js?v=326';
@@ -102,23 +102,24 @@ export function zeroBonus() { return 0; }
  * honest 2.4s swing budgets ~18,000 ticks; at 1ms it budgets ~43,200,000.
  * (design §3, "interval_ms is the accrual engine's largest lever".)
  *
- * Byte-for-byte the same expression as the client's combatTickMs()
- * (legacy.js:2543): the same spdB clamp, the same weapon-family speed
- * identity, the same floor — because the away replay and the live scheduler
- * being given two different intervals is exactly how a hammer came to swing
- * 26% more often asleep than awake (combat-sim.js header, omission 10).
+ * b329: this used to be a HAND COPY of the client's combatTickMs(), annotated
+ * "byte-for-byte the same expression". It is now literally the same function —
+ * `src/core/combat.js swingIntervalMs()` — because the moment a third speed
+ * term arrived (the style's `speedMod`), "byte-for-byte by comment" was one
+ * edit away from being false, and two intervals is exactly how a hammer came to
+ * swing 26% more often asleep than awake (combat-sim.js header, omission 10).
+ *
+ * `style` is still DERIVED, never accepted: the caller resolves it from the
+ * server-owned weapon family, and `swingIntervalMs` clamps `speedMod` to
+ * [1.00, 2.00], so no style row — present, absent or hostile — can shrink the
+ * divisor below the family baseline.
  *
  * @param equipment  server-owned { equip_slot: item_id }
  * @param items      the ITEMS catalogue
+ * @param style      the resolved COMBAT_STYLES row (optional)
  */
-export function deriveTickMs(equipment, items) {
-  const eq = equipmentStats(equipment, items);
-  const spd = Math.max(0, Math.min(0.20, eq.spdB || 0));
-  const wmod = WEAPON_SPEED_MOD[eq.weaponType] || 1;
-  return Math.max(
-    COMBAT_BALANCE.minTickMs,
-    Math.floor(COMBAT_BALANCE.tickMs * (1 - spd) * wmod),
-  );
+export function deriveTickMs(equipment, items, style) {
+  return swingIntervalMs(equipmentStats(equipment, items), style);
 }
 
 /** The stat profile, derived from the equipped weapon family. Mirrors
@@ -310,7 +311,10 @@ export function computeAccrual(input) {
   //   ride in through the same door as `tickMs` and defeat the clamp that is
   //   supposed to be the second line of defence. Adding a field here is a
   //   deliberate act; that is the entire point of the shape.
-  const tickMs = deriveTickMs(equipment, items);
+  /* b329: the style is passed because it now carries a speed term. It is the
+     SAME `style` object simulateSpan routes XP through, resolved above from
+     server-owned equipment — never from the request body. */
+  const tickMs = deriveTickMs(equipment, items, style);
   const ctx = {
     away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
     fromMs: nowMs - grantMs,

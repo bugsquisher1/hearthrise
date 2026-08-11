@@ -902,7 +902,8 @@ function loadLocal(){
   // after the offline catch-up. processOfflineCombat may have nulled
   // G.activeMonster on death.
   if(G.activeMonster && !combatInterval){
-    combatInterval = setInterval(combatTick, combatTickMs());   // b245: honour attack speed on resume
+    _combatIntervalMs = combatTickMs();   // b245: honour attack speed on resume
+    combatInterval = setInterval(combatTick, _combatIntervalMs);
   }
   // b237: and resume the live gathering/artisan loop the same way — otherwise
   // the save says "fishing" but nothing ticks until the player re-taps.
@@ -2540,23 +2541,48 @@ window.fightBountyTarget=function(mId){
    carries spdB (.02) today, so the live effect is tiny; the mechanic is what
    matters, and it scales as speed gear is added. Computed at fight start (and on
    resume); re-tap a foe to apply a fresh loadout. */
+/* b329 (Xarn): the body of this function moved to src/core/combat.js
+   `swingIntervalMs(eq, style)` — the SAME function the accrual engine calls, so
+   the third speed term (the chosen style's `speedMod`) cannot be added to the
+   live scheduler and forgotten on the away replay. The pre-core fallback keeps
+   the old expression only so a timer that fires before the module graph settles
+   still returns a sane interval; it can never be the number a real fight uses,
+   because startCombat runs long after boot. */
 function combatTickMs(){
   const eq=getEquipmentStats();
+  const C=window.HearthriseCore;
+  if(C&&C.combat&&typeof C.combat.swingIntervalMs==='function'){
+    let style=null;
+    try{ if(typeof window.getActiveCombatStyle==='function') style=window.getActiveCombatStyle(); }catch(e){}
+    return C.combat.swingIntervalMs(eq,style);
+  }
   const spd=Math.max(0,Math.min(0.20,(eq.spdB)||0));
-  /* Wave 5: apply the equipped weapon family's speed identity. */
   const wmod=WEAPON_SPEED_MOD[eq.weaponType]||1;
-  /* The floor is COMBAT_BALANCE.minTickMs, the same number simulateSpan clamps
-     to — one constant, so the live scheduler and the away replay cannot drift. */
   return Math.max(COMBAT_BALANCE.minTickMs,Math.floor(COMBAT_BALANCE.tickMs*(1-spd)*wmod));
 }
 window.combatTickMs=combatTickMs;
+/* b329: switching style is a ONE-CLICK action inside the combat panel, and it
+   now changes the swing interval — so the running interval has to follow it or
+   the player picks "Precise", sees nothing change, and files Xarn's bug again.
+   Same shape as retimeActivity(): only touch the timer when the number moved. */
+let _combatIntervalMs=0;
+function retimeCombat(){
+  if(!G||!G.activeMonster||!combatInterval)return;
+  const ms=combatTickMs();
+  if(ms===_combatIntervalMs)return;
+  clearInterval(combatInterval);
+  _combatIntervalMs=ms;
+  combatInterval=setInterval(combatTick,ms);
+}
+window.retimeCombat=retimeCombat;
 function startCombat(mId){
   if(G.activeMonster===mId){stopCombat();return;}
   stopCombat();
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`⚔️ You attack the ${m.name}!`];
-  combatInterval=setInterval(combatTick,combatTickMs());
+  _combatIntervalMs=combatTickMs();
+  combatInterval=setInterval(combatTick,_combatIntervalMs);
   combatTick();
   renderCombat();renderMonsterList();
 }
@@ -7954,20 +7980,40 @@ function renderStyleSelector(){
   var styles = window.COMBAT_STYLES[t] || {};
   var typeLabel = (typeof WEAPON_TYPES !== 'undefined' && WEAPON_TYPES[t]) || (window.WEAPON_TYPES && window.WEAPON_TYPES[t]) || t;
 
+  /* b329: the picker used to show NOTHING but a name and a trains-label, which
+     is why a style called "Rapid" that swung at exactly the speed of the other
+     two went unnoticed for so long — there was no number to disagree with.
+     Every button now carries its `desc` (authored beside the modifiers it
+     describes, in src/core/styles.js) and the ACTUAL swing time that style
+     would produce with the gear currently worn — computed by the same
+     swingIntervalMs() the fight and the away replay use, so the panel cannot
+     quote a speed the simulation does not run. */
+  var swingOf = function(s){
+    try{
+      var C = window.HearthriseCore;
+      if(!C || !C.combat || typeof C.combat.swingIntervalMs !== 'function') return '';
+      var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : null;
+      return (C.combat.swingIntervalMs(eq, s) / 1000).toFixed(2) + 's';
+    }catch(e){ return ''; }
+  };
+
   var wrap = document.createElement('div');
   wrap.className = 'combat-style-block';
   wrap.innerHTML =
     '<h4>Combat Style — ' + typeLabel + '</h4>' +
     '<div class="csb-meta">' +
-    'Style: <b>' + styleObj.name + '</b> · Trains: <b>' + styleObj.trains + '</b><br>' +
+    'Style: <b>' + styleObj.name + '</b> · Trains: <b>' + styleObj.trains + '</b> · Swing: <b>' + swingOf(styleObj) + '</b><br>' +
+    (styleObj.desc ? styleObj.desc + '<br>' : '') +
     'Accuracy skill: <b>' + profile.accuracySkill + '</b> · Damage skill: <b>' + profile.damageSkill + '</b>' +
     '</div>' +
     '<div class="combat-style-buttons">' +
       Object.entries(styles).map(function(kv){
         var k = kv[0], s = kv[1];
         var act = (k === styleKey) ? ' active' : '';
-        return '<button class="csb-btn' + act + '" data-style-key="' + k + '">' +
-               s.name + '<small>' + s.trains + '</small></button>';
+        var sw = swingOf(s);
+        var tip = (s.desc ? s.desc + ' · ' : '') + (sw ? 'swing ' + sw : '');
+        return '<button class="csb-btn' + act + '" data-style-key="' + k + '" title="' + tip.replace(/"/g,'&quot;') + '">' +
+               s.name + '<small>' + s.trains + (sw ? ' · ' + sw : '') + '</small></button>';
       }).join('') +
     '</div>';
   host.appendChild(wrap);
@@ -7978,6 +8024,10 @@ function renderStyleSelector(){
       var t = window.getWeaponType();
       G.combatStyle = G.combatStyle || {};
       G.combatStyle[t] = k;
+      /* b329: styles carry a speed cost now, so a running fight must be retimed
+         the instant the player picks one — otherwise the choice does nothing
+         visible until you re-tap the monster, which is the reported bug again. */
+      if(typeof window.retimeCombat === 'function') window.retimeCombat();
       if(typeof save === 'function') save();
       if(typeof renderCombat === 'function') renderCombat();
       if(typeof renderLoadout === 'function') renderLoadout();

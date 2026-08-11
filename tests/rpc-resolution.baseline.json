@@ -1,0 +1,207 @@
+{
+ "hr_leaderboard(p_board,p_limit,p_span)": {
+  "status": 200,
+  "code": "OK",
+  "shape": "obj{board,near,ok,rank,refreshed_at,top,total}"
+ },
+ "hr_leaderboard(p_board)": {
+  "status": 200,
+  "code": "OK",
+  "shape": "obj{board,near,ok,rank,refreshed_at,top,total}"
+ },
+ "hr_server_now()": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "hr_load(p_slot)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "hr_create_character(p_slot)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "buy_listing(p_listing_id,p_qty)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_deposit(p_clan_id,p_items)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_seat_read(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_vote_read(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "claim_display_name(p_name)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "hr_display_name_available(p_name)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "claim_beta_invite(code_in)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "bug_report_submit(p_summary)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "bug_report_submit(p_build,p_description,p_errors,p_idem_key,p_state,p_summary)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "raid_strike(p_boss,p_clan_id,p_damage,p_max_hp,p_week)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "raid_claim(p_clan_id,p_scope,p_week)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_contribute(p_event_key,p_points)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_join(p_event_key)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_claim(p_day_key)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_pledge(p_event_key)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_pledge_settle(p_day_key)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "world_event_absence_claim(p_day_key)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "hr_rally_pledge_state()": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_contribute(p_amount,p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_board_claim(p_clan_id,p_task_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_board_progress(p_clan_id,p_counter,p_delta)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_board_roll(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_feast_call(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_feast_deposit(p_clan_id,p_heals)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_hunt_declare(p_boss,p_clan_id,p_tier,p_week)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_rested_grant(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_tier_up(p_clan_id)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_vice_set(p_clan_id,p_grant,p_user)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_vote_cast(p_building,p_clan_id,p_vote)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_vote_close(p_clan_id,p_vote)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_vote_open(p_candidates,p_clan_id,p_hours)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_work_complete(p_clan_id,p_order)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_work_labour(p_clan_id,p_order,p_ticks)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_work_post(p_building,p_clan_id,p_to_level)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "clan_work_supply(p_clan_id,p_items,p_order)": {
+  "status": 401,
+  "code": "42501",
+  "shape": ""
+ },
+ "hr_definitely_not_a_function()": {
+  "status": 404,
+  "code": "PGRST202",
+  "shape": ""
+ }
+}

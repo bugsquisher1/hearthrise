@@ -1,0 +1,280 @@
+[
+ [
+  "hr_leaderboard",
+  {
+   "p_board": "total_level",
+   "p_limit": 5,
+   "p_span": 1
+  }
+ ],
+ [
+  "hr_leaderboard",
+  {
+   "p_board": "total_level"
+  }
+ ],
+ [
+  "hr_server_now",
+  {}
+ ],
+ [
+  "hr_load",
+  {
+   "p_slot": 0
+  }
+ ],
+ [
+  "hr_create_character",
+  {
+   "p_slot": 0
+  }
+ ],
+ [
+  "buy_listing",
+  {
+   "p_listing_id": "00000000-0000-0000-0000-000000000000",
+   "p_qty": 1
+  }
+ ],
+ [
+  "clan_deposit",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_items": {}
+  }
+ ],
+ [
+  "clan_seat_read",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_vote_read",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "claim_display_name",
+  {
+   "p_name": "ProbeName"
+  }
+ ],
+ [
+  "hr_display_name_available",
+  {
+   "p_name": "ProbeName"
+  }
+ ],
+ [
+  "claim_beta_invite",
+  {
+   "code_in": "PROBE"
+  }
+ ],
+ [
+  "bug_report_submit",
+  {
+   "p_summary": "probe"
+  }
+ ],
+ [
+  "bug_report_submit",
+  {
+   "p_summary": "probe",
+   "p_description": "d",
+   "p_build": "b",
+   "p_state": {},
+   "p_errors": {},
+   "p_idem_key": "k"
+  }
+ ],
+ [
+  "raid_strike",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_week": "2026-W33",
+   "p_boss": "x",
+   "p_max_hp": 1,
+   "p_damage": 1
+  }
+ ],
+ [
+  "raid_claim",
+  {
+   "p_scope": "solo",
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_week": "2026-W33"
+  }
+ ],
+ [
+  "world_event_contribute",
+  {
+   "p_event_key": "x",
+   "p_points": 1
+  }
+ ],
+ [
+  "world_event_join",
+  {
+   "p_event_key": "x"
+  }
+ ],
+ [
+  "world_event_claim",
+  {
+   "p_day_key": "2026-08-11"
+  }
+ ],
+ [
+  "world_event_pledge",
+  {
+   "p_event_key": "x"
+  }
+ ],
+ [
+  "world_event_pledge_settle",
+  {
+   "p_day_key": "2026-08-11"
+  }
+ ],
+ [
+  "world_event_absence_claim",
+  {
+   "p_day_key": "2026-08-11"
+  }
+ ],
+ [
+  "hr_rally_pledge_state",
+  {}
+ ],
+ [
+  "clan_contribute",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_amount": 1
+  }
+ ],
+ [
+  "clan_board_claim",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_task_id": "t"
+  }
+ ],
+ [
+  "clan_board_progress",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_counter": "c",
+   "p_delta": 1
+  }
+ ],
+ [
+  "clan_board_roll",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_feast_call",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_feast_deposit",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_heals": 1
+  }
+ ],
+ [
+  "clan_hunt_declare",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_week": "2026-W33",
+   "p_tier": 1,
+   "p_boss": "x"
+  }
+ ],
+ [
+  "clan_rested_grant",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_tier_up",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_vice_set",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_user": "00000000-0000-0000-0000-000000000000",
+   "p_grant": true
+  }
+ ],
+ [
+  "clan_vote_cast",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_vote": "00000000-0000-0000-0000-000000000000",
+   "p_building": "x"
+  }
+ ],
+ [
+  "clan_vote_close",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_vote": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_vote_open",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_candidates": [],
+   "p_hours": 24
+  }
+ ],
+ [
+  "clan_work_complete",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_order": "00000000-0000-0000-0000-000000000000"
+  }
+ ],
+ [
+  "clan_work_labour",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_order": "00000000-0000-0000-0000-000000000000",
+   "p_ticks": 1
+  }
+ ],
+ [
+  "clan_work_post",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_building": "x",
+   "p_to_level": 2
+  }
+ ],
+ [
+  "clan_work_supply",
+  {
+   "p_clan_id": "00000000-0000-0000-0000-000000000000",
+   "p_order": "00000000-0000-0000-0000-000000000000",
+   "p_items": {}
+  }
+ ],
+ [
+  "hr_definitely_not_a_function",
+  {}
+ ]
+]

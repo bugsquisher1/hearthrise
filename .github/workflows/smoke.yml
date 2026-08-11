@@ -54,6 +54,22 @@ jobs:
       - name: Conservation fuzz + injection selftest
         run: node tests/conservation-fuzz.mjs --selftest --ops=400
 
+      # THE POSTGREST RPC RESOLUTION GATE.
+      # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
+      # keep the original PARAMETER NAMES, because that is what PostgREST resolves
+      # on. Get one wrong and the migration reports success while the RPC starts
+      # answering PGRST202 to real players. That was checked by hand exactly once.
+      # This checks it on every push, against a committed baseline, with a control
+      # that must NOT resolve so the probe cannot silently go blind.
+      #
+      # Read-only against production and needs no secret: 38 of the 41 calls are
+      # refused by Postgres before the body runs, 2 read the public leaderboard,
+      # and the anon key is public by design and already committed in
+      # src/net/supabase-bootstrap.js. `continue-on-error` is DELIBERATELY ABSENT —
+      # an RPC the client can no longer see is a player-facing outage.
+      - name: RPC resolution vs baseline
+        run: node tests/rpc-resolution.mjs
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 332 — 2026-08-12 (Rotations that actually rotate)
+
+- 🎲 **Fixed the shuffle behind every daily and weekly rotation.** It had a flaw that quietly cut whole entries out of the draw. **Three weekly blessings — The King's Bounty, War Drums and The Long Harvest — could never be drawn at all**, and nobody has ever seen them. The daily blessing repeated itself far too often, sometimes for six days running. The daily task board leaned hard on a few tasks and almost never offered others.
+- 🛡️ **The rally on your screen is the rally you're actually fighting for.** The muster card and the server disagreed on most days — the chest was being filled for a different rally than the one you were shown. They agree now. Your joins and pledges are unaffected; only the name you were shown was wrong.
+- 🐉 **Boss of the Day and Boss of the Week now rotate evenly.** Some bosses were being featured far more often than others. Today's boss is unchanged; the rotation from tomorrow onward is different.
+
 ## v0.9.2-beta build 331 — 2026-08-12 (Your progress stops silently not saving)
 
 - 💾 **A sign-in that quietly expired could stop your progress reaching the cloud — for hours — while the game looked fine.** Found in the live logs: one player's session had been saving nothing since the day before. Sign-ins last about an hour and are meant to renew themselves in the background; when that renewal failed, the game kept using the dead sign-in forever, and the safety rule that stops a bad save from overwriting a good one held the upload closed the whole time. Your session now renews itself *before* it expires, recovers on its own if it lapses, and stops retrying instead of hammering away.

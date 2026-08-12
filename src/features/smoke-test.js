@@ -18339,6 +18339,12 @@ const TESTS = [
     assert(S.tokenStatus('not-a-jwt') === 'opaque', 'an undecodable token must be sent, not refused');
     assert(S.tokenStatus('a.b.c') === 'opaque', 'an unparseable payload must be sent, not refused');
     assert(S.tokenStatus(jwt({ sub: 'x' })) === 'opaque', 'a JWT with no exp claim must be sent, not refused');
+    // skewMs is what makes auth.js refresh BEFORE the token dies rather than
+    // after. Untested it would silently rot into a no-op.
+    const soon = jwt({ exp: Math.floor(Date.now() / 1000) + 120 });
+    assert(S.tokenStatus(soon) === 'ok', 'a token with 2 minutes left is not expired');
+    assert(S.tokenStatus(soon, Date.now(), 300000) === 'expired',
+      'a 5-minute skew lead must class a token with 2 minutes left as due for refresh');
   }),
 
   () => tryRun('b331: three hours of dead auth costs a handful of requests, not 2,160', () => {
@@ -18352,7 +18358,7 @@ const TESTS = [
     for (let t = 0; t <= 3 * 3600 * 1000; t += 5000) {
       if (!S.decideAuthGate(st, t).allow) continue;
       sent++;
-      st = S.authGateStep(st, 'auth-fail', t);
+      st = S.authGateStep(st, 'auth-fail', t);   // the SERVER refusing us: evidence
       if (st.dead && deadAt < 0) deadAt = t;
     }
     // The live incident put ~6 requests a minute on the wire for three hours.
@@ -18367,6 +18373,23 @@ const TESTS = [
     const back = S.authGateStep(st, 'ok', 9e9);
     assert(back.dead === false && back.streak === 0 && S.decideAuthGate(back, 9e9).allow,
       'a single authorised response must fully reopen the gate');
+
+    /* REVIEW FIX — the same three hours where the only "failures" are OUR OWN
+       CLOCK's opinion (a device running fast reads valid tokens as expired) must
+       NEVER terminate. Otherwise b331 simply inverts the incident: a player who
+       synced fine before, bricked in 155s by a wrong system clock, with
+       re-signing-in unable to clear it because the new token reads expired too. */
+    let ck = S.newAuthGate();
+    for (let t = 0; t <= 3 * 3600 * 1000; t += 5000) {
+      if (!S.decideAuthGate(ck, t).allow) continue;
+      ck = S.authGateStep(ck, 'auth-fail-local', t);
+    }
+    assert(ck.dead === false,
+      'a local expiry verdict must NEVER terminate a session on its own — a fast clock would brick a healthy player');
+    assert(ck.streak > 0, 'local verdicts must still drive backoff, or the guard is asserting nothing');
+    // …and one server refusal is all it takes to make the same streak terminal.
+    assert(S.authGateStep(ck, 'auth-fail', 3 * 3600 * 1000).dead === true,
+      'once the SERVER corroborates, the accumulated streak must terminate');
   }),
 
   () => tryRun('b331: with an expired token, NOT ONE cloud request reaches the network', () => {
@@ -18380,7 +18403,10 @@ const TESTS = [
     let fetched = 0, refreshAsked = 0;
     try {
       window.fetch = function () { fetched++; return Promise.resolve(new Response('{}', { status: 401 })); };
-      S.resetAuthGate();
+      // The server has already refused us once, so the local expiry verdict is
+      // CORROBORATED and may now suppress traffic. (Without that corroboration
+      // the correct behaviour is to probe — proved in the clock-skew test below.)
+      S.resetAuthGate({ serverFails: 1 });
       // A real allowlisted row, so flush() has something to send.
       S.restoreEventBuffer([{ type: 'questClaim', payload: { id: 'probe' }, ts: Date.now() }]);
       S.__withConfig({
@@ -18427,8 +18453,10 @@ const TESTS = [
     let expiredCalls = 0, failures = [];
     try {
       window.fetch = function () { return Promise.resolve(new Response('{}', { status: 401 })); };
-      // One failure short of the terminal state, backoff already elapsed.
-      S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0 });
+      // One failure short of the terminal state, backoff already elapsed, and
+      // the server has genuinely refused us — the only state in which the
+      // breaker is allowed to declare a session dead.
+      S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0, serverFails: 1 });
       S.__withConfig({
         snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
         apiKey: 'anon', userId: () => 'u1', authToken: () => expired,
@@ -18449,6 +18477,96 @@ const TESTS = [
         'a dead gate must stay shut even a day later — only a real sign-in reopens it');
     } finally {
       window.fetch = realFetch;
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+    }
+  }),
+
+  /* REVIEW FIX — THE INVERTED INCIDENT. A client whose clock runs 2h FAST reads
+     every freshly-minted token as already expired. The first cut of b331 would
+     have blocked the send, refreshed, called the NEW token expired too, and
+     latched dead in ~155s — bricking a player whose session was valid the whole
+     time and who cannot fix it by signing in again.
+
+     A token whose `exp` is two hours in the past, seen by a correct clock, is
+     BIT-FOR-BIT the same input as a valid token seen by a clock two hours fast.
+     So that is what this drives — and the server (stubbed 200) says what a real
+     server would say about a token that is, in fact, fine. */
+  () => tryRun('b331: a client clock 2h fast keeps syncing — a local verdict may never brick a valid session', () => {
+    const S = window.HearthriseSync;
+    // Valid token, wrong clock: indistinguishable from exp 2h in the past.
+    const asSeenByFastClock = (() => {
+      const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return b64({ alg: 'ES256' }) + '.' + b64({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 7200 }) + '.sig';
+    })();
+    const realFetch = window.fetch;
+    let fetched = 0;
+    try {
+      // The server's verdict on this token is 200 — because it is genuinely valid.
+      window.fetch = function () { fetched++; return Promise.resolve(new Response('[]', { status: 200 })); };
+      S.setClockTrusted(true);
+      // Even one failure short of terminal: with NO server corroboration the
+      // breaker may not fire, and the request must still go out.
+      S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 10 * 60 * 1000, blockedUntil: 0, serverFails: 0 });
+      let told = 0;
+      S.__withConfig({
+        endpoint: 'https://example.invalid/rest/v1/game_events',
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        apiKey: 'anon', userId: () => 'u1', authToken: () => asSeenByFastClock,
+        onAuthError: async () => true,               // the refresh works fine — the clock is the problem
+        onAuthExpired: () => { told++; },
+        onSyncFailure: () => {}, onSyncRecovered: () => {},
+      }, () => {
+        S.snapshotIfDue(true, false);
+        S.snapshotIfDue(true, false);
+        S.snapshotIfDue(true, false);
+      });
+      assert(fetched >= 3,
+        'a wrong local clock must not stop requests — only ' + fetched + ' of 3 went out');
+      assert(told === 0, 'a player whose token is valid must never be told their sign-in expired');
+      assert(S.getAuthGate().dead === false,
+        'the breaker must NOT terminate on local verdicts alone — that is the incident, inverted');
+    } finally {
+      window.fetch = realFetch;
+      S.setClockTrusted(true);
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+    }
+  }),
+
+  () => tryRun('b331: proof that our clock is wrong permanently retires the local expiry veto', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.isClockSkewEvidence === 'function', 'the clock-skew rule is gone');
+    // The rule: a token WE call expired that the ISSUER just minted, or that the
+    // SERVER just accepted, is a statement about this machine.
+    assert(S.isClockSkewEvidence('expired', 'refreshed') === true, 'a freshly refreshed "expired" token is proof of skew');
+    assert(S.isClockSkewEvidence('expired', 'authorised') === true, 'a 200 with an "expired" token is proof of skew');
+    assert(S.isClockSkewEvidence('ok', 'authorised') === false, 'a healthy token is not evidence of anything');
+    assert(S.isClockSkewEvidence('expired', 'refused') === false, 'a 401 corroborates the token, it does not exonerate it');
+
+    const expired = (() => {
+      const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return b64({ alg: 'ES256' }) + '.' + b64({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 7200 }) + '.sig';
+    })();
+    const realFetch = window.fetch;
+    let fetched = 0;
+    try {
+      window.fetch = function () { fetched++; return Promise.resolve(new Response('[]', { status: 200 })); };
+      // Once the clock is distrusted, the local veto is retired EVEN THOUGH the
+      // server has corroborated before — the server is the only authority left.
+      S.setClockTrusted(false);
+      S.resetAuthGate({ serverFails: 3 });
+      S.__withConfig({
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        apiKey: 'anon', userId: () => 'u1', authToken: () => expired,
+        onAuthError: async () => true, onAuthExpired: () => {},
+        onSyncFailure: () => {}, onSyncRecovered: () => {},
+      }, () => { S.snapshotIfDue(true, false); });
+      assert(fetched === 1, 'a distrusted clock must stop vetoing requests, got ' + fetched);
+      assert(S.getAuthGate().clockTrusted === false, 'the distrust latch must be visible in diagnostics');
+    } finally {
+      window.fetch = realFetch;
+      S.setClockTrusted(true);
       S.resetAuthGate();
       S.__resetSyncHealth();
     }

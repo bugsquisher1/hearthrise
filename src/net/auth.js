@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate } from './sync.js?v=330';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=330';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -240,9 +240,13 @@ function enableLiveSync() {
   // saying so. A token five minutes from death is refreshed here, so the whole
   // expired-token class costs zero failed requests in the normal case.
   if (refreshTimer) clearInterval(refreshTimer);
+  // The 5-minute `skewMs` lead is why this fires BEFORE the token dies rather
+  // than after. It is skipped entirely once sync has caught this device's clock
+  // lying, because on a fast clock this condition is permanently true and would
+  // otherwise refresh on every tick forever.
   refreshTimer = setInterval(() => {
     const tok = session && session.access_token;
-    if (!tok) return;
+    if (!tok || !isClockTrusted()) return;
     if (tokenStatus(tok, Date.now(), 300000) === 'expired') recoverSession();
   }, 60000);
   // Pull cloud snapshot on first connection if local save is older

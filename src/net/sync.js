@@ -311,7 +311,9 @@ export function nextAuthBackoffMs(streak) {
   return Math.min(AUTH_BACKOFF_MAX_MS, AUTH_BACKOFF_BASE_MS * Math.pow(2, Math.min(s, 20) - 1));
 }
 
-export function newAuthGate() { return { streak: 0, firstAt: 0, blockedUntil: 0, dead: false }; }
+export function newAuthGate() {
+  return { streak: 0, firstAt: 0, blockedUntil: 0, dead: false, serverFails: 0 };
+}
 
 /** May this device put a cloud request on the wire right now? Pure. */
 export function decideAuthGate(st, now) {
@@ -324,23 +326,70 @@ export function decideAuthGate(st, now) {
 /**
  * The breaker, as a pure reducer, so "three hours of failure costs N requests"
  * is a claim the suite can simulate rather than a claim about code shape.
- * outcome: 'ok' (any authorised response — full reset) | 'auth-fail'.
+ *
+ *   'ok'              — any authorised response. Full reset.
+ *   'auth-fail'       — the SERVER refused us (401/403/PGRST303). Evidence.
+ *   'auth-fail-local' — OUR CLOCK's opinion that the token has expired. An
+ *                       opinion, not evidence.
+ *
+ * b331 REVIEW FIX — THE DEAD LATCH REQUIRES SERVER EVIDENCE. The first cut let a
+ * purely local verdict terminate a session, which inverted the incident instead
+ * of fixing it: a client whose clock runs >1h FAST reads every freshly-minted
+ * token as expired, so it would block the send, refresh, call the NEW token
+ * expired too, and brick itself in ~155s — a player who synced fine before b331
+ * and whose only fault is a wrong system clock, with re-signing-in unable to
+ * clear it. Widening a skew constant does not fix that (a 3h-fast clock beats
+ * any constant); refusing to let a guess be the sole ground for termination
+ * does. `serverFails` is that requirement, and `authPreflight` below is the
+ * other half: while the server has not yet corroborated us, we SEND and let the
+ * response rule.
  */
 export function authGateStep(st, outcome, now) {
   const s = st || newAuthGate();
   if (outcome === 'ok') return newAuthGate();
   const streak = s.streak + 1;
   const firstAt = s.firstAt || now;
-  const dead = !!(s.dead || streak >= AUTH_DEAD_AFTER_TRIES || (now - firstAt) >= AUTH_DEAD_AFTER_MS);
-  return { streak, firstAt, blockedUntil: now + nextAuthBackoffMs(streak), dead };
+  const serverFails = (s.serverFails || 0) + (outcome === 'auth-fail' ? 1 : 0);
+  const dead = !!(s.dead || (serverFails >= 1 &&
+    (streak >= AUTH_DEAD_AFTER_TRIES || (now - firstAt) >= AUTH_DEAD_AFTER_MS)));
+  return { streak, firstAt, blockedUntil: now + nextAuthBackoffMs(streak), dead, serverFails };
+}
+
+/**
+ * Evidence that OUR CLOCK is wrong rather than the token. Pure.
+ * A token our clock calls expired, which the issuer just minted or which the
+ * server just accepted, is a statement about this machine — not about the
+ * session. There is no constant that can substitute for it.
+ */
+export function isClockSkewEvidence(statusNow, outcome) {
+  return statusNow === 'expired' && (outcome === 'authorised' || outcome === 'refreshed');
 }
 
 let authGate = newAuthGate();
 let refreshPromise = null;
+// Latched, per tab, the moment the evidence above appears. From then on the
+// local expiry verdict is discarded entirely and the SERVER is the only
+// authority on whether a token is alive — which is what it always should have
+// been for this case.
+let clockTrusted = true;
+
+export function isClockTrusted() { return clockTrusted; }
+/** Test seam + the latch itself. */
+export function setClockTrusted(v) { clockTrusted = !!v; }
+
+/**
+ * The expiry verdict as it is ACTUALLY applied to a request. Identical to
+ * tokenStatus() until our clock has been caught lying, after which an "expired"
+ * reading is downgraded to 'opaque' — send it, let the server decide.
+ */
+function wireTokenStatus(tok, now) {
+  const st = tokenStatus(tok, now);
+  return (st === 'expired' && !clockTrusted) ? 'opaque' : st;
+}
 
 export function getAuthGate() {
   const now = Date.now();
-  return { ...authGate, ...decideAuthGate(authGate, now) };
+  return { ...authGate, ...decideAuthGate(authGate, now), clockTrusted };
 }
 /**
  * Auth recovered (or a test is done). Opens the gate again. `state` is a test
@@ -350,9 +399,9 @@ export function getAuthGate() {
  */
 export function resetAuthGate(state) { authGate = state ? { ...newAuthGate(), ...state } : newAuthGate(); }
 
-function noteAuthFailure(label, why) {
+function noteAuthFailure(label, why, kind) {
   const wasDead = authGate.dead;
-  authGate = authGateStep(authGate, 'auth-fail', Date.now());
+  authGate = authGateStep(authGate, kind === 'local' ? 'auth-fail-local' : 'auth-fail', Date.now());
   if (authGate.dead && !wasDead) {
     console.warn('[sync] auth is dead after ' + authGate.streak + ' failures ('
       + label + '/' + why + ') — cloud writes stopped until the player signs in again.');
@@ -360,7 +409,30 @@ function noteAuthFailure(label, why) {
     safeCall(config && config.onAuthExpired, { streak: authGate.streak, label, why });
   }
 }
-function noteAuthOk() { if (authGate.streak || authGate.dead) authGate = newAuthGate(); }
+/**
+ * THE LEARNING STEP, as one named function with both call sites, so the suite
+ * drives the real thing rather than a restatement of it. Returns true when the
+ * outcome proved our clock wrong.
+ */
+export function learnClockFrom(outcome) {
+  if (!isClockSkewEvidence(tokenStatus(currentToken()), outcome)) return false;
+  markClockUntrusted(outcome === 'refreshed' ? 'a freshly refreshed token' : 'an authorised response');
+  return true;
+}
+
+function noteAuthOk() {
+  // The server just authorised a token our clock calls dead. Our clock is the
+  // thing that is wrong; stop letting it veto requests for the rest of this tab.
+  learnClockFrom('authorised');
+  if (authGate.streak || authGate.dead) authGate = newAuthGate();
+}
+
+function markClockUntrusted(evidence) {
+  if (!clockTrusted) return;
+  clockTrusted = false;
+  console.warn('[sync] ' + evidence + ' carried a token this device believes is expired — '
+    + 'the local clock is wrong, not the session. Deferring to the server on token expiry from now on.');
+}
 
 function currentToken() {
   if (!config || !config.authToken) return null;
@@ -380,7 +452,15 @@ function doRefresh() {
   if (typeof fn !== 'function') return Promise.resolve(false);
   let p; try { p = fn(); } catch (e) { return Promise.resolve(false); }
   refreshPromise = Promise.resolve(p).then(
-    (ok) => { if (ok === true) resetAuthGate(); return ok !== false; },
+    (ok) => {
+      if (ok === true) {
+        // The issuer just minted this token. If our clock calls it expired, the
+        // clock is wrong — that is proof, not a heuristic.
+        learnClockFrom('refreshed');
+        resetAuthGate();
+      }
+      return ok !== false;
+    },
     () => false
   );
   const clear = () => { refreshPromise = null; };
@@ -390,19 +470,29 @@ function doRefresh() {
 
 /**
  * THE GATE EVERY CLOUD REQUEST PASSES. Returns false when this device must not
- * put another request on the wire — either the breaker is open, or the token we
- * would send is one we can already prove the server will reject. An expired
- * token is a LOCAL certainty, so it costs a refresh attempt and a breaker tick,
- * not a round trip.
+ * put another request on the wire.
+ *
+ * Two grounds, and they are NOT equal:
+ *   - the breaker is open (backoff, or the terminal state) — that rests on
+ *     server evidence and is authoritative;
+ *   - our clock says the token has expired — that is an OPINION about this
+ *     machine. It may suppress traffic only once the server has corroborated it
+ *     at least once. Until then we PROBE: send the token and let the response
+ *     rule. A 401 makes it evidence and the breaker takes over on the next tick;
+ *     a 200 proves our clock is wrong and permanently retires the local veto.
+ *
+ * Cost of the probe in the real incident: ONE request (the first), after which
+ * the server had corroborated and everything else was suppressed locally. Cost
+ * of NOT probing, for a player whose clock is two hours fast: a bricked session.
  */
 function authPreflight(label) {
   if (!decideAuthGate(authGate, Date.now()).allow) return false;
-  if (config && config.authToken && tokenStatus(currentToken()) === 'expired') {
-    doRefresh();
-    noteAuthFailure(label, 'expired-token');
-    return false;
-  }
-  return true;
+  if (!config || !config.authToken) return true;
+  if (wireTokenStatus(currentToken(), Date.now()) !== 'expired') return true;
+  doRefresh();
+  if ((authGate.serverFails || 0) === 0) return true;      // unfalsified guess → probe
+  noteAuthFailure(label, 'expired-token', 'local');
+  return false;
 }
 
 /**
@@ -421,7 +511,7 @@ async function fetchWithAuthRetry(url, initFn, label) {
     let body = ''; try { body = await res.clone().text(); } catch {}
     if (isAuthError(res.status, body) && config.onAuthError) {
       const refreshed = await doRefresh();
-      if (refreshed && tokenStatus(currentToken()) !== 'expired') {
+      if (refreshed && wireTokenStatus(currentToken(), Date.now()) !== 'expired') {
         try { res = await fetch(url, initFn()); }
         catch (e) { console.warn('[sync] ' + label + ' retry network error:', e.message); reportSync(false, 'offline'); return null; }
       }
@@ -942,7 +1032,7 @@ window.HearthriseSync = {
   holdSnapshots, releaseSnapshots, isSnapshotHeld,
   // b331 expired-token circuit breaker
   tokenStatus, nextAuthBackoffMs, newAuthGate, decideAuthGate, authGateStep,
-  getAuthGate, resetAuthGate,
+  getAuthGate, resetAuthGate, isClockSkewEvidence, isClockTrusted, setClockTrusted, learnClockFrom,
   AUTH_DEAD_AFTER_TRIES, AUTH_DEAD_AFTER_MS, AUTH_BACKOFF_MAX_MS,
   /* Test seam: run fn() with the module config temporarily patched, then put the
      previous config back EXACTLY. The b331 battery uses this to drive the REAL
@@ -956,7 +1046,18 @@ window.HearthriseSync = {
   __withConfig: (patch, fn) => {
     const prev = config;
     config = { ...(config || {}), ...patch };
-    try { return fn(); } finally { config = prev; }
+    let r;
+    try { r = fn(); } catch (e) { config = prev; throw e; }
+    // If fn is async, the config must survive until it SETTLES — the response
+    // handlers (noteAuthOk / doRefresh) read config.authToken long after the
+    // synchronous call returns, and restoring early would hand them the real
+    // player's token mid-probe.
+    if (r && typeof r.then === 'function') {
+      const back = () => { config = prev; };
+      return r.then((v) => { back(); return v; }, (e) => { back(); throw e; });
+    }
+    config = prev;
+    return r;
   },
   // b319 telemetry containment
   isEventAllowed, isEventLogEnabled, setEventLogEnabled, admitEvent, getEventStats, resetEventLimiter,

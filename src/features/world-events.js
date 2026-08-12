@@ -121,10 +121,20 @@
   // Flat-value keys print as "+2 farm yield"; the rest as "+25%".
   var FLAT_KEYS = { farmYield: 1 };
 
-  // FNV-1a — tiny, deterministic, good enough spread for pool picks
+  // FNV-1a — tiny, deterministic, good enough spread for pool picks.
+  //
+  // b332: the multiply MUST be Math.imul. It was `(h * 0x01000193) >>> 0`,
+  // which is a float multiply — past 2^53 the low bits that `>>> 0` keeps are
+  // rounded away. Measured over the next 730 days that made this hash return
+  // an EVEN value every single time, and WEEKLY has 6 entries, so
+  // kings_bounty, war_drums and long_harvest could never be drawn. It also
+  // made the "daily" blessing repeat for 3-6 days in a row, because adjacent
+  // day keys differ only in the last characters — exactly the bits the
+  // rounding threw away. Reference implementation: src/core/rng.js hashSeed.
   function hash(s) {
     var h = 0x811c9dc5;
-    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+    s = String(s);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
     return h >>> 0;
   }
 

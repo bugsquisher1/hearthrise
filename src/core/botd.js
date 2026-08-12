@@ -42,12 +42,33 @@ export const DAILY_BONUS = Object.freeze({ dropMult: 1.5, xpMult: 1.25 });
 export const WEEKLY_BONUS = Object.freeze({ dropMult: 2.0, xpMult: 1.5 });
 export const NO_BONUS = Object.freeze({ dropMult: 1, xpMult: 1 });
 
-/* FNV-1a. Byte-identical to HearthriseWorldEvents._hash — that identity is
-   what keeps today's boss the same boss after this extraction. */
+/* FNV-1a — 32-bit, via Math.imul. Identical to src/core/rng.js `hashSeed`,
+   which is the ONE reference implementation in this repo; every other copy
+   must match it byte for byte.
+
+   b332: this used to read `h = (h * 0x01000193) >>> 0`, which was copied into
+   five files and is NOT FNV-1a. `h * 16777619` is a FLOAT multiply: whenever
+   the product passes 2^53 the low bits — the only ones `>>> 0` keeps — are
+   rounded away, so the last characters of the key barely reach the output.
+   Measured symptoms: the result was even ~85% of the time (100% over the key
+   ranges currently in play), so any `hash(k) % evenPool` could only ever
+   return even indices, and adjacent day keys collided for 3-6 days at a
+   stretch. Here the pools are 21 and 7 — both ODD — so nothing was
+   unreachable, but the draw was skewed and one cut monster (avail -> 20)
+   would have silently killed half the roster. `Math.imul` keeps the low 32
+   bits exactly, which is what FNV-1a is defined on.
+
+   The old comment said this was "byte-identical to HearthriseWorldEvents._hash
+   — that identity is what keeps today's boss the same boss after this
+   extraction." That identity is preserved: world-events.js is fixed in the
+   same change, so client, server and every copy still agree with each other.
+   They now also agree with the SQL oracle in
+   supabase/migrations/2026-08-09-rally-v2.sql, which always did the exact
+   bigint multiply and therefore always disagreed with the client. */
 export function fnv1a(s) {
   let h = 0x811c9dc5;
   const str = String(s);
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return h >>> 0;
 }
 

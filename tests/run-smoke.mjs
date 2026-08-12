@@ -367,6 +367,124 @@ async function coldLoadGuard(browser, url) {
   return problems;
 }
 
+// ── The auth-resilience guard (b331) ─────────────────────────────────────────
+// WHY THIS IS NOT IN THE IN-PAGE SUITE: `tryRun` calls its test function and
+// takes the return value, so an `async` test resolves after the runner has
+// already recorded PASS — it would assert nothing, which is the exact family of
+// failure this program has been bitten by eleven times. The in-page b331 tests
+// are therefore all synchronous, and they can only see the decision made BEFORE
+// the first `await`. The half they structurally cannot reach is the half that
+// runs on the RESPONSE: the refresh-and-retry, the breaker's server-confirmed
+// escalation, and — the one a mutation proved untested — the step where a 200
+// carrying a locally-"expired" token teaches this device that its own clock is
+// wrong. That is what this awaits.
+//
+// The two failures it pins are mirror images, and the second was introduced by
+// the fix for the first:
+//   A. token genuinely dead  -> exactly ONE request, then terminate + tell the player.
+//   B. token fine, CLOCK 2h fast -> keep syncing, never terminate, and stop
+//      trusting the local clock. (A token whose exp is 2h past, read by a
+//      correct clock, is bit-for-bit a valid token read by a clock 2h fast.)
+async function authResilienceGuard(browser, url) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  const problems = [];
+  try {
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.waitForFunction(() => !!window.HearthriseSync, { timeout: 60_000 });
+    const r = await page.evaluate(async () => {
+      const S = window.HearthriseSync;
+      const jwt = (claims) => {
+        const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        return b64({ alg: 'ES256' }) + '.' + b64(claims) + '.sig';
+      };
+      const past = jwt({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 7200 });
+      const real = window.fetch;
+      const out = {};
+      const base = {
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        apiKey: 'anon', userId: () => 'u1', authToken: () => past,
+        onSyncFailure: () => {}, onSyncRecovered: () => {},
+      };
+      try {
+        // ── A. the token really is dead: the server refuses it ──────────────
+        let hits = 0, told = 0;
+        window.fetch = () => { hits++; return Promise.resolve(new Response('{"code":"PGRST303"}', { status: 401 })); };
+        S.setClockTrusted(true);
+        // One short of terminal, no corroboration yet — so this attempt must
+        // PROBE, be refused, and only then terminate.
+        S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0, serverFails: 0 });
+        await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { told++; } },
+          async () => { await S.snapshotIfDue(true, false); });
+        out.deadHits = hits;                       // must be 1: no pointless retry
+        out.deadTold = told;                       // must be 1: the player is told
+        out.deadLatched = S.getAuthGate().dead;    // must be true
+        out.deadServerFails = S.getAuthGate().serverFails;
+        out.stillTrustsClock = S.isClockTrusted(); // a 401 does NOT exonerate the clock
+
+        // ── B. the token is fine; this device's clock is two hours fast ─────
+        // The refresh is made to FAIL here on purpose, so the ONLY thing that
+        // can teach us is the server's 200. Otherwise a broken 200-path would
+        // hide behind the refresh path and the guard would prove nothing.
+        hits = 0; told = 0;
+        window.fetch = () => { hits++; return Promise.resolve(new Response('[]', { status: 200 })); };
+        S.setClockTrusted(true);
+        S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 600000, blockedUntil: 0, serverFails: 0 });
+        await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { told++; } },
+          async () => { await S.snapshotIfDue(true, false); });
+        await new Promise((r) => setTimeout(r, 0));
+        out.skewHits = hits;                       // the request went out
+        out.skewTold = told;                       // must be 0: nothing is wrong with the session
+        out.skewLatched = S.getAuthGate().dead;    // must be false
+        out.clockDistrusted = !S.isClockTrusted(); // must be true: the 200 taught us
+
+        // ── B2. the same lesson from the OTHER witness: the issuer ──────────
+        // No response at all (the network is down), but the refresh succeeds —
+        // so a token the ISSUER just minted is one our clock calls expired.
+        S.setClockTrusted(true);
+        S.resetAuthGate();
+        window.fetch = () => Promise.reject(new Error('offline'));
+        await S.__withConfig({ ...base, onAuthError: async () => true, onAuthExpired: () => {} },
+          async () => { await S.snapshotIfDue(true, false); });
+        await new Promise((r) => setTimeout(r, 0));
+        out.refreshTaughtUs = !S.isClockTrusted(); // must be true, with zero server help
+        // …and having learnt it, the local veto is retired: further requests flow
+        // even with the server having refused us in the past.
+        hits = 0;
+        window.fetch = () => { hits++; return Promise.resolve(new Response('[]', { status: 200 })); };
+        S.resetAuthGate({ serverFails: 5 });
+        await S.__withConfig({ ...base, onAuthError: async () => true, onAuthExpired: () => {} },
+          async () => { await S.snapshotIfDue(true, false); });
+        out.afterLearningHits = hits;              // must be >= 1
+      } finally {
+        window.fetch = real;
+        S.setClockTrusted(true);
+        S.resetAuthGate();
+        S.__resetSyncHealth();
+      }
+      return out;
+    });
+
+    if (r.deadHits !== 1) problems.push(`a dead token cost ${r.deadHits} request(s); it must probe exactly once and then stop`);
+    if (r.deadTold !== 1) problems.push(`the player was told ${r.deadTold} times that their sign-in died (expected exactly 1)`);
+    if (r.deadLatched !== true) problems.push('a server-confirmed dead token did not terminate — the b331 loop can come back');
+    if (!(r.deadServerFails >= 1)) problems.push('the 401 was not recorded as server evidence');
+    if (r.stillTrustsClock !== true) problems.push('a 401 wrongly exonerated the local clock — that would disarm the breaker');
+    if (!(r.skewHits >= 1)) problems.push('a clock 2h fast blocked the request — a valid session would be bricked');
+    if (r.skewTold !== 0) problems.push('a player with a VALID token was told their sign-in expired');
+    if (r.skewLatched !== false) problems.push('a local clock error terminated a healthy session — the incident, inverted');
+    if (r.clockDistrusted !== true) problems.push('a 200 carrying a locally-"expired" token did not teach this device that its clock is wrong');
+    if (r.refreshTaughtUs !== true) problems.push('a freshly REFRESHED token that reads "expired" did not teach this device that its clock is wrong');
+    if (!(r.afterLearningHits >= 1)) problems.push('the local expiry veto survived proof that the clock is wrong');
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 // ── The landscape guard (b260) ───────────────────────────────────────────────
 // Landscape is now the ONLY mobile orientation (portrait is gated, b259). The
 // in-page suite runs at desktop width, so it never sees the cramped landscape
@@ -604,6 +722,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Cold-load guard — a slow core module graph produces zero uncaught errors.');
+    }
+
+    const authProblems = await authResilienceGuard(browser, url);
+    if (authProblems.length) {
+      console.log('\nAuth-resilience guard (expired token vs wrong clock) — FAILED:');
+      for (const p of authProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Auth-resilience guard — a dead token costs one request and terminates; a 2h-fast clock keeps syncing.');
     }
 
     const landProblems = await landscapeGuard(browser, url);

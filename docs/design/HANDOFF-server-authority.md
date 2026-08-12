@@ -128,8 +128,9 @@ property of the tree, and every merge that touches `supabase/functions/**`, `src
 `src/data/**` moves it. `payload-hash.js` in the repo holds the literal `'unpacked'`;
 `tools/pack-edge.mjs` computes the digest and injects it at pack time, so there is no
 hand-typed constant to go stale — but a value transcribed into prose like this one does.
-As of b331 (`c6c09ae`) the suite reports `fb1880617115f418…`. The value below was correct
-for b328 and is kept only to date the change:
+Worked example of exactly that: `fb1880617115f418…` was the b330 tree and `d362761eb17b85b9…`
+is b331 — the bump alone moved it, because `?v=NNN` is part of the vendored core/data bytes.
+The value below was correct for b328 and is kept only to date the change:
 `7466c50ebdecf4e24a932d829fdd6b1fc5647dd7fbd274b603139f5ae36dca4f`
 (22 files, 230,698 bytes, all LF). The old `6de4f8cd…` was WRONG TWICE OVER: `core.autocrlf=true`
 with no `.gitattributes` meant the index held LF while the worktree held CRLF for whichever

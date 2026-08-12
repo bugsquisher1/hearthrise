@@ -18289,6 +18289,221 @@ const TESTS = [
     }
   }),
 
+  /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────
+     A player played for 3+ hours and NOTHING reached the cloud. Their only
+     game_saves row was 30 hours stale; the whole session existed in one
+     browser's localStorage. Production edge logs for that window: 3,087 x HTTP
+     401, every one carrying `PostgREST; error=PGRST303` (JWT expired), from one
+     IP, continuously — GET game_saves ~every 20s, POST game_events 120/hr, GET
+     session_claims 60/hr. The token in those requests was a real access token
+     ISSUED THE PREVIOUS DAY (iat 1786461852, exp 1786465452), replayed for
+     hours. `/auth/v1/token` saw ~25 requests in the entire 24h, so the refresh
+     was not reaching the network at all.
+
+     THE CHAIN, end to end:
+       1. auth.js restored `session` from localStorage at boot and handed
+          `session.access_token` to every request. NOTHING read `exp`.
+       2. `refreshSession()` on a client whose own session is gone rejects with
+          AuthSessionMissingError WITHOUT a network call; the handler swallowed
+          it in `catch {}`, left `session` untouched, and the retry re-sent the
+          same dead token.
+       3. `pullLatestDetailed()` used a RAW fetch — the one cloud call that never
+          went through the refresh wrapper. Its 401 read as "cloud UNKNOWN".
+       4. That correctly holds the b314 snapshot gate closed — and nothing ever
+          released it. Which is why not one POST to game_saves appears in three
+          hours of logs: the save short-circuited BEFORE the network, forever.
+
+     Note (4): the absent POST is the load-bearing evidence. Everything else was
+     merely loud; that was the data loss. */
+
+  () => tryRun('b331: the exact token production replayed for three hours is refused before it reaches the wire', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.tokenStatus === 'function', 'sync.js no longer classifies a bearer token by expiry');
+    // The incident's token, reconstructed from the logged claims.
+    const jwt = (claims) => {
+      const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return b64({ alg: 'ES256', typ: 'JWT' }) + '.' + b64(claims) + '.sig';
+    };
+    const real = jwt({ sub: 'b94fa8c0-3627-426a-9714-69c363f8929c', role: 'authenticated',
+                       iat: 1786461852, exp: 1786465452 });
+    // Presented at 19:00 UTC the NEXT DAY, which is what the edge logs show.
+    assert(S.tokenStatus(real, 1786554000000) === 'expired',
+      'a token whose exp passed yesterday must be classed expired, got ' + S.tokenStatus(real, 1786554000000));
+    // …and inside its hour it is perfectly usable. A guard that refuses
+    // everything protects nothing.
+    assert(S.tokenStatus(real, 1786463000000) === 'ok',
+      'a live token must still be sent, got ' + S.tokenStatus(real, 1786463000000));
+    assert(S.tokenStatus(null) === 'none', 'no token is not an expired token');
+    // NEVER lock a player out on a parsing guess: anything we cannot decode is
+    // sent and judged by the server.
+    assert(S.tokenStatus('not-a-jwt') === 'opaque', 'an undecodable token must be sent, not refused');
+    assert(S.tokenStatus('a.b.c') === 'opaque', 'an unparseable payload must be sent, not refused');
+    assert(S.tokenStatus(jwt({ sub: 'x' })) === 'opaque', 'a JWT with no exp claim must be sent, not refused');
+  }),
+
+  () => tryRun('b331: three hours of dead auth costs a handful of requests, not 2,160', () => {
+    const S = window.HearthriseSync;
+    assert(typeof S.authGateStep === 'function' && typeof S.decideAuthGate === 'function',
+      'the auth circuit breaker is gone — an expired token can loop unbounded again');
+    // Drive the REAL reducer the request paths use, at the REAL 5s flush cadence,
+    // for the exact duration of the incident.
+    let st = S.newAuthGate();
+    let sent = 0, deadAt = -1;
+    for (let t = 0; t <= 3 * 3600 * 1000; t += 5000) {
+      if (!S.decideAuthGate(st, t).allow) continue;
+      sent++;
+      st = S.authGateStep(st, 'auth-fail', t);
+      if (st.dead && deadAt < 0) deadAt = t;
+    }
+    // The live incident put ~6 requests a minute on the wire for three hours.
+    assert(sent <= 10, 'three hours of failed auth must cost at most a handful of requests, got ' + sent);
+    assert(st.dead === true, 'continuous auth failure must TERMINATE, not settle into a loop');
+    assert(deadAt >= 0 && deadAt <= 5 * 60 * 1000,
+      'the player must be told within ~5 minutes, not three hours; declared dead at ' + deadAt + 'ms');
+    // Backoff really backs off, and is capped so it can never become "never".
+    assert(S.nextAuthBackoffMs(1) < S.nextAuthBackoffMs(3), 'backoff must grow with the failure streak');
+    assert(S.nextAuthBackoffMs(99) === S.AUTH_BACKOFF_MAX_MS, 'backoff must be capped, got ' + S.nextAuthBackoffMs(99));
+    // One live response reopens everything — a transient failure must not brick sync.
+    const back = S.authGateStep(st, 'ok', 9e9);
+    assert(back.dead === false && back.streak === 0 && S.decideAuthGate(back, 9e9).allow,
+      'a single authorised response must fully reopen the gate');
+  }),
+
+  () => tryRun('b331: with an expired token, NOT ONE cloud request reaches the network', () => {
+    const S = window.HearthriseSync;
+    const expired = (() => {
+      const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return b64({ alg: 'ES256' }) + '.' + b64({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 3600 }) + '.sig';
+    })();
+    const realFetch = window.fetch;
+    const heldBuffer = S.getEventBuffer();
+    let fetched = 0, refreshAsked = 0;
+    try {
+      window.fetch = function () { fetched++; return Promise.resolve(new Response('{}', { status: 401 })); };
+      S.resetAuthGate();
+      // A real allowlisted row, so flush() has something to send.
+      S.restoreEventBuffer([{ type: 'questClaim', payload: { id: 'probe' }, ts: Date.now() }]);
+      S.__withConfig({
+        endpoint: 'https://example.invalid/rest/v1/game_events',
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: 'https://example.invalid/rest/v1/session_claims',
+        apiKey: 'anon', userId: () => 'u1', authToken: () => expired,
+        onAuthError: async () => { refreshAsked++; return false; },   // refresh definitively fails
+        onSyncFailure: () => {}, onSyncRecovered: () => {}, onAuthExpired: () => {},
+      }, () => {
+        // Every path the incident hammered. Each returns a promise, but the
+        // decision to go on the wire is made SYNCHRONOUSLY, before any await —
+        // which is exactly why this can be asserted here.
+        S.snapshotIfDue(true, false);
+        S.flush();
+        S.claimSession();
+        S.checkSessionClaim();
+        S.pullLatestDetailed();
+        S.snapshotIfDue(true, false);
+        S.flush();
+      });
+      assert(fetched === 0,
+        'a token we can already prove is dead must never be put on the wire — ' + fetched + ' request(s) went out');
+      assert(refreshAsked >= 1, 'a dead token must trigger a refresh attempt, not silence');
+      assert(refreshAsked <= 2, 'the refresh must be single-flight, not one per blocked request (asked ' + refreshAsked + 'x)');
+      const gate = S.getAuthGate();
+      assert(gate.streak >= 1 && gate.allow === false,
+        'the breaker must have closed after a dead-token attempt, got ' + JSON.stringify(gate));
+    } finally {
+      window.fetch = realFetch;
+      S.restoreEventBuffer(heldBuffer);
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+    }
+  }),
+
+  () => tryRun('b331: dead auth escalates to the player exactly once, through the real save path', () => {
+    const S = window.HearthriseSync;
+    const expired = (() => {
+      const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return b64({ alg: 'ES256' }) + '.' + b64({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 60 }) + '.sig';
+    })();
+    const realFetch = window.fetch;
+    let expiredCalls = 0, failures = [];
+    try {
+      window.fetch = function () { return Promise.resolve(new Response('{}', { status: 401 })); };
+      // One failure short of the terminal state, backoff already elapsed.
+      S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0 });
+      S.__withConfig({
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        apiKey: 'anon', userId: () => 'u1', authToken: () => expired,
+        onAuthError: async () => false,
+        onAuthExpired: () => { expiredCalls++; },
+        onSyncFailure: (r) => { failures.push(r); }, onSyncRecovered: () => {},
+      }, () => {
+        S.snapshotIfDue(true, false);      // tips it over
+        S.snapshotIfDue(true, false);      // must NOT re-fire the notice
+        S.snapshotIfDue(true, false);
+      });
+      assert(expiredCalls === 1,
+        'the player must be told exactly once that their sign-in died, got ' + expiredCalls + ' notices');
+      assert(failures.indexOf('auth-expired') >= 0,
+        'sync health must report the terminal reason so the UI can stop saying "Reconnecting", got ' + JSON.stringify(failures));
+      assert(S.getAuthGate().dead === true, 'the breaker must latch dead');
+      assert(S.decideAuthGate(S.getAuthGate(), Date.now() + 86400000).allow === false,
+        'a dead gate must stay shut even a day later — only a real sign-in reopens it');
+    } finally {
+      window.fetch = realFetch;
+      S.resetAuthGate();
+      S.__resetSyncHealth();
+    }
+  }),
+
+  () => tryRun('b331: after N minutes of dead auth the player is told the truth, not "Reconnecting"', () => {
+    const A = window.HearthriseAuth;
+    assert(A && typeof A.syncFailureMessage === 'function',
+      'auth.js no longer owns the sync-failure copy — the misleading message can come back');
+    const blip = A.syncFailureMessage('offline', 1000);
+    assert(/Reconnecting/i.test(blip), 'a momentary network blip should still read as reconnecting');
+    // The lie: after twenty minutes of dead auth nothing is reconnecting, and
+    // "saved locally" is one cache-clear from gone.
+    const dead = A.syncFailureMessage('auth', 20 * 60 * 1000);
+    assert(!/Reconnecting/i.test(dead), 'a 20-minute auth failure must stop claiming to reconnect: ' + dead);
+    assert(/sign in/i.test(dead), 'the escalated message must name the action that fixes it: ' + dead);
+    assert(/expired/i.test(dead), 'the escalated message must say what actually happened: ' + dead);
+    // A definitively-dead session escalates immediately — no waiting period.
+    assert(!/Reconnecting/i.test(A.syncFailureMessage('auth-expired', 0)),
+      'a definitively expired session must escalate at once, not after a timer');
+    // …and a brief auth hiccup is still allowed to be a hiccup.
+    assert(/Reconnecting/i.test(A.syncFailureMessage('auth', 2000)),
+      'a two-second auth wobble must not shout at the player');
+  }),
+
+  () => tryRun('b331: the sign-in-expired sheet is actionable, and the b302 eviction gate outranks it', () => {
+    const A = window.HearthriseAuth;
+    if (!A || typeof A.showAuthExpiredGate !== 'function') { assert(false, 'the expired-session sheet is missing'); }
+    try {
+      const el = A.showAuthExpiredGate({ streak: 6 });
+      assert(el && document.getElementById('hr-auth-expired-gate'), 'the sheet did not render');
+      const txt = el.textContent;
+      assert(/this device only/i.test(txt), 'it must say where the progress actually is: ' + txt);
+      assert(/expired/i.test(txt), 'it must say the sign-in expired');
+      assert(el.querySelector('#hr-authexp-signin'), 'it must offer the control that fixes it');
+      // Idempotent: six blocked requests must not stack six sheets.
+      A.showAuthExpiredGate({});
+      assert(document.querySelectorAll('#hr-auth-expired-gate').length === 1, 'the sheet must never stack');
+      // Dismissible — a lapsed token must not lock a player out of a running game.
+      A.hideAuthExpiredGate();
+      assert(!document.getElementById('hr-auth-expired-gate'), 'the sheet must be dismissible');
+      // b302 coordination: eviction protects ANOTHER device's save and blocks.
+      // This sheet must never draw over it.
+      const fake = document.createElement('div');
+      fake.id = 'hr-evicted-gate';
+      document.body.appendChild(fake);
+      try {
+        assert(A.showAuthExpiredGate({}) === null, 'the expired sheet must not draw over the eviction gate');
+        assert(!document.getElementById('hr-auth-expired-gate'), 'nothing may render behind the eviction gate');
+      } finally { fake.remove(); }
+    } finally {
+      A.hideAuthExpiredGate();
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

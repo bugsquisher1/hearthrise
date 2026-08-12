@@ -255,10 +255,163 @@ export function isAuthError(status, bodyText) {
   return /jwt expired|pgrst303|token is expired|invalid (jwt|token)/i.test(bodyText || '');
 }
 
+// ── b331: THE EXPIRED-TOKEN CIRCUIT BREAKER ─────────────────────────────────
+// THE INCIDENT: a live player played for 3+ hours and NOTHING reached the cloud.
+// Production edge logs: 3,087 x HTTP 401 from one IP in one continuous block,
+// every response carrying `PostgREST; error=PGRST303` (JWT expired) — GET
+// game_saves every ~20s, POST game_events 120/hr, GET session_claims 60/hr. The
+// token being presented was a real access token that had been ISSUED THE DAY
+// BEFORE: auth.js restores `session` from localStorage at boot and hands
+// `session.access_token` to `withAuthHeaders` forever, and NOTHING anywhere
+// looked at `exp`. `/auth/v1/token` saw ~25 requests in the same 24h, so the
+// refresh was not reaching the network at all — the retry-once wrapper asked for
+// a refresh, the refresh failed silently inside a `catch {}`, and the SAME dead
+// token went straight back on the wire. And because `pullLatestDetailed()` used
+// a RAW fetch, its 401 read as "cloud unknown", which correctly holds the b314
+// snapshot gate closed — permanently. That hold is why not one POST to
+// game_saves appears in the logs: the save path short-circuited before the
+// network on every single tick for three hours.
+//
+// The rule this installs: a request is only put on the wire if we have a token
+// we have no reason to believe is dead, and repeated auth failure BACKS OFF and
+// then TERMINATES into a state the player is told about. Never an unbounded loop
+// presenting a dead JWT.
+
+/**
+ * Is this bearer token safe to PUT ON THE WIRE? Pure.
+ *   'none'   — nothing to send.
+ *   'expired'— a JWT whose `exp` has passed. MUST NOT be sent: the server can
+ *              only answer 401, so sending it is pure quota burn.
+ *   'ok'     — a JWT still inside its lifetime.
+ *   'opaque' — not a decodable JWT. We cannot judge it, so we SEND it. A player
+ *              is never locked out on a parsing guess.
+ */
+export function tokenStatus(tok, now = Date.now(), skewMs = 0) {
+  if (!tok || typeof tok !== 'string') return 'none';
+  const parts = tok.split('.');
+  if (parts.length !== 3) return 'opaque';
+  let claims = null;
+  try {
+    const b = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    claims = JSON.parse(atob(b + '==='.slice((b.length + 3) % 4)));
+  } catch (e) { return 'opaque'; }
+  const exp = Number(claims && claims.exp);
+  if (!isFinite(exp) || exp <= 0) return 'opaque';
+  return (exp * 1000) - skewMs <= now ? 'expired' : 'ok';
+}
+
+export const AUTH_BACKOFF_BASE_MS = 5000;
+export const AUTH_BACKOFF_MAX_MS = 300000;   // 5 min ceiling on a single wait
+export const AUTH_DEAD_AFTER_TRIES = 6;      // ~155s of doubling
+export const AUTH_DEAD_AFTER_MS = 180000;    // …or 3 minutes, whichever first
+
+/** Exponential backoff for consecutive auth failures. Pure. */
+export function nextAuthBackoffMs(streak) {
+  const s = Math.max(1, Math.floor(Number(streak) || 1));
+  return Math.min(AUTH_BACKOFF_MAX_MS, AUTH_BACKOFF_BASE_MS * Math.pow(2, Math.min(s, 20) - 1));
+}
+
+export function newAuthGate() { return { streak: 0, firstAt: 0, blockedUntil: 0, dead: false }; }
+
+/** May this device put a cloud request on the wire right now? Pure. */
+export function decideAuthGate(st, now) {
+  if (!st) return { allow: true, reason: 'no-state' };
+  if (st.dead) return { allow: false, reason: 'auth-dead' };
+  if (st.blockedUntil > now) return { allow: false, reason: 'auth-backoff' };
+  return { allow: true, reason: 'ok' };
+}
+
+/**
+ * The breaker, as a pure reducer, so "three hours of failure costs N requests"
+ * is a claim the suite can simulate rather than a claim about code shape.
+ * outcome: 'ok' (any authorised response — full reset) | 'auth-fail'.
+ */
+export function authGateStep(st, outcome, now) {
+  const s = st || newAuthGate();
+  if (outcome === 'ok') return newAuthGate();
+  const streak = s.streak + 1;
+  const firstAt = s.firstAt || now;
+  const dead = !!(s.dead || streak >= AUTH_DEAD_AFTER_TRIES || (now - firstAt) >= AUTH_DEAD_AFTER_MS);
+  return { streak, firstAt, blockedUntil: now + nextAuthBackoffMs(streak), dead };
+}
+
+let authGate = newAuthGate();
+let refreshPromise = null;
+
+export function getAuthGate() {
+  const now = Date.now();
+  return { ...authGate, ...decideAuthGate(authGate, now) };
+}
+/**
+ * Auth recovered (or a test is done). Opens the gate again. `state` is a test
+ * seam: the b331 battery seeds a gate one failure short of dead so the
+ * escalation to onAuthExpired can be driven through the REAL request path
+ * instead of being asserted about in the abstract.
+ */
+export function resetAuthGate(state) { authGate = state ? { ...newAuthGate(), ...state } : newAuthGate(); }
+
+function noteAuthFailure(label, why) {
+  const wasDead = authGate.dead;
+  authGate = authGateStep(authGate, 'auth-fail', Date.now());
+  if (authGate.dead && !wasDead) {
+    console.warn('[sync] auth is dead after ' + authGate.streak + ' failures ('
+      + label + '/' + why + ') — cloud writes stopped until the player signs in again.');
+    reportSync(false, 'auth-expired');
+    safeCall(config && config.onAuthExpired, { streak: authGate.streak, label, why });
+  }
+}
+function noteAuthOk() { if (authGate.streak || authGate.dead) authGate = newAuthGate(); }
+
+function currentToken() {
+  if (!config || !config.authToken) return null;
+  try { return typeof config.authToken === 'function' ? config.authToken() : config.authToken; }
+  catch (e) { return null; }
+}
+
+/**
+ * Ask the auth layer to refresh, at most ONE in flight. `config.onAuthError`
+ * returns true when it genuinely got a new token, false when the refresh
+ * definitively failed. It is invoked SYNCHRONOUSLY so a caller that does not
+ * await still knows the attempt was made.
+ */
+function doRefresh() {
+  if (refreshPromise) return refreshPromise;
+  const fn = config && config.onAuthError;
+  if (typeof fn !== 'function') return Promise.resolve(false);
+  let p; try { p = fn(); } catch (e) { return Promise.resolve(false); }
+  refreshPromise = Promise.resolve(p).then(
+    (ok) => { if (ok === true) resetAuthGate(); return ok !== false; },
+    () => false
+  );
+  const clear = () => { refreshPromise = null; };
+  refreshPromise.then(clear, clear);
+  return refreshPromise;
+}
+
+/**
+ * THE GATE EVERY CLOUD REQUEST PASSES. Returns false when this device must not
+ * put another request on the wire — either the breaker is open, or the token we
+ * would send is one we can already prove the server will reject. An expired
+ * token is a LOCAL certainty, so it costs a refresh attempt and a breaker tick,
+ * not a round trip.
+ */
+function authPreflight(label) {
+  if (!decideAuthGate(authGate, Date.now()).allow) return false;
+  if (config && config.authToken && tokenStatus(currentToken()) === 'expired') {
+    doRefresh();
+    noteAuthFailure(label, 'expired-token');
+    return false;
+  }
+  return true;
+}
+
 /**
  * fetch() with one refresh-and-retry on an auth error. `initFn()` is called
  * fresh per attempt so the retry uses newly-refreshed auth headers. Reports sync
  * health. Returns the Response (ok or not), or null on a hard network failure.
+ *
+ * b331: the retry is now CONDITIONAL on the refresh having actually produced a
+ * live token. Re-sending a token we know is dead was half the 401 flood.
  */
 async function fetchWithAuthRetry(url, initFn, label) {
   let res;
@@ -267,16 +420,22 @@ async function fetchWithAuthRetry(url, initFn, label) {
   if (!res.ok && (res.status === 401 || res.status === 403 || res.status === 400)) {
     let body = ''; try { body = await res.clone().text(); } catch {}
     if (isAuthError(res.status, body) && config.onAuthError) {
-      try { await config.onAuthError(); } catch {}
-      try { res = await fetch(url, initFn()); }
-      catch (e) { console.warn('[sync] ' + label + ' retry network error:', e.message); reportSync(false, 'offline'); return null; }
+      const refreshed = await doRefresh();
+      if (refreshed && tokenStatus(currentToken()) !== 'expired') {
+        try { res = await fetch(url, initFn()); }
+        catch (e) { console.warn('[sync] ' + label + ' retry network error:', e.message); reportSync(false, 'offline'); return null; }
+      }
+      // else: the refresh definitively failed. A second request with the same
+      // dead token can only 401 again — that is the loop this exists to stop.
     }
   }
-  if (res.ok) { reportSync(true); }
+  if (res.ok) { noteAuthOk(); reportSync(true); }
   else {
     let body = ''; try { body = await res.clone().text(); } catch {}
     console.warn('[sync] ' + label + ' failed:', res.status, body.slice(0, 140));
-    reportSync(false, 'auth');
+    const authish = isAuthError(res.status, body);
+    if (authish) noteAuthFailure(label, 'http-' + res.status);
+    reportSync(false, authish ? 'auth' : 'server');
   }
   return res;
 }
@@ -307,6 +466,7 @@ async function flush() {
   if (!isEventLogEnabled()) return;     // b319: kill switch — events only; saves unaffected
   if (buffer.length === 0) return;
   if (!navigator.onLine) return;        // Browser offline — keep buffered
+  if (!authPreflight('flush')) return;  // b331: dead/backed-off auth — do not hammer
 
   const userId = config.userId
     ? (typeof config.userId === 'function' ? config.userId() : config.userId)
@@ -440,6 +600,10 @@ async function snapshotIfDue(force, keepalive) {
   if (paused) return false;                 // b302: evicted device must not clobber the cloud
   if (snapshotHold) return false;           // b314: reconcile not done — never upload local yet
   if (!config?.snapshotEndpoint) return false;
+  // b331: check auth BEFORE the throttle watermark moves and before we write the
+  // local snapshot cache — a blocked attempt must cost nothing and must not eat
+  // the next 60s window.
+  if (!authPreflight('snapshot')) return false;
   const now = Date.now();
   if (!force && now - lastSnapshotAt < (config.snapshotIntervalMs || 60000)) return false;
   lastSnapshotAt = now;
@@ -504,16 +668,18 @@ export async function pullLatestDetailed() {
   if (!config?.snapshotEndpoint) return { status: 'skip', snap: null };
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return { status: 'skip', snap: null };
+  // b331: this was a RAW fetch — the ONE cloud call that never went through the
+  // refresh-and-retry wrapper. Its 401 read as "cloud unknown", which holds the
+  // b314 snapshot gate closed forever, which is why an expired token stopped the
+  // save path before it ever reached the network. It now refreshes, retries and
+  // feeds the breaker like every other call.
+  if (!authPreflight('pull')) return { status: 'error', snap: null, reason: 'auth-blocked' };
   try {
-    const headers = {};
-    if (config.authToken) {
-      const tok = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
-      if (tok) headers['Authorization'] = `Bearer ${tok}`;
-    }
-    if (config.apiKey) headers['apikey'] = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
     const slot = (config.slot != null) ? config.slot : 0;
-    const res = await fetch(`${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`, { headers });
-    if (!res.ok) return { status: 'error', snap: null };            // could not read — UNKNOWN cloud
+    const res = await fetchWithAuthRetry(
+      `${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`,
+      () => ({ headers: withAuthHeaders({}) }), 'pull');
+    if (!res || !res.ok) return { status: 'error', snap: null };    // could not read — UNKNOWN cloud
     let rows;
     try { rows = await res.json(); } catch (e) { return { status: 'error', snap: null }; }
     const row = rows && rows[0];
@@ -623,6 +789,7 @@ export async function claimSession() {
   if (!config?.claimEndpoint) return false;
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return false;
+  if (!authPreflight('claim')) return false;              // b331
   const now = new Date().toISOString();
   const body = { user_id: userId, device_id: getInstanceId(), claimed_at: now, heartbeat_at: now };
   const res = await fetchWithAuthRetry(`${config.claimEndpoint}?on_conflict=user_id`, () => ({
@@ -640,6 +807,7 @@ async function heartbeatClaim() {
   if (paused || !config?.claimEndpoint || !navigator.onLine) return;
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return;
+  if (!authPreflight('heartbeat')) return;                // b331
   const url = `${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&device_id=eq.${encodeURIComponent(getInstanceId())}`;
   try {
     await fetch(url, {
@@ -662,6 +830,9 @@ export async function checkSessionClaim() {
   if (!config?.claimEndpoint || !navigator.onLine) return { status: 'skip' };
   const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
   if (!userId) return { status: 'skip' };
+  // b331: a blocked poll must behave exactly like a network error — it NEVER
+  // evicts (b302's cardinal rule), it just does not happen.
+  if (!authPreflight('claim-poll')) return { status: 'skip' };
   const me = getInstanceId();
   let res;
   try { res = await fetch(`${config.claimEndpoint}?user_id=eq.${encodeURIComponent(userId)}&select=device_id,heartbeat_at`, { headers: withAuthHeaders({}) }); }
@@ -769,6 +940,24 @@ window.HearthriseSync = {
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
   claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
   holdSnapshots, releaseSnapshots, isSnapshotHeld,
+  // b331 expired-token circuit breaker
+  tokenStatus, nextAuthBackoffMs, newAuthGate, decideAuthGate, authGateStep,
+  getAuthGate, resetAuthGate,
+  AUTH_DEAD_AFTER_TRIES, AUTH_DEAD_AFTER_MS, AUTH_BACKOFF_MAX_MS,
+  /* Test seam: run fn() with the module config temporarily patched, then put the
+     previous config back EXACTLY. The b331 battery uses this to drive the REAL
+     request paths (flush / snapshotIfDue / pullLatestDetailed / claimSession)
+     against a dead token without a live account — the alternative was a parallel
+     reimplementation of the thing under test, which proves nothing. */
+  /* Test seam: the battery drives a real health TRANSITION, which latches
+     syncHealthy. Put it back so a player who runs the suite in-game doesn't get
+     a spurious "Back online" toast on their next successful save. */
+  __resetSyncHealth: () => { syncHealthy = true; },
+  __withConfig: (patch, fn) => {
+    const prev = config;
+    config = { ...(config || {}), ...patch };
+    try { return fn(); } finally { config = prev; }
+  },
   // b319 telemetry containment
   isEventAllowed, isEventLogEnabled, setEventLogEnabled, admitEvent, getEventStats, resetEventLimiter,
   buildEventRows,

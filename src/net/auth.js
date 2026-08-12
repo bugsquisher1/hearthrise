@@ -5,7 +5,8 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots } from './sync.js?v=330';
+import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
+         tokenStatus, resetAuthGate } from './sync.js?v=330';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -38,6 +39,88 @@ const LOCAL_KEY = 'hearthrise:supabaseSession';
 export function decideSessionEvent(event, newSession) {
   if (newSession) return 'persist';
   return (event === 'SIGNED_OUT' || event === 'USER_DELETED') ? 'clear' : 'ignore';
+}
+
+/* ── b331: THE OTHER HALF OF THAT RULE ───────────────────────────────────────
+   'ignore' is right — a transient null must not sign a player out — but it was
+   the ONLY thing standing between "supabase-js lost its session" and "this
+   module keeps handing out a dead access token forever". Production proof: a
+   player's requests on 2026-08-12 carried a token ISSUED ON 2026-08-11, replayed
+   for three hours against 3,087 PGRST303s. `decideSessionEvent` protects the
+   CACHE; nothing protected the TOKEN. The recovery ladder below is that half:
+   recover over the real network, or terminate into a state the player can act on.
+   The one thing it must never do is settle. */
+
+let recoverInFlight = null;
+let syncDownSince = 0;
+let refreshTimer = null;
+
+function readCachedSession() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch (e) { return null; }
+}
+
+function adoptSession(s) {
+  session = s;
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(s)); } catch (e) {}
+  try { resetAuthGate(); } catch (e) {}          // the breaker may open again
+  syncDownSince = 0;
+  hideAuthExpiredGate();
+}
+
+/**
+ * THE RECOVERY LADDER. Returns true only if a LIVE access token now exists.
+ *
+ * Step 1 is what the old handler did, and on its own it is the bug: when
+ * supabase-js has dropped its own session, `refreshSession()` rejects with
+ * AuthSessionMissingError WITHOUT MAKING A NETWORK CALL — which is exactly what
+ * the edge logs showed (~25 `/auth/v1/token` requests in a day against 3,087
+ * 401s). Steps 2 and 3 re-arm the library from the refresh token we hold in
+ * LOCAL_KEY, which forces a real POST to the token endpoint.
+ *
+ * Single-flight: six failing requests a minute must not become six refreshes.
+ */
+export async function recoverSession() {
+  if (recoverInFlight) return recoverInFlight;
+  recoverInFlight = (async () => {
+    if (!supabase) return false;
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
+    } catch (e) { /* AuthSessionMissingError lands here, silently and offline */ }
+
+    const cached = readCachedSession();
+    const rt = cached && cached.refresh_token;
+    if (rt) {
+      try {
+        const { data } = await supabase.auth.setSession({
+          access_token: (cached && cached.access_token) || '', refresh_token: rt });
+        if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
+      } catch (e) {}
+      try {
+        const { data } = await supabase.auth.refreshSession({ refresh_token: rt });
+        if (data && data.session && data.session.access_token) { adoptSession(data.session); return true; }
+      } catch (e) {}
+    }
+    console.warn('[Auth] the session could not be refreshed — this token is dead; the player must sign in again.');
+    return false;                                  // DEFINITIVE: sync stops asking
+  })();
+  try { return await recoverInFlight; } finally { recoverInFlight = null; }
+}
+
+/**
+ * What the player is told when sync is down. Pure, so the escalation is provable.
+ *
+ * "⚠️ Reconnecting… your progress is saved locally" is honest for a network
+ * blip. It is a LIE after twenty minutes of dead auth: nothing is reconnecting,
+ * and "saved locally" is one cache-clear from gone. So a definitively-expired
+ * session, or auth failure that has persisted past ESCALATE_AFTER_MS, says so.
+ */
+export const ESCALATE_AFTER_MS = 180000;   // 3 minutes
+export function syncFailureMessage(reason, downMs) {
+  if (reason === 'auth-expired' || (reason === 'auth' && Number(downMs) >= ESCALATE_AFTER_MS)) {
+    return '🔒 Your sign-in has expired — nothing is reaching the cloud. Sign in again to save your progress.';
+  }
+  return '⚠️ Reconnecting… your progress is saved locally.';
 }
 
 /**
@@ -116,21 +199,24 @@ function enableLiveSync() {
     // b149 — token expiry hardening. If a save fails on an expired token, sync
     // asks us to refresh + retries once; and we surface sync health to the UI
     // so a player knows when their progress isn't reaching the cloud.
-    onAuthError: async () => {
-      try {
-        const { data } = await supabase.auth.refreshSession();
-        if (data?.session) {
-          session = data.session;
-          localStorage.setItem(LOCAL_KEY, JSON.stringify(session));
-        }
-      } catch (e) { console.warn('[Auth] token refresh failed:', e.message); }
-    },
-    onSyncFailure: () => {
-      if (typeof window.notify === 'function') window.notify('⚠️ Reconnecting… your progress is saved locally.', 'kill');
+    // b331: returns TRUE only when a live token now exists. sync.js uses that
+    // answer to decide whether retrying is worth a request at all.
+    onAuthError: async () => recoverSession(),
+    // b331: the breaker has declared this session unrecoverable. Stop pretending
+    // we are "reconnecting" and give the player the one control that fixes it.
+    onAuthExpired: (info) => { showAuthExpiredGate(info); },
+    onSyncFailure: (reason) => {
+      if (!syncDownSince) syncDownSince = Date.now();
+      const msg = syncFailureMessage(reason, Date.now() - syncDownSince);
+      if (typeof window.notify === 'function') window.notify(msg, 'kill');
       const pill = document.getElementById('status-pill') || document.getElementById('hr-auth-banner');
-      if (pill) pill.textContent = '🟠 Reconnecting…';
+      const label = (pill && pill.querySelector('span:last-child')) || pill;
+      if (label) label.textContent = (reason === 'auth-expired') ? 'Sign in to save' : 'Reconnecting…';
+      if (pill) pill.classList.add('off');
     },
     onSyncRecovered: () => {
+      syncDownSince = 0;
+      hideAuthExpiredGate();
       if (typeof window.notify === 'function') window.notify('✅ Back online — progress synced.', 'info');
       renderAuthUi();
     },
@@ -149,6 +235,16 @@ function enableLiveSync() {
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
+  // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
+  // (autoRefreshToken:true), and in the incident it demonstrably stopped without
+  // saying so. A token five minutes from death is refreshed here, so the whole
+  // expired-token class costs zero failed requests in the normal case.
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    const tok = session && session.access_token;
+    if (!tok) return;
+    if (tokenStatus(tok, Date.now(), 300000) === 'expired') recoverSession();
+  }, 60000);
   // Pull cloud snapshot on first connection if local save is older
   pullAndMaybeRestore();
 }
@@ -293,8 +389,15 @@ export function decideRestore(local, snap, ownership) {
 // data-loss the reconcile gate exists to prevent. Local persistence (saveLocal +
 // the event buffer) is untouched, so nothing is lost; uploads simply wait until
 // we get a definitive read. Backoff caps so we don't hammer a dead endpoint.
+// b331: the cap was 30s, so an unreadable cloud meant a GET every 30 seconds
+// FOREVER — 120/hr, all of them 401, for the whole of a three-hour session. The
+// gate must still stay held (that part is right), but holding it does not
+// require hammering: 5 minutes recovers just as fast in every case a human
+// notices, and the breaker in sync.js keeps the blocked attempts off the network
+// entirely. This loop deliberately never gives up, so a background refresh that
+// succeeds always gets the reconcile — and therefore the upload — restarted.
 let reconcileAttempts = 0;
-const RECONCILE_MAX_DELAY = 30000;
+const RECONCILE_MAX_DELAY = 300000;
 
 async function pullAndMaybeRestore() {
   // b314: hold snapshot uploads until we have pulled the cloud and reconciled.
@@ -555,7 +658,62 @@ function showAuthModal() {
 // lock screen. Inline styles + max z-index on purpose — it must render even if
 // the game's own CSS is mid-teardown. "Use here instead" re-claims for this
 // device and reloads (which then evicts the other one on its next poll).
+/* ── b331: THE SIGN-IN-EXPIRED SHEET ─────────────────────────────────────────
+   The honest version of "⚠️ Reconnecting…". By the time this shows, the breaker
+   has proved the token cannot be refreshed, so there is nothing to reconnect to
+   and no amount of waiting will help. It states where the progress actually is,
+   what would destroy it, and offers the single control that fixes it.
+
+   It does NOT stop the game and does NOT clear LOCAL_KEY — that key is what the
+   account gate opens on, and the refresh token inside it is the only thing that
+   can still recover this session. Deliberately DISMISSIBLE, unlike the b302
+   eviction gate: eviction protects another device's save (blocking), this one
+   protects this device's, and locking a player out of a running game because
+   their token lapsed would be a worse bug than the one it reports.
+
+   Coordination with b302: eviction is the stronger state. This sheet never draws
+   over the eviction gate, and the eviction gate removes it on the way up. */
+export function showAuthExpiredGate(info) {
+  if (typeof document === 'undefined' || !document.body) return null;
+  if (document.getElementById('hr-evicted-gate')) return null;   // b302 wins
+  const existing = document.getElementById('hr-auth-expired-gate');
+  if (existing) return existing;
+  const el = document.createElement('div');
+  el.id = 'hr-auth-expired-gate';
+  el.setAttribute('role', 'dialog');
+  el.style.cssText = [
+    'position:fixed', 'left:50%', 'transform:translateX(-50%)', 'bottom:18px',
+    'z-index:2147483646', 'max-width:440px', 'width:calc(100% - 24px)',
+    'background:rgba(9,12,17,.96)', 'color:#f2e9d8', 'border:1px solid #d9a441',
+    'border-radius:12px', 'padding:16px 18px', 'box-sizing:border-box',
+    'font:400 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    'box-shadow:0 10px 30px rgba(0,0,0,.5)'
+  ].join(';');
+  el.innerHTML =
+    '<div style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:6px">🔒 Your sign-in expired</div>' +
+    '<p style="margin:0 0 6px">Hearthrise has stopped saving to the cloud. Everything since then is stored '
+    + '<strong>on this device only</strong> — clearing your browser data would lose it.</p>' +
+    '<p style="margin:0 0 12px;opacity:.75">Sign in again and your progress uploads straight away.</p>' +
+    '<div style="display:flex;gap:8px">' +
+    '<button id="hr-authexp-signin" style="flex:1;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Sign in again</button>' +
+    '<button id="hr-authexp-later" style="font:500 14px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Not now</button>' +
+    '</div>';
+  document.body.appendChild(el);
+  const go = el.querySelector('#hr-authexp-signin');
+  if (go) go.addEventListener('click', () => { try { showAuthModal(); } catch (e) {} });
+  const later = el.querySelector('#hr-authexp-later');
+  if (later) later.addEventListener('click', () => hideAuthExpiredGate());
+  return el;
+}
+
+export function hideAuthExpiredGate() {
+  if (typeof document === 'undefined') return;
+  const el = document.getElementById('hr-auth-expired-gate');
+  if (el) el.remove();
+}
+
 function showEvictedGate() {
+  hideAuthExpiredGate();                                     // b331: eviction outranks it
   try { if (window.HearthriseSync && window.HearthriseSync.pauseSync) window.HearthriseSync.pauseSync(); } catch (e) {}
   try { if (typeof window.stopCombat === 'function') window.stopCombat(); } catch (e) {}
   try { if (typeof window.stopSkill === 'function') window.stopSkill(); } catch (e) {}
@@ -590,7 +748,13 @@ function showEvictedGate() {
 }
 
 // Expose for legacy callers
-window.HearthriseAuth = { setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId, decideLocalOwnership };
+window.HearthriseAuth = {
+  setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
+  decideLocalOwnership,
+  // b331 — expired-session recovery + the sheet that tells the player the truth
+  recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
+  showAuthExpiredGate, hideAuthExpiredGate,
+};
 
 // Auto-render banner state once on load (in case the user is already signed in)
 if (document.readyState === 'loading') {

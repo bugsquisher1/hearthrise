@@ -85,11 +85,70 @@ exactly like a bad secret or a pooler misconfiguration. **I have since applied i
 verified: gate exists, executable by `hr_engine` only (authenticated/anon false), and
 `hr_rate_ok` is NOT executable by the engine — so the engine cannot name its own limit.
 
-**The `?v=` bundler question is ANSWERED: keep them.** Proven with real Deno 2.9.5 rather
-than by deploying — `deno check` built the whole graph including `npm:postgres`, and
-`deno bundle --platform=deno` produced "32 modules in 55ms, 204.47 KB", both with `?v=326`
-intact on every relative specifier. **No `--strip-query` needed.** (Not yet run against
-Supabase's hosted eszip, which is the same deno_graph but not identical.)
+**~~The `?v=` bundler question is ANSWERED: keep them.~~ WRONG — REFUTED BY EXECUTION
+2026-08-12. STRIP THEM.** The superseded claim is kept verbatim below because the *way* it
+was wrong is worth more than the answer:
+
+> Proven with real Deno 2.9.5 rather than by deploying — `deno check` built the whole graph
+> including `npm:postgres`, and `deno bundle --platform=deno` produced "32 modules in 55ms,
+> 204.47 KB", both with `?v=326` intact on every relative specifier. **No `--strip-query`
+> needed.** (Not yet run against Supabase's hosted eszip, which is the same deno_graph but
+> not identical.)
+
+The local proof was real. **The parenthetical caveat was the load-bearing part, and it was
+right.** First real `supabase functions deploy hr-accrue` (CLI 2.114.0), packed 22-file tree:
+
+```
+WARN: failed to read file: open supabase/functions/hr-accrue/vendor/data/monsters.js?v=326: no such file or directory
+WARN: failed to read file: open supabase/functions/hr-accrue/vendor/core/combat.js?v=326: no such file or directory
+unexpected deploy status 400: {"message":"Failed to bundle the function (reason: Module not found
+  \"file:///tmp/user_fn_.../vendor/core/combat.js?v=326\". at .../accrual.js:38:8)."}
+```
+
+**Supabase's hosted bundler resolves a relative specifier as a literal FILE PATH, query
+string included.** Nothing deployed — a clean 400, no partial state. Generalise it: *a proof
+run against a near-identical stand-in is evidence, not a result; when such a proof ships with
+a caveat naming the difference, the caveat is the finding.* This is a NEW variant of the family
+in "HOW TO WORK ON THIS" #1 below — not an assertion that asserted nothing, but a sound proof
+of the **adjacent** thing, recorded as if it were the thing.
+
+**Fixed in b332 (`tools/pack-edge.mjs`), and the fix is not a flag.** `--strip-query` is GONE;
+`stripVersionQueries` is now the ONE unconditional transform, applied to vendored files and to
+the function's own. `pack()` takes **no option that can change the payload**, so the smoke
+suite's hash guard and the deploy pack identically *by construction* rather than by two call
+sites remembering the same flag. The header of `pack-edge.mjs` reasons this out in full,
+including what replaced the "vendored byte-identical" invariant it used to defend:
+
+>     vendored payload bytes === stripVersionQueries(repo bytes)
+
+— identity after ONE named, total, mechanical transform, asserted by `--check` against the raw
+disk bytes. Byte-identity was only ever the *means*; "the server runs exactly the rules the
+client does" was the end, and a payload that cannot deploy runs no rules at all.
+
+**Two guards, both mutation-proven RED:**
+- `pack()` fails if ANY relative specifier survives into the packed bytes carrying a `?v=`
+  (broader than the transform on purpose — a side-effect `import './x.js?v=331';` slips past
+  a `from`-shaped regex and would have produced the same 400).
+- `versionQueryGuard()` fails if any file under `supabase/functions/**` or `tests/**` carries
+  a `?v=` **on disk**.
+
+**SECOND, INDEPENDENT BUG, found while diagnosing: `bump-version.sh` walks `src/` only**
+(`find src -name '*.js'`, line ~92), so `supabase/functions/**` and `tests/**` were never
+bumped — the function's imports sat frozen at `?v=326` while their vendored targets moved to
+`?v=331`. **Five builds of silent drift**, invisible because the query is inert in Node.
+`tests/conservation-fuzz.mjs` had the same rot at `?v=328`, hidden behind a
+`const V = '?v=328'` indirection. **The fix is deliberately NOT to widen the bump script.** A
+`?v=` is a browser cache-buster; nothing under those roots is served to a browser, so a version
+there has no job and can only rot. The queries were removed and `versionQueryGuard()` keeps
+them out. The contract is now split with no overlap and no gap:
+`bump-version.sh --check` = everything the browser loads carries the CURRENT version;
+`versionQueryGuard()` = everything the browser does not load carries NONE. Both `CLAUDE.md`'s
+statement of the bump contract and the script's own header say so.
+
+**Consequence worth knowing before the next release: a cache-buster bump no longer moves the
+payload hash.** Verified by running `?v=331 → ?v=999` across `src/**` and repacking — same
+digest. A bump alone no longer demands an Edge redeploy; only a real change to
+`src/core/**`, `src/data/**` or `supabase/functions/**` does.
 
 **THE SERVER CAN COMPUTE PROGRESSION — proven end to end against production.** A real
 character driven through the real RPCs with the packed engine, using the cap/seed/envelope
@@ -129,10 +188,14 @@ property of the tree, and every merge that touches `supabase/functions/**`, `src
 `tools/pack-edge.mjs` computes the digest and injects it at pack time, so there is no
 hand-typed constant to go stale — but a value transcribed into prose like this one does.
 Worked example of exactly that: `fb1880617115f418…` was the b330 tree and `d362761eb17b85b9…`
-is b331 — the bump alone moved it, because `?v=NNN` is part of the vendored core/data bytes.
-The value below was correct for b328 and is kept only to date the change:
+was b331 — the bump alone moved it, because `?v=NNN` was part of the vendored core/data bytes.
+**b332 ended that particular churn** (the strip removes the query before hashing), so from here
+the digest moves only on a real change. Current, from `node tools/pack-edge.mjs hr-accrue --hash`
+on the b332 tree — **still derive it, do not trust this line**:
+`752c6a7a83cd49e70b31fc91a5c68a42b1a978c4c77dc35476d2207dcf8da381`
+(22 files, 230,560 bytes / 225.2 KB, all LF). The b328 value
 `7466c50ebdecf4e24a932d829fdd6b1fc5647dd7fbd274b603139f5ae36dca4f`
-(22 files, 230,698 bytes, all LF). The old `6de4f8cd…` was WRONG TWICE OVER: `core.autocrlf=true`
+(22 files, 230,698 bytes) is kept only to date the change. The old `6de4f8cd…` was WRONG TWICE OVER: `core.autocrlf=true`
 with no `.gitattributes` meant the index held LF while the worktree held CRLF for whichever
 payload files an editor had rewritten (`index.ts` 430 CRLFs, `accrual.js` 451), so one commit
 packed to different hashes on different machines — it was reproducible on exactly one box.
@@ -254,7 +317,12 @@ single-call `begin … rollback` probes and read-only queries are unchanged — 
 an exploit gets proven open before it is closed, and that bar stays.
 
 ## NEXT, IN ORDER
-1. Get a `SUPABASE_ACCESS_TOKEN` from Tyler and deploy the Edge Function from the staged tree; then set `HR_ACCRUE_URL` so `deployedPayloadGuard` stops skipping. Re-confirmed 2026-08-11: `list_edge_functions` returns `bug-report-bridge` ONLY, so this is still the live blocker.
+1. Deploy the Edge Function from the staged tree, then set `HR_ACCRUE_URL` so
+   `deployedPayloadGuard` stops skipping. The token blocker is resolved (Tyler ran the CLI);
+   the **bundler** blocker that killed the first attempt is fixed in b332 — repack with
+   `node tools/pack-edge.mjs hr-accrue --out <dir>` and deploy that directory. Expect payload
+   `752c6a7a…` (derive it, do not trust this line). `list_edge_functions` still returns
+   `bug-report-bridge` only.
 1b. **After the next client bump ships**, apply `2026-08-11-live-market-rls.sql` a SECOND
    time with `set hearthrise.beta_invites_lockdown_ok = 'yes'` — that closes A11's
    server half. The client half is already in (efe6539); doing it before the deploy
@@ -344,6 +412,10 @@ own review pass rather than riding along with someone else's migration.
    `pg_get_function_identity_arguments()` returning parameter NAMES so any
    `to_regprocedure` built from it is NULL on every database. **Prove a test fails when
    the bug is present**, or it is decoration.
+   **b332 added a ninth, in a new shape: a proof of the ADJACENT thing.** `deno bundle`
+   locally is not Supabase's hosted eszip; the local run genuinely passed and the deploy
+   still 400'd. When a proof ships with a caveat naming what it did not exercise, the
+   caveat is the result — do not let it get summarised away into "ANSWERED".
 2. **`tests/conservation-fuzz.mjs` runs all four migrations against PGlite** — real
    PostgreSQL 18 in WASM, in-process, no Docker, no credentials, production untouched.
    Use `tests/sql/pglite-fixture.sql` to prove migrations. This is far better than

@@ -18,7 +18,7 @@ import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
-import { pack as packEdge } from '../tools/pack-edge.mjs';
+import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -138,9 +138,20 @@ async function wallGuard(browser, url) {
 // key — the gateway accepts it as a token, and the GET returns nothing secret).
 // With neither set the check reports SKIPPED and says what it needs. It never
 // passes quietly.
+//
+// b332 — PACKABILITY NOW RUNS HERE TOO. `pack-edge --check` existed but nothing
+// invoked it on a push, so the two things it proves (the payload is packable at
+// all, and no relative specifier still carries a `?v=` the Supabase bundler
+// would read as part of the filename) only ran when somebody remembered. The
+// first real deploy failed at the bundler on exactly that. A guard nobody runs
+// is not a guard, so `runAll()` is wired in below, and `pack()`'s own problems —
+// which this used to discard while keeping the hash — are surfaced. Reporting a
+// hash for a payload that cannot deploy is the decoration failure again.
 async function deployedPayloadGuard() {
-  const problems = [];
-  const { hash } = await packEdge('hr-accrue');
+  const problems = await packCheck();
+  const { hash, problems: packProblems } = await packEdge('hr-accrue');
+  for (const p of packProblems) problems.push(`[hr-accrue] ${p}`);
+  if (problems.length) return { problems, note: '' };
   const url = process.env.HR_ACCRUE_URL;
   if (!url) {
     return { problems, note: `repo payload ${hash.slice(0, 16)}… · deployed check SKIPPED (set HR_ACCRUE_URL, and HR_ACCRUE_KEY for the gateway)` };
@@ -669,17 +680,23 @@ const run = async () => {
       console.log(`\nIdentity guard — every forged token refused; ${jwtNote}`);
     }
 
-    /* ── Deployed-vs-repo (S10) ─────────────────────────────────────────
-       `pack-edge --check` re-derives the payload from the same repo it
-       just read, so it structurally cannot answer "do the bytes running in
-       production match this branch?". The function reports the sha256 it
-       was packed with on a GET; this compares that with the digest
-       recomputed here. SKIPPED, LOUDLY, when no URL is configured — a
-       check that prints nothing when it does not run is the failure this
-       program has hit six times. */
+    /* ── Deployable, then deployed-vs-repo (S10, b332) ──────────────────
+       TWO questions, in order, because the second is meaningless without
+       the first:
+         1. IS IT DEPLOYABLE? `pack-edge` runAll() — packability plus the
+            no-`?v=`-in-the-payload rule the first real deploy bought at the
+            cost of a 400 from the hosted bundler. This used to exist and be
+            invoked by nobody on a push.
+         2. IS IT DEPLOYED? `pack-edge --check` re-derives the payload from
+            the same repo it just read, so it structurally cannot answer "do
+            the bytes running in production match this branch?". The function
+            reports the sha256 it was packed with on a GET; this compares
+            that with the digest recomputed here. SKIPPED, LOUDLY, when no
+            URL is configured — a check that prints nothing when it does not
+            run is the failure this program has hit six times. */
     const deployProblems = await deployedPayloadGuard();
     if (deployProblems.problems.length) {
-      console.log('\nEdge payload guard (deployed bytes == repo bytes) — FAILED:');
+      console.log('\nEdge payload guard (packable, then deployed bytes == repo bytes) — FAILED:');
       for (const p of deployProblems.problems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {

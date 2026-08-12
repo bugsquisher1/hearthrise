@@ -40,14 +40,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   COMBAT_BALANCE, WEAPON_SPEED_MOD, DEFAULT_PROFILE,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
-} from '../src/core/combat.js?v=326';
-import { simulateSpan } from '../src/core/combat-sim.js?v=326';
-import { killBonusesFor } from '../src/core/botd.js?v=326';
-import { createRng } from '../src/core/rng.js?v=326';
-import { grantXp } from '../src/core/progression.js?v=326';
-import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js?v=326';
-import { ITEMS } from '../src/data/items.js?v=326';
-import { MONSTERS } from '../src/data/monsters.js?v=326';
+} from '../src/core/combat.js';
+import { simulateSpan } from '../src/core/combat-sim.js';
+import { killBonusesFor } from '../src/core/botd.js';
+import { createRng } from '../src/core/rng.js';
+import { grantXp } from '../src/core/progression.js';
+import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
+import { ITEMS } from '../src/data/items.js';
+import { MONSTERS } from '../src/data/monsters.js';
 
 import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,

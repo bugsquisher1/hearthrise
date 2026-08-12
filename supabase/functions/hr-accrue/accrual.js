@@ -35,13 +35,13 @@
 import {
   DEFAULT_PROFILE, swingIntervalMs,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
-} from '../../../src/core/combat.js?v=326';
-import { simulateSpan } from '../../../src/core/combat-sim.js?v=326';
-import { killBonusesFor } from '../../../src/core/botd.js?v=326';
-import { createRng } from '../../../src/core/rng.js?v=326';
-import { grantXp } from '../../../src/core/progression.js?v=326';
-import { resolveStyle } from '../../../src/core/styles.js?v=326';
-import { levelFromXp } from '../../../src/core/xp.js?v=326';
+} from '../../../src/core/combat.js';
+import { simulateSpan } from '../../../src/core/combat-sim.js';
+import { killBonusesFor } from '../../../src/core/botd.js';
+import { createRng } from '../../../src/core/rng.js';
+import { grantXp } from '../../../src/core/progression.js';
+import { resolveStyle } from '../../../src/core/styles.js';
+import { levelFromXp } from '../../../src/core/xp.js';
 
 /* The floor on an accrual. Below this nothing is simulated and — unlike the
    client, which advances its watermark regardless (legacy.js:987) — NOTHING IS

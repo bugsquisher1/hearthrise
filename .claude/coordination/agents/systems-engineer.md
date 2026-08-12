@@ -2,6 +2,59 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-12 · Making `hr-accrue` deployable — the `?v=` strip, and a five-build drift
+
+Branch `fix/edge-payload-strip-query`. 597/598 (the one red is the pre-existing, someone else's
+`b222 SEAM 1: goldFind`). **No version bump — Tyler ships.** New payload
+`752c6a7a83cd49e70b31fc91a5c68a42b1a978c4c77dc35476d2207dcf8da381`, 22 files, 230,560 bytes.
+
+**The decision I want to be able to defend later.** `pack-edge`'s header spent forty lines
+defending "the vendored files are byte-identical to the repo", and it was defending a real thing.
+I gave it up, and I want the reasoning on the record rather than the outcome: byte-identity was
+always the MEANS; the END was "the server runs exactly the rules the client does". A payload the
+hosted bundler rejects runs no rules at all, so the means had to yield. What I refused to do was
+replace it with *nothing*: the invariant is now
+
+    vendored payload bytes === stripVersionQueries(repo bytes)
+
+— identity after ONE named, total, mechanical transform, asserted by `--check` against the raw disk
+bytes (not against a re-run of the transform under test, which is the S10 trap this file already
+carries a scar from).
+
+**Why the strip is unconditional and not a flag.** Three options: flag, default-on flag, only
+behaviour. The brief called a must-remember flag the weakest and I agree, but the decisive argument
+is stronger than "people forget": if `pack()` accepts an option that changes the payload, then the
+smoke suite's hash guard and the hand-run deploy agree only because two call sites pass the same
+argument *today*. Remove the parameter and they agree **by construction**. And the failure mode of
+disagreement is nasty — a permanent hash mismatch whose obvious "fix" is to loosen the comparison,
+which converts the only deployed-bytes-equal-reviewed-bytes check in the program into decoration.
+
+**Two guards, both mutation-proven RED before I trusted either.**
+1. `pack()` fails if any relative specifier survives into the packed bytes with a `?v=`. It is
+   deliberately BROADER than the transform: `stripVersionQueries` only understands `… from '…'`, so
+   a side-effect `import './x.js?v=331';` would slip past it and reproduce the exact 400. Proved by
+   planting one in `src/core/combat-sim.js` (RED), and again by reverting `vendorSource` to return
+   `src` (14 RED, plus 4 from the vendored-equality check).
+2. `versionQueryGuard()` fails if any file under `supabase/functions/**` or `tests/**` carries a
+   `?v=` on disk. Proved by restoring `?v=326` on one import — RED through `--check` AND through
+   the full smoke run, because a guard is only wired if you have seen it fail *there*.
+
+**The second bug was the more valuable one.** `bump-version.sh` walks `src/` only, so the function's
+imports had been frozen at `?v=326` since b326 while their targets moved to `?v=331`. I did not
+widen the script. A cache-buster is a browser mechanism; nothing under those roots is served to a
+browser, so a version there has no job and can only rot. Removing it also means **a bump no longer
+moves the payload hash** — verified by rewriting `?v=331 → ?v=999` across `src/**` and repacking to
+the identical digest. That deletes a whole class of "redeploy required for a change that altered no
+behaviour".
+
+**Debt paid:** `pack-edge --check` existed and nothing invoked it on a push; it is now in
+`run-smoke.mjs`, and `pack()`'s own problems — previously discarded while the hash was kept — are
+surfaced. Reporting a hash for a payload that cannot deploy is the decoration failure in miniature.
+
+**Known limitation, stated:** I have not deployed. The bundler-acceptance claim is inference from
+its own error message (it named the file it could not open), not execution. First person to deploy
+should confirm, and if it still fails, the next suspect is `npm:postgres@3.4.5` — not the queries.
+
 ## 2026-08-11 · b330 — the clan management surface, and two flakes that were never flaky
 
 Branch `feat/clan-management-b330`, off `173665d` (b329). **590/590, 0 runtime errors.** No version bump.

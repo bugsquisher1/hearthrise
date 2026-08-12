@@ -83,6 +83,34 @@ own. Balance call, not a bug — flagging, not changing.
 
 ---
 
+### 2026-08-12 · Systems · The `?v=` bundler answer was WRONG, and `bump-version.sh` has a blind spot
+**Discovery (1):** the first real `supabase functions deploy hr-accrue` failed at the bundler with a
+clean 400 — **Supabase's hosted eszip resolves a relative specifier as a literal FILE PATH, query
+string included** (`Module not found "file:///tmp/user_fn_.../vendor/core/combat.js?v=326"`). The
+handoff recorded the opposite ("keep them, no `--strip-query` needed"), proven with local Deno 2.9.5
+`deno bundle`. That proof was real and it proved the ADJACENT thing; its own caveat — "not yet run
+against Supabase's hosted eszip" — was the finding. New variant of the assertion-that-asserts-nothing
+family: **a sound proof of a near-identical stand-in, recorded as if it were the result.**
+
+**Discovery (2), independent:** `bump-version.sh` walks `src/` only (`find src -name '*.js'`), so
+`supabase/functions/**` and `tests/**` were never bumped. The Edge Function's imports sat frozen at
+`?v=326` while their vendored targets moved to `?v=331` — **five builds of silent drift**, invisible
+because the query is inert in Node. `tests/conservation-fuzz.mjs` had the same rot at `?v=328`,
+hidden behind a `const V = '?v=328'` indirection that no specifier-shaped regex would find.
+
+**Affected systems:** Edge deploy, `tools/pack-edge.mjs`, the cache-buster contract, smoke suite.
+
+**Required action:** the cache-buster contract is now split with no overlap and no gap —
+`bump-version.sh --check` says everything the BROWSER loads carries the CURRENT version;
+`versionQueryGuard()` (`tools/pack-edge.mjs`, run by `run-smoke.mjs`) says everything the browser
+does NOT load carries NONE. **Do not "fix" the drift by widening the bump script's `find`** — that
+would put a version where it has no job and make every bump move the Edge payload hash. `pack()` now
+takes no option that can change the payload, so the guard and the deploy pack identically by
+construction. Payload is `752c6a7a…` (22 files, 230,560 bytes) — always derive, never trust a
+transcribed digest.
+
+---
+
 ### 2026-08-11 · Systems Engineer · A "flaky test" on this project has meant a fixture that does not guarantee what it asserts — twice, and both times the fix was a SEAM, never a tolerance
 **Discovery:** two long-standing intermittent failures were diagnosed to root cause rather than
 patched.

@@ -13,6 +13,20 @@
 #       their own ?v= and get bumped here too. Miss this and browsers
 #       run a mix of old + new modules for up to 10 min after deploy.)
 #
+# ── SCOPE IS src/ ONLY, AND THAT IS CORRECT (b332) ──────────────────────
+# `supabase/functions/**` and `tests/**` are OUTSIDE this script's reach, and
+# for five builds their imports sat frozen at `?v=326` while their targets moved
+# to `?v=331` — silent, because the query is inert in Node. **Do not fix that by
+# widening the `find` below.** A `?v=` is a BROWSER cache-buster; nothing under
+# those roots is ever served to a browser, so a version string there has no job
+# to do and can only rot. The queries were removed instead, and
+# `versionQueryGuard()` in tools/pack-edge.mjs (run by tests/run-smoke.mjs)
+# fails the build if one comes back. The contract is split cleanly in two:
+#   • here            — everything the browser loads carries the CURRENT version
+#   • versionQueryGuard — everything the browser does not load carries NONE
+# Widening this script would also make every bump move the Edge Function's
+# payload hash and demand a redeploy for a change that alters no behaviour.
+#
 # Usage:  ./bump-version.sh <new-cache-number>
 #   e.g.  ./bump-version.sh 149
 #

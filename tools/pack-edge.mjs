@@ -28,41 +28,102 @@
 //     running inside the privileged accrual engine. A server-authoritative
 //     engine may not fetch its own rules over the network.
 //
+// ── THE `?v=` QUESTION IS SETTLED, AND NOT THE WAY THIS FILE USED TO SAY ───
+// This header, and `docs/design/HANDOFF-server-authority.md`, both used to
+// record: "keep the `?v=`, a module specifier is a URL in both runtimes and the
+// query is not part of the file lookup — no `--strip-query` needed." That was
+// backed by a REAL local proof (Deno 2.9.5, `deno check` + `deno bundle
+// --platform=deno` built the whole 32-module graph with `?v=326` intact) and it
+// carried its own caveat: "not yet run against Supabase's hosted eszip, which is
+// the same deno_graph but not identical."
+//
+// The caveat was the true part. First real deploy, CLI 2.114.0:
+//
+//   WARN: failed to read file: open .../vendor/core/combat.js?v=326: no such
+//         file or directory
+//   unexpected deploy status 400: {"message":"Failed to bundle the function
+//   (reason: Module not found \"file:///tmp/user_fn_.../vendor/core/combat.js
+//   ?v=326\". at .../accrual.js:38:8)."}
+//
+// **Supabase's hosted bundler resolves a relative specifier as a literal FILE
+// PATH, query string included.** Local `deno bundle` does not. EXECUTION WINS:
+// a payload carrying `?v=` on a relative specifier cannot deploy, so it is not
+// a payload. The lesson worth more than the fix: a proof run against a
+// near-identical stand-in is evidence, not a result, and the caveat attached to
+// it was load-bearing rather than decorative.
+//
 // ── THE MECHANISM ──────────────────────────────────────────────────────────
 // This tool walks the static import graph from an Edge Function's entrypoint,
 // collects every reachable `src/core` and `src/data` module, and emits the
 // deploy payload with:
 //
-//   • the core and data files BYTE-IDENTICAL to the repo, `?v=` and all. They
-//     are placed as flat siblings under `vendor/core/` and `vendor/data/`, so
-//     their own relative imports (`./xp.js?v=326`) still resolve, untouched.
-//     Nothing is rewritten, so nothing can drift.
+//   • the core and data files placed as flat siblings under `vendor/core/` and
+//     `vendor/data/`, with ONE mechanical transform applied: `?v=NNN` removed
+//     from relative import specifiers (`stripVersionQueries`), and nothing
+//     else. `--check` asserts exactly that — `packed === strip(disk)` — so the
+//     transform is verified, not trusted.
 //   • the function's OWN files with exactly two path prefixes substituted:
 //     `../../../src/core/` → `./vendor/core/` and `../../../src/data/` →
-//     `./vendor/data/`. That is the whole transformation: two string
-//     replacements, in files this repo authored for this purpose, verified by
-//     --check.
+//     `./vendor/data/`, then the same strip (a no-op there — see below).
 //
-// The `?v=NNN` survives into Deno untouched, because a module specifier is a
-// URL in both runtimes and the query is not part of the file lookup. The
-// version therefore costs the server nothing — it is ignored where it has no
-// job to do.
+// ── WHY BYTE-IDENTICAL VENDORING HAD TO GO, AND WHAT REPLACED IT ───────────
+// The previous revision defended "the vendored files are byte-identical to the
+// repo" at length, and it was defending something real: no drift between the
+// rules the server runs and the rules the client runs. But byte-identity was
+// always the MEANS; the end was "the server runs exactly the rules the client
+// does", and a payload that cannot deploy runs no rules at all.
 //
-// ⚠ HALF OF THAT IS PROVEN AND HALF IS NOT. Node resolves these specifiers
-//   today, every time the suite runs (tests/core-purity.mjs and
-//   tests/accrual-engine.mjs import `src/core/*.js?v=326` in plain Node). Deno
-//   uses the same URL-based resolution, but the SUPABASE DEPLOY BUNDLER has not
-//   been exercised against it here — see the escape-hatch block by
-//   `STRIP_QUERY_FLAG` below, which reduces that unknown to a single flag.
-//   Do not upgrade this comment to "verified" until a deploy has actually
-//   succeeded.
+// So the invariant is deliberately weakened by exactly one step, and it is
+// still an invariant that a test can hold:
+//
+//     vendored payload bytes === stripVersionQueries(repo bytes)
+//
+// — identical after ONE mechanical, total, verifiable transform, rather than
+// identical outright. `--check` asserts that equation against the raw bytes on
+// disk. A pack() that started rewriting anything else still fails there.
+//
+// ── WHY THE STRIP IS UNCONDITIONAL, NOT A FLAG ─────────────────────────────
+// `--strip-query` used to exist as an opt-in escape hatch. It is GONE, and not
+// because the default flipped:
+//
+//   • **A flag someone must remember is the weakest of the three options.** The
+//     deploy is a hand-run command; the guard is a test. Two call sites that
+//     must pass the same flag to agree is a coin flip, and the failure is
+//     silent (the smoke guard would report a permanent hash mismatch, and the
+//     obvious "fix" is to loosen the comparison — which turns the one check
+//     that proves deployed bytes equal reviewed bytes into decoration).
+//   • **pack() therefore takes no option that can change the payload.** The
+//     guard and the deploy pack identically BY CONSTRUCTION — there is no
+//     parameter left for them to disagree on — rather than by two call sites
+//     happening to pass the same argument today.
+//   • A transform you always apply is exercised on every run; a transform
+//     behind a flag is exercised the day it is needed and never before.
+//
+// A useful side effect, stated so nobody treats it as an accident: because the
+// `?v=` is stripped, **a cache-buster bump no longer moves the payload hash.**
+// `./bump-version.sh 332` rewrites `src/core/*` but the packed bytes are
+// unchanged, so a bump alone no longer demands a redeploy. (Worked example in
+// the handoff — `fb18806…` → `d362761…` was b330 → b331 with no code change at
+// all. That churn is gone.)
+//
+// ── THE FUNCTION'S OWN FILES CARRY NO `?v=` AT ALL ─────────────────────────
+// `bump-version.sh` walks `src/` only (`find src -name '*.js'`), so
+// `supabase/functions/**` was outside it and its imports sat frozen at `?v=326`
+// while their targets moved to `?v=331` — five builds of silent drift, invisible
+// because the query is inert in Node. The fix is not to widen the bump: a
+// cache-buster is a BROWSER mechanism, and these files are never served to a
+// browser. The query was removed from them, and `versionQueryGuard()` below
+// fails the build if one ever comes back. Same reasoning, same fix, for
+// `tests/accrual-engine.mjs`, which was frozen at `?v=326` for the same reason.
 //
 // ── WHAT `--check` PROVES, AND WHAT IT DOES NOT (review S10) ───────────────
 // `--check` is a PACKABILITY check. It answers "can this function be packed,
 // and is the result self-consistent?" — a missing module, a bare specifier, a
 // dynamic import() the walker cannot follow, a specifier escaping the two
-// vendor roots, a leftover `../../../src/` in a packed function file, or a
-// vendored file that packing modified.
+// vendor roots, a leftover `../../../src/` in a packed function file, a
+// vendored file that packing modified beyond the one allowed transform, or —
+// since the failed deploy — any relative specifier in the payload still
+// carrying a `?v=` the hosted bundler would treat as part of the filename.
 //
 // It is NOT, and cannot be, a check that production matches this repo. An
 // earlier revision claimed to be exactly that — it called pack(), re-read the
@@ -101,7 +162,7 @@
 //   node tools/pack-edge.mjs hr-accrue --check    # verify, print a summary
 //   node tools/pack-edge.mjs hr-accrue --hash     # print the payload sha256
 //   node tools/pack-edge.mjs hr-accrue --out dir  # write the payload to a dir
-//   node tools/pack-edge.mjs hr-accrue --strip-query   # escape hatch, see below
+// There is deliberately no flag that changes the payload. See above.
 // ============================================================================
 
 import { createHash } from 'node:crypto';
@@ -150,39 +211,43 @@ function vendorFor(absPath) {
   return null;
 }
 
-/* ── THE ONE UNVERIFIED ASSUMPTION, AND ITS ESCAPE HATCH ────────────────────
-   The `?v=NNN` is carried into Deno untouched, because a module specifier is a
-   URL in both runtimes and the query is not part of the file lookup. Node
-   proves that half every time the test suite runs (tests/core-purity.mjs and
-   tests/accrual-engine.mjs import `src/core/*.js?v=326` in plain Node). Deno
-   uses the same URL-based resolution — but the SUPABASE deploy bundler
-   (deno_graph/eszip) has not been exercised against it in this environment,
-   because branch creation requires a `confirm_cost` tool that is not exposed
-   here and deploying a probe to production was not an acceptable substitute.
-
-   So the assumption is isolated to ONE flag rather than baked in. If a deploy
-   ever fails to resolve `./xp.js?v=326`, pack with `--strip-query`: the
-   vendored files then ship with the cache-buster removed from their import
-   specifiers ONLY (their contents are otherwise untouched, and the repo files
-   are never modified). That is a one-word change to a deploy command, not a
-   redesign — which is the whole reason it is written down before it is needed.
-
-   It is OFF by default deliberately: shipping the bytes unmodified is the
-   stronger property, and a transformation you do not need is a transformation
-   that can be wrong. */
-export const STRIP_QUERY_FLAG = '--strip-query';
-
-/** Remove `?v=NNN` from relative import specifiers. Nothing else. */
+/* THE ONE ALLOWED TRANSFORM ON VENDORED CONTENT.
+   Remove `?v=NNN` from relative import specifiers. Nothing else — not from a
+   bare/npm/https specifier, not from a string that is not an import, not from
+   an asset URL. Total and mechanical, so `packed === strip(disk)` is a property
+   `--check` can assert rather than a claim it has to take on faith. */
 export function stripVersionQueries(src) {
   return src.replace(/(from\s*['"]\.[^'"]*?)\?v=\d+(['"])/g, '$1$2');
 }
 
-/** Apply the two — and only two — prefix substitutions. */
-export function rewriteFunctionSource(src, opts) {
-  const out = src
-    .replaceAll('../../../src/core/', './vendor/core/')
-    .replaceAll('../../../src/data/', './vendor/data/');
-  return opts?.stripQuery ? stripVersionQueries(out) : out;
+/* THE GUARD THE FAILED DEPLOY BOUGHT. Broader than the transform, deliberately:
+   `stripVersionQueries` only understands `… from '…'`, so a side-effect import
+   (`import './x.js?v=331';`) or an `import()` would slip past it and produce a
+   payload the hosted bundler rejects with a message three layers from the cause.
+   This looks for the SHAPE that breaks — any relative specifier still carrying a
+   `?v=` — in the packed bytes, and fails the pack. A payload that cannot deploy
+   must fail here, on a laptop, with the filename in the message.
+
+   The second alternative catches the indirection that would otherwise walk
+   straight past a specifier-shaped regex: `const V = '?v=328'` followed by
+   an `import()` of a template literal ending in that constant, which is exactly
+   what tests/conservation-fuzz.mjs was doing, frozen three builds back. */
+const PACKED_QUERY_RE = /['"](\.[^'"]*\?v=\d+|\?v=\d+)['"]/g;
+
+export function versionQueriesIn(src) {
+  const out = [];
+  let m;
+  PACKED_QUERY_RE.lastIndex = 0;
+  while ((m = PACKED_QUERY_RE.exec(src))) out.push(m[1]);
+  return out;
+}
+
+/** Apply the two — and only two — prefix substitutions, then the strip. */
+export function rewriteFunctionSource(src) {
+  return stripVersionQueries(
+    src
+      .replaceAll('../../../src/core/', './vendor/core/')
+      .replaceAll('../../../src/data/', './vendor/data/'));
 }
 
 /** The INVERSE of the two substitutions. Exists so `--check` can verify a
@@ -211,16 +276,21 @@ export function payloadHash(files) {
   return h.digest('hex');
 }
 
-/** Vendored files ship verbatim — unless the escape hatch is armed. */
-export function vendorSource(src, opts) {
-  return opts?.stripQuery ? stripVersionQueries(src) : src;
+/** Vendored files ship with the one allowed transform applied, always. */
+export function vendorSource(src) {
+  return stripVersionQueries(src);
 }
 
 /**
  * Walk the graph from a function's entrypoint.
- * @returns { files: [{name, content, origin}], problems: [string] }
+ *
+ * Takes NO options that can change the payload. That is the property which
+ * makes the smoke suite's hash guard and the deploy pack identically by
+ * construction; do not add one back.
+ *
+ * @returns { files: [{name, content, origin}], problems: [string], hash }
  */
-export async function pack(fnName, opts) {
+export async function pack(fnName) {
   const fnDir = join(FUNCTIONS, fnName);
   const problems = [];
   const files = new Map();        // packed name → { content, origin }
@@ -247,9 +317,9 @@ export async function pack(fnName, opts) {
     }
 
     files.set(packedName, {
-      content: isFunctionFile ? rewriteFunctionSource(src, opts) : vendorSource(src, opts),
+      content: isFunctionFile ? rewriteFunctionSource(src) : vendorSource(src),
       origin: toPosix(relative(ROOT, abs)),
-      verbatim: !isFunctionFile,
+      vendored: !isFunctionFile,
     });
 
     for (const spec of specifiersOf(src)) {
@@ -279,13 +349,25 @@ export async function pack(fnName, opts) {
   for (const cfg of ['deno.json', 'deno.jsonc']) {
     try {
       const content = await readFile(join(fnDir, cfg), 'utf8');
-      files.set(cfg, { content, origin: toPosix(relative(ROOT, join(fnDir, cfg))), verbatim: true });
+      files.set(cfg, { content, origin: toPosix(relative(ROOT, join(fnDir, cfg))), vendored: false, config: true });
     } catch { /* optional */ }
   }
 
   const out = [...files].map(([name, f]) => ({
-    name, content: f.content, origin: f.origin, verbatim: f.verbatim,
+    name, content: f.content, origin: f.origin, vendored: f.vendored, config: f.config,
   }));
+
+  /* THE DEPLOY-BLOCKING GUARD. Runs on the FINAL bytes, after every transform,
+     so it cannot be fooled by a transform that thinks it did its job. See
+     `PACKED_QUERY_RE` — this is the shape the hosted bundler chokes on. */
+  for (const f of out) {
+    for (const spec of versionQueriesIn(f.content)) {
+      problems.push(
+        `${f.name}: the packed bytes still carry '${spec}' — Supabase's hosted bundler resolves a `
+        + `relative specifier as a literal FILE PATH, query included, and rejects the deploy with `
+        + `"Module not found". A ?v= cache-buster is a browser mechanism and must not reach the payload.`);
+    }
+  }
 
   /* THE FINGERPRINT. Taken over the payload as it stands — with payload-hash.js
      still carrying the placeholder — and then stamped into that one file. The
@@ -312,14 +394,18 @@ export async function pack(fnName, opts) {
  * What it does assert, all against the RAW bytes on disk rather than against a
  * re-run of the transform under test:
  *   • every module in the graph exists and is reachable by a static specifier;
- *   • a vendored file is byte-identical to its source — no transform on either
- *     side of that comparison;
+ *   • a vendored file equals `stripVersionQueries(source)` — the ONE allowed
+ *     transform and nothing else, so a pack() that started rewriting vendored
+ *     content still fails here;
  *   • a function file round-trips: `unrewrite(packed) === disk`;
  *   • no `../../../src/` survived into a packed function file;
+ *   • no relative specifier in the payload still carries a `?v=` (in pack());
+ *   • no file under `supabase/functions/**` carries a `?v=` ON DISK either —
+ *     `bump-version.sh` cannot reach them, so a version there can only drift;
  *   • the repo's payload-hash.js still holds the placeholder, never a stale hash.
  */
-export async function check(fnName, opts) {
-  const { files, problems } = await pack(fnName, opts);
+export async function check(fnName) {
+  const { files, problems } = await pack(fnName);
   const out = [...problems];
   if (!files.length) return out;
 
@@ -340,16 +426,20 @@ export async function check(fnName, opts) {
       continue;
     }
 
-    if (f.verbatim) {
-      /* No transform on either side. A future pack() that started rewriting
-         vendored content — the exact failure this whole tool exists to prevent —
-         fails here. (With --strip-query armed the bytes are deliberately
-         modified, so the assertion is the narrower one that only the query
-         strings moved.) */
-      if (!opts?.stripQuery) {
-        if (f.content !== src) out.push(`${f.name}: a VENDORED file was modified — it must be byte-identical to ${f.origin}`);
-      } else if (f.content !== stripVersionQueries(src)) {
-        out.push(`${f.name}: a VENDORED file was modified beyond the ?v= strip`);
+    if (f.config) {
+      if (f.content !== src) out.push(`${f.name}: a config file rides along untouched — it must equal ${f.origin}`);
+      continue;
+    }
+
+    if (f.vendored) {
+      /* THE WEAKENED-BUT-STILL-HELD INVARIANT (see the header). Byte-identity
+         had to go — the hosted bundler rejects the `?v=` — so what stands in its
+         place is identity after ONE named, total, mechanical transform. The
+         right-hand side is the raw disk bytes put through that transform, not a
+         re-run of pack(), so a future pack() that started rewriting anything
+         else about vendored content still fails here. */
+      if (f.content !== stripVersionQueries(src)) {
+        out.push(`${f.name}: a VENDORED file was modified beyond the ?v= strip — it must equal stripVersionQueries(${f.origin})`);
       }
       continue;
     }
@@ -358,9 +448,11 @@ export async function check(fnName, opts) {
        that produced `f.content`, so this cannot pass by construction the way the
        previous `expect !== f.content` did. */
     const back = unrewriteFunctionSource(f.content);
-    // The ?v= strip is not invertible, so with the escape hatch armed the disk
-    // side is normalised the same way instead.
-    const want = opts?.stripQuery ? stripVersionQueries(src) : src;
+    /* The ?v= strip is not invertible, so the disk side is normalised the same
+       way. That is NOT a hole: `versionQueryGuard()` separately asserts the disk
+       side has no `?v=` at all, which makes this normalisation a provable no-op
+       rather than a place a difference could hide. */
+    const want = stripVersionQueries(src);
     if (back !== want) {
       out.push(`${f.name}: packing is not reversible — unrewrite(packed) differs from ${f.origin}`);
     }
@@ -374,6 +466,53 @@ export async function check(fnName, opts) {
   return out;
 }
 
+/* ── THE DRIFT GUARD (the second bug the failed deploy uncovered) ───────────
+   `bump-version.sh` walks `src/` only, so nothing under these roots has ever
+   been bumped: `supabase/functions/**` sat at `?v=326` while `src/core/*` moved
+   to `?v=331`, and `tests/accrual-engine.mjs` did the same. Five builds of
+   silent drift, invisible because the query is inert in Node.
+
+   The fix is not to widen the bump script. A `?v=` cache-buster exists so a
+   BROWSER re-fetches a module; nothing under these roots is ever served to a
+   browser, so a version string there has no job to do and can only rot. It was
+   removed, and this fails the build if one comes back. That splits the
+   cache-buster contract cleanly in two, with no overlap and no gap:
+
+     • `bump-version.sh --check` — everything the browser loads carries the
+       CURRENT version (`index.html`, `src/**`).
+     • this — everything the browser does not load carries NO version.
+
+   Kept in JS, wired into the smoke suite, rather than mirrored into the bash
+   script: one rule, one implementation, running on every push. */
+export const NO_VERSION_ROOTS = [
+  join('supabase', 'functions'),
+  join('tests'),
+];
+
+/** Any relative specifier carrying `?v=` in a tree the browser never loads. */
+export async function versionQueryGuard() {
+  const problems = [];
+  const exts = new Set(['.js', '.ts', '.mjs']);
+  async function walk(dir) {
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) { await walk(p); continue; }
+      if (!exts.has(e.name.slice(e.name.lastIndexOf('.')))) continue;
+      const src = await readFile(p, 'utf8');
+      for (const spec of versionQueriesIn(src)) {
+        problems.push(
+          `${toPosix(relative(ROOT, p))}: import '${spec}' carries a ?v= cache-buster. `
+          + `bump-version.sh walks src/ only, so this can never be bumped — it froze at ?v=326 for five `
+          + `builds. Nothing here is served to a browser; drop the query.`);
+      }
+    }
+  }
+  for (const r of NO_VERSION_ROOTS) await walk(join(ROOT, r));
+  return problems;
+}
+
 /** Every function directory that has an entrypoint. */
 export async function functionNames() {
   try {
@@ -385,7 +524,8 @@ export async function functionNames() {
 /** Guard entry point for tests/run-smoke.mjs — returns a list of problems. */
 export async function runAll() {
   const names = await functionNames();
-  const problems = [];
+  /* Tree-wide, so it is reported once rather than once per function. */
+  const problems = await versionQueryGuard();
   for (const n of names) {
     /* Only functions that actually vendor from src/ are in scope. A function
        with no local imports (bug-report-bridge) packs to itself and has nothing
@@ -397,15 +537,18 @@ export async function runAll() {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-if (import.meta.url === new URL(`file://${process.argv[1].split(sep).join('/')}`).href
+// (`process.argv[1] || ''` — it is undefined under `node -e`, and this module
+//  must be importable from any host, not only from a script on disk.)
+if (import.meta.url === new URL(`file://${(process.argv[1] || '').split(sep).join('/')}`).href
     || process.argv[1]?.endsWith('pack-edge.mjs')) {
   const args = process.argv.slice(2);
   const fn = args.find((a) => !a.startsWith('--'));
   const outIdx = args.indexOf('--out');
-  const opts = { stripQuery: args.includes(STRIP_QUERY_FLAG) };
 
   if (args.includes('--check')) {
-    const problems = fn ? (await check(fn, opts)).map((p) => `[${fn}] ${p}`) : await runAll();
+    const problems = fn
+      ? [...(await versionQueryGuard()), ...(await check(fn)).map((p) => `[${fn}] ${p}`)]
+      : await runAll();
     if (problems.length) {
       console.error('pack-edge --check FAILED:');
       for (const p of problems) console.error('  x ' + p);
@@ -413,10 +556,10 @@ if (import.meta.url === new URL(`file://${process.argv[1].split(sep).join('/')}`
     }
     const names = fn ? [fn] : await functionNames();
     for (const n of names) {
-      const { files, hash } = await pack(n, opts);
-      const vend = files.filter((f) => f.verbatim && f.name.startsWith('vendor/')).length;
+      const { files, hash } = await pack(n);
+      const vend = files.filter((f) => f.vendored && f.name.startsWith('vendor/')).length;
       const bytes = files.reduce((s, f) => s + Buffer.byteLength(f.content), 0);
-      console.log(`${n}: ${files.length} files (${vend} vendored verbatim), ${(bytes / 1024).toFixed(1)} KB, payload ${hash.slice(0, 16)}…`);
+      console.log(`${n}: ${files.length} files (${vend} vendored), ${(bytes / 1024).toFixed(1)} KB, payload ${hash}`);
     }
     process.exit(0);
   }
@@ -425,12 +568,12 @@ if (import.meta.url === new URL(`file://${process.argv[1].split(sep).join('/')}`
      release check is done by hand when the smoke suite has no URL configured. */
   if (args.includes('--hash')) {
     const names = fn ? [fn] : await functionNames();
-    for (const n of names) console.log(`${n} ${(await pack(n, opts)).hash}`);
+    for (const n of names) console.log(`${n} ${(await pack(n)).hash}`);
     process.exit(0);
   }
 
   if (!fn) { console.error('usage: node tools/pack-edge.mjs <function> [--check|--out dir]'); process.exit(2); }
-  const { files, problems } = await pack(fn, opts);
+  const { files, problems } = await pack(fn);
   if (problems.length) {
     console.error('pack-edge FAILED:');
     for (const p of problems) console.error('  x ' + p);

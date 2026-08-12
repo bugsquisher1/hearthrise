@@ -62,8 +62,8 @@ import { computeAccrual, levelsOf } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
-import { ITEMS } from '../../../src/data/items.js?v=326';
-import { MONSTERS } from '../../../src/data/monsters.js?v=326';
+import { ITEMS } from '../../../src/data/items.js';
+import { MONSTERS } from '../../../src/data/monsters.js';
 
 /* ── The connection. MODULE SCOPE, so a warm invocation reuses it. ──────────
    Creating the pool per request would defeat the whole point of using the

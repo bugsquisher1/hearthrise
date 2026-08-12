@@ -1599,12 +1599,14 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
 //   stated limitation, not a claim of parity.
 // ════════════════════════════════════════════════════════════════════════
 async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
-  const V = '?v=328';
+  /* No `?v=` here: a cache-buster is a browser mechanism, bump-version.sh walks
+     src/ only so this one froze at ?v=328, and Node ignores the query anyway.
+     tools/pack-edge.mjs `versionQueryGuard()` now fails the build on one. */
   let computeAccrual; let ITEMS_DATA; let MONSTERS_DATA;
   try {
     ({ computeAccrual } = await import('../supabase/functions/hr-accrue/accrual.js'));
-    ({ ITEMS: ITEMS_DATA } = await import(`../src/data/items.js${V}`));
-    ({ MONSTERS: MONSTERS_DATA } = await import(`../src/data/monsters.js${V}`));
+    ({ ITEMS: ITEMS_DATA } = await import('../src/data/items.js'));
+    ({ MONSTERS: MONSTERS_DATA } = await import('../src/data/monsters.js'));
   } catch (e) {
     divergences.push(`accrual phase skipped: ${e.message}`);
     return { ran: false };

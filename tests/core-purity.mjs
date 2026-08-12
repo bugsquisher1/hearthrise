@@ -480,11 +480,106 @@ export async function coreAnchorGuard() {
   return problems;
 }
 
+// ── The copy-paste guard: FNV-1a must be Math.imul, everywhere ──────────
+//
+// b332. `h = (h * 0x01000193) >>> 0` was documented as FNV-1a in five files
+// and is not: `h * 16777619` is a FLOAT multiply, so once the product passes
+// 2^53 the low bits — the only ones `>>> 0` keeps — are rounded away. The
+// output was even in 85-100% of cases, which means `hash(k) % pool.length`
+// on an EVEN-length pool could only ever return even indices and half the
+// content was unreachable forever. src/features/world-events.js WEEKLY has
+// six entries; three of them had never occurred and never would.
+//
+// The parity dependence is the reason this is a guard and not a one-time fix:
+// with an ODD pool nothing is unreachable, so adding or removing a single
+// entry silently flips a pool between "fine" and "half dead" with no test
+// failing either way. So we ban the shape at the source, once, for all of
+// src/**. It has already been copy-pasted five times.
+//
+// (In-page counterpart: the smoke suite's "b332 regression suite" sweeps
+// every pooled selector and asserts every member actually occurs.)
+/* Both spellings of the FNV-1a prime, and deliberately NOT anchored on the
+   `>>> 0` that followed it — the bug is the multiply, and `h *= 0x01000193`
+   or `h * 16777619.0` would be the same bug wearing a different hat. The
+   trailing lookahead only rejects a longer digit run (167776190) and the
+   BigInt suffix (16777619n — arbitrary precision, exact by construction, and
+   how supabase/migrations/2026-08-09-rally-v2.sql's hr_fnv1a is mirrored in
+   tests). A plain float literal — `h * 16777619.0` — still trips it. */
+const FNV_PRIME_TOKENS = /0x01000193|(?<![\w$.])16777619(?![\dn])/g;
+
+export async function hashIntegrityGuard() {
+  const problems = [];
+  const SRC = join(ROOT, 'src');
+
+  async function walk(dir) {
+    const out = [];
+    for (const ent of await readdir(dir, { withFileTypes: true })) {
+      const p = join(dir, ent.name);
+      if (ent.isDirectory()) out.push(...await walk(p));
+      else if (ent.name.endsWith('.js') || ent.name.endsWith('.mjs')) out.push(p);
+    }
+    return out;
+  }
+
+  let files = [];
+  try { files = await walk(SRC); } catch { return ['could not read src/ — the hash guard is checking nothing']; }
+
+  let sites = 0;
+  for (const file of files) {
+    const rel = file.slice(ROOT.length + 1).replace(/\\/g, '/');
+    /* Comments and strings are stripped first, so the explanatory comments
+       that quote the broken form (including this file's own) cannot trip it,
+       and a real one cannot hide inside a string. */
+    const code = stripNonCode(await readFile(file, 'utf8'));
+    for (const m of code.matchAll(FNV_PRIME_TOKENS)) {
+      sites++;
+      const before = code.slice(Math.max(0, m.index - 60), m.index);
+      /* The ONLY sanctioned form is Math.imul(<ident>, <prime>). Anything
+         else — `h * 0x01000193`, `h *= 0x01000193`, BigInt, a helper — has to
+         be reviewed against src/core/rng.js hashSeed before it ships. */
+      if (!/Math\s*\.\s*imul\s*\(\s*[A-Za-z_$][\w$]*\s*,\s*$/.test(before)) {
+        const line = code.slice(0, m.index).split('\n').length;
+        problems.push(
+          `${rel}:${line}: the FNV-1a prime is multiplied outside Math.imul — `
+          + `\`x * 0x01000193\` is a FLOAT multiply that rounds away the low 32 bits `
+          + `(b332: it made hash()%evenPool return only even indices, so half of `
+          + `world-events WEEKLY was unreachable). Use Math.imul(h, 0x01000193), `
+          + `matching src/core/rng.js hashSeed.`);
+      }
+    }
+  }
+  /* If every copy disappears, the guard is silently guarding nothing — say so
+     rather than pass. There are 6 known FNV sites in src/**. */
+  if (sites < 6) problems.push(`only ${sites} FNV-1a prime site(s) found in src/ — expected at least 6; the guard may be scanning the wrong tree`);
+
+  /* And the reference itself must still be the reference. */
+  try {
+    const { hashSeed } = await import(pathToFileURL(join(CORE_DIR, 'rng.js')).href);
+    const { fnv1a } = await import(pathToFileURL(join(CORE_DIR, 'botd.js')).href);
+    for (const k of ['hr-boss-2026-8-12', 'hr-weekly-boss-2954', 'a', '', 'zzzzzzzzzzzzzzzzzzzz']) {
+      if (fnv1a(k) !== hashSeed(k)) {
+        problems.push(`botd.fnv1a("${k}") = ${fnv1a(k)} but rng.hashSeed = ${hashSeed(k)} — the copies have diverged`);
+      }
+    }
+    /* The measurable property, stated directly: a correct FNV-1a is not
+       parity-biased. The broken one returned an even value ~85% of the time. */
+    let odd = 0;
+    for (let i = 0; i < 4000; i++) if (hashSeed('hr-key-' + i) & 1) odd++;
+    if (odd < 1700 || odd > 2300) {
+      problems.push(`FNV-1a is parity-biased (${odd}/4000 odd) — a float multiply has come back somewhere`);
+    }
+  } catch (err) {
+    problems.push('hash reference check failed to run — ' + err.message);
+  }
+  return problems;
+}
+
 export async function runAll() {
   const groups = [
     ['purity', await corePurityGuard()],
     ['determinism', await coreDeterminismGuard()],
     ['anchors', await coreAnchorGuard()],
+    ['hash', await hashIntegrityGuard()],
   ];
   return groups.flatMap(([g, ps]) => ps.map((p) => `[${g}] ${p}`));
 }

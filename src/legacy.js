@@ -2415,24 +2415,39 @@ window.DAILY_TASK_POOL = DAILY_TASK_POOL;
 /* Simple FNV-1a hash on a string so we can derive a deterministic
    shuffle from the date — every player on the same day gets the same
    3 tasks, but each new day rotates them. */
+/* b332: Math.imul, not `h*0x01000193` — the float multiply loses the low bits
+   past 2^53. The LCG shuffle below rescued COVERAGE (every task could still be
+   drawn) but not fairness: measured over 730 days, "Craft 8 items" appeared 20
+   times against "Gather 50 resources" 453 — a 22x skew a player would read as
+   a missing task. Reference implementation: src/core/rng.js hashSeed. */
 function dailySeed(s){
   let h=0x811c9dc5;
-  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=(h*0x01000193)>>>0; }
-  return h;
+  s=String(s);
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,0x01000193); }
+  return h>>>0;
 }
-function generateDailyTasks(notice=true){
-  ensureRetentionState();
-  const today=new Date().toDateString();
-  if(G.daily.lastReset===today&&G.daily.tasks.length)return;
-  G.daily.lastReset=today;
-  // Deterministic shuffle of pool by date seed
-  let seed=dailySeed(today);
+/* b332: the date -> task-order draw, lifted out of generateDailyTasks so the
+   suite can sweep YEARS of date keys against the REAL shuffle instead of
+   trusting whatever today deals. Behaviour is unchanged; this is the same
+   Fisher-Yates over the same LCG, just callable. */
+function dailyTaskIndexes(dateStr){
+  let seed=dailySeed(dateStr);
   const indexes=DAILY_TASK_POOL.map((_,i)=>i);
   for(let i=indexes.length-1;i>0;i--){
     seed=(seed*1664525+1013904223)>>>0;       // LCG step
     const j=seed%(i+1);
     [indexes[i],indexes[j]]=[indexes[j],indexes[i]];
   }
+  return indexes;
+}
+window.dailyTaskIndexes=dailyTaskIndexes;
+function generateDailyTasks(notice=true){
+  ensureRetentionState();
+  const today=new Date().toDateString();
+  if(G.daily.lastReset===today&&G.daily.tasks.length)return;
+  G.daily.lastReset=today;
+  // Deterministic shuffle of pool by date seed
+  const indexes=dailyTaskIndexes(today);
   /* b228 (bonus-rebase.md §5.3): the King's rank stops paying +1% XP and
      starts paying a DAILY TASK SLOT. `dailyTasks` has been declared in
      renown.getPerks() since renown shipped and nothing ever granted or read

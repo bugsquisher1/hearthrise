@@ -8841,6 +8841,12 @@ const TESTS = [
     const E = window.HearthriseWorldEvents;
     const origBonus = window.getBonus;
     const snap = snapshotG();
+    /* b332: this asserted "no goldFind pays 1000" against the REAL calendar,
+       so it went red on every day the game happened to draw The Open Coffers
+       or The King's Bounty — a live, date-dependent flake (it was failing on
+       2026-08-12). Pinned to the QUIET control like every other calendar-
+       sensitive test in this suite. */
+    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       /* NO CALENDAR. This assertion's baseline is "the ambient goldFind is
          zero", and from b227 that stopped being true on roughly a quarter of
@@ -8911,6 +8917,7 @@ const TESTS = [
     } finally {
       E._force(null);
       window.getBonus = origBonus;
+      if (E) E._force(null);
       restoreG(snap);
     }
   }),
@@ -11625,8 +11632,13 @@ const TESTS = [
     };
     const rec = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     assert(rec, 'the shrimp recipe should exist');
+    /* b332: The Steady Fire pays −25% burn chance, which makes an open fire
+       burn-proof and this test red on whatever days it happens to be drawn.
+       It never surfaced before because the broken hash could only reach a few
+       of the nine dailies; with the draw fixed, every calendar-sensitive test
+       has to say so. QUIET is the no-calendar control. */
+    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
       G.rooms = {};                                   // open fire
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = { shrimp: 10, cooked_shrimp: 0, burnt_food: 0 };
@@ -11674,6 +11686,7 @@ const TESTS = [
       E._force(null);
       Math.random = saved.random;
       window.HearthriseCore.setRng(null);
+      if (E) E._force(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
       if (typeof window._stopArtisan === 'function') window._stopArtisan();
     }
@@ -11717,8 +11730,8 @@ const TESTS = [
     };
     const cook = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     const smith = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
+    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });   // b332: see the burn test above
     try {
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
       assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
 
@@ -11768,7 +11781,7 @@ const TESTS = [
         assert(eased === plain, 'an unblessed session must not receive the calendar burn easing');
       }
     } finally {
-      E._force(null);
+      if (E) E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
     }
   }),
@@ -11783,9 +11796,9 @@ const TESTS = [
     const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const prevTab = window.activeTab;
     const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), inv: G.inventory, skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    if (E) E._force({ daily: E.QUIET, weekly: E.QUIET });
     try {
       if (typeof window.renderSkillDetail !== 'function') return;
-      E._force({ daily: E.QUIET, weekly: E.QUIET });
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = Object.assign({}, G.inventory, { shrimp: 40 });
       window.showTab('skills');
@@ -11803,7 +11816,7 @@ const TESTS = [
       assert(document.getElementById('skill-detail').innerHTML.indexOf('Burn risk:') === -1,
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
-      E._force(null);
+      if (E) E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
       try { window.showTab(prevTab || 'profile'); } catch {}
     }
@@ -18701,6 +18714,195 @@ const TESTS = [
     } finally {
       A.hideAuthExpiredGate();
     }
+  }),
+
+  /* ── b332 regression suite — THE BROKEN FNV-1a THAT DELETED CONTENT ───────
+     `h = (h * 0x01000193) >>> 0` was pasted into five files and documented as
+     FNV-1a. It is not. `h * 16777619` is a FLOAT multiply: once the product
+     passes 2^53 the low bits — the only ones `>>> 0` keeps — are rounded
+     away, so the tail of the key barely reaches the output and the result is
+     even 85-100% of the time.
+
+     The consequence is PARITY, not "poor distribution". For any pool indexed
+     `hash(key) % pool.length`:
+        even-length pool -> exactly half the entries are unreachable, forever
+        odd-length pool  -> reachable, but skewed
+     Measured on the shipped code over the next 730 days, the world-events
+     WEEKLY pool (6 entries) returned ONLY even indices — The King's Bounty,
+     War Drums and The Long Harvest had never occurred and never would. The
+     same rounding made the DAILY blessing repeat for up to 6 days running,
+     because adjacent day keys differ only in the characters the rounding
+     discarded.
+
+     The reason this is a GENERIC guard over every pooled selector rather than
+     three assertions about blessings: the failure is parity-dependent, so
+     adding or removing ONE entry silently flips a pool between "fine" and
+     "half the content is dead" with nothing failing either way. src/core/botd.js
+     survives today only because its pools happen to be 21 and 7.
+
+     Source-side counterpart: tests/core-purity.mjs `hashIntegrityGuard` bans
+     the float-multiply shape anywhere in src/**. */
+
+  /* Every pooled selector in the game, described the same way, so a new one is
+     a row rather than a new test. `pick(atMs)` returns the id (or ids) drawn
+     for that instant. */
+  () => tryRun('b332: every pooled selector reaches EVERY member — no entry is unreachable content', () => {
+    const E = window.HearthriseWorldEvents;
+    const M = window.HearthriseMuster;
+    const C = window.HearthriseCore;
+    assert(E && M && C && C.botd, 'a pooled selector module is missing — this guard would silently check nothing');
+    const dayKey = (t) => { const d = new Date(t); return d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate(); };
+    const mons = window.MONSTERS || {};
+    const botdPool = (which) => C.botd[which].filter((id) => mons[id]);
+
+    const SELECTORS = [
+      { name: 'world-events DAILY (blessing)', members: E.DAILY.map((e) => e.id),
+        pick: (t) => E.daily(dayKey(t)).id },
+      { name: 'world-events WEEKLY (blessing)', members: E.WEEKLY.map((e) => e.id),
+        pick: (t) => E.weekly(E.utcWeekKey(new Date(t))).id },
+      { name: 'muster rally (both UTC slots)', members: ['ashen_horde', 'long_harvest', 'forge_levy', 'deep_seam', 'keep_kitchens', 'all_hands'],
+        pick: (t) => [M.eventFor(dayKey(t), 1).id, M.eventFor(dayKey(t), 13).id] },
+      { name: 'boss of the day', members: botdPool('DAILY_POOL'),
+        pick: (t) => C.botd.botdFor(t, mons).dailyId },
+      { name: 'boss of the week', members: botdPool('WEEKLY_POOL'),
+        pick: (t) => C.botd.botdFor(t, mons).weeklyId },
+      /* The daily-task draw is hash-SEEDED rather than hash-INDEXED (an LCG
+         Fisher-Yates runs on top), so its residual skew is the shuffle's, not
+         the hash's — hence the looser fairness floor. Under the broken hash it
+         measured 0.08; it is 0.37 with the fix. */
+      { name: 'daily tasks (top 3 of the pool)', members: (window.DAILY_TASK_POOL || []).map((_, i) => i), minRatio: 0.20,
+        pick: (t) => window.dailyTaskIndexes(new Date(t).toDateString()).slice(0, 3) },
+    ];
+
+    const DAYS = 1461;                       // four years of real keys
+    const T0 = Date.UTC(2024, 0, 1);
+    for (const sel of SELECTORS) {
+      assert(sel.members.length >= 2, sel.name + ': pool has fewer than 2 members — nothing to distribute');
+      const count = new Map(sel.members.map((m) => [m, 0]));
+      for (let i = 0; i < DAYS; i++) {
+        const drawn = [].concat(sel.pick(T0 + i * 86400000));
+        for (const id of drawn) {
+          assert(count.has(id), sel.name + ': drew "' + id + '", which is not in the declared pool');
+          count.set(id, count.get(id) + 1);
+        }
+      }
+      const dead = sel.members.filter((m) => count.get(m) === 0);
+      assert(dead.length === 0,
+        sel.name + ': UNREACHABLE CONTENT — ' + dead.join(', ') + ' never occurs in ' + DAYS
+        + ' days. Pool length ' + sel.members.length
+        + (sel.members.length % 2 === 0 ? ' (EVEN — this is the b332 parity failure)' : ''));
+      /* Reachable-but-vanishing is the same bug one pool entry away, so the
+         floor is a real assertion and not a formality. */
+      const vals = sel.members.map((m) => count.get(m));
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const ratio = Math.min.apply(null, vals) / mean;
+      const floor = sel.minRatio || 0.5;
+      assert(ratio >= floor,
+        sel.name + ': rarest member appears ' + (ratio * 100).toFixed(0) + '% as often as the average'
+        + ' (floor ' + (floor * 100) + '%) — the draw is skewed, not uniform: '
+        + JSON.stringify(Array.from(count.entries())));
+    }
+  }),
+
+  () => tryRun('b332: a DAILY rotation actually rotates daily — the float hash made it stick for up to 6 days', () => {
+    const E = window.HearthriseWorldEvents;
+    const C = window.HearthriseCore;
+    const dayKey = (t) => { const d = new Date(t); return d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate(); };
+    const mons = window.MONSTERS || {};
+    const ROTATIONS = [
+      { name: 'world-events DAILY', size: E.DAILY.length, at: (t) => E.daily(dayKey(t)).id },
+      { name: 'boss of the day', size: C.botd.DAILY_POOL.filter((id) => mons[id]).length, at: (t) => C.botd.botdFor(t, mons).dailyId },
+    ];
+    const DAYS = 1461, T0 = Date.UTC(2024, 0, 1);
+    for (const r of ROTATIONS) {
+      let repeats = 0, run = 1, longest = 1, prev = r.at(T0);
+      for (let i = 1; i < DAYS; i++) {
+        const v = r.at(T0 + i * 86400000);
+        if (v === prev) { repeats++; run++; if (run > longest) longest = run; } else run = 1;
+        prev = v;
+      }
+      /* A fair draw repeats about 1/size of the time. Twice that is generous
+         and still catches the real thing: the broken hash repeated the daily
+         blessing on 36.5% of days against a fair 11%. */
+      const rate = repeats / (DAYS - 1);
+      const cap = 2 / r.size;
+      assert(rate <= cap,
+        r.name + ' repeats yesterday on ' + (rate * 100).toFixed(1) + '% of days (fair is ~'
+        + (100 / r.size).toFixed(1) + '%, cap ' + (cap * 100).toFixed(1) + '%) — adjacent day keys are colliding, '
+        + 'which is what a float multiply in FNV-1a does. Longest identical run: ' + longest + ' days.');
+    }
+  }),
+
+  () => tryRun('b332: every FNV-1a copy in the game agrees with the reference in src/core/rng.js', () => {
+    /* The reference, written out here on purpose: if this test ever has to be
+       reconciled with a copy, THIS is the side that is right. */
+    const reference = (s) => {
+      let h = 0x811c9dc5;
+      s = String(s);
+      for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+      return h >>> 0;
+    };
+    const keys = ['', 'a', 'hr-daily-2026-8-12', 'hr-weekly-w2953', 'hr-muster-2026-8-12#13',
+                  'hr-boss-2026-8-12', 'hr-weekly-boss-2954', 'the quick brown fox jumps over the lazy dog'];
+    const copies = [
+      ['world-events._hash', window.HearthriseWorldEvents && window.HearthriseWorldEvents._hash],
+      ['core/botd.fnv1a', window.HearthriseCore && window.HearthriseCore.botd && window.HearthriseCore.botd.fnv1a],
+      ['core/rng.hashSeed', window.HearthriseCore && window.HearthriseCore.rngMod && window.HearthriseCore.rngMod.hashSeed],
+      ['chat-filter._hash', window.ChatFilter && window.ChatFilter._hash],
+    ].filter((c) => typeof c[1] === 'function');
+    assert(copies.length >= 4, 'an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
+    for (const [name, fn] of copies) {
+      for (const k of keys) {
+        assert((fn(k) >>> 0) === reference(k),
+          name + '("' + k + '") = ' + (fn(k) >>> 0) + ' but FNV-1a is ' + reference(k)
+          + ' — a copy has drifted (b332: `h * 0x01000193` is a float multiply; use Math.imul)');
+      }
+      /* A correct 32-bit FNV-1a is not parity-biased. The broken one returned
+         an even value on 85-100% of keys, which is the whole bug in one line. */
+      let odd = 0;
+      for (let i = 0; i < 2000; i++) if (fn('hr-parity-' + i) & 1) odd++;
+      assert(odd > 800 && odd < 1200,
+        name + ' is parity-biased: only ' + odd + '/2000 outputs are odd. A float multiply rounds away the low bits, '
+        + 'so hash % evenPool can only ever return even indices.');
+    }
+  }),
+
+  () => tryRun('b332: the muster the client shows is the muster the SERVER pays out', () => {
+    /* supabase/migrations/2026-08-09-rally-v2.sql `hr_fnv1a` does the multiply
+       in postgres bigint — exact, i.e. it always implemented the CORRECT
+       FNV-1a. So while the client hashed in floats the two draws disagreed on
+       1230 of 1460 measured day/slot pairs, and the chest the server filled
+       was for a different rally than the card the player joined. This asserts
+       they now agree; the SQL is reproduced with BigInt, which is what
+       postgres arithmetic actually does. */
+    const M = window.HearthriseMuster;
+    const sqlHash = (s) => {
+      let h = 2166136261n;
+      for (let i = 0; i < s.length; i++) { h ^= BigInt(s.charCodeAt(i)); h = (h * 16777619n) % 4294967296n; }
+      return Number(h);
+    };
+    const pool = ['ashen_horde', 'long_harvest', 'forge_levy', 'deep_seam', 'keep_kitchens', 'all_hands'];
+    const serverPick = (dayKey, slot) => {
+      const a = sqlHash('hr-muster-' + dayKey + '#1') % pool.length;
+      if (slot === 1) return pool[a];
+      const off = sqlHash('hr-muster-' + dayKey + '#' + slot) % (pool.length - 1);
+      return pool[(a + 1 + off) % pool.length];
+    };
+    const T0 = Date.UTC(2026, 0, 1);
+    let checked = 0;
+    for (let i = 0; i < 400; i++) {
+      const d = new Date(T0 + i * 86400000);
+      const dayKey = d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
+      for (const slot of [1, 13]) {
+        const client = M.eventFor(dayKey, slot).id;
+        const server = serverPick(dayKey, slot);
+        assert(client === server,
+          'client and server disagree on ' + dayKey + ' slot ' + slot + ': client says ' + client
+          + ', hr_rally_event_id says ' + server + ' — the chest would be filled for a different rally');
+        checked++;
+      }
+    }
+    assert(checked === 800, 'the client/server agreement sweep did not run');
   }),
 
 ];

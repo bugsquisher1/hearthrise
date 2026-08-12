@@ -42,7 +42,7 @@ import {
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../src/core/combat.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
-import { killBonusesFor } from '../src/core/botd.js';
+import { killBonusesFor, botdFor } from '../src/core/botd.js';
 import { createRng } from '../src/core/rng.js';
 import { grantXp } from '../src/core/progression.js';
 import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
@@ -238,10 +238,19 @@ function serverAccrual(over) {
 }
 
 // ── 1. PARITY ───────────────────────────────────────────────────────────────
+/* b332: this fixture used to name `warband_captain` literally, which was the
+   boss the BROKEN FNV-1a drew for 2026-03-14. Fixing the hash re-rolled the
+   rotation and the featured-boss coverage assertion went dark. The fixture is
+   the PROPERTY "day 1's featured boss, and not day 2's", so derive it — the
+   anchor then survives any future change to the pools or the key format, and
+   goes red only if the property itself stops holding. */
+const DAY1_BOSS = botdFor(FROM_MS, MONSTERS).dailyId;
+const DAY2_BOSS = botdFor(NOW_MS, MONSTERS).dailyId;
+
 const FIXTURES = [
   { name: 'early-game goblin', monster: MONSTER, skills: baseSkills(), hp: 60, maxHp: 60 },
   { name: 'maxed vs slime (both UTC segments)', monster: 'slime', skills: MAXED, hp: 99, maxHp: 99 },
-  { name: 'maxed vs the day-1 featured boss', monster: 'warband_captain', skills: MAXED, hp: 99, maxHp: 99 },
+  { name: 'maxed vs the day-1 featured boss (' + DAY1_BOSS + ')', monster: DAY1_BOSS, skills: MAXED, hp: 99, maxHp: 99 },
 ].filter((f) => MONSTERS[f.monster]);
 
 function parityGuard() {
@@ -317,6 +326,11 @@ function parityGuard() {
   ok(seen.segments >= 2, 'COVERAGE: no fixture crossed UTC midnight — Boss-of-the-Day segmentation is untested');
   ok(seen.featuredMs > 0 && seen.featuredDropMult > 1,
     'COVERAGE: no fixture fought a featured boss — featuredMs/featuredDropMult are untested');
+  /* …and the fixture must still be featured for only PART of the absence, or
+     the segmentation branch it exists to cover is not being taken. */
+  ok(DAY1_BOSS !== DAY2_BOSS,
+    `COVERAGE: the featured boss did not change across the UTC boundary (${DAY1_BOSS} both days) — `
+    + 'the partial-featured branch is untested; move FROM_MS to a day pair that rotates');
   ok(seen.deaths > 0, 'COVERAGE: no fixture died — the death path ends the activity and is untested');
 }
 

@@ -240,10 +240,18 @@
   }
 
   function W() { return window.HearthriseWorldEvents; }
+  /* b332: the standalone copy (used only when world-events.js has not loaded)
+     must stay byte-identical to it, AND to the SQL oracle hr_fnv1a in
+     supabase/migrations/2026-08-09-rally-v2.sql — which is what decides what
+     a rally chest actually CONTAINS. The old `(h * 0x01000193) >>> 0` is a
+     float multiply that loses the low bits, so the client and the server drew
+     DIFFERENT rallies on 1230 of 1460 measured day/slot pairs. With Math.imul
+     they agree on all 1460. Reference: src/core/rng.js hashSeed. */
   function hash(s) {
     if (W() && W()._hash) return W()._hash(s);
     var h = 0x811c9dc5;
-    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+    s = String(s);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
     return h >>> 0;
   }
 

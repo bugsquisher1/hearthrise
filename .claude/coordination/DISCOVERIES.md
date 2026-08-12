@@ -4,6 +4,85 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-12 · QA Engineer · P1 — HALF THE WEEKLY BLESSING POOL CAN NEVER BE DEALT. `hash()` in world-events.js is not FNV-1a: `h * 0x01000193` is a FLOAT multiply, and the product exceeds 2^53
+**Discovery:** `world-events.js` documents its picker as "FNV-1a — tiny, deterministic, good enough
+spread". It is not FNV-1a. FNV requires a 32-bit wrapping multiply; this line
+
+```js
+h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0;
+```
+
+does an IEEE-754 double multiply first. `h` reaches ~2^32 and the prime is ~2^24, so the product is
+~2^56 — past the 53-bit mantissa — and the low bits, which are the only bits `>>> 0` keeps, are
+rounded away. The result is a hash with almost no avalanche on the near-identical sequential keys
+this module feeds it (`hr-weekly-w2947`, `hr-weekly-w2948`, …).
+
+**Measured, in the shipped client, over 730 consecutive days (104 weeks) from 2026-08-12:**
+
+| pool | dealt | never dealt |
+|---|---|---|
+| WEEKLY (6) | `guild_works` 261d · `grand_fair` 224d · `deep_veins` 245d | **`kings_bounty`, `war_drums`, `long_harvest` — 0 days** |
+| DAILY (9) | all nine, 72–91 days each | — |
+
+So **The King's Bounty (+4% gold find), War Drums (+4% combat XP) and The Long Harvest (+1 farm
+yield · +4% gather speed) are shipped content that no player will ever see** — and `kings_bounty`
+is the worked example the pacing and bonus-rebase docs both cite. The dailies survive only because
+9 happens to be a kinder modulus than 6; the daily spread is still visibly lumpy and the same key
+repeats for several days running.
+
+**Reproduce:** in the live client — `W = HearthriseWorldEvents;` walk `W.weekly('w' + n)` for
+n = 2947…3051 and collect the ids; only three ever appear. (Note you must use the game's own
+`_hash`; re-implementing it with `Math.imul` gives a DIFFERENT and correctly-spread answer, which
+is itself the proof of the defect.)
+
+**Affected systems:** `src/features/world-events.js` (`hash`, `daily`, `weekly`) and anything that
+reads the calendar — the blessing card, the login toast, the live activity note, `liveBonusFor`,
+and the power budget's `blessingPart`.
+
+**Required action → Systems Engineer (root cause) + Game Designer (sign-off).** The fix is one
+character-class — `h = Math.imul(h, 0x01000193) >>> 0` — but it **re-rolls every player's daily and
+weekly blessing**, so it is a player-visible change that needs a Designer nod and a CHANGELOG line,
+not a QA drive-by. Ship it with a guard in the same commit: walk both pools over ≥ 2 years of keys
+and assert **every** pool member is dealt at least once, and that no single member takes more than
+~2× its fair share. That guard fails today, which is exactly why it belongs with the fix. QA has
+NOT added it — a knowingly-red test on `main` is the thing this whole ticket existed to remove.
+
+### 2026-08-12 · QA Engineer · P2 — A DATE-DEPENDENT TEST IS A REAL BUG CLASS HERE: the calendar wraps `getBonus`, so any test whose baseline is "ambient bonus is zero" is red on the days its key is blessed
+**Discovery:** the long-standing red on `main` (`b222 SEAM 1: goldFind multiplies monster gold`,
+first assertion "with no goldFind, gold must be untouched") was **the test, not the game**.
+`goldFind` is properly wired (`pacing.applyGoldFind` → `combat-sim.resolveKill`), but since b227 the
+daily pool contains `open_coffers` (+3% gold find) and the weekly contains `kings_bounty` (+4%),
+and `world-events.js` wraps `window.getBonus` — so on a blessed day the ambient `goldFind` is 0.03
+and `applyGoldFind(1000)` correctly returns 1030. **Settled by execution: the UNMODIFIED test passes
+under a clock pinned to 2026-08-15 (`harvest_fest`) and fails under 2026-08-12 (`open_coffers`),
+with zero code change in between.** It went red roughly 1 day in 4.
+
+A sweep of the whole suite under a pinned clock across all nine dailies found **three more instances
+of the same class**, all latent and due to land on the next `steady_fire` day (2026-08-29): the
+b225 burn tests assume an open fire is 25%, and `steady_fire` pays `noBurn 0.25`.
+
+**Affected systems:** any test asserting on `getBonus`, `applyGoldFind`, `cookBurnChance`,
+`burnRiskLine`, `activityIntervalMs`, `harvestPlot` or `addXp` without pinning the calendar. The ten
+blessed keys are `allXP · combatXP · gatherSpeed · cookSpeed · smithSpeed · craftSpeed ·
+prayerSpeed · farmYield · goldFind · noBurn`.
+
+**Required action:** none outstanding — all four are fixed. **If your test needs a known baseline for
+any of the ten keys above, say so: `E._force({ daily: E.QUIET, weekly: E.QUIET })`, restored with
+`E._force(null)` in `finally`.** The idiom already existed and these four simply never adopted it.
+And when you pin the calendar, spend the extra three lines asserting the blessing you pinned
+actually PAYS — the red was, accidentally, the only evidence anywhere that a gold-find blessing
+reaches a gold drop. That is now asserted on purpose.
+
+**Also worth knowing (→ Game Designer):** the burn curve is SUBTRACTIVE
+(`burn% = BASE − noBurn − relief`), so `steady_fire`'s `noBurn 0.25` against the 25% base makes an
+open camp fire **completely burn-proof for the day** — that is Kitchen L3 (the Cast-Iron Range),
+the endpoint of a ladder costing a build and three upgrades, handed out free on ~1 day in 9. The
+`noBurn`-is-outside-the-power-budget argument ("burn-proof is burn-proof and there is no
+burn-proof-er") is about stacking, and does not address a blessing that reaches the endpoint on its
+own. Balance call, not a bug — flagging, not changing.
+
+---
+
 ### 2026-08-11 · Systems Engineer · A "flaky test" on this project has meant a fixture that does not guarantee what it asserts — twice, and both times the fix was a SEAM, never a tolerance
 **Discovery:** two long-standing intermittent failures were diagnosed to root cause rather than
 patched.

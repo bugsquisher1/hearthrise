@@ -8838,9 +8838,22 @@ const TESTS = [
   // promise on the same key. Both are now real.
   () => tryRun('b222 SEAM 1: goldFind multiplies monster gold (it was declared and never read)', () => {
     assert(typeof window.applyGoldFind === 'function', 'applyGoldFind seam missing');
+    const E = window.HearthriseWorldEvents;
     const origBonus = window.getBonus;
     const snap = snapshotG();
     try {
+      /* NO CALENDAR. This assertion's baseline is "the ambient goldFind is
+         zero", and from b227 that stopped being true on roughly a quarter of
+         all days: `open_coffers` (+3%) and `kings_bounty` (+4%) are gold-find
+         blessings, they are picked deterministically from the UTC date, and
+         while the player is online they reach getBonus through the calendar's
+         own wrapper. So this test went red on 2026-08-12 having passed on the
+         11th, with nothing committed in between — a date-dependent test, not a
+         defect. The rest of the suite already says QUIET when it needs a known
+         baseline; this one never adopted it. */
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      assert(E.liveBonusFor('goldFind') === 0, 'the calendar must be quiet for the baseline');
+
       // The pure helper, first.
       assert(window.applyGoldFind(1000) === 1000, 'with no goldFind, gold must be untouched');
       window.getBonus = (k) => (k === 'goldFind' ? 0.5 : origBonus(k));
@@ -8869,7 +8882,34 @@ const TESTS = [
         'the one kill resolver no longer applies gold find');
       assert(typeof window.processOfflineCombat === 'undefined',
         'processOfflineCombat is back — a second combat loop is exactly what the away ruling deleted');
+
+      /* …and the thing the red above accidentally proved, now asserted on
+         purpose: a gold-find BLESSING is a real gold-find contributor. The
+         calendar wraps getBonus, so this only works through the live chain —
+         hence no stub here, and the stub is restored first. */
+      window.getBonus = origBonus;
+      const OPEN = E.DAILY.find((d) => d.id === 'open_coffers');
+      assert(OPEN && OPEN.bonus.goldFind > 0, 'the Open Coffers must still be a gold-find blessing');
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const quietMult = window.goldFindMult(), quietGold = window.applyGoldFind(10000);
+      E._force({ daily: OPEN, weekly: E.QUIET });
+      const blessMult = window.goldFindMult(), blessGold = window.applyGoldFind(10000);
+      // Stated as a DELTA, not an absolute, so a permanent contributor left in
+      // the save by an earlier test cannot make this pass or fail by accident.
+      if (E.isActive()) {
+        assert(Math.abs((blessMult - quietMult) - OPEN.bonus.goldFind) < 1e-9,
+          'the Open Coffers must move gold find by exactly ' + OPEN.bonus.goldFind
+          + ', moved ' + (blessMult - quietMult));
+        assert(blessGold === Math.floor(10000 * blessMult) && blessGold > quietGold,
+          'the blessing reached getBonus but not the gold drop — ' + quietGold + ' → ' + blessGold);
+      } else {
+        // Presence says we are not online: then the calendar must pay NOTHING,
+        // which is the other half of the same contract, never "no assertion".
+        assert(blessMult === quietMult && blessGold === quietGold,
+          'an unblessed session must not receive the calendar gold find');
+      }
     } finally {
+      E._force(null);
       window.getBonus = origBonus;
       restoreG(snap);
     }
@@ -11570,6 +11610,12 @@ const TESTS = [
   () => tryRun('b225: a burn costs the ingredients, pays consolation XP, and never ticks a cook goal', () => {
     const G = window.G;
     const CF = window.HearthriseCookingFire;
+    /* NO CALENDAR — same reason as b222 SEAM 1 above. `steady_fire` is a daily
+       blessing worth noBurn 0.25, and the burn curve is SUBTRACTIVE, so on the
+       days it is dealt an open fire is 0% rather than 25% and this test's
+       rigged worst-case roll stops being a burn at all. Date-dependent, and it
+       would have gone red on 2026-08-29. */
+    const E = window.HearthriseWorldEvents;
     const saved = {
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
@@ -11580,6 +11626,7 @@ const TESTS = [
     const rec = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     assert(rec, 'the shrimp recipe should exist');
     try {
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
       G.rooms = {};                                   // open fire
       G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = { shrimp: 10, cooked_shrimp: 0, burnt_food: 0 };
@@ -11624,6 +11671,7 @@ const TESTS = [
       assert((G.inventory.burnt_food || 0) === 1, 'Kitchen L3 must never burn, even on a worst-case roll');
       assert((G.inventory.cooked_shrimp || 0) === 2, 'Kitchen L3 should have produced a second dish');
     } finally {
+      E._force(null);
       Math.random = saved.random;
       window.HearthriseCore.setRng(null);
       G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.stats = saved.stats;
@@ -11662,6 +11710,7 @@ const TESTS = [
 
   () => tryRun('b225: the burn risk is on the screen before the player presses the tile', () => {
     const G = window.G;
+    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const saved = {
       rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       skills: JSON.parse(JSON.stringify(G.skills || {})),
@@ -11669,6 +11718,7 @@ const TESTS = [
     const cook = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
     const smith = window.ARTISAN_RECIPES.smithing.find((r) => r.output === 'copper_bar');
     try {
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
       assert(typeof window.burnRiskLine === 'function', 'burnRiskLine (the comprehension surface) is missing');
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
 
@@ -11690,7 +11740,35 @@ const TESTS = [
       assert(window.burnRiskLine(cook, 'cooking') === '', 'a burn-proof cook must show no risk line');
       G.rooms = {};
       if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
+
+      /* …and the calendar's own claim, asserted rather than left as an ambient
+         accident: The Steady Fire must actually LOWER the number on the tile. */
+      const STEADY = E.DAILY.find((d) => d.id === 'steady_fire');
+      assert(STEADY && STEADY.bonus.noBurn > 0, 'The Steady Fire must still be a burn-chance blessing');
+      G.rooms = {};
+      const plain = window.cookBurnChance(cook);
+      E._force({ daily: STEADY, weekly: E.QUIET });
+      const eased = window.cookBurnChance(cook);
+      if (E.isActive()) {
+        /* The curve is SUBTRACTIVE (burn% = BASE − noBurn − relief, clamped),
+           so the blessing removes exactly its own points. Stated against that
+           arithmetic rather than a pinned percentage, so a retune of BASE or of
+           the blessing moves the expectation with it instead of rotting.
+           NOTE for the Designer: at BASE 25% and blessing 25% this lands on
+           ZERO — a free daily blessing hands a camper the burn-proofing that is
+           the Kitchen ladder's L3 reward. Filed in DISCOVERIES.md, not fixed
+           here: it is a balance call, not a bug in this seam. */
+        assert(eased === Math.max(0, plain - STEADY.bonus.noBurn),
+          'The Steady Fire must remove exactly ' + STEADY.bonus.noBurn
+          + ' from the burn curve, ' + plain + ' → ' + eased);
+        assert(eased < plain, 'The Steady Fire must ease the open fire');
+        assert(window.burnRiskLine(cook, 'cooking') === '',
+          'a burn-proof camp must show no risk line, got: ' + window.burnRiskLine(cook, 'cooking'));
+      } else {
+        assert(eased === plain, 'an unblessed session must not receive the calendar burn easing');
+      }
     } finally {
+      E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
     }
   }),
@@ -11702,10 +11780,12 @@ const TESTS = [
      than no number, so noBurn joined the key in both renderer twins. */
   () => tryRun('b225: building a Kitchen repaints the cooking screen (the risk is never stale)', () => {
     const G = window.G;
+    const E = window.HearthriseWorldEvents;          // NO CALENDAR — see above
     const prevTab = window.activeTab;
     const saved = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), inv: G.inventory, skills: JSON.parse(JSON.stringify(G.skills || {})) };
     try {
       if (typeof window.renderSkillDetail !== 'function') return;
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
       G.rooms = {}; G.skills = Object.assign({}, G.skills, { cooking: 0 });
       G.inventory = Object.assign({}, G.inventory, { shrimp: 40 });
       window.showTab('skills');
@@ -11723,6 +11803,7 @@ const TESTS = [
       assert(document.getElementById('skill-detail').innerHTML.indexOf('Burn risk:') === -1,
         'a burn-proof kitchen must leave no risk line on the screen at all');
     } finally {
+      E._force(null);
       G.rooms = saved.rooms; G.inventory = saved.inv; G.skills = saved.skills;
       try { window.showTab(prevTab || 'profile'); } catch {}
     }

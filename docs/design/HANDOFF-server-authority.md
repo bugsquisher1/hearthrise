@@ -123,7 +123,14 @@ a `tools/deploy-edge.mjs` that reads the packed directory off disk and POSTs mul
 the Management API — deliberately NOT written yet, because an untested deploy client is the
 same decoration problem in a new file.
 
-**CANONICAL PAYLOAD SHA256: `7466c50ebdecf4e24a932d829fdd6b1fc5647dd7fbd274b603139f5ae36dca4f`**
+**CANONICAL PAYLOAD SHA256 — DO NOT TRUST A NUMBER WRITTEN HERE; DERIVE IT.** The hash is a
+property of the tree, and every merge that touches `supabase/functions/**`, `src/core/**` or
+`src/data/**` moves it. `payload-hash.js` in the repo holds the literal `'unpacked'`;
+`tools/pack-edge.mjs` computes the digest and injects it at pack time, so there is no
+hand-typed constant to go stale — but a value transcribed into prose like this one does.
+As of b331 (`c6c09ae`) the suite reports `fb1880617115f418…`. The value below was correct
+for b328 and is kept only to date the change:
+`7466c50ebdecf4e24a932d829fdd6b1fc5647dd7fbd274b603139f5ae36dca4f`
 (22 files, 230,698 bytes, all LF). The old `6de4f8cd…` was WRONG TWICE OVER: `core.autocrlf=true`
 with no `.gitattributes` meant the index held LF while the worktree held CRLF for whichever
 payload files an editor had rewritten (`index.ts` 430 CRLFs, `accrual.js` 451), so one commit

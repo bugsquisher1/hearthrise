@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 331 — 2026-08-12 (Your progress stops silently not saving)
+
+- 💾 **A sign-in that quietly expired could stop your progress reaching the cloud — for hours — while the game looked fine.** Found in the live logs: one player's session had been saving nothing since the day before. Sign-ins last about an hour and are meant to renew themselves in the background; when that renewal failed, the game kept using the dead sign-in forever, and the safety rule that stops a bad save from overwriting a good one held the upload closed the whole time. Your session now renews itself *before* it expires, recovers on its own if it lapses, and stops retrying instead of hammering away.
+- 🔒 **If it can't recover, the game now tells you plainly.** Instead of an endless "Reconnecting…", you get a clear notice that your progress is stored **on this device only** and a button to sign in again. It won't lock you out of the game you're already playing.
+- 🕰️ **A wrong clock on your device can't lock you out of saving.** If your computer's time disagrees with the server, the server decides — not your clock.
+
 ## v0.9.2-beta build 330 — 2026-08-11 (Your hold has a door now)
 
 - 🚪 **Clans can shut their door.** Leadership can set a hold to invite-only, invite players by name, see and withdraw outstanding invitations, and remove a member — with a ban length you choose, so a removal actually sticks. Until now anyone could join any hold uninvited and leadership had no way to undo it.

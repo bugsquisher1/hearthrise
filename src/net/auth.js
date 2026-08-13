@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=334';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=335';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -175,7 +175,11 @@ export async function setupAuth(config) {
     // "Offline play / Sign in" subtitle + button update to
     // reflect the new session state.
     try {
-      if (typeof window.render === 'function') window.render();
+      // b334: this called window.render(), which has never been a global —
+      // the typeof guard meant the "full panel re-render" silently never
+      // happened, and the guard made that invisible. refreshAll() is the
+      // engine's actual full repaint.
+      if (typeof window.refreshAll === 'function') window.refreshAll();
       if (typeof window.renderProfile === 'function') window.renderProfile();
     } catch {}
   });

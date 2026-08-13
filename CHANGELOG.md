@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 335 — 2026-08-13 (The console flood, and a repaint that never ran)
+
+- 🔇 **Fixed a message printing five times a second forever**, which buried everything else in the browser console and made real problems impossible to spot. The startup timer that logged it could never be cancelled: the boot gate handed back the platform's cancel function one step before it filled in the table that translates timer IDs, so **all 21 startup timers were left permanently uncancellable**.
+- 🖥️ **The crash guard now actually covers the main repaint.** Three of the fourteen screens it thought it was protecting had never existed under those names, so the game's main redraw was outside it — a crash there would have blanked the whole screen instead of showing the recovery panel.
+- 🔄 **Two "refresh the screen" calls after signing in or changing a setting had been doing nothing at all** since the day they were written, because they called a function that was never there. They now call the real one.
+
 ## v0.9.2-beta build 334 — 2026-08-13 (Combat styles are pickable mid-fight again)
 
 - ⚔️ **You can choose a combat style during a fight again — thanks for the report.** On phones the Style tab was hidden for the entire time a fight was running, so tapping it showed nothing; and if you did reach it, you were bounced back to the Arena about a second later. On desktop the picker was quietly rebuilding itself roughly once a second, so about one press in thirteen landed on a button that no longer existed and did nothing at all.

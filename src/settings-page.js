@@ -284,7 +284,7 @@
           if(window.G){
             window.G.playerName = displayName;
             if(typeof window.saveLocal === 'function') window.saveLocal();
-            if(typeof window.render === 'function') window.render();
+            if(typeof window.refreshAll === 'function') window.refreshAll();   // b334: window.render has never existed
           }
           status.style.color = '#7f9a4f';
           status.textContent = '✓ Check your inbox for a confirmation email.';

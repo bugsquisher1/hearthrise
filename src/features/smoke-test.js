@@ -18905,6 +18905,352 @@ const TESTS = [
     assert(checked === 800, 'the client/server agreement sweep did not run');
   }),
 
+  /* ── b333 regression suite — THE FIX THAT CANNOT REACH ITS PLAYER ──────────
+     b331 fixed the dead-token loop. b331 and b332 are both LIVE. The player it
+     was written for — b94fa8c0-3627-426a-9714-69c363f8929c — was still emitting
+     ~350 HTTP 401/hour two days later, with a game_saves row stale for 2 days
+     and 40 minutes, because receiving a client-side fix requires a page reload
+     they were not doing.
+
+     That is not a one-off. For an idle game a tab left open for days is the
+     INTENDED way to play, so "the fix ships" and "the fix arrives" are separate
+     events with an unbounded gap between them — a structural hole under every
+     client fix this project will ever ship. Before b333 there was no
+     build-version detection anywhere in the codebase: `location.reload()`
+     appeared only behind explicit user actions, and the service worker's
+     skipWaiting()/clients.claim() only helps the NEXT navigation.
+
+     src/net/build-watch.js polls the deployed build-info.js and compares. What
+     these tests pin, in order of how badly each would hurt if it rotted:
+       1. the decision is PURE and the table is exhaustive (nothing else can be
+          driven honestly if this is a restatement of the code);
+       2. uncertainty NEVER prompts — an unreadable body does nothing at all;
+       3. it cannot become a request loop (the irony would be terminal);
+       4. a poll genuinely reaches the wire, cache-busted, once;
+       5. routine = a dismissible card that does not interrupt play;
+       6. auth-dead + stale = escalation INTO the b331 sheet, not a rival modal;
+       7. NOTHING reloads without a click. */
+
+  () => tryRun('b333: the running-vs-deployed decision table, including "never reload backwards"', () => {
+    const W = window.HearthriseBuildWatch;
+    assert(W && typeof W.decideBuildUpdate === 'function',
+      'build-watch is gone — every future client fix reaches only the players who happen to reload');
+    const d = (p) => W.decideBuildUpdate({ running: 332, deployed: 333, authDead: false, ...p });
+
+    // Nothing to say.
+    assert(d({ deployed: 332 }).action === 'none', 'the current build must not prompt');
+    assert(d({ running: 0 }).action === 'none', 'an unknown running build must not prompt');
+    assert(d({ deployed: 0 }).action === 'none', 'an unreadable deployed build must not prompt');
+    assert(d({ deployed: NaN }).action === 'none', 'a NaN deployed build must not prompt');
+    // A stale CDN edge or a rollback serves an OLDER build-info than the one
+    // this tab is running. Asking a player to reload backwards would hand them
+    // the very bug they already have the fix for.
+    assert(d({ deployed: 331 }).action === 'none',
+      'a deployed build OLDER than the running one must never prompt a reload');
+
+    // Routine.
+    const n = d({});
+    assert(n.action === 'notify' && n.build === 333, 'a newer build must produce a notify, got ' + n.action);
+    assert(d({ promptedFor: 333, cardShowing: true }).action === 'none',
+      'a card already on screen must not be re-rendered every poll');
+    /* DISMISSED and SHOWN are different facts. Only a dismissal is the
+       player's decision; a card that vanished without one (a DOM re-render, a
+       theme swap rebuilding the body) means they never saw the message, so it
+       goes back up. Without this distinction `promptedFor` masks
+       `dismissedFor` entirely and the dismissal latch is untestable dead
+       code — which is what a mutation proved about the first cut. */
+    assert(d({ promptedFor: 333, cardShowing: false }).action === 'notify',
+      'a card that disappeared unacknowledged must be shown again — the player was never told');
+    assert(d({ dismissedFor: 333, cardShowing: false }).action === 'none', 'a dismissed build must not nag');
+    assert(d({ dismissedFor: 333, deployed: 334 }).action === 'notify',
+      'dismissing b333 must not silence b334 — the latch is per build, not forever');
+
+    // Escalation. THE POINT OF THE MODULE: in the b331 auth-dead state a stale
+    // build is the difference between "your progress is not saving" and "your
+    // progress is saving", so it outranks a dismissal of the routine card —
+    // the claim is not the one the player waved away.
+    const e = d({ authDead: true });
+    assert(e.action === 'escalate', 'a stale build with sync DEAD must escalate, got ' + e.action);
+    assert(d({ authDead: true, dismissedFor: 333 }).action === 'escalate',
+      'escalation must outrank a dismissal of the quiet card — it is a different, worse claim');
+    assert(d({ authDead: true, promptedFor: 333 }).action === 'escalate',
+      'having shown the quiet card must not consume the escalation');
+    assert(d({ authDead: true, escalatedFor: 333 }).action === 'none',
+      'escalation must latch per build so it cannot nag every poll');
+    assert(d({ authDead: true, deployed: 332 }).action === 'none',
+      'auth-dead on a CURRENT build is b331 business, not b333 — reloading would not help');
+  }),
+
+  () => tryRun('b333: an unreadable, truncated or captive-portal response can never trigger a prompt', () => {
+    const W = window.HearthriseBuildWatch;
+    const p = W.parseDeployedBuild;
+    assert(p('export const BUILD = Object.freeze({ version: "0.9.2-beta", cache: 333, });') === 333,
+      'the real build-info shape must parse');
+    assert(p('cache:   4096 ,') === 4096, 'whitespace around the value must parse');
+    [null, undefined, '', 'not javascript at all', '<html>Wi-Fi login required</html>',
+     'export const BUILD = Object.freeze({ version', 'cache: 0', 'cache: -3', 'cache: abc',
+    ].forEach((body) => {
+      assert(p(body) === null, 'an unreadable body must yield null, not a number: ' + JSON.stringify(body));
+    });
+    // A body far larger than a ~1KB build-info is somebody else's page.
+    assert(p('cache: 999\n' + 'x'.repeat(W.MAX_BODY_BYTES)) === null,
+      'an oversized body must be refused rather than regex-scanned');
+    // And null must be inert all the way through the decision.
+    assert(W.decideBuildUpdate({ running: 332, deployed: p('garbage'), authDead: true }).action === 'none',
+      'an unreadable poll must do NOTHING — uncertainty never prompts, even with sync dead');
+  }),
+
+  () => tryRun('b333: three days of an open tab costs a bounded number of polls, and a hidden tab costs zero', () => {
+    const W = window.HearthriseBuildWatch;
+    assert(typeof W.decideBuildPoll === 'function', 'the poll gate is gone — this could become a request loop');
+    assert(W.POLL_INTERVAL_MS >= 5 * 60000 && W.POLL_INTERVAL_MS <= 60 * 60000,
+      'the poll interval (' + W.POLL_INTERVAL_MS + 'ms) left the free-but-useful band of 5-60 minutes');
+
+    const THREE_DAYS = 3 * 24 * 3600 * 1000;
+    const STEP = 60000;                       // the module's own wake-up cadence
+
+    // A. healthy, visible, open for three days.
+    let last = 0, polls = 0;
+    for (let t = 0; t <= THREE_DAYS; t += STEP) {
+      if (!W.decideBuildPoll({ now: t, lastPollAt: last, fails: 0, hidden: false, trigger: 'interval' }).poll) continue;
+      polls++; last = t;
+    }
+    const expected = Math.floor(THREE_DAYS / W.POLL_INTERVAL_MS);
+    assert(Math.abs(polls - expected) <= 1,
+      'three days of a healthy open tab issued ' + polls + ' polls, expected about ' + expected);
+
+    // B. hidden the whole time: not one request. A background tab is not about
+    // to act; it is checked the instant it is looked at.
+    let hiddenPolls = 0;
+    for (let t = 0; t <= THREE_DAYS; t += STEP) {
+      if (W.decideBuildPoll({ now: t, lastPollAt: 0, fails: 0, hidden: true, trigger: 'interval' }).poll) hiddenPolls++;
+    }
+    assert(hiddenPolls === 0, 'a hidden tab polled ' + hiddenPolls + ' times — background tabs must cost nothing');
+
+    // C. the endpoint is 404ing for three days (a bad deploy). Backoff must
+    // make that cheap; without it this is 4,320 requests.
+    let fails = 0; last = 0; let failPolls = 0;
+    for (let t = 0; t <= THREE_DAYS; t += STEP) {
+      if (!W.decideBuildPoll({ now: t, lastPollAt: last, fails, hidden: false, trigger: 'interval' }).poll) continue;
+      failPolls++; last = t; fails++;
+    }
+    assert(failPolls > 0 && failPolls <= 120,
+      'three days of a failing endpoint cost ' + failPolls + ' requests — backoff is not holding');
+
+    // D. alt-tabbing cannot be turned into a request loop.
+    let flapLast = 0, flapPolls = 0;
+    for (let t = 0; t <= 3600000; t += 1000) {
+      if (!W.decideBuildPoll({ now: t, lastPollAt: flapLast, fails: 0, hidden: false, trigger: 'visible' }).poll) continue;
+      flapPolls++; flapLast = t;
+    }
+    assert(flapPolls <= 61, 'flapping the tab 3,600 times issued ' + flapPolls + ' polls — the visibility throttle is gone');
+    assert(flapPolls >= 30, 'returning to the tab never re-checks — the returning player is the one who is about to act');
+
+    // E. a clock that jumped backwards must not unlock an unbounded burst.
+    assert(W.decideBuildPoll({ now: 1000, lastPollAt: 9e12, fails: 0, hidden: false, trigger: 'interval' }).poll === false,
+      'a backwards clock jump must not unlock polling');
+  }),
+
+  () => tryRun('b333: a poll actually reaches the wire — no-store, once per interval, one URL', () => {
+    const W = window.HearthriseBuildWatch;
+    const before = W.getState();
+    const realFetch = window.fetch;
+    const calls = [];
+    // Answer with THIS tab's own build so the async half of the poll resolves
+    // to "up-to-date" and leaves the live game exactly as it found it.
+    window.fetch = (url, init) => {
+      calls.push({ url: String(url), init: init || {} });
+      return Promise.resolve(new Response('export const BUILD = Object.freeze({ cache: ' + before.running + ', });',
+        { status: 200 }));
+    };
+    try {
+      W.__setState({ lastPollAt: 0, inFlight: false, fails: 0 });
+      const now = 1e12;
+      const v = W.tickBuildWatch('interval', now);
+      assert(v.poll === true, 'a due poll did not fire: ' + v.reason);
+      assert(calls.length === 1, 'a due poll put ' + calls.length + ' requests on the wire, expected exactly 1');
+      assert(/build-info\.js/.test(calls[0].url), 'the poll does not read build-info.js: ' + calls[0].url);
+      assert(calls[0].init.cache === 'no-store',
+        'the poll must be no-store, or the browser answers it from the very cache we are trying to see past');
+
+      // Not twice in the same interval.
+      W.tickBuildWatch('interval', now + 1000);
+      assert(calls.length === 1, 'a second poll went out 1s later — the interval gate is gone');
+
+      /* NO PER-POLL CACHE-BUSTER. The service worker (legacy.js b111) treats
+         every same-origin `.js` as app shell and caches.put()s each DISTINCT
+         url it fetches, so a `?bw=<timestamp>` would deposit a permanent Cache
+         Storage entry every 15 minutes, forever. `no-store` above is the right
+         instrument and the SW's shell strategy is network-first anyway. Two
+         polls half an hour apart must therefore hit the SAME url. */
+      W.__setState({ lastPollAt: 0, inFlight: false, fails: 0 });
+      W.tickBuildWatch('interval', now + W.POLL_INTERVAL_MS * 2);
+      assert(calls.length === 2, 'the second interval poll never fired');
+      assert(calls[1].url === calls[0].url,
+        'each poll requests a unique URL (' + calls[0].url + ' vs ' + calls[1].url
+        + ') — the service worker caches every distinct .js it sees, so this leaks a cache entry per poll forever');
+
+      // Not while another is in flight.
+      W.__setState({ lastPollAt: 0, inFlight: true });
+      W.tickBuildWatch('interval', now + W.POLL_INTERVAL_MS * 5);
+      assert(calls.length === 2, 'a poll was issued while one was already in flight');
+
+      // A rejecting endpoint must be silent: no prompt, no throw, just a count.
+      window.fetch = () => Promise.reject(new Error('offline'));
+      W.__setState({ lastPollAt: 0, inFlight: false, fails: 0 });
+      const off = W.tickBuildWatch('interval', now + W.POLL_INTERVAL_MS * 10);
+      assert(off.poll === true, 'the offline probe did not run, so it proves nothing');
+      assert(!document.getElementById(W.CARD_ID), 'a failed poll rendered UI — failure must be silent');
+    } finally {
+      window.fetch = realFetch;
+      W.__setState(before);
+      W.hideUpdateCard();
+    }
+  }),
+
+  () => tryRun('b333: a routine new build shows a dismissible card that does not interrupt play, and never nags', () => {
+    const W = window.HearthriseBuildWatch;
+    const before = W.getState();
+    let reloads = 0;
+    W.__setReloadHook(() => { reloads++; });
+    W.__setAuthDeadProbe(() => false);
+    try {
+      W.__setState({ running: 332, deployed: 0, promptedFor: 0, dismissedFor: 0, escalatedFor: 0, fails: 3 });
+      const v = W.applyBuildInfoText('export const BUILD = Object.freeze({ cache: 333, });', Date.now());
+      assert(v.action === 'notify', 'a newer deployed build did not notify: ' + v.action + '/' + v.reason);
+      assert(W.getState().fails === 0, 'a successful poll must clear the failure streak');
+      const card = document.getElementById(W.CARD_ID);
+      assert(card, 'no card rendered — the player is never told a new build exists');
+      assert(/b333/.test(card.textContent), 'the card does not name the build that is live');
+
+      // NON-INTERRUPTING is the contract, so assert it the way a player would
+      // feel it: the game under the middle of the screen is still clickable.
+      const cs = getComputedStyle(card);
+      assert(cs.position === 'fixed', 'the card must be fixed chrome, not in the layout flow');
+      const r = card.getBoundingClientRect();
+      assert(r.width < innerWidth * 0.75 && r.height < innerHeight * 0.5,
+        'the card covers ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' — that is a modal, not a notice');
+      const mid = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+      assert(!card.contains(mid), 'the card is blocking the middle of the screen — play is interrupted');
+      assert(!card.querySelector('input,select,textarea'), 'the card must not steal input focus');
+
+      // It must not have reloaded anything on its own.
+      assert(reloads === 0, 'the card reloaded the page without a click — that can drop unsaved local state');
+
+      // Idempotent: a poll every 15 minutes must not stack cards.
+      W.applyBuildInfoText('cache: 333', Date.now());
+      assert(document.querySelectorAll('#' + W.CARD_ID).length === 1, 'the card stacked on the next poll');
+
+      /* A card that vanishes WITHOUT the player acting means they never saw
+         it, so the next poll puts it back. This is also what makes the
+         dismissal assertion below able to fail: without it, `promptedFor`
+         alone would answer "none" and the test would pass whether dismissal
+         latched or not. */
+      W.hideUpdateCard();
+      assert(W.applyBuildInfoText('cache: 333', Date.now()).action === 'notify',
+        'a card removed without a dismissal was never re-shown — the player is silently left on the old build');
+      assert(document.getElementById(W.CARD_ID), 'the re-notify rendered nothing');
+
+      // "Later" is the player's decision, and it latches for THIS build only.
+      document.getElementById(W.CARD_ID).querySelector('[data-act="later"]').click();
+      assert(!document.getElementById(W.CARD_ID), 'the card is not dismissible');
+      assert(reloads === 0, 'dismissing the card reloaded the page');
+      assert(W.applyBuildInfoText('cache: 333', Date.now()).action === 'none',
+        'the dismissed build came back on the next poll — this would nag every 15 minutes forever');
+      assert(!document.getElementById(W.CARD_ID), 'the dismissed card was rendered again');
+      assert(W.applyBuildInfoText('cache: 334', Date.now()).action === 'notify',
+        'the NEXT build was silenced by a dismissal of the previous one');
+
+      // …and the reload button is the only thing that reloads.
+      document.getElementById(W.CARD_ID).querySelector('[data-act="reload"]').click();
+      assert(reloads === 1, 'the Reload button did not request a reload (' + reloads + ')');
+    } finally {
+      W.hideUpdateCard();
+      W.__setReloadHook(null);
+      W.__setAuthDeadProbe(null);
+      W.__setState(before);
+    }
+  }),
+
+  () => tryRun('b333: with sync DEAD, a stale build escalates INTO the b331 sheet — never a rival modal', () => {
+    const W = window.HearthriseBuildWatch;
+    const A = window.HearthriseAuth;
+    assert(A && typeof A.showAuthExpiredGate === 'function',
+      'the b331 sign-in-expired sheet is gone — b333 escalation has nothing to compose with');
+    const before = W.getState();
+    let reloads = 0;
+    W.__setReloadHook(() => { reloads++; });
+    W.__setAuthDeadProbe(() => true);            // the b331 terminal state
+    try {
+      A.hideAuthExpiredGate();
+      W.hideUpdateCard();
+      W.__setState({ running: 332, deployed: 0, promptedFor: 0, dismissedFor: 333, escalatedFor: 0 });
+
+      // Dismissing the quiet card must NOT have bought silence about this.
+      const v = W.applyBuildInfoText('cache: 333', Date.now());
+      assert(v.action === 'escalate', 'a stale build with sync dead did not escalate: ' + v.action + '/' + v.reason);
+
+      const sheet = document.getElementById('hr-auth-expired-gate');
+      assert(sheet, 'escalation did not surface the b331 sheet');
+      assert(!document.getElementById(W.CARD_ID),
+        'the quiet card is still up alongside the sheet — two dialogs about one failure');
+      const block = sheet.querySelector('#' + W.ESCALATION_ID);
+      assert(block, 'the sheet carries no build-staleness block — the player is told to re-sign-in but not to reload');
+      const t = block.textContent.toLowerCase();
+      // The copy must tell the TRUTH about this state: reloading is what
+      // restores saving, and until then the only copy is local. We can NOT
+      // promise a save first — in this state the save is what is failing.
+      assert(/reload/.test(t), 'the escalation never says to reload');
+      assert(/this device only|on this device/.test(t),
+        'the escalation does not tell the player their progress is local-only until they reload');
+      assert(!/saved to the cloud|progress is safe|we have saved/.test(t),
+        'the escalation claims the progress is safely saved — it is not, that is the entire failure');
+      assert(reloads === 0, 'escalation reloaded the page on its own — in THIS state that can destroy the only copy');
+      assert(document.querySelectorAll('#' + W.ESCALATION_ID).length === 1, 'the escalation block stacked');
+
+      // Latched: it must not re-inject on every poll.
+      W.applyBuildInfoText('cache: 333', Date.now());
+      assert(document.querySelectorAll('#' + W.ESCALATION_ID).length === 1, 'the escalation re-fired on the next poll');
+
+      // The button is the only path to a reload.
+      block.querySelector('#hr-authexp-reload').click();
+      assert(reloads === 1, 'the escalation reload button does not work (' + reloads + ')');
+
+      // b302 outranks everything: eviction protects ANOTHER device's save.
+      A.hideAuthExpiredGate();
+      const fake = document.createElement('div');
+      fake.id = 'hr-evicted-gate';
+      document.body.appendChild(fake);
+      try {
+        W.__setState({ escalatedFor: 0 });
+        W.applyBuildInfoText('cache: 333', Date.now());
+        assert(!document.getElementById('hr-auth-expired-gate'), 'b333 drew a sheet over the b302 eviction gate');
+        assert(!document.getElementById(W.CARD_ID), 'b333 drew a card over the b302 eviction gate');
+        assert(W.getState().escalatedFor === 0, 'a suppressed escalation must not latch — the player was never told');
+      } finally { fake.remove(); }
+    } finally {
+      A.hideAuthExpiredGate();
+      W.hideUpdateCard();
+      W.__setReloadHook(null);
+      W.__setAuthDeadProbe(null);
+      W.__setState(before);
+    }
+  }),
+
+  () => tryRun('b333: the watcher is armed on a live tab, and it is reading THIS build', () => {
+    const W = window.HearthriseBuildWatch;
+    const st = W.getState();
+    assert(st.running === window.HearthriseBuild.cache,
+      'build-watch thinks it is running b' + st.running + ' but this tab is b' + window.HearthriseBuild.cache
+      + ' — it would compare against the wrong number forever');
+    assert(/\/build-info\.js$/.test(W.BUILD_INFO_URL),
+      'the poll URL is not build-info.js: ' + W.BUILD_INFO_URL);
+    assert(!/\?v=/.test(W.BUILD_INFO_URL),
+      'the poll URL carries the RUNNING build\'s ?v= — it would fetch the version it already has: ' + W.BUILD_INFO_URL);
+    // Armed: startBuildWatch() ran at import and set the first-poll watermark.
+    assert(st.lastPollAt > 0, 'the watcher was never started — nothing polls, and every client fix waits for a reload');
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

@@ -19251,6 +19251,247 @@ const TESTS = [
     assert(st.lastPollAt > 0, 'the watcher was never started — nothing polls, and every client fix waits for a reload');
   }),
 
+  /* ── b334 regression suite — "COMBAT STYLE CAN'T BE CHOSEN WHILE IN COMBAT" ─
+     Player report on b333, which is confusing at first sight because b329 had
+     just shipped "switching style mid-fight takes effect immediately" and there
+     is no in-combat guard anywhere on the click path. Reproduced, and it was
+     THREE independent defects that all present as the same sentence:
+
+       (1) MOBILE, 100%.  combat-hud.css hid `.combat-style-block` for the whole
+           of `body.in-combat`, including on the phone's dedicated STYLE
+           sub-tab. Tapping Style during a fight showed an empty screen. Every
+           phone, every fight, every time.
+       (2) MOBILE, 100% (and it would have survived (1)'s fix).  The sub-tab
+           sync re-asserted 'arena' on a 1500ms poll, so a player who tapped
+           Style mid-fight was dragged back within 1.5 seconds.
+       (3) DESKTOP, 7.5% of presses.  renderStyleSelector removed and rebuilt
+           the whole picker, and it is hooked onto renderCombat — ~1.3 rebuilds
+           a second during a fight. A button torn out between mousedown and
+           mouseup produces NO click event at all, so the press did nothing.
+           Measured with a real mouse in headless Chromium on b333: 3 of 40.
+
+     (3) is the one a test can most easily pretend to cover, because a synthetic
+     `.click()` on a live node always works. The property that actually matters
+     is NODE SURVIVAL — the browser only dispatches the click if the element the
+     player pressed is still in the document when they release. So that is what
+     is asserted, by identity, across a real repaint. */
+
+  () => tryRun('b334: the style buttons SURVIVE a combat repaint (a torn-out button eats the click entirely)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      assert(typeof window.renderStyleSelector === 'function',
+        'renderStyleSelector must be published — the picker cannot be driven or tested otherwise');
+      window.showTab('combat');
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      window.startCombat('goblin');
+      assert(G.activeMonster, 'the test needs a live fight');
+      window.renderStyleSelector();
+
+      const block = document.querySelector('.combat-style-block');
+      assert(block, 'no .combat-style-block rendered during a live fight');
+      const btns = [...block.querySelectorAll('.csb-btn')];
+      assert(btns.length >= 2, 'the picker needs at least two styles to switch between, got ' + btns.length);
+
+      // THE PROPERTY: the exact element the player pressed is still the exact
+      // element in the document after the fight repaints. Five repaints, because
+      // the live bug needed only one to land between press and release.
+      const pressed = btns[0];
+      for (let i = 0; i < 5; i++) {
+        window.renderCombat();
+        window.renderStyleSelector();          // what the renderCombat hook defers by a tick
+      }
+      assert(pressed.isConnected,
+        'the button the player pressed was removed from the document by a combat repaint — '
+        + 'the browser dispatches NO click for a press that ends on a detached node');
+      assert(document.querySelector('.csb-btn[data-style-key="' + pressed.getAttribute('data-style-key') + '"]') === pressed,
+        'the picker was rebuilt: the button with this style key is a DIFFERENT node than the one before the repaint');
+      assert(document.querySelectorAll('.combat-style-block').length === 1,
+        'repainting duplicated the style block (' + document.querySelectorAll('.combat-style-block').length + ' present)');
+
+      // …and a press that lands on that surviving node still does the job.
+      const t = window.getWeaponType();
+      const target = btns.find((b) => b.getAttribute('data-style-key') !== G.combatStyle[t]);
+      assert(target, 'every button is already the active style — the test would assert nothing');
+      const want = target.getAttribute('data-style-key');
+      target.click();
+      assert(G.combatStyle[t] === want,
+        'clicking a style button after a repaint did not change the style (still ' + G.combatStyle[t] + ')');
+    } finally {
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.renderStyleSelector(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b334: one delegated listener owns the picker, so a REBUILT button still works — and still retimes the fight (b329)', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const realRetime = window.retimeCombat;
+    let retimes = 0;
+    try {
+      window.showTab('combat');
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      window.startCombat('goblin');
+      window.renderStyleSelector();
+
+      // Force a genuine REBUILD (not an in-place update) by changing the weapon
+      // family — the shape key changes, so the whole block is recreated. Before
+      // b334 each rebuild re-attached per-button listeners; now nothing does,
+      // which is exactly the thing that must not silently stop working.
+      G.equipment.weapon = 'shortbow';
+      window.renderStyleSelector();
+      assert(window.getWeaponType() === 'ranged', 'the test needs a bow equipped');
+      const fresh = document.querySelector('.csb-btn[data-style-key="longrange"]');
+      assert(fresh, 'the rebuilt picker has no Longrange button');
+
+      window.retimeCombat = function () { retimes++; return realRetime.apply(this, arguments); };
+      G.combatStyle.ranged = 'rapid';
+      const fastMs = window.combatTickMs();
+      fresh.click();
+
+      assert(G.combatStyle.ranged === 'longrange',
+        'a button created by a rebuild does not respond to clicks — the delegated listener is not bound');
+      assert(retimes >= 1,
+        'picking a style mid-fight did not call retimeCombat() — b329 regressed: the choice would wait for the next target');
+      assert(window.combatTickMs() > fastMs,
+        'the running fight kept the old swing interval after the style changed ('
+        + fastMs + 'ms -> ' + window.combatTickMs() + 'ms)');
+
+      // The public writer is a real seam, not an inline closure, and it refuses
+      // a style that does not belong to the equipped weapon family.
+      assert(typeof window.applyCombatStyle === 'function', 'window.applyCombatStyle seam missing');
+      assert(window.applyCombatStyle('not_a_style') === false && G.combatStyle.ranged === 'longrange',
+        'an unknown style key was accepted — the picker would happily write junk into the save');
+    } finally {
+      window.retimeCombat = realRetime;
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.renderStyleSelector(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b334: on a PHONE mid-fight, the Style sub-tab actually shows the style picker', () => {
+    /* Measured at a real phone geometry, because this defect is 100% CSS and
+       invisible at the desktop width the rest of the suite runs at. Same iframe
+       technique as the b310 inventory probe: media queries inside an iframe
+       evaluate against the IFRAME's viewport, so 922x423 reproduces the device.
+       Proved RED against the b333 rule (`body.in-combat ... .combat-style-block
+       {display:none}` with no sub-tab exclusion): styleTabBlock 'none' -> the
+       player taps Style during a fight and gets an empty screen. */
+    let css = '';
+    let sheetsSeen = 0;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      const href = sheet.href || '';
+      if (href && !/(legacy|audit-overrides|theme-cozy|art-direction|combat-hud)\.css/.test(href)) continue;
+      if (href) sheetsSeen++;
+      for (const r of rules) css += r.cssText + '\n';
+    }
+    assert(sheetsSeen >= 5, 'the probe must find all five combat stylesheets, saw ' + sheetsSeen);
+    assert(css.length > 100000, 'the CSS blob looks empty (' + css.length + ' chars) — the probe would pass vacuously');
+
+    const panelInner =
+      '<div id="cmb-mob-tabs" class="cmb-mob-tabs"><button class="cmt-btn" data-sub="style">Style</button></div>'
+      + '<div class="combat-style-block"><h4>Combat Style</h4><div class="csb-meta">m</div>'
+      + '<div class="combat-style-buttons"><button class="csb-btn" data-style-key="accurate">Accurate</button></div></div>'
+      + '<div class="combat-picker"><div class="monster-row">Goblin</div></div>'
+      + '<div class="combat-arena"><div class="arena-vs">vs</div></div>';
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+    document.body.appendChild(frame);
+    let out;
+    try {
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>'
+        + '<body class="in-combat" data-theme="hearthlight"><div id="app" class="app"><main class="main">'
+        + '<section class="panel active" id="panel-combat" data-mobile-sub="style">' + panelInner + '</section>'
+        + '</main></div></body></html>');
+      doc.close();
+      const win = frame.contentWindow;
+      const panel = doc.getElementById('panel-combat');
+      const disp = (sel) => { const el = doc.querySelector(sel); return el ? win.getComputedStyle(el).display : 'MISSING'; };
+      const seen = (sel) => { const el = doc.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+
+      out = { vpW: win.innerWidth, vpH: win.innerHeight };
+      // Sanity: the probe must actually be inside the mobile media query, or it
+      // is measuring the desktop layout and proving nothing.
+      assert(win.innerWidth <= 1024 && win.innerHeight <= 540,
+        'the probe viewport (' + win.innerWidth + 'x' + win.innerHeight + ') is not a phone — the mobile rules would not apply');
+
+      // THE REPORT: Style sub-tab, fight running.
+      out.styleTabBlock = disp('.combat-style-block');
+      out.styleTabBtnVisible = seen('.csb-btn');
+      assert(out.styleTabBlock !== 'none',
+        'mid-fight on the Style sub-tab the style picker computes display:none — this IS the player report');
+      assert(out.styleTabBtnVisible === true,
+        'the style buttons render at zero size on the Style sub-tab mid-fight — unclickable');
+      assert(disp('.combat-picker') === 'none',
+        'the monster picker must stay hidden during a live fight (b230)');
+
+      // …and b230 is intact: on every other sub-tab the arena is the screen and
+      // the picker ribbon stays out of the way.
+      panel.setAttribute('data-mobile-sub', 'arena');
+      out.arenaTabArena = disp('.combat-arena');
+      out.arenaTabBlock = disp('.combat-style-block');
+      assert(out.arenaTabArena !== 'none',
+        'the arena is hidden mid-fight on the Arena sub-tab — b230 blank combat screen is back');
+      assert(out.arenaTabBlock === 'none',
+        'the style ribbon is back on the arena sub-tab, eating a 423px-tall screen');
+      panel.setAttribute('data-mobile-sub', 'monsters');
+      assert(disp('.combat-arena') !== 'none',
+        'the arena is hidden mid-fight on the Foes sub-tab — that is the exact b230 blank screen');
+    } finally {
+      frame.remove();
+    }
+  }),
+
+  () => tryRun('b334: tapping a combat sub-tab mid-fight is not undone by the 1500ms sync poll', () => {
+    const panel = document.getElementById('panel-combat');
+    assert(panel, 'panel-combat must exist');
+    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
+    const styleTab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
+    assert(styleTab, 'the mobile Style sub-tab button is gone — there is no way to reach the picker on a phone');
+
+    const hadInCombat = document.body.classList.contains('in-combat');
+    const priorSub = panel.dataset.mobileSub;
+    try {
+      // Fight starts: the sync correctly puts the player on the arena (b230).
+      document.body.classList.remove('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      panel.dataset.mobileSub = 'monsters';
+      document.body.classList.add('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      assert(panel.dataset.mobileSub === 'arena', 'fight start must still open the arena (b230)');
+
+      // The player taps Style. THREE poll ticks then go by.
+      styleTab.click();
+      assert(panel.dataset.mobileSub === 'style', 'tapping Style did not switch the sub-tab');
+      window.__cmbSyncCombatSub(panel);
+      window.__cmbSyncCombatSub(panel);
+      window.__cmbSyncCombatSub(panel);
+      assert(panel.dataset.mobileSub === 'style',
+        'the poll dragged the player back to ' + panel.dataset.mobileSub
+        + ' — they get at most 1.5s to pick a style, which reads as "you cannot"');
+
+      // The NEXT fight still opens on the arena: the override is per fight, not
+      // a permanent surrender of the auto-steer.
+      document.body.classList.remove('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      panel.dataset.mobileSub = 'monsters';
+      document.body.classList.add('in-combat');
+      window.__cmbSyncCombatSub(panel);
+      assert(panel.dataset.mobileSub === 'arena',
+        'the manual override leaked into the next fight — every later fight would open on the wrong tab');
+    } finally {
+      document.body.classList.toggle('in-combat', hadInCombat);
+      window.__cmbSyncCombatSub(panel);
+      if (priorSub) panel.dataset.mobileSub = priorSub;
+    }
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

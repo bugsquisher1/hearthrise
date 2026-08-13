@@ -19251,6 +19251,172 @@ const TESTS = [
     assert(st.lastPollAt > 0, 'the watcher was never started — nothing polls, and every client fix waits for a reload');
   }),
 
+  /* ── b334 regression suite — THE CANCEL THAT WENT NOWHERE ──────────────────
+     SYMPTOM (live, b333): `[error-boundary] wrapped render functions ×0`
+     printed ~5 times a second for the lifetime of the page, burying every
+     other console message.
+
+     ROOT CAUSE, in src/core-ready.js release(). The gate parks every timer a
+     classic script registers during the boot window and, on release, restarts
+     each one under a REAL platform id while the caller still holds the parking
+     id — `remap` is the table that translates between them, and the wrapped
+     clearTimeout/clearInterval are the only things that consult it. release()
+     ran, in order:
+
+         parked.clear();
+         uninstall();          // -> maybeUnwrapClears()
+         entries.forEach(...)  // <- remap filled HERE
+
+     and `maybeUnwrapClears()` unwraps when `ready && !parked.size &&
+     !remap.size`. At that exact statement all three held: ready, parked
+     drained, remap not yet filled. So the platform clear* were restored ONE
+     STATEMENT before the table they exist to read was populated. Every
+     boot-registered interval was then uncancellable for the rest of the page:
+     the caller's clearInterval(parkingId) reached the platform, where that id
+     named a parking timeout release() had already cleared — a silent no-op.
+
+     Only the intervals that self-cancel were affected, which is why this hid
+     for eleven builds: beta-banner, nav-consolidation, settings-page and
+     post-signup-welcome all leak quietly. src/error-boundary.js was the one
+     that LOGGED on cancel, so it was the only visible sufferer — and its own
+     message was misreported by design (it printed the PER-TICK delta of
+     wrap(), which is 0 on every tick after the first because wrap() refuses an
+     already-__hrWrapped function), so the number that would have exposed a
+     runaway loop was structurally incapable of being anything but 0.
+
+     Node-side proof of the mechanism, run against the real file: park one
+     interval, release, self-cancel on the first fire. Before: 10 fires, 9 of
+     them after the cancel. After: 1 fire, 0 after the cancel. */
+
+  () => tryRun('b334: the boot-timer gate keeps clear* wrapped while any boot interval is still remapped', () => {
+    const stats = window.__hrCoreGateStats;
+    assert(typeof stats === 'function',
+      'src/core-ready.js no longer exposes __hrCoreGateStats — the runaway-interval bug becomes unobservable again');
+    const s = stats();
+    assert(s.ready === true, 'the gate never released — every boot timer is still parked');
+    assert(s.parked === 0, 'the gate released but left ' + s.parked + ' timer(s) parked');
+    /* Non-vacuity. If nothing is remapped the implication below is trivially
+       true and this test asserts nothing at all — which is exactly the failure
+       family this suite has been bitten by. Boot-registered intervals that are
+       never cancelled (legacy.js registers several at parse time) keep this
+       above zero for the life of the page. */
+    assert(s.remapped > 0,
+      'no boot interval is remapped, so the invariant below is vacuous — either core-ready stopped '
+      + 'parking (nothing protects the boot window) or the script order in index.html changed');
+    assert(s.clearsWrapped === true,
+      'THE b334 BUG: ' + s.remapped + ' boot interval(s) are running under substituted platform ids, but '
+      + 'clearTimeout/clearInterval have been restored to the platform — the parking ids their callers hold '
+      + 'now name nothing, so every one of them is uncancellable for the lifetime of the page');
+    /* The other half of the gate's contract, unchanged by this fix: the
+       SCHEDULERS must uninstall, or every timer in the game is parked forever.
+       Asked as "is the GATE's own function still on window", not as a string or
+       platform-identity test: Sentry's tracing bundle re-wraps setTimeout and
+       setInterval in its setupOnce, AFTER the gate uninstalls, and copies
+       toString() — so window.setTimeout reports "[native code]" while being
+       Sentry's wrapper. A string test cannot tell that apart from a gate that
+       never uninstalled, and identity against the platform function is false
+       here for a perfectly healthy page. */
+    assert(s.schedulersParked === false,
+      'the gate still owns setTimeout/setInterval — every timer in the game is being parked');
+  }),
+
+  () => tryRun('b334: the error boundary sets itself up ONCE — its interval is genuinely dead, not merely told to stop', () => {
+    const EB = window.HearthriseErrorBoundary;
+    assert(EB && EB.stats, 'the error boundary is not installed — nothing catches a throwing renderer');
+    const st = EB.stats;
+    assert(st.ticks > 0,
+      'the setup interval never fired at all — it was parked and never released, and NOTHING is wrapped');
+    /* THE ASSERTION THAT FAILS ON THE LIVE BUG. The suite runs several seconds
+       after load, so a 200ms interval that outlived its clearInterval has ticked
+       dozens of times by now. `ticksAfterStop` counts fires that happened after
+       the boundary called clearInterval on itself: the direct witness that the
+       cancel took effect, independent of any bookkeeping the boundary does. */
+    assert(st.ticksAfterStop === 0,
+      'THE b334 SYMPTOM: the setup interval fired ' + st.ticksAfterStop + ' more time(s) AFTER '
+      + 'clearInterval() — the cancel did not take. On the live page this is ~5 console lines a second, forever');
+    assert(st.logs === 1,
+      'the boundary logged its summary ' + st.logs + ' times; exactly one line per page load is the contract');
+    /* And it must not have needed 30 attempts: that would mean the render
+       functions arrived late and half the game went unprotected meanwhile. */
+    assert(st.ticks <= 5,
+      'the boundary needed ' + st.ticks + ' passes to find its targets — the engine is defining its '
+      + 'renderers late and the UI is unprotected until it does');
+  }),
+
+  () => tryRun('b334: every name in the boundary TARGETS list exists and is actually wrapped — the count cannot lie', () => {
+    const EB = window.HearthriseErrorBoundary;
+    assert(EB && EB.stats && Array.isArray(EB.TARGETS), 'the error boundary is not installed');
+    const st = EB.stats, T = EB.TARGETS;
+    assert(T.length >= 10, 'the TARGETS list has shrunk to ' + T.length + ' — most of the UI is unprotected');
+    /* The b333 list carried three names that have NEVER been globals in this
+       codebase — `render`, `renderSkills`, `switchTab`. It printed "×11" of 14
+       and nobody read the shortfall as "three of my targets do not exist",
+       because the line reported neither the denominator nor the names. A stale
+       entry is now a hard failure here and a NOT DEFINED in the log line. */
+    const absent = T.filter((n) => typeof window[n] !== 'function');
+    assert(absent.length === 0,
+      'the boundary is watching ' + absent.length + ' name(s) that do not exist: ' + absent.join(', ')
+      + ' — the UI they were meant to protect is unprotected and the printed count silently under-reports');
+    assert(st.missing.length === 0, 'the boundary itself recorded missing targets: ' + st.missing.join(', '));
+    assert(st.wrapped === T.length,
+      'the boundary reported ' + st.wrapped + ' of ' + T.length + ' wrapped — the number it printed is not the truth');
+
+    /* INDEPENDENT WITNESS, and a standing-debt pin. The boundary wraps all 12 at
+       setup — and four of them are REPLACED afterwards by the
+       `const orig = window.X; window.X = function(){ orig.apply(...) }` hook
+       pattern, which does not carry __hrWrapped through (companions.js does it
+       to renderProfile, identity.js and legacy.js to renderCharacter, and
+       showTab alone is hooked 23 times across the codebase). Those renderers are
+       unprotected in production. It cannot be fixed by defining an accessor on
+       window instead: a global `function` declaration creates a
+       configurable:false property, so showTab/renderCombat/renderProfile cannot
+       be redefined as accessors at all — the honest fix is to stop hooking by
+       reassignment, which is the standing `wrapShowTab` debt.
+       Pinned as an exact set rather than a tolerance: the test fails if the leak
+       GROWS (a new renderer silently loses its boundary) and it fails, for the
+       right reason, if someone fixes one — delete it from the list then.
+       `wrapped-at-setup === 12` above is the claim about the count; this is the
+       claim about reality. */
+    const KNOWN_UNWRAPPED = ['renderProfile', 'renderCharacter', 'renderSkillDetail', 'showTab'];
+    const lost = T.filter((n) => !(typeof window[n] === 'function' && window[n].__hrWrapped === true));
+    const unexpected = lost.filter((n) => KNOWN_UNWRAPPED.indexOf(n) < 0);
+    assert(unexpected.length === 0,
+      'the error boundary was stripped off ' + unexpected.join(', ') + ' after it ran — something '
+      + 'redefined the function without carrying the wrapper through, so a throw there blanks the UI');
+    const fixed = KNOWN_UNWRAPPED.filter((n) => lost.indexOf(n) < 0);
+    assert(fixed.length === 0,
+      fixed.join(', ') + ' now KEEPS the error boundary — good; remove it from KNOWN_UNWRAPPED so the '
+      + 'guard keeps pinning the real leak');
+    /* THE MECHANISM OF THE MISREPORT, asserted directly: wrap() refuses an
+       already-__hrWrapped function, so the PER-TICK delta the b333 line printed
+       is 0 for every tick after the first — the number could not have been
+       anything else, whatever was happening. Only a cumulative total can be
+       true. (wrap(), unlike wrapAll(), has no side effect on a hit.) */
+    window.__hrWrapProbe = function () { return 7; };
+    try {
+      assert(EB.wrap('__hrWrapProbe') === true, 'wrap() refused a fresh function — the boundary wraps nothing');
+      assert(window.__hrWrapProbe.__hrWrapped === true, 'wrap() reported success without marking the function');
+      assert(window.__hrWrapProbe() === 7, 'the wrapper does not pass the return value through');
+      assert(EB.wrap('__hrWrapProbe') === false,
+        'wrap() re-wrapped an already-wrapped function — the render path would be double-wrapped, and the '
+        + 'b333 per-tick count would have looked meaningful when it could only ever be 0');
+    } finally { delete window.__hrWrapProbe; }
+  }),
+
+  () => tryRun('b334: window.render is a phantom — nothing may depend on it, refreshAll is the real full repaint', () => {
+    /* src/net/auth.js and src/settings-page.js both did
+       `if (typeof window.render === 'function') window.render();`
+       after an auth state change. The guard is why it was invisible: a guarded
+       call to a name that never existed does nothing, forever, silently. */
+    assert(typeof window.render !== 'function',
+      'window.render now exists — if it is genuinely the full repaint, add it to the boundary TARGETS; '
+      + 'if it is a feature-local render() that leaked to the global scope, that is the bug');
+    assert(typeof window.refreshAll === 'function',
+      'window.refreshAll is gone — the auth and settings full-repaint call sites are dead again');
+    assert(window.HearthriseErrorBoundary.TARGETS.indexOf('refreshAll') >= 0,
+      'the full repaint is not inside the error boundary — a throw in it blanks the whole UI');
+  }),
+
 ];
 
 export function runSmokeTest(opts = {}) {

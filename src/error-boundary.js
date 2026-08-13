@@ -6,13 +6,23 @@
 // shows a friendly fallback ("Something went wrong here — try
 // reloading") and the rest of the game keeps working.
 //
-// Targets the global functions defined in legacy.js:
-//   render, renderProfile, renderCharacter, renderCombat,
-//   renderSkills, renderInventory, renderHouse, renderFarm,
-//   renderSocial, renderShop, renderSkillDetail, etc.
+// Targets the global functions defined in legacy.js (and, for
+// renderCharacter, src/features/character-page.js).
 //
 // Each thrown error is also fed to window.captureException (Sentry)
 // so we get a full stack trace in our crash reporter.
+//
+// b334 — TARGETS USED TO LIE. It listed `render`, `renderSkills` and
+// `switchTab`; none of the three has ever been a global in this codebase
+// (`render` is a local inside a dozen feature IIFEs, the skills panel is
+// painted by renderSkillDetail/renderActivities, and tab switching is
+// showTab). The count printed below said "×11" — of 14 — and nobody read it
+// as "3 of my targets do not exist", because the message did not say what
+// the denominator was or which names were missing. Both are now in the line,
+// so a target that goes stale reports itself instead of hiding in an
+// unexplained shortfall. See also the two dead `window.render()` call sites
+// removed in src/net/auth.js and src/settings-page.js: a `typeof === 'function'`
+// guard around a name that never exists is invisible forever.
 // ============================================================
 
 (function(){
@@ -20,11 +30,11 @@
   if (window.HearthriseErrorBoundary) return;
 
   const TARGETS = [
-    'render',
-    'renderProfile', 'renderCharacter', 'renderCombat', 'renderSkills',
+    'refreshAll',
+    'renderProfile', 'renderCharacter', 'renderCombat',
     'renderInventory', 'renderFarm', 'renderHouse', 'renderSocial',
     'renderShop', 'renderSkillDetail', 'renderActivities',
-    'showTab', 'switchTab',
+    'showTab',
   ];
 
   function fallbackInto(panel, name, err) {
@@ -70,15 +80,34 @@
 
   // Engine functions are defined in legacy.js, which loads as classic script.
   // Wrap as soon as we can — try a few times to catch late definitions.
-  let attempts = 0;
+  //
+  // b334 — `wrapped` used to be the PER-TICK delta, and wrap() returns false
+  // for anything already carrying __hrWrapped. So every tick after the first
+  // reported 0 no matter how many functions were protected: the one number
+  // that would have exposed the runaway interval below was structurally
+  // incapable of being anything but 0. `total` is cumulative, and `stopped`
+  // means the line is printed exactly once per page load even if the cancel
+  // itself is lost (which is precisely what the core-ready gate was doing to
+  // it — see src/core-ready.js release()). `stats.ticksAfterStop` is the
+  // witness for that: it is 0 iff the interval genuinely died.
+  let attempts = 0, total = 0, stopped = false;
+  const stats = { ticks: 0, ticksAfterStop: 0, logs: 0, wrapped: 0, missing: [] };
+
   const tick = setInterval(() => {
-    const wrapped = wrapAll();
+    stats.ticks++;
+    if (stopped) { stats.ticksAfterStop++; return; }
+    total += wrapAll();
+    stats.wrapped = total;
     attempts++;
-    if (attempts > 30 || wrapped >= TARGETS.length / 2) {
+    if (attempts > 30 || total >= TARGETS.length / 2) {
+      stopped = true;
       clearInterval(tick);
-      console.log('[error-boundary] wrapped render functions ×' + wrapped);
+      stats.missing = TARGETS.filter((t) => typeof window[t] !== 'function');
+      stats.logs++;
+      console.log('[error-boundary] wrapped ' + total + '/' + TARGETS.length + ' render functions'
+        + (stats.missing.length ? ' — NOT DEFINED: ' + stats.missing.join(', ') : ''));
     }
   }, 200);
 
-  window.HearthriseErrorBoundary = { wrapAll, wrap };
+  window.HearthriseErrorBoundary = { wrapAll, wrap, stats, TARGETS };
 })();

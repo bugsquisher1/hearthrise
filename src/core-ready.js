@@ -110,29 +110,44 @@
     return id;
   }
 
-  window.setTimeout = function (fn, ms) {
+  /* Named, so the gate can be asked "is MY wrapper still installed?" — the only
+     honest form of that question (b334). Identity against the platform function
+     cannot answer it: Sentry's tracing bundle re-wraps setTimeout/setInterval in
+     its setupOnce AFTER this uninstalls, and it copies toString(), so
+     `String(window.setTimeout)` reports "[native code]" for a function that is
+     not native at all. A string test therefore cannot distinguish "the gate
+     uninstalled and Sentry wrapped" from "the gate never uninstalled". */
+  var gateSetT = function (fn, ms) {
     if (ready || typeof fn !== 'function') return natSetT.apply(null, arguments);
     return park('t', fn, ms, Array.prototype.slice.call(arguments, 2));
   };
-  window.setInterval = function (fn, ms) {
+  var gateSetI = function (fn, ms) {
     if (ready || typeof fn !== 'function') return natSetI.apply(null, arguments);
     return park('i', fn, ms, Array.prototype.slice.call(arguments, 2));
   };
-  window.clearTimeout = function (id) {
+  var gateClrT = function (id) {
     if (parked.has(id)) { parked.delete(id); natClrT(id); return; }
     if (remap.has(id)) { natClrT(remap.get(id)); remap.delete(id); natClrT(id); maybeUnwrapClears(); return; }
     natClrT(id);
   };
-  window.clearInterval = function (id) {
+  var gateClrI = function (id) {
     if (parked.has(id)) { parked.delete(id); natClrT(id); return; }
     if (remap.has(id)) { natClrI(remap.get(id)); remap.delete(id); natClrT(id); maybeUnwrapClears(); return; }
     natClrI(id);
   };
+  window.setTimeout = gateSetT;
+  window.setInterval = gateSetI;
+  window.clearTimeout = gateClrT;
+  window.clearInterval = gateClrI;
 
   /* The clear* wrappers survive only as long as a released interval is still
-     living under a substituted platform id; after that everything is native. */
+     living under a substituted platform id; after that everything is native.
+     `releasing` is load-bearing (b334): during release() there is a window in
+     which `parked` has been drained and `remap` has not been filled yet, and
+     unwrapping there strands every boot-registered interval — see release(). */
+  var releasing = false;
   function maybeUnwrapClears() {
-    if (ready && !parked.size && !remap.size) {
+    if (ready && !releasing && !parked.size && !remap.size) {
       window.clearTimeout = rawClrT; window.clearInterval = rawClrI;
     }
   }
@@ -146,9 +161,26 @@
   function release(reason) {
     if (ready) return;
     ready = true;
+    releasing = true;
     var entries = Array.from(parked.entries());
     parked.clear();
-    uninstall();
+    /* b334 — ORDER IS THE WHOLE BUG. This used to call uninstall() HERE, and
+       uninstall() calls maybeUnwrapClears(), which at this exact instant sees
+       ready=true, parked empty and remap still empty — so it restored the
+       platform clearTimeout/clearInterval one statement BEFORE the loop below
+       fills remap. Every interval registered in the boot window was then live
+       under a substituted platform id while its caller held the parking id, and
+       the only table that could translate the two had just been unhooked. The
+       caller's clearInterval(id) went straight to the platform, where that id
+       named a parking timeout that release() had already cleared: a silent
+       no-op, forever. src/error-boundary.js self-cancels on its first tick and
+       so logged its "wrapped ×N" line five times a second for the lifetime of
+       the page; every other self-cancelling boot interval (beta-banner,
+       nav-consolidation, settings-page, post-signup-welcome) leaked the same
+       way, invisibly, because they cancel quietly.
+       So: fill remap FIRST, uninstall after, and `releasing` makes the
+       invariant — never unwrap the clears while a remap entry is owed —
+       hold regardless of statement order, which is how this got in. */
     /* Delays are honoured FROM RELEASE, not from registration: the staggered
        boot passes (applyAll at 300ms then 1200ms) are meant to be spaced
        relative to the engine coming up, and the engine comes up now. */
@@ -166,7 +198,8 @@
         }, e.ms]));
       }
     });
-    maybeUnwrapClears();
+    releasing = false;
+    uninstall();                                     // also calls maybeUnwrapClears()
     if (resolveReady) resolveReady(window.HearthriseCore || null);
     var w = waiters; waiters = [];
     w.forEach(function (fn) { try { fn(window.HearthriseCore); } catch (err) { console.error('[core-ready] waiter threw', err); } });
@@ -186,6 +219,21 @@
     waiters.push(fn);
   };
   window.HearthriseCoreReady = readyPromise || { then: function (f) { window.whenCoreReady(f); return this; } };
+
+  /* b334 — the observation seam the runaway-interval bug needed and did not
+     have. `remapped` is the count of boot-registered intervals still running
+     under a substituted platform id; while that is non-zero the clear*
+     wrappers MUST still be installed, or those ids name nothing. The smoke
+     suite asserts exactly that implication. Read-only, no behaviour. */
+  window.__hrCoreGateStats = function () {
+    return {
+      ready: ready,
+      parked: parked.size,
+      remapped: remap.size,
+      clearsWrapped: window.clearInterval === gateClrI && window.clearTimeout === gateClrT,
+      schedulersParked: window.setTimeout === gateSetT || window.setInterval === gateSetI,
+    };
+  };
 
   /* A core that 404s or fails to parse must not cost the player 30 seconds of
      a dead screen. `error` does not bubble, so this listens in the CAPTURE

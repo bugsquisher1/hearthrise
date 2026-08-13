@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 337 — 2026-08-13 (Groundwork: the server can pay your time away)
+
+- 🏗️ **Nothing changes about how you play.** This ships switched off. It is the first piece of the game where the server, rather than your browser, decides what you earned — starting with time away. When it is turned on for testing, your browser will ask the server what your absence paid and show you that answer instead of working it out itself.
+- 🔒 **If the server can't be reached, the game will say so rather than quietly go back to deciding for itself.** That mattered enough to build the honesty in first: a silent fallback would look exactly like success while your progress was still being authored on your own machine.
+
 ## v0.9.2-beta build 336 — 2026-08-13 (Everything since build 313)
 
 It has been a long quiet stretch on the changelog channel. It has not been a quiet stretch on the game — 23 builds went out, and most of them fixed things that were quietly costing you progress. Here is the whole lot in one place.

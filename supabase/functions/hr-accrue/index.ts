@@ -48,6 +48,18 @@
 //    this function still holds no signing secret, per design §2a-i), and
 //    config.toml pins `verify_jwt = true` as a second, independent lock.
 //
+// 5. THE ONLY CALLER IS A BROWSER, SO CORS IS PART OF THE CONTRACT. Revision 2
+//    had no `Access-Control-*` header and no `OPTIONS` branch, which made the
+//    deployed function unreachable from hearthrise.net — while curl, Node and
+//    every guard in the repo reported it healthy, because none of them issues a
+//    preflight. `./cors.js` owns the whole of it: `Deno.serve(withCors(handle))`
+//    is the ONLY serve registration in this payload, so the preflight is
+//    answered before the JWT work below (a preflight carries no Authorization
+//    header by design and would 401 if it reached it) and every response —
+//    including the 401, the 429, the 503 and the catch-all 500 — carries the
+//    headers without any return site here having to remember them. The `json()`
+//    helper below is deliberately unchanged.
+//
 // ── WHAT THIS FILE COSTS, PER CALL ──────────────────────────────────────────
 //   • one JWKS fetch per COLD start (cached in module scope thereafter);
 //   • ONE pooled transaction for the rate gate + the state read;
@@ -61,6 +73,7 @@ import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
+import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
@@ -172,16 +185,35 @@ async function intentIdFor(
    of losing every absence from here to the end of the account. The incident is
    already recorded by hr_apply's own hr_record_rejection on each rejected
    attempt, which is what makes the degradation loud rather than silent. */
+
+/* `daily_budget` (C5/X3) is here for the SAME REASON as `bank_full`, and it is
+   the one entry whose absence would have been load-bearing: the day ceiling is
+   checked in hr_apply AFTER the per-call clamps, so halving the span halves the
+   proposed inflow and an honest accrual that lands on the ceiling costs part of
+   one absence instead of returning 409 forever with the watermark frozen.
+   apply-engine.sql:1010 already documents it as being on this list — it was
+   not, and nothing failed, because nothing calls this function yet. A comment
+   in one file asserting a property of another file is not an assertion.
+   RESIDUAL, stated: after MAX_DEGRADE the last-resort forfeit advances the
+   watermark and pays nothing, which for a day-budget trip discards time that
+   the next UTC day would have paid. That is the pre-existing ladder behaviour
+   and is left unchanged here; it is a Security/Designer call, not a CORS fix. */
 const DEGRADABLE = new Set([
   'gold_clamp', 'gem_clamp', 'item_clamp', 'xp_clamp', 'progress_clamp',
   'too_many_item_kinds', 'too_many_equip_ops', 'too_many_farm_ops',
-  'too_many_progress_ops', 'bank_full',
+  'too_many_progress_ops', 'bank_full', 'daily_budget',
 ]);
 const MAX_DEGRADE = 3;
 
 type Row = Record<string, any>;
 
-Deno.serve(async (req: Request): Promise<Response> => {
+/* Constraint 5. `withCors` answers the OPTIONS preflight itself and never calls
+   this handler for one; for everything else it runs the handler and copies the
+   CORS headers onto whatever comes back. There must be exactly ONE
+   `Deno.serve(` in this payload and it must be this one — tests/cors-preflight.mjs
+   asserts that against the PACKED bytes, so a second registration cannot
+   quietly bypass the wrapper. */
+Deno.serve(withCors(async (req: Request): Promise<Response> => {
   /* The build fingerprint. No identity, no database, no state — it exists so
      the smoke suite can compare the bytes DEPLOYED against the bytes in the
      repo, which `pack-edge --check` structurally cannot do (it re-derives the
@@ -427,4 +459,4 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (msg.startsWith('config:')) return json({ ok: false, error: 'engine_unconfigured' }, 503);
     return json({ ok: false, error: 'server_error' }, 500);
   }
-});
+}));

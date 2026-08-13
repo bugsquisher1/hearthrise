@@ -139,6 +139,18 @@ begin
   if to_regprocedure('public.hr_day_budget_check(uuid,int,bigint,bigint,bigint)') is null then
     raise exception 'hr_day_budget_check missing — apply 2026-08-11-daily-budget.sql first';
   end if;
+  -- ...and the two the ENFORCEMENT PROOF calls. §6(g) drives a real character
+  -- over its ceiling and then reconciles the remainder with
+  -- hr_day_budget_limits() and hr_day_budget_used(). Those are not named above
+  -- because hr_apply itself never calls them — which is exactly why they were
+  -- missed: a precondition block that only lists what the FUNCTION needs lets
+  -- the file's strongest assertion fail 1,200 lines later with
+  -- `undefined_function`, reading as a bug in the probe rather than as a
+  -- missing dependency. Same fail-closed direction, named at the same place.
+  if to_regprocedure('public.hr_day_budget_limits()') is null
+     or to_regprocedure('public.hr_day_budget_used(uuid,int,timestamptz)') is null then
+    raise exception 'hr_day_budget_limits/hr_day_budget_used missing — apply 2026-08-11-daily-budget.sql first (§6(g) cannot prove enforcement without them)';
+  end if;
   if (select count(*) from information_schema.columns
        where table_schema = 'public' and table_name = 'player_ledger'
          and column_name in ('gold_in','xp_in','qty_in')) <> 3 then

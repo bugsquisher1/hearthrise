@@ -239,6 +239,23 @@ function enableLiveSync() {
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
+  /* b337 — the accrual endpoint gets its credentials from the SAME place
+     sync.js does, at the same moment, so there is exactly one copy of the url /
+     anon key / token accessor in the client. `authToken` is the live accessor,
+     not a snapshot of the string: a token refreshed five minutes from now must
+     reach hr-accrue too, and a captured value is how the b331 dead-token loop
+     started. Wiring it does NOT enable it — the kill switch is separate and
+     defaults OFF. */
+  try {
+    if (window.HearthriseAccrual) {
+      window.HearthriseAccrual.configureAccrual({
+        url: authConfig.url,
+        apiKey: authConfig.anonKey,
+        authToken: () => session?.access_token,
+        slot: 0,
+      });
+    }
+  } catch (e) { console.warn('[auth] accrual wiring skipped:', e.message); }
   // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
   // (autoRefreshToken:true), and in the incident it demonstrably stopped without
   // saying so. A token five minutes from death is refreshed here, so the whole

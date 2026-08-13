@@ -1014,7 +1014,67 @@ function offlineIntervalMs(fallbackMs){
   const derived=(typeof activityIntervalMs==='function')?activityIntervalMs():null;
   return derived || G.skillMs || fallbackMs || 3000;
 }
+/* ════════════════════════════════════════════════════════════════
+   b337 — SERVER-AUTHORITATIVE AWAY TIME (roadmap item 2, one vertical slice).
+
+   When the kill switch in src/net/accrue.js is ON, this client STOPS COMPUTING
+   away progression entirely and asks `hr-accrue` what it earned. The gate below
+   is the whole of it, and its shape is the point:
+
+     • it is the FIRST statement of processOffline(), before accrueRestedXp()
+       and before claimOfflineMs(), so with the switch on there is no path
+       through this function that grants anything or moves the local watermark;
+     • it returns UNCONDITIONALLY — not "if the server answered". A server that
+       is unreachable, rate-limited, 500ing or says `no_character` still means
+       nothing is credited. **There is no fallback to local computation**, which
+       is the single most dangerous thing that could be built here: it would
+       look exactly like success while this device quietly kept authoring the
+       economy;
+     • the switch DEFAULTS OFF, so every line below it behaves exactly as it did
+       in b336 and the b305 save battery is untouched.
+
+   What the switch does NOT yet move to the server, stated plainly so nobody
+   reads more into it than it does: rested XP, the farm, live (present) ticks,
+   and every value in game_saves.snapshot. Those are still client-authored. This
+   slice moves ONE domain. */
+function serverAccrualActive(){
+  const A=window.HearthriseAccrual;
+  return !!(A && typeof A.isServerAccrualEnabled==='function' && A.isServerAccrualEnabled());
+}
+/* Wired lazily and once: legacy.js is a classic script and may load before the
+   ESM module publishes itself, so binding at definition time would silently
+   bind nothing — the exact "guarded call to a name that never existed" shape
+   b334 found in auth.js. */
+function wireServerAccrual(){
+  const A=window.HearthriseAccrual;
+  if(!A||A.__hrWired) return;
+  A.__hrWired=true;
+  A.setAccrualHooks({
+    onApplied:function(res){
+      /* The envelope IS the state. applyEnvelope refuses anything incomplete,
+         so a half-parsed 200 can never blank a save. */
+      const written=A.applyEnvelope(G,res);
+      if(!written) return;
+      try{ saveLocal(); }catch(e){}
+      try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
+      try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
+      const s=G.lastOfflineSummary||{};
+      /* Every number in this line was STATED by the server. Nothing here is
+         inferred, which is the same rule the local summary follows — see the
+         honesty payload in the b326 block below. */
+      notify('⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'
+        +s.gainedXp+' XP, +'+s.gainedGold+' gold','info');
+    },
+  });
+}
+window.serverAccrualActive=serverAccrualActive;
 function processOffline(){
+  /* b337: THE AUTHORITY GATE. See the block above. Must stay first. */
+  if(serverAccrualActive()){
+    wireServerAccrual();
+    try{ window.HearthriseAccrual.beginServerAccrual(); }catch(e){}
+    return;
+  }
   /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
      whether or not you left an activity running — that is the whole point of
      Rested XP. It reads its own watermark (G.restedAt), never G.lastSeen, so

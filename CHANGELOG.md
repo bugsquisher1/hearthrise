@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 334 — 2026-08-13 (Combat styles are pickable mid-fight again)
+
+- ⚔️ **You can choose a combat style during a fight again — thanks for the report.** On phones the Style tab was hidden for the entire time a fight was running, so tapping it showed nothing; and if you did reach it, you were bounced back to the Arena about a second later. On desktop the picker was quietly rebuilding itself roughly once a second, so about one press in thirteen landed on a button that no longer existed and did nothing at all.
+- 🕒 Switching style still retimes your swing immediately, exactly as it has since b329.
+
 ## v0.9.2-beta build 333 — 2026-08-13 (A tab left open finds out about updates)
 
 - 🔄 **The game now notices when a new version has shipped.** If you leave a tab open for days — which is how an idle game is meant to be played — you were running whatever code you loaded on day one, and fixes released since then simply never reached you. You'll now get a quiet, dismissible card when an update is available.

@@ -65,6 +65,7 @@
     bar.addEventListener('click', (e) => {
       const btn = e.target.closest('.cmt-btn');
       if (!btn) return;
+      notePlayerChoice();                 // b334 — stop auto-steering this fight
       setSubActive(panel, btn.dataset.sub);
     });
     setSubActive(panel, getActive());
@@ -79,12 +80,29 @@
   // Driven off the body.in-combat class so it catches every fight entry point
   // (monster row, bounty "fight target", resume-on-load) without wrapping any of
   // the engine's many combat functions.
+  //
+  // b334: this used to re-assert 'arena' on EVERY call, and it is called by a
+  // 1500ms poll as well as by the body-class observer. So a player who tapped
+  // "Style" during a fight was dragged back to the arena within 1.5 seconds —
+  // the second half of "combat style can't be chosen while in combat", and one
+  // the CSS fix alone would not have cured. Steering a player is a thing you do
+  // ONCE, when the situation changes; after they have steered themselves, stop.
+  // `_lastInCombat` is what makes the reset happen per FIGHT, so the next fight
+  // still opens on the arena.
+  let _lastInCombat = null;
+  let _playerChose = false;
+  function notePlayerChoice() { _playerChose = true; }
+
   function syncCombatSub(panel) {
     panel = panel || document.getElementById('panel-combat');
     if (!panel) return;
     const inCombat = document.body.classList.contains('in-combat');
-    if (inCombat && panel.dataset.mobileSub !== 'arena') setSubActive(panel, 'arena');
-    else if (!inCombat && panel.dataset.mobileSub === 'arena') setSubActive(panel, 'monsters');
+    if (inCombat !== _lastInCombat) { _lastInCombat = inCombat; _playerChose = false; }
+    if (inCombat) {
+      if (!_playerChose && panel.dataset.mobileSub !== 'arena') setSubActive(panel, 'arena');
+    } else if (panel.dataset.mobileSub === 'arena') {
+      setSubActive(panel, 'monsters');
+    }
   }
   // Exposed so the smoke suite can assert the fight→arena switch deterministically
   // without racing the MutationObserver / poll interval.

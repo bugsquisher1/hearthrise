@@ -288,9 +288,20 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
      out-specifies the sub-tab hide (adds body.in-combat + .active) and is the
      core-loop safety net; combat-mobile-tabs.js also flips the sub-tab to
      'arena' on fight start so the tab highlight agrees. */
-  body.in-combat #panel-combat.active .combat-arena { display: flex !important; }
-  body.in-combat #panel-combat.active .combat-picker,
-  body.in-combat #panel-combat.active .combat-style-block { display: none !important; }
+  /* b334 (player report, "Combat style can't be chosen while in combat"): the
+     rule below used to hide `.combat-style-block` for EVERY sub-tab during a
+     fight, including the Style sub-tab whose entire job is showing it. The
+     phone Combat panel has a dedicated STYLE tab; tapping it mid-fight showed
+     an empty screen, 100% of the time, on every phone. That is a deterministic
+     "you cannot choose a style while fighting" — exactly the report.
+     The picker is still hidden outright (a fight is running; b230), but the
+     style block and the arena now both FOLLOW the sub-tab: Style shows the
+     picker's controls, everything else shows the arena. b230's blank-screen
+     safety net is intact, because on the one sub-tab where the arena is now
+     allowed to hide, the style block is guaranteed visible. */
+  body.in-combat #panel-combat.active:not([data-mobile-sub="style"]) .combat-arena { display: flex !important; }
+  body.in-combat #panel-combat.active .combat-picker { display: none !important; }
+  body.in-combat #panel-combat.active:not([data-mobile-sub="style"]) .combat-style-block { display: none !important; }
   /* The stage is the one thing worth the vertical budget on a 420px screen. */
   #panel-combat .arena-vs { padding: 10px 12px; gap: 10px; }
   #panel-combat .arena-vs .arena-portrait { width: 56px; height: 56px; font-size: 30px; }

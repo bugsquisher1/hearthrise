@@ -7956,6 +7956,28 @@ window.getCombatStatProfile = function(){
   return {type:t, accuracySkill:'attack', damageSkill:'strength', accuracyBonusField:'atkB', strengthBonusField:'strB'};
 };
 
+/* The ONE writer for the player's style choice (b334).
+   It used to be an anonymous closure attached to each button on every rebuild.
+   Naming it and hoisting it out is what lets a single delegated listener own
+   the whole picker — see the teardown note in renderStyleSelector below.
+   b329's retime stays exactly where it was: a running fight has to adopt the
+   new swing interval the instant the style is picked, not on the next target. */
+function applyCombatStyle(k){
+  if(typeof G === 'undefined' || !G) return false;
+  var t = window.getWeaponType();
+  var styles = (window.COMBAT_STYLES || {})[t] || {};
+  if(!styles[k]) return false;
+  G.combatStyle = G.combatStyle || {};
+  G.combatStyle[t] = k;
+  if(typeof window.retimeCombat === 'function') window.retimeCombat();
+  if(typeof save === 'function') save();
+  if(typeof renderCombat === 'function') renderCombat();
+  if(typeof renderLoadout === 'function') renderLoadout();
+  renderStyleSelector();
+  return true;
+}
+window.applyCombatStyle = applyCombatStyle;
+
 /* Combat Style selector UI — injected into the combat panel after each render */
 function renderStyleSelector(){
   var hosts = [
@@ -7984,10 +8006,6 @@ function renderStyleSelector(){
     return;
   }
 
-  /* Avoid duplicates */
-  var prev = document.querySelector('.combat-style-block');
-  if(prev) prev.remove();
-
   var t = window.getWeaponType();
   var styleKey = (G && G.combatStyle && G.combatStyle[t]) || Object.keys(window.COMBAT_STYLES[t] || {})[0];
   var styleObj = window.getActiveCombatStyle();
@@ -8012,18 +8030,60 @@ function renderStyleSelector(){
     }catch(e){ return ''; }
   };
 
-  var wrap = document.createElement('div');
-  wrap.className = 'combat-style-block';
-  wrap.innerHTML =
-    '<h4>Combat Style — ' + typeLabel + '</h4>' +
-    '<div class="csb-meta">' +
+  /* ── b334: ONE BLOCK, UPDATED IN PLACE ────────────────────────────────────
+     This function used to open with `prev.remove()` and rebuild the whole
+     picker, and it is hooked onto renderCombat AND renderLoadout — so during a
+     live fight the entire button row was destroyed and recreated (measured on
+     b333: ~1.3 times a second on a 2.4s swing). A <button> that is torn out of
+     the document between the player's mousedown and their mouseup produces NO
+     click event at all: the browser retargets a click to the nearest common
+     ancestor of press and release, and a detached node has none in the
+     document. Measured with a real mouse on b333: 7.5% of presses during a
+     fight did nothing — the desktop half of "combat style can't be chosen
+     while in combat".
+
+     No listener anywhere can fix that; you cannot receive an event the browser
+     never dispatches. The node has to SURVIVE the repaint. So the block is
+     rebuilt only when its SHAPE changes — the weapon family, the style set, or
+     any figure printed on a button — and otherwise only the active class and
+     the meta line are written. That also stops ~1.3 layout thrashes a second
+     and stops destroying the "Events" shortcut nav-consolidation.js appends
+     into this same ribbon. */
+  var styleKeys = Object.keys(styles);
+  var shape = t + '|' + styleKeys.map(function(k){
+    var s = styles[k];
+    return k + '~' + s.name + '~' + s.trains + '~' + (s.desc || '') + '~' + swingOf(s);
+  }).join(',');
+
+  var metaHtml =
     'Style: <b>' + styleObj.name + '</b> · Trains: <b>' + styleObj.trains + '</b> · Swing: <b>' + swingOf(styleObj) + '</b><br>' +
     (styleObj.desc ? styleObj.desc + '<br>' : '') +
-    'Accuracy skill: <b>' + profile.accuracySkill + '</b> · Damage skill: <b>' + profile.damageSkill + '</b>' +
-    '</div>' +
+    'Accuracy skill: <b>' + profile.accuracySkill + '</b> · Damage skill: <b>' + profile.damageSkill + '</b>';
+
+  /* Exactly one block survives, whichever host it currently lives in. */
+  var blocks = document.querySelectorAll('.combat-style-block');
+  var block = blocks[0] || null;
+  for(var bi = 1; bi < blocks.length; bi++) blocks[bi].remove();
+
+  if(block && block.getAttribute('data-csb-shape') === shape){
+    var metaEl = block.querySelector('.csb-meta');
+    if(metaEl && metaEl.innerHTML !== metaHtml) metaEl.innerHTML = metaHtml;
+    block.querySelectorAll('.csb-btn').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-style-key') === styleKey);
+    });
+    return;
+  }
+  if(block) block.remove();
+
+  var wrap = document.createElement('div');
+  wrap.className = 'combat-style-block';
+  wrap.setAttribute('data-csb-shape', shape);
+  wrap.innerHTML =
+    '<h4>Combat Style — ' + typeLabel + '</h4>' +
+    '<div class="csb-meta">' + metaHtml + '</div>' +
     '<div class="combat-style-buttons">' +
-      Object.entries(styles).map(function(kv){
-        var k = kv[0], s = kv[1];
+      styleKeys.map(function(k){
+        var s = styles[k];
         var act = (k === styleKey) ? ' active' : '';
         var sw = swingOf(s);
         var tip = (s.desc ? s.desc + ' · ' : '') + (sw ? 'swing ' + sw : '');
@@ -8032,24 +8092,20 @@ function renderStyleSelector(){
       }).join('') +
     '</div>';
   host.appendChild(wrap);
-
-  wrap.querySelectorAll('.csb-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var k = btn.getAttribute('data-style-key');
-      var t = window.getWeaponType();
-      G.combatStyle = G.combatStyle || {};
-      G.combatStyle[t] = k;
-      /* b329: styles carry a speed cost now, so a running fight must be retimed
-         the instant the player picks one — otherwise the choice does nothing
-         visible until you re-tap the monster, which is the reported bug again. */
-      if(typeof window.retimeCombat === 'function') window.retimeCombat();
-      if(typeof save === 'function') save();
-      if(typeof renderCombat === 'function') renderCombat();
-      if(typeof renderLoadout === 'function') renderLoadout();
-      renderStyleSelector();
-    });
-  });
 }
+
+/* One delegated listener for the life of the page, bound to the document
+   rather than to each button (b334). Per-button listeners had to be re-attached
+   on every rebuild, which is the coupling that made a re-render able to swallow
+   a choice; this one cannot be lost, and it keeps working if any future module
+   replaces the block wholesale. */
+document.addEventListener('click', function(e){
+  var btn = (e.target && e.target.closest) ? e.target.closest('.csb-btn') : null;
+  if(!btn) return;
+  var k = btn.getAttribute('data-style-key');
+  if(k) applyCombatStyle(k);
+});
+window.renderStyleSelector = renderStyleSelector;
 
 /* Hook all relevant render entry points */
 function hook(){
@@ -8500,22 +8556,20 @@ setInterval(function(){
   if(p && p.classList.contains('active')) window.renderCharacter();
 }, 2000);
 
-/* ─── Reposition combat style block to top of #panel-combat ─── */
-(function(){
-  var origRenderStyle = window.renderStyleSelector;
-  if(typeof origRenderStyle !== 'function') return;
-  window.renderStyleSelector = function(){
-    /* Remove any prior block */
-    document.querySelectorAll('.combat-style-block').forEach(function(el){ el.remove(); });
-    var pc = document.getElementById('panel-combat');
-    if(!pc) return origRenderStyle.apply(this, arguments);
+/* b334 — DELETED: the "reposition combat style block to top of #panel-combat"
+   wrapper. It read `window.renderStyleSelector`, which no block ever published
+   (renderStyleSelector is a declaration inside its own IIFE), so it bailed on
+   its own `typeof !== 'function'` guard at parse time and has been dead code
+   for its entire life — verified at runtime on b333: `window.renderStyleSelector`
+   was `undefined` and the block sits where its own renderer appends it, at the
+   END of #panel-combat, not the top.
 
-    /* Build the block by calling original then move first match to top */
-    origRenderStyle.apply(this, arguments);
-    var block = document.querySelector('.combat-style-block');
-    if(block) pc.insertBefore(block, pc.firstChild);
-  };
-})();
+   It is removed rather than left in place because b334 DOES publish the
+   function, which would have brought this back to life — and its body is the
+   exact anti-pattern b334 exists to remove: `querySelectorAll('.combat-style-
+   block').forEach(remove)` on every repaint, which would have re-broken the
+   click the moment the export landed, plus an unconditional move of the block
+   above the mobile sub-tab bar. */
 
 console.log('Character page loaded');
 })();

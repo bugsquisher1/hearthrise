@@ -34,6 +34,8 @@ capped; Discord webhook removed from the client; mobile freeze/settings/landscap
 ### Built, not yet live
 - **Accrual Edge Function** (`supabase/functions/hr-accrue/`) — in-function JWKS
   verification, rate gate before the read, server-derived tickMs, degrade ladder.
+  **DEPLOYED 2026-08-13** — see the section near "NEXT, IN ORDER". Deployed ≠ wired:
+  no client calls it yet, and the deployed payload is one revision behind the repo.
 - **`hr_engine_login` EXISTS** and its shape is verified (LOGIN, NOINHERIT,
   connlimit 20, member of exactly `{hr_engine}`, zero own grants, password set).
   Tyler stored `HR_ENGINE_DB_URL` as an Edge Function secret (pooler port 6543).
@@ -159,8 +161,14 @@ intent id carrying a HOSTILE delta (`gold:999999, xp.attack:999999`) returned
 another slot → refused. The ledger holds exactly ONE compact aggregated row (not per-tick),
 and deletion from it is refused. Only the HTTP/JWT/pooler shell is unverified.
 
-**WHAT BLOCKS THE DEPLOY: a `SUPABASE_ACCESS_TOKEN` — and the reason is NOT the one
-previously recorded here.** This was re-examined 2026-08-11 on the theory that "needs a
+**~~WHAT BLOCKS THE DEPLOY: a `SUPABASE_ACCESS_TOKEN`~~ — RESOLVED 2026-08-13, and the
+reasoning below was right, so keep it.** Tyler generated a token and wrote it to a file
+outside the repo; the deploy ran through the **Supabase CLI**, which reads the packed
+directory off disk. Not one byte was hand-authored, so the transcription risk described
+below never materialised. **The rule stands for next time: deploy via the CLI from a packed
+directory, never by hand-authoring file contents into tool arguments.** (The permission
+classifier also blocks an agent from piping a token file into an env var, correctly — so the
+CLI invocation is a human step by design, not an oversight.) Original reasoning: This was re-examined 2026-08-11 on the theory that "needs a
 token" was a context-budget limit misfiled as an authorization limit. It is not. The
 budget arithmetic is real (230,698 chars ≈ 64–68k output tokens in ONE tool call, plus
 ~67k to read the files in), but the disqualifying problem is deeper and independent of
@@ -316,17 +324,41 @@ now stage the file, commit, and report; the Coordinator reviews and applies. Rol
 single-call `begin … rollback` probes and read-only queries are unchanged — that is how
 an exploit gets proven open before it is closed, and that bar stays.
 
+## ✅ THE EDGE FUNCTION IS DEPLOYED (2026-08-13, verified by execution)
+
+**`hr-accrue` is live.** Second attempt, after b332 made `stripVersionQueries` the one
+unconditional transform. All 22 assets uploaded with zero warnings — contrast the first
+attempt, which warned on every vendored file and died at the bundler. Verified independently
+of the CLI's own success message:
+
+```
+GET https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue   (anon key)
+HTTP 200  {"ok":true,"fn":"hr-accrue","payload_sha256":"752c6a7a…"}
+```
+
+That one response proves the gateway accepts it, `verify_jwt = true` still lets an
+anon-keyed GET through as designed, the bundle loaded, and the function is executing its own
+code. **The `?v=` strip was the fix**, confirming the agent's inference from the bundler's
+error text.
+
+**`deployedPayloadGuard` has now demonstrated BOTH states, which is the whole point of it.**
+Pointed at production it correctly FAILED — deployed `752c6a7a…` vs repo `73fc2449…` — because
+b332's FNV fix moved `botd.js` after that deploy. First time in this program a guard has been
+shown to see failure against live production rather than only in a mutation harness.
+
 ## NEXT, IN ORDER
-1. Deploy the Edge Function from the staged tree, then set `HR_ACCRUE_URL` so
-   `deployedPayloadGuard` stops skipping. The token blocker is resolved (Tyler ran the CLI);
-   the **bundler** blocker that killed the first attempt is fixed in b332 — repack with
-   `node tools/pack-edge.mjs hr-accrue --out <dir>` and deploy that directory. Expect payload
-   `752c6a7a…` (derive it, do not trust this line). `list_edge_functions` still returns
-   `bug-report-bridge` only.
-1b. **After the next client bump ships**, apply `2026-08-11-live-market-rls.sql` a SECOND
-   time with `set hearthrise.beta_invites_lockdown_ok = 'yes'` — that closes A11's
-   server half. The client half is already in (efe6539); doing it before the deploy
-   would break sign-up for anyone on b324.
+1. **Redeploy** — production is running the payload with the BROKEN boss hash (see the b332
+   entry in `DISCOVERIES.md`), and that is the copy about to own server-side progression.
+   Repack (`node tools/pack-edge.mjs hr-accrue --out <dir>`, then deploy that directory) and
+   set `HR_ACCRUE_URL` + `HR_ACCRUE_KEY` so the guard runs on every push instead of skipping.
+   Derive the expected hash; do not trust any number written in prose here.
+1a. **Then the cheapest honest end-to-end test**, still not run: sign in as a real player and
+   POST `{"slot":5}`. It needs a user JWT, so it needs Tyler or a throwaway beta account.
+1b. **UNBLOCKED as of b332/b333 shipping** — apply `2026-08-11-live-market-rls.sql` a SECOND
+   time with `set hearthrise.beta_invites_lockdown_ok = 'yes'` to close A11's server half.
+   The client half has been in since efe6539; the reason to wait was that b324 was what
+   players were running and it still read the table. That is no longer true. **Confirm with a
+   control run first** — an anon key listing the invite codes is the pre-state.
 2. **The client rewire** — the largest remaining risk, explicitly low confidence. It
    touches `legacy.js` everywhere, so agents cannot parallelise on it. Must NOT be
    wired to a non-deployed engine.

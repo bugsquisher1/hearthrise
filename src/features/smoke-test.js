@@ -39,6 +39,19 @@ const tryRun = (name, fn) => {
   try { fn(); return pass(name); }
   catch (e) { return fail(name, e && (e.message || e)); }
 };
+/* b337 — THE SUITE CAN NOW AWAIT.
+   Until now every test was synchronous, which meant a network path could only
+   ever be asserted at the moment the request was DISPATCHED — never on what
+   came back. That is exactly the shape this repo's "assertions that assert
+   nothing" family keeps taking: the half of the path you can reach becomes the
+   whole of what you claim. tests/run-smoke.mjs has always done
+   `await Promise.race([Promise.resolve(window.__smokeTest(...)), …])`, so the
+   harness could already handle a promise; only the in-page runner could not.
+   runSmokeTest() below now awaits each entry IN ORDER — order is load-bearing,
+   because these tests mutate the live G. */
+const tryRunAsync = (name, fn) => Promise.resolve()
+  .then(fn)
+  .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 // b219: the game tick runs THROUGH the suite, and earlier tests leave combat
@@ -19664,17 +19677,436 @@ const TESTS = [
       'the full repaint is not inside the error boundary — a throw in it blanks the whole UI');
   }),
 
+  /* ══ b337 — SERVER-AUTHORITATIVE AWAY TIME (the client rewire, slice 1) ════
+     One vertical slice of roadmap item 2: on return from an absence the client
+     ASKS `hr-accrue` what it earned and renders the answer, instead of
+     computing it. The property every test below exists to hold is a NEGATIVE
+     one, and it is the only thing that makes the slice worth anything:
+
+       WITH THE SWITCH ON, THERE IS NO PATH THROUGH processOffline() THAT
+       GRANTS A NUMBER THIS DEVICE COMPUTED — including when the server is
+       unreachable, rate-limited, 500ing, or says the character does not exist.
+
+     A silent fallback would look exactly like success while the client quietly
+     kept authoring the economy, and would be discovered only by an economy that
+     no longer balances. So the failure tests below are the load-bearing ones,
+     not the happy path.
+
+     THE TRANSPORT IS REAL. These swap `window.fetch` and return real Response
+     objects, the way the b331 battery does — a test that cannot observe an
+     actual request is not a test of a network path.
+
+     KNOWN, AND DELIBERATE: the deployed function has no CORS headers yet (the
+     fix is staged, awaiting a redeploy), so against production every one of
+     these calls lands on `unreachable`. tests/cors-preflight.mjs C4 is the live
+     gate for that; nothing here can stand in for it, because Chromium in this
+     harness is talking to a stub, not to the gateway. */
+
+  () => tryRun('b337: the server-accrual kill switch DEFAULTS OFF — b336 away time is untouched', () => {
+    const A = window.HearthriseAccrual;
+    assert(A, 'src/net/accrue.js did not load — the whole slice is absent and nothing below means anything');
+    A.__clearAccrualOverride();
+    try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+    assert(A.isServerAccrualEnabled() === false,
+      'server accrual is ON by default — that arms a brand-new authority for every player at once, with no redeploy to undo it');
+    assert(typeof window.serverAccrualActive === 'function' && window.serverAccrualActive() === false,
+      'legacy.js believes server accrual is active while the switch is off');
+    // The switch is a switch, in both directions, and it persists.
+    assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn on');
+    assert(window.serverAccrualActive() === true, 'legacy.js does not see the switch');
+    assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
+    assert(window.serverAccrualActive() === false, 'legacy.js still sees an off switch as on');
+  }),
+
+  () => tryRun('b337: with the switch OFF, the local away path still credits an absence (b303 unchanged)', () => {
+    if (typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length) { assert(true, 'no gather'); return; }
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const save = { skills: G.skills, activeSkill: G.activeSkill, skillTargetId: G.skillTargetId,
+      activeMonster: G.activeMonster, activeArtisanRecipe: G.activeArtisanRecipe,
+      inventory: G.inventory, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, los: G.lastOfflineSummary };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    let requests = 0;
+    try {
+      A.setServerAccrualEnabled(false);
+      window.fetch = function (u) { if (/hr-accrue/.test(String(u))) requests++; return realFetch.apply(this, arguments); };
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      const tree = window.TREES[0];
+      G.skills = Object.assign({}, G.skills, { woodcutting: 5_000_000 });
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
+      G.inventory = Object.assign({}, G.inventory);
+      const beforeXp = G.skills.woodcutting;
+      const now = Date.now();
+      G.lastSeen = now - 3600000;
+      G.offlineBudget = { at: now - 3600000 };
+      window.processOffline();
+      assert(G.skills.woodcutting > beforeXp,
+        'with the switch OFF the local path granted nothing — b337 changed b336 behaviour it was not allowed to touch');
+      assert(requests === 0, 'the switch is off and the client called hr-accrue anyway (' + requests + 'x)');
+    } finally {
+      window.fetch = realFetch;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      Object.assign(G, { skills: save.skills, activeSkill: save.activeSkill, skillTargetId: save.skillTargetId,
+        activeMonster: save.activeMonster, activeArtisanRecipe: save.activeArtisanRecipe, inventory: save.inventory,
+        offlineBudget: save.offlineBudget, lastSeen: save.lastSeen, lastOfflineSummary: save.los });
+      if (typeof window.stopSkill === 'function' && !save.activeSkill) try { window.stopSkill(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b337: with the switch ON, processOffline puts the CONTRACT request on the wire — POST {"slot":0} + bearer', () => {
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const save = { skills: G.skills, activeSkill: G.activeSkill, skillTargetId: G.skillTargetId,
+      activeMonster: G.activeMonster, activeArtisanRecipe: G.activeArtisanRecipe,
+      inventory: G.inventory, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, los: G.lastOfflineSummary };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    const seen = [];
+    try {
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        seen.push({ url: String(u), init });
+        return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"below_threshold"}', { status: 200 }));
+      };
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      A.resetAccrualGate();
+      A.configureAccrual({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      A.setServerAccrualEnabled(true);
+      G.activeSkill = 'woodcutting'; G.activeMonster = null;
+      G.lastSeen = Date.now() - 3600000;
+      G.offlineBudget = { at: Date.now() - 3600000 };
+      window.processOffline();
+
+      assert(seen.length === 1, 'processOffline sent ' + seen.length + ' accrual requests — expected exactly 1');
+      const r = seen[0];
+      /* THE CONTRACT, quoted from supabase/functions/hr-accrue/index.ts +
+         request.js. Every one of these is a thing the server actually reads. */
+      assert(r.url === 'https://proj.supabase.co/functions/v1/hr-accrue',
+        'wrong endpoint: ' + r.url + ' — the URL is derived from the configured project URL, never hand-copied');
+      assert(r.init.method === 'POST', 'the accrual intent must be a POST (GET is the health probe): ' + r.init.method);
+      assert(r.init.headers['Authorization'] === 'Bearer jwt-token',
+        'no bearer token — the function verifies the JWT against the project JWKS and would 401');
+      assert(r.init.headers['apikey'] === 'anon-key', 'no apikey header — the gateway requires one');
+      assert(r.init.headers['Content-Type'] === 'application/json', 'the body is JSON and must say so');
+      const body = JSON.parse(r.init.body);
+      assert(Object.keys(body).length === 1 && body.slot === 0,
+        'the request body carries something other than {slot}: ' + r.init.body
+        + ' — request.js reads ONE integer, and anything else here is a client-authored value pretending to matter');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      Object.assign(G, { skills: save.skills, activeSkill: save.activeSkill, skillTargetId: save.skillTargetId,
+        activeMonster: save.activeMonster, activeArtisanRecipe: save.activeArtisanRecipe, inventory: save.inventory,
+        offlineBudget: save.offlineBudget, lastSeen: save.lastSeen, lastOfflineSummary: save.los });
+    }
+  }),
+
+  () => tryRunAsync('b337: EVERY way the server can fail credits NOTHING — no silent fallback to local computation', async () => {
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const save = { gold: G.gold, skills: G.skills, inventory: G.inventory, activeSkill: G.activeSkill,
+      skillTargetId: G.skillTargetId, activeMonster: G.activeMonster, activeArtisanRecipe: G.activeArtisanRecipe,
+      offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, los: G.lastOfflineSummary, restedXp: G.restedXp, restedAt: G.restedAt };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    /* Every failure the contract can produce. The last one is the nastiest: a
+       200 that says ok+accrued but carries no envelope — "the server answered"
+       is not the same as "the server told us what we earned". */
+    const failures = [
+      { label: 'network/CORS', throws: true },
+      { label: '401 not_signed_in', status: 401, body: '{"ok":false,"error":"not_signed_in"}' },
+      { label: '409 no_character', status: 409, body: '{"ok":false,"error":"no_character"}' },
+      { label: '409 xp_clamp', status: 409, body: '{"ok":false,"error":"xp_clamp"}' },
+      { label: '429 rate_limited', status: 429, body: '{"ok":false,"error":"rate_limited"}' },
+      { label: '503 engine_unconfigured', status: 503, body: '{"ok":false,"error":"engine_unconfigured"}' },
+      { label: '500 server_error', status: 500, body: '{"ok":false,"error":"server_error"}' },
+      { label: '200 with no envelope', status: 200, body: '{"ok":true,"accrued":true}' },
+      { label: '200 that is not JSON', status: 200, body: '<html>gateway</html>' },
+    ];
+    const wasParked = window.__saveParked;
+    try {
+      /* PARK THE SAVE. This test wipes G to a fixture and spans real
+         microtask/stream boundaries, so a 90s autosave landing mid-test would
+         write the fixture over the player's real save AND advance the offline
+         watermark it is asserting on. */
+      window.__saveParked = true;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      A.setServerAccrualEnabled(true);
+      for (const f of failures) {
+        A.resetAccrualGate();
+        A.hideAccrualHaltedSheet();
+        window.fetch = function (u) {
+          if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+          if (f.throws) return Promise.reject(new TypeError('Failed to fetch'));
+          return Promise.resolve(new Response(f.body, { status: f.status }));
+        };
+        // A real, long, credit-worthy absence with a real activity running.
+        G.gold = 777; G.skills = { woodcutting: 1000 }; G.inventory = { logs: 5 };
+        G.activeSkill = 'woodcutting'; G.skillTargetId = (window.TREES && window.TREES[0] && window.TREES[0].id) || null;
+        G.activeMonster = null; G.activeArtisanRecipe = null;
+        /* restedAt is the OTHER local watermark processOffline touches, and it
+           advances whenever a whole charge is due regardless of whether the
+           player has the cap to bank it — so it is observable proof that
+           accrueRestedXp() did not run, which no assertion on restedXp itself
+           could give (a cap of 0 makes that one always-true). */
+        G.restedXp = 0; G.restedAt = Date.now() - 8 * 3600000;
+        const restedAtBefore = G.restedAt;
+        const watermark = Date.now() - 8 * 3600000;
+        G.lastSeen = watermark; G.offlineBudget = { at: watermark };
+        G.lastOfflineSummary = null;
+
+        window.processOffline();
+        await A.requestAccrual({ force: true }).catch(() => {});
+        await Promise.resolve();
+
+        assert(G.gold === 777, f.label + ': gold moved to ' + G.gold + ' — the client computed a grant the server never authorised');
+        assert(G.skills.woodcutting === 1000, f.label + ': XP moved to ' + G.skills.woodcutting + ' — a local fallback is running');
+        assert(G.inventory.logs === 5 && Object.keys(G.inventory).length === 1,
+          f.label + ': the inventory changed — ' + JSON.stringify(G.inventory));
+        assert(G.lastOfflineSummary === null,
+          f.label + ': a welcome-back receipt was written for an absence nobody paid — ' + JSON.stringify(G.lastOfflineSummary));
+        assert(G.restedAt === restedAtBefore,
+          f.label + ': the rested-XP watermark advanced — the authority gate is not the FIRST statement of processOffline, '
+          + 'so a local system is still crediting elapsed time');
+        assert(G.offlineBudget.at === watermark,
+          f.label + ': the local watermark advanced to ' + G.offlineBudget.at
+          + ' — a failed accrual just confiscated the absence it declined to pay for');
+      }
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      A.hideAccrualHaltedSheet();
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory, activeSkill: save.activeSkill,
+        skillTargetId: save.skillTargetId, activeMonster: save.activeMonster, activeArtisanRecipe: save.activeArtisanRecipe,
+        offlineBudget: save.offlineBudget, lastSeen: save.lastSeen, lastOfflineSummary: save.los,
+        restedXp: save.restedXp, restedAt: save.restedAt });
+      window.__saveParked = wasParked;
+    }
+  }),
+
+  () => tryRunAsync('b337: the server\'s answer REPLACES local state — it is not merged with it', async () => {
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const save = { gold: G.gold, skills: G.skills, inventory: G.inventory, playerHp: G.playerHp,
+      playerMaxHp: G.playerMaxHp, activeSkill: G.activeSkill, activeMonster: G.activeMonster,
+      activeArtisanRecipe: G.activeArtisanRecipe, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen,
+      los: G.lastOfflineSummary };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    const envelope = {
+      ok: true, accrued: true, version: 7, now: '2026-08-13T12:00:00+00:00',
+      state: { slot: 0, gold: 1234, gems: 0, hp: 55, max_hp: 99,
+        active_kind: 'combat', active_id: 'rat', accrued_to: '2026-08-13T12:00:00+00:00' },
+      skills: { attack: { xp: 5000, level: 20 }, hitpoints: { xp: 1400, level: 12 } },
+      inventory: { rat_tail: 3, shrimp: 2 },
+      equipment: {}, farm: [], progress: [], total_level: 32,
+      levels: { attack: 20, hitpoints: 12 },
+      away: { grantMs: 7200000, capped: false, tickMs: 2400, kills: 42, crits: 7, died: false,
+        blessed: false, buffsPaused: false, featuredMs: 0, featuredDropMult: 1,
+        gold: 400, xp: { attack: 900, hitpoints: 300 }, items: { rat_tail: 3 }, levelUps: [], events: [] },
+    };
+    const wasParked = window.__saveParked;
+    try {
+      /* The applied envelope is a FIXTURE, and the hook that applies it calls
+         saveLocal() for real. Park persistence so a test character never
+         reaches the player's save. */
+      window.__saveParked = true;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify(envelope), { status: 200 }));
+      };
+      A.resetAccrualGate();
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      A.setServerAccrualEnabled(true);
+      /* Local state that DISAGREES with the server on every axis, including a
+         skill and an item the server does not know about. Under server
+         authority those must not survive: a merge means the client's copy of a
+         number outlived contact with the server's, which is precisely the
+         property this program removes. */
+      G.gold = 999999; G.skills = { woodcutting: 88, attack: 4 }; G.inventory = { forged_sword: 40 };
+      G.playerHp = 1; G.playerMaxHp = 1;
+      G.activeSkill = 'woodcutting'; G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.lastSeen = Date.now() - 7200000; G.offlineBudget = { at: Date.now() - 7200000 };
+      G.lastOfflineSummary = null;
+
+      window.processOffline();
+      await A.requestAccrual({ force: true }).catch(() => {});
+      await Promise.resolve();
+
+      assert(G.gold === 1234, 'gold is ' + G.gold + ', not the server\'s 1234 — the client kept authoring it');
+      assert(G.skills.attack === 5000, 'attack xp is ' + G.skills.attack + ', not the server\'s 5000');
+      assert(G.skills.woodcutting === undefined,
+        'a local skill the server does not know about survived — this is a MERGE, and a merge is not authority');
+      assert(G.inventory.rat_tail === 3 && G.inventory.shrimp === 2, 'the server inventory did not land: ' + JSON.stringify(G.inventory));
+      assert(G.inventory.forged_sword === undefined, 'a locally-invented item survived the server envelope');
+      assert(G.playerHp === 55 && G.playerMaxHp === 99, 'hp/maxHp were not taken from the server');
+
+      const s = G.lastOfflineSummary;
+      assert(s && s.serverAuthoritative === true,
+        'the welcome-back receipt is not marked server-authoritative — nothing can tell a stated receipt from an invented one');
+      assert(s.gainedGold === 400, 'the receipt quotes ' + s.gainedGold + ' gold, not the server\'s stated 400');
+      assert(s.gainedXp === 1200, 'the receipt quotes ' + s.gainedXp + ' XP, not the server\'s stated 900+300');
+      assert(s.gainedItems === 3, 'the receipt quotes ' + s.gainedItems + ' items, not the server\'s stated 3');
+      assert(s.gainedKills === 42 && s.crits === 7, 'kills/crits were not taken from the away receipt');
+      assert(s.hrs === 2, 'grantMs 7200000 should read as 2h, got ' + s.hrs);
+      assert(s.blessed === false, 'the receipt claims a blessing the away simulation says it did not pay');
+      assert(G._serverAccrual && G._serverAccrual.version === 7,
+        'the server version was not recorded — the next apply would have nothing to send');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      delete G._serverAccrual;
+      Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory, playerHp: save.playerHp,
+        playerMaxHp: save.playerMaxHp, activeSkill: save.activeSkill, activeMonster: save.activeMonster,
+        activeArtisanRecipe: save.activeArtisanRecipe, offlineBudget: save.offlineBudget, lastSeen: save.lastSeen,
+        lastOfflineSummary: save.los });
+      window.__saveParked = wasParked;
+      try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('b337: repeated silence TELLS THE PLAYER (b331 posture) — once, dismissibly, never over b302/b331', async () => {
+    const A = window.HearthriseAccrual;
+    const realFetch = window.fetch;
+    try {
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.reject(new TypeError('Failed to fetch'));
+      };
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      A.setServerAccrualEnabled(true);
+      A.resetAccrualGate();
+      A.hideAccrualHaltedSheet();
+
+      for (let i = 0; i < A.ACCRUE_HALT_AFTER_TRIES - 1; i++) await A.requestAccrual({ force: true });
+      assert(!document.getElementById(A.ACCRUE_SHEET_ID),
+        'the sheet appeared on the first hiccup — one failed request is a hiccup, not an outage');
+      await A.requestAccrual({ force: true });
+      const sheet = document.getElementById(A.ACCRUE_SHEET_ID);
+      assert(sheet, 'after ' + A.ACCRUE_HALT_AFTER_TRIES + ' silent failures the player was told nothing — '
+        + 'that is the "Reconnecting…" lie b331 exists to end, in a new place');
+      const t = sheet.textContent.toLowerCase();
+      assert(/nothing has been credited/.test(t), 'the sheet does not say that nothing was credited');
+      assert(!/credited \+|we credited|progress is safe/.test(t.replace('nothing has been credited', '')),
+        'the sheet claims something was credited — it was not, that is the entire failure');
+      // Once. Not once per tick.
+      await A.requestAccrual({ force: true });
+      assert(document.querySelectorAll('#' + A.ACCRUE_SHEET_ID).length === 1, 'the sheet stacked');
+      // Dismissible: the game is running and nothing is at risk.
+      sheet.querySelector('#hr-accrue-later').click();
+      assert(!document.getElementById(A.ACCRUE_SHEET_ID), 'the sheet cannot be dismissed');
+
+      // b302 and b331 both outrank it — never two dialogs about one broken session.
+      for (const id of ['hr-evicted-gate', 'hr-auth-expired-gate']) {
+        const fake = document.createElement('div'); fake.id = id; document.body.appendChild(fake);
+        try {
+          A.resetAccrualGate();
+          for (let i = 0; i < A.ACCRUE_HALT_AFTER_TRIES; i++) await A.requestAccrual({ force: true });
+          assert(!document.getElementById(A.ACCRUE_SHEET_ID), 'b337 drew a sheet over ' + id);
+        } finally { fake.remove(); }
+      }
+
+      // A server that came back clears the terminal state — a recovered player
+      // must not be told they are broken forever.
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"below_threshold"}', { status: 200 }));
+      };
+      const ok = await A.requestAccrual({ force: true });
+      assert(ok.outcome === 'nothing', 'a healthy "nothing to pay" was misread as ' + ok.outcome);
+      assert(A.getAccrualState().halted === false, 'the halt latched permanently — recovery is impossible');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      A.hideAccrualHaltedSheet();
+    }
+  }),
+
+  () => tryRun('b337: exactly one verdict can grant, and an incomplete envelope is never one of them', () => {
+    const A = window.HearthriseAccrual;
+    const full = {
+      ok: true, accrued: true, version: 1, state: { gold: 1 }, skills: {}, inventory: {},
+      away: { grantMs: 1000, gold: 0, xp: {}, items: {} },
+    };
+    const cases = [
+      [200, full, 'accrued'],
+      [200, { ok: true, accrued: false, reason: 'below_threshold' }, 'nothing'],
+      [200, { ok: true, accrued: false, reason: 'replayed' }, 'nothing'],
+      [200, { ok: true, accrued: false, reason: 'clamped' }, 'nothing'],
+      [200, { ok: false, error: 'x' }, 'malformed'],
+      [200, null, 'malformed'],
+      [401, { ok: false, error: 'not_signed_in' }, 'not-signed-in'],
+      [409, { ok: false, error: 'no_character' }, 'no-character'],
+      [409, { ok: false, error: 'version_conflict' }, 'rejected'],
+      [429, { ok: false, error: 'rate_limited' }, 'rate-limited'],
+      [500, { ok: false, error: 'server_error' }, 'unavailable'],
+      [503, { ok: false, error: 'engine_unconfigured' }, 'unavailable'],
+      [404, null, 'malformed'],
+    ];
+    for (const [status, body, want] of cases) {
+      const got = A.classifyAccrueResponse(status, body).outcome;
+      assert(got === want, status + ' ' + JSON.stringify(body) + ' classified as ' + got + ', expected ' + want);
+      assert(A.ACCRUE_OUTCOMES.indexOf(got) >= 0, 'unknown outcome ' + got);
+    }
+    /* FAIL CLOSED. Each of these is `ok:true, accrued:true` — the server saying
+       it paid — with one piece of the envelope missing. Applying any of them
+       would blank the corresponding half of the save. */
+    for (const drop of ['state', 'skills', 'inventory', 'away', 'version']) {
+      const partial = { ...full }; delete partial[drop];
+      assert(A.isEnvelopeApplicable(partial) === false,
+        'an envelope with no `' + drop + '` was accepted as truth — applying it would wipe that half of the save');
+      assert(A.classifyAccrueResponse(200, partial).outcome === 'malformed',
+        'a 200 missing `' + drop + '` was not classified malformed');
+    }
+    // …and applyEnvelope itself refuses one, rather than trusting its caller.
+    const probe = { gold: 5, skills: { a: 1 }, inventory: { b: 2 } };
+    assert(A.applyEnvelope(probe, { ok: true, accrued: true, version: 1, state: {}, skills: {} }) === null,
+      'applyEnvelope applied an incomplete envelope');
+    assert(probe.gold === 5 && probe.skills.a === 1 && probe.inventory.b === 2,
+      'applyEnvelope mutated the target before deciding it could not trust the envelope');
+  }),
+
+  () => tryRun('b337: the accrual endpoint is DERIVED from the project URL, and the intent carries one integer', () => {
+    const A = window.HearthriseAccrual;
+    assert(A.accrueEndpoint('https://x.supabase.co') === 'https://x.supabase.co/functions/v1/hr-accrue', 'bad endpoint derivation');
+    assert(A.accrueEndpoint('https://x.supabase.co///') === 'https://x.supabase.co/functions/v1/hr-accrue', 'trailing slashes not normalised');
+    /* request.js clamps slot to [0,5] server-side; the client must not send
+       something it knows is out of range and then rely on the server's
+       tolerance to look correct. */
+    for (const [ask, want] of [[0, 0], [5, 5], [6, 0], [-1, 0], [1.5, 0], ['3', 0], [null, 0], [undefined, 0]]) {
+      const b = JSON.parse(A.buildAccrueRequest({ url: 'https://x.supabase.co', slot: ask }).init.body);
+      assert(b.slot === want, 'slot ' + JSON.stringify(ask) + ' was sent as ' + b.slot + ', expected ' + want);
+    }
+    const noAuth = A.buildAccrueRequest({ url: 'https://x.supabase.co', slot: 0 });
+    assert(!('Authorization' in noAuth.init.headers), 'a bearer header was invented with no token to put in it');
+  }),
+
 ];
 
-export function runSmokeTest(opts = {}) {
+export async function runSmokeTest(opts = {}) {
   const verbose = opts.verbose !== false;
   const startTab = window.activeTab || 'profile';
   const preErrCount = errorLog.length;
-  const results = TESTS.map((t) => {
-    const r = t();
+  /* b337: sequential, never Promise.all. These tests mutate the live G and
+     several depend on the state the previous one left; running them
+     concurrently would be a different suite that happens to share the names. */
+  const results = [];
+  for (const t of TESTS) {
+    const r = await t();
     if (verbose) console.log((r.status === 'PASS' ? '✓ ' : '✗ ') + r.name + (r.why ? ' — ' + r.why : ''));
-    return r;
-  });
+    results.push(r);
+  }
   try { window.showTab(startTab); } catch {}
   const summary = {
     total: results.length,
@@ -19711,8 +20143,9 @@ function addButton() {
     + 'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
   b.onmouseenter = () => (b.style.opacity = '1');
   b.onmouseleave = () => (b.style.opacity = '.6');
-  b.onclick = () => {
-    const r = runSmokeTest();
+  // b337: runSmokeTest is async now (the suite can await a network round trip).
+  b.onclick = async () => {
+    const r = await runSmokeTest();
     let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.runtimeErrors} runtime errors\n\n`;
     if (r.failed > 0) {
       msg += 'Failures:\n' + r.results.filter((x) => x.status === 'FAIL')

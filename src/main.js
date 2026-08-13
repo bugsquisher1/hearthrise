@@ -95,6 +95,12 @@ Object.assign(window, {
 //    in offline mode and no network requests are made.
 import './net/events.js?v=336';
 import './net/sync.js?v=336';
+// b337 — server-authoritative away time. Imported BEFORE auth.js because
+// enableLiveSync() calls configureAccrual() with the same credentials it hands
+// sync.js, so there is one source of the url/key/token and no second copy to
+// drift. Ships DARK: the kill switch defaults OFF and processOffline() is
+// byte-for-byte b336 behaviour until it is turned on.
+import './net/accrue.js?v=336';
 import './net/auth.js?v=336';
 import './net/supabase-bootstrap.js?v=336';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

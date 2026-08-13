@@ -354,7 +354,11 @@ shown to see failure against live production rather than only in a mutation harn
    Derive the expected hash; do not trust any number written in prose here.
 1a. **Then the cheapest honest end-to-end test**, still not run: sign in as a real player and
    POST `{"slot":5}`. It needs a user JWT, so it needs Tyler or a throwaway beta account.
-1b. **UNBLOCKED as of b332/b333 shipping** — apply `2026-08-11-live-market-rls.sql` a SECOND
+1b. ⚠ **RE-BLOCKED 2026-08-13 by F4** — `2026-08-13-anon-rate-gate.sql` MUST be applied
+   first. Until it is, `beta_invite_check` is unrated for anonymous callers (30 anon
+   calls against a limit of 20 → 0 refused, executed), so dropping the world-readable
+   policy replaces a `select *` with an unlimited-rate oracle and books it as CLOSED.
+   The rest of this item is unchanged: apply `2026-08-11-live-market-rls.sql` a SECOND
    time with `set hearthrise.beta_invites_lockdown_ok = 'yes'` to close A11's server half.
    The client half has been in since efe6539; the reason to wait was that b324 was what
    players were running and it still read the table. That is no longer true. **Confirm with a
@@ -420,12 +424,74 @@ own review pass rather than riding along with someone else's migration.
 ## KNOWN-OPEN, DELIBERATELY ACCEPTED
 - `buy_listing` moves no gold and checks no gold — free market acquisition. Closes
   with market-v2. **If the wipe slips, this becomes a blocker.**
-- `clan_contribute` / `clan_board_progress` / `raid_strike` take client-authored
-  values that cross to other players. Bounded and journalled; close when the relevant
-  domain moves server-side.
+- ~~`clan_contribute` / `clan_board_progress` / `raid_strike` take client-authored
+  values that cross to other players. Bounded and journalled.~~ **THIS ENTRY WAS
+  WRONG ON BOTH HALVES FOR TWO OF THE THREE, and the correction is worth more than
+  the entry** (Security audit 2026-08-13, proven by rolled-back execution against
+  production, then re-confirmed by reading the live bodies):
+  - `clan_contribute` was neither bounded (beyond a 10M per-call clamp against a
+    60/min gate = **600,000,000 gold of clan treasury per minute**) nor journalled
+    (`clan_contribute__ungated`, 1013 chars, contained **no** reference to
+    `clan_ledger` and **none** to gold). Executed as an ordinary non-leader member:
+    treasury 1 → 120,000,001, clan level 1 → 8, `clan_ledger` rows 4 → **4**. It
+    crosses to other players because `leaderboard_ranked.clan_power` scores
+    `(castle_tier * 1e9) + LEAST(GREATEST(treasury,0), 999999999)` — `p_amount` IS
+    the public clan ranking, saturating in ~100 seconds (the board is a MATERIALIZED
+    view refreshed by cron `hearthrise-leaderboards` every 5 minutes, so it lands
+    within 5 minutes, not instantly).
+    → **FIX STAGED, NOT APPLIED**: `2026-08-13-clan-contribute-authority.sql`.
+  - `clan_board_progress` clamps per call but has **no ledger row and no per-user
+    record anywhere in the schema**. `clan_board_claim` then pays cp + `clans.standing`
+    (which gates `clan_tier_up`) and *is* journalled — so the ledger records the
+    payout and nothing about the fabricated input. Executed: standing 882 → 2037,
+    cp 2473 → 5708, ledger rows naming who supplied the progress: **0**.
+    → **FIX STAGED, NOT APPLIED**: `2026-08-13-clan-board-attribution.sql`.
+  - `raid_strike` was not re-examined in this pass. Treat its half of the old entry
+    as **unverified**, not as accepted.
+  **Generalise it:** this entry described the intended design and was never checked
+  against a body. "Bounded and journalled" is a claim about executable behaviour and
+  must be written only after executing it. Both fixes ship with
+  `tests/clan-journal-guard.mjs`, which calls the RPCs and reads the books.
+- **F7 — `clan_work_supply` consumes `clan_stores` with NO attribution.** It debits
+  the shared store to fill a Work Order and writes no `clan_ledger` row, so nothing
+  records which member spent the hold's materials. Bounded by the order's own
+  `materials` (it cannot take more than the order needs) and by store contents, so
+  it is a bookkeeping hole rather than a mint — but it is a shared-table write that
+  the "journal every shared-surface write" rule covers and does not satisfy. NOT
+  fixed in this pass; asserted as still-open by `tests/clan-journal-guard.mjs` J13,
+  so closing it forces this list to be updated.
+- **F8 — `clan_feast_deposit` takes a client `p_heals` with a per-call clamp (600)
+  and NO per-day cap.** It journals (`kind='feast'`) and is bounded per call and by
+  the tavern meter's own ceiling, so it is the weakest of the four — but it is the
+  same shape as F1 and F3 with the day cap missing. NOT fixed in this pass; asserted
+  as still-open by `tests/clan-journal-guard.mjs` J14.
+- **F4 — `hr_rpc_gate` returns `true` for any null uid, so every anonymous call is
+  unrated.** Executed: 30 anon calls against a limit of 20 → **0 refused**; the
+  authenticated control → 10 refused, so the probe could see failure. The line was
+  deliberate (see §2b of `2026-08-11-authenticated-surface-lockdown.sql`) and its
+  reasoning was sound while `hr_leaderboard` was the only anon-reachable gated
+  function. **A11 changes that premise**, so this must land BEFORE A11's server half
+  — otherwise A11 converts invite-code exposure from `select *` into an
+  unlimited-rate oracle and records it as CLOSED.
+  → **FIX STAGED, NOT APPLIED**: `2026-08-13-anon-rate-gate.sql`. Read its header
+  before trusting it: an IP-derived key is a speed bump with a named residual, and
+  whether Supabase's gateway delivers `cf-connecting-ip` at all could NOT be
+  verified from inside the database.
 - `A11` beta_invites is HALF closed — the world-readable policy drop sits behind a GUC
   that is OFF, because `src/settings-page.js:279` reads that table with the anon key
   *before* sign-up. Needs a one-line client patch, then apply the file a second time.
+  **Now additionally blocked on F4 above.** Also: production holds 20 invite codes of
+  9–11 characters, none alphanumeric-only. **Code entropy, not the rate limit, is the
+  load-bearing defence for the oracle** — Security should confirm the code space
+  before A11 ships and rotate to high-entropy values if the codes are memorable.
+- **THREE PRODUCTION OBJECTS HAVE NO MIGRATION FILE IN THIS REPO** (found while
+  building the PGlite chain for the guards, 2026-08-13): `public.bug_reports`,
+  `public.beta_invites` and `public.claim_beta_invite(text)`. A clean replay of
+  `supabase/migrations/**` on top of `supabase/schema.sql` cannot reconstruct
+  production without them, and `2026-08-11-authenticated-surface-lockdown.sql`'s A9
+  retrofit fails closed on the missing `claim_beta_invite`. They are scaffolded, from
+  shapes read off production, in `tests/pglite-chain.mjs` — which is a test fixture,
+  not a fix. Someone should write the missing migrations.
 
 ## DESIGNER-OWNED, QUEUED (not blocking)
 - `spdB` sits outside the +52% permanent power fuse. **Do not ship a speed-gear ladder

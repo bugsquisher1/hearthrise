@@ -54,6 +54,23 @@ jobs:
       - name: Conservation fuzz + injection selftest
         run: node tests/conservation-fuzz.mjs --selftest --ops=400
 
+      # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
+      # a shared table emits a clan_ledger row in the same transaction" — proven
+      # by calling the real RPCs on an in-process PostgreSQL with the real clan
+      # migration chain applied, not by a regex over migration text. --selftest
+      # plants seven regressions; FOUR of them are invisible to the migrations'
+      # own commit gates and are caught only here.
+      - name: Clan journal + per-day caps (F1/F3)
+        run: node tests/clan-journal-guard.mjs --selftest
+
+      # THE ANON RATE GATE (F4, 2026-08-13). Reproduces Security's probe — 30
+      # anonymous calls against a limit of 20 must produce refusals — with the
+      # authenticated control that made the original finding legible, plus the
+      # forged-x-forwarded-for test that separates a real key from a decorative
+      # one. Must stay green before A11's server half is applied.
+      - name: Anon rate gate (F4)
+        run: node tests/anon-rate-gate.mjs --selftest
+
       # THE HUNT BAND. Proves, by running the real migration bodies on an
       # in-process PostgreSQL, that the retired median rule DID let one member's
       # honest good week pay a teammate nothing, that the shipped rule does not,

@@ -97,6 +97,13 @@ import './net/events.js?v=332';
 import './net/sync.js?v=332';
 import './net/auth.js?v=332';
 import './net/supabase-bootstrap.js?v=332';
+// b333 — tells a LIVE tab that a new build shipped. An idle game is played with
+// a tab open for days, so "the fix ships" and "the fix arrives" are different
+// events; without this, every client-side fix reaches only the players who
+// happen to reload. Never reloads without consent; escalates into the b331
+// sign-in-expired sheet when sync has died, because there a stale build is the
+// difference between saving and not saving.
+import './net/build-watch.js?v=332';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:

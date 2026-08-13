@@ -934,3 +934,42 @@ balance constant now. **Debt noted, not paid:** the 0.20 `spdB` cap is still a b
 `legacy.js` and belongs in `COMBAT_BALANCE` beside it — it is a Designer-owned value, so I left it.
 
 Smoke: **571/571 green**, 0 runtime errors (569 + the two new guards).
+
+---
+
+## 2026-08-13 · b333 · The fix that could not reach its player (build-watch)
+
+**Problem, from production.** b331/b332 are live; user `b94fa8c0…` was still emitting ~350 HTTP
+401/hour two days later with a `game_saves` row stale for 2 days 40 minutes. Receiving a client-side
+fix requires a reload they are not doing. There was **no build-version detection anywhere** —
+`location.reload()` only behind explicit user actions, and the SW's `skipWaiting()`/`clients.claim()`
+only helps the NEXT navigation. For an idle game a tab open for days is the intended way to play, so
+"ships" and "arrives" are separate events with an unbounded gap: a structural hole under every client
+fix we will ever ship.
+
+**Shape.** `src/net/build-watch.js` — pure decision (`decideBuildUpdate`, `decideBuildPoll`,
+`parseDeployedBuild`, `nextPollBackoffMs`) separated from fetching and DOM. 15-min poll while
+visible; hidden tabs never poll; `visibilitychange → visible` re-checks (60s throttle) because the
+returning player is the one about to act. Two severities: a dismissible bottom-centre card, and —
+when `HearthriseSync.getAuthGate().dead` — escalation composed **into** the b331 sheet from outside.
+Nothing reloads without a click; the copy never claims the progress is saved, because in that state
+saving is what is failing.
+
+**`src/net/{sync,auth}.js` untouched.** `getAuthGate()` was already exported, and
+`showAuthExpiredGate()` already returns the existing element — so escalation composes with the b331
+sheet without one line of churn in code that just shipped.
+
+**Two things a mutation caught that review did not:**
+1. The dismissal latch was **dead code** — `promptedFor` masked `dismissedFor`, so removing the
+   dismissal changed nothing observable. Fixed by making the two facts distinct: only a dismissal is
+   permanent; a card that vanished unacknowledged (DOM re-render) goes back up.
+2. A per-poll `?bw=<ts>` cache-buster would have been a **slow Cache Storage leak** — the SW
+   (legacy.js b111) treats every same-origin `.js` as shell and `caches.put()`s each distinct URL,
+   so 96 permanent entries/day/tab. Dropped it: `no-store` bypasses the HTTP cache and the SW's
+   shell strategy is network-first anyway. Guarded by a test that two polls hit the same URL.
+
+**Limitation, stated.** This cannot rescue tabs already open on b332 and earlier — they have no copy
+of it. It closes the hole from b333 forward. A server-pushed variant (realtime broadcast) would be
+strictly better and rests on exactly the connection that is dead in this failure mode.
+
+Smoke: **609/609**, 0 runtime errors (602 + 7). Ten mutations, each RED on the intended test.

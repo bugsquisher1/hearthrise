@@ -4,6 +4,70 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 336 — 2026-08-13 (Everything since build 313)
+
+It has been a long quiet stretch on the changelog channel. It has not been a quiet stretch on the game — 23 builds went out, and most of them fixed things that were quietly costing you progress. Here is the whole lot in one place.
+
+**Please refresh the page**
+
+If you have had a tab open for days, you were probably running an old build and none of this had reached you. Until this week the game had no way to tell a long-open tab that a new version existed. That is fixed now — but you need to refresh once to get the version that knows how.
+
+**Your progress, and the ways it was quietly at risk**
+
+- 💾 **A sign-in that expired could stop your saves — silently.** Sign-ins last about an hour and renew in the background. When that renewal failed, the game kept using the dead one forever, and the guard that stops a bad save overwriting a good one held the upload closed the whole time. The game looked completely normal. It was not saving. We found a player whose progress had not reached the cloud in over two days — nothing lost, but one cache-clear from gone. Sessions now renew before they expire, recover on their own, and tell you plainly if they cannot.
+- 🛡️ **An empty save could overwrite your real one.** On a fresh install or a new device, the game could upload a blank save over your cloud save before it finished loading — resetting your character. Nothing uploads now until your cloud save has been pulled and reconciled first.
+- 🛡️ **Your save is bound to your account.** If two accounts were ever used on one device, one character could overwrite the other's cloud save, and you could end up playing someone else's character. Saves now carry their owner, and signing out parks your save instead of deleting it.
+
+**Time away now pays properly**
+
+- ⚔️ **Kills while you are away pay full XP.** They were paying damage XP only and skipping the kill bonus entirely — roughly a fifth of all combat XP, missing.
+- 🎯 **Away kills count for everything else too** — daily tasks, quests, collection log, Farmer's Deeds, dungeon keys, companion and pet progress. "Slay 10 monsters" used to make zero progress overnight.
+- 💥 **Crits land while you are away.** Your crit chance was ignored the moment you closed the tab — the better your gear, the more you lost.
+- 🐉 **Boss of the Day pays while you are away.** Parking on the featured boss before bed is a real decision now. If your time away crosses midnight UTC, each day pays its own boss.
+- ⚡ **Your weapon speed applies.** Away combat used a flat swing rate, so slow weapons swung faster asleep than awake and fast ones swung slower.
+- 🍖 **Food buffs pause instead of being silently ignored** — you come back with the time you left with, and no food is eaten.
+- 📋 **A welcome-back summary leads the Home screen** when you return: how long you were away, what you earned, your kills and crits — and the rules, including when your daily limit was reached and when buffs were paused. Away time pays the same base rate as playing; there is no hidden discount.
+
+**Rotations that never actually rotated**
+
+- 🎲 The shuffle behind every daily and weekly rotation had a flaw that cut whole entries out of the draw. **The King's Bounty, War Drums and The Long Harvest could never be drawn at all** — not rare, impossible. Nobody had ever seen them.
+- 🔁 The daily blessing repeated far too often, sometimes six days running.
+- 🛡️ **The rally shown on your screen was not always the rally the chest was being filled for.** Your joins and pledges were fine; the name you were shown was wrong.
+- 🐉 Boss of the Day and Boss of the Week now rotate evenly instead of favouring a few.
+
+**Combat**
+
+- ⚔️ **Combat styles are pickable mid-fight again.** On phones the Style tab was hidden for the entire time a fight was running; on desktop the picker rebuilt itself about once a second, so roughly one press in thirteen landed on a button that no longer existed.
+- 🏹 **Rapid, Precise and Longrange are three different choices** — they all swung at exactly the same speed. Each now shows its real swing time. (thanks Xarn)
+- 🍖 **The auto-eat slider works.** It ignored whatever you set and ate at 50%. Setting it to 0% now genuinely means never. (thanks Xarn)
+- 🐾 **Companion stats update everywhere the moment it levels up.** (thanks paione)
+
+**Clans**
+
+- 🚪 Leadership can set a hold to invite-only, invite players by name, see and withdraw outstanding invitations, and remove a member with a ban length you choose. Anyone could previously join any hold uninvited, and leadership had no way to undo it.
+- 📨 If a hold invites you, you will see it above "Find a hold".
+
+**Mobile**
+
+- 🎒 **The bag is usable on a landscape phone again** — the item grid was being squeezed into a single clipped row with the Hero panel painted over the top of it. Equip was showing no gear slots at all. (thanks Paione)
+- 📱 **The black bars framing the screen are gone** — the background now bleeds to the edges, behind the notch and home bar.
+- 📱 **Landscape phones use the full width** instead of reserving space for a nav bar that is not there, and the home banner is a compact strip instead of eating a third of the screen.
+- ⚙️ **Settings is reachable from the nav rail.** On a landscape phone the top-bar gear was clipped off the edge, so there was no way to reach it at all.
+- 🐛 **Sending a bug report can never freeze the game.** The screenshot step could hang forever on some phones, locking up everything.
+
+**Under the hood**
+
+- 🏗️ The game's core maths — XP, combat, drops, pacing, farming, crafting, cooking and bounties — moved into a shared engine that can run on the server as well as in your browser. No gameplay changes; every number behaves exactly as before.
+- 🎲 Combat is now replayable from a seed, which is what lets a server verify a fight rather than take the client's word for it.
+- 🔒 Bug reports go through the server instead of carrying their destination inside the game where anyone could read it, and are attributed to your real account.
+- 🖥️ A crash guard meant to stop one broken panel blanking your whole screen turned out not to be covering the main redraw at all. It is now.
+
+**Security**
+
+- 🔒 Steady work on making the server — not your browser — the authority on anything that crosses to other players: rankings, clan treasuries, shared progress. Several holes were closed this week. Not going into specifics publicly, for obvious reasons.
+
+Thanks for sticking with it, and genuinely: keep sending reports. The combat-style fix came straight from one, and the save bug was found by chasing a number on a dashboard that did not look right.
+
 ## v0.9.2-beta build 335 — 2026-08-13 (The console flood, and a repaint that never ran)
 
 - 🔇 **Fixed a message printing five times a second forever**, which buried everything else in the browser console and made real problems impossible to spot. The startup timer that logged it could never be cancelled: the boot gate handed back the platform's cancel function one step before it filled in the table that translates timer IDs, so **all 21 startup timers were left permanently uncancellable**.

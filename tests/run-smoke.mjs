@@ -18,6 +18,7 @@ import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
+import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
 import { createServer } from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -694,6 +695,24 @@ const run = async () => {
             that with the digest recomputed here. SKIPPED, LOUDLY, when no
             URL is configured — a check that prints nothing when it does not
             run is the failure this program has hit six times. */
+    /* ── The CORS preflight guard ───────────────────────────────────────
+       The deployed hr-accrue was unreachable from every browser — no
+       `Access-Control-*` header, no OPTIONS branch — while curl, Node and
+       every guard here reported it healthy, because NONE OF THEM ISSUES A
+       PREFLIGHT. Only a browser does. This drives the shipped cors.js with
+       a real OPTIONS carrying Origin and Access-Control-Request-Headers,
+       asserts the wrapper is the only Deno.serve registration in the packed
+       payload, and — when HR_ACCRUE_URL is set — preflights PRODUCTION.
+       See tests/cors-preflight.mjs. */
+    const { problems: corsProblems, note: corsNote } = await corsGuards();
+    if (corsProblems.length) {
+      console.log('\nCORS preflight guard (a browser can reach hr-accrue) — FAILED:');
+      for (const p of corsProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nCORS preflight guard — a real OPTIONS from hearthrise.net is admitted; ${corsNote}`);
+    }
+
     const deployProblems = await deployedPayloadGuard();
     if (deployProblems.problems.length) {
       console.log('\nEdge payload guard (packable, then deployed bytes == repo bytes) — FAILED:');
@@ -812,7 +831,20 @@ const run = async () => {
     await browser.close().catch(() => {});
     server?.close();
   }
-  process.exit(exitCode);
+  /* ⚠ `process.exit(exitCode)` HERE, NOT `process.exitCode`, WAS A LANDMINE ON
+     WINDOWS — and it sat directly in front of the next step in the program.
+     Node 24 on win32 aborts with
+       Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\win\async.c:76
+     when `process.exit()` is called in a process that has ever used `fetch()`,
+     even after the response body is drained and the global undici dispatcher is
+     closed (both tried; both still crash). The exit code becomes 127.
+     Two guards here use fetch the moment HR_ACCRUE_URL is set — which is
+     exactly what the handoff's NEXT #1 asks for — so a fully GREEN suite would
+     have exited 127 and read as a failure, while every red one reported the
+     wrong code. Setting `exitCode` and letting the loop drain exits correctly
+     and immediately (measured: same second, no lingering handle, browser and
+     static server are already closed in the `finally` above). */
+  process.exitCode = exitCode;
 };
 
 run();

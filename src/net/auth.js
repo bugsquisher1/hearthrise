@@ -252,7 +252,12 @@ function enableLiveSync() {
         url: authConfig.url,
         apiKey: authConfig.anonKey,
         authToken: () => session?.access_token,
-        slot: 0,
+        /* b339 — NO `slot` KEY. This used to pass `slot: 0` while
+           src/multi-character.js gives every account up to five characters with
+           a selected one, so a player on slot 2 accrued against slot 0 and (via
+           applyEnvelope's whole-value replacement) would have had slot 0's
+           server state land in slot 2's save. Omitting it means accrue.js
+           resolves the ACTIVE slot at call time from the profile that owns it. */
       });
     }
   } catch (e) { console.warn('[auth] accrual wiring skipped:', e.message); }
@@ -269,7 +274,12 @@ function enableLiveSync() {
         url: authConfig.url,
         apiKey: authConfig.anonKey,
         authToken: () => session?.access_token,
-        slot: 0,
+        /* b339 — the latch is only an identity if it names the player. The
+           endpoint is the project URL (identical for every account) and the
+           slot was hard-coded, so the old key was a constant and it survived a
+           sign-out into a DIFFERENT account. Live accessor, same rule as the
+           token. No `slot` key: it is resolved from the active character. */
+        userId: () => currentUserId(),
       });
     }
   } catch (e) { console.warn('[auth] character wiring skipped:', e.message); }
@@ -568,6 +578,14 @@ export async function signOut() {
   // stop uploads so nothing can be written after the session ends.
   try { holdSnapshots(); } catch (e) {}
   try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('signout'); } catch (e) {}
+  /* b339 — character.js has documented `resetCharacterIntent()` as "the thing
+     auth.js calls on sign-out" since b338, and grep found NO caller anywhere in
+     src/. The latch key now carries the live user id, so a stale latch can no
+     longer match a different account on its own; this drops the in-flight
+     request and the stop latch too, which the key cannot do. A documented
+     collaborator with no call site is a comment, not a seam. */
+  try { window.HearthriseCharacter?.resetCharacterIntent?.(); } catch (e) {}
+  try { window.HearthriseAccrual?.resetAccrualGate?.(); } catch (e) {}
   if (!supabase) { session = null; try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} return; }
   await supabase.auth.signOut();
   session = null;

@@ -195,6 +195,22 @@
       }
       return p;
     },
+    /* b339 — WHICH CHARACTER IS LIVE, published as an ANSWER rather than as a
+       record other modules parse. src/net/{accrue,character}.js need it to
+       address the right server-side character (they were hard-coded to slot 0,
+       which meant a player on slot 2 ensured and accrued against slot 0). They
+       must NOT read `profile.activeSlot` or the PROFILE_KEY themselves: a
+       second reader of this record is a second thing to drift, and this module
+       is the one that writes it.
+       Falls back to the stored profile when `init()` has not run yet (the net
+       modules can be wired before this script's init on a slow boot), and to 0
+       when there is no profile at all — which is the pre-b339 behaviour and the
+       only correct answer for an account that has never had a second slot. */
+    activeSlot: function(){
+      var p = this.profile || loadProfile();
+      var s = p && p.activeSlot;
+      return (typeof s === 'number' && s >= 0 && s < MAX_SLOTS) ? (s | 0) : 0;
+    },
     switchSlot: switchSlot,
     unlockSlot: unlockSlot,
     listSlots: function(){

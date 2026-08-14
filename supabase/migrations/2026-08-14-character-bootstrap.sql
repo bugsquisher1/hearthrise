@@ -126,8 +126,19 @@
 --
 --   1. IT WOULD WIDEN `hr_engine`, WHICH IS THE ONE ROLE THE WHOLE MODEL IS
 --      BUILT TO KEEP MINIMAL. The Edge Function runs as `hr_engine`, which
---      holds EXECUTE on exactly five functions and **zero table privileges in
---      any schema**. Its entire capability is "propose a delta against a
+--      holds EXECUTE on a short allowlist — the five the Edge Function calls
+--      (`hr_rate_gate`, `hr_state_of`, `hr_offline_cap_ms`, `hr_seed`,
+--      `hr_apply`) plus pure XP helpers with no capability of their own — and
+--      **zero table privileges in any schema**.
+--      (b339: this line said "exactly five" and production holds EIGHT. The
+--      three extras are `hr_level_from_xp` / `hr_total_level` /
+--      `hr_xp_for_level`, which compute and own nothing, so the SECURITY claim
+--      was right and only the NUMBER was wrong — which is worse than it looks,
+--      because a future assertion written from this comment would fail
+--      spuriously and be "fixed" by loosening it. The allowlist is asserted by
+--      `hr_assert_grant_hygiene`, which reads the catalogue rather than a
+--      number typed into a comment. Do not restate a count here.)
+--      Its entire capability is "propose a delta against a
 --      character that already exists", which is precisely the surface
 --      `hr_apply` re-validates. Letting the accrual path create characters
 --      promotes it to "mint characters", i.e. mint starting kits — 500 gold
@@ -152,10 +163,15 @@
 -- functions in a read-only transaction and every anonymous call returned
 -- 25006. **A volatility declaration is a claim about the whole call tree.**
 -- Checked here before writing a line: `hr_create_character` is VOLATILE today
--- and stays VOLATILE (§4 asserts `provolatile = 'v'`), and NOTHING ELSE CALLS
--- IT — verified against `pg_depend`/`pg_proc` on production, and asserted in
--- §4(K) so that a future caller declared STABLE fails this migration instead
--- of failing a player. The functions this body newly reads (`hr_start_kit`
+-- and stays VOLATILE (§5(H) asserts `provolatile = 'v'`), and NOTHING ELSE
+-- CALLS IT — asserted in §5(K) so that a future caller declared STABLE fails
+-- this migration instead of failing a player.
+-- ⚠ b339: the ORIGINAL wording of this paragraph said that was "verified
+-- against `pg_depend`/`pg_proc` on production". `pg_depend` cannot verify it:
+-- a PL/pgSQL body is an opaque string and a call through one creates no
+-- dependency edge, so that half of the evidence was a 0 that means nothing.
+-- §5(K) now scans `prosrc` and PROVES the scan is sighted before believing it.
+-- The functions this body newly reads (`hr_start_kit`
 -- and friends) are TABLES, not functions, so no other call tree changes.
 --
 -- SAFE TO RE-RUN. Additive and idempotent: one `create or replace`, one grant
@@ -655,7 +671,7 @@ end $$;
 -- things that are true only in the absence of something, which no call can
 -- demonstrate.
 do $$
-declare v_bad int; v_oid oid;
+declare v_bad int; v_oid oid; v_ctl int; v_list text; v_scan text;
 begin
   v_oid := 'public.hr_create_character(int)'::regprocedure;
 
@@ -708,12 +724,86 @@ begin
   --     beneath a function declared STABLE. Pinning "this has exactly one
   --     caller, and it is over the wire" means a future non-volatile caller
   --     fails HERE instead of failing a player's sign-in.
-  select count(*) into v_bad
-    from pg_depend d join pg_proc p on p.oid = d.objid and d.classid = 'pg_proc'::regclass
-   where d.refobjid = v_oid and d.refclassid = 'pg_proc'::regclass and p.oid <> v_oid;
-  if v_bad > 0 then
-    raise exception 'hr_create_character has % in-database caller(s) — check their provolatile before shipping', v_bad;
+  --
+  --     ⚠ b339 — WHAT THIS ASSERTION USED TO BE, AND WHY IT WAS INSTANCE #13.
+  --     It counted `pg_depend` edges from other `pg_proc` rows to this one.
+  --     **A PL/pgSQL body is an opaque string to the dependency tracker: a
+  --     function→function CALL CREATES NO `pg_depend` EDGE.** Measured on
+  --     production while reviewing this very file: `pg_depend` callers of
+  --     `hr_rate_ok` = 0, text-scan callers = 6. So the old query returned 0 on
+  --     every database that will ever exist — including, precisely, the day
+  --     somebody adds the non-VOLATILE caller it was written to catch. It was
+  --     an assertion inside the guard that exists BECAUSE of the last assertion
+  --     that asserted nothing, and it asserted nothing.
+  --
+  --     The measurement that can actually see a caller is a `prosrc` scan. But
+  --     swapping one blind query for another unproven one is the same mistake
+  --     in a new shape, so THE SCAN CARRIES ITS OWN CONTROL: a function that
+  --     demonstrably calls this one is PLANTED, the scan must find exactly it,
+  --     and only then is the same query trusted to report zero. If the pattern,
+  --     the schema filter or `prosrc` itself ever stops working, the control
+  --     finds nothing and this migration fails — instead of passing quietly
+  --     forever, which is the entire failure mode being closed.
+  --
+  --     The probe is deliberately declared STABLE: it is the exact shape of the
+  --     bug (a non-volatile caller of a writing function), so the control also
+  --     demonstrates that the reported volatility is read from a real row.
+  --
+  --     ONE SCAN TEXT, EXECUTED TWICE — identical BY CONSTRUCTION, not because
+  --     two copies remember the same pattern. (The b332 pack-edge lesson: a
+  --     property defended by two call sites agreeing is defended by nobody.)
+  --     Break the pattern, the schema filter or `prosrc` and the CONTROL run
+  --     goes red first, so there is no way to blind the assertion without
+  --     blinding its own proof.
+  v_scan :=
+    'select count(*), string_agg(p.proname || ''/'' || p.provolatile::text, '', '' order by p.proname)'
+    '  from pg_proc p join pg_namespace n on n.oid = p.pronamespace'
+    ' where n.nspname = ''public'' and p.oid <> $1'
+    '   and p.prosrc ~ ''\yhr_create_character\y''';
+
+  execute $probe$
+    create function public.hr_b338_caller_probe() returns void
+    language plpgsql stable as $p$
+    begin
+      -- never executed; this body exists to be FOUND by the scan below
+      perform public.hr_create_character(0);
+    end $p$
+  $probe$;
+
+  execute v_scan into v_ctl, v_list using v_oid;
+  -- The control asks only "did the scan FIND THE PLANTED BODY, and did it read
+  -- its volatility off a real row" — not "did it find exactly one". Anything
+  -- else it finds is a genuine caller and belongs to the assertion below, which
+  -- reports it by name; making the control exact would have it swallow the very
+  -- bug the assertion exists to name.
+  if coalesce(v_list, '') !~ '\yhr_b338_caller_probe/s\y' then
+    raise exception 'THE CALLER SCAN IS BLIND — a STABLE function that calls hr_create_character '
+                    'was planted and the scan reported % caller(s) [%], none of them it. A scan '
+                    'that cannot see a known caller cannot see an unknown one, and (K) would pass '
+                    'on every database forever (this is exactly how the pg_depend version failed).',
+                    v_ctl, coalesce(v_list, '');
   end if;
 
-  raise notice 'b338 structural assertions PASSED';
+  drop function public.hr_b338_caller_probe();
+
+  -- THE ASSERTION ITSELF — the SAME scan text, now trusted because the line
+  -- above proved it can see failure. A `prosrc` match inside a comment or a
+  -- dead branch counts as a caller: that is a false RED that costs one review,
+  -- and it is the correct direction to fail.
+  execute v_scan into v_bad, v_list using v_oid;
+  if v_bad > 0 then
+    raise exception 'hr_create_character has % in-database caller(s) [name/provolatile: %] — '
+                    'anything other than ''v'' there is the A11 outage waiting to happen '
+                    '(PostgREST runs a non-volatile call tree in a read-only transaction, 25006)',
+                    v_bad, v_list;
+  end if;
+
+  -- The control left nothing behind. Same rule as the behavioural block's
+  -- leak checks: a probe that survives its own migration is a new object
+  -- nobody reviewed.
+  if to_regproc('public.hr_b338_caller_probe') is not null then
+    raise exception 'STRUCTURAL CHECK LEAKED the caller probe';
+  end if;
+
+  raise notice 'b338 structural assertions PASSED (caller scan proven sighted, then zero)';
 end $$;

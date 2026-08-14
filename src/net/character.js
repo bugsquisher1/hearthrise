@@ -67,13 +67,16 @@
 // The RPC is idempotent so a repeat is harmless, but it is not free: it spends
 // the 60/min ensure budget and a round trip for an answer that cannot change.
 // So a confirmed slot is latched and never asked about again — and the latch is
-// keyed on (endpoint, slot) so switching account or slot re-arms it.
+// keyed on (endpoint, USER ID, slot), so switching account or character re-arms
+// it. b339: it used to be keyed on (endpoint, slot) with the slot hard-coded to
+// 0 and the endpoint identical for every account, i.e. on a constant — see
+// latchKey() for what that cost.
 //
 // DOM-free. Node-importable. No fetch seam — `fetch` is resolved at call time so
 // a test's override is the transport, the same rule accrue.js follows.
 // ============================================================================
 
-import { ACCRUE_KILL_KEY, isServerAccrualEnabled } from './accrue.js?v=338';
+import { ACCRUE_KILL_KEY, isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=338';
 
 /* THE SAME SWITCH AS b337, DELIBERATELY. Two switches would mean a state where
    the client creates characters it will never accrue against, or asks for
@@ -81,30 +84,49 @@ import { ACCRUE_KILL_KEY, isServerAccrualEnabled } from './accrue.js?v=338';
 export { ACCRUE_KILL_KEY };
 export function isCharacterIntentEnabled() { return isServerAccrualEnabled(); }
 
-let config = null;      // {url, apiKey, authToken, slot}
-let latch = null;       // the (endpoint, slot) whose existence the server confirmed
+let config = null;      // {url, apiKey, authToken, userId, slot}
+let latch = null;       // the (endpoint, user, slot) whose existence the server confirmed
 let inFlight = null;
+let stopped = null;     // an outcome this build cannot make progress against
 
 /** Wired from auth.js's enableLiveSync(), beside configureAccrual, so there is
- *  ONE copy of the url / key / token accessor in the client. */
+ *  ONE copy of the url / key / token accessor in the client.
+ *
+ *  `userId` and `slot` are ACCESSORS, not values (b339). Both change while this
+ *  module stays configured — a re-sign-in without a re-wire, a character switch
+ *  — and a captured value is one that is wrong by the time the latch consults
+ *  it. Same rule, same reason, as `authToken`.
+ */
 export function configureCharacter(cfg) {
-  if (!cfg || !cfg.url) { config = null; latch = null; return null; }
+  if (!cfg || !cfg.url) { config = null; latch = null; stopped = null; return null; }
   const next = {
     url: String(cfg.url).replace(/\/+$/, ''),
     apiKey: cfg.apiKey || '',
     authToken: cfg.authToken || null,
-    slot: Number.isInteger(cfg.slot) ? cfg.slot : 0,
+    userId: cfg.userId || null,
+    slot: Number.isInteger(cfg.slot) ? cfg.slot : null,
   };
   /* Re-wiring is a new identity until proven otherwise. Keeping a latch across
-     a sign-out would tell the next account its character exists. */
-  if (!config || config.url !== next.url || config.slot !== next.slot) latch = null;
+     a sign-out would tell the next account its character exists. The latch KEY
+     now carries the user id as well, so this is belt to that braces rather
+     than the only defence — see latchKey(). */
+  if (!config || config.url !== next.url) { latch = null; stopped = null; }
   config = next;
   return getCharacterConfig();
 }
 
+function userIdOf() {
+  if (!config || !config.userId) return null;
+  try {
+    const v = typeof config.userId === 'function' ? config.userId() : config.userId;
+    return (typeof v === 'string' && v) ? v : null;
+  } catch (e) { return null; }
+}
+
 export function getCharacterConfig() {
   if (!config) return null;
-  return { url: config.url, slot: config.slot, endpoint: characterEndpoint(config.url) };
+  return { url: config.url, slot: resolveActiveSlot(config.slot), pinnedSlot: config.slot,
+    userId: userIdOf(), endpoint: characterEndpoint(config.url) };
 }
 
 /** Derived once from the project URL. Never hand-copied. */
@@ -118,17 +140,39 @@ function tokenOf() {
   catch (e) { return null; }
 }
 
-function latchKey(url, slot) { return characterEndpoint(url) + '#' + slot; }
+/* ── THE LATCH KEY MUST NAME THE PLAYER (b339) ──────────────────────────────
+   It used to be `(endpoint, slot)`. The endpoint is derived from the PROJECT
+   url — byte-identical for every account on earth — and the slot was hard-coded
+   to 0. So the key was a CONSTANT: sign out of account A and into account B on
+   the same device and the latch still matched, and this module told B "the
+   server has confirmed your character exists" without ever asking. B's first
+   accrual then answers `no_character` and the player is stuck on an error that
+   a reload does not clear, because the latch survives it too.
+
+   The user id is what makes the key an identity. It is read LIVE (auth.js
+   supplies an accessor), so the invalidation is automatic and cannot be
+   forgotten at a call site — including the sign-out path, which is also wired
+   now, but which is no longer the thing this depends on.
+
+   `null` user is deliberately NOT a key: an unknown identity may never match a
+   latch, or a signed-out device inherits the last player's confirmation. */
+export function latchKey(url, userId, slot) {
+  if (!userId) return null;
+  return characterEndpoint(url) + '#' + userId + '#' + slot;
+}
 
 /** Has the server already confirmed a character in this slot this session? */
 export function isCharacterConfirmed(slot) {
-  if (!config) return false;
-  const s = Number.isInteger(slot) ? slot : config.slot;
-  return latch === latchKey(config.url, s);
+  if (!config || !latch) return false;
+  const s = resolveActiveSlot(Number.isInteger(slot) ? slot : config.slot);
+  const k = latchKey(config.url, userIdOf(), s);
+  return !!k && latch === k;
 }
 
-/** Test seam, and the thing auth.js calls on sign-out. */
-export function resetCharacterIntent() { latch = null; inFlight = null; }
+/** Test seam, and the thing auth.js calls on sign-out (b339 — it now HAS a
+ *  caller; before this it was documented as "the thing auth.js calls" and grep
+ *  found none anywhere in src/). */
+export function resetCharacterIntent() { latch = null; inFlight = null; stopped = null; }
 
 /* ── THE REQUEST, AS DATA ───────────────────────────────────────────────────
    PURE and exported, so a test asserts the LITERAL bytes that go on the wire
@@ -224,9 +268,20 @@ export async function ensureCharacter(opts) {
   if (inFlight) return inFlight;
 
   if (!config) return { outcome: 'unconfigured', reason: 'no_endpoint', present: false };
-  const slot = Number.isInteger(o.slot) ? o.slot : config.slot;
+  const slot = resolveActiveSlot(Number.isInteger(o.slot) ? o.slot : config.slot);
   if (!o.force && isCharacterConfirmed(slot)) {
     return { outcome: 'existed', cached: true, present: true, slot };
+  }
+  /* THE STOP LATCH (b339). One outcome cannot change without a DATABASE
+     deploy: a 200 that is `ok:true` with no `created` flag, which is what the
+     CURRENT production `hr_create_character` returns because
+     2026-08-14-character-bootstrap.sql is staged and unapplied. Re-asking costs
+     a round trip and a slot of the 6/hour CREATION budget — and the live body
+     charges that budget BEFORE its slot_taken check, so six reloads exhaust it
+     and the player is then also told `rate_limited`. Ask once per session, say
+     so loudly, and stop. Cleared by resetCharacterIntent() / a re-wire. */
+  if (!o.force && stopped) {
+    return { ...stopped, cached: true, present: false, slot };
   }
   const token = tokenOf();
   if (!token) return { outcome: 'unconfigured', reason: 'no_token', present: false };
@@ -256,10 +311,22 @@ export async function ensureCharacter(opts) {
 /** The ONE place an outcome becomes state — and the only state is the latch. */
 function settle(verdict, slot) {
   const present = isCharacterPresent(verdict.outcome);
-  if (present && config) latch = latchKey(config.url, slot);
+  if (present && config) latch = latchKey(config.url, userIdOf(), slot);
   if (verdict.outcome === 'created') {
     console.log('[character] the server created a character in slot ' + slot
       + ' with its own starting kit');
+  } else if (verdict.reason === 'no_created_flag') {
+    /* LOUD, AND BY NAME. This is not a network problem and not a player
+       problem: the server answered `ok:true` and did not say whether it created
+       anything, which is precisely the shape of the PRE-b338 RPC. Anyone
+       reading a generic "could not confirm" warning here would go looking at
+       the client. The diagnosis is one line and it belongs in the console. */
+    stopped = { ...verdict };
+    console.error('[character] THE SERVER IS RUNNING A PRE-b338 hr_create_character — it answered '
+      + 'ok:true with NO `created` flag, so this client cannot tell "I made one" from "one already '
+      + 'existed" and will not claim a character exists. Away time will not be credited. '
+      + 'FIX: apply supabase/migrations/2026-08-14-character-bootstrap.sql. Until then the server '
+      + 'accrual switch must stay OFF for real accounts. (Asked once; will not re-ask this session.)');
   } else if (!present) {
     /* Said once, plainly, and never dressed up as success. */
     console.warn('[character] the server did not confirm a character in slot ' + slot
@@ -297,7 +364,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseCharacter = {
     CHARACTER_OUTCOMES, ACCRUE_KILL_KEY,
     isCharacterIntentEnabled, configureCharacter, getCharacterConfig,
-    characterEndpoint, buildCreateCharacterRequest, classifyCreateResponse,
+    characterEndpoint, latchKey, buildCreateCharacterRequest, classifyCreateResponse,
     isCharacterConfirmation, isCharacterPresent, isCharacterConfirmed,
     ensureCharacter, ensureThenAccrue, resetCharacterIntent,
   };

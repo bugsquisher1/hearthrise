@@ -9,6 +9,7 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 - 🏪 **Listing, cancelling and buying now go through the server** instead of the game writing to the market tables itself. Nothing changes about how the market works for you — but the price, the seller name and the timestamp on a listing are now the server's, not whatever the sender claims.
 - 🏆 **Clan browsing and the leaderboards read through the server too.** Before this, an unauthenticated request could read every player's name, gold and levels straight out of the ranking tables.
 - 🧾 A stale poll that would have quietly failed once a minute forever after the next market update now stops cleanly instead.
+- 🏗️ **Groundwork, still switched off:** the game can now take a value from the server as the *record* rather than reading it back out of its own save file. Nothing about your save changes — the save still carries everything it always did. What changed is which copy is believed.
 
 ## v0.9.2-beta build 339 — 2026-08-14 (Groundwork: safety work before the server takes over)
 

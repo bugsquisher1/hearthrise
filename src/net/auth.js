@@ -286,7 +286,10 @@ function enableLiveSync() {
 export function buildIntentWiring(cfg) {
   const c = cfg || {};
   const base = { url: c.url, apiKey: c.anonKey, authToken: c.authToken };
-  return { accrual: { ...base }, character: { ...base, userId: c.userId } };
+  /* b340 — the record read (`hr_load`) is wired from the SAME base as the other
+     two. Three copies of a url would be three things to drift; the b332 lesson
+     about five copies of one hash is recent enough not to need restating. */
+  return { accrual: { ...base }, character: { ...base, userId: c.userId }, record: { ...base } };
 }
 
 /** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
@@ -299,7 +302,41 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] accrual wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseCharacter) win.HearthriseCharacter.configureCharacter(w.character); }
   catch (e) { console.warn('[auth] character wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseRecord) win.HearthriseRecord.configureRecord(w.record); }
+  catch (e) { console.warn('[auth] record wiring skipped:', e && e.message); }
   return w;
+}
+
+/* ── b340: THE CLOUD OVERLAY IS A CACHE READ, AND IT IS STRIPPED ────────────
+   Exported because the strip that matters is the one AT THE CALL SITE. B339's
+   post-mortem is the reason: a test drove accrue.js's slot resolver, proved it
+   correct, and auth.js went on pinning `slot: 0` — a mutation in the CALLER
+   slipped past a test of the callee. So this is a named function a test can
+   drive, and B340-4 mutates it rather than record.js.
+
+   FAILS LOUD, NEVER SILENT. If the switch is on and record.js did not load,
+   this throws instead of returning the blob: returning it would read a
+   server-owned field back out of a client-authored save, which is the exact
+   two-sources bug the seam exists to prevent, and it would do it invisibly. The
+   throw is caught by pullAndMaybeRestore's own handler, which holds the
+   snapshot gate and retries — i.e. it degrades into "we did not restore", never
+   into "we restored a forgeable value". */
+export function stripRecordFieldsForOverlay(snap, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  /* The SWITCH is read from accrue.js, not from record.js — deliberately. If it
+     were read from record.js then a missing record.js would read as "switch
+     off" and the strip would silently not happen, which is the failure this
+     function is guarding. The switch and the field list live in different
+     modules precisely so one cannot vouch for the other. */
+  const A = w && w.HearthriseAccrual;
+  const on = !!(A && typeof A.isServerAccrualEnabled === 'function' && A.isServerAccrualEnabled());
+  if (!on) return snap;
+  const R = w && w.HearthriseRecord;
+  if (!R || typeof R.stripServerOfRecord !== 'function') {
+    throw new Error('server accrual is ON but src/net/record.js did not load — refusing to overlay a '
+      + 'cloud save that still carries server-owned fields');
+  }
+  return R.stripServerOfRecord(snap).blob;
 }
 
 /**
@@ -528,7 +565,13 @@ async function pullAndMaybeRestore() {
     const cloudAt = d.cloudAt || Date.now();
     delete snap.__cloudSavedAt;                       // never let our meta keys land in G
     delete snap.__device;                             // (b301 concurrent-device marker)
-    Object.assign(window.G, snap);
+    /* b340 — THE SECOND BLOB→G SEAM. The cloud snapshot is still a client-
+       authored blob; it is a CACHE, not a record. Any field the server owns is
+       deleted on the way in so it cannot be read back out of it — see
+       src/net/record.js. No-op while the b337 switch is off, so every restore
+       path b305 exercises is byte-for-byte unchanged. */
+    const overlay = stripRecordFieldsForOverlay(snap);
+    Object.assign(window.G, overlay);
     // Reset the offline watermark to the cloud's save time so the returning-
     // player catch-up credits the gap since the account was LAST active anywhere,
     // not since this (possibly long-idle) device last saved.
@@ -812,6 +855,9 @@ function showEvictedGate() {
 window.HearthriseAuth = {
   setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
   decideLocalOwnership, buildIntentWiring, wireServerIntents,
+  // b340 — the cloud half of the record strip, exported so the test drives the
+  // CALLER rather than re-deriving what the caller ought to do (B339's lesson).
+  stripRecordFieldsForOverlay,
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,

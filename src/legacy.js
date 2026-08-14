@@ -867,6 +867,43 @@ function remapItemIds(G){
 }
 window.remapItemIds = remapItemIds;
 
+/* ════════════════════════════════════════════════════════════════
+   b340 — THE RECORD STRIP. See src/net/record.js.
+
+   The save blob is a CACHE, not a record. Any field the server owns is deleted
+   on the way IN, so a value that has moved has exactly ONE source afterwards.
+   snapshot() is untouched — nothing is added to NO_SYNC and the blob keeps
+   carrying every field it always did, so b302/b305/b314 are unaffected. What
+   changes is that the blob's copy is never read for authority again.
+
+   FAILS LOUD. If the switch is on and record.js did not load, this throws
+   rather than returning the blob: silently reading a server-owned field back
+   out of a client-authored save is the exact bug the seam exists to prevent,
+   and it would be invisible. loadLocal's own catch treats the throw as an
+   unreadable save (backed up, player told) — the safe direction.
+   ════════════════════════════════════════════════════════════════ */
+function stripRecordFields(d){
+  /* The SWITCH from accrue.js, the FIELD LIST from record.js — two modules, so
+     neither can vouch for the other's absence. */
+  if(!serverAccrualActive()) return d;
+  const R=window.HearthriseRecord;
+  if(!R||typeof R.stripServerOfRecord!=='function'){
+    throw new Error('server accrual is ON but src/net/record.js did not load — refusing to load a save '
+      +'that still carries server-owned fields');
+  }
+  const out=R.stripServerOfRecord(d);
+  /* THE RECEIPT, AND IT IS LOAD-BEARING (found by the b340 mutation run). The
+     forgetServerOfRecord() call further down loadLocal() is belt-and-braces —
+     and it turned out to be SO effective that reverting the strip entirely left
+     B340-3 GREEN: the belt cleared G and the test could not tell which of the
+     two mechanisms had done it. Two defences where a test can only see one is a
+     defence that can rot silently. This marker is produced by the STRIP and by
+     nothing else, so the test observes the seam it names. Window-scoped and
+     `__`-prefixed: never enters G, never enters the snapshot. */
+  try{ window.__hrRecordStrip={at:Date.now(),stripped:out.stripped.slice()}; }catch(e){}
+  if(out.stripped.length) console.log('[record] dropped '+out.stripped.join(', ')+' from the save blob — the server owns '+(out.stripped.length===1?'it':'them'));
+  return out.blob;
+}
 function loadLocal(){
   // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
   // which silently breaks every caller that reads `window.G` — they keep
@@ -887,7 +924,7 @@ function loadLocal(){
       const d=JSON.parse(raw);
       // run versioned migrations on the v1 save before merge
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      Object.assign(G, migrated);
+      Object.assign(G, stripRecordFields(migrated));
       notify('Save migrated from v1','info');
     }catch(e){}
   }else{
@@ -896,7 +933,7 @@ function loadLocal(){
       // run versioned migrations BEFORE merge so old shapes are
       // upgraded against a clean object, not against current G defaults
       const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      Object.assign(G, migrated);
+      Object.assign(G, stripRecordFields(migrated));
     }catch(e){
       console.warn(e);
       /* b213 QA: an unreadable save used to silently reset the game — the
@@ -909,6 +946,14 @@ function loadLocal(){
       }, 2000);
     }
   }
+  /* b340: belt to the strip's braces. The strip keeps a moved field out of the
+     blob; this keeps one out of G whatever its provenance (a fresh-G default, a
+     migration that re-added it, a value left over from before a flip). After
+     this line, under the switch, G holds no client-authored copy of anything
+     the server owns — a property checkable at one instant rather than argued
+     about across three call sites. It is NOT a substitute for the strip, and
+     B340-3 now distinguishes the two (see __hrRecordStrip). */
+  try{ if(serverAccrualActive()&&window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
   remapItemIds(G);   // b244: fold any renamed/retired item ids across every store
   /* b246: grandfather gear already worn when wield-reqs went live — never strip
      anyone of what they're wearing, and let them re-wear it freely. */
@@ -1086,6 +1131,12 @@ function wireServerAccrual(){
          so a half-parsed 200 can never blank a save. */
       const written=A.applyEnvelope(G,res);
       if(!written) return;
+      /* b340: the RECORD fields ride the same envelope, but they are written by
+         record.js's applyRecord and by nothing else — one writer, two callers
+         (this hook and the hr_load boot read), rather than two implementations
+         that agree today. applyRecord is monotonic on `version`, so whichever
+         of the two answers second cannot put back an older watermark. */
+      try{ if(window.HearthriseRecord) window.HearthriseRecord.applyRecord(G,res); }catch(e){}
       try{ saveLocal(); }catch(e){}
       try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
       try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
@@ -1113,8 +1164,21 @@ function processOffline(){
        It latches, so this is one round trip per session, not one per return. */
     try{
       var C=window.HearthriseCharacter;
-      if(C&&typeof C.ensureThenAccrue==='function') C.ensureThenAccrue();
-      else window.HearthriseAccrual.beginServerAccrual();
+      var R=window.HearthriseRecord;
+      /* b340: THE BOOT READ. hr_load supplies the fields the server is the
+         RECORD of — the ones stripRecordFields() deleted from the save blob on
+         the way in. It runs AFTER the ensure (an empty slot answers
+         `no_character`, and asking before creating just burns a rate budget for
+         a refusal) and does NOT gate accrual: a failed load leaves the field
+         UNKNOWN, which is the honest state, and never a local number. */
+      if(C&&typeof C.ensureThenAccrue==='function'){
+        var p=C.ensureThenAccrue();
+        if(R&&p&&typeof p.then==='function') p.then(function(){ R.beginRecordLoad(); });
+      }
+      else{
+        window.HearthriseAccrual.beginServerAccrual();
+        if(R) R.beginRecordLoad();
+      }
     }catch(e){}
     return;
   }

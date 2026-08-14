@@ -982,3 +982,145 @@ requires a table rebuild. Its immutability trigger refuses every `UPDATE` and ev
 refuses a `DELETE` **inside** the retention window — so history cannot be rewritten or erased, and
 retention is still possible. Revision 2 refused all deletes unconditionally, which made retention
 literally impossible without disabling the control.
+
+---
+
+## 9. Moving the RECORD (b340) — design, and the first increment
+
+b337 moved a **computation** to the server; b338/b339 gave it a character to compute
+against. Security's summary of all three was exact: **that moved the computation, not the
+record.** `applyEnvelope` wrote the server's answer into `G`, `saveLocal()` stamped
+`lastSeen`, and the whole thing uploaded into `game_saves.snapshot` — a blob a player edits
+in devtools. Server-computed and client-recorded is client-authored with extra steps.
+
+This section is the design for moving the record, and the reasoning behind the one field
+that moved first. Implementation: `src/net/record.js`; tests `B340-1`…`B340-8` in
+`src/features/smoke-test.js`, all ten mutations proven RED.
+
+### 9.1 The rule that decides the order: **the record follows the writer**
+
+A field may become server-of-record only after **every path that mutates it** has moved.
+The reason is not caution, it is arithmetic: a field with a server record and a live client
+writer has two sources, the server's copy goes stale, the load-strip throws away the fresh
+local value, and the player loses progress. That is the same defect class as the starting-kit
+divergence (two copies, two languages, silently different) and the five-copies FNV hash.
+
+Applying that rule to the client as it stands today produces exactly one candidate:
+
+| field | who writes it today | moves when |
+|---|---|---|
+| **`offlineBudget` → `player_state.accrued_to`** | **the SERVER already.** b337's gate returns from `processOffline()` before `claimOfflineMs()`, and `accrue.js` deliberately never advances the local watermark. | **now — b340** |
+| `gold` | ~40 client sites | after a gold-bearing intent surface exists |
+| inventory quantities | `addItem`/`removeItem`, everywhere | after craft/gather/loot intents |
+| skill XP | `addXp` | after the activity intents |
+| `hearth_token` (an inventory item, not `state.hearth_tokens`) | 1 mint (IAP `grant`) + 4 spends (dungeons ×3, redeem) | after a spend intent — the smallest surface after this one, and the highest value: it is real money and it is tradeable |
+| `restedXp` / `restedAt` | the client, fully | not in this program's near term |
+| farm plots | the client (`plantedAt`) | `hr_apply`'s farm block, §3 "Farming" |
+
+Two things worth stating plainly rather than discovering later. First, **`hearth_tokens` in
+`player_state` and `hearth_token` in `player_inventory` are not the same fact**, and the client
+only has the second one. Whichever survives, the other must be deleted, not left as a second
+copy — this is the two-sources bug pre-registered before it is written. Second, **there is no
+field today that is both load-bearing in the client and free to move.** Any field whose
+mutation surface has already moved is one the client is not yet using; any field the client
+uses heavily has a mutation surface that has not moved. That is not an argument for picking a
+decorative field — it is the reason the order is writer-first, and it is why this increment is
+one field plus a seam rather than a cutover.
+
+### 9.2 What `game_saves.snapshot` becomes
+
+**A cache and an offline journal — which is what save-invariant #1 already calls it — and not
+a record.** Concretely:
+
+* `snapshot()` in `src/net/events.js` is **unchanged**, and **nothing is added to `NO_SYNC`**.
+  A moved field keeps riding to the cloud exactly as it did.
+* b302 (single-active-session), the **b305 stress battery** and the **b314 snapshot hold** all
+  key off that blob and are all untouched, because the blob still contains every field it
+  used to and is still written on the same schedule.
+* What changes is the **read**. A moved field is deleted from the blob on the way IN, so the
+  blob's copy is never consulted for authority again. Writing a value and not reading it is
+  exactly what "cache" means.
+
+The asymmetry is deliberate and it is the load-bearing design decision here. Stopping the
+**write** would mean adding a persistent-progress field to `NO_SYNC`, which CLAUDE.md forbids
+outright — and it would additionally make the blob's *shape* depend on a kill switch, so a
+save taken with the switch on would be missing fields when read with it off. Stopping the
+**read** costs nothing and cannot lose data: the worst case is a field that is UNKNOWN until
+the server answers, which is a state the module has and never fills in with a guess.
+
+At cutover the blob stops being uploaded at all. Until then it shrinks in *authority* while
+staying constant in *content*, which is what makes the transition reversible.
+
+### 9.3 How a moved field is prevented from having two sources
+
+By **deletion, not reconciliation**. A reconciliation step is a place where a local number can
+survive; a deletion is not. The mechanism is three parts, and each is tested at the caller:
+
+1. **`stripServerOfRecord(blob)`** at both blob→G seams — `loadLocal()` (the local blob and the
+   v1 migration path) and `pullAndMaybeRestore()` (the cloud overlay). Pure; it never mutates
+   its argument, because the caller is still holding the parsed snapshot for logging and a
+   strip that reached back into it would make that log lie about what arrived.
+2. **`forgetServerOfRecord(G)`** after the load — belt to the strip's braces, so G holds no
+   client-authored copy whatever the provenance. It also clears the `known` claim: forgetting
+   a value while keeping the claim would report `undefined` as server-supplied.
+3. **`recordValue(G, field)` is the only read accessor**, and it answers from the provenance
+   stamp rather than from the field's presence. `{known:false}` is a state consumers must
+   handle; `0` is never substituted, because a `0` watermark means "last paid in 1970" and
+   would grant a full capped window on every boot.
+
+**Fail loud, not silent.** If the switch is on and `record.js` did not load, both strips
+*throw* rather than returning the blob. The switch is read from `accrue.js` and the field list
+from `record.js`, in different modules, precisely so a missing `record.js` cannot present
+itself as "switch off".
+
+### 9.4 The read path, and what happens on disagreement
+
+On boot, under the switch, after the character ensure:
+**`POST /rest/v1/rpc/hr_load {"p_slot":N}`**. `auth.uid()` is the identity, so no player can
+name another. It runs after the ensure (an empty slot answers `no_character`, and asking first
+only burns rate budget for a refusal) and it does **not** gate accrual — a failed load leaves
+the field UNKNOWN, which is honest, rather than costing the player their absence.
+
+**There is no disagreement to resolve.** By the time the envelope arrives, the blob's copy has
+already been deleted; the server is not overruling a local value, it is supplying the only one.
+That is the difference between "server authoritative" and "server wins the argument", and it is
+why the strip happens at LOAD rather than at APPLY.
+
+Two ordering rules are still needed, and both are tested:
+
+* **Monotonic on `version`.** `hr_load` and `hr-accrue` are in flight together by design (one
+  reads, one pays); both answer truthfully, and the slower answer is the older one. Without
+  this it would put back a watermark the payment had already advanced — i.e. pay a span twice.
+* **An envelope carrying no record changes nothing** — not the field, and not the provenance
+  stamp either. Stamping it is how "the server told us" quietly becomes "the server was asked".
+  Conversely, a *later* unreadable answer does **not** blank an earlier known value: that is
+  save-invariant #2 (act only on certainty) applied to a field instead of a save, the same
+  reasoning that stops a network error evicting a device.
+
+### 9.5 Dependency on unapplied migrations — none, deliberately
+
+`2026-08-11-apply-engine.sql` is **still not applied**; production's `hr_apply` is the stale
+25,966-char revision. **b340 does not depend on it.** `hr_load` exists in production (it is one
+of the two server-authority RPCs `2026-08-11-authenticated-surface-lockdown.sql` names as
+client-callable), and an older `hr_load` whose envelope lacks `accrued_to` is classified
+**`malformed`** — the field stays UNKNOWN and nothing local is substituted. The increment is
+therefore correct against either revision and merely inert against the older one. That is the
+intended failure direction, and it is asserted (B340-6 drives that exact envelope).
+
+### 9.6 What this increment deliberately does NOT do
+
+* It does not move gold, inventory, XP, rested XP or the farm. Those are still client-authored,
+  and the switch does not change that.
+* It does not stop `snapshot()` uploading anything, and adds nothing to `NO_SYNC`.
+* It does not touch the b305 battery or the b314 hold semantics; both are green, unchanged.
+* It does not make the game *use* the moved field yet: under the switch `claimOfflineMs()` is
+  unreachable, so today the field's only consumers are the countdown UI and a bug report. The
+  seam is what had to be built correctly, and it had to be built while the blast radius was one
+  inert field rather than the economy.
+* **Known limitation:** `stampAwayWatermarks` (b339) recreates `G.offlineBudget` locally on a
+  switch *flip*, which is right for the OFF direction (it hands the span back) and is a
+  momentary second source in the ON direction. The value is inert while the switch is on and is
+  discarded at the next load. Left alone rather than changing b339's reversibility semantics.
+* **Unguarded property, named:** nothing asserts that a *third* blob→G seam is never added. A
+  grep on 2026-08-14 found exactly three `Object.assign(<window.>G, …)` of a parsed save, all
+  covered. That is a fact about one commit, not a control.

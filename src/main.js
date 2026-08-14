@@ -105,6 +105,13 @@ import './net/accrue.js?v=340';
 // switch from it) and BEFORE auth.js, which configures both with the same
 // credentials. Ships DARK behind the SAME switch as b337.
 import './net/character.js?v=340';
+// The RECORD seam. AFTER accrue.js (it imports the same kill switch and the
+// same slot resolver) and BEFORE auth.js, which configures all three with one
+// copy of the credentials. Ships DARK behind the SAME switch as b337/b338.
+// It must load whenever accrue.js does: legacy.js's load-strip fails LOUD if
+// the switch is on and this module is absent, rather than silently reading a
+// moved field back out of the save blob. B340-7 asserts the pairing.
+import './net/record.js?v=340';
 import './net/auth.js?v=340';
 import './net/supabase-bootstrap.js?v=340';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

@@ -21194,6 +21194,63 @@ const TESTS = [
     }
   }),
 
+  () => tryRunAsync('B340-8: processOffline() actually ASKS for the record — the caller, again', async () => {
+    /* Written because the mutation run had no way to see this call site at all:
+       every other b340 test drove record.js or auth.js, and legacy.js's b337
+       gate could have stopped calling beginRecordLoad() entirely with the suite
+       staying green. That is the b339 shape exactly — a correct callee and a
+       caller nobody looked at. MUTATION: delete the `p.then(… beginRecordLoad
+       …)` line in legacy.js's gate → RED. */
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
+    const R = window.HearthriseRecord;
+    const G = window.G;
+    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen,
+      activeSkill: G.activeSkill, activeMonster: G.activeMonster };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    const hits = { load: 0, accrue: 0, create: 0 };
+    try {
+      window.fetch = function (u) {
+        const s = String(u);
+        if (/hr_load/.test(s)) { hits.load++; return Promise.resolve(new Response('{"ok":false,"error":"no_character"}', { status: 200 })); }
+        if (/hr-accrue/.test(s)) { hits.accrue++; return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"none"}', { status: 200 })); }
+        if (/hr_create_character/.test(s)) { hits.create++; return Promise.resolve(new Response('{"ok":true,"slot":0,"created":false}', { status: 200 })); }
+        return realFetch.apply(this, arguments);
+      };
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      const wiring = { url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' };
+      A.resetAccrualGate(); A.configureAccrual(wiring);
+      C.resetCharacterIntent(); C.configureCharacter({ ...wiring, userId: () => 'user-B340' });
+      R.resetRecord(); R.configureRecord(wiring);
+      A.setServerAccrualEnabled(true);
+      G.activeSkill = 'woodcutting'; G.activeMonster = null;
+      window.processOffline();
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+
+      assert(hits.load === 1,
+        'the b337 gate did not ask hr_load for the record (' + hits.load + ' requests) — the field the strip '
+        + 'deleted from the blob would stay UNKNOWN forever, which is safe but is not a working game');
+      assert(hits.accrue === 1,
+        'adding the record read cost the accrual request (' + hits.accrue + ') — b337 must be unchanged');
+      /* A `no_character` load supplies nothing, and nothing is what it must
+         leave behind: no field, no provenance, no guess. */
+      assert(R.recordValue(G, 'offlineBudget').known === false,
+        'a no_character load left the record reported KNOWN');
+    } finally {
+      window.fetch = realFetch;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      A.resetAccrualGate(); A.configureAccrual(null);
+      C.resetCharacterIntent(); C.configureCharacter(null);
+      R.resetRecord(); R.configureRecord(null);
+      Object.assign(G, save);
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

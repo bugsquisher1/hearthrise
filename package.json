@@ -10,6 +10,7 @@
     "check:version": "bash bump-version.sh --check",
     "test:sql": "node tests/run-sql-tests.mjs",
     "test:market-offers": "node tests/market-offers-guard.mjs",
+    "test:lb-lockdown": "node tests/leaderboard-lockdown-guard.mjs",
     "test:raid-band": "node tests/raid-band-denial.mjs --selftest",
     "test:raid-card": "node tests/raid-card-copy.mjs",
     "test:clan-journal": "node tests/clan-journal-guard.mjs --selftest",

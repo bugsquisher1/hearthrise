@@ -20887,6 +20887,353 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     b340 — THE CLIENT IS OFF THE TABLES IT USED TO WRITE AND READ DIRECTLY
+
+     Two migrations were blocked on this client, and both blockers are the same
+     shape: a table (or view) the browser touches directly, which the server
+     wants to take away.
+
+       · 2026-08-11-market-v2.sql revokes every client write grant on
+         market_listings. src/net/supabase-market-backend.js POSTed and DELETEd
+         that table, so applying it would have taken listing and cancelling
+         down on a live beta.
+       · 2026-08-14-leaderboard-view-lockdown.sql drops `leaderboard` and
+         `clan_leaderboard`, two SECURITY DEFINER views an UNAUTHENTICATED
+         caller can read for every player's uuid, name, gold and levels.
+         src/features/clans.js fetched both.
+
+     Every test below drives the REAL CALLER with a stubbed transport and reads
+     the request it issued, rather than testing a pure helper the caller might
+     not use. b339 shipped a fix that spanned a module and its caller, tested
+     the module, and left the bug in the caller with the suite green at
+     639/639 — so the assertion here is always "which URL did the SHIPPING
+     method actually request".
+
+     Every refusal is paired with a CONTROL proving the legacy path still works
+     on a server that has not been migrated yet, because a client that refuses
+     to talk to production at all would pass an assertion of the form "it never
+     requests the table".
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // The predicate itself. "The RPC is missing" is the decision that governs
+  // whether a security narrowing is in effect, and it must never be inferred
+  // from a bad day on the server.
+  () => tryRun('b340: the RPC-capability seam separates a proven absence from a refusal', () => {
+    const R = window.HearthriseRpc;
+    assert(R && typeof R.isMissingRpc === 'function', 'HearthriseRpc must be published');
+
+    // ABSENT — all four shapes PostgREST/PostgreSQL use.
+    assert(R.isMissingRpc(404, null), '404 must read as absent');
+    assert(R.isMissingRpc(400, { code: 'PGRST202' }), 'PGRST202 must read as absent');
+    assert(R.isMissingRpc(400, { code: '42883' }), '42883 (undefined_function) must read as absent');
+    assert(R.isMissingRpc(400, { code: '42P01' }), '42P01 (undefined_table — a dropped view) must read as absent');
+
+    // NOT ABSENT — the control. Reading any of these as "the server has no such
+    // function" would silently fall back to the exact table read the migration
+    // exists to close, and would do it precisely when the server is unhappy.
+    assert(!R.isMissingRpc(200, { ok: true }), 'a successful answer is not an absence');
+    assert(!R.isMissingRpc(401, { message: 'JWT expired' }), 'an expired token is a refusal, not an absence');
+    assert(!R.isMissingRpc(403, { code: '42501' }), 'insufficient_privilege is a refusal, not an absence');
+    assert(!R.isMissingRpc(429, null), 'a rate limit is a refusal, not an absence');
+    assert(!R.isMissingRpc(500, { code: 'XX000' }), 'a server fault is a refusal, not an absence');
+
+    // The probe cache: a NEGATIVE expires (a migration can be applied while a
+    // session is open), a POSITIVE cannot (an RPC is never un-applied).
+    R.reset('smoke_probe');
+    assert(R.capability('smoke_probe') === 'unknown', 'an unprobed name is unknown');
+    const t0 = 1000000;
+    R.note('smoke_probe', false, t0);
+    assert(R.capability('smoke_probe', t0 + 1000) === 'absent', 'a fresh negative is absent');
+    assert(R.shouldTry('smoke_probe', t0 + 1000) === false, 'a fresh negative must stop the RPC attempt');
+    assert(R.capability('smoke_probe', t0 + R.NEGATIVE_TTL_MS + 1) === 'unknown',
+      'a stale negative must re-probe — otherwise a session open across the migration never heals');
+    R.note('smoke_probe', true, t0);
+    assert(R.capability('smoke_probe', t0 + R.NEGATIVE_TTL_MS * 100) === 'present',
+      'a positive never expires');
+    R.reset('smoke_probe');
+
+    /* THE DRIFT GUARD. src/features/leaderboards.js has carried its own copy of
+       this predicate since b222 and is not being churned to adopt the seam.
+       b332 cost five builds of silently deleted content because FNV-1a was
+       copied into five files and one copy differed, so the two copies are
+       required to AGREE rather than merely to exist. reduceBoard maps an
+       absence to action:'unsupported'. */
+    const LB = window.HearthriseLeaderboards;
+    assert(LB && LB._reduceBoard, 'leaderboards module missing');
+    [[404, null], [400, { code: 'PGRST202' }], [400, { code: '42883' }], [400, { code: '42P01' }],
+     [401, { message: 'x' }], [403, { code: '42501' }], [429, null], [500, { code: 'XX000' }],
+     [200, { ok: true }]].forEach(([st, body]) => {
+      const mine = R.isMissingRpc(st, body);
+      const theirs = LB._reduceBoard(st, body).action === 'unsupported';
+      assert(mine === theirs,
+        `the two copies of isMissingRpc disagree on ${st}/${JSON.stringify(body)} — `
+        + 'seam says ' + mine + ', leaderboards.js says ' + theirs);
+    });
+  }),
+
+  // MARKET — the write path. The whole reason market-v2 was blocked.
+  () => tryRunAsync('b340: listing and cancelling go through market_list/market_cancel, never the table', async () => {
+    const M = window.HearthriseSupabaseMarket;
+    assert(M && typeof M.createListing === 'function',
+      'the supabase market backend must be loaded and published for its request shape to be testable');
+    const R = window.HearthriseRpc;
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase;
+    const auth = window.HearthriseAuth;
+    const realGetConfig = sb && sb.getConfig;
+    const realGetSession = auth && auth.getSession;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      if (auth) auth.getSession = () => ({ access_token: 'tok', user: { id: 'u-1' } });
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ ok: true, listing_id: 'srv-1' }),
+        });
+      };
+
+      // ── v2 available (capability unknown → the RPC is tried first)
+      R.reset(M._CAPABILITY);
+      await M.createListing({ itemId: 'normal_log', qty: 5, askEach: 12, sellerSlot: 2, sellerName: 'X' });
+      assert(calls.length === 1, `createListing must issue exactly one request, saw ${calls.length}`);
+      let c = calls[0];
+      /* The control substring: this is what the block looked like. */
+      assert(!/\/rest\/v1\/market_listings/.test(c.url),
+        'the client must not POST market_listings directly — that write is what blocks market-v2: ' + c.url);
+      assert(c.url.indexOf('/rest/v1/rpc/market_list') !== -1, 'listing must go through market_list: ' + c.url);
+      assert(String(c.opts.method).toUpperCase() === 'POST', 'a PostgREST RPC call must be POST');
+      let body = JSON.parse(c.opts.body || '{}');
+      assert(body.p_item_id === 'normal_log' && body.p_qty === 5 && body.p_ask_each === 12 && body.p_slot === 2,
+        'market_list param names must match the SQL signature exactly: ' + c.opts.body);
+      assert(typeof body.p_intent_id === 'string' && body.p_intent_id.length >= 32,
+        'every v2 call must carry an idempotency key, or a retry double-lists: ' + c.opts.body);
+      /* NOT SENT, and that is the point: identity, name and clock are derived
+         by the server. A client that still sends them is a client that still
+         believes it owns them. */
+      assert(!('seller_user_id' in body) && !('seller_name' in body) && !('posted_at' in body),
+        'the v2 request must not carry client-authored identity/name/clock: ' + c.opts.body);
+
+      calls.length = 0;
+      await M.cancelListing('L-9');
+      c = calls[0];
+      assert(String(c.opts.method).toUpperCase() !== 'DELETE',
+        'cancelling must not DELETE the table row directly: ' + c.url);
+      assert(c.url.indexOf('/rest/v1/rpc/market_cancel') !== -1, 'cancel must go through market_cancel: ' + c.url);
+
+      calls.length = 0;
+      await M.buyListing('L-9', 3);
+      c = calls[0];
+      assert(c.url.indexOf('/rest/v1/rpc/market_buy') !== -1,
+        'buying must go through market_buy, which is the RPC that actually moves the gold: ' + c.url);
+      assert(!/rpc\/buy_listing/.test(c.url), 'buy_listing moves no value — it must not be preferred: ' + c.url);
+
+      // ── CONTROL: a server WITHOUT the RPCs must still work. Without this the
+      //    assertions above would pass on a client that had simply stopped
+      //    talking to production, which is today's server.
+      R.reset(M._CAPABILITY);
+      calls.length = 0;
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        if (/\/rpc\//.test(String(url))) {
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ code: 'PGRST202' }) });
+        }
+        return Promise.resolve({ ok: true, status: 201, json: () => Promise.resolve([]) });
+      };
+      await M.createListing({ itemId: 'normal_log', qty: 1, askEach: 1, sellerSlot: 0, sellerName: 'X' });
+      assert(calls.length >= 1 && calls[0].url.indexOf('/rest/v1/rpc/market_list') !== -1,
+        'the RPC must still be TRIED first on an unprobed server');
+      assert(R.capability(M._CAPABILITY) === 'absent',
+        'a proven 404 must be remembered, or every listing pays for two round trips');
+    } finally {
+      window.fetch = realFetch;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      if (auth && realGetSession) auth.getSession = realGetSession;
+      window.HearthriseRpc.reset(M._CAPABILITY);
+    }
+  }),
+
+  /* THE DEPENDENCY THE HANDOFF'S BLOCKER LIST DID NOT NAME. market-v2
+     recreates market_sales with no `collected` column — the seller is paid at
+     sale time — so the v1 collect poll would filter on a column that does not
+     exist, every minute, forever, and swallow the failure. */
+  () => tryRunAsync('b340: the v1 sale-collect poll stops once the server is proven to be market v2', async () => {
+    const M = window.HearthriseSupabaseMarket;
+    assert(M && typeof M.collectSales === 'function', 'the market backend must be loaded');
+    const R = window.HearthriseRpc;
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase;
+    const auth = window.HearthriseAuth;
+    const realGetConfig = sb && sb.getConfig;
+    const realGetSession = auth && auth.getSession;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      if (auth) auth.getSession = () => ({ access_token: 'tok', user: { id: 'u-1' } });
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      };
+
+      // CONTROL FIRST: on a v1 server the poll must still run, or sellers stop
+      // being paid and this test would "pass" by doing nothing at all.
+      R.reset(M._CAPABILITY);
+      let p = M.collectSales();
+      if (p && p.catch) p.catch(() => {});
+      assert(calls.length === 1 && /market_sales/.test(calls[0].url),
+        'on a v1 server the collect poll must still read market_sales: ' + JSON.stringify(calls));
+      assert(/collected=eq\.false/.test(calls[0].url), 'the v1 poll filters on the collected flag');
+
+      // …and on a proven-v2 server it must issue NOTHING.
+      calls.length = 0;
+      R.note(M._CAPABILITY, true);
+      p = M.collectSales();
+      if (p && p.catch) p.catch(() => {});
+      assert(calls.length === 0,
+        'under market v2 there is nothing to collect and no `collected` column to filter on — '
+        + 'the poll must stop, not fail silently once a minute: ' + JSON.stringify(calls));
+
+      // …and a 42703 from the table read is itself the proof that v2 is live,
+      // so the capability heals with no probe request and no reload.
+      R.reset(M._CAPABILITY);
+      window.fetch = function () {
+        return Promise.resolve({ ok: false, status: 400, json: () => Promise.resolve({ code: '42703' }) });
+      };
+      const rows = await M.collectSales();
+      assert(Array.isArray(rows) && rows.length === 0, 'a failed collect returns no proceeds');
+      assert(R.capability(M._CAPABILITY) === 'present',
+        'an undefined-column answer identifies the v2 schema — it must not be retried forever');
+    } finally {
+      window.fetch = realFetch;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      if (auth && realGetSession) auth.getSession = realGetSession;
+      window.HearthriseRpc.reset(M._CAPABILITY);
+    }
+  }),
+
+  // F5 — the clan browser. `clan_leaderboard` stayed anon-readable for one line.
+  () => tryRun('b340/F5: the clan browser reads the hr_clan_browser RPC, not the anon-readable view', () => {
+    const C = window.HearthriseClans;
+    assert(C && typeof C.listClans === 'function', 'HearthriseClans.listClans must be published');
+    const R = window.HearthriseRpc;
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase;
+    const realGetConfig = sb && sb.getConfig;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ ok: true, clans: [{ id: 'c1', name: 'Ashfell', level: 4, members: 2 }] }),
+        });
+      };
+
+      R.reset('hr_clan_browser');
+      let p = C.listClans();
+      if (p && p.catch) p.catch(() => {});
+      assert(calls.length === 1, `listClans must issue exactly one request, saw ${calls.length}`);
+      let c = calls[0];
+      /* The control substring: this read is the reason two advisor ERRORs are
+         still open, and it answers to an anon key. */
+      assert(c.url.indexOf('/rest/v1/clan_leaderboard') === -1,
+        'the client must not read clan_leaderboard directly — anon can read that view: ' + c.url);
+      assert(c.url.indexOf('/rest/v1/rpc/hr_clan_browser') !== -1,
+        'the browser must go through hr_clan_browser: ' + c.url);
+      assert(String(c.opts.method).toUpperCase() === 'POST', 'a PostgREST RPC call must be POST');
+      assert(JSON.parse(c.opts.body || '{}').p_limit === 25, 'the browser asks for 25 (the server clamps at 50)');
+
+      // A REFUSAL IS NOT AN ABSENCE. A 401 must not silently reopen the view.
+      R.reset('hr_clan_browser');
+      calls.length = 0;
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ message: 'JWT expired' }) });
+      };
+      p = C.listClans();
+      if (p && p.catch) p.catch(() => {});
+      assert(calls.length === 1 && calls[0].url.indexOf('/rest/v1/rpc/') !== -1,
+        'an expired token must NOT fall back to the world-readable view: ' + JSON.stringify(calls.map((x) => x.url)));
+
+      // CONTROL: a server that genuinely has no such function still gets a
+      // working clan browser, because the migration is staged and production
+      // has not had it applied.
+      R.reset('hr_clan_browser');
+      calls.length = 0;
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        if (/\/rpc\//.test(String(url))) {
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ code: 'PGRST202' }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
+      };
+      p = C.listClans();
+      if (p && p.catch) p.catch(() => {});
+      assert(calls[0].url.indexOf('/rest/v1/rpc/hr_clan_browser') !== -1,
+        'the RPC must be tried first even on an un-migrated server');
+    } finally {
+      window.fetch = realFetch;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      window.HearthriseRpc.reset('hr_clan_browser');
+    }
+  }),
+
+  // F5 — the other view. clans.js kept a SECOND leaderboard transport alive.
+  () => tryRun('b340/F5: NetClient.leaderboard goes through hr_leaderboard, never the `leaderboard` view', () => {
+    assert(typeof NetClient !== 'undefined' && typeof NetClient.leaderboard === 'function',
+      'NetClient.leaderboard must exist — src/features/clans.js patches it');
+    const LB = window.HearthriseLeaderboards;
+    assert(LB && typeof LB.fetchBoard === 'function',
+      'leaderboards.js must publish fetchBoard — it is now the ONE leaderboard transport');
+
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase;
+    const realGetConfig = sb && sb.getConfig;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      LB._resetProbe();
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({
+          ok: true, status: 200,
+          headers: { get: () => null },
+          json: () => Promise.resolve({
+            ok: true, board: 'total_level', total: 2, rank: null, near: [],
+            top: [{ rank: 1, id: 'u1', name: 'Aldric', clan: 'Ash', score: 812 }],
+          }),
+        });
+      };
+
+      const p = NetClient.leaderboard('total');
+      if (p && p.catch) p.catch(() => {});
+      assert(calls.length >= 1, 'NetClient.leaderboard must issue at least one request');
+      /* The control substring: this exact read is what kept the view alive and
+         is what an anon key could call. */
+      const leaked = calls.filter((c) => /\/rest\/v1\/leaderboard\?/.test(c.url));
+      assert(leaked.length === 0,
+        'the client must not read the `leaderboard` view directly: ' + leaked.map((c) => c.url).join(' | '));
+      assert(calls.every((c) => c.url.indexOf('/rest/v1/rpc/hr_leaderboard') !== -1),
+        'every board read must go through hr_leaderboard: ' + calls.map((c) => c.url).join(' | '));
+      /* Lv / CL / gold are three different boards, and the fallback renderer
+         prints all three on every row. Filling two of them with zeroes would be
+         fabricated data about other players. */
+      const boards = calls.map((c) => JSON.parse(c.opts.body || '{}').p_board).sort();
+      assert(boards.join(',') === 'combat_level,total_level,wealth',
+        'all three stat boards must be read, not one padded with zeroes: ' + boards.join(','));
+    } finally {
+      window.fetch = realFetch;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      LB._resetProbe();
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

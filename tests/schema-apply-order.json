@@ -114,6 +114,7 @@
   },
   "excluded": {
     "2026-08-11-market-v2.sql": "STAGED, NOT APPLIED. Drops and recreates the market tables. Blocked until the client is off direct market_listings writes (src/net/supabase-market-backend.js). A rebuild must reproduce production, and production does not have it.",
+    "2026-08-14-leaderboard-view-lockdown.sql": "STAGED, NOT APPLIED. Drops public.leaderboard and public.clan_leaderboard and revokes anon/authenticated SELECT on leaderboard_ranked (F5's other half). Blocked until b340's client is DEPLOYED — the build players are running still reads both views (src/features/clans.js), so applying it first breaks the clan browser and the no-module leaderboard fallback for everyone. A rebuild must reproduce production, and production does not have it. Proven, with mutations, by tests/leaderboard-lockdown-guard.mjs, which replays the whole chain and then applies this file on top.",
     "2026-08-12-clan-members-rls-drop.sql": "STAGED, NOT APPLIED, and it REFUSES to apply by design: its precondition needs a real clan_ledger row of kind='member', i.e. a player who joined through clan_join(). A fresh rebuild has no such row, so the file correctly raises. That refusal is the file working, not the chain failing."
   }
 }

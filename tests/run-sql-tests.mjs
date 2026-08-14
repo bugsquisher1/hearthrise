@@ -121,6 +121,11 @@ const ALSO_LINTED = [
   // tests/market-offers-guard.mjs on PGlite. It deliberately does NOT fix M1
   // (listing an item you do not own) — see that file's header.
   '2026-08-12-market-offers-authority.sql',
+  // F5's other half: hr_clan_browser replaces the world-readable
+  // clan_leaderboard view, and leaderboard_ranked stops being client-selectable.
+  // Behaviourally proven, with controls and mutations, by
+  // tests/leaderboard-lockdown-guard.mjs on a fully replayed PGlite chain.
+  '2026-08-14-leaderboard-view-lockdown.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -216,6 +221,11 @@ const CLIENT_CALLABLE = new Map([
   ['clan_invite_revoke', ['authenticated']],
   ['clan_invites_list', ['authenticated']],
   ['clan_join_policy_set', ['authenticated']],
+  // 2026-08-14-leaderboard-view-lockdown.sql — F5. The clan browser's feed,
+  // replacing a view that `anon` could read. authenticated only, on purpose:
+  // you must be signed in to join a hold, so an anonymous browse was never a
+  // feature, only an enumeration surface.
+  ['hr_clan_browser', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

@@ -381,10 +381,18 @@ habit exists for exactly this reason and should have been applied here first.
   way; the residual changes materially.**
 - **Code entropy, not the rate limit, is the load-bearing defence for the invite oracle.**
   20 codes; one IP still gets ~28,800 tries/day. Confirm the code space.
-- **F5 is partial** — `leaderboard` and `clan_leaderboard` stay `anon`-readable because
+- ~~**F5 is partial** — `leaderboard` and `clan_leaderboard` stay `anon`-readable because
   `src/features/clans.js` fetches them directly (lines 96 and 443), and
   `leaderboard_ranked` stays selectable, which makes `hr_leaderboard`'s `p_limit` clamp
-  decorative. Both need a client change first.
+  decorative. Both need a client change first.~~ **CLIENT HALF DONE (b340).** `clans.js`
+  reads `hr_clan_browser` for the clan browser and `HearthriseLeaderboards.fetchBoard`
+  for `NetClient.leaderboard` — one leaderboard transport, not two.
+  `2026-08-14-leaderboard-view-lockdown.sql` is **STAGED, NOT APPLIED**: it creates
+  `hr_clan_browser(int)` (authenticated-only, VOLATILE, 120/min, limit clamped 1..50),
+  drops both views, and revokes `anon`/`authenticated` SELECT on `leaderboard_ranked`.
+  **APPLY ONLY AFTER b340 IS DEPLOYED** — b339 is what players run and it still reads
+  both views. Proven end to end by `tests/leaderboard-lockdown-guard.mjs`, which replays
+  the whole chain and applies the file on top; 5 mutations RED.
 - **`2026-08-11-apply-engine.sql` is STILL NOT APPLIED.** Reviewed and green (see below),
   but its `hr_apply` body is **47,455 characters**, and hand-transcribing that into a tool
   argument is the transcription-risk class that correctly stopped the Edge deploy. Apply it
@@ -439,9 +447,23 @@ shown to see failure against live production rather than only in a mutation harn
 2. **The client rewire** — the largest remaining risk, explicitly low confidence. It
    touches `legacy.js` everywhere, so agents cannot parallelise on it. Must NOT be
    wired to a non-deployed engine.
-3. `market-v2.sql` — **blocked** until the client is off direct `market_listings`
-   writes (`src/net/supabase-market-backend.js:73,93,107,120`). It drops/recreates
-   the market tables and needs `hearthrise.market_wipe_ok = 'yes'`.
+3. `market-v2.sql` — **the client-write blocker is CLOSED (b340); TWO OTHERS ARE NOT.**
+   `src/net/supabase-market-backend.js` prefers `market_list`/`market_cancel`/`market_buy`
+   and falls back to the v1 table write only on a PROVEN absence (404/PGRST202/42883/42P01
+   — never on a 401/429/5xx, which would reopen the write on a bad day).
+   ⚠ **THE BLOCKER LIST ABOVE WAS INCOMPLETE, AND THE SHAPE OF THE MISS IS THE LESSON:**
+   it was four LINE NUMBERS, and a line-number list cannot describe a dependency on a
+   COLUMN. `collectSales()` PATCHes `market_sales.collected`, which market-v2 **deletes**
+   (the seller is paid at sale time). Applying it would have turned that into a 400 polled
+   once a minute forever, swallowed by `if (!res.ok) return []`. Handled in b340; when a
+   blocker is recorded as coordinates, re-derive it from the schema diff.
+   **Genuinely still blocking:**
+   (a) `player_inventory` holds ZERO rows, so `market_list`'s escrow refuses 100% of
+       legitimate listings — the market would go offline to buy nothing. Closes with the
+       accrual wiring (item 2), not before.
+   (b) under v2 the SERVER moves gold and items while `src/market.js` still moves
+       `G.gold`/`G.inventory` locally — two disjoint universes until the client rewire.
+   Also still needs `hearthrise.market_wipe_ok = 'yes'`.
 4. Cutover + wipe.
 
 ## ⚠ PRODUCTION'S `hr_apply` IS A STALE REVISION (found 2026-08-11, by execution)

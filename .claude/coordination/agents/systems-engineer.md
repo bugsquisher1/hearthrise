@@ -2,6 +2,51 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-14 - b340 - getting the client off two tables it should never have been touching
+
+Branch `worktree-agent-a9521184e802dbc3f`. Suite **645/645** (baseline 640; +5), 0 runtime errors,
+0 console errors. `leaderboard-lockdown-guard` clean with 5/5 mutations RED; `market-offers-guard`
+clean; `schema-drift` OK; `rpc-resolution` 41/41. No version bump. **Nothing applied.**
+
+**The finding worth keeping** is in DISCOVERIES: `information_schema` omits materialized views, so
+my own grant check on `leaderboard_ranked` was an always-null probe (#14). It was caught because the
+mutation harness asserts WHICH assertion fires, not just that the apply was refused - a mutation
+proof that only checks "it was refused" scores an always-null probe as a pass.
+
+**Second finding, cheaper but real:** the handoff's market-v2 blocker list was a list of LINE
+NUMBERS (`73,93,107,120`), and a line-number list cannot describe `collectSales`, which reads a
+COLUMN market-v2 deletes. Closing the four named writes and stopping would have shipped a
+minute-by-minute silent 400. When a blocker is recorded as coordinates, re-derive it from the schema
+diff before believing the list is complete.
+
+**Design calls I made and would defend:**
+- ONE home for "does this RPC exist yet" (`src/net/server-rpc.js`, a classic script because its two
+  consumers sit on opposite sides of the module boundary). leaderboards.js keeps its copy - no churn
+  - but a suite test now requires the two copies to AGREE across nine status/body shapes. Five copies
+  of FNV-1a cost this project five builds of deleted content; two copies pinned to each other cost
+  nothing.
+- A refusal is never an absence. Only 404/PGRST202/42883/42P01 fall back; 401/403/429/5xx surface.
+  A fallback on a bad day reopens exactly the write the migration exists to close, at exactly the
+  wrong moment.
+- `clans.js` stopped owning a second leaderboard transport. `leaderboards.js` has owned that screen
+  since b222; the override now calls its `fetchBoard`. It reads all THREE stat boards rather than
+  padding two columns with zeroes, because the fallback renderer prints Lv/CL/gold on every row and
+  a zero there is fabricated data about another player.
+- `placeOffer` deliberately still writes `market_buy_offers` directly. That table got the full
+  stamping/immutability/cap treatment in the APPLIED 2026-08-12 migration and market-v2 does not
+  touch it; routing it through an RPC would invent a third market authority model for nothing.
+
+**Mutation-proven RED, each named:** M1 createListing POSTs the table (caller), M2 listClans GETs
+clan_leaderboard (caller), M3 NetClient.leaderboard reads the view (caller), M4 collectSales polls
+regardless of schema (caller), M5 isMissingRpc reads 401 as absent. Four of the five are on the
+SHIPPING METHOD, not on a helper - b339's lesson.
+
+**Handed off:** market-v2 is unblocked on the client-write precondition ONLY; `player_inventory` is
+still empty and the gold/inventory rewire is still open. F5's migration must not be applied until
+b340 is deployed.
+
+---
+
 ## 2026-08-14 · b339 — clearing Security's six conditions, and a guard that asserted nothing INSIDE the guard about guards
 
 Branch `worktree-agent-accebe93e640a7e76`. Suite **640/640**, 0 runtime errors (baseline 632; +8

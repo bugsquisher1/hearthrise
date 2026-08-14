@@ -886,6 +886,12 @@
   <script src="src/observability.js?v=339"></script>
   <!-- platform Storage seam (architecture layer 4) — load before legacy.js so saveLocal/loadLocal route through it -->
   <script src="src/platform/storage.js?v=339"></script>
+  <!-- b340: the ONE home for "does this server RPC exist yet?". Dependency-free
+       and loaded early because both a classic script (features/clans.js) and an
+       ESM module (net/supabase-market-backend.js) read it, and the strangler-fig
+       migration off client-authored tables cannot have three copies of the
+       predicate that decides whether the narrowing is in effect. -->
+  <script src="src/net/server-rpc.js?v=339"></script>
   <!-- b225: THE ACCOUNT WALL. Loads directly after the storage seam (which it
        reads the cached session through) and before every game script, because
        its verdict is what decides whether legacy.js boots at all. Client-side

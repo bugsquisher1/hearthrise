@@ -19631,18 +19631,32 @@ const TESTS = [
        right reason, if someone fixes one — delete it from the list then.
        `wrapped-at-setup === 12` above is the claim about the count; this is the
        claim about reality. */
-    /* b334 merge: renderProfile came OFF this list, and the guard is what said
-       so rather than a person noticing. companions.js still reassigns it, but
-       the combat-style work landing in the same build changed the order in
-       which the hooks run, so the boundary now survives on it. Kept as an exact
-       set — a tolerance here would have absorbed this silently and the list
-       would have rotted into a lie. */
+    /* ⚠ b338 CORRECTION, and the mistake is worth more than the fix.
+       During the b335 merge this guard reported that renderProfile now KEEPS the
+       boundary, and I removed it from the pinned set on the strength of that ONE
+       observation. It is not fixed. It is NON-DETERMINISTIC: companions.js
+       reassigns renderProfile, and whether that lands before or after the
+       boundary's wrapAll() depends on module load order, which varies run to run.
+       So the exact-set pin — correct for the other three — turned this test into
+       a coin flip, and it then reported a green suite that was 624/625.
+       A single passing observation is not evidence a race is fixed; it is one
+       sample of a distribution. The guard was right both times and I read it
+       wrong the first time.
+       renderProfile is therefore pinned as EITHER-STATE with its reason, while
+       the other three stay exact. That is deliberately weaker for one entry
+       rather than tolerant for all four: a new renderer losing its boundary is
+       still caught, and renderProfile stops lying in both directions. The real
+       fix is the standing `wrapShowTab` debt — stop hooking by reassignment. */
     const KNOWN_UNWRAPPED = ['renderCharacter', 'renderSkillDetail', 'showTab'];
+    const RACY_UNWRAPPED  = ['renderProfile'];
     const lost = T.filter((n) => !(typeof window[n] === 'function' && window[n].__hrWrapped === true));
-    const unexpected = lost.filter((n) => KNOWN_UNWRAPPED.indexOf(n) < 0);
+    const unexpected = lost.filter((n) => KNOWN_UNWRAPPED.indexOf(n) < 0 && RACY_UNWRAPPED.indexOf(n) < 0);
     assert(unexpected.length === 0,
       'the error boundary was stripped off ' + unexpected.join(', ') + ' after it ran — something '
       + 'redefined the function without carrying the wrapper through, so a throw there blanks the UI');
+    /* Only the EXACT set is checked for "someone fixed it"; a racy entry can be
+       wrapped on this run and not the next, so asserting either way on it is the
+       coin flip described above. */
     const fixed = KNOWN_UNWRAPPED.filter((n) => lost.indexOf(n) < 0);
     assert(fixed.length === 0,
       fixed.join(', ') + ' now KEEPS the error boundary — good; remove it from KNOWN_UNWRAPPED so the '

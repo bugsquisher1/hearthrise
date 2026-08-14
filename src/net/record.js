@@ -179,10 +179,18 @@ export function isServerOfRecord(field) { return serverOfRecordFields().indexOf(
    the log lie about what arrived.
 
    Called at BOTH blob→G seams, which is the whole of the coverage argument:
-     • legacy.js loadLocal()          — the local blob (and the v1 migration)
+     • legacy.js loadLocal()          — the local blob AND the v1 migration path
      • auth.js pullAndMaybeRestore()  — the cloud overlay
-   A third seam would be a hole, so B340-3 asserts there is no other
-   `Object.assign(G, …)` of a parsed save. */
+
+   ⚠ A THIRD SEAM WOULD BE A HOLE, AND NOTHING GUARDS AGAINST ONE. This sentence
+   originally read "B340-3 asserts there is no other `Object.assign(G, …)` of a
+   parsed save". It does not, and no test does — which would have made it the
+   eleventh entry in the assertion-that-asserts-nothing family, in a comment,
+   where no test can catch it. What is actually true: `grep -rn
+   'Object\.assign(\(window\.\)\?G,' src/` on 2026-08-14 returned exactly the
+   three lines above (two in loadLocal, one in the overlay) and nothing else.
+   That is a fact about one commit, not a guard. Re-run it before adding a
+   field, and prefer converting it into a real check to trusting this note. */
 export function stripServerOfRecord(blob) {
   if (!blob || typeof blob !== 'object') return { blob, stripped: [] };
   const fields = serverOfRecordFields();

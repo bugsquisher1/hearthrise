@@ -20887,6 +20887,313 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b340 — MOVING THE RECORD (src/net/record.js).
+
+     b337/b338/b339 moved a COMPUTATION to the server. Security's summary was
+     exact: the RECORD stayed on the client, in `game_saves.snapshot`, a blob a
+     player edits in devtools. These tests pin the seam that moves a record, and
+     the property they exist for is narrow and mechanical:
+
+       A FIELD THE SERVER OWNS HAS EXACTLY ONE SOURCE. It is deleted from every
+       save blob on the way IN, and written only by record.js's applyRecord from
+       a server envelope. A value with two sources is the class that produced
+       the starting-kit divergence and the five-copies FNV hash.
+
+     THE STRIP IS TESTED AT THE CALLER, TWICE. b339's post-mortem: a test drove
+     accrue.js's slot resolver, proved it correct, and auth.js went on pinning
+     `slot: 0` — the mutation was in the CALLER and slipped. So B340-3 drives the
+     real `window.loadLocal()` and B340-4 drives auth.js's own overlay function,
+     rather than both testing record.js and calling it covered.
+
+     WHAT IS NOT MOVED, said plainly so nobody reads more into this than it
+     does: gold, inventory, skill XP, rested XP, the farm and every other value
+     in the snapshot are still client-authored. ONE field moved — the away
+     watermark — because it is the only field whose WRITER has already moved
+     (b337 owns it), and the record must follow the writer. See the ordering
+     table in src/net/record.js. */
+
+  () => tryRun('B340-1: the registry decodes fail-closed — a garbage watermark is UNKNOWN, never 1970', () => {
+    const R = window.HearthriseRecord;
+    assert(R, 'src/net/record.js did not load — the record seam is absent and nothing below means anything');
+    assert(R.serverOfRecordFields().indexOf('offlineBudget') !== -1,
+      'offlineBudget is not on the registry: ' + JSON.stringify(R.serverOfRecordFields()));
+
+    const at = Date.parse('2026-08-14T10:00:00Z');
+    const ok = R.decodeRecord({ ok: true, version: 3, state: { accrued_to: '2026-08-14T10:00:00Z' } });
+    assert(ok.ok && ok.fields.offlineBudget && ok.fields.offlineBudget.at === at,
+      'a valid ISO watermark did not decode: ' + JSON.stringify(ok));
+
+    /* THE LOAD-BEARING HALF. `0` is the most dangerous fallback a watermark can
+       have — it means "last paid in 1970", i.e. a whole capped window, every
+       boot. It must be UNREACHABLE, not merely unlikely.
+       MUTATION: relax the decode to `if (!Number.isFinite(ms)) return null` and
+       the epoch/negative cases below go green while the field decodes to 0. */
+    for (const bad of [null, undefined, 'not-a-date', 0, -1, '1970-01-01T00:00:00Z', NaN, {}, []]) {
+      const d = R.decodeRecord({ ok: true, version: 3, state: { accrued_to: bad } });
+      assert(d.ok === true, 'a bad watermark broke the whole decode: ' + JSON.stringify(bad));
+      assert(!('offlineBudget' in d.fields),
+        'the watermark ' + JSON.stringify(bad) + ' decoded to ' + JSON.stringify(d.fields.offlineBudget)
+        + ' instead of being reported missing — a 1970 watermark grants a full capped window on every boot');
+      assert(d.missing.indexOf('offlineBudget') !== -1, 'it was dropped without being reported missing');
+    }
+
+    // An envelope that is not an envelope decodes to nothing at all.
+    for (const junk of [null, {}, { ok: false }, { ok: true }, { ok: true, state: {} }]) {
+      assert(R.decodeRecord(junk).ok === false || !Object.keys(R.decodeRecord(junk).fields).length,
+        'junk was decoded as a record: ' + JSON.stringify(junk));
+    }
+  }),
+
+  () => tryRun('B340-2: the strip removes the moved field, touches nothing else, and never mutates its input', () => {
+    const R = window.HearthriseRecord;
+    const blob = { gold: 500, offlineBudget: { at: 1 }, skills: { attack: 10 }, lastSeen: 99 };
+    const out = R.stripServerOfRecord(blob);
+    assert(!('offlineBudget' in out.blob), 'the moved field survived the strip');
+    assert(out.stripped.length === 1 && out.stripped[0] === 'offlineBudget',
+      'the strip did not report what it took: ' + JSON.stringify(out.stripped));
+    assert(out.blob.gold === 500 && out.blob.lastSeen === 99 && out.blob.skills.attack === 10,
+      'the strip took something it does not own: ' + JSON.stringify(out.blob));
+    assert(blob.offlineBudget && blob.offlineBudget.at === 1,
+      'the strip MUTATED its argument — the caller may still be holding the parsed snapshot for logging, '
+      + 'and a strip that reaches back into it makes that log lie about what arrived');
+
+    // forgetServerOfRecord works on a LIVE object (G is one reference, b127).
+    const g = { gold: 1, offlineBudget: { at: 2 } };
+    const forgot = R.forgetServerOfRecord(g);
+    assert(!('offlineBudget' in g) && g.gold === 1 && forgot[0] === 'offlineBudget',
+      'forgetServerOfRecord did not clear the live object: ' + JSON.stringify(g));
+  }),
+
+  () => tryRun('B340-3: loadLocal() DELETES the server-owned field from the save blob — the caller, not the callee', () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') { assert(true, 'no save'); return; }
+    const G = window.G;
+    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen };
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.setServerAccrualEnabled(false);
+      /* A FORGED WATERMARK, of exactly the shape devtools produces: back-date it
+         and the local away path pays a whole capped window on the next boot.
+         That is CLAUDE.md save-invariant #5's entire subject, and today the cap
+         is the only thing standing between it and an unbounded mint. */
+      G.offlineBudget = { at: 0 };
+      window.saveLocal();
+      const raw = localStorage.getItem('hearthbound-save-v2');
+      assert(raw && /"offlineBudget"/.test(raw),
+        'the forged watermark never reached the blob, so this test would pass while asserting nothing');
+
+      A.setServerAccrualEnabled(true);
+      window.__hrRecordStrip = null;
+      window.loadLocal();
+      /* THE STRIP RAN, AT THIS SEAM, ON THIS BLOB. This assertion exists because
+         the first version of this test did NOT have it and stayed GREEN under a
+         mutation that deleted the strip from loadLocal entirely: the
+         belt-and-braces forgetServerOfRecord() further down cleared G, and the
+         test could not tell the two mechanisms apart. Two defences that a test
+         can only see one of is a defence that rots silently.
+         MUTATION: revert `Object.assign(G, stripRecordFields(migrated))` to
+         `Object.assign(G, migrated)` → RED here, and only here. */
+      const receipt = window.__hrRecordStrip;
+      assert(receipt && receipt.stripped.indexOf('offlineBudget') !== -1,
+        'loadLocal did not strip the blob — the server-owned field reached Object.assign(G, …) and only the '
+        + 'belt-and-braces forget cleared it afterwards, which is not the same seam: ' + JSON.stringify(receipt));
+      assert(!G.offlineBudget,
+        'loadLocal read a server-owned field back out of the client-authored save blob (got '
+        + JSON.stringify(G.offlineBudget) + ') — the field now has two sources, which is the exact '
+        + 'divergence class that produced the starting-kit bug');
+      const v = R.recordValue(G, 'offlineBudget');
+      assert(v.known === false && typeof v.value === 'undefined',
+        'the field is reported KNOWN without the server ever having answered: ' + JSON.stringify(v));
+    } finally {
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B340-4: the CLOUD overlay is stripped too, and a missing record.js fails LOUD rather than silently restoring', () => {
+    const Auth = window.HearthriseAuth;
+    const A = window.HearthriseAccrual;
+    assert(Auth && typeof Auth.stripRecordFieldsForOverlay === 'function',
+      'auth.js does not expose its overlay strip — the only way to check the cloud seam would be to '
+      + 're-derive it, which proves nothing about auth.js (B339-3b, same lesson)');
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      const snap = { gold: 7, offlineBudget: { at: 5 } };
+
+      // Switch OFF: byte-for-byte b339 behaviour. The b305 restore paths are untouched.
+      A.setServerAccrualEnabled(false);
+      const off = Auth.stripRecordFieldsForOverlay(snap, window);
+      assert(off === snap, 'the overlay was rewritten with the switch off — b305 restore behaviour changed');
+
+      // Switch ON: the field never reaches G from the cloud either.
+      A.setServerAccrualEnabled(true);
+      const on = Auth.stripRecordFieldsForOverlay(snap, window);
+      assert(!('offlineBudget' in on) && on.gold === 7,
+        'the cloud overlay still carries the server-owned field — the local seam was closed and the cloud '
+        + 'one left open, which is a hole, not a slice: ' + JSON.stringify(on));
+
+      /* FAIL LOUD, NOT SILENT. If record.js is absent while the switch is on,
+         returning the blob would read a forgeable field into G invisibly. The
+         switch is read from accrue.js and the field list from record.js
+         precisely so a missing record.js cannot present itself as "switch off".
+         MUTATION: `if (!R) return snap;` → this assertion goes red. */
+      let threw = null;
+      try { Auth.stripRecordFieldsForOverlay(snap, { HearthriseAccrual: A }); }
+      catch (e) { threw = e; }
+      assert(threw && /record\.js/.test(String(threw.message)),
+        'a missing record.js silently restored a cloud save carrying server-owned fields');
+    } finally {
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+    }
+  }),
+
+  () => tryRun('B340-5: applyRecord is the ONE writer, and it is monotonic — a slow answer cannot rewind the watermark', () => {
+    const R = window.HearthriseRecord;
+    const g = {};
+    const envelope = (v, iso) => ({ ok: true, version: v, now: iso, state: { accrued_to: iso } });
+
+    const a = R.applyRecord(g, envelope(5, '2026-08-14T10:00:00Z'));
+    assert(a.written.length === 1 && g.offlineBudget.at === Date.parse('2026-08-14T10:00:00Z'),
+      'applyRecord did not write the record: ' + JSON.stringify(a));
+    assert(R.recordValue(g, 'offlineBudget').known === true, 'the applied field is not reported known');
+
+    /* hr_load and hr-accrue race BY DESIGN — one reads, the other pays — and
+       both answer truthfully. The slower answer is the OLDER one, and without
+       this it would put back a watermark the payment already advanced, i.e. pay
+       the same span twice.
+       MUTATION: delete the `dec.version < prev` guard → RED. */
+    const stale = R.applyRecord(g, envelope(4, '2026-08-14T08:00:00Z'));
+    assert(stale.skipped === 'stale' && g.offlineBudget.at === Date.parse('2026-08-14T10:00:00Z'),
+      'an OLDER envelope rewound the watermark to ' + new Date(g.offlineBudget.at).toISOString()
+      + ' — the span between the two would be paid a second time');
+
+    // A newer one applies. Equal applies (an idempotent rewrite is not a rewind).
+    R.applyRecord(g, envelope(6, '2026-08-14T12:00:00Z'));
+    assert(g.offlineBudget.at === Date.parse('2026-08-14T12:00:00Z'), 'a newer envelope was refused');
+
+    /* An envelope whose watermark is garbage writes NOTHING — not the field,
+       and not the provenance stamp either. Stamping it would mean "the server
+       told us" quietly coming to mean "the server was asked".
+       This assertion was WRITTEN THE OTHER WAY ROUND first — it demanded that a
+       later unreadable answer blank the earlier known value — and B340-6's fix
+       made the two contradict, which is what exposed it. The rule the rest of
+       this codebase already follows decides it: save-invariant #2, act only on
+       CERTAINTY. An unreadable later read is not certainty that the earlier one
+       was wrong, so it must not destroy it. The same reasoning is why a network
+       error never evicts a device. */
+    const known0 = JSON.stringify(R.recordValue(g, 'offlineBudget'));
+    const bad = R.applyRecord(g, { ok: true, version: 9, state: { accrued_to: 'nonsense' } });
+    assert(bad.written.length === 0 && bad.missing.indexOf('offlineBudget') !== -1
+      && bad.skipped === 'no_record_fields',
+      'a garbage watermark was written: ' + JSON.stringify(bad));
+    assert(g.offlineBudget.at === Date.parse('2026-08-14T12:00:00Z'),
+      'a garbage watermark overwrote a good one: ' + JSON.stringify(g.offlineBudget));
+    assert(JSON.stringify(R.recordValue(g, 'offlineBudget')) === known0,
+      'an envelope carrying no record changed the provenance of one that does — a version bump with no '
+      + 'record must be indistinguishable from never having asked: ' + JSON.stringify(R.recordValue(g, 'offlineBudget')));
+  }),
+
+  () => tryRunAsync('B340-6: the boot read puts the CONTRACT hr_load request on the wire, and a failure leaves the field UNKNOWN', async () => {
+    const R = window.HearthriseRecord;
+    const realFetch = window.fetch;
+    const seen = [];
+    const g = {};
+    try {
+      window.fetch = function (u, init) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        seen.push({ url: String(u), init });
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 2, now: '2026-08-14T10:00:00Z',
+          state: { slot: 3, accrued_to: '2026-08-14T09:00:00Z' },
+        }), { status: 200 }));
+      };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 3 });
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'the boot read did not load: ' + JSON.stringify(v));
+      assert(seen.length === 1, 'expected exactly one hr_load request, saw ' + seen.length);
+      assert(seen[0].url === 'https://proj.supabase.co/rest/v1/rpc/hr_load',
+        'wrong endpoint: ' + seen[0].url);
+      assert(seen[0].init.method === 'POST', 'hr_load must be POSTed (PostgREST RPC)');
+      assert(seen[0].init.headers['Authorization'] === 'Bearer jwt-token'
+        && seen[0].init.headers['apikey'] === 'anon-key',
+        'the request is missing its credentials: ' + JSON.stringify(seen[0].init.headers));
+      assert(seen[0].init.body === '{"p_slot":3}',
+        'the body is not the one-integer contract (a spread body is a body a future field rides into): '
+        + seen[0].init.body);
+
+      /* EVERY FAILURE LEAVES THE FIELD UNKNOWN. Same property b337's failure
+         battery holds for grants: no silent fallback to a client value, ever.
+         MUTATION: make classifyLoadResponse default to `loaded` → RED here. */
+      const failures = [
+        [200, { ok: false, error: 'no_character' }, 'no-character'],
+        [200, { ok: false, error: 'rate_limited' }, 'rate-limited'],
+        [200, { ok: false, error: 'not_signed_in' }, 'not-signed-in'],
+        [200, { ok: false, error: 'brand_new_code' }, 'refused'],
+        /* A PRE-apply-engine hr_load: an envelope with no `accrued_to`. This is
+           the branch that keeps b340 independent of whether
+           2026-08-11-apply-engine.sql has been applied. */
+        [200, { ok: true, version: 2, state: { gold: 0 } }, 'malformed'],
+        [200, null, 'malformed'],
+        [401, null, 'not-signed-in'],
+        [404, null, 'not-deployed'],
+        [503, null, 'unavailable'],
+      ];
+      for (const [status, body, want] of failures) {
+        const c = R.classifyLoadResponse(status, body);
+        assert(c.outcome === want,
+          'status ' + status + ' ' + JSON.stringify(body) + ' classified as ' + c.outcome + ', expected ' + want);
+        const before = JSON.stringify(g);
+        assert(R.applyRecord(g, body).written.length === 0,
+          'a ' + want + ' answer wrote a record');
+        assert(JSON.stringify(g) === before, 'a ' + want + ' answer changed state: ' + JSON.stringify(g));
+        assert(R.recordValue(g, 'offlineBudget').known === false,
+          'after a ' + want + ' the field is reported known — this device would be guessing');
+      }
+    } finally {
+      window.fetch = realFetch;
+      R.resetRecord();
+      R.configureRecord(null);
+    }
+  }),
+
+  () => tryRun('B340-7: with the switch OFF nothing moves, snapshot() is untouched, and NO_SYNC gained nothing', () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const G = window.G;
+    assert(R && A, 'record.js and accrue.js must load together — the load-strip reads the switch from one '
+      + 'and the field list from the other, so a missing record.js must be impossible, not merely unlikely');
+    const wasOn = A.isServerAccrualEnabled();
+    const save = { offlineBudget: G.offlineBudget };
+    try {
+      A.setServerAccrualEnabled(false);
+      assert(R.isRecordActive() === false, 'the record seam is armed while the accrual switch is off — '
+        + 'two switches means "which half is on" becomes a question during an incident');
+
+      /* THE DENYLIST IS UNCHANGED. CLAUDE.md save-invariant #3: adding a
+         persistent-progress field to NO_SYNC is silent cloud data loss and is
+         forbidden. b340 stops the blob being READ for a moved field; it does not
+         stop it being WRITTEN, so b302/b305/b314 all keep the blob they key off.
+         MUTATION: add 'offlineBudget' to NO_SYNC in src/net/events.js → RED. */
+      G.offlineBudget = { at: 1234567890 };
+      const snap = window.HearthriseEvents && typeof window.HearthriseEvents.snapshot === 'function'
+        ? window.HearthriseEvents.snapshot(G) : null;
+      if (snap) {
+        assert(snap.offlineBudget && snap.offlineBudget.at === 1234567890,
+          'the moved field stopped being uploaded — that is a NO_SYNC addition by another name, and it '
+          + 'makes the blob\'s shape depend on a kill switch: ' + JSON.stringify(snap.offlineBudget));
+      }
+    } finally {
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      G.offlineBudget = save.offlineBudget;
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

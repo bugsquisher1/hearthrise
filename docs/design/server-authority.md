@@ -162,7 +162,7 @@ Two execution environments, split along the line each is actually good at.
 
 | Intent | Where | Validates | Returns |
 |---|---|---|---|
-| `create_character(slot)` | RPC | slot free, slot ≤ 5 | new state |
+| `create_character(slot)` | RPC | slot ≤ 5; **idempotent ensure**, see §2a | `{ok, slot, created}` |
 | `load(slot)` | RPC (`hr_load`) | own row | full state + `version` + **server `now()`** |
 | `start_activity(kind, id)` | Edge | catalogue id exists, skill level ≥ req, inputs present (artisan), monster unlocked (combat) | collects the *previous* activity first, then sets the pointer |
 | `collect()` | Edge | — | accrued rewards; advances `accrued_to` |
@@ -402,6 +402,58 @@ A replay of a known idempotency key returns the original envelope with `"replaye
 `auth_unavailable` (503) is deliberately distinct from `not_signed_in` (401): the first is *our*
 outage — the project's JWKS endpoint could not be reached on a cold start — and answering it with
 a 401 would sign every player out on a network blip. `intent_mismatch` is below.
+
+### §2a-iv `create_character` is an ENSURE, and its idempotency key is not a uuid (b338)
+
+`hr_create_character(p_slot int)` returns `{ok:true, slot, created:<bool>}` — **both `created`
+values are success.** It deliberately does *not* take a `p_intent_id`, which is the one place in
+this design that departs from "every state-changing intent carries a client-generated key", so the
+reasoning is recorded rather than left to be rediscovered:
+
+* The natural key is already unique and already enforced. `player_state`'s primary key is
+  `(user_id, slot)` and `user_id` comes from `auth.uid()`, so "this slot is taken" can only ever
+  mean "taken **by you**". Creation is therefore idempotent by nature, on a key that **never
+  expires** — whereas `hr_intents_prune()` deletes intent rows after 24 hours, so a uuid-keyed
+  dedupe would be strictly *weaker* than the constraint that already exists.
+* The old verdict `{ok:false, error:'slot_taken'}` made retry unsafe. A client whose success
+  response was lost on the wire could not distinguish "I already did this" from "something is
+  broken", and the only safe behaviour left to it was to give up. `created` is the honest receipt
+  of which of the two happened.
+* Concurrency is `pg_advisory_xact_lock` on `(user, slot)` → re-check under the lock → insert, with
+  an `exception when unique_violation` handler as a second, independent lock. Before b338 the
+  losing racer got an **uncaught 23505**, i.e. a PostgREST 500 that looks exactly like the server
+  being down, *while the player's character actually existed*.
+
+**Rate limiting is two buckets, and the split is load-bearing.** `ensure_character` 60/min guards
+the call (one indexed PK lookup); `create_character` 6/hour is charged **only on a path that will
+actually insert**. Charging the strict budget on every call — which is what the pre-b338 body did —
+means a player who reloads seven times in an hour is told their character cannot be confirmed.
+
+**Who may call it: `authenticated` only.** In particular **not `hr_engine`**, and the accrual path
+therefore does *not* auto-create on `no_character`. Two reasons. First, it would promote the engine
+— the component with the largest attack surface in the system — from "propose a delta against an
+existing character" to "mint characters", i.e. mint starting kits. Second, `no_character` is a
+load-bearing verdict: auto-vivifying it turns a slot-resolution bug into a silent second character
+and shows the player an empty save instead of an error.
+
+**The starting kit is data, not a literal.** `src/data/start-kit.js` → `tools/gen-catalogues.mjs` →
+`hr_start_kit` / `hr_start_skill_xp` / `hr_start_inventory` / `hr_start_equipment`. This closed a
+live divergence: production granted **0 gold and no equipment** against a client whose fresh
+character has 500 gold and a Bronze Sword, so a server-created character walked into server-side
+combat accrual unarmed — invisible, because the two copies were in different languages in different
+files. Guarded at four levels with four different inputs: the generator validates the kit against
+`items.js`/`skills.js`/`gathering.js` and `src/core/xp.js`; the generated SQL re-asserts it against
+the rows that landed and against `hr_xp_table`; `gen-catalogues --check` fails the build on any
+divergence; and smoke test `B338-1` asserts `legacy.js`'s fresh-`G` literal still equals the data
+file. That last one exists because `legacy.js` is a classic script whose object literal is evaluated
+at parse time and **cannot** import the data module (the b222 trap) — two copies with a guard,
+chosen knowingly.
+
+**Starting state is FRESH. `game_saves.snapshot` is never read.** Seeding from it would write
+client-authored — i.e. forgeable, and by the audit's own finding *forged* — values into the
+authoritative tables permanently and indistinguishably, laundering the exploit instead of closing
+it. The cost is that beta progress does not carry over, which is already sunk: the beta is wiped at
+cutover.
 
 ### Idempotency
 

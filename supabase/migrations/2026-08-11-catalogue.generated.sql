@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 20b64593eba2daab1a5797799b53f753878f3ff2779b018b3105899deb116393
+--   catalogue digest: 1091d8b44e52e630a0ce34b98dace85119823a5743330f7b5d0f3e4d83e5f611
 --   rows: 400 items (15 untradeable) ·
 --         192 item-slot pairs · 15 equip slots ·
 --         15 skills · 9 crops · 318 activities
@@ -72,6 +72,36 @@ create table if not exists public.hr_activities (
   primary key (kind, activity_id)
 );
 
+-- ── THE STARTING KIT (b338) ──────────────────────────────────────────────
+-- What hr_create_character() gives a brand new character. Catalogue rows, not
+-- literals in PL/pgSQL, so the starting kit is a data edit plus a regenerate
+-- and the client's own fresh-character values are the single source.
+create table if not exists public.hr_start_kit (
+  only_row      boolean primary key default true check (only_row),
+  gold          bigint not null check (gold >= 0),
+  gems          bigint not null check (gems >= 0),
+  hearth_tokens bigint not null check (hearth_tokens = 0),  -- IAP-only, never minted
+  hp            int    not null check (hp >= 0),
+  max_hp        int    not null check (max_hp > 0),
+  bank_cap      int    not null check (bank_cap between 1 and 100000),
+  farm_plots    int    not null check (farm_plots between 0 and 64)
+);
+
+create table if not exists public.hr_start_skill_xp (
+  skill_id text primary key,
+  xp       bigint not null check (xp >= 0)
+);
+
+create table if not exists public.hr_start_inventory (
+  item_id text primary key,
+  qty     bigint not null check (qty > 0)
+);
+
+create table if not exists public.hr_start_equipment (
+  equip_slot text primary key,
+  item_id    text not null
+);
+
 create table if not exists public.hr_catalogue_meta (
   only_row     boolean primary key default true check (only_row),
   digest       text not null,
@@ -87,6 +117,9 @@ delete from public.hr_equip_slots;
 delete from public.hr_skills;
 delete from public.hr_crops;
 delete from public.hr_activities;
+delete from public.hr_start_skill_xp;
+delete from public.hr_start_inventory;
+delete from public.hr_start_equipment;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals) values
   ('abyssal_greaves','Abyssal Greaves',true,'armor',198000,null,null,null),
@@ -1049,8 +1082,31 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('gather','willow_tree','woodcutting',30),
   ('gather','yew_tree','woodcutting',60);
 
+-- The starting kit. hr_start_kit is a ONE-ROW table (only_row), so it is an
+-- upsert rather than a delete+insert: hr_create_character() reads it, and a
+-- momentary gap where the row does not exist would be a window in which a new
+-- character could be created with no kit at all.
+insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, max_hp, bank_cap, farm_plots)
+  values (true, 500, 0, 0,
+          10, 10, 100, 4)
+  on conflict (only_row) do update set
+    gold = excluded.gold, gems = excluded.gems, hearth_tokens = excluded.hearth_tokens,
+    hp = excluded.hp, max_hp = excluded.max_hp, bank_cap = excluded.bank_cap,
+    farm_plots = excluded.farm_plots;
+
+insert into public.hr_start_skill_xp (skill_id, xp) values
+  ('hitpoints',1154);
+
+insert into public.hr_start_inventory (item_id, qty) values
+  ('carrot_seed',3),
+  ('shrimp',8),
+  ('turnip_seed',5);
+
+insert into public.hr_start_equipment (equip_slot, item_id) values
+  ('weapon','bronze_sword');
+
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '20b64593eba2daab1a5797799b53f753878f3ff2779b018b3105899deb116393', now())
+  values (true, '1091d8b44e52e630a0ce34b98dace85119823a5743330f7b5d0f3e4d83e5f611', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1062,7 +1118,9 @@ do $$
 declare t text;
 begin
   foreach t in array array['hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                           'hr_crops','hr_activities','hr_catalogue_meta'] loop
+                           'hr_crops','hr_activities','hr_catalogue_meta',
+                           'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                           'hr_start_equipment'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on public.%I to anon, authenticated, service_role', t);
@@ -1100,7 +1158,9 @@ begin
   select count(*) into v_bad from pg_policies
    where schemaname = 'public'
      and tablename in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                       'hr_crops','hr_activities','hr_catalogue_meta')
+                       'hr_crops','hr_activities','hr_catalogue_meta',
+                       'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                       'hr_start_equipment')
      and cmd in ('INSERT','UPDATE','DELETE','ALL');
   if v_bad > 0 then raise exception '% write policies on catalogue tables', v_bad; end if;
 
@@ -1108,11 +1168,57 @@ begin
   select count(*) into v_bad from information_schema.role_table_grants
    where table_schema = 'public'
      and table_name in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                        'hr_crops','hr_activities','hr_catalogue_meta')
+                        'hr_crops','hr_activities','hr_catalogue_meta',
+                        'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                        'hr_start_equipment')
      and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on catalogue tables', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest 20b64593eba2daab1a5797799b53f753878f3ff2779b018b3105899deb116393',
+  -- ── THE STARTING KIT (b338) ────────────────────────────────────────────
+  -- The generator already validated all of this in JS. It is re-asserted here
+  -- against the DATABASE because the two checks do not share an input: the JS
+  -- check reads src/data, this one reads the rows that actually landed, and a
+  -- kit that validated at generation time but did not INSERT is exactly the
+  -- always-null-probe failure this repo has been bitten by nine times.
+  if (select count(*) from public.hr_start_kit) <> 1 then
+    raise exception 'hr_start_kit must hold exactly one row, has %',
+      (select count(*) from public.hr_start_kit);
+  end if;
+
+  select count(*) into v_bad from public.hr_start_inventory s
+   where not exists (select 1 from public.hr_items i where i.item_id = s.item_id);
+  if v_bad > 0 then raise exception '% starting inventory items are not in hr_items', v_bad; end if;
+
+  select count(*) into v_bad from public.hr_start_equipment e
+   where not exists (select 1 from public.hr_equip_slots q where q.equip_slot = e.equip_slot)
+      or not exists (select 1 from public.hr_item_slots p
+                      where p.item_id = e.item_id and p.equip_slot = e.equip_slot);
+  if v_bad > 0 then raise exception '% starting equipment rows name an illegal item/slot pair', v_bad; end if;
+
+  select count(*) into v_bad from public.hr_start_skill_xp s
+   where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id);
+  if v_bad > 0 then raise exception '% starting skill grants name an unknown skill', v_bad; end if;
+
+  -- max_hp must equal the level the starting hitpoints XP buys, evaluated by
+  -- the SERVER's own curve (hr_xp_table, materialised by player-state.sql).
+  -- The generator asserts the same identity using src/core/xp.js, so this line
+  -- additionally proves the two curves agree — which is the property that lets
+  -- the client keep deriving playerMaxHp for RENDERING without re-authoring it.
+  select public.hr_level_from_xp(coalesce(
+           (select xp from public.hr_start_skill_xp where skill_id = 'hitpoints'), 0))
+    into v_n;
+  if v_n <> (select max_hp from public.hr_start_kit) then
+    raise exception 'hr_start_kit.max_hp is % but the starting hitpoints XP is level % on hr_xp_table',
+      (select max_hp from public.hr_start_kit), v_n;
+  end if;
+
+  -- The Hearth Token bond is IAP-only (the Final Directive). A CHECK already
+  -- pins it; this asserts the CHECK is the one that shipped.
+  if (select hearth_tokens from public.hr_start_kit) <> 0 then
+    raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
+  end if;
+
+  raise notice 'CATALOGUES OK — % items, % activities, digest 1091d8b44e52e630a0ce34b98dace85119823a5743330f7b5d0f3e4d83e5f611',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

@@ -655,6 +655,37 @@ let G={
 };
 
 /* ════════════════════════════════════════════════
+   b338 — THE FRESH-CHARACTER SNAPSHOT, taken here and nowhere else.
+
+   The SERVER now creates characters too (hr_create_character), and its starting
+   kit comes from `src/data/start-kit.js` via the generated catalogue. So there
+   are two creators of a Hearthrise character and they must agree — a server that
+   mints a character its own client would never produce is a content bug with no
+   client-side symptom. (It was live and unnoticed: production granted 0 gold and
+   no weapon against the literal above.)
+
+   The obvious fix — have the literal above IMPORT start-kit.js — is not
+   available and must not be attempted. legacy.js is a CLASSIC SCRIPT whose
+   object literal is evaluated at parse time, before main.js's ESM bridge has
+   run; reading `window.START_KIT` there publishes `undefined` into every new
+   player's save. That is exactly the b222 trap main.js's `unifyObject` header
+   documents.
+
+   So the literal stays and a GUARD enforces the agreement. This frozen snapshot
+   is taken immediately after the literal — before boot(), before loadLocal(),
+   before anything mutates G — so it is the values a brand new character actually
+   gets, not a restatement of them. Smoke test B338-1 compares it to
+   src/data/start-kit.js and fails on any divergence.
+   ════════════════════════════════════════════════ */
+window.__FRESH_START = Object.freeze({
+  gold: G.gold, gems: G.gems,
+  hp: G.playerHp, maxHp: G.playerMaxHp,
+  skills: Object.freeze({ ...G.skills }),
+  inventory: Object.freeze({ ...G.inventory }),
+  equipment: Object.freeze({ ...G.equipment }),
+});
+
+/* ════════════════════════════════════════════════
    PERSISTENCE  (local + cloud-ready hook)
    ════════════════════════════════════════════════ */
 function saveLocal(){
@@ -1072,7 +1103,19 @@ function processOffline(){
   /* b337: THE AUTHORITY GATE. See the block above. Must stay first. */
   if(serverAccrualActive()){
     wireServerAccrual();
-    try{ window.HearthriseAccrual.beginServerAccrual(); }catch(e){}
+    /* b338: ENSURE BEFORE ACCRUE. `player_state` starts empty for every player,
+       and hr-accrue answers `no_character` until a row exists — so without this
+       the b337 switch could never credit anybody. `ensureThenAccrue` asks the
+       server to create one (idempotently; the server decides, and the STARTING
+       KIT is the server's) and then asks for accrual REGARDLESS of the verdict,
+       because the server is the authority on whether there is anything to pay
+       and a failed ensure must not also cost the player their absence.
+       It latches, so this is one round trip per session, not one per return. */
+    try{
+      var C=window.HearthriseCharacter;
+      if(C&&typeof C.ensureThenAccrue==='function') C.ensureThenAccrue();
+      else window.HearthriseAccrual.beginServerAccrual();
+    }catch(e){}
     return;
   }
   /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest

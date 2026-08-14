@@ -20663,6 +20663,52 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('B339-3b: auth.js itself passes NO slot and a live user id — the wiring, not a stand-in for it', () => {
+    const Auth = window.HearthriseAuth;
+    assert(Auth && typeof Auth.wireServerIntents === 'function',
+      'auth.js does not expose its server-intent wiring — the only way to check what it passes would be '
+      + 'to re-derive it, which proves nothing about auth.js');
+    /* B339-3 proves accrue.js RESOLVES the active slot. It cannot see auth.js
+       going on pinning `slot: 0`, because it configures the modules itself —
+       and a slot: 0 mutation in auth.js did slip past it. That is the "proof of
+       the adjacent thing" family. This drives the REAL wiring function with spy
+       modules and asserts the literal objects it hands over.
+       MUTATION: add `slot: 0` to buildIntentWiring → red. */
+    const token = () => 'tok';
+    const uid = () => 'user-A';
+    const got = {};
+    const fakeWin = {
+      HearthriseAccrual: { configureAccrual: (c) => { got.accrual = c; } },
+      HearthriseCharacter: { configureCharacter: (c) => { got.character = c; } },
+    };
+    Auth.wireServerIntents(fakeWin, { url: 'https://proj.supabase.co', anonKey: 'anon', authToken: token, userId: uid });
+
+    assert(got.accrual && got.character, 'wireServerIntents configured nothing: ' + JSON.stringify(Object.keys(got)));
+    assert(!('slot' in got.accrual),
+      'auth.js still pins a slot for accrual (' + got.accrual.slot + ') — the player\'s active character is '
+      + 'irrelevant to it, and applyEnvelope would write that slot\'s state over theirs');
+    assert(!('slot' in got.character),
+      'auth.js still pins a slot for the character intent (' + got.character.slot + ') — it would bootstrap '
+      + 'the wrong character');
+    assert(got.character.userId === uid && typeof got.character.userId === 'function',
+      'the user id is not the live accessor — a captured id is the id at sign-in, and the latch stops being '
+      + 'an identity the moment it changes');
+    assert(got.accrual.authToken === token && got.character.authToken === token,
+      'the token is not the live accessor (the b331 dead-token loop started with a captured one)');
+    assert(got.accrual.url === 'https://proj.supabase.co' && got.accrual.apiKey === 'anon'
+      && got.character.url === 'https://proj.supabase.co' && got.character.apiKey === 'anon',
+      'the two intents were given different credentials — there must be exactly one copy: ' + JSON.stringify(got));
+
+    /* Each side independently guarded: one module throwing must not leave the
+       other unwired. */
+    const got2 = {};
+    Auth.wireServerIntents({
+      HearthriseAccrual: { configureAccrual: () => { throw new Error('boom'); } },
+      HearthriseCharacter: { configureCharacter: (c) => { got2.character = c; } },
+    }, { url: 'u', anonKey: 'k', authToken: token, userId: uid });
+    assert(got2.character, 'a throw in the accrual wiring also skipped the character wiring');
+  }),
+
   () => tryRun('B339-4: flipping the switch stamps BOTH away watermarks, in BOTH directions — so OFF cannot re-pay', () => {
     const A = window.HearthriseAccrual;
     const G = window.G;

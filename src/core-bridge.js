@@ -29,22 +29,22 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=337';
-import * as xp from './core/xp.js?v=337';
-import * as combat from './core/combat.js?v=337';
-import * as drops from './core/drops.js?v=337';
-import * as pacing from './core/pacing.js?v=337';
-import * as rested from './core/rested.js?v=337';
-import * as tools from './core/tools.js?v=337';
-import * as farm from './core/farm.js?v=337';
-import * as progression from './core/progression.js?v=337';
-import * as styles from './core/styles.js?v=337';
-import * as artisan from './core/artisan.js?v=337';
-import * as bounty from './core/bounty.js?v=337';
-import * as away from './core/away.js?v=337';
-import * as botd from './core/botd.js?v=337';
-import * as buffs from './core/buffs.js?v=337';
-import * as combatSim from './core/combat-sim.js?v=337';
+import * as rngMod from './core/rng.js?v=338';
+import * as xp from './core/xp.js?v=338';
+import * as combat from './core/combat.js?v=338';
+import * as drops from './core/drops.js?v=338';
+import * as pacing from './core/pacing.js?v=338';
+import * as rested from './core/rested.js?v=338';
+import * as tools from './core/tools.js?v=338';
+import * as farm from './core/farm.js?v=338';
+import * as progression from './core/progression.js?v=338';
+import * as styles from './core/styles.js?v=338';
+import * as artisan from './core/artisan.js?v=338';
+import * as bounty from './core/bounty.js?v=338';
+import * as away from './core/away.js?v=338';
+import * as botd from './core/botd.js?v=338';
+import * as buffs from './core/buffs.js?v=338';
+import * as combatSim from './core/combat-sim.js?v=338';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from

@@ -73,7 +73,7 @@
 // a test's override is the transport, the same rule accrue.js follows.
 // ============================================================================
 
-import { ACCRUE_KILL_KEY, isServerAccrualEnabled } from './accrue.js?v=337';
+import { ACCRUE_KILL_KEY, isServerAccrualEnabled } from './accrue.js?v=338';
 
 /* THE SAME SWITCH AS b337, DELIBERATELY. Two switches would mean a state where
    the client creates characters it will never accrue against, or asks for

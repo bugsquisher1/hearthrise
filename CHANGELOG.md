@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 338 — 2026-08-14 (Groundwork: characters the server knows about)
+
+- 🏗️ **Still switched off; nothing changes about how you play.** The server can now create and hold a character of its own — the record the server-side engine will eventually own. Until it is switched on for testing, your character continues to work exactly as it does today.
+- 🗡️ Behind the scenes this caught a real one: the server's idea of a starting character had drifted from the game's, and a server-made character would have started with **no gold and no weapon** while the game gives you 500 gold and a Bronze Sword. The two lists are now checked against each other automatically, so they cannot drift apart again silently.
+
 ## v0.9.2-beta build 337 — 2026-08-13 (Groundwork: the server can pay your time away)
 
 - 🏗️ **Nothing changes about how you play.** This ships switched off. It is the first piece of the game where the server, rather than your browser, decides what you earned — starting with time away. When it is turned on for testing, your browser will ask the server what your absence paid and show you that answer instead of working it out itself.

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=339' directly.
+// modularised, will import { G } from '../state/game.js?v=340' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=339';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=339';
+import { on, snapshot } from '../net/events.js?v=340';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=340';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=339';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=340';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -20171,7 +20171,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=339');
+    const KIT = await import('../data/start-kit.js?v=340');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '

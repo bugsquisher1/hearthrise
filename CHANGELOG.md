@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 340 — 2026-08-14 (The market and the boards go through the server)
+
+- 🏪 **Listing, cancelling and buying now go through the server** instead of the game writing to the market tables itself. Nothing changes about how the market works for you — but the price, the seller name and the timestamp on a listing are now the server's, not whatever the sender claims.
+- 🏆 **Clan browsing and the leaderboards read through the server too.** Before this, an unauthenticated request could read every player's name, gold and levels straight out of the ranking tables.
+- 🧾 A stale poll that would have quietly failed once a minute forever after the next market update now stops cleanly instead.
+
 ## v0.9.2-beta build 339 — 2026-08-14 (Groundwork: safety work before the server takes over)
 
 - 🔒 **Still switched off; nothing changes about how you play.** A security review of the server-side groundwork raised six things to fix before any of it is switched on, and this is those six. Nothing found could affect another player's game.

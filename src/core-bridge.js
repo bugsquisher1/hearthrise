@@ -45,6 +45,7 @@ import * as away from './core/away.js?v=340';
 import * as botd from './core/botd.js?v=340';
 import * as buffs from './core/buffs.js?v=340';
 import * as combatSim from './core/combat-sim.js?v=340';
+import * as licence from './core/licence.js?v=340';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -151,7 +152,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim,
+  styles, artisan, bounty, away, botd, buffs, combatSim, licence,
 
   /* The session RNG. */
   get rng() { return rng; },
@@ -231,7 +232,24 @@ Object.assign(window, {
      and from the suite: a dial nobody can read is a dial nobody trusts. */
   BUFFS_DEF: buffs.BUFFS_DEF,
   AWAY_RATE_MULT: away.AWAY_RATE_MULT,
+  FIELD_LICENCE_KILLS: licence.FIELD_LICENCE_KILLS,
 });
+
+/* ── The Field Licence, bound to the live save ─────────────────────────────
+   ONE reader for every client surface that states the licence: the quest row,
+   the monster preview's Away line, the Stats modal, the welcome-back toast.
+   They share a function rather than each re-deriving `kills >= 100`, because
+   four copies of a threshold is four places for it to drift from the server's.
+
+   DISPLAY ONLY. The authority is `hr-accrue/accrual.js`, which asks the same
+   `fieldLicence()` against server-known `stats.kills` before it simulates. */
+window.HearthriseLicence = {
+  KILLS: licence.FIELD_LICENCE_KILLS,
+  /** The verdict for the current save (or any state passed explicitly). */
+  check(state) { return licence.fieldLicence(state || G() || {}); },
+  /** "may a span of this activity accrue?" — the caller's vocabulary. */
+  allows(kind, state) { return licence.awayActivityAllowed(kind, state || G() || {}); },
+};
 
 /* THE READINESS SIGNAL — must be the last statement in this file.
    src/core-ready.js (a classic script, so it is up before any engine script)

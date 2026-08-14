@@ -1192,7 +1192,32 @@ function processOffline(){
   accrueRestedXp(_now);
   /* The budget watermark advances whether or not anything was running, so a
      day spent with no activity set cannot be banked and spent later. */
-  const active=!!(G.activeSkill||G.activeMonster||G.activeArtisanRecipe);
+  /* ── THE FIELD LICENCE — a PRECONDITION, asked ONCE, before anything is
+     simulated (docs/design/away-combat-licence.md §3).
+
+     Read src/core/licence.js's header before moving this. It is deliberately
+     NOT a channel in src/core/away.js and it is NOT a rate: `AWAY_RATE_MULT`
+     is still 1.00 and `AWAY_SCOPE` is untouched byte for byte. A gate inside
+     the resolver would be a reward vanishing inside a per-grant check — the
+     eleventh-plus instance of the one bug that table exists to end. Here, its
+     failure mode is loud and singular: the span is not simulated at all.
+
+     The client's verdict is PREDICTION. The authority is hr-accrue, which
+     asks the same fieldLicence() against server-known `stats.kills`. */
+  const _licence=(window.HearthriseLicence)
+    ? window.HearthriseLicence.check(G)
+    : {ok:true,kills:0,need:0,remaining:0};
+  const _combatDeclined=!!G.activeMonster && !_licence.ok;
+  /* Pre-licence combat is not an ACCRUING activity, so it does not make the
+     absence claimable. §3.3.1: a night that paid nothing must not cost the
+     player their allowance. Under b307's per-absence budget nothing is
+     "spent" either way — the watermark advances on any visible return, which
+     is the anti-banking guard, not a currency — so the guarantee this buys is
+     the one that matters: the next absence still gets the full cap. */
+  const active=!!(G.activeSkill||(G.activeMonster&&_licence.ok)||G.activeArtisanRecipe);
+  /* Read the watermark BEFORE the claim moves it — a declined span still has
+     a length, and the player is owed the sentence that explains it. */
+  const _awayMsBefore=Math.max(0,_now-(((G.offlineBudget&&G.offlineBudget.at)||_now)));
   /* b261: 60s floor (was 180s). With the watermark now only advancing while
      visible, a genuine 1–3 min AFK is credited instead of silently dropped;
      sub-minute tab-flips still cost nothing. */
@@ -1210,10 +1235,25 @@ function processOffline(){
       active:active, activeMonster:G.activeMonster||null,
       activeSkill:G.activeSkill||null, hrs:+hrs.toFixed(3),
       budgetAt:(G.offlineBudget&&G.offlineBudget.at)||null, lastSeen:G.lastSeen||null,
-      kills:(G.stats&&G.stats.kills)||0 };
+      kills:(G.stats&&G.stats.kills)||0, licence:_licence.ok };
     window._hrOfflineDiag=_diag;
     localStorage.setItem('hr:offlineDiag', JSON.stringify(_diag));
   }catch(e){}
+  /* A DECLINED span is the one case where "nothing happened" is the correct
+     outcome AND a silent return is the wrong behaviour. An empty night with a
+     reason is a lesson; an empty night with no reason is a bug report — see
+     the ruling's "Player-facing honesty" clause, which this obeys in the one
+     surface this change owns (the welcome-back toast). The away CARD is
+     another author's surface; `G._awayLicence` is published for it, and the
+     `_` prefix keeps this scratch out of the cloud snapshot. */
+  if(_combatDeclined && _awayMsBefore>=60000
+     && !(typeof document!=='undefined' && document.hidden)){
+    G._awayLicence={declined:true,kills:_licence.kills,need:_licence.need,
+      awayMs:_awayMsBefore,at:_now};
+    notify('⏰ Away '+fmtHm(_awayMsBefore)+' — your camp was quiet. Combat pays away once '
+      +'you\'ve earned your Field Licence ('+_licence.kills+'/'+_licence.need+' kills). '
+      +'Skills pay in full while you\'re gone.','info');
+  }
   if(hrs<=0) return;
   const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -1233,8 +1273,15 @@ function processOffline(){
     if(G.activeMonster){
       /* THE UNIFICATION. This used to call processOfflineCombat(), a second
          combat loop; it is one span of the SAME simulateTick() the live 2.4s
-         tick runs, with `away:true`. See src/core/combat-sim.js. */
-      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
+         tick runs, with `away:true`. See src/core/combat-sim.js.
+
+         The licence gate is HERE, at the caller, wrapping the whole call —
+         not inside simulateSpan and not inside the resolver. A licensed
+         player's span is byte-identical to b340's; an unlicensed one does not
+         run. Belt and braces with the `active` computation above: combat
+         takes priority over a skill in this branch chain, so without this the
+         one save that has BOTH set would slip a declined fight through. */
+      if(_licence.ok) combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
     } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
       // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
       // sessions used to make ZERO offline progress (the gather replay below
@@ -1313,6 +1360,12 @@ function processOffline(){
     buffsPaused: combatSummary ? !!combatSummary.buffsPaused
       : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
     crits: combatSummary ? (combatSummary.crits||0) : 0,
+    /* The licence verdict THIS absence was resolved under, stated rather than
+       inferred — same rule as `blessed` and `crits`. A card that had to work
+       out for itself why a combat night paid nothing would eventually guess
+       "you died" at a player who was simply not licensed yet. */
+    licence: {ok:_licence.ok, kills:_licence.kills, need:_licence.need,
+      declined: _combatDeclined},
     featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
     /* The MULTIPLIER that featured time actually paid, so the welcome-back
        line can say "(+50% drops)" without a renderer inferring which boss it
@@ -2534,23 +2587,121 @@ function renderBountyPanel(){
       : '<span class="bb-rail-t">Free rerolls: '+(bh.freeRerolls||0)+'</span><button class="btn btn-sm" onclick="rerollBountyBoard()">New notices</button>'}</div>
   </div>`;
 }
+/* ═══════════════════════════════════════════════════════════════════════
+   QUEST_DEFS — the onboarding chain, as DATA.
+
+   b217 authored these inline inside ensureRetentionState(); b341 lifts them
+   out beside DAILY_TASK_POOL (the established pattern in this file: a data
+   table next to the engine that consumes it, published on window so the suite
+   can read the real rows instead of a copy). Adding a quest is now a ROW, and
+   `docs/SYSTEMS_MAP.md`'s golden rule — grow by adding data, not code — holds
+   for quests the way it already holds for items, recipes and nodes.
+
+   `G.quests` is SAVE STATE (progress + done), not the catalogue. These are the
+   catalogue. ensureRetentionState() merges the two by id.
+
+   The row shape:
+     id       stable key; the merge and the save both key on it
+     type     the updateQuest() event that advances it ('kill_any', 'gather',
+              'cooked', 'harvest', …). A type with no call site never moves.
+     mirror   OPTIONAL. Instead of counting events, the progress is SET from a
+              value the save already keeps (see MIRRORED_QUEST_SOURCES). A
+              mirrored quest cannot drift from the counter it displays, and it
+              is correct on a save that already had the kills before the quest
+              existed — which is the whole reason the licence uses one.
+     goal     the target
+     reward   { gold?, item?, qty?, combatXp? } — an AUTHORED payout
+     note     OPTIONAL louder completion line
+
+   b217's ordering reasoning still stands and is unchanged: gather → cook (so
+   you have something to eat) → fight → farm.
+   ═══════════════════════════════════════════════════════════════════════ */
+const QUEST_DEFS=[
+  {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
+  {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
+  {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
+  {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* ── THE FIELD LICENCE (docs/design/away-combat-licence.md) ──────────────
+     Tyler: "Build it and make it into a quest, that provides some good combat
+     experience." So the counter, the guidance and the reward all live in the
+     quest system rather than as bespoke Combat-panel UI.
+
+     It MIRRORS `stats.kills` — the same field src/core/licence.js gates on —
+     so the number the player is watching and the number the server checks are
+     one number. An event-counted quest could not do that: it would read 0/100
+     for every existing save and would drift from the gate on any path that
+     moves kills without calling updateQuest.
+
+     THE REWARD: 1,500 combat XP, routed through the player's active style
+     exactly the way a kill routes (src/core/styles.js killXpRoute), so a bow
+     user is paid Ranged and nobody needs a second routing table. It is an
+     AUTHORED payout — `pacing-overhaul.md` §4.5 lists "quest, daily, bounty
+     and chest payouts" as authored, explicitly NOT rates — so it is granted
+     with `{authored:true}` and PACE.xp does not scale it.
+
+     THE ARITHMETIC, so the number is derived rather than chosen:
+       • Measured against the real engine (4,000 seeds, fresh save, bronze
+         sword, Slime): 100 kills pay 1,459 style XP + 408 Hitpoints XP.
+       • 1,500 therefore pays the licence journey's own style XP back, once.
+         That is the "worth doing" test met on the axis it was earned on.
+       • It takes a fresh character's Attack from 1,459 XP (level 11) to
+         2,959 (level 17) — six levels, ~+7% accuracy. Loud, and not a power
+         spike: Accurate trains Attack only, so max hit does not move.
+       • Against the 57.2-day first-99 floor (`pacing-overhaul.md` A.2):
+         1,500 / 13,034,431 = 0.0115% of one skill's first 99. It cannot
+         distort the first hour because it is not a rate. */
+  {id:'field_licence',type:'kill_any',mirror:'stats.kills',
+   label:'Field Licence — defeat 100 monsters',goal:100,progress:0,
+   reward:{combatXp:1500},
+   note:'🎖️ Field Licence earned — your fights now carry on while you\'re away.',
+   done:false},
+];
+window.QUEST_DEFS=QUEST_DEFS;
+
+/* Where a mirrored quest reads its progress from. A TABLE, so a second
+   mirrored quest is a row here plus a row above — never a branch in
+   updateQuest(). Every reader is defensive: a save missing `stats` reads 0,
+   which is the safe direction for a gate. */
+const MIRRORED_QUEST_SOURCES={
+  'stats.kills':function(g){ var n=Number((g&&g.stats&&g.stats.kills)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
+};
+function mirroredQuestValue(key){
+  const f=MIRRORED_QUEST_SOURCES[key];
+  return f?f(G):0;
+}
+/* Bring every mirrored quest level with its source WITHOUT granting. Called
+   from ensureRetentionState (so a save that already had 400 kills shows
+   100/100 the moment the quest appears) and again from updateQuest, which is
+   where the grant happens. Separating "sync" from "grant" is what makes the
+   backfill safe: seeding a quest onto an old save must never hand out a
+   reward the player did not just earn — but it must also not hide one, which
+   is why updateQuest completes it on the very next kill. */
+function syncMirroredQuests(){
+  if(!Array.isArray(G.quests))return;
+  G.quests.forEach(function(q){
+    if(!q||!q.mirror||q.done)return;
+    q.progress=Math.min(q.goal,mirroredQuestValue(q.mirror));
+  });
+}
+
 /* ─── retention ─── */
 function ensureRetentionState(){
   if(!G.daily)G.daily={lastReset:null,tasks:[]};
   if(!Array.isArray(G.daily.tasks))G.daily.tasks=[];
   if(!G.collection)G.collection={};
   if(!G.stats)G.stats={kills:0,gathered:0,harvested:0,rareDrops:0};
-  // b217: onboarding chain now GUIDES preparation before combat.
-  // Order: gather materials → cook food (so you have something to eat) →
-  // THEN fight (bring your cooked food, eat manually when low) → farm.
-  // A fresh player starts with a bronze sword equipped and 8 raw shrimp;
-  // the cook step turns those into healing food before they meet a monster.
-  if(!Array.isArray(G.quests)||!G.quests.length)G.quests=[
-    {id:'gatherer',type:'gather',label:'Gather 15 resources',goal:15,progress:0,reward:{gold:150},done:false},
-    {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
-    {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
-    {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
-  ];
+  /* b341: quests are SEEDED BY ID from QUEST_DEFS, not "only when the array is
+     empty". The old condition meant a quest added after launch could never
+     reach an existing save — every live player's `G.quests` is non-empty, so
+     the new row was authored, tested, and then delivered to nobody. Merging by
+     id makes "add a quest" a data edit that reaches everyone, and it is
+     idempotent: a completed quest keeps its `done`, an in-flight one keeps its
+     `progress`, and nothing is ever re-granted. */
+  if(!Array.isArray(G.quests))G.quests=[];
+  QUEST_DEFS.forEach(function(def){
+    if(!G.quests.some(function(q){ return q && q.id===def.id; })) G.quests.push(Object.assign({},def));
+  });
+  syncMirroredQuests();
 }
 /* Daily task pool — pick 3 per day for variety. Each entry is a template
    factory that returns a fresh task object so we can adjust goals per
@@ -2693,18 +2844,50 @@ window.updateDailyWrappers = function(){
 function updateQuest(type,amt=1,meta={}){
   ensureRetentionState();
   G.quests.forEach(q=>{
-    if(q.done||q.type!==type)return;
-    if(q.target&&meta.target!==q.target)return;
-    q.progress=Math.min(q.goal,(q.progress||0)+amt);
-    if(q.progress>=q.goal){
-      q.done=true;
-      const r=q.reward||{};
-      if(r.gold)G.gold+=r.gold;
-      if(r.item)addItem(r.item,r.qty||1,false);
-      notify(`🎯 Quest: ${q.label}`,'loot');
+    if(q.done)return;
+    if(q.mirror){
+      /* A mirrored quest never counts events — it READS. It is re-read on
+         every quest tick (not only on its own `type`) so it self-heals: any
+         path that moves the source, including one written years from now,
+         moves the quest. That is the property an event counter cannot have,
+         and it is why the licence counter and the server's gate can never
+         disagree by a kill. */
+      q.progress=Math.min(q.goal,mirroredQuestValue(q.mirror));
+    } else {
+      if(q.type!==type)return;
+      if(q.target&&meta.target!==q.target)return;
+      q.progress=Math.min(q.goal,(q.progress||0)+amt);
     }
+    if(q.progress>=q.goal) completeQuest(q);
   });
 }
+/* The payout, lifted out of the loop so a reward TYPE is a line here rather
+   than a branch inside a forEach. Every one of these is an AUTHORED payout
+   (pacing-overhaul.md §4.5): fixed numbers the designer wrote, not rates the
+   pacing dial scales. */
+function completeQuest(q){
+  q.done=true;
+  const r=q.reward||{};
+  if(r.gold)G.gold+=r.gold;
+  if(r.item)addItem(r.item,r.qty||1,false);
+  /* Combat XP is routed the way a KILL routes it — through the player's
+     active style (src/core/styles.js killXpRoute) — so a bow user is paid
+     Ranged and a Controlled sword user gets the same three-way split their
+     fights pay. One routing table, not a second one that drifts.
+     `authored:true` keeps PACE.xp off it: 1,500 means 1,500. */
+  if(r.combatXp>0){
+    const C=window.HearthriseCore;
+    const style=(typeof getActiveCombatStyle==='function')?getActiveCombatStyle():null;
+    const route=(C&&C.styles)?C.styles.killXpRoute(style,r.combatXp,1):[{skill:'attack',amount:r.combatXp}];
+    route.forEach(function(g){ addXp(g.skill,g.amount,{authored:true}); });
+  }
+  notify(q.note||`🎯 Quest: ${q.label}`,'loot');
+}
+/* b341: published so the suite can drive the real merge + mirror instead of a
+   copy of them. The quest catalogue reaching an existing save is the property
+   that used to fail silently — it needs a test, and a test needs a seam. */
+window.ensureRetentionState=ensureRetentionState;
+window.updateQuest=updateQuest;
 function trackCollection(id,qty=1){if(id&&ITEMS[id])G.collection[id]=(G.collection[id]||0)+qty;}
 
 /* ─── combat ─── */
@@ -4996,7 +5179,7 @@ try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }
    toggle. Data-driven so more QoL traits can be added later. */
 const TRAITS={
   /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold. */
-  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Automatically eat food in combat when your HP drops low. Earned with Bounty Marks — hunt bounties to afford it. Set the threshold in Settings → Gameplay.'},
+  auto_eat:{name:'Auto-Eat',cost:100,currency:'marks',glyph:'meat',desc:'Eats for you when your health drops, INCLUDING while you\'re away — your fights stop being ninety seconds long. Earned with Bounty Marks; set the threshold in Settings → Gameplay.'},
 };
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
@@ -7484,14 +7667,100 @@ console.log('Activity bar: loaded');
     var killsHr = 3600 / killTimeS;
     var xpHr = killsHr * (m.xp || 0);
     var goldHr = killsHr * (((m.gp && m.gp[0])||0) + ((m.gp && m.gp[1])||0))/2;
+    var surv = estimateSurvival(m, killTimeS, tickMs);
     return {
       minHit: minHit, maxHit: maxHit,
       hitChance: accuracy, critChance: critChance,
       dps: dps, killTimeS: killTimeS,
       killsHr: killsHr, xpHr: xpHr, goldHr: goldHr,
       weaknessBonus: weaknessBonus,
+      incomingDps: surv.incomingDps,
+      effectiveHp: surv.effectiveHp,
+      survivalKills: surv.survivalKills,
+      survivalSeconds: surv.survivalSeconds,
+      survivesAnHour: surv.survivalSeconds >= 3600,
+      runXp: surv.survivalKills * (m.xp || 0),
+      runGold: surv.survivalKills * (((m.gp && m.gp[0])||0) + ((m.gp && m.gp[1])||0))/2,
     };
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     b341 — THE MISSING HALF OF THE FORECAST (docs/design/away-combat-licence.md §4.1).
+
+     estimateCombat() modelled OUTGOING damage only. It had no term for being
+     hit — none, anywhere — which is how the preview came to advertise
+     "KILLS/HR 340 · XP/HR 1,698" to a fresh character who is dead in under a
+     minute. A forecast is a promise, and that one was off by two orders of
+     magnitude on the axis that decides whether the player leaves the tab.
+
+     THE RULE, and it is the load-bearing sentence:
+       **A rate may only be quoted over a span the character can survive.**
+
+     The model, and every term is derived rather than tuned:
+
+       incomingPerSwing = foe.accuracy x (1 + foe.maxHit)/2      uniform 1..maxHit
+       swingsPerKill    = killTimeS / swingS
+       retaliations     = swingsPerKill - 1
+         ── THE TERM THE SPEC'S DRAFT FORMULA OMITTED. simulateTick RETURNS on
+            a kill, before the monster's swing (src/core/combat-sim.js: the
+            `if (state.monsterHp <= 0)` branch is above `ctx.monsterRolls`), so
+            the killing blow draws no reply. On an 8 HP Slime that is one swing
+            in 4.4 — a 23% overstatement of incoming damage if you skip it, and
+            it is exactly what put the draft outside its own acceptance window.
+       incomingDps      = incomingPerSwing x (retaliations/swingsPerKill) / swingS
+       effectiveHp      = playerHp + (auto-eat AND a slotted food ? qty x heals : 0)
+         ── auto-actions.js:219 returns false without `traits.auto_eat`, so a
+            character who does not own the trait eats NOTHING while away, no
+            matter how much food is in the bag. Counting unslotted or
+            unreachable food here would rebuild the original lie.
+       survivalSeconds  = effectiveHp / incomingDps
+       survivalKills    = floor(survivalSeconds / killTimeS)
+
+     ACCEPTANCE (the spec's, so nobody has to trust these constants): a fresh
+     save (10 HP, bronze sword, empty food slot) against Slime must land within
+     5 kills +/-1 and 75s +/-20s. This model returns 5 kills / 61.3s.
+     Ground truth from 4,000 seeded runs of the REAL engine: 4.49 kills /
+     58.5s. Guarded by LICENCE-7.
+
+     GATHERING PREVIEWS ARE NOT TOUCHED and must not be. `legacy.js:4062` and
+     `:8663` quote an hourly rate for an activity that genuinely sustains it
+     for eight hours, because a tree does not hit back. Harmonising the two
+     would delete information from the honest one.
+     ═══════════════════════════════════════════════════════════════════════ */
+  function estimateSurvival(m, killTimeS, tickMs){
+    var swingS = Math.max(0.001, tickMs / 1000);
+    var eq = (typeof getEquipmentStats === 'function') ? getEquipmentStats() : {};
+    var mr = (typeof getMonsterCombatRolls === 'function') ? getMonsterCombatRolls(m, eq) : null;
+    var foeAcc = mr ? mr.accuracy : 0.5;
+    var foeMax = mr ? mr.maxHit : 1;
+    var incomingPerSwing = foeAcc * (1 + foeMax) / 2;
+    var swingsPerKill = Math.max(1, killTimeS / swingS);
+    var retaliationShare = Math.max(0, (swingsPerKill - 1) / swingsPerKill);
+    var incomingDps = incomingPerSwing * retaliationShare / swingS;
+
+    var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
+    var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
+    var pool = 0, foodId = G && G.foodSlot;
+    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
+    if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
+      /* A heal is wasted above the bar, so one food is worth at most a full
+         bar — otherwise 60 shrimp on a 10 HP character reads as 180 kills. */
+      pool = (G.inventory[foodId] || 0) * Math.min(window.ITEMS[foodId].heals, maxHp);
+    }
+    var effectiveHp = Math.max(1, hp + pool);
+    /* An unhittable foe (accuracy or max hit resolved to 0) means the fight
+       never ends you. Report the honest infinity as "survives the hour" rather
+       than dividing by zero into NaN and printing "—". */
+    var survivalSeconds = incomingDps > 0 ? (effectiveHp / incomingDps) : Infinity;
+    var survivalKills = Math.floor(Math.min(survivalSeconds, 3600 * 24) / Math.max(0.001, killTimeS));
+    return { incomingDps: incomingDps, effectiveHp: effectiveHp,
+      survivalKills: survivalKills, survivalSeconds: survivalSeconds };
+  }
+  /* Published for the suite. LICENCE-7 asserts the acceptance criterion
+     against the REAL estimator rather than a re-implementation of it — a
+     test that recomputes the formula it is testing proves only that the
+     tester can copy. */
+  window._hrEstimateCombat = estimateCombat;
 
   function getMonsterIcon(id){
     var path = window._monsterIcon && window._monsterIcon[id];
@@ -7529,6 +7798,53 @@ console.log('Activity bar: loaded');
       '<div class="mp-loot-name">'+name+'</div>'+
       '<div class="mp-loot-meta '+band+'">'+qtyStr+chanceStr+'</div>'+
     '</div>';
+  }
+
+  /* "≈5 kills · ≈75s" or the hourly pair — never both, and never the hourly
+     pair for a character who cannot reach the hour. An hourly rate quoted at
+     someone with a ninety-second life expectancy is not a pessimistic
+     estimate, it is a category error, so below the hour the rows are REPLACED
+     rather than annotated. (b341, §4.1.) */
+  function forecastRateRows(est){
+    if(est.survivesAnHour){
+      return '<div><span>Kills / hr</span><b>'+fmtNum(est.killsHr)+'</b></div>'+
+             '<div><span>XP / hr</span><b>'+fmtNum(est.xpHr)+'</b></div>'+
+             '<div><span>You last</span><b>'+fmtRunTime(est.survivalSeconds)+'</b></div>';
+    }
+    return '<div><span>You last</span><b>≈'+fmtNum(est.survivalKills)+' kills</b></div>'+
+           '<div><span>This run</span><b>≈'+fmtRunTime(est.survivalSeconds)+' · ≈'+fmtNum(est.runXp)+' XP</b></div>';
+  }
+  function fmtRunTime(s){
+    if(!isFinite(s)) return '—';
+    if(s < 90) return Math.round(s)+'s';
+    if(s < 3600) return Math.round(s/60)+'m';
+    var h=Math.floor(s/3600), mm=Math.round((s%3600)/60);
+    return h+'h'+(mm?' '+mm+'m':'');
+  }
+  /* The Away line. ALWAYS present, three states, and each one names the thing
+     that actually ends the night — the licence, then death, then food. The
+     player's question at this screen is "can I leave this running?", and the
+     preview never answered it at all before. */
+  function awayLineHtml(est){
+    var L = (window.HearthriseLicence) ? window.HearthriseLicence.check(G) : {ok:true,kills:0,need:0};
+    if(!L.ok){
+      return '<b>Away:</b> not yet — land '+L.need+' kills for your Field Licence. '+
+             '<b>'+L.kills+' / '+L.need+'.</b>';
+    }
+    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
+    var foodId = G && G.foodSlot;
+    if(!owns || !foodId || !(G.inventory[foodId] > 0)){
+      return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall and the '+
+             'fight ends. Auto-Eat keeps it running.';
+    }
+    var capMs = (typeof offlineCapHours === 'function') ? offlineCapHours()*3600000 : 12*3600000;
+    var foodMs = est.survivalSeconds * 1000;
+    var bound = Math.min(capMs, foodMs);
+    var name = (window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].n) || foodId;
+    return '<b>Away:</b> about <b>'+fmtRunTime(bound/1000)+'</b>, '+
+      (foodMs <= capMs
+        ? 'on '+fmtNum(G.inventory[foodId])+' '+name+'.'
+        : 'your '+offlineCapHours()+'h offline max, not your food.');
   }
 
   function renderPreview(monsterId){
@@ -7604,9 +7920,9 @@ console.log('Activity bar: loaded');
             <div><span>Hit chance</span><b>${Math.round(est.hitChance*100)}%</b></div>
             <div><span>Damage</span><b>${est.minHit}–${est.maxHit}</b></div>
             <div><span>Time to kill</span><b>${est.killTimeS.toFixed(1)}s</b></div>
-            <div><span>Kills / hr</span><b>${fmtNum(est.killsHr)}</b></div>
-            <div><span>XP / hr</span><b>${fmtNum(est.xpHr)}</b></div>
+            ${forecastRateRows(est)}
           </div>
+          <div class="mp-away-line">${awayLineHtml(est)}</div>
         </div>
       </div>
 

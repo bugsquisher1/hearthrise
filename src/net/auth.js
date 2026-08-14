@@ -256,6 +256,23 @@ function enableLiveSync() {
       });
     }
   } catch (e) { console.warn('[auth] accrual wiring skipped:', e.message); }
+  /* b338 — the character-creation intent, wired from the SAME credentials at the
+     SAME moment, so there is still exactly one copy of the url / anon key /
+     token accessor in the client. configureCharacter() clears its "the server
+     confirmed a character" latch whenever the endpoint or slot changes, so a
+     sign-out followed by a different account never inherits the first one's
+     confirmation. Wiring is not enabling: the kill switch is b337's and is
+     still OFF. */
+  try {
+    if (window.HearthriseCharacter) {
+      window.HearthriseCharacter.configureCharacter({
+        url: authConfig.url,
+        apiKey: authConfig.anonKey,
+        authToken: () => session?.access_token,
+        slot: 0,
+      });
+    }
+  } catch (e) { console.warn('[auth] character wiring skipped:', e.message); }
   // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
   // (autoRefreshToken:true), and in the incident it demonstrably stopped without
   // saying so. A token five minutes from death is refreshed here, so the whole

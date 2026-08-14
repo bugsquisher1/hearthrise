@@ -42,6 +42,10 @@ const { SKILLS_DEF } = await imp('src/data/skills.js');
 const { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } = await imp('src/data/gathering.js');
 const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
+// b338 — what a brand new character owns. See src/data/start-kit.js for why
+// this is data rather than a literal inside hr_create_character().
+const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
+  = await imp('src/data/start-kit.js');
 
 // ── 2. Derive the rows ───────────────────────────────────────────────────
 // The `slot` an item authors ('ring') is not always an equip slot the player
@@ -109,11 +113,87 @@ for (const id of Object.keys(MONSTERS).sort()) activities.push({
 });
 activities.sort((a, b) => (a.kind + a.activity_id).localeCompare(b.kind + b.activity_id));
 
+// ── 2b. THE STARTING KIT (b338) ──────────────────────────────────────────
+// hr_create_character() used to carry the starting state as literals in
+// PL/pgSQL, and it had DRIFTED: 0 gold and an empty bag against a client that
+// starts with 500 gold, a Bronze Sword and eleven items. A server that mints a
+// character its own rules would never produce is a content bug with no
+// client-side symptom. So the kit becomes catalogue rows like everything else,
+// and the checks below are the reason this is worth doing rather than a
+// second literal in a second language: a typo'd item id, an illegal equip
+// slot, or an hp that disagrees with the hitpoints level FAILS GENERATION.
+const { levelFromXp } = await imp('src/core/xp.js');
+
+const die = (msg) => { console.error(`start-kit: ${msg}`); process.exit(1); };
+
+const startInventory = Object.keys(START_INVENTORY).sort().map((id) => {
+  if (!ITEMS[id]) die(`START_INVENTORY names "${id}", which is not in src/data/items.js`);
+  const qty = START_INVENTORY[id];
+  if (!Number.isInteger(qty) || qty <= 0) die(`START_INVENTORY.${id} must be a positive integer`);
+  return { item_id: id, qty };
+});
+
+const legalSlots = new Map();
+for (const p of itemSlots) {
+  if (!legalSlots.has(p.item_id)) legalSlots.set(p.item_id, new Set());
+  legalSlots.get(p.item_id).add(p.equip_slot);
+}
+const startEquipment = Object.keys(START_EQUIPMENT).sort().map((slot) => {
+  const id = START_EQUIPMENT[slot];
+  if (!equipSlots.some((e) => e.equip_slot === slot)) die(`START_EQUIPMENT names slot "${slot}", which is not in EQUIP_SLOTS`);
+  if (!ITEMS[id]) die(`START_EQUIPMENT.${slot} names "${id}", which is not in src/data/items.js`);
+  // The pair, not just the two halves. Equipping a shield into `weapon` is the
+  // failure this catches, and hr_apply's own slot check would never see it
+  // because the row was written by the bootstrap, not proposed as a delta.
+  if (!(legalSlots.get(id) || new Set()).has(slot)) {
+    die(`START_EQUIPMENT puts "${id}" in "${slot}", but items.js does not allow that slot for it`);
+  }
+  return { equip_slot: slot, item_id: id };
+});
+
+const startSkillXp = Object.keys(START_SKILL_XP).sort().map((id) => {
+  if (!SKILLS_DEF[id]) die(`START_SKILL_XP names "${id}", which is not in src/data/skills.js`);
+  const xp = START_SKILL_XP[id];
+  if (!Number.isInteger(xp) || xp < 0) die(`START_SKILL_XP.${id} must be a non-negative integer`);
+  return { skill_id: id, xp };
+});
+
+// THE IDENTITY THAT MATTERS MOST, asserted rather than commented: the client
+// derives playerMaxHp from the hitpoints LEVEL (legacy.js :898). If maxHp and
+// levelFromXp(START_SKILL_XP.hitpoints) ever disagree, the very first client
+// refresh silently rewrites the server's max_hp — the client re-authoring a
+// server value, which is the one thing this whole program exists to stop.
+{
+  const hpLevel = levelFromXp(START_SKILL_XP.hitpoints || 0);
+  if (hpLevel !== START_CURRENCY.maxHp) {
+    die(`START_CURRENCY.maxHp is ${START_CURRENCY.maxHp} but hitpoints XP `
+      + `${START_SKILL_XP.hitpoints || 0} is level ${hpLevel} — the client derives `
+      + 'maxHp from the hitpoints level, so these must agree');
+  }
+  if (START_CURRENCY.hp > START_CURRENCY.maxHp) die('START_CURRENCY.hp exceeds maxHp');
+  for (const k of ['gold', 'gems', 'hearthTokens', 'hp', 'maxHp', 'bankCap', 'farmPlots']) {
+    if (!Number.isInteger(START_CURRENCY[k]) || START_CURRENCY[k] < 0) {
+      die(`START_CURRENCY.${k} must be a non-negative integer`);
+    }
+  }
+  // No PvE path may mint the bond (the Final Directive). A non-zero starting
+  // grant is exactly such a path, and it would be free and repeatable per slot.
+  if (START_CURRENCY.hearthTokens !== 0) die('START_CURRENCY.hearthTokens must be 0 — the Hearth Token is IAP-only');
+}
+
+const startKit = {
+  gold: START_CURRENCY.gold, gems: START_CURRENCY.gems,
+  hearth_tokens: START_CURRENCY.hearthTokens,
+  hp: START_CURRENCY.hp, max_hp: START_CURRENCY.maxHp,
+  bank_cap: START_CURRENCY.bankCap, farm_plots: START_CURRENCY.farmPlots,
+};
+
 // ── 3. Hash — the DB-side half of the drift guard ────────────────────────
 // The same digest is asserted by tests/sql/server-authority.test.sql against
 // hr_catalogue_meta, so a database that was loaded from an older generation is
 // detectable without diffing 400 rows by hand.
-const canonical = JSON.stringify({ items, itemSlots, equipSlots, skills, crops, activities });
+const canonical = JSON.stringify({ items, itemSlots, equipSlots, skills, crops, activities,
+  startKit, startSkillXp, startInventory, startEquipment });
 const DIGEST = createHash('sha256').update(canonical).digest('hex');
 
 // ── 4. Emit ──────────────────────────────────────────────────────────────
@@ -197,6 +277,36 @@ create table if not exists public.hr_activities (
   primary key (kind, activity_id)
 );
 
+-- ── THE STARTING KIT (b338) ──────────────────────────────────────────────
+-- What hr_create_character() gives a brand new character. Catalogue rows, not
+-- literals in PL/pgSQL, so the starting kit is a data edit plus a regenerate
+-- and the client's own fresh-character values are the single source.
+create table if not exists public.hr_start_kit (
+  only_row      boolean primary key default true check (only_row),
+  gold          bigint not null check (gold >= 0),
+  gems          bigint not null check (gems >= 0),
+  hearth_tokens bigint not null check (hearth_tokens = 0),  -- IAP-only, never minted
+  hp            int    not null check (hp >= 0),
+  max_hp        int    not null check (max_hp > 0),
+  bank_cap      int    not null check (bank_cap between 1 and 100000),
+  farm_plots    int    not null check (farm_plots between 0 and 64)
+);
+
+create table if not exists public.hr_start_skill_xp (
+  skill_id text primary key,
+  xp       bigint not null check (xp >= 0)
+);
+
+create table if not exists public.hr_start_inventory (
+  item_id text primary key,
+  qty     bigint not null check (qty > 0)
+);
+
+create table if not exists public.hr_start_equipment (
+  equip_slot text primary key,
+  item_id    text not null
+);
+
 create table if not exists public.hr_catalogue_meta (
   only_row     boolean primary key default true check (only_row),
   digest       text not null,
@@ -212,6 +322,9 @@ delete from public.hr_equip_slots;
 delete from public.hr_skills;
 delete from public.hr_crops;
 delete from public.hr_activities;
+delete from public.hr_start_skill_xp;
+delete from public.hr_start_inventory;
+delete from public.hr_start_equipment;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals) values
 ${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)})`)};
@@ -231,6 +344,27 @@ ${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_ite
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
 ${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)})`)};
 
+-- The starting kit. hr_start_kit is a ONE-ROW table (only_row), so it is an
+-- upsert rather than a delete+insert: hr_create_character() reads it, and a
+-- momentary gap where the row does not exist would be a window in which a new
+-- character could be created with no kit at all.
+insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, max_hp, bank_cap, farm_plots)
+  values (true, ${n(startKit.gold)}, ${n(startKit.gems)}, ${n(startKit.hearth_tokens)},
+          ${n(startKit.hp)}, ${n(startKit.max_hp)}, ${n(startKit.bank_cap)}, ${n(startKit.farm_plots)})
+  on conflict (only_row) do update set
+    gold = excluded.gold, gems = excluded.gems, hearth_tokens = excluded.hearth_tokens,
+    hp = excluded.hp, max_hp = excluded.max_hp, bank_cap = excluded.bank_cap,
+    farm_plots = excluded.farm_plots;
+
+insert into public.hr_start_skill_xp (skill_id, xp) values
+${valuesBlock(startSkillXp, (r) => `  (${q(r.skill_id)},${n(r.xp)})`)};
+
+insert into public.hr_start_inventory (item_id, qty) values
+${valuesBlock(startInventory, (r) => `  (${q(r.item_id)},${n(r.qty)})`)};
+
+insert into public.hr_start_equipment (equip_slot, item_id) values
+${valuesBlock(startEquipment, (r) => `  (${q(r.equip_slot)},${q(r.item_id)})`)};
+
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, ${q(DIGEST)}, now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
@@ -244,7 +378,9 @@ do $$
 declare t text;
 begin
   foreach t in array array['hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                           'hr_crops','hr_activities','hr_catalogue_meta'] loop
+                           'hr_crops','hr_activities','hr_catalogue_meta',
+                           'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                           'hr_start_equipment'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on public.%I to anon, authenticated, service_role', t);
@@ -282,7 +418,9 @@ begin
   select count(*) into v_bad from pg_policies
    where schemaname = 'public'
      and tablename in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                       'hr_crops','hr_activities','hr_catalogue_meta')
+                       'hr_crops','hr_activities','hr_catalogue_meta',
+                       'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                       'hr_start_equipment')
      and cmd in ('INSERT','UPDATE','DELETE','ALL');
   if v_bad > 0 then raise exception '% write policies on catalogue tables', v_bad; end if;
 
@@ -290,10 +428,56 @@ begin
   select count(*) into v_bad from information_schema.role_table_grants
    where table_schema = 'public'
      and table_name in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
-                        'hr_crops','hr_activities','hr_catalogue_meta')
+                        'hr_crops','hr_activities','hr_catalogue_meta',
+                        'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
+                        'hr_start_equipment')
      and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on catalogue tables', v_bad; end if;
+
+  -- ── THE STARTING KIT (b338) ────────────────────────────────────────────
+  -- The generator already validated all of this in JS. It is re-asserted here
+  -- against the DATABASE because the two checks do not share an input: the JS
+  -- check reads src/data, this one reads the rows that actually landed, and a
+  -- kit that validated at generation time but did not INSERT is exactly the
+  -- always-null-probe failure this repo has been bitten by nine times.
+  if (select count(*) from public.hr_start_kit) <> 1 then
+    raise exception 'hr_start_kit must hold exactly one row, has %',
+      (select count(*) from public.hr_start_kit);
+  end if;
+
+  select count(*) into v_bad from public.hr_start_inventory s
+   where not exists (select 1 from public.hr_items i where i.item_id = s.item_id);
+  if v_bad > 0 then raise exception '% starting inventory items are not in hr_items', v_bad; end if;
+
+  select count(*) into v_bad from public.hr_start_equipment e
+   where not exists (select 1 from public.hr_equip_slots q where q.equip_slot = e.equip_slot)
+      or not exists (select 1 from public.hr_item_slots p
+                      where p.item_id = e.item_id and p.equip_slot = e.equip_slot);
+  if v_bad > 0 then raise exception '% starting equipment rows name an illegal item/slot pair', v_bad; end if;
+
+  select count(*) into v_bad from public.hr_start_skill_xp s
+   where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id);
+  if v_bad > 0 then raise exception '% starting skill grants name an unknown skill', v_bad; end if;
+
+  -- max_hp must equal the level the starting hitpoints XP buys, evaluated by
+  -- the SERVER's own curve (hr_xp_table, materialised by player-state.sql).
+  -- The generator asserts the same identity using src/core/xp.js, so this line
+  -- additionally proves the two curves agree — which is the property that lets
+  -- the client keep deriving playerMaxHp for RENDERING without re-authoring it.
+  select public.hr_level_from_xp(coalesce(
+           (select xp from public.hr_start_skill_xp where skill_id = 'hitpoints'), 0))
+    into v_n;
+  if v_n <> (select max_hp from public.hr_start_kit) then
+    raise exception 'hr_start_kit.max_hp is % but the starting hitpoints XP is level % on hr_xp_table',
+      (select max_hp from public.hr_start_kit), v_n;
+  end if;
+
+  -- The Hearth Token bond is IAP-only (the Final Directive). A CHECK already
+  -- pins it; this asserts the CHECK is the one that shipped.
+  if (select hearth_tokens from public.hr_start_kit) <> 0 then
+    raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
+  end if;
 
   raise notice 'CATALOGUES OK — % items, % activities, digest ${DIGEST}',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);

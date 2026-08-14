@@ -19769,7 +19769,16 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b337: with the switch ON, processOffline puts the CONTRACT request on the wire — POST {"slot":0} + bearer', () => {
+  /* b338 made this async. NOTHING WAS WEAKENED — every assertion below is
+     unchanged, including `seen.length === 1`. What changed is the timing: the
+     b337 gate now runs `ensureThenAccrue()`, so the accrual request is issued
+     from a `.then()` rather than synchronously inside processOffline(). One
+     microtask later is not a behaviour anybody can observe (accrue.js has
+     always documented that its promise is deliberately not awaited, because the
+     game must not block a frame on a round trip) — but a synchronous assertion
+     would read it as "no request was sent", which is a false red. The drain
+     below is the fix; converting the assertion would have been the weakening. */
+  () => tryRunAsync('b337: with the switch ON, processOffline puts the CONTRACT request on the wire — POST {"slot":0} + bearer', async () => {
     const A = window.HearthriseAccrual;
     const G = window.G;
     const save = { skills: G.skills, activeSkill: G.activeSkill, skillTargetId: G.skillTargetId,
@@ -19792,6 +19801,11 @@ const TESTS = [
       G.lastSeen = Date.now() - 3600000;
       G.offlineBudget = { at: Date.now() - 3600000 };
       window.processOffline();
+      /* Drain the microtasks the ensure→accrue chain queued. See the note above
+         the test name: this is the only thing b338 changed here. */
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 20; i++) await Promise.resolve();
 
       assert(seen.length === 1, 'processOffline sent ' + seen.length + ' accrual requests — expected exactly 1');
       const r = seen[0];
@@ -20104,6 +20118,350 @@ const TESTS = [
     }
     const noAuth = A.buildAccrueRequest({ url: 'https://x.supabase.co', slot: 0 });
     assert(!('Authorization' in noAuth.init.headers), 'a bearer header was invented with no token to put in it');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b338 — THE CHARACTER-CREATION INTENT.
+
+     `player_state` held ZERO ROWS, so hr-accrue answered `no_character` for
+     everybody and the b337 switch could not be turned on for anyone. The RPC
+     that fixes it has been live since the foundation landed; NOTHING CALLED IT.
+     These tests cover the call, and the one thing the SQL cannot check for
+     itself: that the server's starting kit still equals the client's.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B338-1: the SERVER\'s starting kit still equals the CLIENT\'s fresh character', async () => {
+    /* THE DRIFT GUARD. src/data/start-kit.js is the single source; the server
+       gets it as generated catalogue rows and legacy.js's fresh-G literal is
+       the client's copy, which CANNOT import it (classic script, parse-time
+       literal — the b222 trap). Two copies with a guard, chosen knowingly.
+       This is the guard, and without it the divergence is invisible: production
+       granted 0 gold and no weapon against a client that starts with 500 and a
+       Bronze Sword, and nothing in the repo could see it. */
+    const KIT = await import('../data/start-kit.js?v=337');
+    const F = window.__FRESH_START;
+    assert(F && typeof F === 'object',
+      'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
+      + 'so nothing compares the client\'s starting kit to the server\'s');
+
+    assert(F.gold === KIT.START_CURRENCY.gold,
+      'fresh gold is ' + F.gold + ' but START_CURRENCY.gold is ' + KIT.START_CURRENCY.gold
+      + ' — the server would create a character with different money than the client does');
+    assert(F.gems === KIT.START_CURRENCY.gems, 'fresh gems disagree with START_CURRENCY');
+    assert(F.maxHp === KIT.START_CURRENCY.maxHp && F.hp === KIT.START_CURRENCY.hp,
+      'fresh HP ' + F.hp + '/' + F.maxHp + ' disagrees with START_CURRENCY');
+
+    /* maxHp is DERIVED from the hitpoints level everywhere in this client
+       (legacy.js :898). If the kit's hitpoints XP does not buy exactly maxHp,
+       the first refresh after a server-created character silently rewrites a
+       server value — the client re-authoring authority, which is the one thing
+       the whole program exists to stop. */
+    assert(window.levelFromXp(KIT.START_SKILL_XP.hitpoints || 0) === KIT.START_CURRENCY.maxHp,
+      'START_SKILL_XP.hitpoints is level ' + window.levelFromXp(KIT.START_SKILL_XP.hitpoints || 0)
+      + ' but START_CURRENCY.maxHp is ' + KIT.START_CURRENCY.maxHp
+      + ' — the client derives maxHp from the hitpoints level, so these must agree');
+
+    /* Skills: absent means 0, so compare on VALUE rather than on key presence —
+       the client omits `ranged`/`bountyHunter` and the server writes them as 0,
+       and levelFromXp(0) is level 1 either way. */
+    const every = new Set([...Object.keys(F.skills), ...Object.keys(KIT.START_SKILL_XP)]);
+    for (const k of every) {
+      assert((F.skills[k] || 0) === (KIT.START_SKILL_XP[k] || 0),
+        'fresh skill ' + k + ' is ' + (F.skills[k] || 0) + ' but START_SKILL_XP says '
+        + (KIT.START_SKILL_XP[k] || 0));
+    }
+
+    const invKeys = Object.keys(F.inventory).filter((k) => F.inventory[k] > 0).sort();
+    assert(JSON.stringify(invKeys) === JSON.stringify(Object.keys(KIT.START_INVENTORY).sort()),
+      'fresh inventory is ' + JSON.stringify(invKeys) + ' but START_INVENTORY is '
+      + JSON.stringify(Object.keys(KIT.START_INVENTORY).sort()));
+    for (const k of invKeys) {
+      assert(F.inventory[k] === KIT.START_INVENTORY[k],
+        'fresh ' + k + ' ×' + F.inventory[k] + ' but START_INVENTORY says ×' + KIT.START_INVENTORY[k]);
+    }
+
+    /* Equipment: the client fills every slot with null, so only the occupied
+       ones are the kit. An extra occupied slot on either side is drift. */
+    const worn = Object.keys(F.equipment).filter((k) => F.equipment[k]).sort();
+    assert(JSON.stringify(worn) === JSON.stringify(Object.keys(KIT.START_EQUIPMENT).sort()),
+      'fresh equipment occupies ' + JSON.stringify(worn) + ' but START_EQUIPMENT is '
+      + JSON.stringify(Object.keys(KIT.START_EQUIPMENT).sort()));
+    for (const k of worn) {
+      assert(F.equipment[k] === KIT.START_EQUIPMENT[k],
+        'fresh ' + k + ' is ' + F.equipment[k] + ' but START_EQUIPMENT says ' + KIT.START_EQUIPMENT[k]);
+    }
+
+    /* CONSERVATION. hr_apply conserves an item's total across the equip/unequip
+       pair, so a starting item that is BOTH worn and in the bag becomes two the
+       moment it is taken off. The server's bootstrap grants each exactly once;
+       the client must not disagree about which. */
+    for (const id of Object.values(KIT.START_EQUIPMENT)) {
+      assert(KIT.START_INVENTORY[id] === undefined,
+        'START_EQUIPMENT wears "' + id + '" and START_INVENTORY also grants it — '
+        + 'unequipping it would yield two, because hr_apply conserves the pair');
+    }
+  }),
+
+  () => tryRun('B338-2: the intent carries ONE integer to hr_create_character, and no way to name another player', () => {
+    const C = window.HearthriseCharacter;
+    assert(C, 'src/net/character.js did not publish — the b337 switch can never credit anybody');
+    assert(C.characterEndpoint('https://x.supabase.co') === 'https://x.supabase.co/rest/v1/rpc/hr_create_character',
+      'bad endpoint derivation');
+    assert(C.characterEndpoint('https://x.supabase.co///') === 'https://x.supabase.co/rest/v1/rpc/hr_create_character',
+      'trailing slashes not normalised');
+
+    const r = C.buildCreateCharacterRequest({ url: 'https://x.supabase.co', apiKey: 'anon-key', token: 'jwt', slot: 3 });
+    assert(r.init.method === 'POST', 'not a POST');
+    assert(r.init.headers.Authorization === 'Bearer jwt', 'no bearer token — auth.uid() would be null and the RPC would refuse');
+    assert(r.init.headers.apikey === 'anon-key', 'no apikey header — the gateway requires one');
+    const body = JSON.parse(r.init.body);
+    assert(Object.keys(body).length === 1 && body.p_slot === 3,
+      'the body carries something other than {p_slot}: ' + r.init.body);
+    /* The identity is the JWT, never a payload field. If a user id could ride in
+       the body, one player could bootstrap a character onto another's account. */
+    assert(!/user|uid|gold|kit|item|skill/i.test(r.init.body),
+      'the request body names a value that is not a slot: ' + r.init.body);
+
+    for (const [ask, want] of [[0, 0], [5, 5], [6, 0], [-1, 0], [1.5, 0], ['3', 0], [null, 0], [undefined, 0]]) {
+      const b = JSON.parse(C.buildCreateCharacterRequest({ url: 'https://x.supabase.co', slot: ask }).init.body);
+      assert(b.p_slot === want, 'slot ' + JSON.stringify(ask) + ' was sent as ' + b.p_slot);
+    }
+    const noAuth = C.buildCreateCharacterRequest({ url: 'https://x.supabase.co', slot: 0 });
+    assert(!('Authorization' in noAuth.init.headers), 'a bearer header was invented with no token to put in it');
+  }),
+
+  () => tryRun('B338-3: every answer is a NAMED verdict, and only two of them mean a character exists', () => {
+    const C = window.HearthriseCharacter;
+    const cases = [
+      [200, { ok: true, slot: 0, created: true }, 'created', true],
+      [200, { ok: true, slot: 0, created: false }, 'existed', true],
+      [200, { ok: true, slot: 2, created: false, raced: true }, 'existed', true],
+      [200, { ok: false, error: 'not_signed_in' }, 'not-signed-in', false],
+      [200, { ok: false, error: 'bad_slot' }, 'bad-slot', false],
+      [200, { ok: false, error: 'rate_limited' }, 'rate-limited', false],
+      [200, { ok: false, error: 'no_start_kit' }, 'unavailable', false],
+      [200, { ok: false, error: 'something_new' }, 'refused', false],
+      /* A 200 that says ok but omits `created`. "The server answered" is not the
+         same as "the server said a character exists" — and reading the missing
+         field as falsy would latch a character nobody has. */
+      [200, { ok: true, slot: 0 }, 'malformed', false],
+      [200, null, 'malformed', false],
+      [401, null, 'not-signed-in', false],
+      [403, null, 'not-signed-in', false],
+      [404, null, 'not-deployed', false],
+      [500, null, 'unavailable', false],
+      [503, null, 'unavailable', false],
+    ];
+    for (const [status, body, want, present] of cases) {
+      const v = C.classifyCreateResponse(status, body);
+      assert(v.outcome === want,
+        status + ' ' + JSON.stringify(body) + ' classified as ' + v.outcome + ', expected ' + want);
+      assert(C.CHARACTER_OUTCOMES.includes(v.outcome), 'unnamed outcome ' + v.outcome);
+      assert(C.isCharacterPresent(v.outcome) === present,
+        v.outcome + ' reports presence ' + C.isCharacterPresent(v.outcome) + ', expected ' + present);
+    }
+  }),
+
+  () => tryRunAsync('B338-4: NO failure creates a character locally — not one gold, not one item, ever', async () => {
+    /* The mirror of b337's no-fallback test, for the other half of the slice. A
+       "helpful" local seed would hand the client back authorship of the starting
+       state — 500 gold and a sword per device, unverifiable — which is the exact
+       failure server authority exists to close. */
+    const C = window.HearthriseCharacter;
+    const G = window.G;
+    const save = { gold: G.gold, gems: G.gems, skills: G.skills, inventory: G.inventory,
+      equipment: G.equipment, playerHp: G.playerHp, playerMaxHp: G.playerMaxHp,
+      los: G.lastOfflineSummary };
+    const realFetch = window.fetch;
+    const failures = [
+      { label: 'network/CORS', throws: true },
+      { label: '401', status: 401, body: '{}' },
+      { label: '404 not deployed', status: 404, body: '{}' },
+      { label: '500', status: 500, body: '{}' },
+      { label: 'rate_limited', status: 200, body: '{"ok":false,"error":"rate_limited"}' },
+      { label: 'bad_slot', status: 200, body: '{"ok":false,"error":"bad_slot"}' },
+      { label: 'no_start_kit', status: 200, body: '{"ok":false,"error":"no_start_kit"}' },
+      { label: '200 with no created flag', status: 200, body: '{"ok":true,"slot":0}' },
+      { label: '200 that is not JSON', status: 200, body: '<html>gateway</html>' },
+    ];
+    try {
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      for (const f of failures) {
+        C.resetCharacterIntent();
+        window.fetch = async () => {
+          if (f.throws) throw new TypeError('Failed to fetch');
+          return { status: f.status, ok: f.status < 400, json: async () => JSON.parse(f.body) };
+        };
+        const v = await C.ensureCharacter({ slot: 0 });
+        assert(v.present === false, f.label + ': reported a character as present — ' + JSON.stringify(v));
+        assert(C.isCharacterConfirmed(0) === false, f.label + ': latched a character the server never confirmed');
+        assert(G.gold === save.gold, f.label + ': gold changed to ' + G.gold);
+        assert(G.gems === save.gems, f.label + ': gems changed');
+        assert(G.skills === save.skills, f.label + ': skills were replaced');
+        assert(G.inventory === save.inventory, f.label + ': inventory was replaced');
+        assert(G.equipment === save.equipment, f.label + ': equipment was replaced');
+        assert(G.lastOfflineSummary === save.los, f.label + ': a receipt was written for a character nobody made');
+      }
+
+      /* THE CONTROL. Every assertion above is a refusal, so without this the
+         whole test would pass against a module that does nothing at all. */
+      C.resetCharacterIntent();
+      let sent = null;
+      window.fetch = async (u, init) => {
+        sent = { u, init };
+        return { status: 200, ok: true, json: async () => ({ ok: true, slot: 0, created: true }) };
+      };
+      const good = await C.ensureCharacter({ slot: 0 });
+      assert(good.outcome === 'created' && good.present === true,
+        'CONTROL: a successful create was not recognised — ' + JSON.stringify(good));
+      assert(sent && /\/rest\/v1\/rpc\/hr_create_character$/.test(sent.u),
+        'CONTROL: nothing was actually put on the wire');
+      /* ...and even SUCCESS writes no game value. The server states the kit; the
+         client learns it from hr-accrue's envelope, not from this call. */
+      assert(G.gold === save.gold && G.inventory === save.inventory && G.equipment === save.equipment,
+        'a SUCCESSFUL create wrote game state locally — the starting kit is the server\'s to state');
+    } finally {
+      window.fetch = realFetch;
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+      Object.assign(G, save);
+      G.lastOfflineSummary = save.los;
+    }
+  }),
+
+  () => tryRunAsync('B338-5: the ensure is LATCHED — one round trip per session, and re-wiring clears it', async () => {
+    const C = window.HearthriseCharacter;
+    const realFetch = window.fetch;
+    try {
+      let calls = 0;
+      window.fetch = async () => {
+        calls++;
+        return { status: 200, ok: true, json: async () => ({ ok: true, slot: 0, created: false }) };
+      };
+      C.resetCharacterIntent();
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+
+      await C.ensureCharacter({ slot: 0 });
+      assert(calls === 1, 'the first ensure did not reach the network');
+      assert(C.isCharacterConfirmed(0) === true, 'a confirmed character was not latched');
+      await C.ensureCharacter({ slot: 0 });
+      await C.ensureCharacter({ slot: 0 });
+      assert(calls === 1, 'the latch leaked — ' + calls + ' round trips for one confirmed character; '
+        + 'processOffline can fire on every return from hidden and would burn the 60/min ensure budget');
+
+      /* `force` must still work — it is what a retry needs. */
+      await C.ensureCharacter({ slot: 0, force: true });
+      assert(calls === 2, 'force did not bypass the latch');
+
+      /* A DIFFERENT SLOT is a different character and must not inherit it. */
+      await C.ensureCharacter({ slot: 1 });
+      assert(calls === 3, 'the latch for slot 0 also silenced slot 1');
+
+      /* RE-WIRING = possibly a different account. Keeping the latch across a
+         sign-out would tell the next player their character exists. */
+      C.configureCharacter({ url: 'https://other.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      assert(C.isCharacterConfirmed(0) === false, 'the latch survived a re-wire to a different project');
+      await C.ensureCharacter({ slot: 0 });
+      assert(calls === 4, 're-wiring did not re-arm the ensure');
+    } finally {
+      window.fetch = realFetch;
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+    }
+  }),
+
+  () => tryRunAsync('B338-6: with the switch ON, processOffline ENSURES then ACCRUES — and still credits nothing itself', async () => {
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
+    const G = window.G;
+    const save = { gold: G.gold, skills: G.skills, inventory: G.inventory, activeSkill: G.activeSkill,
+      skillTargetId: G.skillTargetId, activeMonster: G.activeMonster,
+      activeArtisanRecipe: G.activeArtisanRecipe, offlineBudget: G.offlineBudget,
+      lastSeen: G.lastSeen, los: G.lastOfflineSummary, restedAt: G.restedAt };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const realFetch = window.fetch;
+    const wasParked = window.__saveParked;
+    try {
+      window.__saveParked = true;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      /* A real absence: an activity running, and lastSeen four hours ago. With
+         the switch OFF this is a paying absence (b337 asserts that separately). */
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.lastSeen = Date.now() - 4 * 3600 * 1000;
+      G.offlineBudget = { at: Date.now() - 4 * 3600 * 1000, usedMs: 0, day: null };
+      G.lastOfflineSummary = null;
+      const goldBefore = G.gold;
+      const watermark = G.offlineBudget.at;
+
+      const seen = [];
+      window.fetch = async (u) => {
+        seen.push(String(u));
+        if (/hr_create_character/.test(String(u))) {
+          return { status: 200, ok: true, json: async () => ({ ok: true, slot: 0, created: true }) };
+        }
+        /* The accrual answers "nothing to pay" — the point of this test is the
+           ORDER and the fact that the local path never ran, not the payout. */
+        return { status: 200, ok: true, json: async () => ({ ok: true, accrued: false, reason: 'none' }) };
+      };
+
+      A.setServerAccrualEnabled(true);
+      A.resetAccrualGate();
+      C.resetCharacterIntent();
+      A.configureAccrual({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+
+      window.processOffline();
+      /* processOffline deliberately does not await — it must not block a frame
+         on a network round trip. Drain the microtasks it queued. */
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+
+      assert(seen.some((u) => /hr_create_character/.test(u)),
+        'processOffline never asked the server to create a character — with player_state empty, '
+        + 'every accrual answers no_character and the b337 switch can credit nobody. Saw: ' + JSON.stringify(seen));
+      assert(seen.some((u) => /hr-accrue/.test(u)),
+        'processOffline never asked for accrual. Saw: ' + JSON.stringify(seen));
+      assert(seen.findIndex((u) => /hr_create_character/.test(u)) < seen.findIndex((u) => /hr-accrue/.test(u)),
+        'accrual was requested BEFORE the character was ensured — the first call of a new '
+        + 'player\'s session would always be answered no_character. Order: ' + JSON.stringify(seen));
+
+      /* ...and the authority gate still holds: nothing local ran. */
+      assert(G.gold === goldBefore, 'processOffline credited gold locally with the switch ON');
+      assert(G.lastOfflineSummary === null, 'a local welcome-back receipt was written');
+      assert(G.offlineBudget.at === watermark,
+        'the local watermark advanced — the b337 gate is no longer the FIRST statement of processOffline');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      A.resetAccrualGate();
+      A.hideAccrualHaltedSheet();
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory,
+        activeSkill: save.activeSkill, skillTargetId: save.skillTargetId, activeMonster: save.activeMonster,
+        activeArtisanRecipe: save.activeArtisanRecipe, offlineBudget: save.offlineBudget,
+        lastSeen: save.lastSeen, lastOfflineSummary: save.los, restedAt: save.restedAt });
+      window.__saveParked = wasParked;
+    }
+  }),
+
+  () => tryRun('B338-7: the character intent is behind the SAME kill switch as b337, and it defaults OFF', () => {
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
+    assert(C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY,
+      'two different kill switches — a state exists where the client creates characters it will never '
+      + 'accrue against, or accrues against one it never created');
+    A.setServerAccrualEnabled(false);
+    A.__clearAccrualOverride();
+    try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+    assert(C.isCharacterIntentEnabled() === false, 'the character intent is ON by default');
+    A.setServerAccrualEnabled(true);
+    assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not arm the character intent');
+    A.setServerAccrualEnabled(false);
+    assert(C.isCharacterIntentEnabled() === false, 'the switch does not disarm the character intent');
   }),
 
 ];

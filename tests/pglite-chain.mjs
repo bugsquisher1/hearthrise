@@ -154,13 +154,20 @@ alter table public.bug_reports enable row level security;
  * Boot a database with the whole chain applied.
  *
  * @param {object}   opts
+ * @param {Array<[string,string]>} [opts.extra]  additional [name, absPath]
+ *        migrations appended AFTER the chain above. Additive on purpose: the
+ *        b338 character-bootstrap guard needs the catalogue, which the clan
+ *        chain does not, and silently growing the shared CHAIN would change
+ *        the environment every other guard runs in. Patches address these by
+ *        name exactly like chain entries.
  * @param {Map<string,string>} [opts.patches]  name -> [[find, replace], ...]
  *        applied to that migration's TEXT before it is executed. Every anchor
  *        must match EXACTLY ONCE and must change the text, or this throws —
  *        a planted bug that was never planted is decoration.
  * @returns {Promise<{db: any, applied: string[]}>}
  */
-export async function bootChain({ patches } = {}) {
+export async function bootChain({ patches, extra } = {}) {
+  const chain = [...CHAIN, ...(extra || [])];
   let PGlite;
   try { ({ PGlite } = await import('@electric-sql/pglite')); }
   catch {
@@ -173,7 +180,7 @@ export async function bootChain({ patches } = {}) {
   }
 
   const sources = new Map();
-  for (const [name, path] of CHAIN) {
+  for (const [name, path] of chain) {
     // LF in memory only. The migrations are checked in with CRLF on this box;
     // patch anchors are written with LF, and an anchor that silently fails to
     // match is the "planted bug that was never planted" failure.
@@ -214,7 +221,7 @@ export async function bootChain({ patches } = {}) {
   await db.exec(SCAFFOLD);
 
   const applied = [];
-  for (const [name] of CHAIN) {
+  for (const [name] of chain) {
     // Wrapped, because that is how apply_migration runs a file on this project:
     // atomically. A self-check `raise` must abort the whole file, not leave
     // half of it installed.

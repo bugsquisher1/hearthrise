@@ -101,6 +101,10 @@ import './net/sync.js?v=337';
 // drift. Ships DARK: the kill switch defaults OFF and processOffline() is
 // byte-for-byte b336 behaviour until it is turned on.
 import './net/accrue.js?v=337';
+// b338 — the character-creation intent. AFTER accrue.js (it imports the kill
+// switch from it) and BEFORE auth.js, which configures both with the same
+// credentials. Ships DARK behind the SAME switch as b337.
+import './net/character.js?v=337';
 import './net/auth.js?v=337';
 import './net/supabase-bootstrap.js?v=337';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

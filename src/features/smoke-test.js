@@ -141,12 +141,21 @@ const snapshotG = () => {
    simulates an absence — the watermark IS the clock, and a test that only
    moved lastSeen would be testing a field the engine no longer reads.
    Also refills the day's allowance, so a test never inherits another's spend. */
-const setAway = (hours) => {
+/* `nowMs` exists for tests that run the SAME absence twice and compare the two
+   piles. Without it each call re-reads Date.now(), so the two runs are anchored
+   milliseconds apart, and when that gap straddles a tick boundary the second
+   night gets one more tick than the first — b227's offline-parity test failed
+   about once in thirteen runs that way (11390 vs 11415 XP), which reads as a
+   real parity break rather than as the harness moving underneath it. Pass one
+   captured instant to both runs and the comparison is against a fixed clock.
+   Defaulted, so every existing caller is unchanged. */
+const setAway = (hours, nowMs) => {
   const G = window.G;
-  const at = Date.now() - hours * 3600000;
+  const now = (typeof nowMs === 'number' && isFinite(nowMs)) ? nowMs : Date.now();
+  const at = now - hours * 3600000;
   G.lastSeen = at;
   G.offlineBudget = {
-    dayKey: (typeof window.utcDayKey === 'function') ? window.utcDayKey(Date.now()) : 0,
+    dayKey: (typeof window.utcDayKey === 'function') ? window.utcDayKey(now) : 0,
     usedMs: 0,
     at,
   };
@@ -14749,6 +14758,11 @@ const TESTS = [
       smithSpeed: 0.50, craftSpeed: 0.50, prayerSpeed: 0.50,
       farmYield: 5, goldFind: 0.50, noBurn: 0.50 } };
     try {
+      /* ONE instant for BOTH nights. See setAway's header: re-reading the clock
+         per run is what let a tick boundary fall between them and produce a
+         false parity failure. The two nights must differ in exactly one thing —
+         the blessing — and the clock is not it. */
+      const anchor = Date.now();
       const runNight = () => {
         G.rooms = {}; G.plotBuildings = []; G.restedXp = 0; G.restedAt = Date.now();
         G.activeMonster = null; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
@@ -14756,7 +14770,7 @@ const TESTS = [
         G.skillMs = 4800;
         G.inventory = {}; G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
         G.stats = Object.assign({}, G.stats, { gathered: 0 });
-        setAway(3);                                // online by every other measure
+        setAway(3, anchor);                        // online by every other measure
         window.processOffline();
         return { xp: G.skills.woodcutting, items: G.stats.gathered, ms: G.skillMs };
       };

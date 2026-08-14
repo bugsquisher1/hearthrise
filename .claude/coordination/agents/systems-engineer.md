@@ -2,6 +2,51 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-14 · b339 — clearing Security's six conditions, and a guard that asserted nothing INSIDE the guard about guards
+
+Branch `worktree-agent-accebe93e640a7e76`. Suite **640/640**, 0 runtime errors (baseline 632; +8
+tests). `character-bootstrap-guard --selftest`: 18/18 mutations caught, 3 of them new. No version
+bump. **The migration was EDITED, NOT APPLIED.**
+
+**The finding worth keeping.** §5(K) of `2026-08-14-character-bootstrap.sql` counted callers of
+`hr_create_character` through `pg_depend`. **A PL/pgSQL body is an opaque string to the dependency
+tracker — a function->function call creates no edge.** Measured: `pg_depend` callers of `hr_rate_ok`
+= 0, text-scan callers = 6. So the assertion returned 0 on every database that will ever exist,
+including the day the non-VOLATILE caller it was written to catch arrives. That guard existed
+*because of* the A11 outage, which existed because a volatility claim was made about a call tree
+nobody had scanned. Instance #13.
+
+**What I did differently from "swap pg_depend for prosrc".** A prosrc scan is just as unfalsifiable
+if nothing proves it can see anything, so the replacement PLANTS a STABLE function that calls the
+target, requires the scan to find it by name, drops it, and only then believes the scan's zero. And
+the scan is ONE query text `execute`d twice — control and assertion — so blinding the assertion
+blinds its own proof. That is the b332 pack-edge lesson (a property defended by two call sites
+agreeing is defended by nobody) applied to an assertion instead of a build.
+
+**The mutation that SLIPPED, and why it is the most useful result of the session.** I wrote a test
+proving `accrue.js` resolves the active character slot, and separately took `slot: 0` out of
+`auth.js`. Then I ran the mutation — put `slot: 0` back in `auth.js` — and the suite stayed 639/639
+GREEN. The test configured the module itself, so it could never see the wiring. That is the "proof
+of the ADJACENT thing" family from b332, and I only found it because I mutation-tested a fix I was
+already confident in. The fix: `enableLiveSync`'s two inline object literals (unreachable without a
+live session) became `buildIntentWiring`/`wireServerIntents`, driven by the suite with spy modules.
+**Generalise: if a test does its own setup of the thing under test, it is testing the module, not
+the integration. Mutate the CALLER, not just the callee.**
+
+**A side effect I nearly shipped.** Stamping the away watermarks inside `setServerAccrualEnabled`
+(so flipping the switch back OFF cannot re-pay a span the server already paid) meant the SMOKE SUITE
+flips it four times against the live `G` — so a player running the suite in-game would lose their
+banked rested charges to a test. Fixed by save/restoring in the two switch-only tests and by only
+stamping on an actual CHANGE. Worth remembering: a function that becomes stateful is a function
+every existing caller now has a new relationship with, tests included.
+
+**Known-flaky, NOT mine:** `b227: OFFLINE output is byte-identical with and without an active
+blessing` failed once in ~13 runs (11390 vs 11415 XP) and passed every other time, including all
+nine mutation runs. It re-runs a 3h absence twice against the wall clock, so crossing a tick
+boundary between the two runs changes the pile. It runs long before anything b339 touches. Someone
+should pin its clock.
+
+
 ## 2026-08-12 · Making `hr-accrue` deployable — the `?v=` strip, and a five-build drift
 
 Branch `fix/edge-payload-strip-query`. 597/598 (the one red is the pre-existing, someone else's

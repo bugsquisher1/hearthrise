@@ -220,7 +220,7 @@ So the Edge Function decides *what should happen* (needs the data files); Postgr
 ```
 authenticator ──(SET ROLE from the JWT `role` claim)──▶ hr_engine
                                                           ├─ USAGE on schema public
-                                                          ├─ EXECUTE on exactly 7 functions (below)
+                                                          ├─ EXECUTE on the allowlist below, nothing else
                                                           └─ ZERO table privileges. Asserted.
 ```
 
@@ -242,11 +242,19 @@ wrong — the engine also needs to read state back and derive levels. Verified a
 | `hr_rate_gate` | spends the caller's own rate budget before an expensive read (arrives with `2026-08-11-accrue-gate.sql`) | writes one unlogged counter row for the user it was given, owns its own limits, fails closed on an unknown bucket. On the list because the alternative — granting `hr_rate_ok`, whose signature takes the limit as an argument — would let the engine choose its own rate limit |
 | `hr_offline_cap_ms` | the per-absence offline cap (arrives with Phase C, `2026-08-11-accrual.sql`) | read-only, one integer, bounded at 24h by its own ceiling. On the list because `capMs` multiplies a whole night's grant, so the accrual engine must not be its own authority for it |
 
-Six of the seven are on production today; `market_expire` lands with file 4. All of them are
-read-only or self-validating, and none of them accepts a target the caller has not already been
-authorised for — but "bounded and fine" is a conclusion that has to be re-derived every time the
-list changes, which is why the list is written down. `2026-08-11-market-v2.sql` §9(i) asserts this
-exact set, so adding an eighth entry fails a migration rather than passing a review.
+Everything above except `market_expire` is on production today (`market_expire` lands with file 4;
+production therefore holds **eight**, verified 2026-08-14). All of them are read-only or
+self-validating, and none of them accepts a target the caller has not already been authorised for —
+but "bounded and fine" is a conclusion that has to be re-derived every time the list changes, which
+is why the list is written down. The pin is `hr_assert_grant_hygiene()` check 7, which matches on
+`oid::regprocedure::text` against **the names above**, so adding an entry fails a migration rather
+than passing a review.
+
+> **b339 — DO NOT WRITE A COUNT HERE.** This paragraph said "seven"/"six of the seven" while the
+> table listed nine and production held eight; `2026-08-14-character-bootstrap.sql`'s header said
+> "exactly five". Every one of those numbers was wrong in a different direction, and none was ever
+> load-bearing — which is the danger: a future assertion written from a count in prose fails
+> spuriously and gets "fixed" by loosening it. The allowlist is the assertion. The count is not.
 
 The Edge Function **stops using the service role**. Supabase's default ACL grants `service_role`
 `arwdDxtm` on every table in `public` *and* it bypasses RLS — an Edge Function holding that key can

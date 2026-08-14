@@ -714,6 +714,13 @@ export function showAccrualHaltedSheet(outcome) {
    It states NUMBERS, not adjectives. "Your local progress will be replaced" is
    a sentence somebody clicks through; "1,240 gold, 3 skills and 27 items will
    be gone" is one they read. */
+/* 5000000 is a number a player skims; 5,000,000 is one they read. Grouped with
+   the page's locale, and never used for anything but display. */
+function num(v) {
+  const n = Math.round(Number(v) || 0);
+  try { return n.toLocaleString(); } catch (e) { return String(n); }
+}
+
 export function showReplacementSheet(loss, G, res) {
   if (typeof document === 'undefined' || !document.body) return null;
   if (document.getElementById('hr-evicted-gate')) return null;        // b302 wins
@@ -738,8 +745,8 @@ export function showReplacementSheet(loss, G, res) {
     + 'its own copy of your character. Applying it <strong>replaces what is saved on this device</strong> — '
     + 'the two are not merged.</p>'
     + '<p style="margin:0 0 8px">Compared with the server\'s character, this device is currently ahead by '
-    + '<strong>' + Math.round(l.gold) + ' gold</strong>, <strong>' + Math.round(l.skillXp)
-    + ' skill XP</strong> and <strong>' + Math.round(l.items) + ' item(s)</strong>. '
+    + '<strong>' + num(l.gold) + ' gold</strong>, <strong>' + num(l.skillXp)
+    + ' skill XP</strong> and <strong>' + num(l.items) + ' item(s)</strong>. '
     + 'That difference will be <strong>permanently gone</strong>.</p>'
     + '<p style="margin:0 0 12px;opacity:.75">If this is not what you expected, choose “Keep my local save”. '
     + 'Nothing is credited until you decide, and you can ask again at any time.</p>'

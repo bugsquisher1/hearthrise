@@ -4,6 +4,49 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-14 · Systems Engineer · P1 — `pg_depend` CANNOT SEE A PL/pgSQL CALLER. Every "nothing else calls this" assertion built on it reads 0 forever
+
+**Discovery:** a PL/pgSQL function body is stored as an opaque string (`pg_proc.prosrc`). Calling
+another function from it creates **no `pg_depend` edge**. Measured on production: `pg_depend`
+callers of `hr_rate_ok` = **0**; bodies whose text contains `public.hr_rate_ok(` = **6**.
+
+`2026-08-14-character-bootstrap.sql` §5(K) used `pg_depend` to assert "nothing else calls
+`hr_create_character`, so no future STABLE caller can reintroduce the A11 25006 outage". It returned
+0 on every database, including the day such a caller is added — the exact outage it was written for.
+Instance #13 of the assertion-that-asserts-nothing family, and it was inside the guard that exists
+*because of* instance #12.
+
+**AFFECTED SYSTEMS:** any migration self-check reasoning about callers. `prosrc ~ '\yname\y'` is
+the measurement that works (it is already the idiom in `authenticated-surface-lockdown` §A9 and
+`grant-hygiene`); `pg_depend` works for tables/types/views, not for call edges.
+
+**REQUIRED ACTION:** never assert a caller set through `pg_depend`. And a `prosrc` scan is only
+worth more than `pg_depend` if something proves it is SIGHTED: §5(K) now plants a known caller,
+requires the scan to find it by name, drops it, and only then believes the zero — with **one query
+text executed twice** so the control and the assertion cannot be blinded separately. Mutation-proven
+both ways (`nonvolatile_caller_planted`, `caller_scan_blinded`, `caller_scan_pattern_blinded` in
+`tests/character-bootstrap-guard.mjs`).
+
+---
+
+### 2026-08-14 · Systems Engineer · P1 — a test that does its own setup of the module under test cannot see the CALLER being wrong. Mutate the caller
+
+**Discovery:** b339's S6 fix made `src/net/accrue.js` resolve the active character slot instead of
+using a hard-coded 0, and removed `slot: 0` from `src/net/auth.js`. The new test configured
+`accrue.js` itself, so when the mutation put `slot: 0` back **in auth.js**, the suite stayed GREEN —
+the bug was fully restored and nothing noticed. Same family as b332's "a proof of the ADJACENT
+thing": both halves were real, and the join between them was untested.
+
+**AFFECTED SYSTEMS:** every module in `src/net/**` whose configuration is built inside
+`enableLiveSync()`, which no test can reach without a live session.
+
+**REQUIRED ACTION:** when a fix spans a module and its caller, run the mutation on **the caller**.
+If the caller is unreachable from a test, that is the bug — extract it. `auth.js` now exports
+`buildIntentWiring`/`wireServerIntents`, which the suite drives with spy modules and asserts the
+literal objects handed over (B339-3b).
+
+---
+
 ### 2026-08-12 · QA Engineer · P1 — HALF THE WEEKLY BLESSING POOL CAN NEVER BE DEALT. `hash()` in world-events.js is not FNV-1a: `h * 0x01000193` is a FLOAT multiply, and the product exceeds 2^53
 **Discovery:** `world-events.js` documents its picker as "FNV-1a — tiny, deterministic, good enough
 spread". It is not FNV-1a. FNV requires a 32-bit wrapping multiply; this line

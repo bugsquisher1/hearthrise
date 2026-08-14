@@ -339,6 +339,12 @@ self-check is still the commit gate: a raise aborts the transaction and nothing 
 | A11 §3b (`live_market_rls`, GUC set) | anon reading `beta_invites` → **42501** |
 | `2026-08-13-beta-invite-check-volatile.sql` | see the outage note below |
 | `2026-08-13-drop-dead-leaderboard-views.sql` (F5 partial) | 3 dead views gone, `leaderboard`/`clan_leaderboard`/`leaderboard_ranked` intact with rows |
+| `2026-08-12-market-offers-authority.sql` (F2, P0) | the `FOR ALL` policy is GONE — only SELECT/INSERT/DELETE remain; 3 triggers on `market_buy_offers` and 3 on `market_listings`; `authenticated` UPDATE **false**, INSERT/DELETE still true; `anon` INSERT false. Its behavioural §6 ran against a real profile: forged `buyer_name` overwritten, `buyer_user_id` pinned, backdated `posted_at` refused, `buyer_slot` clamped, client `escrowed` re-derived, post-hoc UPDATE refused (42501), unknown item and bind-on-pickup item both refused (22023), escrow overflow refused (22003), the 26th listing refused (54000) — and the fixture asserted both row counts returned to baseline |
+
+**ALL FOUR of Security's veto conditions (F1, F2, F3, F4) are now CLOSED.** The
+`BLOCKED` verdict in the 2026-08-13 audit is lifted on its own stated terms. What that
+does NOT mean: F1's crossover is only half-closed (see below), and Security's audit
+covered 26 of 47 client-callable bodies — the remaining coverage gap is unchanged.
 
 `tests/rpc-resolution.mjs` re-run after all of it: **41/41 identical to baseline.**
 

@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 339 — 2026-08-14 (Groundwork: safety work before the server takes over)
+
+- 🔒 **Still switched off; nothing changes about how you play.** A security review of the server-side groundwork raised six things to fix before any of it is switched on, and this is those six. Nothing found could affect another player's game.
+- 👤 **Signing out now properly forgets your character.** On a device where two accounts had been used, the game could have told the second account that the first one's character was already set up.
+- 🎭 **The right character.** The new server path was looking at your first character slot regardless of which one you actually had loaded.
+- ⚠️ **And if the server ever wanted to replace your local progress, it now asks first** — with the actual numbers, and a "Keep my local save" button — instead of doing it quietly.
+
 ## v0.9.2-beta build 338 — 2026-08-14 (Groundwork: characters the server knows about)
 
 - 🏗️ **Still switched off; nothing changes about how you play.** The server can now create and hold a character of its own — the record the server-side engine will eventually own. Until it is switched on for testing, your character continues to work exactly as it does today.

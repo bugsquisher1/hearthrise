@@ -392,6 +392,50 @@ const MUTATIONS = {
     ]]]],
   },
 
+  // ── b339 · §5(K), THE GUARD THAT ASSERTED NOTHING ──────────────────────
+  // The original (K) counted `pg_depend` edges. A PL/pgSQL body is opaque to
+  // the dependency tracker, so it read 0 on every database forever — including
+  // the day the non-VOLATILE caller it exists to catch is added. Measured on
+  // production: pg_depend callers of hr_rate_ok = 0, text-scan callers = 6.
+  // Both arms of the replacement are mutation-proven here:
+  //   · a planted non-VOLATILE caller must go RED (the bug it exists for);
+  //   · a deliberately-BLINDED scan must also go RED (the failure it replaced).
+  // Neither is catchable by any probe in this file — only the migration's own
+  // commit gate can see them, which is the strongest place for them to fail.
+  nonvolatile_caller_planted: {
+    what: 'a STABLE in-database caller of hr_create_character is planted — the exact A11 shape (a write beneath a non-volatile call tree, 25006 for every player). The pg_depend version of §5(K) counted this as ZERO.',
+    where: 'gate',
+    patches: [[F, [[
+      `-- ── 5. STRUCTURAL ASSERTIONS ─────────────────────────────────────────────`,
+      `-- MUTATED nonvolatile_caller_planted
+create function public.hr_b339_planted_caller() returns void
+language plpgsql stable as $planted$
+begin
+  perform public.hr_create_character(0);
+end $planted$;
+
+-- ── 5. STRUCTURAL ASSERTIONS ─────────────────────────────────────────────`,
+    ]]]],
+  },
+
+  caller_scan_blinded: {
+    what: 'the prosrc caller scan is blinded (its schema filter is narrowed to a namespace that does not exist) so it reports 0 for the same reason pg_depend did. The planted-probe control is the ONLY thing that can tell this from a clean pass.',
+    where: 'gate',
+    patches: [[F, [[
+      `    ' where n.nspname = ''public'' and p.oid <> $1'`,
+      `    ' where n.nspname = ''public_MUTATED'' and p.oid <> $1'   -- MUTATED caller_scan_blinded`,
+    ]]]],
+  },
+
+  caller_scan_pattern_blinded: {
+    what: 'the scan keeps its schema filter but its PATTERN is broken (a stray escape that matches no body) — the second, subtler way to swap one blind assertion for another.',
+    where: 'gate',
+    patches: [[F, [[
+      `    '   and p.prosrc ~ ''\\yhr_create_character\\y''';`,
+      `    '   and p.prosrc ~ ''\\yhr_create_character_MUTATED\\y''';`,
+    ]]]],
+  },
+
   // The kit's JS↔SQL boundary. Mutating the CATALOGUE (not the function) is the
   // only way to model "someone regenerated from stale data / hand-edited the
   // generated file", which is the failure C6 exists for.

@@ -19719,17 +19719,27 @@ const TESTS = [
   () => tryRun('b337: the server-accrual kill switch DEFAULTS OFF — b336 away time is untouched', () => {
     const A = window.HearthriseAccrual;
     assert(A, 'src/net/accrue.js did not load — the whole slice is absent and nothing below means anything');
-    A.__clearAccrualOverride();
-    try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-    assert(A.isServerAccrualEnabled() === false,
-      'server accrual is ON by default — that arms a brand-new authority for every player at once, with no redeploy to undo it');
-    assert(typeof window.serverAccrualActive === 'function' && window.serverAccrualActive() === false,
-      'legacy.js believes server accrual is active while the switch is off');
-    // The switch is a switch, in both directions, and it persists.
-    assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn on');
-    assert(window.serverAccrualActive() === true, 'legacy.js does not see the switch');
-    assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
-    assert(window.serverAccrualActive() === false, 'legacy.js still sees an off switch as on');
+    const G = window.G;
+    /* b339: flipping the switch now stamps the local away watermarks (see
+       stampAwayWatermarks). This test flips it four times on the LIVE G, so a
+       player running the suite in-game would otherwise lose their banked rested
+       charges to a test. Put them back. */
+    const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt };
+    try {
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      assert(A.isServerAccrualEnabled() === false,
+        'server accrual is ON by default — that arms a brand-new authority for every player at once, with no redeploy to undo it');
+      assert(typeof window.serverAccrualActive === 'function' && window.serverAccrualActive() === false,
+        'legacy.js believes server accrual is active while the switch is off');
+      // The switch is a switch, in both directions, and it persists.
+      assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn on');
+      assert(window.serverAccrualActive() === true, 'legacy.js does not see the switch');
+      assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
+      assert(window.serverAccrualActive() === false, 'legacy.js still sees an off switch as on');
+    } finally {
+      if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
+    }
   }),
 
   () => tryRun('b337: with the switch OFF, the local away path still credits an absence (b303 unchanged)', () => {
@@ -19941,11 +19951,18 @@ const TESTS = [
         gold: 400, xp: { attack: 900, hitpoints: 300 }, items: { rat_tail: 3 }, levelUps: [], events: [] },
     };
     const wasParked = window.__saveParked;
+    const wasAcked = A.isReplacementAcknowledged();
     try {
       /* The applied envelope is a FIXTURE, and the hook that applies it calls
          saveLocal() for real. Park persistence so a test character never
          reaches the player's save. */
       window.__saveParked = true;
+      /* b339: this fixture IS a destructive replacement (999999 local gold for
+         the server's 1234), which now asks the player once before it lands —
+         see B339-5. NOTHING BELOW IS WEAKENED: the consent gate is orthogonal
+         to the replacement semantics this test pins, and B339-5 asserts the
+         un-acknowledged case refuses. Standing in for the player's click. */
+      A.acknowledgeReplacement(true);
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       window.fetch = function (u) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -19998,6 +20015,8 @@ const TESTS = [
         playerMaxHp: save.playerMaxHp, activeSkill: save.activeSkill, activeMonster: save.activeMonster,
         activeArtisanRecipe: save.activeArtisanRecipe, offlineBudget: save.offlineBudget, lastSeen: save.lastSeen,
         lastOfflineSummary: save.los });
+      A.acknowledgeReplacement(wasAcked);
+      A.hideReplacementSheet();
       window.__saveParked = wasParked;
       try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
     }
@@ -20339,7 +20358,12 @@ const TESTS = [
         return { status: 200, ok: true, json: async () => ({ ok: true, slot: 0, created: false }) };
       };
       C.resetCharacterIntent();
-      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      /* b339 — a `userId` is now REQUIRED for a latch: the key must name the
+         player, or (as it did until b339) it matches for every account on the
+         device. Not a weakening of anything below; the assertions are unchanged
+         and B339-1/1b own the identity property itself. */
+      C.configureCharacter({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt',
+        userId: () => 'user-b338', slot: 0 });
 
       await C.ensureCharacter({ slot: 0 });
       assert(calls === 1, 'the first ensure did not reach the network');
@@ -20359,7 +20383,8 @@ const TESTS = [
 
       /* RE-WIRING = possibly a different account. Keeping the latch across a
          sign-out would tell the next player their character exists. */
-      C.configureCharacter({ url: 'https://other.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
+      C.configureCharacter({ url: 'https://other.invalid', apiKey: 'k', authToken: () => 'jwt',
+        userId: () => 'user-b338', slot: 0 });
       assert(C.isCharacterConfirmed(0) === false, 'the latch survived a re-wire to a different project');
       await C.ensureCharacter({ slot: 0 });
       assert(calls === 4, 're-wiring did not re-arm the ensure');
@@ -20383,6 +20408,14 @@ const TESTS = [
     const wasParked = window.__saveParked;
     try {
       window.__saveParked = true;
+      /* b339: THE FLIP COMES FIRST, and that is not cosmetic. Turning the switch
+         on now STAMPS both local watermarks to now (see stampAwayWatermarks —
+         a switch whose off position re-pays a span the server already paid is
+         not a kill switch), so a flip after the fixture below would move the
+         very watermark this test asserts did not move. Nothing here is
+         weakened: the fixture is written after the flip and the assertion is
+         unchanged. */
+      A.setServerAccrualEnabled(true);
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       /* A real absence: an activity running, and lastSeen four hours ago. With
          the switch OFF this is a paying absence (b337 asserts that separately). */
@@ -20405,7 +20438,6 @@ const TESTS = [
         return { status: 200, ok: true, json: async () => ({ ok: true, accrued: false, reason: 'none' }) };
       };
 
-      A.setServerAccrualEnabled(true);
       A.resetAccrualGate();
       C.resetCharacterIntent();
       A.configureAccrual({ url: 'https://probe.invalid', apiKey: 'k', authToken: () => 'jwt', slot: 0 });
@@ -20451,17 +20483,408 @@ const TESTS = [
   () => tryRun('B338-7: the character intent is behind the SAME kill switch as b337, and it defaults OFF', () => {
     const A = window.HearthriseAccrual;
     const C = window.HearthriseCharacter;
-    assert(C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY,
-      'two different kill switches — a state exists where the client creates characters it will never '
-      + 'accrue against, or accrues against one it never created');
-    A.setServerAccrualEnabled(false);
-    A.__clearAccrualOverride();
-    try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-    assert(C.isCharacterIntentEnabled() === false, 'the character intent is ON by default');
-    A.setServerAccrualEnabled(true);
-    assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not arm the character intent');
-    A.setServerAccrualEnabled(false);
-    assert(C.isCharacterIntentEnabled() === false, 'the switch does not disarm the character intent');
+    const G = window.G;
+    const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt };  // b339, see b337 test 1
+    try {
+      assert(C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY,
+        'two different kill switches — a state exists where the client creates characters it will never '
+        + 'accrue against, or accrues against one it never created');
+      A.setServerAccrualEnabled(false);
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      assert(C.isCharacterIntentEnabled() === false, 'the character intent is ON by default');
+      A.setServerAccrualEnabled(true);
+      assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not arm the character intent');
+      A.setServerAccrualEnabled(false);
+      assert(C.isCharacterIntentEnabled() === false, 'the switch does not disarm the character intent');
+    } finally {
+      if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
+    }
+  }),
+
+  /* ══ b339 — CLEARING SECURITY'S CONDITIONS ON THE CLIENT REWIRE ══════════
+     Six findings from the CLEAR-WITH-CONDITIONS review, each with the property
+     it exists to hold stated as an assertion rather than as a comment. The
+     recurring shape of this program's failures is an assertion that asserts
+     nothing — thirteen instances now — so every test below was written by
+     planting the bug first and watching it go red. The mutation that proves
+     each one is named in its own comment. */
+
+  () => tryRun('B339-1: the character latch is an IDENTITY — a different account never inherits a confirmation', () => {
+    const C = window.HearthriseCharacter;
+    /* PURE first, because the whole bug was that the key was a CONSTANT: the
+       endpoint is the project URL (identical for every account) and the slot was
+       hard-coded to 0, so `latchKey()` returned the same string for everybody.
+       MUTATION: drop the userId from latchKey → the first assertion goes red. */
+    const kA = C.latchKey('https://proj.supabase.co', 'user-A', 0);
+    const kB = C.latchKey('https://proj.supabase.co', 'user-B', 0);
+    const kA2 = C.latchKey('https://proj.supabase.co', 'user-A', 2);
+    assert(kA && kB && kA !== kB,
+      'two DIFFERENT accounts produce the same latch key (' + kA + ') — signing out of A and into B '
+      + 'on this device would tell B its character exists without ever asking the server');
+    assert(kA !== kA2, 'two different character slots produce the same latch key — slot 0\'s confirmation '
+      + 'would be accepted for slot 2');
+    assert(C.latchKey('https://proj.supabase.co', null, 0) === null,
+      'an UNKNOWN identity produces a latch key — a signed-out device would inherit the last player\'s '
+      + 'confirmation, which is the same bug wearing a null');
+  }),
+
+  () => tryRunAsync('B339-1b: signing into a DIFFERENT account re-asks the server (the latch does not carry over)', async () => {
+    const C = window.HearthriseCharacter;
+    const realFetch = window.fetch;
+    let who = 'user-A';
+    const calls = [];
+    try {
+      window.fetch = function (u, init) {
+        if (!/hr_create_character/.test(String(u))) return realFetch.apply(this, arguments);
+        calls.push(JSON.parse(init.body));
+        return Promise.resolve({ status: 200, ok: true, json: async () => ({ ok: true, slot: 0, created: false }) });
+      };
+      C.resetCharacterIntent();
+      C.configureCharacter({ url: 'https://proj.supabase.co', apiKey: 'k',
+        authToken: () => 'jwt', userId: () => who });
+
+      const first = await C.ensureCharacter();
+      assert(first.present === true, 'the first ensure did not confirm a character: ' + JSON.stringify(first));
+      const second = await C.ensureCharacter();
+      assert(second.cached === true && calls.length === 1,
+        'the latch did not hold for the SAME account — ' + calls.length + ' requests. Without this control '
+        + 'the next assertion would pass on a latch that never works at all');
+
+      /* THE BUG. Same device, same endpoint, same slot — different player.
+         MUTATION: revert latchKey to (endpoint, slot) → calls stays at 1. */
+      who = 'user-B';
+      const third = await C.ensureCharacter();
+      assert(calls.length === 2,
+        'a DIFFERENT account reused the first account\'s latch (' + calls.length + ' request(s)) — this device '
+        + 'told player B the server had confirmed a character it has never asked about');
+      assert(third.present === true, 'the re-ask did not confirm: ' + JSON.stringify(third));
+    } finally {
+      window.fetch = realFetch;
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+    }
+  }),
+
+  () => tryRun('B339-2: signing out drops the character latch (resetCharacterIntent finally has a caller)', () => {
+    const C = window.HearthriseCharacter;
+    const Auth = window.HearthriseAuth;
+    assert(Auth && typeof Auth.signOut === 'function', 'auth.js did not load');
+    /* The b338 comment called resetCharacterIntent "the thing auth.js calls on
+       sign-out" and grep found NO caller in src/. This drives the REAL sign-out
+       path rather than asserting that the source contains a call.
+       MUTATION: remove the resetCharacterIntent() line from signOut() → red. */
+    const SAVE_KEY = 'hearthbound-save-v2';
+    const savedBlob = (() => { try { return localStorage.getItem(SAVE_KEY); } catch (e) { return null; } })();
+    /* signOut() genuinely parks the live save. Snapshot the park keys that
+       already exist so the cleanup below removes ONLY the one this test caused —
+       deleting a player's real parked backup to tidy up after a test would be a
+       far worse bug than the one being guarded. */
+    const parkBefore = (() => { try { return Object.keys(localStorage).filter((k) => k.startsWith('hearthrise:save-backup:')); } catch (e) { return []; } })();
+    const wasParked = window.__saveParked;
+    let fired = 0;
+    const real = C.resetCharacterIntent;
+    try {
+      C.resetCharacterIntent = function () { fired++; return real.apply(this, arguments); };
+      /* NOT awaited on purpose: everything this asserts happens synchronously,
+         before signOut()'s first await, and awaiting would put a live Supabase
+         round trip inside the suite. */
+      try { Auth.signOut(); } catch (e) {}
+      assert(fired === 1,
+        'signOut() did not clear the character intent (' + fired + ' calls) — the latch, the in-flight '
+        + 'request and the stop latch all survive into the next account on this device');
+    } finally {
+      C.resetCharacterIntent = real;
+      try {
+        if (savedBlob !== null) localStorage.setItem(SAVE_KEY, savedBlob);
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith('hearthrise:save-backup:') && parkBefore.indexOf(k) < 0) localStorage.removeItem(k);
+        }
+      } catch (e) {}
+      window.__saveParked = wasParked;
+      try { window.HearthriseSync?.releaseSnapshots?.(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B339-3: both server intents address the ACTIVE character slot, not a hard-coded 0', async () => {
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
+    const P = window.HearthriseProfile;
+    assert(P && typeof P.activeSlot === 'function',
+      'multi-character.js does not publish the active slot — the net layer would have to parse the '
+      + 'profile record itself, which is a second reader of it');
+    const realFetch = window.fetch;
+    const savedProfile = P.profile;
+    const seen = [];
+    try {
+      P.profile = { activeSlot: 2, unlockedSlots: 5, slots: [{ id: 0 }, { id: 1 }, { id: 2 }] };
+      assert(A.resolveActiveSlot() === 2, 'accrue.js does not resolve the active slot: ' + A.resolveActiveSlot());
+      assert(A.resolveActiveSlot(4) === 4, 'an explicitly pinned slot is ignored — the suite seam is gone');
+      assert(A.clampSlot(9, 0) === 0 && A.clampSlot(-1, 0) === 0 && A.clampSlot('2', 0) === 0,
+        'the slot is not clamped to [0,MAX_SLOT] as an integer — the server clamps too, but a client that '
+        + 'sends nonsense cannot be told apart from one that is wrong');
+
+      window.fetch = function (u, init) {
+        const url = String(u);
+        if (!/hr_create_character|hr-accrue/.test(url)) return realFetch.apply(this, arguments);
+        seen.push({ url, body: JSON.parse(init.body) });
+        if (/hr_create_character/.test(url)) {
+          return Promise.resolve({ status: 200, ok: true, json: async () => ({ ok: true, slot: 2, created: false }) });
+        }
+        return Promise.resolve({ status: 200, ok: true, json: async () => ({ ok: true, accrued: false, reason: 'none' }) });
+      };
+      A.resetAccrualGate();
+      C.resetCharacterIntent();
+      /* NO `slot` in either config — exactly what auth.js now passes.
+         MUTATION: put `slot: 0` back in either call → that endpoint sends 0. */
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'k', authToken: () => 'jwt' });
+      C.configureCharacter({ url: 'https://proj.supabase.co', apiKey: 'k', authToken: () => 'jwt', userId: () => 'user-A' });
+
+      await C.ensureCharacter();
+      await A.requestAccrual({ force: true });
+
+      const create = seen.find((r) => /hr_create_character/.test(r.url));
+      const accrue = seen.find((r) => /hr-accrue/.test(r.url));
+      assert(create && create.body.p_slot === 2,
+        'the character intent asked the server to create slot ' + JSON.stringify(create && create.body)
+        + ' while the player is on slot 2 — it would bootstrap the wrong character');
+      assert(accrue && accrue.body.slot === 2,
+        'accrual asked for slot ' + JSON.stringify(accrue && accrue.body) + ' while the player is on slot 2 — '
+        + 'applyEnvelope replaces G wholesale, so slot 0\'s server state would land in slot 2\'s save');
+      assert(A.getAccrualConfig().slot === 2 && C.getCharacterConfig().slot === 2,
+        'the reported config still says slot 0');
+    } finally {
+      window.fetch = realFetch;
+      P.profile = savedProfile;
+      A.resetAccrualGate();
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+      A.configureAccrual(null);
+    }
+  }),
+
+  () => tryRun('B339-3b: auth.js itself passes NO slot and a live user id — the wiring, not a stand-in for it', () => {
+    const Auth = window.HearthriseAuth;
+    assert(Auth && typeof Auth.wireServerIntents === 'function',
+      'auth.js does not expose its server-intent wiring — the only way to check what it passes would be '
+      + 'to re-derive it, which proves nothing about auth.js');
+    /* B339-3 proves accrue.js RESOLVES the active slot. It cannot see auth.js
+       going on pinning `slot: 0`, because it configures the modules itself —
+       and a slot: 0 mutation in auth.js did slip past it. That is the "proof of
+       the adjacent thing" family. This drives the REAL wiring function with spy
+       modules and asserts the literal objects it hands over.
+       MUTATION: add `slot: 0` to buildIntentWiring → red. */
+    const token = () => 'tok';
+    const uid = () => 'user-A';
+    const got = {};
+    const fakeWin = {
+      HearthriseAccrual: { configureAccrual: (c) => { got.accrual = c; } },
+      HearthriseCharacter: { configureCharacter: (c) => { got.character = c; } },
+    };
+    Auth.wireServerIntents(fakeWin, { url: 'https://proj.supabase.co', anonKey: 'anon', authToken: token, userId: uid });
+
+    assert(got.accrual && got.character, 'wireServerIntents configured nothing: ' + JSON.stringify(Object.keys(got)));
+    assert(!('slot' in got.accrual),
+      'auth.js still pins a slot for accrual (' + got.accrual.slot + ') — the player\'s active character is '
+      + 'irrelevant to it, and applyEnvelope would write that slot\'s state over theirs');
+    assert(!('slot' in got.character),
+      'auth.js still pins a slot for the character intent (' + got.character.slot + ') — it would bootstrap '
+      + 'the wrong character');
+    assert(got.character.userId === uid && typeof got.character.userId === 'function',
+      'the user id is not the live accessor — a captured id is the id at sign-in, and the latch stops being '
+      + 'an identity the moment it changes');
+    assert(got.accrual.authToken === token && got.character.authToken === token,
+      'the token is not the live accessor (the b331 dead-token loop started with a captured one)');
+    assert(got.accrual.url === 'https://proj.supabase.co' && got.accrual.apiKey === 'anon'
+      && got.character.url === 'https://proj.supabase.co' && got.character.apiKey === 'anon',
+      'the two intents were given different credentials — there must be exactly one copy: ' + JSON.stringify(got));
+
+    /* Each side independently guarded: one module throwing must not leave the
+       other unwired. */
+    const got2 = {};
+    Auth.wireServerIntents({
+      HearthriseAccrual: { configureAccrual: () => { throw new Error('boom'); } },
+      HearthriseCharacter: { configureCharacter: (c) => { got2.character = c; } },
+    }, { url: 'u', anonKey: 'k', authToken: token, userId: uid });
+    assert(got2.character, 'a throw in the accrual wiring also skipped the character wiring');
+  }),
+
+  () => tryRun('B339-4: flipping the switch stamps BOTH away watermarks, in BOTH directions — so OFF cannot re-pay', () => {
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    try {
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+
+      /* An eight-hour-old pair of watermarks: with the switch OFF this is a
+         paying absence, and the server has no idea it exists. */
+      const old = Date.now() - 8 * 3600000;
+      G.offlineBudget = { at: old }; G.restedAt = old;
+
+      A.setServerAccrualEnabled(true);
+      assert(G.offlineBudget.at > old && G.restedAt > old,
+        'turning the switch ON left the local watermarks at ' + G.offlineBudget.at + '/' + G.restedAt
+        + ' — the span is now owned by the server, and a local path that still measures from before it '
+        + 'would pay it a second time');
+
+      /* THE LOAD-BEARING DIRECTION. While ON, nothing advances these — correctly,
+         because the server owns accrued_to and a client that advanced a watermark
+         it does not own confiscates real absences. So OFF must hand the span
+         back, or the first local processOffline re-pays everything the server
+         paid for. MUTATION: stamp only in the `on` branch → red here. */
+      const onAt = G.offlineBudget.at;
+      G.offlineBudget.at = old; G.restedAt = old;      // as if ON had never touched them
+      A.setServerAccrualEnabled(false);
+      assert(G.offlineBudget.at > old && G.restedAt > old,
+        'turning the switch OFF left the local watermarks in the past — the very next processOffline '
+        + 'pays out a span the server has already paid for, capped only by offlineCapHours. '
+        + 'A kill switch whose off position mints progress is not a kill switch');
+      assert(onAt > old, 'control: the ON direction never stamped, so the OFF assertion proves nothing');
+
+      /* IDEMPOTENCE. Re-asserting the CURRENT position must not move anything,
+         or every boot (and every suite run) quietly confiscates the player's
+         absence. MUTATION: stamp unconditionally → red. */
+      const settled = G.offlineBudget.at;
+      G.offlineBudget.at = old; G.restedAt = old;
+      A.setServerAccrualEnabled(false);
+      assert(G.offlineBudget.at === old && G.restedAt === old,
+        're-asserting the switch\'s current position moved the watermarks — a page that calls this on '
+        + 'every boot would mean the player was never away');
+      assert(settled > old, 'control: the OFF flip never stamped');
+
+      /* The pure function is exported and takes its target explicitly, so this
+         is drivable without a live G. */
+      const probe = {};
+      const w = A.stampAwayWatermarks(probe, 1234);
+      assert(probe.offlineBudget && probe.offlineBudget.at === 1234 && probe.restedAt === 1234 && w.restedAt === 1234,
+        'stampAwayWatermarks did not create the budget object on a G that has none: ' + JSON.stringify(probe));
+      assert(A.stampAwayWatermarks(null, 1) === null, 'stampAwayWatermarks accepted a null target');
+    } finally {
+      G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
+      A.setServerAccrualEnabled(false);
+      G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
+    }
+  }),
+
+  () => tryRun('B339-5: the server character REPLACES local progress, and it says so before it does it', () => {
+    const A = window.HearthriseAccrual;
+    /* The envelope a fresh server character produces, against a device holding a
+       real beta save. applyEnvelope rebuilds skills + inventory from the
+       envelope ALONE and saveLocal() then makes it the newest save, so this is
+       permanent and unrecoverable. That is the DESIGNED behaviour (importing a
+       client-authored blob would launder the exploit the program exists to
+       close) and it is not changed here — but it may not happen silently. */
+    const envelope = {
+      ok: true, accrued: true, version: 3, now: '2026-08-14T00:00:00Z',
+      state: { slot: 0, gold: 500, hp: 100, max_hp: 100 },
+      skills: { woodcutting: { xp: 0, level: 1 }, hitpoints: { xp: 1154, level: 10 } },
+      inventory: { turnip_seed: 3 },
+      away: { grantMs: 0, gold: 0, xp: {}, items: {} },
+    };
+    const veteran = () => ({ gold: 900000, skills: { woodcutting: 5000000, hitpoints: 1154 },
+      inventory: { logs: 400, turnip_seed: 3 } });
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+
+      const loss = A.describeReplacement(veteran(), envelope);
+      assert(loss.destructive === true, 'a 900k-gold, 5M-XP save is not counted as a destructive replacement');
+      assert(loss.gold === 899500 && loss.skillXp === 5000000 - 0 && loss.items === 400,
+        'the loss is misreported — a sheet that states the wrong numbers is worse than none: '
+        + JSON.stringify(loss));
+
+      /* THE GATE. MUTATION: delete the `loss.destructive && !acked` branch from
+         applyEnvelope → the veteran's save is silently replaced and this is red. */
+      const G1 = veteran();
+      assert(A.applyEnvelope(G1, envelope) === null,
+        'applyEnvelope destroyed a real save without asking');
+      assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.logs === 400,
+        'the target was mutated before the refusal: ' + JSON.stringify(G1));
+      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'nothing was shown to the player — a refusal nobody is told about is a game that silently stops '
+        + 'crediting away time');
+      const copy = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID).textContent;
+      assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
+        'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
+
+      // …and once acknowledged it applies, silently, forever after.
+      A.acknowledgeReplacement(true);
+      const G2 = veteran();
+      const written = A.applyEnvelope(G2, envelope);
+      assert(written && G2.gold === 500 && G2.skills.woodcutting === 0 && G2.inventory.logs === undefined,
+        'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
+
+      /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
+         that fires on every player is a gate nobody reads. */
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+      const fresh = { gold: 0, skills: {}, inventory: {} };
+      assert(A.describeReplacement(fresh, envelope).destructive === false,
+        'a brand-new device is treated as a destructive replacement');
+      assert(A.applyEnvelope(fresh, envelope) && fresh.gold === 500,
+        'a non-destructive envelope was refused');
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the sheet was shown to a player with nothing to lose');
+    } finally {
+      A.hideReplacementSheet();
+      A.acknowledgeReplacement(wasAcked);
+    }
+  }),
+
+  () => tryRunAsync('B339-6: a pre-b338 server (ok:true, no `created`) is refused LOUDLY and asked exactly once', async () => {
+    const C = window.HearthriseCharacter;
+    const realFetch = window.fetch;
+    const realErr = console.error;
+    const errs = [];
+    let calls = 0;
+    try {
+      /* THE LIVE PRODUCTION RESPONSE, quoted from a rolled-back probe of the
+         deployed hr_create_character: {"ok":true,"slot":0} and no `created`.
+         2026-08-14-character-bootstrap.sql is STAGED AND UNAPPLIED, so this is
+         what the switch would meet today. */
+      const v = C.classifyCreateResponse(200, { ok: true, slot: 0 });
+      assert(v.outcome === 'malformed' && v.reason === 'no_created_flag',
+        'a 200 with no `created` flag was accepted as a confirmation — the client would latch a character '
+        + 'it cannot prove exists: ' + JSON.stringify(v));
+      assert(C.isCharacterPresent(v.outcome) === false, 'no_created_flag counts as a present character');
+
+      console.error = function (...a) { errs.push(a.join(' ')); };
+      window.fetch = function (u) {
+        if (!/hr_create_character/.test(String(u))) return realFetch.apply(this, arguments);
+        calls++;
+        return Promise.resolve({ status: 200, ok: true, json: async () => ({ ok: true, slot: 0 }) });
+      };
+      C.resetCharacterIntent();
+      C.configureCharacter({ url: 'https://proj.supabase.co', apiKey: 'k',
+        authToken: () => 'jwt', userId: () => 'user-A' });
+
+      const r1 = await C.ensureCharacter();
+      assert(r1.present === false, 'the client claimed a character exists on a malformed answer');
+      assert(errs.some((m) => /pre-b338/i.test(m) && /character-bootstrap\.sql/.test(m)),
+        'the failure was not reported loudly or by name — a generic warning sends the next reader looking '
+        + 'at the client for a database problem. Saw: ' + JSON.stringify(errs));
+
+      /* Asked ONCE. The live body charges the 6/hour CREATION budget BEFORE its
+         slot_taken check, so six reloads exhaust it and the player is then told
+         `rate_limited` on top of a problem they cannot fix.
+         MUTATION: delete the `stopped` latch → calls becomes 2. */
+      const r2 = await C.ensureCharacter();
+      assert(calls === 1, 'the client re-asked a question only a database deploy can change ('
+        + calls + ' requests) — six of those exhaust the 6/hour creation budget');
+      assert(r2.present === false && r2.cached === true, 'the second answer changed: ' + JSON.stringify(r2));
+
+      // …and it is not permanent: a re-wire (new account, new session) re-arms it.
+      C.resetCharacterIntent();
+      await C.ensureCharacter();
+      assert(calls === 2, 'resetCharacterIntent did not clear the stop latch — a real fix would never be seen');
+    } finally {
+      window.fetch = realFetch;
+      console.error = realErr;
+      C.resetCharacterIntent();
+      C.configureCharacter(null);
+    }
   }),
 
 ];

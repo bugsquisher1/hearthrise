@@ -239,40 +239,15 @@ function enableLiveSync() {
     batchIntervalMs: 5000,
     snapshotIntervalMs: 60000,
   });
-  /* b337 — the accrual endpoint gets its credentials from the SAME place
-     sync.js does, at the same moment, so there is exactly one copy of the url /
-     anon key / token accessor in the client. `authToken` is the live accessor,
-     not a snapshot of the string: a token refreshed five minutes from now must
-     reach hr-accrue too, and a captured value is how the b331 dead-token loop
-     started. Wiring it does NOT enable it — the kill switch is separate and
-     defaults OFF. */
-  try {
-    if (window.HearthriseAccrual) {
-      window.HearthriseAccrual.configureAccrual({
-        url: authConfig.url,
-        apiKey: authConfig.anonKey,
-        authToken: () => session?.access_token,
-        slot: 0,
-      });
-    }
-  } catch (e) { console.warn('[auth] accrual wiring skipped:', e.message); }
-  /* b338 — the character-creation intent, wired from the SAME credentials at the
-     SAME moment, so there is still exactly one copy of the url / anon key /
-     token accessor in the client. configureCharacter() clears its "the server
-     confirmed a character" latch whenever the endpoint or slot changes, so a
-     sign-out followed by a different account never inherits the first one's
-     confirmation. Wiring is not enabling: the kill switch is b337's and is
-     still OFF. */
-  try {
-    if (window.HearthriseCharacter) {
-      window.HearthriseCharacter.configureCharacter({
-        url: authConfig.url,
-        apiKey: authConfig.anonKey,
-        authToken: () => session?.access_token,
-        slot: 0,
-      });
-    }
-  } catch (e) { console.warn('[auth] character wiring skipped:', e.message); }
+  /* b337/b338, restructured in b339 — see wireServerIntents(). Both server
+     intents get their credentials from the SAME place sync.js does, at the same
+     moment, through ONE function the suite can drive with spies. */
+  wireServerIntents(window, {
+    url: authConfig.url,
+    anonKey: authConfig.anonKey,
+    authToken: () => session?.access_token,
+    userId: () => currentUserId(),
+  });
   // b331 — PROACTIVE REFRESH. supabase-js is supposed to do this itself
   // (autoRefreshToken:true), and in the incident it demonstrably stopped without
   // saying so. A token five minutes from death is refreshed here, so the whole
@@ -289,6 +264,42 @@ function enableLiveSync() {
   }, 60000);
   // Pull cloud snapshot on first connection if local save is older
   pullAndMaybeRestore();
+}
+
+/* ── HOW THE TWO SERVER INTENTS ARE WIRED (b339) ────────────────────────────
+   This used to be two inline object literals inside enableLiveSync(), which is
+   unreachable from a test without a live session — so a test could prove that
+   accrue.js RESOLVES the active slot while auth.js quietly went on pinning
+   `slot: 0`, which is exactly the bug S6 found and exactly the "proof of the
+   adjacent thing" family this program keeps meeting. Mutation-checked: putting
+   `slot: 0` back anywhere below turns B339-3b red.
+
+   `authToken` and `userId` are ACCESSORS, never captured values. A token
+   refreshed five minutes from now must reach hr-accrue too (a captured one is
+   how the b331 dead-token loop started), and the user id must be the one
+   signed in NOW or the character latch stops being an identity.
+
+   NO `slot`. It is resolved per call from src/multi-character.js, the module
+   that owns which character is live.
+
+   Wiring is not enabling: the b337 kill switch is separate and defaults OFF. */
+export function buildIntentWiring(cfg) {
+  const c = cfg || {};
+  const base = { url: c.url, apiKey: c.anonKey, authToken: c.authToken };
+  return { accrual: { ...base }, character: { ...base, userId: c.userId } };
+}
+
+/** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
+ *  test asserts the LITERAL configuration rather than that code exists which
+ *  might produce it. Each side is independently guarded: a throw in one must
+ *  not leave the other unwired. */
+export function wireServerIntents(win, cfg) {
+  const w = buildIntentWiring(cfg);
+  try { if (win && win.HearthriseAccrual) win.HearthriseAccrual.configureAccrual(w.accrual); }
+  catch (e) { console.warn('[auth] accrual wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseCharacter) win.HearthriseCharacter.configureCharacter(w.character); }
+  catch (e) { console.warn('[auth] character wiring skipped:', e && e.message); }
+  return w;
 }
 
 /**
@@ -568,6 +579,14 @@ export async function signOut() {
   // stop uploads so nothing can be written after the session ends.
   try { holdSnapshots(); } catch (e) {}
   try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('signout'); } catch (e) {}
+  /* b339 — character.js has documented `resetCharacterIntent()` as "the thing
+     auth.js calls on sign-out" since b338, and grep found NO caller anywhere in
+     src/. The latch key now carries the live user id, so a stale latch can no
+     longer match a different account on its own; this drops the in-flight
+     request and the stop latch too, which the key cannot do. A documented
+     collaborator with no call site is a comment, not a seam. */
+  try { window.HearthriseCharacter?.resetCharacterIntent?.(); } catch (e) {}
+  try { window.HearthriseAccrual?.resetAccrualGate?.(); } catch (e) {}
   if (!supabase) { session = null; try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} return; }
   await supabase.auth.signOut();
   session = null;
@@ -792,7 +811,7 @@ function showEvictedGate() {
 // Expose for legacy callers
 window.HearthriseAuth = {
   setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
-  decideLocalOwnership,
+  decideLocalOwnership, buildIntentWiring, wireServerIntents,
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,

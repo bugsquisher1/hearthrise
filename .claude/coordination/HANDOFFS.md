@@ -2,6 +2,59 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-14 · FROM Systems Engineer → TO Security Engineer, Coordinator (b339, CLEAR-WITH-CONDITIONS)
+
+All six conditions on the client rewire are addressed. **The switch still must NOT be flipped for a
+real account** — S2's ordering is unchanged and is the reason.
+
+**S1 · §5(K) rewritten and mutation-proven.** `pg_depend` cannot see a PL/pgSQL caller (see
+DISCOVERIES). The scan now plants a STABLE caller, must find it by name, drops it, and only then
+believes its zero — ONE query text `execute`d twice so control and assertion cannot be blinded
+separately. Three mutations RED: `nonvolatile_caller_planted` (fails on the volatility message, by
+name), `caller_scan_blinded` (schema filter), `caller_scan_pattern_blinded` (regex). `--selftest`
+18/18. **The file is edited, NOT applied.**
+
+**S2 · nothing flipped, and the client now says so.** A 200 that is `ok:true` with no `created`
+flag is `console.error`'d by name — it names the pre-b338 body and the migration to apply — and is
+asked **once** per session instead of re-asking on every `processOffline` (the live body charges the
+6/hour creation bucket before its slot_taken check, so six reloads exhaust it). B339-6.
+
+**S3 · corrected.** `accrue.js`'s header no longer claims CORS makes it inert. It names the kill
+switch and, as a temporary and explicitly-not-a-safety-property second gate, `no_created_flag`.
+
+**S5 · latch is now an identity.** `latchKey(url, userId, slot)`; `null` user never matches.
+`signOut()` calls `resetCharacterIntent()` — which had no caller anywhere in `src/` — and the test
+drives the real sign-out path rather than reading the source.
+
+**S6 · slot resolved live** from `HearthriseProfile.activeSlot()` (published by the module that owns
+it; the net layer never parses the profile record). `auth.js` passes no slot at all.
+⚠ **The mutation "put `slot: 0` back in auth.js" SLIPPED** past the first version of the test —
+see DISCOVERIES. `enableLiveSync`'s inline literals are now `buildIntentWiring`/`wireServerIntents`,
+asserted with spy modules (B339-3b). Both mutations RED now.
+
+**S7 · both watermarks stamped on every CHANGE of the switch, in both directions.** Cost stated in
+the code: an UNCLAIMED local absence at the instant of a flip is confiscated. That is the safe
+direction and the flip is a tester action. Two mutations RED (stamp-on-only, stamp-always).
+
+**S4 · NOT fixed, made loud** exactly as asked. `applyEnvelope` refuses the first replacement that
+would actually destroy something and shows a sheet stating gold / skill XP / items lost, with
+"Keep my local save". Acknowledged once, silent thereafter; a device with nothing to lose never sees
+it. Semantics unchanged — B339-5 asserts the acknowledged path still replaces wholesale.
+
+**"exactly five" corrected** in the migration header and in `docs/design/server-authority.md`, which
+said "7"/"six of the seven" while its own table listed nine and production holds eight. Both now
+refuse to state a count and point at `hr_assert_grant_hygiene()` check 7, which is an allowlist of
+signatures — **no live assertion ever depended on any of those numbers**, verified.
+
+**For QA:** `b227: OFFLINE output is byte-identical with and without an active blessing` failed once
+in ~13 runs (11390 vs 11415 XP) and passed the other twelve. It runs two wall-clock 3h absences and
+compares them; crossing a tick boundary between them changes the pile. Pre-existing, unrelated to
+b339 (it runs long before anything here), and it needs its clock pinned.
+
+Suite **640/640**, 0 runtime errors. No version bump.
+
+---
+
 ### 2026-08-12 · FROM Game Designer → TO Systems Engineer, Art Director, QA
 
 WHAT I CHANGED. The Hunt's reward band no longer compares players to each other. Full reasoning in

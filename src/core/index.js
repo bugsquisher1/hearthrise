@@ -36,3 +36,7 @@ export * as away from './away.js?v=340';
 export * as botd from './botd.js?v=340';
 export * as buffs from './buffs.js?v=340';
 export * as combatSim from './combat-sim.js?v=340';
+/* The Field Licence (docs/design/away-combat-licence.md) — a PRECONDITION on
+   whether an away span runs, asked before simulateSpan. Deliberately NOT a
+   channel in away.js; see that file's header. */
+export * as licence from './licence.js?v=340';

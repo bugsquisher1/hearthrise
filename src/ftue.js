@@ -81,7 +81,12 @@
       target: 'button[data-tab="combat"]',
       placement: 'right',
       title: 'Fight monsters for loot',
-      body: 'Combat drops materials for crafting, gold, and rare gear. Remember to equip a weapon (Inventory → Equipment) and bring food before the bigger fights.',
+      /* b341 (docs/design/away-combat-licence.md §7). The old copy told the
+         player to bring food and said nothing about the two rules that decide
+         their first night: monsters hit back, and a fight ends when you fall.
+         The Field Licence is named HERE, before the first fight, so the rule
+         is a goal they were given rather than a punishment they discovered. */
+      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — and a fight ends when you fall. Land 100 kills and you earn your Field Licence, which lets your fights carry on while you\'re away.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -99,7 +104,11 @@
       target: 'body',
       placement: 'center',
       title: 'You\'re ready',
-      body: 'Train any skill, kill anything that moves, and check back tomorrow for offline rewards. Good luck out there.',
+      /* b341: the old line promised away rewards for combat and skills in one
+         breath, which was true of exactly one of them. The `skills` step above
+         is deliberately UNCHANGED — "even when you're offline, progress
+         continues" is true for skills, and it is the promise the game keeps. */
+      body: 'Set a skill running before you close the tab — it pays the whole time you\'re gone. Combat is for when you\'re here, at least until you\'ve earned your Field Licence. Good luck out there.',
       primary: 'Start playing',
       onPrimary: function(){ endFTUE(true); },
     },
@@ -419,6 +428,11 @@
     try { localStorage.removeItem(FTUE_KEY); } catch(e){}
     console.log('[ftue] reset — refresh the page to see the tour again');
   };
+  /* b341: the tour's copy is now a PROMISE the engine has to keep (the wrap
+     step used to sell away combat, which combat does not pay until the Field
+     Licence). A promise nothing reads cannot be tested, so the steps are
+     published and LICENCE-9 asserts the copy against the rule. */
+  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); } };
 
   // ── Auto-boot ───────────────────────────────────────────────
   // b224: the tour is the SECOND thing a new player meets, not the first.

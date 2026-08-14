@@ -132,6 +132,14 @@ const snapshotG = () => {
        so it reaches the cloud, which also means the suite can now pollute it. */
     buffs: G.buffs,
     toolCarry: G.toolCarry,
+    /* b341 (the Field Licence): the survival forecast reads the auto-eat TRAIT
+       and the FOOD SLOT, and every away test drives `lastSeen`. All three were
+       mutable by the suite and unsnapshotted — LICENCE-7 clearing `auto_eat`
+       would have taken a real player's 100-mark purchase with it, which is
+       exactly the pollution this list exists to prevent. */
+    traits: G.traits,
+    foodSlot: G.foodSlot,
+    lastSeen: G.lastSeen,
   }));
 };
 
@@ -6514,11 +6522,19 @@ const TESTS = [
     const G = window.G;
     const HUD = window.HearthriseCombatHud;
     assert(HUD && typeof HUD.openLoot === 'function', 'HearthriseCombatHud is not published');
-    const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp, tab: window.activeTab };
+    const snap = { monster: G.activeMonster, mhp: G.monsterHp, mmax: G.monsterMaxHp, tab: window.activeTab,
+      hp: G.playerHp, maxHp: G.playerMaxHp };
     const scrim = () => document.querySelector('.hr-room-scrim[data-combat-hud]');
     try {
       window.showTab('combat');
       G.activeMonster = 'rat'; G.monsterHp = 9; G.monsterMaxHp = 9;
+      /* b341 FIXTURE: the four HOURLY rows below are now conditional — a rate
+         may only be quoted over a span the character can survive (§4.1). This
+         test is about the maths REACHING the modal, so it stands a character
+         who genuinely lasts the hour; the sub-hour rendering is LICENCE-7's
+         assertion, and pinning it there rather than weakening this one keeps
+         each test owning one claim. */
+      G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
       window.renderCombat();
 
       // (1) The strip is gone. All three of these rendered into #combat-area
@@ -6577,6 +6593,7 @@ const TESTS = [
     } finally {
       try { HUD.close(); } catch (e) { /* teardown */ }
       G.activeMonster = snap.monster; G.monsterHp = snap.mhp; G.monsterMaxHp = snap.mmax;
+      G.playerHp = snap.hp; G.playerMaxHp = snap.maxHp;
       try { window.renderCombat(); } catch (e) { /* restoring state only */ }
       if (snap.tab) window.showTab(snap.tab);
     }
@@ -12973,7 +12990,14 @@ const TESTS = [
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
       G.playerHp = G.playerMaxHp;
-      G.stats = Object.assign({}, G.stats); const killsBefore = G.stats.kills || 0;
+      /* b341 FIXTURE: away combat is gated on the Field Licence (100 kills,
+         src/core/licence.js). This test is about ACCRUAL, not the gate, so it
+         stands a licensed veteran — the same character it always meant. The
+         unlicensed case is LICENCE-1's job, and it is a separate test on
+         purpose: a fixture that quietly satisfies a precondition is how a gate
+         stops being tested. */
+      G.stats = Object.assign({}, G.stats, { kills: Math.max(G.stats && G.stats.kills || 0, window.HearthriseCore.licence.FIELD_LICENCE_KILLS) });
+      const killsBefore = G.stats.kills || 0;
       const goldBefore = G.gold || 0;
       /* Direct simulator: half an hour of fighting must produce kills. Driven
          inside the replay latch, because that latch IS `ctx.away` — calling it
@@ -13583,7 +13607,10 @@ const TESTS = [
       const now = Date.now();
       G.lastSeen = now - 3600000;                                  // away 1 hour
       G.offlineBudget = { dayKey: 0, usedMs: 0, at: now - 3600000 };
-      G.stats = Object.assign({}, G.stats); const k0 = G.stats.kills || 0;
+      /* b341 FIXTURE: licensed (see the note in b255). This test guards
+         paione's 71→71 bug, which is about the CREDIT path, not the gate. */
+      G.stats = Object.assign({}, G.stats, { kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
+      const k0 = G.stats.kills || 0;
       window.processOffline();
       const credited = (G.stats.kills || 0) - k0;
       assert(credited > 0, 'offline combat credited nothing through the real gate (kills +' + credited + ') — paione\'s 71→71 bug');
@@ -14036,6 +14063,9 @@ const TESTS = [
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 99;
       G.playerHp = G.playerMaxHp;
+      /* b341 FIXTURE: licensed (see b255). The Android throttle bug this
+         guards is about the WATERMARK, not the licence. */
+      G.stats = Object.assign({}, G.stats, { kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
       // Backgrounded 30 min ago; the watermark sits at hide-time.
       const hideAt = Date.now() - 30 * 60000;
       G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: hideAt };
@@ -14095,7 +14125,9 @@ const TESTS = [
          cannot empty it under ANY seed. combat-sim treats playerMaxHp as given
          (it only floors it at 10), so this is a construction, not a wager. */
       G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
-      G.stats = Object.assign({}, G.stats, { deaths: 0 });
+      /* b341 FIXTURE: licensed (see b255). This guards RE-ARMING after a
+         frozen span, not the gate. */
+      G.stats = Object.assign({}, G.stats, { deaths: 0, kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
       // Simulate a 5-minute frozen span with a fresh budget.
       if(typeof window.ensureOfflineBudget === 'function'){
         const b = window.ensureOfflineBudget(Date.now()); b.at = Date.now() - 5 * 60000; b.usedMs = 0;
@@ -17008,6 +17040,16 @@ const TESTS = [
         G.inventory = {};
         G.skills = Object.assign({}, G.skills);
         G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+        /* b341: the rig's contract is IDENTICAL STARTING STATE, and quests are
+           now part of it — the Field Licence quest pays a one-time 1,500 XP at
+           its 100th kill, and this rig lands well past 100. Left un-reset, the
+           live run collected it and the away run could not, and the parity
+           assertion read that as a 1,500 XP away shortfall: a false red that
+           accuses the away path of the exact crime this test exists to detect.
+           Resetting makes it a STRONGER assertion — the quest payout must now
+           land identically through both paths, which is a real property of the
+           licence being a switch rather than a modifier. */
+        G.quests = [];
         const xpBefore = Object.assign({}, G.skills);
         C.reseed(0xC0FFEE);
         const body = () => {
@@ -21610,6 +21652,418 @@ const TESTS = [
       R.resetRecord(); R.configureRecord(null);
       Object.assign(G, save);
     }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b341 — THE FIELD LICENCE (docs/design/away-combat-licence.md)
+
+     Tyler: "Afk combat exp shouldn't come immediately, the player should be
+     guided to play the game manually early on to get the hang of it." Then:
+     "Build it and make it into a quest, that provides some good combat
+     experience."
+
+     Two claims are load-bearing and each has its own test, because they pull
+     in opposite directions and a single test would let one hide behind the
+     other:
+
+       LICENCE-1  an UNLICENSED away span pays EXACTLY nothing, field by field
+       LICENCE-2  a LICENSED one is byte-identical to the ungated simulation —
+                  the licence is a SWITCH, never a modifier
+
+     LICENCE-4 is the guard on the binding ruling: it fails if anyone
+     "simplifies" the licence into `AWAY_SCOPE`, which is the twelfth instance
+     of the one bug that table exists to prevent.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('LICENCE-1: an UNLICENSED away span accrues exactly nothing — asserted field by field', () => {
+    const G = window.G;
+    const L = window.HearthriseCore.licence;
+    const snap = snapshotG();
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+      G.playerMaxHp = 9999; G.playerHp = 9999;          // cannot die — so a zero is the GATE, not a death
+      const m = window.MONSTERS.slime;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1, deaths: 0 });
+      G.gold = 1000;
+      G.inventory = Object.assign({}, G.inventory);
+      G.quests = [];
+      const now = Date.now();
+      G.lastSeen = now - 8 * 3600000;
+      G.offlineBudget = { at: now - 8 * 3600000 };       // EIGHT HOURS away
+
+      const before = {
+        kills: G.stats.kills, deaths: G.stats.deaths || 0, gold: G.gold,
+        skills: JSON.stringify(G.skills), inv: JSON.stringify(G.inventory),
+      };
+      window.processOffline();
+
+      /* Field by field, not by a summed total: a total can be zero because two
+         non-zero deltas cancelled, and the whole claim is that NOTHING moved. */
+      assert(G.stats.kills === before.kills, 'a declined span granted kills: +' + (G.stats.kills - before.kills));
+      assert((G.stats.deaths || 0) === before.deaths, 'a declined span killed the player — it was not simulated at all');
+      assert(G.gold === before.gold, 'a declined span granted gold: +' + (G.gold - before.gold));
+      assert(JSON.stringify(G.skills) === before.skills, 'a declined span granted XP:\n  ' + before.skills + '\n  ' + JSON.stringify(G.skills));
+      assert(JSON.stringify(G.inventory) === before.inv, 'a declined span granted items');
+      /* And it must SAY so. An empty night with a reason is a lesson; an empty
+         night with no reason is a bug report. */
+      assert(G._awayLicence && G._awayLicence.declined === true,
+        'a declined span must publish the reason for the away card / toast to state');
+      assert(G._awayLicence.kills === L.FIELD_LICENCE_KILLS - 1 && G._awayLicence.need === L.FIELD_LICENCE_KILLS,
+        'the declined note must carry the real counter, got ' + JSON.stringify(G._awayLicence));
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      try { delete G._awayLicence; } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LICENCE-2: the release is a SWITCH — a licensed span is byte-identical to the ungated simulation', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const L = C.licence;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const origBonus = window.getBonus;
+    try {
+      window.getBonus = () => 0;
+      G.buffs = [];
+      /* One seeded 30-minute span, run twice from identical state: once by
+         calling simulateAwayCombat directly (which has NO licence check — the
+         gate is at the CALLER, by design), once through processOffline with the
+         licence satisfied. If the licence were a modifier anywhere in the
+         resolver, these two would differ. */
+      const stand = (kills) => {
+        G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+        G.playerMaxHp = 9999; G.playerHp = 9999;
+        const m = window.MONSTERS.slime;
+        G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.activeSkill = null; G.activeArtisanRecipe = null;
+        G.gold = 0; G.inventory = {}; G.quests = [];
+        G.stats = Object.assign({}, G.stats, { kills, crits: 0, deaths: 0, rareDrops: 0 });
+      };
+      const read = (baseKills) => ({
+        kills: (G.stats.kills || 0) - baseKills, gold: G.gold,
+        inv: JSON.stringify(G.inventory),
+      });
+
+      stand(L.FIELD_LICENCE_KILLS);
+      C.reseed(0x1CE7CE);
+      P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, Date.now(), false); });
+      const direct = read(L.FIELD_LICENCE_KILLS);
+
+      stand(L.FIELD_LICENCE_KILLS);
+      const now = Date.now();
+      G.lastSeen = now - 1800000;
+      G.offlineBudget = { at: now - 1800000 };
+      const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      C.reseed(0x1CE7CE);
+      try { window.processOffline(); } finally {
+        if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+        else { try { delete document.hidden; } catch (e) {} }
+      }
+      const gated = read(L.FIELD_LICENCE_KILLS);
+
+      assert(direct.kills > 0, 'the rig produced no kills — the parity assertion would be vacuous');
+      assert(direct.kills === gated.kills, 'kills diverged through the gate: ungated ' + direct.kills + ' vs licensed ' + gated.kills);
+      assert(direct.gold === gated.gold, 'gold diverged through the gate: ' + direct.gold + ' vs ' + gated.gold);
+      assert(direct.inv === gated.inv, 'drops diverged through the gate:\n  ' + direct.inv + '\n  ' + gated.inv);
+    } finally {
+      window.getBonus = origBonus;
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LICENCE-3: a declined span does not cost the player their offline allowance', () => {
+    const G = window.G;
+    const L = window.HearthriseCore.licence;
+    const snap = snapshotG();
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+      G.playerMaxHp = 9999; G.playerHp = 9999;
+      const m = window.MONSTERS.slime;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1 });
+      G.quests = [];
+      const cap = window.offlineCapHours();
+      const now = Date.now();
+      G.lastSeen = now - 8 * 3600000;
+      G.offlineBudget = { at: now - 8 * 3600000 };
+      window.processOffline();                                   // 8h, declined
+
+      /* THE GUARANTEE, stated in the terms b307's PER-ABSENCE budget actually
+         has, because the spec's literal wording is not implementable here and
+         would be a bug if it were.
+
+         (a) NOTHING WAS SPENT. Under a per-absence cap there is no bucket to
+             draw down, so this is a readout assertion: the next absence still
+             sees the whole cap. */
+      assert(window.offlineBudgetRemainingMs() === cap * 3600000,
+        'a declined span must leave the next absence its full allowance, got '
+        + (window.offlineBudgetRemainingMs() / 3600000) + 'h of ' + cap + 'h');
+
+      /* (b) AND IT WAS NOT BANKED — the assertion with teeth. The spec asks
+         for "`offlineBudget.at` unchanged", which reads as generosity and is
+         actually the b214 double-pay shape: park the watermark and the same
+         eight unlicensed hours are paid RETROACTIVELY the moment the player
+         crosses 100 kills. The absence is consumed like any other; what the
+         player keeps is the ALLOWANCE, not the hours. */
+      assert(Math.abs(G.offlineBudget.at - Date.now()) < 10000,
+        'a declined absence was BANKED (watermark left ' + Math.round((Date.now() - G.offlineBudget.at) / 60000)
+        + ' min in the past) — it will be paid retroactively the moment the licence is earned');
+      G.stats.kills = L.FIELD_LICENCE_KILLS;                      // licence earned, right now
+      G.playerHp = G.playerMaxHp;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp;
+      const k0 = G.stats.kills;
+      window.processOffline();                                   // returning immediately after
+      assert((G.stats.kills || 0) === k0,
+        'the declined night was paid retroactively once the licence was earned: +' + ((G.stats.kills || 0) - k0) + ' kills');
+
+      /* (c) and a genuine later absence still pays the whole cap. */
+      G.playerHp = G.playerMaxHp;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp;
+      G.offlineBudget = { at: Date.now() - (cap * 3600000) };
+      window.processOffline();
+      assert((G.stats.kills || 0) > k0, 'the absence after a declined one paid nothing — the allowance was spent');
+      assert(G.lastOfflineSummary && G.lastOfflineSummary.hrs >= cap - 0.1,
+        'the following absence was clipped: ' + (G.lastOfflineSummary && G.lastOfflineSummary.hrs) + 'h of ' + cap + 'h');
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LICENCE-4: AWAY_SCOPE is untouched — the licence is a precondition, never a channel', () => {
+    const C = window.HearthriseCore;
+    /* THE FROZEN TABLE. This test exists to fail if someone "simplifies" the
+       licence into the resolver. away.js's contract is that an unknown channel
+       PAYS, because every historical away bug was a base reward silently
+       vanishing; a licence expressed as a channel would be number twelve. */
+    const scope = C.away.AWAY_SCOPE;
+    const expected = { permanent: true, crit: true, botd: true, heal: true, blessing: false, buff: false };
+    assert(Object.keys(scope).sort().join(',') === Object.keys(expected).sort().join(','),
+      'AWAY_SCOPE gained or lost a channel: ' + JSON.stringify(scope));
+    Object.keys(expected).forEach((k) => {
+      assert(scope[k] === expected[k], 'AWAY_SCOPE.' + k + ' changed to ' + scope[k] + ' — the ruling says ' + expected[k]);
+    });
+    assert(C.away.AWAY_RATE_MULT === 1.00, 'AWAY_RATE_MULT must stay exactly 1.00, found ' + C.away.AWAY_RATE_MULT);
+    /* And the licence must not have reached into that module by any other
+       name: a `licence`/`FIELD_LICENCE` reference inside away.js would mean
+       the gate is being resolved per grant after all. */
+    assert(!('licence' in scope) && !('fieldLicence' in C.away) && !('FIELD_LICENCE_KILLS' in C.away),
+      'src/core/away.js has grown a licence term — read src/core/licence.js\'s header');
+    assert(typeof C.licence.fieldLicence === 'function' && C.licence.FIELD_LICENCE_KILLS === 100,
+      'the licence must live in its own pure module at 100 kills');
+  }),
+
+  () => tryRun('LICENCE-5: the gate touches COMBAT only — gathering and artisan pay in full from kill zero', () => {
+    const G = window.G;
+    const L = window.HearthriseCore.licence;
+    const snap = snapshotG();
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      assert(L.awayActivityAllowed('gathering', { stats: { kills: 0 } }) === true, 'gathering must never be gated');
+      assert(L.awayActivityAllowed('artisan', { stats: { kills: 0 } }) === true, 'artisan must never be gated');
+      assert(L.awayActivityAllowed('combat', { stats: { kills: 0 } }) === false, 'combat at 0 kills must be gated');
+
+      /* And end-to-end, through the real catch-up: a brand-new player with a
+         woodcutting session running banks the whole night. This contrast is
+         the design — "combat pays nothing tonight, so set a skill running". */
+      G.stats = Object.assign({}, G.stats, { kills: 0 });
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      G.activeSkill = 'woodcutting';
+      const tree = (window.TREES || []).find((t) => (t.req || 1) <= 1);
+      assert(tree, 'the fixture needs a level-1 tree');
+      G.skillTargetId = tree.id;
+      G.inventory = Object.assign({}, G.inventory);
+      const wood0 = G.inventory[tree.prod] || 0;
+      const xp0 = G.skills.woodcutting || 0;
+      const now = Date.now();
+      G.lastSeen = now - 3600000;
+      G.offlineBudget = { at: now - 3600000 };
+      window.processOffline();
+      assert((G.skills.woodcutting || 0) > xp0, 'an unlicensed player must still bank gathering XP away');
+      assert((G.inventory[tree.prod] || 0) > wood0, 'an unlicensed player must still bank gathered items away');
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LICENCE-6: earned once, never revoked — and garbage state never grants it', () => {
+    const L = window.HearthriseCore.licence;
+    const K = L.FIELD_LICENCE_KILLS;
+    assert(L.fieldLicence({ stats: { kills: K - 1 } }).ok === false, 'one kill short must not be licensed');
+    assert(L.fieldLicence({ stats: { kills: K } }).ok === true, 'exactly the threshold must license');
+    /* Monotone: nothing above the threshold can revoke it — including a death,
+       which is state the gate must not read at all. */
+    [K, K + 1, K * 10, 1e9].forEach((n) => {
+      assert(L.fieldLicence({ stats: { kills: n, deaths: 500 } }).ok === true, 'the licence was revoked at ' + n + ' kills');
+    });
+    /* Garbage reads as NOT EARNED. The safe direction for a gate is "not yet",
+       never "earned" — a NaN that grants a permission is a permission a
+       corrupt save hands out for free. */
+    [undefined, null, {}, { stats: {} }, { stats: { kills: NaN } }, { stats: { kills: -5 } },
+      { stats: { kills: 'lots' } }, { stats: { kills: Infinity } }].forEach((s) => {
+      const v = L.fieldLicence(s);
+      if (s && s.stats && s.stats.kills === Infinity) return;   // genuinely >= 100
+      assert(v.ok === false, 'garbage state granted the licence: ' + JSON.stringify(s));
+      assert(v.kills >= 0 && isFinite(v.kills), 'garbage state produced a garbage counter: ' + v.kills);
+    });
+    /* It survives a save round trip because it is DERIVED from stats.kills —
+       there is no separate flag for a restore to lose. */
+    const round = JSON.parse(JSON.stringify({ stats: { kills: K + 7 } }));
+    assert(L.fieldLicence(round).ok === true, 'the licence did not survive a save round trip');
+  }),
+
+  () => tryRun('LICENCE-7: the forecast is survivable — a rate is only quoted over a span you can live through', () => {
+    const G = window.G;
+    assert(typeof window._hrEstimateCombat === 'function', 'the estimator must be published for this assertion');
+    const snap = snapshotG();
+    try {
+      /* THE ACCEPTANCE CRITERION from the spec, so nobody has to trust the
+         model's constants: a fresh save (10 HP, bronze sword, empty food slot)
+         against Slime must land within 5 kills +/-1 and 75s +/-20s. Ground
+         truth from 4,000 seeded runs of the real engine: 4.49 kills / 58.5s. */
+      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, defense: 0, hitpoints: 1154 });
+      G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
+      G.playerMaxHp = 10; G.playerHp = 10;
+      G.foodSlot = null;
+      G.traits = Object.assign({}, G.traits); delete G.traits.auto_eat;
+      const est = window._hrEstimateCombat(window.MONSTERS.slime);
+      assert(est.survivalKills >= 4 && est.survivalKills <= 6,
+        'survivalKills must be 5 +/-1 for a fresh character on Slime, got ' + est.survivalKills);
+      assert(est.survivalSeconds >= 55 && est.survivalSeconds <= 95,
+        'survivalSeconds must be 75 +/-20 for a fresh character on Slime, got ' + est.survivalSeconds.toFixed(1));
+      assert(est.survivesAnHour === false, 'a fresh character does not survive an hour on Slime');
+
+      /* THE LIE ITSELF: below the hour the preview must not print an hourly
+         rate anywhere. This is the assertion that keeps it from coming back. */
+      window.openMobPreview('slime');
+      const modal = document.getElementById('mp-modal');
+      assert(modal && modal.textContent.length > 0, 'the monster preview did not render');
+      assert(!/\/\s*hr/i.test(modal.textContent),
+        'the preview still quotes an hourly rate to a character who cannot survive the hour:\n'
+        + modal.textContent.replace(/\s+/g, ' ').slice(0, 400));
+      assert(/kills/i.test(modal.textContent) && /Away:/.test(modal.textContent),
+        'the preview must print the run and the Away line instead');
+      assert(/Field Licence/.test(modal.textContent) && /\/\s*100/.test(modal.textContent),
+        'an unlicensed preview must name the licence and its counter');
+
+      /* The other side of the rule: a character who DOES survive the hour
+         still gets the hourly rate. The fix must not have deleted it. */
+      G.playerMaxHp = 500000; G.playerHp = 500000;
+      const est2 = window._hrEstimateCombat(window.MONSTERS.slime);
+      assert(est2.survivesAnHour === true, 'a 500k HP character must survive the hour');
+      window.openMobPreview('slime');
+      assert(/\/\s*hr/i.test(document.getElementById('mp-modal').textContent),
+        'the hourly rate must still be printed for a character who can hold the hour');
+
+      /* GATHERING IS UNTOUCHED, on purpose — a tree does not hit back, so its
+         hourly forecast is exactly true over an eight-hour absence. */
+      assert(typeof window.HearthriseCore.pacing.actionRate === 'function'
+        && window.HearthriseCore.pacing.actionRate('woodcutting', (window.TREES || [])[0], { bonus: () => 0 }).xpPerHour > 0,
+        'the gathering rate must still be a rate — do not harmonise the honest preview with the dishonest one');
+    } finally {
+      try { window.closeMobPreview(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LICENCE-8: the licence is a QUEST — it reaches an existing save, mirrors stats.kills, and pays authored combat XP once', () => {
+    const G = window.G;
+    const L = window.HearthriseCore.licence;
+    const snap = snapshotG();
+    try {
+      const def = (window.QUEST_DEFS || []).find((q) => q.id === 'field_licence');
+      assert(def, 'the Field Licence must be a QUEST_DEFS row, not bespoke UI');
+      assert(def.goal === L.FIELD_LICENCE_KILLS,
+        'the quest goal (' + def.goal + ') and the gate (' + L.FIELD_LICENCE_KILLS + ') must be one number');
+      assert(def.mirror === 'stats.kills',
+        'the quest must MIRROR the field the gate reads, or the counter and the gate drift');
+      assert(def.reward && def.reward.combatXp > 0, 'the reward must be combat XP');
+      assert(!def.reward.marks && !def.reward.gold, 'the licence pays XP, not marks and not gold');
+
+      /* (1) IT REACHES AN EXISTING SAVE. Seeding "only when the array is
+         empty" is why a quest added after launch used to reach nobody. */
+      G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true }];
+      G.stats = Object.assign({}, G.stats, { kills: 40 });
+      window.ensureRetentionState();
+      const q = G.quests.find((x) => x.id === 'field_licence');
+      assert(q, 'the Field Licence quest never reached a save that already had quests');
+      assert(G.quests.find((x) => x.id === 'gatherer').done === true, 'the merge clobbered a completed quest');
+
+      /* (2) IT MIRRORS. A save that already had 40 kills shows 40/100 the
+         moment the quest appears — an event counter would show 0. */
+      assert(q.progress === 40, 'the counter must mirror stats.kills, got ' + q.progress);
+      G.stats.kills = 77;
+      window.updateQuest('kill_any', 1);
+      assert(G.quests.find((x) => x.id === 'field_licence').progress === 77,
+        'the counter drifted from stats.kills — it must READ, never count');
+      assert(!G.quests.find((x) => x.id === 'field_licence').done, 'the quest completed below its goal');
+
+      /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
+      const origBonus = window.getBonus;
+      window.getBonus = () => 0;
+      try {
+        const style = window.getActiveCombatStyle();
+        const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
+        assert(route.length > 0, 'the style must route the reward somewhere');
+        const before = {}; route.forEach((r) => { before[r.skill] = G.skills[r.skill] || 0; });
+        G.stats.kills = L.FIELD_LICENCE_KILLS;
+        window.updateQuest('kill_any', 1);
+        const done = G.quests.find((x) => x.id === 'field_licence');
+        assert(done.done === true, 'the quest did not complete at ' + L.FIELD_LICENCE_KILLS + ' kills');
+        route.forEach((r) => {
+          const gained = (G.skills[r.skill] || 0) - before[r.skill];
+          /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
+             1,500 x 0.39. pacing-overhaul.md §4.5 lists quest payouts as
+             authored, explicitly not rates. */
+          assert(gained === Math.max(1, Math.floor(r.amount)),
+            'the ' + r.skill + ' share paid ' + gained + ', expected the authored '
+            + Math.max(1, Math.floor(r.amount)) + ' — PACE.xp must not scale a quest payout');
+        });
+        /* ONCE. Another 500 kills pays nothing more. */
+        const after = {}; route.forEach((r) => { after[r.skill] = G.skills[r.skill] || 0; });
+        G.stats.kills += 500;
+        window.updateQuest('kill_any', 1);
+        route.forEach((r) => {
+          assert((G.skills[r.skill] || 0) === after[r.skill], 'the licence paid twice on ' + r.skill);
+        });
+      } finally { window.getBonus = origBonus; }
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('LICENCE-9: the FTUE no longer promises away rewards for combat in the same breath as skills', () => {
+    const F = window.HearthriseFTUE;
+    assert(F && typeof F.steps === 'function', 'the FTUE must publish its steps for this assertion');
+    const steps = F.steps();
+    const byId = {}; steps.forEach((s) => { byId[s.id] = s; });
+    assert(byId.combat && byId.wrap && byId.skills, 'the FTUE lost a step: ' + Object.keys(byId).join(','));
+    assert(/Field Licence/.test(byId.combat.body),
+      'the combat step must name the Field Licence BEFORE the first fight, not after a bad night');
+    assert(/hit back/i.test(byId.combat.body) && /fall/i.test(byId.combat.body),
+      'the combat step must say that monsters hit back and a fight ends when you fall');
+    /* The exact sentence that was false: one line promising away rewards for
+       "any skill" and "anything that moves" together. */
+    assert(!/check back tomorrow for offline rewards/i.test(byId.wrap.body),
+      'the wrap step still promises away rewards for combat and skills in one breath');
+    /* And the promise the game DOES keep is untouched. */
+    assert(/offline, progress continues/i.test(byId.skills.body),
+      'the skills step must still promise offline progress — it is true, and it is the promise the game keeps');
   }),
 
 ];

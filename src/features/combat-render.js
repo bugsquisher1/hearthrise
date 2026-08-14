@@ -150,12 +150,64 @@ function forecast(m) {
   const gp = m.gp || [0, 0];
   const style = window.getActiveCombatStyle ? window.getActiveCombatStyle() : null;
   const trains = style && style.xp ? Object.keys(style.xp)[0] : 'attack';
+  /* b341 — SURVIVAL, from the one estimator (legacy.js `estimateSurvival`,
+     published as `_hrEstimateCombat`). This module already had the half of
+     the maths the monster preview was missing (`foe.accuracy`, `foe.maxHit`)
+     and still quoted four unqualified hourly rates in "If you stay here", so
+     it was telling the same lie with the evidence in its own hand. It reads
+     the shared estimator rather than deriving a second one: two survival
+     models would disagree within a build, and this file's own header is a
+     three-paragraph argument against exactly that. */
+  const est = typeof window._hrEstimateCombat === 'function' ? window._hrEstimateCombat(m) : null;
   return {
     eq, you, foe, weak, swingS, dps, killS, killsHr,
     xpHr: killsHr * (m.xp || 0),
     goldHr: killsHr * ((gp[0] + gp[1]) / 2),
     trains, trainsPct: style && style.xp ? style.xp[trains] : 1,
+    survivalKills: est ? est.survivalKills : null,
+    survivalSeconds: est ? est.survivalSeconds : null,
+    survivesAnHour: est ? est.survivesAnHour : true,
+    runXp: est ? est.runXp : 0,
+    runGold: est ? est.runGold : 0,
   };
+}
+
+/* The Away row, three states, driven by ONE predicate — the same
+   `HearthriseLicence.check` the quest counter and the server's gate read. The
+   spec's §8 note that "if Tyler wants the harder version the change is one
+   line" only holds if every surface asks one function; this is that promise
+   being kept. */
+function awayRow(m, f) {
+  const L = window.HearthriseLicence ? window.HearthriseLicence.check() : { ok: true, kills: 0, need: 0 };
+  if (!L.ok) {
+    return { name: 'Not yet', meta: `combat pays away once you have landed ${L.need} kills`,
+      right: `<span class="hr-cs-amt">${L.kills} / ${L.need}</span>` };
+  }
+  const G = window.G;
+  const owns = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
+  const foodId = G && G.foodSlot;
+  const stocked = owns && foodId && (G.inventory[foodId] || 0) > 0;
+  if (!stocked) {
+    return { name: 'About that long', meta: 'then you fall and the fight ends — Auto-Eat keeps it running',
+      right: `<span class="hr-cs-amt">≈${num(f.survivalKills || 0)} kills</span>` };
+  }
+  const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : 12;
+  const foodS = f.survivalSeconds;
+  const bound = Math.min(capH * 3600, foodS);
+  return { name: 'You keep fighting for', right: `<span class="hr-cs-amt">${fmtRun(bound)}</span>`,
+    meta: foodS <= capH * 3600
+      ? `on ${num(G.inventory[foodId])} ${esc((window.ITEMS[foodId] || {}).n || foodId)}`
+      : `your ${capH}h offline max, not your food` };
+}
+
+/* "75s" / "18m" / "4h 20m". Local because the survival span is the only
+   duration this file prints. */
+function fmtRun(s) {
+  if (s == null || !isFinite(s)) return '—';
+  if (s < 90) return Math.round(s) + 's';
+  if (s < 3600) return Math.round(s / 60) + 'm';
+  const h = Math.floor(s / 3600); const mm = Math.round((s % 3600) / 60);
+  return h + 'h' + (mm ? ' ' + mm + 'm' : '');
 }
 
 /* ── The player's action: Eat ──────────────────────────────────────────────
@@ -337,12 +389,24 @@ const HUD = (() => {
               : (matched ? 'you brought it: +20% damage, +15% accuracy' : 'bring this and both go up'),
             right: amt(weaponLabel(m.weaponWeak)) },
         ] },
-        { kind: 'rows', title: 'If you stay here', rows: [
-          { name: 'Time to kill', meta: 'one foe, from full health', right: amt(f.killS.toFixed(1) + 's') },
-          { name: 'Kills per hour', right: amt(f.killsHr.toFixed(1)) },
-          { name: 'Combat XP per hour', meta: `split by your style — mostly ${esc(f.trains)} at ${Math.round(f.trainsPct * 100)}%`, right: amt(num(f.xpHr)) },
-          { name: 'Gold per hour', meta: 'coin only; drops are worth more', right: amt(num(f.goldHr)) },
-        ] },
+        /* THE RULE (docs/design/away-combat-licence.md §4.1): a rate may only
+           be quoted over a span the character can actually survive. Below the
+           hour these rows describe THE RUN — the thing that is about to
+           happen — and the hourly pair is not printed at all. */
+        { kind: 'rows', title: f.survivesAnHour ? 'If you stay here' : 'This run', rows: (
+          f.survivesAnHour ? [
+            { name: 'Time to kill', meta: 'one foe, from full health', right: amt(f.killS.toFixed(1) + 's') },
+            { name: 'Kills per hour', right: amt(f.killsHr.toFixed(1)) },
+            { name: 'Combat XP per hour', meta: `split by your style — mostly ${esc(f.trains)} at ${Math.round(f.trainsPct * 100)}%`, right: amt(num(f.xpHr)) },
+            { name: 'Gold per hour', meta: 'coin only; drops are worth more', right: amt(num(f.goldHr)) },
+            { name: 'You last', meta: 'before their damage outruns your health and food', right: amt(fmtRun(f.survivalSeconds)) },
+          ] : [
+            { name: 'Time to kill', meta: 'one foe, from full health', right: amt(f.killS.toFixed(1) + 's') },
+            { name: 'You last', meta: 'before their damage outruns your health and food', right: amt('≈' + num(f.survivalKills) + ' kills · ' + fmtRun(f.survivalSeconds)) },
+            { name: 'This run pays', meta: 'what one stand here is worth, not an hour of them', right: amt('≈' + num(f.runXp) + ' XP · ≈' + num(f.runGold) + ' gold') },
+          ]
+        ) },
+        { kind: 'rows', title: 'While you are away', rows: [awayRow(m, f)] },
         { kind: 'note', html:
           'These are averages over a long session, not a promise about the next swing. ' +
           'Anything that changes your gear or your levels changes them while you watch.' },

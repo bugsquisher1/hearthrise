@@ -43,6 +43,29 @@ jobs:
       - name: Smoke suite (headless)
         run: node tests/run-smoke.mjs
 
+      # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
+      # copy of every player's progression, and disaster recovery rests entirely
+      # on "we can rebuild the schema from the repo". On 2026-08-14 that was
+      # FALSE — 15 objects existed in production and in no file, and applying the
+      # migrations in filename order got 23 of 41 files in — and there was no
+      # test that could have said so. This replays supabase/schema.sql + every
+      # migration onto a real in-process PostgreSQL in the order declared by
+      # tests/schema-apply-order.json, then fingerprints the result against a
+      # committed baseline. It ALSO fails if a new migration is not placed in
+      # that order, so a file cannot be silently omitted from a rebuild.
+      # No credentials; production untouched.
+      #
+      # --mutate plants seven real defects in the real migration text (a gutted
+      # reconstruction, a vanished policy, a renamed column, RLS switched off on
+      # a watched table AND on an unwatched one, a silent type change, and the
+      # A11 lockdown GUC removed) and demands every one is caught. This repo has
+      # shipped a guard that asserted nothing twelve times; this one does not get
+      # to claim it works.
+      - name: Schema drift — the repo must rebuild the database
+        run: |
+          node tests/schema-drift.mjs
+          node tests/schema-drift.mjs --mutate
+
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an
       # in-process PostgreSQL — no database credentials, no branch, nothing to

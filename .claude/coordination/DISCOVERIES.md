@@ -4,6 +4,36 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-14 - Systems Engineer - P1 - `information_schema` DOES NOT LIST MATERIALIZED VIEWS. Every grant check written against it reads NULL on a matview, forever
+
+**Discovery:** materialized views are not in the SQL standard, so PostgreSQL omits them from
+**every** `information_schema` relation - including `role_table_grants`. A check of the form
+`select ... from information_schema.role_table_grants where table_name='leaderboard_ranked'`
+therefore returns NO ROWS whether or not `anon` holds SELECT on it, and a self-check built on it
+passes on a database where the grant is still live.
+
+Found in my own SS5(b) of `2026-08-14-leaderboard-view-lockdown.sql`, by the `matview_left_readable`
+mutation firing on the *behavioural* check (SS5(g), `set role authenticated`) instead of on the grant
+check that was supposed to catch it. Instance **#14** of the assertion-that-asserts-nothing family,
+and the fourteenth was caught only because the mutation proof asserts WHICH assertion fires, not
+merely that the migration was refused.
+
+**AFFECTED SYSTEMS:** any migration or audit reasoning about privileges on `leaderboard_ranked`
+(the only matview in this schema today) or on any future one. `hr_assert_grant_hygiene` check (4)
+uses `information_schema.role_table_grants` for TRUNCATE/REFERENCES/TRIGGER and is blind to matviews
+for the same reason - not a live risk today (a matview has no such grants worth holding), but it is
+the same hole and it is now written down.
+
+**REQUIRED ACTION:** ask `has_table_privilege(role, relation, priv)` - it reads the ACL directly,
+follows role membership, and works on every relkind. Keep the behavioural `set role` probe beside it
+anyway: the catalogue answer and the answer a role actually gets are different questions, and this
+is the second time on this project that only the second one was true.
+
+**GENERALISE:** a mutation proof that only asserts "the migration was refused" would have scored
+this as a pass. Assert the MESSAGE, so a defect caught by the wrong check is a failure.
+
+---
+
 ### 2026-08-14 · Systems Engineer · P1 — `pg_depend` CANNOT SEE A PL/pgSQL CALLER. Every "nothing else calls this" assertion built on it reads 0 forever
 
 **Discovery:** a PL/pgSQL function body is stored as an opaque string (`pg_proc.prosrc`). Calling

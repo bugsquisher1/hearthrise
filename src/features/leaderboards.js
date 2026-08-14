@@ -638,6 +638,13 @@
     BOARDS: BOARDS, CATEGORIES: CATEGORIES, SKILL_ORDER: SKILL_ORDER,
     TOP_N: TOP_N, SPAN: SPAN,
     render: render, wire: wire,
+    /* b340: the ONE leaderboard transport. src/features/clans.js used to keep a
+       second one — a direct `/rest/v1/leaderboard?order=…` fetch against a
+       world-readable SECURITY DEFINER view — to feed legacy.js's no-module
+       fallback renderer. Two files reading the boards two ways meant the view
+       could not be dropped, and it meant this module's RPC-first/degrade rules
+       applied to only one of them. Published rather than duplicated. */
+    fetchBoard: fetchBoard,
     selectCategory: selectCategory, selectBoard: selectBoard,
     current: function () { return { cat: curCat, board: curBoard }; },
     capability: capability,

@@ -2,6 +2,45 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-14 - FROM Systems Engineer -> TO Security Engineer, Coordinator (b340)
+
+**market-v2's stated blocker is closed; a SECOND one that was on nobody's list is not.**
+`src/net/supabase-market-backend.js` now prefers `market_list` / `market_cancel` / `market_buy` and
+keeps the v1 table write only as a proven-absence fallback. But `collectSales()` PATCHes
+`market_sales.collected`, and **market-v2 recreates that table with no `collected` column** - the
+handoff's blocker list named lines 73/93/107/120 and stopped there. Left alone, applying the
+migration would have turned that into a silent 400 polled once a minute forever
+(`if (!res.ok) return []`). It now stops on a proven-v2 server, and identifies v2 from a `42703`.
+
+**Still blocking market-v2, and NOT mine to close:** `player_inventory` holds zero rows, so
+`market_list`'s escrow (`select qty from player_inventory ... for update`) would refuse 100% of
+legitimate listings. And under v2 the server moves gold/items while `src/market.js` still moves
+`G.gold`/`G.inventory` locally - two disjoint universes until the client rewire. **market-v2 is
+unblocked on the CLIENT-WRITE precondition only.** Do not read "unblocked" as "appliable".
+
+**F5 is closeable now.** `src/features/clans.js` is off both views (`hr_clan_browser` for the clan
+browser, `HearthriseLeaderboards.fetchBoard` for `NetClient.leaderboard`).
+`supabase/migrations/2026-08-14-leaderboard-view-lockdown.sql` is **STAGED, NOT APPLIED** - it drops
+`leaderboard` + `clan_leaderboard` and revokes `anon`/`authenticated` SELECT on `leaderboard_ranked`.
+**ORDER IS LOAD-BEARING: b340 must be DEPLOYED first.** Players on b339 still read both views;
+applying first breaks the clan browser for everyone on the old build.
+
+**One new client-callable RPC:** `hr_clan_browser(int)` - authenticated only, `anon` EXECUTE false,
+VOLATILE (it calls `hr_rate_ok`, which writes - STABLE here is the 25006 sign-up outage again),
+rate-gated 120/min with the C2/S6 recorded+sampled rejection shape, limit clamped 1..50 server-side,
+and recorded through `hr_grant_baseline_sync` so the widening prints its own diff.
+`hr_leaderboard`'s `p_limit <= 100` clamp stops being decorative the moment the matview revoke lands.
+
+**Proof:** `tests/leaderboard-lockdown-guard.mjs` replays the WHOLE repo chain (schema.sql + every
+file in the declared apply order) and applies the staged file on top - 5 mutations, all RED.
+`tests/market-offers-guard.mjs` and `tests/schema-drift.mjs` unchanged and green;
+`tests/rpc-resolution.mjs` 41/41 identical to baseline. Suite 645/645.
+
+**Read DISCOVERIES first** - my own SS5(b) grant check was blind because `information_schema` does not
+list materialized views.
+
+---
+
 ### 2026-08-14 · FROM Systems Engineer → TO Security Engineer, Coordinator (b339, CLEAR-WITH-CONDITIONS)
 
 All six conditions on the client rewire are addressed. **The switch still must NOT be flipped for a

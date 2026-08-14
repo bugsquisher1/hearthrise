@@ -91,9 +91,44 @@
   function myPerks() { return perksFor(_myClan ? _myClan.level : 0); }
 
   // ── REST ───────────────────────────────────────────────────
+  /* b340 / F5 — THE CLAN BROWSER READS AN RPC, NOT A WORLD-READABLE VIEW.
+     `public.clan_leaderboard` is one of two SECURITY DEFINER views that let an
+     UNAUTHENTICATED caller enumerate the game (proven by execution as `anon`
+     with no JWT). It stayed alive purely because this line read it directly.
+     `hr_clan_browser` is the narrowing: same ten columns, `authenticated`
+     only, rate-gated, limit clamped server-side.
+
+     The view read is kept ONLY as the pre-migration fallback and ONLY when the
+     server PROVES the RPC is absent (404 / PGRST202 / 42883 / 42P01). A 401 or
+     a 5xx is a refusal and returns nothing — falling back on those would keep
+     the very read the migration exists to close alive on a bad day. When
+     2026-08-14-leaderboard-view-lockdown.sql drops the view, this fallback
+     answers 404 and disappears on its own; nothing here needs a second edit.
+
+     Unlike the membership WRITES below there IS a fallback here, and the
+     difference is deliberate: a fallback on a write would reopen a security
+     hole (no ban list, no journal, no rate limit), while this one only reads a
+     table that is, until the migration lands, world-readable anyway. */
+  var CLAN_BROWSER_RPC = 'hr_clan_browser';
+  var CLAN_BROWSER_LIMIT = 25;
+
+  function rpcSeam() { return window.HearthriseRpc || null; }
+
   async function listClans() {
     if (!online()) return [];
-    var res = await fetch(cfg().url + '/rest/v1/clan_leaderboard?limit=25', { headers: headers() });
+    var R = rpcSeam();
+    if (R && R.shouldTry(CLAN_BROWSER_RPC)) {
+      var r = await rpc(CLAN_BROWSER_RPC, { p_limit: CLAN_BROWSER_LIMIT });
+      if (R.isMissingRpc(r.status, r.out)) {
+        R.note(CLAN_BROWSER_RPC, false);
+      } else {
+        if (r.ok) R.note(CLAN_BROWSER_RPC, true);
+        if (r.ok && r.out && r.out.ok === true && Array.isArray(r.out.clans)) return r.out.clans;
+        return [];                      // a refusal is a refusal, never a fallback
+      }
+    }
+    var res = await fetch(cfg().url + '/rest/v1/clan_leaderboard?limit=' + CLAN_BROWSER_LIMIT,
+      { headers: headers() });
     if (!res.ok) return [];
     return res.json();
   }
@@ -436,19 +471,51 @@
   function patchNetClient() {
     if (typeof NetClient === 'undefined') return;
     var origLb = NetClient.leaderboard.bind(NetClient);
+    /* b340 / F5 — THIS OVERRIDE NO LONGER OWNS A LEADERBOARD TRANSPORT.
+       It used to fetch `/rest/v1/leaderboard` directly, which is the second of
+       the two SECURITY DEFINER views an unauthenticated caller could read for
+       every player's uuid, name, gold and levels. It now goes through
+       HearthriseLeaderboards.fetchBoard — the module that has OWNED this screen
+       since b222 — so there is one RPC-first path with one degrade rule instead
+       of two models of the same boards.
+
+       Its consumer is legacy.js:4499, the no-module fallback renderer, which
+       prints Lv / CL / gold on every row. hr_leaderboard answers ONE board per
+       call, so all three are read and merged by id. That is three requests on a
+       path that only runs when this module's own leaderboard script failed to
+       load — and the alternative was to fill two of the three columns with
+       zeroes, which is fabricated data on a screen about other players. */
+    var LB_BOARD = { total: 'total_level', combat: 'combat_level', gold: 'wealth' };
+    var LB_STAT  = { total_level: 'total', combat_level: 'combat', wealth: 'gold' };
     NetClient.leaderboard = async function (mode) {
-      if (!online()) return origLb(mode);
+      var LB = window.HearthriseLeaderboards;
+      if (!online() || !LB || typeof LB.fetchBoard !== 'function') return origLb(mode);
       try {
-        var order = mode === 'combat' ? 'combat_level.desc.nullslast' : mode === 'gold' ? 'gold.desc.nullslast' : 'total_level.desc.nullslast';
-        var res = await fetch(cfg().url + '/rest/v1/leaderboard?order=' + order + '&limit=15', { headers: headers() });
-        if (!res.ok) return origLb(mode);
-        var rows = await res.json();
+        var primary = LB_BOARD[mode] || LB_BOARD.total;
+        var boards = ['total_level', 'combat_level', 'wealth'];
+        var res = await Promise.all(boards.map(function (b) { return LB.fetchBoard(b); }));
+        var lead = res[boards.indexOf(primary)];
+        if (!lead || lead.action !== 'accept') return origLb(mode);
+
+        // id -> the three stats, from whichever boards answered.
+        var stats = {};
+        res.forEach(function (r, i) {
+          if (!r || r.action !== 'accept') return;
+          var key = LB_STAT[boards[i]];
+          (r.top || []).forEach(function (row) {
+            if (!row || !row.id) return;
+            if (!stats[row.id]) stats[row.id] = { total: 0, combat: 0, gold: 0 };
+            stats[row.id][key] = row.score || 0;
+          });
+        });
+
         var meId = signedIn() ? session().user.id : null;
-        var list = rows.map(function (r, i) {
-          return { id: r.user_id, rank: i + 1,
-            displayName: r.name + (r.user_id === meId ? ' (You)' : '') + (r.clan_name ? ' [' + r.clan_name + ']' : ''),
-            total: r.total_level || 0, combat: r.combat_level || 0, gold: +r.gold || 0,
-            you: r.user_id === meId };
+        var list = (lead.top || []).slice(0, 15).map(function (row, i) {
+          var s = stats[row.id] || { total: 0, combat: 0, gold: 0 };
+          return { id: row.id, rank: i + 1,
+            displayName: row.name + (row.id === meId ? ' (You)' : '') + (row.clan ? ' [' + row.clan + ']' : ''),
+            total: s.total, combat: s.combat, gold: s.gold,
+            you: row.id === meId };
         });
         return { ok: true, mode: mode, list: list, live: true };
       } catch (e) { return origLb(mode); }

@@ -421,8 +421,10 @@ that hardcodes a value it did not measure is asserting about a database it imagi
 ## 📍 START HERE — STATE AT 2026-08-15 (END OF SESSION)
 
 **`main` is 716/716, 0 runtime errors. b349 is LIVE. Deployed engine matches the repo
-(`a2a42250…`) — verified by the race harness's own preflight, which is now the third
-independent check of that fact.**
+(`9040b4fe…`) — verified by the suite's own payload guard against production.**
+
+**Next hands on this: the two branches under "WAITING ON SECURITY" are with Security now.
+Nothing else is blocked.**
 
 ## ✅ THE P0 IS CLOSED (2026-08-15, b350+ / commit 6382a45) — proven in production
 
@@ -448,6 +450,26 @@ suite's payload guard against production); Tyler's `probe-intent.mjs` run 2026-0
 `active_id=slime`, `accrued_to` stamped by `now()`. The first successful `hr_apply` delta
 through the Edge Function in production. Deploys are now agent-runnable (allow rules in
 `.claude/settings.local.json` cover the token-prefixed CLI form).
+
+**T6 — the census (commit 6122c58).** T1/T2 grade `index.ts` and `set-activity.js` because
+this guard spells those two paths as literals; that is the whole of its coverage. The site
+that brings this P0 back is therefore the **third** — a future verb, in a file nothing names,
+written by copying a shape that was wrong in both call sites until this morning. T6 walks the
+deployed directory, finds each `public.hr_apply(...)` by balanced-paren scan, and requires
+`::text::jsonb` on its last top-level argument. Fewer than two sites found is itself RED, so
+a scanner that stops matching reality cannot report green. Its mutation **plants a new file**
+rather than editing an old one — an edit is caught by T1/T2 whether or not T6 works, so it
+could never show T6 sees anything.
+
+**Convergent work, resolved — do NOT merge `worktree-agent-ab2e207f07ac493d8`.** Two agents
+were on this P0 at once (my dispatch error). The second reached the *identical* `::text::jsonb`
+cast from the same reading of the driver source, and its harness duplicates
+`tests/delta-transport.mjs`. The one thing it had that main did not was the structural
+property above, taken as T6 rather than as the `intents.js` seam it proposed: the payload had
+been deployed and verified in production forty minutes earlier, and a verified payload does
+not get re-cut for a tidiness win. **The seam (one `applyDelta()`, `hr_apply(` spelled once)
+is still the right shape when a third verb actually needs it** — T6 is what makes deferring
+it safe. Its branch is kept, unmerged, for whoever does that.
 
 ## ~~⛔ THE P0 THAT BLOCKS EVERYTHING~~ — CLOSED above; original diagnosis kept for the record
 
@@ -494,7 +516,9 @@ proven RED against today's code.
 2. **This P0.**
 
 ## RUNNING WHEN THE SESSION ENDED
-- **delta-transport fix** (agent `ab2e207f`) — the P0 above.
+- **Security review of BOTH unmerged branches below** — dispatched 2026-08-15, one reviewer
+  each, holding veto. Neither branch may merge until they report.
+- ~~delta-transport fix (agent `ab2e207f`)~~ — CLOSED; see the convergent-work note above.
 - **self-reload workflow** (`w7ss67yp9`) — Tyler confirmed *"it refreshed on its own"* and the
   daily claim rolled back. Four candidate triggers tested in parallel; the prime suspect is
   `build-watch.js`, because FOUR builds shipped during his test window and a reload before the
@@ -515,10 +539,11 @@ proven RED against today's code.
   structurally cannot reach a rung**.
 
 ## NEEDS TYLER
-1. **Re-run `node tools/race-test.mjs --yes`** after the P0 lands. It stopped correctly last
-   time — it refused to race an unpayable window. PowerShell notes: no `&&`, and do NOT pipe or
-   use `Start-Transcript` (a pipe hides the password prompt; PS 5.1's transcript does not
-   capture native stdout — both cost a real run).
+1. **Re-run `node tools/race-test.mjs --yes`** — the P0 has landed, so the window it refused to
+   race is payable now. It stopped correctly last time. PowerShell notes: no `&&`, and do NOT
+   pipe or use `Start-Transcript` (a pipe hides the password prompt; PS 5.1's transcript does
+   not capture native stdout — both cost a real run). **True concurrency is still the last
+   unproven property of the apply path**, and this is the tool that proves it.
 2. **Clear `hr:serverAccrual:replaceAck`** before the next switch-on test, or the b339
    replacement sheet fires SILENTLY and takes back his daily reward.
 3. **PITR at cutover** — $100/mo, priced from the org's own billing API. Decision recorded, not

@@ -69,3 +69,8 @@ docs/reports/visual-qa/*.png
 
 # stray local artifact — not part of the deploy
 hearthrise-map.html
+
+# live-probe output written into the repo root by tools/probe-intent.mjs and
+# tools/race-test.mjs. Response bodies from a real signed-in account — never commit.
+probe-intent-out.json
+race-out.txt

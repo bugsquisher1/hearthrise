@@ -34,6 +34,27 @@ Daily/quest counters are DONE and DEPLOYED (b353+, `src/core/goals.js` contract 
 away nights advance the counters players watch, exact counts, zero new ledger rows,
 no migration needed and that was proven by execution).
 
+## 🔐 TWO SECURITY REVIEWS DELIVERED LATE 2026-08-15 — both sign-off-with-conditions, closure in flight
+
+**`unlock_buy` (branch `agent-ae86bbf06133c9a82`):** core claims survived execution (cap
+refused at exactly 20 from the ledger; engine cannot name price/rung/qty; GREATEST merge
+proven in SQL; key hygiene byte-identical to hr_apply's). Conditions: C1 generators emit
+`revoke all` (production default ACL leaves service_role TRUNCATE — §3(d) would refuse the
+apply); C3 widen hygiene check (4) to all write verbs on all client-ish roles + cleanup
+migration for SIX pre-existing live tables carrying anon/authenticated write GRANTS held
+back only by RLS (hr_castle_*, hr_hunt_*); C4 receipt built from the SQL charge; C5 two
+test arms. APPLY ORDER PINNED: offers.generated → unlock-buy → only then Edge deploy.
+**Author closing all conditions on-branch now.**
+
+**Gold rewires (branch `agent-ad03dba5f49cbfe33`):** envelope-side either/or HELD
+("genuinely unspellable"). The flip-on P0 is the PREDICTION LEDGER: three leak paths make
+an unanswered prediction immortal, and every future envelope re-adds it — probe minted
+32M self-owned gold surviving all healing. MERGE cleared after rebase + census-evasion
+fixes; FLIP-ON blocked on F1–F10 (all being closed now). The sellJunk 5× faucet fix is
+CLEARED to ship ahead of the flip WITH a player-facing changelog line. 33 deferred sites
+must be scoped for the flip (deferred grants get erased, deferred spends refunded, under
+flag-on).
+
 ## 🔥 THE RESTORE WAS TESTED — INVOLUNTARILY, IN PLACE, AND IT HELD (2026-08-15 ~21:30 UTC)
 
 Tyler clicked plain "Restore" instead of "Restore to a New Project": production was

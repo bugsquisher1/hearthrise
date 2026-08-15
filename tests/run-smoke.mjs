@@ -20,6 +20,7 @@ import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
+import { goalCountersGuard } from './goal-counters.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
@@ -1165,6 +1166,35 @@ const run = async () => {
       console.log('\nArtisan progress model guard — a recipe row opens the gate and its deletion '
         + 'closes it; a Kitchen rung cooks a span with 0 burns and its deletion restores the '
         + 'catalogue rate.');
+    }
+
+    /* ── The daily/quest counter guard (b353, Designer Ruling 3.1) ──────
+       "An away night that pays XP and items but leaves 'Slay 10 monsters' at
+       0/10 reads as 'my night didn't count'." The two fx handlers core has
+       always called and the accrual engine never listened to, wired — and
+       proven end to end on a real PostgreSQL with the whole migration chain
+       applied: a seeded 2h combat night advances 'ev:kill_any' by EXACTLY the
+       kill count, a gather night advances 'ev:gather' by the YIELD (tool
+       doubles included), and — the load-bearing half — neither touches the
+       other's counter, which is the only thing that distinguishes this model
+       from a handler that increments everything.
+
+       It also pins the day key to `public.hr_utc_day_key` (whose FM format
+       strips leading zeros, so a hand-written ISO slice would be a second
+       day-key universe), binds the event vocabulary to BOTH sides — core's
+       emit sites and legacy.js's authored QUEST_DEFS/DAILY_TASK_POOL — and
+       executes the retention claim: hr_progress_prune sweeps the daily
+       population and leaves the lifetime one.
+       `node tests/goal-counters.mjs --mutate` plants nine real defects, six in
+       the accrual engine and three in src/core/goals.js. */
+    const goalProblems = await goalCountersGuard();
+    if (goalProblems.length) {
+      console.log('\nGoal counters guard (an away night moves the dailies) — FAILED:');
+      for (const p of goalProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nGoal counters guard — an away combat night moves \'slay N\' by exactly the kill '
+        + 'count, a gather night by the yield, and neither touches the other\'s counter.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

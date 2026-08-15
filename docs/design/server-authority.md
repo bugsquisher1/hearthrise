@@ -654,6 +654,51 @@ offline catch-up and every renderer already read. That module ports to Deno esse
 `plant` and `water` stamp `now()` inside `hr_apply` (see its farm block); harvest checks
 readiness against `now()`. Three lines of SQL close the whole farming exploit.
 
+### Daily / quest progress counters — THE KEY CONTRACT (b353, Designer Ruling 3.1)
+
+**The contract itself lives in [`src/core/goals.js`](../../src/core/goals.js)'s header — read that
+file, not this section, before writing an intent that moves a counter.** This is the pointer and
+the one-paragraph summary.
+
+Ruling 3.1 makes these cutover-blocking: *an away night that pays XP and items but leaves "Slay 10
+monsters" at 0/10 reads as "my night didn't count".* The seam was already in core —
+`resolveKill` has always called `fx.updateDaily('kill_any', 1)` / `fx.updateQuest(…)` and
+`resolveGatherTick` `fx.updateDaily('gather', qty)`, on the same bodies the live client runs — and
+a missing `fx` handler is a no-op by construction, which is why the gap was silent. The engine now
+listens.
+
+| | `kind` | `key` | `period_key` | merge |
+|---|---|---|---|---|
+| daily counter | `daily` | `ev:<type>` | `hr_utc_day_key(now())` | additive |
+| quest counter | `stat` | `ev:<type>` | `''` (permanent) | additive |
+
+Four properties, each with a reason and each asserted by `tests/goal-counters.mjs`:
+
+- **`kind` is the write capability, not a taxonomy** (the rule
+  `2026-08-16-artisan-progress-model.sql` established). `kind='quest'` is deliberately *not*
+  written by the engine: that key space is the quest lifecycle (`key=<quest_id>`,
+  `state=active|done|claimed`), and `claimed` is the one transition that gates a payout (review
+  S13). The engine writes **counters**; the claim path reads them and owns completion.
+- **A quest counter is a lifetime count, so every quest becomes a mirrored quest** —
+  `progress = min(goal, stat['ev:<type>'])`. The beta is wiped at cutover, so there is no baseline
+  to store and a quest authored later is retro-correct. This is the shape `hundred_kills` already
+  uses against `stats.kills`, generalised to a server-owned row.
+- **The daily period is the day the player RETURNS** (`now()`), not the credited window. Both
+  window anchors reproduce the exact failure the ruling names — a night from 22:00 credits
+  *yesterday*, and a capped 40h absence credits a window that ended two days ago. Return-anchoring
+  is also what the live client does today, so it is not a behaviour change.
+- **No migration.** `daily` and `stat` are already in `hr_apply`'s six-kind progress allowlist;
+  `ev:<type>` fits the 64-char key bound and the day key the 16-char period bound;
+  `hr_progress_prune` sweeps the daily population because it keys on `period_key <> ''` rather than
+  on a kind list; `hr_state_of` returns both populations. Every one of those is executed by the
+  guard rather than asserted here.
+
+**Adding a daily is a data row** as long as it reuses an existing event type — the handler counts
+whatever type core reports and has no per-event branch. A *new* event type fails the build by name
+(the guard binds the vocabulary to core's emit sites **and** to legacy.js's authored
+`QUEST_DEFS`/`DAILY_TASK_POOL`, in both directions), because a new type genuinely needs a server
+emit site.
+
 ### Daily caps
 
 Every cap is read from an append-only ledger rather than a stored counter, which is the

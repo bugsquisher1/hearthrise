@@ -25515,6 +25515,161 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     b355 — THE MARKET GESTURE. THE FIRST VALUE THAT CROSSES TO ANOTHER PLAYER.
+
+     Everything above moves value between a player and the HOUSE: a shop, a
+     vendor, a daily reward. `market_buy` is the first gesture in this client
+     whose gold lands on somebody else's row, and the client's half of it has to
+     satisfy the same either/or as the rest — the gold moves EITHER by the
+     server's number OR not at all — plus one property the others do not have:
+     THE BUY NAMES NO PRICE. The seller named it once, about their own goods,
+     and from that moment it is server state.
+
+     One test, three arms: the wire, the either/or, and the rollback.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B355-1/2/3: a market buy names a listing and a count, moves the SERVER\'s gold once, and a refusal reverses it exactly', async () => {
+    const A = window.HearthriseAccrual;
+    const Gd = window.HearthriseGold;
+    const M = window.HearthriseMarket;
+    const G = window.G;
+    assert(Gd && typeof Gd.buyMarketListing === 'function',
+      'src/net/gold.js carries no market transport — the whole market seam is absent');
+    assert(M && typeof M.buyListing === 'function', 'src/market.js did not load');
+
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const wasAck = A.isReplacementAcknowledged();
+    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
+    const save = { gold: G.gold, gems: G.gems,
+      skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
+    const savedListings = localStorage.getItem('hearthrise:market:listings');
+    let ver = 400;
+    let sent = [];
+
+    /* A LISTING WITH A SERVER-SHAPED ID. The client may only name a listing the
+       server knows, so a locally-created 'L…' row deliberately gets no key and
+       no intent — asserted in the third arm. */
+    const LID = '11111111-2222-4333-8444-555555555555';
+    const seedListing = (askEach, qty) => {
+      localStorage.setItem('hearthrise:market:listings', JSON.stringify([{
+        id: LID, sellerId: 'someone-else', sellerName: 'Someone Else',
+        itemId: 'normal_log', qty: qty, askEach: askEach, postedAt: Date.now(),
+      }]));
+    };
+    const envelope = (gold, extra) => {
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      return Object.assign({
+        ok: true, verb: 'market_buy', version: ++ver, now: Date.now(),
+        state: { gold: gold, gems: G.gems, active_kind: 'idle', active_id: null, accrued_to: null },
+        skills, inventory: Object.assign({}, G.inventory),
+      }, extra || {});
+    };
+
+    try {
+      A.setServerAccrualEnabled(true);
+      A.acknowledgeReplacement(true);
+      Gd.resetGold();
+      Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+
+      // ── B355-1: THE WIRE. A listing and a count, and NOTHING that is a price.
+      seedListing(10, 5);
+      G.gold = 1000; G.inventory = {}; sent = [];
+      /* The server charges a number the client never guessed, so an additive
+         client would land on 1000 - 40 + (something) and only the ABSOLUTE rule
+         produces exactly this. */
+      const SERVER_GOLD = 424242;
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        sent.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify(envelope(SERVER_GOLD, {
+          bought: { listing_id: LID, item_id: 'normal_log', qty: 4, each: 10,
+            gold_gross: 40, tax: 0, seller_name: 'Someone Else' },
+        })), { status: 200 }));
+      };
+      const r1 = M.buyListing(LID, 4);
+      assert(r1 && r1.ok === true, 'the market buy refused locally: ' + JSON.stringify(r1));
+      await drain();
+
+      assert(sent.length === 1 && sent[0].verb === 'market_buy',
+        'the market buy sent ' + JSON.stringify(sent) + ' — with the switch on it must send exactly '
+        + 'one market_buy intent');
+      assert(sent[0].listing === LID && sent[0].qty === 4,
+        'the buy named ' + JSON.stringify(sent[0]) + ' instead of {listing, qty:4}');
+      for (const forbidden of ['ask', 'price', 'each', 'cost', 'gold', 'total', 'unit', 'seller', 'item']) {
+        assert(!(forbidden in sent[0]),
+          'the market_buy body carries a `' + forbidden + '` field. The BUYER never supplies a price '
+          + '— hr_market_buy reads ask_each off the listing row it locked — and the moment this wire '
+          + 'can name one, a forged client value crosses into another player\'s economy');
+      }
+
+      // ── B355-2: THE EITHER/OR. The server's number, exactly once.
+      assert(G.gold === SERVER_GOLD,
+        'the buy left gold at ' + G.gold + ' instead of the server\'s ' + SERVER_GOLD
+        + '. Either the local debit was added to the envelope (the double-pay) or the envelope was '
+        + 'not applied absolutely');
+      assert(Gd.getGoldState().pending.length === 0,
+        'the buy left ' + Gd.getGoldState().pending.length + ' prediction(s) outstanding after its own '
+        + 'envelope landed. An unretired prediction is re-added to EVERY future envelope — a '
+        + 'permanent additive offset, which is the double-pay arriving through the lifecycle');
+
+      // ── B355-3: A REFUSAL REVERSES THE PREDICTION EXACTLY, AND ONLY IT.
+      /* `gone` is the honest shape of losing a race: somebody bought the last
+         units first. Nothing was written server-side, so the local debit is the
+         only thing that moved and it comes back — not more, not less. */
+      seedListing(25, 8);
+      G.gold = 5000; G.inventory = {}; sent = [];
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        sent.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, verb: 'market_buy', error: 'gone' }),
+          { status: 409 }));
+      };
+      const r2 = M.buyListing(LID, 8);
+      assert(r2 && r2.ok === true, 'the second market buy refused locally: ' + JSON.stringify(r2));
+      await drain();
+      assert(sent.length === 1, 'the refused buy sent ' + sent.length + ' intents, expected 1');
+      assert(G.gold === 5000,
+        'a refused market buy left gold at ' + G.gold + ' instead of 5000. `gone` is refused before '
+        + 'anything is written, so the prediction is PROVABLY unwritten and must be reversed by '
+        + 'exactly its own amount');
+      assert(Gd.getGoldState().pending.length === 0,
+        'the refused buy left a prediction on the books');
+
+      /* …AND A LOCAL-ONLY LISTING SENDS NOTHING AND PREDICTS NOTHING. An 'L…'
+         row has no server counterpart to name, so a key here would create an
+         entry no envelope could ever retire — F1, from the market side. */
+      localStorage.setItem('hearthrise:market:listings', JSON.stringify([{
+        id: 'L' + Date.now(), sellerId: 'someone-else', sellerName: 'Someone Else',
+        itemId: 'normal_log', qty: 3, askEach: 7, postedAt: Date.now(),
+      }]));
+      const localId = JSON.parse(localStorage.getItem('hearthrise:market:listings'))[0].id;
+      G.gold = 900; G.inventory = {}; sent = [];
+      M.buyListing(localId, 3);
+      await drain();
+      assert(sent.length === 0,
+        'a listing that exists only locally was named to the server: ' + JSON.stringify(sent));
+      assert(Gd.getGoldState().pending.length === 0,
+        'a local-only listing recorded a prediction nothing will ever retire');
+      assert(G.gold === 900 - 21,
+        'the local-only buy left gold at ' + G.gold + ' instead of ' + (900 - 21)
+        + ' — with no server call the local payment IS the payment');
+    } finally {
+      window.fetch = realFetch;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.setServerAccrualEnabled(false);
+      A.acknowledgeReplacement(wasAck);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
+      else localStorage.setItem('hearthrise:market:listings', savedListings);
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      b354 ROUND 2 — SECURITY'S FINDINGS, EACH WITH ITS OWN GUARD.
 
      The envelope arithmetic survived their attack. THE LIFECYCLE DID NOT: three

@@ -515,8 +515,13 @@ export const MUTATIONS = {
     why: '"not yet" with no named dependency is indistinguishable from "forgotten" — which is the '
       + 'exact state this ledger exists to make impossible.',
     file: LEDGER_FILE,
-    find: "  'src/market.js#buyListing': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },",
-    repl: "  'src/market.js#buyListing': { kind: 'transfer', status: 'deferred' },",
+    /* b355: re-anchored. The old anchor was `src/market.js#buyListing`, which is
+       now `seam:market.buy` and WIRED — a mutation whose anchor names a row that
+       no longer exists is a planted bug that was never planted. Re-pointed at a
+       row that is still deferred rather than deleted, because the property is
+       about the DEFERRED class and that class is not empty. */
+    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n  },",
+    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',\n  },",
   },
 };
 

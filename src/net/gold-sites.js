@@ -106,9 +106,32 @@ export function flipBehaviourOf(row) {
    Spelled once, so twenty rows blocked on one thing all say the same words and
    a reader can count them. */
 const B = Object.freeze({
-  MARKET_V2: 'market-v2 (market_list / market_cancel / market_buy). Applied to production: NO — '
-    + 'queried directly 2026-08-14 and absent. b340 moved the client onto RPCs that are not there '
-    + 'yet, which is correct sequencing and means every market gold site is still client-authored.',
+  /* ── b355: MARKET_V2 IS NO LONGER ONE BLOCKER. ────────────────────────────
+     The old row said "market-v2 does not exist" and covered all seven market
+     sites with one sentence. market-v2 now exists — three engine-only RPCs, an
+     Edge verb each, a client transport — and the seven sites split three ways
+     rather than flipping together, because the migration deliberately does NOT
+     implement everything the v1 client does. Collapsing them back into one
+     blocker would be the b348 failure in the other direction: a status that is
+     true of the group and false of every member. */
+  MARKET_BUY_OFFERS: 'a server BUY-OFFER model. market-v2 implements SELL listings only — '
+    + '`market_listings` is an item escrow with a seller, and there is no table, no RPC and no '
+    + 'escrow shape for "I will pay up to N each for M of these". A buy offer escrows GOLD, which '
+    + 'means a second value-holding row with its own expiry, its own cancel-vs-fill arbitration and '
+    + 'its own per-day fuses — i.e. the whole of market-v2 again, pointed the other way. Until then '
+    + 'these three sites move gold the server has never heard of.',
+  MARKET_V1_BACKEND: 'the removal of src/net/supabase-market-backend.js. This site exists ONLY to '
+    + 'compensate a v1 direct-table write that refused, and under the seam it is DEAD CODE that is '
+    + 'gated off at runtime (`serverMarketActive()`): the seam\'s own rollback is narrower and '
+    + 'correct, reversing only the three outcomes that PROVE nothing was written, where this one '
+    + 'also reverses a 5xx — which is a refund for goods the server may have delivered. Deleting '
+    + 'the v1 backend is the next commit, not this one; the live beta still runs on it with the '
+    + 'switch off.',
+  MARKET_V2_NO_COLLECT: 'nothing — this site is DELETED by market-v2\'s design and is already gated '
+    + 'off at runtime. hr_market_buy pays the seller INTO player_state.gold AT SALE TIME, online or '
+    + 'not: there is no `collected` column (asserted, migration §11(d)) and no second credit path. '
+    + 'A verb here would be a second way to be paid for one sale. It survives as the v1 path for a '
+    + 'switch-off client and goes with the v1 backend.',
   UNLOCK_BUY: '`unlock_buy` — the verb for "gold buys a RUNG, not an item". Unlocks are '
     + '`player_progress` rows with kind=\'unlock\', deliberately absent from hr_apply\'s delta '
     + 'allowlist so the additive merge structurally cannot reach a rung. In flight, other agent.',
@@ -384,13 +407,51 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'transfer', status: 'deferred',
     blockedBy: 'same as muster payChest — server-priced already; belongs in the raid RPC.',
   },
-  'src/market.js#collectSaleProceeds': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#revertBuy': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#buyListing': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#buyAggregated': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#placeBuyOffer': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#cancelBuyOffer': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
-  'src/market.js#autoMatchAgainstOffers': { kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2 },
+  /* ── THE MARKET (b355). The first value that crosses to another player. ───
+     `seam:market.buy` and `seam:market.buy_aggregated` are one gesture each and
+     both are `market_buy`: a sweep across five sellers is FIVE transfers to five
+     people, one intent apiece, because hr_apply is single-character by
+     construction and a delta that could move five strangers' rows would be the
+     most dangerous key in the engine's vocabulary. Two ids rather than one
+     because they are two gestures a player can tell apart and a support ticket
+     has to be able to name.
+
+     ⚠ THE SELL SIDE HAS NO ROW HERE, AND ITS ABSENCE IS CORRECT. `listItem` and
+       `cancelListing` are wired to market_list / market_cancel in the same
+       commit, but they move ITEMS, not gold — the seller is paid at SALE time,
+       by hr_market_buy, into the buyer's own envelope. A gold census that grew a
+       row for them would be claiming a gold movement that does not exist. */
+  'seam:market.buy': {
+    kind: 'transfer', status: 'wired', verb: 'market_buy',
+    site: 'src/market.js buyListing() — buying one listing outright',
+    note: 'NO PRICE CROSSES. The wire is (listing, qty); hr_market_buy reads `ask_each` off the row '
+      + 'it locked under both parties\' advisory locks, charges the buyer, credits the seller net of '
+      + 'the house tax and journals both sides. The local debit is a PREDICTION keyed to that intent '
+      + 'and is retired by its envelope. A listing whose id is still local (\'L…\') gets NO key and '
+      + 'therefore NO prediction — an entry nobody can retire is the F1 permanent offset.',
+  },
+  'seam:market.buy_aggregated': {
+    kind: 'transfer', status: 'wired', verb: 'market_buy',
+    site: 'src/market.js buyAggregated() — the cheapest-first sweep, one intent per listing',
+    note: 'The `shop` bucket is 30/min, so a sweep past thirty listings rate-limits its own tail. '
+      + 'A 429 is PROVABLY_UNWRITTEN, so those legs roll back exactly and the sweep is partial — '
+      + 'which is the state the residual already models.',
+  },
+  'src/market.js#collectSaleProceeds': {
+    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V2_NO_COLLECT,
+  },
+  'src/market.js#revertBuy': {
+    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_V1_BACKEND,
+  },
+  'src/market.js#placeBuyOffer': {
+    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+  },
+  'src/market.js#cancelBuyOffer': {
+    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+  },
+  'src/market.js#autoMatchAgainstOffers': {
+    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,
+  },
 
   // ══ NOT BALANCES AT ALL ═══════════════════════════════════════════════════
   'src/features/daily-reward.js#rewardFor': {

@@ -74,6 +74,15 @@ export const LINKS = [
     target: '2026-08-16-client-write-grant-sweep.sql',
     patchIds: ['client_write_no_policy'],
   },
+  /* Link 4 — market v2. Back to an INSERTION, so this link's declared-removals
+     list in PART 1f-ii is empty again. It records THREE engine grants at once,
+     which is the largest single widening of the engine's capability since
+     hr_apply, and the argument for each is in the patch body. */
+  {
+    base: '2026-08-16-client-write-grant-sweep.sql',
+    target: '2026-08-17-market-v2.sql',
+    patchIds: ['market_v2'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -224,6 +233,57 @@ export const PATCHES = [
   ) x;
 `,
     where: 'replace',
+  },
+  {
+    id: 'market_v2',
+    name: 'the c_engine_allow array head (link 4)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-08-17 — THE THREE MARKET WRITERS ─────────────────────
+    -- At the HEAD, an insertion, for the same reason as links 1 and 2: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ THE LARGEST SINGLE WIDENING SINCE hr_apply: three writers at once, and
+    -- ONE OF THEM MOVES VALUE BETWEEN TWO PLAYERS. The c_engine_allow claim is
+    -- "read-only or SELF-VALIDATING, and it accepts no target the caller is not
+    -- already authorised for". None of these is read-only, so the whole claim
+    -- rests on the other two clauses, re-derived rather than asserted:
+    --
+    --   SELF-VALIDATING. The entire caller-supplied surface of the three is a
+    --   character slot, an idempotency uuid, a version, and then: an ITEM ID +
+    --   COUNT + ASK (list), a LISTING ID (cancel), a LISTING ID + COUNT (buy).
+    --   No price crosses on a buy — ask_each is read off the listing row under
+    --   its own lock — no timestamp, no name, no fee rate, no counterparty. The
+    --   item must be \`tradeable\` in the generated, client-unwritable hr_items;
+    --   the tax rate and every ceiling come from hr_market_config; the seller
+    --   name is derived from profiles; every clock is now(). Each function
+    --   re-reads its listing FOR UPDATE and re-validates under hr_apply's own
+    --   advisory lock, refuses a stale version, and is clamped per call (a gross
+    --   ceiling) AND per DAY (list churn; gold sent; gold received) from the
+    --   append-only ledger — the dimension a rate limit does not bound.
+    --
+    --   NO NEW TARGET, and this is the clause that had to be argued hardest,
+    --   because hr_market_buy writes a row belonging to a user the caller did
+    --   not name. It does not TAKE a counterparty: the second row it touches is
+    --   whoever the LISTING says posted the goods, and a listing row can only be
+    --   created by hr_market_list acting for a JWT-verified seller. So the
+    --   engine cannot select a victim; it can only settle a trade a real seller
+    --   opened, in the direction the seller chose, at the seller's price, and the
+    --   settlement is gold-conserving (buyer -gross, seller +net, tax burned).
+    --   p_user is the parameter the engine already passes to hr_apply.
+    --
+    --   WHY THE ENGINE NEEDS THEM: hr_apply is single-character by construction
+    --   — one lock, one version, one journal target — so a delta shape that
+    --   could move a second player's gold would be the most dangerous key in the
+    --   engine's vocabulary. Without these three, the only writer of a
+    --   cross-player transfer is the client, which is the hole this whole
+    --   program was opened to close.
+    'hr_market_list(uuid,integer,bigint,uuid,text,bigint,bigint)',
+    'hr_market_cancel(uuid,integer,bigint,uuid,uuid)',
+    'hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
+`,
+    where: 'after',
   },
 ];
 

@@ -28,19 +28,28 @@
 // to hide.
 //
 // ── WHERE IT RUNS ───────────────────────────────────────────────────────
-// In process, against a REAL PostgreSQL (PGlite/WASM, PG 18) with the FOUR
-// REAL MIGRATION FILES applied verbatim:
+// In process, against a REAL PostgreSQL (PGlite/WASM, PG 18) with THE WHOLE
+// MIGRATION CHAIN applied verbatim, in the order tests/schema-apply-order.json
+// declares — the same `bootReplay` every other chain guard uses.
 //
-//     2026-08-11-player-state.sql
-//     2026-08-11-catalogue.generated.sql
-//     2026-08-11-apply-engine.sql
-//     2026-08-11-market-v2.sql
+// ⚠ IT USED TO APPLY A HAND-PICKED BUNDLE OF SIX FILES, AND THAT STOPPED
+//   BEING HONEST ON 2026-08-17. 2026-08-17-market-v2.sql REFUSES TO INSTALL
+//   without hr_utc_day_key, hr_client_write_baseline, hr_assert_grant_hygiene
+//   and four asserted properties of the LIVE hr_apply body — whose transitive
+//   closure is the whole chain under another name. A hand-maintained bundle
+//   would therefore have to grow to the full list anyway, one debugging session
+//   at a time, and would still be a SECOND declaration of the apply order next
+//   to the manifest that owns it. The side benefit is the one that matters:
+//   every migration's own self-verifying `do $$` block — including market-v2's
+//   §0 refuse-to-install with both scan controls and its §11(a)-(k) — now
+//   EXECUTES on every fuzz run, before a single op is issued.
 //
 // Nothing is reimplemented, stubbed or "modelled" on the server side. The
 // only scaffolding is tests/sql/pglite-fixture.sql (auth.uid, auth.users,
-// profiles, a pg_cron shim) — read its header for what is stubbed and why
-// each stub is faithful. Production is never touched: no network, no
-// credentials, no branch, nothing to leave behind.
+// profiles, a pg_cron shim) plus schema-replay's SCAFFOLD (the platform's base
+// grants) — read their headers for what is stubbed and why each stub is
+// faithful. Production is never touched: no network, no credentials, no
+// branch, nothing to leave behind.
 //
 // ── WHY THE MODEL IS INDEPENDENT (this is the whole design) ─────────────
 // The expected delta of an operation is derived from (the operation's own
@@ -104,26 +113,42 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bootReplay } from './schema-replay.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 
-// grant-hygiene is in this list as of 2026-08-11 because market-v2 §9(i) no
-// longer carries its own copy of the hr_engine capability pin — it DELEGATES to
-// hr_assert_grant_hygiene(), which is where the pin actually runs (review S9).
-// market-v2 fails closed without it, deliberately, so the harness has to apply
-// it too. Side benefit: the detector's own self-check now runs on every fuzz.
-const MIGRATIONS = [
-  ['player-state', MIG('2026-08-11-player-state.sql')],
-  ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
-  // daily-budget is BEFORE apply-engine because apply-engine fails closed
-  // without hr_day_budget_check (C5/X3). Applying them the other way round is
-  // not a slow degradation, it is a refused migration — which is the point.
-  ['daily-budget', MIG('2026-08-11-daily-budget.sql')],
-  ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
-  ['grant-hygiene', MIG('2026-08-11-grant-hygiene.sql')],
-  ['market-v2', MIG('2026-08-11-market-v2.sql')],
-];
+/* ── WHICH FILE AN INJECTION PLANTS ITS BUG IN ──────────────────────────────
+   The injection catalogue below names files by SHORT NAME, which is what a
+   reader of a planted bug wants to see. `bootReplay` keys its patches by the
+   filename in the apply-order manifest. This map is the only place the two
+   meet, so an injection entry cannot silently name a file that is not in the
+   chain: `boot()` refuses an unmapped name as a HARNESS failure, exactly as
+   bootReplay refuses a patch anchor that does not match. */
+const INJECTION_FILES = Object.freeze({
+  'player-state': '2026-08-11-player-state.sql',
+  'catalogue': '2026-08-11-catalogue.generated.sql',
+  'daily-budget': '2026-08-11-daily-budget.sql',
+  'apply-engine': '2026-08-11-apply-engine.sql',
+  /* ⚠ `apply-live` IS 2026-08-15-gem-daily-budget.sql, AND IT IS THE ONE THAT
+     MATTERS FOR ANYTHING INSIDE hr_apply. FOUR files `create or replace` that
+     function; on the six-file bundle the 2026-08-11 one was the last, so a
+     plant there was the body that ran. On the FULL chain it is overwritten
+     three times, and the first selftest after the move reported five plants
+     SLIPPED — not because the fuzz stopped seeing those defects, but because
+     the defects were never installed. That is the "planted bug that was never
+     planted" failure arriving through the apply ORDER instead of through a
+     stale anchor, and it is the single most valuable thing the move to the
+     full chain taught. Anything that patches hr_apply or hr_day_budget_used
+     must name THIS file, which is the last writer of both. */
+  'apply-live': '2026-08-15-gem-daily-budget.sql',
+  'grant-hygiene': '2026-08-11-grant-hygiene.sql',
+  /* ⚠ 2026-08-17, NOT 2026-08-11. The old file is DELETED; the six market
+     injections below are re-anchored on the re-derivation, verbatim from
+     tests/market-v2.mjs's mutation catalogue so the two agree by construction
+     rather than by two people typing the same SQL. */
+  'market-v2': '2026-08-17-market-v2.sql',
+});
 
 // ── args ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -150,35 +175,59 @@ const SEED_ARG = argOf('seed', null);
 // always null.
 // ════════════════════════════════════════════════════════════════════════
 const INJECTIONS = {
+  /* ⚠ THE SIX MARKET PLANTS ARE tests/market-v2.mjs's, PORTED VERBATIM. Two
+     guards drive the same three functions and each has to be able to fail; two
+     independently-typed copies of one anchor is two anchors, and the one nobody
+     re-ran after an edit is the one that silently stops planting. Where the
+     names differ (`cancel_vanish` here is `cancel_no_return` there) the name is
+     this file's and the SQL is that file's, byte for byte. */
   cancel_vanish: {
     what: 'market_cancel deletes the listing but never returns the escrow — the stack ceases to exist',
     file: 'market-v2',
+    /* ⚠ THE ESCROW IS NOT RETURNED AT ALL, rather than returned as ZERO — and
+       the difference decides whether this plant can be caught HERE. Returning 0
+       trips player_inventory's own `qty > 0` CHECK, which market-v2's exception
+       handler turns into a `bad_market_write` REFUSAL: nothing moves, so every
+       conservation identity holds and the plant slips. tests/market-v2.mjs
+       catches the zero form because it asserts the cancel SUCCEEDS; this
+       harness's cancel verdict is advisory (a cancel may legitimately be
+       refused for bank_full), so the plant has to let the cancel succeed and
+       destroy the stack. Measured: the zero form SLIPPED here on 400 ops. */
     patches: [[
-      `    insert into public.player_inventory as pi (user_id, slot, item_id, qty)
-      values (v_uid, v_row.seller_slot, v_row.item_id, v_row.qty)
-      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;`,
-      `    -- INJECTED cancel_vanish: escrow is not returned`,
+      '    insert into public.player_inventory as pi (user_id, slot, item_id, qty)\n'
+      + '      values (v_uid, v_slot, v_row.item_id, v_row.qty)\n'
+      + '      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;',
+      '    -- INJECTED cancel_vanish: the escrow is simply not returned',
     ]],
   },
 
   list_no_escrow: {
     what: 'market_list posts the listing without debiting the seller — the goods exist twice',
     file: 'market-v2',
+    /* BOTH branches, because the debit has a whole-stack form and a
+       partial-stack form and a plant that disarmed only one would be caught by
+       whichever leg happened to take the other. */
     patches: [[
-      `    if v_have = p_qty then
-      delete from public.player_inventory
-       where user_id = v_uid and slot = v_slot and item_id = p_item_id;
-    else
-      update public.player_inventory set qty = qty - p_qty
-       where user_id = v_uid and slot = v_slot and item_id = p_item_id;
-    end if;`,
-      `    -- INJECTED list_no_escrow: the seller keeps the goods AND gets the listing`,
+      '    if v_have = p_qty then\n      delete from public.player_inventory\n'
+      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    else\n'
+      + '      update public.player_inventory set qty = v_have - p_qty\n'
+      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    end if;',
+      '    if false then\n      delete from public.player_inventory\n'
+      + '       where user_id = v_uid and slot = v_slot and item_id = p_item_id;\n    end if;',
     ]],
   },
 
   gold_double: {
     what: 'hr_apply credits a positive gold delta twice',
-    file: 'apply-engine',
+    file: 'apply-live',
+    /* `gate:` — and it fires in a file three migrations DOWNSTREAM. 2026-08-16-
+       claim-reward.sql stands up a real character, claims a real reward and
+       asserts the gold that arrived; a doubling hr_apply pays 1,000 where it
+       expects 500 and the chain refuses. That is a stronger outcome than a
+       runtime catch and it is worth naming rather than treating as noise: the
+       behavioural self-checks these migrations carry are a commit gate for
+       every LATER change to the function they exercise. */
+    gate: /the first claim paid 1000 gold, expected 500/,
     patches: [[
       `      v_new_gold := v_st.gold + v_n;`,
       `      v_new_gold := v_st.gold + v_n + greatest(v_n, 0);  -- INJECTED gold_double`,
@@ -189,19 +238,33 @@ const INJECTIONS = {
     what: 'market_buy pays the seller and delivers the goods but never debits the buyer',
     file: 'market-v2',
     patches: [[
-      `    update public.player_state set gold = gold - v_gross, version = version + 1, updated_at = now()
-     where user_id = v_uid and slot = v_slot;`,
-      `    update public.player_state set gold = gold - 0, version = version + 1, updated_at = now()
-     where user_id = v_uid and slot = v_slot;  -- INJECTED buy_no_debit`,
+      '    update public.player_state set gold = gold - v_gross, version = version + 1, updated_at = now()\n'
+      + '     where user_id = v_uid and slot = v_slot;',
+      '    update public.player_state set gold = gold, version = version + 1, updated_at = now()\n'
+      + '     where user_id = v_uid and slot = v_slot;',
     ]],
   },
 
   tax_skim: {
     what: 'market_buy destroys one extra gold per trade that no tax row accounts for (a leak, not a sink)',
     file: 'market-v2',
+    /* ⚠ THE LEAK IS PLANTED IN THE CREDIT, NOT IN `v_net`, AND THAT IS FORCED
+       BY market_sales' OWN CONSTRAINT. `gold_gross = gold_net + tax` is a CHECK
+       on the receipt table (market-v2 §1, "conservation, as a constraint"), so
+       shaving `v_net` makes the INSERT raise, the exception handler answers
+       `bad_market_write`, the trade is refused and nothing moves — the plant
+       slips, having been stopped by a defence one layer down. That is the
+       database doing its job, and it is also why this plant has to shave the
+       gold that actually reaches the SELLER while leaving the receipt
+       internally consistent: one gold per trade destroyed, no tax row for it,
+       and the Σgold identity is the only thing that can see it. Measured: the
+       `v_net` form SLIPPED here on 400 ops. */
     patches: [[
-      `    v_net   := v_gross - v_tax;`,
-      `    v_net   := greatest(0, v_gross - v_tax - 1);  -- INJECTED tax_skim`,
+      '    update public.player_state set gold = gold + v_net, version = version + 1, updated_at = now()\n'
+      + '     where user_id = v_row.seller_user_id and slot = v_row.seller_slot;',
+      '    update public.player_state set gold = gold + greatest(0, v_net - 1), version = version + 1,\n'
+      + '           updated_at = now()  -- INJECTED tax_skim\n'
+      + '     where user_id = v_row.seller_user_id and slot = v_row.seller_slot;',
     ]],
   },
 
@@ -228,7 +291,7 @@ const INJECTIONS = {
 
   replay_applies_twice: {
     what: 'hr_apply loses idempotency — a replayed intent id applies its delta a second time',
-    file: 'apply-engine',
+    file: 'apply-live',
     // NOTE the shape. The obvious plant — make the player_intents lookup miss —
     // also breaks the S6 intent-collision branch, and apply-engine's own
     // self-verification block refuses to install a function without it. The
@@ -259,7 +322,7 @@ const INJECTIONS = {
 
   equip_dupe: {
     what: 'unequip credits the bank without clearing the equipment row — the item is worn AND held',
-    file: 'apply-engine',
+    file: 'apply-live',
     patches: [[
       `            delete from public.player_equipment
              where user_id = v_uid and slot = v_slot and equip_slot = k;
@@ -273,7 +336,7 @@ const INJECTIONS = {
 
   reject_becomes_ok: {
     what: 'a rejection stops being a rejection — hr_apply answers ok:true to unknown_delta_key',
-    file: 'apply-engine',
+    file: 'apply-live',
     // The only injection here that moves NO value. It exists to prove the
     // want/got verdict assertion is real: without it the fuzz would book "the
     // op succeeded and legitimately changed nothing", stay green, and a
@@ -286,20 +349,22 @@ const INJECTIONS = {
   },
 
   expire_double: {
-    what: 'market_expire returns an expired listing\'s escrow twice',
+    what: 'hr_market_expire reads the listing and then deletes it, instead of letting the DELETE be '
+      + 'the arbiter — so an expiry racing a cancel returns one escrow to the bag twice',
     file: 'market-v2',
+    /* ⚠ `gate:` — AND THIS IS THE STRONGEST OUTCOME ON THE LIST. market-v2 §11
+       scans its own installed body for the delete-as-arbiter shape and REFUSES
+       TO INSTALL without it, so the bug cannot reach a database at all. A
+       runtime catch would be weaker: it would mean the broken build shipped and
+       something noticed afterwards. Recorded as a gate rather than "fixed" by
+       finding a plant that evades the check — evading a commit gate to prove a
+       runtime detector works is testing the wrong thing. */
+    gate: /hr_market_expire does not use DELETE/,
     patches: [[
-      `    insert into public.player_inventory as pi (user_id, slot, item_id, qty)
-      values (v_row.seller_user_id, v_row.seller_slot, v_row.item_id, v_row.qty)
-      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
-    -- Bump \`version\` (review S15)`,
-      `    insert into public.player_inventory as pi (user_id, slot, item_id, qty)
-      values (v_row.seller_user_id, v_row.seller_slot, v_row.item_id, v_row.qty)
-      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
-    insert into public.player_inventory as pi (user_id, slot, item_id, qty)  -- INJECTED expire_double
-      values (v_row.seller_user_id, v_row.seller_slot, v_row.item_id, v_row.qty)
-      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
-    -- Bump \`version\` (review S15)`,
+      '    delete from public.market_listings where id = v_id returning * into v_row;\n'
+      + '    if not found then continue; end if;   -- a cancel or a buy took it first',
+      '    select * into v_row from public.market_listings where id = v_id;\n'
+      + '    delete from public.market_listings where id = v_id;',
     ]],
   },
 
@@ -315,7 +380,7 @@ const INJECTIONS = {
 
   budget_not_enforced: {
     what: 'hr_apply computes the daily-budget check and then ignores the answer',
-    file: 'apply-engine',
+    file: 'apply-live',
     gate: /daily budget|daily_budget/i,
     patches: [[
       `      perform public.hr_reject('daily_budget', v_bud);`,
@@ -325,10 +390,14 @@ const INJECTIONS = {
 
   budget_kind_scoped: {
     what: "the budget only counts kind='accrue' rows — and journal.kind is caller-chosen",
-    file: 'daily-budget',
-    // caught by daily-budget.sql §8(e): the market-credit row is kind='trade',
-    // so a kind-scoped sum sees one row where the probe planted two.
-    gate: /hr_day_budget_used saw \d+ rows in the day window/,
+    file: 'apply-live',
+    /* Re-anchored 2026-08-17 onto the LIVE body, and the gate moved with it:
+       2026-08-15-gem-daily-budget.sql §10(b)(i) mints gems and reads the sum
+       back, so a kind-scoped sum reports zero and the file refuses to install.
+       (The old gate named daily-budget.sql §8(e), which is a file this plant no
+       longer touches — a gate that can no longer fire is a gate that quietly
+       downgrades a catch to a harness error.) */
+    gate: /hr_day_budget_used reports gems=0 after minting/,
     patches: [[
       `   where user_id = p_user
      and slot    = p_slot
@@ -342,7 +411,7 @@ const INJECTIONS = {
 
   budget_no_day_window: {
     what: 'the budget sums ALL time instead of the UTC day — one big day locks the account out forever',
-    file: 'daily-budget',
+    file: 'apply-live',
     gate: /day|budget/i,
     patches: [[
       `     and at >= public.hr_utc_day_start(p_at)
@@ -356,7 +425,7 @@ const INJECTIONS = {
     what: 'hr_apply never stamps xp_in — XP is minted outside the daily ceiling',
     // Invisible to both migration probes: §8 and §6(g) exercise gold only.
     // PHASE 3 leg 5 is the only thing that can see it.
-    file: 'apply-engine',
+    file: 'apply-live',
     patches: [[
       `    if jsonb_typeof(p_delta->'xp') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
@@ -368,7 +437,7 @@ const INJECTIONS = {
 
   budget_ignores_qty: {
     what: 'hr_apply never stamps qty_in — item units are minted outside the daily ceiling',
-    file: 'apply-engine',
+    file: 'apply-live',
     patches: [[
       `    if jsonb_typeof(p_delta->'items') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
@@ -383,18 +452,8 @@ const INJECTIONS = {
       + 'seller\'s whole day of progression',
     file: 'market-v2',
     patches: [[
-      `    insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, meta)
-      values (v_uid, v_slot, 'trade', 'market_buy', v_row.item_id, p_qty, -v_gross,
-              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each)),
-             (v_row.seller_user_id, v_row.seller_slot, 'trade', 'market_sold',
-              v_row.item_id, -p_qty, v_net,
-              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each, 'tax', v_tax));`,
-      `    insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, gold_in, meta)
-      values (v_uid, v_slot, 'trade', 'market_buy', v_row.item_id, p_qty, -v_gross, 0,
-              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each)),
-             (v_row.seller_user_id, v_row.seller_slot, 'trade', 'market_sold',
-              v_row.item_id, -p_qty, v_net, v_net,  -- INJECTED budget_market_credit_charged
-              jsonb_build_object('listing', p_listing_id, 'each', v_row.ask_each, 'tax', v_tax));`,
+      '       v_row.item_id, -p_qty, v_net, 0, 0, 0, 0,',
+      '       v_row.item_id, -p_qty, v_net, v_net, 0, 0, 0,',
     ]],
   },
 };
@@ -440,79 +499,30 @@ const uuidOf = (rng) => {
 // The database
 // ════════════════════════════════════════════════════════════════════════
 async function boot(injectionId) {
-  let PGlite;
-  try { ({ PGlite } = await import('@electric-sql/pglite')); }
-  catch {
-    process.stderr.write(
-      'HARNESS: @electric-sql/pglite is not installed.\n'
-      + '  This fuzz runs a real PostgreSQL in-process; without it there is nothing to assert against\n'
-      + '  and a "pass" would be meaningless. Install it:  npm i -D @electric-sql/pglite\n');
-    process.exit(2);
-  }
-
-  const db = await PGlite.create();
-  // Line endings are normalised to LF IN MEMORY ONLY. The migrations are
-  // checked in with CRLF on this box; the injection anchors below are written
-  // with LF, and an anchor that silently fails to match is the exact "planted
-  // bug that was never planted" failure the anchor guard exists to catch. It
-  // makes no difference to Postgres.
-  const sources = new Map();
-  for (const [name, path] of MIGRATIONS) {
-    sources.set(name, (await readFile(path, 'utf8')).replace(/\r\n/g, '\n'));
-  }
-
-  // Plant the bug, if any — and prove the plant landed.
+  /* THE PLANT, TRANSLATED INTO bootReplay's VOCABULARY. bootReplay owns the
+     anchor discipline now — it demands each anchor match EXACTLY ONCE and
+     CHANGE the text, and throws `e.harness` otherwise — so the only thing left
+     here is mapping the injection's short file name onto the chain's filename
+     and refusing an unmapped one. Deleting the local copy of that discipline is
+     the point: two implementations of "prove the plant landed" is one that gets
+     weakened without the other noticing. */
+  let patches = null;
   if (injectionId) {
     const inj = INJECTIONS[injectionId];
     if (!inj) { process.stderr.write(`HARNESS: unknown injection "${injectionId}"\n`); process.exit(2); }
-    let sql = sources.get(inj.file);
-    if (sql === undefined) { process.stderr.write(`HARNESS: injection names an unknown file ${inj.file}\n`); process.exit(2); }
-    for (const [find, replace] of inj.patches) {
-      const n = sql.split(find).length - 1;
-      if (n !== 1) {
-        process.stderr.write(
-          `HARNESS: injection "${injectionId}" anchor matched ${n} times in ${inj.file} (need exactly 1).\n`
-          + '  The migration text has moved. A planted bug that is not planted is decoration —\n'
-          + '  fix the anchor rather than letting the injection silently no-op.\n');
-        process.exit(2);
-      }
-      const after = sql.replace(find, replace);
-      if (after === sql) { process.stderr.write(`HARNESS: injection "${injectionId}" produced identical SQL\n`); process.exit(2); }
-      sql = after;
+    const file = INJECTION_FILES[inj.file];
+    if (!file) {
+      process.stderr.write(`HARNESS: injection "${injectionId}" names file "${inj.file}", which is `
+        + 'not in INJECTION_FILES. Add it there (and check it is in the apply order) rather than\n'
+        + '  letting the plant be applied to nothing.\n');
+      process.exit(2);
     }
-    sources.set(inj.file, sql);
+    patches = new Map([[file, inj.patches]]);
   }
 
-  const fixture = await readFile(join(ROOT, 'tests', 'sql', 'pglite-fixture.sql'), 'utf8');
+  let db;
   try {
-    // market-v2 refuses to drop a non-empty market without this. Scoped to this
-    // database, which exists only in this process's memory.
-    await db.exec("select set_config('hearthrise.market_wipe_ok','yes',false)");
-    await db.exec(fixture);
-    // hr_utc_day_key is a PRE-EXISTING production object (it ships in
-    // 2026-08-08-clan-seat.sql, applied months before this bundle) and
-    // 2026-08-11-daily-budget.sql fails closed without it. Restating it in the
-    // fixture would put a SECOND definition of "what a UTC day is" in the tree,
-    // which is the drift generator this whole program is organised around — and
-    // the budget's day boundary is derived from it. So the EXACT BYTES are
-    // lifted out of the migration that owns it. If that file's definition ever
-    // changes, the fuzz picks the change up; if the anchor stops matching, the
-    // harness aborts rather than quietly stubbing.
-    const seat = await readFile(MIG('2026-08-08-clan-seat.sql'), 'utf8');
-    const dayKey = seat.match(/create or replace function public\.hr_utc_day_key[\s\S]*?\$\$;/);
-    if (!dayKey) throw new Error('could not lift hr_utc_day_key out of 2026-08-08-clan-seat.sql');
-    await db.exec(dayKey[0]);
-    // …and put it back in the posture production actually holds it in.
-    // 2026-08-11-authenticated-surface-lockdown.sql §1b revoked hr_utc_day_key
-    // from every client role (it is the day boundary for daily gates, and a
-    // client that can ask the server what day it thinks it is gets a free
-    // oracle). Without this line the lifted function arrives with Postgres'
-    // default PUBLIC EXECUTE and hr_assert_grant_hygiene fails the bundle —
-    // which is the detector working correctly, on scaffolding rather than on
-    // anything under test.
-    await db.exec(`revoke execute on function public.hr_utc_day_key(timestamptz)
-                     from public, anon, authenticated, service_role`);
-    for (const [name] of MIGRATIONS) await db.exec(sources.get(name));
+    ({ db } = await bootReplay(patches ? { patches } : {}));
   } catch (e) {
     // A `gate: true` injection is one the MIGRATION'S OWN do$$ block is
     // supposed to refuse. That is a stronger result than the fuzz catching it
@@ -524,6 +534,10 @@ async function boot(injectionId) {
     //   which is the "planted bug that was never planted" defect wearing a
     //   different hat: the injection would be graded on breaking the migration
     //   rather than on being detected by it.
+    /* bootReplay's OWN harness failures — a stale anchor, a patch that changed
+       nothing, a missing PGlite. Never a catch: an injection graded on breaking
+       the replay engine is an injection that proves nothing about the market. */
+    if (e.harness) { process.stderr.write(`HARNESS: ${e.message}\n`); process.exit(2); }
     const inj = injectionId ? INJECTIONS[injectionId] : null;
     if (inj && inj.gate && inj.gate.test(e.message)) {
       process.stdout.write(`CAUGHT at op #migration\n  the migration REFUSED TO INSTALL the planted bug:\n`
@@ -738,8 +752,18 @@ async function runFuzz({ seed, ops, injection }) {
   const keys = [];
   for (let u = 0; u < USERS; u++) {
     const uid = `000000${String(u).padStart(2, '0')}-0000-4000-a000-${String(u).padStart(12, '0')}`;
-    await db.query('insert into auth.users(id) values ($1)', [uid]);
-    await db.query('insert into profiles(id, display_name) values ($1,$2)', [uid, `Fuzzer${u}`]);
+    /* ⚠ UPSERT, NOT INSERT, AND THE REASON IS THE POINT OF MOVING TO THE FULL
+       CHAIN. The old six-file bundle had no `on_auth_user_created` trigger, so
+       a profile row was this harness's to create. The real chain HAS one, and a
+       plain insert therefore raises a duplicate key before op #0 — reported, on
+       the first run, as a conservation violation, which is a harness failure
+       wearing the costume of a finding. The display name is still forced,
+       because hr_market_list DERIVES seller_name from this column and a leg
+       asserting on it wants a name it chose. */
+    await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [uid]);
+    await db.query(
+      'insert into profiles(id, display_name) values ($1,$2) '
+      + 'on conflict (id) do update set display_name = excluded.display_name', [uid, `Fuzzer${u}`]);
     await asUser(uid);
     for (let s = 0; s < SLOTS; s++) {
       const r = await rpc('select hr_create_character($1) r', [s]);
@@ -747,6 +771,41 @@ async function runFuzz({ seed, ops, injection }) {
       const key = `${uid}:${s}`;
       keys.push(key);
       books.chars.set(key, { uid, slot: s, gold: 0, inv: new Map(), equip: new Map(), version: 0, bankCap: 100 });
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE OPENING POSITION IS MEASURED, NOT ASSUMED TO BE ZERO.
+     ══════════════════════════════════════════════════════════════════════
+     `hr_create_character` grants a STARTER KIT — gold, seeds, food and an
+     EQUIPPED bronze sword. The old six-file bundle did not include
+     character-bootstrap, so a fresh character really was empty and the model
+     could start from zero; on the full chain that assumption is false, and it
+     failed loudly on the first run (24 carrot seeds and 4,000 gold of "drift"
+     that were simply the game's own starting gift).
+
+     So the opening is READ ONCE, here, from the database, and booked as
+     OPENING rather than as a mint. That is the one and only place this harness
+     is allowed to learn a number from the thing it is testing, and it is safe
+     for the reason the header states: everything AFTER this point is modelled
+     from the operation's own parameters and the verdict it returned, never from
+     a later read. A starter kit that changed size would move the opening and
+     change nothing else — which is exactly what an opening balance is for. */
+  for (const key of keys) {
+    const c = books.char(key);
+    const st = (await q(`select gold::text g, version::text v from player_state
+                          where user_id = '${c.uid}' and slot = ${c.slot}`))[0];
+    c.gold = Number(st.g); c.version = Number(st.v);
+    books.openGold += c.gold;
+    for (const r of await q(`select item_id, qty::text q from player_inventory
+                              where user_id = '${c.uid}' and slot = ${c.slot}`)) {
+      c.inv.set(r.item_id, Number(r.q));
+      books.addItem(books.openItems, r.item_id, Number(r.q));
+    }
+    for (const r of await q(`select equip_slot, item_id from player_equipment
+                              where user_id = '${c.uid}' and slot = ${c.slot}`)) {
+      c.equip.set(r.equip_slot, r.item_id);
+      books.addItem(books.openItems, r.item_id, 1);
     }
   }
 
@@ -803,6 +862,55 @@ async function runFuzz({ seed, ops, injection }) {
       [c.uid, c.slot, version, intentId, JSON.stringify(delta)]);
     await db.exec('reset role');
     return r;
+  };
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE MARKET SEAM (2026-08-17). ENGINE-ONLY, AND THAT IS THE CHANGE.
+     ══════════════════════════════════════════════════════════════════════
+     Market v1's RPCs were granted to `authenticated` and took (slot, …), so
+     this harness called them AS THE PLAYER. Under v2 they are granted to
+     `hr_engine` ALONE and take (p_user, p_slot, p_version, p_intent_id, …) —
+     the same first four parameters hr_apply takes, from the same caller, behind
+     the same gate. The browser cannot reach them at all.
+
+     So every market call here now goes through the engine role, names the user
+     it is acting for, and NAMES THE VERSION IT READ. That last one is not
+     bookkeeping: `p_version` is the whole of the concurrency control, a stale
+     one is refused, and the harness's `books` already tracks a version per
+     character — so the fuzz is now exercising optimistic concurrency on the
+     market path for free, and a missing bump shows up as a `version[…]` diff in
+     reconcile() rather than as a silent divergence.
+
+     The JWT claim is still set, deliberately: hr_market_* reads `auth.uid()`
+     when the caller is not the engine, and leaving a stale claim behind is how
+     a later leg would run as the wrong player. */
+  const marketAs = async (c, sql, params) => {
+    await asUser(c.uid);
+    await db.exec('set role hr_engine');
+    const r = await rpc(sql, params);
+    await db.exec('reset role');
+    return r;
+  };
+  const mList = (c, item, qty, ask, version) => marketAs(c,
+    'select hr_market_list($1::uuid,$2::int,$3::bigint,$4::uuid,$5::text,$6::bigint,$7::bigint) r',
+    [c.uid, c.slot, version ?? c.version, uuidOf(rng), item, qty, ask]);
+  const mCancel = (c, listing, version) => marketAs(c,
+    'select hr_market_cancel($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid) r',
+    [c.uid, c.slot, version ?? c.version, uuidOf(rng), listing]);
+  const mBuy = (c, listing, qty, version) => marketAs(c,
+    'select hr_market_buy($1::uuid,$2::int,$3::bigint,$4::uuid,$5::uuid,$6::bigint) r',
+    [c.uid, c.slot, version ?? c.version, uuidOf(rng), listing, qty]);
+  /* ⚠ THE SWEEP IS RUN AS THE OWNER, NOT AS THE ENGINE, AND THAT IS THE POINT
+       OF §8. hr_market_expire is callable by NOBODY — not anon, not
+       authenticated, not service_role, and NOT hr_engine. It has no grant at
+       all, because the only caller it is meant to have is pg_cron, which runs
+       as the function's owner. Calling it here as hr_engine would fail with a
+       permission error and read as a broken harness; calling it as the owner is
+       what production does. The pg_cron shim records the job and does not run
+       it, so a deterministic harness has to drive the sweep itself anyway. */
+  const mExpire = async (limit) => {
+    await db.exec('reset role');
+    return (await q(`select hr_market_expire(${Number(limit) | 0}) r`))[0].r;
   };
 
   // ── the operation table ──────────────────────────────────────────────
@@ -1012,13 +1120,16 @@ async function runFuzz({ seed, ops, injection }) {
         const n = have > 0 ? rng.range(1, Math.min(have, 15)) : 1;
         const ask = rng.range(1, 400);
         const open = [...books.listings.values()].filter((l) => l.key === key).length;
-        await asUser(c.uid);
-        const r = await rpc('select market_list($1,$2,$3,$4,$5) r', [c.slot, id, n, ask, uuidOf(rng)]);
+        const r = await mList(c, id, n, ask);
         want = open >= MAX_LISTINGS ? 'too_many_listings' : (have >= n ? 'ok' : 'insufficient_item');
         if (r.ok === true) {
           c.version += 1;
           books.invAdd(c, id, -n);
-          books.listings.set(r.listing_id, { key, item: id, qty: n, ask, aged: false });
+          /* THE LISTING ID COMES OUT OF THE SERVER'S RECEIPT, not off the top of
+             the answer: v2 returns the full hr_state_of envelope with the
+             receipt under `listed`, because a client cannot retire a prediction
+             without an envelope (the F1 defect, from the server side). */
+          books.listings.set(r.listed.listing_id, { key, item: id, qty: n, ask, aged: false });
         }
         note = `list ${n}×${id} @${ask}`;
         got = r.ok === true ? 'ok' : String(r.error);
@@ -1028,8 +1139,7 @@ async function runFuzz({ seed, ops, injection }) {
         const mine = [...books.listings.entries()].filter(([, l]) => l.key === key);
         if (!mine.length) { i--; continue; }
         const [lid, l] = rng.pick(mine);
-        await asUser(c.uid);
-        const r = await rpc('select market_cancel($1,$2) r', [lid, uuidOf(rng)]);
+        const r = await mCancel(c, lid);
         want = 'ok';
         if (r.ok === true) {
           c.version += 1;
@@ -1049,8 +1159,7 @@ async function runFuzz({ seed, ops, injection }) {
         const tax = Math.trunc((gross * TAX_BP) / 10000);
         const net = gross - tax;
         const seller = books.char(l.key);
-        await asUser(c.uid);
-        const r = await rpc('select market_buy($1,$2,$3,$4) r', [c.slot, lid, n, uuidOf(rng)]);
+        const r = await mBuy(c, lid, n);
         want = c.gold >= gross ? 'ok' : 'insufficient_gold';
         if (r.ok === true) {
           c.gold -= gross; c.version += 1;
@@ -1072,9 +1181,7 @@ async function runFuzz({ seed, ops, injection }) {
         await db.query("update market_listings set expires_at = now() - interval '1 minute' where id = $1", [lid]);
         l.aged = true;
         const aged = [...books.listings.entries()].filter(([, x]) => x.aged);
-        await db.exec('set role hr_engine');
-        const n = (await q('select market_expire(200) r'))[0].r;
-        await db.exec('reset role');
+        const n = await mExpire(200);
         if (Number(n) !== aged.length) {
           divergences.push(`op#${i} market_expire returned ${n}, harness aged ${aged.length}`);
         }
@@ -1142,7 +1249,16 @@ async function runFuzz({ seed, ops, injection }) {
         const u = rng.pick(mine);
         const r = await applyAs(c, c.version, u.id, u.delta);
         want = 'replayed';
-        if (r.replayed !== true) divergences.push(`op#${i} replay of ${u.id.slice(0, 8)} was not marked replayed: ${JSON.stringify(r).slice(0, 160)}`);
+        /* ⚠ `rate_limited` PRE-EMPTS EVERY RPC IN THE SYSTEM and is a legitimate
+           answer to anything — the generic want/got check below already says so
+           and this branch has to say it too. It became reachable when
+           `rate_storm` started genuinely exhausting the shared `apply` budget
+           (v2's market verbs spend hr_apply's namespace on purpose), and a
+           divergence that fires because ANOTHER op did its job is noise that
+           trains a reader to skim the divergence list. */
+        if (r.replayed !== true && r.error !== 'rate_limited') {
+          divergences.push(`op#${i} replay of ${u.id.slice(0, 8)} was not marked replayed: ${JSON.stringify(r).slice(0, 160)}`);
+        }
         got = r.replayed === true ? 'replayed' : (r.ok === true ? 'ok' : String(r.error));
         break;
       }
@@ -1178,17 +1294,13 @@ async function runFuzz({ seed, ops, injection }) {
       }
       case 'list_overqty': {
         const id = rng.pick(ITEMS);
-        await asUser(c.uid);
-        const r = await rpc('select market_list($1,$2,$3,$4,$5) r',
-          [c.slot, id, (c.inv.get(id) || 0) + rng.range(1, 100), rng.range(1, 100), uuidOf(rng)]);
+        const r = await mList(c, id, (c.inv.get(id) || 0) + rng.range(1, 100), rng.range(1, 100));
         want = 'insufficient_item';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'list_untradeable': {
-        await asUser(c.uid);
-        const r = await rpc('select market_list($1,$2,$3,$4,$5) r',
-          [c.slot, rng.pick(untradeable), 1, 100, uuidOf(rng)]);
+        const r = await mList(c, rng.pick(untradeable), 1, 100);
         want = 'not_tradeable';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
@@ -1196,18 +1308,22 @@ async function runFuzz({ seed, ops, injection }) {
       case 'cancel_foreign': {
         const others = [...books.listings.entries()].filter(([, l]) => books.char(l.key).uid !== c.uid);
         if (!others.length) { i--; continue; }
-        await asUser(c.uid);
-        const r = await rpc('select market_cancel($1,$2) r', [rng.pick(others)[0], uuidOf(rng)]);
+        const r = await mCancel(c, rng.pick(others)[0]);
         want = 'not_yours';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'buy_own': {
-        const mine = [...books.listings.entries()].filter(([, l]) => books.char(l.key).uid === c.uid);
+        /* ⚠ THE SAME (uid, SLOT), not merely the same uid. v2's self-trade guard
+           is `seller_user_id = v_uid and seller_slot = v_slot`, and that
+           narrowing is deliberate: a player's slot 0 buying from their own slot
+           2 is two different characters with two different bags and IS allowed.
+           So an own-uid-different-slot listing is a legal trade, and asking for
+           `own_listing` there would fail the run on the contract being right. */
+        const mine = [...books.listings.entries()].filter(([, l]) => l.key === key);
         if (!mine.length) { i--; continue; }
         const [lid, l] = rng.pick(mine);
-        await asUser(c.uid);
-        const r = await rpc('select market_buy($1,$2,$3,$4) r', [c.slot, lid, Math.min(1, l.qty), uuidOf(rng)]);
+        const r = await mBuy(c, lid, Math.min(1, l.qty));
         want = 'own_listing';
         got = r.ok === true ? 'ok' : String(r.error);
         break;
@@ -1216,40 +1332,80 @@ async function runFuzz({ seed, ops, injection }) {
         // A listing the buyer demonstrably cannot afford. Priced above the
         // buyer's balance by construction, so `insufficient_gold` is the only
         // honest answer and any movement is a leak.
-        const seller = books.char(rng.pick(keys.filter((k) => books.char(k).uid !== c.uid)));
+        const sellerKey = rng.pick(keys.filter((k) => books.char(k).uid !== c.uid));
+        const seller = books.char(sellerKey);
         const id = rng.pick(ITEMS);
         if ((seller.inv.get(id) || 0) < 1) { i--; continue; }
-        await asUser(seller.uid);
-        const ask = Math.min(1000000000, Math.max(1, c.gold + 1));
-        const lr = await rpc('select market_list($1,$2,$3,$4,$5) r', [seller.slot, id, 1, ask, uuidOf(rng)]);
+        /* ⚠ BOUNDED BY max_gross, NOT BY ask_each's own ceiling. v2 refuses a
+           listing whose qty x ask exceeds the config's per-trade gross ceiling
+           (1e8) — the PRODUCT bound neither of the two separate bounds can
+           state. A buyer richer than that cannot have an unaffordable listing
+           constructed for them at qty 1, so the op steps aside rather than
+           booking `listing_too_large` as if it were the point. */
+        if (c.gold + 1 > 100000000) { i--; continue; }
+        const ask = Math.max(1, c.gold + 1);
+        const lr = await mList(seller, id, 1, ask);
         if (lr.ok !== true) { i--; continue; }
         seller.version += 1; books.invAdd(seller, id, -1);
-        books.listings.set(lr.listing_id, { key: `${seller.uid}:${seller.slot}`, item: id, qty: 1, ask, aged: false });
-        await asUser(c.uid);
-        const r = await rpc('select market_buy($1,$2,$3,$4) r', [c.slot, lr.listing_id, 1, uuidOf(rng)]);
+        books.listings.set(lr.listed.listing_id, { key: sellerKey, item: id, qty: 1, ask, aged: false });
+        const r = await mBuy(c, lr.listed.listing_id, 1);
         want = 'insufficient_gold';
         if (r.ok === true) {
           // Should be unreachable; model it anyway so the run continues honestly.
           const gross = ask; const tax = Math.trunc((gross * TAX_BP) / 10000);
           c.gold -= gross; c.version += 1; seller.gold += gross - tax; seller.version += 1;
-          books.tax += tax; books.invAdd(c, id, 1); books.listings.delete(lr.listing_id);
+          books.tax += tax; books.invAdd(c, id, 1); books.listings.delete(lr.listed.listing_id);
         }
         got = r.ok === true ? 'ok' : String(r.error);
         break;
       }
       case 'rate_storm': {
-        // Blow the market_list bucket (60/min) and assert the rejections are
-        // free of side effects. The window is NOT rolled forward first, so the
-        // storm lands inside whatever budget the run has already spent.
-        let limited = 0;
-        await asUser(c.uid);
-        for (let k = 0; k < 70; k++) {
-          const r = await rpc('select market_list($1,$2,$3,$4,$5) r',
-            [c.slot, rng.pick(untradeable), 1, 10, uuidOf(rng)]);
+        /* Blow the market path's rate budget and assert the rejections are free
+           of side effects. The window is NOT rolled forward first, so the storm
+           lands inside whatever budget the run has already spent.
+
+           ⚠ TWO THINGS CHANGED WITH v2 AND BOTH WOULD HAVE MADE THIS A PROBE
+             THAT PROVES NOTHING.
+
+             (1) THE BUDGET IS `apply`, AT 240/min, NOT market_list's OWN 60. v2
+                 deliberately spends hr_apply's namespace rather than opening a
+                 second one, because a second writer with its own allowance
+                 RAISES a compromised engine's total reachable write rate. So 70
+                 calls no longer trip anything; the storm has to clear 240, and
+                 it shares that ceiling with every hr_apply the run has already
+                 issued (which only helps).
+
+             (2) AN UNTRADEABLE ITEM NEVER REACHES THE RATE CHECK. v2 answers
+                 shape and catalogue refusals BEFORE the gate — deliberately, so
+                 a client looping on garbage cannot contend on a real player's
+                 state row — so the old storm was 70 free `not_tradeable`s and
+                 the divergence it printed was the truth. The storm therefore
+                 names a REAL, TRADEABLE item at a quantity the seller provably
+                 does not have: past the catalogue, through the gate, into the
+                 protected block, refused as `insufficient_item`, and every one
+                 of them moves nothing. */
+        let limited = 0; let reached = 0;
+        const stormItem = ITEMS[0];
+        /* ⚠ OVER WHAT THEY HOLD, BUT UNDER `max_qty` (1e6) AND UNDER the
+           per-trade gross ceiling. A quantity above the config bound is refused
+           as `bad_qty` in the SHAPE block — before the gate, exactly like the
+           untradeable item was — and the storm would once again be 260 free
+           refusals reporting a limit it never reached. Measured: the first
+           revision of this fix used `+ 1000000` and scored 0/260 on both
+           counters, which is the always-null probe in its purest form. */
+        const overQty = (c.inv.get(stormItem) || 0) + 1000;
+        for (let k = 0; k < 260; k++) {
+          const r = await mList(c, stormItem, overQty, 10);
           if (r.error === 'rate_limited') limited++;
+          /* Both of these are decided INSIDE the protected block, i.e. past the
+             gate, and both move nothing. */
+          else if (r.error === 'insufficient_item' || r.error === 'too_many_listings') reached++;
         }
-        if (!limited) divergences.push(`op#${i} rate_storm never tripped the market_list limit`);
-        note = `${limited}/70 rate-limited`;
+        if (!limited) {
+          divergences.push(`op#${i} rate_storm never tripped the apply rate limit `
+            + `(${reached} calls reached the protected block)`);
+        }
+        note = `${limited}/260 rate-limited, ${reached} reached the block`;
         want = null;
         got = 'rate_storm';
         break;
@@ -1286,7 +1442,8 @@ async function runFuzz({ seed, ops, injection }) {
   // ── PHASE 3 — the ledger-derived daily budget (C5/X3) ─────────────────
   // Runs LAST because it deliberately saturates a character's gold ceiling,
   // which is a state nothing after it should have to reason about.
-  const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP);
+  const budget = await budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP,
+    { list: mList, buy: mBuy });
 
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
@@ -1318,7 +1475,7 @@ async function runFuzz({ seed, ops, injection }) {
 // makes two simultaneous collects impossible is EXERCISED here and never
 // CONTENDED. See the header's "WHAT THIS DOES NOT TEST".
 // ════════════════════════════════════════════════════════════════════════
-async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP) {
+async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS, TAX_BP, market) {
   const fail = (msg, extra) => {
     throw Object.assign(new Error('daily-budget violation'),
       { detail: `DAILY BUDGET: ${msg}${extra ? `\n    ${extra}` : ''}` });
@@ -1333,8 +1490,9 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   // seed happened to produce, and an assertion of the form "used went up by
   // exactly N" wants a clean starting point it did not have to guess.
   const uid = '000000ff-0000-4000-a000-0000000000ff';
-  await db.query('insert into auth.users(id) values ($1)', [uid]);
-  await db.query('insert into profiles(id, display_name) values ($1,$2)', [uid, 'BudgetProbe']);
+  await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [uid]);
+  await db.query('insert into profiles(id, display_name) values ($1,$2) '
+    + 'on conflict (id) do update set display_name = excluded.display_name', [uid, 'BudgetProbe']);
   await asUser(uid);
   const cr = await rpc('select hr_create_character($1) r', [0]);
   if (cr.ok !== true) fail('could not create the budget probe character', JSON.stringify(cr));
@@ -1342,6 +1500,26 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
   keys.push(key);
   const c = { uid, slot: 0, gold: 0, inv: new Map(), equip: new Map(), version: 0, bankCap: 100 };
   books.chars.set(key, c);
+  /* THE STARTER KIT, BOOKED AS OPENING — the same measurement the op loop makes
+     for its own characters, for the same reason: `hr_create_character` grants
+     gold, seeds, food and an equipped sword, and a model that assumed zero here
+     would report the game's own welcome gift as a conservation drift. */
+  {
+    const st0 = (await q(`select gold::text g, version::text v from player_state
+                           where user_id = '${uid}' and slot = 0`))[0];
+    c.gold = Number(st0.g); c.version = Number(st0.v);
+    books.openGold += c.gold;
+    for (const r of await q(`select item_id, qty::text q from player_inventory
+                              where user_id = '${uid}' and slot = 0`)) {
+      c.inv.set(r.item_id, Number(r.q));
+      books.addItem(books.openItems, r.item_id, Number(r.q));
+    }
+    for (const r of await q(`select equip_slot, item_id from player_equipment
+                              where user_id = '${uid}' and slot = 0`)) {
+      c.equip.set(r.equip_slot, r.item_id);
+      books.addItem(books.openItems, r.item_id, 1);
+    }
+  }
 
   const used = async (at = 'now()') => {
     const r = (await db.query(
@@ -1450,19 +1628,25 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
     }
     const b = books.char(buyerKey);
 
-    await asUser(uid);
-    const lr = await rpc('select market_list($1,$2,$3,$4,$5) r', [0, id, 5, 100, uuidOf(rng)]);
-    if (lr.ok !== true) { if (VERBOSE) process.stderr.write(`  budget: market_list refused (${lr.error}) — market leg skipped\n`); return; }
+    /* ⚠ ROLL THE RATE WINDOW FIRST, THEN FAIL RATHER THAN SKIP. This leg used
+       to bail quietly on any refusal, and after the market verbs moved onto the
+       shared `apply` budget the op loop's `rate_storm` could leave that budget
+       spent — so on some seeds the leg silently did nothing and the injection
+       it exists to catch (budget_market_credit_charged) read as SLIPPED.
+       Measured: caught at 60 ops, slipped at 400, on the same seed. A leg that
+       skips on a bad seed is a leg that is decoration on that seed. */
+    await db.query("update hr_rate_counters set window_start = now() - interval '2 hours'");
+    const lr = await market.list(c, id, 5, 100);
+    if (lr.ok !== true) fail(`the market leg could not list (${lr.error})`, JSON.stringify(lr));
     c.version += 1; books.invAdd(c, id, -5);
-    books.listings.set(lr.listing_id, { key, item: id, qty: 5, ask: 100, aged: false });
+    books.listings.set(lr.listed.listing_id, { key, item: id, qty: 5, ask: 100, aged: false });
 
     const before = await used();
-    await asUser(b.uid);
-    const br = await rpc('select market_buy($1,$2,$3,$4) r', [b.slot, lr.listing_id, 5, uuidOf(rng)]);
-    if (br.ok !== true) { if (VERBOSE) process.stderr.write(`  budget: market_buy refused (${br.error}) — market leg skipped\n`); return; }
+    const br = await market.buy(b, lr.listed.listing_id, 5);
+    if (br.ok !== true) fail(`the market leg could not buy (${br.error})`, JSON.stringify(br));
     const gross = 500; const tax = Math.trunc((gross * TAX_BP) / 10000);
     b.gold -= gross; b.version += 1; c.gold += gross - tax; c.version += 1;
-    books.tax += tax; books.invAdd(b, id, 5); books.listings.delete(lr.listing_id);
+    books.tax += tax; books.invAdd(b, id, 5); books.listings.delete(lr.listed.listing_id);
 
     const after = await used();
     if (after.gold !== before.gold) {

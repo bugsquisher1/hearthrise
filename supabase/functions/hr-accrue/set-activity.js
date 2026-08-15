@@ -555,6 +555,10 @@ async function collectCurrentWindow(o) {
       ms: out.grantMs, capped: out.capped, kills: out.summary.kills,
       gold: out.summary.gold, xp: out.summary.xp, items: out.summary.items,
       levelUps: out.levelUps, died: out.summary.died,
+      /* Ruling 2: WHICH hours the switch settled. A collect-before-switch pays
+         the same window an accrue would, so it states it the same way. */
+      unpaidMs: out.summary.unpaidMs,
+      windowFrom: out.summary.windowFrom, windowTo: out.summary.windowTo,
     },
   };
 }

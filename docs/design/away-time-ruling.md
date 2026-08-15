@@ -37,6 +37,44 @@ named dial but is 1.00; changing it requires a fresh day-model recompute, not fe
 | One formula or two? | **One.** Context flag, not a second loop. |
 | Offline cap | **Survives, unchanged, becomes server-authoritative.** Keep b307 **per-absence** semantics (do NOT resurrect the daily bucket). 12h base · 16h Offline+ · plus renown/property (+1…+4h) and clan (+1…+2h). Server form: `grantMs = min(now() - server_last_seen, capMs)`; client clock never read. |
 
+## RULING 2 — which hours of an over-cap absence are credited (locked 2026-08-15)
+
+The cap behaviour is unchanged: the payout caps and **the character keeps
+running**. What changes is *which* hours are paid.
+
+**The credited window is `[W, W + grantMs]`, where `W = max(accrued_to,
+active_since)` — the FIRST cap-hours after the player left, never the last
+cap-hours before they came back.**
+
+Why it is not cosmetic:
+
+1. **It was an exploit.** The Boss of the Day is resolved per UTC-day *segment*
+   of the credited window. Anchored to the RETURN instant, the player selects
+   which days pay by choosing when to open the tab — an 18h absence begun at
+   22:00 UTC can be landed wholly on the next day's ×1.5-drop boss. BotD pays
+   away because it is *a targeting decision made before leaving*; it must
+   therefore resolve from the departure instant.
+2. **It forfeited timed consumables.** A 10-minute buff eaten on the way out is
+   alive for minutes 0–10 *of the absence*. Credit the last twelve hours of an
+   eighteen-hour absence and it pays zero. It now pays exactly 10 minutes.
+
+Three rules travel with it, and each is load-bearing:
+
+- **`accrued_to` still stamps `now()`, NOT `W + grantMs`.** The forfeited tail
+  *is* the cap. Advancing only to the paid instant would let a 40h absence be
+  collected as four 12h instalments (`accrual.js`, the note above `accrued_to`).
+- **The buff clock crosses the WHOLE absence.** The credited window pays; the
+  uncredited remainder is spent at zero payout, so returning timers agree with
+  the wall clock. Which side of the window the unpaid part falls on is *derived*
+  from the window, not assumed.
+- **One definition, both sides.** `src/core/away.js creditWindow` — the server
+  accrual engine imports it, the client reaches it through core-bridge. An
+  uncapped absence is byte-identical either way (`W + grantMs === now`).
+
+Regression coverage: `AWAY-22` / `AWAY-23` (client, through the real
+`processOffline`) and `creditWindowGuard` in `tests/accrual-engine.mjs`
+(server, with the return-anchored window computed as an in-test control).
+
 ## Bugs the ruling also fixes (away loop omissions, all → apply away)
 
 1. **Kill XP was never granted away at all** — `killMonster` grants `m.xp`; the away

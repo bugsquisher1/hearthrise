@@ -43,6 +43,7 @@ import {
 } from '../src/core/combat.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { killBonusesFor, botdFor } from '../src/core/botd.js';
+import { creditWindow, DAY_MS } from '../src/core/away.js';
 import { createRng } from '../src/core/rng.js';
 import { grantXp, resolveGatherAction } from '../src/core/progression.js';
 import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
@@ -382,6 +383,157 @@ function parityGuard() {
     `COVERAGE: the featured boss did not change across the UTC boundary (${DAY1_BOSS} both days) — `
     + 'the partial-featured branch is untested; move FROM_MS to a day pair that rotates');
   ok(seen.deaths > 0, 'COVERAGE: no fixture died — the death path ends the activity and is untested');
+}
+
+// ── 1a. THE CREDITED WINDOW (Ruling 2, 2026-08-15) ──────────────────────────
+// WHICH hours of an over-cap absence are paid — a different question from HOW
+// MANY (the cap, covered by dayBudgetGuard and the client's AWAY-8), with a
+// different answer, and until this guard both sides answered it wrong.
+//
+// The old anchor was `fromMs = nowMs - grantMs`: the LAST cap-hours before the
+// player came back. Two live defects fell out of it.
+//
+//   THE EXPLOIT. `simulateSpan` resolves the Boss of the Day per UTC-day
+//   SEGMENT of the credited window. Anchored to the return instant, WHICH DAYS
+//   PAY IS CHOSEN BY WHEN THE TAB IS OPENED — an 18h absence begun at 22:00 UTC
+//   can be made to land wholly on the next day's boss (x1.5 drops, x1.25 combat
+//   XP; x2.0/x1.5 on a weekly) by returning at the right hour. That is a
+//   free-to-select multiplier on a tradeable-item faucet, which the ruling's own
+//   rationale for paying BotD away forbids: it is a targeting decision made
+//   BEFORE leaving, so it must be resolved from the departure instant.
+//
+//   THE FORFEITED CONSUMABLE. A timed buff eaten on the way out is alive for the
+//   first minutes OF THE ABSENCE. Credit the last twelve hours of an eighteen-
+//   hour absence and those minutes fall outside the window entirely. (Measured
+//   on the client, AWAY-23: 10 minutes of coverage becomes 0.)
+//
+// The fix moves the window, NOT the watermark: `accrued_to` still stamps
+// `now()`, so a 40-hour absence stays one capped night instead of becoming four
+// 12h instalments. That pairing is what section (c) below pins.
+const WIN_FROM = Date.UTC(2026, 2, 14, 22, 0, 0);   // 22:00 UTC — 2h before midnight
+const WIN_CAP_MS = 12 * 3600000;
+const WIN_AWAY_MS = 18 * 3600000;
+const WIN_NOW = WIN_FROM + WIN_AWAY_MS;             // 16:00 UTC the following day
+const dayOf = (ms) => Math.floor(ms / DAY_MS);
+
+function creditWindowGuard() {
+  /* (0) THE HELPER, on its own. Total by construction: no combination of
+     missing, garbage or hostile inputs may produce a window that pays for time
+     nobody spent. */
+  const w = creditWindow({ watermarkMs: WIN_FROM, nowMs: WIN_NOW, grantMs: WIN_CAP_MS });
+  eq(w.fromMs, WIN_FROM, 'WINDOW: creditWindow must open at the watermark');
+  eq(w.toMs, WIN_FROM + WIN_CAP_MS, 'WINDOW: creditWindow must close one grant later');
+  eq(w.unpaidMs, WIN_AWAY_MS - WIN_CAP_MS, 'WINDOW: the forfeited tail is the rest of the absence');
+  ok(w.capped === true, 'WINDOW: an over-cap absence must report itself capped');
+  /* The second watermark NARROWS, never widens: an activity that started after
+     the last payout cannot be paid for time before it existed. */
+  const late = creditWindow({
+    watermarkMs: WIN_FROM, activeSinceMs: WIN_FROM + 3600000, nowMs: WIN_NOW, grantMs: WIN_CAP_MS,
+  });
+  eq(late.fromMs, WIN_FROM + 3600000, 'WINDOW: active_since must move the window forward');
+  ok(late.toMs <= WIN_NOW, 'WINDOW: a window may never close in the future');
+  const hostile = creditWindow({ watermarkMs: WIN_NOW + 1e12, nowMs: WIN_NOW, grantMs: 1e12 });
+  eq(hostile.paidMs, 0, 'WINDOW: a future watermark must pay nothing');
+  eq(creditWindow({ nowMs: NaN, watermarkMs: NaN, grantMs: NaN }).paidMs, 0,
+    'WINDOW: garbage in must produce a zero-length window, not a span');
+
+  /* (a) THE ENGINE USES IT. An 18h absence at a 12h cap, begun at 22:00 UTC,
+     pays 22:00->24:00 on day D and 00:00->10:00 on day D+1.
+     MUTATION PROVEN: restore `fromMs: nowMs - grantMs` in accrual.js and the
+     window opens at 04:00 on D+1 — one segment, on the wrong day. */
+  const capped = serverAccrual({
+    accruedToMs: WIN_FROM, activeSinceMs: WIN_FROM, nowMs: WIN_NOW,
+    capMs: WIN_CAP_MS, skills: MAXED, hp: 99, maxHp: 99,
+  });
+  ok(capped.accrued === true, `WINDOW: the capped fixture accrued nothing (${capped.reason})`);
+  if (capped.accrued) {
+    eq(capped.grantMs, WIN_CAP_MS, 'WINDOW: an 18h absence at a 12h cap must still credit 12h');
+    eq(capped.summary.windowFrom, WIN_FROM, 'WINDOW: the credited window must open where the absence did');
+    eq(capped.summary.windowTo, WIN_FROM + WIN_CAP_MS, 'WINDOW: …and close one cap later');
+    eq(capped.summary.unpaidMs, WIN_AWAY_MS - WIN_CAP_MS, 'WINDOW: the receipt must state the forfeited tail');
+    ok(capped.summary.capped === true, 'WINDOW: the receipt must say the absence was capped');
+    const segs = capped.summary.segments || [];
+    eq(segs.map((s) => dayOf(s.fromMs)), [dayOf(WIN_FROM), dayOf(WIN_FROM) + 1],
+      'WINDOW: the Boss-of-the-Day segments must be cut from the FIRST 12h of the absence '
+      + '(day D 22:00-24:00 + day D+1 00:00-10:00). Later days mean the window was anchored '
+      + 'to the return instant, which lets return timing pick the multiplier.');
+    eq(segs[0].fromMs, WIN_FROM, 'WINDOW: the first segment must begin when the player left');
+    eq(segs[segs.length - 1].toMs, WIN_FROM + WIN_CAP_MS, 'WINDOW: the last must end with the window');
+  }
+
+  /* (b) AND IT IS THE MULTIPLIER THAT MOVES, not just a label. Fight day D's
+     featured boss: the credited window pays it (2h of featured time), while the
+     window the OLD anchor would have credited — the same 12h span, positioned
+     at the return instant — pays none, because by then it is a different day's
+     boss. That control is what makes this an exploit test and not a field test. */
+  const bossD = botdFor(WIN_FROM, MONSTERS).dailyId;
+  const bossD1 = botdFor(WIN_FROM + WIN_CAP_MS, MONSTERS).dailyId;
+  ok(bossD !== bossD1,
+    `WINDOW COVERAGE: the featured boss did not rotate across this fixture's UTC boundary `
+    + `(${bossD} both days) — the exploit this guard exists for cannot be expressed; move WIN_FROM`);
+  if (MONSTERS[bossD]) {
+    const paid = serverAccrual({
+      activeId: bossD, accruedToMs: WIN_FROM, activeSinceMs: WIN_FROM, nowMs: WIN_NOW,
+      capMs: WIN_CAP_MS, skills: MAXED, hp: 99, maxHp: 99,
+    });
+    ok(paid.accrued === true, `WINDOW: the featured-boss fixture accrued nothing (${paid.reason})`);
+    ok(paid.accrued && paid.summary.featuredMs > 0,
+      'WINDOW: an absence begun on the featured boss\'s own day must be paid featured time — got '
+      + (paid.accrued ? paid.summary.featuredMs : 'nothing'));
+    /* The counterfactual, computed rather than asserted from memory: the LAST
+       12h of the same absence, same monster, same seed. */
+    const returnAnchored = clientAwaySpan({
+      monsterId: bossD, equipment: EQUIPMENT, skills: MAXED, hp: 99, maxHp: 99,
+      seed: SEED, fromMs: WIN_NOW - WIN_CAP_MS, toMs: WIN_NOW, capped: true,
+    });
+    eq(returnAnchored.summary.featuredMs, 0,
+      'WINDOW COVERAGE: the return-anchored window ALSO paid featured time on this fixture, so the '
+      + 'comparison proves nothing (a weekly boss probably spans both days) — move WIN_FROM');
+  }
+
+  /* (c) THE WATERMARK DOES NOT FOLLOW THE WINDOW. `accrued_to` is `now()`, not
+     `windowTo`: the forfeited tail IS the cap, and a cap that can be collected
+     in instalments is not a cap.
+     MUTATION PROVEN: set `accrued_to` to the window's end and the counterfactual
+     below stops being a counterfactual — the player collects the same night's
+     leftover six hours immediately, and a 40h absence becomes four 12h nights. */
+  if (capped.accrued) {
+    eq(capped.delta.accrued_to, new Date(WIN_NOW).toISOString(),
+      'WINDOW: a capped accrual must stamp the watermark at now(), never at the end of the paid window');
+    const again = serverAccrual({
+      accruedToMs: WIN_NOW, activeSinceMs: WIN_FROM, nowMs: WIN_NOW,
+      capMs: WIN_CAP_MS, skills: MAXED, hp: 99, maxHp: 99,
+    });
+    ok(again.accrued === false && again.reason === 'below_min_span',
+      'WINDOW: coming straight back after a capped night must pay nothing, got '
+      + JSON.stringify({ accrued: again.accrued, reason: again.reason, ms: again.grantMs }));
+    /* …and the same call from the window's end DOES pay, which is exactly the
+       instalment hazard the comment in accrual.js is defending against. If this
+       ever stops accruing, the assertion above has gone vacuous. */
+    const instalment = serverAccrual({
+      accruedToMs: WIN_FROM + WIN_CAP_MS, activeSinceMs: WIN_FROM, nowMs: WIN_NOW,
+      capMs: WIN_CAP_MS, skills: MAXED, hp: 99, maxHp: 99,
+    });
+    ok(instalment.accrued === true && Math.abs(instalment.grantMs - (WIN_AWAY_MS - WIN_CAP_MS)) < 1000,
+      'WINDOW COVERAGE: a watermark left at the end of the paid window would NOT have paid the '
+      + 'leftover tail, so the assertion above proves nothing');
+  }
+
+  /* (d) AN UNCAPPED ABSENCE IS BYTE-IDENTICAL. The flip may only move a window
+     that was being cut short; anything else is a balance change nobody asked
+     for, and the parity fixtures above would only catch it by luck. */
+  const whole = serverAccrual({ skills: MAXED, hp: 99, maxHp: 99 });
+  const client = clientAwaySpan({
+    monsterId: MONSTER, equipment: EQUIPMENT, skills: MAXED, hp: 99, maxHp: 99,
+    seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+  });
+  if (whole.accrued) {
+    eq(whole.summary.windowFrom, FROM_MS, 'WINDOW: an uncapped window still opens at the watermark');
+    eq(whole.summary.windowTo, NOW_MS, 'WINDOW: …and an uncapped one closes at now()');
+    eq(whole.summary.unpaidMs, 0, 'WINDOW: nothing is forfeited when the absence fits in the cap');
+    eq(whole.summary.ticks, client.summary.ticks, 'WINDOW: an uncapped night changed length');
+    eq(whole.summary.xp, client.xp, 'WINDOW: an uncapped night changed value');
+  }
 }
 
 // ── 1b. AUTO-EAT PARITY ─────────────────────────────────────────────────────
@@ -2078,6 +2230,7 @@ async function settableKindsGuard() {
 export async function runAll() {
   problems.length = 0;
   parityGuard();
+  creditWindowGuard();
   autoEatParityGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();

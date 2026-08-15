@@ -18670,6 +18670,170 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     AWAY-22 / AWAY-23 — WHICH HOURS OF AN OVER-CAP ABSENCE GET PAID. (b352)
+
+     Ruling 2 (Game Designer, 2026-08-15). AWAY-8 above pins HOW MUCH a capped
+     absence pays; these pin WHICH hours those are, and they are a different
+     question with a different answer — the credited window is the FIRST
+     cap-hours after the player left, never the last cap-hours before they came
+     back. Two live defects came out of the old anchor, and there is one test
+     for each:
+
+       AWAY-22  `simulateSpan` resolves the Boss of the Day per UTC-day SEGMENT
+                of the credited window. Anchored to the RETURN instant, a player
+                could choose which days paid by choosing when to open the tab —
+                an 18h absence made to land wholly on the x1.5-drop day. Anchored
+                to the DEPARTURE instant the segments are fixed the moment the
+                tab closes, which is when the targeting decision was made.
+
+       AWAY-23  a 10-minute Feast eaten on the way out is alive for minutes 0-10
+                OF THE ABSENCE. Credit the last twelve hours of an eighteen-hour
+                absence and those minutes are outside the window: the Feast is
+                spent on forfeited time and pays nothing.
+
+     Both drive the REAL `window.processOffline()`, because the anchor lives in
+     the caller and a core-level test cannot see a caller. ══════════════════ */
+  () => tryRun('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const realCap = window.offlineCapHours;
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.offlineCapHours = () => 12;
+      const CAP_MS = 12 * 3600000;
+      const AWAY_MS = 18 * 3600000;
+      const m = window.MONSTERS.slime;
+      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+      G.playerMaxHp = 9999; G.playerHp = 9999;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null; G.buffs = [];
+      G.quests = [];
+      const left = Date.now() - AWAY_MS;
+      G.lastSeen = left;
+      G.offlineBudget = { at: left };
+      window.processOffline();
+
+      const s = G.lastOfflineSummary || {};
+      assert(s.combat && s.combat.ticks > 0, 'the fixture simulated nothing — everything below would be vacuous');
+      /* HOW MUCH is unchanged (that is AWAY-8's assertion, restated here only
+         so a window fix that quietly shortened the grant cannot pass). */
+      assert(Math.abs(s.awayMs - CAP_MS) < 1000,
+        'an 18h absence at a 12h cap must still CREDIT 12h, got ' + (s.awayMs / 3600000).toFixed(2) + 'h');
+      /* WHICH HOURS. MUTATION PROVEN: restore `fromMs = toMs - spanMs` (or
+         `now - grantMs` on the server) and windowFrom lands 6h later, on the
+         return side of the absence. */
+      assert(Math.abs(s.windowFrom - left) < 1000,
+        'the credited window must OPEN where the absence did (' + new Date(left).toISOString()
+        + '), got ' + new Date(s.windowFrom).toISOString());
+      assert(Math.abs(s.windowTo - (left + CAP_MS)) < 1000,
+        'and close one cap later, got ' + new Date(s.windowTo).toISOString());
+      assert(Math.abs(s.unpaidMs - (AWAY_MS - CAP_MS)) < 1000,
+        'the forfeited tail must be the 6h the cap refused, got ' + ((s.unpaidMs || 0) / 3600000).toFixed(2) + 'h');
+      assert(s.capped === true, 'an 18h absence at a 12h cap must report itself capped');
+
+      /* THE PART THAT IS AN EXPLOIT AND NOT A COSMETIC: the UTC-day segments
+         the Boss of the Day is resolved against are cut from THIS window. */
+      const segs = s.combat.segments || [];
+      assert(segs.length >= 1, 'the summary must describe its UTC-day segments');
+      assert(Math.abs(segs[0].fromMs - left) < 1000,
+        'the first boss segment must begin when the player left, got ' + new Date(segs[0].fromMs).toISOString());
+      assert(Math.abs(segs[segs.length - 1].toMs - (left + CAP_MS)) < 1000,
+        'and the last must end at the close of the credited window');
+      const dayOf = (ms) => Math.floor(ms / 86400000);
+      const expected = [];
+      for (let d = dayOf(left); d <= dayOf(left + CAP_MS - 1); d++) expected.push(d);
+      assert(JSON.stringify(segs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
+        'the credited window must be segmented over the UTC days it actually spans — expected '
+        + JSON.stringify(expected) + ', got ' + JSON.stringify(segs.map((x) => dayOf(x.fromMs)))
+        + '. A window anchored to the RETURN instant names later days, which lets return timing '
+        + 'pick the Boss of the Day.');
+    } finally {
+      window.offlineCapHours = realCap;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      C.randomSeed(); restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const realCap = window.offlineCapHours;
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.offlineCapHours = () => 12;
+      const CAP_MS = 12 * 3600000;
+      const AWAY_MS = 18 * 3600000;
+      const BUFF_MS = 600000;
+      const m = window.MONSTERS.slime;
+      const night = (buffs) => {
+        G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+        G.playerMaxHp = 9999; G.playerHp = 9999;
+        G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.activeSkill = null; G.activeArtisanRecipe = null;
+        G.quests = [];
+        G.buffs = buffs.map((b) => Object.assign({ addedAt: Date.now() }, b));
+        G.lastSeen = Date.now() - AWAY_MS;
+        G.offlineBudget = { at: Date.now() - AWAY_MS };
+        window.processOffline();
+        return { sum: G.lastOfflineSummary || {}, left: (G.buffs || []).slice() };
+      };
+
+      /* THE CONTROL: with no buff held the receipt must report zero coverage,
+         so the measurement below is a measurement and not a default. */
+      const ctrl = night([]);
+      assert(ctrl.sum.combat && ctrl.sum.combat.ticks > 0, 'the fixture simulated nothing');
+      assert(ctrl.sum.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
+
+      const tickMs = window.combatTickMs();
+      const r = night([{ type: 'drop_rate', magnitude: 100, remainingMs: BUFF_MS }]);
+      /* MUTATION PROVEN: anchor the window to the return instant again and the
+         uncredited six hours become the HEAD of the absence rather than its
+         tail — the buff is then spent on time that paid nothing and this reads
+         0. (The clock crosses the whole absence either way; what moves is which
+         side of the window the unpaid part falls on.) */
+      assert(Math.abs(r.sum.buffPaidMs - BUFF_MS) <= tickMs,
+        'a 10-minute buff eaten at logoff must cover the first 10 minutes of the CREDITED window, got '
+        + r.sum.buffPaidMs + 'ms (one tick = ' + tickMs + 'ms). 0 means the window was anchored to the '
+        + 'return instant and the buff was spent on forfeited time.');
+      /* …and it may not cover more than its own life either — the other half of
+         the same rule, which a "never drain the tail" fix would break. */
+      assert(r.sum.buffPaidMs < CAP_MS,
+        'THE MINT: the buff paid ' + r.sum.buffPaidMs + 'ms of a ' + CAP_MS + 'ms window');
+      assert(r.left.length === 0,
+        'the buff must be spent by the time the player is back, found ' + JSON.stringify(r.left));
+
+      /* (c) THE TAIL IS SPENT, NOT FROZEN. The cap stops the PAYOUT; the
+         character kept standing there, so the clock kept running. A buff longer
+         than the credited window but shorter than the absence must be GONE when
+         the player gets back — otherwise the timers they see disagree with the
+         wall clock, which is the b326 mint in slow motion.
+         MUTATION PROVEN: drop the `_unpaidTailMs` drain from processOffline and
+         this comes back with 30 minutes left on it. */
+      const long = night([{ type: 'drop_rate', magnitude: 100, remainingMs: CAP_MS + 1800000 }]);
+      assert(long.left.length === 0,
+        'a 12h30m buff must not survive an 18h absence just because the last 6h paid nothing — found '
+        + JSON.stringify(long.left));
+      /* …and the drain is the WALL CLOCK, not "everything": a buff longer than
+         the whole absence comes back with exactly the remainder. */
+      const survives = night([{ type: 'drop_rate', magnitude: 100, remainingMs: AWAY_MS + 3600000 }]);
+      assert(survives.left.length === 1, 'a buff longer than the absence must survive it');
+      const leftMs = survives.left[0].remainingMs;
+      assert(Math.abs(leftMs - 3600000) <= tickMs,
+        'an 18h absence must spend exactly 18h of a 19h buff, leaving 1h — found ' + leftMs + 'ms');
+    } finally {
+      window.offlineCapHours = realCap;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      C.randomSeed(); restoreG(snap);
+    }
+  }),
+
   () => tryRun('AWAY-9: the summary carries the honesty payload the welcome-back renderer needs', () => {
     const G = window.G;
     const C = window.HearthriseCore;

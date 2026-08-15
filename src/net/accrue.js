@@ -670,6 +670,14 @@ export function summaryFromAway(away, res) {
     crits: Number(a.crits) || 0,
     featuredMs: Number(a.featuredMs) || 0,
     featuredDropMult: Number(a.featuredDropMult) || 1,
+    /* Ruling 2 (b352). `awayMs` above is the CREDITED span (`grantMs`) and keeps
+       that meaning; these say WHICH hours it was and how much of the absence the
+       cap refused. Stated by the server, never derived here — the credited
+       window is now anchored to when the player LEFT, so it no longer ends at
+       the return instant and cannot be reconstructed from a duration. */
+    unpaidMs: Number(a.unpaidMs) || 0,
+    windowFrom: Number(a.windowFrom) || null,
+    windowTo: Number(a.windowTo) || null,
     levelUps: Array.isArray(a.levelUps) ? a.levelUps : [],
     at: nowMs(),
     /* THE HONEST LABEL. A renderer, a screenshot and a bug report can all tell

@@ -564,6 +564,18 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       away: {
         grantMs: out.grantMs,
         capped: out.capped,
+        /* WHICH hours were credited, not merely how many (Ruling 2, 2026-08-15).
+           Since the credited window is the FIRST `grantMs` after the player
+           left, a capped night's window no longer ends at `now` — so a renderer
+           can no longer derive it, and a derived one would name the wrong day's
+           Boss of the Day. Stated, like every other field on this payload.
+           `awayMs` is the credited span (its shipped meaning); the forfeited
+           tail is `unpaidMs`, and the absence is the two added together. */
+        awayMs: out.summary.awayMs,
+        paidMs: out.summary.paidMs,
+        unpaidMs: out.summary.unpaidMs,
+        windowFrom: out.summary.windowFrom,
+        windowTo: out.summary.windowTo,
         tickMs: out.tickMs,
         /* Which permanent perks this night was PRICED AT — 'live' when
            hr_perks_of answered, 'absent' when this database predates it. It is

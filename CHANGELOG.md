@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 352 — 2026-08-15 (One vendor price, whichever button you press)
+
+- 💰 **Vendor sweep now pays the price it quotes.** "Sell junk" was paying full book value while the confirmation quoted the vendor's real bid, so raw materials sold through that button for about 5× what the same item fetches anywhere else in the game. It now pays the same bid as Sell 1, Sell All and the quick-sell slider — one vendor price, whichever button you press. Expect roughly a fifth of the old payout on raws; the number in the confirmation was always the honest one.
+- 🔧 Groundwork, switched off: the plumbing that will move gold onto the server at cutover shipped dark in this build. Nothing changes for you today.
+
 ## v0.9.2-beta build 351 — 2026-08-15 (Your night is credited to the right hours)
 
 - 🌙 **Long absences now credit the FIRST hours after you left, not the last hours before you returned.** It sounds cosmetic; it wasn't: the old way let a capped night land in the wrong day for Boss of the Day, and a buff eaten right before logging off could pay nothing at all. Both fixed, both sides of the wall.

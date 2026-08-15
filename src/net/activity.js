@@ -77,7 +77,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-} from './accrue.js?v=351';
+} from './accrue.js?v=352';
 
 export const ACTIVITY_VERB = 'set_activity';
 

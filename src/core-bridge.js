@@ -29,38 +29,38 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=351';
-import * as xp from './core/xp.js?v=351';
-import * as combat from './core/combat.js?v=351';
-import * as drops from './core/drops.js?v=351';
-import * as pacing from './core/pacing.js?v=351';
-import * as rested from './core/rested.js?v=351';
-import * as tools from './core/tools.js?v=351';
-import * as farm from './core/farm.js?v=351';
-import * as progression from './core/progression.js?v=351';
-import * as styles from './core/styles.js?v=351';
-import * as artisan from './core/artisan.js?v=351';
-import * as bounty from './core/bounty.js?v=351';
-import * as away from './core/away.js?v=351';
-import * as botd from './core/botd.js?v=351';
-import * as buffs from './core/buffs.js?v=351';
-import * as combatSim from './core/combat-sim.js?v=351';
+import * as rngMod from './core/rng.js?v=352';
+import * as xp from './core/xp.js?v=352';
+import * as combat from './core/combat.js?v=352';
+import * as drops from './core/drops.js?v=352';
+import * as pacing from './core/pacing.js?v=352';
+import * as rested from './core/rested.js?v=352';
+import * as tools from './core/tools.js?v=352';
+import * as farm from './core/farm.js?v=352';
+import * as progression from './core/progression.js?v=352';
+import * as styles from './core/styles.js?v=352';
+import * as artisan from './core/artisan.js?v=352';
+import * as bounty from './core/bounty.js?v=352';
+import * as away from './core/away.js?v=352';
+import * as botd from './core/botd.js?v=352';
+import * as buffs from './core/buffs.js?v=352';
+import * as combatSim from './core/combat-sim.js?v=352';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=351';
+import * as skillSim from './core/skill-sim.js?v=352';
 /* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
    branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
    344 catalogue rows, and the last simulation in the game with no DOM-free
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
-import * as artisanSim from './core/artisan-sim.js?v=351';
+import * as artisanSim from './core/artisan-sim.js?v=352';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=351';
+import * as autoEat from './core/auto-eat.js?v=352';
 /* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
    of the getBonus chain — room rungs, plot buildings and the property
    capstone — is this module now, on both sides, so the client's `noBurn` and
@@ -69,7 +69,7 @@ import * as autoEat from './core/auto-eat.js?v=351';
    `hr_perks_of` returns. Published rather than inlined for the reason every
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as perks from './core/perks.js?v=351';
+import * as perks from './core/perks.js?v=352';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from

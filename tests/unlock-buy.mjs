@@ -165,14 +165,36 @@ const MUTATIONS = {
         + "                   'from public, anon, authenticated', t);",
     repl: '    null;',
   },
+  class_member_absorbed: {
+    migration: '2026-08-16-client-write-grant-sweep.sql',
+    why: 'C3a — a table enters the dead-grant class BEFORE the baseline is seeded. A baseline that '
+       + 'seeds itself from live reality ABSORBS it silently, and because the file is safe-to-re-run '
+       + 'every later re-run re-absorbs whatever arrived since. The seed must come from a DECLARED '
+       + 'list and must RAISE on anything reality holds that the list does not',
+    /* The anchor is the LAST statement before the baseline block, so the probe
+       table joins the class between §1's sweep and §2's seed — which is exactly
+       when a table created by any other migration would join it.
+       Deliberately NOT named hr__*: the residue check at the end of the file
+       greps that prefix, and a mutation caught by the residue check would prove
+       nothing about absorption. This is a table that simply appeared — which is
+       exactly what the platform default ACL does to every new RLS-on table. */
+    find: 'create table if not exists public.hr_client_write_baseline (',
+    repl: 'create table public.c3a_absorbed_probe (id int primary key);\n'
+        + 'alter table public.c3a_absorbed_probe enable row level security;\n'
+        + 'revoke all on public.c3a_absorbed_probe from public, anon, authenticated, service_role;\n'
+        + 'grant insert on public.c3a_absorbed_probe to authenticated;\n'
+        + 'create table if not exists public.hr_client_write_baseline (',
+  },
   detector_still_narrow: {
     migration: '2026-08-16-client-write-grant-sweep.sql',
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
-    find: "       and g.privilege_type in ('INSERT','UPDATE','DELETE')\n"
-        + '       and c.relrowsecurity',
-    repl: "       and g.privilege_type in ('INSERT','UPDATE','DELETE')\n"
-        + '       and false and c.relrowsecurity',
+    /* Anchored on the BASELINE JOIN, which appears only in the derived detector
+       body — the class predicate itself now also appears in §2's seed block, so
+       the obvious anchor matches twice and the harness refuses it. */
+    find: '       and not exists (select 1 from public.hr_client_write_baseline b\n'
+        + '                        where b.table_name = g.table_name and b.grantee = g.grantee)',
+    repl: '       and false',
   },
   // ── THE RECEIPT IS THE SERVER'S (Security C4) ──────────────────────────
   receipt_price_from_edge: {
@@ -180,7 +202,7 @@ const MUTATIONS = {
     why: 'C4 — the receipt goes back to the Edge catalogue\'s price, so the number the player SEES '
        + 'is the one number nobody re-validated; a stale catalogue produces a wrong receipt on the '
        + 'SUCCESS path, silently',
-    find: '        gold: -res.charged.gold,',
+    find: '        gold: -res.charged?.gold,',
     repl: '        gold: -offer.gold,',
   },
   // ── THE SHAPE HALF ─────────────────────────────────────────────────────
@@ -941,6 +963,36 @@ async function run(mutate) {
     const again = await report();
     for (const t of SIX) {
       ok(!again.includes(t), `U14: ${t} is still reported after the revoke. report=${again}`);
+    }
+
+    /* C3a — THE BASELINE IS THE DECLARED LIST, AND IT MATCHES REALITY EXACTLY.
+       Both directions: a class member missing from the baseline is a grant the
+       detector would (correctly) shout about forever, and a baseline row with
+       no live grant is a claim that has outlived its subject. The migration
+       raises on the first and warns on the second; this measures the state it
+       actually left behind. */
+    const classNow = (await db.query(`
+      select g.table_name || ':' || g.grantee as k
+        from information_schema.role_table_grants g
+        join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+       where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+         and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
+         and not exists (select 1 from pg_policies p
+                          where p.schemaname='public' and p.tablename = g.table_name
+                            and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       group by 1 order by 1`)).rows.map((r) => r.k);
+    const based = (await db.query(
+      "select table_name || ':' || grantee as k from public.hr_client_write_baseline order by 1"))
+      .rows.map((r) => r.k);
+    ok(classNow.length > 0,
+      'U14: the dead-grant class is EMPTY on the replay, so the two comparisons below are vacuous');
+    ok(JSON.stringify(classNow) === JSON.stringify(based),
+      `U14 (C3a): the declared baseline and reality disagree.\n    class only: `
+      + `${classNow.filter((k) => !based.includes(k)).join(', ') || '(none)'}\n    baseline only: `
+      + `${based.filter((k) => !classNow.includes(k)).join(', ') || '(none)'}`);
+    for (const t of SIX) {
+      ok(!based.some((k) => k.startsWith(`${t}:`)),
+        `U14: ${t} was BASELINED instead of swept — the finding recorded as accepted`);
     }
   } catch (e) { if (!(e instanceof Red)) throw e; }
 

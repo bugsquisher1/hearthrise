@@ -209,20 +209,28 @@ export async function runUnlockBuy(o) {
          than a wrong RECEIPT (silent). tests/unlock-buy.mjs mutates
          UNLOCK_OFFERS' price and requires this to stay correct.
          Absent `charged` → null, fail closed: no receipt beats a made-up one. */
+      /* ⚠ THE FIELD READS ARE OPTIONAL-CHAINED even though the guard above
+         makes that unreachable, and it is not defensive noise: it is what lets
+         a test PROVE the guard. With plain `res.charged.offer`, deleting the
+         guard makes a replayed call THROW, and a TypeError proves only that the
+         module crashed — tests/unlock-buy.mjs' `receipt_on_replay` mutation read
+         "Cannot read properties of undefined" instead of the property it exists
+         to assert. With `?.` the mutated build runs and the test says the true
+         thing: a replay reported a receipt for a transfer it did not make. */
       receipt: (res.replayed === true || !res.charged) ? null : {
-        offer: res.charged.offer,
-        name: res.charged.name,
-        unlock: res.charged.unlock,
+        offer: res.charged?.offer,
+        name: res.charged?.name,
+        unlock: res.charged?.unlock,
         /* THE RUNG, not an amount added. Stated by the server, rendered by the
            client, never recomputed — the client has no copy of the ladder to
            recompute it from. */
-        rung: res.charged.rung,
+        rung: res.charged?.rung,
         /* Negated HERE, so the sign convention lives in one place and the
            server states a magnitude. Same sign shop_buy's receipt carries, so a
            renderer cannot accidentally show a purchase as income. */
-        gold: -res.charged.gold,
-        items: res.charged.items,
-        blueprint: res.charged.blueprint ?? null,
+        gold: -res.charged?.gold,
+        items: res.charged?.items,
+        blueprint: res.charged?.blueprint ?? null,
       },
       ...(res.replayed === true ? { replayed: true } : {}),
     },

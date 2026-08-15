@@ -356,8 +356,39 @@ naming the disagreement. Both objects are in one process exactly once — at gen
 and was false. Refusal *set* unchanged; the generated file's digest moved with the
 reasons.
 
-Suite after all of it: **723/723, 0 runtime errors**; `unlock-buy --selftest` **21/21**;
-`run-sql-tests` static green with the 3-link chain and its declared removals.
+**C3a (ratified-with-changes, 2026-08-16) — the baseline no longer seeds itself.**
+Revision 1 seeded `hr_client_write_baseline` from live reality, which is a tripwire that
+disarms itself twice over: anything entering the class before the apply was absorbed
+silently, and because the file is safe-to-re-run, every re-run re-absorbed whatever had
+arrived since. The mechanism is live, not hypothetical — Supabase's default ACL puts
+every new RLS-on, write-policy-less table into the class automatically.
+
+Now: the 21 tables are a `c_expected constant text[][]` of 42 (table, grantee) pairs; the
+seed comes **only** from that list; a class member reality holds that the list does not
+name is a **RAISE**; a listed member absent from reality is a **WARNING** ("the list
+should shrink — delete the pair and the grant together"). The class predicate is computed
+**once** into `v_class` so the raise and the seed cannot drift, and an empty class is
+itself fatal (a blind check on a database with 21 known members is not a clean bill).
+
+Measured, in both directions:
+- **Before** (self-seeding): mutation `class_member_absorbed` creates a table in the class
+  immediately before the seed — it was **absorbed silently and the whole suite stayed
+  green**. That is the finding, reproduced.
+- **After**: the same mutation is RED — *"C3a: REFUSING TO BASELINE SOMETHING NOBODY
+  REVIEWED … c3a_absorbed_probe:authenticated … Do not widen the list to make this stop."*
+- **U14** additionally asserts, on the clean replay, that the declared baseline and the
+  live class are **set-equal in both directions**, and that none of the six swept
+  catalogues was baselined instead of fixed.
+
+`receipt_on_replay` re-anchored: the receipt's field reads are now optional-chained, so
+deleting the guard produces a running build and the mutation fails on the **named
+assertion** (*"a REPLAYED purchase reported a receipt for a transfer this invocation did
+not make"*) instead of a `TypeError`. The comment in `unlock-buy.js` says why the `?.` is
+there, so nobody "tidies" it away.
+
+Suite after all of it: **723/723, 0 runtime errors**; `unlock-buy --selftest` **22/22**;
+`run-sql-tests` static green with the 3-link chain and its declared removals;
+`schema-drift` clean against the re-baselined fingerprint.
 
 ## 12. Known limitations
 

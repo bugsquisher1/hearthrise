@@ -199,11 +199,29 @@ begin
                '(0 remain). SELECT is untouched — they are world-readable by design.', v_before;
 end $$;
 
--- ── 2. THE BASELINE — every REMAINING dead grant, recorded as a claim ────
--- Seeded from what this database actually has, AFTER the sweep. Recording
--- reality rather than a hard-coded list is deliberate: a list written here would
--- be right on the replay and wrong on production the day they diverge, and the
--- direction that matters — a NEW dead grant — is caught either way.
+-- ── 2. THE BASELINE — every REMAINING dead grant, DECLARED BY NAME ───────
+-- ⚠ REVISION 2 (Security C3a). Revision 1 seeded this table from live reality:
+--   "insert … select from role_table_grants where <the class predicate>". That
+--   is a tripwire that disarms itself, in two directions and both of them live:
+--     · anything that entered the class between the finding and the apply was
+--       ABSORBED — recorded as accepted, silently, with every self-check green;
+--     · this file is SAFE TO RE-RUN, so a re-run RE-SEEDS from whatever reality
+--       has become and absorbs everything that arrived since the last one.
+--   And the mechanism is not hypothetical: Supabase's default ACL grants
+--   anon/authenticated every privilege on every NEW table in `public`, so a new
+--   table with RLS on and no write policy JOINS THIS CLASS AUTOMATICALLY. The
+--   detector would then be permanently one apply behind the thing it detects.
+--   Measured before the fix: a table created immediately before the seed was
+--   absorbed and the whole suite stayed green (tests/unlock-buy.mjs mutation
+--   `class_member_absorbed`).
+--
+-- So the twenty-one tables are DECLARED, as (table, grantee) pairs, and:
+--   · the seed comes ONLY from this list;
+--   · a class member reality holds that the list does NOT name is a RAISE —
+--     it is either new, or it was never reviewed, and both need a human;
+--   · a listed member that is ABSENT from reality is a WARNING, not a raise:
+--     it means somebody swept it, which is the direction this list is supposed
+--     to move. THE LIST SHOULD SHRINK. Remove the pair and the grant together.
 create table if not exists public.hr_client_write_baseline (
   table_name text not null,
   grantee    text not null,
@@ -217,39 +235,125 @@ revoke all on public.hr_client_write_baseline from public, anon, authenticated, 
 -- nobody else. A table with RLS on and no policy is unreadable to every client
 -- role, which is the correct posture for a list of known-weak grants.
 
-insert into public.hr_client_write_baseline (table_name, grantee, note)
-select distinct g.table_name, g.grantee,
-       'PRE-EXISTING at 2026-08-16 (C3). Written only by SECURITY DEFINER RPCs; the grant is dead '
-       'and held back by RLS. Sweep candidate — remove this row and the grant together.'
-  from information_schema.role_table_grants g
-  join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
- where g.table_schema = 'public'
-   and g.grantee in ('anon','authenticated','PUBLIC')
-   and g.privilege_type in ('INSERT','UPDATE','DELETE')
-   and c.relrowsecurity
-   and not exists (select 1 from pg_policies p
-                    where p.schemaname = 'public' and p.tablename = g.table_name
-                      and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
-on conflict (table_name, grantee) do nothing;
-
 do $$
-declare v_n int; v_bad text;
+declare
+  -- THE TWENTY-ONE, BY NAME. Measured on the repo's own replay 2026-08-16
+  -- (tests/schema-replay.mjs, whole chain): every one is written exclusively by
+  -- a SECURITY DEFINER RPC, so every grant here is DEAD — reachable only if
+  -- somebody later adds a permissive policy or disables RLS during an incident.
+  -- Sweep candidates, one confirmed writer at a time; see §7.
+  c_expected constant text[][] := array[
+    ['clan_bans', 'anon'],                ['clan_bans', 'authenticated'],
+    ['clan_board', 'anon'],               ['clan_board', 'authenticated'],
+    ['clan_invites', 'anon'],             ['clan_invites', 'authenticated'],
+    ['clan_ledger', 'anon'],              ['clan_ledger', 'authenticated'],
+    ['clan_order_ballots', 'anon'],       ['clan_order_ballots', 'authenticated'],
+    ['clan_order_votes', 'anon'],         ['clan_order_votes', 'authenticated'],
+    ['clan_raids', 'anon'],               ['clan_raids', 'authenticated'],
+    ['clan_stores', 'anon'],              ['clan_stores', 'authenticated'],
+    ['clan_tavern', 'anon'],              ['clan_tavern', 'authenticated'],
+    ['clan_withdrawals', 'anon'],         ['clan_withdrawals', 'authenticated'],
+    ['clan_work_labour', 'anon'],         ['clan_work_labour', 'authenticated'],
+    ['clan_work_orders', 'anon'],         ['clan_work_orders', 'authenticated'],
+    ['display_names', 'anon'],            ['display_names', 'authenticated'],
+    ['leaderboard_meta', 'anon'],         ['leaderboard_meta', 'authenticated'],
+    ['maintenance_alerts', 'anon'],       ['maintenance_alerts', 'authenticated'],
+    ['maintenance_log', 'anon'],          ['maintenance_log', 'authenticated'],
+    ['raid_claims', 'anon'],              ['raid_claims', 'authenticated'],
+    ['raid_contributions', 'anon'],       ['raid_contributions', 'authenticated'],
+    ['world_event_joins', 'anon'],        ['world_event_joins', 'authenticated'],
+    ['world_event_pledges', 'anon'],      ['world_event_pledges', 'authenticated'],
+    ['world_event_totals', 'anon'],       ['world_event_totals', 'authenticated']
+  ];
+  v_class    text[];   -- 'table:grantee' for everything ACTUALLY in the class
+  v_extra    text;
+  v_gone     text;
+  v_seeded   int;
+  v_n        int;
 begin
-  select count(*) into v_n from public.hr_client_write_baseline;
-  -- The six must NOT be in it. They were revoked in §1, so the seed above could
-  -- not have picked them up — asserted rather than assumed, because a baseline
-  -- that recorded the finding instead of fixing it is the exact shape of a
-  -- control that has been turned into a comment.
-  select string_agg(distinct table_name, ', ') into v_bad
+  -- THE CLASS, computed ONCE. Written once rather than twice so the predicate
+  -- the raise is about and the predicate the seed is about cannot drift apart.
+  select coalesce(array_agg(x.k order by x.k), array[]::text[]) into v_class from (
+    select g.table_name || ':' || g.grantee as k
+      from information_schema.role_table_grants g
+      join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+     where g.table_schema = 'public'
+       and g.grantee in ('anon','authenticated','PUBLIC')
+       and g.privilege_type in ('INSERT','UPDATE','DELETE')
+       and c.relrowsecurity
+       and not exists (select 1 from pg_policies p
+                        where p.schemaname = 'public' and p.tablename = g.table_name
+                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+     group by g.table_name, g.grantee) x;
+
+  -- ⚠ A CONTROL BEFORE ANY VERDICT. An empty class means the predicate stopped
+  --   matching — on a database that has just had six tables swept and 21 left
+  --   alone, that is not a clean bill, it is a blind check, and both branches
+  --   below would then pass for the wrong reason.
+  if array_length(v_class, 1) is null then
+    raise exception 'C3a: the dead-grant class is EMPTY on this database. Either the predicate no '
+                    'longer matches anything (a blind check) or every client write grant in the '
+                    'schema is gone (which would be excellent, and is not something to discover '
+                    'silently). Investigate before removing this control.';
+  end if;
+
+  -- (a) ANYTHING REALITY HOLDS THAT THE LIST DOES NOT NAME IS FATAL. This is
+  --     the half revision 1 got wrong: it absorbed instead of raising.
+  select string_agg(k, ', ' order by k) into v_extra
+    from unnest(v_class) k
+   where not exists (select 1 from generate_subscripts(c_expected, 1) i
+                      where c_expected[i][1] || ':' || c_expected[i][2] = k);
+  if v_extra is not null then
+    raise exception 'C3a: REFUSING TO BASELINE SOMETHING NOBODY REVIEWED. These (table, grantee) '
+                    'pairs are in the dead-grant class — a client write grant on a table with RLS '
+                    'on and NO write policy — and this file does not name them: %. Either they are '
+                    'NEW (Supabase''s default ACL puts every new RLS-on table in this class '
+                    'automatically) or they were never looked at. Decide per table: revoke it here '
+                    'like the six above, or add the pair to c_expected WITH the reason it is '
+                    'accepted. Do not widen the list to make this stop.', v_extra;
+  end if;
+
+  -- (b) A LISTED PAIR THAT IS GONE IS A WARNING, NOT A FAILURE — it means
+  --     somebody swept it, which is the direction this list must move.
+  select string_agg(c_expected[i][1] || ':' || c_expected[i][2], ', '
+                    order by c_expected[i][1] || ':' || c_expected[i][2])
+    into v_gone
+    from generate_subscripts(c_expected, 1) i
+   where not (c_expected[i][1] || ':' || c_expected[i][2] = any (v_class));
+  if v_gone is not null then
+    raise warning 'C3a: % listed pair(s) are no longer in the class (%). That is the list doing its '
+                  'job — somebody swept them. Delete those rows from c_expected in this file; a '
+                  'baseline that never shrinks is a baseline nobody is working through.',
+                  (select count(*) from regexp_matches(v_gone, ',', 'g')) + 1, v_gone;
+  end if;
+
+  -- (c) THE SEED — from the LIST, and only for pairs that really exist, so the
+  --     table never claims to have accepted a grant that is not there.
+  insert into public.hr_client_write_baseline (table_name, grantee, note)
+  select c_expected[i][1], c_expected[i][2],
+         'PRE-EXISTING at 2026-08-16 (C3). Written only by SECURITY DEFINER RPCs; the grant is dead '
+         'and held back by RLS. Sweep candidate — remove this row, the c_expected pair and the '
+         'grant together.'
+    from generate_subscripts(c_expected, 1) i
+   where c_expected[i][1] || ':' || c_expected[i][2] = any (v_class)
+  on conflict (table_name, grantee) do nothing;
+  get diagnostics v_seeded = row_count;
+
+  -- The six must NOT be in the baseline. They were revoked in §1 and they are
+  -- not on the list — asserted rather than assumed, because a baseline that
+  -- RECORDED the finding instead of fixing it is a control turned into a comment.
+  select string_agg(distinct table_name, ', ') into v_extra
     from public.hr_client_write_baseline
    where table_name in ('hr_castle_board_tasks','hr_castle_buildings','hr_castle_items',
                         'hr_castle_tiers','hr_hunt_bosses','hr_hunt_tiers');
-  if v_bad is not null then
-    raise exception 'C3 §2: the six swept catalogues were BASELINED (%) instead of fixed — the '
-                    'finding would be recorded as accepted', v_bad;
+  if v_extra is not null then
+    raise exception 'C3 §2: the six swept catalogues were BASELINED (%) instead of fixed', v_extra;
   end if;
-  raise notice 'C3 §2: % pre-existing dead client write grant(s) recorded as claims. Each one is a '
-               'sweep candidate; see §7.', v_n;
+
+  select count(*) into v_n from public.hr_client_write_baseline;
+  raise notice 'C3a §2: the class holds % pair(s), all of them DECLARED in this file; % newly '
+               'seeded, % baselined in total. Anything the list does not name is fatal.',
+               array_length(v_class, 1), v_seeded, v_n;
 end $$;
 
 -- ── 3. GRANTS (nothing is granted) ───────────────────────────────────────

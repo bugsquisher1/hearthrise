@@ -153,14 +153,42 @@ async function deployedPayloadGuard() {
   const { hash, problems: packProblems } = await packEdge('hr-accrue');
   for (const p of packProblems) problems.push(`[hr-accrue] ${p}`);
   if (problems.length) return { problems, note: '' };
-  const url = process.env.HR_ACCRUE_URL;
+  /* ⚠ THIS GUARD USED TO SKIP WHENEVER HR_ACCRUE_URL WAS UNSET, AND PRINT A
+     GREEN SUITE. It cost us a live incident on 2026-08-15: b343 (26 new items),
+     b344 and the price commits all landed, the deployed engine stayed on the
+     previous payload, and the check that exists precisely to catch that said
+     SKIPPED under a passing run. Three hours of drift sat under a green test —
+     the engine that is about to own every progression value was running a copy
+     of the game with 400 items while the game had 426.
+
+     The env vars were never actually needed. `tests/rpc-resolution.mjs` already
+     established the right pattern: read the project url and the ANON key out of
+     src/net/supabase-bootstrap.js rather than duplicating them into config, so
+     the check cannot be silently switched off by a missing variable. The anon
+     key is public and already committed — there is no secret here to withhold.
+
+     Env vars still WIN when set, so a branch or a local stack can be pointed at
+     deliberately. What is gone is the ability to skip by accident. */
+  let url = process.env.HR_ACCRUE_URL;
+  let derivedKey = '';
   if (!url) {
-    return { problems, note: `repo payload ${hash.slice(0, 16)}… · deployed check SKIPPED (set HR_ACCRUE_URL, and HR_ACCRUE_KEY for the gateway)` };
+    try {
+      const boot = await readFile(new URL('../src/net/supabase-bootstrap.js', import.meta.url), 'utf8');
+      const base = (boot.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [])[0];
+      derivedKey = (boot.match(/eyJ[A-Za-z0-9_\-.]{40,}/) || [])[0] || '';
+      if (base) url = `${base}/functions/v1/hr-accrue`;
+    } catch { /* fall through to the hard failure below */ }
+  }
+  if (!url) {
+    problems.push('the deployed-payload check could not resolve the function url — neither HR_ACCRUE_URL nor '
+      + 'a project url in src/net/supabase-bootstrap.js. This guard must never silently skip: it is the only '
+      + 'thing that notices the deployed engine running a different copy of the game than this repo.');
+    return { problems, note: '' };
   }
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10_000);
-    const key = process.env.HR_ACCRUE_KEY || '';
+    const key = process.env.HR_ACCRUE_KEY || derivedKey;
     const res = await fetch(url, {
       method: 'GET',
       signal: ctrl.signal,

@@ -875,6 +875,20 @@ re-created on the authoritative side.
   not a fix. Someone should write the missing migrations.
 
 ## DESIGNER-OWNED, QUEUED (not blocking)
+- **WORLD-BOSS COOPERATION BLESSING — requested by Tyler 2026-08-15, architecture only.**
+  "An additional blessing for world bosses when players work together to kill it." Recorded,
+  not built — features are paused until cutover.
+  **It fits the existing architecture cleanly, and the reason matters:** it belongs on the
+  `BLESSING` channel in `src/core/away.js` (`src/features/world-events.js` already owns
+  "daily + weekly world events — blessings — shared by every player"), and `AWAY_SCOPE`
+  sets `blessing: false`. So **it correctly does NOT pay while offline**, which is exactly
+  Tyler's own rule: "the character should not gain the server wide blessing/buffs but they
+  should still get their personal / clan buffs." A blessing earned by players cooperating
+  in real time is the definitional server-wide boost. No new channel is needed.
+  ⚠ One thing to settle when it is built: blessings are enforced in TWO places today —
+  `AWAY_SCOPE.blessing = false` (which only `buffs.js` ever consults) and a hardcoded
+  `blessed: false` at `combat-sim.js:415`. They agree now; two mechanisms for one rule is
+  how they drift. Consolidate before adding a third blessing source.
 - **MELVOR MASTERY — PAUSED BY TYLER 2026-08-14.** `docs/design/progression-depth.md` has the
   full analysis; the verdict was already "reject the port, take a reduced form" and Tyler has
   now paused even that. **The measurement is the reason and it should survive the pause:** the

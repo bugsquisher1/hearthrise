@@ -418,7 +418,101 @@ version is accepted and labelled it "stale". Re-run reporting the actual numbers
 and probing `v1-1` and `v1+500`, both refused, with `v1` accepted as the control. **A probe
 that hardcodes a value it did not measure is asserting about a database it imagined.**
 
-## 📍 START HERE — STATE AT 2026-08-15, OVERNIGHT
+## 📍 START HERE — STATE AT 2026-08-15 (END OF SESSION)
+
+**`main` is 716/716, 0 runtime errors. b349 is LIVE. Deployed engine matches the repo
+(`a2a42250…`) — verified by the race harness's own preflight, which is now the third
+independent check of that fact.**
+
+## ⛔ THE P0 THAT BLOCKS EVERYTHING — read this first, a fix is in flight
+
+**`hr_apply` has NEVER successfully applied a delta through the Edge Function in production.**
+Found 2026-08-15 by Tyler running `tools/probe-intent.mjs` against the live function:
+
+```
+HTTP 409  error: "bad_delta"  stage: "switch"  detail: {"ok":false,"error":"bad_delta"}
+```
+
+`detail` carries no `sqlstate`, which rules out the exception-handler `bad_delta` and pins it
+to the first site: `if p_delta is null or jsonb_typeof(p_delta) <> 'object'`. Mechanism
+confirmed on production:
+
+| binding | `jsonb_typeof` |
+|---|---|
+| sent as TEXT | `object` ✅ |
+| sent as JSON | `string` ❌ → `bad_delta` |
+
+Both call sites do `JSON.stringify(delta)` into a `::jsonb` cast
+(`set-activity.js:190,298` via `tx.unsafe`; `index.ts:463` via a tagged template). The
+`postgres` driver appears to bind the string as json rather than text, so the cast re-wraps it
+into a jsonb **string scalar**.
+
+**Everything either side of the binding is PROVEN CORRECT, so do not re-investigate it:**
+`hr_apply` accepts that exact delta at version 0 (`ok:true`, run against production, rolled
+back); `collectGate` proceeds for an idle character (real `computeAccrual`); the envelope's
+`version` is 0 and correct. The only ledger row on the throwaway is `create_character`, written
+by SQL — **assume the accrue path is broken too until measured.**
+
+### ⚠ THE TEST GAP IS THE MORE IMPORTANT HALF — instance #18
+`tests/activity-intent.mjs` deliberately drives THE SAME MODULE BYTES that deploy — correct,
+and it has caught real bugs — but injects a **PGlite** `exec` while production runs
+**`postgres` + `tx.unsafe`**. Same bytes, different transport, and the bug is in the transport.
+**27 mutations all passed against something that had never once worked in production.** The
+fix in flight must ship a guard that exercises the REAL driver's parameter binding and is
+proven RED against today's code.
+
+## WHAT TYLER PERSONALLY FOUND THIS SESSION (both invisible to a green suite)
+1. The **gather declaration gap** — the server was taught to pay gathering and
+   `SETTABLE_KINDS` widened BY DERIVATION, so no client site was ever added. Fixed in b350
+   with a structural guard: a payable kind with no client declaration site now fails the build
+   by name. *Derivation removes the second LIST; it does not remove the second SIDE.*
+2. **This P0.**
+
+## RUNNING WHEN THE SESSION ENDED
+- **delta-transport fix** (agent `ab2e207f`) — the P0 above.
+- **self-reload workflow** (`w7ss67yp9`) — Tyler confirmed *"it refreshed on its own"* and the
+  daily claim rolled back. Four candidate triggers tested in parallel; the prime suspect is
+  `build-watch.js`, because FOUR builds shipped during his test window and a reload before the
+  save flushes loses the claim. A previous agent DISPROVED the `applyEnvelopeState` theory
+  using the server's records (version 0 + 0 intents ⇒ it never ran).
+
+## FINISHED, UNMERGED, WAITING ON SECURITY — do not merge without it
+- `worktree-agent-aa956d14cdb43079e` — **gold grant intents** (`claim_reward`). One verb, not
+  six. Only **1 of 6 claim types is server-payable today**; the rest are refused BY NAME with
+  their dependency attached. Removed an **unbounded** login-streak multiplier the client has
+  been paying: `1 + weeksDone*0.5`, worth **1,060,000 gold** from one day-7 claim at two years.
+  Capped at ×26. **First server path that mints gems, and gems have NO daily-budget dimension —
+  Security must rule.**
+- `worktree-agent-a079e5c2e5260c6f8` — **economy substrate**: `player_state.marks` (inert by
+  design — wiring it needs an `hr_apply` change, which is forbidden, so it STOPPED and staged
+  the exact patch), and the ruling that **unlocks are `player_progress` rows with
+  `kind='unlock'`, deliberately absent from `hr_apply`'s allowlist so the additive merge
+  structurally cannot reach a rung**.
+
+## NEEDS TYLER
+1. **Re-run `node tools/race-test.mjs --yes`** after the P0 lands. It stopped correctly last
+   time — it refused to race an unpayable window. PowerShell notes: no `&&`, and do NOT pipe or
+   use `Start-Transcript` (a pipe hides the password prompt; PS 5.1's transcript does not
+   capture native stdout — both cost a real run).
+2. **Clear `hr:serverAccrual:replaceAck`** before the next switch-on test, or the b339
+   replacement sheet fires SILENTLY and takes back his daily reward.
+3. **PITR at cutover** — $100/mo, priced from the org's own billing API. Decision recorded, not
+   yet actioned.
+4. **Armour numbers** — `docs/design/armour-identities.md` is a PROPOSAL awaiting veto. Heavy is
+   named **Deflect at 7.5%/pair** (accepted). Magic takes a 27-38% cut; that is the number to
+   look at.
+
+## ALSO TRUE
+- **b349 fixed ~3,200 refused requests/day** (61% of error traffic): the client asked the server
+  for the time before it had a session. **Our own CI is now the largest source of logged DB
+  errors — grade the RATIO, not the count** (acceptance query in the b349 commit).
+- The **restore runbook** exists (`docs/design/restore-runbook.md`). Backups don't carry
+  custom-role passwords, so a restore would leave the engine unable to connect — it's a gate now.
+- **Wipe scope: TOTAL** — players, clans, raids, world events (Tyler, 2026-08-15).
+- **True concurrency is still unproven**, but now has a tool: `tools/race-test.mjs`, self-test
+  8/8, mutation-proven five ways.
+
+## 📍 EARLIER THAT DAY — OVERNIGHT STATE
 
 **Shipped and LIVE: b345.** `main` is 685/685, 0 runtime errors. The deployed engine matches
 the repo (`65f0e8ed…`) and the payload guard now RUNS without env vars, so it can no longer

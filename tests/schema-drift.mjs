@@ -141,6 +141,36 @@ const MUTATIONS = {
       '      created_at date default now(),\n      primary key (blocker_id, blocked_id)',
     ]]]],
   },
+  /* ── b353: THE DETECTOR'S OWN THREE ARMS ──────────────────────────────
+     2026-08-16-engine-allowlist-claim-perks.sql restates hr_assert_grant_hygiene
+     in order to record two reviewed engine grants. That is the one restatement
+     in this repo whose damage is SILENT: a dropped check reads as a clean night.
+     So each of its load-bearing arms gets a planted defect here, because "the
+     migration applied" is not evidence that any of them can see failure. */
+  blind_engine_pin: {
+    what: 'the widened allowlist ships with check (7) neutered — the detector can no longer see ANY unlisted engine grant, which is what "stop the detector raising" looks like when it is done the wrong way',
+    expect: 'replay', // §4(C)'s mutation arm raises DETECTOR IS BLIND
+    patches: [['2026-08-16-engine-allowlist-claim-perks.sql', [[
+      '       and p.oid::regprocedure::text <> all (c_engine_allow);',
+      '       and false;   -- neutered by the mutation harness',
+    ]]]],
+  },
+  allowlist_deletes_an_entry: {
+    what: 'the LIVE detector carries an engine capability the new file does not, so applying it would silently delete a reviewed grant — the clan_members "join as self" defect aimed at the allowlist',
+    expect: 'replay', // §1(a) refuses to install and names the entry
+    patches: [['2026-08-11-grant-hygiene.sql', [[
+      "    'hr_apply(uuid,integer,bigint,uuid,jsonb)',",
+      "    'hr_apply(uuid,integer,bigint,uuid,jsonb)',\n    'hr_ghost_capability(uuid)',",
+    ]]]],
+  },
+  allowlist_partial_hand_edit: {
+    what: 'the LIVE detector already carries ONE of the two entries — somebody edited the allowlist by hand and the migration would overwrite that decision',
+    expect: 'replay', // §1(c) refuses on exactly-one-of-two
+    patches: [['2026-08-11-grant-hygiene.sql', [[
+      "    'hr_rate_gate(uuid,integer,text)'\n  ];",
+      "    'hr_rate_gate(uuid,integer,text)',\n    'hr_perks_of(uuid,integer)'\n  ];",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

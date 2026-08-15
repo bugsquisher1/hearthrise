@@ -1016,6 +1016,14 @@ async function unlockModelPreflight() {
       'a shop grant or a recipe gate no longer matches the generated catalogue'],
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
+    /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a
+       third entry rather than being trusted to review: every other restated
+       body in this repo fails loudly when it is damaged, and
+       hr_assert_grant_hygiene fails SILENTLY. A restatement that dropped one of
+       its nine checks reads as a clean night for as long as nobody looks. */
+    ['derive-grant-hygiene.mjs', 'hr_assert_grant_hygiene derivation',
+      'the restated grant detector is no longer grant-hygiene\'s body plus its declared patch — '
+      + 'i.e. a check may have been deleted while every self-check still passed'],
   ]) {
     const gen = join(ROOT, 'tools', tool);
     try { await stat(gen); } catch { continue; }

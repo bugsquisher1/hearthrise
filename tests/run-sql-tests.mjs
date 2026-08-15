@@ -164,6 +164,11 @@ const ALSO_LINTED = [
      object. */
   '2026-08-15-perk-channel.sql',
   '2026-08-16-artisan-progress-model.sql',
+  /* b353 — the engine capability allowlist. It `create or replace`s THE
+     DETECTOR itself, which is the one body where a blind restatement is worst:
+     a silently deleted check looks exactly like a clean night. Listed here so
+     the grant lints see it AND so PART 1f-ii can walk its derivation. */
+  '2026-08-16-engine-allowlist-claim-perks.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -218,6 +223,29 @@ const HR_APPLY_CHAIN = [
 const HR_PERKS_OF_CHAIN = [
   '2026-08-15-perk-channel.sql',
   '2026-08-16-artisan-progress-model.sql',
+];
+
+// ── THE hr_assert_grant_hygiene DERIVATION CHAIN ─────────────────────────
+// The FOURTH object, added 2026-08-16, and the one with the worst failure mode
+// of the four. 2026-08-11-grant-hygiene.sql had been the SOLE definer of the
+// detector since it was written; 2026-08-16-engine-allowlist-claim-perks.sql
+// takes over, in order to record two reviewed engine grants
+// (hr_claim_lookup, hr_perks_of) that the nightly pg_cron run raises on.
+//
+// Why this body more than the other three: hr_apply going wrong is a broken
+// feature and someone notices within an hour. THE DETECTOR going wrong is
+// SILENCE — a restatement that dropped check (5), or check (8), or the
+// `prokind in ('f','p')` that makes a PROCEDURE visible, would read as a clean
+// night for as long as nobody looked. So its body is EXTRACTED from
+// grant-hygiene's by tools/derive-grant-hygiene.mjs and patched at ONE anchor
+// (the head of c_engine_allow) — INSERTIONS ONLY, which is why this chain's
+// declared-removals list below is EMPTY.
+//
+// A new file that replaces hr_assert_grant_hygiene is appended here AND to
+// tests/schema-apply-order.json, in the same commit.
+const HR_GRANT_HYGIENE_CHAIN = [
+  '2026-08-11-grant-hygiene.sql',
+  '2026-08-16-engine-allowlist-claim-perks.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -668,9 +696,10 @@ say('── retention policies are wired');
 }
 
 // ── PART 1f-ii — a RESTATED BODY is DERIVED, not retyped, and one file is last ─
-// TWO objects are graded here by ONE mechanism: `hr_apply` (four migrations now
-// restate the whole 47-56 KB body) and `hr_rate_gate` (four restate the whole
-// gate). Each link was built by extracting its predecessor's text
+// FOUR objects are graded here by ONE mechanism: `hr_apply` (four migrations now
+// restate the whole 47-56 KB body), `hr_rate_gate` (four restate the whole
+// gate), `hr_perks_of` (two) and `hr_assert_grant_hygiene` (two — THE DETECTOR,
+// added 2026-08-16). Each link was built by extracting its predecessor's text
 // programmatically and patching it at named anchors — because retyping it is how
 // a fix that landed last week silently disappears, and because `create or
 // replace` on a body you have not read is the single most destructive statement
@@ -690,6 +719,13 @@ say('── retention policies are wired');
 //   claim-reward's own self-check green because it asserted only its own arm.
 //   A guard that grades one object is not a guard against the defect class; it
 //   is a guard against the instance that produced it.
+//
+// ⚠ AND WHY IT GRADES THE DETECTOR ITSELF. 2026-08-16-engine-allowlist-claim-
+//   perks.sql restates hr_assert_grant_hygiene to record two reviewed engine
+//   grants. Every other body on this list fails LOUDLY when it is damaged — a
+//   broken hr_apply is a broken game within the hour. A damaged DETECTOR fails
+//   SILENTLY, and reads as a clean night for as long as nobody looks. That
+//   asymmetry is the argument for grading it here rather than trusting review.
 const DERIVED_BODIES = [
   {
     fn: 'hr_apply',
@@ -708,6 +744,12 @@ const DERIVED_BODIES = [
     open: 'create or replace function public.hr_perks_of(',
     chain: HR_PERKS_OF_CHAIN,
     chainName: 'HR_PERKS_OF_CHAIN',
+  },
+  {
+    fn: 'hr_assert_grant_hygiene',
+    open: 'create or replace function public.hr_assert_grant_hygiene(',
+    chain: HR_GRANT_HYGIENE_CHAIN,
+    chainName: 'HR_GRANT_HYGIENE_CHAIN',
   },
 ];
 

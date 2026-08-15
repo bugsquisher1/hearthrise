@@ -17135,6 +17135,16 @@ const TESTS = [
       Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
       window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
       R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
+      /* b349 — THE CAPSTONE IS DRIVEN BY REAL STATE NOW, not by a stub of
+         isCastle(). getBonus's layer 0 delegates to src/core/perks.js and hands
+         it `propertyTier` (an INT), because the server has a tier and not a
+         boolean; `isCastle()` is a derived predicate the perk state no longer
+         consults. Setting the tier is strictly stronger than stubbing the
+         predicate — it drives HearthriseHomestead's real accessor — and the
+         stub is kept because other readers in this suite still call it.
+         CASTLE_TIER is read from core rather than typed as 5, so a sixth
+         property tier moves one constant and this test follows it. */
+      window.G.homestead = { tier: window.HearthriseCore.perks.CASTLE_TIER };
       if (H) H.isCastle = () => true;
       UI._reset();
       UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
@@ -26202,6 +26212,185 @@ const TESTS = [
       restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b349 — THE PERMANENT PERK CHANNEL, from the BROWSER side.
+
+     tests/perk-channel.mjs proves the SERVER half against a real PostgreSQL:
+     an unlock row reaches burnChance with the right magnitude. It cannot
+     prove the CLIENT half, because `getBonus` is a classic-script function
+     inside a seven-layer monkey-patch chain that only exists in a page.
+
+     So these five drive the REAL `window.getBonus` and the REAL
+     `window.clientPerkState`. That distinction is the b339 lesson: an
+     extraction can be perfect and the CALLER can still pass a literal, and
+     every test of the extracted half passes anyway.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
+    const snap = snapshotG();
+    try {
+      /* MEASURED EXPECTATIONS, not restated from the table under test:
+         src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
+         13/19/25/25/25, so a cook AT the required level burns
+         0.25 / 0.12 / 0.06 / 0.00 / 0.00 / 0.00.
+         MUTATION: point getBonus's delegation at a stale table, or drop the
+         `bx` merge from tools/gen-perks.mjs → every row below goes RED. */
+      const EXPECT = [
+        [0, 0, 0.25],
+        [1, 0.13, 0.12],
+        [2, 0.19, 0.06],
+        [3, 0.25, 0.00],
+        [5, 0.25, 0.00],
+      ];
+      const A = window.HearthriseCore.artisan;
+      for (const [rung, noBurn, burn] of EXPECT) {
+        G.rooms = rung > 0 ? { kitchen: rung } : {};
+        assert(Math.abs(window.getBonus('noBurn') - noBurn) < 1e-9,
+          'Kitchen ' + rung + ' gives noBurn ' + window.getBonus('noBurn') + ', expected ' + noBurn
+          + ' — the client and the accrual engine now read ONE table, so this is both sides');
+        const got = A.burnChance({ req: 10 }, 10, window.getBonus('noBurn'));
+        assert(Math.abs(got - burn) < 1e-9,
+          'Kitchen ' + rung + ' burns at ' + got + ', expected ' + burn);
+      }
+      /* The other headline key off the same rung, so a delegation that only
+         forwarded `bx` (or only `bk`) cannot pass. */
+      G.rooms = { kitchen: 5 };
+      assert(Math.abs(window.getBonus('cookSpeed') - 0.10) < 1e-9,
+        'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
+        + 'half is not reaching getBonus');
+      assert(Math.abs(window.getBonus('yield_cooking') - 0.08) < 1e-9,
+        'Kitchen 5 yield_cooking is ' + window.getBonus('yield_cooking') + ', expected 0.08');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('B349-2: clientPerkState counts plot buildings PER INSTANCE — two Scarecrows pay two', () => {
+    const snap = snapshotG();
+    try {
+      /* The bug this exists to prevent: a `{scarecrow: true}` shape. It reads
+         correct, it passes every single-building test, and it silently halves
+         a two-Scarecrow farm. Scarecrow's max is 2, so an ordinary player
+         reaches it — this is not a contrived state.
+
+         MEASURED AS A DELTA THROUGH THE REAL CHAIN, not as an absolute. The
+         first draft asserted `getBonus('farmYield') === 2` and read 3, because
+         the save it ran on had a farmYield companion: six wrapper layers add
+         above layer 0, so a test that pins an absolute on the chain is really
+         testing whoever's save it runs on. The delta isolates the source under
+         test and says something stronger — the SECOND Scarecrow is worth
+         exactly +1. Absolutes are asserted against layer 0, where they mean
+         something. */
+      const P = window.HearthriseCore.perks;
+      G.rooms = {};
+      G.plotBuildings = [{ id: 'scarecrow' }];
+      const one = window.getBonus('farmYield');
+      G.plotBuildings = [{ id: 'scarecrow' }, { id: 'scarecrow' }];
+      const two = window.getBonus('farmYield');
+      const st = window.clientPerkState();
+      assert(st.plots.scarecrow === 2,
+        'clientPerkState counted ' + st.plots.scarecrow + ' scarecrows, expected 2');
+      assert(Math.abs((two - one) - 1) < 1e-9,
+        'the second Scarecrow is worth ' + (two - one) + ' farmYield through the real chain, '
+        + 'expected exactly 1');
+      assert(P.permanentBonus('farmYield', st) === 2,
+        'layer 0 pays ' + P.permanentBonus('farmYield', st) + ' farmYield for two Scarecrows');
+      G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }];
+      const s2 = window.clientPerkState();
+      assert(Math.abs(P.permanentBonus('gatherSpeed', s2) - 0.02) < 1e-9,
+        'the Tool Shed pays ' + P.permanentBonus('gatherSpeed', s2) + ' gatherSpeed, expected 0.02');
+      assert(Math.abs(P.permanentBonus('combatXP', s2) - 0.02) < 1e-9,
+        'the Watchtower pays ' + P.permanentBonus('combatXP', s2) + ' combatXP, expected 0.02');
+      /* farm_plot is IN the table and pays nothing. A table that quietly
+         dropped it would look identical right up until someone gave it a
+         bonus, and then it would pay nothing for a build nobody changed. */
+      G.plotBuildings = [{ id: 'farm_plot' }, { id: 'farm_plot' }];
+      const s3 = window.clientPerkState();
+      assert(s3.plots.farm_plot === 2, 'farm_plot is not counted at all');
+      assert(P.permanentBonus('farmYield', s3) === 0, 'farm_plot paid a bonus');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('B349-3: the property capstone fires at the CASTLE tier and not one below it', () => {
+    const snap = snapshotG();
+    const H = window.HearthriseHomestead;
+    const realTier = H && H.getTier;
+    try {
+      const CASTLE = window.HearthriseCore.perks.CASTLE_TIER;
+      G.rooms = {}; G.plotBuildings = [];
+      /* Drive the REAL accessor by moving the REAL state, not by stubbing the
+         reader — a stub would prove clientPerkState forwards a number and
+         nothing about whether it forwards the RIGHT one.
+         A DELTA, for the reason B349-2 states: this save carries a renown rank
+         worth +4% allXP, so an absolute here would grade the tester's account
+         rather than the capstone. */
+      G.homestead = { tier: CASTLE - 1 };
+      const keep = window.getBonus('allXP');
+      G.homestead = { tier: CASTLE };
+      const castle = window.getBonus('allXP');
+      assert(Math.abs((castle - keep) - 0.02) < 1e-9,
+        'the capstone is worth ' + (castle - keep) + ' allXP (tier ' + (CASTLE - 1) + ' -> '
+        + CASTLE + '), expected exactly 0.02');
+      const P = window.HearthriseCore.perks;
+      G.homestead = { tier: CASTLE - 1 };
+      assert(P.permanentBonus('allXP', { rooms: {}, plots: {}, propertyTier: CASTLE - 1 }) === 0,
+        'layer 0 pays the capstone one tier BELOW the castle — every Keep owner gets +2% free');
+      assert(P.permanentBonus('allXP', { rooms: {}, plots: {}, propertyTier: CASTLE }) === 0.02,
+        'layer 0 does not pay the capstone at the castle tier');
+      /* And the accessor the client adapter actually reads agrees with the
+         constant core compares against. Two spellings of "the last tier" is
+         how a sixth tier would silently retire the capstone. */
+      if (typeof realTier === 'function') {
+        assert(H.isCastle() === (H.getTier() === CASTLE),
+          'HearthriseHomestead.isCastle() disagrees with core CASTLE_TIER=' + CASTLE
+          + ' — the client and the server would disagree about who owns a castle');
+      }
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('B349-4: power-budget.js and core/perks.js hold the SAME three caps', () => {
+    /* The one deliberate second copy in this change. power-budget.js is a
+       classic-script IIFE that reads its constants at parse time — before
+       core-bridge's deferred module publishes HearthriseCore — so it cannot
+       import them without a boot-order assumption, and a boot-order assumption
+       is the escaped-fuse failure that file was written to end.
+       So they are pinned equal here, the same remedy that keeps
+       KITCHEN_NO_BURN and the ROOMS Kitchen rungs honest. */
+    const P = window.HearthrisePowerBudget;
+    const C = window.HearthriseCore.perks;
+    assert(P && C, 'power-budget or core.perks is missing');
+    assert(P.PERMANENT_CAP === C.PERMANENT_CAP,
+      'permanent cap: chain ' + P.PERMANENT_CAP + ' vs core ' + C.PERMANENT_CAP
+      + ' — the server clamps at core\'s number and the client at the chain\'s');
+    assert(P.TEMPORARY_CAP === C.TEMPORARY_CAP, 'temporary cap drifted');
+    assert(P.TOTAL_CAP === C.TOTAL_CAP, 'total cap drifted');
+    const chainKeys = Object.keys(P.GOVERNED).sort().join(',');
+    const coreKeys = Object.keys(C.GOVERNED).sort().join(',');
+    assert(chainKeys === coreKeys,
+      'the governed key sets differ — chain [' + chainKeys + '] vs core [' + coreKeys + ']');
+  }),
+
+  () => tryRun('B349-5: getBonus("constructor") is 0, not NaN — the C6 prototype class', () => {
+    const snap = snapshotG();
+    try {
+      /* Security's C6: `MONSTERS["constructor"]` passes `!MONSTERS[id]`. The
+         same shape in a BONUS table is worse than a free craft — the rung maps
+         are ordinary object literals, so `rung["constructor"]` is `Object` and
+         `t += Object` is NaN, which poisons every multiplier downstream for the
+         whole session. Found by tests/perk-channel.mjs P5 against this file's
+         own first draft, which is why it is pinned on the real chain too.
+         MUTATION: drop `own()` from src/core/perks.js → RED. */
+      G.rooms = { kitchen: 3 };
+      G.plotBuildings = [{ id: 'toolshed' }];
+      for (const k of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
+        const v = window.getBonus(k);
+        assert(typeof v === 'number' && isFinite(v) && v === 0,
+          'getBonus(' + k + ') returned ' + v + ' — a prototype property reached the bonus sum');
+      }
+      /* CONTROL: a real key still pays, so the assertions above are not passing
+         because getBonus started answering 0 to everything. */
+      assert(window.getBonus('noBurn') === 0.25, 'CONTROL: a real key stopped paying');
+    } finally { restoreG(snap); }
   }),
 
 ];

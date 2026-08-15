@@ -1124,3 +1124,107 @@ intended failure direction, and it is asserted (B340-6 drives that exact envelop
 * **Unguarded property, named:** nothing asserts that a *third* blob→G seam is never added. A
   grep on 2026-08-14 found exactly three `Object.assign(<window.>G, …)` of a parsed save, all
   covered. That is a fact about one commit, not a control.
+
+---
+
+## 10. The PERMANENT PERK CHANNEL (b349) — contract
+
+**Problem, measured.** `hr-accrue/accrual.js` passed `zeroBonus()`, so every permanent bonus a
+player had bought read **0** server-side. Two consequences of different kinds:
+
+* **Artisan was unshippable.** `noBurn` is the Kitchen rung. At the recipe's required level
+  `burnChance` is `BURN_BASE` 0.25 with `noBurn` 0, against **0.12 / 0.06 / 0.00** at Kitchen
+  rungs 1 / 2 / 3+. A server that cooked would DESTROY a quarter of the input a Cast-Iron Range
+  protects. `src/core/skill-sim.js` refused `artisan` in `PAYABLE_KINDS` in writing for that
+  reason. **Closed.** The other artisan blocker, `unlockedRecipes`, is NOT closed.
+* **Combat accrual under-paid, silently, every night.** Measured on a 12h Slime fixture, same
+  seed, same equipment, varying only the perk state: **651,398 → 758,572 XP (+16.5%)**, 14,097
+  kills. (Naive expectation +14%: Trophy L5 + Watchtower = +7% `combatXP`, Library L5 +
+  capstone = +7% `allXP`. It measures higher because `grantXp` floors each grant, so on a
+  low-XP monster a percentage bonus is worth more than its headline.)
+
+### 10.1 The split — SQL does bookkeeping, JavaScript owns the rules
+
+Per the 2026-08-15 architecture decision. `hr_perks_of` returns *which room at which rung*;
+`src/core/perks.js` turns that into magnitudes from a generated catalogue. **No room table is
+copied into SQL** — 40 rung payloads stay in one place.
+
+The client runs the same module: `src/legacy.js getBonus` is layer 0 of a seven-layer chain and
+now delegates to `permanentBonus(key, clientPerkState())`. So the client's `noBurn` and the
+server's are the same arithmetic over the same table, not two implementations with a test
+between them.
+
+### 10.2 The seam — `public.hr_unlock_levels(uuid, int)`
+
+```
+returns table(unlock_id text, level int)
+```
+
+`unlock_id` is the id `src/data/shops.js` grants (`room:kitchen`, `plot:toolshed`,
+`property:castle`). `level` is the **resolved current value** under whatever accumulation rule
+the unlock model uses — absolute for rooms/property, a **count** for repeatable plot buildings
+(Scarecrow's max is 2 and `getBonus` pays per instance). Accumulation is the seam's business
+precisely because it is the one thing that differs by unlock kind.
+
+**Created ONLY IF ABSENT.** The unlock-storage migration may land before or after; whichever is
+first is authoritative. An unconditional `create or replace` is the `clan_members "join as self"`
+defect. The default body reads `player_progress` `kind='flag'`. **Not executable by any role**,
+`hr_engine` included — `hr_perks_of` is SECURITY DEFINER and reaches it as owner.
+
+### 10.3 The RPC — `public.hr_perks_of(uuid, int) -> jsonb`
+
+`SECURITY DEFINER`, `STABLE`, `search_path` pinned, **`hr_engine` only**.
+
+```json
+{ "ok": true, "rooms": {"kitchen": 3}, "plots": {"scarecrow": 2},
+  "propertyTier": 5, "renownAllXp": 0, "clanPerks": {}, "castle": null,
+  "sources": { "rooms": "hr_unlock_levels", "renown": "blocked:no_server_renown_score" } }
+```
+
+JSON keys are the **JavaScript field names**, camelCase included, because the envelope crosses
+the wire untranslated into `normalisePerkState`. A mapping layer is where a field gets silently
+dropped and reads as "the player owns nothing".
+
+**Error taxonomy:** `{"ok":false,"error":"bad_args"}` (null argument),
+`{"ok":false,"error":"no_character"}` (no `player_state` row). A refusal and an empty stack are
+different facts: the engine prices nothing for the first and prices zero perks for the second.
+
+`sources` is the honesty field — it names which channels the answer covers, and `index.ts`
+forwards a `live`/`absent` summary as `away.perkChannel` so a zero-perk night can be explained
+from the outside without reading the source.
+
+### 10.4 The self-configuring switch, in both directions
+
+* No unlock rows -> empty maps -> 0 for every key -> **byte-identical to `zeroBonus`** (asserted,
+  `tests/perk-channel.mjs` P1, and P9's control against the real engine).
+* No `hr_perks_of` on the database -> a hard **42883**, caught in `index.ts` and
+  `set-activity.js` — *and only 42883* — then the seed read is re-run without the column.
+
+So the migration and the Edge deploy are safe in **either order**.
+
+### 10.5 Security properties
+
+* A perk state can name an **id**, never a **number**. Every magnitude comes from the generated
+  table; unknown ids are dropped, rungs are clamped to the ladder that exists, and `renownAllXp`
+  / `clanPerks` (the only numeric inputs) are clamped to the permanent fuse.
+* `hr_perks_of` is not client-executable — a client-executable copy is a cross-player read of
+  who owns which room.
+* `player_progress` must keep **no non-SELECT client policy**; the migration asserts it. A
+  client-writable `flag` row is a client-authored perk stack.
+* **Inherited from S5, and stated because a bound nobody writes down is a bound nobody checks:**
+  the perk stack is read at COLLECT time and prices the whole window, so building a rung during
+  an absence prices the whole absence at the new rung. Bounded far more tightly than equipment's
+  20x (the permanent fuse is +20% per key) and closed by the same S5 rule.
+
+### 10.6 Channel census — derivable now, or blocked on what
+
+| channel | status |
+|---|---|
+| rooms, plot buildings, property tier | **WIRED** through `hr_unlock_levels` |
+| clan level perks | derivable now, **contributes exactly zero** — every rung is `offlineHours` or a cosmetic, and offline hours are `hr_offline_cap_ms`'s channel |
+| renown `allXP` (+4% at High King) | **BLOCKED** on a server renown score: quests, collection, the daily streak and lifetime gold have no server progress model, and a partial derivation would produce a different *rank*, which is a visible title |
+| castle (up to +3% on four keys, +4% `allXP`, clan members only) | **BLOCKED on scope, not capability** — levels are server-owned, but the perk ladder and `perkScale()`'s upkeep multiplier live in `src/features/clan-seat-ui.js`, a classic script on another agent's surface. `state.castle` is `null`; the contract shape is settled |
+| companions (~+2.45% on one narrow key) | **BLOCKED** — no server model for the equipped pet, and it is wrapper layer 1, not layer 0 |
+| blessings, feast, muster aura, consumable buffs | out of scope **by ruling**, not omission (`AWAY_SCOPE`) |
+
+Every gap is an **under**-payment.

@@ -44,6 +44,9 @@ import { createRng } from '../../../src/core/rng.js';
 import { grantXp } from '../../../src/core/progression.js';
 import { resolveStyle } from '../../../src/core/styles.js';
 import { levelFromXp } from '../../../src/core/xp.js';
+/* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
+   0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
+import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
 /* The ONE catalogue-lookup guard in this payload. See its definition for why a
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
@@ -123,39 +126,68 @@ export const SKIP = {
    fails; that is the guard's entire job.
 
    `gather` joined `combat` on 2026-08-15 (23 of the 344 rows). `artisan` — the
-   other 290 — is NOT here and is blocked on two models that do not exist:
-   `unlockedRecipes` (8 gated recipes, needing `flag` progress rows) and
-   `noBurn` (the Kitchen rung of a property model). `zeroBonus()` returns 0, so
-   a server that cooked today would burn at the base 25% while the player's
-   Kitchen says 0% — the server DESTROYING items the client would have kept.
+   other 290 — is NOT here, and after b349 it is blocked on ONE model rather
+   than two: `unlockedRecipes` (8 gated recipes, needing `flag` progress rows).
+   The other blocker, `noBurn`, is CLOSED — see the perk channel below.
    Refusing it keeps the existing mitigation: `delta: NONE`, index.ts returns
    before hr_apply, the watermark does not move, the time is DEFERRED. */
 export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);
 
-/* The perk stack, server-side. Returns 0 for every channel.
-   THIS IS NOT A STUB THAT FORGOT SOMETHING — it is the honest state of the
-   world: renown, property, blessings, world events and consumable buffs are
-   not server-owned yet, and the away ruling puts blessings and buffs out of
-   scope while away anyway. Equipment-sourced power does NOT come through here;
-   it comes through `equipmentStats`, which reads server-owned player_equipment.
-   So the only thing currently missing from an away grant is the permanent
-   renown/property/clan perk channel, which under-pays. Under-paying is the
-   correct direction to be wrong in, and it closes when those move into tables.
+/* ── THE PERK STACK, SERVER-SIDE (b349) ───────────────────────────────────
+   `makeBonus(perkState)` from src/core/perks.js — the SAME module
+   src/legacy.js getBonus is layer 0 of, so the client's number and this one
+   are computed by one function from one table and cannot drift.
 
-   ⚠ BUT UNDER-PAYING IS NOT THE ONLY DIRECTION THIS ENGINE IS WRONG IN, and
-     saying so anywhere is a claim this file cannot support. `equipment` is read
-     at COLLECT time and prices the WHOLE window: log off naked, equip
-     best-in-slot, collect, and the night is paid at best-in-slot rates.
-     Measured 2026-08-11, same seed and same 12h goblin fixture, varying nothing
-     but the equipment map: 477g / 3,235 Attack XP naked versus 6,103g / 65,029
-     naked→BiS — 12.8x gold and 20x XP. That is review S5, it is an OVER-payment,
-     it is deliberately deferred to Phase D (no client path can start an activity
-     today, so it has no live blast radius), and it must ship in the same
+   ⚠ THE STATE IS THE SWITCH. `hr_perks_of` is what fills it; a database
+     without that function, or with no unlock rows written yet, yields
+     EMPTY_PERKS and every channel reads 0 — which is byte-for-byte the
+     `zeroBonus()` this replaces (asserted, tests/perk-channel.mjs P1). So
+     there is no flag to forget to flip and no ordering hazard between
+     applying the migration and deploying this function.
+
+   WHAT IT CLOSES: `noBurn`. At the recipe's required level `burnChance` is
+   0.25 with noBurn 0, against 0.12 / 0.06 / 0.00 at Kitchen rungs 1 / 2 / 3+.
+   A server that cooked with a zero perk stack would DESTROY a quarter of the
+   input the player's Cast-Iron Range protects — the reason artisan accrual is
+   refused in writing rather than by omission.
+   Also closes a live silent under-pay on the combat path that has been
+   running since accrual shipped: Trophy Room + Watchtower is +7% combatXP,
+   Great Library + capstone is +7% allXP, and an away night paid neither.
+
+   WHAT IT STILL DOES NOT CARRY, each with a named blocker rather than a
+   shrug: renown (no server renown score — quests/collection/streak have no
+   progress model), the clan castle (server-owned but the perk table and the
+   upkeep scale live in a classic script another surface owns), companions
+   (no server model at all). §5 of src/core/perks.js states each in full.
+   Every one of them is an UNDER-payment, which is the correct direction.
+
+   ⚠ AND UNDER-PAYING IS STILL NOT THE ONLY DIRECTION THIS ENGINE IS WRONG IN.
+     `equipment` is read at COLLECT time and prices the WHOLE window: log off
+     naked, equip best-in-slot, collect, and the night is paid at best-in-slot
+     rates. Measured 2026-08-11, same seed and same 12h goblin fixture,
+     varying nothing but the equipment map: 477g / 3,235 Attack XP naked
+     versus 6,103g / 65,029 naked→BiS — 12.8x gold and 20x XP. That is review
+     S5, an OVER-payment, deferred to Phase D, and it must ship in the same
      migration as the first client-reachable activity intent. See
      docs/design/server-authority.md §3.
-   Named and exported so a test can assert it is inert rather than trusting a
-   closure. */
+     ⚠⚠ THE PERK STACK IS READ AT COLLECT TIME TOO, and therefore inherits
+        exactly the same shape: build the Great Hearth during an absence and
+        the whole absence prices at Kitchen 5. It is bounded far more tightly
+        than S5 — the permanent fuse is +20% per key against equipment's 20x —
+        and it is closed by the same fix (S5's rule stamps `accrued_to = now()`
+        on any state-changing write, which leaves no unpaid window for the new
+        rung to price). Stating it because a bound that nobody wrote down is a
+        bound nobody checks.
+
+   Named and exported so a test can assert the degrade path is genuinely inert
+   rather than trusting a closure. */
 export function zeroBonus() { return 0; }
+
+/* The engine's bonus function for a given perk state. `null`/absent state →
+   EMPTY_PERKS → 0 for every key. */
+export function bonusFor(perkState) {
+  return makeBonus(perkState || EMPTY_PERKS);
+}
 
 /**
  * The swing interval, DERIVED — never accepted.
@@ -428,6 +460,12 @@ export function computeAccrual(input) {
      being one variable, so a mutation that bypassed `owned` changed nothing and
      the test that was supposed to catch it passed. One name, and the core's
      `owned` gate is asserted directly in tests/accrual-engine.mjs instead. */
+  /* THE PERK STACK for this accrual, built ONCE per call from the state
+     `hr_perks_of` returned. Memoised inside makeBonus, because
+     `resolveArtisanAction`/`grantXp` ask for the same handful of keys on every
+     one of ~18,000 ticks in a 12h night. `inp.perks` absent → EMPTY_PERKS → 0
+     for every key, which is exactly the `zeroBonus` behaviour this replaces. */
+  const bonus = bonusFor(inp.perks);
   const autoEatOn = inp.autoEatEnabled === true;
   const eatCfg = {
     enabled: autoEatOn,
@@ -445,7 +483,7 @@ export function computeAccrual(input) {
        be a second XP formula. */
     addXp(skillId, amt) {
       const res = grantXp(state, skillId, amt, {
-        bonus: zeroBonus,
+        bonus,
         xpB: eq.xpB || 0,
         restedQuantum: 0,     // Rested XP is not server state yet.
         authored: false,
@@ -560,7 +598,7 @@ export function computeAccrual(input) {
     rng: createRng(nat(inp.seed, 0)),
     monsters,
     items,
-    bonus: zeroBonus,
+    bonus,
     style,
     /* activeBuffCount = 0: the server holds no buffs, so `buffsPaused` reports
        false and the welcome-back line cannot claim buffs were paused when the
@@ -569,11 +607,11 @@ export function computeAccrual(input) {
     playerRolls(m) {
       return playerCombatRolls(m, {
         eq, equipment, items, skills: state.skills,
-        bonus: zeroBonus, setBonus, profile, style,
+        bonus, setBonus, profile, style,
       });
     },
     monsterRolls(m) {
-      return monsterCombatRolls(m, { eq, skills: state.skills, bonus: zeroBonus });
+      return monsterCombatRolls(m, { eq, skills: state.skills, bonus });
     },
     weakness(m) { return weaknessInfo(m, eq); },
     /* Boss of the Day, resolved PER UTC-DAY SEGMENT of the absence, from the
@@ -758,6 +796,13 @@ function accrueGather(inp, span) {
      best tool the character OWNS, resolved from the bag by src/core/tools.js.) */
   const eq = equipmentStats(equipment, items);
 
+  /* THE PERK STACK for this accrual, built ONCE per call from the state
+     `hr_perks_of` returned. Memoised inside makeBonus, because
+     `resolveArtisanAction`/`grantXp` ask for the same handful of keys on every
+     one of ~18,000 ticks in a 12h night. `inp.perks` absent → EMPTY_PERKS → 0
+     for every key, which is exactly the `zeroBonus` behaviour this replaces. */
+  const bonus = bonusFor(inp.perks);
+
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
 
@@ -792,7 +837,7 @@ function accrueGather(inp, span) {
   const fx = {
     addXp(skillId, amt) {
       const res = grantXp(state, skillId, amt, {
-        bonus: zeroBonus,
+        bonus,
         xpB: eq.xpB || 0,
         restedQuantum: 0,     // Rested XP is not server state yet. Under-pays.
         authored: false,
@@ -832,7 +877,7 @@ function accrueGather(inp, span) {
     rng: createRng(nat(inp.seed, 0)),
     items,
     nodes,
-    bonus: zeroBonus,
+    bonus,
     /* `minStepMs` is NOT SET, so resolveStepMs uses the real MIN_ACTION_MS
        floor. Exactly as in the combat ctx, this object is built field by field
        and nothing is spread into it — if it were built from a request body,

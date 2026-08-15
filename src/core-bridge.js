@@ -55,6 +55,15 @@ import * as skillSim from './core/skill-sim.js?v=346';
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
 import * as autoEat from './core/auto-eat.js?v=346';
+/* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
+   of the getBonus chain — room rungs, plot buildings and the property
+   capstone — is this module now, on both sides, so the client's `noBurn` and
+   the server's cannot differ. src/legacy.js `getBonus` delegates to it
+   through this bridge; hr-accrue calls the same functions with the state
+   `hr_perks_of` returns. Published rather than inlined for the reason every
+   other core module is: a core module the client cannot reach is a second
+   implementation waiting to happen. */
+import * as perks from './core/perks.js?v=346';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -162,6 +171,7 @@ window.HearthriseCore = {
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, autoEat,
+  perks,
 
   /* The session RNG. */
   get rng() { return rng; },

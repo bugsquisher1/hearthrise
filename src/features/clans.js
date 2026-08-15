@@ -666,7 +666,18 @@
     origGetBonus2 = window.getBonus;
     window.getBonus = function (key) {
       var t = origGetBonus2.apply(this, arguments);
-      try { var p = myPerks(); if (p[key]) t += p[key]; } catch (e) {}
+      /* b349 — `p[key]` alone is a NaN INJECTION, not merely untidy.
+         `myPerks()` returns an ordinary object, so `p['constructor']` is the
+         Object CONSTRUCTOR: truthy, and `t += Object` makes the whole chain's
+         answer a string for the rest of the session. Measured through the real
+         chain by src/features/smoke-test.js B349-5. This is Security's C6
+         (`MONSTERS['constructor']` passing `!MONSTERS[id]`) living in the bonus
+         chain; the same guard now sits at layer 0 in src/core/perks.js `own()`.
+         Behaviour is unchanged for every real key — a perk is always a number. */
+      try {
+        var p = myPerks();
+        if (Object.prototype.hasOwnProperty.call(p, key) && typeof p[key] === 'number') t += p[key];
+      } catch (e) {}
       return t;
     };
   }

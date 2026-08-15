@@ -800,3 +800,88 @@ CHECKs `slot between 0 and 4` (`player_state` uses 0..5 — the two tables disag
 `HearthriseProfile.activeSlot()` only ever returns 0..4 and no caller pins 5. Tightening it crosses
 accrue/character/record and their RPC clamps, which is not a hotfix-weekend change.
 
+---
+
+## b349 · Backend Architect → Coordinator, Security, Systems · the perk channel (`zeroBonus` is gone)
+
+**Branch:** `worktree-agent-a9cea97efb408d57a` · **708/708, 0 runtime errors, 3 consecutive runs.**
+No version bump, nothing applied, nothing deployed.
+
+**WHAT IT WAS.** `hr-accrue/accrual.js` passed `zeroBonus()`, so every permanent bonus read **0**
+server-side. `noBurn` is the Kitchen rung, so a server that cooked would burn at the base 25%
+while a Cast-Iron Range says 0% — **artisan accrual was blocked on that in writing**
+(`skill-sim.js`). And combat accrual has been under-paying every decorated player since the day
+it shipped.
+
+**MEASURED, on the real engine, same seed, varying only the perk state** (`tests/perk-channel.mjs`
+P9, 12h Slime, maxed character so no death truncates the night):
+`651,398 → 758,572 XP (+16.5%)`, 14,097 kills. Trophy rung 2 pays 663,832 and rung 5 pays 698,258,
+so the ladder is monotone rather than a constant. **Mutation-proven:** reverting the four
+`bonus:` sites in `accrual.js` to `zeroBonus` takes the lift to exactly +0.0% and turns P9 red.
+
+**THE SHAPE.** SQL returns bookkeeping (`hr_perks_of` → which room at which rung, how many plot
+buildings, which property tier); `src/core/perks.js` turns that into magnitudes. **No room table
+is copied into SQL.** The client runs the SAME module — `legacy.js getBonus` is layer 0 and now
+delegates — so the two sides cannot answer differently. Contract in
+`docs/design/server-authority.md` §10.
+
+**⚠ THE UNLOCK SEAM — THIS IS THE COORDINATION POINT.** `public.hr_unlock_levels(uuid,int) →
+table(unlock_id text, level int)` is created **ONLY IF ABSENT**. Whichever migration lands first
+is authoritative, so the unlock-storage work may land before or after this with no ordering
+hazard, and repointing it is a one-function change that touches nothing downstream. `level` is
+the RESOLVED value: absolute for rooms/property, a **COUNT** for repeatable plot buildings
+(Scarecrow's max is 2 and `getBonus` pays per instance). Do NOT tidy the create-if-absent into an
+unconditional `create or replace` — that is the `clan_members "join as self"` defect.
+
+**TWO LIVE BUGS FOUND AND FIXED, neither of them mine to expect.**
+1. **`getBonus('constructor')` returned a STRING, through the real seven-layer chain.**
+   `src/features/clans.js:669` (`if (p[key]) t += p[key]`) and `src/features/world-events.js:192-193`
+   (`if (d.bonus[key])`) index ordinary object literals, so the Object constructor is truthy and
+   `t += Object` poisons the whole chain for the session. Security's C6 in a new costume. Both are
+   own-property/typeof guarded now; behaviour is unchanged for every real key. Pinned by B349-5,
+   which drives the real chain. Found by `tests/perk-channel.mjs` P5 against my own first draft.
+2. **`set-activity.js` is a second `computeAccrual` caller** and the A14 parity guard caught the
+   perk field landing in `index.ts` only — before a line of it shipped. A collect would have
+   priced a window at zero perks while an accrue over the same window priced it at the player's
+   real Kitchen.
+
+**WHAT YOU NEED TO KNOW.**
+* **The Edge payload guard is RED and that is correct** — `src/core`/`src/data`/the function moved,
+  so `hr-accrue` needs a redeploy (`55ab7e4302ab9185…` at the time of writing; derive it, do not
+  trust this line). Nothing was deployed. The deployed hash also moved under me mid-session
+  (`721f3499…` → `2f633413…`), so another agent redeployed — re-derive before acting.
+* **Safe in either order, both directions.** No unlock rows → 0 for every key → byte-identical to
+  `zeroBonus`. No `hr_perks_of` → a hard **42883**, caught in `index.ts` and `set-activity.js`
+  (and *only* 42883) with the seed read re-run without the column.
+* `schema-drift` was re-baselined (+2 functions, `hr_perks_of` and `hr_unlock_levels`);
+  `--mutate` 7/7.
+* **`hr_apply` was NOT touched.** `2026-08-15-tool-carry.sql` remains the last file that may
+  replace it; this migration may sit before or after.
+
+**WHAT I NEED FROM YOU.**
+* **Security:** review before authority moves. The property I claim is that a perk state can name
+  an **id**, never a **number** (P5). Also please rule on the S5-inherited note in §10.5 — the perk
+  stack is read at COLLECT time and prices the whole window, so building a rung mid-absence prices
+  the whole absence at the new rung. Bounded by the +20% per-key fuse, closed by S5's `accrued_to`
+  stamp, stated rather than buried.
+* **Systems:** `renown` and the `castle` are the two remaining channels. Castle is blocked on
+  SCOPE, not capability — the levels are server-owned; the perk ladder and `perkScale()`'s upkeep
+  multiplier are in `clan-seat-ui.js`. `state.castle` is `null` and the contract shape is settled.
+* **Designer:** a measured finding worth having — **`grantXp` floors each grant, so a percentage
+  bonus is worth MORE than its headline on a low-XP monster.** +14% of nominal perk measured
+  +16.5% on a Slime. The bonus economy is not linear in the pacing model at the bottom of the
+  monster ladder.
+
+**WHAT MUST NOT BE CHANGED.**
+* `src/data/perks.js` is GENERATED and **both sides read it at runtime**. Edit `ROOMS` in
+  `src/legacy.js` and re-run `node tools/gen-perks.mjs`. `--check` is a smoke preflight.
+* `permanentBonus` stays UNCLAMPED and `makeBonus` clamps. Clamping at layer 0 too would make
+  `HearthrisePowerBudget.rawFor()` — what the "at its limit" panel reads — under-report by
+  exactly the amount the fuse bound.
+* `own()` in `src/core/perks.js`. Every dynamic lookup goes through it; without it a room map is
+  a NaN injection.
+
+**KNOWN LIMITATIONS.** Nothing WRITES an unlock row yet, so the channel is live and pays zero
+until the unlock intent exists — by design, and it is why applying this changes no player's night.
+Artisan is still refused (`unlockedRecipes` remains). True concurrency is unraced, as everywhere.
+`hr_perks_of` adds no round trip (it rides the seed transaction) and no table grant.

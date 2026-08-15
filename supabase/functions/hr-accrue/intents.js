@@ -417,6 +417,22 @@ export const INTENT_REGISTRY = Object.freeze({
        thing to want — this row silently becomes a confiscation. The runtime
        check turns that into a refusal (`would_confiscate`) instead. */
   claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
+  /* b354 — THE UNLOCK PURCHASE. The `shop` bucket, with shop_buy and
+     vendor_sell, because it is the same surface: a player spamming the shop
+     should exhaust ONE budget, not three. A new bucket would also need a new
+     arm in hr_rate_gate, i.e. another link on that derivation chain, for a verb
+     that a player uses 45 times in the lifetime of a character.
+
+     `collectsFirst: false`, and it is DERIVED rather than preferred: hr_apply
+     stamps `accrued_to = now()` on a delta carrying `equip` or `activity`, and
+     this verb PROPOSES NO DELTA AT ALL — its commit point is hr_unlock_buy,
+     which writes gold, one progress row and one ledger row and never touches
+     accrued_to. So the window survives the purchase and there is nothing to
+     confiscate. That is an invariant about a FUNCTION rather than about a
+     delta, so `guardStampKeys` cannot grade it; it is asserted where it lives,
+     in 2026-08-16-unlock-buy.sql §6(b), by measuring accrued_to across a real
+     purchase. */
+  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -526,6 +542,17 @@ export const INTENT_ERRORS = Object.freeze({
      does not collect first. Refusing costs one gesture; proceeding costs an
      unpaid night, silently. FAIL CLOSED. */
   WOULD_CONFISCATE: 'would_confiscate',
+
+  /* ── b354, THE UNLOCK PURCHASE ────────────────────────────────────────────
+     Only the codes THIS LAYER produces are listed; the seven that come out of
+     `hr_unlock_buy` — already_owned, rung_skipped, prereq_property_tier,
+     prereq_item, insufficient_gold, insufficient_item, unlock_daily_cap — are
+     the function's own and are returned verbatim, exactly as hr_apply's are.
+     Restating them here would be a second taxonomy that agrees today.
+
+     `bad_offer` / `unknown_offer` / `offer_unsupported` are SHARED with
+     shop_buy and are already above: one code means one thing, and "this build
+     cannot sell that offer" is the same fact whichever verb was asked. */
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────

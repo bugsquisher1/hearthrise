@@ -20,6 +20,7 @@ import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
+import { unlockBuyGuard } from './unlock-buy.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
@@ -1014,6 +1015,12 @@ async function unlockModelPreflight() {
   for (const [tool, label, why] of [
     ['gen-unlocks.mjs', 'Unlock preflight',
       'a shop grant or a recipe gate no longer matches the generated catalogue'],
+    /* b354. THE PRICE hr_unlock_buy CHARGES. Until the generated offer table is
+       regenerated and re-applied, the server charges the OLD price for the NEW
+       shop row — and, worse, enforces the OLD property-tier gate. */
+    ['gen-unlock-offers.mjs', 'Unlock offer preflight',
+      'a price, a prerequisite or the eligibility predicate moved and the generated offer '
+      + 'catalogue no longer matches — hr_unlock_buy charges out of that table'],
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
     /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a
@@ -1165,6 +1172,25 @@ const run = async () => {
       console.log('\nArtisan progress model guard — a recipe row opens the gate and its deletion '
         + 'closes it; a Kitchen rung cooks a span with 0 burns and its deletion restores the '
         + 'catalogue rate.');
+    }
+
+    /* ── The unlock-purchase guard (b354) ───────────────────────────────
+       The other half of the artisan model: the model made a Kitchen rung
+       READABLE, and this makes it BUYABLE — by the server, out of a generated
+       price catalogue, with the merge `GREATEST(existing, granted)` rather
+       than `+=`. The whole migration chain replays here, so both new
+       migrations' self-verifying blocks execute on every suite run, and the
+       real Edge module then buys a real rung and cooks a real span with it.
+       `--selftest` plants sixteen real defects; every one must read RED. */
+    const unlockProblems = await unlockBuyGuard();
+    if (unlockProblems.length) {
+      console.log('\nUnlock purchase guard (hr_unlock_buy) — FAILED:');
+      for (const p of unlockProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nUnlock purchase guard — a bought Kitchen rung reaches hr_perks_of and cooks a '
+        + 'span with 0 burns; a double buy, a skipped rung, a replay and a stale version all refuse '
+        + 'by name with gold measured.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

@@ -2,6 +2,60 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b349 — 19% of all traffic was a question the client had no right to ask
+
+Worktree `agent-aea11985dd254af77`, commit `ce9dc9c`. Suite **710/710** (baseline 707; +3), 0 runtime
+errors, **four consecutive clean runs**, no `AWAY-16` flake. **Nine mutations, each RED on exactly its
+target.** No version bump, nothing deployed. `src/core/**`, `src/data/**`, `supabase/functions/**`,
+migrations, `hr_client_rpc_baseline` — all untouched. No grant changed.
+
+**The lesson: A RATIO THAT IS AN EXACT INTEGER IS NOT A COINCIDENCE, IT IS AN ATTRIBUTION.** The
+offender table looked like nine unrelated problems. It was two. `53` divides every non-`hr_server_now`
+row exactly — 6 RPCs sharing `p_clan_id` → 318, 3 sharing `p_day_key` → 159, 2 sharing `p_slot` → 106,
+1 alone → 53 — and the multiplier is the *count of `tests/rpc-resolution.targets.json` entries with
+that parameter signature*. So 2,014 of the 5,217 are 53 CI runs of a deliberate, documented,
+production-safe anon probe, and I changed nothing about it. The remaining 3,196 are one client bug.
+**Arithmetic did the attribution that reading nine call sites would not have.**
+
+**The bug was not "signed-out players".** That was my first hypothesis and it was wrong by an order of
+magnitude. Driven in real Chromium with a VALID cached session and the wall open on `reason:'session'`,
+`isSignedIn()` true: `hr_server_now` still went out anonymous. It is a **boot race that always loses** —
+muster boots at DOMContentLoaded+420ms, auth.js cannot publish a session until a CDN `import()` of
+supabase-js resolves, measured 94 / 159 / 358 / 1,040ms later across four runs *on localhost*. Every
+player, every page load. **A hypothesis about who is affected is worth exactly one measurement.**
+
+**The mechanism was one expression, copied six times:**
+`'Authorization': 'Bearer ' + ((s && s.access_token) || c.anonKey)`. That fallback does not mean "call
+this anonymously"; it means "send it without the standing to send it". Fixing it at the call site would
+have been three lines and would have taught nothing.
+
+**Fixing it exposed a second bug the first was hiding** — the same shape as b347's `fire('onEnvelope')`.
+`hydratePledge` lost the identical race but *quietly*, because it had its own `isSignedIn()` check: at
+boot it did nothing, and the probe sat un-run until the 60s tick — defeating the exact "settle before
+the player's first click" promise its own comment makes. After the fix, boot sends BOTH RPCs,
+authenticated, at +2.1s. **A guard that returns early is not the same as a guard that waits.**
+
+**Design call I would defend: the predicate is INVERTED.** `ANON_CALLABLE` lists what may go out
+without a session (one entry) rather than what may not (38). A new RPC is protected the day it is
+written by nobody remembering anything, and the maintained list is the short one. The failure
+directions are asymmetric and that is the argument: omitting an anon RPC breaks a visible feature in
+one boot; omitting an authenticated RPC — the old shape — cost nothing visible for months.
+
+**Two sources that cannot vouch for each other.** The client's `ANON_CALLABLE` is checked against
+`tests/rpc-resolution.baseline.json`, which is CI-verified against the LIVE grants and maintained by a
+different concern for a different reason. M4 and M5 redden it in opposite directions.
+
+**Operational, and it cost me an hour: MY MUTATION HARNESS ATE MY UNCOMMITTED WORK.** `restore()` ran
+`git checkout --` on three files *before* the first mutation, against an uncommitted tree. Recovered
+from context, then committed BEFORE re-running. **A mutation harness that restores with git is only
+safe against a committed baseline — commit first, always.** (Second gotcha: the worktree is CRLF and
+the anchors were LF, so every anchor missed until the harness normalised.)
+
+**Not mine, captured as asked:** the Edge payload guard has been RED since partway through this
+session — deployed `hr-accrue` reports `a2a42250dd81e795…`, this repo packs `2f6334133c627f81…`. It was
+GREEN on my first run and RED on every run after, with no change from me; my diff touches no
+`src/core`, `src/data` or `supabase/functions`. Another agent deployed. Someone owns that redeploy.
+
 ## 2026-08-15 — b347 — the seam, and the record that had two writers
 
 Branch `worktree-agent-aa3e8484ab2c37486`, commit `b0b7ac4`. Suite **702/702** (baseline 692; +10),

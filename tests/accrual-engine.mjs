@@ -49,6 +49,8 @@ import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 
+import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD }
+  from '../src/core/auto-eat.js';
 import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
@@ -181,6 +183,13 @@ function clientAwaySpan(opts) {
     skills: { ...opts.skills },
     stats: {},
     combatKillsThisFoe: 0,
+    /* The bag, as the CLIENT holds it: `G.inventory`, mutated by addItem and by
+       auto-eat. It is not a snapshot — food that DROPS during the night is
+       edible for the rest of it, which is the property the server's live `bag`
+       has to reproduce. */
+    inventory: { ...(opts.inventory || {}) },
+    traits: opts.traits || {},
+    autoActions: { eat: opts.eat || { enabled: false, threshold: DEFAULT_THRESHOLD, foodId: null } },
   };
   const bag = {};
   const fx = {
@@ -188,7 +197,36 @@ function clientAwaySpan(opts) {
       const r = grantXp(G, sk, amt, { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
       for (const ev of r.events) if (ev.type === 'levelup' && ev.skill === 'hitpoints') G.playerMaxHp = ev.to;
     },
-    addItem(id, qty) { bag[id] = (bag[id] || 0) + qty; },
+    addItem(id, qty) {
+      bag[id] = (bag[id] || 0) + qty;
+      G.inventory[id] = (G.inventory[id] || 0) + qty;
+    },
+    /* THE CLIENT'S ADAPTER, written out here rather than imported, exactly as
+       clientCombatTickMs above is. This mirrors src/features/auto-actions.js
+       `maybeAutoEat()`: the gates come off `G.autoActions.eat` and `G.traits`,
+       the threshold is a FRACTION, and the apply step mutates `G`. The DECISION
+       is core's — both sides must call the same predicate or the test proves
+       nothing about the seam — but the two ADAPTERS are independent, and the
+       adapters are where the bugs live: a percent read as a fraction, a trait
+       gate on one side only, a snapshot bag instead of a live one. */
+    autoEat() {
+      const eat = G.autoActions.eat;
+      const decision = resolveAutoEat({
+        enabled: !!eat.enabled,
+        owned: !!(G.traits && G.traits.auto_eat),
+        hp: G.playerHp, maxHp: G.playerMaxHp,
+        threshold: eat.threshold,
+        foodId: eat.foodId,
+        inventory: G.inventory,
+        items,
+      });
+      if (!decision) return false;
+      G.playerHp = decision.hp;
+      G.inventory[decision.foodId] = (G.inventory[decision.foodId] || 1) - 1;
+      if (G.inventory[decision.foodId] <= 0) delete G.inventory[decision.foodId];
+      G._ate = (G._ate || 0) + 1;
+      return true;
+    },
   };
   const ctx = {
     away: (opts.away !== undefined) ? opts.away : true,
@@ -213,7 +251,8 @@ function clientAwaySpan(opts) {
     const d = Math.floor((G.skills[k] || 0) - (opts.skills[k] || 0));
     if (d > 0) xp[k] = d;
   }
-  return { summary, gold: Math.floor(G.gold), xp, items: bag, hp: G.playerHp, maxHp: G.playerMaxHp, stats: G.stats };
+  return { summary, gold: Math.floor(G.gold), xp, items: bag, hp: G.playerHp, maxHp: G.playerMaxHp,
+           stats: G.stats, inventory: G.inventory, ate: G._ate || 0 };
 }
 
 // ── Server call helper ──────────────────────────────────────────────────────
@@ -332,6 +371,283 @@ function parityGuard() {
     `COVERAGE: the featured boss did not change across the UTC boundary (${DAY1_BOSS} both days) — `
     + 'the partial-featured branch is untested; move FROM_MS to a day pair that rotates');
   ok(seen.deaths > 0, 'COVERAGE: no fixture died — the death path ends the activity and is untested');
+}
+
+// ── 1b. AUTO-EAT PARITY ─────────────────────────────────────────────────────
+// The gap this guard was written for, and the number that justified closing it.
+//
+// `src/core/combat-sim.js` calls `fx.autoEat` after the monster's swing and
+// BEFORE the death check, so a successful eat is what keeps an unattended night
+// running. The server had no such handler and a missing fx handler is a NO-OP
+// BY CONSTRUCTION — so it never threw, never logged, and no test saw it. The
+// server's character simply died early and stopped earning.
+//
+// MEASURED 2026-08-15, same seed, same window, same state, varying ONLY whether
+// the handler exists (`node tests/accrual-engine.mjs --report`):
+//
+//   early-game goblin        server 1,218 kills / 1.17h   client 12,790 / 12.00h   -90.5%
+//   maxed vs slime           server 6,007 kills / 4.44h   client 16,211 / 12.00h   -62.9%
+//   maxed vs the day-1 boss  server    48 kills / 0.13h   client  4,721 / 12.00h   -99.0%
+//
+// Section 1's fixtures cannot catch this, and the reason is worth stating: they
+// run with auto-eat OFF (the shipped default), so BOTH sides die at the same
+// tick and parity holds while the handler is missing entirely. A parity suite
+// that only exercises the default is a parity suite with a hole the size of the
+// feature. So this section is the same comparison with the feature ON.
+//
+// THE ASSERTION IS EQUALITY, not "the server now pays more". Under the
+// 2026-08-15 ruling — "the offline portion should function exactly the same as
+// if the player was still online" — anything other than an exact match is the
+// defect, in either direction.
+function autoEatParityGuard() {
+  /* The top healing Provision, chosen FROM THE CATALOGUE rather than named, so
+     a data edit cannot quietly make this fixture eat something that no longer
+     exists. `FEAST` is the b220 control: it HEALS but is `foodClass: 'buff'`,
+     so it must never be eaten even when it is the only food owned. */
+  const PROVISION = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+    .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+  const FEAST = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'buff' && ITEMS[id].heals > 0)
+    .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+  ok(!!PROVISION, 'AUTO-EAT: no healing Provision in the catalogue — the fixture is vacuous');
+  ok(!!FEAST, 'AUTO-EAT: no buff food in the catalogue — the b220 "never burn a Feast" rule is untested');
+
+  const PCT = 50;                       // stored form: integer percent
+  const seen = { ate: 0, survivedFull: 0, negativeDelta: 0 };
+
+  for (const f of FIXTURES) {
+    const inventory = { [PROVISION]: 5000 };
+
+    const s = serverAccrual({
+      activeId: f.monster, skills: f.skills, hp: f.hp, maxHp: f.maxHp,
+      inventory, autoEatEnabled: true, autoEatFood: PROVISION, autoEatPct: PCT,
+    });
+    ok(s.accrued === true, `AUTO-EAT [${f.name}]: accrued nothing (reason: ${s.reason})`);
+    if (!s.accrued) continue;
+
+    const c = clientAwaySpan({
+      monsterId: f.monster, equipment: EQUIPMENT, skills: f.skills,
+      hp: f.hp, maxHp: f.maxHp, seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+      inventory,
+      traits: { auto_eat: true },
+      // The CLIENT holds a fraction; the SERVER holds an integer percent. The
+      // two must resolve to the same number or the fight diverges on the one
+      // tick where hp/maxHp sits exactly on the threshold.
+      eat: { enabled: true, threshold: PCT / 100, foodId: PROVISION },
+    });
+
+    const P = (m) => `AUTO-EAT PARITY [${f.name}]: ${m}`;
+    eq(s.summary.ticks, c.summary.ticks, P('tick count differs'));
+    eq(s.summary.kills, c.summary.kills, P('kill count differs'));
+    eq(s.summary.crits, c.summary.crits, P('crit count differs'));
+    eq(s.summary.died, c.summary.died, P('death outcome differs — one side ate and the other did not'));
+    eq(s.summary.survivedMs, c.summary.survivedMs, P('time survived differs'));
+    eq(s.summary.foodEaten, c.summary.foodEaten, P('food eaten differs'));
+    eq(s.summary.gold, c.gold, P('gold differs'));
+    eq(s.summary.xp, c.xp, P('XP grants differ'));
+    eq(s.delta.hp, Math.max(0, Math.min(c.maxHp, Math.floor(c.hp))), P('resulting HP differs'));
+
+    /* THE CONSUMPTION, both sides. The client decremented G.inventory; the
+       server proposed a NEGATIVE item delta. They must name the same food and
+       the same count, or one of them is eating for free. */
+    const eaten = s.foodEaten;
+    eq(eaten, c.ate, P('the server and the client ate a different number of meals'));
+    eq(eaten, s.summary.foodEaten, P('the engine\'s own meal counter disagrees with the simulation\'s'));
+    const clientLeft = c.inventory[PROVISION] || 0;
+    eq(5000 - clientLeft, eaten, P('the client\'s bag does not reflect the meals eaten'));
+    ok((s.delta.items || {})[PROVISION] === -eaten,
+      P(`the server's item delta for ${PROVISION} is ${(s.delta.items || {})[PROVISION]}, expected ${-eaten} `
+        + '— food eaten server-side must be DEBITED, or auto-eat is a free heal'));
+
+    if (eaten > 0) { seen.ate += eaten; seen.negativeDelta++; }
+    if (!s.summary.died) seen.survivedFull++;
+
+    /* THE b220 RULE, on the server. Give the character ONLY Feasts. Auto-eat
+       must decline to burn one — so the fight must be byte-identical to a
+       character with no food at all, rather than merely "different". */
+    const feastOnly = serverAccrual({
+      activeId: f.monster, skills: f.skills, hp: f.hp, maxHp: f.maxHp,
+      inventory: { [FEAST]: 5000 }, autoEatEnabled: true, autoEatFood: FEAST, autoEatPct: PCT,
+    });
+    const noFood = serverAccrual({ activeId: f.monster, skills: f.skills, hp: f.hp, maxHp: f.maxHp });
+    eq(feastOnly.summary.kills, noFood.summary.kills,
+      P(`a bag of ${FEAST} (foodClass:buff) changed the fight — auto-eat burned a Feast (b220)`));
+    ok(!((feastOnly.delta.items || {})[FEAST] < 0),
+      P(`the server debited ${FEAST} — a Feast must never be auto-eaten`));
+
+    /* THE ENTITLEMENT GATE, on the engine. Identical state, identical food,
+       `autoEatEnabled` false — which is what every character has until
+       hr_set_auto_eat is called with the trait owned. It must be byte-identical
+       to no food at all, or shipping the handler hands out a 100-Bounty-Mark
+       trait for free. */
+    const unowned = serverAccrual({
+      activeId: f.monster, skills: f.skills, hp: f.hp, maxHp: f.maxHp,
+      inventory, autoEatEnabled: false, autoEatFood: PROVISION, autoEatPct: PCT,
+    });
+    eq(unowned.summary.kills, noFood.summary.kills,
+      P('auto_eat_enabled=false still ate — the purchased-trait gate does not hold'));
+  }
+
+  /* COVERAGE. Without these, a fixture set that never actually eats would pass
+     every assertion above by comparing two identical no-ops — which is exactly
+     how the missing handler survived until now. */
+  ok(seen.ate > 0, 'AUTO-EAT COVERAGE: no fixture ate anything — the handler is untested');
+  ok(seen.negativeDelta > 0,
+    'AUTO-EAT COVERAGE: no fixture produced a negative item delta — the signed-delta path is untested');
+  ok(seen.survivedFull > 0,
+    'AUTO-EAT COVERAGE: every fixture still died with auto-eat on — the fixtures do not exercise '
+    + 'the outcome the feature exists to produce (surviving the night)');
+
+  /* ── THE BAG IS LIVE, NOT A SNAPSHOT ──────────────────────────────────
+     The client's auto-eat reads `G.inventory`, which `addItem` mutates, so a
+     Provision that DROPS at hour two is edible at hour three. The server keeps
+     a running bag for the same reason.
+
+     NO AUTHORED MONSTER DROPS AN AUTO-EATABLE ITEM TODAY (checked below), so
+     this property is unreachable through the real catalogue — which is exactly
+     why it needs a test rather than a shrug: the day someone adds a wolf that
+     drops Cooked Wolf Meat, a snapshot bag would silently under-pay every
+     absence and the fixture-based parity above would stay green. Proven here by
+     INJECTING a catalogue, which is legitimate because `items` and `monsters`
+     are parameters of computeAccrual, not globals.
+
+     Mutation-proven: freezing `bag` at the start of the night leaves every
+     fixture-based assertion above green and turns this one red. */
+  const dropsFood = Object.entries(MONSTERS).some(([, m]) =>
+    (m.drops || []).some((d) => ITEMS[d.id] && ITEMS[d.id].foodClass === 'healing'));
+  ok(!dropsFood,
+    'AUTO-EAT: a monster now drops an auto-eatable item — the live-bag property is reachable '
+    + 'through the real catalogue, so add it to FIXTURES above instead of relying on the '
+    + 'injected-catalogue probe below.');
+  {
+    const FOOD = 'probe_ration';
+    const MON = 'probe_feeder';
+    const items = {
+      ...ITEMS,
+      [FOOD]: { n: 'Probe Ration', v: 1, heals: 40, foodClass: 'healing' },
+    };
+    const monsters = {
+      [MON]: {
+        name: 'Probe Feeder', tier: 1, hp: 12, def: 0, atk: 40, maxHit: 9,
+        xp: 10, gp: [1, 1], weaponWeak: 'neutral',
+        drops: [{ id: FOOD, ch: 1 }],       // guaranteed, so the bag really refills
+      },
+    };
+    const common = {
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+      activeKind: 'combat', activeId: MON, capMs: SPAN_MS, seed: SEED,
+      hp: 40, maxHp: 40, gold: 0, skills: baseSkills(), equipment: {},
+      items, monsters,
+      autoEatEnabled: true, autoEatFood: FOOD, autoEatPct: 50,
+    };
+    /* THREE rations to start: enough to prove eating happens at all, far too
+       few to survive twelve hours on. Everything past the third meal must have
+       come out of the drop table. */
+    const live = computeAccrual({ ...common, inventory: { [FOOD]: 3 } });
+    ok(live.accrued === true, `AUTO-EAT LIVE BAG: the probe accrued nothing (${live.reason})`);
+    if (live.accrued) {
+      ok(live.foodEaten > 3,
+        `AUTO-EAT LIVE BAG: ate ${live.foodEaten} meals from a starting stack of 3 — food that DROPPED `
+        + 'during the absence was not edible, so the server is holding a snapshot of the bag while '
+        + 'the client holds a live one');
+      /* And the net delta must still be honest: gained minus eaten, never a
+         debit larger than the character could pay for. */
+      const net = (live.delta.items || {})[FOOD];
+      ok(Number.isInteger(net) && net >= -3,
+        `AUTO-EAT LIVE BAG: the net ${FOOD} delta is ${net} — a debit deeper than the starting stack `
+        + 'means the engine proposed eating food that never existed, which hr_apply answers with '
+        + 'insufficient_item and index.ts does NOT degrade, i.e. a 409 for the whole night');
+    }
+  }
+
+  /* THE CORE'S OWN GATES, asserted DIRECTLY rather than through the engine.
+     Learned the hard way: the first version of this section tested `owned` only
+     through computeAccrual, where `enabled` and `owned` come from the same
+     column — so a mutation that hard-coded `owned: true` changed nothing and
+     the assertion passed while asserting nothing (instance #16). The client
+     holds the two facts separately, so the predicate has to be gated on each of
+     them independently, and that is provable here in one call. */
+  const eatable = { hp: 10, maxHp: 100, threshold: 0.5, items: ITEMS,
+                    inventory: { [PROVISION]: 10 }, foodId: PROVISION };
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true }) !== null,
+    'AUTO-EAT: the control did not eat — every gate assertion below is vacuous');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: false }) === null,
+    'AUTO-EAT: a character WITHOUT the purchased trait ate — the 100-Bounty-Mark gate does not hold');
+  ok(resolveAutoEat({ ...eatable, enabled: false, owned: true }) === null,
+    'AUTO-EAT: a character with auto-eat switched OFF ate anyway');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 90 }) === null,
+    'AUTO-EAT: ate at 90% HP against a 50% threshold');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 50 }) !== null,
+    'AUTO-EAT: did NOT eat at exactly the threshold — the client eats when hp/maxHp <= threshold');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, hp: 0 }) === null,
+    'AUTO-EAT: ate while dead — respawn owns that, and a corpse eating is a free resurrection');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, inventory: {} }) === null,
+    'AUTO-EAT: ate out of an empty bag');
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true, inventory: { [FEAST]: 99 }, foodId: FEAST }) === null,
+    `AUTO-EAT: burned a ${FEAST} — a foodClass:buff item is never auto-eaten (b220)`);
+  /* A nominated food the player has run OUT of must fall back to the best
+     Provision in the bag, not stop eating. */
+  ok(resolveAutoEat({ ...eatable, enabled: true, owned: true,
+                      foodId: PROVISION, inventory: { [PROVISION]: 0, shrimp: 5 } })?.foodId === 'shrimp',
+    'AUTO-EAT: running out of the nominated food stopped auto-eat instead of falling back to the bag');
+
+  /* THE STORED FORM ROUND-TRIPS EXACTLY. The client holds a fraction from a
+     slider that steps by 0.05; the server holds an integer percent. Every step
+     the UI can produce must survive the conversion as the SAME double, or the
+     two sides disagree about whether hp/maxHp is at the threshold. */
+  for (let k = 0; k <= 20; k++) {
+    /* `(k*5)/100`, NOT `k*0.05`. An `<input type=range step=0.05>` yields a
+       STRING that parses to the exact decimal ("0.15" -> 0.15); computing the
+       same ladder by repeated multiplication does not (`3*0.05` is
+       0.15000000000000002, `6*0.05` is 0.30000000000000004). Writing this
+       fixture the wrong way was the first thing this assertion caught, and it
+       is the same class of error the integer column exists to remove. */
+    const frac = (k * 5) / 100;
+    const pct = pctFromThreshold(frac);
+    ok(pct === k * 5, `AUTO-EAT: slider step ${frac} stored as ${pct}%, expected ${k * 5}`);
+    ok(thresholdFromPct(pct) === frac,
+      `AUTO-EAT: ${pct}% reads back as ${thresholdFromPct(pct)}, not the ${frac} the slider set — `
+      + 'the client and the server would disagree on the threshold tick');
+    /* ...and the float-accumulated form must land on the SAME percent, because
+       a client that computed its fraction that way still has to store it. */
+    ok(pctFromThreshold(k * 0.05) === k * 5,
+      `AUTO-EAT: the float-accumulated ${k * 0.05} stored as ${pctFromThreshold(k * 0.05)}%, expected ${k * 5}`);
+  }
+  /* 0 MUST MEAN ZERO. This is the b326 bug in its new home: `threshold || 0.5`
+     was a falsy-coalesce on a number and turned "never auto-eat" into 50%. */
+  ok(thresholdFromPct(0) === 0, 'AUTO-EAT: a stored 0% must mean NEVER, not the 50% default');
+  ok(resolveAutoEat({ enabled: true, owned: true, hp: 1, maxHp: 100, threshold: 0,
+                      inventory: { [PROVISION]: 5 }, items: ITEMS }) === null,
+    'AUTO-EAT: a 0% threshold ate at 1% HP — "never auto-eat" is not honoured');
+  /* ...and a garbage threshold falls back to the default rather than to 0 or 1,
+     because both of those are real settings that would be silently applied. */
+  for (const junk of [undefined, null, NaN, 'half', {}, Infinity]) {
+    ok(thresholdFromPct(junk) === DEFAULT_THRESHOLD,
+      `AUTO-EAT: a ${String(junk)} threshold resolved to ${thresholdFromPct(junk)}, not the default`);
+  }
+
+  /* THE TIE-BREAK IS DETERMINISTIC AND ORDER-INDEPENDENT. The authored
+     catalogue has nine tied `heals` values, and the two sides receive the bag in
+     different key orders — the client's is insertion history, the server's comes
+     from jsonb_object_agg (length, then bytewise). The old rule (`heals >
+     bestHeals` over `for…in`) would therefore have drained different stacks on
+     each side. Proven by feeding the SAME bag in two different orders. */
+  const tied = {};
+  for (const [id, it] of Object.entries(ITEMS)) {
+    if (it && it.foodClass === 'healing' && it.heals > 0) (tied[it.heals] ||= []).push(id);
+  }
+  const pair = Object.values(tied).find((ids) => ids.length > 1);
+  ok(!!pair, 'AUTO-EAT: no two Provisions heal the same amount — the tie-break guard is vacuous, '
+    + 'which means it would stop protecting the moment the data changed back');
+  if (pair) {
+    const fwd = {}; for (const id of pair) fwd[id] = 3;
+    const rev = {}; for (const id of [...pair].reverse()) rev[id] = 3;
+    eq(bestHealingFood(fwd, ITEMS), bestHealingFood(rev, ITEMS),
+      `AUTO-EAT: bestHealingFood picked a different food for the same bag in a different key order `
+      + `(${pair.join(' vs ')}) — the client and the server would drain different stacks`);
+  }
 }
 
 // ── 2. HOSTILE INPUT ────────────────────────────────────────────────────────
@@ -500,7 +816,37 @@ async function shapeGuard() {
   for (const [k, v] of ints) {
     ok(Number.isInteger(v) && Number.isFinite(v),
       `SHAPE: ${k} = ${v} is not an integer — hr_apply casts with ::bigint and would return bad_delta`);
-    ok(v >= 0, `SHAPE: ${k} = ${v} is negative`);
+    /* `items` is the ONE signed map — auto-eat debits the food it consumed, and
+       hr_apply's item block is signed for exactly this (it re-reads the row
+       under a lock and rejects `have + delta < 0`). Everything else stays
+       non-negative: a negative `gold` or `xp` from an accrual would make a
+       rollback indistinguishable from an exploit. */
+    ok(v >= 0 || k.startsWith('items.'), `SHAPE: ${k} = ${v} is negative`);
+  }
+
+  /* THE SIGNED-DELTA INVARIANT, on a run that actually eats. A debit deeper
+     than the starting stack is answered by hr_apply with `insufficient_item`,
+     which is NOT on index.ts's DEGRADABLE list — so it does not shorten the
+     span, it 409s the whole night with the watermark unmoved. The engine has to
+     be structurally incapable of proposing one. */
+  const FOOD = Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+    .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+  for (const stock of [1, 2, 7, 40, 5000]) {
+    const e = serverAccrual({
+      inventory: { [FOOD]: stock },
+      autoEatEnabled: true, autoEatFood: FOOD, autoEatPct: 50,
+    });
+    if (!e.accrued) continue;
+    const net = (e.delta.items || {})[FOOD];
+    if (net === undefined) continue;
+    ok(Number.isInteger(net), `SHAPE: the ${FOOD} delta ${net} is not an integer`);
+    ok(stock + net >= 0,
+      `SHAPE: with ${stock} ${FOOD} in the bag the engine proposed a net ${net} — `
+      + 'the resulting quantity is negative, which hr_apply rejects as insufficient_item and '
+      + 'index.ts does NOT degrade, costing the player the entire absence');
+    ok(e.foodEaten <= stock + Object.values(e.summary.items || {}).length * 0,
+      `SHAPE: ate ${e.foodEaten} meals from a stack of ${stock}`);
   }
   ok(s.delta.xp === undefined || Object.values(s.delta.xp).every((v) => v > 0),
     'SHAPE: XP is monotonic — a zero or negative grant must be omitted');
@@ -691,6 +1037,72 @@ async function shellGuard() {
       `SHELL: request.js MAX_SLOT is ${MAX_SLOT} but player_state allows 0..${m[2]}`);
   }
   ok(!/0…4|0\.\.4\b/.test(shell), 'SHELL: index.ts still documents the slot bound as 0…4');
+
+  /* (h) THE SHELL MUST ACTUALLY PASS THE AUTO-EAT STATE. The engine reads four
+     named fields; if index.ts stops sending them the engine silently falls back
+     to "auto-eat off" and the whole night regresses to the -63%..-99% measured
+     before this shipped — with every parity test still green, because
+     accrual-engine.mjs calls computeAccrual directly and never goes through the
+     shell. That gap is exactly how the handler came to be missing in the first
+     place, so it gets a source assertion. */
+  for (const field of ['inventory:', 'autoEatEnabled:', 'autoEatFood:', 'autoEatPct:']) {
+    ok(code.includes(field),
+      `SHELL: index.ts does not pass '${field.replace(':', '')}' to computeAccrual — the server would `
+      + 'stop eating and every away night would end at the first death, silently');
+  }
+  ok(/auto_eat_enabled/.test(code) && /auto_eat_pct/.test(code) && /auto_eat_food/.test(code),
+    'SHELL: index.ts no longer reads the auto_eat_* columns off hr_state_of');
+}
+
+// ── 4b. CROSS-FILE CONSTANTS ────────────────────────────────────────────────
+// Two numbers are written in a JS file AND in a SQL file, and neither language
+// can import the other. That is a drift generator, so it gets a guard rather
+// than a comment — the same technique clampGuard uses for the hr_apply clamps.
+async function autoEatDriftGuard() {
+  const sql = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-15-auto-eat.sql'), 'utf8');
+
+  /* (a) hr_set_auto_eat refuses a settings change with more than ACCRUE_MIN_MS
+     of unpaid absence (`collect_first`), because auto-eat prices the WHOLE
+     window and changing it mid-absence is the S5 equipment lever in a new
+     dimension. Below ACCRUE_MIN_MS the engine writes nothing, so there is no
+     span to over-pay and refusing would just be rude. If the two numbers ever
+     drift apart there is a window that is either refused for nothing or open
+     for something. */
+  const grace = sql.match(/c_collect_grace\s+constant\s+interval\s*:=\s*interval\s*'(\d+)\s*seconds?'/);
+  ok(!!grace, 'DRIFT: could not read c_collect_grace out of 2026-08-15-auto-eat.sql — the guard is vacuous');
+  if (grace) {
+    ok(Number(grace[1]) * 1000 === ACCRUE_MIN_MS,
+      `DRIFT: hr_set_auto_eat's collect_first grace is ${grace[1]}s but ACCRUE_MIN_MS is ${ACCRUE_MIN_MS}ms. `
+      + 'Below the engine floor nothing is written, so a LONGER grace lets a settings change price an '
+      + 'absence the engine will pay, and a SHORTER one refuses a change that could never have been abused.');
+  }
+
+  /* (b) THE ADVISORY LOCK KEY. hr_set_auto_eat has to serialise against a
+     concurrent hr_apply on the same character, and a lock taken on a DIFFERENT
+     key is not a lock — it is a syscall and a false sense of safety. Compared
+     textually against the expression apply-engine.sql actually uses. */
+  const engine = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-apply-engine.sql'), 'utf8');
+  const keyOf = (src) => {
+    const m = src.match(/pg_advisory_xact_lock\(\s*hashtextextended\(([^;]*?)\)\s*\)/);
+    return m ? m[1].replace(/v_uid|p_user/g, 'U').replace(/v_slot|p_slot/g, 'S').replace(/\s+/g, '') : null;
+  };
+  const kEngine = keyOf(engine);
+  const kAutoEat = keyOf(sql);
+  ok(!!kEngine && !!kAutoEat, 'DRIFT: could not read an advisory lock key out of both migrations');
+  if (kEngine && kAutoEat) {
+    ok(kEngine === kAutoEat,
+      `DRIFT: hr_set_auto_eat locks on \`${kAutoEat}\` but hr_apply locks on \`${kEngine}\`. `
+      + 'Two different keys serialise nothing, so a settings change and an accrual can interleave.');
+  }
+
+  /* (c) The column default and the engine's fail-closed read must agree that
+     auto-eat is OFF until somebody with the trait switches it on. */
+  ok(/auto_eat_enabled boolean not null default false/.test(sql),
+    'DRIFT: auto_eat_enabled no longer defaults to false in the migration');
+  const eng = await readFile(join(FN_DIR, 'accrual.js'), 'utf8');
+  ok(/inp\.autoEatEnabled === true/.test(eng),
+    'DRIFT: accrual.js no longer requires autoEatEnabled to be strictly true — a truthy string or a '
+    + '1 from a jsonb round trip would switch on a purchased trait');
 }
 
 // ── 5. CLAMP HEADROOM ───────────────────────────────────────────────────────
@@ -704,6 +1116,39 @@ async function shellGuard() {
 // of a number is a drift generator, which is the failure this whole program is
 // organised around.
 const HEADROOM = 0.60;
+
+/* THE HONEST MAXIMUM IS A CHARACTER THAT DOES NOT DIE, AND `hp: 9999` IS NOT
+   ONE. Until 2026-08-15 both headroom sweeps below used `hp/maxHp = 9999` with
+   no auto-eat as a "never dies" proxy. It is not: it is a "dies after 9999
+   damage" proxy, and a 24h absence is ~37,000 ticks, so against anything that
+   lands a hit the fixture died partway through and the sweep measured a
+   FRACTION of an absence while claiming to measure the maximum.
+
+   Measured the difference, on the same monsters and the same seed:
+
+     fixture                                  max per-skill XP   max gold
+     hp 9999, no auto-eat  (the old proxy)         2,830,315      535,191
+     hp 99, auto-eat ON    (a real maxed player)   3,445,997    1,228,312
+
+   — 1.22x the XP and 2.30x the gold. The old fixture understated the honest
+   maximum, which is the direction that makes a headroom guard useless: it
+   reports slack that does not exist.
+
+   So the sweeps now run the way a real maxed player actually plays: 99 max HP,
+   auto-eat on, a deep stack of the best Provision. That IS the honest ceiling
+   now that the server can eat, and it is what a clamp has to sit above. */
+const HONEST_MAX_HP = 99;
+const HONEST_FOOD = Object.keys(ITEMS)
+  .filter((id) => ITEMS[id] && ITEMS[id].foodClass === 'healing' && ITEMS[id].heals > 0)
+  .sort((a, b) => ITEMS[b].heals - ITEMS[a].heals)[0];
+/* Deep enough that the stack is never the limit — the guard must measure what
+   the SIMULATION can produce, not what a shopping trip can sustain. */
+const HONEST_FOOD_QTY = 200000;
+const HONEST_SUSTAIN = {
+  hp: HONEST_MAX_HP, maxHp: HONEST_MAX_HP,
+  inventory: { [HONEST_FOOD]: HONEST_FOOD_QTY },
+  autoEatEnabled: true, autoEatFood: HONEST_FOOD, autoEatPct: 50,
+};
 
 function clampsFromMigration(sql) {
   const out = {};
@@ -755,8 +1200,9 @@ async function clampGuard() {
         nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000,
         activeSinceMs: NOW_MS - spanH * 3600000,
         activeKind: 'combat', activeId: id, capMs: spanH * 3600000, seed: SEED,
-        hp: 9999, maxHp: 9999, gold: 0, skills: MAXED, equipment: EQUIPMENT,
+        gold: 0, skills: MAXED, equipment: EQUIPMENT,
         items: ITEMS, monsters: MONSTERS,
+        ...HONEST_SUSTAIN,
       });
       if (!r.accrued) continue;
       const d = r.delta; const where = `${spanH}h ${id}`;
@@ -841,13 +1287,17 @@ async function dayBudgetGuard() {
       userId: '00000000-0000-4000-8000-000000000001', slot: 0,
       nowMs: NOW_MS, accruedToMs: NOW_MS - 24 * 3600000, activeSinceMs: NOW_MS - 24 * 3600000,
       activeKind: 'combat', activeId: id, capMs: 24 * 3600000, seed: SEED,
-      hp: 9999, maxHp: 9999, gold: 0, skills: MAXED, equipment: EQUIPMENT,
+      gold: 0, skills: MAXED, equipment: EQUIPMENT,
       items: ITEMS, monsters: MONSTERS,
+      ...HONEST_SUSTAIN,
     });
     if (!r.accrued) continue;
     const d = r.delta;
     bump('gold', d.gold || 0, `24h ${id}`);
     bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), `24h ${id}`);
+    /* POSITIVE entries only. The budget's `qty` dimension is gross INFLOW, and
+       auto-eat now puts a negative in this map — summing it signed would let a
+       night of eating pay for a night of looting. */
     bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), `24h ${id}`);
   }
 
@@ -972,10 +1422,12 @@ async function packerGuard() {
 export async function runAll() {
   problems.length = 0;
   parityGuard();
+  autoEatParityGuard();
   hostileGuard();
   await shapeGuard();
   requestGuard();
   await shellGuard();
+  await autoEatDriftGuard();
   await clampGuard();
   await dayBudgetGuard();
   await deployGuard();

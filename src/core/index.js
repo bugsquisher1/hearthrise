@@ -27,6 +27,12 @@ export * as progression from './progression.js?v=342';
 export * as styles from './styles.js?v=342';
 export * as artisan from './artisan.js?v=342';
 export * as bounty from './bounty.js?v=342';
+/* Auto-eat is the ONE fx handler combat-sim.js calls that the server accrual
+   engine did not implement, and a missing handler is a silent no-op — so the
+   server's character died early and the night stopped paying (measured: -63%
+   to -99% of an absence). The DECISION now lives here so both sides run the
+   same predicate; each caller keeps its own apply step. */
+export * as autoEat from './auto-eat.js?v=342';
 /* The away/active unification (docs/design/away-time-ruling.md). `away` is
    the contract as data, `botd` the featured-boss rotation as a function of a
    timestamp, `buffs` the registry plus the clock as a function of elapsed

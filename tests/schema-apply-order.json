@@ -102,7 +102,8 @@
     "2026-08-13-anon-rate-gate.sql",
     "2026-08-13-beta-invite-check-volatile.sql",
     "2026-08-13-drop-dead-leaderboard-views.sql",
-    "2026-08-14-leaderboard-view-lockdown.sql"
+    "2026-08-14-leaderboard-view-lockdown.sql",
+    "2026-08-15-auto-eat.sql"
   ],
   "_order_notes": {
     "2026-08-10-dr-beta-invites-base.sql": "Reconstruction of a production object with no migration file. Must precede authenticated-surface-lockdown (A9's retrofit list names claim_beta_invite(text) and fails closed on it) and live-market-rls (\u00a73 reads public.beta_invites).",
@@ -111,7 +112,8 @@
     "2026-08-11-clan-membership-authority.sql": "Before clan-write-policy-pin and raid-claim-authority: all three once defined clan_members \"join as self\"; this file now owns the definition and the other two assert against whatever is live. Applying them the other way round silently deletes R4's timestamp pin \u2014 see HANDOFF, 'A LATENT BUG WORTH MORE THAN THE FEATURE THAT FOUND IT'.",
     "2026-08-11-authenticated-surface-lockdown.sql": "The A9 __ungated retrofit. Every later file that references a *__ungated name depends on it, and it in turn needs every RPC it retrofits to already exist \u2014 so it sits after the whole clan/raid/market surface and before the 08-13 files.",
     "2026-08-11-daily-budget.sql": "Before apply-engine: apply-engine \u00a70 fails CLOSED without hr_day_budget_check. Applying them the other way round is a refused migration, not a slow degradation.",
-    "2026-08-11-grant-hygiene.sql": "Last of the 08-11 block: it is the detector, so it must see the finished surface. It reports every un-retrofitted RPC, which makes it a second, independent check that A9 ran."
+    "2026-08-11-grant-hygiene.sql": "Last of the 08-11 block: it is the detector, so it must see the finished surface. It reports every un-retrofitted RPC, which makes it a second, independent check that A9 ran.",
+    "2026-08-15-auto-eat.sql": "STAGED, NOT APPLIED to production yet — in 'order' rather than 'excluded' for the same reason 2026-08-14-character-bootstrap.sql is: the replay is how a staged migration gets EXECUTED before anyone applies it, and its self-verifying block is the commit gate. It REPLACES hr_state_of, so it must sit after apply-engine; it reads hr_items.auto_eatable, so the catalogue must be regenerated (it is, in this repo) and RE-APPLIED to production before this file."
   },
   "excluded": {
     "2026-08-11-market-v2.sql": "STAGED, NOT APPLIED. Drops and recreates the market tables. Blocked until the client is off direct market_listings writes (src/net/supabase-market-backend.js). A rebuild must reproduce production, and production does not have it.",

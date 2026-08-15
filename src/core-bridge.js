@@ -46,6 +46,10 @@ import * as botd from './core/botd.js?v=342';
 import * as buffs from './core/buffs.js?v=342';
 import * as combatSim from './core/combat-sim.js?v=342';
 import * as licence from './core/licence.js?v=342';
+/* The auto-eat DECISION, shared with the server accrual engine. Published so
+   src/features/auto-actions.js — a classic script, which cannot import — can
+   delegate to the same predicate Deno runs. */
+import * as autoEat from './core/auto-eat.js?v=342';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -152,7 +156,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim, licence,
+  styles, artisan, bounty, away, botd, buffs, combatSim, licence, autoEat,
 
   /* The session RNG. */
   get rng() { return rng; },

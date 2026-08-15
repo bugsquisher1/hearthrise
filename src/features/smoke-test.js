@@ -4933,6 +4933,69 @@ const TESTS = [
     }
   }),
 
+  /* b343: THE CLIENT'S AUTO-EAT DECISION IS THE SERVER'S.
+   *
+   * The rule used to live only in this classic script, which Deno cannot
+   * import — so the server accrual engine had NO auto-eat at all, and because
+   * a missing fx handler is a no-op by construction in combat-sim.js, the
+   * omission was silent. Measured on the same seed and state, the server paid
+   * 63%-99% LESS than the client for an unattended night and the character
+   * died minutes into it.
+   *
+   * The fix moved the DECISION to src/core/auto-eat.js, which both sides
+   * import. This test is the client half of that contract: whatever
+   * maybeAutoEat() does, resolveAutoEat() must have decided — including WHICH
+   * food and how much it heals. If someone re-inlines the rule here "for
+   * speed", the two sides can drift again and only this goes red.
+   */
+  () => tryRun('b343: maybeAutoEat routes through the SHARED core decision (server parity)', () => {
+    const A = window.HearthriseAuto, C = window.HearthriseCore;
+    if (!A || typeof A.maybeAutoEat !== 'function') return;
+    assert(C && C.autoEat && typeof C.autoEat.resolveAutoEat === 'function',
+      'HearthriseCore.autoEat.resolveAutoEat missing — the client and the server no longer share the rule');
+    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
+    const snap = snapshotG();
+    const eatBefore = A.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
+    try {
+      window.G.traits = { auto_eat: true };
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;
+      window.G.inventory = { cooked_shrimp: 5 };
+      window.G.combatLog = [];
+      A.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+
+      // Ask the CORE what should happen, before letting the client do it.
+      const decision = C.autoEat.resolveAutoEat({
+        enabled: true, owned: true, hp: 3, maxHp: 10, threshold: A.eatThreshold(),
+        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
+      });
+      assert(decision && decision.foodId === 'cooked_shrimp',
+        'the core declined to eat on a fixture the client is about to eat on');
+
+      const ate = A.maybeAutoEat();
+      assert(ate === true, 'maybeAutoEat should have eaten');
+      assert(window.G.playerHp === decision.hp,
+        'the client healed to ' + window.G.playerHp + ' but the core decided ' + decision.hp
+        + ' — the two sides would pay a different night');
+      assert(window.G.inventory.cooked_shrimp === 4,
+        'the client consumed a different amount than the one meal the core decided');
+
+      // ...and the purchased-trait gate is the CORE's gate, not a local one.
+      window.G.traits = {};
+      window.G.playerHp = 3;
+      assert(A.maybeAutoEat() === false, 'auto-eat fired without the purchased trait');
+      assert(C.autoEat.resolveAutoEat({
+        enabled: true, owned: false, hp: 3, maxHp: 10, threshold: 0.5,
+        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
+      }) === null, 'the core ate without the purchased trait — the server would too');
+    } finally {
+      A.setEat(eatBefore);
+      window.G.traits = traitsBefore;
+      restoreG(snap);
+    }
+  }),
+
   // b134: maybeAutoEat() does nothing when disabled.
   () => tryRun('b134: maybeAutoEat is a no-op when eat.enabled = false', () => {
     if (!window.HearthriseAuto) return;

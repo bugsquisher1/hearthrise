@@ -331,6 +331,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       gold: Number(st.gold) || 0,
       skills,
       equipment,
+      /* AUTO-EAT. All four values are columns on the row hr_apply locks, read
+         inside the same transaction as everything else above. `inventory` is
+         the first input the engine SPENDS rather than only reads — auto-eat
+         consumes food — which is why the returned delta's `items` map is
+         signed. The three settings are what let the server heal exactly as the
+         client does; without them it never healed at all and an unattended
+         night ended at the first death (measured: -63% to -99% of the night).
+         `auto_eat_enabled` is also the purchased-trait receipt, so nothing here
+         defaults to true. */
+      inventory: env.inventory || {},
+      autoEatEnabled: st.auto_eat_enabled === true,
+      autoEatFood: st.auto_eat_food ?? null,
+      autoEatPct: Number(st.auto_eat_pct),
       items: ITEMS,
       monsters: MONSTERS,
     });
@@ -440,6 +453,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,
+        // How much food the night ate. The welcome-back card has to be able to
+        // say it: a player who returns to an empty Cooked Shark stack and no
+        // explanation files a bug, and the honest answer is "it kept you alive
+        // for the whole twelve hours".
+        foodEaten: out.foodEaten,
         blessed: out.summary.blessed,
         buffsPaused: out.summary.buffsPaused,
         featuredMs: out.summary.featuredMs,

@@ -37,7 +37,7 @@ const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-11-catalogue.generated
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
 // ── 1. Read the single source of truth ───────────────────────────────────
-const { ITEMS } = await imp('src/data/items.js');
+const { ITEMS, isAutoEatable } = await imp('src/data/items.js');
 const { SKILLS_DEF } = await imp('src/data/skills.js');
 const { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } = await imp('src/data/gathering.js');
 const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
@@ -67,6 +67,15 @@ const items = itemIds.map((id) => {
     req_skill: it.reqSkill ?? null,
     req_lv: Number.isFinite(it.reqLv) ? Math.trunc(it.reqLv) : null,
     heals: Number.isFinite(it.heals) ? Math.trunc(it.heals) : null,
+    /* AUTO-EATABLE — `foodClassOf(it) === 'healing'`, straight out of
+       src/data/items.js. It cannot be derived in SQL from `heals` alone: a
+       Feast or a Draught (`foodClass: 'buff'`) heals too, and auto-eat must
+       never burn one (b220 — "auto-eat burning a Void Banquet to soak one wolf
+       hit is the failure this rule exists to prevent"). Without this column
+       hr_set_auto_eat would accept a Void Banquet as a nominated food, store
+       it, and then the engine would silently ignore it — a UI that says one
+       thing while the engine does another, which is the b341 failure class. */
+    auto_eatable: isAutoEatable(it),
   };
 });
 
@@ -242,6 +251,12 @@ create table if not exists public.hr_items (
   req_lv    int,
   heals     int
 );
+-- Additive, because hr_items already exists on every database that has run an
+-- earlier revision of this file, where "create table if not exists" would skip
+-- a widened column list in silence. NOT NULL with a default so no row can carry
+-- an unknown answer to "may auto-eat spend this?".
+alter table public.hr_items
+  add column if not exists auto_eatable boolean not null default false;
 create index if not exists hr_items_tradeable_idx on public.hr_items (tradeable);
 
 create table if not exists public.hr_item_slots (
@@ -326,8 +341,8 @@ delete from public.hr_start_skill_xp;
 delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
 
-insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals) values
-${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)})`)};
+insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable) values
+${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)})`)};
 
 insert into public.hr_item_slots (item_id, equip_slot) values
 ${valuesBlock(itemSlots, (r) => `  (${q(r.item_id)},${q(r.equip_slot)})`)};
@@ -401,6 +416,22 @@ begin
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> ${activities.length} then raise exception 'hr_activities has % rows, expected ${activities.length}', v_n; end if;
+
+  -- AUTO-EATABLE. The count is asserted, so a re-apply against a database that
+  -- created hr_items before the column existed cannot leave every row on the
+  -- FALSE default and quietly make every food ineligible.
+  select count(*) into v_n from public.hr_items where auto_eatable;
+  if v_n <> ${items.filter((r) => r.auto_eatable).length} then
+    raise exception 'auto_eatable count is %, generator emitted ${items.filter((r) => r.auto_eatable).length}', v_n;
+  end if;
+  -- ...and the rule itself, restated as a constraint on the data rather than
+  -- as a comment: nothing without a heal may ever be auto-eaten. (The converse
+  -- is deliberately NOT asserted — a foodClass:buff Feast heals and must
+  -- still be ineligible, which is the whole reason this is a generated column
+  -- and not "heals > 0".)
+  select count(*) into v_bad from public.hr_items
+   where auto_eatable and coalesce(heals, 0) <= 0;
+  if v_bad > 0 then raise exception '% auto-eatable items heal nothing', v_bad; end if;
 
   -- Every item-slot pair must name a real equip slot, or hr_apply's slot check
   -- would accept an equip into a slot the player does not have.

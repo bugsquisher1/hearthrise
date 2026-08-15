@@ -1054,7 +1054,7 @@ re-created on the authoritative side.
   This RETIRES b343's "cut cloth's magicStrB" recommendation — the defect was never that
   cloth has damage, it is that its damage paid one weapon class. Numbers (coefficients, the
   reconciliation with armorSetBonus's 5-of-6 system, fuse/crit-cap interactions, away-night
-  pricing) are a PROPOSAL in  when it lands; direction is
+  pricing) are a PROPOSAL in docs/design/armour-identities.md when it lands; direction is
   closed, numbers are Tyler's veto.
 - **WORLD-BOSS COOPERATION BLESSING — requested by Tyler 2026-08-15, architecture only.**
   "An additional blessing for world bosses when players work together to kill it." Recorded,

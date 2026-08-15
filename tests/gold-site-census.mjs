@@ -32,14 +32,27 @@
 //       anything and every assertion above passed for free. A guard that cannot
 //       demonstrate it sees failure is treated as broken, not as a pass.
 //
-// ── WHY A SOURCE SCAN, AND WHAT IT CANNOT SEE ───────────────────────────────
-// It sees a LITERAL write to a `.gold` property. It does NOT see a write routed
-// through a computed property (`G[k] += v`), through `Object.assign`, or
-// through a helper in another module. That is a real limit and it is the reason
-// the wired sites were moved onto ONE choke point (`goldSettle` in legacy.js,
-// `HearthriseGold.pay`): a scan of literals is exactly strong enough when there
-// are few enough literals to enumerate, and the way to keep it strong is to
-// keep collapsing sites into seams rather than to widen the regex.
+// ── WHAT IT SEES, AND WHAT IT STILL CANNOT ──────────────────────────────────
+// ⚠ THE FIRST REVISION OF THIS PARAGRAPH WAS BOTH WRONG AND COMPLACENT, AND
+//   SECURITY BROKE THE GUARD WITH IT. It said the scanner "does NOT see a write
+//   routed through a computed property, through `Object.assign`, or through a
+//   helper in another module" and then argued that was acceptable because the
+//   sites had been collapsed onto one choke point — which it named
+//   `HearthriseGold.pay`, a function that has never existed. A limitation
+//   documented as a design choice, defended by an API nobody could call.
+//
+//   All three of those, plus aliasing the seam, were then demonstrated as live
+//   evasions past a green census. They are patterns now (see `seamApi`,
+//   `seamAlias`, `assignBulk`, `computed` below), each with its own `--selftest`
+//   mutation, and the real choke point is `HearthriseGold.settleCurrency`,
+//   reached from classic scripts as `window.goldSettle` / `goldSettleCurrency`.
+//
+// What it genuinely still cannot see: a write through a property name assembled
+// at RUNTIME on a receiver that is not `G` (an alias of the state object), and a
+// write from a module the walk does not cover (only `src/**` is walked). The
+// honest defence for both is the same one that was mis-stated before — there
+// are few enough writers to enumerate, and the way to keep it that way is to
+// keep collapsing sites into the seam rather than to widen the regex.
 //
 // ── USAGE ───────────────────────────────────────────────────────────────────
 //   node tests/gold-site-census.mjs             the census + the guard
@@ -69,7 +82,55 @@ export const PATTERNS = Object.freeze([
      were wired, i.e. the guard would go quiet exactly when the surface became
      load-bearing. The id is the literal, so the row survives every edit that
      does not change the gesture. */
-  { name: 'seam', re: /goldSettle\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
+  { name: 'seam', re: /goldSettle(?:Currency)?\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     F6 — THE FOUR EVASIONS. THE SCANNER WAS BLIND TO ITS OWN API.
+     ══════════════════════════════════════════════════════════════════════════
+     Security attacked the guard rather than the code, which is the right way
+     round, and got four undeclared gold movements past a green census:
+
+       1. `HearthriseGold.settle(G, 1e9, 'x', k)` called RAW — the module API,
+          bypassing legacy's `goldSettle` wrapper the `seam` pattern spells.
+       2. `Object.assign(G, { gold: 1e9 })` — a bulk write with no `.gold =`
+          anywhere in it.
+       3. `G['go' + 'ld'] = 1e9` — a computed member, invisible to a scanner
+          that matches a literal property name.
+       4. `var f = window.goldSettle; f(1e9, 'x', k)` — an ALIAS. The reference
+          is taken in one statement and called in another, so no call site
+          carries a site-id literal.
+
+     The four patterns below close each by NAME, and each has its own
+     `--selftest` mutation. The general lesson is worth more than the patterns:
+     **a guard whose subject is a seam must treat the seam itself as an
+     attack surface**, because the safest path is exactly the one an evasion
+     will be dressed up as. Measured cost in the current tree: 1 site each for
+     `seamApi` and `seamAlias` (both inside the wrapper that owns them, both
+     declared), 0 for `assignBulk` and `computed`. */
+
+  /* 1 + 4. Any use of the seam that is not `goldSettle(… 'site' …)`:
+     - a call through the MODULE (`X.settle(`, `X.settleCurrency(`)
+     - a REFERENCE to `goldSettle` that is not immediately a call */
+  { name: 'seamApi', re: /\.\s*(settle|settleCurrency)\s*\(/g },
+  /* ⚠ THE `\b` IS LOAD-BEARING. Without it the engine backtracks: on
+     `goldSettleCurrency(` it tries the long alternative, the `(?!\s*\()`
+     lookahead fails on the paren, it drops `Currency` and re-tests the
+     lookahead against `C` — which is not a paren — and reports a genuine CALL
+     as an alias. Measured: three false rows, all on lines that call the seam
+     correctly. A guard that flags the compliant path is a guard people learn to
+     silence. */
+  { name: 'seamAlias', re: /(?:^|[^.\w$])((?:window\.)?goldSettle(?:Currency)?)\b(?!\s*\()/g },
+
+  /* 2. A bulk write onto the game state. `Object.assign(G, …)` can carry any
+        field, so the target is what matters, not the payload. */
+  { name: 'assignBulk', re: /Object\.assign\(\s*((?:window\.)?G)\s*,/g },
+
+  /* 3. A COMPUTED member write on the game state. Deliberately matches every
+        computed write, not just ones that look like `gold`: the whole point of
+        `'go' + 'ld'` is that the property name is not in the source. Zero in the
+        tree today, so the cost of the broad rule is zero and the day somebody
+        needs one it gets a ledger row and a reason. */
+  { name: 'computed', re: /(?:^|[^.\w$])((?:window\.)?G)\s*\[[^\]]{1,80}\]\s*(?:\+=|-=|=(?!=))/g },
 ]);
 
 /* ── FILES THE CENSUS DOES NOT COVER, AND WHY ───────────────────────────────
@@ -146,6 +207,14 @@ const NOT_A_FN = new Set(['if', 'for', 'while', 'switch', 'catch', 'do', 'try', 
   'return', 'function', 'with', 'typeof', 'new', 'delete', 'void', 'case', 'in', 'of']);
 function enclosingFn(lines, i) {
   for (let j = i; j >= 0 && j > i - 400; j--) {
+    /* A `}` in COLUMN ZERO closes a top-level function, so anything above it is
+       a different scope. Without this the search walked straight past it and
+       attributed a module-level statement to whichever function happened to be
+       declared above — `window.goldSettle = goldSettle` reported as being
+       inside `goldIntentKey`, which is a site name that sends a reviewer to the
+       wrong place. Not a full parse and not trying to be: legacy.js is a
+       classic script whose top-level functions all close in column zero. */
+    if (j < i && /^\}/.test(lines[j])) return '(module)';
     for (const re of FN_RES) {
       const m = re.exec(lines[j]);
       if (m && !NOT_A_FN.has(m[1])) return m[1];
@@ -316,6 +385,28 @@ export async function runAll(opts) {
       + 'field has stopped discriminating.');
   }
 
+  /* ── L7: THE FLIP PLAN COVERS EVERY DEFERRED SITE (F10) ──────────────────
+     A deferred site is not inert on flip day — it is WRONG, in a direction set
+     by the sign of the movement, because the server envelope is applied
+     absolutely. Every row must resolve to a stated behaviour, and the set of
+     answers must have more than one member: a derivation that collapsed to one
+     string would pass a "has a behaviour" check while saying nothing. */
+  const behaviours = new Set();
+  for (const [id, row] of Object.entries(LEDGER)) {
+    const b = ledgerMod.flipBehaviourOf(row);
+    if (!b) {
+      fail(`GOLD CENSUS: '${id}' (kind '${row.kind}') has no FLIP BEHAVIOUR. On the day the switch `
+        + 'goes on, a site with no server verb is not inert — a grant is ERASED by the next '
+        + 'absolute envelope and a spend is REFUNDED. A row nobody can answer that question for is '
+        + 'a row that gets discovered by a player.');
+    } else if (row.status === 'deferred') behaviours.add(b);
+  }
+  if (behaviours.size < 2) {
+    fail(`GOLD CENSUS-CONTROL: every deferred site resolves to the SAME flip behaviour `
+      + `(${behaviours.size} distinct). The derivation has collapsed, so L7 is asserting that a `
+      + 'constant is non-empty.');
+  }
+
   return {
     problems,
     note: `${count} gold write sites in src/** (control: ${blind.count} when blinded); `
@@ -374,6 +465,52 @@ export const MUTATIONS = {
     find: "    kind: 'vendor', status: 'wired', verb: 'vendor_sell',\n    site: 'src/legacy.js invSellOne()",
     repl: "    kind: 'vendor', status: 'wired', verb: 'vendor_sellx',\n    site: 'src/legacy.js invSellOne()",
   },
+  /* ── F6: THE FOUR EVASIONS, ONE MUTATION EACH ─────────────────────────────
+     Each plants a NEW FILE containing an undeclared gold movement written the
+     way an evasion would be written — through the seam's own API, in bulk,
+     computed, or aliased. All four passed the first revision of this guard. */
+  evade_via_module_api: {
+    why: 'F6-1 — the module API called RAW (`HearthriseGold.settle(G, 1e9, …)`), bypassing the '
+      + '`goldSettle` wrapper the `seam` pattern spells. The safest-looking path is exactly what an '
+      + 'evasion dresses itself as.',
+    plant: async () => {
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(at(PROBE),
+        'export function probeApi(G, k){ window.HearthriseGold.settle(G, 1e9, \'probe.raw\', k); }\n', 'utf8');
+    },
+  },
+  evade_via_bulk_assign: {
+    why: 'F6-2 — `Object.assign(G, { gold: 1e9 })`. A bulk write onto the game state with no '
+      + '`.gold =` anywhere in it.',
+    plant: async () => {
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(at(PROBE), 'export function probeBulk(G){ Object.assign(G, { gold: 1e9 }); }\n', 'utf8');
+    },
+  },
+  evade_via_computed_key: {
+    why: 'F6-3 — `G[\'go\' + \'ld\'] = 1e9`. The property name is not in the source, which is the '
+      + 'entire point of writing it that way.',
+    plant: async () => {
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(at(PROBE), "export function probeComputed(G){ G['go' + 'ld'] = 1e9; }\n", 'utf8');
+    },
+  },
+  evade_via_alias: {
+    why: 'F6-4 — the seam ALIASED. The reference is taken in one statement and called in another, '
+      + 'so no call site carries a site-id literal for the census to read.',
+    plant: async () => {
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(at(PROBE),
+        'export function probeAlias(){ var f = window.goldSettle; f(1e9, 0, null); }\n', 'utf8');
+    },
+  },
+  flip_behaviour_missing: {
+    why: 'F10 — a deferred row whose kind has no flip behaviour. On flip day nobody could say '
+      + 'whether that site erases the player\'s gold or refunds it.',
+    file: LEDGER_FILE,
+    find: "  'src/legacy.js#buyTrait': { kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY },",
+    repl: "  'src/legacy.js#buyTrait': { kind: 'mystery', status: 'deferred', blockedBy: B.UNLOCK_BUY },",
+  },
   deferred_with_no_blocker: {
     why: '"not yet" with no named dependency is indistinguishable from "forgotten" — which is the '
       + 'exact state this ledger exists to make impossible.',
@@ -392,14 +529,22 @@ async function selftest() {
       if (m.plant) { await m.plant(); restore = async () => rm(at(PROBE), { force: true }); }
       else {
         const p = at(m.file);
-        const src = await rf(p, 'utf8');
+        /* ⚠ NORMALISED BEFORE MATCHING, RESTORED FROM THE ORIGINAL BYTES.
+           `core.autocrlf` is on in this repo and these files are not pinned by
+           .gitattributes, so a file written with LF here comes back from a
+           checkout with CRLF — and every multi-line anchor then matches ZERO
+           times. It did, immediately after the rebase: a mutation that was
+           never planted reports as a harness error if you are lucky and as a
+           pass if you are not. */
+        const raw = await rf(p, 'utf8');
+        const src = raw.replace(/\r\n/g, '\n');
         const n = src.split(m.find).length - 1;
         if (n !== 1) {
           console.log(`  HARNESS x ${id}: anchor matched ${n} times (need exactly 1) in ${m.file}`);
           slipped++; continue;
         }
         await writeFile(p, src.replace(m.find, m.repl), 'utf8');
-        restore = async () => writeFile(p, src, 'utf8');
+        restore = async () => writeFile(p, raw, 'utf8');
       }
       /* `bust`, because a mutated ledger read out of the ESM cache is a mutation
          that was never planted. NOT a re-import of THIS module: that re-runs the

@@ -140,9 +140,16 @@
          survives a second device. It is set BEFORE the call so a double-tap
          cannot open two claims; the server refuses the second anyway, under a
          lock, and that refusal is what actually guarantees it. */
+    /* ⚠ GOLD **AND** GEMS THROUGH ONE PREDICTION (F5). The gem half used to be
+       a bare `G.gems += rw.gems` sitting next to the seam call, which made it
+       the one number in a wired gesture that was paid locally and never
+       reconciled — the double-pay this file's header claims to have closed,
+       still open one field over. Security's probe: two tabs, same UTC day. The
+       server refuses the second claim under a lock and clamps gems at the
+       5,000/day ceiling; the client paid both. ONE entry covers both fields so
+       they cannot acquire separate lifecycles. */
     var key = window.goldIntentKey();
-    if (rw.gold) window.goldSettle(rw.gold, 'claim.daily_login', key);
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    window.goldSettleCurrency({ gold: rw.gold || 0, gems: rw.gems || 0 }, 'claim.daily_login', key);
     s.lastClaimDay = todayKey();
     if (key && window.HearthriseGold) {
       var p = window.HearthriseGold.claimReward('daily', 'login', key);

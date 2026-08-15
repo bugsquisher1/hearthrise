@@ -25257,6 +25257,47 @@ const TESTS = [
       assert(Gd.goldPredictions().length === 1 && Gd.getGoldState().last.applied.unresolved === true,
         'the unanswered call did not leave an UNRESOLVED prediction (' + JSON.stringify(Gd.getGoldState().last)
         + ') — an unresolved payment that is not recorded as one can never be settled');
+
+      /* ══════════════════════════════════════════════════════════════════════
+         B354-9 — F1. THE TEST USED TO STOP ONE LINE ABOVE, AND THAT IS THE BUG.
+         ══════════════════════════════════════════════════════════════════════
+         "The prediction stands" was asserted and "…until the next envelope
+         settles it" was not, so nothing checked that a prediction EVER stops
+         standing. Security's probe walked straight through the gap: 32
+         unanswered sells, then any later envelope, and gold reads 32,000,000
+         against a server saying 0 — permanently, because `reconcile` re-adds
+         every outstanding prediction to every envelope forever.
+
+         An unanswered call is ABANDONED (not reversed — it may have landed, and
+         reversing would be the client authoring a value) and the first envelope
+         after it DROPS the entry. The envelope is absolute and already contains
+         whatever really happened.
+         MUTATION: leave `inflight: true` on the unanswered path → RED. */
+      const SERVER_AFTER = 12345;
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify(envelope(SERVER_AFTER, 5)), { status: 200 }));
+      };
+      G.dailyReward.lastClaimDay = 0;
+      D.claim(G);
+      await drain();
+      assert(G.gold === SERVER_AFTER,
+        'AN UNANSWERED PREDICTION IS IMMORTAL. Gold is ' + G.gold + ' and the server said '
+        + SERVER_AFTER + ' — the abandoned entry was carried onto a later envelope. That is not a '
+        + 'display glitch: `reconcilePredictions` re-adds outstanding entries to EVERY envelope, so '
+        + 'an orphan is a permanent additive offset for the rest of the session. 32 dropped sockets '
+        + 'and it is 32,000,000 gold against a server saying 0.');
+      const st = Gd.getGoldState();
+      assert(st.abandoned === 0,
+        'the envelope did not drop the abandoned prediction(s): ' + JSON.stringify(st.pending));
+
+      /* AND A SECOND ENVELOPE MUST NOT MOVE IT EITHER — an offset that takes two
+         envelopes to appear would pass the assertion above. */
+      G.dailyReward.lastClaimDay = 0;
+      D.claim(G);
+      await drain();
+      assert(G.gold === SERVER_AFTER,
+        'a SECOND envelope moved gold to ' + G.gold + ' — something is still being carried');
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
@@ -25464,6 +25505,303 @@ const TESTS = [
         + JSON.stringify(Gd.getGoldState().last));
     } finally {
       window.fetch = realFetch;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.setServerAccrualEnabled(false);
+      A.acknowledgeReplacement(wasAck);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b354 ROUND 2 — SECURITY'S FINDINGS, EACH WITH ITS OWN GUARD.
+
+     The envelope arithmetic survived their attack. THE LIFECYCLE DID NOT: three
+     paths left a prediction that nothing would ever retire, and because
+     `reconcilePredictions` re-adds every outstanding entry to every envelope,
+     an orphan is a PERMANENT additive offset rather than a moment of
+     inaccuracy. F1 is guarded in B354-9 above; these are the other three exits
+     plus the two fields the accounting did not reach.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B354-10/11/12/13: every exit accounts for its prediction, and gems are one of them', async () => {
+    const A = window.HearthriseAccrual;
+    const Gd = window.HearthriseGold;
+    const G = window.G;
+    const D = window.HearthriseDaily;
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const wasAck = A.isReplacementAcknowledged();
+    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
+    const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
+      lockedItems: G.lockedItems,
+      skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
+    const envelope = (gold, gems, version) => {
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      return { ok: true, version, now: Date.now(),
+        state: { gold, gems, active_kind: 'idle', active_id: null, accrued_to: null },
+        skills, inventory: Object.assign({}, G.inventory) };
+    };
+    try {
+      A.setServerAccrualEnabled(true);
+      A.acknowledgeReplacement(true);
+      Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      G.lockedItems = {};
+
+      /* ── B354-10 — F2: TWO IN FLIGHT, ANSWERED OUT OF ORDER ───────────────
+         Both calls are real and both are answered; the SECOND answer carries the
+         OLDER version, which is exactly what two overlapping requests produce.
+         The stale branch used to just `return`, leaving that call's prediction
+         outstanding forever — and it had already been CARRIED onto the newer
+         envelope, so the amount was sitting in G.gold with nothing left to take
+         it out. MUTATION: drop the `rollbackPrediction` on the stale return → RED. */
+      Gd.resetGold();
+      G.gold = 1000; G.gems = 0; G.inventory = { normal_log: 50 };
+      let order = 0;
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        order++;
+        /* First call answers with version 9, second with version 5 — the older
+           one arriving last. Both state the same absolute gold. */
+        const v = order === 1 ? 9 : 5;
+        return Promise.resolve(new Response(JSON.stringify(envelope(50000, 0, v)), { status: 200 }));
+      };
+      window.invSellOne('normal_log');
+      await drain();
+      window.invSellOne('normal_log');
+      await drain();
+      assert(G.gold === 50000,
+        'TWO ANSWERS OUT OF ORDER LEFT ' + G.gold + ' AGAINST A SERVER SAYING 50000. The older '
+        + 'envelope is correctly ignored for its NUMBERS, but the call it answers is over — its '
+        + 'prediction was already carried onto the newer envelope and must come back off. Returning '
+        + 'early there leaves a permanent offset (F2).');
+      assert(Gd.getGoldState().pending.length === 0,
+        'a prediction survived both answers: ' + JSON.stringify(Gd.getGoldState().pending));
+
+      /* ── B354-11 — F3: THE REPLACEMENT GATE, DISMISSED, THEN ACKNOWLEDGED ──
+         A destructive envelope with no acknowledgement writes NOTHING and shows a
+         sheet. The call is still over. Leaving the entry INFLIGHT makes it
+         immortal for every player who dismisses that sheet.
+         MUTATION: remove `abandonPrediction(ownKey)` from the gate branch → RED. */
+      Gd.resetGold();
+      A.acknowledgeReplacement(false);
+      try { A.hideReplacementSheet(); } catch (e) {}
+      G.gold = 100000; G.inventory = { normal_log: 50 };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        /* Server gold FAR below local ⇒ destructive ⇒ the gate refuses. */
+        return Promise.resolve(new Response(JSON.stringify(envelope(1, 0, 20)), { status: 200 }));
+      };
+      window.invSellOne('normal_log');
+      await drain();
+      const gated = Gd.getGoldState();
+      assert(gated.pending.length === 1 && gated.inflight === 0 && gated.abandoned === 1,
+        'the replacement gate refused the envelope and left the prediction INFLIGHT ('
+        + JSON.stringify(gated.pending) + '). No second envelope is coming for that key, so it is '
+        + 'carried onto every future envelope for the rest of the session — F1 wearing a consent '
+        + 'dialog (F3).');
+      try { A.hideReplacementSheet(); } catch (e) {}
+
+      /* ⚠ AND ASSERTED AGAIN, DIRECTLY, BECAUSE THE GESTURE-LEVEL CHECK ABOVE
+         CANNOT SEE IT. Mutation run: deleting `abandonPrediction(ownKey)` from
+         the gate branch SLIPPED. `settleVerdict` reads a null return from the
+         applier as "nothing was written" and abandons there too, so through the
+         transport the two defences are indistinguishable — and the day the
+         transport's shape changes, the gate is the only one left. The sheet's
+         own re-apply callback and any future direct caller reach
+         `applyGoldEnvelope` WITHOUT going through settleVerdict, which is
+         exactly the path this covers. Same failure the kill-switch check had in
+         B354-5, same fix: drive the function, not the gesture. */
+      Gd.resetGold();
+      A.acknowledgeReplacement(false);
+      G.gold = 100000;
+      const gk = Gd.newIntentKey();
+      Gd.settle(G, 250, 'vendor.sell_one', gk);
+      const refused = Gd.applyGoldEnvelope(G, envelope(1, 0, 21), gk);
+      try { A.hideReplacementSheet(); } catch (e) {}
+      assert(refused === null, 'B354-11-CONTROL: the replacement gate did NOT refuse a destructive '
+        + 'envelope (' + JSON.stringify(refused) + '), so this assertion has no subject');
+      const direct = Gd.getGoldState();
+      assert(direct.inflight === 0 && direct.abandoned === 1,
+        'applyGoldEnvelope returned from the replacement gate without accounting for THIS call\'s '
+        + 'prediction (' + JSON.stringify(direct.pending) + '). Every exit from that function must '
+        + 'account for `ownKey`; the gate is the one that looks like an early return rather than '
+        + 'like an answer (F3).');
+      A.acknowledgeReplacement(true);
+
+      /* And once acknowledged, the next envelope drops it and gold is the server's. */
+      A.acknowledgeReplacement(true);
+      G.inventory = { normal_log: 50 };
+      window.invSellOne('normal_log');
+      await drain();
+      assert(G.gold === 1 && Gd.getGoldState().pending.length === 0,
+        'after acknowledgement gold is ' + G.gold + ' with ' + Gd.getGoldState().pending.length
+        + ' prediction(s) left — expected the server\'s 1 and none');
+
+      /* ── B354-12 — F4: AN AWAY ENVELOPE MUST ACCOUNT FOR GOLD PREDICTIONS ──
+         accrue.js and activity.js write `G.gold` absolutely through
+         `applyEnvelopeState` and have never heard of this ledger. Before the
+         shared seam an outstanding prediction survived their envelope untouched
+         and was re-added on top of the NEXT gold envelope — the same offset,
+         reached from a module that does not import gold.js.
+         Driven through the REAL accrue applier, not a stub.
+         MUTATION: delete the `predictionSeam` call in applyEnvelopeState → RED. */
+      Gd.resetGold();
+      G.gold = 1000;
+      const k = Gd.newIntentKey();
+      Gd.settle(G, 500, 'vendor.sell_one', k);
+      assert(G.gold === 1500 && Gd.getGoldState().pending.length === 1,
+        'B354-12-CONTROL: the prediction was not recorded, so the assertion below proves nothing');
+      A.applyEnvelopeState(G, envelope(9000, 0, 30));
+      assert(G.gold === 9500,
+        'an ACCRUAL envelope left gold at ' + G.gold + '. It writes 9000 absolutely and the one '
+        + 'genuinely-outstanding prediction (+500) is carried on top — 9500. Anything else means '
+        + 'the away path and the gold path have two different ideas of the ledger (F4).');
+      Gd.abandonPrediction(k);
+      A.applyEnvelopeState(G, envelope(9000, 0, 31));
+      assert(G.gold === 9000 && Gd.getGoldState().pending.length === 0,
+        'an ACCRUAL envelope did not DROP an abandoned prediction (gold ' + G.gold + ', pending '
+        + JSON.stringify(Gd.getGoldState().pending) + ') — the sweep has to run for every envelope, '
+        + 'not only for the gold verbs');
+
+      /* ── B354-13 — F5: GEMS GET THE SAME TREATMENT AS GOLD ────────────────
+         The daily claim pays both. The gem half used to be a bare `G.gems +=`
+         next to the seam call: no prediction, no reconcile, so two tabs claiming
+         the same UTC day paid gems twice locally while the server refused the
+         second claim under a lock.
+         MUTATION: put `G.gems = (G.gems||0) + rw.gems` back in daily-reward → RED. */
+      Gd.resetGold();
+      A.acknowledgeReplacement(true);
+      G.streak = { count: 7, lastDay: 0 };
+      G.dailyReward = { lastClaimDay: 0 };
+      G.gold = 0; G.gems = 0;
+      const rw = D.rewardFor(G);
+      assert(rw && rw.gems > 0,
+        'B354-13-CONTROL: day ' + D.cycleDay(G) + ' of the cycle pays no gems, so the gem half of '
+        + 'this test has no subject. Pick a day that does.');
+      let claims = 0;
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        claims++;
+        /* TAB TWO. The server pays the day ONCE: the first claim is honoured and
+           the second is `not_claimable`, refused under the character lock, with
+           the same absolute state either way. */
+        if (claims === 1) {
+          return Promise.resolve(new Response(JSON.stringify(
+            Object.assign(envelope(rw.gold, rw.gems, 40),
+              { granted: { kind: 'daily', key: 'login', gold: rw.gold, gems: rw.gems } })
+          ), { status: 200 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify(
+          Object.assign(envelope(rw.gold, rw.gems, 41), { ok: false, error: 'not_claimable', stage: 'claim' })
+        ), { status: 409 }));
+      };
+      D.claim(G);
+      await drain();
+      G.dailyReward.lastClaimDay = 0;    // the second tab has not seen the first tab's cache
+      D.claim(G);
+      await drain();
+      assert(G.gems === rw.gems,
+        'TWO TABS CLAIMED THE SAME DAY AND THE PLAYER HOLDS ' + G.gems + ' GEMS; the server paid '
+        + rw.gems + ' and refused the second claim under a lock. Gems are a real currency with a '
+        + '5,000/day server ceiling.');
+      assert(G.gold === rw.gold, 'the same double-claim moved gold to ' + G.gold + ', expected ' + rw.gold);
+      assert(Gd.getGoldState().pending.length === 0,
+        'the double claim left predictions behind: ' + JSON.stringify(Gd.getGoldState().pending));
+
+      /* ⚠ AND THE ASSERTION THAT ACTUALLY DISTINGUISHES IT. Mutation run: putting
+         the bare `G.gems += rw.gems` back SLIPPED against the two-tab check
+         above, and the reason is worth more than the check — F4's shared seam
+         reconciles gems ABSOLUTELY on every envelope, so an unpredicted gem
+         payment converges to server truth anyway. It flickers; it does not
+         double.
+
+         What it genuinely costs is the CARRY. An envelope that arrives while a
+         claim is still in flight predates that claim and cannot describe it, so
+         a predicted payment is re-added on top and an unpredicted one is simply
+         ERASED — the player watches their gems vanish and reappear, or not
+         reappear at all if the claim is the thing that never answers. So: hold
+         the claim open (a fetch that never settles), land an unrelated away
+         envelope stating zero gems, and require the in-flight gems to survive.
+         MUTATION: bare `G.gems +=` in daily-reward.js → RED here. */
+      Gd.resetGold();
+      G.dailyReward = { lastClaimDay: 0 };
+      G.gold = 0; G.gems = 0;
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return new Promise(function () {});          // in flight, forever
+      };
+      D.claim(G);
+      await drain();
+      assert(G.gems === rw.gems && Gd.getGoldState().inflight === 1,
+        'B354-13-CONTROL: the held-open claim did not leave ONE in-flight prediction paying '
+        + rw.gems + ' gems (gems ' + G.gems + ', state '
+        + JSON.stringify(Gd.getGoldState().pending) + ')');
+      A.applyEnvelopeState(G, envelope(4242, 0, 50));
+      assert(G.gems === rw.gems,
+        'AN UNRELATED ENVELOPE ERASED ' + rw.gems + ' IN-FLIGHT GEMS (now ' + G.gems + '). The gem '
+        + 'half of the claim was paid locally with no prediction, so the shared seam had nothing to '
+        + 'carry and wrote the server\'s zero straight over it. Gold in the same gesture survives, '
+        + 'which is the tell: one gesture with two lifecycles (F5).');
+      assert(G.gold === 4242 + (rw.gold || 0),
+        'B354-13-CONTROL: gold did not carry either (' + G.gold + ') — then the gems assertion '
+        + 'above is measuring the carry being broken for everything, not for gems');
+
+      /* ── F7: A 5xx IS NOT PROOF OF NON-WRITE ──────────────────────────────
+         The rollback set used to be "answered, no envelope", which swept in a
+         500 and a malformed 200. Neither is proof the apply did not happen: a
+         502 from the edge AFTER `hr_apply` committed describes a sale that
+         REALLY HAPPENED, and reversing it hands the player their gold back for
+         an item the server has already taken — a mint, from the function
+         written to prevent one. Those two ABANDON instead.
+         MUTATION: put 'unavailable' back in PROVABLY_UNWRITTEN → RED. */
+      Gd.resetGold();
+      A.acknowledgeReplacement(true);
+      G.gold = 1000; G.inventory = { normal_log: 50 }; G.lockedItems = {};
+      const bid = window.vendorPrice('normal_log');
+      assert(bid > 0, 'B354-F7-CONTROL: normal_log has no vendor bid, so nothing would move');
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'server_error' }), { status: 500 }));
+      };
+      window.invSellOne('normal_log');
+      await drain();
+      assert(G.gold === 1000 + bid,
+        'A 500 REVERSED THE SALE (gold ' + G.gold + ', expected ' + (1000 + bid) + '). A 5xx after '
+        + '`hr_apply` committed describes a sale that HAPPENED; taking the gold back while the '
+        + 'server keeps the item is a loss, and on a PURCHASE the same rule refunds gold for goods '
+        + 'already delivered — a mint (F7).');
+      const after5xx = Gd.getGoldState();
+      assert(after5xx.abandoned === 1 && after5xx.inflight === 0,
+        'the 5xx left the prediction INFLIGHT instead of abandoned: ' + JSON.stringify(after5xx.pending));
+      /* CONTROL — a 400 IS provably unwritten and MUST reverse, or the check
+         above would pass simply because rollback had been switched off. */
+      G.gold = 2000; G.inventory = { normal_log: 50 };
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'bad_qty' }), { status: 400 }));
+      };
+      window.invSellOne('normal_log');
+      await drain();
+      assert(G.gold === 2000,
+        'B354-F7-CONTROL: a 400 did NOT reverse the prediction (gold ' + G.gold + ') — rollback has '
+        + 'been disabled wholesale, so the 5xx assertion above proves nothing');
+
+      /* ── F8: A NON-FINITE AMOUNT IS REFUSED, NOT RECORDED ─────────────────
+         `Number(x) || 0` maps NaN to 0 and lets Infinity straight through; one
+         Infinity in the ledger turns every later sum into NaN, after which every
+         gold comparison in the game silently answers false. */
+      Gd.resetGold();
+      G.gold = 100;
+      Gd.settle(G, Infinity, 'vendor.sell_one', Gd.newIntentKey());
+      Gd.settle(G, NaN, 'vendor.sell_one', Gd.newIntentKey());
+      assert(G.gold === 100 && Number.isFinite(Gd.predictedGold()),
+        'a non-finite amount reached the balance or the ledger (gold ' + G.gold + ', predicted '
+        + Gd.predictedGold() + ') — from here every comparison against gold answers false (F8)');
+    } finally {
+      window.fetch = realFetch;
+      try { A.hideReplacementSheet(); } catch (e) {}
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);

@@ -93,9 +93,19 @@
 //    (Sell Selected, the sell-junk sweep) have no server story and are DEFERRED
 //    by name in src/net/gold-sites.js. Reported, not patched:
 //    supabase/functions/** is held by other agents.
-// 4. THE ACCRUAL PATH STILL DOES NOT RECONCILE GEMS. `applyEnvelopeState` never
-//    learned to, because no away envelope carries any. This file does it for
-//    the verbs (a claim pays gems); the accrue path is untouched and reported.
+// 4. ~~THE ACCRUAL PATH DOES NOT RECONCILE GEMS.~~ CLOSED. `reconcilePredictions`
+//    is registered into `applyEnvelopeState`, so gems are now written absolutely
+//    by EVERY envelope — away, activity switch and gold verb alike.
+// 5. AN ABANDONED PREDICTION SURVIVES UNTIL THE NEXT ENVELOPE. That is the
+//    design (the envelope is what makes the answer knowable), but it means a
+//    player who goes offline mid-gesture and never receives another envelope
+//    keeps a locally-optimistic number until they do. It cannot become
+//    permanent — the entry is not carried, so the first envelope drops it — and
+//    it is never uploaded as authority once `gold` joins SERVER_OF_RECORD.
+// 6. THE CARRY BOUND IS TIME-BASED (`PREDICTION_CARRY_MS`), so a transport that
+//    hangs longer than 30s has its prediction dropped at the next envelope even
+//    if it later answers. The late answer's envelope is absolute, so the outcome
+//    is correct; the display simply stops being optimistic sooner.
 //
 // DOM-free apart from the replacement sheet it delegates to accrue.js.
 // Node-importable. No fetch seam — `fetch` resolves at call time, so a test's
@@ -105,7 +115,7 @@
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
-  showReplacementSheet,
+  showReplacementSheet, registerPredictionSeam,
 } from './accrue.js?v=351';
 import { SHOP_OFFERS } from '../data/shops.js?v=351';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=351';
@@ -196,8 +206,40 @@ export function resolvePurchase(itemId, qty, goldCost) {
 
 /* ══════════════════════════════════════════════════════════════════════════
    THE PREDICTION LEDGER
+   ══════════════════════════════════════════════════════════════════════════
+
+   ⚠ THE F1 FINDING — READ THIS BEFORE CHANGING ANYTHING BELOW.
+
+   The first revision's envelope arithmetic was right and its LIFECYCLE was not.
+   `reconcile` re-adds every OUTSTANDING prediction on top of every arriving
+   envelope — correct, because an envelope produced before a gesture existed
+   cannot describe it — but nothing ever guaranteed a prediction stopped being
+   outstanding. Security's probe: 32 unanswered sells, then any later envelope,
+   and gold reads 32,000,000 against a server saying 0 — for the rest of the
+   session, surviving every subsequent envelope. An orphan is not a display
+   glitch; it is a PERMANENT ADDITIVE OFFSET, which is the double-pay this
+   module exists to make unspellable, arriving through the lifecycle instead of
+   through the arithmetic.
+
+   So a prediction now has exactly two states and both terminate:
+
+     INFLIGHT   a call is outstanding for it. Carried onto envelopes that
+                predate it, because it may still land.
+     ABANDONED  the call ended without an envelope for it (unanswered, 5xx,
+                malformed, gate-refused, stale). NOT carried. DROPPED by the
+                first envelope that arrives, which is absolute and already
+                states whatever really happened.
+
+   Every terminal path calls exactly one of `retire` / `rollbackPrediction` /
+   `abandonPrediction` / `dropPrediction`, and `reconcile` sweeps the rest. The
+   AGE BOUND below is the belt to that braces: a call that never settles at all
+   (no AbortController, a hung transport) leaves an INFLIGHT entry nobody can
+   abandon, so an entry older than the bound is treated as abandoned regardless.
+   Termination must not depend on anybody remembering to call something.
    ══════════════════════════════════════════════════════════════════════════ */
-let pending = [];          // [{ key, site, amount, at }]
+
+/** [{ key, site, delta:{gold,gems}, at, inflight }] */
+let pending = [];
 let config = null;
 let last = null;
 let lastVersion = -1;      // monotonic, per §9.4's rule for hr_load vs hr-accrue
@@ -207,9 +249,38 @@ let lastVersion = -1;      // monotonic, per §9.4's rule for hr_load vs hr-accr
  *  anything a human produces, and the oldest is dropped LOUDLY. */
 export const MAX_PENDING = 32;
 
-export function goldPredictions() { return pending.map((p) => ({ ...p })); }
-export function predictedGold() { return pending.reduce((s, p) => s + p.amount, 0); }
+/** How long an INFLIGHT prediction may stay carried without an answer. Twice
+ *  the request timeout: a call that has not settled by then is not in flight in
+ *  any sense a human would recognise, and the only way this bound is reached is
+ *  a transport that never called back — precisely the case no `finally` can
+ *  clean up. */
+export const PREDICTION_CARRY_MS = 2 * 15000;
+
+/** The fields a prediction may move. Both are absolute in the envelope, so both
+ *  can be predicted; anything else has no absolute counterpart and must not be. */
+export const PREDICTED_FIELDS = Object.freeze(['gold', 'gems']);
+
+export function goldPredictions() {
+  return pending.map((p) => ({ key: p.key, site: p.site, at: p.at, inflight: p.inflight,
+    amount: p.delta.gold, delta: { ...p.delta } }));
+}
+export function predictedGold() { return pending.reduce((s, p) => s + p.delta.gold, 0); }
+export function predictedGems() { return pending.reduce((s, p) => s + p.delta.gems, 0); }
 export function resetGold() { pending = []; last = null; lastVersion = -1; }
+
+/** A finite integer-ish amount, or 0. F8: `Number(x) || 0` maps NaN to 0 but
+ *  lets `Infinity` straight through, and an Infinity in the prediction ledger
+ *  poisons every later sum into NaN — after which `G.gold` is NaN and every
+ *  comparison in the game silently answers false. */
+function amountOf(v, what) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) {
+    console.warn('[gold] refusing a non-finite ' + what + ' (' + String(v) + '). A prediction '
+      + 'ledger that accepts Infinity or NaN turns every later balance into NaN.');
+    return 0;
+  }
+  return n;
+}
 
 /**
  * THE ONLY WAY A WIRED SITE TOUCHES GOLD.
@@ -227,39 +298,66 @@ export function resetGold() { pending = []; last = null; lastVersion = -1; }
  * inline.
  */
 export function settle(G, amount, site, key) {
-  const amt = Number(amount) || 0;
-  if (!G || typeof G !== 'object') return { applied: 0, predicted: false, key: null };
-  G.gold = (Number(G.gold) || 0) + amt;
-  if (!isGoldIntentEnabled()) return { applied: amt, predicted: false, key: null };
+  const r = settleCurrency(G, { gold: amount }, site, key);
+  return { applied: r.applied.gold, predicted: r.predicted, key: r.key };
+}
+
+/**
+ * THE GENERAL FORM — gold and gems, one gesture, ONE prediction.
+ *
+ * F5: the daily claim pays BOTH, and the gem half used to be a bare
+ * `G.gems += rw.gems` with no prediction and no reconcile. Two tabs claiming the
+ * same day therefore paid gems twice locally while the server (which clamps at
+ * the 5,000/day ceiling and refuses the second claim outright) paid once — the
+ * double-pay this module closed for gold, still open one field over. One entry
+ * covers both fields so they cannot acquire separate lifecycles.
+ */
+export function settleCurrency(G, delta, site, key) {
+  const d = { gold: 0, gems: 0 };
+  for (const f of PREDICTED_FIELDS) {
+    if (delta && delta[f] !== undefined && delta[f] !== null) d[f] = amountOf(delta[f], f);
+  }
+  if (!G || typeof G !== 'object') return { applied: { gold: 0, gems: 0 }, predicted: false, key: null };
+  for (const f of PREDICTED_FIELDS) if (d[f]) G[f] = (Number(G[f]) || 0) + d[f];
+  if (!isGoldIntentEnabled()) return { applied: d, predicted: false, key: null };
   /* A site with no server verb is still client-authored under the switch — that
      is exactly what its `deferred` row in the ledger says, and recording a
      prediction that nothing will ever settle would leave a phantom on the books
      forever. Declared rather than silent. */
-  if (!isWiredSite(site) || !key) return { applied: amt, predicted: false, key: null };
+  if (!isWiredSite(site) || !key) return { applied: d, predicted: false, key: null };
   if (pending.length >= MAX_PENDING) {
     const dropped = pending.shift();
     console.warn('[gold] prediction backlog full — dropping the oldest ('
-      + dropped.site + ', ' + dropped.amount + '). The next envelope is absolute, so this costs '
-      + 'display accuracy for a moment and nothing else.');
+      + dropped.site + ', ' + JSON.stringify(dropped.delta) + '). The next envelope is absolute, so '
+      + 'this costs display accuracy for a moment and nothing else.');
   }
-  pending.push({ key, site, amount: amt, at: Date.now() });
-  return { applied: amt, predicted: true, key };
+  pending.push({ key, site, delta: d, at: Date.now(), inflight: true });
+  return { applied: d, predicted: true, key };
 }
 
-/** Retire one call's prediction. Returns the amount retired, or 0. */
+/** Retire one call's prediction — the call was ANSWERED WITH AN ENVELOPE, and
+ *  the envelope's absolute value already contains whatever really happened. */
 function retire(key) {
   const i = pending.findIndex((p) => p.key === key);
   if (i === -1) return 0;
   const [p] = pending.splice(i, 1);
-  return p.amount;
+  return p.delta.gold;
 }
 
 /**
- * ROLL BACK a prediction whose server counterpart provably never happened.
- * Used ONLY for a refusal that carries no envelope — those codes are refused on
- * shape or before any database work, so there is nothing on the server to
- * disagree with. Any other case reconciles to the envelope instead.
+ * MARK a prediction ABANDONED: this call will never receive an envelope of its
+ * own, and we do NOT know whether it landed server-side (a 5xx after commit, a
+ * 200 that was not an envelope, a gate the player dismissed). Leaving the local
+ * value alone is the honest display; refusing to CARRY it, and dropping it at
+ * the first envelope, is what stops it becoming permanent.
  */
+export function abandonPrediction(key) {
+  const p = pending.find((x) => x.key === key);
+  if (!p) return false;
+  p.inflight = false;
+  return true;
+}
+
 /**
  * DROP a prediction WITHOUT reversing it. One caller: the kill switch going off
  * between the local payment and the send. With the switch off the local payment
@@ -270,15 +368,93 @@ export function dropPrediction(key) {
   const i = pending.findIndex((p) => p.key === key);
   if (i === -1) return 0;
   const [p] = pending.splice(i, 1);
-  return p.amount;
+  return p.delta.gold;
 }
 
+/**
+ * ROLL BACK a prediction whose server counterpart PROVABLY never happened.
+ *
+ * ⚠ F7 — THE SET OF OUTCOMES THIS IS VALID FOR IS NARROW, AND THE FIRST
+ *   REVISION HAD IT TOO WIDE. It rolled back on any answered outcome with no
+ *   envelope, which swept in `unavailable` (5xx) and `malformed` (a 200 that is
+ *   not an envelope). Neither is proof of non-write: a 502 from the edge after
+ *   `hr_apply` committed, or a truncated body, both describe a purchase that
+ *   HAPPENED. Reversing there hands the player their gold back for an item the
+ *   server has already delivered — a mint, from the function written to prevent
+ *   one.
+ *
+ *   `PROVABLY_UNWRITTEN` below is the whole valid set and it is stated as data.
+ *   Everything else ABANDONS instead: the local value stands (honest — we do not
+ *   know) and the next absolute envelope settles it.
+ */
 export function rollbackPrediction(G, key) {
   const i = pending.findIndex((p) => p.key === key);
   if (i === -1) return 0;
   const [p] = pending.splice(i, 1);
-  if (G && typeof G === 'object') G.gold = (Number(G.gold) || 0) - p.amount;
-  return p.amount;
+  if (G && typeof G === 'object') {
+    for (const f of PREDICTED_FIELDS) if (p.delta[f]) G[f] = (Number(G[f]) || 0) - p.delta[f];
+  }
+  return p.delta.gold;
+}
+
+/**
+ * THE OUTCOMES IN WHICH NOTHING REACHED THE DATABASE, AS DATA.
+ *
+ *   refused        400/409 with a machine code. hr_apply's protected block rolls
+ *                  back in full, and the shape refusals never reach it at all.
+ *   rate-limited   429 — `hr_rate_gate` is the FIRST statement of the read
+ *                  transaction, before any state is read or written.
+ *   not-signed-in  401/403 — refused by the JWKS verification in the function
+ *                  shell, before a database connection is taken.
+ *
+ * ⚠ `unavailable` (5xx) and `malformed` are DELIBERATELY ABSENT. See
+ *   rollbackPrediction. Adding one back is the F7 defect.
+ */
+export const PROVABLY_UNWRITTEN = Object.freeze(['refused', 'rate-limited', 'not-signed-in']);
+export function isProvablyUnwritten(outcome) { return PROVABLY_UNWRITTEN.indexOf(outcome) !== -1; }
+
+/**
+ * THE ONE SEAM (F4). Called from `applyEnvelopeState` — i.e. from EVERY path
+ * that writes a server envelope into G, including accrue.js's away grant and
+ * activity.js's switch collect, neither of which knows this ledger exists.
+ *
+ * Before this existed the two of them wrote `G.gold` absolutely and left the
+ * pending list untouched, so an outstanding prediction survived their envelope
+ * and was then re-added on top of the NEXT gold envelope — the same permanent
+ * offset as F1, reached from a different module. Registering one function
+ * beats teaching three modules the same rule; this repo has paid for five
+ * copies of one hash.
+ *
+ * @param ownKey the key of the call this envelope answers, when there is one.
+ *        `undefined` from accrue/activity, which own no gold gesture.
+ */
+export function reconcilePredictions(G, res, ownKey) {
+  const now = Date.now();
+  const retired = ownKey ? retire(ownKey) : 0;
+
+  /* GEMS, ABSOLUTE — here rather than in accrue.js because `applyEnvelopeState`
+     is shared with the away path, which has never carried a gems field, and
+     widening it would change what an away envelope does to a value no away
+     envelope states. Same reasoning as the original note; it now runs for every
+     envelope rather than only for the gold verbs. */
+  const st = (res && res.state) || {};
+  if (Number.isFinite(Number(st.gems))) G.gems = Number(st.gems);
+
+  /* SWEEP. An ABANDONED entry, or an INFLIGHT one older than the carry bound,
+     is dropped: the envelope in hand is absolute and already states whatever
+     really happened. Only genuinely-outstanding gestures are carried. */
+  const keep = [];
+  let carried = { gold: 0, gems: 0 };
+  let dropped = 0;
+  for (const p of pending) {
+    if (!p.inflight || (now - p.at) > PREDICTION_CARRY_MS) { dropped++; continue; }
+    keep.push(p);
+    for (const f of PREDICTED_FIELDS) {
+      if (p.delta[f]) { G[f] = (Number(G[f]) || 0) + p.delta[f]; carried[f] += p.delta[f]; }
+    }
+  }
+  pending = keep;
+  return { retired, carried, dropped, outstanding: pending.length };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -354,9 +530,15 @@ export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome
  * from the server, and the place the either/or property lives.
  *
  * @param ownKey the intent key of the call this envelope answers. Its
- *        prediction is RETIRED; every other outstanding prediction is re-added
- *        on top, because the server produced this envelope before those
- *        gestures existed and it cannot describe them.
+ *        prediction is RETIRED by the shared seam; every other OUTSTANDING
+ *        prediction is re-added on top, because the server produced this
+ *        envelope before those gestures existed and cannot describe them.
+ *
+ * ⚠ EVERY EXIT FROM THIS FUNCTION ACCOUNTS FOR `ownKey` (F2/F3). Two of them did
+ *   not, and the shape of the bug is identical in both: a call whose envelope
+ *   arrived, returned without touching its own prediction, leaving an entry that
+ *   nothing else was ever going to retire — i.e. F1 again, reached from the two
+ *   paths that look like early returns rather than like answers.
  */
 export function applyGoldEnvelope(G, body, ownKey) {
   const env = envelopeOf(body);
@@ -365,9 +547,19 @@ export function applyGoldEnvelope(G, body, ownKey) {
   /* §9.4's monotonic rule, applied to the verbs instead of to hr_load. Two
      calls are in flight by design; both answer truthfully, and the slower
      answer is the OLDER one. Applying it would put a balance back to before a
-     spend that has already been journalled. */
+     spend that has already been journalled.
+
+     ⚠ F2 — AND THIS CALL IS STILL ANSWERED. The newer envelope that already
+       landed CARRIED this prediction (it was outstanding at the time), so the
+       amount is sitting in `G.gold` on top of a server value that is at least
+       as new. Rolling it back is not "reversing a payment": it is removing a
+       CARRY whose gesture has now been answered. If the intent did land, the
+       newer envelope already contains it; if it did not, the newer envelope is
+       still the truth. Either way the carry must come off, and the first
+       revision just returned. */
   if (env.version < lastVersion) {
-    return { stale: true, version: env.version, current: lastVersion };
+    const undone = rollbackPrediction(G, ownKey);
+    return { stale: true, version: env.version, current: lastVersion, undone };
   }
 
   const loss = describeReplacement(G, env);
@@ -375,38 +567,29 @@ export function applyGoldEnvelope(G, body, ownKey) {
     console.warn('[gold] REFUSING to overwrite local progress with the server character '
       + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
       + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
+    /* ⚠ F3 — ABANDONED, NOT LEFT INFLIGHT. Nothing is written here, so the local
+       value stands and rolling back would be wrong (the intent may well have
+       landed — this refusal is about CONSENT, not about the server). But the
+       call is over: its envelope came and went, and no second one is coming for
+       this key. Leaving it INFLIGHT makes it immortal for any player who
+       dismisses the sheet, which is the F1 offset wearing a consent dialog.
+       ABANDONED keeps the display honest and guarantees the first envelope
+       after the acknowledgement drops it. The re-apply below is absolute and
+       needs no prediction to be correct. */
+    abandonPrediction(ownKey);
     showReplacementSheet(loss, G, env, (g, e) => applyGoldEnvelope(g, { ...body, ...e }, ownKey));
     return null;
   }
 
-  const written = applyEnvelopeState(G, env);     // ABSOLUTE. Never additive.
-  /* ⚠ GEMS, RECONCILED HERE AND NOT IN accrue.js — and this is the one place
-     the double-pay hazard is REAL rather than structural.
-     `applyEnvelopeState` writes gold, hp, skills and inventory; it does not
-     write gems, because the away path it was built for never pays any. A CLAIM
-     does (`claim-reward.js` puts `gems` in the delta and hr_apply clamps it at
-     the 5,000/day ceiling), so leaving gems unreconciled would make the gem half
-     of a daily reward the ONE number a wired gesture pays locally and never
-     checks. Absolute, exactly like gold.
-     NOT moved into applyEnvelopeState: that function is shared with the accrual
-     path, and widening it would change what an away envelope does to a field no
-     away envelope has ever carried. That the ACCRUAL path still ignores gems is
-     a pre-existing gap, reported rather than silently patched from here. */
-  if (Number.isFinite(Number(env.state.gems))) {
-    G.gems = Number(env.state.gems);
-    written.gems = G.gems;
-  }
+  /* ABSOLUTE, never additive — and the prediction sweep now happens INSIDE this
+     call, through the seam registered at the bottom of this file, so the away
+     and activity envelopes get exactly the same accounting (F4). */
   lastVersion = env.version;
-  const retired = retire(ownKey);
-  /* Outstanding predictions belong to gestures this envelope predates. They are
-     display-only and each is re-added exactly once, so the invariant holds:
-     G.gold === server gold + sum(outstanding predictions). */
-  let carried = 0;
-  for (const p of pending) { G.gold = (Number(G.gold) || 0) + p.amount; carried += p.amount; }
+  const written = applyEnvelopeState(G, env, ownKey);
 
   written.envelope = env;
-  written.retired = retired;
-  written.carried = carried;
+  written.retired = (written.predictions && written.predictions.retired) || 0;
+  written.carried = (written.predictions && written.predictions.carried) || { gold: 0, gems: 0 };
   written.receipt = receiptOf(body);
   G._serverAccrual = {
     version: env.version,
@@ -487,7 +670,7 @@ function tokenOf() {
   catch (e) { return null; }
 }
 
-let hooks = { onEnvelope: null, onOutcome: null };
+let hooks = { onEnvelope: null, onOutcome: null, onRollback: null, onAbandon: null };
 export function setGoldHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
 function fire(name, a, b) {
   const fn = hooks && hooks[name];
@@ -499,7 +682,10 @@ function fire(name, a, b) {
 export function getGoldState() {
   return {
     enabled: isGoldIntentEnabled(), configured: !!config,
-    pending: goldPredictions(), predicted: predictedGold(), version: lastVersion, last,
+    pending: goldPredictions(), predicted: predictedGold(), predictedGems: predictedGems(),
+    inflight: pending.filter((p) => p.inflight).length,
+    abandoned: pending.filter((p) => !p.inflight).length,
+    version: lastVersion, last,
   };
 }
 
@@ -588,14 +774,33 @@ function settleVerdict(verdict, verb, key) {
     const wrote = fire('onEnvelope', body, { ...verdict, verb, key });
     applied.envelope = !!wrote;
     /* THE HOOK IS THE APPLIER. If nothing is hooked — a Node test, a boot where
-       legacy.js has not published G yet — the prediction is left alone rather
-       than retired: retiring it here would tell the ledger a server number
-       landed when none did. */
-  } else if (isAnswered(verdict.outcome)) {
-    /* ANSWERED, REFUSED, NO ENVELOPE ⇒ nothing was written server-side. The
-       local prediction is the only thing that moved, so it is undone exactly. */
+       legacy.js has not published G yet — the prediction is ABANDONED rather
+       than retired: retiring it would tell the ledger a server number landed
+       when none did, and leaving it INFLIGHT would make it immortal (F1). */
+    if (!wrote) applied.abandoned = !!fire('onAbandon', key, { ...verdict, verb });
+  } else if (isProvablyUnwritten(verdict.outcome)) {
+    /* ⚠ F7 — THE NARROW SET, AND ONLY IT. `refused` / `rate-limited` /
+       `not-signed-in` are refused before any state is written: shape checks,
+       the rate gate as the first statement of the read transaction, or the JWKS
+       verification before a connection is taken. hr_apply's protected block
+       rolls back in full for the rest. So the local prediction is provably the
+       only thing that moved and it is undone exactly. */
     applied.rolledBack = fire('onRollback', key, { ...verdict, verb }) || 0;
+  } else if (isAnswered(verdict.outcome)) {
+    /* ⚠ ANSWERED, NO ENVELOPE, AND **NOT** PROOF OF NON-WRITE — `unavailable`
+       (5xx) and `malformed` (a 200 that is not an envelope). A 502 from the
+       edge after `hr_apply` committed, and a truncated body, both describe a
+       purchase that HAPPENED. The first revision rolled these back, which hands
+       the player their gold back for an item the server has already delivered:
+       a mint, from the function written to prevent one. ABANDONED — the local
+       value stands (we do not know) and the first absolute envelope settles it. */
+    applied.abandoned = !!fire('onAbandon', key, { ...verdict, verb });
+    applied.unresolved = true;
   } else {
+    /* NEVER ANSWERED. Same reasoning, arrived at from the other direction: the
+       intent may have landed, so nothing local is reversed — but the call is
+       OVER, so the entry must stop being carried or it outlives the session. */
+    applied.abandoned = !!fire('onAbandon', key, { ...verdict, verb });
     applied.unresolved = true;
   }
 
@@ -648,19 +853,34 @@ export function claimReward(kind, rkey, key) {
    THE BROWSER FACE — one object, so legacy.js (a classic script that cannot
    import ESM) reaches all of it through one name.
    ══════════════════════════════════════════════════════════════════════════ */
+/* ⚠ REGISTERED AT MODULE LOAD, IN NODE **AND** IN THE BROWSER (F4). Outside the
+   `typeof window` block on purpose: tests/gold-*.mjs and any future Node driver
+   import this module directly, and a seam that only exists in a browser is a
+   seam the Node guards cannot see. accrue.js holds the slot; this fills it, so
+   every envelope written by accrue.js, activity.js or this file goes through
+   ONE prediction accounting rather than three copies of the rule. */
+registerPredictionSeam(reconcilePredictions);
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE BROWSER FACE — one object, so legacy.js (a classic script that cannot
+   import ESM) reaches all of it through one name.
+   ══════════════════════════════════════════════════════════════════════════ */
 if (typeof window !== 'undefined') {
-  /* THE DEFAULT WIRING: the envelope applier and the rollback are hooked HERE,
-     against `window.G`, so a call site does not have to know either exists. A
-     test replaces them with setGoldHooks. */
+  /* THE DEFAULT WIRING: the envelope applier, the rollback and the abandon are
+     hooked HERE, against `window.G`, so a call site does not have to know any of
+     them exists. A test replaces them with setGoldHooks. */
   setGoldHooks({
     onEnvelope: (body, v) => applyGoldEnvelope(window.G, body, v && v.key),
     onRollback: (key) => rollbackPrediction(window.G, key),
+    onAbandon: (key) => abandonPrediction(key),
   });
 
   window.HearthriseGold = {
     GOLD_VERBS, SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB, GOLD_OUTCOMES,
-    MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS,
-    isGoldIntentEnabled, settle, rollbackPrediction, goldPredictions, predictedGold,
+    MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS, PREDICTION_CARRY_MS, PREDICTED_FIELDS,
+    PROVABLY_UNWRITTEN, isProvablyUnwritten,
+    isGoldIntentEnabled, settle, settleCurrency, rollbackPrediction, abandonPrediction,
+    goldPredictions, predictedGold, predictedGems, reconcilePredictions,
     envelopeOf, receiptOf, classifyGoldResponse, dropPrediction, isAnswered, applyGoldEnvelope,
     buildGoldRequest, newIntentKey, isIntentKey, resolvePurchase, shopOfferIndex,
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,

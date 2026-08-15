@@ -56,6 +56,52 @@ export const KINDS = Object.freeze([
 
 export const STATUSES = Object.freeze(['wired', 'deferred', 'none']);
 
+/* ══════════════════════════════════════════════════════════════════════════
+   F10 — WHAT A DEFERRED SITE DOES ON THE DAY THE SWITCH IS FLIPPED
+   ══════════════════════════════════════════════════════════════════════════
+   The flip does not make a deferred site inert. It makes it WRONG, in a
+   direction that depends only on the sign of the movement, because the server
+   envelope is applied ABSOLUTELY: a local number the server has never heard of
+   is not merged, it is overwritten.
+
+     a GRANT  the player sees gold arrive and then vanish at the next envelope
+     a SPEND  the player is REFUNDED at the next envelope — and keeps whatever
+              the spend bought, until the envelope's absolute inventory takes
+              that back too. Between the two writes the balance is a lie in the
+              player's favour, which is the direction that gets noticed.
+
+   That is the whole of the flip risk for these 33 rows, and it is why the flip
+   is gated on the verbs rather than on this branch. DERIVED from `kind` rather
+   than restated per row — 33 copies of two sentences is 33 chances to write the
+   wrong one — with a per-row `flip` override for the rows that genuinely differ.
+   `flipBehaviourOf` is the single reader; the census guard asserts every
+   deferred row resolves to one AND that more than one distinct answer exists,
+   so a derivation that collapsed to a single string is caught. */
+export const FLIP_BEHAVIOUR = Object.freeze({
+  grant: 'ERASED. The next absolute envelope overwrites the local grant with the server value, '
+    + 'which does not contain it. The player watches gold arrive and disappear.',
+  spend: 'REFUNDED. The next absolute envelope restores the gold and — a write later — takes back '
+    + 'what was bought. Between the two the balance favours the player, which is the direction a '
+    + 'beta reports.',
+  vendor: 'REFUNDED IN REVERSE. The sale proceeds are erased and the items come back with the '
+    + 'envelope\'s absolute inventory. Net-neutral once both land; visibly wrong in between.',
+  transfer: 'ERASED OR REFUNDED depending on direction, AND the other player\'s side is unaffected '
+    + '— the counterparty ledger is server-side already. A market escrow that is refunded locally '
+    + 'while the listing stands server-side is the worst shape here, which is why market-v2 gates '
+    + 'the flip rather than following it.',
+  dev: 'ERASED, and that is correct. A dev sink must not survive an envelope.',
+  server: 'NOTHING. The value came from the server; the envelope agrees with it.',
+  seam: 'NOTHING. The seam IS the accounting.',
+  'false-positive': 'NOTHING. No balance moves.',
+});
+
+/** The single reader. Per-row `flip` wins; otherwise the family answer. */
+export function flipBehaviourOf(row) {
+  if (!row) return '';
+  if (row.flip) return row.flip;
+  return FLIP_BEHAVIOUR[row.kind] || '';
+}
+
 /* ── THE NAMED BLOCKERS ─────────────────────────────────────────────────────
    Spelled once, so twenty rows blocked on one thing all say the same words and
    a reader can count them. */
@@ -154,28 +200,81 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ THE PAYMENT PATH ITSELF ═══════════════════════════════════════════════
-  'src/net/gold.js#settle': {
+  'src/net/gold.js#settleCurrency': {
     kind: 'seam', status: 'none',
-    why: 'THE choke point. Switch OFF this is `G.gold += amount` and nothing else; switch ON it '
-      + 'also records the amount as a prediction keyed to the intent that is about to go out.',
+    why: 'THE choke point. Switch OFF this is `G.gold += amount` (and `G.gems += …`) and nothing '
+      + 'else; switch ON it also records ONE prediction, covering both fields, keyed to the intent '
+      + 'that is about to go out.',
   },
   'src/net/gold.js#rollbackPrediction': {
     kind: 'seam', status: 'none',
-    why: 'The inverse of a prediction whose server counterpart provably never happened — a refusal '
-      + 'carrying no envelope, i.e. refused on shape or before any database work.',
+    why: 'The inverse of a prediction whose server counterpart PROVABLY never happened — and only '
+      + 'those: `refused`, `rate-limited`, `not-signed-in`. A 5xx or a malformed 200 is NOT proof '
+      + 'of non-write (F7) and abandons instead.',
   },
-  'src/net/gold.js#applyGoldEnvelope': {
+  'src/net/gold.js#reconcilePredictions': {
     kind: 'seam', status: 'none',
-    why: 'Re-adds predictions the arriving envelope PREDATES. The envelope itself is applied '
-      + 'absolutely by accrue.js\'s applyEnvelopeState; this line is display-only carry-over for '
-      + 'gestures still in flight.',
+    why: 'THE ONE SEAM (F4). Registered into accrue.js\'s `applyEnvelopeState`, so every envelope — '
+      + 'away grant, activity collect, gold verb — retires this call\'s prediction, drops abandoned '
+      + 'and stale ones, and re-adds only the genuinely outstanding.',
   },
-  'src/legacy.js#goldSettle': {
+  'src/legacy.js#goldSettleCurrency': {
     kind: 'seam', status: 'none',
-    why: 'The fail-loud fallback. legacy.js is a classic script and cannot import ESM, so it '
-      + 'reaches the seam through `window.HearthriseGold`. If that module did not load AND the '
-      + 'switch is ON this THROWS rather than quietly paying a client-authored number — the same '
-      + 'discipline as the b340 record strip. With the switch off it is the pre-seam expression.',
+    why: 'The delegation into the module. legacy.js is a classic script and cannot import ESM, so '
+      + 'it reaches the seam through `window.HearthriseGold`.',
+  },
+  'src/legacy.js#goldSettleCurrency@2': {
+    kind: 'seam', status: 'none',
+    why: 'The fail-loud fallback. If src/net/gold.js did not load AND the switch is ON this THROWS '
+      + 'rather than quietly paying a client-authored number — the same discipline as the b340 '
+      + 'record strip. With the switch off it is the pre-seam expression.',
+  },
+  'src/legacy.js#(module)': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `window.goldSettle = goldSettle`, the publication. Declared because ASSIGNING to it '
+      + 'is how the seam would be replaced, and REFERENCING it is how a caller would alias past the '
+      + 'census (`var f = window.goldSettle; f(1e9)`). The scanner reports both sides of the line.',
+  },
+  'src/legacy.js#(module)@2': {
+    kind: 'seam', status: 'none', why: 'the value half of the goldSettle publication — see above.',
+  },
+  'src/legacy.js#(module)@3': {
+    kind: 'seam', status: 'none', why: 'the goldSettleCurrency publication — see above.',
+  },
+  'src/legacy.js#(module)@4': {
+    kind: 'seam', status: 'none', why: 'the value half of the goldSettleCurrency publication.',
+  },
+
+  // ══ BULK STATE WRITES — F6. THEY CAN CARRY GOLD WITHOUT NAMING IT ═════════
+  'src/legacy.js#loadLocal': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `Object.assign(G, stripRecordFields(migrated))`, the local save load. It writes '
+      + 'whatever the blob holds, gold included, and no `.gold =` appears anywhere in it. Safe '
+      + 'because the strip is what §9.3 makes it: a moved field is DELETED on the way in, so the '
+      + 'blob\'s copy is never consulted for authority. The row exists so that stops being an '
+      + 'unexamined assumption — the day `gold` joins SERVER_OF_RECORD, this is the site that '
+      + 'has to already be right.',
+  },
+  'src/legacy.js#loadLocal@2': {
+    kind: 'seam', status: 'none', why: 'the v1 migration branch of the same load — see above.',
+  },
+  'src/net/auth.js#applyCloudOverlay': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `Object.assign(G, overlay)`, the cloud overlay. Same shape and the same defence: '
+      + '`stripRecordFieldsForOverlay` runs first and FAILS LOUD if the switch is on and record.js '
+      + 'did not load.',
+  },
+  'src/legacy.js#restoreG': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `G[k] = snap[k]` over every key of a snapshot. A COMPUTED write, invisible to a '
+      + 'scanner that matches a literal property name, and it can restore gold. It is the '
+      + 'test/diagnostic restore path.',
+  },
+  'src/net/record.js#applyRecord': {
+    kind: 'seam', status: 'none',
+    why: 'F6 — `G[f] = dec.fields[f]` over the SERVER_OF_RECORD field list. Computed, and it is '
+      + 'the site that will write gold on the day gold joins that list. Declared now so the flip '
+      + 'is a one-line change to a site the census already knows about.',
   },
   'src/net/accrue.js#applyEnvelopeState': {
     kind: 'server', status: 'none',

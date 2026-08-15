@@ -7181,16 +7181,25 @@ function closeInvDetail(){
    @param site   a `src/net/gold-sites.js` id, without the `seam:` prefix.
    @param key    the intent key this payment predicts, when one exists. */
 function goldSettle(amount, site, key){
+  var r = goldSettleCurrency({ gold: amount }, site, key);
+  return { applied: r.applied.gold, predicted: r.predicted, key: r.key };
+}
+/** The general form — gold and gems in ONE prediction. F5: a daily claim pays
+ *  both, and two entries would be two lifecycles for one gesture. */
+function goldSettleCurrency(delta, site, key){
+  var d = delta || {};
+  var gold = Number(d.gold) || 0, gems = Number(d.gems) || 0;
   var S = window.HearthriseGold;
-  if(S && typeof S.settle === 'function') return S.settle(G, amount, site, key);
+  if(S && typeof S.settleCurrency === 'function') return S.settleCurrency(G, d, site, key);
   var A = window.HearthriseAccrual;
   if(A && typeof A.isServerAccrualEnabled === 'function' && A.isServerAccrualEnabled()){
     throw new Error('server accrual is ON but src/net/gold.js did not load — refusing to move '
-      + amount + ' gold at site "' + site + '" from a client-authored number while the server '
-      + 'owns the balance');
+      + gold + ' gold / ' + gems + ' gems at site "' + site + '" from a client-authored number '
+      + 'while the server owns the balance');
   }
-  G.gold = (G.gold||0) + amount;
-  return { applied: amount, predicted: false, key: null };
+  if(gold) G.gold = (G.gold||0) + gold;
+  if(gems) G.gems = (G.gems||0) + gems;
+  return { applied: { gold: gold, gems: gems }, predicted: false, key: null };
 }
 /** A key for one gesture, or null when the seam is absent / the switch is off.
  *  Generated at the TAP so the prediction and the request share one identity. */
@@ -7200,6 +7209,7 @@ function goldIntentKey(){
   try{ return S.newIntentKey(); }catch(e){ return null; }
 }
 window.goldSettle = goldSettle;
+window.goldSettleCurrency = goldSettleCurrency;
 window.goldIntentKey = goldIntentKey;
 
 const VENDOR_RAW_RATE = 0.20;

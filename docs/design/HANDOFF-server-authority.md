@@ -738,6 +738,35 @@ the file is required and safe (`player_state` has 0 rows, `hr_apply` is `hr_engi
 Edge Function is not deployed) — but it is a larger change than any single diff, so it needs its
 own review pass rather than riding along with someone else's migration.
 
+## ⚠ THE hr-accrue FEATURE GAP — found 2026-08-14, and it is a first-order cutover item
+
+**With server accrual switched ON, an away night pays none of this.** Read
+`supabase/functions/hr-accrue/accrual.js:283-303` — the absences are documented in the code
+as deliberate decisions rather than oversights, which is the right way to have written it,
+but the CONSEQUENCE has not been costed:
+
+| absent from the server's away night | why it is absent |
+|---|---|
+| `killMonster`'s five wrappers — dungeon keys, **companions, pets**, collection log, chronicle | client features with no server model |
+| **`autoEat`** | `food_slot` / `auto_eat_pct` are not columns on `player_state` |
+| `recordKill` / `rollKillDeed` / `handleBountyKill` / `updateDaily` / `updateQuest` | no server progress model for drops, Farmer's Deeds, bounties, dailies or quests |
+
+**`autoEat` is the one that hurts.** The code correctly notes the player dies EARLIER
+server-side than client-side — "an under-pay, not a mint", which is the right security
+posture. But Tyler's own reasoning about the away-combat gate is that **Auto-Eat IS the real
+limiter on AFK combat** ("your fights stop being ninety seconds long", its own shop copy). A
+server that cannot auto-eat makes every player's unattended night materially worse on the day
+the switch flips, and they will feel it immediately.
+
+A missing fx handler is a no-op by construction in `combat-sim.js`, so every one of these is a
+SILENT skip rather than a crash — which is exactly why they need a costed decision before
+cutover rather than after. Options are: add the columns and the handlers, accept the
+regression and TELL players, or hold the switch until the progress models exist.
+
+**Related, same shape:** when bounties move server-side, the away target-switch rule added in
+b344 must move with them, or the server will pay a whole night on the old monster — this bug,
+re-created on the authoritative side.
+
 ## CUTOVER BLOCKERS (Security's, still open)
 - **C5 / X3 — ledger-derived daily budget: BUILT, and HALF LIVE.**
   `supabase/migrations/2026-08-11-daily-budget.sql` is **applied to production** (migrations
@@ -846,6 +875,30 @@ own review pass rather than riding along with someone else's migration.
   not a fix. Someone should write the missing migrations.
 
 ## DESIGNER-OWNED, QUEUED (not blocking)
+- **MELVOR MASTERY — PAUSED BY TYLER 2026-08-14.** `docs/design/progression-depth.md` has the
+  full analysis; the verdict was already "reject the port, take a reduced form" and Tyler has
+  now paused even that. **The measurement is the reason and it should survive the pause:** the
+  XP curve matches Melvor's exactly (all 99 levels diffed, 0 mismatches — though honestly both
+  copied RuneScape), but the curve was never the expensive part. Melvor's mastery-XP formula
+  keys on how many actions a skill has, and ours are **7 trees against 159 crafting recipes**.
+  Run their formula over our data and mastery 99 costs **7.1 hours on a crafting recipe and
+  75.5 hours on a tree**. A badge that costs 7 hours in one skill and 75 in another is not
+  progression. It also gets WORSE as we add content, because `gear-tiers.js` generates
+  crafting/smithing recipes from curves while woodcutting stays at 7.
+  What survived the pass, for whenever this comes back: the **Completion Log** is the cheap one
+  (`collection-log.js` already tracks 2 of its 5 categories with no new bookkeeping), and the
+  **Mastery Pool** was judged the best idea of the three but has no carrier — gold is spend-only
+  and Renown is a deliberate one-way ratchet.
+- **PETS — BACKLOGGED BY TYLER 2026-08-14, deliberately.** Two things he wants and is not
+  doing yet: pets should be **harder to obtain**, and **some of them do not fit the game's
+  theme**. His words: "for now put that on the backlog. I just care about the overall
+  function of the pets for now." So do NOT retune a drop rate or retire a pet without him.
+  **This decision unblocked one thing**: the away-path RNG seeding for `pets.js` was held
+  back because it shifts the DISTRIBUTION of pet unlocks, which is designer-visible. With
+  the rates backlogged and slated to change anyway, that objection is moot and the seeding
+  landed on its own merits (determinism for server authority).
+  ⚠ And the FUNCTION half he does care about is genuinely broken at cutover — see the
+  hr-accrue gap below.
 - `spdB` sits outside the +52% permanent power fuse. **Do not ship a speed-gear ladder
   before that call** — the pacing anchor stops holding.
 - `atkB` is a dead stat at 99 (accuracy clamps at 0.95 even with a bronze sword),

@@ -1590,3 +1590,70 @@ must be free to record WHY the thing was removed, and deleting that record is ho
 named test. Runtime-verified in a real browser: zero hits sweeping all 16 tabs + quests modal +
 monster preview; the away card reads *"8h away — your camp was quiet. You died to Green Dragon 2s in
 — the remaining 7h 59m paid nothing."* with a Train-a-skill CTA.
+
+---
+
+## b348 — THE SWITCH-ON TEST: half a seam, and the two lists that could not see each other
+
+**The task.** Tyler ran the first real switch-on test and it failed in minutes: started woodcutting,
+left, came back to a stopped run and (he reported) the daily-login panel again.
+
+**What I measured before touching anything.** Three harnesses, each more faithful than the last:
+the smoke-harness flag; a plain reload; and finally **no harness flag at all** (the account gate
+opened by a planted session), which is the only configuration where the b260 4-second resume
+watchdog actually runs — it is disabled under `__HR_TEST_HARNESS__`, so every previous
+investigation of this path had been looking at a client Tyler does not have.
+
+  * **Symptom 1 reproduced exactly.** `startSkill` put ZERO requests on the wire; `player_state`
+    stayed `idle`/version 0. Cause: b347 wired four COMBAT declaration sites; the next merge widened
+    `PAYABLE_KINDS` to include `gather`, `SETTABLE_KINDS` grew from it *by derivation*, and no client
+    site was ever added. Nothing was wrong on either side.
+  * **Symptom 2 did NOT reproduce, and the brief's hypothesis is falsified by the server's own
+    records.** `version 0` + `0 player_intents` means `hr_apply` never ran, so no `accrued:true`
+    envelope ever came back, so `applyEnvelopeState` never executed — it cannot have clobbered
+    anything. Nothing in the accrue/record/activity path writes `G.dailyReward`; the claim persists
+    to the local save and survives a reload; and the daily modal has exactly one auto-opener
+    (`autoBoot`, once per page load, early-returns when not claimable). **Therefore the panel
+    returning requires `lastClaimDay` to have been rolled back — i.e. a page reload with a stale
+    save, of which `auth.js pullAndMaybeRestore` → `applyCloudOverlay` + `location.reload()` is the
+    only candidate in this flow.** Reported as an open question with the one measurement that would
+    settle it, rather than a fix aimed at a mechanism I could not demonstrate.
+
+**The engineering lessons worth keeping.**
+
+- **Derivation removes the second LIST, not the second SIDE.** `SETTABLE_KINDS = ['idle',
+  ...PAYABLE_KINDS]` is good design and it is *why* this shipped broken: the widening happened in a
+  file no client author reads, with no client-side diff to review. Any derived server allowlist a
+  client must mirror needs a mechanical link, or the derivation hides the change from review.
+- **One guard could not cover it.** "Nobody wrote the call site" and "the call site exists and is
+  unreachable" are different failures. Node guard (lists ≡, call sites exist, catalogues ≡) +
+  browser guard (iterate the client list, drive a REAL gesture, assert the bytes). Chain:
+  *server ≡ client* ∧ *client ⇒ gesture on the wire*.
+- **`idle` is two sentences that are byte-identical.** "You stopped and I know" vs "I was never
+  told". Every character starts idle, so obeying idle as authority ends the run of every player whose
+  save predates the seam. The client has to track which of its OWN declarations were acknowledged;
+  an unacknowledged idle is a cue to DECLARE, not to stop. This generalises to every future intent
+  that reconciles a client pointer against a server default.
+- **A spy placed one level too high deletes the mechanism it is testing.** My first "one gesture is
+  one intent" test spied `window.declareActivity` — which is where the quiet counter lives — so it
+  recorded calls the real seam suppresses and failed on a bug that was not there. Moved to
+  `HearthriseActivity.declare`, one level below the counter and above the kill switch.
+- **A fixture that starts from the state where the bug cannot happen proves nothing.** The same test
+  started every gesture from IDLE, so the activity mutex's cross-stop had nothing to stop, and the
+  mutation that removes the quiet wrapper left the suite GREEN. Rewritten so each gesture
+  *interrupts the other kind* — which is what a player does — and the mutation now goes red.
+- **A latch's lifetime is a design decision.** The one-re-assertion-per-pointer bound was leaking
+  across runs. Fixing it as "the budget belongs to a RUN; `endActivityRun()` returns it on any stop"
+  is both the correct semantics and the thing that made the tests isolate.
+- **Finishing a seam makes previously-unreachable code reachable, and it may be wrong.** b339's
+  replacement gate carried the note "today this cannot fire". It fires now, on the first tap of a
+  tree, and where the ack latch is already set it replaces the character silently — taking the daily
+  reward's gold with it. Flagged as a P1 handoff rather than overturned: it is a standing ruling and
+  a Designer/UX call, not a systems bug.
+
+**Verification.** 712/712 × 4 runs, 0 runtime errors, 0 console errors; `AWAY-1 PARITY` green;
+`bump-version.sh --check` green at 348. 16 mutations (8 Node, 8 browser), each RED and each naming
+its own fault, every one bracketed by a green control and a green restore. Tyler's exact sequence
+driven end to end in a real browser on the fixed build: intent recorded, `player_state` =
+`gather/oak_tree` version 1, woodcutting still running on return, daily still claimed, stop declares
+`idle`, cooking declares `idle` (not silence), zero console errors.

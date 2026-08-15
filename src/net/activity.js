@@ -81,13 +81,34 @@ import {
 
 export const ACTIVITY_VERB = 'set_activity';
 
-/** The kinds this client is allowed to DECLARE. `idle` is the stop. Everything
- *  else the game can do (gathering, artisan, farm) is a real activity the
- *  ENGINE cannot price yet — the server answers `activity_unsupported` — and
- *  declaring one would confiscate nothing but would spend a rate budget and
- *  put the client's pointer somewhere the server refused to follow. Adding a
- *  kind here is a decision, not an oversight. */
-export const ACTIVITY_KINDS = Object.freeze(['combat', 'idle']);
+/** The kinds this client is allowed to DECLARE. Mirrors the server's
+ *  `SETTABLE_KINDS` (supabase/functions/hr-accrue/set-activity.js), which is
+ *  itself derived from `PAYABLE_KINDS` — the kinds the accrual engine can price.
+ *
+ *  ⚠ THIS LIST AND THE SERVER'S ARE ONE CONTRACT IN TWO FILES, and b348 is the
+ *    bill for treating them as two. The server widened `PAYABLE_KINDS` to
+ *    include `gather` and `SETTABLE_KINDS` grew with it in one edit, exactly as
+ *    designed — and this list did not, so `startSkill` declared nothing, the
+ *    server sat on `idle` through a real woodcutting session, and the first
+ *    switch-on test died in minutes with `player_intents` empty and
+ *    `player_state.version` still 0. Nothing was wrong on either side; the two
+ *    sides simply never had to agree.
+ *
+ *    They do now: `tests/activity-seam.mjs` reads the server's list, this list
+ *    and the CALL SITES in src/legacy.js, and fails the build when a kind
+ *    exists in one and not the others. Widening this is still a decision — but
+ *    it can no longer be a forgotten one.
+ *
+ *  `artisan` is deliberately absent: 290 of the 344 catalogue rows are artisan
+ *  and the engine cannot price them (see the block above `PAYABLE_KINDS`). It
+ *  is NOT silently undeclared, though — see `declarationFor`. */
+export const ACTIVITY_KINDS = Object.freeze(['combat', 'gather', 'idle']);
+
+/** Every kind the GAME can actually be doing — the server's whole vocabulary,
+ *  not the payable subset. The difference between this and `ACTIVITY_KINDS` is
+ *  the set of activities that exist and cannot yet be declared, and that
+ *  difference has to be REPRESENTED rather than dropped. See `declarationFor`. */
+export const GAME_ACTIVITY_KINDS = Object.freeze(['combat', 'gather', 'artisan', 'idle']);
 
 /* One in flight at a time, and the newest declaration wins. THE REASON IS
    ARITHMETIC, not politeness: three taps in three seconds sent in parallel race
@@ -102,6 +123,18 @@ let queued = null;
 let config = null;
 let last = null;
 let lastServerActivity = null;   // the newest activity the SERVER has stated
+/* ── THE ACKNOWLEDGED POINTER (b348) ────────────────────────────────────────
+   The newest declaration the server has AGREED WITH: a `{kind,id}` this client
+   sent, which an answer then reported back as the server's own state. It is not
+   `lastServerActivity` — that is whatever the server last said, including
+   things it says because it was never told anything.
+
+   It exists to make ONE question answerable, and that question is the whole of
+   b348's second half: **is the server's `idle` a statement about this player's
+   run, or the absence of one?** Told-and-stopped and never-told are the same
+   two bytes on the wire and opposite instructions to the client. Reconciling
+   them the same way is what silently ends a session. */
+let confirmed = null;
 
 export const ACTIVITY_TIMEOUT_MS = 15000;
 export const ACTIVITY_MAX_TRIES = 2;
@@ -166,6 +199,49 @@ export function isDeclarableActivity(kind, id) {
   return typeof id === 'string' && /^[a-z0-9_]{1,64}$/.test(id);
 }
 
+/**
+ * WHAT THE SERVER GETS TOLD, for something the game is actually doing. Pure.
+ *
+ * ⚠ AN UNDECLARABLE ACTIVITY IS DECLARED AS `idle`, AND THAT IS THE WHOLE POINT.
+ *
+ * The tempting answer is "say nothing" — it costs no rate budget and the server
+ * refuses the kind anyway. It is also the b348 bug with a different name.
+ * Saying nothing leaves the server's pointer on the PREVIOUS activity, so a
+ * player who chops oak for an hour and then starts cooking is paid for oak for
+ * as long as they cook. That is not an under-payment at the margin; it is the
+ * server paying for something nobody did, and it is exactly what "the client
+ * sends INTENTS and the server owns the numbers" is supposed to make impossible.
+ *
+ * Declaring the kind and letting the server refuse it (`activity_unsupported`,
+ * 409, before any database work) does NOT fix that: the refusal is correct and
+ * harmless, and it leaves the pointer exactly where the silence would have.
+ *
+ * `idle` is the only honest declaration for "I am doing something you cannot
+ * price". It COLLECTS the window that really elapsed on the previous activity —
+ * money the player earned — and then stops the meter. The artisan time itself
+ * pays nothing, which is the deferral `PAYABLE_KINDS` already documents.
+ *
+ * And it is self-correcting: the day `artisan` joins `ACTIVITY_KINDS`, every
+ * call site below starts declaring `artisan` with no edit, because the downgrade
+ * is a function of that list rather than a literal at the call site.
+ *
+ * @returns {{kind,id,downgradedFrom?}} | null — null means "not a game activity
+ *          at all, or an id that could never be one": a client bug, reported as
+ *          `undeclarable` rather than quietly turned into a stop.
+ */
+export function declarationFor(kind, id) {
+  if (GAME_ACTIVITY_KINDS.indexOf(kind) === -1) return null;
+  if (kind === 'idle') return { kind: 'idle', id: null };
+  /* Shape first, THEN the downgrade. A malformed id is a client bug whichever
+     kind carries it, and turning `combat`+'BAD ID' into a silent stop would
+     hide it. */
+  if (typeof id !== 'string' || !/^[a-z0-9_]{1,64}$/.test(id)) return null;
+  if (ACTIVITY_KINDS.indexOf(kind) === -1) {
+    return { kind: 'idle', id: null, downgradedFrom: kind };
+  }
+  return { kind, id };
+}
+
 /* ── THE REQUEST, AS DATA ───────────────────────────────────────────────────
    PURE and exported so the suite asserts the LITERAL bytes on the wire. Key
    order matches the contract's example so a diff against the spec is a string
@@ -176,11 +252,19 @@ export function buildActivityRequest(opts) {
   if (o.token) headers['Authorization'] = 'Bearer ' + o.token;
   if (o.apiKey) headers['apikey'] = o.apiKey;
   const slot = Number.isInteger(o.slot) && o.slot >= 0 && o.slot <= MAX_SLOT ? o.slot : 0;
-  const kind = o.kind === 'combat' ? 'combat' : 'idle';
+  /* ALLOWLISTED FROM `ACTIVITY_KINDS`, not compared against a literal. It used
+     to read `o.kind === 'combat' ? 'combat' : 'idle'`, which silently rewrote
+     every future kind into a STOP — so widening the list without touching this
+     line would have turned "I am chopping oak" into "I stopped", which is worse
+     than not sending it at all. Anything not on the list still falls to `idle`:
+     the request body may only ever contain a kind this build has decided it may
+     declare, and failing to a stop is the safe direction (a stop confiscates
+     nothing — the collect runs first). */
+  const kind = ACTIVITY_KINDS.indexOf(o.kind) === -1 ? 'idle' : o.kind;
   /* A STOP CARRIES A NULL ID, never the id it is stopping. `intentNameFor`
      yields `set_activity:idle` for every stop, and a stop that named its target
      would be a different name for the same declaration. */
-  const id = kind === 'combat' ? String(o.id == null ? '' : o.id) : null;
+  const id = kind === 'idle' ? null : String(o.id == null ? '' : o.id);
   return {
     url: accrueEndpoint(o.url),
     init: {
@@ -390,12 +474,34 @@ export function getActivityState() {
     enabled: isActivityIntentEnabled(), configured: !!config,
     pending: !!inFlight, queued: queued ? { ...queued } : null,
     lastServerActivity: lastServerActivity ? { ...lastServerActivity } : null,
+    confirmed: confirmed ? { ...confirmed } : null,
     last,
   };
 }
 
 export function resetActivity() {
-  inFlight = null; queued = null; last = null; lastServerActivity = null;
+  inFlight = null; queued = null; last = null; lastServerActivity = null; confirmed = null;
+}
+
+/**
+ * HAS THE SERVER ACKNOWLEDGED THIS EXACT ACTIVITY? Pure over module state.
+ *
+ * The caller is legacy.js's reconcile, and the answer decides whether a server
+ * `idle` may stop the player's run. `false` for a pointer the server was never
+ * told about — which is the honest answer and the safe one: the recovery for
+ * "we never told it" is to tell it, not to stop the player.
+ */
+export function isActivityConfirmed(kind, id) {
+  if (!confirmed) return false;
+  const want = id == null ? null : String(id);
+  return confirmed.kind === kind && confirmed.id === want;
+}
+
+/** Test/diagnostic seam, mirroring setLastServerActivity. */
+export function setConfirmedActivity(a) {
+  confirmed = (a && typeof a === 'object' && typeof a.kind === 'string')
+    ? { kind: a.kind, id: a.id == null ? null : String(a.id) } : null;
+  return confirmed;
 }
 
 /** Test/diagnostic seam: what the server last SAID the player is doing. */
@@ -519,6 +625,18 @@ function settle(verdict, kind, id) {
     const a = activityOf(body);
     if (a) {
       lastServerActivity = { kind: a.kind, id: a.id };
+      /* ⚠ CONFIRMED ONLY WHEN THE SERVER AGREES WITH WHAT WE SENT, and taken
+         BEFORE the hook runs so the reconcile can ask about it. `switched` and
+         `replayed` both mean "the server's pointer is what we asked for"; a
+         REFUSAL that happens to carry an envelope does not, even though it
+         carries a perfectly good `activity` field — that field is then the
+         server's OLD state, and recording it as an acknowledgement of this
+         declaration would let a refused switch look like a successful one.
+         The comparison is against what was DECLARED on this attempt, not
+         against `last`, because `last` has not been written yet. */
+      const acked = (verdict.outcome === 'switched' || verdict.outcome === 'replayed')
+        && a.kind === kind && a.id === (id == null ? null : String(id));
+      if (acked) confirmed = { kind: a.kind, id: a.id };
       fire('onReconcile', { ...lastServerActivity }, verdict);
       applied.reconciled = { ...lastServerActivity };
     }
@@ -557,8 +675,18 @@ function settle(verdict, kind, id) {
  * DECLARE WHAT THE PLAYER IS NOW DOING. The seam legacy.js's four pointer
  * writers call. Returns a promise; the caller does NOT await it (rule 3).
  */
-export async function declareActivity(kind, id, opts) {
+export async function declareActivity(rawKind, rawId, opts) {
   const o = opts || {};
+  /* THE DOWNGRADE HAPPENS HERE, ONCE, BEFORE ANYTHING ELSE LOOKS AT THE KIND.
+     Every caller below — the switch check, the coalescer, the request builder,
+     the confirmation — then sees the ONE declaration that is actually going on
+     the wire, rather than the caller's word for it. Putting it at any of those
+     sites instead would be four places that have to agree about what `artisan`
+     means. */
+  const decl = declarationFor(rawKind, rawId);
+  if (!decl) return inert('undeclarable', rawKind, rawId, 'not_a_declarable_activity');
+  const kind = decl.kind;
+  const id = decl.id;
   if (!isActivityIntentEnabled()) return inert('switch-off', kind, id);
   if (!isDeclarableActivity(kind, id)) return inert('undeclarable', kind, id);
   if (!config) return inert('unconfigured', kind, id, 'no_endpoint');
@@ -624,12 +752,14 @@ export function declare(kind, id) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseActivity = {
-    ACTIVITY_VERB, ACTIVITY_KINDS, ACTIVITY_OUTCOMES, ACTIVITY_TIMEOUT_MS, ACTIVITY_MAX_TRIES,
+    ACTIVITY_VERB, ACTIVITY_KINDS, GAME_ACTIVITY_KINDS, ACTIVITY_OUTCOMES,
+    ACTIVITY_TIMEOUT_MS, ACTIVITY_MAX_TRIES,
     UNANSWERED_OUTCOMES, isAnswered, newIntentKey, isIntentKey, nextIntentKey,
-    isActivityIntentEnabled, isDeclarableActivity, buildActivityRequest,
+    isActivityIntentEnabled, isDeclarableActivity, declarationFor, buildActivityRequest,
     classifyActivityResponse, shouldRetryActivity,
     envelopeOf, activityOf, collectedOf, awayFromCollected, applyIntentEnvelope,
     configureActivity, getActivityConfig, setActivityHooks,
     declare, declareActivity, getActivityState, resetActivity, setLastServerActivity,
+    isActivityConfirmed, setConfirmedActivity,
   };
 }

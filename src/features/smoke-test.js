@@ -24045,6 +24045,469 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     b348 — THE HALF OF THE SEAM THAT WAS NEVER WIRED
+
+     b347 wired the pointer's four COMBAT writers. The next merge taught the
+     server to pay `gather` (`PAYABLE_KINDS`, and `SETTABLE_KINDS` by
+     derivation) and nothing here moved. Tyler's first switch-on test:
+     woodcutting started, a few minutes away, back — `player_intents` 0 rows,
+     `player_state` idle at version 0. Not a bug in either half; the two halves
+     simply had no link.
+
+       B348-1  a gathering gesture puts the CONTRACT bytes on the wire
+       B348-2  a stop declares idle — and a defensive stop with nothing
+               running declares nothing
+       B348-3  EVERY declarable kind is produced by a real player gesture
+               (the guard that makes the next widening impossible to half-ship)
+       B348-4  one gesture is one intent, through the mutex wrappers
+       B348-5  THE RULING: a server `idle` may not stop a run it was never
+               told about — it declares instead
+       B348-6  ...and it MUST stop one it was told about. Authority.
+       B348-7  the reconcile can represent `gather` at all
+       B348-8  b339 is not reopened: a gated envelope moves the loops and
+               moves no gold
+       B348-9  an activity the engine cannot price declares IDLE, not silence
+       B348-10 the client gather index IS the accrual engine's
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* One rig for the whole block: arm the switch, own `fetch`, hand back a
+     scripted answer, and put everything back afterwards. Written once because
+     ten copies of a teardown is ten chances to leave the kill switch on. */
+  () => tryRunAsync('B348-1: starting a gathering activity puts the CONTRACT bytes on the wire', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    assert(M && typeof M.declarationFor === 'function',
+      'src/net/activity.js has no declarationFor — the b348 seam is absent and nothing below means anything');
+    assert(M.ACTIVITY_KINDS.indexOf('gather') !== -1,
+      'the client may not declare `gather`, but the server\'s SETTABLE_KINDS can SET it — that is exactly '
+      + 'the b348 gap: the server pays an activity this client can never tell it about');
+
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold, offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const seen = [];
+    try {
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        seen.push(body);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'set_activity', version: 7, now: null,
+          activity: { kind: 'gather', id: tree.id },
+          state: { active_kind: 'gather', active_id: tree.id },
+          skills: {}, inventory: {},
+        }), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      const sw = seen.filter((b) => b && b.verb === 'set_activity');
+      /* MUTATION: delete `declareActivity('gather', targetId)` from startSkill
+         in src/legacy.js → RED here, naming `gather`. That is the b348 bug,
+         reproduced exactly. */
+      assert(sw.length >= 1,
+        'starting woodcutting declared NOTHING (' + seen.length + ' requests). This is the b348 bug: the '
+        + 'server can be TOLD `gather` and this client never says it, so `player_state` stays idle through '
+        + 'a real session and the away grant is zero');
+      const b = sw[sw.length - 1];
+      assert(b.verb === 'set_activity', 'wrong verb: ' + b.verb);
+      assert(b.activity && b.activity.kind === 'gather',
+        'the declaration named kind `' + (b.activity && b.activity.kind) + '` — the server\'s SETTABLE_KINDS '
+        + 'has `gather`, and any other kind is refused or, worse, silently rewritten to a STOP');
+      assert(b.activity.id === tree.id, 'the declaration named the wrong node: ' + b.activity.id);
+      assert(M.isIntentKey(b.intentId), 'the declaration carried no canonical uuid key: ' + b.intentId);
+      assert(Object.keys(b).sort().join(',') === 'activity,intentId,slot,verb',
+        'the request body grew a field: ' + Object.keys(b).join(',') + ' — the body is CONSTRUCTED field by '
+        + 'field precisely so a future value cannot ride into it');
+      assert(M.getActivityState().confirmed
+        && M.getActivityState().confirmed.kind === 'gather' && M.getActivityState().confirmed.id === tree.id,
+        'the server agreed with the declaration and it was not recorded as CONFIRMED — the reconcile then '
+        + 'cannot tell "the server stopped me" from "the server was never told", which is B348-5');
+
+      /* ── AND A REFUSAL IS NOT AN ACKNOWLEDGEMENT, even when it carries a
+         perfectly good envelope. A refused switch's `activity` field is the
+         server's OLD state; recording it as agreement to THIS declaration
+         would make a refused switch indistinguishable from a successful one —
+         and the next `idle` would then stop the player's run on the strength
+         of a switch that never happened.
+         MUTATION: `confirmed = {…}` unconditionally in settle() → RED. */
+      M.setConfirmedActivity(null);
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: false, verb: 'set_activity', error: 'unknown_activity', version: 8, now: null,
+          activity: { kind: 'idle', id: null },
+          state: { active_kind: 'idle', active_id: null }, skills: {}, inventory: {},
+        }), { status: 409 }));
+      };
+      await window.declareActivity('gather', 'not_a_real_node');
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(M.getActivityState().confirmed === null,
+        'a REFUSED switch was recorded as CONFIRMED (' + JSON.stringify(M.getActivityState().confirmed)
+        + ') — the refusal\'s `activity` field is the server\'s OLD state, and treating it as agreement '
+        + 'makes a refusal look like a success to the one check that decides whether an `idle` may stop '
+        + 'the player');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B348-2/3/4: every declarable kind has a real gesture; a stop declares idle; one gesture is one intent', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+
+    /* ── B348-3, AND IT IS THE POINT OF THE WHOLE FILE ────────────────────
+       The table is keyed by KIND and the loop iterates `ACTIVITY_KINDS` — the
+       list src/net/activity.js keeps in step with the server's SETTABLE_KINDS
+       (tests/activity-seam.mjs asserts that half). So the day `artisan` becomes
+       payable, `SETTABLE_KINDS` grows, the Node guard forces `ACTIVITY_KINDS`
+       to grow, and THIS loop then fails by name until somebody wires a gesture.
+       A kind cannot be settable, declarable and unreachable all at once. */
+    const GESTURES = {
+      combat: () => window.startCombat(mid),
+      gather: () => window.startSkill('woodcutting', tree.id, tree.ms),
+    };
+
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, combatLog: G.combatLog,
+      gold: G.gold, skills: JSON.parse(JSON.stringify(G.skills)),
+      inventory: JSON.parse(JSON.stringify(G.inventory)),
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    const realDeclare = M.declare;
+    let calls = [];
+    try {
+      /* ⚠ THE SPY GOES ON `HearthriseActivity.declare`, NOT ON
+         `window.declareActivity`, AND THE DIFFERENCE IS THE TEST.
+
+         legacy.js's `declareActivity` is where the QUIET COUNTER lives — the
+         thing that stops one gesture declaring twice. Replacing that function
+         (which is what the b347 tests do, for a different property) removes the
+         counter along with it, so the spy then records calls the real seam
+         would have suppressed and this test fails on a bug that is not there.
+         Measured: it did exactly that on the first run.
+
+         `M.declare` is one level below the counter and one level above the
+         kill switch, which makes it the honest answer to "what actually left
+         the seam" — and it never reaches the network. */
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+
+      for (const kind of M.ACTIVITY_KINDS) {
+        if (kind === 'idle') continue;
+        assert(typeof GESTURES[kind] === 'function',
+          'the client may declare `' + kind + '` and this suite has no PLAYER GESTURE that produces it. '
+          + 'Either a call site was never wired (the b348 bug: the server grew a payable kind and legacy.js '
+          + 'did not) or the gesture table is stale. Wire the declaration, then add the gesture here.');
+        try { window.stopSkill(); } catch (e) {}
+        try { window.stopCombat(); } catch (e) {}
+        calls = [];
+        GESTURES[kind]();
+        const got = calls.filter((c) => c.kind === kind);
+        assert(got.length >= 1,
+          'the real player gesture for `' + kind + '` declared ' + JSON.stringify(calls) + ' — no `' + kind
+          + '` reached the seam, so the server would never learn the player was doing it');
+        assert(calls.length === 1,
+          'one `' + kind + '` gesture from idle produced ' + calls.length + ' declarations ('
+          + JSON.stringify(calls) + ')');
+      }
+
+      /* ── B348-4: ONE GESTURE, ONE INTENT — ACROSS THE MUTEX ──────────────
+         ⚠ THE FIXTURE IS THE TEST, and the first version of it proved nothing.
+           It started each gesture from IDLE, so the activity mutex's
+           cross-stop (`startCombat` stops the skill; `startSkill` stops the
+           fight) never had anything to stop — and the mutation that removes
+           the quiet wrapper left the suite green. A guard that only exercises
+           the branch where the bug cannot happen is decoration.
+
+         So each gesture here interrupts the OTHER kind, which is what a player
+         actually does. Unless the mutex's inner stop is quiet, one tap sends
+         `idle` and then the real kind: two idempotency keys, two rate spends,
+         and a second collect pricing a span of milliseconds.
+         MUTATION: drop the `q(...)` wrapper in block 22 → RED. */
+      const SWITCHES = [
+        { from: () => window.startSkill('woodcutting', tree.id, tree.ms), to: 'combat',
+          go: () => window.startCombat(mid) },
+        { from: () => window.startCombat(mid), to: 'gather',
+          go: () => window.startSkill('woodcutting', tree.id, tree.ms) },
+      ];
+      for (const s of SWITCHES) {
+        try { window.stopSkill(); } catch (e) {}
+        try { window.stopCombat(); } catch (e) {}
+        s.from();
+        assert(!!(G.activeSkill || G.activeMonster),
+          'the switch fixture never started anything, so the cross-stop below has nothing to stop and this '
+          + 'assertion would pass on a build with no quiet counter at all');
+        calls = [];
+        s.go();
+        assert(calls.length === 1 && calls[0].kind === s.to,
+          'switching to `' + s.to + '` mid-activity produced ' + calls.length + ' declarations ('
+          + JSON.stringify(calls) + ') — the activity mutex cross-stops the other loop OUTSIDE the function '
+          + 'that declares, so unless that stop is quiet a single tap spends two idempotency keys and runs a '
+          + 'second collect over a span of milliseconds');
+      }
+
+      /* ── B348-2: A STOP IS A DECLARATION — AND ONLY WHEN THERE WAS A RUN. */
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      calls = [];
+      window.stopSkill();
+      assert(calls.length === 1 && calls[0].kind === 'idle' && calls[0].id === null,
+        'stopping a gathering run declared ' + JSON.stringify(calls) + ' — without an `idle` the server goes '
+        + 'on paying an activity the player abandoned, which is the away-time bug in reverse');
+
+      calls = [];
+      window.stopSkill();
+      window.stopSkill();
+      assert(calls.length === 0,
+        'a DEFENSIVE stop with nothing running declared ' + JSON.stringify(calls) + '. stopSkill() has '
+        + 'thirteen callers in legacy.js and most of them are "make sure nothing is running" — an unguarded '
+        + 'declaration here puts an intent, a key and a rate spend on the wire every time a player opens a '
+        + 'screen');
+    } finally {
+      M.declare = realDeclare;
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B348-5/6/7: a server `idle` stops a run it was TOLD about, and declares one it was not', () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold,
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    /* Below the quiet counter, above the kill switch — see the note in
+       B348-2/3/4 for why spying on `window.declareActivity` would delete the
+       very mechanism this test is checking. Nothing reaches the network: the
+       spy is the last thing before the transport. */
+    const realDeclare = M.declare;
+    const wasOn = A.isServerAccrualEnabled();
+    let calls = [];
+    try {
+      /* ARMED, because the re-assertion LATCH is only spent when the seam is
+         armed — an inert attempt must not consume the one re-assertion a
+         pointer gets, or flipping the switch on mid-run would leave the current
+         activity permanently undeclared. The bound below is only meaningful in
+         the state the bound applies to. */
+      A.setServerAccrualEnabled(true);
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+
+      /* ── B348-7: THE RECONCILE CAN REPRESENT `gather` AT ALL. Before b348 it
+         had a `combat` branch and an `idle` branch, so a server saying "you are
+         chopping oak" landed on nothing — the one function whose contract is
+         "the envelope is the truth" silently applied half of it. */
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      /* The setup stops are REAL stops and declare a real `idle`; clearing here
+         rather than before them is what keeps this an assertion about the
+         reconcile instead of about whatever the previous test left running. */
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'gather', id: tree.id });
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'the server said gather:' + tree.id + ' and the local pointer is ' + G.activeSkill + '/'
+        + G.skillTargetId + ' — a reconcile that cannot represent a settable kind is a reconcile that '
+        + 'silently disagrees with the server');
+      assert(window.__isSkillLoopArmed(),
+        'the reconcile moved the pointer but armed no loop — the player would sit on an "active" tile '
+        + 'earning nothing, which is the b237 bug arriving through a new door');
+      assert(calls.length === 0,
+        'reconciling ECHOED a declaration back at the server (' + JSON.stringify(calls) + ') — that is a '
+        + 'loop with a round trip in it, and the quiet counter exists to stop it');
+
+      /* ── B348-5: THE RULING. Never told → do not stop; declare. */
+      M.setConfirmedActivity(null);
+      calls = [];
+      let out = window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'a server `idle` STOPPED a gathering run the server was never told about. `active_kind=idle` is the '
+        + 'default for every character that has never declared anything — obeying it as authority ends the '
+        + 'session of every player whose save predates the seam, which is exactly what happened to Tyler');
+      assert(out && out.undeclared === true, 'the reconcile did not report the undeclared case: ' + JSON.stringify(out));
+      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === tree.id,
+        'the undeclared pointer was not DECLARED (' + JSON.stringify(calls) + ') — leaving it alone is safe '
+        + 'but not self-correcting; the recovery for "we never told it" is to tell it');
+
+      /* BOUNDED. A server that keeps refusing must not be re-told forever. */
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(calls.length === 0,
+        're-asserting the same pointer is unbounded (' + calls.length + ' more declarations) — an id the '
+        + 'server does not have in its catalogue would then cost one intent and one rate spend per answer, '
+        + 'forever');
+
+      /* ── B348-6: AND IT MUST STOP ONE IT WAS TOLD ABOUT. Authority. Without
+         this half, "do not stop" would just be the client ignoring the server,
+         which is the opposite failure and a worse one.
+         MUTATION: make the idle branch return early unconditionally → RED. */
+      M.setConfirmedActivity({ kind: 'gather', id: tree.id });
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(!G.activeSkill,
+        'the server ACKNOWLEDGED this exact activity and then said idle, and the client kept running it. '
+        + 'That is not caution, it is the client overruling the server — the one thing server authority '
+        + 'removes');
+      assert(calls.length === 0, 'the authoritative stop declared back at the server: ' + JSON.stringify(calls));
+    } finally {
+      M.declare = realDeclare;
+      M.setConfirmedActivity(null);
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B348-8: b339 is NOT reopened — a gated envelope moves the loops and moves no gold', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold,
+      skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)),
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt, _serverAccrual: G._serverAccrual };
+    const hadAck = A.isReplacementAcknowledged();
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.acknowledgeReplacement(false);                       // the gate is ARMED
+      try { A.hideReplacementSheet(); } catch (e) {}
+      G.gold = 999999;                                       // far ahead of the server
+      G.skills = Object.assign({}, G.skills, { woodcutting: 500000 });
+
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'set_activity', version: 11, now: null,
+          activity: { kind: 'gather', id: tree.id },
+          state: { active_kind: 'gather', active_id: tree.id, gold: 500 },
+          skills: { woodcutting: { xp: 0, level: 1 } }, inventory: {},
+        }), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      /* THE PROPERTY. The declaration LANDED (the server switched), the pointer
+         is reconciled, and NOT ONE game value moved — because the replacement
+         gate is on the ENVELOPE and b348 does not touch it. The failure this
+         guards against is the tempting simplification "we are reconciling
+         anyway, just apply the state": that is the b339 clobber, silently, on
+         every tap of a tree. */
+      assert(G.gold === 999999,
+        'the server character was applied over local progress with the replacement gate ARMED — gold went '
+        + G.gold + ' instead of 999999. b339 exists because that write is permanent and there is no merge');
+      assert((G.skills.woodcutting || 0) === 500000, 'skills were replaced behind the gate: ' + G.skills.woodcutting);
+      assert(!!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the replacement was refused and the player was never asked — a silent refusal is how a switch that '
+        + 'pays real gold ends up reporting nothing');
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'the gated envelope also lost the POINTER — the server did switch, and only the state application '
+        + 'was withheld; conflating the two would stop the run the player is watching');
+      const st = M.getActivityState();
+      assert(st.last && st.last.applied && st.last.applied.envelope === false,
+        'the seam reported an envelope it did not apply: ' + JSON.stringify(st.last && st.last.applied));
+    } finally {
+      window.fetch = realFetch;
+      try { A.hideReplacementSheet(); } catch (e) {}
+      A.acknowledgeReplacement(hadAck ? true : false);
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B348-9/10: an unpriceable activity declares IDLE, not silence; and the client index IS the engine\'s', () => {
+    const M = window.HearthriseActivity;
+    const C = window.HearthriseCore;
+    const G = window.G;
+
+    /* ── B348-9. The tempting answer for `artisan` is to say nothing: the
+       server refuses the kind anyway. Silence leaves the server's pointer on
+       the PREVIOUS activity, so a player who chops oak for an hour and then
+       cooks is paid for oak for as long as they cook. `idle` collects what was
+       really earned and stops the meter.
+       MUTATION: return null from declarationFor for a non-settable kind → RED. */
+    const d = M.declarationFor('artisan', 'cook_shrimp');
+    assert(d && d.kind === 'idle' && d.id === null,
+      'an activity this build cannot declare produced ' + JSON.stringify(d) + '. Saying nothing is not '
+      + 'neutral — it leaves the server paying for the activity the player STOPPED, which is the server '
+      + 'authoring a number nobody earned');
+    assert(d.downgradedFrom === 'artisan', 'the downgrade did not record what it downgraded: ' + JSON.stringify(d));
+    assert(M.declarationFor('combat', 'slime').kind === 'combat', 'a settable kind was downgraded');
+    assert(M.declarationFor('gather', 'normal_tree').kind === 'gather', 'gather was downgraded');
+    assert(M.declarationFor('nonsense', 'x') === null, 'a kind the game cannot do was accepted as a stop');
+    assert(M.declarationFor('combat', 'BAD ID') === null,
+      'a malformed id was quietly turned into a STOP — that hides a client bug behind a legitimate-looking '
+      + 'declaration');
+    /* And the wire builder may never emit a kind this build has not decided on. */
+    const body = JSON.parse(M.buildActivityRequest({ kind: 'artisan', id: 'cook_shrimp', intentId: 'k' }).init.body);
+    assert(body.activity.kind === 'idle' && body.activity.id === null,
+      'buildActivityRequest put `' + body.activity.kind + '` on the wire — the body must only ever carry a '
+      + 'kind from ACTIVITY_KINDS');
+
+    /* ── B348-10. The reconcile resolves a node id through the SAME index the
+       accrual engine reads (`indexGatherNodes` over TREES/ROCKS/FISH_SPOTS). A
+       hand-rolled fourth copy is how the client comes to think a rock is a fish. */
+    assert(C && typeof C.gatherNode === 'function', 'HearthriseCore.gatherNode is missing — the reconcile has no index');
+    const idx = C.gatherNodes();
+    const authored = [].concat(window.TREES || [], window.ROCKS || [], window.FISH_SPOTS || []).map((n) => n.id).sort();
+    assert(Object.keys(idx).sort().join(',') === authored.join(','),
+      'the client gather index and the authored data disagree — index has ' + Object.keys(idx).length
+      + ' nodes, data has ' + authored.length + '. tests/activity-seam.mjs holds the other half of this '
+      + '(index === the accrual engine\'s GATHER_NODES)');
+    assert(C.gatherNode('normal_tree') && C.gatherNode('normal_tree').skill === 'woodcutting',
+      'normal_tree does not resolve to woodcutting');
+    assert(C.gatherNode('__proto__') === null && C.gatherNode('constructor') === null,
+      'the index is not null-prototype — `__proto__` resolves to something truthy, and a lookup followed by '
+      + 'a property read walks straight past every truthiness check downstream');
+    assert(typeof window.localActivityPointer === 'function', 'localActivityPointer is missing');
+    const before = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, activeMonster: G.activeMonster };
+    try {
+      G.activeMonster = null; G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';
+      assert(window.localActivityPointer().kind === 'artisan',
+        'a cooking run reports as `' + window.localActivityPointer().kind + '` — the reconcile would then '
+        + 'read an agreeing server as a contradiction and stop the player mid-smelt');
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      assert(window.localActivityPointer().kind === 'gather', 'a chopping run does not report as gather');
+    } finally { Object.assign(G, before); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      b343 — AWAY COMBAT PAYS FROM KILL ONE, AND EVERY SURFACE SAYS WHAT IT PAYS
 
      b341/b342 gated away combat behind 100 hand-landed kills (the "Field

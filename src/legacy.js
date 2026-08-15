@@ -1284,14 +1284,19 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    b347 — THE ACTIVITY INTENT SEAM. Contract:
    supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM".
 
-   THE POINTER HAS FOUR WRITERS IN THIS FILE AND ALL FOUR ARE THE SEAM; a fifth
-   added later without this call is a client that silently disagrees with the
-   server about what the player is doing, which under server-side accrual means
-   being paid for the wrong thing all night.
+   THE POINTER HAS EIGHT WRITERS IN THIS FILE AND ALL EIGHT ARE THE SEAM; a
+   ninth added later without this call is a client that silently disagrees with
+   the server about what the player is doing, which under server-side accrual
+   means being paid for the wrong thing all night.
 
      startCombat(mId)          → {combat, mId}
      stopCombat()              → {idle, null}
      drainBountySwitch()       → {combat, id}   (the b344 away switch)
+     startSkill(t,id,ms)       → {gather, id}   ← b348
+     stopSkill()               → {idle, null}   ← b348
+     startArtisan(s,r) ×2      → {artisan, r}, downgraded to {idle,null} by
+                                 declarationFor until the engine can price it
+                                 ← b348
      COMBAT_FX.onDeath (away)  → NO CALL, deliberately. The SERVER already set
                                  the pointer to idle in the accrual delta; the
                                  client is RECONCILING to state it was told, not
@@ -1299,6 +1304,22 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
                                  client telling the server something the server
                                  told it — and it would spend an intent key and
                                  a rate budget doing it.
+
+   ── b348: WHY FOUR OF THESE ARE NEW, AND WHAT IT COST ──────────────────────
+   b347 wired the pointer's four COMBAT writers and stopped there, correctly:
+   `combat` was the only payable kind. The very next merge taught the server to
+   pay `gather` — `PAYABLE_KINDS` grew, `SETTABLE_KINDS` grew with it by
+   derivation, exactly as designed — and nothing on this side moved, because
+   nothing had to. Tyler's first switch-on test: started woodcutting, left,
+   came back. `player_intents`: 0 rows. `player_state`: idle, version 0. The
+   server was never told, so there was nothing to pay and nothing to reconcile
+   to but `idle`.
+
+   The lesson is not "remember the client next time". It is that a contract
+   split across two files with no link between them will be half-shipped, and
+   the fix is the link: `tests/activity-seam.mjs` reads the server's
+   SETTABLE_KINDS, this file's declaration sites and src/net/activity.js's
+   ACTIVITY_KINDS, and fails the build when they disagree.
 
    ── WHY A QUIET COUNTER AND NOT A BOOLEAN ─────────────────────────────────
    Two things must be able to move the pointer WITHOUT declaring, and they nest:
@@ -1326,18 +1347,190 @@ function declareActivity(kind,id){
   try{ return M.declare(kind,id); }catch(e){ return null; }
 }
 window.declareActivity=declareActivity;
-/* Move the local pointer to what the SERVER says, without declaring it back. */
+/* The mutex wrappers (block 22) cross-stop the OTHER loop before starting one,
+   and those inner stops must not declare — see the quiet-counter note above.
+   Exported because that block is a separate IIFE and an explicit name is
+   cheaper to read than a lexical reach across 8,000 lines. */
+window.activityQuietly=activityQuietly;
+/* ── WHAT THIS CLIENT IS DOING, AS ONE {kind,id} ───────────────────────────
+   The pointer is three fields in G (`activeMonster`, `activeSkill` +
+   `skillTargetId`) and the server's is one pair, so SOMETHING has to translate.
+   Doing it once, here, is what stops the reconcile and the declaration sites
+   disagreeing about whether cooking counts as an activity.
+
+   `artisan` is reported as itself, not as idle — the DOWNGRADE to idle is
+   src/net/activity.js's job and belongs at the wire, not here. This function
+   answers "what is the player doing", and the honest answer is "cooking". */
+function localActivityPointer(){
+  if(typeof G==='undefined'||!G) return {kind:'idle',id:null};
+  if(G.activeMonster) return {kind:'combat',id:G.activeMonster};
+  if(G.activeSkill&&G.skillTargetId){
+    const artisan=!!(window.ARTISAN_RECIPES&&window.ARTISAN_RECIPES[G.activeSkill]);
+    return {kind:artisan?'artisan':'gather',id:G.skillTargetId};
+  }
+  return {kind:'idle',id:null};
+}
+window.localActivityPointer=localActivityPointer;
+/* One re-assertion per RUN, and the latch that bounds it. Without a bound, a
+   server that keeps refusing a declaration (an id it does not have in its
+   catalogue, say) would be re-told on every answer, forever, at one intent and
+   one rate spend each.
+
+   The budget belongs to a RUN, not to a session: `endActivityRun()` returns it
+   whenever the local pointer goes back to idle, so a player who starts the same
+   activity again gets a fresh backstop rather than inheriting the last run's
+   spent one. Called from stopSkill/stopCombat — the two functions that end a
+   run — including when they are QUIET, because the run really did end whether
+   or not the server was told about it here. */
+let _reassertedPointer=null;
+function endActivityRun(){ _reassertedPointer=null; }
+/**
+ * TELL THE SERVER WHAT THIS CLIENT IS DOING, IF IT HAS NOT BEEN TOLD.
+ *
+ * Idempotent and bounded. This is the self-heal for every pointer that exists
+ * without a declaration behind it, and after b348 that is not a rare state:
+ *   • every save written before the seam shipped (Tyler's, and every beta save
+ *     at cutover) holds a running activity the server has never heard of;
+ *   • a declaration that failed — offline, rate-limited, a dead token — leaves
+ *     the optimistic local pointer standing by design (rule 3), and nothing
+ *     else would ever retry it;
+ *   • the switch being flipped ON mid-session starts from exactly this state.
+ * Called on resume and whenever the server contradicts an unacknowledged
+ * pointer.
+ */
+function assertActivityDeclaration(){
+  const M=window.HearthriseActivity;
+  if(!M||typeof M.isActivityConfirmed!=='function')return null;
+  const p=localActivityPointer();
+  if(p.kind==='idle')return null;           // nothing to assert; a stop declares itself
+  const key=p.kind+':'+(p.id==null?'':p.id);
+  if(M.isActivityConfirmed(p.kind,p.id)){ _reassertedPointer=null; return null; }
+  /* `artisan` and `idle` both declare `idle` on the wire; asking about the
+     DECLARATION rather than the pointer is what stops an artisan run
+     re-asserting on every resume once the server has already been told idle. */
+  const d=(typeof M.declarationFor==='function')?M.declarationFor(p.kind,p.id):null;
+  if(d&&M.isActivityConfirmed(d.kind,d.id)){ _reassertedPointer=null; return null; }
+  if(_reassertedPointer===key)return null;
+  /* ⚠ THE LATCH IS SPENT ONLY WHEN THE SEAM IS ARMED, and the switch is read
+     from the MODULE — the one reader on this path, the same rule legacy's
+     `declareActivity` follows by delegating rather than checking. A second
+     reader here would be a second answer to "is the seam on" during an
+     incident, and spending the latch on an inert attempt is a real hole: the
+     switch being flipped ON mid-session is one of the three states this
+     function exists for, and it would arrive with its one re-assertion already
+     used up, leaving the running activity permanently undeclared. An unarmed
+     call cannot recurse — it never reaches the network, so no answer comes
+     back to reconcile — which is why it needs no bound. */
+  const armed=(typeof M.isActivityIntentEnabled==='function')&&M.isActivityIntentEnabled();
+  if(armed)_reassertedPointer=key;
+  return declareActivity(p.kind,p.id);
+}
+window.assertActivityDeclaration=assertActivityDeclaration;
+/* Move the local pointer to what the SERVER says, without declaring it back.
+   ══════════════════════════════════════════════════════════════════════════
+   b348 — TWO CHANGES, AND THE SECOND IS A RULING.
+
+   (1) IT CAN NOW REPRESENT `gather`. It could only ever act on `combat`, which
+       was complete while `combat` was the only settable kind and became a hole
+       the moment `gather` joined: a server saying "you are chopping oak" landed
+       on a branch that did nothing at all, so the one function whose job is
+       "the envelope is the truth" silently declined to apply half of it.
+       Resolving the node through `HearthriseCore.gatherNode` — the index the
+       ACCRUAL ENGINE reads — rather than through a fresh if/else per skill is
+       what keeps the two sides agreeing about which skill a node belongs to.
+
+   (2) A SERVER `idle` MAY NOT STOP A RUN THE SERVER WAS NEVER TOLD ABOUT.
+       This is the ruling, and it is narrow on purpose.
+
+       `idle` on the wire is two different sentences: "you stopped, and I know
+       because you told me" and "I have no idea what you are doing". The first
+       is authority and the client must obey it. The second is the ABSENCE of
+       authority — the server holds `active_kind='idle'` for every character
+       that has never declared anything, which after b348 is every existing beta
+       save and, for the whole of Tyler's failed test, his — and obeying it
+       ends the player's session on the strength of a statement nobody made.
+
+       `isActivityConfirmed` is what tells them apart: it is true only for a
+       {kind,id} this client SENT and the server then reported back as its own.
+       So:
+         • confirmed → the server was told and now says idle → STOP. Authority.
+         • not confirmed → the server was never told → do NOT stop; DECLARE,
+           once, and let the answer settle it. Self-correcting rather than
+           destructive, and it converges in one round trip.
+
+       WHY THIS DOES NOT REOPEN b339. The replacement sheet exists because
+       `applyEnvelopeState` REPLACES gold, skills and inventory with the server
+       character's, permanently. That gate is on the ENVELOPE and is untouched:
+       `applyIntentEnvelope` still calls `describeReplacement` and still refuses
+       until the player consents. This function writes no game value at all — it
+       starts and stops loops — and re-declaring sends an intent, it does not
+       apply an envelope. The two are orthogonal, and a test asserts it: a
+       reconcile that arrives while the replacement gate is refusing must move
+       the loops and must not move gold. What WOULD reopen b339 is the opposite
+       change — letting an unconfirmed `idle` stop the run and then applying the
+       fresh server character over the top — which is precisely the pair of
+       events Tyler hit.
+   ══════════════════════════════════════════════════════════════════════════ */
 function reconcileActivityPointer(a){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
-  return activityQuietly(function(){
+  const applied=activityQuietly(function(){
     if(kind==='combat'&&id&&MONSTERS[id]){
+      if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
       if(G.activeMonster!==id&&typeof startCombat==='function')startCombat(id);
-    } else if(!kind||kind==='idle'){
-      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      return {kind:'combat',id:id};
     }
-    return {kind:kind||'idle',id:id==null?null:id};
+    if(kind==='gather'&&id){
+      const C=window.HearthriseCore;
+      const hit=(C&&typeof C.gatherNode==='function')?C.gatherNode(id):null;
+      /* An id the client cannot resolve is NOT a reason to stop the player.
+         The two catalogues are guarded to be identical, so this means the
+         guard is wrong or the build is old — either way the honest move is to
+         leave the run alone and say so, not to act on a node we cannot name. */
+      if(!hit){
+        console.warn('[activity] the server says gather:'+id+', which is not in this build\'s '
+          +'gather index — leaving the local activity alone rather than acting on a node it cannot resolve');
+        return null;
+      }
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)&&typeof startSkill==='function'){
+        startSkill(hit.skill,id,hit.node.ms);
+      }
+      return {kind:'gather',id:id};
+    }
+    if(!kind||kind==='idle'){
+      const local=localActivityPointer();
+      if(local.kind==='idle')return {kind:'idle',id:null};
+      const M=window.HearthriseActivity;
+      /* THE DECLARATION THIS POINTER WOULD MAKE, not the pointer. They differ
+         for `artisan`, which declares `idle` — so an artisan run and a server
+         that says `idle` are in perfect AGREEMENT and there is nothing to
+         reconcile. Asking about the pointer instead would read that agreement
+         as a contradiction and stop a player mid-smelt, which is the same
+         class of bug as the one this whole block exists to fix. */
+      const d=(M&&typeof M.declarationFor==='function')?M.declarationFor(local.kind,local.id):null;
+      const told=!!(d&&typeof M.isActivityConfirmed==='function'&&M.isActivityConfirmed(d.kind,d.id));
+      if(d&&d.kind==='idle'&&told)return {kind:'idle',id:null,agreed:true};
+      if(!told){
+        /* THE b348 RULING. Not an error and not a warning the player sees — it
+           is the ordinary state of a save written before the seam existed. */
+        console.log('[activity] the server says idle but was never told about '
+          +local.kind+(local.id?':'+local.id:'')+' — declaring it rather than stopping the player');
+        return {kind:local.kind,id:local.id,undeclared:true};
+      }
+      /* Told, acknowledged, and now the server says the run is over. Authority. */
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
+      return {kind:'idle',id:null};
+    }
+    return null;
   });
+  /* OUTSIDE the quiet block, deliberately: this is the one declaration the
+     reconcile is allowed to make, and making it inside would be swallowed by
+     the very counter that stops a reconcile from echoing. Bounded by
+     `assertActivityDeclaration`'s own latch. */
+  if(applied&&applied.undeclared)assertActivityDeclaration();
+  return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;
 /* Wired lazily and once, same reason wireServerAccrual() is: legacy.js is a
@@ -3593,6 +3786,7 @@ function stopCombat(){
     window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);
   }
   if(combatInterval){clearInterval(combatInterval);combatInterval=null;}
+  endActivityRun();      /* b348 — the run ended; the backstop budget is returned */
   G.activeMonster=null;
   renderCombat();renderMonsterList();
   /* b347 SEAM 2. A stop is a declaration too — without it the server goes on
@@ -3919,6 +4113,15 @@ function armSkillTimers(ms){
    the tick. */
 function resumeActiveActivity(){
   if(typeof G==='undefined'||!G) return;
+  /* b348 — RE-ARMING THE LOOP AND RE-ASSERTING THE DECLARATION ARE ONE JOB.
+     This function's whole reason for existing is "the client is running
+     something and the machinery for it has gone quiet"; under server accrual
+     the SERVER's knowledge of that run is part of the machinery, and it goes
+     quiet in exactly the same situations (a save from before the seam shipped,
+     a declaration that failed while offline, the switch flipped on mid-run).
+     Bounded to one intent per pointer by the latch inside; a no-op when the
+     switch is off or the server has already acknowledged this activity. */
+  try{ assertActivityDeclaration(); }catch(e){}
   /* Combat first. Bug (paione: "afk/offline combat stuck at 71 kills"): mobile
      browsers suspend the tab on background and can CLEAR the combat setInterval.
      This function runs on every visibility-resume, but it used to bail whenever a
@@ -3963,7 +4166,11 @@ function retimeActivity(){
 }
 window.retimeActivity=retimeActivity;
 function startSkill(type,targetId,ms){
-  stopSkill();
+  /* b348 SEAM 4. The inner stop is QUIET for the reason startCombat's is: one
+     gesture is one declaration and one idempotency key, and declaring
+     idle-then-gather would run two collects for a single tap — the second
+     pricing a span of milliseconds and classifying `below_min_span`. */
+  activityQuietly(stopSkill);
   G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
   /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze.
      b227: through activityIntervalMs(), the single formula the live loop, the
@@ -3986,6 +4193,12 @@ function startSkill(type,targetId,ms){
   G.skillMs=actualMs;
   armSkillTimers(actualMs);
   renderSkillsList();renderSkillDetail(type);
+  /* DECLARE WHAT IS STILL TRUE, the same guard startCombat uses: the level gate
+     inside doSkillAction calls stopSkill(), and although nothing above can fire
+     a tick synchronously today, a declaration that outlived its own activity
+     would tell the server the player is chopping a tree they were just refused.
+     The LAST declaration wins, so "still true" is the property that matters. */
+  if(G.activeSkill===type&&G.skillTargetId===targetId)declareActivity('gather',targetId);
 }
 function stopSkill(){
   // b138: capture lastActivity BEFORE we null G.activeSkill so the
@@ -3997,11 +4210,26 @@ function stopSkill(){
   if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
   if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
   var _prevSkill = null; /* b228 (Tyler): switching to combat left the old tile saying Active */
+  /* b348 SEAM 5 — captured BEFORE the pointer is cleared, for the same reason
+     the launchpad hook above is. */
+  const _wasRunning=!!G.activeSkill;
+  endActivityRun();
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
   try{
     document.querySelectorAll('.act-tile.active').forEach(function(t){ t.classList.remove('active'); var st=t.querySelector('.at-stop'); if(st) st.remove(); var f=t.querySelector('.at-prog-fill'); if(f) f.style.width='0%'; });
   }catch(e){}
   renderSkillsList();
+  /* A stop is a declaration too — without it the server goes on paying an
+     activity the player abandoned, which is the away-time bug in reverse.
+
+     GUARDED ON "SOMETHING WAS ACTUALLY RUNNING", where stopCombat is not, and
+     the asymmetry is measured rather than stylistic: `stopSkill()` has thirteen
+     callers in this file and is used DEFENSIVELY (startArtisan calls it, the
+     mutex calls it, the launchpad calls it) — an unguarded declaration here
+     would put an `idle` intent, an idempotency key and a rate spend on the wire
+     every time a player opened a screen with nothing running. `stopCombat` is
+     called only to stop a fight. */
+  if(_wasRunning)declareActivity('idle',null);
 }
 window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers guarded on finding it and bailed, so window.stopSkill has not existed since they shipped (auto-actions' stop call was a no-op too) */
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
@@ -10834,12 +11062,19 @@ window.startArtisan = function(skillId, recipeId){
   if(!r) return;
   if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
-  if(typeof stopSkill === 'function') stopSkill();
+  /* b348 SEAM 6 — quiet inner stop, one gesture one declaration. */
+  if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
+  /* DECLARED AS `artisan`, SENT AS `idle`. src/net/activity.js's
+     `declarationFor` owns the downgrade and the reason for it — the short
+     version is that saying nothing leaves the server paying for the tree the
+     player stopped chopping an hour ago. The day the engine can price artisan,
+     this line starts declaring `artisan` with no edit here. */
+  declareActivity('artisan',recipeId);
 };
 
 /* b227: ONE place that arms the artisan timers, so retimeActivity() can swap
@@ -11621,12 +11856,16 @@ window.startArtisan = function(skillId, recipeId){
     Object.entries(inp).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) missing.push((ITEMS[kv[0]]?.n||kv[0])+' x'+kv[1]); });
     if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
   }
-  if(typeof stopSkill === 'function') stopSkill();
+  /* b348 SEAM 7 — the inputs-aware override is the one that actually runs;
+     seam 6 above is the base it shadows. BOTH declare, because a build that
+     loaded only one of them must not be silent. */
+  if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
+  declareActivity('artisan',recipeId);
 };
 
 /* Override renderArtisanActivities to handle multi-input display + gating */
@@ -11731,12 +11970,31 @@ console.log('Phase A.1 recipe set loaded:',
 // ===== block 22: activity-mutex =====
 (function(){
 "use strict";
+/* ── b348: THE MUTEX'S CROSS-STOPS ARE QUIET ───────────────────────────────
+   These wrappers are OUTSIDE the functions that declare, so the quiet counter
+   startCombat/startSkill use on their own inner stops cannot reach them. Left
+   alone, one tap on a monster while chopping would put TWO intents on the wire
+   — `idle` from this stopSkill and then `combat` from the real start — which
+   means two idempotency keys, two rate spends and two collects for one gesture,
+   the second pricing a span of milliseconds. The pointer would still end up
+   right; the cost is real and the duplicate is invisible in every surface a
+   player or a bug report can see.
+
+   `q` degrades to a plain call if the seam has not loaded, because a mutex that
+   stopped working when a network module was missing would be a worse bug than
+   a duplicate intent. */
+var q = function(fn){
+  if(typeof window.activityQuietly === 'function') return window.activityQuietly(fn);
+  return fn();
+};
 (function(){
   var orig = window.startCombat;
   if(typeof orig !== 'function') return;
   window.startCombat = function(mId){
-    if(typeof stopSkill === 'function') stopSkill();
-    if(typeof window._stopArtisan === 'function') window._stopArtisan();
+    q(function(){
+      if(typeof stopSkill === 'function') stopSkill();
+      if(typeof window._stopArtisan === 'function') window._stopArtisan();
+    });
     return orig.apply(this, arguments);
   };
 })();
@@ -11744,7 +12002,7 @@ console.log('Phase A.1 recipe set loaded:',
   var orig = window.startSkill;
   if(typeof orig !== 'function') return;
   window.startSkill = function(type, targetId, ms){
-    if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };
 })();
@@ -11752,7 +12010,7 @@ console.log('Phase A.1 recipe set loaded:',
   var orig = window.startArtisan;
   if(typeof orig !== 'function') return;
   window.startArtisan = function(skillId, recipeId){
-    if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };
 })();

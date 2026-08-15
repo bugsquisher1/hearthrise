@@ -17980,7 +17980,7 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('AWAY-3: crits roll away, increment stats.crits, and EXCLUDE the damage_crit food buff', () => {
+  () => tryRun('AWAY-3: crits roll away, increment stats.crits, and the damage_crit food buff now REACHES an away roll', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -18004,17 +18004,34 @@ const TESTS = [
       });
       assert(G.stats.crits === 1, 'an away crit must increment stats.crits, got ' + G.stats.crits);
 
-      /* (b) the damage_crit FOOD buff must contribute nothing away. It maps to
-         the `crit` bonus key, so this is the one place the crit rule and the
-         buff rule meet. Read through the real chain, not a stub. */
+      /* (b) THE ONE PLACE THE CRIT RULE AND THE BUFF RULE MEET, and the
+         assertion is now the opposite of what b326 shipped.
+         b326: crit applies away because it is gear, and the damage_crit FOOD
+         buff does not, because it is a BUFF and the buff channel was closed.
+         The channel is open now (src/core/away.js — the line is server-wide vs
+         personal, and a Feast is personal), so the food buff reaches an away
+         crit roll exactly as it reaches a live one. Still no special case in
+         either direction — which is the property worth having, given the rule
+         underneath it moved. Read through the real chain, not a stub. */
       window.getBonus = origBonus;
+      G.buffs = [];
+      const baseCrit = window.getBonus('crit');
       G.buffs = [{ type: 'damage_crit', magnitude: 50, remainingMs: 600000, addedAt: Date.now() }];
       const liveCrit = window.getBonus('crit');
       let awayCrit = null;
       P._withOfflineReplay(() => { awayCrit = window.getBonus('crit'); });
-      assert(liveCrit >= 0.5, 'a +50% damage_crit buff must pay while playing, got ' + liveCrit);
-      assert(awayCrit < liveCrit && awayCrit < 0.5,
-        'the damage_crit FOOD buff must not reach an away crit roll (live ' + liveCrit + ', away ' + awayCrit + ')');
+      assert(liveCrit >= baseCrit + 0.5, 'a +50% damage_crit buff must pay while playing, got ' + liveCrit + ' over a base of ' + baseCrit);
+      assert(awayCrit === liveCrit,
+        'the damage_crit FOOD buff must reach an away crit roll identically (live ' + liveCrit + ', away ' + awayCrit + ')');
+      /* …and it is not free. The half that makes paying honest is spending:
+         once the absence has run the buff out it stops contributing, which
+         AWAY-5 measures on a real timeline. Asserted here only as the
+         boundary — a dead buff pays nothing, away or live. */
+      G.buffs = [{ type: 'damage_crit', magnitude: 50, remainingMs: 0, addedAt: Date.now() }];
+      let spentCrit = null;
+      P._withOfflineReplay(() => { spentCrit = window.getBonus('crit'); });
+      assert(spentCrit === baseCrit,
+        'a buff the absence has already spent must pay nothing away, got ' + spentCrit + ' against a base of ' + baseCrit);
     } finally {
       window.getBonus = origBonus;
       C.setRng(null);
@@ -18099,45 +18116,93 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('AWAY-5: a 10-minute buff survives a 12-hour away grant intact — 10 min left, 0 contributed, 0 food eaten', () => {
+  () => tryRun('AWAY-5: a timed buff PAYS away and DRAINS away — 5 minutes of Feast covers 5 minutes of an hour, then stops', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
     try {
-      /* This is the live exploit the ruling closes: buffs reached the away
-         replay through getBonus, while the buff clock was a setInterval that
-         only runs in a live tab. Eat a 10-minute drop-rate buff, shut the tab,
-         collect twelve buffed hours, come back to a buff still reading 10:00. */
-      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 600000, addedAt: Date.now() }];
+      /* ── THE RULE THIS ASSERTS, AND WHY IT REPLACED THE OLD ONE ───────────
+         b326 FROZE a buff for the whole absence: it neither paid nor drained,
+         and this test asserted exactly that. The line it drew was timed vs
+         permanent. The real line is SERVER-WIDE vs PERSONAL (Tyler,
+         2026-08-14: "should not gain the server wide blessing/buffs but they
+         should still get their personal / clan buffs"), and a Feast the player
+         ate is personal, so it pays.
+
+         Which makes the DRAIN load-bearing rather than tidy. "Pays away"
+         without "spends away" is a strictly worse exploit than the one b326
+         closed — ten minutes of consumable would cover a twelve-hour night. So
+         this test measures both halves on a real timeline, and it measures
+         WHERE the buff ran out: not at the start (a nerf), not at the end (a
+         mint), but at the five-minute mark. Coverage is the assertion. */
+      const m = window.MONSTERS.goblin;
+      const setup = () => {
+        G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
+        G.activeMonster = 'goblin';
+        G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 5000; G.playerHp = 5000;
+      };
       const foodId = 'cooked_shrimp';
       G.inventory = Object.assign({}, G.inventory); G.inventory[foodId] = 5;
+      const tickMs = window.combatTickMs();
 
+      /* (a) IT PAYS, and it pays the SAME away as live. Measured against the
+         player's own base so a drop-rate perk cannot make this vacuous. */
+      G.buffs = [];
+      const baseDrop = window.getBonus('dropRate');
+      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 300000, addedAt: Date.now() }];
       const liveDrop = window.getBonus('dropRate');
-      assert(liveDrop >= 1, 'a +100% drop_rate buff must pay while playing, got ' + liveDrop);
-
+      assert(liveDrop >= baseDrop + 1, 'a +100% drop_rate buff must pay while playing, got ' + liveDrop + ' over a base of ' + baseDrop);
       let awayDrop = null;
-      P._withOfflineReplay(() => {
-        awayDrop = window.getBonus('dropRate');
-        /* Twelve hours of clock, handed to THE clock. */
-        window.advanceBuffClock(12 * 3600000);
-      });
+      P._withOfflineReplay(() => { awayDrop = window.getBonus('dropRate'); });
+      assert(awayDrop === liveDrop,
+        'a PERSONAL buff must pay the same away as live (live ' + liveDrop + ', away ' + awayDrop + ')');
 
-      assert(awayDrop === 0, 'a timed buff must contribute exactly 0 away, got ' + awayDrop);
-      assert(G.buffs.length === 1, 'the frozen buff must still be in the queue');
-      assert(G.buffs[0].remainingMs === 600000,
-        'a FROZEN buff must not drain: expected 600000ms left after a 12h absence, found ' + G.buffs[0].remainingMs);
-      assert(G.inventory[foodId] === 5, 'freezing a buff must not consume food, found ' + G.inventory[foodId]);
+      /* (b) …AND ONE HOUR OF ABSENCE SPENDS EXACTLY THE FIVE MINUTES IT HAD. */
+      setup();
+      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 300000, addedAt: Date.now() }];
+      let s = null;
+      P._withOfflineReplay(() => { s = window.simulateAwayCombat(1, Date.now(), false); });
+      assert(s && s.ticks > 0, 'the rig produced no ticks — every assertion below would be vacuous');
+      assert(s.died === false, 'the rig died mid-span; the coverage measurement below would be measuring the death, not the buff');
+      assert(Math.abs(s.buffPaidMs - 300000) <= tickMs,
+        'a 5-minute buff must pay 5 minutes of a 1-hour absence, got ' + s.buffPaidMs + 'ms (one tick = ' + tickMs + 'ms)');
+      assert(s.buffPaidMs < 3600000,
+        'THE MINT: the buff paid ' + s.buffPaidMs + 'ms of a 3600000ms absence — a 5-minute consumable must not cover an hour');
+      assert(s.buffsExpired.indexOf('drop_rate') >= 0,
+        'the summary must name the buff that ran out mid-absence, got ' + JSON.stringify(s.buffsExpired));
+      assert(G.buffs.length === 0,
+        'the expired buff must be pruned — tickBuffs skips an already-dead entry, so nothing else would ever clear the "0s" row');
+      assert(window.getBonus('dropRate') === baseDrop,
+        'a spent buff must pay nothing afterwards, got ' + window.getBonus('dropRate') + ' against a base of ' + baseDrop);
+      assert(G.inventory[foodId] === 5, 'an away buff must not consume extra food, found ' + G.inventory[foodId]);
 
-      /* …and it resumes the moment the player is back. Frozen, not cancelled. */
-      const resumed = window.getBonus('dropRate');
-      assert(resumed === liveDrop, 'the buff must pay again the instant play resumes (' + resumed + ' vs ' + liveDrop + ')');
-      /* An activity has to be running: idle play has never drained buffs, and
-         that rule predates this change. */
+      /* (c) THE OTHER HALF: a buff LONGER than the absence survives it, minus
+         exactly the time that passed. Frozen and drained-to-zero are both
+         wrong, and only measuring the expiry case would miss either. */
+      setup();
+      G.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 3600000, addedAt: Date.now() }];
+      P._withOfflineReplay(() => { window.simulateAwayCombat(0.25, Date.now(), false); });
+      assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
+      const spent = 3600000 - G.buffs[0].remainingMs;
+      assert(Math.abs(spent - 900000) <= tickMs,
+        'a 15-minute absence must spend 15 minutes of a 60-minute buff, spent ' + spent + 'ms');
+      assert(window.getBonus('dropRate') >= baseDrop + 1,
+        'and the remainder must still be paying when the player gets back');
+
+      /* (d) THE ONE FREEZE THAT SURVIVED. Idle play has never drained buffs —
+         you are not spending an effect that is not modifying anything — and
+         that rule predates this change and is untouched by it. */
+      G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
+      const before = G.buffs[0].remainingMs;
+      window.advanceBuffClock(60000);
+      assert(G.buffs[0].remainingMs === before,
+        'with nothing running the clock must still freeze, found ' + G.buffs[0].remainingMs + ' vs ' + before);
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs < 600000, 'and it must drain again while playing');
-    } finally { restoreG(snap); }
+      assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
+    } finally { C.randomSeed(); restoreG(snap); }
   }),
 
   () => tryRun('AWAY-6: blessings still contribute 0 away (the b227 latch is unchanged by the unification)', () => {
@@ -18152,7 +18217,12 @@ const TESTS = [
        is how the away/live split drifted the first time. */
     const A = window.HearthriseCore.away;
     assert(A.channelApplies('blessing', { away: true }) === false, 'the blessing channel must be closed away');
-    assert(A.channelApplies('buff', { away: true }) === false, 'the buff channel must be closed away');
+    /* THE LINE IS SERVER-WIDE vs PERSONAL, not timed vs permanent. A blessing
+       is something the world does for people who are in it; a Feast is
+       something the player did to their own character, and it stays true while
+       they sleep. So blessing is closed and buff is OPEN — and because it is
+       open it also drains (AWAY-5 measures that half). */
+    assert(A.channelApplies('buff', { away: true }) === true, 'the buff channel must be OPEN away — personal buffs pay while you are gone');
     assert(A.channelApplies('permanent', { away: true }) === true, 'permanent bonuses must always apply');
     assert(A.channelApplies('crit', { away: true }) === true, 'crit must always apply');
     assert(A.channelApplies('botd', { away: true }) === true, 'Boss of the Day must apply away');
@@ -18257,18 +18327,32 @@ const TESTS = [
       P._withOfflineReplay(() => { s = window.simulateAwayCombat(1, Date.now(), false); });
       assert(s, 'simulateAwayCombat must return a summary');
       assert(s.blessed === false, 'the summary must state blessings were NOT applied');
-      assert(s.buffsPaused === true, 'the summary must state a held buff was paused');
+      /* `buffsPaused` used to be the interesting field and is now always false:
+         nothing is paused away, so a card that printed "your buffs were
+         paused" off a held buff would be quoting a rule that no longer exists.
+         What replaced it is COVERAGE — how much of the absence a buff actually
+         paid for, and which ones ran out. Stated, never inferred. */
+      assert(s.buffsPaused === false, 'no buff is paused away any more — the summary must not claim one was');
+      assert(typeof s.buffPaidMs === 'number' && s.buffPaidMs > 0,
+        'a held buff must report the span it actually paid, got ' + s.buffPaidMs);
+      assert(s.buffPaidMs <= 600000 + 5000,
+        'a 10-minute buff cannot have paid ' + s.buffPaidMs + 'ms of the absence');
+      assert(Array.isArray(s.buffsExpired), 'the summary must carry the list of buffs that ran out mid-absence');
       assert(typeof s.crits === 'number', 'the summary must report away crits so "142 kills · 21 crits" is sayable');
       assert(typeof s.featuredMs === 'number', 'the summary must report time on the featured boss');
       assert(s.capped === false, 'the summary must report whether the absence hit the cap');
       assert(s.rateMult === 1.00, 'the summary must state the away rate actually applied');
       assert(Array.isArray(s.segments) && s.segments.length >= 1, 'the summary must describe its UTC-day segments');
-      /* With no buffs held, "your buffs were paused" is itself a small lie. */
+      /* With no buffs held, the coverage must be exactly zero — not "unknown"
+         and not a default. A renderer that saw a positive number here would
+         quote a buff the player never had. */
       G.buffs = [];
       G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = 200;
       let s2 = null;
       P._withOfflineReplay(() => { s2 = window.simulateAwayCombat(1, Date.now(), false); });
       assert(s2.buffsPaused === false, 'buffsPaused must be false when the player held no buffs');
+      assert(s2.buffPaidMs === 0, 'a player who held no buffs must report 0ms of buffed absence, got ' + s2.buffPaidMs);
+      assert(s2.buffsExpired.length === 0, 'and no buff can have expired, got ' + JSON.stringify(s2.buffsExpired));
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
@@ -18470,6 +18554,164 @@ const TESTS = [
     assert(C.combatSim.resolveTickMs({ tickMs: 50, minTickMs: 0 }) === CB.minTickMs, 'a zero opt-in must not disable the floor');
   }),
 
+  () => tryRun('AWAY-15: the away buff clock is a TIMELINE — coverage is min(buff, span), it survives UTC midnight, and it is driven in PURE core', () => {
+    /* AWAY-5 measures this through the browser: G.buffs, the wrapped getBonus
+       chain, simulateAwayCombat. THIS one measures the same rule with none of
+       that — a bare `simulateSpan` on a plain object, which is the exact shape
+       the accrual Edge Function runs in Deno. If the clock ever gets wired to
+       something browser-only, this is the test that notices.
+
+       The rig never lands a hit (`chance: () => false`), so nothing dies and
+       `ticks` is the pure tick BUDGET — the same rig AWAY-12b uses, for the
+       same reason: a death mid-span would make every number below a
+       measurement of the death instead of the buff. */
+    const C = window.HearthriseCore;
+    const B = C.buffs;
+
+    /* (a) THE ALLOCATION-FREE PREDICATE MUST NOT DRIFT FROM THE ARRAY.
+       `simulateSpan` asks `hasActiveBuff` ~18,000 times per absence and its
+       whole reason to exist is skipping the allocation `activeBuffs` does. Two
+       functions answering one question is how the away/live split rotted the
+       first time, so the equivalence is asserted rather than assumed. */
+    const shapes = [
+      null, undefined, [], 'nonsense',
+      [{ type: 'drop_rate', magnitude: 1, remainingMs: 0 }],
+      [{ type: 'drop_rate', magnitude: 1, remainingMs: -5 }],
+      [{ type: 'drop_rate', magnitude: 1, remainingMs: 1 }],
+      [{ type: 'a_type_that_does_not_exist', magnitude: 1, remainingMs: 9e9 }],
+      [{ type: 'a_type_that_does_not_exist', magnitude: 1, remainingMs: 9e9 }, { type: 'all_xp', magnitude: 2, remainingMs: 5 }],
+      [null, { type: 'all_xp', magnitude: 2, remainingMs: 5 }],
+    ];
+    for (const q of shapes) {
+      assert(B.hasActiveBuff(q) === (B.activeBuffs(q).length > 0),
+        'hasActiveBuff disagreed with activeBuffs for ' + JSON.stringify(q));
+    }
+
+    const TICK = 2400;
+    const run = (remainingMs, fromMs, spanMs) => {
+      const state = {
+        activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
+        playerHp: 1e9, playerMaxHp: 1e9, stats: {},
+        buffs: remainingMs > 0 ? [{ type: 'drop_rate', magnitude: 100, remainingMs, addedAt: 0 }] : [],
+      };
+      const out = C.combatSim.simulateSpan(state, {
+        away: true, fromMs, toMs: fromMs + spanMs, tickMs: TICK,
+        rng: { next: () => 0.5, int: (a) => a, chance: () => false },
+        monsters: window.MONSTERS,
+        playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
+        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+        weakness: () => ({ dropMult: 1 }),
+        bonus: () => 0,
+      });
+      return { out, state };
+    };
+
+    const MIDDAY = Date.UTC(2026, 0, 15, 6, 0, 0);
+    const HOUR = 3600000;
+
+    /* (b) COVERAGE IS min(buff, span) — the whole rule, in one line, at both
+       ends and in the middle. TICK divides all three exactly, so these are
+       equalities and not tolerances: an off-by-one drain would fail. */
+    const short = run(300000, MIDDAY, HOUR);          // 5-min buff, 1h absence
+    assert(short.out.ticks === HOUR / TICK, 'the rig must budget the full hour, got ' + short.out.ticks + ' ticks');
+    assert(short.out.buffPaidMs === 300000,
+      'a 5-minute buff must cover exactly 5 minutes of an hour, got ' + short.out.buffPaidMs + 'ms');
+    assert(short.state.buffs.length === 0, 'and it must be gone from the queue afterwards');
+    assert(short.out.buffsExpired.length === 1 && short.out.buffsExpired[0] === 'drop_rate',
+      'the expiry must be reported by type, got ' + JSON.stringify(short.out.buffsExpired));
+
+    const long = run(2 * HOUR, MIDDAY, HOUR);         // 2h buff, 1h absence
+    assert(long.out.buffPaidMs === HOUR,
+      'a buff longer than the absence must cover ALL of it, got ' + long.out.buffPaidMs + 'ms of ' + HOUR);
+    assert(long.state.buffs.length === 1 && long.state.buffs[0].remainingMs === HOUR,
+      'and must have exactly the absence spent off it, found ' + JSON.stringify(long.state.buffs));
+    assert(long.out.buffsExpired.length === 0, 'a surviving buff must not be reported as expired');
+
+    const none = run(0, MIDDAY, HOUR);
+    assert(none.out.buffPaidMs === 0, 'no buff held must report exactly 0ms covered, got ' + none.out.buffPaidMs);
+
+    /* (c) THE MINT, STATED AS AN INEQUALITY. This is the assertion that would
+       fail if the clock were ever removed while the payout stayed: a buff can
+       never cover more of an absence than it had life. */
+    for (const [buffMs, spanMs] of [[60000, 12 * HOUR], [300000, 8 * HOUR], [20 * 60000, 12 * HOUR]]) {
+      const r = run(buffMs, MIDDAY, spanMs);
+      assert(r.out.buffPaidMs <= buffMs,
+        'a ' + buffMs + 'ms buff covered ' + r.out.buffPaidMs + 'ms of a ' + spanMs + 'ms absence — that is a mint');
+      assert(r.out.buffPaidMs === Math.min(buffMs, spanMs),
+        'coverage must be exactly min(buff, span): expected ' + Math.min(buffMs, spanMs) + ', got ' + r.out.buffPaidMs);
+    }
+
+    /* (d) IT SURVIVES UTC MIDNIGHT. The absence is split into day segments for
+       the Boss of the Day, and each segment rebuilds its ctx — so a clock kept
+       per segment instead of per span would silently restore the buff at
+       midnight and pay it twice. 23:30 -> 00:30 with a 45-minute buff must pay
+       45 minutes across the boundary, not 30 + 45. */
+    const NIGHT = Date.UTC(2026, 0, 15, 23, 30, 0);
+    const cross = run(45 * 60000, NIGHT, HOUR);
+    assert(cross.out.segments.length === 2, 'the rig must actually straddle midnight, got ' + cross.out.segments.length + ' segment(s)');
+    assert(cross.out.buffPaidMs === 45 * 60000,
+      'a 45-minute buff across UTC midnight must cover 45 minutes, got ' + (cross.out.buffPaidMs / 60000).toFixed(2) + ' minutes');
+    assert(cross.state.buffs.length === 0, 'and must still be spent by the end of the night');
+
+    /* (e) A SERVER STATE HAS NO BUFF QUEUE, and must not grow one. hr-accrue
+       builds `state` from DB rows; every line of the clock has to be an inert
+       no-op there or the Edge Function throws on a field it never had. */
+    const server = {
+      activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
+      playerHp: 1e9, playerMaxHp: 1e9, stats: {},
+    };
+    const sOut = C.combatSim.simulateSpan(server, {
+      away: true, fromMs: MIDDAY, toMs: MIDDAY + HOUR, tickMs: TICK,
+      rng: { next: () => 0.5, int: (a) => a, chance: () => false },
+      monsters: window.MONSTERS,
+      playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
+      monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+      weakness: () => ({ dropMult: 1 }), bonus: () => 0, activeBuffCount: 0,
+    });
+    assert(server.buffs === undefined, 'the clock must not invent a buff queue on a state that has none');
+    assert(sOut.buffPaidMs === 0 && sOut.buffsExpired.length === 0,
+      'a buffless state must report zero coverage, got ' + sOut.buffPaidMs);
+    assert(sOut.ticks === HOUR / TICK, 'and must still simulate its full span');
+
+    /* (f) THE QUEUE IS READ FRESH, NOT CAPTURED — pinned by the one case that
+       can actually tell the two apart.
+       Note what does NOT distinguish them, because the obvious test is a
+       vacuous one: `window.pruneBuffs()` reassigns `G.buffs` to a
+       `filter()`ed array whose ELEMENTS are the same objects, so draining
+       through a stale reference still mutates the very buffs the getBonus
+       chain reads. (Measured: capturing the array once passes a
+       reassignment test unchanged.)
+       What does distinguish them is a buff APPEARING in a queue that was
+       empty when the span began — a clock that captured `null` at the top
+       would never drain it, so it would pay for the whole rest of the
+       absence and come back reading full. That is the mint, and it is the
+       assertion below. */
+    const grew = {
+      activeMonster: 'goblin', monsterHp: 1e9, monsterMaxHp: 1e9,
+      playerHp: 1e9, playerMaxHp: 1e9, stats: {}, buffs: [],
+    };
+    let swings = 0;
+    const HALF = (HOUR / TICK) / 2;
+    const gOut = C.combatSim.simulateSpan(grew, {
+      away: true, fromMs: MIDDAY, toMs: MIDDAY + HOUR, tickMs: TICK,
+      rng: { next: () => 0.5, int: (a) => a, chance: () => false },
+      monsters: window.MONSTERS,
+      playerRolls: () => ({ accuracy: 0, maxHit: 1, critChance: 0 }),
+      monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+      weakness: () => ({ dropMult: 1 }), bonus: () => 0,
+      fx: {
+        onSwing() {
+          if (++swings === HALF) grew.buffs = [{ type: 'drop_rate', magnitude: 100, remainingMs: 10 * 60000, addedAt: 0 }];
+        },
+      },
+    });
+    assert(swings > HALF, 'the rig never reached its insertion point — the assertions below would be vacuous');
+    assert(gOut.buffPaidMs === 10 * 60000,
+      'a buff that appears mid-span must be clocked from that moment: expected 600000ms covered, got ' + gOut.buffPaidMs);
+    assert(grew.buffs.length === 0,
+      'and it must be spent and pruned by the end of the absence, found ' + JSON.stringify(grew.buffs));
+  }),
+
   () => tryRun('AWAY-13 (perf): the analytics bridge must not write localStorage once per engine event', () => {
     /* Found with the CPU profiler while measuring a 12-hour away catch-up:
        observability.js subscribes to the event bus with on('*') and its track()
@@ -18649,8 +18891,10 @@ const TESTS = [
       window.showTab('profile');
       G.buffs = [{ type: 'gather_speed', magnitude: 15, remainingMs: 6 * 60000, addedAt: Date.now() }];
 
-      /* FROZEN: nothing running is the same rule as away — src/core/buffs.js
-         `tickBuffs` refuses to drain in both cases. */
+      /* FROZEN: nothing running. This is now the ONLY freeze condition —
+         src/core/buffs.js `tickBuffs` used to freeze on `away` too, and no
+         longer does (personal buffs pay away, so they are spent away). "A buff
+         is spent on work" is the rule that survived; idling is not work. */
       G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
       assert(window.buffsFrozen() === true, 'with no activity running the buff clock must be frozen');
       H.render();
@@ -18712,24 +18956,30 @@ const TESTS = [
     } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
   }),
 
-  () => tryRun('b326-5: an away-earnings preview is computed with away:true and can never quote a blessing- or buff-inflated rate', () => {
+  () => tryRun('b326-5: an away-earnings preview is computed with away:true — it can never quote a BLESSING, and it quotes personal buffs exactly as the live rate does', () => {
     const G = window.G;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
     try {
       const tree = (window.TREES || []).find((t) => t.id === 'oak_tree') || (window.TREES || [])[0];
       assert(tree, 'a gathering action is needed to compare rates');
-      /* A food buff, held. It pays live and is FROZEN away, so the two rates
-         must part company — the exact inflation item 5 forbids a preview from
-         quoting.
+      /* ── WHAT CHANGED HERE, AND WHY THE INVARIANT DID NOT ─────────────────
+         b326 froze buffs away, so this test asserted the two rates must PART
+         COMPANY when a buff is held: away < live. Buffs are personal and pay
+         away now (src/core/away.js), so the honest away rate with a buff held
+         is the SAME as the live one, and asserting divergence would be
+         asserting a rule that was deleted.
+
+         The invariant this test actually protects is untouched and is asserted
+         below: the away preview may never quote MORE than the live rate. That
+         is what keeps the pill safe to show unconditionally, and it is the
+         BLESSING channel — still closed away — that it guards.
 
          The buff is `all_xp` DELIBERATELY, not `gather_speed`: speed bonuses
          pass through SPEED_FUSE (0.70), so on a save whose perks and tools
          already saturate the fuse a speed buff changes nothing and the test
          would be flaky rather than wrong. `allXP` is an uncapped additive term
-         in actionRate, so the divergence is arithmetic, not circumstantial.
-         (Both channels are gated identically — `buff` is out of scope away —
-         so this proves the gate, not one key's plumbing.) */
+         in actionRate, so the agreement below is arithmetic, not accidental. */
       G.buffs = [
         { type: 'all_xp', magnitude: 60, remainingMs: 600000, addedAt: Date.now() },
         { type: 'gather_speed', magnitude: 25, remainingMs: 600000, addedAt: Date.now() },
@@ -18738,11 +18988,22 @@ const TESTS = [
       const away = window.actionRate('woodcutting', tree, { away: true });
       assert(live && away, 'actionRate must answer in both contexts');
       assert(away.ms >= live.ms,
-        'the away rate must never be FASTER than the live one — a speed buff cannot pay while frozen');
+        'the away rate must never be FASTER than the live one — no away channel may outpay a live one');
       assert(away.xpPerHour <= live.xpPerHour, 'the away rate must never exceed the live rate');
-      assert(away.xpPerAction < live.xpPerAction,
-        'with a +60% all-XP buff held, the away preview must quote a LOWER per-action grant than the live one ('
+      assert(away.xpPerAction === live.xpPerAction,
+        'with a +60% all-XP buff held, a PERSONAL buff must reach the away preview identically ('
           + away.xpPerAction + ' vs ' + live.xpPerAction + ')');
+      /* And the channel that is still closed must still be closed — otherwise
+         "the two rates agree" would be evidence the gate had been removed
+         wholesale rather than opened for one channel. */
+      const A = window.HearthriseCore.away;
+      assert(A.channelApplies('blessing', { away: true }) === false && A.channelApplies('buff', { away: true }) === true,
+        'the preview must be quoting an away rate whose BLESSING channel is shut and whose BUFF channel is open');
+      /* KNOWN LIMITATION, stated so nobody reads the equality above as a
+         promise: `actionRate` quotes an INSTANTANEOUS rate, and a buff with ten
+         minutes left will only pay the first ten minutes of a twelve-hour
+         absence (AWAY-15 measures exactly that). The live pill has always had
+         this property; the away pill now shares it rather than differing. */
 
       /* It must be the SAME calculator through the SAME latch — not a second
          "offline rate" function that will drift. Proven by equality with a
@@ -22738,14 +22999,20 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('AWAY-SCOPE-1: AWAY_SCOPE is the frozen table, and no away-eligibility gate has come back by any name', () => {
+  () => tryRun('AWAY-SCOPE-1: AWAY_SCOPE is the pinned table, and no away-eligibility gate has come back by any name', () => {
     const C = window.HearthriseCore;
-    /* THE FROZEN TABLE. away.js's contract is that an UNKNOWN channel PAYS,
+    /* THE PINNED TABLE. away.js's contract is that an UNKNOWN channel PAYS,
        because every historical away bug was a base reward silently vanishing.
        This test predates b343 and outlives it: whatever anyone builds next,
-       the resolver stays a table of bonus channels and never a permission. */
+       the resolver stays a table of bonus channels and never a permission.
+
+       `buff` moved false -> true (2026-08-14, Tyler: personal buffs pay away,
+       server-wide blessings do not). Changing a pin is legal when the rule it
+       pins changed and the change is deliberate; what this test refuses is a
+       DRIFT — a channel appearing, disappearing, or flipping without anyone
+       editing this line. */
     const scope = C.away.AWAY_SCOPE;
-    const expected = { permanent: true, crit: true, botd: true, heal: true, blessing: false, buff: false };
+    const expected = { permanent: true, crit: true, botd: true, heal: true, blessing: false, buff: true };
     assert(Object.keys(scope).sort().join(',') === Object.keys(expected).sort().join(','),
       'AWAY_SCOPE gained or lost a channel: ' + JSON.stringify(scope));
     Object.keys(expected).forEach((k) => {

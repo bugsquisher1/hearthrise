@@ -63,6 +63,62 @@ red that goes away when you stabilise the fixture was never proving your fix.**
 to 14%; and it omits artisan tool speed, which `activityIntervalMs()` applies. Both live in
 `src/core/pacing.js`, shared with the accrual payload — a coordination point, not a drive-by. Neither
 is a live/away divergence and the server calls neither today.
+## 2026-08-15 — the away buff rule: paying and spending are ONE rule
+
+Branch `worktree-agent-a06ecbcee310aa2c7` · smoke **685/685**, 0 runtime errors, four consecutive runs.
+
+`AWAY_SCOPE.buff` false -> **true**; `blessing` stays false. The scope table's line was never
+timed-vs-permanent — it is **server-wide vs personal**, and `clan` already sitting on the permanent
+channel was that same call, half-made.
+
+**The measurement that framed the job.** Before: an 8h away night holding a 10-minute +100%
+drop_rate buff paid **0 of 12,000 ticks**, and the buff still read 600,000ms afterwards — neither
+paid nor drained. After: **250 of 12,000 ticks** (600,000ms exactly), expired and pruned mid-night.
+And the half that makes it honest: restoring the freeze while leaving the payout open pays the
+**whole** 3,600,000ms absence out of a 300,000ms consumable — a **12x mint**, strictly worse than the
+exploit b326 closed. Pay and drain are not two features; they are one rule with two halves.
+
+**Where the clock lives, and why there.** `src/core/combat-sim.js simulateSpan`, per tick — the only
+away caller that owns a TIMELINE (it already segments the absence by UTC day for the Boss of the
+Day). Nothing was plumbed to make the payout follow: `ctx.bonus` is the client getBonus chain, whose
+buff term reads the same `G.buffs` the clock drains. One identity, not two copies reconciled by a
+guard — the property `unifyObject` buys for the data layer, applied to time.
+
+**The gap I could not close, stated rather than shipped quietly.** `AWAY_SCOPE` is a TABLE, so it
+opens for every away caller at once, and legacy's gather/artisan replay is a flat single-rate loop
+(`ticks = floor(spanMs / offlineIntervalMs())`, interval derived once) with no clock inside it — it
+pays a buff all night and drains none. Measured ceiling with the shipped catalogue: **+4% speed,
++5% XP**. The fix is a legacy split at the buff-expiry boundary and I do not hold that file. Logged
+as a BLOCKER in CONFLICTS.md and written into the foot of `src/core/away.js`, so the next reader
+finds it at the table rather than in a document nobody opens.
+
+**Two lessons worth more than the fix.**
+1. *A test can pass while asserting nothing, and the giveaway is a mutation that stays GREEN.* My
+   first aliasing guard swapped `state.buffs` for a new array mid-span. It could not fail:
+   `filter()`/`slice()` share the ELEMENT objects, so a stale array reference drains the live buffs
+   anyway. The case that distinguishes the implementations is a buff **appearing** in a queue that
+   was empty at span start. Rewritten, the mutation went red at `expected 600000, got 0`.
+2. *Fixing the vacuous test exposed a real bug.* Re-reading the queue after the tick — which looks
+   equivalent — charged a buff added during that tick for an interval it was never alive for
+   (597,600 vs 600,000), because `fx.onSwing` runs inside `simulateTick`. Read once, before the
+   tick; charge and drain that one.
+
+**Balance, measured, nothing retuned.** Shipped buff foods are magnitude 1–5 for 2–20 minutes.
+Against a 12h cap the longest covers **2.78%** of the night, so a full 12h absence gains **+0.11% to
++0.15%** total output — sub-noise. The ceiling is a fully-covered short absence: 20 minutes with
+every stackable combat buff held is **+5.2% XP**. Away crit with `damage_crit` food: **7.67% ->
+11.25% effective for the buffed window**, **+1.7% crits** over a full night. The `CHANNEL.CRIT`
+comment claiming crit is "gear-sourced by construction when away" was made false by this and is
+rewritten in the same commit.
+
+**Perf.** 12h span, 18,000 ticks, median of 7: 2.1ms with no queue, 2.9ms with one. Under 1ms per
+replay, and the rig has no fx, so well under 1% of a real catch-up.
+
+**Save.** `G.buffs` is not in `NO_SYNC`, so the drained queue persists by default. Verified through
+the real path: a 15-min buff expired and was pruned, a 2h buff came out at exactly 3,600,000ms after
+a 1h night, and both `saveLocal` and `HearthriseEvents.snapshot` carried the drained values.
+
+Edge payload hash moved `65f0e8ed297f71b5` -> `95d8adf9c138425b` — **redeploy needed, not performed**.
 
 ## 2026-08-14 — b342 — the Field Licence had a rule, honesty copy, and NO SURFACES
 

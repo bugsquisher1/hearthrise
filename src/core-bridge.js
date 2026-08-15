@@ -29,32 +29,32 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=346';
-import * as xp from './core/xp.js?v=346';
-import * as combat from './core/combat.js?v=346';
-import * as drops from './core/drops.js?v=346';
-import * as pacing from './core/pacing.js?v=346';
-import * as rested from './core/rested.js?v=346';
-import * as tools from './core/tools.js?v=346';
-import * as farm from './core/farm.js?v=346';
-import * as progression from './core/progression.js?v=346';
-import * as styles from './core/styles.js?v=346';
-import * as artisan from './core/artisan.js?v=346';
-import * as bounty from './core/bounty.js?v=346';
-import * as away from './core/away.js?v=346';
-import * as botd from './core/botd.js?v=346';
-import * as buffs from './core/buffs.js?v=346';
-import * as combatSim from './core/combat-sim.js?v=346';
+import * as rngMod from './core/rng.js?v=348';
+import * as xp from './core/xp.js?v=348';
+import * as combat from './core/combat.js?v=348';
+import * as drops from './core/drops.js?v=348';
+import * as pacing from './core/pacing.js?v=348';
+import * as rested from './core/rested.js?v=348';
+import * as tools from './core/tools.js?v=348';
+import * as farm from './core/farm.js?v=348';
+import * as progression from './core/progression.js?v=348';
+import * as styles from './core/styles.js?v=348';
+import * as artisan from './core/artisan.js?v=348';
+import * as bounty from './core/bounty.js?v=348';
+import * as away from './core/away.js?v=348';
+import * as botd from './core/botd.js?v=348';
+import * as buffs from './core/buffs.js?v=348';
+import * as combatSim from './core/combat-sim.js?v=348';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=346';
+import * as skillSim from './core/skill-sim.js?v=348';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=346';
+import * as autoEat from './core/auto-eat.js?v=348';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from

@@ -4,6 +4,17 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 348 — 2026-08-15 (Your bug reports, fixed — and buffs now tick while you sleep)
+
+- ⚒️ **The smithing ladder is in order.** Steel Platebody demanded smithing 60 while the *better* Mithril one asked 55 — and two more lanes were tied or inverted. Five requirements moved down onto the proper curve (Iron Helm 25→20, Steel Helm 50→35, Iron Platebody 35→25, Steel Platebody 60→40, Bronze Belt 18→4). Thanks Xarn.
+- ⚔️ **Combat styles say where the XP goes again — on phones too.** A mobile rule from months back hid the label, and the swing speed later moved inside the same hidden element. Both facts are back on every screen size.
+- 🎒 **The bag shows the space you bought, not the space you've filled.** Buying inventory slots now visibly adds rows immediately, and the header keeps a running "25 / 160 slots" instead of being overwritten. Thanks Xarn.
+- 🛡️ **Gear tells you what it takes to wear it** — on the hover tooltip, the item detail, and the crafting list, not just the shop. "Requires Defense Lv 30 · you have 15." Thanks Xarn.
+- 🍖 **Your food and potion buffs now tick down while you're away — and pay while they last.** They used to freeze: no effect, no time lost. Now a 10-minute buff pays exactly its 10 minutes of your night and expires. "Eat before bed" now means eating something with hours on it, not seconds.
+- 🌙 **A run that stops early now says so everywhere.** "Cooking ran out of Raw Shrimp 31s in — the remaining 7h 59m paid nothing. Away, this run uses about 938 Raw Shrimp an hour." No more full-night reports over 31-second runs.
+- 👆 **The daily-reward panel no longer eats your first clicks**, and it has a close button, Escape, and a visible ×.
+- 🔢 **Activity tiles quote the XP the engine actually pays** — the tile said 5 while the engine paid 6.
+
 ## v0.9.2-beta build 345 — 2026-08-15 (Four empty gear slots, and the permit is gone)
 
 - 💍 **The earrings slot has something to put in it.** It has been on your character sheet since the beginning with *nothing in the entire game* that could fill it. Six earrings now exist, built around crit. Also: five new capes closing a gap that ran from level 35 straight to level 76, eight more necklaces and rings, and a full seven-tier arrow ladder — a bow climbed seven tiers while its ammo never upgraded once.

@@ -65,6 +65,20 @@ const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
    along because hr_create_character's start kit reads the catalogue, and
    because a guard that applies a DIFFERENT subset from the real chain is
    testing a database nobody will ever run. */
+/* ⚠ THIS SUBSET STOPS AT perk-channel ON PURPOSE (restated b352, when the
+   artisan progress model replaced the seam this file drives).
+   2026-08-16-artisan-progress-model.sql is THE authoritative
+   `hr_unlock_levels`; perk-channel's own body is the create-if-absent DEFAULT
+   that reads kind='flag'. That default is not dead code — it is what a database
+   runs BETWEEN the two applies, and perk-channel.sql must work standalone or
+   the intermediate state is broken with nothing to say so. So this file grades
+   perk-channel.sql applied ALONE, which is what it installs, and
+   tests/artisan-progress-model.mjs grades the FULL chain (whole
+   schema-apply-order replay, kind='unlock' rooms, the guard trigger, the recipe
+   gate) which is what production will run.
+   Do NOT "fix" this by appending the b352 files: four of the six mutations
+   below patch bodies that the later migration replaces, so they would silently
+   become no-ops and this file's proof of its own teeth would evaporate. */
 const MIGRATIONS = [
   ['player-state', MIG('2026-08-11-player-state.sql')],
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
@@ -125,10 +139,16 @@ const perksOf = (db, slot = 0) =>
   db.query('select public.hr_perks_of($1::uuid,$2::int) as p', [USER, slot])
     .then((r) => r.rows[0].p);
 
-/* Write unlock rows the way a future unlock intent will: one `flag` row per
-   unlock id, holding the RESOLVED value. Deliberately a plain INSERT and not
-   an RPC — no unlock intent exists yet, and inventing one here would be this
-   test asserting about a function nobody wrote. */
+/* Write unlock rows the way a future unlock intent will: one row per unlock id,
+   holding the RESOLVED value. Deliberately a plain INSERT and not an RPC — no
+   unlock intent exists yet, and inventing one here would be this test asserting
+   about a function nobody wrote.
+
+   ⚠ kind='flag' here matches perk-channel's DEFAULT seam, which is the only
+   thing installed in this subset. Under the full chain the kind comes from
+   hr_unlocks instead (rooms and the property tier are 'unlock', plot buildings
+   are 'stat') and the guard trigger refuses anything else — see
+   tests/artisan-progress-model.mjs and the note on MIGRATIONS above. */
 async function grantUnlocks(db, rows, slot = 0) {
   for (const [key, value] of Object.entries(rows)) {
     await db.query(

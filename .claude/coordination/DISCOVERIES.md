@@ -4,6 +4,49 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-14 · Systems Engineer · P0 · A WRAPPER PAIR IS A DOUBLE-COUNT. b228 fixed one instance; there were four more in the same feature
+
+**Discovery:** the b228 companion double-count was not a one-off, it was a **pattern**, and the b228
+fix only removed the first instance of it. `src/legacy.js` and `src/features/companions.js` each
+installed a full, independently-correct set of wrappers on `window.killMonster`,
+`window.combatTick`, `window.addItem`, `window.invItemTap` and `window.harvestPlot`. Each wrapper
+calls the next, so every one of those seams ran its post-effect **twice**.
+
+Measured in the real client (headless Chromium, real `index.html`, proc chance forced to 1 and the
+payout marked so nothing else could be confused with it):
+
+| seam | before | after |
+|---|---|---|
+| `killMonster` proc | 2 applications, 2 toasts | 1, 1 |
+| `killMonster` pet XP | 1.0 (a utility pet earns 0.5) | 0.5 |
+| `combatTick` proc | 2, 2 | 1, 1 |
+| `addItem` gather proc | 2, 2 | 1, 1 |
+| `addItem` cook proc | 2, 2 | 1, 1 |
+| `killMonster` companion drop | 2 independent rolls | 1 |
+| `invItemTap` Dragon Egg | **2 `confirm()` prompts** | 1 |
+| `harvestPlot` `cropsHarvested` | **+2 per harvest** | +1 |
+
+**The lesson worth keeping:** this is invisible to review — *each wrapper is correct on its own*, in
+a different file, written by a different layer. Neither `grep` nor reading finds it. The only thing
+that finds it is **executing the seam once and counting the applications.** b228's own note said so
+and the fix still missed the four instances next door.
+
+**Affected systems:** companions/pets (procs, XP, drops, acquisition), the power budget's companion
+census, `HearthrisePetSession` (it only heard from the ESM copy, so it under-reported by exactly
+half), the farm/bunny quest and the weekly `wk_harvest` ladder.
+
+**Required action for everyone:** when a feature exists in both `legacy.js` and an ESM module,
+**assume the wrappers are duplicated until you have counted them at runtime.** The remaining
+suspects are the other seams `legacy.js` and `src/features/*` both wrap — `addXp`, `getBonus`,
+`showTab` (wrapped 23×), `renderProfile`, `updateDaily`. Each needs one behavioural count, not a
+read. `showTab` in particular is the highest-fanout seam in the codebase and nobody has counted it.
+
+**Guarded by:** `b342 P0: a companion proc applies EXACTLY ONCE per trigger` and
+`b342: one harvest counts once, and one Dragon Egg tap asks once`, both mutation-proven RED against
+`git checkout HEAD -- src/legacy.js`.
+
+---
+
 ### 2026-08-14 - Systems Engineer - P1 - `information_schema` DOES NOT LIST MATERIALIZED VIEWS. Every grant check written against it reads NULL on a matview, forever
 
 **Discovery:** materialized views are not in the SQL standard, so PostgreSQL omits them from

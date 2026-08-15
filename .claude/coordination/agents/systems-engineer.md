@@ -2,6 +2,53 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-14 — b342 P0 — the companion proc hooks fired TWICE per trigger (measured, fixed)
+
+Branch `worktree-agent-a45c8f05da721f460`. Suite **670/670** (baseline 668; +2), 0 runtime errors,
+0 console errors. No version bump, nothing deployed.
+
+**The suspicion reproduced.** `rollProc` existed in `src/legacy.js` (block 31) *and* in
+`src/features/companions.js`, and BOTH files wrapped `window.killMonster`, `window.combatTick` and
+`window.addItem`. Each wrapper calls the next, so one trigger ran two rolls. This is the b228 bug
+one layer up: b228 deleted the duplicated `getBonus` wrapper and left the proc hooks standing.
+
+**Measured, not inferred** — real client, headless Chromium, real `index.html`, proc chance forced
+to 1 and the payout marked at 1e7 so no ordinary kill reward could be confused with it:
+
+| trigger | proc applications | toasts | companion XP (want 0.5) |
+|---|---|---|---|
+| `killMonster()` | **2** | 2 | **1.0** |
+| `combatTick()` | **2** | 2 | — |
+| `addItem()` gather | **2** | 2 | — |
+| `addItem()` cook | **2** | 2 | **1.0** |
+
+After the fix: 1 / 1 / 0.5 across the board. A Raccoon advertising "20% on kill" really fired at
+1 − 0.8² = **36%**. Every proc pet paid ~double its declared rate against a power budget that had
+never been told — and `HearthrisePetSession`, which only the ESM copy reports to, showed the player
+**exactly half** of what their pet was really paying. Block 31 also ran a 250ms interval that fired
+a THIRD gather proc each time `G.skillProgress` crossed 0.99.
+
+**The same removal's other half.** legacy.js block 35 duplicated the acquisition hooks too:
+- `killMonster` → two independent drop rolls per kill (Wolf Pup's 1% was really 1.99%). The legacy
+  copy rolled on `Math.random()`; companions.js deliberately rolls on the **seeded** core stream so
+  an away kill stays replayable — so deleting it *paid down* one unseeded roll on the away path.
+- `invItemTap` → **measured: one Dragon Egg tap raised TWO `confirm()` prompts.** Now 1.
+- `harvestPlot` → **measured: `G.stats.cropsHarvested` moved by 2 per harvest.** The Bunny quest
+  ("harvest 100") completed at 50 and the weekly `wk_harvest` ("Harvest 120 crops") at 60. Now 1.
+
+**Kept:** block 35's shop-row injection, `_buyCompanion` and `parseSource` — no ESM equivalent.
+
+**Mutation proof.** `git checkout HEAD -- src/legacy.js` (the exact bug, new tests kept) →
+**668/670, the two new tests RED**, every other test green. Restored → **670/670**.
+
+**Standing debt, NOT fixed here (one line, different concern):** `src/features/companions.js:205`
+still rolls procs on `Math.random()`. `COMBAT_FX.killMonster` resolves through the wrapper chain
+(legacy.js:3020–3028, bare identifiers on purpose), so an **away** kill fires proc rolls outside the
+seeded stream — the one remaining unseeded roll on a path whose contract is byte-identical replay.
+It is also why `AWAY-1 PARITY` passes by luck: its rig never resets `G.companions`, and only a
+`kill`-trigger pet would make live and away gold diverge. The server's `hr-accrue` deliberately has
+no `killMonster` fx at all, so it models no companion proc — documented in `accrual.js:284–302`.
+
 ## 2026-08-14 - b340 - getting the client off two tables it should never have been touching
 
 Branch `worktree-agent-a9521184e802dbc3f`. Suite **645/645** (baseline 640; +5), 0 runtime errors,

@@ -553,3 +553,53 @@ WHAT SHOULD BE TESTED:
 - Combat offline (`processOfflineCombat`) under a goldFind blessing — gold must not move.
 - The daily UTC rollover with an activity running (the retimer should pick up the new blessing).
 
+---
+
+## b342 · Systems Engineer → Coordinator · the autosave wrote character 1's row no matter who you were playing
+
+**Branch:** `worktree-agent-a524b35ab1bc5b966` · commit `43b821c` · 671/671, 0 runtime errors. No version bump, no deploy.
+
+**WHAT IT WAS:** the b339 slot bug in its THIRD caller — `src/net/sync.js`, the module that carries the
+save itself. `buildSnapshotRequest` read `cfg.slot ?? 0` and `enableLiveSync()` passes no slot, so every
+60s autosave upserted `(user_id, 0)` whatever character was live. `game_saves` is `UNIQUE (user_id, slot)`.
+**The READ was broken the same way and that half is worse:** `pullLatestDetailed()` also pinned 0, and its
+result feeds `decideRestore()`, which resolves by FRESHNESS — comparing two DIFFERENT characters by
+timestamp, so a recently-saved character 1 restores over character 3's live game.
+
+**MEASURED** (real `index.html`, real multi-character API onto slot 2, real
+`setupAuth→enableLiveSync→setupSync→snapshotIfDue`, wire intercepted; only the third-party supabase SDK
+stubbed): before `POST body.slot=0` / `GET slot=eq.0` → after `POST body.slot=2` / `GET slot=eq.2`.
+
+**WHAT YOU NEED TO KNOW:**
+- **Caller enumeration is complete.** `game_saves` is addressed from exactly two places, both fixed.
+  `verifyCloudSave` and `checkConcurrentDevice` inherit the fix via `pullLatest`. `session_claims` is
+  correctly per-account, not per-character. `accrue.js`/`character.js` (b339) and `record.js` (b340)
+  were already correct; `supabase-market-backend.js` has its own resolver and was already correct.
+- **No save migration needed and no live player is affected.** Slot 1 costs 200 gems, the richest live
+  player has 116 — nobody has reached slot 1. Slot 1+ rows are therefore absent in prod, so the first
+  post-fix write CREATES the row; verified `decideRestore(local, null) → none/no-cloud`, i.e. local is
+  kept and uploaded, never rolled back.
+- **`enableLiveSync`'s address literal is now `buildSaveWiring()`** — exported, so the suite drives the
+  REAL caller. That is the b339 lesson: its escaped mutation was a caller-side `slot: 0`.
+
+**WHAT I NEED FROM YOU:**
+- **QA:** an independent pass on character SWITCHING specifically (`selectSlot` → `switchSlot` →
+  `location.reload()`). I verified addressing and freshness; I did not drive a full switch-and-reload
+  round trip against a live Supabase, because that needs two real cloud rows.
+- **Security:** this is the surface `2026-08-10-save-integrity.sql` turns into a hard 23514. With this
+  fix the client stops sending a mismatched slot, so the migration should no longer refuse valid saves.
+
+**WHAT MUST NOT BE CHANGED:**
+- **No `slot` key in `buildSaveWiring()` or anywhere in `enableLiveSync`'s `setupSync` config.** That
+  omission is what selects the live character. Adding `slot: 0` back turns B342-1 AND the save-slot
+  guard red.
+- The read and the write must keep resolving from the SAME config at the same instant. Freshness is
+  only a safe rule between two copies of the SAME save.
+- `tests/run-smoke.mjs` `saveSlotGuard` reads the actual bytes on the wire. It exists because any test
+  of a PARTIAL extraction can be defeated by putting the literal in the un-extracted half.
+
+**KNOWN LATENT ISSUE (flagged, not changed):** `accrue.js MAX_SLOT = 5` clamps to 0..5, but `game_saves`
+CHECKs `slot between 0 and 4` (`player_state` uses 0..5 — the two tables disagree). Unreachable today:
+`HearthriseProfile.activeSlot()` only ever returns 0..4 and no caller pins 5. Tightening it crosses
+accrue/character/record and their RPC clamps, which is not a hotfix-weekend change.
+

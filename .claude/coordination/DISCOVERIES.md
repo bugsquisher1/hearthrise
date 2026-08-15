@@ -4,6 +4,45 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-15 · Systems Engineer · P0 (integration) · A DERIVED SERVER LIST WIDENS SILENTLY, AND THE CLIENT HALF OF THE CONTRACT DOES NOT COME WITH IT
+
+**Discovery:** `supabase/functions/hr-accrue/set-activity.js` defines
+`SETTABLE_KINDS = ['idle', ...PAYABLE_KINDS]`. Deriving it is *good* design and its author says so
+in a comment — "when gathering accrual lands, PAYABLE_KINDS grows and this grows with it, in one
+edit, with no second list to remember." That is exactly what happened, and it is precisely why b348
+shipped broken: the edit that taught the engine to pay gathering **also widened the client-facing
+contract, in a file no client author was reading, with no diff on the client side to review.**
+The client's `ACTIVITY_KINDS` stayed `['combat','idle']`, `startSkill` declared nothing, and Tyler's
+first switch-on test died in minutes with `player_intents` at 0 rows and `player_state.version` at 0.
+
+**The general lesson, which is bigger than this seam:** *derivation removes the second list, it does
+not remove the second SIDE.* Any derived server-side allowlist that a client must mirror needs a
+mechanical link, or the derivation actively hides the widening from review. Both halves looked
+correct in isolation and both were reviewed.
+
+**Affected systems:** the activity intent (client `src/net/activity.js`, `src/legacy.js`; server
+`set-activity.js`, `accrual.js`), and every future intent that copies this shape — gold, inventory,
+craft, equip. Nine more intents are planned on this pattern.
+
+**Required action (done for this one, and the pattern to copy):** two links, because one cannot
+cover both failure modes.
+  1. `tests/activity-seam.mjs` (Node, in `run-smoke.mjs`) — the server's list and the client's list
+     must be the SAME SET, and every settable kind must have a declaration CALL SITE. Catches
+     "nobody wrote it".
+  2. `B348-2/3/4` (browser) — iterate the client's list and drive a **real player gesture** for each,
+     asserting the bytes on the wire. Catches "it is written and unreachable".
+Mutation-proven: widening `PAYABLE_KINDS` to include `artisan` now turns the build red by name.
+
+**Second discovery, same investigation:** `active_kind = 'idle'` on the wire is TWO different
+sentences — "you stopped, and I know because you told me" and "I have never been told anything" —
+and they are byte-identical. Every character that has never declared starts idle, so treating idle
+as authority ends the session of every player whose save predates the seam. The client must track
+which of its own declarations the server ACKNOWLEDGED (`isActivityConfirmed`) and only obey an idle
+that contradicts an acknowledged pointer; an unacknowledged one is a cue to DECLARE, not to stop.
+Any future intent that reconciles a client pointer to a server default has this same problem.
+
+---
+
 ### 2026-08-15 · Systems Engineer · P0 (test integrity) · `tryRun(name, asyncFn)` IS AN ALWAYS-GREEN TEST — the sync runner cannot see an async body fail
 
 **Discovery:** `smoke-test.js`'s `tryRun` is `try { fn(); return pass(name); } catch {...}`. Give it an

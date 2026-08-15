@@ -64,6 +64,52 @@ let rng = rngMod.createRng((Math.random() * 0x100000000) >>> 0);
 const G = () => window.G;
 const ITEMS = () => window.ITEMS || {};
 
+/* ── THE GATHER INDEX, CLIENT SIDE (b348) ──────────────────────────────────
+   `{ [nodeId]: { skill, node } }` over every gathering node, built by the SAME
+   `indexGatherNodes` and from the SAME three arrays as
+   supabase/functions/hr-accrue/catalogue.js. It is the client's answer to
+   "which skill does `oak_tree` belong to, and how long is a swing?" — the
+   question the activity intent's reconcile has to answer when the SERVER names
+   a gathering node the local pointer is not on.
+
+   ⚠ IT MUST NOT BE A SECOND MAPPING. legacy.js already answers that question
+     three times over in `currentActionDef()` (an if/else per skill), and a
+     fourth hand-rolled copy here is how the client comes to think `rich_coal_rock`
+     is a fishing spot while the server pays it as mining. One function, one
+     source, both sides — and `tests/activity-seam.mjs` asserts the two indexes
+     have identical keys, so a node that exists on one side and not the other
+     fails the build rather than a player's night.
+
+   The ARRAYS are read off `window` rather than imported, the same way `ITEMS`
+   above is: src/main.js merges the ESM content INTO the objects legacy.js holds
+   (`unifyArray`), so `window.TREES` is the same identity as the module's export
+   — importing it here would be a second reference to one array, which is the
+   data double-copy CLAUDE.md forbids reintroducing.
+
+   Memoised on the three array IDENTITIES, not on a boolean: the unify merge
+   runs after this module loads, and a `built` flag would freeze whatever
+   happened to exist at first call. */
+let _gatherIdx = null;
+let _gatherSrc = null;
+function gatherNodes() {
+  const t = window.TREES; const r = window.ROCKS; const f = window.FISH_SPOTS;
+  if (_gatherIdx && _gatherSrc && _gatherSrc[0] === t && _gatherSrc[1] === r && _gatherSrc[2] === f) {
+    return _gatherIdx;
+  }
+  _gatherIdx = skillSim.indexGatherNodes({ woodcutting: t, mining: r, fishing: f });
+  _gatherSrc = [t, r, f];
+  return _gatherIdx;
+}
+
+/** `{skill, node}` for a gathering node id, or null. The one lookup. */
+function gatherNode(id) {
+  if (typeof id !== 'string' || !id) return null;
+  const idx = gatherNodes();
+  /* Null-prototype index (see indexGatherNodes), so `__proto__`/`constructor`
+     resolve to undefined rather than to something truthy. */
+  return idx[id] || null;
+}
+
 /* The perk stack. On the client this is a chain seven wrappers deep
    (world-events, companions, clans, clan-seat-ui, muster + two in
    legacy.js); core must not know that, so it only ever sees a function. */
@@ -181,6 +227,8 @@ window.HearthriseCore = {
 
   /* The adapters legacy.js calls. */
   bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  /* b348 — the gather index and its lookup, shared with the accrual engine. */
+  gatherNodes, gatherNode,
   items: ITEMS,
 };
 

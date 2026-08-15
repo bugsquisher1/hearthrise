@@ -18,6 +18,7 @@ import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
+import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -949,6 +950,27 @@ const run = async () => {
     } else {
       console.log('\nAuto-eat authority guard — the entitlement gate, the catalogue, the threshold, '
         + 'collect_first and the grants all hold, each against a control.');
+    }
+
+    /* ── The activity-seam guard (b348) ─────────────────────────────────
+       The one guard that would have stopped Tyler's switch-on test failing.
+       The server's SETTABLE_KINDS is DERIVED from PAYABLE_KINDS, so teaching
+       the engine to pay gathering widened it in a single edit — correctly, and
+       invisibly to the client, which went on declaring nothing. Seven accruals
+       ran against a pointer that had never been set.
+
+       This asserts the two lists are one contract, that every settable kind
+       has a real declaration site, that the client's gather index IS the
+       engine's, and that an activity the engine cannot price declares `idle`
+       rather than nothing. See tests/activity-seam.mjs. */
+    const seamProblems = await activitySeamGuards();
+    if (seamProblems.length) {
+      console.log('\nActivity-seam guard (the client declares what the server can set) — FAILED:');
+      for (const p of seamProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nActivity-seam guard — every settable kind is declarable, wired to a call site, and '
+        + 'resolves through the accrual engine\'s own catalogue.');
     }
 
     /* ── The identity guard (D2) ────────────────────────────────────────

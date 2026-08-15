@@ -676,11 +676,23 @@ export function computeAccrual(input) {
     // would cost a player their entire night. Filter here against the same
     // authored data the catalogue is generated from, and report it.
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    // b352: a recipe scroll is an UNLOCK, not an inventory row. Mirrors
-    // src/legacy.js's addItem wrapper, which unlocks and consumes. `flag` is
-    // in hr_apply's allowlist, so the engine may grant a scroll it rolled.
+    /* b352: a recipe scroll is an UNLOCK, not an inventory row. Mirrors
+       src/legacy.js's addItem wrapper, which unlocks and consumes. `flag` is in
+       hr_apply's allowlist, so the engine may grant a scroll it rolled.
+
+       ⚠ `add` IS THE QUANTITY ROLLED, not a hardcoded 1. The first draft wrote
+         1 and the parity guard caught it: a night that rolled five scrolls
+         proposed `add:1` and four vanished with no record anywhere. The gate
+         opens either way (it reads value > 0), so nothing would have gone
+         visibly wrong — which is exactly why it needed a test. A non-positive
+         quantity is dropped rather than falling through to the item path: a
+         scroll cannot be spent, so a debit is nonsense, and hr_apply refuses a
+         negative `add` with the whole night attached. */
     if (items[id] && items[id].recipe) {
-      recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: 1, state: 'active' });
+      const got = Math.floor(itemDelta[id]);
+      if (got > 0) {
+        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
+      }
       continue;
     }
     const n = Math.floor(itemDelta[id]);
@@ -995,9 +1007,15 @@ function accrueGather(inp, span) {
        authored data the catalogue is generated from, and report it. */
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
     /* b352: a recipe scroll is an UNLOCK, not an inventory row — same rule as
-       the combat builder above; `flag` is in hr_apply's allowlist. */
+       the combat builder above, `add` included; `flag` is in hr_apply's
+       allowlist. No gather node drops a scroll today, so this arm is
+       unreachable at runtime and is held to the combat arm by the structural
+       census in tests/artisan-progress-model.mjs A10(v). */
     if (items[id] && items[id].recipe) {
-      recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: 1, state: 'active' });
+      const got = Math.floor(itemDelta[id]);
+      if (got > 0) {
+        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
+      }
       continue;
     }
     const n = Math.floor(itemDelta[id]);

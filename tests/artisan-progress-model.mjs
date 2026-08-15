@@ -586,9 +586,14 @@ async function run(patches) {
           `A10(i): the engine proposed kind='${op.kind}' for ${scrollKey}. Only 'flag' is in `
           + "hr_apply's progress allowlist; 'unlock' would be refused as bad_progress_kind and take "
           + 'the whole night with it.');
-        ok(op.period === '' && op.add === 1,
+        /* `add` is the QUANTITY ROLLED, so it is asserted as a positive integer
+           rather than as 1. That it equals the number the night actually rolled
+           is the accrual-engine parity guard's job — it is the only harness that
+           holds the client's raw bag next to the server's ops, and it is where
+           `add:1` was caught losing four scrolls out of five. */
+        ok(op.period === '' && Number.isInteger(op.add) && op.add >= 1,
           `A10(i): the op is ${JSON.stringify(op)} — expected period '' (permanent, so `
-          + 'hr_progress_prune never sweeps it) and add 1.');
+          + 'hr_progress_prune never sweeps it) and a positive integer add.');
 
         // (ii) …AND NOT AN INVENTORY GRANT. The scroll is consumed on reading,
         //      exactly as src/legacy.js's addItem wrapper does it.

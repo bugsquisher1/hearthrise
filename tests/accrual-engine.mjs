@@ -330,7 +330,43 @@ function parityGuard() {
     eq(s.summary.segments, c.summary.segments, P('UTC-day segmentation differs'));
     eq(s.summary.gold, c.gold, P('gold differs'));
     eq(s.summary.xp, c.xp, P('XP grants differ'));
-    eq(s.summary.items, c.items, P('item drops differ'));
+    /* ── RECIPE SCROLLS ARE COMPARED WHERE THEY ACTUALLY LAND (b352) ──────
+       The client's bag here is the RAW simulation bag. On the real client a
+       scroll never survives in it: src/legacy.js's addItem wrapper unlocks the
+       recipe and removes the item on pickup. The server does the same thing one
+       layer lower — accrual.js turns a `.recipe` drop into a
+       {kind:'flag', key:'recipe:<id>'} progress op instead of an inventory
+       grant — so the two agree on the END STATE and differ only at the layer
+       this line compares.
+
+       ⚠ SPLITTING THEM OUT IS NOT RELAXING THE GUARD, AND IT MUST NOT BE. The
+         signal is preserved in both directions:
+           · a server that STOPPED converting puts the scroll back in
+             `s.summary.items`, which then differs from `clientLoot` -> RED;
+           · a server that converted and then LOST the op fails the
+             scroll-accounting check below -> RED.
+         Deleting the scrolls from both sides and asserting nothing else would
+         be the relaxation. Proven by tests/artisan-progress-model.mjs M13,
+         which reverts the engine branch and goes red. */
+    const clientLoot = {};
+    const clientScrolls = {};
+    for (const id of Object.keys(c.items || {})) {
+      if (ITEMS[id] && ITEMS[id].recipe) clientScrolls[id] = c.items[id];
+      else clientLoot[id] = c.items[id];
+    }
+    eq(s.summary.items, clientLoot, P('item drops differ'));
+
+    const serverScrolls = {};
+    for (const op of (s.delta.progress || [])) {
+      if (!op || typeof op.key !== 'string' || !op.key.startsWith('recipe:')) continue;
+      const id = op.key.slice('recipe:'.length);
+      serverScrolls[id] = (serverScrolls[id] || 0) + (Number(op.add) || 0);
+    }
+    eq(serverScrolls, clientScrolls,
+      P('recipe scrolls are not accounted for. The client unlocks and consumes them on pickup '
+        + '(src/legacy.js addItem); the server must propose one recipe:<id> progress op per scroll '
+        + 'rolled. A scroll that appears in neither the item delta nor the progress ops has '
+        + 'silently vanished.'));
     eq(s.delta.hp, Math.max(0, Math.min(c.maxHp, Math.floor(c.hp))), P('resulting HP differs'));
 
     /* The `stat` progress rows must agree with what the simulation counted —

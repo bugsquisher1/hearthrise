@@ -488,6 +488,15 @@ async function collectCurrentWindow(o) {
        one: the first draft added `perks` to index.ts only and the parity guard
        went red before a single line of it shipped. */
     perks,
+    /* THE ARTISAN GATE (b352) — and it is the SAME defect a second time. The
+       first draft of the artisan model added `unlockedRecipes` to index.ts only,
+       and A14 caught it again, by name, before it shipped: "Only in index.ts
+       (accrue): [unlockedRecipes]". Inert today (nothing in the engine reads it
+       until 'artisan' enters PAYABLE_KINDS) and wired anyway, because the day it
+       stops being inert is the day a collect and an accrue over the same window
+       would price a gated recipe differently. `?? null`, not `?? {}`: null means
+       this database predates the model, and the engine reads that as LOCKED. */
+    unlockedRecipes: ((perkEnv && perkEnv.ok === true ? perkEnv.unlockedRecipes : null) ?? null),
     items: ITEMS,
     monsters: MONSTERS,
     nodes: GATHER_NODES,

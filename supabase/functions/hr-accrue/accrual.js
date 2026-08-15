@@ -668,6 +668,7 @@ export function computeAccrual(input) {
      and that check is the database's verification of it. */
   const items_ = {};
   let itemKinds = 0;
+  const recipeOps = [];
   const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0));
   for (const id in itemDelta) {
     // Unknown ids are refused by hr_apply against the generated hr_items
@@ -675,6 +676,25 @@ export function computeAccrual(input) {
     // would cost a player their entire night. Filter here against the same
     // authored data the catalogue is generated from, and report it.
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    /* b352: a recipe scroll is an UNLOCK, not an inventory row. Mirrors
+       src/legacy.js's addItem wrapper, which unlocks and consumes. `flag` is in
+       hr_apply's allowlist, so the engine may grant a scroll it rolled.
+
+       ⚠ `add` IS THE QUANTITY ROLLED, not a hardcoded 1. The first draft wrote
+         1 and the parity guard caught it: a night that rolled five scrolls
+         proposed `add:1` and four vanished with no record anywhere. The gate
+         opens either way (it reads value > 0), so nothing would have gone
+         visibly wrong — which is exactly why it needed a test. A non-positive
+         quantity is dropped rather than falling through to the item path: a
+         scroll cannot be spent, so a debit is nonsense, and hr_apply refuses a
+         negative `add` with the whole night attached. */
+    if (items[id] && items[id].recipe) {
+      const got = Math.floor(itemDelta[id]);
+      if (got > 0) {
+        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
+      }
+      continue;
+    }
     const n = Math.floor(itemDelta[id]);
     // A net zero is not a no-op to hr_apply — it is a catalogue lookup, a row
     // lock and a ledger byte for nothing. Drop it.
@@ -703,6 +723,7 @@ export function computeAccrual(input) {
 
   const stats = state.stats || {};
   const progress = [];
+  for (const op of recipeOps) progress.push(op);   // b352: scroll drops become unlock rows
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('kills', stats.kills);
   stat('crits', stats.crits);
@@ -978,12 +999,25 @@ function accrueGather(inp, span) {
 
   const items_ = {};
   let itemKinds = 0;
+  const recipeOps = [];
   for (const id in itemDelta) {
     /* Unknown ids are refused by hr_apply against the generated hr_items
        catalogue, which would reject the WHOLE delta — one renamed product id
        would cost a player their entire night. Filter here against the same
        authored data the catalogue is generated from, and report it. */
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    /* b352: a recipe scroll is an UNLOCK, not an inventory row — same rule as
+       the combat builder above, `add` included; `flag` is in hr_apply's
+       allowlist. No gather node drops a scroll today, so this arm is
+       unreachable at runtime and is held to the combat arm by the structural
+       census in tests/artisan-progress-model.mjs A10(v). */
+    if (items[id] && items[id].recipe) {
+      const got = Math.floor(itemDelta[id]);
+      if (got > 0) {
+        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
+      }
+      continue;
+    }
     const n = Math.floor(itemDelta[id]);
     if (n <= 0) continue;          // gathering never debits; a zero is not a no-op to hr_apply
     items_[id] = n;
@@ -1007,6 +1041,7 @@ function accrueGather(inp, span) {
 
   const stats = state.stats || {};
   const progress = [];
+  for (const op of recipeOps) progress.push(op);   // b352: scroll drops become unlock rows
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('gathered', stats.gathered);
   stat('tool_doubles', stats.toolDoubles);

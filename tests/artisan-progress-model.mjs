@@ -22,6 +22,14 @@
 //     → makeBonus('noBurn') / state.unlockedRecipes
 //     → simulateArtisanSpan       (real src/core/artisan-sim.js)
 //
+// …and A10 closes the loop from the other end, which is where the row comes
+// from in the first place:
+//
+//   computeAccrual  (the real engine bytes, a real monster, a real drop table)
+//     → a {kind:'flag', key:'recipe:<scroll>'} progress op, and NO item grant
+//     → public.hr_apply            (that op, VERBATIM — not a copy of it)
+//     → the gated recipe cooks
+//
 // ── WHY THE DELETIONS ARE THE POINT ─────────────────────────────────────
 // "The row makes it work" is half a claim. The half that matters for a
 // server that is about to own every player's inventory is: WITHOUT the row,
@@ -33,16 +41,24 @@
 //
 // ── MUTATION ────────────────────────────────────────────────────────────
 //   node tests/artisan-progress-model.mjs --mutate
-// plants ten real defects — nine in the SQL, one in the forwarding adapter —
-// one at a time, and FAILS if any slips past.
+// plants thirteen real defects one at a time and FAILS if any slips past: nine
+// in the SQL, one in the forwarding adapter, one in the ACCRUAL ENGINE itself
+// (a copy of accrual.js with the recipe branch reverted), and two that repeat
+// the pair which would silently zero the whole channel WITH the migration's own
+// self-check silenced — so this guard is proven to catch those alone.
 //
 // Run standalone:  node tests/artisan-progress-model.mjs
 // Also invoked as a guard by tests/run-smoke.mjs.
 // ════════════════════════════════════════════════════════════════════════
 
+import { readFile, writeFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, ROOT } from './schema-replay.mjs';
+import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { MONSTERS } from '../src/data/monsters.js';
 import { makeBonus } from '../src/core/perks.js';
 import { burnChance, BURN_BASE, KITCHEN_NO_BURN, recipeInputs } from '../src/core/artisan.js';
 import {
@@ -55,6 +71,12 @@ import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { xpForLevel } from '../src/core/xp.js';
 
 const USER = '00000000-0000-4000-c000-a5a5a5a5a5a5';
+
+/* The engine entry point A10 drives, as a REBINDABLE reference. The mutation
+   arm M13 swaps it for a copy of accrual.js with the recipe branch reverted —
+   the SQL arms below patch migration text through bootReplay, and a JS defect
+   needs the same treatment or the engine half is untested against failure. */
+let computeAccrualFn = computeAccrual;
 
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -476,6 +498,180 @@ async function run(patches) {
       + 'gated recipe, not unlock them.');
   }
 
+  // ── A10 · THE ENGINE HALF: A SCROLL DROP BECOMES AN UNLOCK, NOT LOOT ──
+  // The other end of the write path, and the half that shipped as "untested
+  // code I could not run". Everything above proves the DATABASE stores and
+  // reads the shape; this proves the ACCRUAL ENGINE proposes it.
+  //
+  // Driven through the REAL computeAccrual (the bytes that deploy), on a real
+  // monster with a real drop table — and the op it produces is then handed to
+  // the REAL hr_apply verbatim. Nothing here is hand-built: a hand-built op
+  // would prove hr_apply accepts something this test invented, which is not
+  // the claim.
+  {
+    /* THE FIXTURE IS DERIVED, never named. A monster whose drop table carries
+       an item with `.recipe`, chosen by the highest drop chance so a night is
+       likely to hit it. If the content ever stops dropping scrolls this block
+       FAILS by name rather than passing on a night with no drop — which is the
+       assertion-that-asserts-nothing failure this repo has recorded eighteen
+       instances of. */
+    let fixture = null;
+    for (const [mid, m] of Object.entries(MONSTERS)) {
+      for (const d of (m.drops || [])) {
+        const it = d && d.id && ITEMS[d.id];
+        if (it && it.recipe) {
+          const cand = { monster: mid, scroll: d.id, ch: Number(d.ch) || 0 };
+          if (!fixture || cand.ch > fixture.ch
+              || (cand.ch === fixture.ch && cand.monster < fixture.monster)) fixture = cand;
+        }
+      }
+    }
+    ok(!!fixture,
+      'A10: no monster in src/data/monsters.js drops an item carrying `.recipe`. The engine branch '
+      + 'under test is unreachable and every assertion below would pass on a night with no drop.');
+
+    if (fixture) {
+      const base = {
+        userId: '00000000-0000-4000-8000-0000000b3520', slot: 0,
+        nowMs: Date.UTC(2026, 7, 16, 12, 0, 0),
+        accruedToMs: Date.UTC(2026, 7, 16, 0, 0, 0),
+        activeSinceMs: Date.UTC(2026, 7, 16, 0, 0, 0),
+        activeKind: 'combat', activeId: fixture.monster,
+        capMs: 12 * 3600000,
+        /* A MAXED CHARACTER, so the night is not truncated by a death — a fight
+           that ends in five minutes cannot roll a 5% drop. Same reasoning as
+           tests/perk-channel.mjs P9, and the same remedy. */
+        hp: 990, maxHp: 990, gold: 0,
+        skills: {
+          attack: xpForLevel(99), strength: xpForLevel(99),
+          defense: xpForLevel(99), hitpoints: xpForLevel(99),
+        },
+        equipment: {}, inventory: {},
+        items: ITEMS, monsters: MONSTERS, nodes: {}, perks: null,
+      };
+      /* SEEDS ARE SEARCHED, NOT PINNED. A pinned seed that stopped producing
+         the drop after a balance change would leave this block asserting
+         nothing, silently. The search is deterministic (a fixed list, in
+         order); exhausting it is a hard failure that names why. */
+      const SEEDS = [0x5eed1234, 0x0badbeef, 0x13572468, 0x2468ace0, 0xfeedface,
+        0x00c0ffee, 0x5555aaaa, 0xdeadc0de];
+      const scrollKey = `recipe:${fixture.scroll}`;
+      let out = null;
+      let op = null;
+      /* Whether the scroll turned up as ORDINARY LOOT instead. It is the
+         difference between the two ways this block can fail — "the engine
+         stopped converting" and "the fixture stopped dropping" — and without it
+         the RED message names both and diagnoses neither. */
+      let asLoot = 0;
+      for (const seed of SEEDS) {
+        const r = computeAccrualFn({ ...base, seed });
+        if (!r.accrued) continue;
+        if ((r.delta.items || {})[fixture.scroll]) asLoot++;
+        const found = (r.delta.progress || []).find((x) => x && x.key === scrollKey);
+        if (found) { out = r; op = found; break; }
+      }
+      ok(!!op,
+        `A10: none of ${SEEDS.length} seeded 12h ${fixture.monster} nights produced a ${scrollKey} `
+        + `progress op, and ${asLoot} of them put ${fixture.scroll} in the ITEM delta instead. `
+        + (asLoot > 0
+          ? 'The engine has stopped converting a scroll drop into an unlock — the scroll would sit '
+            + 'in the bag forever and the recipe would stay locked, silently.'
+          : `${fixture.scroll} (${(fixture.ch * 100).toFixed(1)}%) appears to have stopped dropping `
+            + 'altogether, so this block has no fixture and would otherwise assert nothing.'));
+
+      if (op) {
+        // (i) THE SHAPE. hr_apply refuses an unknown kind, a >64-char key or a
+        //     'claimed' state, and any of those costs the player the whole night.
+        ok(op.kind === 'flag',
+          `A10(i): the engine proposed kind='${op.kind}' for ${scrollKey}. Only 'flag' is in `
+          + "hr_apply's progress allowlist; 'unlock' would be refused as bad_progress_kind and take "
+          + 'the whole night with it.');
+        /* `add` is the QUANTITY ROLLED, so it is asserted as a positive integer
+           rather than as 1. That it equals the number the night actually rolled
+           is the accrual-engine parity guard's job — it is the only harness that
+           holds the client's raw bag next to the server's ops, and it is where
+           `add:1` was caught losing four scrolls out of five. */
+        ok(op.period === '' && Number.isInteger(op.add) && op.add >= 1,
+          `A10(i): the op is ${JSON.stringify(op)} — expected period '' (permanent, so `
+          + 'hr_progress_prune never sweeps it) and a positive integer add.');
+
+        // (ii) …AND NOT AN INVENTORY GRANT. The scroll is consumed on reading,
+        //      exactly as src/legacy.js's addItem wrapper does it.
+        ok(!(fixture.scroll in (out.delta.items || {})),
+          `A10(ii): the scroll ALSO landed in the item delta (${out.delta.items[fixture.scroll]}). `
+          + 'It would sit in the bag forever — the client consumes it on pickup and nothing '
+          + 'server-side ever would.');
+        // CONTROL: ordinary drops from the SAME night still become loot, so
+        // (ii) is not "the engine granted no items".
+        ok(Object.keys(out.delta.items || {}).length > 0,
+          `A10(ii) CONTROL: the night granted no items at all (${JSON.stringify(out.delta.items)}), `
+          + "so the scroll's absence from the item delta proves nothing");
+
+        // (iii) THE ENGINE'S OWN OP, THROUGH THE REAL hr_apply, LANDS THE ROW
+        //       §8(c) proves opens the gate.
+        await db.query(
+          "delete from public.player_progress where user_id=$1 and kind='flag' and key like 'recipe:%'",
+          [USER]);
+        const locked = await perksOf(db);
+        ok(!(fixture.scroll in (locked.unlockedRecipes || {})),
+          'A10(iii) SETUP: the scroll is still unlocked after the delete, so the apply below could '
+          + 'not show it landing');
+        const v = await db.query(
+          'select version from public.player_state where user_id=$1 and slot=0', [USER]);
+        const applied = await db.query(
+          'select public.hr_apply($1::uuid,0,$2::bigint,gen_random_uuid(),$3::text::jsonb) as r',
+          [USER, v.rows[0].version, JSON.stringify({
+            progress: [op],                       // VERBATIM, not a copy of it
+            journal: { kind: 'combat', intent: 'accrue' },
+          })]);
+        ok(applied.rows[0].r?.ok === true,
+          "A10(iii): hr_apply REFUSED the engine's own scroll op — "
+          + `${JSON.stringify(applied.rows[0].r)}. The engine proposes it on every scroll drop, so `
+          + 'this would 409 the whole night the player finally got one.');
+        const env = await perksOf(db);
+        ok(env.unlockedRecipes?.[fixture.scroll] === true,
+          "A10(iii): after applying the engine's op, unlockedRecipes reads "
+          + `${JSON.stringify(env.unlockedRecipes)} — the row landed but does not reach the gate`);
+
+        // (iv) …AND THE RECIPE THAT SCROLL GATES NOW COOKS. The whole chain as
+        //      one claim: a drop in a simulated fight ends with a bench the
+        //      player could not previously use.
+        const unlockedId = GATED.find((id) => RECIPE_INDEX[id].recipe.gated === fixture.scroll);
+        ok(!!unlockedId,
+          `A10(iv): ${fixture.scroll} drops but gates no recipe — it is a dead scroll, and (iv) `
+          + 'cannot close the loop. Pick a fixture whose scroll is a live gate.');
+        if (unlockedId) {
+          const span = cook(db, { recipeId: unlockedId, envelope: env, cookingLevel: 99 });
+          ok(span.stoppedBy !== STOP_REASON.GATE && span.ticks > 0,
+            `A10(iv): ${unlockedId} still stopped with ${span.stoppedBy} after a scroll drop was `
+            + 'applied through the real engine and the real hr_apply');
+        }
+      }
+    }
+
+    /* (v) THE SECOND BUILDER — a CENSUS, because nothing can drive it.
+       computeAccrual has TWO delta builders (combat and gather), each with its
+       own item loop; (i)-(iv) exercise the combat one. No gather node in
+       src/data drops an item carrying `.recipe`, so the gather branch is
+       unreachable at runtime today — and the site that brings this defect back
+       is precisely the one nothing exercises. So it is asserted structurally,
+       the way tests/delta-transport.mjs T6 handles the same problem: every item
+       loop that filters on the item catalogue must also carry the recipe
+       branch, and FEWER THAN TWO loops found is itself a failure, so a scanner
+       that has stopped matching reality cannot report green. */
+    const src = await readFile(
+      join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js'), 'utf8');
+    const loops = (src.match(/if \(!catalogueHas\(items, id\)\)/g) || []).length;
+    const branches = (src.match(/if \(items\[id\] && items\[id\]\.recipe\)/g) || []).length;
+    ok(loops >= 2,
+      `A10(v): the census found ${loops} item loop(s) in accrual.js, expected at least 2 (combat and `
+      + 'gather). It has stopped matching the file it grades, so it cannot see a missing branch.');
+    ok(branches === loops,
+      `A10(v): ${loops} item loop(s) in accrual.js but ${branches} carry the recipe branch. The `
+      + 'builder without it would put a scroll in the bag as ordinary loot, where nothing ever '
+      + 'consumes it and the recipe stays locked forever.');
+  }
+
   // ── A9 · NEITHER FUNCTION IS CLIENT-REACHABLE ────────────────────────
   {
     const acl = await db.query(`
@@ -571,6 +767,14 @@ const MUTATIONS = [
   },
   { name: 'M10 the forwarding adapter defaults an absent map to ALL-UNLOCKED', adapter: true },
 
+  /* ── M13 — THE ENGINE HALF, REVERTED. ──────────────────────────────────
+     The SQL arms patch migration text through bootReplay; this one has to
+     patch JAVASCRIPT, so it builds a copy of accrual.js with the recipe branch
+     deleted and imports THAT. Without it, A10 is a block that has never been
+     shown to see failure — and the engine half of this write path shipped
+     "untested" precisely once already. */
+  { name: 'M13 accrual.js reverts the recipe branch (a scroll becomes loot again)', engine: true },
+
   /* ── M11/M12 — THE SAME TWO DEFECTS, WITH THE MIGRATION'S OWN §8 SILENCED.
      M1 and M3 above went RED on "THE REPO CANNOT REBUILD THE DATABASE", i.e.
      the migration's own behavioural self-check refused to install. That is the
@@ -598,11 +802,83 @@ const MUTATIONS = [
   },
 ];
 
+/**
+ * Build a copy of accrual.js with the b352 recipe branch DELETED, import it,
+ * and hand back its computeAccrual.
+ *
+ * ⚠ IT LIVES IN THE OS TEMP DIR, NOT THE REPO. A mutant dropped next to the
+ *   original would be walked by `versionQueryGuard()` and by the Edge packer if
+ *   a crash ever left it behind — a test artifact that can break a deploy. The
+ *   cost is that its relative imports no longer resolve, so they are rewritten
+ *   to absolute file: URLs; the rewrite is asserted to have happened, because a
+ *   mutant that failed to load would throw and read as "caught".
+ */
+async function loadRevertedEngine() {
+  const path = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
+  let src = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+
+  /* ⚠ LINE-EXACT, NOT A REGEX OVER THE BLOCK. The first draft used a non-greedy
+     `[\s\S]*?\n *\}` and it swallowed the enclosing `for` loop's closing brace,
+     producing a mutant that failed to PARSE — which the runner would have
+     scored as "caught". A mutation that dies on a syntax error proves nothing
+     about the guard. So: find the `if` line, then delete through the first line
+     that is exactly its indentation followed by `}`. */
+  const lines = src.split('\n');
+  const MARK = 'if (items[id] && items[id].recipe) {';
+  const out = [];
+  let removed = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === MARK) {
+      const close = `${lines[i].slice(0, lines[i].indexOf('if '))}}`;
+      let j = i + 1;
+      while (j < lines.length && lines[j] !== close) j++;
+      if (j >= lines.length) {
+        throw new Error('M13 HARNESS: the recipe branch has no closing brace at its own indent — '
+          + 'the revert would have eaten the enclosing loop');
+      }
+      i = j;
+      removed++;
+      continue;
+    }
+    out.push(lines[i]);
+  }
+  src = out.join('\n');
+  const left = (src.match(/if \(items\[id\] && items\[id\]\.recipe\)/g) || []).length;
+  if (removed < 2 || left !== 0) {
+    throw new Error(`M13 HARNESS: removed ${removed} recipe branch(es), ${left} left. Both delta `
+      + 'builders must lose it, or the mutant is only half a defect and the RED below would be '
+      + 'reporting on a file nobody wrote.');
+  }
+
+  const rootUrl = pathToFileURL(join(ROOT, 'x')).href.replace(/x$/, '');
+  const rewritten = src.replace(/from '\.\.\/\.\.\/\.\.\/src\//g, `from '${rootUrl}src/`)
+    .replace(/from '\.\//g, `from '${pathToFileURL(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'x')).href.replace(/x$/, '')}`);
+  if (/from '\.\.?\//.test(rewritten)) {
+    throw new Error('M13 HARNESS: a relative import survived the rewrite, so the mutant cannot load');
+  }
+
+  const file = join(tmpdir(), `hr-accrual-mutant-${process.pid}-${Date.now()}.mjs`);
+  await writeFile(file, rewritten, 'utf8');
+  let mod;
+  try { mod = await import(pathToFileURL(file).href); }
+  finally { await unlink(file).catch(() => {}); }   // never leave one behind, even on a throw
+  if (typeof mod.computeAccrual !== 'function') {
+    throw new Error('M13 HARNESS: the mutant exports no computeAccrual');
+  }
+  return mod.computeAccrual;
+}
+
 async function mutate() {
   const escapes = [];
   const realForward = forwardEnvelope;
+  const realEngine = computeAccrualFn;
   for (const m of MUTATIONS) {
     problems = [];
+    if (m.engine) {
+      /* A harness failure here must NOT read as a caught mutation, so it is
+         thrown before `run` rather than folded into `problems`. */
+      computeAccrualFn = await loadRevertedEngine();
+    }
     if (m.adapter) {
       // eslint-disable-next-line no-func-assign
       forwardEnvelope = (env) => {
@@ -621,6 +897,7 @@ async function mutate() {
     } finally {
       // eslint-disable-next-line no-func-assign
       if (m.adapter) forwardEnvelope = realForward;
+      if (m.engine) computeAccrualFn = realEngine;
     }
     const caught = problems.length > 0;
     console.log(`  ${caught ? 'RED  ' : 'GREEN'}  ${m.name}${caught ? ` (${problems.length})` : ''}`);

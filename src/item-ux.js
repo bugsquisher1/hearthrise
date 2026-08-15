@@ -548,9 +548,16 @@
     }
     var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var goldGain = unit * qty;
+    /* THE PAYMENT GOES THROUGH THE SEAM (src/net/gold.js) like every other
+       vendor path — ledger site `vendor.quick_sell` — and it happens BEFORE the
+       items leave the bag. `goldSettle` THROWS when the kill switch is on and
+       src/net/gold.js is absent, and a throw between "items gone" and "gold
+       paid" is the only way this handler can cost a player their stack. */
+    var _k = window.goldIntentKey();
+    window.goldSettle(goldGain, 'vendor.quick_sell', _k);
     if(typeof window.removeItem === 'function') window.removeItem(id, qty);
     else { window.G.inventory[id] = Math.max(0, (window.G.inventory[id]||0) - qty); }
-    window.G.gold = (window.G.gold || 0) + goldGain;
+    if(_k && window.HearthriseGold){ var _p = window.HearthriseGold.sellItem(id, qty, _k); if(_p && _p.catch) _p.catch(function(){}); }
     if(typeof window.recordVendorSale === 'function') window.recordVendorSale(id, qty, unit);
     if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();

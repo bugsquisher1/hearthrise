@@ -5267,7 +5267,13 @@ function onItemTap(id){
   if(d.seed){showTab('farming');return;}
   /* default: prompt to sell */
   const _p=vendorPrice(id);
-  if(confirm(`Sell 1× ${d.n} for ${_p}gp?`)){G.gold+=_p;removeItem(id,1);notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();}
+  if(confirm(`Sell 1× ${d.n} for ${_p}gp?`)){
+    const _k=goldIntentKey();
+    goldSettle(_p,'vendor.tap_sell',_k);
+    removeItem(id,1);
+    if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});}
+    notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();
+  }
 }
 
 /* ────────────────────────────────────────────────
@@ -6115,7 +6121,21 @@ function renderShop(){
     +`</div>`;
 }
 function setShopTab(t){shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
-function buyShopItem(id,qty,cost){if(G.gold<cost){notify('Not enough gold','kill');return;}G.gold-=cost;addItem(id,qty);notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();}
+function buyShopItem(id,qty,cost){
+  if(G.gold<cost){notify('Not enough gold','kill');return;}
+  /* The key is generated BEFORE the local payment so the prediction and the
+     request carry one identity — that is what lets the envelope retire exactly
+     this gesture's prediction and no other. */
+  const _k=goldIntentKey();
+  goldSettle(-cost,'shop.buy',_k);
+  addItem(id,qty);
+  /* FIRE AND RECONCILE — never await-then-render. The offer id and the count
+     are DERIVED from the item/qty/cost by src/net/gold.js; a price the shop and
+     the catalogue disagree about refuses locally rather than charging a number
+     the player never saw. No-op with the switch off. */
+  if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
+  notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
+}
 function buyCosmetic(id,price){if((G.gems||0)<price){notify('Not enough gems. Tap "Get Gems".','kill');return;}G.gems-=price;G.ownedCosmetics.push(id);notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();}
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
    cost (escalating) and the flat gem deal side-by-side so the better value of
@@ -7133,6 +7153,65 @@ function closeInvDetail(){
    sell slider, the sell-junk sweep and the old inventory tap — reads this.
    A price that differs by which button you pressed is not a price.
    ════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   THE ONE PLACE THIS FILE MOVES GOLD FOR A WIRED GESTURE.
+   ══════════════════════════════════════════════════════════════════════
+   Every shop purchase and every vendor sale used to carry its own
+   `G.gold += …` inline. Seven expressions, seven chances for the server
+   wiring to be added to six of them — which is b348's shape exactly, and
+   the reason `tests/gold-site-census.mjs` exists.
+
+   So the expression moved HERE, once, and the call sites hand it an
+   AMOUNT and a LEDGER SITE ID. The id is not decoration: it is what
+   `src/net/gold-sites.js` keys its row on, what tells `settle()` whether
+   a prediction will ever be reconciled, and what the census scans for.
+
+   ⚠ FAILS LOUD, NEVER SILENT. legacy.js is a classic script and cannot
+     import ESM, so it reaches the seam through `window.HearthriseGold`.
+     If that module did not load AND the kill switch is ON, this THROWS:
+     paying a client-authored number while the server believes it owns
+     the balance is the two-sources bug the whole program exists to
+     prevent, and it would be invisible. Same discipline — and the same
+     reasoning — as the b340 record strip a few thousand lines up.
+
+     With the switch OFF the fallback is the expression that used to be
+     inline, byte for byte. That is the whole of the flag-off path.
+
+   @param amount SIGNED. Negative is a spend.
+   @param site   a `src/net/gold-sites.js` id, without the `seam:` prefix.
+   @param key    the intent key this payment predicts, when one exists. */
+function goldSettle(amount, site, key){
+  var r = goldSettleCurrency({ gold: amount }, site, key);
+  return { applied: r.applied.gold, predicted: r.predicted, key: r.key };
+}
+/** The general form — gold and gems in ONE prediction. F5: a daily claim pays
+ *  both, and two entries would be two lifecycles for one gesture. */
+function goldSettleCurrency(delta, site, key){
+  var d = delta || {};
+  var gold = Number(d.gold) || 0, gems = Number(d.gems) || 0;
+  var S = window.HearthriseGold;
+  if(S && typeof S.settleCurrency === 'function') return S.settleCurrency(G, d, site, key);
+  var A = window.HearthriseAccrual;
+  if(A && typeof A.isServerAccrualEnabled === 'function' && A.isServerAccrualEnabled()){
+    throw new Error('server accrual is ON but src/net/gold.js did not load — refusing to move '
+      + gold + ' gold / ' + gems + ' gems at site "' + site + '" from a client-authored number '
+      + 'while the server owns the balance');
+  }
+  if(gold) G.gold = (G.gold||0) + gold;
+  if(gems) G.gems = (G.gems||0) + gems;
+  return { applied: { gold: gold, gems: gems }, predicted: false, key: null };
+}
+/** A key for one gesture, or null when the seam is absent / the switch is off.
+ *  Generated at the TAP so the prediction and the request share one identity. */
+function goldIntentKey(){
+  var S = window.HearthriseGold;
+  if(!S || typeof S.isGoldIntentEnabled !== 'function' || !S.isGoldIntentEnabled()) return null;
+  try{ return S.newIntentKey(); }catch(e){ return null; }
+}
+window.goldSettle = goldSettle;
+window.goldSettleCurrency = goldSettleCurrency;
+window.goldIntentKey = goldIntentKey;
+
 const VENDOR_RAW_RATE = 0.20;
 function vendorPrice(id){
   const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
@@ -7152,8 +7231,10 @@ function invSellOne(id){
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
   if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
-  G.gold = (G.gold||0) + price;
+  const _k = goldIntentKey();
+  goldSettle(price, 'vendor.sell_one', _k);
   removeItem(id, 1);
+  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
   recordVendorSale(id, 1, price);   // b240: undoable
   notify(`Sold 1× ${it.n} (+${price}🪙)`,'loot');
   updateTopbar(); renderInvNew();
@@ -7164,8 +7245,10 @@ function invSellAll(id){
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
-  G.gold = (G.gold||0) + price*qty;
+  const _k = goldIntentKey();
+  goldSettle(price*qty, 'vendor.sell_all', _k);
   delete G.inventory[id];
+  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, qty, _k); if(_p && _p.catch) _p.catch(()=>{}); }
   recordVendorSale(id, qty, price);   // b240: undoable
   notify(`Sold ${qty}× ${it.n} (+${(price*qty).toLocaleString()}🪙)`,'loot');
   updateTopbar(); renderInvNew(); closeInvDetail();
@@ -7182,7 +7265,13 @@ function invSellSelected(){
     delete G.inventory[id];
     recordVendorSale(id, qty, price);   // b240: undoable
   }
-  G.gold = (G.gold||0) + total;
+  /* DEFERRED, and routed through the seam anyway so the census can see it. This
+     gesture sells N DIFFERENT item ids in one tap and `vendor_sell` prices ONE
+     per call against a 20/min bucket — see B.BULK_VENDOR in
+     src/net/gold-sites.js. Sending N intents here would rate-limit a 30-stack
+     sweep halfway through and leave the bag half-sold against a server that
+     agrees with the half. Nothing is sent; the row says why. */
+  goldSettle(total, 'vendor.sell_selected', null);
   window._invSelected.clear();
   notify(`Sold ${count} items for ${total.toLocaleString()}🪙` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
   window._invSelectMode = false;

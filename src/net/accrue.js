@@ -585,7 +585,39 @@ export function describeReplacement(G, res) {
    and this program has already paid for five copies of one hash.
    applyEnvelope's own contract is UNCHANGED — it still gates, still writes the
    away receipt, still stamps `_serverAccrual`. */
-export function applyEnvelopeState(G, res) {
+/* ── THE PREDICTION SEAM (b354 / F4) ────────────────────────────────────────
+   src/net/gold.js keeps a ledger of DISPLAY PREDICTIONS — local gold and gem
+   movements whose server counterpart is still in flight — and it re-adds the
+   outstanding ones on top of every arriving envelope, because an envelope
+   produced before a gesture existed cannot describe it.
+
+   That is only sound if EVERY envelope application goes through the same
+   accounting. Two did not: `applyEnvelope` (the away grant) and
+   `applyIntentEnvelope` (the activity switch collect) both write `G.gold`
+   absolutely through this function and neither has ever heard of a prediction.
+   An outstanding entry therefore survived their envelope untouched and was
+   re-added on top of the NEXT gold envelope — the same permanent additive
+   offset Security found in the unanswered-call path, reached from a module
+   that does not import gold.js and never will.
+
+   So the accounting is registered INTO the shared writer rather than copied
+   into three callers. Direction matters: gold.js imports this file, so this
+   file must not import gold.js — it holds a slot, and gold.js fills it at load.
+   Unregistered (Node, a boot before gold.js) it is a no-op, which is exactly
+   right: with no ledger there is nothing to reconcile. */
+let predictionSeam = null;
+export function registerPredictionSeam(fn) {
+  predictionSeam = (typeof fn === 'function') ? fn : null;
+  return predictionSeam;
+}
+export function getPredictionSeam() { return predictionSeam; }
+
+/**
+ * @param ownKey the intent key of the call this envelope answers, when there is
+ *        one. Absent from the away and activity paths, which own no gold
+ *        gesture — they still sweep, they just retire nothing.
+ */
+export function applyEnvelopeState(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
 
@@ -610,6 +642,15 @@ export function applyEnvelopeState(G, res) {
   }
   G.inventory = inv;
   written.inventory = Object.keys(inv).length;
+
+  /* LAST, and after every absolute write above, because the sweep re-adds
+     outstanding predictions ON TOP of the server's numbers. Guarded: a throw in
+     the ledger must not leave a half-applied envelope, and the envelope itself
+     is already correct without the carry — the carry is display only. */
+  if (predictionSeam) {
+    try { written.predictions = predictionSeam(G, res, ownKey); }
+    catch (e) { console.warn('[accrue] prediction reconcile threw:', e && e.message); }
+  }
   return written;
 }
 

@@ -147,6 +147,17 @@ import './net/record.js?v=351';
 // two ideas of what the server's answer means. BEFORE auth.js, which configures
 // all four with one copy of the credentials. Ships DARK behind the SAME switch.
 import './net/activity.js?v=351';
+// b354 — the three ECONOMY verbs (`shop_buy`, `vendor_sell`, `claim_reward`).
+// AFTER accrue.js for the same reason as every seam before it: it imports the
+// same kill switch, the same slot resolver, the same endpoint derivation and
+// the same envelope writer, so a purchase and an away grant cannot form two
+// ideas of what the server's answer means. BEFORE auth.js, which configures all
+// five with one copy of the credentials. Ships DARK behind the SAME switch.
+//
+// It must load whenever legacy.js's `goldSettle` can be reached with the switch
+// on: that helper THROWS rather than paying a client-authored number when this
+// module is absent, exactly as the b340 record strip does.
+import './net/gold.js?v=351';
 import './net/auth.js?v=351';
 import './net/supabase-bootstrap.js?v=351';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

@@ -111,9 +111,50 @@
        progression value. The state is left untouched too, so the day is still
        claimable once the wiring is fixed. */
     if (!rw) return null;
-    if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
-    if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
+    /* ══════════════════════════════════════════════════════════════════════
+       THE DOUBLE-PAY SURFACE — the one Security named before it was written.
+       ══════════════════════════════════════════════════════════════════════
+       With the kill switch ON this claim goes to the server as
+       `claim_reward {kind:'daily', key:'login'}` and the server decides the
+       amount from ITS OWN copy of src/data/rewards.js, its own day key and its
+       own streak (derived from yesterday's claim row — `G.streak.count` is
+       never an input and there is no field through which it could become one).
+
+       The lines below are then a PREDICTION, not a payment:
+         · they run through `goldSettle`, which records the amount against this
+           gesture's intent key;
+         · the server's envelope is applied ABSOLUTELY by src/net/gold.js
+           (`G.gold = state.gold`, `G.gems = state.gems`) and RETIRES the
+           prediction;
+         · `granted` — the receipt — is RENDERED and never added to anything.
+
+       So the money moves exactly once and it is the server's number. There is
+       no ordering in which both halves pay: an additive apply does not exist in
+       the code. A refusal carrying no envelope rolls the prediction back; an
+       unanswered call leaves it standing for the next envelope to settle,
+       because guessing either way would be the client authoring a value.
+
+       ⚠ `s.lastClaimDay` REMAINS A LOCAL CACHE — "have I shown the sheet today"
+         — and with the switch on it is no longer the eligibility test. The
+         server's `not_claimable` is, because it is the only answer that
+         survives a second device. It is set BEFORE the call so a double-tap
+         cannot open two claims; the server refuses the second anyway, under a
+         lock, and that refusal is what actually guarantees it. */
+    /* ⚠ GOLD **AND** GEMS THROUGH ONE PREDICTION (F5). The gem half used to be
+       a bare `G.gems += rw.gems` sitting next to the seam call, which made it
+       the one number in a wired gesture that was paid locally and never
+       reconciled — the double-pay this file's header claims to have closed,
+       still open one field over. Security's probe: two tabs, same UTC day. The
+       server refuses the second claim under a lock and clamps gems at the
+       5,000/day ceiling; the client paid both. ONE entry covers both fields so
+       they cannot acquire separate lifecycles. */
+    var key = window.goldIntentKey();
+    window.goldSettleCurrency({ gold: rw.gold || 0, gems: rw.gems || 0 }, 'claim.daily_login', key);
     s.lastClaimDay = todayKey();
+    if (key && window.HearthriseGold) {
+      var p = window.HearthriseGold.claimReward('daily', 'login', key);
+      if (p && p.catch) p.catch(function () {});
+    }
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
     return rw;

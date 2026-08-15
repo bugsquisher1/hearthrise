@@ -929,8 +929,35 @@ export function claimIntentNameFor(verb, kind, key, period) {
      not fail, it just pays twice or conflicts. A missing field is a thrown
      error, which index.ts's catch turns into a loud 500.
 
-   SHA-256, formatted as a v4-shaped uuid (the version/variant bits are set so
-   Postgres's uuid type accepts it and it can never collide with a real v4). */
+   SHA-256, formatted as a v4-shaped uuid: the version/variant bits are set so
+   Postgres's uuid type accepts it and so it is INDISTINGUISHABLE from a client
+   v4.
+
+   ⚠ THE ORIGINAL WORDING HERE SAID IT "can never collide with a real v4". THAT
+     IS FALSE, and it was load-bearing prose — b354's client seam generates real
+     v4 keys for shop_buy / vendor_sell / claim_reward, so it read as a promise
+     that a player cannot burn a derived accrual key on a purchase. Setting the
+     version and variant bits does not carve out a subspace; it puts these keys
+     in EXACTLY the same 122-bit space a v4 occupies. Nothing about the shape
+     separates them.
+
+     WHAT ACTUALLY PREVENTS THE ATTACK, stated so the next reader does not have
+     to re-derive it:
+
+       1. THE SECRET SALT. `o.salt` is read from `hr_server_secrets`, a table
+          with RLS ON, zero policies and zero grants — including to `hr_engine`.
+          A client cannot compute the digest because it cannot obtain the input,
+          so it cannot AIM at a future accrual key. Guessing one is a 2^122
+          search, which is the same statement as "v4 keys do not collide".
+       2. `intent_mismatch` (apply-engine §S6). If a client ever did present a
+          key the accrual path later derives, the stored intent NAME differs and
+          hr_apply refuses rather than answering `replayed:true` with no payment.
+          This is the branch that turns a collision from a silent 24-hour outage
+          into an error.
+
+     So the property is "unguessable, and mismatched keys are refused" — NOT
+     "structurally disjoint". Rotating the salt or removing S6 breaks it; a
+     change to these bits does not. */
 export const INTENT_ID_FIELDS = Object.freeze(
   ['user', 'slot', 'watermark', 'version', 'salt', 'attempt'],
 );

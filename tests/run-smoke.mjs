@@ -22,6 +22,7 @@ import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
+import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
@@ -1222,6 +1223,29 @@ const run = async () => {
       console.log('\nUnlock purchase guard — a bought Kitchen rung reaches hr_perks_of and cooks a '
         + 'span with 0 burns; a double buy, a skipped rung, a replay and a stale version all refuse '
         + 'by name with gold measured.');
+    }
+
+    /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
+       display_names and leaderboard_meta — the two cross-player identity /
+       ranking surfaces among the 21 tables the batch-1 baseline recorded. The
+       grants are dead (RLS on, SELECT-only policy) and each is ONE plausible
+       policy away from being live: a rename policy on display_names bypasses
+       the reserved-name list, the length bound and the charset rule, all of
+       which exist ONLY inside claim_display_name; an UPDATE on
+       leaderboard_meta pins the staleness gate and freezes all 21 boards.
+       The whole chain replays here, so the migration's four refuse-to-install
+       checks and its execute-the-refusal probe run on every suite run, and
+       both confirmed writers are then DRIVEN for real. `--selftest` plants
+       eight real defects; every one must read RED. */
+    const sweep2Problems = await clientWriteSweep2Guard();
+    if (sweep2Problems.length) {
+      console.log('\nClient write grant sweep batch 2 (display_names, leaderboard_meta) — FAILED:');
+      for (const p of sweep2Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep guard — no client write privilege survives on display_names '
+        + 'or leaderboard_meta (MAINTAIN included), the refusal is on the GRANT rather than on RLS, '
+        + 'both writer RPCs still work, and the four baseline rows are consumed.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

@@ -116,12 +116,21 @@ export async function chainFiles() {
 }
 
 // Platform-owned, pre-migration state. See the header for the rule.
+/* ⚠ `grant all`, NOT `grant select, insert, update, delete` (b354, Security C1).
+   Supabase's real default ACL on `public` also carries TRUNCATE, REFERENCES and
+   TRIGGER. A scaffold that granted only the four DML verbs made that whole class
+   INVISIBLE to the replay: a migration whose lockdown says
+   `revoke insert, update, delete` looked complete here and left three privileges
+   behind on production — including TRUNCATE, which bypasses row-level security
+   entirely, so RLS is not a backstop for it. Measured: with this widening,
+   2026-08-16-unlock-buy.sql §3(d) RAISES against a three-verb revoke and passes
+   against `revoke all`. Narrowing this back hides the class again. */
 const SCAFFOLD = `
 alter default privileges in schema public
-  grant select, insert, update, delete on tables to anon, authenticated, service_role;
+  grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public
   grant usage, select on sequences to anon, authenticated, service_role;
-grant select, insert, update, delete on all tables in schema public
+grant all on all tables in schema public
   to anon, authenticated, service_role;
 
 create publication supabase_realtime;

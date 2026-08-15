@@ -169,6 +169,16 @@ const ALSO_LINTED = [
      a silently deleted check looks exactly like a clean night. Listed here so
      the grant lints see it AND so PART 1f-ii can walk its derivation. */
   '2026-08-16-engine-allowlist-claim-perks.sql',
+  /* b354 — the unlock purchase. It creates a SECURITY DEFINER function that
+     WRITES four player tables and grants it to hr_engine, and it is the CURRENT
+     last toucher of hr_assert_grant_hygiene; PART 1f-ii below pins that chain
+     as a third link. Exactly the shape these grant lints are the only static
+     defence against. */
+  '2026-08-16-unlock-buy.sql',
+  /* b354 / Security C3 — the dead-client-write-grant sweep. It revokes on six
+     content catalogues and `create or replace`s the detector to widen check (4);
+     it is the CURRENT last toucher of hr_assert_grant_hygiene. */
+  '2026-08-16-client-write-grant-sweep.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -243,9 +253,18 @@ const HR_PERKS_OF_CHAIN = [
 //
 // A new file that replaces hr_assert_grant_hygiene is appended here AND to
 // tests/schema-apply-order.json, in the same commit.
+// b354 adds a THIRD link and the first WRITER the engine allowlist has taken
+// since hr_apply: 2026-08-16-unlock-buy.sql records hr_unlock_buy. Its body is
+// engine-allowlist-claim-perks' — extracted by tools/derive-grant-hygiene.mjs
+// (LINKS[1]) and patched at the same single anchor, insertions only — so the
+// declared-removals list for this chain stays EMPTY.
 const HR_GRANT_HYGIENE_CHAIN = [
   '2026-08-11-grant-hygiene.sql',
   '2026-08-16-engine-allowlist-claim-perks.sql',
+  '2026-08-16-unlock-buy.sql',
+  // b354 / Security C3. The first link in this chain that REPLACES lines — see
+  // DECLARED_REMOVALS below, which is this chain's first non-empty list.
+  '2026-08-16-client-write-grant-sweep.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -814,6 +833,21 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       // Prose only: "Server-owned, both of them" -> "all of them", once the
       // second bucket became a third.
       '  -- THE ALLOWLIST AND THE LIMITS. Server-owned, both of them. An unknown bucket',
+    ],
+
+    /* ── hr_assert_grant_hygiene's ONE replacing link (b354, Security C3) ──
+       The first two links are pure insertions (allowlist entries), which is why
+       this chain had an empty list until now. Check (4) could not be widened by
+       insertion: it is a single SELECT whose WHERE clause IS the rule, and the
+       new rule is a UNION of two populations — the historical
+       TRUNCATE/REFERENCES/TRIGGER scan, plus "a client write grant on a table
+       with RLS on and NO write policy", minus hr_client_write_baseline. These
+       four lines are that SELECT. A fifth removal is a silent regression. */
+    '2026-08-16-client-write-grant-sweep.sql': [
+      "  select coalesce(jsonb_agg(distinct table_name), '[]'::jsonb) into v_client_trunc",
+      '    from information_schema.role_table_grants',
+      "   where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')",
+      "     and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER');",
     ],
   };
 

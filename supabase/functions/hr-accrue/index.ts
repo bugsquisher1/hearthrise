@@ -78,6 +78,7 @@ import { runSetActivity } from './set-activity.js';
 import { runShopBuy } from './shop-buy.js';
 import { runVendorSell } from './vendor-sell.js';
 import { runClaimReward } from './claim-reward.js';
+import { runUnlockBuy } from './unlock-buy.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES } from './catalogue.js';
@@ -325,6 +326,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         reward: intent.reward,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* b354 — THE UNLOCK PURCHASE. It forwards LESS than shop_buy does: no
+       quantity, because a rung is bought once, and the OFFER ID is the whole of
+       what crosses. The price, the rung, the ladder, the property-tier gate and
+       the blueprint are all read inside hr_unlock_buy out of
+       public.hr_unlock_offers — so unlike every other verb here, this one's
+       commit point is not hr_apply, which structurally cannot write a level. */
+    if (intent.verb === 'unlock_buy') {
+      const out = await runUnlockBuy({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        offer: intent.offer,
       });
       return json(out.body, out.status);
     }

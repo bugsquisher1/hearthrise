@@ -338,7 +338,14 @@ begin
     create policy "hr_unlocks readable" on public.hr_unlocks for select using (true);
   end if;
 end $$;
-revoke insert, update, delete on public.hr_unlocks from anon, authenticated, service_role;
+-- IMPORTANT: "revoke all", NOT "revoke insert, update, delete" (Security C1,
+-- 2026-08-16). Supabase's default ACL on public also grants TRUNCATE,
+-- REFERENCES and TRIGGER, and a three-verb revoke leaves all three behind — on
+-- a CATALOGUE, where TRUNCATE would empty the table every unlock decision is
+-- read from, and TRUNCATE bypasses row-level security entirely so the
+-- read-only policy above is not a backstop for it. PUBLIC is included because
+-- a grant to PUBLIC is held by every role that exists.
+revoke all on public.hr_unlocks from public, anon, authenticated, service_role;
 
 -- Refilled wholesale, inside the migration's transaction.
 delete from public.hr_unlocks;

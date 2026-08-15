@@ -75,7 +75,8 @@ export const MAX_SLOT = 5;
     An UNKNOWN verb is a hard `null` — never defaulted to `accrue`. A typo that
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
-export const VERBS = Object.freeze(['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'claim_reward']);
+export const VERBS = Object.freeze(
+  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'claim_reward', 'unlock_buy']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`

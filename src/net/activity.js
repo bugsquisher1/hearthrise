@@ -382,6 +382,15 @@ export function awayFromCollected(collected) {
     levelUps: Array.isArray(c.levelUps) ? c.levelUps : [],
     blessed: !!c.blessed,
     buffsPaused: !!c.buffsPaused,
+    /* Ruling 2 (b352): WHICH hours the collect settled. Carried rather than
+       derived — with the credited window anchored to when the player LEFT, a
+       capped window no longer ends at `now`, so subtracting the span off the
+       clock names the wrong hours (and, through the Boss of the Day, the wrong
+       multiplier). Absent on a pre-b352 server: left undefined rather than
+       guessed, because a guess here is a renderer quoting a bonus nobody paid. */
+    unpaidMs: Number(c.unpaidMs) || 0,
+    windowFrom: Number(c.windowFrom) || null,
+    windowTo: Number(c.windowTo) || null,
   };
 }
 

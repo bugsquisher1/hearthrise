@@ -115,6 +115,76 @@ export function rateMult(ctx) {
 
 export const DAY_MS = 86400000;
 
+/* ── THE CREDITED WINDOW (Ruling 2, 2026-08-15) ─────────────────────────────
+   WHICH hours of an over-cap absence get paid — the FIRST `grantMs` after the
+   player left, never the LAST `grantMs` before they came back.
+
+   Both sides used to anchor the span to the RETURN instant (`fromMs = now -
+   grantMs`, accrual.js; `ctx.fromMs = toMs - spanMs`, legacy.js). That is one
+   character's worth of code and two live defects:
+
+     1. AN EXPLOIT. `simulateSpan` resolves the Boss of the Day per UTC-day
+        SEGMENT of the credited window. Anchoring to the return instant lets
+        the player CHOOSE which days those segments land on, by choosing when
+        to open the tab — an 18h absence can be made to pay entirely on the
+        x1.5-drop day by returning at the right hour. Anchored to the DEPARTURE
+        instant the segments are fixed the moment the player leaves, which is
+        when the targeting decision was actually made (the ruling's own
+        rationale for paying BotD away at all).
+     2. A LIE ABOUT TIMED EFFECTS. A 10-minute Feast eaten on the way out is
+        alive for minutes 0–10 of the absence. Credit the LAST twelve hours of
+        an eighteen-hour absence and those minutes are outside the window
+        entirely: the Feast pays nothing, having been spent on time that was
+        forfeited. Credit the FIRST twelve and it pays exactly the ten minutes
+        it was worth.
+
+   THE FORFEITED TAIL IS THE CAP, and it is deliberately NOT deferred: the
+   caller still stamps its watermark at `now`, so a 40-hour absence is one
+   capped night and not four instalments (see accrual.js's `accrued_to` note —
+   that comment is load-bearing and must not be "made consistent" with this).
+
+   `activeSinceMs` is the server's second watermark. The window can never open
+   before the activity existed, so W = max(watermark, active_since); the client
+   has no such column and simply omits it.
+
+   TOTAL BY CONSTRUCTION: garbage in produces a zero-length window at `now`
+   rather than a span that pays for time nobody spent.
+
+   @param o { watermarkMs, activeSinceMs?, nowMs, grantMs?, capMs? }
+   @returns { fromMs, toMs, awayMs, paidMs, unpaidMs, capped }
+            awayMs  the whole absence           (now - watermark)
+            paidMs  the credited span           (toMs - fromMs)
+            unpaidMs the forfeited tail         (now - toMs)
+*/
+export function creditWindow(o) {
+  const src = o || {};
+  const fin = (v, d) => { const n = Number(v); return isFinite(n) ? n : d; };
+  const nowMs = fin(src.nowMs, 0);
+  const watermarkMs = Math.min(nowMs, fin(src.watermarkMs, nowMs));
+  /* max(), not a fallback: a MISSING second watermark must not widen the
+     window, and a PRESENT one that is later than the first must narrow it. */
+  const sinceMs = Math.min(nowMs, fin(src.activeSinceMs, watermarkMs));
+  const fromMs = Math.max(watermarkMs, sinceMs);
+  const availableMs = Math.max(0, nowMs - fromMs);
+  /* The caller owns the cap arithmetic (the server clamps against three
+     numbers, the client against `claimOfflineMs`), so a supplied grant is
+     honoured — but only ever as a CEILING that is itself clamped into the
+     window that actually exists. A caller cannot buy time here that the
+     watermarks do not contain. */
+  const capMs = Math.max(0, fin(src.capMs, Infinity));
+  const asked = Math.max(0, fin(src.grantMs, availableMs));
+  const paidMs = Math.min(asked, capMs, availableMs);
+  const toMs = fromMs + paidMs;
+  return {
+    fromMs,
+    toMs,
+    awayMs: Math.max(0, nowMs - watermarkMs),
+    paidMs,
+    unpaidMs: Math.max(0, nowMs - toMs),
+    capped: (nowMs - toMs) > 0,
+  };
+}
+
 /**
  * Split an absence into UTC-day segments.
  *

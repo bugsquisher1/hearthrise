@@ -1613,6 +1613,15 @@ function processOffline(){
   /* b261: 60s floor (was 180s). With the watermark now only advancing while
      visible, a genuine 1–3 min AFK is credited instead of silently dropped;
      sub-minute tab-flips still cost nothing. */
+  /* ── THE WATERMARK, READ BEFORE IT MOVES (Ruling 2, 2026-08-15) ───────────
+     `claimOfflineMs` ADVANCES `G.offlineBudget.at` to now — that advance IS
+     "signing in resets the timer" — so the instant the absence began is only
+     legible from here, one line earlier. It is the anchor of the credited
+     window: an over-cap absence pays its FIRST cap-hours, not its last.
+     `ensureOfflineBudget` is called first for the same reason claimOfflineMs
+     calls it (a missing or garbage watermark is seeded, not trusted); it is
+     idempotent, so this is a read, not a second claim. */
+  const _watermark=(ensureOfflineBudget(_now)||{}).at;
   const hrs=claimOfflineMs(_now,active,60000)/3600000;
   /* b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the offline
      pipeline credits correctly in an end-to-end test, so a real 0-credit is an
@@ -1633,6 +1642,33 @@ function processOffline(){
   }catch(e){}
   if(hrs<=0) return;
   const cap=offlineCapHours();
+  /* ── THE CREDITED WINDOW (Ruling 2) ──────────────────────────────────────
+     `hrs` says HOW MUCH of the absence is paid; this says WHICH HOURS. One
+     definition, shared with the server accrual engine — see src/core/away.js
+     `creditWindow` for the exploit the old `toMs - spanMs` anchor left open
+     (return timing selecting the Boss-of-the-Day multiplier) and for why the
+     forfeited time is the TAIL.
+
+     Called unguarded, exactly like `HearthriseCore.away.AWAY_RATE_MULT` below:
+     a missing helper must fail loudly here, because the silent fallback would
+     be the very anchor this replaces. */
+  const _win=window.HearthriseCore.away.creditWindow({
+    watermarkMs:_watermark, nowMs:_now, grantMs:Math.round(hrs*3600000),
+  });
+  /* THE PART OF THE ABSENCE THAT PAYS NOTHING, AND WHICH SIDE OF THE WINDOW IT
+     FALLS ON. Timed buffs are personal, so they pay away AND drain away
+     (src/core/away.js) — which means the buff clock has to advance across the
+     WHOLE absence or a returning player's timers disagree with the wall clock.
+     Only the credited window pays; the rest is spent at zero.
+
+     Both ends are DERIVED from the window rather than assumed, and that is not
+     ceremony: under first-window crediting the head is always 0 and the tail is
+     the forfeit, but if the window anchor ever moves back to the return instant
+     the head becomes real and a buff eaten at logoff must then be spent on time
+     that paid nothing. The code states the invariant ("the clock crosses the
+     whole absence; only the window pays") instead of a consequence of it. */
+  const _unpaidHeadMs=Math.max(0,_win.fromMs-_watermark);
+  const _unpaidTailMs=Math.max(0,_now-_win.toMs);
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
   let combatSummary = null;
   /* ── b345: HOW MUCH OF THE ABSENCE ACTUALLY PAID ────────────────────────
@@ -1671,6 +1707,10 @@ function processOffline(){
      the replay reads (allXP, combatXP, goldFind, farmYield, noBurn AND the
      speed keys, via the interval re-derivation below) is the base value. */
   withOfflineReplay(function(){
+    /* Spend the uncredited time that falls BEFORE the window, at zero payout.
+       Zero under first-window crediting (the head is empty by construction) —
+       kept because the drain belongs to the window, not to a build. */
+    if(_unpaidHeadMs>0 && typeof advanceBuffClock==='function') advanceBuffClock(_unpaidHeadMs);
     // Combat takes priority — if a fight was in progress, simulate that.
     if(G.activeMonster){
       /* THE UNIFICATION. This used to call processOfflineCombat(), a second
@@ -1681,7 +1721,7 @@ function processOffline(){
          must not be one — a gate here is a whole night silently missing, and
          the honest answer to "a new character dies in sixty seconds" is the
          death line on the receipt below, not an empty night. */
-      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
+      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05), {fromMs:_win.fromMs});
     } else if(_awaySpanCore() && _awayArtisanEntry()){
       /* ════════════════════════════════════════════════════════════════════
          b351 — THE ARTISAN AWAY BRANCH IS ONE CALL INTO CORE.
@@ -1713,7 +1753,7 @@ function processOffline(){
       const _C=_awaySpanCore();
       window._hrOfflineBurns = 0;
       const span=_C.artisanSim.simulateArtisanSpan(G, {
-        away:true, fromMs:_now - hrs*3600000, toMs:_now, capped: hrs >= (cap - 0.05),
+        away:true, fromMs:_win.fromMs, toMs:_win.toMs, capped: hrs >= (cap - 0.05),
         rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
         recipes:_C.artisanRecipes(),
         bonus:window.getBonus,
@@ -1760,7 +1800,7 @@ function processOffline(){
            outside the latch measured 375 core actions against 400 live ones. */
       const _C=_awaySpanCore();
       const span=_C.skillSim.simulateSkillSpan(G, {
-        away:true, fromMs:_now - hrs*3600000, toMs:_now, capped: hrs >= (cap - 0.05),
+        away:true, fromMs:_win.fromMs, toMs:_win.toMs, capped: hrs >= (cap - 0.05),
         rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
         nodes:_C.gatherNodes(),
         bonus:window.getBonus,
@@ -1781,6 +1821,13 @@ function processOffline(){
         stoppedBy=span.stoppedBy; stoppedById=span.stoppedById; stoppedSkill=span.stoppedSkill;
       }
     }
+    /* THE FORFEITED TAIL. The cap stops the PAYOUT, not the clock: the
+       character kept standing there, so a consumable that was still running
+       when the window closed goes on running out. Zero payout — nothing reads
+       a bonus after this point in the replay. `advanceBuffClock` still honours
+       its one freeze condition (nothing active), so a night that ended in a
+       death does not spend a buff on an idle corpse. */
+    if(_unpaidTailMs>0 && typeof advanceBuffClock==='function') advanceBuffClock(_unpaidTailMs);
   });
 
   /* b326 (perf): renderProfile() and the quest strip skip their work while the
@@ -1873,6 +1920,20 @@ function processOffline(){
        6-minute granularity — fine for "8.2h", wrong for "8h 12m". The exact
        span is carried alongside it so a duration can be PRINTED honestly. */
     awayMs: Math.round(hrs*3600000),
+    /* ── b352 (Ruling 2): WHICH HOURS, not just how many ──────────────────
+       `awayMs` keeps its meaning — the span that was CREDITED. What it never
+       carried is where that span sat on the clock, and after the flip a
+       renderer can no longer derive it ("now minus awayMs" was only ever right
+       because the window used to end at the return instant). So it is STATED,
+       like every other field on this receipt:
+         windowFrom/windowTo  the credited hours. The Boss-of-the-Day segments
+                              and every timed effect were resolved against them.
+         unpaidMs             the tail the cap forfeited. `awayMs + unpaidMs`
+                              is the whole absence; it is 0 on a night that fit
+                              inside the cap, which is almost all of them. */
+    windowFrom: _win.fromMs,
+    windowTo: _win.toMs,
+    unpaidMs: Math.round(_unpaidHeadMs + _unpaidTailMs),
     /* ── b345: THE RUN'S OWN LENGTH, beside the absence's ─────────────────
        `awayMs` is how long the player was gone; `paidMs` is how long their
        run earned. They are equal on an ordinary night and wildly unequal on
@@ -3919,16 +3980,33 @@ function killMonster(m){
 }
 
 /* The accrual path. `processOfflineCombat` is GONE — this is a span of the
-   same tick, nothing more. */
-function simulateAwayCombat(hrs,nowMs,capped){
+   same tick, nothing more.
+
+   ── WHICH HOURS (Ruling 2, 2026-08-15) ──────────────────────────────────────
+   `opts.fromMs` is the instant the absence BEGAN — the offline-budget watermark
+   read before `claimOfflineMs` advanced it. The credited window is then
+   `[fromMs, fromMs + span]`: the FIRST cap-hours after the player left, never
+   the last cap-hours before they came back. It matters because `simulateSpan`
+   resolves the Boss of the Day per UTC-day SEGMENT of this window, so anchoring
+   it to the return instant let the player choose which days paid, by choosing
+   when to open the tab. See src/core/away.js `creditWindow`.
+
+   With no `fromMs` the window still ends at `nowMs` — the honest answer for a
+   caller that has no watermark and can only say "an absence that ended now",
+   and identical to the anchored form for any absence under the cap (every
+   caller in the suite). processOffline, the one production caller, always
+   passes it. */
+function simulateAwayCombat(hrs,nowMs,capped,opts){
   if(!G.activeMonster)return null;
   const C=window.HearthriseCore;
-  const toMs=(typeof nowMs==='number'&&isFinite(nowMs))?nowMs:Date.now();
+  const atMs=(typeof nowMs==='number'&&isFinite(nowMs))?nowMs:Date.now();
   const spanMs=Math.max(0,(Number(hrs)||0)*3600000);
   if(spanMs<=0)return null;
+  const askedFrom=opts&&Number(opts.fromMs);
+  const fromMs=(isFinite(askedFrom)&&askedFrom>0)?askedFrom:(atMs-spanMs);
   const ctx=combatSimCtx();
-  ctx.fromMs=toMs-spanMs;
-  ctx.toMs=toMs;
+  ctx.fromMs=fromMs;
+  ctx.toMs=fromMs+spanMs;
   /* THE SAME INTERVAL LIVE PLAY USES. The old away loop divided by the flat
      COMBAT_BALANCE.tickMs, so gear speed (spdB) and the weapon-family speed
      identity did not apply away — a hammer swung 26% more often asleep than

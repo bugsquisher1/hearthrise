@@ -40,6 +40,11 @@ import { simulateSpan } from '../../../src/core/combat-sim.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 import { resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
+/* WHICH hours of an over-cap absence are credited. One definition, imported by
+   both the server and (through core-bridge) the client — the flip from
+   last-window to first-window crediting is a property of the away model, not a
+   line of arithmetic each side gets to write for itself. */
+import { creditWindow } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
 import { grantXp } from '../../../src/core/progression.js';
 import { resolveStyle } from '../../../src/core/styles.js';
@@ -362,6 +367,20 @@ export function computeAccrual(input) {
   if (grantMs < ACCRUE_MIN_MS) return { accrued: false, reason: SKIP.TOO_SOON };
   const capped = elapsedMs > grantMs;
 
+  /* ── (1a) WHICH hours of the absence those are (Ruling 2, 2026-08-15) ─────
+     The FIRST `grantMs` after the player left — `[W, W + grantMs]` where
+     W = max(accrued_to, active_since) — never the last `grantMs` before they
+     came back. See src/core/away.js `creditWindow` for the two defects the old
+     `nowMs - grantMs` anchor produced (a return-timed choice of Boss-of-the-Day
+     segments, and a logoff-eaten consumable that pays nothing).
+
+     `grantMs` is UNCHANGED by this — only its POSITION on the timeline moves.
+     An uncapped absence is byte-identical, because W + grantMs === nowMs there. */
+  const credit = creditWindow({
+    watermarkMs: accruedToMs, activeSinceMs: sinceMs, nowMs, grantMs,
+  });
+  const unpaidMs = credit.unpaidMs;
+
   /* ── (1b) THE KIND BRANCH ────────────────────────────────────────────────
      Everything above is shared: the pointer, the two watermarks, the cap and
      the minimum span are properties of an ABSENCE, not of what was being done
@@ -370,7 +389,7 @@ export function computeAccrual(input) {
      function rather than a branch inside this one so that the combat path is
      textually unchanged and its parity fixtures still cover the bytes they
      were written against. */
-  if (inp.activeKind === 'gather') return accrueGather(inp, { nowMs, grantMs, capped });
+  if (inp.activeKind === 'gather') return accrueGather(inp, { nowMs, grantMs, capped, credit });
 
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
@@ -591,8 +610,12 @@ export function computeAccrual(input) {
   const tickMs = deriveTickMs(equipment, items, style);
   const ctx = {
     away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
-    fromMs: nowMs - grantMs,
-    toMs: nowMs,
+    /* THE FIRST `grantMs` AFTER THE PLAYER LEFT, not the last before they came
+       back (Ruling 2). This is the line the Boss-of-the-Day segmentation is
+       computed from, which is exactly why it may not be anchored to a return
+       instant the player chooses. */
+    fromMs: credit.fromMs,
+    toMs: credit.toMs,
     tickMs,                        // DERIVED from server-owned equipment
     capped,
     rng: createRng(nat(inp.seed, 0)),
@@ -709,8 +732,14 @@ export function computeAccrual(input) {
       // else here — never a row per meal — and it is the only trace of the
       // food a night consumed, which a support request about a vanished
       // Cooked Shark stack has to be answerable from.
+      /* `from`/`to` are the CREDITED WINDOW, journalled because after Ruling 2
+         "how long" no longer implies "which hours": a capped night forfeits its
+         tail, and a dispute about a Boss-of-the-Day multiplier is only
+         answerable from the instants the segments were resolved at. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
-              ate: foodEaten },
+              ate: foodEaten,
+              from: new Date(credit.fromMs).toISOString(),
+              to: new Date(credit.toMs).toISOString() },
     },
   };
   if (goldDelta > 0) delta.gold = goldDelta;
@@ -738,11 +767,45 @@ export function computeAccrual(input) {
       // so the welcome-back line can say "+50% drops" (daily) or "+100%"
       // (weekly) instead of a renderer guessing and halving a weekly night.
       featuredDropMult: summary.featuredDropMult,
+      ...windowEnvelope(credit, summary.died ? summary.survivedMs : null),
       gold: goldDelta,
       xp: xpDelta,
       items: items_,
       levelUps,
     },
+  };
+}
+
+/* ── THE WINDOW, ON THE RECEIPT (Ruling 2) ──────────────────────────────────
+   Stated, never inferred — the same rule the ruling puts on `blessed`, `died`
+   and `crits`. Before the flip a renderer could subtract `awayMs` off `now` to
+   get the credited hours and be right; it cannot any more, and a renderer that
+   guesses will eventually quote hours the player was never paid for.
+
+     awayMs    the CREDITED span            (windowFrom -> windowTo)
+     paidMs    the span that actually EARNED (shorter when the run died or ran
+               out of supplies — the client's b345 meaning, unchanged)
+     unpaidMs  the forfeited tail: the cap, made a number
+     windowFrom/windowTo  WHICH hours those were, which is what decides the
+               Boss-of-the-Day segments and every timed effect
+
+   ⚠ `awayMs` KEEPS ITS SHIPPED MEANING — the span that was credited, exactly
+     as `emptySummary` in core and `lastOfflineSummary.awayMs` on the client
+     have always used it. The whole absence is `awayMs + unpaidMs`; it is not
+     given a field of its own, because a second meaning of `awayMs` across
+     twenty renderers is a worse defect than the one this envelope closes.
+
+   @param ranMs the earning span when the run stopped early; null otherwise */
+function windowEnvelope(credit, ranMs) {
+  const earned = (typeof ranMs === 'number' && isFinite(ranMs) && ranMs >= 0)
+    ? Math.min(ranMs, credit.paidMs) : credit.paidMs;
+  return {
+    awayMs: credit.paidMs,
+    paidMs: earned,
+    unpaidMs: credit.unpaidMs,
+    capped: credit.capped,
+    windowFrom: credit.fromMs,
+    windowTo: credit.toMs,
   };
 }
 
@@ -781,10 +844,12 @@ export function normaliseToolCarry(raw) {
  * G, this accumulates a delta hr_apply re-validates.
  *
  * @param inp  computeAccrual's input, verbatim
- * @param span { nowMs, grantMs, capped } — computed by the shared preamble
+ * @param span { nowMs, grantMs, capped, credit } — computed by the shared
+ *             preamble. `credit` is the WINDOW (Ruling 2): which hours of the
+ *             absence are being paid, not merely how many.
  */
 function accrueGather(inp, span) {
-  const { nowMs, grantMs, capped } = span;
+  const { nowMs, grantMs, capped, credit } = span;
 
   const items = inp.items || {};
   const nodes = inp.nodes || {};
@@ -871,8 +936,13 @@ function accrueGather(inp, span) {
 
   const ctx = {
     away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
-    fromMs: nowMs - grantMs,
-    toMs: nowMs,
+    /* THE FIRST `grantMs` AFTER THE PLAYER LEFT (Ruling 2). Gathering has no
+       UTC-day segmentation of its own, so today only the SPAN LENGTH reaches
+       the yield — but the window is also what a buff timeline is measured
+       against, and passing a different one here than combat gets is how the two
+       away paths come to disagree about when the night happened. */
+    fromMs: credit.fromMs,
+    toMs: credit.toMs,
     capped,
     rng: createRng(nat(inp.seed, 0)),
     items,
@@ -956,7 +1026,10 @@ function accrueGather(inp, span) {
       // actions; the receipt for what per-action journalling costs is
       // game_events — 1.6M rows / 229 MB from six players in four days.
       meta: { ms: grantMs, ticks: summary.ticks, qty: stats.gathered || 0,
-              capped, node: summary.nodeId, skill: summary.skill },
+              capped, node: summary.nodeId, skill: summary.skill,
+              // The credited window, for the reason the combat journal carries it.
+              from: new Date(credit.fromMs).toISOString(),
+              to: new Date(credit.toMs).toISOString() },
     },
   };
   if (itemKinds > 0) delta.items = items_;
@@ -985,6 +1058,7 @@ function accrueGather(inp, span) {
     levelUps,
     summary: {
       ...summary,
+      ...windowEnvelope(credit, summary.stoppedBy ? summary.paidMs : null),
       gold: 0,
       xp: xpDelta,
       items: items_,

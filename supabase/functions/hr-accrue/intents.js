@@ -200,6 +200,17 @@
 // answer is to widen the release set in hr_apply, not to un-derive the key.
 //
 // ════════════════════════════════════════════════════════════════════════════
+// ⚠ THE SECTION BELOW IS `set_activity`'s WIRE. Each intent's own wire lives in
+//   its own module header, for the reason this one states: the two sides of a
+//   wire must not be able to drift apart in different folders, and a single
+//   "the seam" section that nine verbs share would drift from all nine at once.
+//   What is GENERAL — the key rule, the refusal taxonomy, the envelope
+//   contract, the registry — is up here and is the same for every verb.
+//     · set_activity  — below, and src/net/activity.js implements it.
+//     · claim_reward  — ./claim-reward.js §"THE CLIENT SEAM" (b349, server half
+//                       only; the six grant sites it covers are named there).
+//
+// ════════════════════════════════════════════════════════════════════════════
 // THE CLIENT SEAM — the wire, specified. NOT YET IMPLEMENTED (b345).
 //
 // The client half is deliberately not written here: src/legacy.js is held by
@@ -371,6 +382,21 @@
 export const INTENT_REGISTRY = Object.freeze({
   accrue: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
   set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
+  /* b349 — THE FIRST GRANT INTENT. `collectsFirst: false`, and that is a
+     DERIVED fact rather than a preference: hr_apply stamps `accrued_to = now()`
+     on a delta carrying `equip` or `activity` and on nothing else
+     (apply-engine.sql §S5). A claim's delta carries gold, gems, progress,
+     progress_claim and journal, so it does NOT close the window and there is
+     nothing to confiscate — collecting first would cost a round trip and buy
+     nothing.
+
+     ⚠ THAT IS AN INVARIANT ABOUT A DELTA, NOT A STATEMENT ABOUT A VERB, so it
+       is checked at RUNTIME by `deltaClosesWindow` below rather than asserted
+       here in prose. The day someone adds `equip` to a claim's delta — a
+       "claim this and equip it" reward, which is an obvious thing to want —
+       this row silently becomes a confiscation. The runtime check turns that
+       into a refusal (`would_confiscate`) instead. */
+  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -405,6 +431,28 @@ export function requiresKey(verb) { return intentSpec(verb).needsKey === true; }
 /** Does rule 3 (collect before switch) apply to this verb? */
 export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === true; }
 
+/* ── WHICH DELTA KEYS CLOSE THE ACCRUAL WINDOW ──────────────────────────────
+   apply-engine.sql §S5:
+
+       if p_delta ? 'equip' or p_delta ? 'activity' then
+         v_accrued := now();
+
+   Those two keys, and only those two. That single line is what makes rule 3
+   load-bearing for `set_activity` and what makes it UNNECESSARY for a claim —
+   so the rule is not "every intent collects", it is "every intent whose delta
+   contains one of these collects". Stated as a LIST WITH A READER, because the
+   registry column that encodes the answer is otherwise a comment: a future
+   claim-and-equip reward would flip the truth without flipping the row, and the
+   symptom is a silently confiscated night, not an error. */
+export const STAMPING_DELTA_KEYS = Object.freeze(['equip', 'activity']);
+
+/** Would applying this delta stamp `accrued_to = now()` and therefore discard
+    any unpaid window? Own-property, so a poisoned `__proto__` cannot answer. */
+export function deltaClosesWindow(delta) {
+  if (!delta || typeof delta !== 'object') return false;
+  return STAMPING_DELTA_KEYS.some((k) => Object.prototype.hasOwnProperty.call(delta, k));
+}
+
 /** Machine codes this layer produces itself. Everything else is `hr_apply`'s own
     code, returned verbatim so it survives to the client and to `hr_rejections`. */
 export const INTENT_ERRORS = Object.freeze({
@@ -418,6 +466,21 @@ export const INTENT_ERRORS = Object.freeze({
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
+
+  /* ── b349, THE GRANT INTENT ─────────────────────────────────────────────── */
+  BAD_REWARD: 'bad_reward',                 // 400 — the naming is malformed
+  UNKNOWN_REWARD: 'unknown_reward',         // 409 — no such claimable, ever
+  /* 409 — a REAL claimable this server cannot own YET. Carries `needs`, read
+     out of the registry, so the answer says what would unblock it. The exact
+     shape `activity_unsupported` has, and for the same reason: a player told
+     "bad request" when the truth is "the server does not track your Renown yet"
+     files a bug against the wrong system. */
+  REWARD_UNAVAILABLE: 'reward_unavailable',
+  /* 500-shaped, refused before the apply. The proposed delta would stamp
+     accrued_to (see deltaClosesWindow) on a verb whose registry row says it
+     does not collect first. Refusing costs one gesture; proceeding costs an
+     unpaid night, silently. FAIL CLOSED. */
+  WOULD_CONFISCATE: 'would_confiscate',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -432,6 +495,18 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.UNKNOWN_ACTIVITY,
   INTENT_ERRORS.RATE_LIMITED,
   INTENT_ERRORS.NO_CHARACTER,
+  /* b349 — the grant intent's three SHAPE-AND-REGISTRY refusals. Same reason as
+     the activity three above them: all are answered from the request and the
+     frozen registry, before any database work, so reading a state envelope for
+     them would hand a malformed client the rate budget the check exists to
+     protect (property A10 measures). Nothing was written, so the client's LAST
+     envelope is still current — which is what it reconciles to.
+     `would_confiscate` is deliberately NOT here: it is an ENGINE bug reached
+     after a real read, the caller has already paid for the envelope, and a
+     refusal it cannot reconcile from would leave the client guessing. */
+  INTENT_ERRORS.BAD_REWARD,
+  INTENT_ERRORS.UNKNOWN_REWARD,
+  INTENT_ERRORS.REWARD_UNAVAILABLE,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */
@@ -619,6 +694,36 @@ export function catalogueHas(catalogue, id) {
 export function intentNameFor(verb, kind, id) {
   if (!kind || kind === 'idle') return `${verb}:idle`;
   return `${verb}:${kind}:${id}`;
+}
+
+/**
+ * THE JOURNAL NAME FOR A CLAIM — and it NAMES THE PERIOD, which `intentNameFor`
+ * deliberately does not do for an activity.
+ *
+ * The rule above is "the name must identify the THING the key was claimed for",
+ * because `hr_apply`'s `intent_mismatch` compares exactly this string. For a
+ * claim the thing is not (kind, key) — it is (kind, key, WHICH DAY). Without
+ * the period, a client that reused Monday's key on Tuesday would get
+ * `replayed: true, ok: true` and be paid NOTHING, silently, for a reward it had
+ * genuinely earned. With it, Tuesday is `intent_mismatch`: loud, refused,
+ * nothing applied, and a fresh key succeeds.
+ *
+ * ⚠ AND THE OBJECTION THAT KEEPS THE SLOT OUT DOES NOT APPLY TO A PERIOD.
+ *   `intentNameFor`'s comment refuses the slot partly because
+ *   `player_ledger.intent` is "what the rollup groups on". MEASURED, in
+ *   2026-08-11-player-state.sql: `player_ledger_rollup`'s primary key is
+ *   `(user_id, slot, month, kind)` — it does not group on `intent` at all, so a
+ *   period suffix costs zero rollup rows. The surviving half of that objection
+ *   is semantic ("the same declaration on two characters would read as two
+ *   different things"), and it points the OTHER way here: Monday's claim and
+ *   Tuesday's genuinely ARE two different things.
+ *
+ * A non-periodic claimable (a collection milestone, a Renown rank) gets no
+ * suffix, because there is only ever one of it.
+ */
+export function claimIntentNameFor(verb, kind, key, period) {
+  const base = `${verb}:${kind}:${key}`;
+  return period ? `${base}:${period}` : base;
 }
 
 /* ── THE ACCRUAL KEY — DERIVED, NOT ACCEPTED ────────────────────────────────

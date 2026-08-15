@@ -75,6 +75,7 @@ import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { runSetActivity } from './set-activity.js';
+import { runClaimReward } from './claim-reward.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES } from './catalogue.js';
@@ -270,6 +271,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         activity: intent.activity,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* b349 — THE GRANT INTENT. Same shape as the line above it and that is the
+       point: index.ts stays five things (prove who is asking, spend the budget,
+       read, compute, commit) and every intent is a pure ESM module a Node test
+       can drive. Note what is NOT forwarded — there is no period and no amount
+       to forward, because request.js has no reader for either. */
+    if (intent.verb === 'claim_reward') {
+      const out = await runClaimReward({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        reward: intent.reward,
       });
       return json(out.body, out.status);
     }

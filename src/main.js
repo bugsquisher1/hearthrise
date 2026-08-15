@@ -30,6 +30,17 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from '.
 import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=346';
 import { COMPANIONS } from './data/companions.js?v=346';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=346';
+/* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
+   src/features/daily-reward.js, a classic <script> that neither Deno nor Node
+   can import, so the server could not read the numbers it is about to be
+   responsible for paying. It is authored here now and this is its ONLY
+   publication point — daily-reward.js reads `window.HearthriseRewards` at call
+   time and fails loud if it is absent, rather than carrying a fallback copy. */
+import {
+  DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
+  DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
+  priceDailyLogin,
+} from './data/rewards.js?v=346';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -86,6 +97,17 @@ Object.assign(window, {
   // b222 — the Castle Stores predicate, shared by the artisan lane and (once
   // the Clan Seat migration is applied) the Storehouse deposit filter.
   isCastleGood,
+});
+
+/* b349 — the claimable-reward tables, published for the classic scripts that
+   cannot import (src/features/daily-reward.js). A NAMESPACE rather than seven
+   loose globals: these are read by exactly one consumer today and by the
+   server's `claim_reward` intent tomorrow, and a namespace is what makes
+   "is the data wired?" a single, testable question. */
+window.HearthriseRewards = Object.freeze({
+  DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
+  DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES,
+  claimableFor, claimableId, priceDailyLogin,
 });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.

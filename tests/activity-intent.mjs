@@ -227,12 +227,19 @@ const MUTATIONS = {
     find: '    if v_prev_intent is distinct from v_this_intent\n       or v_prev_slot is distinct from v_slot then',
     repl: '    if v_prev_intent is distinct from v_this_intent then',
   },
+  /* b349 — the anchor MOVED FILE. C2's mechanics now live in the shared
+     ./envelope.js, because claim_reward is the second intent to need them and
+     eight private copies of one rule is eight chances for the eighth to forget.
+     The mutation follows the code: an anchor left pointing at set-activity.js
+     would have matched zero times, which this harness reports as a HARNESS
+     failure rather than a pass — deliberately, because a planted bug that was
+     never planted is decoration. */
   refusal_no_state: {
-    file: FN('set-activity.js'),
+    file: FN('envelope.js'),
     why: 'C2 — a refusal stops carrying the envelope, so "put the local pointer back to what the '
        + 'envelope says" is unexecutable on the path that needs it',
-    find: '  if (!env) return { ok: false, verb: VERB, ...refusal };',
-    repl: '  return { ok: false, verb: VERB, ...refusal };\n  /* mutated */ if (!env) return null;',
+    find: '  if (!env) return { ok: false, verb, ...refusal };',
+    repl: '  return { ok: false, verb, ...refusal };\n  /* mutated */ if (!env) return null;',
   },
   registry_bucket_bogus: {
     file: FN('intents.js'),

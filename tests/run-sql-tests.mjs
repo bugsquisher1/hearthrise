@@ -139,6 +139,11 @@ const ALSO_LINTED = [
   '2026-08-15-intent-key-hygiene.sql',
   /* b348 — the gathering tool carry. Replaces BOTH hr_apply and hr_state_of. */
   '2026-08-15-tool-carry.sql',
+  /* b349 — the grant intent. `create or replace`s hr_rate_gate and creates
+     hr_claim_lookup, which takes p_user as an ARGUMENT and is SECURITY DEFINER —
+     i.e. it reads any player's claim history for anyone who can call it. That is
+     precisely the shape this lint is the only static defence against. */
+  '2026-08-16-claim-reward.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own

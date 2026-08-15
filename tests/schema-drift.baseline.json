@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-08-15",
- "digest": "df0fbe317830d94aaf511dd41300d5318e1a20872877069e35f94c0324ebdb09",
+ "digest": "32a16e711afe914fcd12e09d63363c528e826ecb597a0628c1499dfb5d4649db",
  "counts": {
   "relations": 75,
-  "functions": 171,
+  "functions": 172,
   "policies": 74,
   "indexes": 102,
   "triggers": 14,
@@ -199,6 +199,7 @@
    "hr_canon_display_name(p_name text)",
    "hr_chat_immutable()",
    "hr_chat_name_authority()",
+   "hr_claim_lookup(p_user uuid, p_slot integer, p_kind text, p_key text)",
    "hr_clan_board_rows(p_clan_id uuid, p_day text, p_week text)",
    "hr_clan_browser(p_limit integer)",
    "hr_clan_decay_cp(p_clan_id uuid, p_user_id uuid)",

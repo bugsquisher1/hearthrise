@@ -9,6 +9,8 @@
     "test:headed": "node tests/run-smoke.mjs --headed",
     "check:version": "bash bump-version.sh --check",
     "test:sql": "node tests/run-sql-tests.mjs",
+    "test:activity-intent": "node tests/activity-intent.mjs --selftest",
+    "test:claim-intent": "node tests/claim-intent.mjs --selftest",
     "test:market-offers": "node tests/market-offers-guard.mjs",
     "test:lb-lockdown": "node tests/leaderboard-lockdown-guard.mjs",
     "test:raid-band": "node tests/raid-band-denial.mjs --selftest",

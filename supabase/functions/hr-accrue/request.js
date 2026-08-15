@@ -33,6 +33,17 @@
 //   activity  { kind, id } — a DECLARATION of what the player says they are
 //             doing. The server looks that pair up in its own catalogue; the
 //             client never sends a rate, a yield, a tick count or a span.
+//   reward    { kind, key } — WHICH claimable the player is claiming (b349).
+//             A NAME, in two allowlisted strings.
+//
+// ⚠ THERE IS NO `period` FIELD, AND ITS ABSENCE IS THE WHOLE DESIGN. A daily
+//   reward is worth something exactly once per UTC day, and the thing that
+//   decides which day it is must be the SERVER's clock — CLAUDE.md, in as many
+//   words: "not a timestamp (use now())". So the period key is derived inside
+//   the intent from the `now()` the read statement returns, it is what lands in
+//   `player_progress.period_key` and in `journal.intent`, and there is no field
+//   here through which a client could name yesterday. Adding one would make
+//   "claim every day since launch" a single loop.
 //
 // If a future intent needs to name a quantity (craft 5 planks), that quantity
 // is a COUNT OF SERVER-PRICED ACTIONS, not a value — and it gets its own
@@ -54,7 +65,7 @@ export const MAX_SLOT = 5;
     An UNKNOWN verb is a hard `null` — never defaulted to `accrue`. A typo that
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
-export const VERBS = Object.freeze(['accrue', 'set_activity']);
+export const VERBS = Object.freeze(['accrue', 'set_activity', 'claim_reward']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -70,6 +81,18 @@ export const ACTIVITY_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisa
     make the server do work proportional to the request body. */
 export const ACTIVITY_ID_RE = /^[a-z0-9_]{1,64}$/;
 
+/** The `kind` column of `player_progress`, which is where a claim's bookkeeping
+    row lands. Deliberately the table's OWN CHECK list — a kind this parser
+    admitted but the table rejected would surface as an opaque 23514 from deep
+    inside hr_apply instead of as a named refusal one round trip earlier. */
+export const REWARD_KINDS = Object.freeze(['quest', 'daily', 'bounty', 'stat', 'collection', 'flag']);
+
+/** THE SAME REGEXP OBJECT as ACTIVITY_ID_RE, not a second literal that looks
+    like it. A reward key and an activity id are the same shape of thing — a
+    bounded lookup token — and two identical regexes in one file are two regexes
+    that can be edited apart. */
+export const REWARD_KEY_RE = ACTIVITY_ID_RE;
+
 /** Canonical uuid, lowercase, dashed. Postgres would accept `{...}` and the
     undashed form too and normalise them on cast — which is exactly why this is
     strict: two spellings that mean one key are two chances for a caller to
@@ -79,7 +102,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 /** The contract's key set, exported so a test reads it instead of restating it.
     A test that hard-codes the field list cannot notice a field being ADDED,
     which is the direction that matters. */
-export const INTENT_KEYS = Object.freeze(['slot', 'verb', 'intentId', 'activity']);
+export const INTENT_KEYS = Object.freeze(['slot', 'verb', 'intentId', 'activity', 'reward']);
 
 /**
  * Read the intent out of a parsed request body.
@@ -99,6 +122,7 @@ export function parseIntent(body) {
   out.verb = readVerb(body);
   out.intentId = readIntentId(body);
   out.activity = readActivity(body);
+  out.reward = readReward(body);
   return out;
 }
 
@@ -158,6 +182,32 @@ export function readActivity(body) {
   const out = Object.create(null);
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
+  return out;
+}
+
+/**
+ * WHICH CLAIMABLE (b349). Two strings, both allowlisted, nothing else — and
+ * conspicuously NO period and NO amount. See the header.
+ *
+ * Returns null when the body carried no readable one. Like `readActivity` it
+ * deliberately does NOT answer "is this claimable known" or "can the server
+ * pay it yet": those are answers the intent layer must give BY NAME
+ * (`unknown_reward` / `reward_unavailable`), and a parser that collapsed them
+ * into null would turn "the server does not track your Renown yet" into
+ * "malformed request".
+ */
+export function readReward(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'reward')) return null;
+  const r = body.reward;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+
+  const kindRaw = ownString(r, 'kind');
+  const keyRaw = ownString(r, 'key');
+
+  const out = Object.create(null);
+  out.kind = (kindRaw !== null && REWARD_KINDS.includes(kindRaw)) ? kindRaw : null;
+  out.key = (keyRaw !== null && REWARD_KEY_RE.test(keyRaw)) ? keyRaw : null;
   return out;
 }
 

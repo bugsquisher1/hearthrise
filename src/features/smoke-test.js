@@ -3662,6 +3662,96 @@ const TESTS = [
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
     }
   }),
+  () => tryRun('B349-1: the daily login cycle is DATA, read by the client, and its multiplier is capped', () => {
+    /* THE SERVER IS ABOUT TO OWN THIS PAYOUT. It can only own a number it can
+       READ, and until b349 the seven-entry cycle was a literal inside
+       src/features/daily-reward.js — a classic <script> that neither Deno nor
+       Node can import (the b222 trap). It now lives in src/data/rewards.js and
+       there is exactly ONE copy: the browser reaches it through
+       window.HearthriseRewards (published by src/main.js) and the Edge Function
+       vendors the same file.
+
+       So this test asserts the WIRE, not the numbers. If the client ever goes
+       back to its own arithmetic, the server and the sheet start disagreeing
+       about what a day is worth and nothing else in the suite notices. */
+    const R = window.HearthriseRewards;
+    assert(R && Array.isArray(R.DAILY_LOGIN_CYCLE) && typeof R.priceDailyLogin === 'function',
+      'window.HearthriseRewards is missing — src/main.js is the only publication point for '
+      + 'src/data/rewards.js, and daily-reward.js has no fallback copy by design');
+    assert(R.DAILY_LOGIN_CYCLE.length === R.DAILY_LOGIN_CYCLE_DAYS && R.DAILY_LOGIN_CYCLE.length > 1,
+      'the cycle is empty or disagrees with DAILY_LOGIN_CYCLE_DAYS');
+
+    const D = window.HearthriseDaily;
+    assert(D && typeof D.rewardFor === 'function', 'HearthriseDaily missing');
+    const G = window.G;
+    const sStreak = G.streak ? JSON.parse(JSON.stringify(G.streak)) : undefined;
+    const sGold = G.gold;
+    const sDR = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : undefined;
+    try {
+      /* ONE ARITHMETIC, not two that agree today. Checked across a whole cycle
+         plus a second week, so a client that re-derived the multiplier from its
+         own `weeksDone` would diverge somewhere in here. */
+      for (const streak of [1, 2, 3, 5, 7, 8, 15, 43]) {
+        G.streak = { count: streak, lastDay: 0 };
+        const want = R.priceDailyLogin(streak);
+        const got = D.rewardFor(G) || {};
+        assert((got.gold || 0) === want.gold,
+          'streak ' + streak + ': the sheet says ' + got.gold + ' gold, the data says ' + want.gold);
+        assert((got.gems || 0) === want.gems,
+          'streak ' + streak + ': the sheet says ' + got.gems + ' gems, the data says ' + want.gems);
+        assert(D.cycleDay(G) === want.cycleDay,
+          'streak ' + streak + ': cycleDay disagrees (' + D.cycleDay(G) + ' vs ' + want.cycleDay + ')');
+      }
+
+      /* THE CAP. `1 + weeksDone * 0.5` was UNBOUNDED and the client has been
+         paying it that way: a two-year perfect streak is x53, i.e. 1,060,000
+         gold from ONE day-7 claim. A server that authorises a payout may not
+         propose an unbounded number. The cap is deliberately non-binding for
+         anyone reachable today (a full year of perfect attendance), so this is
+         a fuse rather than a balance change — the DIAL is the Designer's. */
+      const far = R.priceDailyLogin(7 * 500);              // ~9.6 years
+      assert(far.mult <= R.DAILY_LOGIN_MAX_WEEK_MULT,
+        'a 3,500-day streak proposes a x' + far.mult + ' multiplier — the cap is not applied');
+      assert(R.priceDailyLogin(8).gold > R.priceDailyLogin(1).gold,
+        'CONTROL: week 2 pays the same as week 1, so the cap assertion above is vacuous');
+
+      /* ⚠ AND IT FAILS LOUD RATHER THAN PAYING AN INVENTED NUMBER. A fallback
+         cycle in daily-reward.js would be exactly the second copy this move
+         deletes, and the failure it would hide is the worst kind: the sheet
+         keeps paying, from numbers the server has never seen, with no error
+         anywhere. console.error is captured here BECAUSE the headless gate
+         treats a console error as a suite failure — the point is that it is
+         produced, not that it is silent. */
+      const errs = [];
+      const realError = console.error;
+      console.error = function () { errs.push(Array.prototype.join.call(arguments, ' ')); };
+      let unpriced;
+      let stillClaimable;
+      try {
+        delete window.HearthriseRewards;
+        G.streak = { count: 3, lastDay: 0 };
+        G.dailyReward = { lastClaimDay: 0 };
+        G.gold = 1000;
+        unpriced = D.claim(G);
+        stillClaimable = D.isClaimable(G);
+      } finally {
+        window.HearthriseRewards = R;
+        console.error = realError;
+      }
+      assert(unpriced === null, 'a claim that cannot be PRICED must pay nothing, not guess');
+      assert(G.gold === 1000, 'the unpriced claim moved gold (' + G.gold + ')');
+      assert(stillClaimable,
+        'the unpriced claim consumed the day — the player would lose the reward once the wiring '
+        + 'is fixed, which is worse than the wiring break');
+      assert(errs.some(function (m) { return m.indexOf('HearthriseRewards') >= 0; }),
+        'the missing data module was SILENT. A wiring break that pays nothing and says nothing '
+        + 'is a support ticket nobody can diagnose; it must be loud.');
+    } finally {
+      G.gold = sGold;
+      if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
   () => tryRun('b164: Renown ladder scores, ranks up, claims, and perks apply', () => {
     const R = window.HearthriseRenown;
     assert(R && typeof R.compute === 'function' && typeof R.getState === 'function', 'HearthriseRenown missing');

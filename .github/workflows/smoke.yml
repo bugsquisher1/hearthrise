@@ -77,6 +77,27 @@ jobs:
       - name: Conservation fuzz + injection selftest
         run: node tests/conservation-fuzz.mjs --selftest --ops=400
 
+      # THE PLAYER INTENTS. Both run the REAL Edge-Function modules — the same
+      # bytes tools/pack-edge.mjs ships — behind their one injected `exec` seam,
+      # against the REAL migration chain on an in-process PostgreSQL.
+      #
+      # ⚠ activity-intent was NOT ON THIS LIST until b349, and it should have
+      #   been from the day it landed: 27 mutation-proven invariants that
+      #   nothing on any push ever ran. It is the whole contract the other eight
+      #   intents copy. Found while wiring the second intent in, which is the
+      #   ordinary way a coverage hole surfaces — the second time you do a thing.
+      - name: The activity intent — collect-before-switch, replay, key hygiene
+        run: node tests/activity-intent.mjs --selftest
+
+      # THE GRANT INTENT (b349). The first intent that MOVES MONEY, so the
+      # invariants are about payment: a claim lands exactly once, the price and
+      # the period and the streak are all the server's, a replay receipts
+      # nothing, and one key reused on a later day is a loud intent_mismatch
+      # rather than a silent no-op. --selftest plants 23 regressions and demands
+      # every one is caught.
+      - name: The grant intent — claim once, server-priced, server-dated
+        run: node tests/claim-intent.mjs --selftest
+
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven
       # by calling the real RPCs on an in-process PostgreSQL with the real clan

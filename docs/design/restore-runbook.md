@@ -195,15 +195,13 @@ today and are worth exactly nothing the moment the cutover completes** — serve
 launder the forged values the audit found. It is the only table in the system whose value
 flips from critical to worthless at a known instant.
 
-> ⚠ **OPEN DECISION, and it is not mine to make.** Whether the **clan / raid / world-event
-> surface** is in or out of the wipe has never been written down. CLAUDE.md says the beta is
-> wiped with no carve-outs, and clan standing derives from contributions earned in the
-> wiped client-authored economy — so this document assumes **wiped**. But that surface was
-> built server-authoritative *from the start* and was never exploitable, which makes it the
-> one part of the beta with a real argument for surviving. **Owner: Tyler + Backend
-> Architect. Settle it before the cutover, not during it** — mid-incident is the worst
-> possible moment to discover that 21 rows of clan board someone cared about were in the
-> "obviously disposable" pile.
+> ✅ **DECIDED — TYLER, 2026-08-15: "the cutover will wipe clans."** The wipe is TOTAL:
+> players, clans, raids, world-event state, no carve-outs. This document's assumption is
+> now a ruling. The argument for sparing the clan surface (it was server-authoritative from
+> the start and never exploitable) was considered and declined — clan standing derives from
+> contributions earned in the wiped client-authored economy, so a surviving clan ledger
+> would rank round-2 clans by round-1 exploit-era wealth. Every table in Group B is
+> disposable at cutover; nothing in this runbook needs a carve-out path.
 
 **Group C — `operational`, 8 tables. Losing them costs observability history, never player
 value:** `game_events` (5,132) · `maintenance_log` (106) · `hr_rate_counters` (104) ·

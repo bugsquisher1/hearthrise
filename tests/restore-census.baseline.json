@@ -258,6 +258,7 @@
   "hr_hunt_tiers": { "class": "seeded", "replay": 5, "note": "Hand-seeded by 2026-08-08-hunt.sql." },
   "hr_item_slots": { "class": "seeded", "replay": 222, "note": "Generated catalogue." },
   "hr_items": { "class": "seeded", "replay": 426, "note": "Generated catalogue — the market tradeable allowlist. 15 untradeable. Content digest d10936764d0e…, guarded by tools/gen-catalogues.mjs --check." },
+  "hr_unlocks": { "class": "seeded", "replay": 61, "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored." },
   "hr_ledger_config": { "class": "seeded", "replay": 1, "note": "Ledger retention window for hr_ledger_prune." },
   "hr_rate_counters": { "class": "operational", "note": "Unlogged rate-limit counters. 104 in production, 2 in a rebuild (the migrations' own self-checks spend budget). Losing them resets every rate window to empty — the correct failure direction, and self-healing within a minute." },
   "hr_rejections": { "class": "operational", "note": "Sampled hr_apply rejections, pruned by cron. Anomaly-detection history only." },

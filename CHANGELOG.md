@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 350 — 2026-08-15 (One clock for every night)
+
+- ⚒️ **Crafting, smithing and cooking now run on the same engine awake or asleep.** The whole artisan loop moved into the shared simulation core the server will run — one set of rules, one buff timeline, no second copy to drift. You shouldn't notice anything except the two fixes below, which fell out of proving it.
+- ⏱️ **Artisan speed tools were being quoted wrong.** The tile's actions-per-hour under-quoted what the engine actually paid when you had a speed tool equipped — measured at up to 33% off with the best hammer. The quote and the engine now share one expression.
+- 🌙 **A night of cooking no longer redraws the screen thousands of times while you're not looking.** Away artisan replay is one frame now; long-absence returns are snappier.
+- 🛑 A recipe that needs an unlock you don't have now stops your away run honestly instead of quietly consuming the night.
+
 ## v0.9.2-beta build 349 — 2026-08-15 (A call the game had no right to make)
 
 - 🔌 **Every page load was making one server request it wasn't allowed to make.** The game asked the server for the time before it had finished signing you in — so the server refused, every time, for every player. It was ~3,200 refused requests a day and 61% of all our error traffic. The game now waits until it's actually signed in before asking. You won't see a difference; our error logs will.

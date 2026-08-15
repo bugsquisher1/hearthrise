@@ -1,7 +1,63 @@
 # ARMOUR IDENTITIES — the rescale, in numbers
 
-**Status: PROPOSAL.** Every number below is a recommendation. Tyler vetoes numbers; the
-**direction** is ruled and is not re-litigated here.
+## ✅ RULED 2026-08-15 — Game Designer, under decision authority delegated by Tyler. ACCEPTED AS WRITTEN.
+
+**Status: RULED. The numbers below are FINAL and implementable.** The five open questions in
+§12 are closed here; do not re-open them without a new measurement.
+
+| §12 question | RULING |
+|---|---|
+| 1 · heavy rate 7.5%/pair | **ACCEPTED** (already accepted by Tyler as *Deflect*). No change. |
+| 2 · medium: one number or two | **TWO.** `critB +0.025` **and** `critMult +0.05` per pair. **S-4 ships.** Crit chance is capped at 0.60 and a capped currency is the same lie as a literal "+def%"; `critMult` is uncapped, so leather's reward can never saturate. Measured: one number leaves leather at 0.89× cloth (dominated); two puts it at 0.93–0.97×. "You crit more often and your crits hit harder" is still one sentence. |
+| 3 · the magic cut (−27…−38%) | **ACCEPTED, UNCHANGED.** See the rationale below. |
+| 4 · `plaguewarden_greaves` | **PLATE.** `defB 26` at tier 5 sits between plate (35) and leather (19) and reads heavy; the `strB 4` is unique flavour, not a class signal; and classing it leather would hand it a crit pair it carries no crit for. §11.1's other twelve recommendations are accepted as written (`nightstalker_pelt` → leather, `wraithsilk_shroud` → cloth, the rest plate). |
+| 5 · the 0.10 monster-accuracy floor | **LEAVE IT. Closed for round 2.** Plate is "the cheap night", not "the tough night". §8.3 already proved the correct shape: armour buys minutes, food buys nights. Touching `monsterMinAccuracy` re-prices every S1 one-shot-safety sweep and every food projection in `supply-projection.md`, which is a global rebalance and cannot ride an armour data change. Revisit only alongside the consumable-economy program, never before cutover. |
+
+### Why the magic cut is accepted unchanged
+
+The 38% is **not a nerf to magic; it is the removal of a subsidy that belonged to armour.**
+Verified independently against the shipped engine, armour-only (no jewelry propping accuracy
+up), level 99 vs a tier-6 foe: magic-in-cloth measures **18.47 DPS against 0.69–5.35 for every
+other family/armour pairing** — magic is not 1.87× ahead, it is **3.5× ahead of the next best
+build in the game**, and every other family's magic accuracy sits pinned at the 0.15 floor.
+That is not a tradeoff a player can price; it is one stat line (`magicStrB = 0.4 × plateDef`,
++113 at tier 7) doing the work of an entire archetype. Under the accepted ruling that cloth
+pays damage to **every** weapon, that stat cannot keep being magic-exclusive, and the number
+that was borrowed comes back. Three further reasons the coefficient does not move:
+
+1. **A mage loses nothing they own.** A staff user in full cloth still receives 100% of
+   cloth's damage — they simply stop receiving it *exclusively*. The archetype is intact; the
+   monopoly is not.
+2. **`0.08` is load-bearing for an ALREADY-ACCEPTED ruling.** The 7.5%/pair Deflect rate was
+   solved backwards from the XP-per-food parity table in §4.3, which is computed against
+   cloth at `0.08`. Raising cloth to soften the magic cut silently re-opens Tyler's accepted
+   heavy rate. One number cannot be tuned without re-deriving the other.
+3. **Magic lands mid-pack, not bottom.** Post-change at 99: bow 22.49 · hammer 19.06 ·
+   **staff 18.71** · sword 18.45. Magic is the third of four inside a 1.22× spread, and the
+   family above it (bow) has an unpaid ammo cost still to come. No compensating identity is
+   owed to an archetype that finishes at parity.
+
+**Conditions on the implementation (all three are gates, not preferences):**
+
+- **Re-measure before landing.** §10 conflict 1 stands: `gear-tiers.js`/`recipes.js` were in
+  flight when these tables were produced, and the greedy best-in-slot search reads the whole
+  catalogue. **ARM-5 at ≤ 1.30× spread on levels 70/85/99 is the acceptance criterion** — if
+  the re-measure breaks it, the *weapon* curves move, not these five coefficients.
+- **Ship the full §9 test contract**, ARM-7 and ARM-8 included. They are the two that would be
+  dropped and the two that matter.
+- **No floor on the tier-1/2 cloth damage coefficient.** §3.3's known limitation is accepted
+  as stated: a zero is better than a +40%-max-hit tier-1 robe.
+
+**Also ruled, so it is not re-argued when it surfaces (§11.1):** the tier-8 leather and cloth
+capstone gap is **REAL and is the intended home for the ~25 tier-3–6 combat drops that
+currently have no recipe.** Separate pass, post-cutover, not a blocker. The Hunt-forged plate
+five-piece correctly becomes 2 plate pairs (−15% hit chance) and loses its crit; that
+re-flavouring is intended.
+
+---
+
+**Original status line, kept for the record: PROPOSAL.** Every number below was a
+recommendation. Tyler vetoes numbers; the **direction** is ruled and is not re-litigated here.
 **Scope: design + measurement only. No `src/**` was touched writing this.** The tables are
 implementation-ready; landing them is a separate data change.
 

@@ -130,6 +130,26 @@
         "8203"
       ],
       "port": 8203
+    },
+    {
+      "name": "hearthrise-progdepth",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8211"
+      ],
+      "port": 8211
+    },
+    {
+      "name": "hearthrise-consumables",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8216"
+      ],
+      "port": 8216
     }
   ]
 }

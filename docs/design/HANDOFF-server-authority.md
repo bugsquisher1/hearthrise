@@ -32,7 +32,25 @@ then the more expensive version"): the restore drill runs now, PITR flips on AT 
 BEFORE the wipe — the wipe must not happen without it**; (6) TOTAL wipe + switch-on.
 Daily/quest counters are DONE and DEPLOYED (b353+, `src/core/goals.js` contract —
 away nights advance the counters players watch, exact counts, zero new ledger rows,
-no migration needed and that was proven by execution). Known open defect: B349-1 flakes ~1/6 runs (task chip
+no migration needed and that was proven by execution).
+
+## 🔥 THE RESTORE WAS TESTED — INVOLUNTARILY, IN PLACE, AND IT HELD (2026-08-15 ~21:30 UTC)
+
+Tyler clicked plain "Restore" instead of "Restore to a New Project": production was
+rolled back IN PLACE to the 10:26 UTC backup. **Recovery: ~20 minutes end to end, zero
+data lost that mattered.** Restore itself ~10 min to ACTIVE_HEALTHY; then the eight
+post-backup migrations (tool-carry → engine-allowlist) re-applied via
+`tools/apply-migration.mjs` with EVERY landed body byte-identical to the originals;
+hygiene clean; 41/41 PostgREST probes; `hr_unlocks` 61 / `hr_items` 426 / cron 9/9;
+**the engine role's password SURVIVED the physical restore** (pooler-probe confirmed
+`hr_engine_login.<ref>` resolves — the runbook's biggest feared gap did not occur on
+in-place restore; restore-to-NEW-project remains untested on that point). Player saves:
+b305 newest-wins means active players' local copies re-upload; `player_state` came back
+0 rows (test fixtures only — recreate the throwaway before the next switch-on test).
+The Edge Function, its secrets, and the client deploy were untouched. **Backups are no
+longer a rumour.** The runbook's §9 clone-drill is still worth doing for the
+new-project path, but the do-or-die scenario (restore production, recover the chain,
+reconnect the engine) is now MEASURED. Known open defect: B349-1 flakes ~1/6 runs (task chip
 parked). The claim double-pay window opens when the client reward seam is wired — that
 wiring needs its own Security review.
 

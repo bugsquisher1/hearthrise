@@ -126,6 +126,19 @@ const ALSO_LINTED = [
   // Behaviourally proven, with controls and mutations, by
   // tests/leaderboard-lockdown-guard.mjs on a fully replayed PGlite chain.
   '2026-08-14-leaderboard-view-lockdown.sql',
+  /* ⚠ THE 2026-08-15 FILES WERE NOT ON THIS LIST, and the comment above says
+     plainly that they should have been: all four `create or replace` a
+     SECURITY DEFINER function in `public`, and `create or replace` PRESERVES an
+     ACL — so a file that restates a 47 KB body and forgets its revoke/grant
+     block leaves whatever the previous ACL was, silently, which is precisely
+     the failure this lint is the only static defence against. They were added
+     on 2026-08-15 with the tool-carry work; all four pass unchanged, which
+     means this is a coverage fix and not a behaviour change. */
+  '2026-08-15-auto-eat.sql',
+  '2026-08-15-activity-intent.sql',
+  '2026-08-15-intent-key-hygiene.sql',
+  /* b348 — the gathering tool carry. Replaces BOTH hr_apply and hr_state_of. */
+  '2026-08-15-tool-carry.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -226,6 +239,17 @@ const CLIENT_CALLABLE = new Map([
   // you must be signed in to join a hold, so an anonymous browse was never a
   // feature, only an enumeration surface.
   ['hr_clan_browser', ['authenticated']],
+  /* 2026-08-15-auto-eat.sql. The player's own Auto-Eat settings — a client
+     action by definition, and deliberately NOT reachable by hr_engine (the
+     engine must never switch on a 100-Bounty-Mark trait for somebody).
+     SURFACED BY WIDENING `ALSO_LINTED` above, and it is the reason widening was
+     worth doing: the DATABASE-side detector already knew about this grant
+     (2026-08-15-auto-eat-baseline.sql records it in hr_client_rpc_baseline
+     precisely because hr_assert_grant_hygiene check (2) raised on it), while
+     this STATIC list had never been told. Two baselines, one of them stale, is
+     how the next deliberate grant gets waved through by the check that still
+     agrees with it. */
+  ['hr_set_auto_eat', ['authenticated']],
 ]);
 
 for (const [file, sql] of code) {

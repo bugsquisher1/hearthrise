@@ -753,10 +753,18 @@ same answer" for decisions about the DELTA. A blanket release would have been wo
 bug — an `intent_mismatch` returned against a row recording somebody's SUCCESS would free that
 row and let a genuine retry apply twice.
 
-⚠ **`2026-08-15-intent-key-hygiene.sql` MUST STAY LAST of anything touching `hr_apply`.** A
-later migration that also `create or replace`s it would silently delete both C1 and C3 — the
-exact defect that nearly shipped in the clan work, where three files each defined one policy
-and filename order would have installed the wrong one with every self-check still passing.
+⚠ **SUPERSEDED TWICE — the rule is the invariant, not the filename.** `2026-08-15-intent-key-hygiene.sql`
+was the last file that may touch `hr_apply`; **`2026-08-15-tool-carry.sql` (b348) took over, and
+`2026-08-15-gem-daily-budget.sql` (b351) is the last toucher now.** Whoever replaces `hr_apply`
+next must derive their body from **b351**, append themselves to `HR_APPLY_CHAIN` in
+`tests/run-sql-tests.mjs` and to `tests/schema-apply-order.json` in the same commit, and become
+the new last-toucher. A later migration that replaces `hr_apply` without doing so silently
+deletes C1, C3, `tool_carry` and the gem ceiling at once — the exact defect that nearly shipped
+in the clan work, where three files each defined one policy and filename order would have
+installed the wrong one with every self-check still passing. **That is no longer a convention:**
+PART 1f-ii of `tests/run-sql-tests.mjs` re-derives each link of the chain (every line of a
+predecessor's body must survive except a declared list) and fails the build if the two orderings
+disagree about who is last.
 
 **Residual, stated rather than buried:** a rejection that is neither a version conflict nor a
 `DEGRADABLE` clamp still sticks to a derived key until `hr_intents_prune` runs (≤25h). The

@@ -15,6 +15,7 @@
 
 import { GEAR_RECIPES } from './gear-tiers.js?v=342';
 import { WAVE3_RECIPES } from './wave3-uniques.js?v=342';
+import { SLOT_RECIPES } from './slot-ladders.js?v=342';
 import { ITEMS, foodClassOf } from './items.js?v=342';
 
 const BASE_RECIPES = {
@@ -224,8 +225,8 @@ function mergeGenerated(base, generated) {
 
 export const ARTISAN_RECIPES = {
   cooking:  BASE_RECIPES.cooking.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
-  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing)),
-  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting)),
+  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing)),
+  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
 };
 

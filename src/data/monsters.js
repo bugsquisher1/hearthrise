@@ -20,7 +20,12 @@ export const MONSTERS={
   goblin_brute:{name:'Goblin Brute',icon:'👺',tier:3,family:'Goblinoid',weaponWeak:'sword',hp:68,atk:17,def:9,xp:105,gp:[18,42],drops:[{id:'goblin_ear',ch:.8},{id:'brute_plate',ch:.22},{id:'steel_sword',ch:.01},{id:'goblin_totem',ch:.04}]},
   dire_wolf:{name:'Dire Wolf',icon:'🐺',tier:3,family:'Beast',weaponWeak:'ranged',hp:62,atk:19,def:7,xp:100,gp:[16,40],drops:[{id:'wolf_pelt',ch:.9},{id:'dire_fang',ch:.35},{id:'alpha_fang',ch:.015},{id:'raw_wolf_meat',ch:.8}]},
   zombie:{name:'Zombie',icon:'🧟',tier:3,family:'Undead',weaponWeak:'magic',hp:78,atk:14,def:12,xp:115,gp:[18,45],drops:[{id:'grave_dust',ch:.65},{id:'big_bones',ch:.5},{id:'ancient_fragment',ch:.04}]},
-  warlock:{name:'Warlock',icon:'🧙',tier:3,family:'Arcane',weaponWeak:'neutral',hp:58,atk:24,def:5,xp:135,gp:[24,60],drops:[{id:'magic_essence',ch:.55},{id:'rune_frag',ch:.35},{id:'cracked_spellstone',ch:.025}]},
+  /* b343: `spellstone_diagram` now drops. It was deliberately suppressed since
+     b145 because its target item (`spellstone_ring`) did not exist — "a scroll
+     that unlocks nothing is a confusing dead end" (legacy.js:10976). The ring
+     ships in src/data/slot-ladders.js with a `gated:'spellstone_diagram'`
+     recipe, so the suppression's own condition is now met. */
+  warlock:{name:'Warlock',icon:'🧙',tier:3,family:'Arcane',weaponWeak:'neutral',hp:58,atk:24,def:5,xp:135,gp:[24,60],drops:[{id:'magic_essence',ch:.55},{id:'rune_frag',ch:.35},{id:'cracked_spellstone',ch:.025},{id:'spellstone_diagram',ch:.01}]},
 
   /* Tier 4 — elite monsters */
   plague_swarm:{name:'Plague Swarm',icon:'🪰',tier:4,family:'Vermin',weaponWeak:'hammer',hp:100,atk:26,def:13,xp:210,gp:[38,82],drops:[{id:'plague_ichor',ch:.6},{id:'venom_sac',ch:.25},{id:'swarm_heart',ch:.018},{id:'field_cookbook',ch:.02}]},
@@ -44,5 +49,8 @@ export const MONSTERS={
   war_king:{name:'War King',icon:'👑',tier:6,family:'Goblinoid',weaponWeak:'sword',hp:420,atk:88,def:58,xp:1050,gp:[260,520],drops:[{id:'captain_medal',ch:.35},{id:'war_crown',ch:.08},{id:'chief_blade',ch:.012}]},
   ancient_bear:{name:'Ancient Bear',icon:'🐻',tier:6,family:'Beast',weaponWeak:'ranged',hp:460,atk:94,def:54,xp:1100,gp:[250,500],drops:[{id:'bear_pelt',ch:1},{id:'ancient_claw',ch:.25},{id:'alpha_cloak',ch:.01},{id:'raw_bear_meat',ch:.8},{id:'alpha_pattern',ch:.02}]},
   lich:{name:'Ancient Lich',icon:'☠️',tier:6,family:'Undead',weaponWeak:'magic',hp:350,atk:55,def:30,xp:800,gp:[200,500],drops:[{id:'lich_soul',ch:.8},{id:'ancient_rune',ch:.3},{id:'vamp_dust',ch:.30},{id:'hollow_sigil',ch:.025},{id:'soul_recipe',ch:.01}],boss:true},
-  dragon:{name:'Green Dragon',icon:'🐲',tier:6,family:'Mythic',weaponWeak:'neutral',hp:520,atk:105,def:62,xp:1250,gp:[320,700],drops:[{id:'dragon_bones',ch:1},{id:'dragon_scale',ch:.5},{id:'dragon_gem',ch:.02},{id:'ancient_claw',ch:.08},{id:'marrow_cookbook',ch:.005}],boss:true},
+  /* b343: `gemcutter_note` now drops — same b145 story as spellstone_diagram
+     above. Its target, `dragon_gem_earrings`, is the first item in the game's
+     history that can fill the `earrings` slot. */
+  dragon:{name:'Green Dragon',icon:'🐲',tier:6,family:'Mythic',weaponWeak:'neutral',hp:520,atk:105,def:62,xp:1250,gp:[320,700],drops:[{id:'dragon_bones',ch:1},{id:'dragon_scale',ch:.5},{id:'dragon_gem',ch:.02},{id:'ancient_claw',ch:.08},{id:'marrow_cookbook',ch:.005},{id:'gemcutter_note',ch:.005}],boss:true},
 };

@@ -1036,6 +1036,14 @@ re-created on the authoritative side.
   not a fix. Someone should write the missing migrations.
 
 ## DESIGNER-OWNED, QUEUED (not blocking)
+- **ARMOUR REQUIREMENTS — RULED BY TYLER 2026-08-15, closed.** "All armor should be based on
+  defense. as later on based on enemy type people may want to mix and match armor types."
+  Defence-only gating is DELIBERATE and load-bearing: the phase-two elemental system expects a
+  melee player to wear cloth against a magic-weak monster, and a magic-level gate on cloth
+  would kill that strategy at the requirements screen. This answers beta tester Xarn's
+  Plaguewarden question and pre-empts re-litigating it when the armour stat asymmetry
+  (cloth as the only damage-carrying archetype; dead rangeAtkB/magicAtkB accuracy) comes up
+  for its own rescale — the STAT rebalance is still open; the REQUIREMENT model is not.
 - **WORLD-BOSS COOPERATION BLESSING — requested by Tyler 2026-08-15, architecture only.**
   "An additional blessing for world bosses when players work together to kill it." Recorded,
   not built — features are paused until cutover.

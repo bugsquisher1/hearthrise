@@ -67,6 +67,14 @@
 //   T5  The driver exercised here IS the driver index.ts deploys, read from its
 //       own `npm:postgres@X` specifier. A version-specific claim proven against
 //       a different version is the adjacent-proof failure, not a result.
+//   T6  EVERY apply site in the payload, not the two this file knows by name.
+//       T1/T2 grade two paths spelled as literals here, so the third call site —
+//       the one a future verb adds — is exactly the site they cannot see, and it
+//       would be written by copying one of the two that predate the fix. T6
+//       walks the whole deployed directory, finds each `public.hr_apply(...)` by
+//       balanced parens, and requires `::text::jsonb` on its last argument. Its
+//       mutation PLANTS a new file rather than editing an old one, because a
+//       mutation that edits a file T1/T2 already read proves nothing about T6.
 //
 // ── WHAT IT DOES NOT PROVE ─────────────────────────────────────────────────
 //   · The SUPABASE POOLER. pgbouncer sits between the Edge Function and
@@ -83,7 +91,7 @@
 // A mutation nothing catches is reported as SLIPPED and exits 1.
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFile, cp, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, readdir, cp, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -126,10 +134,16 @@ end $$;
 `;
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
-   Both entries reinstate the P0 exactly as it shipped. `--selftest` demands
-   each one turns the run RED; a guard that cannot demonstrate it sees the bug
-   it was written for is decoration, and this whole file exists because a
-   27-mutation suite was decoration for this defect. */
+   The first two entries reinstate the P0 exactly as it shipped. `--selftest`
+   demands each one turns the run RED; a guard that cannot demonstrate it sees
+   the bug it was written for is decoration, and this whole file exists because
+   a 27-mutation suite was decoration for this defect.
+
+   The third is a different shape: it does not edit a file, it PLANTS one. An
+   `edit` mutation is caught by T1/T2 whether or not T6 works, so it could never
+   show T6 sees anything — the fixture-that-cannot-fail trap this program has
+   already paid for. Only a call site in a file no assertion names by hand
+   distinguishes them. */
 const MUTATIONS = {
   bare_jsonb_set_activity: {
     file: FN('set-activity.js'),
@@ -144,6 +158,16 @@ const MUTATIONS = {
        + 'accrue verb, which is the one that pays the night.',
     find: '${JSON.stringify(delta)}::text::jsonb) as res',
     repl: '${JSON.stringify(delta)}::jsonb) as res',
+  },
+  third_apply_site: {
+    /* How the P0 comes back: not by anyone un-fixing these two lines, but by the
+       next verb copying the shape that predates the fix into a new file. */
+    plant: 'burn-charge.js',
+    why: 'a THIRD apply site enters the payload binding a pre-stringified delta into a bare '
+       + '$5::jsonb, in a file T1/T2 do not know by name.',
+    text: '// a future verb, written by copying the shape that shipped broken\n'
+        + 'export const APPLY_SQL = `\n'
+        + '  select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::jsonb) as res`;\n',
   },
 };
 
@@ -191,6 +215,26 @@ async function loadSources(mutate) {
   let importDir = FN('');
   let tempBase = null;
 
+  /** Copy the whole payload (and `src/`, which accrual.js reaches via
+   *  ../../../) to the SAME depth under a temp root, so a mutated or planted
+   *  module still resolves its siblings. */
+  const stage = async () => {
+    tempBase = await mkdtemp(join(tmpdir(), 'hr-b7d1-'));
+    const dir = join(tempBase, 'supabase', 'functions', 'hr-accrue');
+    await cp(FN(''), dir, { recursive: true });
+    await cp(join(ROOT, 'src'), join(tempBase, 'src'), { recursive: true });
+    return dir;
+  };
+
+  if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].plant) {
+    const m = MUTATIONS[mutate];
+    const dir = await stage();
+    await writeFile(join(dir, m.plant), m.text, 'utf8');
+    /* The planted file is never imported — nothing must change about T1–T5, or
+       a RED run would not tell us WHICH assertion did the catching. */
+    return { src, importDir: dir, tempBase };
+  }
+
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
@@ -208,12 +252,7 @@ async function loadSources(mutate) {
     src[key] = after;
 
     if (key === 'setActivity') {
-      /* Same depth relative to ROOT, because accrual.js reaches
-         ../../../src/core/**. Copy src/ too. */
-      tempBase = await mkdtemp(join(tmpdir(), 'hr-b7d1-'));
-      const dir = join(tempBase, 'supabase', 'functions', 'hr-accrue');
-      await cp(FN(''), dir, { recursive: true });
-      await cp(join(ROOT, 'src'), join(tempBase, 'src'), { recursive: true });
+      const dir = await stage();
       await writeFile(join(dir, 'set-activity.js'), after, 'utf8');
       importDir = dir;
     }
@@ -232,6 +271,54 @@ function deltaCastOf(text, label) {
   if (!m) return { error: `${label}: could not read the cast on the delta argument of hr_apply — `
     + `the call reads \`${args.replace(/\s+/g, ' ').trim().slice(-90)}\``  };
   return { cast: m[1] };
+}
+
+/* ── T6's scanner ──────────────────────────────────────────────────────────
+   Deliberately NOT a regex over the whole call. `hr_apply(...)` spans lines and
+   its last argument can itself contain parentheses and braces
+   (`${JSON.stringify(delta)}`), so the arguments are taken by balanced-paren
+   scan and split on TOP-LEVEL commas only. A regex that got this subtly wrong
+   would find zero sites and report GREEN — the exact failure this file exists
+   to stop, so the "at least two sites" floor below is load-bearing. */
+
+/** Every `public.hr_apply(...)` argument list in one file's text. */
+function applyArgLists(text) {
+  const out = [];
+  const re = /public\.hr_apply\s*\(/g;
+  let m;
+  while ((m = re.exec(text))) {
+    let i = m.index + m[0].length, depth = 1;
+    while (i < text.length && depth > 0) {
+      const c = text[i];
+      if (c === '(') depth++; else if (c === ')') depth--;
+      i++;
+    }
+    out.push(depth === 0 ? text.slice(m.index + m[0].length, i - 1) : null);
+  }
+  return out;
+}
+
+/** The last top-level argument of an argument list — the delta. */
+function lastArg(args) {
+  let depth = 0, start = 0;
+  for (let i = 0; i < args.length; i++) {
+    const c = args[i];
+    if (c === '(' || c === '{' || c === '[') depth++;
+    else if (c === ')' || c === '}' || c === ']') depth--;
+    else if (c === ',' && depth === 0) start = i + 1;
+  }
+  return args.slice(start).trim();
+}
+
+/** Every .js/.ts/.mjs file in the deployed payload directory, recursively. */
+async function payloadFiles(dir) {
+  const out = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) { out.push(...await payloadFiles(p)); continue; }
+    if (/\.(js|mjs|ts)$/.test(e.name)) out.push(p);
+  }
+  return out;
 }
 
 /** A real postgres.js tagged-template invocation built from a strings array we
@@ -285,6 +372,43 @@ async function run(mutate) {
       `T2: the two apply sites bind the delta differently — index.ts uses \`${idx.cast}\` and `
       + `set-activity.js uses \`${sa.cast}\`. One shape or the other will rot unobserved; both `
       + 'call sites must state the same constraint.');
+  }
+
+  /* ── T6. EVERY apply site in the payload, including ones added later. ─────
+     T1/T2 name two files. The site that reintroduces this P0 will be the third,
+     written by copying a shape from before the fix, in a file nothing here
+     spells. So census the directory that actually deploys. */
+  {
+    const seen = [];
+    for (const file of await payloadFiles(importDir)) {
+      const rel = file.slice(importDir.length + 1).replace(/\\/g, '/');
+      /* Grade the SAME bytes T1/T2 graded for the two files they read, so the
+         census can never disagree with the assertions above it. */
+      const text = rel === 'index.ts' ? src.index
+                 : rel === 'set-activity.js' ? src.setActivity
+                 : (await readFile(file, 'utf8')).replace(/\r\n/g, '\n');
+      for (const args of applyArgLists(text)) {
+        if (args === null) {
+          problems.push(`T6: ${rel} contains an unbalanced \`public.hr_apply(\` — this scanner `
+            + 'cannot read its delta argument, so it cannot vouch for it');
+          continue;
+        }
+        seen.push(rel);
+        const delta = lastArg(args);
+        if (!/::text::jsonb$/.test(delta)) {
+          problems.push(`T6: ${rel} binds hr_apply's delta as \`${delta.replace(/\s+/g, ' ')}\` — `
+            + 'it must end `::text::jsonb`. A pre-stringified delta bound into a bare `::jsonb` is '
+            + 'described to postgres.js as type 3802, whose serialiser is JSON.stringify, so the '
+            + 'value is encoded twice and reaches hr_apply as a jsonb STRING SCALAR — bad_delta, '
+            + 'every call, silently, exactly as it shipped on 2026-08-15.');
+        }
+      }
+    }
+    note(seen.length >= 2,
+      `T6: the payload census found ${seen.length} \`public.hr_apply(\` call site(s), expected at `
+      + 'least the two known ones. Either the scanner stopped matching the real syntax or the apply '
+      + 'sites moved out of the deployed directory — either way this assertion is now vacuous and '
+      + 'a green run means nothing.');
   }
 
   let db = null, server = null, sql = null;

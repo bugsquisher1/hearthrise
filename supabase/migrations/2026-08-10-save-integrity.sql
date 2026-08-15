@@ -47,6 +47,11 @@ declare
   -- 16 skills x 99 = 1584 is the real ceiling today; the live leader is at 769.
   -- 5000 leaves room for new skills without ever being reachable honestly.
   c_max_total_level constant int := 5000;
+  -- Below this a save is PLAINLY THIN — the fresh/empty client this file exists to
+  -- stop. 40 is the client's OWN FRESH_FLOOR (decideRestore, src/net/auth.js): at or
+  -- under it the client RESTORES instead of uploading, so no honest client write ever
+  -- lands here. A brand-new character is totalLevel 22.
+  c_thin_total_level constant int := 40;
 begin
   -- (1) Server-authoritative timestamp — ignore whatever the client sent.
   new.saved_at := now();
@@ -98,8 +103,34 @@ begin
     -- It used to be re-parsed here; one expression, parsed twice, is how the
     -- two copies drift apart later.
 
+    -- ⚠ THE `new_tl <= c_thin_total_level` CLAMP IS LOAD-BEARING. Without it this
+    --   rule is a CONFIRMED false positive on the live write path, measured on PG18
+    --   through the literal PostgREST upsert as role `authenticated`:
+    --
+    --     second device, cloud holds 900, client honestly uploads 130 -> REFUSED 23514
+    --
+    --   That is not an attack, it is `decideRestore` (src/net/auth.js) doing its job.
+    --   It returns `adopt` — keep local, upload it over the cloud — whenever local
+    --   wins on time and localTL > FRESH_FLOOR (40), HOWEVER much bigger the cloud
+    --   is; that behaviour is pinned by a test at smoke-test.js:13177. So the whole
+    --   band  40 < localTL < cloudTL/2  is a write the shipped client deliberately
+    --   makes and this trigger would permanently refuse.
+    --
+    --   And it does not converge. A refused write never advances `saved_at`, so local
+    --   keeps winning on time and the client re-uploads the same save forever — while
+    --   NOTHING in src/** handles 23514 (zero hits for it, or for check_violation), so
+    --   the player just gets a "Reconnecting…" pill and a kill-toast every 60 seconds.
+    --   Round 2 puts new players on second devices, so this would have been a
+    --   launch-blocking outage introduced by a guard meant to protect them.
+    --
+    --   The clamp keeps the guard's ACTUAL job intact. What it exists to stop is an
+    --   EMPTY client clobbering a real save — and an empty save is thin by definition.
+    --   A legitimate smaller save from another device is not. Using the client's own
+    --   FRESH_FLOOR as the line means the two surfaces agree by construction rather
+    --   than by coincidence.
     if old_tl is not null and old_tl > 0
        and new_tl is not null
+       and new_tl <= c_thin_total_level
        and new_tl < old_tl * 0.5 then
       raise exception
         'save rejected: totalLevel regression % -> % (>50%% drop) for user %/slot %',
@@ -145,6 +176,8 @@ declare
   v_upd_empty boolean := false;
   v_upd_huge  boolean := false;
   v_recovered boolean := false;
+  v_thin      boolean := false;
+  v_fresh     boolean := false;
 begin
   select u.id into v_u from auth.users u
     where not exists (select 1 from public.game_saves g where g.user_id = u.id and g.slot = 4)
@@ -216,6 +249,75 @@ begin
       v_recovered := (v_tl = 772);
       if not v_recovered then
         raise exception 'ANTI-LATCH FAILED: after a refused write the account can no longer save (total_level = %)', v_tl;
+      end if;
+
+      -- ⚠ (g)-(j) EXIST BECAUSE THE FIRST VERSION OF THIS GATE PASSED ON A GUARD
+      --   THAT WOULD HAVE TAKEN THE LIVE GAME DOWN. Every probe above tests a
+      --   REFUSAL, plus one growth control. None of them touched the two shapes
+      --   that make up virtually all real traffic — an unchanged level, and the
+      --   b317 adopt path — so a rule that refused both would have shipped green.
+      --   A gate made only of refusals proves the guard says no. It does not
+      --   prove it says yes to the game.
+
+      -- (g) CONTROL — the shape >99% of live autosaves take: an UNCHANGED total
+      --     level. Nothing else in this gate probes it.
+      update public.game_saves set snapshot = jsonb_build_object('totalLevel', 772)
+       where user_id = v_u and slot = 4;
+      select total_level into v_tl from public.game_saves where user_id = v_u and slot = 4;
+      if v_tl is distinct from 772 then
+        raise exception 'SAME-LEVEL CONTROL FAILED: an unchanged-level autosave was refused (total_level = %)', v_tl;
+      end if;
+
+      -- (h) CONTROL — the b317 adopt path. decideRestore() uploads a SMALLER local
+      --     save whenever local is newer and localTL > 40, however big the cloud is.
+      --     Refusing it is a permanent save lock: a refusal never advances saved_at,
+      --     so the client re-adopts and re-uploads forever, and nothing handles 23514.
+      update public.game_saves set snapshot = jsonb_build_object('totalLevel', 300)
+       where user_id = v_u and slot = 4;
+      select total_level into v_tl from public.game_saves where user_id = v_u and slot = 4;
+      if v_tl is distinct from 300 then
+        raise exception 'ADOPT-BAND CONTROL FAILED: an honest smaller save from a second device was refused (total_level = %)', v_tl;
+      end if;
+
+      -- (i) ...and the clobber backstop still bites at the floor, so
+      --     c_thin_total_level cannot be quietly lowered to nothing.
+      begin
+        update public.game_saves set snapshot = jsonb_build_object('totalLevel', 40)
+         where user_id = v_u and slot = 4;
+      exception when sqlstate '23514' then v_thin := true;
+      end;
+      if not v_thin then
+        raise exception 'X2: a thin save at the fresh floor was ACCEPTED over a real one';
+      end if;
+
+      -- (j) THE ROUND-2 BAND. The thin clamp concentrates every remaining refusal
+      --     into new_tl <= 40 — which is exactly where a brand-new character lives
+      --     (fresh = 22). Round 2 is a full wipe, so on day one EVERY player is in
+      --     this band. It has to accept them and still refuse an empty clobber.
+      delete from public.game_saves where user_id = v_u and slot = 4;
+      insert into public.game_saves (user_id, slot, snapshot)
+        values (v_u, 4, jsonb_build_object('totalLevel', 22));
+      update public.game_saves set snapshot = jsonb_build_object('totalLevel', 22)
+       where user_id = v_u and slot = 4;
+      update public.game_saves set snapshot = jsonb_build_object('totalLevel', 25)
+       where user_id = v_u and slot = 4;
+      select total_level into v_tl from public.game_saves where user_id = v_u and slot = 4;
+      if v_tl is distinct from 25 then
+        raise exception 'NEW-PLAYER CONTROL FAILED: a fresh account cannot save (total_level = %)', v_tl;
+      end if;
+      begin
+        update public.game_saves set snapshot = jsonb_build_object('totalLevel', 1)
+         where user_id = v_u and slot = 4;
+      exception when sqlstate '23514' then v_fresh := true;
+      end;
+      if not v_fresh then
+        raise exception 'X3: an empty client clobbered a fresh account';
+      end if;
+      update public.game_saves set snapshot = jsonb_build_object('totalLevel', 26)
+       where user_id = v_u and slot = 4;
+      select total_level into v_tl from public.game_saves where user_id = v_u and slot = 4;
+      if v_tl is distinct from 26 then
+        raise exception 'NEW-PLAYER ANTI-LATCH FAILED: a refused write latched a fresh account (total_level = %)', v_tl;
       end if;
 
       raise exception 'save-integrity gate rollback' using errcode = 'HR999';

@@ -2,6 +2,27 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, Art Director, QA (b347 — the held away-buff branch is UNBLOCKED)
+
+**THE GATHER/ARTISAN AWAY REPLAY NOW HAS A TIMELINE. Branch `agent-a06ecbcee310aa2c7` is merged and shippable.**
+Smoke **692/692** (baseline 689 + the branch's 690 + 2 new), 0 runtime errors, four consecutive full runs, seven mutations. `src/data/**`, `supabase/functions/**` and `docs/design/*.md` NOT touched. No version bump, nothing deployed.
+
+**1. The held branch merged with 5 conflicts, all mechanical.** `src/core/combat-sim.js` (import versions: main had moved `?v=342 → ?v=346`, took main's and versioned the branch's new `buffs.js` import to match) and `src/features/smoke-test.js` (main renamed `LICENCE-4 → AWAY-SCOPE-1` when the licence was removed; kept main's name, kept the branch's `buff: true` pin and its rationale). Three coordination markdown files, both sides kept. **`AWAY-1 PARITY` green before, during and after — it never moved.**
+
+**2. The bug, measured on the real engine, 8h on woodcutting Normal Tree with one 10-minute consumable eaten on the way out.** BEFORE: `gather_speed +4%` bought **250 extra actions** (6,250 vs a 6,000 control) and `all_xp +5%` bought **+20.0% XP** (36,000 vs 30,000) — and **0 of the buff's 600,000 ms drained**, so it came back reading 10:00, reusable every night forever. AFTER: **+5 actions** and **+0.417% XP**, and the buff is spent to zero and pruned. **50× and 48× overpay, closed.** A combat test passes with all of that present, which is exactly how it survived.
+
+**3. The shape is `utcDaySegments`, not a second mechanism.** `replayAwaySpan` (legacy.js, beside `offlineIntervalMs`) splits the span at buff-expiry boundaries and runs each slice at its own re-derived rate, carrying the sub-tick remainder across exactly as `simulateSpan` carries it across UTC midnight. Combat can ask "is a buff alive?" per swing because its tick length is fixed; here `gather_speed` changes THE INTERVAL, which is the number the tick count comes from — so the segment shape is the correct one, not laziness. With no buff held there is exactly ONE slice and the arithmetic is identical to the flat loop it replaces, which is what keeps every pre-existing away test honest instead of re-baselined. The clock is `advanceBuffClock`; the boundary oracle is `nextBuffExpiryMs`, added to `src/core/buffs.js` beside `activeBuffs` so it applies the same liveness rule.
+
+**4. TO THE GAME DESIGNER — the balance consequence, NOT retuned (magnitudes are Tyler's).** With the shipped catalogue (magnitudes 1–5, durations 2–20 min), the most a deliberate eat-then-logoff can now buy on an 8-hour night is **≈0.08% more actions** and **≈0.42% more XP** — the value of the buff's own minutes, which is the stated rule. It was up to **+4.17% actions / +20% XP** before. Two notes: (a) the +20% figure is a FLOOR artefact and worth knowing — Normal Tree's paced XP is 5.85, so `floor(5.85)=5` and `floor(5.85×1.05)=6`, i.e. a 5% buff pays 20% on that node and ~5% on a high-XP node. That is pre-existing and unchanged by b347; it just makes small buffs lumpy on low-XP content. (b) A buff now genuinely runs out overnight, so "eat before bed" is no longer a strategy. If you want it to be one, that is a DURATION change in `src/data/items.js`, not an away-rule change.
+
+**5. TO THE ART DIRECTOR / whoever owns the welcome-back card.** `buffsPaused` is now unconditionally **false** on BOTH arms of the receipt (it used to be `G.buffs.some(alive)` on the non-combat arm — a lie in both directions on a gather night). `home-dashboard.js:624` handles false by printing nothing, so nothing breaks, but **the "Food buffs paused — their time was kept, not spent." line is now dead code.** Replacing it: `buffPaidMs` (ms of the absence at least one buff was live) and `buffsExpired` (the types that ran out), now on the gather/artisan receipt too, in the same shape combat already reported. "Your Hunter's Feast covered the first 14 minutes" is sayable. The buff-row footnote lost its *"and freezes entirely while you are away"* clause for the same reason.
+
+**6. TO QA — the mutation that caught a lying guard of mine.** My first `buffsPaused` assertion sat on the EXPIRING-buff scenario and mutation (iv) came back **GREEN**: that buff is pruned during the replay, so the old `G.buffs.some(alive)` expression is coincidentally false by the time the summary is written. The two expressions only differ when a buff **outlives** the absence, so that is where the assertion now lives. Also: `tests/run-smoke.mjs` waits **6,000 ms** after `__smokeTest` exists before running; a private harness that waits less will see `#wbv-overlay.show` mid-suite and cascade a false failure into `b342-4`. Match the 6 s.
+
+**7. Redeploy needed, NOT done.** `src/core/**` is vendored into `hr-accrue`, so the payload hash moved to `b44d378eedbd983a…` (deployed is still `c36dcc63696c3be4…`). The only core change is the pure `nextBuffExpiryMs` plus the branch's buff work; the server builds `state` from DB rows with no `buffs` field, so it is inert there. The Edge payload guard is RED until someone redeploys.
+
+**8. Standing, not fixed — three things I measured and left.** (a) `supabase/functions/hr-accrue/accrual.js:483` still passes `activeBuffCount: 0` into the sim ctx; that input is now dead everywhere (I removed the `legacy.js` one) but the file is outside this branch's boundary. (b) A gather run that stops because its node vanished from the data between sessions still reports the FULL absence as `paidMs` — `doSkillAction` returns without clearing `G.activeSkill`, so the loop cannot tell. Pre-existing, identical before and after b347, and it needs a `stoppedBy` value which is a copy call. (c) An entry with `remainingMs: 0` is never pruned by any path (`tickBuffs` skips an already-dead buff, so `changed` stays false) — it pays nothing, but a "0s" row can sit in the queue. Also pre-existing, and true on the combat path too.
+
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, QA (b345, three player-found bugs)
 
 Branch `worktree-agent-a7cbb539ab26abecb`. Smoke **687/687** (baseline 684; +3), 0 runtime errors,
@@ -55,6 +76,26 @@ notes.
   its XP expression left the whole suite green. I fixed it anyway (it is the documented twin) and
   published `window.HearthriseActivitiesGrid.__tileForGather/__tileForArtisan` so the suite can grade
   it. Someone should decide whether that file still earns its place.
+### 2026-08-15 - FROM Systems Engineer -> TO Coordinator, whoever holds `src/legacy.js`, Game Designer, Art Director
+
+**PERSONAL BUFFS NOW PAY AWAY — AND SPEND AWAY. Core half only; the gather/artisan half is a BLOCKER on `legacy.js` (see CONFLICTS.md).**
+Branch `worktree-agent-a06ecbcee310aa2c7`. Smoke **685/685**, 0 runtime errors, four consecutive runs. `src/legacy.js`, `src/data/**`, `supabase/functions/**` NOT touched.
+
+**1. The line was never timed-vs-permanent; it is SERVER-WIDE vs PERSONAL.** `AWAY_SCOPE.buff` false -> **true**, `blessing` stays false. b326 froze buffs away because they are timed; Tyler's rule (2026-08-14) is that a Feast the player ate is theirs and stays true while they sleep, while a rotating blessing is something the world does for people who are in it. `clan` was already on the permanent channel for the same reason — the table was already half-drawn on the right line.
+
+**2. Paying and spending are ONE rule, not two.** `buff: true` on its own is a bigger mint than the one b326 closed: measured, a 5-minute consumable covered a full 3,600,000ms absence — **12x**. `simulateSpan` now drives `tickBuffs` per tick, so a 10-minute Feast covers exactly 600,000ms of an 8-hour night (250 of 12,000 ticks) and expires mid-night. `tickBuffs` still freezes on `active === false` — idling is not work — and that is now its ONLY freeze.
+
+**3. Nothing was plumbed to make the payout follow, and that is the point.** `ctx.bonus` is the client's getBonus chain, whose buff term reads the same `G.buffs` the clock drains. One identity, not two copies. The server builds `state` from DB rows with no `buffs`, so the whole clock is an inert no-op in Deno (asserted, AWAY-15e).
+
+**4. THE KNOCK-ON THE TASK NAMED, MEASURED.** `damage_crit` food is on the BUFF channel, so it now reaches away crit rolls. Effective away crit goes **7.67% -> 11.25% for the buffed window only**; across a full 12h night that is **+1.7% more crits** (1380 -> 1404). The `CHANNEL.CRIT` comment claiming crit is "gear-sourced by construction when away" was made false by this change and is rewritten in the same commit.
+
+**5. Two mutations caught what review did not.** (a) A "queue reassigned mid-span" test was **vacuous** — `pruneBuffs` filters to a new array whose ELEMENTS are the same objects, so a stale reference drains correctly anyway; capturing the array once passed it unchanged. The distinguishing case is a buff *appearing* in an empty queue, and that is what AWAY-15(f) now asserts. (b) Fixing it exposed a real off-by-one: reading the queue again *after* the tick charged a buff added during that tick for an interval it was never alive for (597,600 vs 600,000). The queue is read once, before the tick, and both charged and drained.
+
+**6. Art Director / whoever owns the welcome-back card.** `buffsPaused` from `simulateSpan` is now **always false** — nothing is paused. The key is kept (three renderers read it unguarded). Two new honest facts replace it: **`buffPaidMs`** (ms of the absence a buff was actually live) and **`buffsExpired`** (the types that ran out mid-night). "Your Hunter's Feast covered the first 14 minutes" is now sayable without a renderer inferring anything. `home-dashboard.js:565` is deliberately untouched — its "your buffs were paused" line can only be reached from legacy's non-combat branch now, which is the same defect as the gather blocker and should be fixed with it.
+
+**7. Redeploy needed, not done.** `src/core/**` is vendored into `hr-accrue`, so the Edge payload hash moved `65f0e8ed297f71b5` -> `95d8adf9c138425b`. No behaviour change server-side (no buff queue there), but the bytes differ.
+
+**8. Measured, reported, NOT changed: the offline cap does not stop the character.** Full table in CONFLICTS.md. Today the payout is capped and the activity is still running on return; Tyler described the character stopping. Separately, the credited window is the LAST `cap` hours before returning rather than the FIRST after leaving, which credits a long absence against the wrong day's Boss of the Day.
 
 ### 2026-08-14 - FROM Systems Engineer -> TO Coordinator, Game Designer (b343, gold step 1)
 

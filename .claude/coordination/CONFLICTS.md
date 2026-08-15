@@ -26,6 +26,39 @@ Tyler removed the away-combat gate ("get rid of the license shit it's way too co
 
 **Two authored payouts are now reachable during an absence** and were not before, because a declined span was never simulated: `first_blood` (Defeat 5 monsters → 150g + 5 turnip seeds) completes at ~46% of first nights, and `hundred_kills` (1,500 combat XP) can complete for a player parked at 95+ kills. Both are **one-time per character** and both are minutes of attended play away, so neither is a faucet — but they are new value entering during the server-authority rebuild and Design should say yes rather than have it assumed.
 
+### ✅ 2026-08-15 · BLOCKER — RESOLVED IN b347 (Systems). The gather/artisan replay has a timeline; the held branch is unblocked. Full record under Resolved. Original text kept below because the measurement in it is the before-half of the fix.
+
+### 2026-08-15 · BLOCKER (code + semantic) — the away buff rule is landed in CORE only; the gather/artisan replay in `legacy.js` must land before this ships (Systems → whoever holds `src/legacy.js`)
+
+Branch `agent-a06ecbcee310aa2c7`. `AWAY_SCOPE.buff` is now `true` (Tyler, 2026-08-14: personal buffs pay away, server-wide blessings do not). That flag is a property of the SCOPE TABLE, so it opens for every away caller at once — but only one of them can honour the other half of the rule.
+
+- **away COMBAT** — `src/core/combat-sim.js simulateSpan` owns a timeline (it already segments by UTC day for the Boss of the Day). It drives the buff clock per tick, so a buff expires at the right instant. **Correct, measured, tested (AWAY-5 / AWAY-15).**
+- **away GATHER / ARTISAN** — `legacy.js processOffline` computes `ticks = floor(spanMs / offlineIntervalMs())` and runs that many identical actions. A flat single-rate loop: the interval is derived ONCE before the first action and nothing advances a clock inside it. It therefore **pays a buff for the whole absence and drains none of it.**
+
+**Measured exposure** (shipped food catalogue — magnitudes 1–5, durations 2–20 min): a `gather_speed` buff eaten immediately before logging off applies its speed term to the entire night (max **+4%**, via the one-shot `activityIntervalMs()` read); an `all_xp` buff applies to every action of the night (max **+5%**). Bounded, deliberate to trigger, and still the b326 exploit in miniature.
+
+**Second, player-facing half of the same defect:** `legacy.js` line ~1399 computes `buffsPaused` for the non-combat branch as "did they hold a buff", and `src/features/home-dashboard.js:565` prints "your buffs were paused" off it. On a gather night that copy is now a lie in both directions — nothing was paused, and it paid all night.
+
+**The fix is in `legacy.js`, not in core:** split the gather/artisan replay at the buff-expiry boundary — run `min(buffRemainingMs, spanMs)` of ticks with the buff live, call `advanceBuffClock` for that slice, re-derive `offlineIntervalMs()`, then run the remainder. Same shape `simulateSpan` uses, one level up. Then drop `buffsPaused` from the non-combat summary. **Do NOT "fix" it by closing `AWAY_SCOPE.buff` again** — that reverts a stated design rule to work around a loop that should have had a timeline all along. The full note is at the foot of `src/core/away.js`.
+
+Also stale and now wrong in `legacy.js` (comments + one player-facing string, all untouched because another agent holds the file): the `getBuffBonuses` header (~14220), `advanceBuffClock`'s drain-rules comment (~14328), `buffFrozen()` and its copy *"freezes entirely while you are away"* (~14454–14490), and the `buffsPaused` doc block (~1390).
+
+### 2026-08-15 · FINDING (no change made) — the offline cap does NOT stop the character; it caps the payout and shifts the window to the END of the absence (Systems → Coordinator / whoever owns the cap)
+
+Tyler's rule: *"after that player's 'max offline time' is reached, their character stops all activity."* **Measured behaviour today is the other one.** Driving the real `processOffline()` with a stubbed cap and `document.hidden` forced false:
+
+| scenario | absence | cap | PAID | `capped` | activity still running on return | sim window |
+|---|---|---|---|---|---|---|
+| gathering | 3h | 1h | 1h | true | **yes** (`activeSkill: woodcutting`) | n/a |
+| combat | 3h | 1h | 1h | true | **yes** (`activeMonster: slime`) | now−1h → now |
+| combat | 18h | 12h | 12h | true | **yes** | now−12h → now |
+
+So today: **(a)** the payout is capped and the activity is still running when the player returns — not **(b)** the character stops at the cap and returns idle.
+
+There is a second, less obvious half nobody has stated: `simulateAwayCombat` sets `fromMs = now − paidMs`, so the credited window is the **LAST** `cap` hours before returning, not the **FIRST** `cap` hours after leaving. An 18-hour absence is simulated as "idle for 6 hours, then fought for 12". Under Tyler's rule it should be "fought for 12, then stopped". The amount paid is identical either way; **which UTC day's Boss of the Day is credited is not** — a long absence is currently credited against the wrong day's boss. It also decides which instant a held buff's remaining time maps onto.
+
+Reported, not changed — the cap is Tyler's call and it interacts with in-flight work elsewhere.
+
 ### 2026-08-14 · b342 · SEMANTIC — every proc pet just got HALVED to its declared rate (Systems → Game Designer)
 Companion procs were applying **twice per trigger** — measured, in the real client: 2 applications, 2 toasts and 1.0 pet XP (a utility pet earns 0.5) on each of kill / combatHit / gather / cook. Two identical hook sets, one in `src/legacy.js` block 31 and one in `src/features/companions.js`, both wrapping `killMonster` / `combatTick` / `addItem`. The legacy copy is deleted (b228's fix, one layer up).
 
@@ -118,6 +151,26 @@ Clan-overhaul spec introduces a new `getBonus('raidPower')` that `src/features/r
 Flagship Throne board needs `renown` written into the client save snapshot on save (leaderboards §3.2). Touches the fragile `snapshotG` allowlist — Systems change. Wave 3.
 
 ## Resolved
+
+### 2026-08-15 · BLOCKER · the away buff rule reached only one of three away callers — RESOLVED in b347 (Systems)
+**Was:** `AWAY_SCOPE.buff` opened for every away caller at once, but only `simulateSpan` owned a timeline. `processOffline`'s gather and artisan branches ran `ticks = floor(spanMs / offlineIntervalMs())` with the interval derived once — so a buff paid the whole absence and drained none of it.
+
+**Measured, real engine, 8h away on woodcutting Normal Tree, one 10-minute consumable eaten on the way out:**
+
+| | control (no buff) | `gather_speed +4%` | `all_xp +5%` |
+|---|---|---|---|
+| BEFORE — actions | 6,000 | **6,250 (+250)** | 6,000 |
+| BEFORE — woodcutting XP | 30,000 | 31,250 | **36,000 (+20.0%)** |
+| BEFORE — buff drained | — | **0 of 600,000 ms** | **0 of 600,000 ms** |
+| AFTER — actions | 6,000 | **6,005 (+5)** | 6,000 |
+| AFTER — woodcutting XP | 30,000 | 30,025 | **30,125 (+0.417%)** |
+| AFTER — buff drained | — | **600,000 ms, expired + pruned** | **600,000 ms, expired + pruned** |
+
+So the consumable bought **50× the actions** and **48× the XP** it had earned, and came back reading a full 10:00 — repeatable every night, forever. It now buys exactly the slice it was alive for and is spent.
+
+**Fix:** `replayAwaySpan` in `legacy.js` (beside `offlineIntervalMs`) — the span is split at buff-expiry boundaries, the interval is re-derived per slice, the sub-tick remainder carries across, and `advanceBuffClock` (the ONE clock) is called per slice. The boundary function is `nextBuffExpiryMs` in `src/core/buffs.js`, beside `activeBuffs` so it applies the same liveness rule. Same shape as `utcDaySegments`; NO second mechanism. `AWAY_SCOPE.buff` stayed `true`.
+**Also fixed:** the non-combat `buffsPaused` expression (was "did they hold a buff", a lie in both directions on a gather night) and four stale comment blocks + one player-facing string that described the freeze that no longer exists.
+**Guards:** `AWAY-16` (drives the real `processOffline`; 4 mutations RED) and `AWAY-17` (the boundary oracle; 3 mutations RED). In all seven, `AWAY-1 PARITY` and `AWAY-5` stayed GREEN — which is precisely why a combat test could never have caught this.
 
 ### 2026-08-08 · SEMANTIC · Auto-eat vs foodClass split — RESOLVED in b220 (Game Designer)
 **Was:** cooking taxonomy adds `foodClass: 'healing' | 'buff'` and auto-eat must draw from `'healing'` only, but fish-line Provisions carry incidental combat buffs, so the line was unclear.

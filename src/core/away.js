@@ -31,20 +31,54 @@
    recompute (docs/design/pacing-overhaul.md A.2). */
 export const AWAY_RATE_MULT = 1.00;
 
+/* ── WHOSE BONUS IS IT? (the line the scope table actually draws) ───────────
+   Tyler, 2026-08-14, stating the rule this table now encodes:
+
+     "The offline portion should function exactly the same as if the player
+      was still online. The caveat to that is the fact that after that
+      player's 'max offline time' is reached, their character stops all
+      activity."
+     "The character should not gain the server wide blessing/buffs but they
+      should still get their personal / clan buffs."
+
+   So the away/active line is not "timed vs permanent" and never was — it is
+   SERVER-WIDE vs PERSONAL. A rotating daily blessing and a world event are
+   things the WORLD is doing, and the world does them for people who are in
+   it; a Hunter's Feast is something the PLAYER did to their own character,
+   and it keeps being true while they sleep. `clan` was already on the
+   permanent channel, which is the same call made earlier for the same reason.
+
+   THE BUFF CHANNEL'S TWO HALVES ARE ONE RULE. A timed buff that PAYS away
+   must also DRAIN away. Paying without draining is the b326 exploit written
+   backwards — eat a 10-minute Feast, shut the tab, harvest eight hours of
+   buffed output from a ten-minute consumable — and draining without paying is
+   simply a nerf. "Exactly the same as if online" means the Feast runs out
+   part-way through the night and the rest of the night is unbuffed.
+
+   The drain lives in src/core/combat-sim.js `simulateSpan`, per tick, because
+   that is the only away caller that owns a TIMELINE — the same place the
+   Boss-of-the-Day already resolves per UTC-day segment. A caller with no
+   timeline cannot honour the second half of this rule; see the KNOWN GAP note
+   at the foot of this file. */
+
 /* The bonus channels. A source of power belongs to exactly one. */
 export const CHANNEL = {
   /** gear, armour set, perks, renown, clan, property, castle */
   PERMANENT: 'permanent',
-  /** crit chance. Gear-sourced by construction when away, because the
-      `damage_crit` food buff arrives on the BUFF channel and is dropped. */
+  /** crit chance. Gear-sourced (`critB` + the armour-set bonus) AND, since the
+      buff channel opened, the `damage_crit` food buff — which reaches an away
+      crit roll exactly as it reaches a live one, with no special case, because
+      it is simply a member of a channel that pays. */
   CRIT: 'crit',
   /** Boss of the Day / Boss of the Week, resolved per UTC-day segment. */
   BOTD: 'botd',
   /** healing auto-eat — survival, not a bonus. Pays and consumes away. */
   HEAL: 'heal',
-  /** rotating daily/weekly blessings and world events (b227). */
+  /** rotating daily/weekly blessings and world events (b227). SERVER-WIDE, so
+      out of scope away — the one channel Tyler's rule explicitly excludes. */
   BLESSING: 'blessing',
-  /** timed consumable buffs (BUFFS_DEF). FROZEN away: no pay, no drain. */
+  /** timed consumable buffs (BUFFS_DEF). PERSONAL, so they pay away — and
+      because they pay, they drain away. Both halves or neither. */
   BUFF: 'buff',
 };
 
@@ -55,7 +89,7 @@ export const AWAY_SCOPE = Object.freeze({
   botd: true,
   heal: true,
   blessing: false,
-  buff: false,
+  buff: true,
 });
 
 /**
@@ -111,3 +145,38 @@ export function utcDaySegments(fromMs, toMs) {
   }
   return out;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KNOWN GAP — the buff channel pays every away caller; only ONE of them can
+   currently drain. READ THIS BEFORE TOUCHING THE GATHER/ARTISAN AWAY REPLAY.
+
+   `AWAY_SCOPE.buff` is a property of the SCOPE TABLE, so it opens for every
+   consumer of `channelApplies` at once. There are three away callers:
+
+     1. away COMBAT   — src/core/combat-sim.js `simulateSpan`. Owns a timeline
+                        (it already segments the absence by UTC day for the
+                        Boss of the Day), so it drives the buff clock per tick
+                        and a buff expires at the right instant. CORRECT.
+     2. away GATHER    ) legacy.js processOffline: `ticks = floor(spanMs /
+     3. away ARTISAN   ) offlineIntervalMs())`, then that many identical
+                        actions. A FLAT SINGLE-RATE LOOP: the interval is
+                        derived once, before the first action, and nothing
+                        advances a clock inside it. It therefore pays a buff
+                        for the whole absence and drains none of it.
+
+   Measured exposure on (2)/(3) with the shipped food catalogue (src/data/
+   items.js — buff magnitudes are 1–5, durations 2–20 min): a `gather_speed`
+   buff eaten immediately before logging off applies its speed term to the
+   ENTIRE night (max +4%, via the one-shot `activityIntervalMs()` read), and an
+   `all_xp` buff applies to every action of the night (max +5%). It is bounded
+   and it is not free — the player must deliberately eat a Feast on the way out
+   — but it is the b326 exploit in miniature and it is not the stated rule.
+
+   THE FIX IS IN legacy.js, NOT HERE: the gather/artisan replay must be split
+   at the buff-expiry boundary — run `min(buffRemainingMs, spanMs)` of ticks
+   with the buff live, call `advanceBuffClock` for that slice, then re-derive
+   `offlineIntervalMs()` and run the remainder. That is the same shape
+   `simulateSpan` uses, one level up. Do NOT "fix" it by closing
+   `AWAY_SCOPE.buff` again — that reverts a stated design rule to work around
+   a loop that should have had a timeline all along.
+   ══════════════════════════════════════════════════════════════════════════ */

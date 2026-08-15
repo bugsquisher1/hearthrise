@@ -22,16 +22,40 @@
 (function () {
   'use strict';
 
-  // Base 7-day cycle. Scaled by completed weeks at claim time.
-  var CYCLE = [
-    { gold: 500 },
-    { gold: 1000 },
-    { gold: 2000, gems: 5 },
-    { gold: 3500 },
-    { gold: 6000, gems: 10 },
-    { gold: 10000 },
-    { gold: 20000, gems: 30 }     // Day 7 jackpot
-  ];
+  /* ── THE CYCLE MOVED TO src/data/rewards.js (b349) ────────────────────────
+     A grant intent's whole job is "the SERVER decides how much", and that is
+     only true if the server can READ the number. This file is a classic
+     <script>, so neither Deno nor Node can import it, and the seven-entry cycle
+     that used to sit right here was therefore unreachable from the one place
+     the economy is about to be decided.
+
+     It is now authored ONCE in src/data/rewards.js (pure ESM), published on
+     `window.HearthriseRewards` by src/main.js, and vendored into the Edge
+     Function by tools/pack-edge.mjs. There is no second copy and nothing to
+     drift — contrast tools/gen-shops.mjs, which DOES emit a second copy plus a
+     guard, because its tables are trapped inside src/legacy.js.
+
+     ⚠ AND IT FAILS LOUD RATHER THAN FALLING BACK. An inline fallback cycle here
+       would be exactly the second copy this move deletes, and the failure it
+       would hide is the worst kind: the sheet keeps paying, from numbers the
+       server has never seen, with no error anywhere. A missing module is a
+       WIRING BREAK — console.error fails the headless smoke gate — and every
+       reader below returns null, so nothing is paid rather than the wrong thing
+       being paid. (Same discipline as legacy.js's `src()` / `destOf()` after
+       b224, where a silently-missing export made every quest read 0/N forever.) */
+  var _rewardsWarned = false;
+  function REWARDS() {
+    var R = window.HearthriseRewards;
+    if (!R || typeof R.priceDailyLogin !== 'function' || !R.DAILY_LOGIN_CYCLE) {
+      if (!_rewardsWarned) {
+        _rewardsWarned = true;
+        console.error('[DailyReward] window.HearthriseRewards is missing — src/data/rewards.js is '
+          + 'the only source of the login cycle, so nothing can be priced or paid');
+      }
+      return null;
+    }
+    return R;
+  }
 
   function todayKey() {
     // Must match legacy checkStreak()'s UTC day key exactly.
@@ -50,17 +74,25 @@
     return (G && G.streak && typeof G.streak.count === 'number' && G.streak.count > 0) ? G.streak.count : 1;
   }
 
+  /* Every one of these is now a VIEW of the shared pricing function rather than
+     a second arithmetic. `priceDailyLogin` returns cycleDay, weeksDone, mult,
+     gold and gems from one place, so the sheet, the claim and the SERVER can no
+     longer disagree about which day it is or what it is worth. */
+  function priced(G) {
+    var R = REWARDS(); if (!R) return null;
+    return R.priceDailyLogin(streakCount(G));
+  }
   // 1-based day within the current 7-day cycle.
-  function cycleDay(G) { return (((streakCount(G) - 1) % 7) + 1); }
-  function weeksDone(G) { return Math.floor((streakCount(G) - 1) / 7); }
+  function cycleDay(G) { var p = priced(G); return p ? p.cycleDay : 0; }
+  function weeksDone(G) { var p = priced(G); return p ? p.weeksDone : 0; }
 
-  // The reward waiting today, scaled by completed weeks (+50% each).
+  // The reward waiting today, scaled by completed weeks (+50% each, capped —
+  // see DAILY_LOGIN_MAX_WEEK_MULT in src/data/rewards.js for why a cap exists).
   function rewardFor(G) {
-    var base = CYCLE[cycleDay(G) - 1] || CYCLE[0];
-    var mult = 1 + weeksDone(G) * 0.5;
+    var p = priced(G); if (!p) return null;
     var out = {};
-    if (base.gold) out.gold = Math.round(base.gold * mult);
-    if (base.gems) out.gems = Math.round(base.gems * mult);
+    if (p.gold) out.gold = p.gold;
+    if (p.gems) out.gems = p.gems;
     return out;
   }
 
@@ -73,6 +105,12 @@
     G = G || window.G; var s = ensureState(G); if (!s) return null;
     if (!isClaimable(G)) return null;
     var rw = rewardFor(G);
+    /* NOTHING IS PAID WHEN NOTHING CAN BE PRICED. `rewardFor` is null exactly
+       when src/data/rewards.js did not arrive, and paying an invented number is
+       the failure this whole program exists to remove — a client authoring a
+       progression value. The state is left untouched too, so the day is still
+       claimable once the wiring is fixed. */
+    if (!rw) return null;
     if (rw.gold) G.gold = (G.gold || 0) + rw.gold;
     if (rw.gems) G.gems = (G.gems || 0) + rw.gems;
     s.lastClaimDay = todayKey();
@@ -148,15 +186,26 @@
     if (document.getElementById('hr-dl-modal')) return;
     ensureStyle();
     var G = window.G;
-    var day = cycleDay(G), wk = weeksDone(G), mult = 1 + wk * 0.5;
+    var R = REWARDS();
+    /* No cycle, no sheet. Opening a reward modal that cannot state a number is
+       worse than not opening one — REWARDS() has already logged the wiring
+       break loudly. */
+    if (!R) return;
+    var p = R.priceDailyLogin(streakCount(G));
+    var day = p.cycleDay, wk = p.weeksDone;
     var claimable = isClaimable(G);
-    var week = CYCLE.map(function (r, i) {
+    /* The strip is rendered through the SAME pricing function as the claim, one
+       cycle position at a time, so the "D5 = 6k" a player reads and the gold
+       they are actually paid cannot come from two different multipliers. */
+    var week = R.DAILY_LOGIN_CYCLE.map(function (_r, i) {
       var d = i + 1;
-      var val = r.gems
-        ? amountHtml('gems', Math.round(r.gems * mult), 'gems', 10)
-        : (r.gold >= 1000
-            ? ((ico('gold', 10) || '') + ' ' + Math.round(r.gold * mult / 1000) + 'k').trim()
-            : amountHtml('gold', Math.round(r.gold * mult), 'gold', 10));
+      /* Position d of the CURRENT week: same weeksDone, day d. */
+      var q = R.priceDailyLogin(wk * R.DAILY_LOGIN_CYCLE_DAYS + d);
+      var val = q.gems
+        ? amountHtml('gems', q.gems, 'gems', 10)
+        : (q.gold >= 1000
+            ? ((ico('gold', 10) || '') + ' ' + Math.round(q.gold / 1000) + 'k').trim()
+            : amountHtml('gold', q.gold, 'gold', 10));
       var cls = 'hr-dl-day' + (d < day ? ' done' : d === day ? ' today' : '');
       return '<div class="' + cls + '">D' + d + '<b>' + val + '</b></div>';
     }).join('');

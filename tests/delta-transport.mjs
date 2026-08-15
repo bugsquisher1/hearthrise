@@ -75,6 +75,15 @@
 //       balanced parens, and requires `::text::jsonb` on its last argument. Its
 //       mutation PLANTS a new file rather than editing an old one, because a
 //       mutation that edits a file T1/T2 already read proves nothing about T6.
+//   T7  THE CLAIM VERB, END TO END — the same wire as T3, one verb over, and the
+//       first one that MOVES MONEY. It was written because claim-reward.js
+//       shipped with the pre-fix `$5::jsonb` shape: the verb was authored against
+//       a PGlite-`exec` suite (tests/claim-intent.mjs, the behavioural authority
+//       for it) which by construction cannot see the transport, so the P0 was
+//       reproduced in a new file within hours of being closed in the old two. T7
+//       asserts the MONEY, not the 200 — gold in player_state, version bumped,
+//       the progress row 'claimed' — and pins `granted`'s literal key set, which
+//       is a documented wire shape the client renders.
 //
 // ── WHAT IT DOES NOT PROVE ─────────────────────────────────────────────────
 //   · The SUPABASE POOLER. pgbouncer sits between the Edge Function and
@@ -116,6 +125,23 @@ const EXTRA = [
   ['key-hygiene', MIG('2026-08-15-intent-key-hygiene.sql')],
   ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
+  /* T7's chain. claim-reward.sql adds hr_claim_lookup and hr_rate_gate's
+     `claim` bucket and touches nothing else, so it may sit after tool-carry —
+     it is deliberately NOT a file that replaces hr_apply. Without it the claim
+     verb cannot be driven at all and T7 would be a harness failure rather than
+     a result.
+
+     ⚠ gold-intents AND gem-daily-budget ARE REQUIRED PREDECESSORS as of
+       2026-08-16, and their absence is a REFUSAL rather than a subtle
+       divergence. claim-reward's gate body is derived from gold-intents' (it
+       carries the `shop` arm) and its §0 refuses to install against a live gate
+       that has none — precisely so that staging it onto a database production
+       does not resemble cannot silently delete that arm. gem-daily-budget is
+       here because it is the CURRENT last toucher of hr_apply, so the body this
+       harness drives is the one production runs rather than one revision back. */
+  ['gold-intents', MIG('2026-08-15-gold-intents.sql')],
+  ['gem-daily-budget', MIG('2026-08-15-gem-daily-budget.sql')],
+  ['claim-reward', MIG('2026-08-16-claim-reward.sql')],
 ];
 
 const UID = '00000000-0000-4000-b7d1-000000000001';
@@ -158,6 +184,14 @@ const MUTATIONS = {
        + 'accrue verb, which is the one that pays the night.',
     find: '${JSON.stringify(delta)}::text::jsonb) as res',
     repl: '${JSON.stringify(delta)}::jsonb) as res',
+  },
+  bare_jsonb_claim_reward: {
+    file: FN('claim-reward.js'),
+    why: 'claim-reward.js binds the pre-stringified delta into a bare $5::jsonb — the shipped P0 on '
+       + 'the verb that MOVES MONEY. Every daily claim would 409 bad_delta and the player would be '
+       + 'told the reward was not claimable.',
+    find: '$4::uuid, $5::text::jsonb) as res',
+    repl: '$4::uuid, $5::jsonb) as res',
   },
   third_apply_site: {
     /* How the P0 comes back: not by anyone un-fixing these two lines, but by the
@@ -210,6 +244,7 @@ async function loadSources(mutate) {
   const src = {
     index: (await readFile(FN('index.ts'), 'utf8')).replace(/\r\n/g, '\n'),
     setActivity: (await readFile(FN('set-activity.js'), 'utf8')).replace(/\r\n/g, '\n'),
+    claimReward: (await readFile(FN('claim-reward.js'), 'utf8')).replace(/\r\n/g, '\n'),
     applyEngine: (await readFile(MIG('2026-08-11-apply-engine.sql'), 'utf8')).replace(/\r\n/g, '\n'),
   };
   let importDir = FN('');
@@ -238,7 +273,20 @@ async function loadSources(mutate) {
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
-    const key = m.file === FN('index.ts') ? 'index' : 'setActivity';
+    /* file → the `src` key AND the on-disk basename, in one table, so adding a
+       fourth mutable module is a row rather than a ternary that quietly routes
+       an unknown file to set-activity.js and mutates the wrong bytes. */
+    const FILE_KEYS = {
+      [FN('index.ts')]: ['index', 'index.ts'],
+      [FN('set-activity.js')]: ['setActivity', 'set-activity.js'],
+      [FN('claim-reward.js')]: ['claimReward', 'claim-reward.js'],
+    };
+    const entry = FILE_KEYS[m.file];
+    if (!entry) {
+      const e = new Error(`mutation "${mutate}" names ${m.file}, which this harness does not read`);
+      e.harness = true; throw e;
+    }
+    const [key, basename] = entry;
     const before = src[key];
     const n = before.split(m.find).length - 1;
     if (n !== 1) {
@@ -251,9 +299,11 @@ async function loadSources(mutate) {
     }
     src[key] = after;
 
-    if (key === 'setActivity') {
+    if (key !== 'index') {
+      /* A .ts file is never imported here (Node cannot), so only the JS modules
+         need a staged, importable copy. */
       const dir = await stage();
-      await writeFile(join(dir, 'set-activity.js'), after, 'utf8');
+      await writeFile(join(dir, basename), after, 'utf8');
       importDir = dir;
     }
   }
@@ -362,16 +412,23 @@ async function run(mutate) {
     "T4: apply-engine.sql no longer refuses on `jsonb_typeof(p_delta) <> 'object'` — this guard is "
     + 'grading a failure mode the database no longer has, so its RED and GREEN mean nothing');
 
-  // ── T1/T2. The two call sites, from their bytes. ────────────────────────
+  // ── T1/T2. The named call sites, from their bytes. ──────────────────────
   const idx = deltaCastOf(src.index, 'index.ts');
   const sa = deltaCastOf(src.setActivity, 'set-activity.js');
-  if (idx.error) problems.push(idx.error);
-  if (sa.error) problems.push(sa.error);
-  if (idx.cast && sa.cast) {
-    note(idx.cast === sa.cast,
-      `T2: the two apply sites bind the delta differently — index.ts uses \`${idx.cast}\` and `
-      + `set-activity.js uses \`${sa.cast}\`. One shape or the other will rot unobserved; both `
-      + 'call sites must state the same constraint.');
+  const cr = deltaCastOf(src.claimReward, 'claim-reward.js');
+  for (const r of [idx, sa, cr]) if (r.error) problems.push(r.error);
+  {
+    /* Every named site must state the SAME shape. Two that disagree is how one
+       of them rots unobserved — and with three verbs the odds of a copy from
+       the wrong one go up, not down. */
+    const casts = [['index.ts', idx.cast], ['set-activity.js', sa.cast], ['claim-reward.js', cr.cast]]
+      .filter(([, c]) => !!c);
+    const distinct = [...new Set(casts.map(([, c]) => c))];
+    note(distinct.length <= 1,
+      'T2: the apply sites bind the delta differently — '
+      + casts.map(([f, c]) => `${f} uses \`${c}\``).join(', ')
+      + '. One shape or the other will rot unobserved; every call site must state the same '
+      + 'constraint.');
   }
 
   /* ── T6. EVERY apply site in the payload, including ones added later. ─────
@@ -386,6 +443,7 @@ async function run(mutate) {
          census can never disagree with the assertions above it. */
       const text = rel === 'index.ts' ? src.index
                  : rel === 'set-activity.js' ? src.setActivity
+                 : rel === 'claim-reward.js' ? src.claimReward
                  : (await readFile(file, 'utf8')).replace(/\r\n/g, '\n');
       for (const args of applyArgLists(text)) {
         if (args === null) {
@@ -404,9 +462,10 @@ async function run(mutate) {
         }
       }
     }
-    note(seen.length >= 2,
+    note(seen.length >= 3,
       `T6: the payload census found ${seen.length} \`public.hr_apply(\` call site(s), expected at `
-      + 'least the two known ones. Either the scanner stopped matching the real syntax or the apply '
+      + 'least the three known ones (index.ts, set-activity.js, claim-reward.js). Either the '
+      + 'scanner stopped matching the real syntax or the apply '
       + 'sites moved out of the deployed directory — either way this assertion is now vacuous and '
       + 'a green run means nothing.');
   }
@@ -505,6 +564,89 @@ async function run(mutate) {
       ok(Number(st.version) === 1,
         `T3: player_state.version is ${st.version} after exactly one apply from a fresh character `
         + '(expected 1) — the version did not advance, so nothing was committed');
+    }
+
+    /* ── T7. THE CLAIM VERB, END TO END, OVER THE REAL DRIVER. ──────────────
+       tests/claim-intent.mjs drives runClaimReward through a PGlite `exec` and
+       is the behavioural authority for this verb — 30+ mutations, the streak,
+       the double-claim lock, the replay. What it CANNOT see is the wire, which
+       is the exact blind spot that let the P0 ship: set-activity.js had a
+       27-mutation suite and had never once applied anything in production.
+       claim-reward.js was written after that fix and copied the pre-fix shape
+       anyway, which is the whole reason T6 exists.
+
+       This is the same seam as T3, one verb over: the real module off disk, the
+       real postgres driver, the real hr_apply. It is deliberately the MONEY
+       assertion — the gold has to be in player_state afterwards, because a
+       receipt without a balance change is what a re-encoded delta looks like
+       from the outside on the day someone "fixes" the 409 by ignoring it. */
+    {
+      const { runClaimReward } = await import(
+        pathToFileURL(join(importDir, 'claim-reward.js')).href + `?t=${Date.now()}${Math.random()}`);
+
+      const exec = async (text, params) => await sql.begin(async (tx) => {
+        await tx`set local role hr_engine`;
+        return await tx.unsafe(text, params);
+      });
+
+      const [before] = (await db.query(
+        'select gold, gems, version from public.player_state where user_id=$1 and slot=0',
+        [UID])).rows;
+
+      const res = await runClaimReward({
+        exec, user: UID, slot: 0,
+        intentId: crypto.randomUUID(),
+        reward: { kind: 'daily', key: 'login' },
+      });
+
+      const verdict = res.body?.ok === true
+        ? 'ok'
+        : `error=${JSON.stringify(res.body?.error)} stage=${JSON.stringify(res.body?.stage)} `
+          + `detail=${JSON.stringify(res.body?.detail)}`;
+      ok(res.status === 200 && res.body?.ok === true,
+        `T7: the real claim_reward intent, over the real postgres driver, answered `
+        + `${res.status} ${verdict}. `
+        + "409/bad_delta at stage 'claim' is the verbatim production P0 on the verb that MOVES "
+        + 'MONEY: the delta reached hr_apply as a jsonb string scalar because postgres.js '
+        + 're-serialised a value that was already JSON.stringify-d. Cast the parameter '
+        + '::text::jsonb, exactly as index.ts and set-activity.js do.');
+
+      /* THE GRANT RECEIPT'S LITERAL KEY SET (Security G3). The header at the top
+         of claim-reward.js documents this object and the client renders it, so a
+         silent rename between the two is a receipt the client cannot read. The
+         set is asserted EXACTLY — a new key must move the header with it. */
+      const g = res.body?.granted;
+      ok(g && typeof g === 'object',
+        `T7: a non-replay claim returned granted=${JSON.stringify(g)} — the receipt is the half of `
+        + 'this response the client renders, and null here means the player is paid with no '
+        + 'explanation of what for');
+      {
+        const want = ['cycle_day', 'gems', 'gold', 'kind', 'key', 'mult', 'period', 'streak', 'weeks']
+          .sort().join(',');
+        const have = Object.keys(g).sort().join(',');
+        note(have === want,
+          `T7: granted's key set is [${have}] but the contract in claim-reward.js's header and in `
+          + `tests/claim-intent.mjs says [${want}]. The receipt is a documented wire shape: a key `
+          + 'renamed in the pricer\'s `meta` silently renames a field the client reads, and the '
+          + 'header stops being true. Change both, or neither.');
+      }
+
+      const [after] = (await db.query(
+        'select gold, gems, version from public.player_state where user_id=$1 and slot=0',
+        [UID])).rows;
+      ok(Number(after.gold) === Number(before.gold) + Number(g.gold),
+        `T7: player_state.gold went ${before.gold} → ${after.gold}, but the receipt claims `
+        + `${g.gold} gold was granted. The 200 above is not evidence that any value moved.`);
+      ok(Number(after.version) === Number(before.version) + 1,
+        `T7: player_state.version is ${after.version} after the claim (was ${before.version}) — the `
+        + 'apply did not commit, so the receipt describes work that did not happen');
+
+      const [row] = (await db.query(
+        "select state, value from public.player_progress where user_id=$1 and slot=0 "
+        + "and kind='daily' and key='login'", [UID])).rows;
+      ok(row && row.state === 'claimed',
+        `T7: player_progress for daily:login is ${JSON.stringify(row)} — the claim block is the `
+        + "double-claim lock, and a row that is not 'claimed' means today can be claimed again");
     }
   } catch (e) {
     if (e.harness) throw e;

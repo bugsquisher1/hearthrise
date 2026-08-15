@@ -746,6 +746,39 @@ async function run(mutate) {
     ok(it.stampKeysIn(JSON.parse('{"__proto__":{"equip":1}}')).length === 0,
       'G4: stampKeysIn reported an inherited key');
 
+    /* ── G4b — TWO LISTS FOR ONE PROPERTY, RELATED BY NAME (added 2026-08-16) ──
+       The gold branch and the claim branch each answered "which delta keys close
+       the accrual window" independently, so intents.js now carries BOTH
+       `STAMP_KEYS` (activity, equip, accrued_to — read by guardStampKeys) and
+       `STAMPING_DELTA_KEYS` (equip, activity — read by deltaClosesWindow). They
+       were merged rather than collapsed on purpose: each literal source line is
+       a mutation anchor in a different suite (gold-intents' stamp_guard_off and
+       claim-intent's stampings_keys_empty), and a refactor that makes a planted
+       bug un-plantable disarms a guard while looking like tidying.
+
+       What must NOT be left to chance is that they agree. The dangerous
+       direction is a key added to STAMP_KEYS and not to STAMPING_DELTA_KEYS:
+       the claim path's fail-closed check would then be blind to a key the gold
+       path already treats as confiscating, and the symptom is a silently
+       shortened night with no error anywhere. So: containment, by name, both
+       ways, with the ONE permitted difference stated. */
+    for (const k of it.STAMPING_DELTA_KEYS) {
+      ok(it.STAMP_KEYS.includes(k),
+        `G4b: '${k}' is in STAMPING_DELTA_KEYS but not STAMP_KEYS — deltaClosesWindow treats it as `
+        + 'window-closing and guardStampKeys does not, so the gold verbs would propose a delta the '
+        + 'claim verb refuses. Two lists, one property, disagreeing.');
+    }
+    for (const k of it.STAMP_KEYS) {
+      ok(it.STAMPING_DELTA_KEYS.includes(k) || k === 'accrued_to',
+        `G4b: '${k}' is in STAMP_KEYS but not STAMPING_DELTA_KEYS — deltaClosesWindow is blind to a `
+        + 'key that closes the window, so a claim carrying it would confiscate the elapsed night '
+        + "and the fail-closed check would report nothing. Only 'accrued_to' may differ (it sets "
+        + 'the watermark outright rather than being stamped by hr_apply §S5).');
+    }
+    ok(it.STAMP_KEYS.includes('accrued_to') && !it.STAMPING_DELTA_KEYS.includes('accrued_to'),
+      'G4b-CONTROL: the ONE declared difference between the two lists is gone, so the containment '
+      + 'checks above are asserting equality and would pass on two empty arrays');
+
     /* AND IT REFUSES THE CALL, not just the unit test. A verb whose delta grew a
        stamping key must be stopped BEFORE hr_apply, with the window intact. */
     const st0 = await state(db, UID);

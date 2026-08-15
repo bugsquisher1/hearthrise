@@ -137,12 +137,24 @@ const ALSO_LINTED = [
   '2026-08-15-auto-eat.sql',
   '2026-08-15-activity-intent.sql',
   '2026-08-15-intent-key-hygiene.sql',
+  /* The two other links of the hr_rate_gate chain. They are here so `sources`
+     holds them for PART 1f-ii's derivation walk AND so the grant lints see
+     them: both `create or replace` a SECURITY DEFINER function in `public`,
+     which is the shape those lints are the only static defence against. */
+  '2026-08-11-accrue-gate.sql',
+  '2026-08-15-gold-intents.sql',
   /* b348 — the gathering tool carry. Replaces BOTH hr_apply and hr_state_of. */
   '2026-08-15-tool-carry.sql',
   /* b351 — the gem daily budget (Security's blocking condition 1). Replaces
      hr_apply and all three daily-budget functions. It is the CURRENT last
      toucher of hr_apply; PART 1f-ii below pins that chain. */
   '2026-08-15-gem-daily-budget.sql',
+  /* b349 — the grant intent. `create or replace`s hr_rate_gate and creates
+     hr_claim_lookup, which takes p_user as an ARGUMENT and is SECURITY DEFINER —
+     i.e. it reads any player's claim history for anyone who can call it. That is
+     precisely the shape this lint is the only static defence against. It is the
+     CURRENT last toucher of hr_rate_gate; PART 1f-ii below pins that chain too. */
+  '2026-08-16-claim-reward.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -161,6 +173,31 @@ const HR_APPLY_CHAIN = [
   '2026-08-15-intent-key-hygiene.sql',
   '2026-08-15-tool-carry.sql',
   '2026-08-15-gem-daily-budget.sql',
+];
+
+// ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
+// Same rule, same mechanism, a second object — added 2026-08-16 after a real
+// near-miss, which is the only honest reason to generalise a guard.
+//
+// 2026-08-16-claim-reward.sql was branched from the pre-`shop` gate in
+// 2026-08-15-activity-intent.sql. 2026-08-15-gold-intents.sql then landed the
+// `shop` arm and was APPLIED TO PRODUCTION. Merged as written, claim-reward
+// would have restated the gate WITHOUT `shop` — and because an unknown bucket
+// fails closed, every shop_buy and vendor_sell would have answered 429 having
+// read and written nothing, with claim-reward's own self-check reporting
+// success, because it asserted only its own arm. That is the clan_members
+// "join as self" defect exactly, and the ordering rule in
+// schema-apply-order.json would only have caught the REVERSE order.
+//
+// So the gate is now derived link by link like hr_apply is, and PART 1f-ii
+// grades both. A new file that replaces hr_rate_gate is appended here AND to
+// tests/schema-apply-order.json, in the same commit, and its body is extracted
+// from its predecessor's rather than retyped.
+const HR_RATE_GATE_CHAIN = [
+  '2026-08-11-accrue-gate.sql',
+  '2026-08-15-activity-intent.sql',
+  '2026-08-15-gold-intents.sql',
+  '2026-08-16-claim-reward.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -603,24 +640,50 @@ say('── retention policies are wired');
   else fail('player_ledger PK does not lead with `at` (RL2d)');
 }
 
-// ── PART 1f-ii — hr_apply is DERIVED, not retyped, and only one file is last ─
-// Four migrations now restate the whole of hr_apply (47-56 KB each). Each was
-// built by extracting its predecessor's text programmatically and patching it at
-// named anchors — because retyping it is how a fix that landed last week
-// silently disappears, and because `create or replace` on a body you have not
-// read is the single most destructive statement in this repo. The migrations
-// each assert this at APPLY time against pg_proc; this is the STATIC half, and
-// it is the only one that runs without a database.
+// ── PART 1f-ii — a RESTATED BODY is DERIVED, not retyped, and one file is last ─
+// TWO objects are graded here by ONE mechanism: `hr_apply` (four migrations now
+// restate the whole 47-56 KB body) and `hr_rate_gate` (four restate the whole
+// gate). Each link was built by extracting its predecessor's text
+// programmatically and patching it at named anchors — because retyping it is how
+// a fix that landed last week silently disappears, and because `create or
+// replace` on a body you have not read is the single most destructive statement
+// in this repo. The migrations each assert this at APPLY time against pg_proc;
+// this is the STATIC half, and it is the only one that runs without a database.
 //
-// The check: every line of a predecessor's hr_apply body must survive into its
+// The check: every line of a predecessor's body must survive into its
 // successor's, except a small list of lines the successor DECLARES it replaced.
 // An undeclared removal is a fix that vanished. A declared removal that is no
 // longer there means the anchor moved and the derivation was re-done by hand.
-say('── hr_apply derivation chain (each body derived from the last, nothing retyped)');
+//
+// ⚠ WHY IT GRADES TWO OBJECTS AS OF 2026-08-16. It was written for hr_apply, and
+//   the gate then produced the identical near-miss: 2026-08-16-claim-reward.sql
+//   restated hr_rate_gate from the PRE-`shop` body, so applying it after
+//   2026-08-15-gold-intents.sql (which production runs) would have deleted the
+//   `shop` arm and answered every shop_buy and vendor_sell 429 forever, with
+//   claim-reward's own self-check green because it asserted only its own arm.
+//   A guard that grades one object is not a guard against the defect class; it
+//   is a guard against the instance that produced it.
+const DERIVED_BODIES = [
+  {
+    fn: 'hr_apply',
+    open: 'create or replace function public.hr_apply(',
+    chain: HR_APPLY_CHAIN,
+    chainName: 'HR_APPLY_CHAIN',
+  },
+  {
+    fn: 'hr_rate_gate',
+    open: 'create or replace function public.hr_rate_gate(',
+    chain: HR_RATE_GATE_CHAIN,
+    chainName: 'HR_RATE_GATE_CHAIN',
+  },
+];
+
+for (const SPEC of DERIVED_BODIES) {
+say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothing retyped)`);
 {
   const applyBody = (file) => {
     const sql = (sources.get(file) || '').replace(/\r\n/g, '\n');
-    const i = sql.indexOf('create or replace function public.hr_apply(');
+    const i = sql.indexOf(SPEC.open);
     if (i < 0) return null;
     const j = sql.indexOf('\nend $$;\n', i);
     if (j < 0) return null;
@@ -630,7 +693,11 @@ say('── hr_apply derivation chain (each body derived from the last, nothing 
 
   /* Lines a link is ALLOWED to remove, and why. Anything else removed is a
      silent regression; anything here that is no longer removed means the
-     derivation drifted and this list is stale. Both directions are fatal. */
+     derivation drifted and this list is stale. Both directions are fatal.
+
+     Keyed by successor filename across BOTH chains — the filenames are unique,
+     and no file appears in both chains (a file that restated hr_apply AND
+     hr_rate_gate would need its removals split, and is not a thing that exists). */
   const DECLARED_REMOVALS = {
     '2026-08-15-intent-key-hygiene.sql': [
       // C3: the replay lookup and its comparison also read `slot`.
@@ -655,16 +722,34 @@ say('── hr_apply derivation chain (each body derived from the last, nothing 
       '      (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta)',
       '       v_gold_in, v_xp_in, v_qty_in,',
     ],
+
+    /* ── hr_rate_gate's two HISTORIC links ────────────────────────────────
+       Both removals are cosmetic and both are REAL: they are what a human
+       retyping a 40-line body does, and they are exactly why this check now
+       covers the gate. Declared rather than normalised away — a whitespace-
+       insensitive comparison would also stop seeing a limit changed from 30 to
+       3,000 by an editor's re-indent, and the point of the check is that a line
+       which changed at all is a line somebody has to account for. */
+    '2026-08-15-activity-intent.sql': [
+      // The `accrue` arm was re-ALIGNED (one space -> three) when the `activity`
+      // arm was added under it. Same limit, same window, same bucket.
+      "    when 'accrue' then v_limit := 30; v_window := interval '1 minute';",
+    ],
+    '2026-08-15-gold-intents.sql': [
+      // Prose only: "Server-owned, both of them" -> "all of them", once the
+      // second bucket became a third.
+      '  -- THE ALLOWLIST AND THE LIMITS. Server-owned, both of them. An unknown bucket',
+    ],
   };
 
   let chainOk = true;
-  for (let k = 1; k < HR_APPLY_CHAIN.length; k++) {
-    const from = HR_APPLY_CHAIN[k - 1];
-    const to = HR_APPLY_CHAIN[k];
+  for (let k = 1; k < SPEC.chain.length; k++) {
+    const from = SPEC.chain[k - 1];
+    const to = SPEC.chain[k];
     const a = applyBody(from);
     const b = applyBody(to);
     if (!a || !b) {
-      fail(`hr_apply derivation: cannot extract the body from ${!a ? from : to} — has the shape changed?`);
+      fail(`${SPEC.fn} derivation: cannot extract the body from ${!a ? from : to} — has the shape changed?`);
       chainOk = false;
       continue;
     }
@@ -681,7 +766,7 @@ say('── hr_apply derivation chain (each body derived from the last, nothing 
     const unused = declared.filter((l) => !removed.includes(l));
     if (undeclared.length) {
       chainOk = false;
-      fail(`${to}: its hr_apply DROPS ${undeclared.length} line(s) of ${from}'s body that it does not `
+      fail(`${to}: its ${SPEC.fn} DROPS ${undeclared.length} line(s) of ${from}'s body that it does not `
          + 'declare. A restatement that loses a line loses whatever that line was defending, and the '
          + 'migration\'s own §0 can only check the terms somebody remembered to list. First:\n'
          + undeclared.slice(0, 3).map((l) => `            ${JSON.stringify(l)}`).join('\n'));
@@ -693,39 +778,41 @@ say('── hr_apply derivation chain (each body derived from the last, nothing 
          + 'happened. First: ' + JSON.stringify(unused[0]));
     }
     if (!undeclared.length && !unused.length) {
-      pass(`${to}: hr_apply is ${from}'s body + insertions, with ${declared.length} declared replacement(s)`);
+      pass(`${to}: ${SPEC.fn} is ${from}'s body + insertions, with ${declared.length} declared replacement(s)`);
     }
   }
 
   // ONE LAST TOUCHER, and the apply order must agree with this file about who it
   // is. Two lists that disagree is exactly the clan_members "join as self"
   // defect: filename order installs the wrong one and every self-check passes.
-  const last = HR_APPLY_CHAIN[HR_APPLY_CHAIN.length - 1];
+  const last = SPEC.chain[SPEC.chain.length - 1];
+  const DEF_RE = new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${SPEC.fn}\\s*\\(`, 'i');
   const definers = [...sources.entries()]
-    .filter(([, sql]) => /create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(stripComments(sql)))
+    .filter(([, sql]) => DEF_RE.test(stripComments(sql)))
     .map(([f]) => f).sort();
-  if (definers.join('|') !== [...HR_APPLY_CHAIN].sort().join('|')) {
-    fail(`the files that replace hr_apply are [${definers.join(', ')}] but HR_APPLY_CHAIN says `
-       + `[${[...HR_APPLY_CHAIN].sort().join(', ')}]. A file that restates hr_apply and is not in the `
+  if (definers.join('|') !== [...SPEC.chain].sort().join('|')) {
+    fail(`the files that replace ${SPEC.fn} are [${definers.join(', ')}] but ${SPEC.chainName} says `
+       + `[${[...SPEC.chain].sort().join(', ')}]. A file that restates ${SPEC.fn} and is not in the `
        + 'chain is a body nobody has proven is derived from the one it replaces.');
     chainOk = false;
   }
   {
     const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
-    const positions = HR_APPLY_CHAIN.map((f) => order.indexOf(f));
+    const positions = SPEC.chain.map((f) => order.indexOf(f));
     if (positions.some((p) => p < 0)) {
-      fail(`an hr_apply file is missing from schema-apply-order.json's "order": `
-         + HR_APPLY_CHAIN.filter((_, i) => positions[i] < 0).join(', '));
+      fail(`a ${SPEC.fn} file is missing from schema-apply-order.json's "order": `
+         + SPEC.chain.filter((_, i) => positions[i] < 0).join(', '));
       chainOk = false;
     } else if (Math.max(...positions) !== order.indexOf(last)) {
-      fail(`${last} is the last file in HR_APPLY_CHAIN but schema-apply-order.json applies another `
-         + 'hr_apply file AFTER it. Whichever applies last wins, and it would silently delete this '
+      fail(`${last} is the last file in ${SPEC.chainName} but schema-apply-order.json applies another `
+         + `${SPEC.fn} file AFTER it. Whichever applies last wins, and it would silently delete this `
          + "one's change while every self-check still passed.");
       chainOk = false;
     } else if (chainOk) {
-      pass(`${last} is the last toucher of hr_apply, in this file and in the apply order`);
+      pass(`${last} is the last toucher of ${SPEC.fn}, in this file and in the apply order`);
     }
   }
+}
 }
 
 // ── PART 1g — EVERY CURRENCY THE ENGINE CAN WRITE HAS A DAILY CEILING ────

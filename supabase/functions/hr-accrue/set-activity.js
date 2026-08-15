@@ -45,6 +45,7 @@ import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas,
 } from './intents.js';
+import { refusalBody } from './envelope.js';
 import { GATHER_NODES } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
@@ -163,14 +164,12 @@ const READ_SQL = `
          now()                                                              as now
     from g`;
 
-/* THE REFUSAL ENVELOPE (review C2). A refusal that reached the database says
-   what the server's state IS, so the client's "put the local pointer back to
-   what the envelope says" is executable on the failure path and not only on the
-   happy one. It is a FRESH read rather than the one taken at the top of the
-   call, because the refusal that most needs it — `version_conflict` — means by
-   definition that the state moved after that read. Costs one extra statement,
-   on the refusal path only, behind a gate that has already been spent. */
-const REFRESH_SQL = 'select public.hr_state_of($1::uuid, $2::int) as state';
+/* THE REFUSAL ENVELOPE (review C2) MOVED TO ./envelope.js in b349, unchanged in
+   behaviour and shared with the second intent. One implementation of "a refusal
+   that reached the database says what the server's state IS", because eight
+   private copies of that rule is eight chances for the eighth to forget — and
+   forgetting does not fail, it just leaves one client path guessing, which is
+   the one thing a client is never allowed to do. */
 
 const SEED_SQL = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
@@ -304,9 +303,11 @@ export async function runSetActivity(o) {
        always safe and a reused one sometimes is not. */
     return {
       status: 409,
-      body: await refusalBody(exec, user, slot, {
-        error: gate.error, stage: 'collect', detail: collect.detail ?? null,
-      }, env),
+      body: await refusalBody({
+        exec, verb: VERB, user, slot, decorate: decorateActivity,
+        refusal: { error: gate.error, stage: 'collect', detail: collect.detail ?? null },
+        fallback: env,
+      }),
     };
   }
 
@@ -325,10 +326,14 @@ export async function runSetActivity(o) {
        the SWITCH failed would report genuinely applied payment as nothing. */
     return {
       status: 409,
-      body: await refusalBody(exec, user, slot, {
-        error: (res && res.error) || 'apply_failed', stage: 'switch', detail: res ?? null,
-        collected: collect.receipt || null,
-      }, null),
+      body: await refusalBody({
+        exec, verb: VERB, user, slot, decorate: decorateActivity,
+        refusal: {
+          error: (res && res.error) || 'apply_failed', stage: 'switch', detail: res ?? null,
+          collected: collect.receipt || null,
+        },
+        fallback: null,
+      }),
     };
   }
 
@@ -370,34 +375,11 @@ function activityOf(env) {
   return { kind: st.active_kind ?? null, id: st.active_id ?? null };
 }
 
-/**
- * Build a refusal body that carries the CURRENT `hr_state_of` envelope.
- *
- * @param fallback  the envelope read at the top of the call, used only if the
- *                  fresh read fails. Null where it is known to be stale.
- *
- * ⚠ A FAILED REFRESH MUST NOT TURN A 409 INTO A 500. The refusal is the answer;
- *   the envelope is an aid to reconciling. So the read is best-effort and the
- *   body degrades to "no envelope" — the same shape the four documented
- *   stateless refusals have, which the client already handles.
- */
-async function refusalBody(exec, user, slot, refusal, fallback) {
-  let env = null;
-  try {
-    const [row] = await exec(REFRESH_SQL, [user, slot]);
-    const fresh = row && row.state;
-    if (fresh && fresh.ok === true) env = fresh;
-  } catch { /* best effort — see above */ }
-  if (!env && fallback && fallback.ok === true) env = fallback;
-  if (!env) return { ok: false, verb: VERB, ...refusal };
-  return {
-    ...env,
-    ok: false,
-    verb: VERB,
-    activity: activityOf(env),
-    ...refusal,
-  };
-}
+/** THIS INTENT'S top-level summary of the server's state, handed to the shared
+    `refusalBody` so a refusal and a success report the same field from the same
+    place. `envelope.js` owns the mechanics; what a body says about an ACTIVITY
+    is still this file's. */
+function decorateActivity(env) { return { activity: activityOf(env) }; }
 
 /**
  * Pay the window that has elapsed on the CURRENT activity, in its own apply,

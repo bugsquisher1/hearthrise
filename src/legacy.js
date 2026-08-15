@@ -1092,128 +1092,41 @@ window.offlineBudgetRemainingMs=offlineBudgetRemainingMs;
    gate shut and returns the base-rate interval. Falls back to the stored value
    and then to the raw duration if the action cannot be resolved (a recipe
    removed from the data between sessions), because a returning player must
-   never simply lose their night to a lookup miss. */
+   never simply lose their night to a lookup miss.
+
+   b351: THE AWAY REPLAY NO LONGER CALLS THIS — core derives its own interval
+   per slice (`gatherIntervalMs` / `artisanIntervalMs`), from the same terms, so
+   the server does not depend on a function declared in a classic script. Kept
+   because it is the honest client-side answer to "what rate would an absence
+   run at right now?", which the suite asks when it sizes a span, and because
+   the fallback ladder above is the documented behaviour for a stale pointer. */
 function offlineIntervalMs(fallbackMs){
   const derived=(typeof activityIntervalMs==='function')?activityIntervalMs():null;
   return derived || G.skillMs || fallbackMs || 3000;
 }
 /* ════════════════════════════════════════════════════════════════════════════
-   b347 — THE GATHER/ARTISAN AWAY REPLAY GETS A TIMELINE.
+   b351 — `replayAwaySpan` AND ITS 60-LINE HEADER ARE GONE FROM THIS FILE.
 
-   THE BUG THIS CLOSES, measured on the real engine before the fix (8h away,
-   woodcutting Normal Tree, one 10-minute `gather_speed +4%` eaten on the way
-   out):
+   b347 gave the gather/artisan absence a timeline here: split the span at the
+   buff-expiry boundary, run each slice at its OWN re-derived rate, drain after
+   the slice's actions. That loop is now `src/core/skill-sim.js sliceSpan` and
+   BOTH away branches reach it through `simulateSkillSpan` /
+   `simulateArtisanSpan` — so the shim that used to sit here had zero callers
+   and was deleted rather than left to rot. The full reasoning (why the shape is
+   not `simulateSpan`'s, why the order is load-bearing, why the sub-tick carry
+   is not optional, why the slice budget degrades instead of abandoning the
+   night) lives with the loop, in that file's header and in the CLOSED block in
+   src/core/away.js.
 
-     base interval 4,800ms -> 6,000 actions.   Buffed: 4,608ms for the WHOLE
-     NIGHT -> 6,250 actions, and the buff came back reading 10:00 with ZERO ms
-     drained. The honest answer is 130 buffed actions and then 5,875 unbuffed
-     ones — about +5 actions, not +250. Fifty times the earned value, from one
-     consumable, by shutting the tab.
-
-   WHY IT HAPPENED. `AWAY_SCOPE.buff` is a TABLE (src/core/away.js), so opening
-   the buff channel opened it for every away caller at once. Away COMBAT was
-   fine: `simulateSpan` already owned a per-tick timeline (it segments the
-   absence by UTC day for the Boss of the Day), so it drives the buff clock and
-   a buff expires at the right instant. Gather/artisan owned NO timeline —
-   `ticks = floor(spanMs / offlineIntervalMs())`, the interval derived once,
-   nothing advancing a clock inside the loop. A caller with no clock cannot
-   honour "it drains", and paying without draining is the b326 exploit written
-   backwards.
-
-   THE SHAPE, and why it is not `simulateSpan`'s. Combat can ask "is a buff
-   alive?" once per swing because its tick length is fixed — no combat buff
-   changes swing speed. Here `gather_speed` changes THE INTERVAL, which is the
-   number the tick count is derived from, so a per-tick loop would have to
-   re-derive it 6,000 times to be correct and would still be wrong at the
-   instant of expiry. So this uses the OTHER shape core already established:
-   split the span at its boundaries and run each slice at its own rate —
-   exactly `utcDaySegments`, with `nextBuffExpiryMs` as the boundary function
-   instead of UTC midnight. One mechanism, two boundary sources.
-
-   THE ORDER IS LOAD-BEARING, the same rule `simulateSpan` states: derive the
-   rate and run the slice's actions FIRST, drain the clock AFTER. A buff that
-   is alive when the action happens pays for that action, exactly as it would
-   live.
-
-   THE CARRY IS NOT OPTIONAL. `floor()` per slice would silently cost the
-   player one action per boundary, so the sub-tick remainder rides across —
-   the same line `simulateSpan` carries across midnight, for the same reason.
-   With no buff held there is exactly ONE slice and the arithmetic is
-   byte-identical to the flat loop this replaces; that equivalence is what
-   keeps every pre-existing away test honest rather than re-baselined.
-
-   TERMINATION. Each pass either consumes the rest of the span or retires at
-   least one buff (the slice ends exactly ON the soonest expiry, so
-   `advanceBuffClock` takes it to zero and `pruneBuffs` drops it), so the pass
-   count is bounded by the queue length + 1 — and `applyBuff` merges by type,
-   so a real queue is at most one entry per BUFFS_DEF row. The slice budget in
-   the loop below is for the two shapes that argument does not cover; its own
-   comment says which, and what it degrades to.
-
-   @param spanMs  the absence to replay, in ms
-   @param opts    { stepMs(): number,            the interval, re-derived per slice
-                    run(n, stepMs): number }     runs up to n actions, returns how
-                                                 many ACTUALLY ran; fewer than n
-                                                 means the run stopped inside the slice
-   @returns { ticks, paidMs, stopped, buffPaidMs, buffsExpired }
+   THE BUFF CLOCK IS STILL `window.advanceBuffClock`, and never a second
+   implementation of it: that function asks core's `tickBuffs` with the two
+   context flags the rule is stated in (`away`, `active`) and prunes what ran
+   out, so a replay spends buffs through the identical seam the live 1-second
+   interval does. `_drainAwayBuffs` is gone too — it had one caller. The client
+   no longer drives the clock from this file at all; `simulateSkillSpan` and
+   `simulateArtisanSpan` call `tickBuffs` directly on `G.buffs`, which is the
+   same object `advanceBuffClock` ticks.
    ════════════════════════════════════════════════════════════════════════════ */
-/* ── b351: THIS IS NOW A DELEGATION, AND THE LOOP LIVES IN CORE ──────────
-   The body that used to be here is `src/core/skill-sim.js sliceSpan`, verbatim
-   in behaviour. It moved for the reason every other simulation moved: the
-   accrual Edge Function cannot import a function declared inside a 16,000-line
-   classic script, and a server that re-implements this loop is a second away
-   path — which is the exact defect b325 deleted for combat and b347 nearly
-   reintroduced here.
-
-   The BOUNDARY SOURCE is injected rather than reached for, which is what lets
-   one loop serve gathering, artisan and (via `utcDaySegments`) combat. The
-   degradation rule is unchanged and still load-bearing: no core, no boundaries,
-   one slice — the night still pays. */
-function replayAwaySpan(spanMs, opts){
-  const C=window.HearthriseCore;
-  const o=Object.assign({}, opts||{});
-  if(!(C&&C.skillSim&&typeof C.skillSim.sliceSpan==='function')){
-    /* Core absent (a bare page, or a cold load that never finished). Run the
-       span as ONE slice at the current rate rather than throwing — a missing
-       bridge must never cost the player their whole absence. */
-    const out={ ticks:0, paidMs:0, stopped:false, buffPaidMs:0, buffsExpired:[] };
-    const span=Math.max(0,Number(spanMs)||0);
-    if(span<=0||typeof o.run!=='function'||typeof o.stepMs!=='function') return out;
-    const stepMs=Math.max(1,o.stepMs());
-    const n=Math.floor(span/stepMs);
-    const ran=n>0?(o.run(n,stepMs)||0):0;
-    out.ticks=ran; out.paidMs=ran*stepMs; out.stopped=ran<n;
-    return out;
-  }
-  if(C.buffs&&typeof C.buffs.nextBuffExpiryMs==='function'){
-    o.nextBoundaryMs=function(){ return C.buffs.nextBuffExpiryMs(G.buffs); };
-  }
-  if(C.buffs&&typeof C.buffs.hasActiveBuff==='function'){
-    o.boosted=function(){ return C.buffs.hasActiveBuff(G.buffs); };
-  }
-  /* THE CLOCK IS `advanceBuffClock`, not a second implementation of it — see
-     the note below. `sliceSpan` collects `{expired}` off whatever this returns. */
-  o.drain=function(ms){
-    const clock=window.advanceBuffClock;
-    return (typeof clock==='function')?clock(ms):null;
-  };
-  return C.skillSim.sliceSpan(spanMs, o);
-}
-/* THE CLOCK IS `advanceBuffClock`, not a second implementation of it.
-   That function already asks core's `tickBuffs` with the two context flags the
-   rule is stated in (`away`, `active`) and prunes what ran out — so the replay
-   spends buffs through the identical seam the live 1-second interval does, and
-   the two cannot drift.
-
-   Reached through `window.`, DELIBERATELY. `advanceBuffClock` is declared
-   inside block 36's IIFE and published on window; a bare identifier here would
-   resolve only by falling through to the global object, which is the exact
-   shape of the `hasInputs` guard b345 found sitting dead in this same
-   function since the day it was written. Name the object.
-
-   b351: `_drainAwayBuffs` is GONE — it had exactly one caller and folded into
-   the `drain` adapter inside `replayAwaySpan` above, where `sliceSpan` collects
-   the `{expired}` list itself. */
 
 /* ── b351: the two preconditions the away branches ask about, named once ──
    `processOffline` used to reach straight for `window.ARTISAN_RECIPES[skill]`
@@ -1224,9 +1137,9 @@ function replayAwaySpan(spanMs, opts){
    THE CORE GUARD IS HONEST, NOT DEFENSIVE. Without core there is no away
    simulation at all today: `doArtisanAction` dereferences
    `HearthriseCore.artisan` unguarded on its first statement and `doSkillAction`
-   dereferences `HearthriseCore.progression`, so the pre-b351 branches would
-   have thrown, not degraded. The guard states that dependency instead of
-   discovering it. */
+   returns early without it, so the pre-b351 branches would have thrown or
+   no-opped, not degraded gracefully. The guard states that dependency instead
+   of leaving it to be discovered. */
 function _awaySpanCore(){
   const C=window.HearthriseCore;
   return (C&&C.skillSim&&C.artisanSim&&typeof C.gatherNodes==='function'

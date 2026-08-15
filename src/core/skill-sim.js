@@ -495,94 +495,59 @@ export function simulateSkillSpan(state, ctx) {
 export function isGatherSkill(skillId) { return GATHER_SKILLS.indexOf(skillId) >= 0; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   THE CLIENT SWITCH-OVER — four edits in legacy.js, and their preconditions.
+   THE CLIENT SWITCH-OVER IS DONE (b351). What this block used to specify —
+   four edits in legacy.js, written out because another agent held that file —
+   has been made:
 
-   NOT DONE HERE: another agent held legacy.js while this was written, and a
-   race on a 9,000-line file is how two people's away rules end up in one
-   function. Nothing below is speculative — every claim is executed by AWAY-16
-   in src/features/smoke-test.js, whose `fx` map IS the adapter and whose rig
-   already proved the two columns agree (400 live actions vs one core span:
-   same bag, same XP, same counters, same fractional carry).
+     1. `replayAwaySpan` is gone; both away branches call this file directly.
+     2. the GATHER away branch is one `simulateSkillSpan` call, INSIDE
+        `withOfflineReplay`. The latch is not optional — a gather-speed
+        BLESSING is presence-gated, and sizing a span from outside it measured
+        375 core actions against 400 live ones.
+     3. `SKILL_ACTION_STAT` is no longer a literal in legacy.js. It is
+        published from HERE by src/core-bridge.js, and AWAY-16 PARITY asserts
+        the REFERENCE, not the values — a value comparison passes on two
+        copies and keeps passing until somebody edits one of them.
+        ⚠ It could NOT be a re-export written in legacy.js: that file is a
+          CLASSIC script and core-bridge.js is a MODULE, so core-bridge runs
+          after legacy.js has finished executing and the ternary would take
+          its fallback branch every time — silently restoring the second copy
+          it was written to remove, with nothing going red.
+     4. the index is built once and memoised on the source arrays’
+        IDENTITIES, in core-bridge.js (`gatherNodes` / `gatherNode`).
 
-   1. `replayAwaySpan` (legacy.js:1153) becomes a delegation:
-        function replayAwaySpan(spanMs, opts){
-          const C = window.HearthriseCore;
-          return C.skillSim.sliceSpan(spanMs, Object.assign({}, opts, {
-            nextBoundaryMs: () => C.buffs.nextBuffExpiryMs(G.buffs),
-            boosted:        () => C.buffs.hasActiveBuff(G.buffs),
-            drain:          (ms) => window.advanceBuffClock(ms),
-          }));
-        }
-      `_drainAwayBuffs` then has one caller and folds into `drain`. THE ARTISAN
-      BRANCH KEEPS USING IT UNCHANGED — `sliceSpan` is the same function with
-      the boundary source injected, so artisan's away replay moves onto core
-      without waiting for an artisan simulation.
+   `doSkillAction` ALSO delegates now, to `resolveGatherTick`, so the live
+   tick and the away tick are ONE function rather than two that a parity test
+   reconciles. What is left in legacy.js is exactly the set of lines the
+   server does not have: the progress bar, the retime, two repaints.
 
-   2. The GATHER branch (legacy.js:1521-1542) becomes one call:
-        const span = C.skillSim.simulateSkillSpan(G, {
-          away: true, fromMs: _now - hrs*3600000, toMs: _now,
-          rng: C.rng, items: window.ITEMS,
-          nodes: window.HearthriseCore.__gatherNodes,   // see (4)
-          bonus: window.getBonus,
-          fx: { addItem, addXp, updateDaily, updateQuest,
-                onStop: () => stopSkill() },
-        });
-        buffPaidMs = span.buffPaidMs; buffsExpired = span.buffsExpired;
-        if (span.stoppedBy) { paidMs = Math.round(span.paidMs);
-                              stoppedBy = span.stoppedBy;
-                              stoppedById = span.stoppedById;
-                              stoppedSkill = span.stoppedSkill; }
-      ⚠ IT MUST STAY INSIDE `withOfflineReplay`. The interval is derived from
-        `ctx.bonus` at call time, and a gather-speed BLESSING is presence-gated
-        — asking from outside the latch answers a smaller number. Measured
-        while writing AWAY-16: 375 core actions against 400 live ones, a 6.25%
-        divergence caused by nothing but which side of the latch asked.
-
-   3. `SKILL_ACTION_STAT` (legacy.js:3817) becomes a re-export of the object
-      above: `const SKILL_ACTION_STAT = C.skillSim.SKILL_ACTION_STAT;`. Two
-      copies of the map the daily goals read is how an away night and a live
-      hour come to move different rows.
-
-   4. The index is built ONCE, at boot, beside the other bridges:
-        window.HearthriseCore.__gatherNodes = C.skillSim.indexGatherNodes(
-          { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
-      Rebuilding it per absence is 23 rows and harmless; rebuilding it per
-      ACTION is not, which is why it is not derived inside the loop.
-
-   WHAT DOES NOT CHANGE: `doSkillAction` stays exactly as it is for the LIVE
-   loop. This is the away path only — the same scope b325 took for combat.
-
-   ONE DELIBERATE BEHAVIOUR CHANGE, stated so it is not discovered:
-   legacy.js drains the buff clock through `advanceBuffClock`, whose `active`
-   flag reads `!!(G.activeSkill || …)`. On a level-gate stop `stopSkill()` has
-   already cleared that, so `tickBuffs` FREEZES and the minutes the run really
-   worked are never charged to the buff. `simulateSkillSpan` charges them
-   (`active: true`), which is the b347 rule — a buff is spent on work — applied
-   in the one place b347 could not reach. Unreachable in practice for gathering
-   (levels do not fall), and it is the correct direction.
-   ══════════════════════════════════════════════════════════════════════════ */
+   ⚠ ONE THING MUST NOT BE "CLEANED UP": tests/accrual-engine.mjs holds a
+     HAND TRANSCRIPTION of legacy.js’s gather path and asserts the server pays
+     what the client pays. Now that the client delegates here, that
+     transcription is the only reference in the suite that is NOT this code.
+     Deleting it as duplication would leave every parity test proving that a
+     function equals itself.
+   ══════════════════════════════════════════════════════════════════════════
+   */
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ARTISAN IS NOT HERE, AND THE REASON IS A MISSING MODEL, NOT MISSING CODE.
+   ARTISAN IS IN src/core/artisan-sim.js (b351), AND IT RUNS ON `sliceSpan`.
 
-   `sliceSpan` above is already the loop legacy.js's artisan away branch runs —
-   that branch passes its own `stepMs`/`run` and needs nothing else from this
-   file, so wiring it is a delegation, not a port. What is missing is the
-   SERVER STATE the artisan resolver reads:
+   It is a sibling, not a copy: `simulateArtisanSpan` injects its own
+   `stepMs`/`run`/boundary source into the loop above, so one buff-expiry
+   timeline serves gathering, artisan and (via `utcDaySegments`) combat.
 
-     • `unlockedRecipes` — `src/core/artisan.js gateOk()` refuses 8 gated
-       recipes without it. There is no `player_progress` flag row that holds
-       it and no intent that writes one.
-     • `noBurn` — the Kitchen rung of the property model, which does not exist
-       server-side at all. `zeroBonus()` returns 0 for every channel, so a
-       server that cooked today would burn at the base 25% while the player's
-       Kitchen says 0%. That is not an under-payment at the margin; it is the
-       server destroying items the client would have kept.
+   WHAT STILL BLOCKS THE SERVER FROM PAYING AN ARTISAN NIGHT is a missing
+   MODEL, not missing code, and it is stated in full at the foot of that file.
+   In short: `unlockedRecipes` (8 gated recipes, no `player_progress` row, no
+   intent that writes one) and `noBurn` (the Kitchen rung; `zeroBonus()`
+   returns 0, so a server that cooked tonight would burn at the base 25% while
+   the player's Kitchen says 0% — the server DESTROYING items the client would
+   have kept).
 
-   290 of the 344 catalogue rows are artisan. Adding `'artisan'` to
-   PAYABLE_KINDS before those two exist would widen SETTABLE_KINDS with it and
-   let a player set an activity the engine prices WRONG — which is worse than
-   the deferral that exists today, because today the refusal returns
-   `delta: NONE` and the watermark does not move, so the time is DEFERRED
-   rather than confiscated.
+   290 of the 344 catalogue rows are artisan. Do NOT add `'artisan'` to
+   PAYABLE_KINDS before those two exist: it widens SETTABLE_KINDS with it and
+   lets a player set an activity the engine prices WRONG, which is worse than
+   today's deferral — the refusal returns `delta: NONE` and the watermark does
+   not move, so the time is DEFERRED rather than confiscated.
    ══════════════════════════════════════════════════════════════════════════ */

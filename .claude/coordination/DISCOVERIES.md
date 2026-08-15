@@ -4,6 +4,65 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-15 · Systems Engineer · P0 (test integrity) · `tryRun(name, asyncFn)` IS AN ALWAYS-GREEN TEST — the sync runner cannot see an async body fail
+
+**Discovery:** `smoke-test.js`'s `tryRun` is `try { fn(); return pass(name); } catch {...}`. Give it an
+`async` function and it gets a **promise**: nothing throws synchronously, the catch is unreachable, and
+`pass(name)` is returned before one assertion has executed. The test prints `✓` and is
+indistinguishable from a real one. `tryRunAsync` is the awaiting runner (18 tests use it correctly).
+
+**How it was found — and this is the transferable part.** I wrote two of these while fixing Xarn's
+reports. Seven separate mutations, **including restoring the exact bug the tests were written for**,
+all came back **GREEN**. Reading the tests would never have found it; only mutation did. This is the
+same family as b347's lying `buffsPaused` guard and b332's "proof of the adjacent thing", moved one
+layer down: not a wrong assertion, but a runner that never reaches any assertion.
+
+**AFFECTED SYSTEMS:** every test in `src/features/smoke-test.js`; by extension every count this
+project has ever reported.
+
+**REQUIRED ACTION (DONE in b348):** `tryRun` now detects a thenable return and FAILS with
+`ASYNC BODY ON A SYNC RUNNER … Register it with tryRunAsync()`. Mutation-proven: registering an async
+body on `tryRun` is RED. Audited at the time of writing — only my two new tests were affected;
+the other 676 registrations are clean. **If you write an async test, use `tryRunAsync`.**
+
+### 2026-08-15 · Systems Engineer · P1 · THE GEAR LADDER HAS TWO AUTHORITIES, AND SIXTEEN RUNGS SIT OFF THE CURVE
+
+**Discovery:** `src/data/gear-tiers.js` generates a level curve; `src/data/recipes.js` hand-authored
+rows are spread FIRST and win the merge. **Five of those rows share an ID with their generated twin**
+(`forge_iron_helm`, `forge_steel_helm`, `forge_iron_platebody`, `forge_steel_platebody`,
+`forge_bronze_belt`), so `mergeGenerated` drops the generated recipe by id and the hand-authored `req`
+replaces the curve leaving **no trace at all**. Measured across all 22 lanes: **16 rungs off the
+curve, 3 lanes disordered** — plate/platebody INVERTED (steel 60 > mithril 55, exactly Xarn's report),
+plate/helm and plate/belt TIED.
+
+**Why no test could see it:** a guard that rebuilt the lanes from item-id patterns would carry a
+SECOND copy of the id scheme (plate is `mat.id + '_' + slot.key`; leather and cloth are
+`tierId + '_' + slot.slot`), i.e. the same two-authority bug one layer up.
+
+**AFFECTED SYSTEMS:** every craftable tiered weapon and armour piece; the b343 availability guard;
+the generated `hr_activities` catalogue.
+
+**REQUIRED ACTION (DONE in b348):** the generator now publishes `GEAR_LADDERS` — every lane, its
+rungs in tier order, each carrying `itemId`, `recipeId` and the `curveReq` it generated. The guard
+reads that and grades the LIVE merged `ARTISAN_RECIPES` gate for **strict monotonicity** (a deviation
+from the curve stays legal; a deviation that DISORDERS the ladder does not), and looks rungs up by
+**OUTPUT** so an override that renames the recipe (`tailor_leather_boots` beating
+`craft_leather_boots`) is still seen. Mutation-proven five ways, including blinding it with an empty
+lane set.
+
+### 2026-08-15 · Systems Engineer · P2 · `window.renderInvFancy` HAS NEVER EXISTED — seven guarded call sites resolve to nothing
+
+**Discovery:** the published name is `window._renderInvFancy` (underscore). `item-ux.js` ×2,
+`dungeons.js` ×3, `companions.js` ×3, `admin.js` and `dungeon-scavenger.js` all call
+`window.renderInvFancy()` behind a `typeof` guard, so they have silently done nothing for their whole
+lives. **Verified at runtime:** `typeof window.renderInvFancy === 'undefined'`.
+
+It is masked because `addItem`/`removeItem` are wrapped (legacy.js) to repaint an active bag anyway —
+which is why nobody noticed, and why this is a latent trap rather than a live bug.
+
+**REQUIRED ACTION (DONE in b348):** aliased, and DELEGATING rather than binding, so it always resolves
+the currently-wrapped implementation (the drag/drop hook re-wraps `_renderInvFancy` later in the file).
+
 ### 2026-08-15 · Systems Engineer · P1 · `power-budget.js` RE-WRAPS `window.getBonus` EVERY SECOND, FOREVER — any test that substitutes it is stable for under a second
 
 **Discovery:** `src/features/power-budget.js` installs itself as the OUTERMOST `window.getBonus`

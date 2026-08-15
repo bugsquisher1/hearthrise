@@ -200,6 +200,7 @@ function tileForArtisan(recipe, skillId) {
     <div class="at-name">${recipe.name || recipe.id}</div>
     <div class="at-meta">${effXp(skillId, recipe)} XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
+    ${(typeof window.hrWearLineHtml === 'function') ? window.hrWearLineHtml(outId) : ''}
     ${burnLine}
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${recipe.req}</div>`}

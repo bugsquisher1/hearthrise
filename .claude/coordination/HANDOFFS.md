@@ -23,6 +23,28 @@ Branch `worktree-agent-aa3e8484ab2c37486`, commit **`b0b7ac4`**. Smoke **702/702
 **6. Reachability, stated rather than implied.** Seam 3 (`drainBountySwitch`) is UNREACHABLE while the seam is armed: with the b337 switch ON, `processOffline` returns before any client-side away replay, and `requestBountySwitch` only queues during a replay. It is wired because the contract names all four writers and because the alternative is a fifth writer appearing the day the two paths overlap. Gathering/artisan (`startSkill`, `startArtisan`) are NOT declared — the server answers `activity_unsupported` for them today — but the activity mutex means starting one calls `stopCombat()`, which correctly declares `idle`. When the server engine learns gathering, those are seams 5 and 6 and they go in the same place.
 
 **7. Known limitation, measured, not fixed.** Under the switch, live client-side combat still mints XP and gold locally while the server's character does not know about it — so a switch envelope can be BEHIND local, `describeReplacement` reports the switch as destructive, and `applyIntentEnvelope` refuses and raises the b339 replacement sheet instead of applying. I reproduced this once in the browser. That is the designed consequence of server authority plus a client that still simulates live play, the sheet is the designed mitigation (asks once, in numbers, then silent), and the acknowledgement key is shared with the accrual path because it is one consent. It stops being a question when live ticks move server-side.
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, QA (b348 — Xarn's five reports)
+
+Branch `agent-a597c79506d8d0445`. Suite **696/696** (baseline 692; +4), 0 runtime errors, 0 console errors, five consecutive full runs. **Seventeen mutations, each RED on exactly one test.** No version bump, nothing deployed, nothing applied. Labelled **b348** because b347 is the merged away-buff work.
+
+**1. TO THE COORDINATOR — TWO THINGS NEED YOU.**
+- **The Edge payload no longer matches.** `src/data/recipes.js` changed, so `hr-accrue` packs to a different hash than the deployed function. The guard is RED and correctly so. **Redeploy needed, not performed.**
+- **The catalogue migration was REGENERATED and needs re-applying.** `node tools/gen-catalogues.mjs` run; the diff is exactly five `hr_activities` rows (the reconciled reqs) and nothing else — no items, no slot pairs. **Not applied.**
+
+**2. TO THE GAME DESIGNER — five craft gates moved, and one systemic thing you own.**
+The reconciliation is listed exhaustively in my report for Tyler's veto (all five move DOWN, onto the generated curve). Three lanes were genuinely disordered: platebody INVERTED (steel 60 > mithril 55 — Xarn's report), helm and belt TIED. **Eleven other hand-authored rungs still sit off the curve and were left alone** because they are ordered; changing them would be balance churn with no defect behind it. They are listed in the report if you want them.
+
+**The systemic thing, measured and NOT fixed:** on the generated ladder a tier's gear can unlock BELOW the bar it is made from. Bronze gauntlets req 2, boots 3, belt 4, helm 6, platebody 11 — but `smelt_bronze` is Smithing **8**. Mithril gauntlets 46 / boots 47 / belt 48 vs `smelt_mithril` **55**: nine levels of recipes you can select and cannot supply. This is pre-existing in shipped generated content, it is a MATERIAL_TIERS-vs-smelt-req relationship, and it is a design call, not a bug fix.
+
+**3. TO QA — the trap I fell into, now impossible.** `tryRun(name, fn)` is synchronous. Hand it an `async` body and it receives a promise, nothing throws synchronously, and it returns PASS **before a single assertion runs**. I wrote two of these and only found out because seven separate mutations — including restoring the exact reported bug — all came back GREEN. `tryRun` now detects a thenable return and fails loudly naming `tryRunAsync`. Mutation-proven (M17). Only my two tests were affected; the other 676 registrations are clean.
+
+**Also for QA: `AWAY-16` is FLAKY.** It failed twice across ~20 harness runs under mutations that cannot touch it (`_renderInvSummary`, a comment edit) and passed every other time. It re-runs an 8h absence and compares piles, so it is the same wall-clock-boundary shape as the known-flaky `b227 OFFLINE parity`. Someone should pin its clock. It is not mine and it is not new.
+
+**4. TO THE ART DIRECTOR — three surfaces gained a line, all on existing components and tokens.**
+- `.ttl-req` in the hover tooltip (uses the `.ttl-cmp` card vocabulary; `--gold-2` met / `--red` + `--red-bg` unmet).
+- `.at-wear` on every artisan tile whose output is wieldable (`--gold-2` met / `--red` short) — 39 of 50 tiles on the Armour lane.
+- `.invc-space-free` in the bag header, and `.invc-slot-more` for the surplus chip past the 600-tile render ceiling.
+`theme-cozy.css`'s mobile rule `#panel-combat .csb-btn small{display:none}` is GONE — it was hiding the combat style XP label AND b329's swing time on every phone. `.csb-meta` is now shown on the dedicated Style sub-tab only. Measured at 922×423 and 500×900: zero horizontal overflow, block height 145px/126px.
 
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, Art Director, QA (b347 — the held away-buff branch is UNBLOCKED)
 

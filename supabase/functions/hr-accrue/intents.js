@@ -371,6 +371,26 @@
 export const INTENT_REGISTRY = Object.freeze({
   accrue: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
   set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
+  /* ── THE GOLD VERBS (b351) ────────────────────────────────────────────────
+     `collectsFirst: false`, and it is a RULING rather than an omission. Rule 3
+     applies to an intent that CLOSES THE ACCRUAL WINDOW, and hr_apply closes it
+     on exactly three delta keys — `activity`, `equip`, and an explicit
+     `accrued_to`. A gold spend carries none of them, so the elapsed window
+     survives the purchase untouched and there is nothing to confiscate.
+
+     That is a property of the DELTA, not of the verb, so it is not left as a
+     comment: `guardStampKeys()` below re-checks it against the delta each verb
+     actually built, and the verb refuses itself if the two ever disagree.
+     Someone who later adds `equip` to a shop_buy delta (buy-and-wield in one
+     tap is an obvious feature request) gets a loud refusal instead of a silent
+     confiscation.
+
+     ONE bucket for both, not two. They are one surface — the NPC shop — and a
+     player who is spamming it should exhaust one budget, not two. The cost is
+     stated rather than discovered: a client selling forty stacks in a loop can
+     rate-limit its own next purchase. Batch the sell; do not widen the gate. */
+  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -418,6 +438,31 @@ export const INTENT_ERRORS = Object.freeze({
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
+
+  /* ── THE GOLD VERBS (b351) ───────────────────────────────────────────────
+     Read the pairs. Each one exists because collapsing it into its neighbour
+     would tell a player something false about the game:
+       unknown_offer      there is no such offer, at all
+       offer_unsupported  the offer is REAL and this build cannot sell it —
+                          the refusal carries WHY (`unimplemented_field:reqLv`,
+                          `unpayable_cost:currency:gems`, `not_repeatable`)
+       unknown_item       there is no such item
+       item_not_sellable  the item is real and the vendor bids 0 for it */
+  BAD_OFFER: 'bad_offer',                   // 400 — absent or malformed offer id
+  BAD_QTY: 'bad_qty',                       // 400 — absent, non-integer, or out of [1, MAX_QTY]
+  UNKNOWN_OFFER: 'unknown_offer',           // 409 — not in the price catalogue
+  OFFER_UNSUPPORTED: 'offer_unsupported',   // 409 — a real offer this build cannot price/grant
+  BAD_ITEM: 'bad_item',                     // 400 — absent or malformed item id
+  UNKNOWN_ITEM: 'unknown_item',             // 409 — not in src/data/items.js
+  ITEM_NOT_SELLABLE: 'item_not_sellable',   // 409 — the vendor's bid is 0
+  /* 409. The registry says this verb collects before it acts and this verb
+     implements no collect. Fail-closed: refusing costs one tap, proceeding
+     confiscates a night. Unreachable while the registry is correct, which is
+     precisely why it is a REFUSAL and not an assertion in a comment. */
+  COLLECT_REQUIRED: 'collect_required',
+  /* 409. The delta this verb built carries a key that CLOSES the accrual
+     window, and the verb does not collect first. See guardStampKeys. */
+  DELTA_WOULD_STAMP: 'delta_would_stamp',
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -432,6 +477,28 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.UNKNOWN_ACTIVITY,
   INTENT_ERRORS.RATE_LIMITED,
   INTENT_ERRORS.NO_CHARACTER,
+  /* The gold verbs' shape refusals, and they are on this list for exactly the
+     reason the activity ones are: every one is answered from the CATALOGUE,
+     which is in-process, BEFORE the rate gate and before any database work.
+     Reading a state envelope for them is the database work the shape check
+     exists to avoid.
+
+     ⚠ `unknown_item` HAS TWO PRODUCERS AND ONLY ONE OF THEM CAN BE LIVE.
+       hr_apply raises the same code from its own `hr_items` lookup — and that
+       refusal DID reach the database and does carry an envelope. The two can
+       only both fire if `hr_items` has drifted from src/data/items.js, which
+       `node tools/gen-catalogues.mjs --check` makes a build failure (it is a
+       preflight in tests/run-smoke.mjs) and tests/gold-intents.mjs re-asserts
+       as set containment against the real generated SQL. Stated here rather
+       than left as a coincidence, because a code that means two things is how
+       an error taxonomy stops being one. */
+  INTENT_ERRORS.BAD_OFFER,
+  INTENT_ERRORS.BAD_QTY,
+  INTENT_ERRORS.UNKNOWN_OFFER,
+  INTENT_ERRORS.OFFER_UNSUPPORTED,
+  INTENT_ERRORS.BAD_ITEM,
+  INTENT_ERRORS.UNKNOWN_ITEM,
+  INTENT_ERRORS.ITEM_NOT_SELLABLE,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */
@@ -619,6 +686,82 @@ export function catalogueHas(catalogue, id) {
 export function intentNameFor(verb, kind, id) {
   if (!kind || kind === 'idle') return `${verb}:idle`;
   return `${verb}:${kind}:${id}`;
+}
+
+/**
+ * The same rule for a verb whose target is not a `{kind, id}` activity:
+ * `intentNameOf('shop_buy', 'equip.iron_sword', 5)` → `shop_buy:equip.iron_sword:5`.
+ *
+ * ⚠ THE QUANTITY IS PART OF THE NAME, AND THAT IS THE POINT.
+ *   `journal.intent` is what hr_apply's `intent_mismatch` compares, so anything
+ *   that changes WHAT THE DELTA DOES has to be in it. One key reused for "buy
+ *   1 sword" and then "buy 5 swords" must be a loud refusal; without the count
+ *   it answers `replayed:true, ok:true` and the player is charged for one sword
+ *   while their client believes it bought five — a correctness trap with no
+ *   error anywhere, which is exactly the failure the TARGET was added for.
+ *
+ *   It costs ledger cardinality (offers x counts instead of offers) in
+ *   `player_ledger.intent`. That column is not what the rollup groups on —
+ *   `kind` is — and being able to audit "who bought how many of what" is the
+ *   reason a journal exists at all. Bounded by MAX_QTY either way.
+ *
+ * Deliberately NOT a rewrite of `intentNameFor` in terms of this, even though
+ * it would produce identical strings: that function's exact source line is a
+ * mutation anchor in tests/activity-intent.mjs, and a refactor that makes a
+ * planted bug un-plantable disarms a guard while looking like tidying.
+ * tests/gold-intents.mjs asserts the two agree on the activity shape instead.
+ */
+export function intentNameOf(verb, ...parts) {
+  const named = parts
+    .filter((p) => p !== null && p !== undefined && p !== '')
+    .map((p) => String(p));
+  return [verb, ...named].join(':');
+}
+
+/* ── RULE 3'S PRECONDITION, AS A FUNCTION RATHER THAN A HABIT ───────────────
+   Rule 3 says "an intent must collect before it switches". What makes it
+   load-bearing is a property of hr_apply, not of any verb: it stamps
+   `accrued_to = now()` on a delta carrying `equip` or `activity`
+   (apply-engine.sql §S5), and an explicit `accrued_to` key sets it outright.
+   Any of the three CLOSES the elapsed accrual window.
+
+   `set_activity` handles that by collecting first. The seven verbs that come
+   after it mostly will NOT collect — a purchase, a sale, a craft moves value
+   without touching the clock — and for them the rule reads the other way
+   round: THE DELTA MUST NOT CARRY A STAMPING KEY.
+
+   That is the half a comment cannot enforce. The realistic regression is not
+   someone deleting a collect; it is someone adding `equip` to a shop_buy delta
+   so the sword you just bought is also wielded — an obvious, desirable feature
+   — and silently confiscating every buyer's unpaid window from then on. There
+   would be no error, no log, and the only evidence is that players' nights got
+   smaller.
+
+   So it is a check, it runs on the delta the verb actually built, and it fails
+   the CALL rather than the build: a delta that would confiscate is refused
+   before it is ever presented to hr_apply. */
+export const STAMP_KEYS = Object.freeze(['activity', 'equip', 'accrued_to']);
+
+/** Which stamping keys this delta carries. Own properties only — a delta is
+    built here, but `{"__proto__": {...}}` survives JSON.parse as an own data
+    property and this function is exported for the guards to call with hostile
+    shapes too. */
+export function stampKeysIn(delta) {
+  if (!delta || typeof delta !== 'object' || Array.isArray(delta)) return [];
+  return STAMP_KEYS.filter((k) => Object.prototype.hasOwnProperty.call(delta, k));
+}
+
+/**
+ * May `verb` present this delta?
+ *
+ * @returns null when it may; `{ error, keys }` when the delta would close the
+ *          accrual window and the verb does not collect first.
+ */
+export function guardStampKeys(verb, delta) {
+  const keys = stampKeysIn(delta);
+  if (keys.length === 0) return null;
+  if (collectsFirst(verb)) return null;
+  return { error: INTENT_ERRORS.DELTA_WOULD_STAMP, keys };
 }
 
 /* ── THE ACCRUAL KEY — DERIVED, NOT ACCEPTED ────────────────────────────────

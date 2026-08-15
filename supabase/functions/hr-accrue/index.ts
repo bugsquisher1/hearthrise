@@ -75,6 +75,8 @@ import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { runSetActivity } from './set-activity.js';
+import { runShopBuy } from './shop-buy.js';
+import { runVendorSell } from './vendor-sell.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES } from './catalogue.js';
@@ -270,6 +272,42 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         activity: intent.activity,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* ── THE GOLD VERBS (b351) ─────────────────────────────────────────────
+       Each is handed a LITERAL, field by field, from named values — never a
+       spread of `intent`. That is the same rule the accrue path follows below
+       and it is what keeps this file free of any way for an unlisted body key
+       to reach a verb: `parseIntent` builds seven fields and each dispatch
+       names the ones its verb uses.
+
+       ⚠ NO PRICE CROSSES THIS BOUNDARY. `offer` and `item` are NAMES and `qty`
+         is a bounded count; the numbers they turn into are read out of
+         ./catalogue.js inside the verb. If a `price`, `cost`, `unit` or `total`
+         ever appears in one of these argument lists, the economy is forgeable
+         from devtools again. */
+    if (intent.verb === 'shop_buy') {
+      const out = await runShopBuy({
+        exec,
+        user,
+        slot,
+        intentId: intent.intentId,
+        offer: intent.offer,
+        qty: intent.qty,
+      });
+      return json(out.body, out.status);
+    }
+
+    if (intent.verb === 'vendor_sell') {
+      const out = await runVendorSell({
+        exec,
+        user,
+        slot,
+        intentId: intent.intentId,
+        item: intent.item,
+        qty: intent.qty,
       });
       return json(out.body, out.status);
     }

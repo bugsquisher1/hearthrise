@@ -23,9 +23,9 @@
 // edit away from passing something through. There is no path by which an
 // unlisted key survives, because no unlisted key is ever read.
 //
-// ── THE CLIENT'S ENTIRE VOCABULARY (b345) ──────────────────────────────────
-// Four fields, and every one of them is a NAME or a SELECTOR — never a value
-// that any progression number is computed from:
+// ── THE CLIENT'S ENTIRE VOCABULARY (b345; +3 fields for the gold verbs) ────
+// Seven fields, and every one of them is a NAME, a SELECTOR or a COUNT — never
+// a value that any progression number is computed from:
 //
 //   slot      an integer in [0, MAX_SLOT], selecting a row the caller owns
 //   verb      one of VERBS, naming WHICH intent this is
@@ -33,10 +33,19 @@
 //   activity  { kind, id } — a DECLARATION of what the player says they are
 //             doing. The server looks that pair up in its own catalogue; the
 //             client never sends a rate, a yield, a tick count or a span.
+//   offer     a SHOP OFFER ID (`equip.iron_sword`). The server looks the PRICE
+//             up in its own copy of the price catalogue.
+//   item      an ITEM ID (`normal_log`). Same rule: the vendor's bid is
+//             computed server-side from the item's own book value.
+//   qty       a COUNT OF SERVER-PRICED ACTIONS. Bounded, integer, and never
+//             defaulted — see readQty for why this one is strict where readSlot
+//             is tolerant.
 //
-// If a future intent needs to name a quantity (craft 5 planks), that quantity
-// is a COUNT OF SERVER-PRICED ACTIONS, not a value — and it gets its own
-// bounded reader here, beside the others, never a passthrough.
+// ⚠ THERE IS STILL NO `price`, `cost`, `gold`, `total` OR `unit` FIELD, AND
+//   THERE NEVER WILL BE. `qty` is the ONLY number the client contributes to a
+//   value transfer, it is bounded before it is used, and the thing it
+//   multiplies came out of src/data. That is the whole of the client's
+//   arithmetic authority over the economy.
 //
 // PURE ESM, no I/O, no globals. Runs in Node and Deno unchanged.
 // ============================================================================
@@ -54,7 +63,7 @@ export const MAX_SLOT = 5;
     An UNKNOWN verb is a hard `null` — never defaulted to `accrue`. A typo that
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
-export const VERBS = Object.freeze(['accrue', 'set_activity']);
+export const VERBS = Object.freeze(['accrue', 'set_activity', 'shop_buy', 'vendor_sell']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -67,8 +76,32 @@ export const ACTIVITY_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisa
 /** Catalogue ids are generated from src/data/*.js by tools/gen-catalogues.mjs
     and every one of them matches this. Bounded on purpose: an id is a lookup
     key, and an unbounded string reaching a `::text` comparison is a free way to
-    make the server do work proportional to the request body. */
-export const ACTIVITY_ID_RE = /^[a-z0-9_]{1,64}$/;
+    make the server do work proportional to the request body.
+
+    ONE definition, two names. Activity ids, item ids and gathering-node ids all
+    have this shape (verified against all 426 items and all 344 activities), and
+    two regexes that agree today are two regexes. `ACTIVITY_ID_RE` is kept
+    because it is the name the activity intent and its guards already use. */
+export const CATALOGUE_ID_RE = /^[a-z0-9_]{1,64}$/;
+export const ACTIVITY_ID_RE = CATALOGUE_ID_RE;
+
+/** A SHOP OFFER id — `equip.bronze_sword`, `room.cellar.3`. Dotted, because the
+    generator builds it as `<table>.<row>`; bounded to four segments and 64
+    characters for the same reason as above. Verified against all 128 authored
+    offer ids. Deliberately a SEPARATE pattern from CATALOGUE_ID_RE rather than
+    a widening of it: an item id must never be able to spell an offer id. */
+export const OFFER_ID_RE = /^[a-z0-9_]{1,40}(?:\.[a-z0-9_]{1,40}){1,3}$/;
+
+/** The largest count one tap may name.
+    A quantity is a COUNT OF SERVER-PRICED ACTIONS, never a value (request.js's
+    own header, "if a future intent needs to name a quantity"). It still gets a
+    bound, because the server multiplies by it: 1,000 x the dearest gold offer
+    (2,000g) is 2,000,000 — comfortably inside hr_apply's 50,000,000 per-call
+    gold clamp, which tests/gold-intents.mjs asserts by reading BOTH numbers
+    rather than by restating either. A sell large enough to breach the clamp
+    (1,000 x a 270,000g platebody) is refused BY NAME by hr_apply and applies
+    nothing; that is measured, not assumed. */
+export const MAX_QTY = 1000;
 
 /** Canonical uuid, lowercase, dashed. Postgres would accept `{...}` and the
     undashed form too and normalise them on cast — which is exactly why this is
@@ -79,7 +112,9 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 /** The contract's key set, exported so a test reads it instead of restating it.
     A test that hard-codes the field list cannot notice a field being ADDED,
     which is the direction that matters. */
-export const INTENT_KEYS = Object.freeze(['slot', 'verb', 'intentId', 'activity']);
+export const INTENT_KEYS = Object.freeze(
+  ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty'],
+);
 
 /**
  * Read the intent out of a parsed request body.
@@ -99,6 +134,9 @@ export function parseIntent(body) {
   out.verb = readVerb(body);
   out.intentId = readIntentId(body);
   out.activity = readActivity(body);
+  out.offer = readOffer(body);
+  out.item = readItem(body);
+  out.qty = readQty(body);
   return out;
 }
 
@@ -159,6 +197,52 @@ export function readActivity(body) {
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
   return out;
+}
+
+/**
+ * The SHOP OFFER a `shop_buy` names. A NAME, never a price.
+ *
+ * Returns null when absent or unreadable. It does NOT check the offer against
+ * the catalogue — that answer has to be given BY NAME by the intent layer
+ * (`unknown_offer` vs `offer_unsupported`), and a parser that collapsed the two
+ * into `null` would report "malformed request" for "this build cannot sell you
+ * a subscription".
+ */
+export function readOffer(body) {
+  const s = ownString(body, 'offer');
+  if (s === null || s.length > 64) return null;
+  return OFFER_ID_RE.test(s) ? s : null;
+}
+
+/**
+ * The ITEM a `vendor_sell` names. Same rule: a name, never a price, and the
+ * catalogue answer belongs to the intent layer.
+ */
+export function readItem(body) {
+  const s = ownString(body, 'item');
+  return s !== null && CATALOGUE_ID_RE.test(s) ? s : null;
+}
+
+/**
+ * The COUNT. Deliberately STRICT where `readSlot` is tolerant, and the
+ * difference is not inconsistency — it is what the two values do.
+ *
+ * A bad slot selects a row the caller already owns, so coercing it to 0 costs a
+ * confused client one wasted call. A quantity MULTIPLIES A VALUE TRANSFER. A
+ * server that guesses one has authored a number the player did not ask for, in
+ * both directions: default-to-1 sells one item when the player meant a hundred,
+ * and `Number("1e3")` sells a thousand when they typed nonsense. So: an own
+ * property, a real JSON number (never a numeric string — JSON has numbers, and
+ * accepting both spellings is two ways to say one thing), an integer, and
+ * inside [1, MAX_QTY]. Everything else is `null`, which the intent layer
+ * refuses BY NAME as `bad_qty` rather than replacing with a guess.
+ */
+export function readQty(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'qty')) return null;
+  const v = body.qty;
+  if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
+  return v >= 1 && v <= MAX_QTY ? v : null;
 }
 
 /**

@@ -23691,6 +23691,574 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     b345 — THREE BUGS THE DESIGNERS FOUND BY PLAYING, all measured.
+
+     Every assertion below grades a SURFACE — a toast the player reads, text in
+     a rendered card, a real click landing on a real element. Not one of them
+     is satisfied by a field being present in G. That distinction is the whole
+     lesson of b341→b342 (a guard asserted `G._awayLicence` EXISTS, which it
+     did, while the card that was supposed to read it had never been built),
+     and this repo is at instance #15 of the family.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B345-1: a night whose supplies ran out is REPORTED as one — the toast and the card both say so', () => {
+    /* ── THE MEASURED BUG ────────────────────────────────────────────────
+       Starter cook: 8 Raw Shrimp on cook_shrimp, `lastSeen` rewound 8h. The
+       away interval is 3,840 ms, so the run earned for 30.7 seconds of a
+       28,800-second night — 0.107% of it. What the player was told, in order:
+
+         3  "Out of Raw Shrimp — cooking stopped"       <- the only honest line
+         4  "Offline 8.0h at the base rate — +11 items, +80 XP · 1 burnt"
+
+       The last thing they read described a full night. `lastOfflineSummary`
+       had 21 fields and not one could express supply exhaustion, so every
+       durable surface built on it rendered 31 seconds as eight hours.
+
+       ── AND THE BUG UNDER THE BUG, found by measuring rather than reading ──
+       `if(typeof hasInputs==='function' && !hasInputs(rec)) break;` did not
+       merely fail to RECORD the stop — it never ran. `hasInputs` is declared
+       inside an IIFE ~9,400 lines further down and never published, so at
+       processOffline's scope the free identifier resolves against the global
+       object and is `undefined`. Measured: 7,500 calls into a bag that had
+       been empty since call 9.
+
+       MUTATIONS THAT MUST TURN THIS RED (each verified):
+         M1 restore the `typeof hasInputs` guard in processOffline's artisan
+            loop  -> "the night is still reported as a full night" (toast) and
+            the card assertion, because nothing is ever stated;
+         M2 drop `stopLead` from the offline toast -> the toast assertion;
+         M3 drop the `awayStop` note in home-dashboard.js -> the card
+            assertion, with the toast still passing (which is exactly why both
+            surfaces are graded);
+         M4 drop the welcome-modal row -> the modal assertion. */
+    const G = window.G;
+    const H = window.HearthriseHome;
+    assert(H && typeof H.render === 'function', 'the Home dashboard must expose render()');
+    const snap = snapshotG();
+    const prevSummary = G.lastOfflineSummary;
+    const prevTab = window.activeTab;
+    const prevWelcome = G.lastWelcome;
+    const realNotify = window.notify;
+    const realBonus = window.getBonus;
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      const rec = (window.ARTISAN_RECIPES.cooking || []).find((r) => r.id === 'cook_shrimp');
+      assert(rec, 'cook_shrimp must exist for this scenario to mean anything');
+
+      /* PIN THE SPEED KEYS FOR THE DURATION. The away interval is
+         pacedActionMs(ms) x speedClamp(getBonus(cookSpeed) + toolSpeed), and
+         getBonus MOVES under this test: food buffs decay, world events rotate,
+         and src/features/power-budget.js re-installs itself as the outermost
+         getBonus wrapper on a permanent 1-SECOND INTERVAL. Measured: the same
+         fixture produced a 3,724ms interval during the run and 3,763ms when
+         read back a moment later - a test that fails once every N runs for a
+         reason that has nothing to do with what it grades. Pinning removes the
+         moving part instead of buying tolerance for it; a tolerance here would
+         accept a genuinely mis-measured span. `__hrPowerBudget` is
+         power-budget's own idempotence flag, so claiming it keeps this wrapper
+         outermost and the 1s re-install leaves it alone. */
+      const speedKeys = { gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1 };
+      const pinned = function (k) { return speedKeys[k] ? 0 : realBonus.apply(this, arguments); };
+      pinned.__hrPowerBudget = true;
+      window.getBonus = pinned;
+
+      const runNight = (shrimp, hours) => {
+        G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
+        G.activeMonster = null; G.activeArtisanRecipe = null;
+        G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';
+        G.inventory = { shrimp: shrimp };
+        G.lastOfflineSummary = null;
+        setAway(hours || 8);
+        /* CAPTURED WHILE THE ACTIVITY IS STILL SET. offlineIntervalMs() reads
+           activityIntervalMs(), which resolves the CURRENT action — and the run
+           below stops the activity, so reading it afterwards silently falls
+           back to a stale G.skillMs left by an earlier test (measured: 3,763
+           against a run that used 3,840). A number read after the thing that
+           defines it has gone is not a measurement. */
+        const stepMs = window.offlineIntervalMs(rec.ms);
+        const toasts = [];
+        window.notify = function (m, tone) { toasts.push(String(m)); };
+        try { window.processOffline(); } finally { window.notify = realNotify; }
+        return { toasts: toasts, last: toasts[toasts.length - 1] || '',
+          rec: G.lastOfflineSummary, stepMs: stepMs };
+      };
+
+      // ── (1) THE 8-SHRIMP NIGHT ────────────────────────────────────────
+      const out = runNight(8);
+      assert(out.rec, 'the absence wrote no receipt at all');
+
+      /* The receipt has to be ABLE to say it — but that is a precondition of
+         the assertions below, never the finding itself. */
+      assert(out.rec.stoppedBy === 'supplies',
+        'the receipt cannot express supply exhaustion: stoppedBy=' + out.rec.stoppedBy);
+      assert(out.rec.stoppedById === 'shrimp',
+        'the receipt does not name what ran out: ' + out.rec.stoppedById);
+      /* 8 shrimp x the away interval. EXACT, because a run that "roughly"
+         stopped is a run whose length nobody measured. */
+      assert(out.rec.paidMs === 8 * out.stepMs,
+        'the receipt reports ' + out.rec.paidMs + 'ms paid; 8 shrimp at ' + out.stepMs
+          + 'ms is ' + (8 * out.stepMs));
+      assert(out.rec.paidMs < out.rec.awayMs / 100,
+        'this scenario is supposed to be a fraction of a percent of the night — the fixture drifted');
+
+      /* THE TOAST — the LAST thing the player reads, which is the thing that
+         was lying. Graded on the sentence, not on a field. */
+      assert(/ran out of Raw Shrimp/i.test(out.last),
+        'THE b345 BUG: the last thing the player reads still describes a full night — ' + out.last);
+      /* The span the SURFACE prints must be the span the RECEIPT carries —
+         derived from the receipt rather than hardcoded, so this grades the two
+         AGREEING instead of pinning a literal that a balance change breaks. */
+      const spanStr = Math.max(1, Math.round(out.rec.paidMs / 1000)) + 's in';
+      assert(out.last.indexOf(spanStr) >= 0,
+        'the toast does not say how far into the night the run stopped (expected "' + spanStr
+          + '"): ' + out.last);
+      assert(/paid nothing/i.test(out.last),
+        'the toast never says the rest of the night earned nothing: ' + out.last);
+      assert(/Cooking/.test(out.last), 'the toast does not name what stopped: ' + out.last);
+
+      /* THE DURABLE CARD. The toast is gone in seconds; this is the surface
+         the player still has when they go looking. */
+      window.showTab('profile');
+      H.render();
+      const root = document.getElementById('hd-root');
+      assert(root, 'the Home dashboard root must exist');
+      const band = root.querySelector('.hd-awayband');
+      assert(band, 'no away band rendered for a night that paid something');
+      const txt = band.textContent.replace(/\s+/g, ' ');
+      assert(/ran out of Raw Shrimp/i.test(txt),
+        'THE b345 BUG: the durable card still reads as eight hours of honest pay — ' + txt);
+      assert(txt.indexOf(spanStr) >= 0,
+        'the card must state the span that actually earned, in SECONDS at this scale (expected "'
+          + spanStr + '"): ' + txt);
+      assert(/paid nothing/i.test(txt),
+        'the card never says the remainder earned nothing: ' + txt);
+      assert(/an hour/i.test(txt) && /stock up/i.test(txt),
+        'the card states no consumption rate, so "run out" is a fact nobody can act on: ' + txt);
+
+
+      /* THE FIRST SCREEN A RETURNING PLAYER READS must tell the same story,
+         or the two surfaces disagree about one absence — the b342 defect. */
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const rowsEl = document.getElementById('welcome-rows');
+      assert(rowsEl, 'the welcome-back modal did not build');
+      const rowTxt = rowsEl.textContent.replace(/\s+/g, ' ');
+      assert(/ran out of Raw Shrimp/i.test(rowTxt),
+        'the welcome-back modal reports the night without the stop that ended it: ' + rowTxt);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+
+      /* AND THE CEILING IS NOT BLAMED FOR IT. A long absence that stopped 31s
+         in IS "capped" in wall-clock terms, and the cap cost the player
+         nothing — printing "upgrades raise this" beside the stop sells a
+         purchase that would have changed no number on the card. Run at a
+         length that genuinely hits the ceiling, with the ceiling asserted
+         first, so this cannot pass by never being capped at all.
+         MUTATION PROVEN: drop the `&& !off.stoppedBy` term from the cap note
+         in home-dashboard.js and this fails. */
+      const capped = runNight(8, window.offlineCapHours() + 2);
+      assert(capped.rec.capped === true,
+        'the fixture did not reach the away ceiling — the cap assertion would prove nothing');
+      assert(capped.rec.stoppedBy === 'supplies', 'the capped fixture did not stop on supplies');
+      const capTxt = String(H.__awayCardHtml(capped.rec)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(!/away max/i.test(capTxt),
+        'the card blames the away ceiling for a night the supplies ended: ' + capTxt);
+      assert(!/capped at your/i.test(capped.last),
+        'the toast blames the away ceiling for a night the supplies ended: ' + capped.last);
+      /* …and a capped night that ran the whole way KEEPS the line, because
+         for that player the ceiling is exactly what stopped them. */
+      const capFull = runNight(500000, window.offlineCapHours() + 2);
+      assert(capFull.rec.capped === true && capFull.rec.stoppedBy === null,
+        'the stocked capped fixture is not the case it claims to be');
+      assert(/away max/i.test(String(H.__awayCardHtml(capFull.rec)).replace(/<[^>]*>/g, ' ')),
+        'a genuinely capped night lost the ceiling note — the fix over-corrected');
+
+      /* Back to the reported scenario for the round-trip check. */
+      const out2 = runNight(8);
+      assert(out2.rec.stoppedBy === 'supplies', 'the 8h scenario stopped reporting the supply stop');
+
+      /* IT SURVIVES THE ROUND TRIP. A receipt that evaporates on reload is a
+         toast with extra steps. */
+      window.saveLocal();
+      const raw = localStorage.getItem('hearthbound-save-v2');
+      const saved = JSON.parse(raw);
+      assert(saved && saved.lastOfflineSummary && saved.lastOfflineSummary.stoppedBy === 'supplies',
+        'the stop did not survive saveLocal() — the card is empty after a reload');
+
+      // ── (2) THE OTHER DIRECTION ───────────────────────────────────────
+      /* A well-stocked night must produce NONE of this copy. A card that
+         explains a shortage to somebody who had plenty is the same defect
+         pointed the other way, and it is what a renderer that INFERRED the
+         stop from `paidMs < awayMs` would do on every ordinary night (tick
+         flooring guarantees the inequality). */
+      const plenty = runNight(50000);
+      assert(plenty.rec.stoppedBy === null,
+        'a fully-supplied night reported a stop: ' + JSON.stringify(plenty.rec.stoppedBy));
+      assert(!/ran out of/i.test(plenty.last),
+        'a fully-supplied night still says the supplies ran out: ' + plenty.last);
+      const fullTxt = String(H.__awayCardHtml(plenty.rec)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(!/ran out of/i.test(fullTxt), 'the card invents a shortage on a stocked night: ' + fullTxt);
+      assert(/base rate/i.test(fullTxt), 'the base-rate statement must survive on a paying night: ' + fullTxt);
+
+      // ── (3) A PRE-b345 RECEIPT DEGRADES TO SILENCE ────────────────────
+      const legacyShape = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 51, gainedItems: 4, at: Date.now() };
+      const legacyTxt = String(H.__awayCardHtml(legacyShape)).replace(/<[^>]*>/g, ' ');
+      assert(!/ran out of/i.test(legacyTxt),
+        'an old receipt with no stop payload produced stop copy — the renderer is inferring: ' + legacyTxt);
+    } finally {
+      window.notify = realNotify;
+      window.getBonus = realBonus;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      G.lastOfflineSummary = prevSummary;
+      G.lastWelcome = prevWelcome;
+      restoreG(snap);
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game', () => {
+    /* ── THE MEASURED BUG ────────────────────────────────────────────────
+       Real first boot (storage cleared, tour finished, Skills › Woodcutting):
+       `.hr-dl-box` — the 420x242 panel, dead centre — sat on top of the first
+       gathering tile. The handler reacted to exactly two things: the claim
+       button, and `e.target === scrim`. A click landing on the PANEL matched
+       neither, so it did nothing at all — no claim, no dismissal, no feedback,
+       sheet still up. Four consecutive clicks on "Normal Tree" were swallowed
+       with `activeSkill` still null. There was no close control of any kind,
+       so nothing said that the dark area — and only the dark area — was the
+       way out. Round 2 wipes every save to first boot, so this is the opening
+       interaction of the game for all twenty beta players.
+
+       MUTATION PROVEN: restore `else if (e.target === scrim) { scrim.remove(); }`
+       in daily-reward.js and the first assertion fails with the sheet still on
+       screen; remove the `.hr-dl-close` button and the affordance assertion
+       fails; remove the keydown listener and the Escape assertion fails. */
+    const G = window.G;
+    const D = window.HearthriseDaily;
+    assert(D && typeof D.open === 'function', 'the daily-reward feature must be loaded');
+    const prevDaily = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : null;
+    const prevGold = G.gold;
+    const realNotify = window.notify;
+    const kill = () => { const s = document.getElementById('hr-dl-modal'); if (s) s.remove(); };
+    /* The FTUE tour sits at z-index 99999, one above this sheet (which is
+       exactly why daily-reward.js waits for it — `anotherModalUp()`), so in a
+       harness context it is the thing elementFromPoint finds. Parked for the
+       duration and restored, rather than ended: this test has no business
+       changing the tour's state, and a hit-test that silently graded the wrong
+       element would be a guard asserting nothing. */
+    const parked = Array.from(document.querySelectorAll('.ftue-root'))
+      .map((el) => ({ el, prev: el.style.display }));
+    try {
+      parked.forEach((p) => { p.el.style.display = 'none'; });
+      const toasts = [];
+      window.notify = function (m) { toasts.push(String(m)); };
+      G.dailyReward = { lastClaimDay: 0 };                 // claimable
+      kill(); D.open();
+      let scrim = document.getElementById('hr-dl-modal');
+      assert(scrim, 'the daily sheet did not open');
+
+      /* (a) THERE IS A VISIBLE WAY OUT. Measured absent before this fix. */
+      const closeBtn = scrim.querySelector('[data-dl-close]');
+      assert(closeBtn, 'THE b345 BUG: the sheet has no close control at all');
+      assert(getComputedStyle(closeBtn).display !== 'none' && closeBtn.getBoundingClientRect().width > 0,
+        'the close control exists but is not on screen');
+      assert(/close/i.test(scrim.textContent),
+        'nothing on the sheet tells the player how to get rid of it: ' + scrim.textContent.slice(0, 160));
+      assert(scrim.getAttribute('role') === 'dialog' && scrim.getAttribute('aria-modal') === 'true',
+        'a full-screen interceptor must declare itself a modal dialog');
+
+      /* (b) A CLICK ON THE PANEL — the exact click that was eaten — must
+         produce a visible result. Driven at the geometric centre of the box,
+         through elementFromPoint, so this grades what a MOUSE does and not
+         what a hand-picked target does. */
+      const box = scrim.querySelector('.hr-dl-box');
+      const r = box.getBoundingClientRect();
+      const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + 30);
+      /* Park whatever the suite's earlier tests have left stacked above this
+         point until the sheet itself is the thing under the cursor. Derived
+         from the actual paint order rather than from a hardcoded list of
+         overlay class names — a list would rot, and a hit-test that quietly
+         graded the wrong element is a guard asserting nothing. */
+      let hit = document.elementFromPoint(cx, cy);
+      for (let i = 0; i < 12 && hit && !scrim.contains(hit); i++) {
+        parked.push({ el: hit, prev: hit.style.display });
+        hit.style.display = 'none';
+        hit = document.elementFromPoint(cx, cy);
+      }
+      assert(hit && scrim.contains(hit) && !hit.closest('[data-dl-claim]')
+        && !hit.closest('[data-dl-close]'),
+        'the probe point is not on the sheet\'s dead area (it is "'
+          + (hit ? (hit.id ? '#' + hit.id : '.' + String(hit.className).split(' ')[0]) : 'null')
+          + '") — the fixture proves nothing');
+      hit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      assert(!document.getElementById('hr-dl-modal'),
+        'THE b345 BUG: a click on the sheet\'s own panel did nothing — it is swallowed in silence '
+        + 'and the sheet is still up to swallow the next one');
+      /* And the reward was not silently lost with it. */
+      assert(D.isClaimable(G) === true, 'dismissing the sheet must not consume the reward');
+      assert(toasts.some((t) => /still waiting/i.test(t)),
+        'the sheet vanished without saying where the reward went: ' + toasts.join(' | '));
+
+      /* (c) THE NEXT CLICK REACHES THE GAME. The player-level property: after
+         one intercepted click, that same screen point is no longer the sheet. */
+      const nowAt = document.elementFromPoint(cx, cy);
+      assert(!nowAt || !nowAt.closest('.hr-dl-scrim'),
+        'the sheet is still intercepting that point after being dismissed');
+
+      /* (d) ESCAPE. */
+      toasts.length = 0;
+      kill(); D.open();
+      assert(document.getElementById('hr-dl-modal'), 'the sheet did not reopen for the Escape case');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      assert(!document.getElementById('hr-dl-modal'), 'Escape does not close the sheet');
+      /* THE LISTENER MUST DIE WITH THE SHEET, including when the sheet is torn
+         out by something other than close(). A document-level keydown that
+         outlives its modal fires forever — here it would toast "your reward is
+         waiting" on every Escape for the rest of the session.
+         MUTATION PROVEN: drop the `scrim.isConnected` guard from onKey and
+         this fails with a toast from a sheet nobody can see. */
+      toasts.length = 0;
+      kill(); D.open();
+      document.getElementById('hr-dl-modal').remove();      // torn out, not closed
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      assert(toasts.length === 0,
+        'a removed sheet still answers the keyboard: ' + toasts.join(' | '));
+
+      /* (e) AND CLAIMING STILL CLAIMS. The fix must not have turned the
+         reward button into another way to close the sheet. */
+      toasts.length = 0;
+      G.dailyReward = { lastClaimDay: 0 };
+      const before = G.gold || 0;
+      kill(); D.open();
+      const claimBtn = document.querySelector('#hr-dl-modal [data-dl-claim]');
+      assert(claimBtn, 'the claimable sheet has no claim button');
+      claimBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      assert((G.gold || 0) > before, 'clicking Claim paid nothing: ' + before + ' -> ' + G.gold);
+      assert(!document.getElementById('hr-dl-modal'), 'claiming did not close the sheet');
+      assert(D.isClaimable(G) === false, 'the reward is still claimable after being claimed');
+      assert(!toasts.some((t) => /still waiting/i.test(t)),
+        'a CLAIMED reward was announced as still waiting: ' + toasts.join(' | '));
+    } finally {
+      window.notify = realNotify;
+      kill();
+      parked.forEach((p) => { p.el.style.display = p.prev; });
+      if (prevDaily) G.dailyReward = prevDaily;
+      G.gold = prevGold;
+      try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  /* ASYNC on purpose: openSkillDetail() defers the repaint by a macrotask
+     (`setTimeout(() => renderSkillDetail(id), 0)`), so a synchronous test
+     reads whatever the PREVIOUS test left on screen — which is how the first
+     draft of this one compared a mining tile to a woodcutting rate. Driving
+     the player's actual entry point and waiting for the paint is the honest
+     shape; calling renderSkillDetail directly would skip the hop. */
+  () => tryRunAsync('B345-3: an activity tile quotes the XP the ENGINE pays, not a number it made up', async () => {
+    /* ── THE MEASURED BUG ────────────────────────────────────────────────
+       The gather tile printed `Math.max(1, Math.floor(pacedXp(skill, xp)))`,
+       which drops the `(1 + allXP + xpB)` term grantXp applies to every grant.
+       Stock save, Normal Tree: the tile said "5 XP · 4.6s"; actionRate said 6;
+       the engine paid 6. The activity HEADER four inches above it reads
+       actionRate, so two readouts of one number disagreed on one screen.
+
+       This test grades three things against each other — the DOM tile, the
+       header's calculator, and what addXp actually moves the skill by — so it
+       cannot be satisfied by making two of the three agree on a wrong number.
+
+       MUTATION PROVEN: restore the bare `pacedXp` expression in EITHER
+       legacy.js tileForGather or activities-grid.js's effXp and the tile/engine
+       comparison fails (whichever renderer is wired). */
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const realBonus = window.getBonus;
+    try {
+      const tree = (window.TREES || [])[0];
+      assert(tree, 'there must be a gathering action to grade');
+      /* A REAL, NON-ZERO allXP. Without one the broken expression and the
+         correct one agree, and the test would pass on the bug. Injected at the
+         same seam every perk source uses (the wrapper chain), not by writing a
+         field, so the whole stack is exercised.
+
+         `__hrPowerBudget` IS LOAD-BEARING, and finding out why cost an hour:
+         src/features/power-budget.js re-installs itself as the OUTERMOST
+         getBonus wrapper on a permanent 1-SECOND INTERVAL, and it re-wraps
+         anything that does not carry that flag. So a substitute getBonus in an
+         ASYNC test is stable for under a second — after that the value is
+         silently re-clamped by the budget and the test is measuring a
+         different stack than the one it installed. (Measured: an override
+         reading 3.03 came back as 0.28 by the next assertion.) Claiming the
+         flag is the module's own published idempotence contract, not a defeat
+         of the fuse: `realBonus` below is still the fully-budgeted chain, and
+         only the synthetic term rides outside it — identically for the tile,
+         for actionRate and for addXp, which is exactly the three-way equality
+         under test. */
+      const SPEED = { gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1 };
+      const raise = (n) => {
+        const f = function (k) {
+          if (k === 'allXP') return (realBonus(k) || 0) + n;
+          /* PINNED, for the duration. The tile prints a DURATION as well as an
+             XP figure, and the duration is `speedClamp(getBonus(speedKey))` —
+             which moves while this test runs (buffs decay, events rotate, the
+             power-budget re-install re-clamps). Measured: an artisan tile read
+             3.7s against a rate computed a moment later at 3.8s. Pinning makes
+             the comparison exact instead of tolerant; the property under test
+             ("the tile equals the one calculator") holds at any speed. */
+          if (SPEED[k]) return 0;
+          return realBonus.apply(this, arguments);
+        };
+        f.__hrPowerBudget = true;
+        window.getBonus = f;
+      };
+      raise(0.25);
+      assert(window.getBonus('allXP') >= 0.25, 'the fixture failed to raise allXP — nothing below is tested');
+
+      const rate = window.actionRate('woodcutting', tree);
+      assert(rate && rate.xpPerAction > 0, 'actionRate returned nothing for the first tree');
+
+      /* WHAT THE ENGINE ACTUALLY PAYS, measured by moving it. Rested XP is a
+         BANK, not a rate, so it is emptied for the measurement. */
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      const restedSave = G.restedXp; G.restedXp = 0;
+      const beforeXp = G.skills.woodcutting || 0;
+      window.addXp('woodcutting', tree.xp);
+      const paid = (G.skills.woodcutting || 0) - beforeXp;
+      G.restedXp = restedSave;
+      assert(paid === rate.xpPerAction,
+        'the HEADER\'s calculator disagrees with the engine (' + rate.xpPerAction + ' vs ' + paid + ') — '
+        + 'the tile below cannot be graded against a broken reference');
+
+      /* THE TILE THE PLAYER SEES. Read out of the live DOM through the real
+         renderer, whichever of the two twins is wired — a test that called one
+         builder directly would pass while the other shipped the bug.
+
+         AND IT MUST ACTUALLY REPAINT. renderSkillDetail keeps a render key and
+         takes the cheap lightUpdate path when it has not changed; lightUpdate
+         never rewrites `.at-meta`. Before b345 the tile's XP could not depend
+         on allXP, so the key had no reason to carry it — which meant this test
+         was reading a tile painted under a DIFFERENT bonus stack (measured:
+         tile 8, engine 7, and both were "right" for the moment they were
+         computed). The key now carries the multiplier, so raising allXP is
+         itself what forces the repaint, and asserting on the tile below
+         doubles as the guard that it does. */
+      const tileNames = () => Array.from(document.querySelectorAll('#skill-detail .act-tile'))
+        .map((t) => ((t.querySelector('.at-name') || {}).textContent || '').trim());
+      const tileFor = (name) => Array.from(document.querySelectorAll('#skill-detail .act-tile'))
+        .find((t) => ((t.querySelector('.at-name') || {}).textContent || '').trim() === String(name).trim());
+      /* The same reset the game itself performs when it needs a guaranteed
+         rebuild (legacy.js does it in two places). Earlier tests in this suite
+         leave the detail pane in whatever state they finished in. */
+      window._actLastRender = { skillId: null, activeKey: null };
+      window.showTab('skills');
+      window.openSkillDetail('woodcutting');
+      await new Promise((r) => setTimeout(r, 60));
+      const tile = tileFor(tree.name);
+      assert(tile, 'no tile rendered for "' + tree.name + '" — on screen: [' + tileNames().join(', ') + ']');
+      const meta = tile.querySelector('.at-meta');
+      assert(meta, 'the tile for "' + tree.name + '" has no meta line');
+      const shown = meta.textContent.trim();
+      const m = shown.match(/^(\d+)\s*XP/);
+      assert(m, 'the tile no longer leads with an XP figure: ' + shown);
+      assert(Number(m[1]) === paid,
+        'THE b345 BUG: the tile advertises ' + m[1] + ' XP for an action the engine pays ' + paid
+          + ' for (tile: "' + shown + '")');
+      /* And the duration, which was already right for gathering — pinned so
+         the "read the one calculator" fix cannot regress it. */
+      const secs = shown.match(/·\s*([\d.]+)s/);
+      assert(secs && Math.abs(Number(secs[1]) - rate.ms / 1000) < 0.06,
+        'the tile duration drifted from actionRate: ' + shown + ' vs ' + (rate.ms / 1000).toFixed(1) + 's');
+
+      /* ── THE STALENESS THIS FIX CREATED, AND CLOSED ──────────────────
+         Printing the engine's number means the tile now DEPENDS on allXP,
+         and renderSkillDetail's cheap path (lightUpdate) never rewrites
+         `.at-meta`. So a blessing or buff arriving mid-session would have
+         left the pre-buff figure on screen — the same class of bug the
+         render key already carries `catLv` and `catBurn` for. Raising the
+         multiplier and re-rendering must move the tile.
+         MUTATION PROVEN: drop `catXp` from the activeKey in EITHER twin and
+         this fails with the stale number still on the tile. */
+      raise(3);
+      window.openSkillDetail('woodcutting');
+      await new Promise((r) => setTimeout(r, 60));
+      const bigRate = window.actionRate('woodcutting', tree);
+      const restaled = tileFor(tree.name).querySelector('.at-meta').textContent.trim();
+      assert(bigRate.xpPerAction > rate.xpPerAction,
+        'the fixture did not actually move the multiplier — the staleness check would pass vacuously');
+      assert(restaled !== shown && Number((restaled.match(/^(\d+)/) || [])[1]) === bigRate.xpPerAction,
+        'the tile did not repaint when the XP multiplier changed — it still reads "' + restaled
+          + '" where the engine now pays ' + bigRate.xpPerAction);
+      raise(0.25);
+
+      /* THE ARTISAN TILE carried the same lie plus one of its own (it applied
+         no speed perk at all). Same three-way grade. */
+      const cook = (window.ARTISAN_RECIPES.cooking || []).find((r) => r.id === 'cook_shrimp');
+      assert(cook, 'cook_shrimp must exist');
+      const cRate = window.actionRate('cooking', cook);
+      G.skills = Object.assign({}, G.skills, { cooking: 0 });
+      const cBefore = G.skills.cooking || 0;
+      const cRested = G.restedXp; G.restedXp = 0;
+      window.addXp('cooking', cook.xp);
+      const cPaid = (G.skills.cooking || 0) - cBefore;
+      G.restedXp = cRested;
+      assert(cPaid === cRate.xpPerAction,
+        'actionRate disagrees with the engine for cooking: ' + cRate.xpPerAction + ' vs ' + cPaid);
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
+      window.openSkillDetail('cooking');
+      await new Promise((r) => setTimeout(r, 60));
+      const cTile = tileFor(cook.name);
+      assert(cTile, 'no tile rendered for "' + cook.name + '"');
+      const cShown = cTile.querySelector('.at-meta').textContent.trim();
+      const cm = cShown.match(/^(\d+)\s*XP/);
+      assert(cm, 'the artisan tile no longer leads with an XP figure: ' + cShown);
+      assert(Number(cm[1]) === cPaid,
+        'THE b345 BUG: the artisan tile advertises ' + cm[1] + ' XP for an action the engine pays '
+          + cPaid + ' for (tile: "' + cShown + '")');
+      /* The artisan tile's OWN extra lie: it printed pacedActionMs with no
+         speed perk applied at all. Pinned against the one calculator. */
+      const cSecs = cShown.match(/·\s*([\d.]+)s/);
+      assert(cSecs && Math.abs(Number(cSecs[1]) - cRate.ms / 1000) < 0.06,
+        'the artisan tile duration drifted from actionRate: ' + cShown
+          + ' vs ' + (cRate.ms / 1000).toFixed(1) + 's');
+
+      /* ── THE TWIN NOBODY CAN SEE ──────────────────────────────────────
+         src/features/activities-grid.js holds a second copy of both tile
+         builders. In the shipped boot order legacy.js block 27 assigns
+         window.renderSkillDetail LAST, so the twin paints nothing — measured:
+         reverting its XP expression to the pre-b345 bare pacedXp left this
+         whole suite green. A twin no test can reach is a twin that drifts,
+         and this is the file that drifted last time. Graded through its
+         published builders instead of through the DOM.
+         MUTATION PROVEN: restore the bare `pacedXp` in activities-grid.js's
+         effXp and this fails, with every DOM assertion above still passing. */
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForGather === 'function' && typeof AG.__tileForArtisan === 'function',
+        'the activities-grid twin publishes no test seam, so it cannot be graded at all');
+      const metaOf = (html) => {
+        const d = document.createElement('div'); d.innerHTML = html;
+        const el = d.querySelector('.at-meta');
+        return el ? el.textContent.trim() : '';
+      };
+      const twinGather = metaOf(AG.__tileForGather(tree, 'woodcutting'));
+      assert(Number((twinGather.match(/^(\d+)/) || [])[1]) === rate.xpPerAction,
+        'the activities-grid TWIN quotes ' + twinGather + ' where the engine pays '
+          + rate.xpPerAction + ' — the two tile builders have drifted again');
+      const twinArtisan = metaOf(AG.__tileForArtisan(cook, 'cooking'));
+      assert(Number((twinArtisan.match(/^(\d+)/) || [])[1]) === cRate.xpPerAction,
+        'the activities-grid TWIN quotes ' + twinArtisan + ' for cooking where the engine pays '
+          + cRate.xpPerAction);
+    } finally {
+      window.getBonus = realBonus;
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

@@ -1297,6 +1297,22 @@ function processOffline(){
   const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
   let combatSummary = null;
+  /* ── b345: HOW MUCH OF THE ABSENCE ACTUALLY PAID ────────────────────────
+     `hrs` is how long the player was GONE. It has never been how long their
+     run EARNED, and the summary had no field that could tell the two apart —
+     so a cooking session that exhausted eight shrimp in 30.7 seconds of a
+     28,800-second night was reported, on every durable surface, as a full
+     night's honest pay. (Measured: away interval 3,840 ms × 8 shrimp = 0.107%
+     of the absence.)
+
+     Same fix b342 applied to the declined-combat night, applied to the reason
+     it happens to everybody: SUPPLIES. `paidMs` is the span that earned;
+     `stoppedBy` NAMES what ended it and `stoppedById` names the thing. All
+     three are STATED, never inferred — a renderer must not conclude "it
+     stopped early" from `paidMs < awayMs`, because flooring a tick count
+     already makes that true on a perfectly ordinary night. */
+  let paidMs = Math.round(hrs*3600000);
+  let stoppedBy = null, stoppedById = null, stoppedSkill = null, stoppedPerHour = 0;
 
   /* ── b227: EVERYTHING that simulates elapsed time runs inside the latch ──
      The rotating blessings are session-gated, and every "is the player here?"
@@ -1329,7 +1345,8 @@ function processOffline(){
       const recipes=window.ARTISAN_RECIPES[G.activeSkill];
       const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
       if(rec && typeof window.doArtisanAction==='function'){
-        const ticks=Math.floor((hrs*3600000)/offlineIntervalMs(rec.ms));
+        const stepMs=offlineIntervalMs(rec.ms);
+        const ticks=Math.floor((hrs*3600000)/stepMs);
         /* b225: cooking burns offline at exactly the same odds as online —
            doArtisanAction is the single source of truth and this replay drives
            it. `silent` suppresses the per-burn toast (a night's cooking would
@@ -1338,10 +1355,48 @@ function processOffline(){
            The count is reported once by the summary below.
            the summary line below reports once. */
         window._hrOfflineBurns = 0;
+        /* ── b345: THE GUARD ON THE NEXT LINE WAS DEAD FOR ITS WHOLE LIFE ───
+           It read `typeof hasInputs==='function' && !hasInputs(rec)`. But
+           `hasInputs` is declared INSIDE the IIFE at the artisan-data block
+           near line 10800 and is never published, so at THIS scope the free
+           identifier resolves against the global object and is `undefined` —
+           the `typeof` test is false and the `break` never executed. Measured
+           on the reported save: 7,500 calls into a bag that had been empty
+           since call 9, versus 8 once a global `hasInputs` is published.
+
+           A guarded call to a name that does not exist in scope is the one
+           bug shape this file already carries three scars from. The fix is
+           not to publish another global: core IS the authority on recipe
+           shape (`hasInputs` above delegates to exactly this function), and
+           `window.HearthriseCore` is in scope everywhere.
+
+           WHY THE LOOP STILL MAKES ONE MORE CALL AFTER IT DECIDES TO STOP:
+           because the honest stop the player already gets today — the
+           activity being cleared and the "Out of Raw Shrimp — cooking
+           stopped" toast — comes from doArtisanAction's OWN refusal branch,
+           not from this loop. Proved by mutation: publishing a global
+           `hasInputs` (making the old break fire) left `G.activeSkill` stuck
+           on 'cooking' and deleted that toast entirely. So the loop asks the
+           refusal branch to do its job ONCE, rather than growing a second
+           copy of the stop-and-say-why logic that could then drift from it. */
+        const _art=(window.HearthriseCore&&window.HearthriseCore.artisan)||null;
+        let done=0;
         for(let i=0;i<ticks;i++){
-          if(typeof hasInputs==='function' && !hasInputs(rec)) break;   // out of materials
+          const _missing=_art ? _art.missingInput(rec, G.inventory) : null;
+          if(_missing){
+            /* Captured HERE, not read at report time: the refusal call below
+               clears G.activeSkill, so anything downstream that asked "what
+               was running?" would find null and say "the run". */
+            stoppedBy='supplies'; stoppedById=_missing; stoppedSkill=G.activeSkill;
+            const _need=(_art.recipeInputs(rec)||{})[_missing]||1;
+            stoppedPerHour=Math.round(_need*3600000/Math.max(1,stepMs));
+            window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
+            break;
+          }
           window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
+          done++;
         }
+        if(stoppedBy) paidMs=done*stepMs;
       }
     } else if(G.activeSkill){
       // Offline gather runs at the same rate as active play — no dampening.
@@ -1433,11 +1488,40 @@ function processOffline(){
        6-minute granularity — fine for "8.2h", wrong for "8h 12m". The exact
        span is carried alongside it so a duration can be PRINTED honestly. */
     awayMs: Math.round(hrs*3600000),
+    /* ── b345: THE RUN'S OWN LENGTH, beside the absence's ─────────────────
+       `awayMs` is how long the player was gone; `paidMs` is how long their
+       run earned. They are equal on an ordinary night and wildly unequal on
+       the one this exists for. DEATH IS FOLDED IN rather than left as a
+       parallel concept: `died`/`diedAfterMs` stay exactly as they were (three
+       surfaces read them and death has richer copy than a generic stop), but
+       it also reports through this seam so a renderer can ask ONE question —
+       "did the run end before the absence did, and what ended it?" — instead
+       of growing a new branch per reason. A future reason (a full bank, a
+       despawn) is then a new `stoppedBy` VALUE and a copy row, not a new
+       field and a new code path. That is the AWAY_SCOPE lesson: rules that
+       grow belong in a table. */
+    paidMs: (combatSummary && combatSummary.died)
+      ? (combatSummary.survivedMs||0) : paidMs,
+    stoppedBy: (combatSummary && combatSummary.died) ? 'death' : stoppedBy,
+    stoppedById: (combatSummary && combatSummary.died)
+      ? (combatSummary.diedTo||null) : stoppedById,
+    /* The skill that was running, as an ID — resolved to a display name by
+       each renderer, exactly as `diedTo` is resolved through MONSTERS. */
+    stoppedSkill: stoppedSkill,
+    /* Supplies only: how much of the missing input an hour of this run eats.
+       Stated here because THIS is the only place that knows the away interval
+       and the recipe together; a card that re-derived it would be a second
+       estimator of a night that is already settled. 0 when it does not apply. */
+    stoppedPerHour: stoppedPerHour,
   };
   /* b307: no daily bucket to report. Only speak up when the absence was long
      enough to hit the per-absence cap, so the player learns the ceiling by
      bumping it rather than by seeing an accusatory "0h left" every login. */
-  const budgetNote = capped ? ` · capped at your ${cap}h offline max — upgrades raise this` : '';
+  /* b345: …and only when the run was STILL EARNING as the window closed.
+     A cap note beside "ran out of Raw Shrimp 31s in" reads as the cause of an
+     empty night and sells an upgrade that would have changed nothing. Same
+     rule the away card follows, keyed on the same stated field. */
+  const budgetNote = (capped && !stoppedBy) ? ` · capped at your ${cap}h offline max — upgrades raise this` : '';
   /* b227: the rate, stated in the ONE offline surface a player actually sees.
      The day's blessing is announced on Home and in Events as something that is
      alive while you are in the game; a welcome-back line that said nothing
@@ -1458,8 +1542,22 @@ function processOffline(){
   } else {
     /* b225: if the fire ruined any of it while you were away, say so — an
        unexplained pile of Burnt Food in the bag is exactly the kind of
-       silent mechanic the b224 food lesson said never to ship again. */
-    notify(`⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — +${gainedItems} items, +${gainedXp} XP` +
+       silent mechanic the b224 food lesson said never to ship again.
+
+       ── b345: AND IF THE RUN STOPPED, THE STOP LEADS ─────────────────────
+       This toast is the LAST thing a returning player reads, and it used to
+       read "Offline 8.0h at the base rate — +11 items, +80 XP" over a run
+       that had ended 30.7 seconds in. The honest line ("Out of Raw Shrimp —
+       cooking stopped") is fired by doArtisanAction three toasts earlier and
+       is then contradicted by this one. So the stop is stated HERE too, in
+       the same sentence as the totals, where it cannot be outlived. */
+    const _restMs = Math.max(0, Math.round(hrs*3600000) - paidMs);
+    const stopLead = stoppedBy==='supplies'
+      ? `${_skillLabel(stoppedSkill)} ran out of ${_itemLabel(stoppedById)} ${fmtSince(paidMs)} in`
+        + (_restMs >= 60000 ? `; the remaining ${fmtHm(_restMs)} paid nothing` : '')
+        + '. '
+      : '';
+    notify(`⏰ Offline ${hrs.toFixed(1)}h ${rateNote} — ${stopLead}+${gainedItems} items, +${gainedXp} XP` +
       (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : '') + budgetNote,'info');
   }
 }
@@ -1469,6 +1567,29 @@ function fmtHm(ms){
   const mins=Math.max(0,Math.round((Number(ms)||0)/60000));
   if(mins<60) return mins+'m';
   return Math.floor(mins/60)+'h '+(mins%60)+'m';
+}
+/* b345 — "31s" / "4m" / "2h 5m". SECONDS BELOW A MINUTE, and that is the
+   whole reason this exists rather than fmtHm: the case it was written for is
+   a run that lasted 30.7 seconds, and fmtHm rounds that to "1m" — which reads
+   as a rounding artefact and tells the player nothing. Same rule the away
+   card's death line already follows (home-dashboard.js), for the same reason. */
+function fmtSince(ms){
+  const n=Math.max(0,Number(ms)||0);
+  if(n < 60000) return Math.max(1,Math.round(n/1000))+'s';
+  return fmtHm(n);
+}
+/* The player-facing name of an item id, for a sentence. Falls back to the id
+   with underscores opened up rather than printing "undefined" — the shape of
+   lie this file has shipped before. */
+function _itemLabel(id){
+  if(!id) return 'materials';
+  return (window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || String(id).replace(/_/g,' ');
+}
+/* "Cooking" from 'cooking'. Same shape as _itemLabel and for the same reason:
+   the receipt carries IDs, every renderer resolves its own display name. */
+function _skillLabel(id){
+  if(!id) return 'Your run';
+  return (window.SKILLS_DEF && window.SKILLS_DEF[id] && window.SKILLS_DEF[id].name) || String(id);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -9395,6 +9516,17 @@ function maybeShowWelcome(){
     if(_off.gainedGold > 0)  rows.push({g:'gold',        t:'Gold earned',  v:'+' + Number(_off.gainedGold).toLocaleString()});
     if(_off.gainedKills > 0) rows.push({g:'uiSword',     t:'Kills',        v:'+' + Number(_off.gainedKills).toLocaleString()});
     if(_off.burnt > 0)       rows.push({g:'uiFire',      t:'Burnt on the fire', v:Number(_off.burnt).toLocaleString()});
+    /* b345 — THE RUN THAT STOPPED, on the FIRST screen a returning player
+       reads. Same field, same sentence, same span as the Home away card, so
+       the two surfaces cannot tell different stories about one absence — the
+       exact failure b342 was built to correct. Death keeps its own richer row
+       below; this speaks only for the other stop reasons. */
+    if(_off.stoppedBy && _off.stoppedBy !== 'death'){
+      var _skN = _skillLabel(_off.stoppedSkill);
+      rows.push({g:'uiHourglass', bad:true,
+        t: _skN + ' ran out of ' + _itemLabel(_off.stoppedById) + ' — nothing was earned after',
+        v: fmtSince(_off.paidMs) + ' in'});
+    }
     /* THE DECLINED NIGHT, on the first screen the player reads. Same sentence
        as the Home card, from the same field, so the two surfaces cannot drift
        into telling different stories about one absence. */
@@ -12560,11 +12692,22 @@ function tileForGather(action, skillId){
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
   /* b226: the tile is a price tag — it must state the PACED duration, tool
-     speed included, because that is what startSkill() will actually set. */
-  var bestT = (window.HearthriseTools && window.HearthriseTools.bestTool) ? window.HearthriseTools.bestTool(skillId) : null;
-  var toolSpeed = (bestT && bestT.toolSpeed) ? bestT.toolSpeed : 0;
-  var speed = ((typeof getBonus==='function') ? getBonus('gatherSpeed') : 0) + toolSpeed;
-  var ms = Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp(speed)));
+     speed included, because that is what startSkill() will actually set.
+     ── b345: AND IT MUST NOT COMPUTE THAT PRICE ITSELF ────────────────────
+     The tile re-derived both numbers by hand. The duration it got right; the
+     XP it printed as a bare `pacedXp(skillId, action.xp)`, which DROPS the
+     `(1 + allXP + xpB)` term grantXp applies to every grant. Measured on a
+     stock save: the tile said "5 XP · 4.6s" for a Normal Tree the engine paid
+     **6** for — and the activity header, four inches above it on the same
+     screen, said 6, because the header reads actionRate(). Two readouts of
+     one number, disagreeing in public.
+     actionRate() is the ONE place a rate is computed (its header says so).
+     Reading it is not just a fix, it is what stops the next perk from having
+     to be remembered in two places. */
+  var rate = (typeof window.actionRate==='function') ? window.actionRate(skillId, action) : null;
+  var ms = rate ? rate.ms
+    : Math.max(500, Math.floor(pacedActionMs(action.ms)*speedClamp((typeof getBonus==='function')?getBonus('gatherSpeed'):0)));
+  var xpPer = rate ? rate.xpPerAction : Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)));
   /* Wave 1/3 (audit fix, Tyler: "the fishing rod doesn't seem to do anything"): the
      tool DID apply, but nothing on screen said so. Name the active tool and ALL its
      bonuses (speed + double-yield) so the effect is legible. Shared with artisan tiles. */
@@ -12587,7 +12730,7 @@ function tileForGather(action, skillId){
        "Qty: 0" is not information: the count appears once you own some. */
     +'<div class="at-icon">'+actIconHtml(action.prod, action.icon)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
-    +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,action.xp)))+' XP · '+fmtSec(ms)+'</div>'
+    +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +(unlocked ? toolLine : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
@@ -12662,6 +12805,18 @@ function tileForArtisan(recipe, skillId){
     return (kv[1]>1?kv[1]+'× ':'')+nm+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
   }).join(' + ');
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
+  /* b345: the artisan tile carried the SAME two lies as the gather tile, plus
+     one of its own — it printed `pacedActionMs(recipe.ms)` with no speed perk
+     applied at all, so a cook with +15% cookSpeed was quoted the unbuffed
+     duration. Both numbers now come off actionRate(), the one calculator.
+     KNOWN GAP, stated rather than papered over: actionRate adds TOOL speed for
+     gathering skills only (core/pacing.js speedKeyFor/GATHER_SKILLS), while
+     the live loop's activityIntervalMs() adds it for artisan skills too. A
+     tooled smith's tile therefore still reads slightly slow. That divergence
+     is in core, is shared with the accrual payload, and is not this fix. */
+  var rate = (typeof window.actionRate==='function') ? window.actionRate(skillId, recipe) : null;
+  var xpPer = rate ? rate.xpPerAction : Math.max(1,Math.floor(window.pacedXp(skillId,recipe.xp)));
+  var actMs = rate ? rate.ms : window.pacedActionMs(recipe.ms||3000);
   /* b225: the open fire can ruin a cook — the tile says so before you press it. */
   var burnLine = (typeof window.burnRiskLine === 'function') ? window.burnRiskLine(recipe, skillId) : '';
   var burnText = (typeof window.burnRiskText === 'function') ? window.burnRiskText(recipe, skillId) : '';
@@ -12672,7 +12827,7 @@ function tileForArtisan(recipe, skillId){
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+actIconHtml(outId, outDef ? outDef.icon : '')+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    +'<div class="at-meta">'+Math.max(1,Math.floor(window.pacedXp(skillId,recipe.xp)))+' XP · '+fmtSec(window.pacedActionMs(recipe.ms||3000))+'</div>'
+    +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(actMs)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
     +burnLine
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
@@ -12874,7 +13029,16 @@ function patchSkillDetail(){
        — the exact stale-render class of bug the two notes above describe.
        Level is already in the key, so mastery relief repaints for free. */
     var catBurn = (id==='cooking' && typeof getBonus==='function') ? getBonus('noBurn') : '';
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn;
+    /* b345: …and so is the XP multiplier, for exactly the reason the three
+       notes above give. The tile now prints the number the ENGINE pays, which
+       includes `allXP` — so a blessing, buff or pet that moves it must repaint
+       the tiles instead of leaving the pre-buff figure on screen. Before b345
+       the tile's XP could not depend on this, which is why it was not in the
+       key; the moment a surface starts printing a fact, the key that decides
+       whether to repaint it has to carry that fact. One extra getBonus() per
+       render (measured below 0.01ms; the key already calls one for cooking). */
+    var catXp = (typeof getBonus==='function') ? getBonus('allXP') : 0;
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp;
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){

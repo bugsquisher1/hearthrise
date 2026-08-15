@@ -132,11 +132,11 @@ const snapshotG = () => {
        so it reaches the cloud, which also means the suite can now pollute it. */
     buffs: G.buffs,
     toolCarry: G.toolCarry,
-    /* b341 (the Field Licence): the survival forecast reads the auto-eat TRAIT
-       and the FOOD SLOT, and every away test drives `lastSeen`. All three were
-       mutable by the suite and unsnapshotted — LICENCE-7 clearing `auto_eat`
-       would have taken a real player's 100-mark purchase with it, which is
-       exactly the pollution this list exists to prevent. */
+    /* b341: the survival forecast reads the auto-eat TRAIT and the FOOD SLOT,
+       and every away test drives `lastSeen`. All three were mutable by the
+       suite and unsnapshotted — AWAY-HONEST-3 clearing `auto_eat` would have
+       taken a real player's 100-mark purchase with it, which is exactly the
+       pollution this list exists to prevent. */
     traits: G.traits,
     foodSlot: G.foodSlot,
     lastSeen: G.lastSeen,
@@ -6555,8 +6555,8 @@ const TESTS = [
       /* b341 FIXTURE: the four HOURLY rows below are now conditional — a rate
          may only be quoted over a span the character can survive (§4.1). This
          test is about the maths REACHING the modal, so it stands a character
-         who genuinely lasts the hour; the sub-hour rendering is LICENCE-7's
-         assertion, and pinning it there rather than weakening this one keeps
+         who genuinely lasts the hour; the sub-hour rendering is
+         AWAY-HONEST-3's assertion, and pinning it there rather than weakening this one keeps
          each test owning one claim. */
       G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
       window.renderCombat();
@@ -13014,13 +13014,6 @@ const TESTS = [
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
       G.playerHp = G.playerMaxHp;
-      /* b341 FIXTURE: away combat is gated on the Field Licence (100 kills,
-         src/core/licence.js). This test is about ACCRUAL, not the gate, so it
-         stands a licensed veteran — the same character it always meant. The
-         unlicensed case is LICENCE-1's job, and it is a separate test on
-         purpose: a fixture that quietly satisfies a precondition is how a gate
-         stops being tested. */
-      G.stats = Object.assign({}, G.stats, { kills: Math.max(G.stats && G.stats.kills || 0, window.HearthriseCore.licence.FIELD_LICENCE_KILLS) });
       const killsBefore = G.stats.kills || 0;
       const goldBefore = G.gold || 0;
       /* Direct simulator: half an hour of fighting must produce kills. Driven
@@ -13631,9 +13624,6 @@ const TESTS = [
       const now = Date.now();
       G.lastSeen = now - 3600000;                                  // away 1 hour
       G.offlineBudget = { dayKey: 0, usedMs: 0, at: now - 3600000 };
-      /* b341 FIXTURE: licensed (see the note in b255). This test guards
-         paione's 71→71 bug, which is about the CREDIT path, not the gate. */
-      G.stats = Object.assign({}, G.stats, { kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
       const k0 = G.stats.kills || 0;
       window.processOffline();
       const credited = (G.stats.kills || 0) - k0;
@@ -14087,9 +14077,6 @@ const TESTS = [
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 99;
       G.playerHp = G.playerMaxHp;
-      /* b341 FIXTURE: licensed (see b255). The Android throttle bug this
-         guards is about the WATERMARK, not the licence. */
-      G.stats = Object.assign({}, G.stats, { kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
       // Backgrounded 30 min ago; the watermark sits at hide-time.
       const hideAt = Date.now() - 30 * 60000;
       G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: hideAt };
@@ -14149,9 +14136,7 @@ const TESTS = [
          cannot empty it under ANY seed. combat-sim treats playerMaxHp as given
          (it only floors it at 10), so this is a construction, not a wager. */
       G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
-      /* b341 FIXTURE: licensed (see b255). This guards RE-ARMING after a
-         frozen span, not the gate. */
-      G.stats = Object.assign({}, G.stats, { deaths: 0, kills: window.HearthriseCore.licence.FIELD_LICENCE_KILLS });
+      G.stats = Object.assign({}, G.stats, { deaths: 0 });
       // Simulate a 5-minute frozen span with a fresh budget.
       if(typeof window.ensureOfflineBudget === 'function'){
         const b = window.ensureOfflineBudget(Date.now()); b.at = Date.now() - 5 * 60000; b.usedMs = 0;
@@ -17375,14 +17360,13 @@ const TESTS = [
         G.skills = Object.assign({}, G.skills);
         G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
         /* b341: the rig's contract is IDENTICAL STARTING STATE, and quests are
-           now part of it — the Field Licence quest pays a one-time 1,500 XP at
-           its 100th kill, and this rig lands well past 100. Left un-reset, the
-           live run collected it and the away run could not, and the parity
+           now part of it — the hundred-kill milestone pays a one-time 1,500 XP
+           at its 100th kill, and this rig lands well past 100. Left un-reset,
+           the live run collected it and the away run could not, and the parity
            assertion read that as a 1,500 XP away shortfall: a false red that
            accuses the away path of the exact crime this test exists to detect.
-           Resetting makes it a STRONGER assertion — the quest payout must now
-           land identically through both paths, which is a real property of the
-           licence being a switch rather than a modifier. */
+           Resetting makes it a STRONGER assertion — the quest payout must land
+           identically through both paths. */
         G.quests = [];
         const xpBefore = Object.assign({}, G.skills);
         C.reseed(0xC0FFEE);
@@ -21989,39 +21973,46 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
-     b341 — THE FIELD LICENCE (docs/design/away-combat-licence.md)
+     b343 — AWAY COMBAT PAYS FROM KILL ONE, AND EVERY SURFACE SAYS WHAT IT PAYS
 
-     Tyler: "Afk combat exp shouldn't come immediately, the player should be
-     guided to play the game manually early on to get the hang of it." Then:
-     "Build it and make it into a quest, that provides some good combat
-     experience."
+     b341/b342 gated away combat behind 100 hand-landed kills (the "Field
+     Licence") and shipped twelve tests asserting that the gate and its copy
+     RENDER. Tyler's ruling removed the gate: "I think we just needed to make
+     it a quest and get rid of the license shit it's way too confusing."
 
-     Two claims are load-bearing and each has its own test, because they pull
-     in opposite directions and a single test would let one hide behind the
-     other:
+     These tests are those tests, rewritten rather than deleted — a test
+     deleted to unblock a removal is how the honesty bug that started all of
+     this shipped in the first place. Each one now guards what REPLACED the
+     behaviour it used to guard:
 
-       LICENCE-1  an UNLICENSED away span pays EXACTLY nothing, field by field
-       LICENCE-2  a LICENSED one is byte-identical to the ungated simulation —
-                  the licence is a SWITCH, never a modifier
-
-     LICENCE-4 is the guard on the binding ruling: it fails if anyone
-     "simplifies" the licence into `AWAY_SCOPE`, which is the twelfth instance
-     of the one bug that table exists to prevent.
+       AWAY-HONEST-1  no precondition: an 8h absence at ZERO kills pays, field
+                      by field, and leaves no gate residue on the receipt
+       AWAY-HONEST-2  the caller applies no modifier either — processOffline's
+                      span is byte-identical to the direct simulation at both
+                      ends of the kill range the gate used to split
+       AWAY-HONEST-3  a rate is only quoted over a span you can survive, and
+                      the Away line names the thing that really ends the night
+       AWAY-HONEST-4  gathering banks the whole absence, from kill zero
+       AWAY-HONEST-5  the FTUE promises exactly what the engine delivers
+       AWAY-SCOPE-1   `AWAY_SCOPE` is still the frozen table, and no gate
+                      module has come back by any name
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('LICENCE-1: an UNLICENSED away span accrues exactly nothing — asserted field by field', () => {
+  () => tryRun('AWAY-HONEST-1: away combat pays from kill ONE — no precondition, and no gate residue on the receipt', () => {
     const G = window.G;
-    const L = window.HearthriseCore.licence;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
     try {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      /* THE CHARACTER THE OLD GATE REFUSED: zero lifetime kills. High HP so a
+         zero result could only be a PRECONDITION — never a death, which is a
+         legitimate reason for a small night and is asserted separately. */
       G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;          // cannot die — so a zero is the GATE, not a death
+      G.playerMaxHp = 9999; G.playerHp = 9999;
       const m = window.MONSTERS.slime;
       G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1, deaths: 0 });
+      G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0 });
       G.gold = 1000;
       G.inventory = Object.assign({}, G.inventory);
       G.quests = [];
@@ -22029,37 +22020,47 @@ const TESTS = [
       G.lastSeen = now - 8 * 3600000;
       G.offlineBudget = { at: now - 8 * 3600000 };       // EIGHT HOURS away
 
-      const before = {
-        kills: G.stats.kills, deaths: G.stats.deaths || 0, gold: G.gold,
-        skills: JSON.stringify(G.skills), inv: JSON.stringify(G.inventory),
-      };
+      const before = { kills: G.stats.kills, gold: G.gold, xp: G.skills.hitpoints || 0 };
       window.processOffline();
 
-      /* Field by field, not by a summed total: a total can be zero because two
-         non-zero deltas cancelled, and the whole claim is that NOTHING moved. */
-      assert(G.stats.kills === before.kills, 'a declined span granted kills: +' + (G.stats.kills - before.kills));
-      assert((G.stats.deaths || 0) === before.deaths, 'a declined span killed the player — it was not simulated at all');
-      assert(G.gold === before.gold, 'a declined span granted gold: +' + (G.gold - before.gold));
-      assert(JSON.stringify(G.skills) === before.skills, 'a declined span granted XP:\n  ' + before.skills + '\n  ' + JSON.stringify(G.skills));
-      assert(JSON.stringify(G.inventory) === before.inv, 'a declined span granted items');
-      /* And it must SAY so. An empty night with a reason is a lesson; an empty
-         night with no reason is a bug report. */
-      assert(G._awayLicence && G._awayLicence.declined === true,
-        'a declined span must publish the reason for the away card / toast to state');
-      assert(G._awayLicence.kills === L.FIELD_LICENCE_KILLS - 1 && G._awayLicence.need === L.FIELD_LICENCE_KILLS,
-        'the declined note must carry the real counter, got ' + JSON.stringify(G._awayLicence));
+      /* Field by field, in the same shape the gate test used, pointed the
+         other way: every channel a night pays must have moved.
+         MUTATION PROVEN: wrap the `simulateAwayCombat` call in processOffline
+         in ANY precondition (`if (G.stats.kills >= 100)`) and all three of
+         these fail at once. */
+      assert(G.stats.kills > before.kills,
+        'THE b343 BUG: an away combat span at 0 kills granted no kills — a precondition is back');
+      assert(G.gold > before.gold, 'the span granted no gold: ' + G.gold + ' vs ' + before.gold);
+      assert((G.skills.hitpoints || 0) > before.xp, 'the span granted no XP');
+
+      /* THE RECEIPT CARRIES NO GATE. A stale `licence` block would be read by
+         nothing now, but its presence is how a removed feature comes back:
+         the next author sees the field and rebuilds the branch that reads it. */
+      const rec = G.lastOfflineSummary;
+      assert(rec, 'processOffline wrote no receipt');
+      assert(!('licence' in rec),
+        'the receipt still carries the retired gate verdict: ' + JSON.stringify(rec.licence));
+      assert(!G._awayLicence, 'the retired gate is still publishing its scratch field');
+      assert(rec.gainedKills > 0 && rec.hrs > 0,
+        'the receipt reports a night that paid nothing while the save says otherwise: ' + JSON.stringify({ hrs: rec.hrs, kills: rec.gainedKills }));
+
+      /* AND THE ABSENCE WAS CONSUMED, not banked. The old gate's budget rule
+         ("a declined night must not cost the allowance") is moot, but the
+         invariant underneath it is not: the watermark always advances on a
+         visible return, or the same hours are paid twice. */
+      assert(Math.abs(G.offlineBudget.at - Date.now()) < 10000,
+        'the absence was BANKED — the watermark sits '
+        + Math.round((Date.now() - G.offlineBudget.at) / 60000) + ' min in the past');
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
-      try { delete G._awayLicence; } catch (e) {}
       restoreG(snap);
     }
   }),
 
-  () => tryRun('LICENCE-2: the release is a SWITCH — a licensed span is byte-identical to the ungated simulation', () => {
+  () => tryRun('AWAY-HONEST-2: the CALLER applies nothing — a seeded span through processOffline equals the direct simulation, at 0 kills and at 500', () => {
     const G = window.G;
     const C = window.HearthriseCore;
-    const L = C.licence;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
     const origBonus = window.getBonus;
@@ -22067,10 +22068,12 @@ const TESTS = [
       window.getBonus = () => 0;
       G.buffs = [];
       /* One seeded 30-minute span, run twice from identical state: once by
-         calling simulateAwayCombat directly (which has NO licence check — the
-         gate is at the CALLER, by design), once through processOffline with the
-         licence satisfied. If the licence were a modifier anywhere in the
-         resolver, these two would differ. */
+         calling simulateAwayCombat directly, once through processOffline. The
+         removed gate lived at the CALLER, so the caller is where a residue of
+         it would hide — a survivor branch, an attenuation, a "half rate under
+         N kills". Run at BOTH ends of the kill range the old threshold split:
+         a gate reintroduced at 100 is invisible to a test that only ever
+         stands a veteran, which is exactly how the b341 fixtures read. */
       const stand = (kills) => {
         G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
         G.playerMaxHp = 9999; G.playerHp = 9999;
@@ -22085,28 +22088,41 @@ const TESTS = [
         inv: JSON.stringify(G.inventory),
       });
 
-      stand(L.FIELD_LICENCE_KILLS);
-      C.reseed(0x1CE7CE);
-      P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, Date.now(), false); });
-      const direct = read(L.FIELD_LICENCE_KILLS);
+      const runPair = (baseKills) => {
+        stand(baseKills);
+        C.reseed(0x1CE7CE);
+        P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, Date.now(), false); });
+        const direct = read(baseKills);
 
-      stand(L.FIELD_LICENCE_KILLS);
-      const now = Date.now();
-      G.lastSeen = now - 1800000;
-      G.offlineBudget = { at: now - 1800000 };
-      const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      C.reseed(0x1CE7CE);
-      try { window.processOffline(); } finally {
-        if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-        else { try { delete document.hidden; } catch (e) {} }
-      }
-      const gated = read(L.FIELD_LICENCE_KILLS);
+        stand(baseKills);
+        const now = Date.now();
+        G.lastSeen = now - 1800000;
+        G.offlineBudget = { at: now - 1800000 };
+        const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+        C.reseed(0x1CE7CE);
+        try { window.processOffline(); } finally {
+          if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+          else { try { delete document.hidden; } catch (e) {} }
+        }
+        return { direct: direct, viaCaller: read(baseKills) };
+      };
 
-      assert(direct.kills > 0, 'the rig produced no kills — the parity assertion would be vacuous');
-      assert(direct.kills === gated.kills, 'kills diverged through the gate: ungated ' + direct.kills + ' vs licensed ' + gated.kills);
-      assert(direct.gold === gated.gold, 'gold diverged through the gate: ' + direct.gold + ' vs ' + gated.gold);
-      assert(direct.inv === gated.inv, 'drops diverged through the gate:\n  ' + direct.inv + '\n  ' + gated.inv);
+      /* MUTATION PROVEN: put ANY precondition back around the
+         `simulateAwayCombat` call in processOffline and the 0-kill pair fails
+         on "kills diverged"; make it an attenuation instead of a gate and both
+         pairs fail. */
+      [0, 500].forEach((baseKills) => {
+        const r = runPair(baseKills);
+        const at = ' (at ' + baseKills + ' lifetime kills)';
+        assert(r.direct.kills > 0, 'the rig produced no kills' + at + ' — the parity assertion would be vacuous');
+        assert(r.direct.kills === r.viaCaller.kills,
+          'kills diverged through processOffline' + at + ': direct ' + r.direct.kills + ' vs ' + r.viaCaller.kills);
+        assert(r.direct.gold === r.viaCaller.gold,
+          'gold diverged through processOffline' + at + ': ' + r.direct.gold + ' vs ' + r.viaCaller.gold);
+        assert(r.direct.inv === r.viaCaller.inv,
+          'drops diverged through processOffline' + at + ':\n  ' + r.direct.inv + '\n  ' + r.viaCaller.inv);
+      });
     } finally {
       window.getBonus = origBonus;
       C.randomSeed();
@@ -22114,9 +22130,8 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('LICENCE-3: a declined span does not cost the player their offline allowance', () => {
+  () => tryRun('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
     const G = window.G;
-    const L = window.HearthriseCore.licence;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
     try {
@@ -22126,48 +22141,45 @@ const TESTS = [
       const m = window.MONSTERS.slime;
       G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1 });
+      G.stats = Object.assign({}, G.stats, { kills: 0 });
       G.quests = [];
       const cap = window.offlineCapHours();
       const now = Date.now();
       G.lastSeen = now - 8 * 3600000;
       G.offlineBudget = { at: now - 8 * 3600000 };
-      window.processOffline();                                   // 8h, declined
+      const k0 = G.stats.kills || 0;
+      window.processOffline();                                   // 8h, paid
+      assert((G.stats.kills || 0) > k0, 'the fixture banked nothing — everything below would be vacuous');
 
-      /* THE GUARANTEE, stated in the terms b307's PER-ABSENCE budget actually
-         has, because the spec's literal wording is not implementable here and
-         would be a bug if it were.
-
-         (a) NOTHING WAS SPENT. Under a per-absence cap there is no bucket to
-             draw down, so this is a readout assertion: the next absence still
-             sees the whole cap. */
-      assert(window.offlineBudgetRemainingMs() === cap * 3600000,
-        'a declined span must leave the next absence its full allowance, got '
-        + (window.offlineBudgetRemainingMs() / 3600000) + 'h of ' + cap + 'h');
-
-      /* (b) AND IT WAS NOT BANKED — the assertion with teeth. The spec asks
-         for "`offlineBudget.at` unchanged", which reads as generosity and is
-         actually the b214 double-pay shape: park the watermark and the same
-         eight unlicensed hours are paid RETROACTIVELY the moment the player
-         crosses 100 kills. The absence is consumed like any other; what the
-         player keeps is the ALLOWANCE, not the hours. */
+      /* (a) NOTHING IS BANKED. b307's cap is PER ABSENCE, so the watermark
+         must land on NOW: leave it in the past and the same eight hours are
+         paid again on the next return — the b214 double-pay shape. Belt and
+         braces rather than the sole guard: `saveLocal` also pins the watermark
+         to `lastSeen` on every visible save, so this states the invariant
+         without being the only thing that can catch a break in it. */
       assert(Math.abs(G.offlineBudget.at - Date.now()) < 10000,
-        'a declined absence was BANKED (watermark left ' + Math.round((Date.now() - G.offlineBudget.at) / 60000)
-        + ' min in the past) — it will be paid retroactively the moment the licence is earned');
-      G.stats.kills = L.FIELD_LICENCE_KILLS;                      // licence earned, right now
+        'the absence was BANKED (watermark left ' + Math.round((Date.now() - G.offlineBudget.at) / 60000)
+        + ' min in the past) — it will be paid a second time on the next return');
+
+      /* (b) AND IT IS NOT RE-PAID. Coming straight back pays nothing more. */
+      const k1 = G.stats.kills || 0;
       G.playerHp = G.playerMaxHp;
       G.activeMonster = 'slime'; G.monsterHp = m.hp;
-      const k0 = G.stats.kills;
-      window.processOffline();                                   // returning immediately after
-      assert((G.stats.kills || 0) === k0,
-        'the declined night was paid retroactively once the licence was earned: +' + ((G.stats.kills || 0) - k0) + ' kills');
+      window.processOffline();
+      assert((G.stats.kills || 0) === k1,
+        'returning immediately re-paid the same absence: +' + ((G.stats.kills || 0) - k1) + ' kills');
 
-      /* (c) and a genuine later absence still pays the whole cap. */
+      /* (c) and the NEXT absence is paid the whole per-absence cap.
+         MUTATION PROVEN: clip `capMs` in `claimOfflineMs` (to
+         `offlineCapHours()*3600000*0.5`) and this fails on "clipped". */
+      assert(window.offlineBudgetRemainingMs() === cap * 3600000,
+        'the next absence lost part of its allowance: '
+        + (window.offlineBudgetRemainingMs() / 3600000) + 'h of ' + cap + 'h');
       G.playerHp = G.playerMaxHp;
       G.activeMonster = 'slime'; G.monsterHp = m.hp;
       G.offlineBudget = { at: Date.now() - (cap * 3600000) };
       window.processOffline();
-      assert((G.stats.kills || 0) > k0, 'the absence after a declined one paid nothing — the allowance was spent');
+      assert((G.stats.kills || 0) > k1, 'the following absence paid nothing at all');
       assert(G.lastOfflineSummary && G.lastOfflineSummary.hrs >= cap - 0.1,
         'the following absence was clipped: ' + (G.lastOfflineSummary && G.lastOfflineSummary.hrs) + 'h of ' + cap + 'h');
     } finally {
@@ -22177,12 +22189,12 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('LICENCE-4: AWAY_SCOPE is untouched — the licence is a precondition, never a channel', () => {
+  () => tryRun('AWAY-SCOPE-1: AWAY_SCOPE is the frozen table, and no away-eligibility gate has come back by any name', () => {
     const C = window.HearthriseCore;
-    /* THE FROZEN TABLE. This test exists to fail if someone "simplifies" the
-       licence into the resolver. away.js's contract is that an unknown channel
-       PAYS, because every historical away bug was a base reward silently
-       vanishing; a licence expressed as a channel would be number twelve. */
+    /* THE FROZEN TABLE. away.js's contract is that an UNKNOWN channel PAYS,
+       because every historical away bug was a base reward silently vanishing.
+       This test predates b343 and outlives it: whatever anyone builds next,
+       the resolver stays a table of bonus channels and never a permission. */
     const scope = C.away.AWAY_SCOPE;
     const expected = { permanent: true, crit: true, botd: true, heal: true, blessing: false, buff: false };
     assert(Object.keys(scope).sort().join(',') === Object.keys(expected).sort().join(','),
@@ -22191,29 +22203,31 @@ const TESTS = [
       assert(scope[k] === expected[k], 'AWAY_SCOPE.' + k + ' changed to ' + scope[k] + ' — the ruling says ' + expected[k]);
     });
     assert(C.away.AWAY_RATE_MULT === 1.00, 'AWAY_RATE_MULT must stay exactly 1.00, found ' + C.away.AWAY_RATE_MULT);
-    /* And the licence must not have reached into that module by any other
-       name: a `licence`/`FIELD_LICENCE` reference inside away.js would mean
-       the gate is being resolved per grant after all. */
-    assert(!('licence' in scope) && !('fieldLicence' in C.away) && !('FIELD_LICENCE_KILLS' in C.away),
-      'src/core/away.js has grown a licence term — read src/core/licence.js\'s header');
-    assert(typeof C.licence.fieldLicence === 'function' && C.licence.FIELD_LICENCE_KILLS === 100,
-      'the licence must live in its own pure module at 100 kills');
+    /* b343: THE GATE MODULE IS GONE AND MUST STAY GONE. `src/core/licence.js`
+       exported a predicate that decided whether an away span ran at all; Tyler
+       removed the rule it served. Asserting the absence of the module AND of
+       its window binding is what makes "removed" a contract rather than a
+       commit message — the next author rebuilding it has to delete a test
+       first, and that is the conversation this line exists to force.
+       MUTATION PROVEN: re-export any module as `HearthriseCore.licence` and
+       this fails. */
+    assert(!('licence' in C) && !('fieldLicence' in C.away) && !('FIELD_LICENCE_KILLS' in C.away)
+      && !('FIELD_LICENCE_KILLS' in C),
+      'an away-eligibility gate is back in the core: ' + Object.keys(C).join(','));
+    assert(typeof window.HearthriseLicence === 'undefined',
+      'the retired away-gate window API is back — every surface that reads it will grow a branch again');
   }),
 
-  () => tryRun('LICENCE-5: the gate touches COMBAT only — gathering and artisan pay in full from kill zero', () => {
+  () => tryRun('AWAY-HONEST-4: gathering banks the whole absence, from kill zero', () => {
     const G = window.G;
-    const L = window.HearthriseCore.licence;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
     try {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      assert(L.awayActivityAllowed('gathering', { stats: { kills: 0 } }) === true, 'gathering must never be gated');
-      assert(L.awayActivityAllowed('artisan', { stats: { kills: 0 } }) === true, 'artisan must never be gated');
-      assert(L.awayActivityAllowed('combat', { stats: { kills: 0 } }) === false, 'combat at 0 kills must be gated');
-
-      /* And end-to-end, through the real catch-up: a brand-new player with a
-         woodcutting session running banks the whole night. This contrast is
-         the design — "combat pays nothing tonight, so set a skill running". */
+      /* A brand-new player with a woodcutting session running banks the whole
+         night. Kept from the gate era, where it proved the gate did not leak
+         past combat; it is still the guard on the one promise the FTUE makes
+         without qualification ("even when you're offline, progress continues"). */
       G.stats = Object.assign({}, G.stats, { kills: 0 });
       G.activeMonster = null; G.activeArtisanRecipe = null;
       G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
@@ -22228,8 +22242,8 @@ const TESTS = [
       G.lastSeen = now - 3600000;
       G.offlineBudget = { at: now - 3600000 };
       window.processOffline();
-      assert((G.skills.woodcutting || 0) > xp0, 'an unlicensed player must still bank gathering XP away');
-      assert((G.inventory[tree.prod] || 0) > wood0, 'an unlicensed player must still bank gathered items away');
+      assert((G.skills.woodcutting || 0) > xp0, 'a 0-kill player must still bank gathering XP away');
+      assert((G.inventory[tree.prod] || 0) > wood0, 'a 0-kill player must still bank gathered items away');
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
@@ -22237,33 +22251,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('LICENCE-6: earned once, never revoked — and garbage state never grants it', () => {
-    const L = window.HearthriseCore.licence;
-    const K = L.FIELD_LICENCE_KILLS;
-    assert(L.fieldLicence({ stats: { kills: K - 1 } }).ok === false, 'one kill short must not be licensed');
-    assert(L.fieldLicence({ stats: { kills: K } }).ok === true, 'exactly the threshold must license');
-    /* Monotone: nothing above the threshold can revoke it — including a death,
-       which is state the gate must not read at all. */
-    [K, K + 1, K * 10, 1e9].forEach((n) => {
-      assert(L.fieldLicence({ stats: { kills: n, deaths: 500 } }).ok === true, 'the licence was revoked at ' + n + ' kills');
-    });
-    /* Garbage reads as NOT EARNED. The safe direction for a gate is "not yet",
-       never "earned" — a NaN that grants a permission is a permission a
-       corrupt save hands out for free. */
-    [undefined, null, {}, { stats: {} }, { stats: { kills: NaN } }, { stats: { kills: -5 } },
-      { stats: { kills: 'lots' } }, { stats: { kills: Infinity } }].forEach((s) => {
-      const v = L.fieldLicence(s);
-      if (s && s.stats && s.stats.kills === Infinity) return;   // genuinely >= 100
-      assert(v.ok === false, 'garbage state granted the licence: ' + JSON.stringify(s));
-      assert(v.kills >= 0 && isFinite(v.kills), 'garbage state produced a garbage counter: ' + v.kills);
-    });
-    /* It survives a save round trip because it is DERIVED from stats.kills —
-       there is no separate flag for a restore to lose. */
-    const round = JSON.parse(JSON.stringify({ stats: { kills: K + 7 } }));
-    assert(L.fieldLicence(round).ok === true, 'the licence did not survive a save round trip');
-  }),
-
-  () => tryRun('LICENCE-7: the forecast is survivable — a rate is only quoted over a span you can live through', () => {
+  () => tryRun('AWAY-HONEST-3: the forecast is survivable — a rate is only quoted over a span you can live through', () => {
     const G = window.G;
     assert(typeof window._hrEstimateCombat === 'function', 'the estimator must be published for this assertion');
     const snap = snapshotG();
@@ -22294,8 +22282,21 @@ const TESTS = [
         + modal.textContent.replace(/\s+/g, ' ').slice(0, 400));
       assert(/kills/i.test(modal.textContent) && /Away:/.test(modal.textContent),
         'the preview must print the run and the Away line instead');
-      assert(/Field Licence/.test(modal.textContent) && /\/\s*100/.test(modal.textContent),
-        'an unlicensed preview must name the licence and its counter');
+      /* b343: THE AWAY LINE NAMES THE THING THAT REALLY ENDS THE NIGHT. It
+         used to name a permission ("land 100 kills for your Field Licence"),
+         which was never the reason a fresh character's night was short — the
+         reason is that nobody eats for you without Auto-Eat, and this
+         character has no trait and no food slot. A line that withholds the
+         promise without naming the fix is only half of honest.
+         MUTATION PROVEN: return a flat "<b>Away:</b> pays at the base rate"
+         from `awayLineHtml` and both assertions fail. */
+      const awayLine = document.querySelector('#mp-modal .mp-away-line');
+      assert(awayLine, 'the preview must carry an Away line — it is the answer to "can I leave this running?"');
+      const awayTxt = awayLine.textContent.replace(/\s+/g, ' ');
+      assert(/you fall/i.test(awayTxt),
+        'the Away line does not say what ends the fight: ' + awayTxt);
+      assert(/Auto-Eat/i.test(awayTxt),
+        'the Away line names no way out — the fix is the trait, and it is buyable: ' + awayTxt);
 
       /* The other side of the rule: a character who DOES survive the hour
          still gets the hourly rate. The fix must not have deleted it. */
@@ -22445,16 +22446,6 @@ const TESTS = [
       G.playerHp = 10; G.playerMaxHp = 10;
       G.activeMonster = 'dragon'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.lastOfflineSummary = null;
-      /* THE FIELD LICENCE MUST BE HELD, or processOffline declines the combat
-         span before it ever simulates and there is no death to report. That is
-         the licence working, not a bug — but it means this test would otherwise
-         assert death honesty against a night that never ran. The two features
-         landed in the same build and this is the seam between them: a receipt
-         can say "you died" or "you are not licensed", and it must never have to
-         guess which. Licensed here so the DEATH path is the one under test;
-         LICENCE-1..3 cover the declined path. `stats` is in the fixture's save
-         above, so this is restored with everything else. */
-      G.stats = Object.assign({}, G.stats, { kills: 500 });
       if (typeof window.ensureOfflineBudget === 'function') {
         const b = window.ensureOfflineBudget(Date.now());
         b.at = Date.now() - 4 * 3600000; b.usedMs = 0;   // four hours away
@@ -22700,27 +22691,33 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('LICENCE-8: the licence is a QUEST — it reaches an existing save, mirrors stats.kills, and pays authored combat XP once', () => {
+  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors stats.kills, pays authored combat XP once, and never pays twice across the b343 rename', () => {
     const G = window.G;
-    const L = window.HearthriseCore.licence;
+    const ID = 'hundred_kills';
     const snap = snapshotG();
     try {
-      const def = (window.QUEST_DEFS || []).find((q) => q.id === 'field_licence');
-      assert(def, 'the Field Licence must be a QUEST_DEFS row, not bespoke UI');
-      assert(def.goal === L.FIELD_LICENCE_KILLS,
-        'the quest goal (' + def.goal + ') and the gate (' + L.FIELD_LICENCE_KILLS + ') must be one number');
+      const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
+      assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
+      assert(def.goal === 100, 'the goal must be 100 monsters, got ' + def.goal);
       assert(def.mirror === 'stats.kills',
-        'the quest must MIRROR the field the gate reads, or the counter and the gate drift');
-      assert(def.reward && def.reward.combatXp > 0, 'the reward must be combat XP');
-      assert(!def.reward.marks && !def.reward.gold, 'the licence pays XP, not marks and not gold');
+        'the quest must MIRROR stats.kills, or the counter drifts from the number it displays');
+      assert(def.reward && def.reward.combatXp === 1500,
+        'the reward must be the authored 1,500 combat XP, got ' + JSON.stringify(def.reward));
+      assert(!def.reward.marks && !def.reward.gold, 'it pays XP, not marks and not gold');
+      /* IT IS A GOAL, NOT A PERMIT. Tyler's ruling was about the WORD as much
+         as the rule: 20 beta players meet this label cold at round-two wipe. */
+      assert(/^Defeat 100 monsters$/.test(def.label),
+        'the label must plainly describe the achievement: ' + def.label);
+      assert(!/licen[cs]e|permit/i.test(def.label + ' ' + (def.note || '')),
+        'the retired permit wording is back on the quest: ' + def.label + ' / ' + def.note);
 
       /* (1) IT REACHES AN EXISTING SAVE. Seeding "only when the array is
          empty" is why a quest added after launch used to reach nobody. */
       G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true }];
       G.stats = Object.assign({}, G.stats, { kills: 40 });
       window.ensureRetentionState();
-      const q = G.quests.find((x) => x.id === 'field_licence');
-      assert(q, 'the Field Licence quest never reached a save that already had quests');
+      const q = G.quests.find((x) => x.id === ID);
+      assert(q, 'the quest never reached a save that already had quests');
       assert(G.quests.find((x) => x.id === 'gatherer').done === true, 'the merge clobbered a completed quest');
 
       /* (2) IT MIRRORS. A save that already had 40 kills shows 40/100 the
@@ -22728,9 +22725,9 @@ const TESTS = [
       assert(q.progress === 40, 'the counter must mirror stats.kills, got ' + q.progress);
       G.stats.kills = 77;
       window.updateQuest('kill_any', 1);
-      assert(G.quests.find((x) => x.id === 'field_licence').progress === 77,
+      assert(G.quests.find((x) => x.id === ID).progress === 77,
         'the counter drifted from stats.kills — it must READ, never count');
-      assert(!G.quests.find((x) => x.id === 'field_licence').done, 'the quest completed below its goal');
+      assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
 
       /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
       const origBonus = window.getBonus;
@@ -22740,10 +22737,10 @@ const TESTS = [
         const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
         assert(route.length > 0, 'the style must route the reward somewhere');
         const before = {}; route.forEach((r) => { before[r.skill] = G.skills[r.skill] || 0; });
-        G.stats.kills = L.FIELD_LICENCE_KILLS;
+        G.stats.kills = 100;
         window.updateQuest('kill_any', 1);
-        const done = G.quests.find((x) => x.id === 'field_licence');
-        assert(done.done === true, 'the quest did not complete at ' + L.FIELD_LICENCE_KILLS + ' kills');
+        const done = G.quests.find((x) => x.id === ID);
+        assert(done.done === true, 'the quest did not complete at 100 kills');
         route.forEach((r) => {
           const gained = (G.skills[r.skill] || 0) - before[r.skill];
           /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
@@ -22758,26 +22755,104 @@ const TESTS = [
         G.stats.kills += 500;
         window.updateQuest('kill_any', 1);
         route.forEach((r) => {
-          assert((G.skills[r.skill] || 0) === after[r.skill], 'the licence paid twice on ' + r.skill);
+          assert((G.skills[r.skill] || 0) === after[r.skill], 'the milestone paid twice on ' + r.skill);
+        });
+
+        /* (4) THE RENAME IS A MIGRATION, NOT A NEW QUEST. Every live beta save
+           carries this row under its b341 id. Renaming without moving them
+           would leave the retired LABEL on screen and seed the new id fresh —
+           re-granting 1,500 XP to everyone who had already finished it.
+           MUTATION PROVEN: empty `QUEST_ID_RENAMES` and the first assertion
+           fails on a duplicated row; drop the `done`/`progress` carry-over in
+           `migrateQuestIds` and the pay-again assertion fails. */
+        const paid = {}; route.forEach((r) => { paid[r.skill] = G.skills[r.skill] || 0; });
+        G.quests = [
+          { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
+          { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
+            goal: 100, progress: 100, reward: { combatXp: 1500 }, done: true },
+        ];
+        G.stats.kills = 4000;
+        window.ensureRetentionState();
+        window.updateQuest('kill_any', 1);
+        const rows = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
+        assert(rows.length === 1 && rows[0].id === ID,
+          'the b341 quest id survived the rename (' + rows.map((r) => r.id).join(',') + ') — '
+          + 'the player keeps reading the retired label');
+        assert(rows[0].done === true, 'a completed milestone came back unfinished through the rename');
+        route.forEach((r) => {
+          assert((G.skills[r.skill] || 0) === paid[r.skill],
+            'the rename re-granted the milestone on ' + r.skill + ': +'
+            + ((G.skills[r.skill] || 0) - paid[r.skill]) + ' XP');
+        });
+
+        /* An IN-FLIGHT row keeps its place too, and is still payable. */
+        G.quests = [{ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'old',
+          goal: 100, progress: 62, reward: { combatXp: 1500 }, done: false }];
+        G.stats.kills = 62;
+        window.ensureRetentionState();
+        const mid = G.quests.filter((x) => x.id === ID);
+        assert(mid.length === 1 && mid[0].done === false && mid[0].progress === 62,
+          'an in-flight milestone lost its progress in the rename: ' + JSON.stringify(mid));
+
+        /* (5) BOTH IDS IN ONE SAVE — the one state a rename can produce, and
+           the reason the migration dedupes rather than only renaming. Two rows
+           under one id both complete and both PAY. Asserted in BOTH orders,
+           because which row the merge meets first decides which one survives
+           and only one of the two orders exercises the carry-over.
+           MUTATION PROVEN: drop the `prev.done || q.done` term in
+           `migrateQuestIds` and the fresh-row-first order fails on a finished
+           milestone coming back unfinished — and then paying again. */
+        const oldRow = () => ({ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills',
+          label: 'Field Licence — defeat 100 monsters', goal: 100, progress: 100,
+          reward: { combatXp: 1500 }, done: true });
+        const newRow = () => ({ id: ID, type: 'kill_any', mirror: 'stats.kills',
+          label: 'Defeat 100 monsters', goal: 100, progress: 0,
+          reward: { combatXp: 1500 }, done: false });
+        [['old first', [oldRow(), newRow()]], ['fresh first', [newRow(), oldRow()]]].forEach(([label, rows2]) => {
+          G.quests = rows2;
+          G.stats.kills = 4000;
+          const held = {}; route.forEach((r) => { held[r.skill] = G.skills[r.skill] || 0; });
+          window.ensureRetentionState();
+          window.updateQuest('kill_any', 1);
+          const merged = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
+          assert(merged.length === 1 && merged[0].id === ID,
+            label + ': the duplicate survived (' + merged.map((r) => r.id).join(',') + ') — two rows '
+            + 'under one id complete twice and pay twice');
+          assert(merged[0].done === true,
+            label + ': a finished milestone came back unfinished through the merge');
+          route.forEach((r) => {
+            assert((G.skills[r.skill] || 0) === held[r.skill],
+              label + ': the merge re-granted the milestone on ' + r.skill + ': +'
+              + ((G.skills[r.skill] || 0) - held[r.skill]) + ' XP');
+          });
         });
       } finally { window.getBonus = origBonus; }
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('LICENCE-9: the FTUE no longer promises away rewards for combat in the same breath as skills', () => {
+  () => tryRun('AWAY-HONEST-5: the FTUE promises exactly what the engine pays — a skill banks the night, a fight banks until you fall', () => {
     const F = window.HearthriseFTUE;
     assert(F && typeof F.steps === 'function', 'the FTUE must publish its steps for this assertion');
     const steps = F.steps();
     const byId = {}; steps.forEach((s) => { byId[s.id] = s; });
     assert(byId.combat && byId.wrap && byId.skills, 'the FTUE lost a step: ' + Object.keys(byId).join(','));
-    assert(/Field Licence/.test(byId.combat.body),
-      'the combat step must name the Field Licence BEFORE the first fight, not after a bad night');
     assert(/hit back/i.test(byId.combat.body) && /fall/i.test(byId.combat.body),
       'the combat step must say that monsters hit back and a fight ends when you fall');
-    /* The exact sentence that was false: one line promising away rewards for
-       "any skill" and "anything that moves" together. */
+    /* The exact sentence that was false in b340: one line promising away
+       rewards for "any skill" and "anything that moves" on equal terms. */
     assert(!/check back tomorrow for offline rewards/i.test(byId.wrap.body),
       'the wrap step still promises away rewards for combat and skills in one breath');
+    /* b343: away combat pays, so the tour may SAY so — but it must qualify it
+       with the limit that is actually real, or it is the b340 sentence again
+       in new words. Both steps carry the qualification because both mention
+       leaving a fight running.
+       MUTATION PROVEN: drop "but only until you fall" from the wrap body and
+       this fails; put the retired permit sentence back and the last one does. */
+    assert(/until you fall/i.test(byId.wrap.body),
+      'the wrap step sells an away fight without naming what ends it: ' + byId.wrap.body);
+    assert(/while you're away|while you are away/i.test(byId.combat.body)
+      && /until you fall/i.test(byId.combat.body),
+      'the combat step must state the away deal AND its limit in the same breath: ' + byId.combat.body);
     /* And the promise the game DOES keep is untouched. */
     assert(/offline, progress continues/i.test(byId.skills.body),
       'the skills step must still promise offline progress — it is true, and it is the promise the game keeps');
@@ -22896,12 +22971,12 @@ const TESTS = [
     }
   }),
   /* ══════════════════════════════════════════════════════════════════════════
-     b342 — THE FIELD LICENCE'S HONESTY SURFACES, ASSERTED AS SURFACES
+     b342 — THE AWAY HONESTY SURFACES, ASSERTED AS SURFACES
 
-     b341 built the RULE and the copy. It shipped with the rule invisible at all
-     three moments a player meets it — starting a fight, dying, and coming back —
-     and its own guard test passed the whole time, because it asserted that
-     `G._awayLicence` EXISTS rather than that anything renders it. That is this
+     b341 built the rule and the copy and shipped with both invisible at all
+     three moments a player meets them — starting a fight, dying, and coming
+     back — while its own guard test passed the whole time, because it asserted
+     that a FIELD EXISTS rather than that anything renders it. That is this
      repo's recurring failure one layer out: a test that grades the DATA while
      the player's EXPERIENCE is the thing under contract.
 
@@ -22910,90 +22985,133 @@ const TESTS = [
      click behaviour, `#welcome-rows` — and none of them is satisfied by a field
      being present in G. Each one was mutation-proven; the mutation that breaks
      it is named in its own comment.
+
+     b343 removed the away-combat GATE these were written around. They are
+     rewritten, not deleted: the surfaces still have to be honest, and the
+     honest thing to report is now a DEATH and an EMPTY NIGHT rather than a
+     refused permission.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('b342-1: a DECLINED away night renders a durable card that says why, with the counter and a way out', () => {
+  () => tryRun('b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out', () => {
     const G = window.G;
     const H = window.HearthriseHome;
-    const L = window.HearthriseCore.licence;
     assert(H && typeof H.render === 'function' && typeof H.__awayCardHtml === 'function',
       'the Home dashboard must expose render() and the away-card seam');
     const snap = snapshotG();
     const prevSummary = G.lastOfflineSummary;
-    const prevAwayLic = G._awayLicence;
     const prevTab = window.activeTab;
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
     try {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      /* THE MEASURED SCENARIO. A player one kill short of the licence leaves a
-         fight running overnight and comes back. b341's answer was a ~8s toast,
-         rendered behind two stacked modals. */
-      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;
-      const m = window.MONSTERS.slime;
-      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      /* THE MEASURED SCENARIO, AND THE ONE THE WHOLE PROGRAM STARTED FROM. A
+         new character on the game's own Recommended foe leaves a fight running
+         overnight, dies about a minute in, and comes back to an eight-hour
+         absence that paid almost nothing. Driven through the REAL
+         processOffline, not a hand-built receipt: the caller is where b339's
+         escaped mutation lived. */
+      G.equipment = {};
+      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, defense: 0, hitpoints: 1154 });
+      G.playerMaxHp = 10; G.playerHp = 10;
+      G.traits = Object.assign({}, G.traits); delete G.traits.auto_eat;
+      G.foodSlot = null;
+      const m = window.MONSTERS.dragon;
+      G.activeMonster = 'dragon'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
       G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1 });
+      G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0 });
       G.lastOfflineSummary = null;
-      delete G._awayLicence;
       const now = Date.now();
       G.lastSeen = now - 8 * 3600000;
       G.offlineBudget = { at: now - 8 * 3600000 };
 
       window.processOffline();
 
-      /* (1) THE RECEIPT. Not a scratch field the card has to know to look for —
-         the SAME `lastOfflineSummary` every welcome-back surface already reads,
-         so the declined night travels the paths that already exist. */
+      /* (1) THE RECEIPT states the death — it never leaves a renderer to work
+         out for itself why the numbers are small. Same rule as `blessed` and
+         `crits`: stated, never inferred. */
       const rec = G.lastOfflineSummary;
-      assert(rec, 'THE b342 BUG: a declined night wrote no receipt at all, so no durable surface can render it');
-      assert(rec.licence && rec.licence.declined === true,
-        'the receipt must STATE that the night was declined, never leave a renderer to infer it: '
-        + JSON.stringify(rec.licence));
-      assert(rec.licence.kills === L.FIELD_LICENCE_KILLS - 1 && rec.licence.need === L.FIELD_LICENCE_KILLS,
-        'the receipt must carry the real counter: ' + JSON.stringify(rec.licence));
-      /* Explicit zeroes, not absent keys: three shipped readers print these
-         unguarded, and `undefined` on a welcome-back card is its own lie. */
-      ['gainedXp', 'gainedItems', 'gainedGold', 'gainedKills', 'burnt'].forEach((k) => {
-        assert(rec[k] === 0, 'a declined night must report ' + k + ' as an explicit 0, got ' + rec[k]);
-      });
-      assert(rec.awayMs >= 7.9 * 3600000,
-        'the receipt must carry the span the player actually lost (awayMs=' + rec.awayMs + ')');
-      assert(rec.capped === false,
-        'a night that paid nothing must not read as though it spent the offline allowance');
+      assert(rec, 'processOffline wrote no receipt at all, so no durable surface can render the night');
+      assert(rec.died === true, 'the receipt does not carry `died`, so the card cannot say it: ' + JSON.stringify({ died: rec.died }));
+      assert(rec.diedAfterMs > 0 && rec.diedAfterMs < rec.awayMs,
+        'the receipt claims the whole absence was survived by a character who died in it: '
+        + rec.diedAfterMs + ' of ' + rec.awayMs);
+      assert(rec.diedTo === 'dragon', 'the receipt does not name what killed you: ' + rec.diedTo);
 
-      /* (2) THE SURFACE. THIS is the assertion b341 was missing: not that the
-         field exists, but that the dashboard ADMITS it and draws the band. The
-         old gate was `hrs >= 0.1`, and a declined night has hrs === 0 by
-         construction — so the one absence most needing an explanation was the
-         one absence the card was structurally unable to show.
-         MUTATION PROVEN: drop the `|| _declined` term from the render gate in
+      /* (2) THE SURFACE. Not that the field exists — that the dashboard DRAWS
+         the band and the band SAYS it. A night whose paid hours round to
+         nothing used to fall under the `hrs >= 0.1` liveness gate, which is
+         exactly the absence most in need of an explanation.
+         MUTATION PROVEN: drop the `|| _bad` term from the render gate in
          home-dashboard.js and this fails on "no away band"; drop the
-         lastOfflineSummary write in processOffline and it fails one step
-         earlier, on "no receipt at all". */
+         `died`/`diedAfterMs`/`diedTo` mirror in processOffline and it fails one
+         step earlier on the receipt. */
       window.showTab('profile');
       H.render();
       const root = document.getElementById('hd-root');
       assert(root, 'the Home dashboard root must exist');
       const band = root.querySelector('.hd-awayband');
-      assert(band, 'THE b342 BUG: the declined night renders NO away band — the only record of the '
-        + 'night is a toast that is gone in eight seconds');
+      assert(band, 'THE b342 BUG: a night that ended in a death renders NO away band — the only record '
+        + 'of it is a toast that is gone in eight seconds');
       const txt = band.textContent.replace(/\s+/g, ' ');
-      assert(/Field Licence/.test(txt),
-        'the card never names the rule that took the night: ' + txt);
-      assert(new RegExp('\\b' + (L.FIELD_LICENCE_KILLS - 1) + ' of ' + L.FIELD_LICENCE_KILLS + '\\b').test(txt),
-        'the card must show the counter, or the rule reads as a confiscation rather than a target: ' + txt);
-      assert(/quiet/i.test(txt),
-        'the card must say the night was empty rather than printing a bare span: ' + txt);
-      assert(/pay in full while you are away/i.test(txt),
-        'the card must name the activities that DO pay — that contrast is the point of gating one: ' + txt);
-      assert(!/base rate/i.test(txt),
-        '"at the base rate" on a night that paid nothing stands where the explanation should be: ' + txt);
+      assert(/died/i.test(txt), 'the card never mentions the death that ended the absence: ' + txt);
+      assert(/Dragon/i.test(txt), 'the card does not name what killed you, so "you died" is unactionable: ' + txt);
+      assert(/paid nothing|earned after/i.test(txt),
+        'the card does not say the remainder of the absence paid nothing: ' + txt);
+      assert(/hd-away-note is-bad/.test(band.innerHTML),
+        'the death line is not toned as the one clause a player must not skim past');
+      /* AND NO BONUS LINE BOASTING ABOUT NOTHING. MEASURED on this very card
+         before the fix: "0m on the Boss of the Day (+100% drops)" printed
+         beside a death 2.4 seconds into an eight-hour night, because the line
+         was gated on `featuredMs > 0` while `fmtSpanShort` floors to minutes.
+         Unreachable while away combat was gated; the FIRST card a new player
+         sees now.
+         MUTATION PROVEN: put `off.featuredMs > 0` back and this fails. */
+      assert(!/\b0m on the Boss of the Day/.test(txt),
+        'the card claims a featured-boss stretch that rounds to nothing: ' + txt);
 
-      /* (3) THE WAY OUT. §4.4 Case A ends in an action, and it has to be wired
-         to the delegated handler rather than merely look like a button. */
-      const cta = band.querySelector('[data-hd="trainskill"]');
-      assert(cta, 'THE b342 BUG: the declined card has no "Train a skill" CTA — the spec\'s one action');
+      /* (2b) AND THE SHORT ABSENCE THAT KILLED YOU. The dashboard's liveness
+         gate is `hrs >= 0.1` — six minutes — which exists to keep a tab-flip
+         off the card. Step away for three minutes, come back dead, and that
+         same gate hides the only absence you actually need explained. A death
+         is admitted on its own terms.
+         MUTATION PROVEN: drop the `|| _bad` term from the render gate in
+         home-dashboard.js and this fails on "no away band". */
+      G.lastOfflineSummary = { hrs: 0.05, awayMs: 3 * 60000, gainedXp: 0, gainedItems: 0,
+        gainedGold: 0, gainedKills: 0, burnt: 0, crits: 0, capped: false, blessed: false,
+        buffsPaused: false, rateMult: 1, featuredMs: 0, featuredDropMult: 1,
+        died: true, diedAfterMs: 42000, diedTo: 'slime', combat: null, at: Date.now() };
+      H.render();
+      const shortBand = document.querySelector('#hd-root .hd-awayband');
+      assert(shortBand, 'a three-minute absence that ended in a death renders NO away band — the '
+        + 'liveness gate is hiding the one absence that needs explaining');
+      assert(/died/i.test(shortBand.textContent) && /Slime/i.test(shortBand.textContent),
+        'the short-absence card does not name the death: ' + shortBand.textContent.replace(/\s+/g, ' '));
+
+      /* (3) AN EMPTY NIGHT STILL OFFERS THE WAY OUT. The CTA used to be gated
+         on the removed permission flag; it is gated on the RESULT now, which
+         reaches strictly more real cases (dying on the first tick, an artisan
+         session with no inputs) than the flag ever did.
+         MUTATION PROVEN: gate `quiet` on anything other than "nothing was
+         gained" and this fails on the missing CTA. */
+      const empty = { hrs: 0.6, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0,
+        gainedKills: 0, burnt: 0, crits: 0, capped: false, blessed: false, buffsPaused: false,
+        rateMult: 1, at: Date.now(), died: false, diedAfterMs: 0, diedTo: null, combat: null };
+      const ehtml = String(H.__awayCardHtml(empty));
+      const etxt = ehtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(/quiet/i.test(etxt),
+        'an empty night must say it was empty rather than printing a bare span: ' + etxt);
+      assert(!/base rate/i.test(etxt),
+        '"at the base rate" on a night that paid nothing stands where the explanation should be: ' + etxt);
+      assert(/pay in full|bank the whole time/i.test(etxt),
+        'the card must name the activities that DO pay a whole absence: ' + etxt);
+      assert(/data-hd="trainskill"/.test(ehtml),
+        'the empty card has no "Train a skill" CTA — the one action on it');
+
+      /* …and it must be a real button, wired to the delegated handler. */
+      window.showTab('profile');
+      G.lastOfflineSummary = Object.assign({}, empty, { at: Date.now() });
+      H.render();
+      const cta = document.querySelector('#hd-root .hd-awayband [data-hd="trainskill"]');
+      assert(cta, 'the empty card did not reach the dashboard');
       assert(/train a skill/i.test(cta.textContent), 'the CTA must say what it does: ' + cta.textContent);
       assert(typeof cta.onclick === 'function',
         'the CTA is not bound to the dashboard\'s delegated handler, so it is a picture of a button');
@@ -23007,126 +23125,115 @@ const TESTS = [
         'the CTA did not land on Skills — the alternative it names is the whole point of the card');
       window.showTab('profile');
 
-      /* THE OTHER DIRECTION. A licensed receipt must produce none of this copy —
-         a card that explains a licence to someone who holds one is the same
-         defect pointed the other way. */
-      const licensed = Object.assign({}, rec, { hrs: 8, gainedXp: 900, gainedKills: 12,
-        licence: { ok: true, kills: 500, need: L.FIELD_LICENCE_KILLS, declined: false } });
-      const ltxt = String(H.__awayCardHtml(licensed)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-      assert(!/Field Licence/.test(ltxt), 'a licensed night still preaches the licence: ' + ltxt);
-      assert(!/data-hd="trainskill"/.test(String(H.__awayCardHtml(licensed))),
-        'a night that paid is being told to go do something else');
-      assert(/base rate/i.test(ltxt), 'the base-rate statement must survive on every paying night: ' + ltxt);
-      /* And a pre-b342 receipt (no `licence` key at all) degrades to silence. */
-      const legacyShape = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 51, at: Date.now() };
-      assert(!/Field Licence/.test(String(H.__awayCardHtml(legacyShape)).replace(/<[^>]*>/g, ' ')),
-        'an old receipt with no licence payload produced licence copy — the renderer is inferring');
+      /* THE OTHER DIRECTION. A night that PAID gets neither the empty-night
+         copy nor the CTA — a card that tells a paid player to go do something
+         else is the same defect pointed the other way — and it keeps the
+         base-rate statement, which is governed by away-time-ruling.md. */
+      const paidNight = Object.assign({}, empty, { hrs: 8, gainedXp: 900, gainedKills: 12 });
+      const phtml = String(H.__awayCardHtml(paidNight));
+      const ptxt = phtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(!/data-hd="trainskill"/.test(phtml), 'a night that paid is being told to go do something else');
+      assert(!/quiet/i.test(ptxt), 'a night that paid 900 XP is being described as quiet: ' + ptxt);
+      assert(/base rate/i.test(ptxt), 'the base-rate statement must survive on every paying night: ' + ptxt);
+      assert(!/died/i.test(ptxt), 'the card claims a death on an absence that survived');
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
-      if (prevAwayLic) G._awayLicence = prevAwayLic; else { try { delete G._awayLicence; } catch (e) {} }
       restoreG(snap);
       try { H.render(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),
 
-  () => tryRun('b342-2: the COMBAT screen names the licence, and stops promising away pay to someone who has none', () => {
+  () => tryRun('b342-2: the COMBAT screen tells a fighting player what actually ends an away night, and promises nothing else', () => {
     const G = window.G;
-    const L = window.HearthriseCore.licence;
     const snap = snapshotG();
     const prevTab = window.activeTab;
+    const realHasTrait = window.hasTrait;
     try {
       window.showTab('combat');
       /* ── the always-on activity bar ──────────────────────────────────────
-         MEASURED: the word "Licence" appeared on ZERO panels. The bar was
-         already printing `Lifetime <b>N</b>` — the same `stats.kills` the gate
-         reads — so the counter costs no new number and no new real estate.
-         MUTATION PROVEN: put back the single unconditional
-         `<span class="ab-tkills">Lifetime …</span>` and the first assertion
-         fails; drop the `!_lic.ok` branch and the licensed half fails. */
+         b342 put a permission counter here. b343 keeps the CHIP and changes
+         what it measures: the honest limit on an unattended fight is Auto-Eat
+         plus a stocked food slot (auto-actions.js eats nothing without the
+         trait), so a flat "pays away" to a player with neither is the same
+         false promise b342 was filed against, with the gate swapped out.
+         MUTATION PROVEN: make `awayChip` the unconditional "pays away" string
+         and the first assertion fails; make it unconditionally "until you
+         fall" and the equipped half fails. */
+      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
       G.activeMonster = 'slime';
+      G.foodSlot = null;
       G.stats = Object.assign({}, G.stats, { kills: 41 });
       window.refreshActivityBar();
       const meta = document.getElementById('ab-meta');
       assert(meta, 'the activity bar has no meta element to assert');
       let bar = meta.textContent.replace(/\s+/g, ' ');
-      assert(/Field Licence/.test(bar),
-        'THE b342 BUG: a fighting, unlicensed player is never told the licence exists: ' + bar);
-      assert(/41 \/ 100/.test(bar) || /41\s*\/\s*100/.test(bar),
-        'the bar must carry the live counter: ' + bar);
-      assert(/no away pay yet/i.test(bar),
-        'the bar must say what the counter is FOR — that the fight pays nothing while away: ' + bar);
-      assert(!/Lifetime/.test(bar),
-        'showing both a lifetime total and a licence counter puts the same number on screen twice: ' + bar);
+      assert(/until you fall/i.test(bar),
+        'THE b343 BUG: a fighting player with no Auto-Eat is told nothing about what ends their night: ' + bar);
+      assert(!/pays away/i.test(bar),
+        'the bar promises unqualified away pay to a character who cannot survive a minute of it: ' + bar);
+      assert(/Lifetime/.test(bar) && /41/.test(bar),
+        'the lifetime kill total must come back now that nothing is competing for the chip: ' + bar);
+      assert(!/licen[cs]e/i.test(bar), 'the retired permit copy is back on the activity bar: ' + bar);
 
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
+      /* Equip the player the way the engine actually checks — the trait AND a
+         slotted food with stock — and the same chip must change its mind. */
+      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
+      G.foodSlot = 'cooked_shrimp';
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 60 });
       window.refreshActivityBar();
       bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
-      assert(/Lifetime/.test(bar) && !/Field Licence/.test(bar),
-        'once the licence is held the counter has done its job and must give the space back: ' + bar);
-      assert(/pays away/i.test(bar),
-        'a licensed fight must SAY it carries on while you are away — that is what was earned: ' + bar);
+      assert(/pays away/i.test(bar) && !/until you fall/i.test(bar),
+        'a fight that genuinely carries on while you are away must SAY so: ' + bar);
+
+      /* ONE PREDICATE, shared with the monster preview and the Stats modal —
+         three surfaces answering this question from three copies of the rule
+         is how they drift apart between builds. */
+      assert(typeof window.awayFightSustains === 'function',
+        'the shared away-sustain predicate is gone; every surface will re-derive it');
+      assert(window.awayFightSustains() === true, 'the predicate disagrees with the chip it drives');
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 0 });
+      assert(window.awayFightSustains() === false,
+        'an empty food slot still reads as sustained — the count is the whole point');
 
       /* ── the two boss cards ──────────────────────────────────────────────
-         MEASURED: "Pays while you're away — leave this fight set." rendered
-         twice, in gold, at the top of this panel, to a player for whom away
-         combat pays nothing — on bosses locked at Combat Lv 75.
-         MUTATION PROVEN: turn `awayLine()` back into the `AWAY_LINE` constant
-         and the unlicensed half fails on "still promises away pay". */
+         b326's line is unconditional again, and it is true: the featured-boss
+         bonus is the ONE channel that survives an absence intact
+         (AWAY_SCOPE.botd === true) where blessings and food buffs do not.
+         MUTATION PROVEN: delete the line from the card template and this fails
+         on "no away line rendered". */
       const B = window.HearthriseBossOfDay;
       assert(B, 'the boss-of-the-day feature must be loaded');
       assert(typeof B.render === 'function' && typeof B.renderWeekly === 'function',
         'both boss cards must be repaintable, or only one of the two promises can be graded');
-      const repaint = () => { B.render(); B.renderWeekly(); };
       /* The cards are hidden during a fight (b292), and the copy under test is
          read by a player choosing one — so grade them in the state they are
          actually seen in, not through a display:none parent. */
       G.activeMonster = null;
-      G.stats = Object.assign({}, G.stats, { kills: 41 });
-      repaint();
+      B.render(); B.renderWeekly();
       const panel = document.getElementById('panel-combat');
-      let lines = Array.from(panel.querySelectorAll('.botd-away'));
+      const lines = Array.from(panel.querySelectorAll('.botd-away'));
       assert(lines.length >= 1, 'no away line rendered on the boss cards at all');
-      assert(lines.every((el) => el.classList.contains('is-locked')),
-        'THE b342 BUG: ' + lines.filter((e) => !e.classList.contains('is-locked')).length + ' boss card(s) '
-        + 'still promise away pay to an unlicensed player');
       const ltext = lines.map((e) => e.textContent).join(' ').replace(/\s+/g, ' ');
-      assert(!/Pays while you're away/.test(ltext),
-        'the unconditional promise is still on screen: ' + ltext);
-      assert(/Field Licence/.test(ltext) && /41 \/ 100/.test(ltext),
-        'the replacement must name the rule AND the counter, not merely withhold the promise: ' + ltext);
+      assert(/Pays while you're away/.test(ltext),
+        'the featured-boss cards lost the one line that makes "set it before bed" discoverable: ' + ltext);
+      assert(!/licen[cs]e/i.test(ltext), 'the retired permit copy is back on the boss cards: ' + ltext);
+      assert(lines.every((el) => !el.classList.contains('is-locked')),
+        'a boss card is still rendering the retired locked state');
+      assert(window.HearthriseCore.away.AWAY_SCOPE.botd === true,
+        'the boss cards claim the featured bonus survives an absence while AWAY_SCOPE says it does not');
 
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
-      repaint();
-      lines = Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'));
-      assert(lines.length >= 1 && lines.every((el) => !el.classList.contains('is-locked')),
-        'a LICENSED player lost the away promise — the b326 line is true for them and must return');
-      assert(/Pays while you're away/.test(lines.map((e) => e.textContent).join(' ')),
-        'the licensed copy must be the original sentence, unchanged');
-
-      /* THE STALENESS TRAP. These cards only fully re-render on a UTC day
-         rollover; the once-a-second tick otherwise just rewrites the countdown.
-         So the 100th kill would earn the licence and both cards would keep
-         saying "not yours yet" until midnight. The tick must notice the verdict
-         changed. Driven through `tick()` itself (published for this), not by
-         calling render() — the point is that nobody has to remember to.
-         MUTATION PROVEN: drop `|| licChanged` from either branch of tick() and
-         this fails with the stale locked line still on screen. */
-      assert(typeof B.__tick === 'function',
-        'the boss-card tick must be assertable — a surface that self-corrects only in theory does not');
-      G.stats = Object.assign({}, G.stats, { kills: 41 });
+      /* And the tick still repaints on a real day rollover rather than never.
+         b343 removed a third paint watermark that only existed for the gate;
+         this asserts the removal did not take the day rollover with it. */
+      assert(typeof B.__tick === 'function', 'the boss-card tick must be assertable');
       B.__tick();
-      assert(Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'))
-        .every((el) => el.classList.contains('is-locked')),
-        'the tick did not repaint when the licence verdict changed — the card is stale until midnight');
-      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
-      B.__tick();
-      assert(Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'))
-        .every((el) => !el.classList.contains('is-locked')),
-        'earning the licence mid-session left both boss cards claiming it is still unearned');
+      assert(document.querySelectorAll('#panel-combat .botd-away').length >= 1,
+        'the tick dropped the away line off the cards');
     } finally {
+      window.hasTrait = realHasTrait;
       restoreG(snap);
       try { window.refreshActivityBar(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -23137,9 +23244,9 @@ const TESTS = [
     /* THE MEASURED BUG. b341 removed one-tap-to-fight from every monster ROW
        and left it on `<button class="ce-next" onclick="startCombat('slime')">`
        — the single most likely first click in the game, the only call to action
-       on an empty arena. So the honesty work (the survival forecast, the Away
-       line, the licence counter) could be routed around by the shortest path
-       through the screen.
+       on an empty arena. So the honesty work (the survival forecast and the
+       Away line) could be routed around by the shortest path through the
+       screen.
        MUTATION PROVEN: restore the inline `onclick="startCombat(...)"` on
        .ce-next and this fails on "started the fight"; narrow the delegated
        selector back to `.monster-row` and it fails on "opened nothing". */
@@ -23300,34 +23407,148 @@ const TESTS = [
       assert(!/Gold earned/.test(document.getElementById('welcome-rows').textContent),
         'a channel that paid nothing still printed a row');
 
-      /* AND THE DECLINED NIGHT, on the same screen, from the same receipt —
-         so the modal and the Home card can never tell different stories. */
+      /* AN EMPTY NIGHT reports the span and NOTHING ELSE — no invented rows,
+         no "+0", and no death nobody suffered. b343: the row this used to
+         assert named the removed away-combat gate; what survives is the rule
+         underneath it, which is that a channel with nothing to say says
+         nothing. */
       G.lastOfflineSummary = {
-        hrs: 0, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0,
+        hrs: 0.6, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0,
         gainedKills: 0, burnt: 0, combat: null, capped: false, blessed: false,
         buffsPaused: false, crits: 0, died: false, diedAfterMs: 0, diedTo: null,
         featuredMs: 0, featuredDropMult: 1, rateMult: 1, at: Date.now(),
-        licence: { ok: false, kills: 41, need: 100, declined: true },
       };
       G.lastWelcome = 0;
       window.__maybeShowWelcome();
       const dtext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
-      assert(/Field Licence/.test(dtext) && /41 \/ 100/.test(dtext),
-        'THE b342 BUG: the first screen a returning player reads says nothing about the night '
-        + 'their fight was declined: ' + dtext);
-      assert(!/You died/.test(dtext), 'a declined night was never simulated and cannot have killed anybody');
+      assert(/Time away/.test(dtext), 'the modal owes the player the span even on an empty night: ' + dtext);
+      assert(!/XP earned|Items found|Gold earned|Kills/.test(dtext),
+        'an empty night printed a gain row for a channel that paid nothing: ' + dtext);
+      assert(!/You died/.test(dtext), 'nobody died on this receipt and the modal said they did: ' + dtext);
+      assert(!/licen[cs]e/i.test(dtext), 'the retired permit copy is back on the welcome-back modal: ' + dtext);
 
       /* No fresh receipt → the modal falls back to the clock and simply says
          less. It must never invent a night it has no record of. */
       G.lastOfflineSummary = null; G.lastWelcome = 0;
       window.__maybeShowWelcome();
       const ntext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
-      assert(!/XP earned|Gold earned|Field Licence|You died/.test(ntext),
+      assert(!/XP earned|Gold earned|You died/.test(ntext),
         'with no receipt the modal reported a night anyway: ' + ntext);
       assert(/Time away/.test(ntext), 'the fallback still owes the player the span: ' + ntext);
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
       Object.assign(G, save);
+    }
+  }),
+
+  () => tryRun('b343-1: the retired permit wording appears in NO player-facing copy — screens, authored tables, or state-dependent renderers', () => {
+    /* WHY THIS GUARD EXISTS, IN TYLER'S WORDS: "I think we just needed to make
+       it a quest and get rid of the license shit it's way too confusing." He
+       could not parse his own UI. Round two wipes every account to hour one, so
+       all twenty beta testers meet that word with LESS context than he had.
+
+       This asserts the property, not the edit. Three passes, because copy
+       reaches a player by three different routes and a sweep of only one of
+       them is the shape of guard that passes while the screen is still wrong:
+
+         A. AUTHORED TABLES — quest labels/notes and the FTUE steps. These are
+            data, they are the source of most player-visible sentences, and a
+            reverted data row would never show up in a DOM sweep of a save that
+            has not reached that quest.
+         B. STATE-DEPENDENT RENDERERS — the away card, the activity bar, the
+            boss cards, the monster preview. Every one of them carried the word
+            in EXACTLY ONE of its branches, so a sweep of whatever state the
+            suite happens to be in would miss it. Both branches are driven.
+         C. THE ACTUAL SCREENS — every tab, rendered, including tooltips
+            (`title`), because a tooltip is copy the player reads.
+
+       Comments and test names are deliberately NOT in scope: the reasoning for
+       the removal has to live somewhere, and deleting the record of why a thing
+       was removed is how it comes back.
+
+       MUTATION PROVEN: put `label: 'Field Licence — defeat 100 monsters'` back
+       on the quest row and pass A fails; restore the b342 `!_lic.ok` branch on
+       the activity bar and pass B fails; put the word in any panel's markup and
+       pass C fails. */
+    const NEEDLE = /licen[cs]e/i;
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const realHasTrait = window.hasTrait;
+    const found = [];
+    const scan = (where, text) => {
+      const s = String(text == null ? '' : text);
+      if (NEEDLE.test(s)) found.push(where + ': …' + s.replace(/\s+/g, ' ').slice(Math.max(0, s.search(NEEDLE) - 40), s.search(NEEDLE) + 80) + '…');
+    };
+    try {
+      // ── A. AUTHORED COPY TABLES ───────────────────────────────────────────
+      (window.QUEST_DEFS || []).forEach((q) => scan('QUEST_DEFS[' + q.id + ']', q.label + ' ' + (q.note || '')));
+      assert((window.QUEST_DEFS || []).length > 0, 'no quest rows were scanned — pass A would be vacuous');
+      const steps = (window.HearthriseFTUE && window.HearthriseFTUE.steps()) || [];
+      assert(steps.length > 0, 'no FTUE steps were scanned — pass A would be vacuous');
+      steps.forEach((s) => scan('FTUE[' + s.id + ']', (s.title || '') + ' ' + (s.body || '') + ' ' + (s.primary || '')));
+      Object.keys(window.TRAITS || {}).forEach((k) => {
+        const t = window.TRAITS[k];
+        scan('TRAITS[' + k + ']', (t.name || '') + ' ' + (t.desc || ''));
+      });
+
+      // ── B. BOTH BRANCHES OF EVERY STATE-DEPENDENT RENDERER ────────────────
+      const H = window.HearthriseHome;
+      const receipt = (over) => Object.assign({
+        hrs: 8, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0, gainedKills: 0,
+        burnt: 0, crits: 0, capped: false, blessed: false, buffsPaused: false, rateMult: 1,
+        featuredMs: 0, featuredDropMult: 1, died: false, diedAfterMs: 0, diedTo: null,
+        combat: null, at: Date.now(),
+      }, over || {});
+      [receipt({}),                                                            // empty night
+        receipt({ gainedXp: 900, gainedKills: 12 }),                           // paid night
+        receipt({ died: true, diedAfterMs: 50400, diedTo: 'slime', gainedXp: 34 }),  // bad night
+        receipt({ capped: true, budgetHrs: 12, buffsPaused: true, featuredMs: 3600000 }),
+      ].forEach((r, i) => scan('awayCardHtml#' + i, H.__awayCardHtml(r)));
+
+      window.showTab('combat');
+      [false, true].forEach((sustains) => {
+        window.hasTrait = function (id) { return id === 'auto_eat' ? sustains : realHasTrait.apply(this, arguments); };
+        G.foodSlot = sustains ? 'cooked_shrimp' : null;
+        if (sustains) G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 40 });
+        G.activeMonster = 'slime'; G.stats = Object.assign({}, G.stats, { kills: sustains ? 4000 : 3 });
+        window.refreshActivityBar();
+        const meta = document.getElementById('ab-meta');
+        scan('activityBar(sustains=' + sustains + ')', meta ? meta.innerHTML : '');
+        G.activeMonster = null;
+        try { window.HearthriseBossOfDay.render(); window.HearthriseBossOfDay.renderWeekly(); } catch (e) {}
+        Array.from(document.querySelectorAll('#panel-combat .botd-away'))
+          .forEach((el, i) => scan('bossCard#' + i + '(sustains=' + sustains + ')', el.innerHTML));
+        try {
+          window.openMobPreview('slime');
+          const mp = document.getElementById('mp-modal');
+          scan('monsterPreview(sustains=' + sustains + ')', mp ? mp.innerHTML : '');
+        } finally { try { window.closeMobPreview(); } catch (e) {} }
+      });
+
+      // ── C. THE RENDERED SCREENS, TOOLTIPS INCLUDED ────────────────────────
+      const TABS = ['home', 'profile', 'character', 'combat', 'skills', 'farming', 'house',
+        'social', 'clan', 'shop', 'market', 'bounty', 'stable', 'events', 'dungeons', 'inventory'];
+      let scanned = 0;
+      TABS.forEach((t) => {
+        try { window.showTab(t); } catch (e) { return; }
+        const panel = document.querySelector('.panel.active');
+        if (!panel) return;
+        scanned++;
+        scan('panel:' + t, panel.textContent);
+        Array.from(panel.querySelectorAll('[title]'))
+          .forEach((el) => scan('title@' + t, el.getAttribute('title')));
+      });
+      assert(scanned >= 8, 'only ' + scanned + ' panels rendered — pass C would be nearly vacuous');
+
+      assert(found.length === 0,
+        'the retired permit wording is back in ' + found.length + ' player-facing place(s):\n  '
+        + found.slice(0, 6).join('\n  '));
+    } finally {
+      window.hasTrait = realHasTrait;
+      restoreG(snap);
+      try { window.refreshActivityBar(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),
 

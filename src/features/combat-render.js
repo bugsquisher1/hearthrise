@@ -181,21 +181,19 @@ function forecast(m) {
   };
 }
 
-/* The Away row, three states, driven by ONE predicate — the same
-   `HearthriseLicence.check` the quest counter and the server's gate read. The
-   spec's §8 note that "if Tyler wants the harder version the change is one
-   line" only holds if every surface asks one function; this is that promise
-   being kept. */
+/* The Away row. TWO states now (b343 removed a third that named a permission
+   rather than a limit), and both answer the only question this row exists for:
+   how long does a fight left running actually keep paying? The predicate is
+   legacy.js's `awayFightSustains()` — shared with the activity bar's away chip
+   and the monster preview's Away line, so three surfaces cannot drift. */
 function awayRow(m, f) {
-  const L = window.HearthriseLicence ? window.HearthriseLicence.check() : { ok: true, kills: 0, need: 0 };
-  if (!L.ok) {
-    return { name: 'Not yet', meta: `combat pays away once you have landed ${L.need} kills`,
-      right: `<span class="hr-cs-amt">${L.kills} / ${L.need}</span>` };
-  }
   const G = window.G;
-  const owns = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
   const foodId = G && G.foodSlot;
-  const stocked = owns && foodId && (G.inventory[foodId] || 0) > 0;
+  /* No local re-derivation if the predicate is missing: a second copy of it
+     here is precisely the drift one shared function exists to prevent, and the
+     conservative answer ("it ends when you fall") is the one that cannot
+     promise the player something the engine will not deliver. */
+  const stocked = typeof window.awayFightSustains === 'function' && window.awayFightSustains();
   if (!stocked) {
     return { name: 'About that long', meta: 'then you fall and the fight ends — Auto-Eat keeps it running',
       right: `<span class="hr-cs-amt">≈${num(f.survivalKills || 0)} kills</span>` };
@@ -398,8 +396,8 @@ const HUD = (() => {
               : (matched ? 'you brought it: +20% damage, +15% accuracy' : 'bring this and both go up'),
             right: amt(weaponLabel(m.weaponWeak)) },
         ] },
-        /* THE RULE (docs/design/away-combat-licence.md §4.1): a rate may only
-           be quoted over a span the character can actually survive. Below the
+        /* THE RULE (b341): a rate may only be quoted over a span the
+           character can actually survive. Below the
            hour these rows describe THE RUN — the thing that is about to
            happen — and the hourly pair is not printed at all. */
         { kind: 'rows', title: f.survivesAnHour ? 'If you stay here' : 'This run', rows: (

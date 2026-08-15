@@ -12,6 +12,20 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-15 · b343 · SEMANTIC — away combat now pays a new character's first night (Systems → Game Designer)
+Tyler removed the away-combat gate ("get rid of the license shit it's way too confusing"). Design should hold the real numbers, not read them off a changelog. **Measured, 400 seeds, live engine**, a fresh character (10 HP, bronze sword, no Auto-Eat, empty food slot) left on Slime for eight hours:
+
+| | before b343 | after b343 |
+|---|---|---|
+| outcome | span not simulated | **dies 100% of the time**, after **59.4s** (median 57.6s) |
+| kills | 0 | **4.49** (median 4, range 1–9) |
+| XP | 0 | **84.1** total (style + Hitpoints) |
+| gold | 0 | **~10** (median) |
+
+84 XP against `pacing-overhaul.md`'s 13,034,431-XP first-99 is **0.00065%** — the pacing floor does not move. **Auto-Eat is still the real gate on AFK combat**: without the trait nobody eats while you are away, so the night is over in a minute. That was always true and the licence was a second lock on it.
+
+**Two authored payouts are now reachable during an absence** and were not before, because a declined span was never simulated: `first_blood` (Defeat 5 monsters → 150g + 5 turnip seeds) completes at ~46% of first nights, and `hundred_kills` (1,500 combat XP) can complete for a player parked at 95+ kills. Both are **one-time per character** and both are minutes of attended play away, so neither is a faucet — but they are new value entering during the server-authority rebuild and Design should say yes rather than have it assumed.
+
 ### 2026-08-14 · b342 · SEMANTIC — every proc pet just got HALVED to its declared rate (Systems → Game Designer)
 Companion procs were applying **twice per trigger** — measured, in the real client: 2 applications, 2 toasts and 1.0 pet XP (a utility pet earns 0.5) on each of kill / combatHit / gather / cook. Two identical hook sets, one in `src/legacy.js` block 31 and one in `src/features/companions.js`, both wrapping `killMonster` / `combatTick` / `addItem`. The legacy copy is deleted (b228's fix, one layer up).
 

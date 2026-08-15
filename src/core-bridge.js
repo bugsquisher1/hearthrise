@@ -45,6 +45,12 @@ import * as away from './core/away.js?v=346';
 import * as botd from './core/botd.js?v=346';
 import * as buffs from './core/buffs.js?v=346';
 import * as combatSim from './core/combat-sim.js?v=346';
+/* The gather half of the same unification. `skillSim.sliceSpan` IS
+   `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
+   the away gather branch and the accrual Edge Function both run. Published
+   here because a core module the client cannot reach is a second
+   implementation waiting to happen. */
+import * as skillSim from './core/skill-sim.js?v=346';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
@@ -155,7 +161,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim, autoEat,
+  styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, autoEat,
 
   /* The session RNG. */
   get rng() { return rng; },

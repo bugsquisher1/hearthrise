@@ -86,6 +86,14 @@ const EXTRA = [
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
   ['activity-intent', MIG('2026-08-15-activity-intent.sql')],
   ['key-hygiene', MIG('2026-08-15-intent-key-hygiene.sql')],
+  /* b348. ORDER IS LOAD-BEARING and each file says so in its own §0:
+     auto-eat replaces hr_state_of and adds the three columns tool-carry's
+     restated hr_state_of reads; tool-carry replaces hr_apply and must be LAST
+     of anything that does, or its delta key is silently deleted while the Edge
+     Function keeps proposing it. Both are here so A3b drives the WITH-column
+     configuration — which is what production will be. */
+  ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
+  ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -131,6 +139,29 @@ const MUTATIONS = {
     why: 'the intent accepts a kind the accrual engine cannot pay',
     find: "export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);",
     repl: "export const SETTABLE_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisan']);",
+  },
+  /* b348, and it is the OPPOSITE failure to `widen_settable`. That one plants a
+     kind the engine cannot pay; this one takes away a kind it CAN — which is
+     what a careless revert of the gather work looks like, and it is silent:
+     gathering simply answers `unsupported_activity` again, which is a REFUSING
+     reason, so nothing errors and nobody's night is confiscated. It just stops
+     paying, for 23 of the 344 catalogue activities. A3b is the only thing that
+     notices. */
+  narrow_payable: {
+    file: FN('accrual.js'),
+    why: 'gathering silently stops being payable again',
+    find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);",
+    repl: "export const PAYABLE_KINDS = Object.freeze(['combat']);",
+  },
+  /* The gather index reaching the engine. Drop it and every gathering pointer
+     answers `unknown_node` — refusing, so the window is deferred rather than
+     confiscated, but the player never accrues from gathering again and no unit
+     test sees it, because accrual-engine.mjs calls computeAccrual directly. */
+  no_gather_nodes: {
+    file: FN('set-activity.js'),
+    why: 'the collect is not given the gather catalogue',
+    find: '    nodes: GATHER_NODES,',
+    repl: '    nodes: {},',
   },
   no_version_from_collect: {
     file: FN('set-activity.js'),
@@ -413,7 +444,12 @@ const state = async (db, uid, slot = 0) =>
     'select * from public.player_state where user_id = $1 and slot = $2', [uid, slot])).rows[0];
 const ledger = async (db, uid, slot = 0) =>
   (await db.query(
-    'select kind, intent, gold, gold_in, xp_in, meta from public.player_ledger '
+    /* `qty_in` joined the three stamp columns the daily budget sums over. It was
+       missing from this projection, so A3b read `undefined` and reported it as a
+       ledger bug — a helper that silently drops a column turns a real assertion
+       into a false red, and the pressure that creates is to delete the
+       assertion. All three stamps, or none. */
+    'select kind, intent, gold, gold_in, xp_in, qty_in, meta from public.player_ledger '
     + 'where user_id = $1 and slot = $2 order by at, id', [uid, slot])).rows;
 const skillXp = async (db, uid, sk, slot = 0) => Number((await db.query(
   'select xp from public.player_skills where user_id=$1 and slot=$2 and skill_id=$3',
@@ -572,6 +608,104 @@ async function run(mutate) {
     // paid twice.
     ok(new Date(st.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
       'A3: accrued_to did not advance — the same window could be collected again');
+  }
+
+  /* ── A3b. THE OTHER PAYABLE KIND, END TO END (b348) ──────────────────────
+     A3 proves the collect-before-switch rule for combat. Gathering is 23 of the
+     344 catalogue rows and, until b348, ALL of them answered
+     `unsupported_activity` — a REFUSING reason, so a switch was refused and the
+     window deferred rather than confiscated. Now it must actually PAY, and the
+     chain that has to hold is longer than the engine: the intent's derived
+     allowlist has to admit `gather`, request.js has to parse the kind, hr_apply
+     has to find the node in the generated hr_activities and re-check the SKILL
+     GATE against server XP, and the delta has to carry an item map, an XP map,
+     three stat rows and — because this chain now includes the b348 migration —
+     a `tool_carry` key that an hr_apply without it would answer with
+     `unknown_delta_key`, costing the whole night.
+
+     None of that is provable from accrual-engine.mjs, which calls
+     computeAccrual directly and never touches a database. */
+  {
+    /* Woodcutting 15 is oak's requirement; 3,000 XP is level 16, so the gate is
+       SATISFIED rather than skipped — the gate itself is exercised below. */
+    await db.query(
+      `update public.player_skills set xp = 3000
+        where user_id = $1 and slot = 0 and skill_id = 'woodcutting'`, [UID]);
+    await db.query(
+      `update public.player_state
+          set active_kind = 'gather', active_id = 'normal_tree',
+              accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
+        where user_id = $1 and slot = 0`, [UID]);
+    const before = await state(db, UID);
+    const beforeXp = await skillXp(db, UID, 'woodcutting');
+    const beforeLedger = (await ledger(db, UID)).length;
+    ok(before.tool_carry !== undefined,
+      'A3b-CONTROL: player_state has no tool_carry column in this chain, so the carry half of this '
+      + 'test would be vacuous — 2026-08-15-tool-carry.sql is missing from EXTRA');
+
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'oak_tree' } });
+    ok(r.status === 200 && r.body.ok === true,
+      `A3b: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
+    ok(r.body.collected,
+      'A3b: NO collection receipt — three hours of chopping were confiscated by the switch. This is '
+      + 'the exact failure the collect-before-switch rule exists to prevent, and widening '
+      + 'PAYABLE_KINDS without a simulation is how it would arrive.');
+
+    const inv = (await db.query(
+      'select item_id, qty from public.player_inventory where user_id=$1 and slot=0 order by item_id',
+      [UID])).rows;
+    const logs = Number(inv.find((x) => x.item_id === 'normal_log')?.qty ?? 0);
+    ok(logs > 0, `A3b: three hours of chopping produced ${logs} normal_log — the window paid nothing`);
+    const paidXp = (await skillXp(db, UID, 'woodcutting')) - beforeXp;
+    ok(paidXp > 0, `A3b: three hours of chopping paid ${paidXp} woodcutting XP`);
+    ok(r.body.collected.items && r.body.collected.items.normal_log === logs,
+      `A3b: the receipt says ${JSON.stringify(r.body.collected.items)} but ${logs} logs arrived`);
+
+    const st = await state(db, UID);
+    ok(st.active_kind === 'gather' && st.active_id === 'oak_tree',
+      `A3b: the switch did not happen (${st.active_kind}/${st.active_id})`);
+    ok(new Date(st.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
+      'A3b: accrued_to did not advance — the same window could be collected again');
+
+    const rows = (await ledger(db, UID)).slice(beforeLedger);
+    const accrue = rows.find((x) => x.intent === 'accrue');
+    ok(!!accrue, `A3b: no 'accrue' ledger row (${rows.map((x) => x.intent)})`);
+    ok(accrue && accrue.kind === 'gather',
+      `A3b: the collect was journalled as '${accrue && accrue.kind}', expected gather`);
+    ok(accrue && Number(accrue.qty_in) === logs,
+      `A3b: the ledger stamped qty_in=${accrue && accrue.qty_in} but ${logs} items arrived — the `
+      + 'daily budget would be charged the wrong amount');
+    ok(!!rows.find((x) => x.intent === 'set_activity:gather:oak_tree'),
+      'A3b: no set_activity ledger row for the gather declaration');
+
+    /* THE CARRY ROUND TRIP, through the real hr_apply. Without a tool the carry
+       stays empty, which is correct and is NOT the interesting case — so the
+       assertion is that the column is a legal, written-through object rather
+       than that it holds a particular number, and the number itself is pinned
+       by tests/accrual-engine.mjs where a tool can be given. What this proves
+       that no unit test can: hr_apply ACCEPTED the key. Before b348 it answers
+       `unknown_delta_key`, which is a 409 that costs the whole night. */
+    ok(st.tool_carry && typeof st.tool_carry === 'object' && !Array.isArray(st.tool_carry),
+      `A3b: player_state.tool_carry reads ${JSON.stringify(st.tool_carry)} after a gather collect`);
+
+    /* THE SKILL GATE, re-checked against SERVER XP. Woodcutting 16 cannot chop
+       Yew (req 60), and the refusal has to come from the DATABASE — a forged
+       local level must buy nothing, including the right to start a level-60
+       node. This is also the control that A3b's success above was a real gate
+       being satisfied and not an absent one. */
+    const locked = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'yew_tree' } });
+    ok(locked.body.ok !== true && locked.body.error === 'activity_locked',
+      `A3b GATE: a woodcutting-16 character was allowed to start Yew (req 60): `
+      + `${JSON.stringify(locked.body).slice(0, 200)}`);
+    const stillOak = await state(db, UID);
+    ok(stillOak.active_id === 'oak_tree',
+      `A3b GATE: the refused switch still moved the pointer to ${stillOak.active_id}`);
+
+    /* A node id that is not in the catalogue is refused BY NAME, one round trip
+       earlier than hr_apply would, and without spending a collect. */
+    const bogus = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_tree' } });
+    ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
+      `A3b: an unknown gathering node returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
   }
 
   // ── A4. A REPLAYED INTENT APPLIES NOTHING ────────────────────────────────

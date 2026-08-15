@@ -44,10 +44,21 @@ import {
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { killBonusesFor, botdFor } from '../src/core/botd.js';
 import { createRng } from '../src/core/rng.js';
-import { grantXp } from '../src/core/progression.js';
+import { grantXp, resolveGatherAction } from '../src/core/progression.js';
 import { resolveStyle, COMBAT_STYLES } from '../src/core/styles.js';
+/* The gather half. `simulateSkillSpan` is imported for the BUFF TIMELINE
+   section only — the parity section deliberately does NOT use it (see its
+   header: the client column there is a transcription of legacy.js). */
+import {
+  indexGatherNodes, duplicateGatherIds, simulateSkillSpan, SKILL_ACTION_STAT, STOP_REASON,
+} from '../src/core/skill-sim.js';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from '../src/core/tools.js';
+import { pacedActionMs, speedClamp } from '../src/core/pacing.js';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, buffBonusFor } from '../src/core/buffs.js';
+import { levelOf } from '../src/core/xp.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 
 import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD }
   from '../src/core/auto-eat.js';
@@ -650,6 +661,470 @@ function autoEatParityGuard() {
   }
 }
 
+// ── 1c. GATHER PARITY ───────────────────────────────────────────────────────
+// THE CONTRACT, for the other 23 activities. Measured 2026-08-15, before this
+// landed, by running the shipped engine over `hr_activities`:
+//
+//   combat / goblin              -> accrued=TRUE  gold=477 xp={attack:3235,…}
+//   gather / oak_tree            -> accrued=FALSE reason='unsupported_activity'
+//   gather / copper_rock         -> accrued=FALSE reason='unsupported_activity'
+//
+// 313 of 344 catalogue rows (91%) paid nothing server-side; a player who logged
+// off chopping Oak got a zero night. This section is the proof that a gathering
+// night now pays, and pays EXACTLY what the shipped client would have paid.
+//
+// ⚠ THE CLIENT SIDE BELOW IS A TRANSCRIPTION OF legacy.js, NOT A CALL INTO
+//   src/core/skill-sim.js. That is the whole point and it is a stronger
+//   construction than the combat section's: combat's client reference calls
+//   `simulateSpan` because legacy.js already calls `simulateSpan`. legacy.js does
+//   NOT yet call `simulateSkillSpan` — it runs `replayAwaySpan` (legacy.js:1153)
+//   over `doSkillAction` (legacy.js:3825) at the interval `activityIntervalMs`
+//   (legacy.js:3691) derives. So the reference below is those three functions
+//   written out, with their window.* helpers replaced by the same core calls
+//   they delegate to and their render calls dropped.
+//
+//   Which means this test answers the question that actually matters: does the
+//   SERVER pay what the CLIENT SHIPPING TODAY pays? If it does, the client
+//   switch-over is a delegation with no balance change. If this file called
+//   `simulateSkillSpan` on both sides it would prove that a function equals
+//   itself.
+const GATHER_SOURCES = { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS };
+const GATHER_INDEX = indexGatherNodes(GATHER_SOURCES);
+
+/* legacy.js:3691 activityIntervalMs() — written out.
+   `Math.max(500, Math.floor(pacedActionMs(act.ms||3000) * speedClamp(speed)))`
+   where `speed = getBonus('gatherSpeed') + HearthriseTools.bestToolSpeed(skill)`.
+   Deliberately NOT `actionIntervalMs()` from core/pacing.js: this reference has
+   to spend the terms independently, or a change to the shared helper would move
+   both columns together and parity would stay green while the number drifted. */
+function clientGatherIntervalMs(skill, node, inventory, equipment, bonus) {
+  const tool = bestTool(skill, inventory, equipment, ITEMS);
+  const speed = (bonus('gatherSpeed') || 0) + toolSpeed(tool);
+  return Math.max(500, Math.floor(pacedActionMs(node.ms || 3000) * speedClamp(speed)));
+}
+
+/**
+ * legacy.js:1153 `replayAwaySpan` + :3825 `doSkillAction(true)`, transcribed.
+ *
+ * @returns { xp, items, stats, toolCarry, ticks, paidMs, intervalMs, buffPaidMs,
+ *            buffsExpired, stopped }
+ */
+function clientGatherSpan(opts) {
+  const skill = opts.skill;
+  const node = opts.node;
+  const bonus = opts.bonus || (() => 0);
+  /* `G`, as the client holds it. `inventory` is LIVE — addItem mutates it — and
+     `toolCarry` is the persisted fractional carry (legacy.js:3841). */
+  const G = {
+    activeSkill: skill,
+    skillTargetId: node.id,
+    skills: { ...opts.skills },
+    inventory: { ...(opts.inventory || {}) },
+    equipment: opts.equipment || {},
+    toolCarry: { ...(opts.toolCarry || {}) },
+    stats: {},
+    buffs: opts.buffs || [],
+  };
+  const eqStats = equipmentStats(G.equipment, ITEMS);
+  const gained = {};
+
+  /* doSkillAction(true) — the silent (offline-replay) arm. */
+  const doSkillAction = () => {
+    const res = resolveGatherAction(node, {
+      skillId: skill,
+      level: levelOf(G.skills, skill),
+      toolCarry: G.toolCarry,
+      toolDouble: toolDouble(bestTool(skill, G.inventory, G.equipment, ITEMS)),
+      toolXpB: toolXpB(bestTool(skill, G.inventory, G.equipment, ITEMS)),
+      rng: opts.rng,
+    });
+    if (!res.ok) return false;                       // 'level' -> stopSkill()
+    if (res.toolDoubles > 0) G.stats.toolDoubles = (G.stats.toolDoubles || 0) + res.toolDoubles;
+    // addItem
+    gained[res.product] = (gained[res.product] || 0) + res.qty;
+    G.inventory[res.product] = (G.inventory[res.product] || 0) + res.qty;
+    G.stats.gathered = (G.stats.gathered || 0) + res.qty;
+    const per = { woodcutting: 'chopped', mining: 'mined', fishing: 'fished' }[skill];
+    if (per) G.stats[per] = (G.stats[per] || 0) + res.qty;
+    // addXp — legacy.js:2534, through core's grantXp with the client's xpGrantCtx
+    const tXp = toolXpB(bestTool(skill, G.inventory, G.equipment, ITEMS));
+    grantXp(G, skill, tXp > 0 ? node.xp * (1 + tXp) : node.xp,
+      { bonus, xpB: eqStats.xpB || 0, restedQuantum: 0, authored: false });
+    return true;
+  };
+
+  /* replayAwaySpan — the slice loop, verbatim in behaviour. */
+  const out = { ticks: 0, paidMs: 0, stopped: false, buffPaidMs: 0, buffsExpired: [] };
+  let remaining = Math.max(0, opts.spanMs);
+  let carryMs = 0; let slices = 0; let lastStep = 0;
+  while (remaining > 0) {
+    const stepMs = Math.max(1, clientGatherIntervalMs(skill, node, G.inventory, G.equipment, bonus));
+    lastStep = stepMs;
+    const boundary = (slices++ < 64) ? nextBuffExpiryMs(G.buffs) : Infinity;
+    const sliceMs = Math.min(remaining, boundary);
+    const wasBuffed = hasActiveBuff(G.buffs);
+    const budget = sliceMs + carryMs;
+    const n = Math.floor(budget / stepMs);
+    let ran = 0;
+    for (let i = 0; i < n; i++) { if (!doSkillAction()) break; ran++; }
+    out.ticks += ran;
+    const drain = (ms) => {
+      if (!(ms > 0) || !G.buffs.length) return;
+      const r = tickBuffs(G.buffs, ms, { away: true, active: true });
+      for (const t of r.expired) out.buffsExpired.push(t);
+    };
+    if (ran < n) {
+      const workedMs = ran * stepMs;
+      out.paidMs += workedMs;
+      if (wasBuffed) out.buffPaidMs += workedMs;
+      drain(workedMs);
+      out.stopped = true;
+      break;
+    }
+    carryMs = budget - n * stepMs;
+    out.paidMs += sliceMs;
+    if (wasBuffed) out.buffPaidMs += sliceMs;
+    drain(sliceMs);
+    remaining -= sliceMs;
+  }
+
+  const xp = {};
+  for (const k in G.skills) {
+    const d = Math.floor((G.skills[k] || 0) - (opts.skills[k] || 0));
+    if (d > 0) xp[k] = d;
+  }
+  return { ...out, xp, items: gained, stats: G.stats, toolCarry: G.toolCarry,
+           intervalMs: lastStep, inventory: G.inventory };
+}
+
+/* The best tool the catalogue actually contains for a skill, chosen FROM the
+   data rather than named — an invented item would test the engine against
+   content the game does not have. */
+function bestOwnedTool(skill) {
+  return Object.keys(ITEMS)
+    .filter((id) => ITEMS[id] && ITEMS[id].type === 'tool' && ITEMS[id].toolSkill === skill)
+    .sort((a, b) => (ITEMS[b].toolTier || 0) - (ITEMS[a].toolTier || 0))[0] || null;
+}
+
+/* SKILL XP high enough to open every rung, so a fixture is never silently
+   testing the level gate instead of the yield. 13,034,431 = level 99. */
+const GATHER_MAXED = { woodcutting: 13034431, mining: 13034431, fishing: 13034431 };
+
+const GATHER_FIXTURES = [
+  /* qty [1,1], no tool — the flat case. `rng.int(n,n)` returns WITHOUT drawing,
+     so this fixture is deterministic with or without a seed, which is exactly
+     why the two below exist. */
+  { name: 'bare-handed Normal Tree', node: 'normal_tree', tool: false },
+  /* qty [2,3] — a real RNG draw per action, ~3,200 of them. */
+  { name: 'Rich Coal Seam (qty 2-3, a draw per action)', node: 'rich_coal_rock', tool: false },
+  /* qty [1,2] AND the top axe: tool speed changes the interval, tool double
+     changes the yield through the fractional carry, tool xpB changes the grant.
+     All three terms live at once. */
+  { name: 'Maple with the best axe (speed + carry + xpB)', node: 'maple_tree', tool: true },
+  /* A third skill, so the per-skill stat routing and the rod ladder are covered. */
+  { name: 'Fishing with the best rod', node: null, skill: 'fishing', tool: true },
+];
+
+function gatherParityGuard() {
+  const seen = { draws: 0, doubles: 0, ticks: 0, skills: new Set(), speeds: new Set() };
+
+  ok(Object.keys(GATHER_INDEX).length === TREES.length + ROCKS.length + FISH_SPOTS.length,
+    `GATHER: the index holds ${Object.keys(GATHER_INDEX).length} nodes, the data holds `
+    + `${TREES.length + ROCKS.length + FISH_SPOTS.length} — a node id is claimed twice`);
+  eq(duplicateGatherIds(GATHER_SOURCES), [],
+    'GATHER: two gathering sources claim the same node id — the index would resolve it to one '
+    + 'skill and the other skill\'s node would be unreachable');
+  /* The prototype hazard, measured rather than asserted about. `active_id` is
+     bounded by /^[a-z0-9_]{1,64}$/, which matches `constructor`. */
+  for (const probe of ['__proto__', 'constructor', 'toString', 'valueOf']) {
+    ok(GATHER_INDEX[probe] === undefined,
+      `GATHER: the index resolves '${probe}' — a null-prototype container was expected`);
+  }
+
+  for (const f of GATHER_FIXTURES) {
+    const skill = f.skill || GATHER_INDEX[f.node].skill;
+    const nodeId = f.node || FISH_SPOTS[FISH_SPOTS.length - 1].id;
+    const node = GATHER_INDEX[nodeId].node;
+    const toolId = f.tool ? bestOwnedTool(skill) : null;
+    ok(!f.tool || !!toolId, `GATHER [${f.name}]: no tool exists for ${skill} — the fixture is vacuous`);
+    const inventory = toolId ? { [toolId]: 1 } : {};
+
+    const s = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+      activeKind: 'gather', activeId: nodeId,
+      capMs: 12 * 3600000, seed: SEED,
+      hp: 60, maxHp: 60, gold: 0,
+      skills: { ...GATHER_MAXED }, equipment: EQUIPMENT, inventory,
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+      toolCarry: {},
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    });
+    ok(s.accrued === true, `GATHER [${f.name}]: accrued nothing (reason: ${s.reason})`);
+    if (!s.accrued) continue;
+
+    const c = clientGatherSpan({
+      skill, node, spanMs: SPAN_MS, rng: createRng(SEED),
+      skills: { ...GATHER_MAXED }, inventory, equipment: EQUIPMENT, toolCarry: {},
+    });
+
+    const P = (m) => `GATHER PARITY [${f.name}]: ${m}`;
+    eq(s.tickMs, c.intervalMs, P('the derived action interval differs from the client\'s'));
+    eq(s.summary.ticks, c.ticks, P('action count differs'));
+    eq(s.summary.paidMs, c.paidMs, P('the paid span differs'));
+    eq(s.summary.items, c.items, P('yields differ'));
+    eq(s.summary.xp, c.xp, P('XP grants differ'));
+    eq(s.summary.gathered, c.stats.gathered || 0, P('the gathered counter differs'));
+    eq(s.summary.toolDoubles, c.stats.toolDoubles || 0, P('tool double-yield differs'));
+    eq(s.delta.tool_carry, roundedCarry(c.toolCarry), P('the fractional tool carry differs'));
+
+    /* The journalled stats must agree with the simulation, or the Hero screen
+       and the ledger tell two different stories. */
+    const prog = Object.fromEntries((s.delta.progress || []).map((p) => [p.key, p.add]));
+    const per = { woodcutting: 'chopped', mining: 'mined', fishing: 'fished' }[skill];
+    eq(prog.gathered, c.stats.gathered, P('the journalled gather count differs from the simulated one'));
+    eq(prog[per], c.stats[per], P(`the journalled ${per} count differs from the simulated one`));
+
+    /* Determinism: same seed, same answer — that is what makes a grant
+       auditable. And a DIFFERENT seed must NOT produce the same answer for a
+       node with a real range, or the seed is being ignored. */
+    const again = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+      activeKind: 'gather', activeId: nodeId, capMs: 12 * 3600000, seed: SEED,
+      hp: 60, maxHp: 60, gold: 0, skills: { ...GATHER_MAXED }, equipment: EQUIPMENT,
+      inventory, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    });
+    eq(again.summary.items, s.summary.items, P('the same seed produced a different yield'));
+    if (node.qty[1] > node.qty[0]) {
+      const other = computeAccrual({
+        userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+        nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+        activeKind: 'gather', activeId: nodeId, capMs: 12 * 3600000, seed: SEED + 1,
+        hp: 60, maxHp: 60, gold: 0, skills: { ...GATHER_MAXED }, equipment: EQUIPMENT,
+        inventory, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
+        items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+      });
+      ok(JSON.stringify(other.summary.items) !== JSON.stringify(s.summary.items),
+        P('a different seed produced an identical yield — the seed is not being used'));
+      seen.draws++;
+    }
+
+    seen.ticks = Math.max(seen.ticks, s.summary.ticks);
+    seen.doubles = Math.max(seen.doubles, s.summary.toolDoubles);
+    seen.skills.add(skill);
+    seen.speeds.add(s.tickMs);
+  }
+
+  /* COVERAGE. A parity suite whose fixtures all take the same trivial path
+     proves parity of nothing. */
+  ok(seen.ticks > 1000, `GATHER COVERAGE: the longest fixture ran only ${seen.ticks} actions`);
+  ok(seen.draws > 0, 'GATHER COVERAGE: no fixture used a node with a qty RANGE, so the RNG never '
+    + 'drew — rng.int(n,n) returns without drawing and the seed would be untested');
+  ok(seen.doubles > 0, 'GATHER COVERAGE: no fixture earned a tool double, so the deterministic '
+    + 'fractional carry — the whole reason an away replay is byte-identical — is untested');
+  ok(seen.skills.size >= 3, `GATHER COVERAGE: only ${seen.skills.size} of the three gathering `
+    + 'skills were exercised, so the per-skill stat routing is untested');
+  ok(seen.speeds.size > 1, 'GATHER COVERAGE: every fixture ran at the same interval — the tool '
+    + 'speed term is untested');
+}
+
+/* The engine rounds the stored carry to 9 decimals (see roundCarry in
+   accrual.js). The reference has to do the same to be comparable, and doing it
+   HERE rather than importing that function keeps the two constructions
+   independent. */
+function roundedCarry(carry) {
+  const out = {};
+  for (const k in (carry || {})) {
+    const n = Number(carry[k]);
+    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.floor(n * 1e9) / 1e9;
+  }
+  return out;
+}
+
+// ── 1d. THE BUFF TIMELINE (b347), now that the loop is core's ───────────────
+// A `gather_speed` buff CHANGES THE INTERVAL, which is the number the action
+// count is derived from — so a flat `floor(spanMs / interval)` loop pays the
+// buffed rate for the whole night off a ten-minute consumable. Measured on the
+// real engine before b347: 8h on Normal Tree with one 10-minute +4% buff paid
+// 6,250 actions against an honest 6,005, and the buff came back reading 10:00
+// with zero ms drained. Fifty times the earned value, by shutting the tab.
+//
+// The fix is the slice loop, and this is the assertion that it is still doing
+// its job in core. Client-vs-client, because the SERVER holds no buffs (there
+// is no buff column and no intent that writes one) — so the comparison that
+// matters here is "buffed night vs honest night", not "server vs client".
+function gatherBuffTimelineGuard() {
+  const node = GATHER_INDEX.normal_tree.node;
+  const SPAN = 8 * 3600000;
+  const BUFF_MS = 10 * 60000;
+  const run = (buffs) => {
+    const state = {
+      skillTargetId: 'normal_tree',
+      skills: { ...GATHER_MAXED }, inventory: {}, equipment: {},
+      toolCarry: {}, stats: {}, buffs,
+    };
+    const summary = simulateSkillSpan(state, {
+      away: true, fromMs: 0, toMs: SPAN, rng: createRng(SEED),
+      items: ITEMS, nodes: GATHER_INDEX,
+      /* The client's getBonus chain, whose buff term reads the SAME queue this
+         drains — one identity, not two copies. */
+      bonus: (key) => buffBonusFor(state.buffs, key, { away: true }),
+      fx: {},
+    });
+    return { summary, buffs: state.buffs, gathered: state.stats.gathered || 0 };
+  };
+
+  const honest = run([]);
+  const buffed = run([{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_MS }]);
+  /* THE FLAT LOOP the slicing replaces: one interval, derived once, for the
+     whole night. This is what the number would have been. */
+  const buffedInterval = Math.max(500, Math.floor(pacedActionMs(node.ms) * speedClamp(0.04)));
+  const flat = Math.floor(SPAN / buffedInterval);
+
+  ok(buffed.summary.ticks > honest.summary.ticks,
+    `BUFF TIMELINE: a +4% gather_speed buff produced ${buffed.summary.ticks} actions against an `
+    + `unbuffed ${honest.summary.ticks} — the buff paid nothing at all`);
+  ok(buffed.summary.ticks < flat,
+    `BUFF TIMELINE: a 10-minute buff paid ${buffed.summary.ticks} actions, which is the FLAT `
+    + `whole-night buffed rate (${flat}). The span is not being sliced at the expiry.`);
+  /* The honest arithmetic, stated: 10 minutes at the buffed rate, the rest at
+     the base rate, with the sub-tick remainder carried across the boundary. */
+  const expected = Math.floor(BUFF_MS / buffedInterval)
+    + Math.floor(((BUFF_MS - Math.floor(BUFF_MS / buffedInterval) * buffedInterval)
+      + (SPAN - BUFF_MS)) / Math.max(500, Math.floor(pacedActionMs(node.ms))));
+  eq(buffed.summary.ticks, expected,
+    `BUFF TIMELINE: the buffed night paid ${buffed.summary.ticks} actions; slicing at the expiry `
+    + `and carrying the remainder gives ${expected}`);
+  ok(buffed.summary.slices === 2,
+    `BUFF TIMELINE: the span ran in ${buffed.summary.slices} slice(s) — one buff expiry inside the `
+    + 'window must produce exactly two');
+  /* AND IT DRAINED. Paying without draining is the b326 exploit written
+     backwards, and it is the half that a payout test alone would never catch. */
+  eq(buffed.buffs, [], 'BUFF TIMELINE: the buff survived an 8-hour night — it paid away and was '
+    + 'never spent, which is the whole exploit');
+  eq(buffed.summary.buffsExpired, ['gather_speed'],
+    'BUFF TIMELINE: the summary did not STATE which buff ran out, so a welcome-back card would '
+    + 'have to infer it');
+  eq(buffed.summary.buffPaidMs, BUFF_MS,
+    `BUFF TIMELINE: the summary claims ${buffed.summary.buffPaidMs} ms of buffed time against a `
+    + `${BUFF_MS} ms buff`);
+  /* THE CONTROL: with no buff held there is exactly ONE slice and the
+     arithmetic is byte-identical to the flat loop this replaces. That
+     equivalence is what keeps every pre-existing away number honest rather than
+     re-baselined. */
+  eq(honest.summary.ticks, Math.floor(SPAN / Math.max(500, Math.floor(pacedActionMs(node.ms)))),
+    'BUFF TIMELINE CONTROL: an unbuffed night no longer equals the flat loop');
+  ok(honest.summary.slices === 1,
+    `BUFF TIMELINE CONTROL: an unbuffed night ran in ${honest.summary.slices} slices, not 1`);
+}
+
+// ── 1e. THE CARRY IS THE ONLY THING THAT NEEDS A COLUMN ─────────────────────
+// `player_state.tool_carry` does not exist yet; the migration is staged
+// (supabase/migrations/2026-08-15-tool-carry.sql). Until it is applied the
+// engine is handed `toolCarry: null`, starts each span from an empty carry, and
+// omits the delta key — because hr_apply refuses an unknown key and that
+// refusal costs the player the whole night.
+//
+// This measures what that gap costs, so the number is a fact and not a claim,
+// and asserts the two halves of the switch: null in ⇒ no key out; object in ⇒
+// key out, and the carry actually continues across a span boundary.
+function toolCarryContinuityGuard() {
+  const skill = 'woodcutting';
+  const nodeId = 'maple_tree';
+  const toolId = bestOwnedTool(skill);
+  const inventory = { [toolId]: 1 };
+  const HALF = SPAN_MS / 2;
+  const call = (over) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: FROM_MS + HALF, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'gather', activeId: nodeId, capMs: 12 * 3600000, seed: SEED,
+    hp: 60, maxHp: 60, gold: 0, skills: { ...GATHER_MAXED }, equipment: EQUIPMENT,
+    inventory, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX, ...over,
+  });
+
+  const noColumn = call({ toolCarry: null });
+  ok(noColumn.accrued === true, 'CARRY: the no-column span did not accrue');
+  ok(!('tool_carry' in noColumn.delta),
+    'CARRY: the engine proposed a `tool_carry` key with no column to write it to. hr_apply answers '
+    + 'unknown_delta_key with a 409, which costs the player the entire night — the null input is '
+    + 'the switch and it is not being read');
+
+  const withColumn = call({ toolCarry: {} });
+  ok(withColumn.delta.tool_carry && typeof withColumn.delta.tool_carry === 'object',
+    'CARRY: with the column present the engine wrote no carry back, so the next span restarts from '
+    + 'zero and the column is decoration');
+  eq(withColumn.summary.items, noColumn.summary.items,
+    'CARRY: the FIRST span differs depending on whether the column exists — it must not; the carry '
+    + 'starts empty either way and only the write-back differs');
+
+  /* THE SECOND SPAN is where it shows. Same window, same seed, the only
+     difference being whether a remainder was carried in. Swept across the whole
+     range a carry can hold, because ONE sample is not a verdict: the difference
+     is 0 or 1 depending on whether the carry pushes a payout across an integer
+     boundary, and a guard that happened to sample a 0 would report "it costs
+     nothing" forever. */
+  const qtyOf = (r) => Object.values(r.summary.items).reduce((a, b) => a + b, 0);
+  const restarted = qtyOf(call({ toolCarry: {} }));
+  const losses = [];
+  for (let i = 1; i <= 9; i++) {
+    const lost = qtyOf(call({ toolCarry: { [skill]: i / 10 } })) - restarted;
+    losses.push(lost);
+    ok(lost >= 0 && lost <= 1,
+      `CARRY: carrying ${i / 10} into the next span changed it by ${lost} units. It must be 0 or 1 `
+      + '— the carry is a fraction of ONE item, so anything larger means it is being applied as a '
+      + 'rate rather than as a remainder');
+  }
+  ok(Math.max(...losses) === 1,
+    'CARRY: no carry value in [0.1 … 0.9] changed the following span at all, so this guard is '
+    + 'measuring nothing — the carry is not being read as a starting remainder');
+  /* ⚠ THE STORAGE ROUNDING MUST NOT BE A PAYOUT. `accrual.js roundCarry` stores
+     9 decimals, so the column holds 0.76 where the simulation held
+     0.7600000000000812 — and that is the ONLY difference between the two
+     columns in the parity table above. The argument that it is harmless is that
+     `advanceToolCarry` already floors with a 1e-9 epsilon, four orders of
+     magnitude larger than the discarded tail. An argument is not a measurement,
+     so here is the measurement: a span started from the rounded carry and the
+     same span started from the raw one must produce the same yield, for every
+     raw value the engine can actually emit. */
+  {
+    const raw = { woodcutting: 0.7600000000000812 };
+    const rounded = { woodcutting: Math.round(raw.woodcutting * 1e9) / 1e9 };
+    ok(rounded.woodcutting !== raw.woodcutting,
+      'CARRY ROUNDING: the fixture is not actually rounding anything — the assertion below is vacuous');
+    const a = qtyOf(call({ toolCarry: raw }));
+    const b = qtyOf(call({ toolCarry: rounded }));
+    ok(a === b,
+      `CARRY ROUNDING: storing 9 decimals changed a span's yield (${a} vs ${b}). The rounding must `
+      + 'sit strictly inside advanceToolCarry\'s 1e-9 payout epsilon; if it does not, it is not a '
+      + 'storage detail, it is a balance change.');
+    /* ⚠ THE TOP OF THE RANGE, and this assertion FOUND A REAL BUG rather than
+       confirming a belief. The carry's range is the half-open [0,1), so
+       0.9999999999 is legal — and `Math.round(0.9999999999 * 1e9) / 1e9` is
+       **1**, which hr_apply refuses as `bad_tool_carry`. That code is not on
+       index.ts's DEGRADABLE list, so it does not shorten the span, it 409s it:
+       the engine would propose an impossible value and cost the player THE
+       WHOLE NIGHT. `Math.floor` cannot leave the range by construction. Every
+       raw carry >= 0.9999999995 was affected. */
+    const edge = 1 - 1e-10;
+    const stored = roundedCarry({ woodcutting: edge }).woodcutting;
+    ok(stored < 1,
+      `CARRY ROUNDING: a carry of ${edge} is stored as ${stored}, which is OUTSIDE the [0,1) range `
+      + 'hr_apply enforces. The next accrual would be refused as bad_tool_carry — not degraded, '
+      + 'REFUSED — and the player would lose the entire night. Floor, do not round.');
+    ok(qtyOf(call({ toolCarry: { woodcutting: edge } }))
+       === qtyOf(call({ toolCarry: { woodcutting: stored } })),
+      'CARRY ROUNDING: a carry one epsilon under 1.0 pays differently stored than raw');
+  }
+
+  toolCarryContinuityGuard.report = [
+    `tool_carry: losing the carry costs ${Math.min(...losses)}-${Math.max(...losses)} units on the `
+    + `following span (${losses.filter((n) => n > 0).length} of 9 carry values in [0.1 … 0.9] `
+    + `lose one). One span produced ${JSON.stringify(withColumn.delta.tool_carry)}.`];
+}
+
 // ── 2. HOSTILE INPUT ────────────────────────────────────────────────────────
 function hostileGuard() {
   const honest = serverAccrual();
@@ -1075,6 +1550,22 @@ async function shellGuard() {
   }
   ok(/auto_eat_enabled/.test(code) && /auto_eat_pct/.test(code) && /auto_eat_food/.test(code),
     'SHELL: index.ts no longer reads the auto_eat_* columns off hr_state_of');
+
+  /* (i) THE SAME RULE FOR GATHERING, and it has the same silent shape. Drop
+     `nodes:` and every gathering night answers `unknown_node` — a REFUSING
+     reason, so the time is deferred rather than confiscated, but the player
+     accrues nothing from gathering ever again and no test here notices, because
+     accrual-engine.mjs calls computeAccrual directly and never goes through the
+     shell. Drop `toolCarry:` and the carry silently restarts from zero every
+     span. Both are one-line omissions with no exception and no log. */
+  for (const field of ['nodes:', 'toolCarry:']) {
+    ok(code.includes(field),
+      `SHELL: index.ts does not pass '${field.replace(':', '')}' to computeAccrual — gathering would `
+      + 'silently stop paying (nodes) or silently lose its deterministic carry (toolCarry)');
+  }
+  ok(/tool_carry/.test(code),
+    'SHELL: index.ts no longer reads tool_carry off hr_state_of — the null branch would be permanent '
+    + 'and applying the migration would change nothing');
 }
 
 // ── 4b. CROSS-FILE CONSTANTS ────────────────────────────────────────────────
@@ -1173,6 +1664,34 @@ const HONEST_SUSTAIN = {
   autoEatEnabled: true, autoEatFood: HONEST_FOOD, autoEatPct: 50,
 };
 
+/* ── THE GATHERING SWEEP, so the clamp reports cover the OTHER payable kind ──
+   Every gathering node in the catalogue, at maxed skills, holding the best tool
+   for that node's skill (which is the honest ceiling: tool speed shortens the
+   interval, so it MULTIPLIES the action count, and tool double adds to every
+   yield). A guard whose envelope stops at combat would report comfortable
+   headroom the day gathering became payable and keep reporting it. */
+function gatherSweep(spanH, seed = SEED) {
+  const out = [];
+  for (const nodeId of Object.keys(GATHER_INDEX)) {
+    const skill = GATHER_INDEX[nodeId].skill;
+    const toolId = bestOwnedTool(skill);
+    const r = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000,
+      activeSinceMs: NOW_MS - spanH * 3600000,
+      activeKind: 'gather', activeId: nodeId, capMs: spanH * 3600000, seed,
+      hp: HONEST_MAX_HP, maxHp: HONEST_MAX_HP, gold: 0,
+      skills: { ...MAXED, ...GATHER_MAXED }, equipment: EQUIPMENT,
+      inventory: toolId ? { [toolId]: 1 } : {},
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+      toolCarry: {},
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    });
+    if (r.accrued) out.push([`${spanH}h ${nodeId}`, r.delta]);
+  }
+  return out;
+}
+
 function clampsFromMigration(sql) {
   const out = {};
   for (const m of sql.matchAll(/c_(max_[a-z_]+)\s+constant\s+(?:bigint|int)\s*:=\s*(\d+)/g)) {
@@ -1229,6 +1748,19 @@ async function clampGuard() {
       });
       if (!r.accrued) continue;
       const d = r.delta; const where = `${spanH}h ${id}`;
+      bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
+      bump('max_gold_delta', d.gold || 0, where);
+      bump('max_item_delta', Math.max(0, ...Object.values(d.items || {})), where);
+      bump('max_item_kinds', Object.keys(d.items || {}).length, where);
+      bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
+      bump('max_progress_ops', (d.progress || []).length, where);
+    }
+    /* …and every GATHERING node, at the same two spans. Gathering's shape is
+       the opposite of combat's — one item kind, no gold, modest XP, but a very
+       large SINGLE-ITEM quantity, which is the dimension c_max_item_delta
+       bounds. Sweeping it is the only way "gathering has plenty of headroom"
+       stops being a sentence. */
+    for (const [where, d] of gatherSweep(spanH)) {
       bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
       bump('max_gold_delta', d.gold || 0, where);
       bump('max_item_delta', Math.max(0, ...Object.values(d.items || {})), where);
@@ -1322,6 +1854,14 @@ async function dayBudgetGuard() {
        auto-eat now puts a negative in this map — summing it signed would let a
        night of eating pay for a night of looting. */
     bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), `24h ${id}`);
+  }
+  /* Gathering, at the same span. It is the `qty` dimension's real worst case —
+     a night of chopping is one item kind in five figures, where a night of
+     fighting is a handful of drop rows. */
+  for (const [where, d] of gatherSweep(24)) {
+    bump('gold', d.gold || 0, where);
+    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
+    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);
   }
 
   dayBudgetGuard.report = [];
@@ -1539,6 +2079,9 @@ export async function runAll() {
   problems.length = 0;
   parityGuard();
   autoEatParityGuard();
+  gatherParityGuard();
+  gatherBuffTimelineGuard();
+  toolCarryContinuityGuard();
   hostileGuard();
   await shapeGuard();
   requestGuard();
@@ -1566,6 +2109,26 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
      number nobody notices tightening. */
   for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);
   for (const line of dayBudgetGuard.report || []) console.log(`  day-budget headroom: ${line}`);
+  for (const line of toolCarryContinuityGuard.report || []) console.log(`  ${line}`);
+  /* The gather fixtures, printed. A parity number nobody sees is a number
+     nobody notices moving — the same reason the clamp headroom is printed. */
+  for (const f of GATHER_FIXTURES) {
+    const skill = f.skill || GATHER_INDEX[f.node].skill;
+    const nodeId = f.node || FISH_SPOTS[FISH_SPOTS.length - 1].id;
+    const toolId = f.tool ? bestOwnedTool(skill) : null;
+    const g = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+      activeKind: 'gather', activeId: nodeId, capMs: 12 * 3600000, seed: SEED,
+      hp: 60, maxHp: 60, gold: 0, skills: { ...GATHER_MAXED }, equipment: EQUIPMENT,
+      inventory: toolId ? { [toolId]: 1 } : {},
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    });
+    console.log(`  gather: ${nodeId} (${skill}${toolId ? ' + ' + toolId : ''}) · ${g.tickMs}ms · `
+      + `${g.summary.ticks} actions · ${JSON.stringify(g.summary.items)} · `
+      + `${JSON.stringify(g.summary.xp)} · +${g.summary.toolDoubles} tool doubles`);
+  }
   console.log(`  fixture: ${MONSTER} · ${SPAN_MS / 3600000}h · tick ${s.tickMs}ms · ` +
     `${s.summary.ticks} ticks · ${s.summary.kills} kills · ${s.summary.crits} crits · ` +
     `${s.summary.gold}g · ${Object.keys(s.summary.xp).length} skills · ` +

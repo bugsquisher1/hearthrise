@@ -466,6 +466,13 @@ export const COLLECT_OUTCOMES = Object.freeze(['paid', 'nothing', 'refused']);
      because proceeding CONFISCATES it:
          unsupported_activity  a real activity this engine cannot simulate yet
          unknown_monster       the pointer names a target that is not in the data
+         unknown_node          ditto, for a gathering node (2026-08-15). A
+                               SEPARATE code because the two are produced by
+                               different catalogues, and "unknown_monster" is a
+                               lie about a missing tree
+         wrong_skill           the pointer's node belongs to a different skill
+                               than the character is set to — paying it would
+                               credit the wrong skill's XP
          no_active_since       an inconsistent row; the span cannot be bounded
          no_cap                hr_offline_cap_ms returned 0, so NOTHING in the
                                window can be priced — see the note below
@@ -522,6 +529,8 @@ export const SAFE_SKIP_REASONS = Object.freeze([
 export const REFUSING_SKIP_REASONS = Object.freeze([
   'unsupported_activity', // SKIP.UNSUPPORTED
   'unknown_monster',      // SKIP.NO_TARGET
+  'unknown_node',         // SKIP.NO_NODE      — the gather mirror of NO_TARGET
+  'wrong_skill',          // SKIP.WRONG_SKILL
   'no_active_since',      // SKIP.NO_ACTIVE_SINCE
   'no_cap',               // SKIP.NO_CAP — see the lockout note above
 ]);

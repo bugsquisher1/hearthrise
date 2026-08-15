@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 351 — 2026-08-15 (Your night is credited to the right hours)
+
+- 🌙 **Long absences now credit the FIRST hours after you left, not the last hours before you returned.** It sounds cosmetic; it wasn't: the old way let a capped night land in the wrong day for Boss of the Day, and a buff eaten right before logging off could pay nothing at all. Both fixed, both sides of the wall.
+- 📋 **The return summary now states exactly which hours were paid** — and when a long absence hits your offline cap, it says how much time went unpaid instead of leaving you to do the math.
+- ⏲️ Buff timers now agree with the wall clock after any absence, capped or not.
+- 🔧 If today felt bumpy (several builds shipped in quick succession), this build converges everyone onto the same version. If you believe you lost items or progress today, report it in Discord with roughly when — we can check the server's records for your account.
+
 ## v0.9.2-beta build 350 — 2026-08-15 (One clock for every night)
 
 - ⚒️ **Crafting, smithing and cooking now run on the same engine awake or asleep.** The whole artisan loop moved into the shared simulation core the server will run — one set of rules, one buff timeline, no second copy to drift. You shouldn't notice anything except the two fixes below, which fell out of proving it.

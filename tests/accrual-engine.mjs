@@ -53,7 +53,7 @@ import {
   computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
-import { parseIntent, readSlot, MAX_SLOT } from '../supabase/functions/hr-accrue/request.js';
+import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FN_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
@@ -574,7 +574,16 @@ async function shapeGuard() {
 // which is pure ESM, and this section runs the exact function the shell calls.
 function requestGuard() {
   /* Every shape a body can take. The assertion is the same for all of them: the
-     result has exactly one key, `slot`, and it is an integer in range. */
+     result has exactly the CONTRACT's keys — read from the module, never
+     restated here, so a field being ADDED shows up as a diff rather than
+     sliding past a hard-coded list — and every one of them is inert.
+
+     b345: the contract grew from `{slot}` to `{slot, verb, intentId, activity}`
+     when the shell gained verb dispatch. The bound is unchanged in kind: every
+     one of the four is a NAME or a SELECTOR, none is a value any progression
+     number is computed from. tests/activity-intent.mjs A12 drives the same
+     function with intent-shaped hostile bodies (uuid smuggling, SQL in an
+     activity id, a poisoned verb); this section keeps the original corpus. */
   const bodies = [
     null, undefined, 0, 1, '', 'slot', '{"slot":3}', true, [], [3], [{ slot: 3 }],
     {}, { slot: 3 }, { slot: '3' }, { slot: 3.5 }, { slot: -1 }, { slot: 6 },
@@ -599,13 +608,27 @@ function requestGuard() {
         `REQUEST: parseIntent threw on ${JSON.stringify(String(b))}: ${e?.message}`);
       continue;
     }
-    const keys = Object.keys(r);
-    ok(keys.length === 1 && keys[0] === 'slot',
-      `REQUEST: parseIntent returned keys [${keys}] for a hostile body — it must return exactly {slot}`);
+    const keys = Object.keys(r).sort().join(',');
+    ok(keys === [...INTENT_KEYS].sort().join(','),
+      `REQUEST: parseIntent returned keys [${keys}] for a hostile body — the contract is [${INTENT_KEYS}]`);
     ok(Number.isInteger(r.slot) && r.slot >= 0 && r.slot <= MAX_SLOT,
       `REQUEST: parseIntent produced slot=${String(r.slot)} — outside [0, ${MAX_SLOT}]`);
+    /* The three fields b345 added, on the SAME hostile corpus. None of these
+       bodies names a verb, a key or an activity, so every one of them must come
+       back inert — a hostile body that produced a usable intent id or a settable
+       activity would be authoring an intent, not describing one. */
+    ok(r.verb === 'accrue',
+      `REQUEST: a body that names no verb produced verb='${String(r.verb)}' — it must default to accrue`);
+    ok(r.intentId === null,
+      `REQUEST: a body that carries no key produced intentId='${String(r.intentId)}'`);
+    ok(r.activity === null || (r.activity.kind === null && r.activity.id === null),
+      `REQUEST: a body that declares no activity produced ${JSON.stringify(r.activity)}`);
     ok(Object.getPrototypeOf(r) === null,
       'REQUEST: parseIntent returned an object with a prototype — it must be null-prototype');
+    if (r.activity) {
+      ok(Object.getPrototypeOf(r.activity) === null,
+        'REQUEST: the activity sub-object has a prototype — it must be null-prototype too');
+    }
   }
   /* The prototype was never polluted along the way. */
   ok(({}).slot === undefined, 'REQUEST: Object.prototype.slot was polluted by a hostile body');
@@ -969,12 +992,107 @@ async function packerGuard() {
     'PACK: payloadHash ignored a one-byte change — it cannot detect drift');
 }
 
+/* ── TWO CALLERS, ONE ENGINE (b345) ─────────────────────────────────────────
+   `computeAccrual` now has two call sites: index.ts's accrue verb, and the
+   COLLECT that set-activity.js runs before it switches. If one gains an input
+   the other does not, the two verbs price the SAME window differently —
+   silently, with no error, always in the player's disfavour on whichever side
+   is short. That is not hypothetical: auto-eat added `inventory` /
+   `autoEatEnabled` / `autoEatFood` / `autoEatPct` to the accrue literal, and a
+   collect without them fights with no food and dies early.
+
+   Exported so tests/activity-intent.mjs (A14) runs the SAME function against
+   its mutated temp copy — one implementation, two callers, which is the rule
+   this guard exists to enforce applied to the guard itself.
+
+   It compares two REAL things against each other rather than one thing against
+   a list somebody typed, and it reports "the extractor is blind" as a FAILURE
+   rather than as agreement. */
+export function computeAccrualInputParity(fnDir) {
+  const found = [];
+  const keysOf = (src) => {
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    const at = code.indexOf('computeAccrual({');
+    if (at < 0) return null;
+    const open = code.indexOf('{', at);
+    let depth = 0; let end = -1;
+    for (let i = open; i < code.length; i++) {
+      if ('{(['.includes(code[i])) depth++;
+      else if ('})]'.includes(code[i])) { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end < 0) return null;
+    const keys = []; let d = 0; let line = '';
+    for (const ch of code.slice(open + 1, end)) {
+      if (ch === '\n') {
+        /* `name:` AND the shorthand `name,` — the two literals use a mix of both
+           for the same field, and an extractor that saw only one form would
+           report a permanent, meaningless difference and be "fixed" by deletion. */
+        const m = d === 0 && line.match(/^\s*([A-Za-z_$][\w$]*)\s*(?::|,\s*$)/);
+        if (m) keys.push(m[1]);
+        line = ''; continue;
+      }
+      if (d === 0) line += ch;
+      if ('{(['.includes(ch)) d++; else if ('})]'.includes(ch)) d--;
+    }
+    return keys.sort();
+  };
+  return (async () => {
+    const shell = keysOf(await readFile(join(fnDir, 'index.ts'), 'utf8'));
+    const intent = keysOf(await readFile(join(fnDir, 'set-activity.js'), 'utf8'));
+    /* CONTROL FIRST. An extractor that returns [] would make the comparison
+       below pass on any pair of files forever. */
+    if (!shell || shell.length < 10) {
+      found.push(`PARITY: the extractor found ${shell ? shell.length : 'no'} fields in index.ts's `
+        + 'computeAccrual literal — it is blind, so the comparison proves nothing');
+      return found;
+    }
+    if (!intent || intent.length < 10) {
+      found.push(`PARITY: the extractor found ${intent ? intent.length : 'no'} fields in `
+        + "set-activity.js's computeAccrual literal — it is blind");
+      return found;
+    }
+    const onlyShell = shell.filter((k) => !intent.includes(k));
+    const onlyIntent = intent.filter((k) => !shell.includes(k));
+    if (onlyShell.length || onlyIntent.length) {
+      found.push(`PARITY: the two computeAccrual call sites disagree. Only in index.ts (accrue): `
+        + `[${onlyShell}]. Only in set-activity.js (the collect a switch runs): [${onlyIntent}]. `
+        + 'Two callers of one engine with different inputs price the same window differently, '
+        + 'silently. Add the field to BOTH — do not relax this guard.');
+    }
+    return found;
+  })();
+}
+
+/* The intent's allowlist may never be wider than the set the engine can PAY: a
+   window the engine cannot price is a window the switch CONFISCATES, because
+   hr_apply stamps accrued_to = now() on any activity delta. Derived, not
+   restated — this asserts the derivation survived. */
+async function settableKindsGuard() {
+  const [{ PAYABLE_KINDS }, { SETTABLE_KINDS }] = await Promise.all([
+    import('../supabase/functions/hr-accrue/accrual.js'),
+    import('../supabase/functions/hr-accrue/set-activity.js'),
+  ]);
+  for (const k of SETTABLE_KINDS) {
+    ok(k === 'idle' || PAYABLE_KINDS.includes(k),
+      `INTENT: SETTABLE_KINDS contains '${k}', which computeAccrual cannot pay — an activity `
+      + 'switch would confiscate that window instead of paying it');
+  }
+  ok(SETTABLE_KINDS.includes('idle'),
+    'INTENT: SETTABLE_KINDS has no idle — the player could never stop');
+  for (const k of PAYABLE_KINDS) {
+    ok(SETTABLE_KINDS.includes(k),
+      `INTENT: the engine can pay '${k}' but no intent can set it — the accrual is unreachable`);
+  }
+}
+
 export async function runAll() {
   problems.length = 0;
   parityGuard();
   hostileGuard();
   await shapeGuard();
   requestGuard();
+  await settableKindsGuard();
+  for (const p of await computeAccrualInputParity(FN_DIR)) problems.push(p);
   await shellGuard();
   await clampGuard();
   await dayBudgetGuard();

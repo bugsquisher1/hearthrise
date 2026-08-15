@@ -18924,6 +18924,96 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('AWAY-24: the blessing channel is decided by AWAY_SCOPE ALONE — no simulation and no receipt restates it', () => {
+    const C = window.HearthriseCore;
+    const A = C.away;
+    /* ══════════════════════════════════════════════════════════════════════
+       DESIGN RULING 3.5 (binding, 2026-08-15).
+
+       `blessed` was a handwritten `false` in FOUR places — combat-sim's span
+       payload, skill-sim's `emptySummary`, artisan-sim's `emptySummary`, and
+       processOffline's own `lastOfflineSummary` — each carrying its own
+       comment restating "blessings are presence-gated (b227)". Those four
+       agreed with `AWAY_SCOPE.blessing` by coincidence of authorship, not by
+       construction. AWAY-6 pins that blessings pay NOTHING away; this pins
+       something different and, for the next feature, more important: WHO
+       DECIDES. The first world-boss blessing that is made to pay away flips
+       one line of the table and, before this, would have left every
+       welcome-back receipt in the game still stating that no blessing touched
+       the night — and the receipt is the only thing a renderer is permitted
+       to read, so the stale copy is the player-facing lie, not a tidiness
+       problem.
+
+       IT ASSERTS THE PROPERTY, NOT TODAY'S VALUE. It must stay green when
+       `AWAY_SCOPE.blessing` becomes true; the value is AWAY-6's subject.
+
+       MUTATION PROVEN RED, each independently, each after a green control:
+         (i)   restore `blessed: false` in src/core/combat-sim.js   -> (b)
+         (ii)  restore `blessed: false` in src/core/skill-sim.js    -> (b)
+         (iii) restore `blessed: false` in src/core/artisan-sim.js  -> (b)
+         (iv)  restore `blessed: false` in legacy's lastOfflineSummary -> (d)
+
+       KNOWN LIMITATION, stated rather than hidden: (b) discriminates by
+       running each span in BOTH contexts, so it can only see a constant that
+       disagrees with the oracle in at least one of them. Today's regression
+       shape (`false`) is caught in both regimes — under the current table it
+       fails the live context, and under a flipped table it fails both. A
+       hardcoded `true` would escape only in the flipped regime; (d)'s source
+       guard is what covers that class for the client receipt.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /* (a) THE ORACLE, AND THAT IT CANNOT BE EDITED AT RUNTIME. A rule that a
+       renderer or a restored save could flip is not an authority. */
+    assert(A && typeof A.channelApplies === 'function' && A.CHANNEL && A.CHANNEL.BLESSING,
+      'src/core/away.js must export channelApplies + CHANNEL — they are the single authority this test is about');
+    assert(Object.isFrozen(A.AWAY_SCOPE),
+      'AWAY_SCOPE must stay frozen: one writeable authority is still one authority, but only until something writes it');
+    const oracle = (away) => A.channelApplies(A.CHANNEL.BLESSING, { away: away });
+
+    /* (b) THE THREE SIMULATIONS REPORT THE ORACLE, in both contexts. Each is
+       run over a ZERO-LENGTH span with an idle state, so this measures the
+       payload and mutates nothing — no items, no XP, no buff clock. */
+    const spans = [
+      ['combatSim.simulateSpan', (ctx) => C.combatSim.simulateSpan({}, ctx)],
+      ['skillSim.simulateSkillSpan', (ctx) => C.skillSim.simulateSkillSpan({}, ctx)],
+      ['artisanSim.simulateArtisanSpan', (ctx) => C.artisanSim.simulateArtisanSpan({}, ctx)],
+    ];
+    const at = Date.now();
+    spans.forEach(([name, run]) => {
+      [true, false].forEach((away) => {
+        const out = run({ away: away, fromMs: at, toMs: at, tickMs: 2400 });
+        assert(out && typeof out.blessed === 'boolean',
+          name + ' must STATE blessed on its payload (a renderer may not infer it), got ' + JSON.stringify(out && out.blessed));
+        assert(out.blessed === oracle(away),
+          name + ' answered blessed=' + out.blessed + ' for away=' + away + ', but AWAY_SCOPE says '
+          + oracle(away) + '. The simulation is restating the rule instead of reading it.');
+      });
+    });
+
+    /* (c) …AND THEY AGREE WITH EACH OTHER, which is the failure mode that
+       actually shipped: three copies drifting is only visible when they are
+       compared. Cheap, and it names the disagreement rather than leaving it
+       to be inferred from two separate reds. */
+    const awayVals = spans.map(([name, run]) => [name, run({ away: true, fromMs: at, toMs: at, tickMs: 2400 }).blessed]);
+    assert(new Set(awayVals.map((p) => p[1])).size === 1,
+      'the three away simulations disagree about blessings: ' + JSON.stringify(awayVals));
+
+    /* (d) THE CLIENT RECEIPT DOES NOT CARRY A FIFTH COPY. processOffline is
+       always an absence, so there is no second context to discriminate with —
+       the discriminator has to be structural, which is exactly what AWAY-12
+       does to keep the second combat loop from coming back. legacy.js is a
+       classic script, so `processOffline` is a real global and its source is
+       readable; the summary literal lived inside it. */
+    const src = String(window.processOffline);
+    assert(/lastOfflineSummary\s*=/.test(src),
+      'this guard reads processOffline\'s own source and no longer finds the summary in it — the field may have moved, and the guard is now vacuous');
+    assert(!/blessed\s*:\s*(true|false)\b/.test(src),
+      'processOffline writes a HARDCODED blessed onto lastOfflineSummary. That is the fourth copy Ruling 3.5 removed: '
+      + 'it must ask src/core/away.js (via _awayBlessed), so a flipped AWAY_SCOPE.blessing reaches the welcome-back card.');
+    assert(/_awayBlessed\s*\(/.test(src),
+      'processOffline must derive blessed through _awayBlessed() — the one call that asks the table');
+  }),
+
   () => tryRun('AWAY-9: the summary carries the honesty payload the welcome-back renderer needs', () => {
     const G = window.G;
     const C = window.HearthriseCore;

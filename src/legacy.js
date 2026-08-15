@@ -1145,6 +1145,28 @@ function _awaySpanCore(){
   return (C&&C.skillSim&&C.artisanSim&&typeof C.gatherNodes==='function'
           &&typeof C.artisanRecipes==='function') ? C : null;
 }
+/* ── RULING 3.5 (2026-08-15): DID BLESSINGS PAY DURING THE ABSENCE? ────────
+   Asked of the ONE table that decides it — `AWAY_SCOPE.blessing` in
+   src/core/away.js, through the same `channelApplies` resolver core's three
+   span simulations now report from — instead of being answered a fourth time
+   here with a handwritten `false`.
+
+   `{away:true}` is not the rule; it is processOffline's own fact (it IS the
+   absence). What "away" MEANS for the blessing channel is the table's call
+   alone, so the first blessing that is ever made to pay away flips one line
+   and every receipt in the game follows it.
+
+   NO FALLBACK LITERAL, deliberately, and UNGUARDED for the reason the
+   `creditWindow` call in processOffline states about itself: a missing helper
+   must fail loudly, because the only silent fallback available here is a
+   fifth handwritten copy of the rule — the exact thing this removes. The
+   guard would be unreachable anyway: processOffline dereferences
+   `window.HearthriseCore.away.creditWindow` a hundred lines before the
+   summary is written, so core is present by construction at this point. */
+function _awayBlessed(){
+  const A = window.HearthriseCore.away;
+  return A.channelApplies(A.CHANNEL.BLESSING, {away:true});
+}
 /* `{skill, recipe}` for the pointer, or null — via the ONE index. Answers
    "is the running activity an artisan bench?" without a second mapping. */
 function _awayArtisanEntry(){
@@ -1856,15 +1878,24 @@ function processOffline(){
     budgetHrs: cap,        // b307: now the PER-ABSENCE cap ("your offline max")
     capped: capped,        // b307: true when this absence was longer than the cap
     at: Date.now(),
-    /* b227: a machine-readable statement that this catch-up was paid at the
-       base rate. The summary must never quote a blessing it did not apply —
-       the surest way to guarantee that is for the summary to carry the truth
-       instead of leaving each renderer to guess. */
-    blessed: false,
+    /* b227: a machine-readable statement of what this catch-up was paid at.
+       The summary must never quote a blessing it did not apply — the surest
+       way to guarantee that is for the summary to carry the truth instead of
+       leaving each renderer to guess.
+
+       RULING 3.5 (2026-08-15): it carries the truth by ASKING, not by
+       restating. This was a literal `false` — a fourth handwritten copy of a
+       decision `AWAY_SCOPE.blessing` already owns (the other three were in
+       combat-sim / skill-sim / artisan-sim). `{away:true}` is not the rule,
+       it is this function's own fact: processOffline IS the absence. What
+       the away context MEANS for blessings is the table's call alone. */
+    blessed: _awayBlessed(),
     /* THE HONESTY PAYLOAD (away-time-ruling.md §"Player-facing honesty").
        Everything a welcome-back renderer needs in order to describe the
        absence WITHOUT inferring anything:
-         blessed:false   blessings are presence-gated and paid nothing
+         blessed         whether the SERVER-WIDE blessing channel paid, as
+                         `AWAY_SCOPE.blessing` decides it (false today). Never
+                         restated here — see `_awayBlessed`.
          buffsPaused     ALWAYS FALSE since b347. Personal buffs pay away and
                          spend away on EVERY path now (combat via
                          simulateSpan, gather/artisan via replayAwaySpan), so

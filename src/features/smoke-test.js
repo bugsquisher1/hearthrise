@@ -18408,16 +18408,53 @@ const TESTS = [
 
       /* (e) A BUFF LONGER THAN THE ABSENCE SURVIVES IT, minus exactly the time
          that passed. Only testing the expiry case would pass a replay that
-         drained every buff to zero regardless — a different theft. */
+         drained every buff to zero regardless — a different theft.
+
+         ⚠ THE BOUND IS SELF-CALIBRATING, AND IT HAS TO BE. This assertion used
+           to be `remainingMs === 1200000 - SHORT`, which flaked at roughly 5%
+           (measured: 2 failures in ~36 consecutive suite runs, reporting
+           `left 899999`). The fixture pins only the START of the absence —
+           `offlineBudget.at = Date.now() - SHORT` — while processOffline reads
+           its OWN, strictly later, Date.now() to size the span. When the
+           millisecond ticks in between, the real absence is SHORT+1 and the
+           replay correctly drains SHORT+1. The product was right and the test
+           was asserting a clock coincidence.
+
+           A fixed tolerance would have worked, but this is better: the extra
+           can never exceed the wall time this test itself burned around the
+           call, so measuring that gives an exact upper bound with no magic
+           number to tune. It stays strictly tighter than any tolerance a
+           reviewer would have picked (typically a few ms), so every mutation
+           the old form caught is still caught: no drain leaves 0 and fails the
+           floor; a double drain leaves 600000 and a full drain leaves 1200000,
+           both failing the ceiling.
+
+           A gate that goes red ~5% of the time on work that did not break it
+           teaches the team to re-run instead of to read, which is how a real
+           regression gets waved through. */
       const SHORT = 300000;
-      G.offlineBudget = { at: Date.now() - SHORT };
+      const BUFF_START = 1200000;
+      const t0 = Date.now();
+      G.offlineBudget = { at: t0 - SHORT };
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: 1200000, addedAt: Date.now() }];
+      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_START, addedAt: Date.now() }];
       G.skillMs = null;
       window.processOffline();
+      /* The absence processOffline sized is (ITS Date.now()) - (t0 - SHORT), i.e.
+         SHORT plus however long this block took to reach it. `Date.now() - t0`
+         IS that extra, directly — do NOT subtract SHORT from it as well. Doing
+         so yields an upper bound BELOW the lower bound, an empty accepted band,
+         and an assertion that fails unconditionally while looking tighter than
+         ever. Caught here by arithmetic, not by a red run: two mutations were
+         already "proven" against it before anybody ran a GREEN CONTROL, and a
+         mutation that fails against a test which cannot pass has proven nothing
+         at all. */
+      const slopMs = Date.now() - t0;   // >= 0; the ms this test itself burned
       assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
-      assert(G.buffs[0].remainingMs === 1200000 - SHORT,
-        'a 5-minute absence must spend 5 minutes of a 20-minute buff, left ' + G.buffs[0].remainingMs);
+      const drainedMs = BUFF_START - G.buffs[0].remainingMs;
+      assert(drainedMs >= SHORT && drainedMs <= SHORT + slopMs,
+        'a 5-minute absence must spend 5 minutes of a 20-minute buff — drained ' + drainedMs
+        + 'ms, accepted ' + SHORT + '..' + (SHORT + slopMs) + ' (left ' + G.buffs[0].remainingMs + ')');
 
       /* (f) THE COPY WAS A LIE IN BOTH DIRECTIONS. home-dashboard.js prints
          "Food buffs paused — their time was kept, not spent." off this flag,

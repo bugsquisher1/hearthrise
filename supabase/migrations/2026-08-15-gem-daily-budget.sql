@@ -1,0 +1,1889 @@
+-- ════════════════════════════════════════════════════════════════════════
+-- Hearthrise — THE GEM DAILY BUDGET  (b351)
+--
+-- ⚠ REVIEW ONLY — STAGED, NOT APPLIED. The Coordinator applies.
+--
+-- Origin: the Security Engineer's BLOCKING condition 1 on the gold-grant intent
+-- (`claim_reward`, worktree-agent-aa956d14cdb43079e). Companion design:
+-- supabase/migrations/2026-08-11-daily-budget.sql (the whole argument for why a
+-- daily ceiling is derived from an append-only ledger). Companion test:
+-- tests/gem-daily-budget.mjs.
+--
+-- ── THE RULING, VERBATIM ────────────────────────────────────────────────
+-- "A delta key the engine can write must have both a per-call clamp and a
+--  per-day ledger-derived ceiling before the first intent that writes it ships.
+--  If a currency has no `*_in` column on `player_ledger` and no dimension in
+--  hr_day_budget_limits(), no intent may put it in a delta."
+--
+-- ── WHAT WAS MEASURED ───────────────────────────────────────────────────
+-- Gems had a per-call clamp (c_max_gem_delta = 100,000, review S5) and NO daily
+-- ceiling. hr_apply's own rate limit is 240 applies/minute, so the reachable
+-- rate was 24,000,000 gems/minute = 34.5 BILLION/day. Security's probe drove it
+-- directly: 1.2M gems minted in 12 calls, ZERO refusals — while the byte-
+-- identical loop in the GOLD dimension was refused at call 6, because gold has a
+-- ceiling (25,000,000/day) and gems had none. Same engine, same clamp shape,
+-- same key; the only difference was the dimension, which is exactly what makes
+-- this a contract defect rather than one bug.
+--
+-- ── THE NUMBER, AND WHERE IT COMES FROM ─────────────────────────────────
+-- Honest maximum measured on the gold-grant branch: 780 gems per character per
+-- UTC day, all of it through `claim_reward` (the daily/streak claim family — the
+-- only server path that mints a gem at all today).
+--
+--     dimension   honest max/day   budget    used     headroom
+--     gems              780         5,000    15.6%    ~6.4x
+--
+-- 6.4x is deliberately TIGHTER than gold's 23.8x and XP's 5.6x, and the reason
+-- is the shape of the faucet rather than a preference. Gold and XP are paid by
+-- ACCRUAL — a continuous function of elapsed time, gear and level, so a balance
+-- change moves them smoothly and a wide margin buys real insurance. Gems are
+-- paid by DISCRETE CLAIMS: a fixed table of rewards, claimed a bounded number of
+-- times a day. Doubling every gem reward in the game moves the honest maximum to
+-- 1,560 — still a third of the ceiling. What 5,000 buys against the other side:
+-- a compromised engine's gem rate falls from 34.5e9/day to 5,000/day, a factor
+-- of 6,900,000, and from 100,000/call to 5,000/day, ≥120,000x on the per-call
+-- axis.
+--
+-- ⚠ THE MEASUREMENT IS NOT REPRODUCIBLE IN THIS TREE, and that is stated rather
+--   than buried: `claim_reward` lives on an unmerged branch, so
+--   tests/accrual-engine.mjs' dayBudgetGuard — which measures the honest maximum
+--   for gold/xp/qty by executing the real engine — has nothing to execute for
+--   gems. There is therefore NO measured headroom guard on this dimension yet.
+--   WHOEVER MERGES claim_reward OWES ONE: teach dayBudgetGuard the gem faucet
+--   and let it fail the build at 35% the way it does for the other three.
+--   tests/run-sql-tests.mjs' "every currency has a ceiling" lint (PART 1g) is
+--   the structural half and IS here; it stops a FIFTH currency shipping without
+--   a ceiling, but it cannot price the fourth.
+--
+-- ── THE PER-CALL CLAMP IS LEFT AT 100,000, ON PURPOSE ───────────────────
+-- 5,000/day is below 100,000/call, so on a fresh character the day ceiling fires
+-- first and `gem_clamp` is only reachable above 100,000 in ONE delta. That is
+-- the same relationship gold already has (25,000,000/day vs 50,000,000/call) and
+-- the ordering inside hr_apply is what makes it correct: the per-call clamps are
+-- checked BEFORE the budget, so a 6.8e9-class engine bug still answers
+-- `gem_clamp` — "this ONE delta is insane" — rather than `daily_budget`, which
+-- means "you have had enough today". The specific diagnosis wins. See (4b)'s
+-- ordering comment in the body below; it was decided by a test, not by taste.
+--
+-- ── FAIL CLOSED ON A MISSING DIMENSION (§4) ─────────────────────────────
+-- §4's hr_day_budget_check RAISES — it does not pass — if hr_day_budget_limits()
+-- has no positive entry for a dimension, or if hr_day_budget_used() does not
+-- report one. This is not defensive padding; it closes a live regression path
+-- that this repo has already been bitten by once (three migrations each defining
+-- clan_members."join as self", filename order installing the wrong one, every
+-- self-check still green). Re-applying 2026-08-11-daily-budget.sql ON ITS OWN,
+-- at any point in the future, would `create or replace` gems back OUT of
+-- hr_day_budget_limits and hr_day_budget_used while this file's 6-argument
+-- hr_day_budget_check survived — and a jsonb `->>` on a missing key is NULL, so
+-- `NULL + v_g > limit` is NULL, which is not true, which silently passes. The
+-- ceiling would be gone and nothing would say so. Now that combination raises
+-- HR351 on the first gem-MINTING apply and mints nothing. A gem SPEND is
+-- unaffected: gross inflow is zero, so the zero-inflow short-circuit returns
+-- before the limits are ever read.
+--
+-- ── HOW THIS FILE WAS BUILT, AND WHY THAT MATTERS ───────────────────────
+-- `create or replace function` is the only way to change a function body in SQL,
+-- so the whole of hr_apply is restated below. IT WAS NOT RETYPED. It is the
+-- exact text of 2026-08-15-tool-carry.sql's hr_apply — the CURRENT last-toucher,
+-- which was itself derived from 2026-08-15-intent-key-hygiene.sql, which was
+-- derived from 2026-08-11-apply-engine.sql — extracted programmatically and
+-- patched at FOUR anchors, each of which had to match exactly once:
+--   (1) declare      v_gems_in
+--   (2) step (4b)    computes the gross gem inflow
+--   (3) step (4b)    passes it to the 6-argument hr_day_budget_check
+--   (4) the ledger   stamps gems_in
+-- Everything else is verbatim: b346's C1 release and C3 slot comparison, b348's
+-- tool_carry key, the S5 accrued_to stamp, the 12,000,000 XP clamp.
+--
+-- ⚠ AND THE SOURCE IS PROVEN TO BE WHAT PRODUCTION IS RUNNING, not assumed.
+--   Measured 2026-08-15 against nezapsylztqbbwuwembx, read-only:
+--     select md5(prosrc), length(prosrc) from pg_proc … proname='hr_apply'
+--       -> 623abfed32b170c656cf591f930f814c, 54,922 chars
+--   and the body extracted from 2026-08-15-tool-carry.sql between its
+--   dollar-quote delimiters is byte-identical: same md5, same length. THE SAME
+--   EXTRACTION REPRODUCES BOTH DOCUMENTED PREDECESSORS — apply-engine's
+--   917967d4bb03ca1c098b3e896a3e8317 (47,457) and intent-key-hygiene's
+--   09148396a3ec92597d53eafd421e5a67 (51,916) — which is the control proving the
+--   extraction boundary is right rather than merely producing A number. The body
+--   installed by THIS file is b7f7bdf3127ba1a31239c5ec8be3432e, 56,188 chars.
+--   (Same query, same session: gems_in does not exist and hr_day_budget_limits()
+--   returns three dimensions, so production has b348 and not this.)
+--   IF THAT COMPARISON EVER FAILS, DO NOT APPLY: re-derive from whatever
+--   production is actually running.
+--
+-- ⚠ THE DERIVATION IS NOT A CLAIM — IT IS A LINT. tests/run-sql-tests.mjs
+--   PART 1f-ii re-extracts hr_apply from BOTH files, applies these four patches
+--   to tool-carry's copy, and requires the result to be byte-identical to this
+--   file's. Editing either body without the other fails the build. That is
+--   strictly stronger than the md5-in-a-comment the two previous restatements
+--   used, because a comment goes stale in silence.
+--
+-- ⚠ TASKING NOTE, RECORDED BECAUSE IT WOULD HAVE BEEN A REGRESSION. This work
+--   was briefed to build on 2026-08-15-intent-key-hygiene.sql, "which MUST STAY
+--   LAST of anything touching hr_apply". That was true when it was written and
+--   is no longer: 2026-08-15-tool-carry.sql (b348) took over as last-toucher,
+--   and building on intent-key-hygiene would have silently deleted the
+--   `tool_carry` delta key while the deployed Edge Function kept proposing it —
+--   every gather accrual would then 409 `unknown_delta_key` and cost a whole
+--   night. The instruction was followed in substance (derive from the live
+--   last-toucher, never retype) and not in letter. §0 refuses to install if the
+--   body it is about to replace lacks `tool_carry`, so this reasoning is
+--   enforced rather than merely written down.
+--
+-- ⚠ THIS FILE IS NOW THE LAST ONE THAT REPLACES hr_apply. A later file that also
+--   replaces it would silently delete this change; an earlier one would be
+--   silently deleted by this. That ordering lives in
+--   tests/schema-apply-order.json and is enforced by the replay.
+--
+-- SAFE TO RE-RUN. Additive and idempotent: one `add column if not exists`, one
+-- conditional constraint, four `create or replace function`, one conditional
+-- `drop function`, one revoke/grant set, and self-checks that roll themselves
+-- back. §9 is the reversibility.
+--
+-- ── WHAT IT DOES NOT DO ─────────────────────────────────────────────────
+--   · It does NOT change what any honest player receives. The budget is a fuse:
+--     it either pays in full or refuses and records an incident. It never
+--     reduces a grant and never rewrites a number.
+--   · It does NOT budget `hearth_tokens`. That column exists on player_state and
+--     hr_state_of returns it, but it is not in hr_apply's `c_delta_keys` — the
+--     engine cannot write it, so by the ruling's own terms it needs no ceiling
+--     YET. PART 1g's lint is keyed on the delta-key list, so the day a token
+--     delta key is added the build fails until it has one.
+--   · It grants no new capability. hr_apply's grants are restated unchanged
+--     (hr_engine only) and the three budget functions stay executable by NOBODY
+--     — not even the engine, which must not be able to read its own ceiling.
+-- ════════════════════════════════════════════════════════════════════════
+
+-- ── 0. PRECONDITIONS + THE LAST-TOUCHER SELF-CHECK — FAIL CLOSED ─────────
+-- This file replaces a 52 KB function body it did not author. The only honest
+-- way to do that is to refuse unless the body about to be destroyed is the one
+-- this file was derived from — every load-bearing property named, individually,
+-- so a partial regression is a refusal and not a shrug.
+do $$
+declare
+  v_src text;
+  v_len int;
+  v_row text[];
+  -- name -> the regex that must be PRESENT in the live hr_apply body.
+  c_terms constant text[][] := array[
+    ['b346 C1: the version_conflict key release', 'delete from public\.player_intents'],
+    ['b346 C1: the v_claimed ownership flag',     '\mv_claimed\M'],
+    ['b346 C3: the slot comparison',              '\mv_prev_slot\M'],
+    ['b346 C3: the intent_mismatch slot term',    'intent_mismatch'],
+    ['S5: the accrued_to stamp on equip/activity','accrued_to\s+:?= v_accrued'],
+    ['S5: equip/activity closes the window',      'p_delta \? ''equip'' or p_delta \? ''activity'''],
+    ['Security ruling: the 12M XP clamp',         'c_max_xp_delta\s+constant bigint\s*:=\s*12000000'],
+    ['b348: the tool_carry delta key',            '\mtool_carry\M'],
+    ['C5/X3: the daily budget is enforced',       'hr_day_budget_check'],
+    ['S5: the gem per-call clamp',                'c_max_gem_delta']
+  ];
+begin
+  if to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)') is null then
+    raise exception 'hr_apply missing — apply 2026-08-11-apply-engine.sql first';
+  end if;
+  if to_regclass('public.player_ledger') is null then
+    raise exception 'player_ledger missing — apply 2026-08-11-player-state.sql first';
+  end if;
+  if to_regprocedure('public.hr_day_budget_limits()') is null
+     or to_regprocedure('public.hr_day_budget_used(uuid,int,timestamptz)') is null then
+    raise exception 'the daily-budget primitives are missing — apply '
+                    '2026-08-11-daily-budget.sql first; §2-§4 extend them';
+  end if;
+  if to_regprocedure('public.hr_utc_day_start(timestamptz)') is null then
+    raise exception 'hr_utc_day_start missing — apply 2026-08-11-daily-budget.sql first';
+  end if;
+
+  select prosrc, length(prosrc) into v_src, v_len
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'hr_apply';
+
+  -- ⚠ TWO CONTROLS BEFORE ANY VERDICT. A prosrc scan is a text search, and a
+  --   text search can fail in BOTH directions: it can stop matching (and then
+  --   every "present?" test passes vacuously by raising on a healthy database —
+  --   loud, but wrong), or it can match everything (and then every test passes
+  --   silently on a body that has none of these properties — quiet, and fatal).
+  --   The positive control is a term any hr_apply worth the name must have; the
+  --   negative control is a sentinel no hr_apply can possibly contain. Both must
+  --   land the right way round before a single term below is believed.
+  if v_src !~ 'version_conflict' then
+    raise exception 'THE hr_apply SOURCE SCAN IS BLIND (positive control): the term '
+                    '"version_conflict" is absent from a % char body, so every check below '
+                    'would raise on a database that is perfectly healthy. Do not "fix" this '
+                    'by deleting the check.', coalesce(v_len, 0);
+  end if;
+  if v_src ~ 'hr351_negative_control_this_string_is_not_in_any_hr_apply' then
+    raise exception 'THE hr_apply SOURCE SCAN CANNOT SEE FAILURE (negative control): a sentinel '
+                    'that appears in no hr_apply body MATCHED, so the scan is matching '
+                    'everything and every check below would pass on any body at all.';
+  end if;
+
+  -- Now the verdict. Each term names WHAT would be destroyed, because "the
+  -- precondition failed" is not an actionable message at 3am.
+  foreach v_row slice 1 in array c_terms loop
+    if v_src !~ v_row[2] then
+      raise exception 'REFUSING TO REPLACE hr_apply: the live body (% chars) does not carry "%" '
+                      '(regex: %). This file restates the WHOLE function, so applying it would '
+                      'silently DELETE that property. The body here was derived from '
+                      '2026-08-15-tool-carry.sql; apply the missing predecessor first, or '
+                      're-derive this file from whatever production is actually running.',
+                      coalesce(v_len, 0), v_row[1], v_row[2];
+    end if;
+  end loop;
+
+  if v_src ~ '\mv_gems_in\M' then
+    raise notice 'hr_apply already carries the b351 gem budget — this apply is a no-op re-run.';
+  end if;
+  raise notice 'b351 §0 PASSED: the live hr_apply (% chars) carries all % properties this file '
+               'must not destroy.', v_len, array_length(c_terms, 1);
+end $$;
+
+-- ── 1. THE STAMP COLUMN ──────────────────────────────────────────────────
+-- The fourth sibling of gold_in / xp_in / qty_in, and it follows their pattern
+-- exactly: nullable bigint, NULL meaning "this row was not written by hr_apply"
+-- — which is precisely the set of rows (market_buy's seller credit,
+-- market_list's escrow, a future IAP credit) that must not consume PROGRESSION
+-- budget. See 2026-08-11-daily-budget.sql's header, "WHY THREE NEW COLUMNS
+-- RATHER THAN SUMMING `meta`", for the whole argument; nothing about it changes
+-- for a fourth.
+--
+-- COST AT SCALE, since this is the largest table in the database: nullable and
+-- NULL on every row that is not an hr_apply row, and player_ledger already has a
+-- null bitmap (gold_in/xp_in/qty_in are nullable), so a NULL costs ZERO bytes.
+-- On rows hr_apply writes it is 8 bytes, and those rows already carry three
+-- other bigints. At 100x the current player base this is a single-digit-MB
+-- column, and it adds no index: the day window is already served by
+-- player_ledger_user_idx (user_id, slot, at desc), and the sum below rides the
+-- same scan the other three dimensions already pay for.
+alter table public.player_ledger add column if not exists gems_in bigint;
+
+-- Gross inflow is non-negative BY CONSTRUCTION, and the database says so — for
+-- the same reason the other three do: a signed stamp turns the budget back into
+-- a counter with a free reset button. A SEPARATE constraint rather than widening
+-- player_ledger_inflow_nonneg, because widening it means dropping and re-adding
+-- a CHECK on the biggest table in the database (a full validation scan, and a
+-- window where neither exists) to express something a second constraint says
+-- just as well.
+do $$
+begin
+  if not exists (select 1 from pg_constraint
+                  where conrelid = 'public.player_ledger'::regclass
+                    and conname  = 'player_ledger_gems_in_nonneg') then
+    alter table public.player_ledger add constraint player_ledger_gems_in_nonneg
+      check (coalesce(gems_in, 0) >= 0);
+  end if;
+end $$;
+
+-- ── 2. THE LIMITS — the fourth dimension ─────────────────────────────────
+-- RESTATED VERBATIM from 2026-08-11-daily-budget.sql §3 with `gems` added. The
+-- c_day_*_budget shape is load-bearing: tests/accrual-engine.mjs'
+-- dayBudgetsFromMigration() parses these declarations so the headroom guard
+-- reads the real number instead of a second copy of it.
+create or replace function public.hr_day_budget_limits()
+returns jsonb language plpgsql immutable set search_path = public as $$
+declare
+  -- 23.8x the measured honest maximum for a character-day.
+  c_day_gold_budget constant bigint := 25000000;
+  -- 5.6x. Also: 3 skills from 0 to 99 per day for someone holding the engine,
+  -- against ~40,000 skills/day without a ceiling.
+  c_day_xp_budget   constant bigint := 40000000;
+  -- 7.8x. Units, summed across item ids — the tradeable surface, so this is the
+  -- one that bounds a market faucet.
+  c_day_qty_budget  constant bigint := 1000000;
+  -- b351. 6.4x the measured honest maximum (780/character-day, all of it through
+  -- claim_reward). Tighter than the other three because the gem faucet is a
+  -- bounded set of DISCRETE claims rather than a continuous function of elapsed
+  -- time — doubling every gem reward in the game still lands at a third of this.
+  -- See the file header for the full pricing argument.
+  c_day_gems_budget constant bigint := 5000;
+begin
+  return jsonb_build_object(
+    'gold', c_day_gold_budget, 'xp', c_day_xp_budget, 'qty', c_day_qty_budget,
+    'gems', c_day_gems_budget);
+end $$;
+
+-- ── 3. TODAY'S USAGE — the sum, with a fourth column in it ───────────────
+-- RESTATED VERBATIM from 2026-08-11-daily-budget.sql §4 with `gems` added.
+--
+-- ⚠ VOLATILE, AND PL/pgSQL, AND BOTH OF THOSE ARE THE CONCURRENCY CONTROL — the
+--   marker is not decoration and a `create or replace` that dropped it would be
+--   silent. A STABLE function uses the snapshot established by the CALLING
+--   query, and hr_apply's caller began its statement BEFORE the concurrent apply
+--   it is racing committed; the sum would then read a pre-commit world and two
+--   applies would spend the same budget. §10(a) asserts provolatile = 'v'. Do
+--   not "optimise" it to STABLE. (Full reasoning: daily-budget.sql §4.)
+create or replace function public.hr_day_budget_used(
+  p_user uuid, p_slot int, p_at timestamptz default now())
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
+declare v_out jsonb;
+begin
+  select jsonb_build_object(
+           'gold', coalesce(sum(gold_in), 0),
+           'xp',   coalesce(sum(xp_in),   0),
+           'qty',  coalesce(sum(qty_in),  0),
+           'gems', coalesce(sum(gems_in), 0),
+           'rows', count(*),
+           'day',  public.hr_utc_day_key(p_at))
+    into v_out
+    from public.player_ledger
+   where user_id = p_user
+     and slot    = p_slot
+     and at >= public.hr_utc_day_start(p_at)
+     and at <  public.hr_utc_day_start(p_at) + interval '1 day';
+  return v_out;
+end $$;
+
+-- ── 4. THE CHECK — six arguments, and it FAILS CLOSED ────────────────────
+-- Returns NULL when the proposed inflow fits, and the breach detail otherwise.
+--
+-- ⚠ GEMS IS APPENDED LAST, not inserted next to gold. Every existing argument
+--   keeps its position, so the 5-argument call site that this file replaces
+--   cannot resolve to the new function with its arguments shifted — it fails
+--   with "function does not exist", loudly, at the first call. All six
+--   parameters are bigint; a silently mis-ordered call would be a ceiling
+--   checked against the wrong dimension, which is a hole that reads as a
+--   control. §8 then DROPS the 5-argument overload so there is no second door.
+--
+-- ⚠ THE ZERO-INFLOW SHORT-CIRCUIT IS A PERFORMANCE CONTROL, NOT A HOLE. An apply
+--   that mints nothing (equip, a craft that only consumes, a pure gem SPEND, a
+--   watermark-only accrue_forfeit) cannot move any of the four sums, so the
+--   day's rows are not read at all — and neither are the limits, which is why a
+--   spend survives even the fail-closed raise below.
+create or replace function public.hr_day_budget_check(
+  p_user uuid, p_slot int,
+  p_gold_in bigint, p_xp_in bigint, p_qty_in bigint, p_gems_in bigint)
+--
+-- VOLATILE for the same reason hr_day_budget_used is — see the block above it.
+returns jsonb language plpgsql volatile security definer set search_path = public as $$
+declare
+  v_lim  jsonb;
+  v_used jsonb;
+  v_dim  text;
+  v_g bigint := greatest(0, coalesce(p_gold_in, 0));
+  v_x bigint := greatest(0, coalesce(p_xp_in,   0));
+  v_q bigint := greatest(0, coalesce(p_qty_in,  0));
+  v_m bigint := greatest(0, coalesce(p_gems_in, 0));
+  c_dims constant text[] := array['gold','xp','qty','gems'];
+begin
+  if v_g = 0 and v_x = 0 and v_q = 0 and v_m = 0 then return null; end if;
+
+  v_lim  := public.hr_day_budget_limits();
+  v_used := public.hr_day_budget_used(p_user, p_slot, now());
+
+  -- ── FAIL CLOSED ON A MISSING DIMENSION ────────────────────────────────
+  -- This function is the ONLY consumer of the other two, and it is the only
+  -- place that can notice they have stopped agreeing with it. If a later
+  -- re-apply of 2026-08-11-daily-budget.sql restores the three-dimension
+  -- versions of hr_day_budget_limits/hr_day_budget_used, then `v_lim->>'gems'`
+  -- and `v_used->>'gems'` are NULL, `NULL + v_m > NULL` is NULL, `if NULL` is
+  -- not true — and the gem ceiling silently ceases to exist while every
+  -- self-check in every migration still passes. That is the exact defect class
+  -- this repo already shipped once (three files defining one policy, filename
+  -- order installing the wrong one). So: a dimension that cannot be priced
+  -- REFUSES the mint. It costs one jsonb key lookup per value-minting apply.
+  foreach v_dim in array c_dims loop
+    if coalesce((v_lim->>v_dim)::bigint, 0) <= 0 then
+      raise exception 'DAILY BUDGET IS MISSING THE "%" DIMENSION. hr_day_budget_limits() returned '
+                      '% — a dimension with no positive ceiling would pass every check silently '
+                      '(NULL comparisons are not true), so this refuses the mint instead. Most '
+                      'likely cause: 2026-08-11-daily-budget.sql was re-applied AFTER '
+                      '2026-08-15-gem-daily-budget.sql. Re-apply the later file.',
+                      v_dim, v_lim using errcode = 'HR351';
+    end if;
+    if not (v_used ? v_dim) then
+      raise exception 'DAILY BUDGET USAGE IS MISSING THE "%" DIMENSION. hr_day_budget_used() '
+                      'returned % — see the note above; re-apply '
+                      '2026-08-15-gem-daily-budget.sql.', v_dim, v_used using errcode = 'HR351';
+    end if;
+  end loop;
+
+  -- Checked in a FIXED order so the same over-budget delta always names the same
+  -- dimension. gems is appended rather than inserted for the same reason it is
+  -- appended to the signature: a rejection code whose detail moves when an
+  -- unrelated dimension is added is a support ticket nobody can reproduce.
+  if v_g > 0 and (v_used->>'gold')::bigint + v_g > (v_lim->>'gold')::bigint then
+    return jsonb_build_object('dim', 'gold', 'used', (v_used->>'gold')::bigint,
+                              'add', v_g, 'limit', (v_lim->>'gold')::bigint,
+                              'day', v_used->>'day');
+  end if;
+  if v_x > 0 and (v_used->>'xp')::bigint + v_x > (v_lim->>'xp')::bigint then
+    return jsonb_build_object('dim', 'xp', 'used', (v_used->>'xp')::bigint,
+                              'add', v_x, 'limit', (v_lim->>'xp')::bigint,
+                              'day', v_used->>'day');
+  end if;
+  if v_q > 0 and (v_used->>'qty')::bigint + v_q > (v_lim->>'qty')::bigint then
+    return jsonb_build_object('dim', 'qty', 'used', (v_used->>'qty')::bigint,
+                              'add', v_q, 'limit', (v_lim->>'qty')::bigint,
+                              'day', v_used->>'day');
+  end if;
+  if v_m > 0 and (v_used->>'gems')::bigint + v_m > (v_lim->>'gems')::bigint then
+    return jsonb_build_object('dim', 'gems', 'used', (v_used->>'gems')::bigint,
+                              'add', v_m, 'limit', (v_lim->>'gems')::bigint,
+                              'day', v_used->>'day');
+  end if;
+  return null;
+end $$;
+
+-- ── 5. GRANTS ON THE BUDGET FUNCTIONS — revoke from PUBLIC first ─────────
+-- Postgres grants EXECUTE to PUBLIC on every new function and Supabase's default
+-- ACL additionally grants anon/authenticated/service_role, so revoking one of
+-- the four leaves the privilege intact three other ways. `create or replace`
+-- preserves an existing ACL, so these are belt-and-braces for §2/§3 and the only
+-- protection §4 has — it is a NEW signature, born reachable.
+--
+-- NOTHING IS GRANTED TO hr_engine EITHER, and that is the point (daily-budget.sql
+-- §6): if the engine could call hr_day_budget_limits it could read its own
+-- ceiling and pace itself right up to it; if it could call hr_day_budget_used it
+-- could tell, per character, exactly how much room is left. Neither is
+-- information the PROPOSER of a delta needs. hr_apply is SECURITY DEFINER and
+-- owned by postgres, so it calls all three as the owner regardless of grants.
+revoke execute on function public.hr_day_budget_limits() from public;
+revoke execute on function public.hr_day_budget_limits()
+  from anon, authenticated, service_role;
+revoke execute on function public.hr_day_budget_used(uuid, int, timestamptz) from public;
+revoke execute on function public.hr_day_budget_used(uuid, int, timestamptz)
+  from anon, authenticated, service_role;
+revoke execute on function public.hr_day_budget_check(uuid, int, bigint, bigint, bigint, bigint)
+  from public;
+revoke execute on function public.hr_day_budget_check(uuid, int, bigint, bigint, bigint, bigint)
+  from anon, authenticated, service_role;
+
+-- ── 6. hr_apply — the whole body, restated with four patched anchors ─────
+-- Patches, in order of appearance:
+--   (1) declare    v_gems_in
+--   (2) step (4b)  computes the gross gem inflow
+--   (3) step (4b)  passes it to the 6-argument hr_day_budget_check
+--   (4) the ledger stamps gems_in
+-- Everything else is verbatim from 2026-08-15-tool-carry.sql, and
+-- tests/run-sql-tests.mjs PART 1f-ii proves it by re-deriving this text.
+
+create or replace function public.hr_apply(
+  p_user uuid, p_slot int, p_version bigint, p_intent_id uuid, p_delta jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  -- BLAST-RADIUS CLAMPS. NOT balance, NOT player-facing. They are the blast
+  -- radius if an Edge Function is ever wrong or compromised, exactly as the
+  -- clamps in clan_deposit (2026-08-08-clan-seat.sql:530) are. Set far above
+  -- honest play.
+  --
+  -- ── WHAT THESE CLAMPS ACTUALLY BUY, STATED HONESTLY (Security, 2026-08-11) ──
+  -- The flattering version of this control is "one compromised call cannot max
+  -- a skill from zero". That is TRUE at 5,000,000 and at 12,000,000 and it is
+  -- nearly WORTHLESS, because nothing limits a compromised engine to one call:
+  -- hr_rate_gate allows 30 accrues/minute, so the reachable rate is 150M XP/min
+  -- at 5M and 360M XP/min at 12M. Against an attacker with the engine, the
+  -- per-call clamp is a speed bump measured in seconds either way.
+  --
+  -- What it DOES buy, and the reason it is worth having:
+  --   1. It stops a single bad delta from an HONEST-BUT-BUGGY engine. The
+  --      `interval_ms` class is the live example: one request field taken from
+  --      the client turns a 12h absence into ~43.2M ticks instead of ~18,000 —
+  --      a ~2400x mint that proposes roughly 6.8 BILLION XP. That is refused
+  --      identically at 5M and at 12M. Almost every real defect looks like
+  --      this: not "slightly too much", but three orders of magnitude too much.
+  --   2. It keeps ledger rows small-grained, so anomaly detection has something
+  --      to detect. A clamp is also a bucket size.
+  --
+  -- ⚠ A clamp rejection is therefore NOT automatically an incident. Before the
+  --   degrade ladder in hr-accrue/index.ts it was closer to one — a rejection
+  --   rolled back the watermark with the payment and bricked accrual. It is now
+  --   recoverable, and honest play at maximum gear over a 24h cap can approach
+  --   these numbers on its own. Read a rejection as EITHER an incident OR a
+  --   balance change that outgrew its blast radius, and check
+  --   tests/accrual-engine.mjs' clamp-headroom report before assuming which.
+  --
+  -- c_max_xp_delta: 5,000,000 -> 12,000,000 on 2026-08-11 (Security ruling).
+  --   At 5M the worst honest case measured by clampGuard was inside the 60%
+  --   HEADROOM line but close enough that a single balance change would fire
+  --   it; at 12M the same worst case is ~23.6%. HEADROOM stays at 0.60 in
+  --   tests/accrual-engine.mjs — moving BOTH the clamp and the line is how you
+  --   arrive at a guard that structurally cannot fire. Only this one clamp
+  --   moved; gold, items, kinds and progress all have real margin already.
+  --   The surviving property is asserted, not documented: clampGuard requires
+  --   c_max_xp_delta < 13,034,431 = xpForLevel(99), i.e. one call can still
+  --   never carry a skill from 0 to the level cap.
+  c_max_gold_delta   constant bigint := 50000000;   -- per call
+  c_max_gem_delta    constant bigint := 100000;     -- per call  (review S5)
+  c_max_item_delta   constant bigint := 1000000;    -- per item per call
+  c_max_xp_delta     constant bigint := 12000000;   -- per skill per call (see above)
+  c_max_item_kinds   constant int    := 200;
+  c_max_equip_kinds  constant int    := 32;
+  c_max_farm_ops     constant int    := 64;
+  c_max_progress_ops constant int    := 64;
+  c_max_progress_add constant bigint := 1000000;
+  c_delta_keys constant text[] := array[
+    'gold','gems','hp','items','xp','equip','activity','accrued_to',
+    'farm','progress','progress_claim','journal',
+    -- b348: the deterministic gathering tool carry. See the block at (4a-ii).
+    'tool_carry'];
+  -- The carry is a FRACTION of one item per skill, so its whole legal range is
+  -- [0,1). A ceiling on the number of skills is a ceiling on the row size.
+  c_max_carry_skills constant int := 32;
+  c_ledger_kinds constant text[] := array[
+    'accrue','craft','gather','combat','farm','trade','shop',
+    'quest','equip','admin','iap','clan','raid'];
+
+  v_uid   uuid;
+  v_role  text;
+  v_prev_intent text;
+  v_this_intent text;
+  -- b346. The slot a key was CLAIMED on, and whether THIS call is the one that
+  -- claimed it. The first lets step (3) refuse a cross-slot reuse; the second
+  -- lets step (5) release a key it claimed itself. Both are explained at their
+  -- use sites — this is only where they live.
+  v_prev_slot   int;
+  v_claimed     boolean := false;
+  v_slot  int  := coalesce(p_slot, 0);
+  v_st    public.player_state%rowtype;
+  v_j     jsonb;
+  v_out   jsonb;
+  v_prev  jsonb;
+  v_kind  text;
+  v_msg   text; v_det text; v_sqlstate text;
+  k text; v_n bigint; v_have bigint; v_stacks int;
+  v_eq    jsonb; v_item text; v_cur text;
+  v_plot  jsonb; v_prog jsonb;
+  v_new_gold bigint; v_new_gems bigint;
+  v_act   jsonb; v_accrued timestamptz; v_rows int;
+  v_meta  jsonb;
+  v_carry jsonb;
+  -- THE DAILY BUDGET (C5/X3). Gross inflow proposed by THIS delta, per
+  -- dimension. Computed here from the delta, never accepted from the caller —
+  -- there is no delta key for them and the ledger has no client write grant, so
+  -- a compromised engine cannot understate its own consumption.
+  -- See supabase/migrations/2026-08-11-daily-budget.sql for the whole design.
+  v_gold_in bigint := 0; v_xp_in bigint := 0; v_qty_in bigint := 0;
+  -- b351 — THE FOURTH DIMENSION. Gems had a per-call clamp (100,000) and NO
+  -- daily ceiling, so a compromised engine could mint 100,000 gems per call at
+  -- 240 applies/minute. Security measured it: 1.2M gems in 12 calls, zero
+  -- refusals, while the IDENTICAL gold loop was refused at call 6. Same
+  -- provenance rule as the three above: computed here from the delta, never
+  -- accepted from the caller.
+  v_gems_in bigint := 0;
+  v_bud   jsonb;
+begin
+  -- ── (0) THE IDENTITY SEAM (review S1) ──────────────────────────────────
+  -- hr_apply is granted to exactly one role. `hr_engine` may act for a user it
+  -- names, because it has already verified that user's JWT and it holds no
+  -- table privilege of its own. Nobody else may name a user at all.
+  --
+  -- ⚠ current_user IS NOT THE CALLER HERE. Inside a SECURITY DEFINER function
+  --   current_user is the function's OWNER (postgres), so a `current_user =
+  --   'hr_engine'` test can never be true — verified on the database, not
+  --   assumed. The GUC set by PostgREST's `SET LOCAL ROLE <jwt.role>` does
+  --   survive the definer boundary, and that is what is read below.
+  --
+  --   The GUC is a SECONDARY check. The PRIMARY control is the GRANT: hr_apply
+  --   is executable by hr_engine and by nothing else a request can arrive as,
+  --   so reaching this line at all already means the caller is the engine (or
+  --   the owner, running a migration or a test). The GUC test exists so that
+  --   an owner-context call — a psql session, a future admin script — cannot
+  --   silently act as an arbitrary user without saying so.
+  v_role := coalesce(nullif(current_setting('role', true), 'none'), session_user);
+  if v_role = 'hr_engine' then
+    v_uid := coalesce(p_user, auth.uid());
+  else
+    v_uid := auth.uid();
+    if p_user is not null and p_user is distinct from v_uid then
+      -- Recorded even though it never reaches the protected block: this is the
+      -- single most interesting thing anyone can do to this function. (R4.)
+      perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'forbidden_impersonation',
+        jsonb_build_object('claimed_user', p_user, 'role', v_role));
+      return jsonb_build_object('ok', false, 'error', 'forbidden_impersonation');
+    end if;
+  end if;
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+
+  if p_delta is null or jsonb_typeof(p_delta) <> 'object' then
+    return jsonb_build_object('ok', false, 'error', 'bad_delta');
+  end if;
+  if p_intent_id is null then
+    return jsonb_build_object('ok', false, 'error', 'missing_intent_id');
+  end if;
+  -- Unknown top-level keys are an error, not a shrug. A delta key that this
+  -- function does not implement must never look like it worked.
+  if exists (select 1 from jsonb_object_keys(p_delta) as t(dk)
+              where dk <> all (c_delta_keys)) then
+    v_out := jsonb_build_object('ok', false, 'error', 'unknown_delta_key',
+      'keys', (select jsonb_agg(dk) from jsonb_object_keys(p_delta) as t(dk)
+                where dk <> all (c_delta_keys)));
+    -- An unknown key means the Edge Function and this contract have diverged,
+    -- or someone is probing for one that is not implemented. Both are worth
+    -- knowing about tomorrow, not just for the next 24 hours. (R4.)
+    perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'unknown_delta_key',
+      jsonb_build_object('keys', v_out->'keys'));
+    return v_out;
+  end if;
+
+  -- ── (1) Rate limit. OUTSIDE the protected block on purpose: a rejected call
+  --        must still consume budget, otherwise "spam invalid deltas" is a free
+  --        denial of service against the engine.
+  if not public.hr_rate_ok(v_uid, 'apply', 240, interval '1 minute') then
+    -- (C2) Recorded BEFORE the return, and before the intent claim, because
+    -- otherwise a rate-limited caller leaves no durable trace anywhere: the
+    -- early return happens ahead of player_intents, and player_intents is
+    -- pruned after 24h regardless. Sustained rate limiting is the loudest
+    -- automation signal this server produces and it was being discarded.
+    -- hr_record_rejection aggregates per (character, code, day) and promotes
+    -- the row to severity 'incident' past its daily threshold, so this costs
+    -- one row per player per day, not one row per rejected call.
+    --
+    -- (S6) …but still one WRITE per rejected call, which under the retry storm
+    -- this exists to detect is a row lock plus a WAL record per request, all
+    -- serialised on one tuple. So it is SAMPLED: the 1st, 10th and 50th
+    -- rejection in the window, then every 1000th, each carrying the gap it
+    -- stands for so `n` and the 'incident' escalation are unchanged.
+    if public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply') - 240) > 0 then
+      perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'rate_limited',
+        jsonb_build_object('limit', 240, 'per', '1 minute'),
+        public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'apply') - 240));
+    end if;
+    return jsonb_build_object('ok', false, 'error', 'rate_limited');
+  end if;
+
+  -- ── (2) Serialise this character. hashtextextended over user+slot; the lock
+  --        is transaction-scoped so it always releases, exception included.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+
+  -- ── (3) IDEMPOTENCY (review S8). Under the lock, so the check and the claim
+  --        cannot interleave. A replay returns the FIRST answer — success or
+  --        rejection — because "same key, same answer" is the contract that
+  --        makes a client retry safe.
+  --
+  --        WHAT IS STORED IS THE DECISION, NOT THE ENVELOPE (review R5).
+  --        Revision 2 stored the ENTIRE hr_state_of envelope — inventory,
+  --        fifteen skills, farm plots, progress — in player_intents.result, per
+  --        intent, at up to 240 applies/min/player. That is a full state
+  --        snapshot roughly every quarter second per player, retained 24 hours:
+  --        ~2 KB × 240 × 60 × 24 = 690 MB PER PLAYER PER DAY at the rate limit,
+  --        and this repo already has the receipt for what an unbounded journal
+  --        does here (game_events: 1.6M rows / 229 MB, six players, 3.45 days).
+  --        Now only `{ok}` (plus the error and its detail on a rejection) is
+  --        stored — tens of bytes — and a REPLAY OF A SUCCESS RE-DERIVES the
+  --        current state. That is strictly better for the caller too: a retry
+  --        gets fresh state and a fresh version instead of a stale snapshot it
+  --        would then have to discard. The contract is unchanged and is the one
+  --        that matters: the same key applies the effect exactly once.
+  --
+  --        ── ONE NAMESPACE, TWO KINDS OF KEY (review S6) ──────────────────
+  --        `player_intents` is keyed on (user_id, intent_id) and NOTHING else,
+  --        so a client-supplied uuid (market_list / market_cancel / market_buy
+  --        all take p_intent_id straight from the browser) shares a namespace
+  --        with keys the SERVER derives — the accrual engine's key is
+  --        sha256(user, slot, watermark, …), and `accrued_to` is a value
+  --        hr_load hands the client so it can render a countdown.
+  --
+  --        Left alone, that is a self-denial-of-service with a nasty shape: a
+  --        player computes their own next accrual key, burns it with a market
+  --        call, and every accrual from then on returns `replayed: true`,
+  --        applies nothing, and never advances the watermark — silently, with
+  --        ok:true, until hr_intents_prune deletes the row 24 hours later.
+  --
+  --        The fix is to notice that a replay must be a replay OF THE SAME
+  --        THING. `player_intents.intent` already records what the key was
+  --        claimed for; if the incoming call names a different one, this is not
+  --        a retry, it is a collision — deliberate or accidental — and the
+  --        honest answer is to refuse rather than to hand back someone else's
+  --        decision. One comparison, and it hardens every intent in the system,
+  --        not just accrual. (The accrual key is ALSO salted with hr_seed's
+  --        server secret now, so it cannot be computed in the first place; these
+  --        are two independent locks and the cheap one lives here.)
+  v_this_intent := p_delta #>> '{journal,intent}';
+  select result, intent, slot into v_prev, v_prev_intent, v_prev_slot
+    from public.player_intents
+   where user_id = v_uid and intent_id = p_intent_id;
+  if found then
+    --        ── AND A REPLAY MUST BE A REPLAY ON THE SAME CHARACTER (b346) ──
+    --        The intent NAME cannot carry the slot: it is also
+    --        player_ledger.intent, which the rollup groups on, so a slot number
+    --        in it would make one declaration read as two different things.
+    --        Which leaves 'set_activity:combat:goblin' meaning the same thing on
+    --        slot 0 and slot 1 — and 'set_activity:idle', which EVERY stop a
+    --        player makes shares, meaning the same thing everywhere.
+    --
+    --        Measured on this database 2026-08-15 and rolled back: one key
+    --        applied on slot 0 and then presented on slot 1 answered
+    --        ok:true, replayed:true and APPLIED NOTHING (slot 1 gold 500 -> 500)
+    --        while a control with a fresh key applied (500 -> 507). Silent, with
+    --        ok:true, on the character the player is looking at.
+    --
+    --        The column was already on the table and simply never read. One
+    --        comparison, here, covers all nine intents; the alternative is nine
+    --        Edge Functions each remembering to disambiguate a key they did not
+    --        choose.
+    if v_prev_intent is distinct from v_this_intent
+       or v_prev_slot is distinct from v_slot then
+      perform public.hr_record_rejection(v_uid, v_slot, coalesce(v_this_intent, 'apply'),
+        'intent_mismatch',
+        jsonb_build_object('stored', v_prev_intent, 'sent', v_this_intent,
+                           'stored_slot', v_prev_slot, 'sent_slot', v_slot));
+      return jsonb_build_object('ok', false, 'error', 'intent_mismatch');
+    end if;
+    if v_prev is null then
+      return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
+    end if;
+    if coalesce(v_prev->>'ok', 'false') = 'true' then
+      return public.hr_state_of(v_uid, v_slot) || jsonb_build_object('replayed', true);
+    end if;
+    return v_prev || jsonb_build_object('replayed', true);
+  end if;
+  -- (N3) The advisory lock above is keyed on user:SLOT, but the intent PK is
+  -- (user_id, intent_id) — no slot. Two slots replaying the same intent_id
+  -- concurrently therefore both miss the select and both insert, and the loser
+  -- gets an unhandled unique_violation (a 500) instead of an answer. Exotic
+  -- today (one character is active at a time) but it is a race, and a race
+  -- closed by `on conflict do nothing` costs nothing. The key stays
+  -- user-global rather than slot-scoped on purpose: a client-generated uuid
+  -- that means two different things on two slots is a worse contract than one
+  -- that is simply already taken.
+  -- b346: "already taken" is now SAID OUT LOUD. The branch above answers
+  -- intent_mismatch on a cross-slot reuse instead of handing back the other
+  -- character's decision, which is what "a worse contract" was always going to
+  -- feel like in practice.
+  insert into public.player_intents (user_id, intent_id, slot, intent)
+    values (v_uid, p_intent_id, v_slot, v_this_intent)
+  on conflict (user_id, intent_id) do nothing;
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'intent_in_flight');
+  end if;
+  -- THIS call owns the row. Nothing else may release it (see step (5)): a
+  -- rejection returned from the branch above belongs to whoever claimed the key
+  -- first, and deleting it there would free a key that is recording a SUCCESS.
+  v_claimed := true;
+
+  -- ══ THE PROTECTED BLOCK ═══════════════════════════════════════════════
+  -- Everything from here to the handler is all-or-nothing. Every rejection is
+  -- hr_reject(), which raises; the handler below undoes the block. (Review S2.)
+  begin
+    select * into v_st from public.player_state
+      where user_id = v_uid and slot = v_slot for update;
+    if not found then perform public.hr_reject('no_character'); end if;
+
+    -- (4) OPTIMISTIC CONCURRENCY — MANDATORY (review S9). Revision 1 skipped
+    -- the check when p_version was null, which meant the caller chose whether
+    -- concurrency control applied. A missing version IS a conflict.
+    if p_version is null or p_version <> v_st.version then
+      perform public.hr_reject('version_conflict',
+                               jsonb_build_object('version', v_st.version));
+    end if;
+
+    -- ── GOLD ─────────────────────────────────────────────────────────────
+    v_new_gold := v_st.gold;
+    if p_delta ? 'gold' then
+      v_n := coalesce((p_delta->>'gold')::bigint, 0);
+      if abs(v_n) > c_max_gold_delta then
+        perform public.hr_reject('gold_clamp', jsonb_build_object('limit', c_max_gold_delta));
+      end if;
+      v_new_gold := v_st.gold + v_n;
+      if v_new_gold < 0 then
+        perform public.hr_reject('insufficient_gold',
+                                 jsonb_build_object('have', v_st.gold, 'need', -v_n));
+      end if;
+    end if;
+
+    -- ── GEMS (review S5) ─────────────────────────────────────────────────
+    -- Revision 1 wrote `greatest(0, gems + delta)` with no clamp and no error:
+    -- spending 10 gems while holding 3 succeeded and silently cost 3. Gems are
+    -- a premium currency; a silent partial spend is a support ticket at best.
+    v_new_gems := v_st.gems;
+    if p_delta ? 'gems' then
+      v_n := coalesce((p_delta->>'gems')::bigint, 0);
+      if abs(v_n) > c_max_gem_delta then
+        perform public.hr_reject('gem_clamp', jsonb_build_object('limit', c_max_gem_delta));
+      end if;
+      v_new_gems := v_st.gems + v_n;
+      if v_new_gems < 0 then
+        perform public.hr_reject('insufficient_gems',
+                                 jsonb_build_object('have', v_st.gems, 'need', -v_n));
+      end if;
+    end if;
+
+    -- ── ITEMS ─ the delta is signed; a spend and a gain are the same code ─
+    if p_delta ? 'items' then
+      if jsonb_typeof(p_delta->'items') <> 'object' then
+        perform public.hr_reject('bad_items');
+      end if;
+      if (select count(*) from jsonb_object_keys(p_delta->'items')) > c_max_item_kinds then
+        perform public.hr_reject('too_many_item_kinds');
+      end if;
+      for k, v_n in select key, coalesce(nullif(value,'')::bigint, 0)
+                      from jsonb_each_text(p_delta->'items') loop
+        if v_n = 0 then continue; end if;
+        if abs(v_n) > c_max_item_delta then
+          perform public.hr_reject('item_clamp', jsonb_build_object('item_id', k));
+        end if;
+        -- Unknown ids are refused unconditionally now. hr_items is GENERATED
+        -- from src/data/items.js; if it is missing this function errors, which
+        -- is the correct direction to fail. (Review S3.)
+        if not exists (select 1 from public.hr_items where item_id = k) then
+          perform public.hr_reject('unknown_item', jsonb_build_object('item_id', k));
+        end if;
+        select qty into v_have from public.player_inventory
+          where user_id = v_uid and slot = v_slot and item_id = k for update;
+        v_have := coalesce(v_have, 0);
+        if v_have + v_n < 0 then
+          perform public.hr_reject('insufficient_item',
+            jsonb_build_object('item_id', k, 'have', v_have, 'need', -v_n));
+        end if;
+        if v_have + v_n = 0 then
+          delete from public.player_inventory
+            where user_id = v_uid and slot = v_slot and item_id = k;
+        else
+          insert into public.player_inventory as pi (user_id, slot, item_id, qty)
+            values (v_uid, v_slot, k, v_have + v_n)
+            on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
+        end if;
+      end loop;
+    end if;
+
+    -- ── XP ─ monotonic. A negative XP delta is a caller bug, and accepting one
+    --        would make a rollback indistinguishable from an exploit.
+    if p_delta ? 'xp' then
+      if jsonb_typeof(p_delta->'xp') <> 'object' then perform public.hr_reject('bad_xp'); end if;
+      for k, v_n in select key, coalesce(nullif(value,'')::bigint, 0)
+                      from jsonb_each_text(p_delta->'xp') loop
+        if v_n <= 0 then continue; end if;
+        if v_n > c_max_xp_delta then
+          perform public.hr_reject('xp_clamp', jsonb_build_object('skill_id', k));
+        end if;
+        update public.player_skills set xp = xp + v_n
+          where user_id = v_uid and slot = v_slot and skill_id = k;
+        get diagnostics v_rows = row_count;
+        if v_rows <> 1 then
+          perform public.hr_reject('unknown_skill', jsonb_build_object('skill_id', k));
+        end if;
+      end loop;
+    end if;
+
+    -- ── EQUIPMENT (review S4) ────────────────────────────────────────────
+    -- Equipping is a TRANSFER, not a flag. One unit leaves player_inventory
+    -- and one unit comes back on unequip or swap, so the total the player owns
+    -- is conserved and the equip/unequip duplication is arithmetically
+    -- impossible rather than merely unimplemented.
+    --
+    -- Four gates, all against the SERVER's data:
+    --   • the equip slot exists                 (hr_equip_slots)
+    --   • the item exists                       (hr_items)
+    --   • the item fits that slot               (hr_item_slots — 'ring' is
+    --     expanded to ring1/ring2 by the generator, in JS, next to the data)
+    --   • the player meets reqSkill/reqLv       (player_skills, derived level)
+    if p_delta ? 'equip' then
+      if jsonb_typeof(p_delta->'equip') <> 'object' then perform public.hr_reject('bad_equip'); end if;
+      if (select count(*) from jsonb_object_keys(p_delta->'equip')) > c_max_equip_kinds then
+        perform public.hr_reject('too_many_equip_ops');
+      end if;
+      for k, v_eq in select key, value from jsonb_each(p_delta->'equip') loop
+        if not exists (select 1 from public.hr_equip_slots where equip_slot = k) then
+          perform public.hr_reject('unknown_equip_slot', jsonb_build_object('equip_slot', k));
+        end if;
+
+        select item_id into v_cur from public.player_equipment
+         where user_id = v_uid and slot = v_slot and equip_slot = k for update;
+
+        if jsonb_typeof(v_eq) = 'null' then
+          -- UNEQUIP: return the unit to the bank.
+          if v_cur is not null then
+            delete from public.player_equipment
+             where user_id = v_uid and slot = v_slot and equip_slot = k;
+            insert into public.player_inventory as pi (user_id, slot, item_id, qty)
+              values (v_uid, v_slot, v_cur, 1)
+              on conflict (user_id, slot, item_id) do update set qty = pi.qty + 1;
+          end if;
+          continue;
+        end if;
+
+        if jsonb_typeof(v_eq) <> 'string' then
+          perform public.hr_reject('bad_equip', jsonb_build_object('equip_slot', k));
+        end if;
+        v_item := v_eq #>> '{}';
+        if v_cur is not null and v_cur = v_item then continue; end if;   -- no-op
+
+        if not exists (select 1 from public.hr_items where item_id = v_item) then
+          perform public.hr_reject('unknown_item', jsonb_build_object('item_id', v_item));
+        end if;
+        if not exists (select 1 from public.hr_item_slots
+                        where item_id = v_item and equip_slot = k) then
+          perform public.hr_reject('wrong_slot',
+            jsonb_build_object('item_id', v_item, 'equip_slot', k));
+        end if;
+        -- The requirement is re-checked here even though the Edge Function
+        -- already checked it. "The caller checked" is not a control.
+        if exists (
+          select 1 from public.hr_items i
+           where i.item_id = v_item and i.req_skill is not null and i.req_lv is not null
+             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s
+                            where s.user_id = v_uid and s.slot = v_slot
+                              and s.skill_id = i.req_skill), 1) < i.req_lv)
+        then
+          perform public.hr_reject('requirement_not_met', jsonb_build_object('item_id', v_item));
+        end if;
+
+        -- DEBIT one from the bank. This is the ownership check; there is
+        -- nothing else to check.
+        select qty into v_have from public.player_inventory
+         where user_id = v_uid and slot = v_slot and item_id = v_item for update;
+        if coalesce(v_have, 0) < 1 then
+          perform public.hr_reject('insufficient_item',
+            jsonb_build_object('item_id', v_item, 'have', coalesce(v_have, 0), 'need', 1));
+        end if;
+        if v_have = 1 then
+          delete from public.player_inventory
+           where user_id = v_uid and slot = v_slot and item_id = v_item;
+        else
+          update public.player_inventory set qty = qty - 1
+           where user_id = v_uid and slot = v_slot and item_id = v_item;
+        end if;
+
+        -- CREDIT back whatever was in the slot.
+        if v_cur is not null then
+          insert into public.player_inventory as pi (user_id, slot, item_id, qty)
+            values (v_uid, v_slot, v_cur, 1)
+            on conflict (user_id, slot, item_id) do update set qty = pi.qty + 1;
+        end if;
+
+        insert into public.player_equipment as pe (user_id, slot, equip_slot, item_id)
+          values (v_uid, v_slot, k, v_item)
+          on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id;
+      end loop;
+    end if;
+
+    -- ── BANK CAP ─ counted once, AFTER items and equipment, because both can
+    --   create a stack. Revision 1 checked it mid-way through the item loop and
+    --   then returned, committing the items it had already written.
+    --   A NEW stack is what costs space, so a player at cap can still gain more
+    --   of what they already hold.
+    --   BOUNDED COUNT (reliability RL4): the question is "> cap?", not "how
+    --   many?", so the scan stops at cap+1 rows instead of walking a 100,000-
+    --   stack bank on every item-touching apply.
+    if (p_delta ? 'items') or (p_delta ? 'equip') then
+      select count(*) into v_stacks from (
+        select 1 from public.player_inventory
+         where user_id = v_uid and slot = v_slot
+         limit v_st.bank_cap + 1) s;
+      if v_stacks > v_st.bank_cap then
+        perform public.hr_reject('bank_full',
+          jsonb_build_object('stacks', v_stacks, 'cap', v_st.bank_cap));
+      end if;
+    end if;
+
+    -- ── FARM ─ planting stamps the SERVER clock. `planted_at` can never be
+    --   supplied by anyone: that single line is the whole farming exploit
+    --   closed. The crop id is checked against the generated catalogue.
+    if p_delta ? 'farm' then
+      if jsonb_typeof(p_delta->'farm') <> 'array' then perform public.hr_reject('bad_farm'); end if;
+      if jsonb_array_length(p_delta->'farm') > c_max_farm_ops then
+        perform public.hr_reject('too_many_farm_ops');
+      end if;
+      for v_plot in select value from jsonb_array_elements(p_delta->'farm') loop
+        if coalesce((v_plot->>'clear')::boolean, false) then
+          update public.player_farm
+             set crop_id = null, planted_at = null, watered_at = null
+           where user_id = v_uid and slot = v_slot and plot_idx = (v_plot->>'i')::int;
+        elsif coalesce((v_plot->>'plant')::boolean, false) then
+          if not exists (select 1 from public.hr_crops where crop_id = v_plot->>'crop') then
+            perform public.hr_reject('unknown_crop', jsonb_build_object('crop', v_plot->>'crop'));
+          end if;
+          update public.player_farm
+             set crop_id = v_plot->>'crop', planted_at = now(), watered_at = null
+           where user_id = v_uid and slot = v_slot and plot_idx = (v_plot->>'i')::int
+             and crop_id is null;                   -- never replant an occupied plot
+          get diagnostics v_rows = row_count;
+          if v_rows <> 1 then
+            perform public.hr_reject('plot_unavailable', jsonb_build_object('i', v_plot->>'i'));
+          end if;
+        elsif coalesce((v_plot->>'water')::boolean, false) then
+          update public.player_farm set watered_at = now()
+           where user_id = v_uid and slot = v_slot and plot_idx = (v_plot->>'i')::int
+             and crop_id is not null and watered_at is null;
+        end if;
+      end loop;
+    end if;
+
+    -- ── PROGRESS (review S13) ────────────────────────────────────────────
+    -- Revision 1 inserted whatever `kind` and `state` the delta named, with an
+    -- unbounded `add`. `kind` typos became a parallel universe of rows; `state`
+    -- accepted 'claimed', which is the one value that gates a payout.
+    -- Here: `kind` is checked, `add` is clamped and non-negative, and 'claimed'
+    -- is unreachable — the separate claim block below is the only route.
+    if p_delta ? 'progress' then
+      if jsonb_typeof(p_delta->'progress') <> 'array' then perform public.hr_reject('bad_progress'); end if;
+      if jsonb_array_length(p_delta->'progress') > c_max_progress_ops then
+        perform public.hr_reject('too_many_progress_ops');
+      end if;
+      for v_prog in select value from jsonb_array_elements(p_delta->'progress') loop
+        if coalesce(v_prog->>'kind','') not in
+             ('quest','daily','bounty','stat','collection','flag') then
+          perform public.hr_reject('bad_progress_kind', jsonb_build_object('kind', v_prog->>'kind'));
+        end if;
+        if length(coalesce(v_prog->>'key','')) not between 1 and 64
+           or length(coalesce(v_prog->>'period','')) > 16 then
+          perform public.hr_reject('bad_progress_key');
+        end if;
+        if coalesce(v_prog->>'state','active') not in ('active','done') then
+          perform public.hr_reject('bad_progress_state',
+            jsonb_build_object('state', v_prog->>'state'));
+        end if;
+        v_n := coalesce((v_prog->>'add')::bigint, 0);
+        if v_n < 0 or v_n > c_max_progress_add then
+          perform public.hr_reject('progress_clamp', jsonb_build_object('add', v_n));
+        end if;
+        insert into public.player_progress as pp
+          (user_id, slot, kind, key, period_key, value, state, updated_at)
+        values (v_uid, v_slot, v_prog->>'kind', v_prog->>'key',
+                coalesce(v_prog->>'period',''), v_n, v_prog->>'state', now())
+        on conflict (user_id, slot, kind, key, period_key) do update
+          set value = pp.value + v_n,
+              -- A row already 'claimed' is terminal until its period rolls.
+              state = case when pp.state = 'claimed' then pp.state
+                           else coalesce(v_prog->>'state', pp.state) end,
+              updated_at = now();
+      end loop;
+    end if;
+
+    -- ── PROGRESS CLAIM ─ the only path to 'claimed', and it requires the row
+    --   to already be 'done'. `row_count` is the check: a claim that changes
+    --   nothing is a claim of something that was not earned, or a double claim.
+    if p_delta ? 'progress_claim' then
+      if jsonb_typeof(p_delta->'progress_claim') <> 'array' then
+        perform public.hr_reject('bad_progress_claim');
+      end if;
+      for v_prog in select value from jsonb_array_elements(p_delta->'progress_claim') loop
+        update public.player_progress
+           set state = 'claimed', updated_at = now()
+         where user_id = v_uid and slot = v_slot
+           and kind = v_prog->>'kind' and key = v_prog->>'key'
+           and period_key = coalesce(v_prog->>'period','')
+           and state = 'done';
+        get diagnostics v_rows = row_count;
+        if v_rows <> 1 then
+          perform public.hr_reject('not_claimable',
+            jsonb_build_object('kind', v_prog->>'kind', 'key', v_prog->>'key'));
+        end if;
+      end loop;
+    end if;
+
+    -- ── ACTIVITY ─────────────────────────────────────────────────────────
+    -- (Review R11.) Revision 2 gated the whole block on `v_act ? 'kind'`, so
+    -- `{"activity":{"restart":true}}` skipped EVERY check and still reached the
+    -- UPDATE, where `restart` resets active_since to now(). A caller could
+    -- therefore restamp the activity clock — the input to accrual — without
+    -- naming an activity, without a catalogue lookup and without the skill
+    -- gate. `{"activity":{}}` was likewise accepted and did nothing, which is
+    -- the "silently dropped effect" this contract explicitly refuses elsewhere.
+    -- Now: an `activity` key means a complete, validated activity statement.
+    v_act := p_delta->'activity';
+    if p_delta ? 'activity' then
+      if jsonb_typeof(v_act) <> 'object' then perform public.hr_reject('bad_activity'); end if;
+      if not (v_act ? 'kind') then
+        perform public.hr_reject('bad_activity',
+          jsonb_build_object('why', 'activity requires kind; restart alone is not an activity'));
+      end if;
+      if exists (select 1 from jsonb_object_keys(v_act) as t(ak)
+                  where ak <> all (array['kind','id','restart'])) then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'unknown activity key'));
+      end if;
+      if (v_act ? 'restart') and jsonb_typeof(v_act->'restart') <> 'boolean' then
+        perform public.hr_reject('bad_activity', jsonb_build_object('why', 'restart must be boolean'));
+      end if;
+      -- The (kind ⇔ id) invariant is a table CHECK, and hitting a CHECK yields
+      -- an opaque 23514. Answer it here so a caller bug reads as a caller bug.
+      if (v_act->>'kind' = 'idle') <> (nullif(v_act->>'id','') is null) then
+        perform public.hr_reject('bad_activity');
+      end if;
+      if v_act->>'kind' <> 'idle' then
+        if not exists (select 1 from public.hr_activities
+                        where kind = v_act->>'kind' and activity_id = v_act->>'id') then
+          perform public.hr_reject('unknown_activity',
+            jsonb_build_object('kind', v_act->>'kind', 'id', v_act->>'id'));
+        end if;
+        -- Re-check the skill gate against SERVER xp. A forged local level buys
+        -- nothing, including the right to start a level-90 node.
+        if exists (
+          select 1 from public.hr_activities a
+           where a.kind = v_act->>'kind' and a.activity_id = v_act->>'id'
+             and a.req_skill is not null and a.req_lv is not null
+             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s
+                            where s.user_id = v_uid and s.slot = v_slot
+                              and s.skill_id = a.req_skill), 1) < a.req_lv)
+        then
+          perform public.hr_reject('activity_locked', jsonb_build_object('id', v_act->>'id'));
+        end if;
+      end if;
+    end if;
+
+    -- ── (4a-ii) THE GATHERING TOOL CARRY (b348) ──────────────────────────
+    -- src/core/tools.js `advanceToolCarry` banks `qty x toolDouble` into a
+    -- per-skill FRACTION and pays out whole units as they accrue, so a 10%
+    -- tool pays exactly one bonus every ten actions instead of rolling for it.
+    -- That determinism is the whole reason an away replay is byte-identical
+    -- run to run, and it only survives across sessions if the remainder is
+    -- stored. legacy.js:3841 renamed it out of `G._toolCarry` for exactly this
+    -- column.
+    --
+    -- ⚠ IT IS AN ABSOLUTE, NOT A DELTA, and it is the only key here that is.
+    --   Every other value in this contract is signed and added; a carry cannot
+    --   be, because the engine computes the RESULTING remainder from a starting
+    --   one it was handed, and adding two remainders would be arithmetic
+    --   nobody defined. Stated here rather than inferred from the code.
+    --
+    -- ⚠ THE RANGE IS THE WHOLE CONTROL. A carry of 0.9 is legal; a carry of 900
+    --   would be a 900-item mint on the first action of the next span, because
+    --   `advanceToolCarry` floors it straight into a payout. So each value must
+    --   be a number in [0,1) — refused, never clamped: there is no honest way
+    --   for a carry to be out of range, and silently repairing an impossible
+    --   value is how a compromised engine's bug becomes the server's opinion.
+    if p_delta ? 'tool_carry' then
+      v_carry := p_delta->'tool_carry';
+      if jsonb_typeof(v_carry) <> 'object' then
+        perform public.hr_reject('bad_tool_carry', jsonb_build_object('type', jsonb_typeof(v_carry)));
+      end if;
+      if (select count(*) from jsonb_object_keys(v_carry)) > c_max_carry_skills then
+        perform public.hr_reject('too_many_carry_skills',
+          jsonb_build_object('n', (select count(*) from jsonb_object_keys(v_carry))));
+      end if;
+      for k in select key from jsonb_each(v_carry) loop
+        if length(k) not between 1 and 32
+           or not exists (select 1 from public.hr_skills where skill_id = k) then
+          perform public.hr_reject('unknown_skill', jsonb_build_object('skill_id', k));
+        end if;
+        if jsonb_typeof(v_carry->k) <> 'number'
+           or (v_carry->>k)::numeric < 0 or (v_carry->>k)::numeric >= 1 then
+          perform public.hr_reject('bad_tool_carry',
+            jsonb_build_object('skill', k, 'value', v_carry->k));
+        end if;
+      end loop;
+    end if;
+
+    -- ── (4b) THE LEDGER-DERIVED DAILY BUDGET (C5 / X3) ───────────────────
+    -- The per-call clamps below are a blast radius for ONE call. Nothing
+    -- restricts a compromised engine to one call — hr_rate_gate allows 30
+    -- accrues/minute — so without a per-DAY ceiling the reachable rate is
+    -- 518 BILLION XP/day, i.e. every skill in the game to 99 every two seconds.
+    -- This is the ceiling. Design, numbers and the composition argument against
+    -- the b307 per-absence cap: supabase/migrations/2026-08-11-daily-budget.sql.
+    --
+    -- WHERE IT SITS, AND WHY EXACTLY HERE:
+    --   • AFTER the advisory lock and the `for update` above, so the sum and
+    --     the row it will insert are inside one serialised critical section for
+    --     this character. Two concurrent applies cannot both read a
+    --     pre-insert world (hr_day_budget_used is VOLATILE — see its header).
+    --   • AFTER the version check, so a stale caller pays `version_conflict`
+    --     without a ledger scan.
+    --   • AFTER the per-call clamps, and that ordering was decided by a test
+    --     rather than by taste. With the budget checked first, the conservation
+    --     fuzz's `gold_clamp` op — a deliberate 6.8e9-class delta — came back
+    --     `daily_budget`, because the day's gold ceiling (25,000,000) is BELOW
+    --     the per-call gold clamp (50,000,000). c_max_gold_delta would have
+    --     become unreachable: a control that reads as a control in review and
+    --     can never fire. Clamps answer "this ONE delta is insane"; the budget
+    --     answers "you have had enough today". The specific diagnosis wins.
+    --   • STILL INSIDE the protected block, before the state UPDATE and before
+    --     the ledger row, so a breach rolls back everything the earlier blocks
+    --     wrote through the same hr_reject/HR000 path as any other rejection.
+    --     `daily_budget` never half-applies; the fuzz asserts that by
+    --     reconciling after it.
+    --   • GROSS inflow only. Netting a spend against a mint would give the
+    --     budget a free reset button (mint 25M, buy something, mint again).
+    --   • UNCONDITIONAL on journal.kind. `kind` is chosen by the caller; a
+    --     budget that only counted kind='accrue' would be evaded by writing
+    --     kind='trade'. Real transfers do not pass through hr_apply — market_buy
+    --     credits gold itself and leaves gold_in NULL — so honest trading is
+    --     not charged for this either.
+    v_gold_in := greatest(0, coalesce((p_delta->>'gold')::bigint, 0));
+    -- b351. GROSS gem inflow. `greatest(0, …)` is not decoration: a gem SPEND
+    -- must not buy back budget, or "mint 5,000, spend them, mint again" is a
+    -- reset button on the ceiling. Same reason gold is gross — daily-budget.sql,
+    -- "GROSS INFLOW, NOT NET".
+    v_gems_in := greatest(0, coalesce((p_delta->>'gems')::bigint, 0));
+    -- The typeof guards keep a malformed delta reaching its OWN error below
+    -- (bad_xp / bad_items) instead of erroring out of jsonb_each_text here with
+    -- an sqlstate the handler does not cover.
+    if jsonb_typeof(p_delta->'xp') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_xp_in from jsonb_each_text(p_delta->'xp');
+    end if;
+    if jsonb_typeof(p_delta->'items') = 'object' then
+      select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
+        into v_qty_in from jsonb_each_text(p_delta->'items');
+    end if;
+    -- b351. GEMS IS APPENDED LAST rather than inserted next to gold, on
+    -- purpose: every existing argument keeps its position, so a stale 5-argument
+    -- call site fails LOUDLY with "function does not exist" instead of silently
+    -- passing a gem count where an xp count is expected. The 5-argument overload
+    -- is dropped in §8 for the same reason — an overload that skips a dimension
+    -- is a ceiling somebody can call their way around.
+    v_bud := public.hr_day_budget_check(v_uid, v_slot, v_gold_in, v_xp_in, v_qty_in, v_gems_in);
+    if v_bud is not null then
+      -- The detail carries used / add / limit / dim / day, so a fired fuse is
+      -- diagnosable from the response alone. `daily_budget` is on the degrade
+      -- ladder's DEGRADABLE list in hr-accrue/index.ts for the same reason
+      -- bank_full is: halving the span reduces the proposed inflow, so an
+      -- honest accrual that lands on the ceiling costs part of an absence
+      -- rather than bricking the watermark.
+      perform public.hr_reject('daily_budget', v_bud);
+    end if;
+
+    -- ── ACCRUAL WATERMARK (review S19) ───────────────────────────────────
+    -- Revision 1 set accrued_to = now() AT APPLY TIME while the ticks had been
+    -- computed from the READ time, so every round trip silently confiscated the
+    -- elapsed milliseconds between the two — a few hundred per collect, forever.
+    -- The caller now states the watermark it actually paid up to, and the server
+    -- CLAMPS it into [old, now()]: it can never move backwards (which would pay
+    -- the same seconds twice) and never into the future (which would pay for
+    -- time that has not happened). "now" remains accepted as shorthand.
+    v_accrued := v_st.accrued_to;
+    if p_delta ? 'accrued_to' then
+      if p_delta->>'accrued_to' = 'now' then
+        v_accrued := now();
+      else
+        v_accrued := (p_delta->>'accrued_to')::timestamptz;
+      end if;
+      v_accrued := least(now(), greatest(v_st.accrued_to, v_accrued));
+    end if;
+
+    -- ── S5 (HALF) — AN EQUIPMENT OR ACTIVITY CHANGE CLOSES THE WINDOW ────
+    -- docs/design/server-authority.md §3 "⚠ Under-payment is the only direction
+    -- we are wrong in — THAT IS NOT TRUE": the accrual engine prices an absence
+    -- with the equipment read at COLLECT time, so logging off naked and putting
+    -- on best-in-slot before collecting is paid for the whole night at
+    -- best-in-slot rates. Measured on an identical seed and window: 12.8x gold
+    -- and 20x XP.
+    --
+    -- The close is structural rather than a rule the engine has to remember: any
+    -- apply that changes equipment or the activity pointer ALSO stamps
+    -- accrued_to = now(), so after an equip there is no unpaid window left for
+    -- the new gear to be applied to. The exploit is not "detected", it is
+    -- arithmetically empty.
+    --
+    -- ⚠ THE OTHER HALF IS NOT HERE, AND IT IS NOT MINE. This closes the
+    --   OVER-payment. It creates a matching UNDER-payment if the engine changes
+    --   equipment without collecting first — the elapsed time since the last
+    --   watermark is forfeited. The intent surface must therefore COLLECT
+    --   BEFORE IT EQUIPS, exactly as start_activity already collects the
+    --   previous activity first (design §2, "Where each one runs"). That is a
+    --   change in supabase/functions/hr-accrue, not in this file. It is safe to
+    --   ship this half alone today ONLY because no client-reachable path can
+    --   equip or start an activity yet; it must not stay alone past the first
+    --   one that can.
+    --
+    --   Also still open: the fail-closed `active_since` rule (an activity with a
+    --   NULL active_since must not be priced), which lives in accrual.js's
+    --   preconditions and is likewise not this file's to make.
+    if p_delta ? 'equip' or p_delta ? 'activity' then
+      v_accrued := now();
+    end if;
+
+    update public.player_state
+       set gold = v_new_gold,
+           gems = v_new_gems,
+           hp   = case when p_delta ? 'hp'
+                       then greatest(0, least(max_hp, coalesce((p_delta->>'hp')::int, hp)))
+                       else hp end,
+           active_kind  = coalesce(v_act->>'kind', active_kind),
+           active_id    = case when v_act ? 'kind'
+                               then nullif(v_act->>'id','') else active_id end,
+           active_since = case when coalesce((v_act->>'restart')::boolean, false)
+                               then now() else active_since end,
+           accrued_to   = v_accrued,
+           -- b348: an ABSOLUTE, validated at (4a-ii). Absent key = untouched.
+           tool_carry   = case when p_delta ? 'tool_carry'
+                               then v_carry else tool_carry end,
+           version      = version + 1,
+           updated_at   = now()
+     where user_id = v_uid and slot = v_slot;
+
+    -- ── JOURNAL ─ ONE row per apply. Per-item rows would multiply the write
+    --   volume of an idle game for detail `meta` already carries — and this
+    --   repo has the receipt: game_events, 1.6M rows / 229 MB, six players,
+    --   four days. A very large delta is summarised rather than stored whole,
+    --   so one pathological call cannot write a megabyte.
+    --
+    --   AND ONE ROW IS NOT ENOUGH IF THE ROW IS HUGE (reliability RL2(b)).
+    --   Revision 2 stored `p_delta - 'journal'` — the WHOLE proposed delta, up
+    --   to 200 item keys plus farm ops plus progress ops — as meta. Measured
+    --   projection: ~2.5× a game_events row, ×2 indexes, 600 MB/day at 600
+    --   players. Rebuilding game_events under a new name is exactly the mistake
+    --   this comment block was written to prevent.
+    --
+    --   What is kept is what a ledger is FOR: the value that moved. Gold, gems,
+    --   items, xp and equipment transfers are recorded (they are the audit
+    --   trail, and they are small — a real accrual apply touches 1-5 item
+    --   kinds). Everything else is recorded as a KEY NAME only, because the
+    --   authoritative record of it is the row it wrote: farm state is in
+    --   player_farm, progress is in player_progress, the activity pointer and
+    --   accrued_to are in player_state, and all of them are reachable from this
+    --   row's timestamp. `k` is the list of those keys, so the ledger still
+    --   says what kind of thing happened.
+    v_j    := coalesce(p_delta->'journal', '{}'::jsonb);
+    v_kind := coalesce(v_j->>'kind', 'admin');
+    if v_kind <> all (c_ledger_kinds) then v_kind := 'admin'; end if;
+    v_meta := jsonb_strip_nulls(jsonb_build_object(
+      'g',  nullif(coalesce((p_delta->>'gold')::bigint, 0), 0),
+      'm',  nullif(coalesce((p_delta->>'gems')::bigint, 0), 0),
+      'i',  case when p_delta ? 'items'
+                 and (select count(*) from jsonb_object_keys(p_delta->'items')) <= 24
+                 then p_delta->'items' end,
+      'x',  case when p_delta ? 'xp' then p_delta->'xp' end,
+      'e',  case when p_delta ? 'equip' then p_delta->'equip' end,
+      'k',  (select jsonb_agg(dk order by dk) from jsonb_object_keys(p_delta) as t(dk)
+              where dk <> all (array['gold','gems','items','xp','equip','journal']))
+    ));
+    -- If items were too numerous to itemise, say so with an aggregate rather
+    -- than dropping the fact that a large transfer happened.
+    if p_delta ? 'items' and not (v_meta ? 'i') then
+      v_meta := v_meta || jsonb_build_object('i_n',
+        (select count(*) from jsonb_object_keys(p_delta->'items')),
+        'i_sum', (select sum(coalesce(nullif(value,'')::bigint, 0))
+                    from jsonb_each_text(p_delta->'items')));
+    end if;
+    -- Backstop. Nothing above should be able to reach this, which is why it is
+    -- 2 KB and not 8 KB: if it ever fires, the shape has regressed.
+    if pg_column_size(v_meta) > 2000 then
+      v_meta := jsonb_build_object('summary', true, 'bytes', pg_column_size(p_delta),
+        'k', (select jsonb_agg(dk order by dk) from jsonb_object_keys(p_delta) as t(dk)));
+    end if;
+    --
+    --   THE THREE STAMP COLUMNS ARE THE DAILY BUDGET'S ONLY INPUT. They are
+    --   written UNCONDITIONALLY, on every row hr_apply writes, from the same
+    --   three variables the check at (4b) was made against — so what was
+    --   checked and what is charged cannot disagree. NULL in these columns
+    --   means "not written by hr_apply", which is exactly the set of rows
+    --   (market_buy's seller credit, market_list's escrow) that must not
+    --   consume progression budget.
+    insert into public.player_ledger
+      (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+    values
+      (v_uid, v_slot, v_kind, v_j->>'intent',
+       coalesce((p_delta->>'gold')::bigint, 0),
+       v_gold_in, v_xp_in, v_qty_in, v_gems_in,
+       jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta', '{}'::jsonb));
+
+    v_out := public.hr_state_of(v_uid, v_slot);
+
+  exception
+    -- Our own rejections. The block is rolled back; the envelope is built from
+    -- the machine code and its detail payload.
+    when sqlstate 'HR000' then
+      get stacked diagnostics v_msg = message_text, v_det = pg_exception_detail;
+      v_out := jsonb_build_object('ok', false, 'error', v_msg)
+               || coalesce(nullif(v_det, '')::jsonb, '{}'::jsonb);
+    -- A malformed delta that reaches a cast or a constraint. Rolled back and
+    -- reported rather than surfacing as a 500 — but NEVER silently: the
+    -- sqlstate is returned so a caller bug is diagnosable from the response.
+    when invalid_text_representation or invalid_datetime_format
+      or numeric_value_out_of_range or division_by_zero
+      or check_violation or not_null_violation or foreign_key_violation
+      or unique_violation or datatype_mismatch then
+      get stacked diagnostics v_sqlstate = returned_sqlstate, v_msg = message_text;
+      v_out := jsonb_build_object('ok', false, 'error', 'bad_delta',
+                                  'sqlstate', v_sqlstate, 'detail', v_msg);
+  end;
+
+  -- ── (5) Record the DECISION under the idempotency key. This statement is
+  --        OUTSIDE the protected block, so it survives a rejection: a replay of
+  --        a rejected intent returns the same rejection instead of re-running
+  --        it. Only the decision is stored, never the state envelope (R5, and
+  --        the reasoning is at step (3)) — on a success that is literally
+  --        `{"ok": true}`.
+  --
+  --        ── ONE EXCEPTION: A VERSION CONFLICT RELEASES THE KEY (b346) ──────
+  --        "Same key, same answer" is the right contract for a decision about
+  --        the DELTA — a clamp, an insufficiency, an unknown id. The caller must
+  --        change something, and changing the key is how it says "this is a new
+  --        attempt". `version_conflict` is not that. It is a statement about the
+  --        caller's READ: nothing was applied, the protected block rolled back
+  --        in full, and the DEFINED recovery is "re-read and try again".
+  --
+  --        Storing it turns an ordinary concurrency outcome into a lockout for
+  --        any caller whose key cannot change. Measured on this database
+  --        2026-08-15, rolled back:
+  --            (1) apply, stale version      -> {ok:false, version_conflict}
+  --            (2) retry SAME key, CORRECT   -> {ok:false, version_conflict,
+  --                                              replayed:true}
+  --            (3) control, NEW key, CORRECT -> {ok:true}
+  --        Same delta, same correct version; only the key differed. The accrual
+  --        engine's key is DERIVED from (user, slot, watermark, version, salt)
+  --        and a rejection does not move the watermark, so before this it could
+  --        re-derive a byte-identical, permanently-refused key — for up to 25
+  --        hours (hr_intents_prune, 17 * * * *, 24h window). The Edge side
+  --        additionally puts `version` in that derivation; this is the half that
+  --        also covers the CLIENT-chosen keys, which cannot re-derive anything.
+  --
+  --        NARROW ON PURPOSE. `v_claimed` means this call inserted the row, so a
+  --        rejection returned from step (3) — including an intent_mismatch
+  --        against a row recording somebody's SUCCESS — never reaches here and
+  --        can never free that row. And only `version_conflict` is released:
+  --        every other code is a decision about the delta and deserves the same
+  --        answer on the same key.
+  if v_claimed
+     and coalesce(v_out->>'ok', 'false') <> 'true'
+     and v_out->>'error' = 'version_conflict' then
+    delete from public.player_intents
+     where user_id = v_uid and intent_id = p_intent_id;
+  else
+    update public.player_intents
+       set result = case when coalesce(v_out->>'ok','false') = 'true'
+                         then jsonb_build_object('ok', true)
+                         else v_out end
+     where user_id = v_uid and intent_id = p_intent_id;
+  end if;
+
+  -- ── (6) THE REJECTION RECORD (review R4). Also outside the protected block,
+  --        and that is the entire point: the ledger insert that revision 2
+  --        relied on for an audit trail sits INSIDE the block, so a rejection
+  --        rolled it back and the only trace of a fired clamp was
+  --        player_intents.result — which hr_intents_prune deletes after 24
+  --        hours. The design says "treat any rejection as an incident"; an
+  --        incident nobody can see the next morning is not one.
+  --
+  --        hr_record_rejection aggregates per (character, code, day) and
+  --        classifies incident vs normal itself, so this is a bounded write —
+  --        one UPSERT, not a row per rejection. See player-state.sql §6b-ii for
+  --        why that shape and not a log.
+  if coalesce(v_out->>'ok', 'false') <> 'true' then
+    perform public.hr_record_rejection(
+      v_uid, v_slot, coalesce(p_delta #>> '{journal,intent}', 'apply'),
+      v_out->>'error', v_out - 'ok' - 'error');
+  end if;
+
+  return v_out;
+end $$;
+
+-- ── 7. GRANTS ON hr_apply — revoke from PUBLIC first, then grant ─────────
+-- `create or replace` preserves the existing ACL, so these are belt-and-braces.
+-- They are restated because Postgres grants EXECUTE to PUBLIC on every new
+-- function and Supabase's default ACL additionally grants it to anon,
+-- authenticated and service_role — and "it was already correct" is how a gap
+-- survives three reviews. If the browser could call hr_apply, the browser could
+-- author its own delta and the clamps would become the game's rules instead of
+-- its blast radius.
+revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from public;
+revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb)
+  from anon, authenticated, service_role;
+grant execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr_engine;
+
+-- ── 8. RETIRE THE 5-ARGUMENT OVERLOAD ────────────────────────────────────
+-- AFTER hr_apply has been replaced with the 6-argument call, never before: in a
+-- transactional apply the order does not matter (PL/pgSQL resolves the call at
+-- runtime), and in a NON-transactional one it does — dropping first would leave
+-- a window in which every value-minting apply throws.
+--
+-- ⚠ WHY DROP IT RATHER THAN LEAVE IT. An overload is a second door with a lower
+--   ceiling on it. `hr_day_budget_check(u, s, gold, xp, qty)` is a check that
+--   silently ignores gems, and the next intent that mints a currency will be
+--   written by someone copying the call site they can see. All six arguments are
+--   bigint, so the copy compiles and passes review. The whole ruling this file
+--   implements exists because a dimension was MISSING, not because one was
+--   wrong; leaving a signature that omits it is leaving the defect available.
+--   Reversibility is unaffected — §9 re-creates it by re-applying one file.
+drop function if exists public.hr_day_budget_check(uuid, int, bigint, bigint, bigint);
+
+-- ── 9. REVERSIBILITY ─────────────────────────────────────────────────────
+--   1. Re-apply 2026-08-15-tool-carry.sql. hr_apply is a single CREATE OR
+--      REPLACE on the same signature, so that restores the b348 body verbatim
+--      (5-argument budget call, no gems_in stamp) — the whole rollback of the
+--      enforcement, in one file.
+--   2. Re-apply 2026-08-11-daily-budget.sql. It restores the three-dimension
+--      hr_day_budget_limits / hr_day_budget_used AND re-creates the 5-argument
+--      hr_day_budget_check that step 1's body calls.
+--      ⚠ THE TWO STEPS ARE ONE ROLLBACK AND MUST BOTH RUN. Doing (2) without
+--        (1) leaves a 6-argument-calling hr_apply with no 6-argument function:
+--        every value-minting apply throws. Doing (1) without (2) leaves a
+--        5-argument-calling hr_apply with no 5-argument function: identically
+--        broken. Either half alone is an outage; both halves are a clean
+--        rollback. (Failing loudly in both directions is the design — see §4's
+--        fail-closed block for why the alternative, a silent pass, is worse.)
+--   3. Optionally: drop function if exists
+--        public.hr_day_budget_check(uuid,int,bigint,bigint,bigint,bigint);
+--   4. The column and its CHECK may stay. They are nullable, they cost nothing
+--      on a row that does not use them, and dropping a column from the largest
+--      table in the database is a maintenance-window decision rather than a
+--      rollback step. If they must go:
+--        alter table public.player_ledger drop constraint player_ledger_gems_in_nonneg;
+--        alter table public.player_ledger drop column gems_in;
+-- No cron job, no data migration, no row rewritten, no index built. Raising the
+-- LIMIT is a one-line edit to §2 and needs no other change anywhere.
+
+-- ── 10. SELF-VERIFICATION — the commit gate ──────────────────────────────
+-- Every claim this file makes, EXECUTED, with controls, rolled back. A migration
+-- whose self-check can only ever pass has checked nothing.
+
+-- (a) SHAPE AND CAPABILITY.
+do $$
+declare
+  v_txt text;
+  v_bad text;
+  v_p   oid;
+  v_lim jsonb;
+  v_src text;
+begin
+  -- (a-i) The stamp column, as a bigint. A budget that stamps into a column that
+  --       is not there would be a no-op fuse.
+  select data_type into v_txt from information_schema.columns
+   where table_schema='public' and table_name='player_ledger' and column_name='gems_in';
+  if v_txt is distinct from 'bigint' then
+    raise exception 'player_ledger.gems_in is % — expected bigint', coalesce(v_txt, 'MISSING');
+  end if;
+  if not exists (select 1 from pg_constraint
+                  where conrelid='public.player_ledger'::regclass
+                    and conname='player_ledger_gems_in_nonneg') then
+    raise exception 'the gems_in non-negativity CHECK is missing — a signed stamp turns the '
+                    'budget back into a counter with a free reset button';
+  end if;
+
+  -- (a-ii) THE 5-ARGUMENT OVERLOAD IS GONE and the 6-argument one exists. Both
+  --        halves: "the new one exists" alone would pass with a second door open.
+  if to_regprocedure('public.hr_day_budget_check(uuid,int,bigint,bigint,bigint)') is not null then
+    raise exception 'the 5-argument hr_day_budget_check still exists — it is a ceiling that '
+                    'silently ignores gems, and the next currency will be written by copying it';
+  end if;
+  if to_regprocedure('public.hr_day_budget_check(uuid,int,bigint,bigint,bigint,bigint)') is null then
+    raise exception 'the 6-argument hr_day_budget_check was not created — §6 calls it and every '
+                    'value-minting apply would throw';
+  end if;
+
+  -- (a-iii) FOUR POSITIVE DIMENSIONS, and gems is the number this file exists to
+  --         install. Asserted by VALUE, because "the key is present" would pass
+  --         on a zero (which would refuse every gem the game ever pays).
+  v_lim := public.hr_day_budget_limits();
+  foreach v_txt in array array['gold','xp','qty','gems'] loop
+    if coalesce((v_lim->>v_txt)::bigint, 0) <= 0 then
+      raise exception 'hr_day_budget_limits() has no positive "%" dimension: %', v_txt, v_lim;
+    end if;
+  end loop;
+  if (v_lim->>'gems')::bigint <> 5000 then
+    raise exception 'the gem ceiling is % — this file prices it at 5,000/character-day (6.4x the '
+                    'measured honest maximum of 780). If that was deliberate, update the header''s '
+                    'headroom table in the same commit.', v_lim->>'gems';
+  end if;
+
+  -- (a-iv) VOLATILITY — the concurrency control, asserted rather than commented.
+  --        A `create or replace` that dropped the VOLATILE marker would let two
+  --        concurrent applies sum a pre-commit snapshot and both spend the same
+  --        budget. IMMUTABLE on hr_utc_day_start is the other half: without it
+  --        the day window stops being a planner-visible index range.
+  if (select provolatile from pg_proc
+       where oid = to_regprocedure('public.hr_day_budget_used(uuid,int,timestamptz)')) <> 'v' then
+    raise exception 'hr_day_budget_used is not VOLATILE — it would sum a stale snapshot and two '
+                    'concurrent applies could both spend the same budget';
+  end if;
+  if (select provolatile from pg_proc
+       where oid = to_regprocedure(
+         'public.hr_day_budget_check(uuid,int,bigint,bigint,bigint,bigint)')) <> 'v' then
+    raise exception 'hr_day_budget_check is not VOLATILE — see hr_day_budget_used';
+  end if;
+
+  -- (a-v) NOT EXECUTABLE BY ANYTHING A REQUEST CAN ARRIVE AS, and not by the
+  --       ENGINE either: a proposer that can read its own ceiling can pace
+  --       itself right up to it, and one that can read today's usage knows
+  --       exactly how much room is left on every character.
+  for v_bad in
+    select f || ' -> ' || r
+      from unnest(array[
+             'public.hr_day_budget_limits()',
+             'public.hr_day_budget_used(uuid,int,timestamptz)',
+             'public.hr_day_budget_check(uuid,int,bigint,bigint,bigint,bigint)']) f,
+           unnest(array['public','anon','authenticated','service_role','hr_engine']) r
+     where has_function_privilege(r, to_regprocedure(f), 'execute')
+  loop
+    raise exception 'a daily-budget function is executable by a role it must not be: % — revoke '
+                    'before grant', v_bad;
+  end loop;
+
+  -- (a-vi) hr_apply's capability surface is UNCHANGED by this file.
+  v_p := to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)');
+  foreach v_bad in array array['public','anon','authenticated','service_role'] loop
+    if has_function_privilege(v_bad, v_p, 'execute') then
+      raise exception 'hr_apply is EXECUTABLE BY % — the browser could author its own delta', v_bad;
+    end if;
+  end loop;
+  if not has_function_privilege('hr_engine', v_p, 'execute') then
+    raise exception 'hr_engine cannot execute hr_apply — the whole engine path is dead';
+  end if;
+
+  -- (a-vii) NO CLIENT WRITE POLICY on the table the budget is derived from. A
+  --         sum over an append-only ledger is only "not a value someone can
+  --         move" for as long as nobody can write it. player_ledger's own
+  --         immutability trigger is the other half and lives in player-state.sql.
+  select string_agg(policyname || ':' || cmd, ', ') into v_bad from pg_policies
+   where schemaname='public' and tablename='player_ledger' and cmd <> 'SELECT';
+  if v_bad is not null then
+    raise exception 'player_ledger grew a non-SELECT policy (%) — the client could author the rows '
+                    'the daily budget is derived FROM, which is how the clan takeover worked: the '
+                    'permission functions were correct and the attacker wrote the row they read',
+                    v_bad;
+  end if;
+
+  -- (a-viii) EVERY function this file creates pins its search_path.
+  --          get_advisors' function_search_path_mutable found two of four the
+  --          first time daily-budget.sql was applied to production, so the rule
+  --          gets an assertion rather than a round of review comments.
+  for v_bad in
+    select f from unnest(array[
+             'public.hr_day_budget_limits()',
+             'public.hr_day_budget_used(uuid,int,timestamptz)',
+             'public.hr_day_budget_check(uuid,int,bigint,bigint,bigint,bigint)',
+             'public.hr_apply(uuid,int,bigint,uuid,jsonb)']) f
+     where not exists (select 1 from pg_proc p
+                        where p.oid = to_regprocedure(f)
+                          and coalesce(array_to_string(p.proconfig, ','), '') like '%search_path=%')
+  loop
+    raise exception '% has a mutable search_path', v_bad;
+  end loop;
+
+  -- (a-ix) THE BODY THAT LANDED IS THE ONE THIS FILE MEANT TO INSTALL, and it
+  --        still carries everything §0 refused to destroy. §0 checks the body
+  --        BEFORE the replace; this checks it after, which is what makes the
+  --        pair a gate rather than a hope.
+  select prosrc into v_src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname='public' and p.proname='hr_apply';
+  foreach v_bad in array array[
+    'v_gems_in', 'gems_in', 'v_prev_slot', 'intent_mismatch', 'tool_carry',
+    'c_max_xp_delta     constant bigint := 12000000']
+  loop
+    if position(v_bad in v_src) = 0 then
+      raise exception 'the hr_apply that landed does not contain "%" — the restatement in §6 is '
+                      'wrong', v_bad;
+    end if;
+  end loop;
+  if v_src !~ 'hr_day_budget_check\(v_uid, v_slot, v_gold_in, v_xp_in, v_qty_in, v_gems_in\)' then
+    raise exception 'hr_apply does not call the 6-argument hr_day_budget_check — the gem dimension '
+                    'is computed and then thrown away, which is a ceiling that reads as a control';
+  end if;
+
+  raise notice 'b351 §10(a) PASSED: gems_in + CHECK, four positive dimensions (gems=%), the '
+               '5-arg overload retired, volatility, zero client reach, and the landed body.',
+               v_lim->>'gems';
+end $$;
+
+-- (b) THE BEHAVIOUR, on a REAL character, driven through the REAL hr_apply,
+--     inside a subtransaction that is rolled back to zero effect.
+--     "The dimension exists" is not "the dimension refuses"; only this can tell
+--     them apart. Every claim is paired with a control that fails if the probe
+--     is blind, and the probe is skipped LOUDLY, never silently.
+do $$
+declare
+  v_uid   uuid := '00000000-0000-4000-8000-0000b3510001';
+  v_r     jsonb;
+  v_ver   bigint;
+  v_gems  bigint;
+  v_used  jsonb;
+  v_kit   int;
+  v_stamp bigint;
+  v_neg   boolean := false;
+  v_closed boolean := false;
+  c_ceil  constant bigint := 5000;
+  c_j     constant jsonb := '{"kind":"admin","intent":"b351:probe"}'::jsonb;
+begin
+  if to_regprocedure('public.hr_create_character(int)') is null then
+    raise exception '§10(b) CANNOT RUN: hr_create_character missing — apply '
+                    '2026-08-14-character-bootstrap.sql first';
+  end if;
+  select count(*) into v_kit from public.hr_start_kit;
+  if v_kit <> 1 then
+    raise exception '§10(b) CANNOT RUN: hr_start_kit holds % rows — re-apply the catalogue', v_kit;
+  end if;
+
+  begin  -- ── SUBTRANSACTION ──────────────────────────────────────────────
+    insert into auth.users (id) values (v_uid);
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    if auth.uid() is distinct from v_uid then
+      raise exception '§10(b) HARNESS: auth.uid() did not pick up the probe identity';
+    end if;
+    v_r := public.hr_create_character(0);
+    if v_r->>'created' <> 'true' then raise exception '§10(b): no probe character: %', v_r; end if;
+    v_r := public.hr_create_character(1);
+    if v_r->>'created' <> 'true' then raise exception '§10(b): no probe character on slot 1: %', v_r; end if;
+
+    -- ── (i) THE CEILING IS REACHABLE. Exactly 5,000 gems in one apply is paid.
+    --        This is the control for everything below: if the gem path were
+    --        simply broken, (ii) would "pass" while proving nothing.
+    select version, gems into v_ver, v_gems from public.player_state
+     where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', c_ceil, 'journal', c_j));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception '§10(b)(i) CONTROL: a gem mint AT the ceiling was refused (%) — the ceiling '
+                      'is priced below honest play, or the gem path is broken. Either way nothing '
+                      'below is measurable.', v_r;
+    end if;
+    if (select gems from public.player_state where user_id=v_uid and slot=0) <> v_gems + c_ceil then
+      raise exception '§10(b)(i): the accepted gem mint did not move player_state.gems';
+    end if;
+
+    -- …and the LEDGER carries the stamp the budget is derived from. A check that
+    -- passes and a row that is not stamped is a ceiling that resets every apply.
+    select gems_in into v_stamp from public.player_ledger
+     where user_id = v_uid and slot = 0 and intent = 'b351:probe'
+     order by at desc limit 1;
+    if coalesce(v_stamp, -1) <> c_ceil then
+      raise exception '§10(b)(i): the ledger row stamped gems_in=% for a %-gem mint — what is '
+                      'CHECKED and what is CHARGED must not disagree', coalesce(v_stamp::text,'NULL'), c_ceil;
+    end if;
+    v_used := public.hr_day_budget_used(v_uid, 0, now());
+    if (v_used->>'gems')::bigint <> c_ceil then
+      raise exception '§10(b)(i): hr_day_budget_used reports gems=% after minting % — the sum does '
+                      'not see the stamp', v_used->>'gems', c_ceil;
+    end if;
+
+    -- ── (ii) THE CEILING REFUSES. One gem over, and it is refused BY NAME, with
+    --         a detail a fired fuse can be diagnosed from.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    select gems    into v_gems from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', 1, 'journal', c_j));
+    if v_r->>'error' is distinct from 'daily_budget' or v_r->>'dim' is distinct from 'gems' then
+      raise exception '§10(b)(ii): ONE GEM OVER THE CEILING WAS NOT REFUSED AS daily_budget/gems '
+                      '(%). This is Security''s blocking condition 1: their probe minted 1,200,000 '
+                      'gems in 12 calls with zero refusals while the identical gold loop was '
+                      'refused at call 6. The dimension did not land.', v_r;
+    end if;
+    if (v_r->>'limit')::bigint <> c_ceil or (v_r->>'used')::bigint <> c_ceil then
+      raise exception '§10(b)(ii): the breach detail reports used=%/limit=% — it must report the '
+                      'LEDGER SUM and the real ceiling, or the fuse is not diagnosable from the '
+                      'response', v_r->>'used', v_r->>'limit';
+    end if;
+    if (select gems from public.player_state where user_id=v_uid and slot=0) <> v_gems then
+      raise exception '§10(b)(ii): the REFUSED mint still moved gems — daily_budget must never '
+                      'half-apply';
+    end if;
+
+    -- ── (iii) CONTROL: THE REFUSAL IS DIMENSION-SCOPED. A character that has
+    --          spent its gem budget can still be paid gold. A budget breach that
+    --          bricked every other dimension would be a denial of service the
+    --          player cannot escape until midnight UTC.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gold', 1000, 'journal', c_j));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception '§10(b)(iii) CONTROL: a gold mint was refused (%) after the GEM budget was '
+                      'exhausted — the dimensions are not independent', v_r;
+    end if;
+
+    -- ── (iv) CONTROL: GROSS, NOT NET. Spending gems must still work, and must
+    --         NOT buy back budget. If the sum were signed, "mint 5,000, spend
+    --         them, mint again" would be an unbounded faucet with a ceiling
+    --         painted on it.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', -c_ceil, 'journal', c_j));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception '§10(b)(iv) CONTROL: a gem SPEND was refused (%) — the zero-inflow '
+                      'short-circuit is broken and a player who hit the ceiling can no longer '
+                      'spend what they already own', v_r;
+    end if;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', 1, 'journal', c_j));
+    if v_r->>'error' is distinct from 'daily_budget' then
+      raise exception '§10(b)(iv): SPENDING BOUGHT BACK BUDGET (%). The sum must be GROSS inflow; '
+                      'a signed sum is a reset button.', v_r;
+    end if;
+
+    -- ── (v) CONTROL: A DIFFERENT CHARACTER IS UNAFFECTED. The budget window is
+    --        per (user, slot) — which is what hr_apply's advisory lock already
+    --        serialises — so slot 1 must still be payable. Without this, (ii)
+    --        could be "gems are refused everywhere".
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 1;
+    v_r := public.hr_apply(v_uid, 1, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', c_ceil, 'journal', c_j));
+    if coalesce(v_r->>'ok','false') <> 'true' then
+      raise exception '§10(b)(v) CONTROL: slot 1 could not mint at the ceiling (%) — (ii) proves '
+                      'nothing, because gems may simply be refused everywhere', v_r;
+    end if;
+
+    -- ── (vi) THE PER-CALL CLAMP STILL FIRES, AND STILL WINS. 150,000 in one
+    --         delta is above c_max_gem_delta (100,000), so the answer must be
+    --         gem_clamp — "this ONE delta is insane" — and NOT daily_budget,
+    --         which means "you have had enough today". The clamps are checked
+    --         before the budget for exactly this reason; the ordering was
+    --         decided by a test rather than by taste, and this is that test.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('gems', 150000, 'journal', c_j));
+    if v_r->>'error' is distinct from 'gem_clamp' then
+      raise exception '§10(b)(vi): a 150,000-gem delta answered % — the day ceiling has pre-empted '
+                      'the per-call clamp, and a clamp that can never fire is not a control', v_r;
+    end if;
+
+    -- ── (vii) A NEGATIVE STAMP IS IMPOSSIBLE — the CHECK constraint, executed
+    --          rather than looked up in pg_constraint.
+    begin
+      insert into public.player_ledger (user_id, slot, kind, gems_in)
+        values (v_uid, 0, 'accrue', -1);
+    exception when check_violation then v_neg := true;
+    end;
+    if not v_neg then
+      raise exception '§10(b)(vii): player_ledger accepted a negative gems_in';
+    end if;
+
+    -- ── (viii) FAIL CLOSED. Put the THREE-dimension hr_day_budget_limits back —
+    --           exactly what re-applying 2026-08-11-daily-budget.sql on its own
+    --           would do — and prove that a gem MINT then raises HR351 instead
+    --           of silently passing on a NULL comparison. This is the only claim
+    --           in the file that cannot be made any other way, and it is rolled
+    --           back with the rest of the subtransaction; §10(c) re-reads the
+    --           real function afterwards to prove that it was.
+    execute $sql$
+      create or replace function public.hr_day_budget_limits()
+      returns jsonb language sql immutable set search_path = public as
+      $inner$ select jsonb_build_object('gold', 25000000, 'xp', 40000000, 'qty', 1000000) $inner$;
+    $sql$;
+    begin
+      perform public.hr_day_budget_check(v_uid, 0, 0, 0, 0, 1);
+    exception when sqlstate 'HR351' then v_closed := true;
+    end;
+    if not v_closed then
+      raise exception '§10(b)(viii): with the gems dimension REMOVED from hr_day_budget_limits, a '
+                      'gem mint was still allowed. `NULL + n > NULL` is NULL, which is not true, '
+                      'which passes — so the ceiling would silently cease to exist the next time '
+                      'anyone re-applied 2026-08-11-daily-budget.sql.';
+    end if;
+    -- …and the same broken limits must NOT break a gem SPEND: zero gross inflow
+    -- short-circuits before the limits are read. A fail-closed that also locks
+    -- players out of spending what they own is a worse bug than the one it fixes.
+    if public.hr_day_budget_check(v_uid, 0, 0, 0, 0, 0) is not null then
+      raise exception '§10(b)(viii) CONTROL: a zero-inflow delta was refused by the fail-closed '
+                      'branch — accrue_forfeit and every gem SPEND become unreachable';
+    end if;
+
+    raise exception using errcode = 'HR35B', message = 'b351 §10(b) complete — rolling back';
+  exception when sqlstate 'HR35B' then
+    null;
+  end;
+
+  -- ROLLBACK PROOF. If the subtransaction had committed, this migration would
+  -- have written two characters into production AND left a three-dimension
+  -- hr_day_budget_limits behind as a side effect of verifying itself.
+  if exists (select 1 from public.player_state   where user_id = v_uid) then
+    raise exception '§10(b) LEAKED a player_state row';
+  end if;
+  if exists (select 1 from public.player_ledger  where user_id = v_uid) then
+    raise exception '§10(b) LEAKED a ledger row';
+  end if;
+  if exists (select 1 from public.player_intents where user_id = v_uid) then
+    raise exception '§10(b) LEAKED a player_intents row';
+  end if;
+  if exists (select 1 from auth.users where id = v_uid) then
+    raise exception '§10(b) LEAKED the probe auth.users row';
+  end if;
+
+  raise notice 'b351 §10(b) PASSED: 5,000 gems paid, 5,001 refused as daily_budget/gems, gold '
+               'unaffected, a spend buys back nothing, slot 1 unaffected, gem_clamp still wins '
+               'above 100,000, a negative stamp is impossible, and a missing dimension fails '
+               'CLOSED.';
+end $$;
+
+-- (c) THE §10(b)(viii) MUTATION WAS ROLLED BACK. It replaced a live function
+--     inside a subtransaction; proving the rollback is not optional, because the
+--     failure mode is "this migration disabled the ceiling it just installed".
+do $$
+declare v_lim jsonb := public.hr_day_budget_limits();
+begin
+  if coalesce((v_lim->>'gems')::bigint, 0) <> 5000 then
+    raise exception 'THE §10(b)(viii) MUTATION SURVIVED: hr_day_budget_limits() returns % — the '
+                    'three-dimension function planted by the fail-closed probe is still installed '
+                    'and the gem ceiling is GONE. Re-apply this file.', v_lim;
+  end if;
+  raise notice 'b351 OK — gems are budgeted at % per character-day, ledger-derived, UTC-day '
+               'windowed, gross inflow. Security condition 1 is closed.', v_lim->>'gems';
+end $$;

@@ -20,6 +20,8 @@
     "test:schema-drift": "node tests/schema-drift.mjs",
     "test:schema-drift:selftest": "node tests/schema-drift.mjs --mutate",
     "test:schema-replay": "node tests/schema-replay.mjs --list",
+    "test:gem-budget": "node tests/gem-daily-budget.mjs",
+    "test:gem-budget:selftest": "node tests/gem-daily-budget.mjs --mutate",
     "test:conservation": "node tests/conservation-fuzz.mjs --ops=400",
     "test:conservation:selftest": "node tests/conservation-fuzz.mjs --selftest --ops=400",
     "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2"

@@ -139,6 +139,28 @@ const ALSO_LINTED = [
   '2026-08-15-intent-key-hygiene.sql',
   /* b348 — the gathering tool carry. Replaces BOTH hr_apply and hr_state_of. */
   '2026-08-15-tool-carry.sql',
+  /* b351 — the gem daily budget (Security's blocking condition 1). Replaces
+     hr_apply and all three daily-budget functions. It is the CURRENT last
+     toucher of hr_apply; PART 1f-ii below pins that chain. */
+  '2026-08-15-gem-daily-budget.sql',
+];
+
+// ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
+// Every file here restates the WHOLE of hr_apply, and each one was derived from
+// its predecessor by extracting the text programmatically and patching it at
+// named anchors. The chain is [older, …, CURRENT LAST TOUCHER]; PART 1f-ii
+// re-derives each link and requires the result to be byte-identical.
+//
+// A new file that replaces hr_apply is appended here AND to
+// tests/schema-apply-order.json, in the same commit. If it is not, PART 1f-ii's
+// last-toucher check fails by name — which is the whole point: this repo has
+// already had three migrations each defining one policy, with filename order
+// silently installing the wrong one and every self-check still passing.
+const HR_APPLY_CHAIN = [
+  '2026-08-11-apply-engine.sql',
+  '2026-08-15-intent-key-hygiene.sql',
+  '2026-08-15-tool-carry.sql',
+  '2026-08-15-gem-daily-budget.sql',
 ];
 
 // Functions created only to PROVE a check works, inside that check's own
@@ -579,6 +601,230 @@ say('── retention policies are wired');
   }
   if (/primary key \(at, id\)/.test(ps)) pass('player_ledger PK is (at, id) — partitionable without a rebuild');
   else fail('player_ledger PK does not lead with `at` (RL2d)');
+}
+
+// ── PART 1f-ii — hr_apply is DERIVED, not retyped, and only one file is last ─
+// Four migrations now restate the whole of hr_apply (47-56 KB each). Each was
+// built by extracting its predecessor's text programmatically and patching it at
+// named anchors — because retyping it is how a fix that landed last week
+// silently disappears, and because `create or replace` on a body you have not
+// read is the single most destructive statement in this repo. The migrations
+// each assert this at APPLY time against pg_proc; this is the STATIC half, and
+// it is the only one that runs without a database.
+//
+// The check: every line of a predecessor's hr_apply body must survive into its
+// successor's, except a small list of lines the successor DECLARES it replaced.
+// An undeclared removal is a fix that vanished. A declared removal that is no
+// longer there means the anchor moved and the derivation was re-done by hand.
+say('── hr_apply derivation chain (each body derived from the last, nothing retyped)');
+{
+  const applyBody = (file) => {
+    const sql = (sources.get(file) || '').replace(/\r\n/g, '\n');
+    const i = sql.indexOf('create or replace function public.hr_apply(');
+    if (i < 0) return null;
+    const j = sql.indexOf('\nend $$;\n', i);
+    if (j < 0) return null;
+    const fn = sql.slice(i, j);
+    return fn.slice(fn.indexOf('$$') + 2);
+  };
+
+  /* Lines a link is ALLOWED to remove, and why. Anything else removed is a
+     silent regression; anything here that is no longer removed means the
+     derivation drifted and this list is stale. Both directions are fatal. */
+  const DECLARED_REMOVALS = {
+    '2026-08-15-intent-key-hygiene.sql': [
+      // C3: the replay lookup and its comparison also read `slot`.
+      '  select result, intent into v_prev, v_prev_intent from public.player_intents',
+      '    if v_prev_intent is distinct from v_this_intent then',
+      "        jsonb_build_object('stored', v_prev_intent, 'sent', v_this_intent));",
+      // C1: step (5) becomes a branch — release on version_conflict, else store.
+      '  update public.player_intents',
+      "     set result = case when coalesce(v_out->>'ok','false') = 'true'",
+      "                       then jsonb_build_object('ok', true)",
+      '                       else v_out end',
+      '   where user_id = v_uid and intent_id = p_intent_id;',
+    ],
+    '2026-08-15-tool-carry.sql': [
+      // c_delta_keys gains 'tool_carry' on its last line.
+      "    'farm','progress','progress_claim','journal'];",
+    ],
+    '2026-08-15-gem-daily-budget.sql': [
+      // The budget call gains a sixth argument…
+      '    v_bud := public.hr_day_budget_check(v_uid, v_slot, v_gold_in, v_xp_in, v_qty_in);',
+      // …and the ledger insert gains gems_in, in both its column and value list.
+      '      (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta)',
+      '       v_gold_in, v_xp_in, v_qty_in,',
+    ],
+  };
+
+  let chainOk = true;
+  for (let k = 1; k < HR_APPLY_CHAIN.length; k++) {
+    const from = HR_APPLY_CHAIN[k - 1];
+    const to = HR_APPLY_CHAIN[k];
+    const a = applyBody(from);
+    const b = applyBody(to);
+    if (!a || !b) {
+      fail(`hr_apply derivation: cannot extract the body from ${!a ? from : to} — has the shape changed?`);
+      chainOk = false;
+      continue;
+    }
+    const have = new Map();
+    for (const line of b.split('\n')) have.set(line, (have.get(line) || 0) + 1);
+    const removed = [];
+    for (const line of a.split('\n')) {
+      const c = have.get(line) || 0;
+      if (c > 0) have.set(line, c - 1);
+      else removed.push(line);
+    }
+    const declared = DECLARED_REMOVALS[to] || [];
+    const undeclared = removed.filter((l) => !declared.includes(l));
+    const unused = declared.filter((l) => !removed.includes(l));
+    if (undeclared.length) {
+      chainOk = false;
+      fail(`${to}: its hr_apply DROPS ${undeclared.length} line(s) of ${from}'s body that it does not `
+         + 'declare. A restatement that loses a line loses whatever that line was defending, and the '
+         + 'migration\'s own §0 can only check the terms somebody remembered to list. First:\n'
+         + undeclared.slice(0, 3).map((l) => `            ${JSON.stringify(l)}`).join('\n'));
+    }
+    if (unused.length) {
+      chainOk = false;
+      fail(`${to}: DECLARED_REMOVALS lists ${unused.length} line(s) that are not actually removed from `
+         + `${from}'s body — the anchor moved, so this list is documenting a derivation that no longer `
+         + 'happened. First: ' + JSON.stringify(unused[0]));
+    }
+    if (!undeclared.length && !unused.length) {
+      pass(`${to}: hr_apply is ${from}'s body + insertions, with ${declared.length} declared replacement(s)`);
+    }
+  }
+
+  // ONE LAST TOUCHER, and the apply order must agree with this file about who it
+  // is. Two lists that disagree is exactly the clan_members "join as self"
+  // defect: filename order installs the wrong one and every self-check passes.
+  const last = HR_APPLY_CHAIN[HR_APPLY_CHAIN.length - 1];
+  const definers = [...sources.entries()]
+    .filter(([, sql]) => /create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(stripComments(sql)))
+    .map(([f]) => f).sort();
+  if (definers.join('|') !== [...HR_APPLY_CHAIN].sort().join('|')) {
+    fail(`the files that replace hr_apply are [${definers.join(', ')}] but HR_APPLY_CHAIN says `
+       + `[${[...HR_APPLY_CHAIN].sort().join(', ')}]. A file that restates hr_apply and is not in the `
+       + 'chain is a body nobody has proven is derived from the one it replaces.');
+    chainOk = false;
+  }
+  {
+    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const positions = HR_APPLY_CHAIN.map((f) => order.indexOf(f));
+    if (positions.some((p) => p < 0)) {
+      fail(`an hr_apply file is missing from schema-apply-order.json's "order": `
+         + HR_APPLY_CHAIN.filter((_, i) => positions[i] < 0).join(', '));
+      chainOk = false;
+    } else if (Math.max(...positions) !== order.indexOf(last)) {
+      fail(`${last} is the last file in HR_APPLY_CHAIN but schema-apply-order.json applies another `
+         + 'hr_apply file AFTER it. Whichever applies last wins, and it would silently delete this '
+         + "one's change while every self-check still passed.");
+      chainOk = false;
+    } else if (chainOk) {
+      pass(`${last} is the last toucher of hr_apply, in this file and in the apply order`);
+    }
+  }
+}
+
+// ── PART 1g — EVERY CURRENCY THE ENGINE CAN WRITE HAS A DAILY CEILING ────
+// Security's ruling, 2026-08-15, after the gem finding: "A delta key the engine
+// can write must have both a per-call clamp and a per-day ledger-derived ceiling
+// before the first intent that writes it ships. If a currency has no `*_in`
+// column on player_ledger and no dimension in hr_day_budget_limits(), no intent
+// may put it in a delta."
+//
+// The finding it came from: gems had a 100,000/call clamp and NO daily ceiling,
+// so a probe minted 1,200,000 gems in 12 calls with zero refusals while the
+// byte-identical gold loop was refused at call 6. One dimension was missing.
+// Nobody noticed because nothing anywhere related the delta-key list to the
+// budget-dimension list — so this lint relates them, by name.
+//
+// It is deliberately a CLASSIFICATION rather than a heuristic: every key in
+// hr_apply's c_delta_keys must be classified below, and an UNCLASSIFIED key
+// fails the build. That is the property that matters — a new delta key cannot
+// ship without somebody deciding, in writing, whether it moves value.
+say('── every currency delta key has a per-call clamp AND a daily ceiling (Security 2026-08-15)');
+{
+  const LAST = HR_APPLY_CHAIN[HR_APPLY_CHAIN.length - 1];
+  const applySql = (sources.get(LAST) || '').replace(/\r\n/g, '\n');
+
+  // key -> [class, note]. 'currency' means "a scalar balance hr_apply adds to";
+  // those need the full treatment. Everything else states WHY it does not.
+  const DELTA_KEY_CLASS = {
+    gold:  ['currency', 'the economy'],
+    gems:  ['currency', 'premium; b351 — the ruling that produced this lint'],
+    xp:    ['budgeted', 'not a balance but ledger-budgeted as `xp` (per-skill clamp)'],
+    items: ['budgeted', 'not a balance but ledger-budgeted as `qty` (per-item clamp)'],
+    hp:    ['bounded',  'clamped into [0, max_hp] by the UPDATE itself; not tradeable, not rankable'],
+    equip: ['conserved', 'a TRANSFER between player_inventory and player_equipment; totals conserved'],
+    activity: ['pointer', 'names an activity; validated against hr_activities + the skill gate'],
+    accrued_to: ['clock', 'clamped into [old, now()] by the server; never a value'],
+    farm: ['pointer', 'crop id validated against hr_crops; planted_at is now()'],
+    progress: ['bounded', 'kind allowlisted, add clamped, "claimed" unreachable'],
+    progress_claim: ['bounded', 'requires an already-done row; row_count is the check'],
+    journal: ['metadata', 'kind allowlisted, intent is a label'],
+    tool_carry: ['bounded', 'b348 — an ABSOLUTE fraction per skill, range-refused in hr_apply'],
+  };
+
+  const m = applySql.match(/c_delta_keys constant text\[\] := array\[([\s\S]*?)\];/);
+  if (!m) {
+    fail(`could not read c_delta_keys out of ${LAST} — this lint would be vacuous, which is the `
+       + 'always-null-probe failure the whole SQL tier is organised around.');
+  } else {
+    const keys = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+    if (keys.length < 5) {
+      fail(`c_delta_keys parsed to ${keys.length} key(s) — the parser has stopped matching reality`);
+    }
+    const unclassified = keys.filter((k) => !DELTA_KEY_CLASS[k]);
+    const stale = Object.keys(DELTA_KEY_CLASS).filter((k) => !keys.includes(k));
+    for (const k of unclassified) {
+      fail(`hr_apply accepts the delta key "${k}" and DELTA_KEY_CLASS in tests/run-sql-tests.mjs does `
+         + 'not classify it. If it moves a balance, it needs a per-call clamp, a `*_in` column on '
+         + 'player_ledger stamped by hr_apply, and a dimension in hr_day_budget_limits() — all three, '
+         + 'before the first intent that writes it ships (Security, 2026-08-15). If it does not, say '
+         + 'so here in one line.');
+    }
+    for (const k of stale) {
+      fail(`DELTA_KEY_CLASS classifies "${k}" but hr_apply no longer accepts it — a stale entry means `
+         + 'this lint is describing a contract that has moved.');
+    }
+
+    // The currencies, in full.
+    const budgetSql = applySql;  // §2 of the same file declares the limits
+    for (const k of keys.filter((x) => (DELTA_KEY_CLASS[x] || [])[0] === 'currency')) {
+      const col = `${k}_in`;
+      const clamp = new RegExp(`c_max_${k.replace(/s$/, '')}_delta\\s+constant bigint`);
+      /* BOTH halves of the INSERT, inside the one statement. The column list
+         alone is not the stamp: `(… gems_in, meta) values (… v_qty_in, meta)`
+         parses, inserts NULL, and leaves a ceiling checked against a sum that
+         can never grow — which is the shape mutation `apply_stamps_null` in
+         tests/gem-daily-budget.mjs plants and this lint must be able to see. */
+      const insertStmt = (applySql.match(
+        /insert into public\.player_ledger[\s\S]*?\)\);/) || [''])[0];
+      const stamped = new RegExp(`\\b${col}\\b`).test(insertStmt)
+        && new RegExp(`\\bv_${col}\\b`).test(insertStmt);
+      const dimension = new RegExp(`'${k}',\\s*c_day_${k}_budget`).test(budgetSql);
+      const column = [...sources.values()].some((sql) =>
+        new RegExp(`alter table public\\.player_ledger add column if not exists ${col}\\b`, 'i').test(sql));
+
+      if (!clamp.test(applySql)) fail(`currency "${k}" has no per-call clamp (c_max_*_delta) in ${LAST}`);
+      else if (!column) fail(`currency "${k}" has no player_ledger.${col} column created by any migration `
+        + '— the daily ceiling would have nothing to sum');
+      else if (!stamped) fail(`currency "${k}" is never stamped into player_ledger.${col} by hr_apply — `
+        + 'the ceiling would be checked against a sum that cannot grow, which is a control that reads '
+        + 'as a control and is not one');
+      else if (!dimension) fail(`currency "${k}" has NO DIMENSION in hr_day_budget_limits(). This is the `
+        + 'exact defect Security blocked the gold-grant intent on: a per-call clamp with no daily '
+        + 'ceiling is a speed bump measured in seconds (hr_apply allows 240 applies/minute).');
+      else pass(`currency "${k}": per-call clamp + player_ledger.${col} + stamped by hr_apply + a `
+        + `c_day_${k}_budget dimension`);
+    }
+    if (!unclassified.length && !stale.length) {
+      pass(`all ${keys.length} delta keys are classified (${keys.filter((x) => DELTA_KEY_CLASS[x][0] === 'currency').length} currencies)`);
+    }
+  }
 }
 
 // ── PART 2 — emit the behavioural bundle ─────────────────────────────────

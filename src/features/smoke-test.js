@@ -19197,6 +19197,16 @@ const TESTS = [
         && C.skillSim.SKILL_ACTION_STAT.mining === 'mined'
         && C.skillSim.SKILL_ACTION_STAT.fishing === 'fished',
         'core SKILL_ACTION_STAT drifted from the counters the daily goals read');
+      /* b351 — ONE IDENTITY, not two maps that happen to agree today.
+         `window.SKILL_ACTION_STAT` is what quest-nav.js inverts; core's is what
+         `resolveGatherTick` WRITES. A value comparison would pass on two copies
+         and go on passing until somebody edited one of them, so compare the
+         REFERENCE. (This is also the guard on a real load-order trap: legacy.js
+         is a classic script and core-bridge.js is a module, so a re-export
+         written in legacy.js would silently take its fallback branch forever.) */
+      assert(window.SKILL_ACTION_STAT === C.skillSim.SKILL_ACTION_STAT,
+        'window.SKILL_ACTION_STAT is a SECOND COPY of core\'s map, not the same object — '
+        + 'an away night and a live hour can now be made to move different counters');
     } finally {
       C.randomSeed();
       restoreG(snap);

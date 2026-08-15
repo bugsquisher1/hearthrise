@@ -4236,63 +4236,94 @@ function stopSkill(){
 }
 window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers guarded on finding it and bailed, so window.stopSkill has not existed since they shipped (auto-actions' stop call was a no-op too) */
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
-   This map was an inline object literal inside doSkillAction(), which made it
-   invisible to everything else: `stats.chopped` / `stats.mined` /
-   `stats.fished` are what the daily and weekly goals READ, and quest-nav.js
-   inverts this same map to answer "which skill screen does this goal live on".
-   One list, written here and read there, so adding a gathering skill wires
-   both its counter and its quest navigation in a single edit. */
-const SKILL_ACTION_STAT={woodcutting:'chopped',mining:'mined',fishing:'fished'};
-window.SKILL_ACTION_STAT=SKILL_ACTION_STAT;
+   `stats.chopped` / `stats.mined` / `stats.fished` are what the daily and
+   weekly goals READ, and quest-nav.js inverts this same map to answer "which
+   skill screen does this goal live on". One list, so adding a gathering skill
+   wires both its counter and its quest navigation in a single edit.
+
+   b351 — THE LITERAL THAT LIVED HERE IS GONE. The map is authored in
+   `src/core/skill-sim.js` (the only thing that WRITES those counters, on both
+   the live tick and the away span) and published by src/core-bridge.js's
+   `Object.assign(window, …)`, which is the established seam for a
+   core-authored constant a classic script reads — the same one XP_TABLE and
+   BUFFS_DEF use, and for the same reason.
+
+   ⚠ IT COULD NOT HAVE STAYED HERE AS A RE-EXPORT. legacy.js is a CLASSIC
+     script and core-bridge.js is a MODULE, so core-bridge runs AFTER this file
+     has finished executing: a top-level `const … = window.HearthriseCore ? … :
+     literal` would take the fallback branch every single time and silently
+     reinstate the second copy it was written to remove. The publication has to
+     happen on core's side of the load order, not this one. */
 /* PHASE 0: the yield roll, the level gate and the deterministic tool carry
    moved to src/core/progression.js `resolveGatherAction`. This function keeps
    the node lookup (which is a catalogue read the server does from the same
    src/data files) and every side effect: inventory, counters, quests, timers
    and renders. `silent` still marks the offline-replay path — and it is
    precisely the set of lines the server will not have. */
+/* b351: THE LIVE TICK IS THE AWAY TICK. This function's whole body — the node
+   lookup, the yield, the counters, the daily/quest calls, the XP grant — is
+   `src/core/skill-sim.js resolveGatherTick`, which is what `simulateSkillSpan`
+   runs for every action of an absence and what `hr-accrue` runs server-side.
+   What is left here is exactly the set of lines the server does not have: the
+   progress bar, the retime, and two repaints.
+
+   IT WAS A SECOND COPY, and the copy was already drifting-shaped: the counter
+   block below used to compute the tool's XP bonus a SECOND time at the call
+   site (`act.xp*(1+_toolXp)`) rather than reading the `xpAmount` the resolver
+   had already produced — two expressions of one number, which is precisely how
+   a tool bonus comes to apply live and not away.
+
+   THE PARITY GUARD DOES NOT BECOME VACUOUS. AWAY-16 PARITY now compares two
+   callers of one function, so its job narrows to the CONTEXT each side builds
+   (level, tool, seed, interval) — still where the real divergences have been.
+   The INDEPENDENT reference survives where it matters: `tests/accrual-engine.mjs`
+   holds a hand transcription of this function and asserts the server pays what
+   it pays. Do not delete that transcription to "remove duplication" — it is the
+   only thing in the suite that is not this code. */
 function doSkillAction(silent){
   const type=G.activeSkill,tid=G.skillTargetId;if(!type||!tid)return;
   G.skillProgress=0;
-  let act=null;
-  if(type==='woodcutting')act=TREES.find(t=>t.id===tid);
-  if(type==='mining')act=ROCKS.find(r=>r.id===tid);
-  if(type==='fishing')act=FISH_SPOTS.find(f=>f.id===tid);
-  if(!act)return;
   const C=window.HearthriseCore;
+  if(!C||!C.skillSim||typeof C.gatherNode!=='function') return;
+  /* THE ONE INDEX, not a fourth `TREES.find(...)`. The pointer and the index
+     must agree about the skill or the action would pay the wrong ladder's XP. */
+  const entry=C.gatherNode(tid);
+  if(!entry||!entry.node||entry.skill!==type) return;
   /* `toolCarry` (was `G._toolCarry`) — the FRACTIONAL remainder of a tool's
      double-yield chance, carried between actions so a 0.35 tool pays 35 extra
      items per 100 swings exactly rather than approximately. It is real, earned
      progress, and it was `_`-prefixed, which means events.js snapshot() skipped
      it and it never reached the cloud: a device switch silently discarded the
      carry. Renamed (migration v12 -> v13) so it persists like everything else
-     and so the server has a column to own when accrual moves off the client. */
+     and so the server has a column to own when accrual moves off the client.
+     Mutated in place by the resolver, exactly as before. */
   G.toolCarry=G.toolCarry||{};
-  const res=C.progression.resolveGatherAction(act,{
+  const T=window.HearthriseTools;
+  const r=C.skillSim.resolveGatherTick(G, entry.node, {
     skillId:type,
-    level:getLevel(type),
-    toolCarry:G.toolCarry,
-    toolDouble:(window.HearthriseTools&&HearthriseTools.bestToolDouble)?HearthriseTools.bestToolDouble(type):0,
-    toolXpB:(window.HearthriseTools&&HearthriseTools.bestToolXpB)?HearthriseTools.bestToolXpB(type):0,
     rng:C.rng,
+    /* Through window.HearthriseTools, not straight to core: that object is a
+       published API other feature modules wrap, and resolving the tool here
+       would silently escape whoever replaced it. */
+    toolDouble:(T&&T.bestToolDouble)?T.bestToolDouble(type):0,
+    toolXpB:(T&&T.bestToolXpB)?T.bestToolXpB(type):0,
+    fx:{
+      addItem:function(id,q){ addItem(id,q); },
+      addXp:function(sk,amt){ addXp(sk,amt); },
+      /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for
+         "logs" without naming one log. `DAILY_GOAL_POOL` used to read
+         item-specific collection counters: a level-90 woodcutter chopping
+         Duskwood made ZERO progress on "Gather 25 logs". The map that decides
+         which counter moves is core's SKILL_ACTION_STAT, so an away night and
+         a live hour cannot move different rows. */
+      updateDaily:function(k,n){ updateDaily(k,n); },
+      updateQuest:function(k,n){ updateQuest(k,n); },
+      /* The level gate. Core STATES the fact; the client decides it means
+         stopSkill(). Core never nulls the pointer itself. */
+      onStop:function(){ stopSkill(); },
+    },
   });
-  if(!res.ok){ if(res.reason==='level')stopSkill(); return; }
-  const qty=res.qty;
-  if(res.toolDoubles>0) G.stats.toolDoubles=(G.stats.toolDoubles||0)+res.toolDoubles;
-  addItem(res.product,qty);
-  G.stats.gathered=(G.stats.gathered||0)+qty;
-  /* b226 (spec §8.2) — per-SKILL counters, so a daily goal can ask for "logs"
-     without naming one log. `DAILY_GOAL_POOL` used to read item-specific
-     collection counters (collection.normal_log, collection.copper_ore,
-     collection.shrimp): a level-90 woodcutter chopping Duskwood made ZERO
-     progress on "Gather 25 logs", and "Catch 15 fish" was unachievable for
-     anyone past Shrimp unless they deliberately downgraded. The goals got
-     harder the better you were, which is backwards. */
-  const _perSkill=SKILL_ACTION_STAT[type];
-  if(_perSkill) G.stats[_perSkill]=(G.stats[_perSkill]||0)+qty;
-  updateDaily('gather',qty);updateQuest('gather',qty);
-  /* Wave 3: the tool also grants a small XP bonus (derived from its tier). */
-  const _toolXp=(window.HearthriseTools&&HearthriseTools.bestToolXpB)?HearthriseTools.bestToolXpB(type):0;
-  addXp(type, _toolXp>0 ? act.xp*(1+_toolXp) : act.xp);
+  if(r.outcome===C.skillSim.OUTCOME.STOP) return;
   /* b227: re-derive the interval after each live action, so a blessing that
      lapses when the player goes idle (or arrives when they come back) is felt
      on the very next swing rather than at the next restart. Silent = the

@@ -328,6 +328,20 @@ Object.assign(window, {
      and from the suite: a dial nobody can read is a dial nobody trusts. */
   BUFFS_DEF: buffs.BUFFS_DEF,
   AWAY_RATE_MULT: away.AWAY_RATE_MULT,
+
+  /* b351 — the per-skill gathering counters. This was a `const` literal in
+     legacy.js AND an object in skill-sim.js: two copies of the map that decides
+     which of `stats.chopped` / `mined` / `fished` a gather action moves, one
+     read by quest-nav.js and the other WRITTEN by `resolveGatherTick` — which
+     is what both the live tick and the away span run. An away night and a live
+     hour moving different rows is the b226 failure in miniature, so this is one
+     identity now, not two maps a guard reconciles.
+
+     It is published HERE rather than re-exported in legacy.js because legacy.js
+     is a classic script and this file is a module: legacy.js's top level has
+     already run by the time this executes, so a re-export there would take its
+     fallback branch every time and quietly restore the second copy. */
+  SKILL_ACTION_STAT: skillSim.SKILL_ACTION_STAT,
 });
 
 /* THE READINESS SIGNAL — must be the last statement in this file.

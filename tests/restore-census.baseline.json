@@ -1,0 +1,284 @@
+{
+ "_readme": [
+  "WHICH ROWS A REPO REBUILD GIVES BACK, AND WHICH ONLY A BACKUP HAS.",
+  "",
+  "tests/schema-drift.mjs proves the repo rebuilds the SCHEMA and says so in its",
+  "own header: 'DATA. This proves the SCHEMA rebuilds. It says nothing about",
+  "whether any row survives a restore.' This file is the other half.",
+  "",
+  "Every base table in public carries a `class`:",
+  "  seeded        the repo reconstructs the rows; no backup needed. `replay` is",
+  "                PINNED, so a catalogue that would rebuild to a different size",
+  "                fails the guard instead of quietly running a different game.",
+  "  restore_only  the repo creates the table EMPTY. Only a backup has the rows.",
+  "                This is the data-loss surface, and it is what the runbook is",
+  "                for. `wiped_at_cutover` says whether losing it before cutover",
+  "                actually costs anything.",
+  "  operational   accumulates from the database simply running. Losing it costs",
+  "                observability history, never player value. Not asserted.",
+  "  regenerated   rebuilds to the right COUNT and the WRONG VALUE. Exactly one",
+  "                table, and it is the one a count-based census would lie about.",
+  "",
+  "Regenerate replay figures with `node tests/restore-census.mjs --write`.",
+  "Classifications are AUTHORED, never generated — deciding what a restore owes",
+  "a table is a judgement, and --write preserves whatever is already here."
+ ],
+ "generated": "2026-08-15",
+
+ "production": {
+  "measured": "2026-08-15",
+  "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
+  "method": [
+   "Read-only. `select count(*)` over every base table in public, in one",
+   "statement built from pg_class, executed against the live database. Not",
+   "reltuples — reltuples was wrong on two tables at this size (bug_reports",
+   "estimated 21, actual 27; maintenance_log estimated 51, actual 106), which",
+   "is the whole reason this block records exact counts.",
+   "auth/storage/cron counted separately; see outside_public."
+  ],
+  "db_bytes": 21400723,
+  "db_size": "20 MB",
+  "max_connections": 60,
+  "connections_in_use_at_measurement": 25,
+  "rows": {
+   "beta_invites": 20, "bug_reports": 27, "chat_blocks": 0, "chat_messages": 8,
+   "clan_bans": 0, "clan_board": 21, "clan_invites": 0, "clan_ledger": 8,
+   "clan_members": 5, "clan_order_ballots": 5, "clan_order_votes": 2,
+   "clan_raids": 3, "clan_stores": 2, "clan_tavern": 0, "clan_withdrawals": 0,
+   "clan_work_labour": 0, "clan_work_orders": 1, "clans": 2,
+   "display_names": 6, "game_events": 5132, "game_saves": 6,
+   "hr_activities": 344, "hr_castle_board_tasks": 9, "hr_castle_buildings": 5,
+   "hr_castle_items": 34, "hr_castle_tiers": 5, "hr_catalogue_meta": 1,
+   "hr_client_rpc_baseline": 51, "hr_crops": 9, "hr_equip_slots": 15,
+   "hr_hunt_bosses": 6, "hr_hunt_tiers": 5, "hr_item_slots": 222,
+   "hr_items": 426, "hr_ledger_config": 1, "hr_rate_counters": 104,
+   "hr_rejections": 1, "hr_server_secrets": 1, "hr_skills": 15,
+   "hr_start_equipment": 1, "hr_start_inventory": 3, "hr_start_kit": 1,
+   "hr_start_skill_xp": 1, "hr_xp_table": 99, "leaderboard_meta": 1,
+   "maintenance_alerts": 13, "maintenance_log": 106, "market_buy_offers": 0,
+   "market_listings": 1, "market_sales": 6, "player_equipment": 0,
+   "player_farm": 0, "player_intents": 0, "player_inventory": 0,
+   "player_ledger": 3, "player_ledger_rollup": 0, "player_progress": 0,
+   "player_skills": 0, "player_state": 0, "profiles": 8, "raid_claims": 0,
+   "raid_contributions": 6, "session_claims": 5, "world_event_joins": 14,
+   "world_event_pledges": 14, "world_event_totals": 7
+  },
+  "outside_public": {
+   "_why": [
+    "NOT asserted by the guard and NOT reconstructible from this repository.",
+    "Recorded because the runbook needs it and because auth.users is the single",
+    "most important table in the system that no migration creates."
+   ],
+   "auth.users": 8,
+   "auth.identities": 8,
+   "auth.sessions": 26,
+   "auth.refresh_tokens": 514,
+   "auth.mfa_factors": 0,
+   "storage.buckets": 1,
+   "storage.objects": 1,
+   "cron.job": 9,
+   "supabase_migrations.schema_migrations": 27,
+   "_auth_users_is_the_root": [
+    "17 foreign keys in public reference auth.users, 12 of them ON DELETE",
+    "CASCADE: beta_invites.used_by, bug_reports.user_id, chat_blocks.blocker_id,",
+    "chat_blocks.blocked_id, clan_bans.user_id, clan_invites.user_id,",
+    "clan_invites.invited_by, clan_members.user_id, clans.created_by,",
+    "display_names.user_id, game_events.user_id, game_saves.user_id,",
+    "market_buy_offers.buyer_user_id, market_listings.seller_user_id,",
+    "player_state.user_id, profiles.id, session_claims.user_id.",
+    "If auth.users is empty, none of the player rows can even be INSERTED back,",
+    "and every player has lost their account. It is carried by a Supabase",
+    "backup restore (the clone feature lists 'Auth user data' explicitly) and by",
+    "NOTHING in this repository. Measured 2026-08-15."
+   ],
+   "_storage_is_not_in_any_backup": [
+    "Supabase documents that database backups do NOT include objects stored via",
+    "the Storage API — the database holds only metadata. One bucket, one object",
+    "at measurement. Nothing player-facing depends on it today; if that ever",
+    "changes, Storage needs its own backup and this line must stop being true."
+   ]
+  },
+  "how_to_remeasure": [
+   "Read-only, one statement, no writes:",
+   "  select string_agg(format('select %L as tbl, count(*) as n from public.%I',",
+   "                           c.relname, c.relname), ' union all ' order by c.relname)",
+   "    from pg_class c join pg_namespace n on n.oid=c.relnamespace",
+   "   where n.nspname='public' and c.relkind='r';",
+   "…then execute the string it returns. And for outside_public:",
+   "  select count(*) from auth.users;  (etc.)",
+   "Backup state, also read-only, via the Management API:",
+   "  curl -H \"Authorization: Bearer $SUPABASE_ACCESS_TOKEN\" \\",
+   "    https://api.supabase.com/v1/projects/$PROJECT_REF/database/backups"
+  ]
+ },
+
+ "cron": {
+  "_why": [
+   "A rebuilt database that comes back without its retention jobs is a disk",
+   "with a fuse on it. game_events reached 1,598,269 rows / 229 MB from six",
+   "players in four days — 94% of a 244 MB database — and the fix was a",
+   "retention job. The guard pins every job the chain schedules by name,",
+   "schedule AND command, so a rebuild silently losing one fails the build."
+  ],
+  "expected": [
+   "hr-cron-health | 7 * * * * | select public.hr_cron_health()",
+   "hr-grant-hygiene | 50 4 * * * | select public.hr_assert_grant_hygiene(true)",
+   "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
+   "hr-ledger-prune | 7 * * * * | select public.hr_ledger_prune(20000)",
+   "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
+   "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
+   "trim-chat-messages | 15 3 * * * | delete from public.chat_messages where created_at < now() - interval '60 days'",
+   "trim-game-events | 0 3 * * * | select public.hr_trim_game_events(7)"
+  ],
+  "not_observable_in_replay": {
+   "hearthrise-leaderboards": [
+    "PRODUCTION HAS IT (jobid 6, '*/5 * * * *',",
+    "'select public.hr_leaderboard_refresh(true)', measured 2026-08-15) and the",
+    "chain DOES schedule it on a real Postgres. The PGlite replay cannot see it,",
+    "for a structural reason worth writing down rather than working around:",
+    "2026-08-08-leaderboards.sql is the ONLY file that opens its cron block with",
+    "`create extension if not exists pg_cron`, inside a nested handler whose",
+    "`exception when others` does `return`. PGlite has no pg_cron extension — the",
+    "fixture supplies a cron SCHEMA and shim functions, not the extension — so",
+    "the create raises, the handler returns out of the whole DO block, and the",
+    "schedule never runs. Every other file guards with to_regclass('cron.job') /",
+    "to_regprocedure('cron.schedule(text,text,text)'), which the shim satisfies.",
+    "PROVEN BY EXECUTION, not by reading: replaying the chain with that single",
+    "line elided produces 'hearthrise-leaderboards' and replaying it unchanged",
+    "does not. So this is a stand-in artefact, NOT a hole in the rebuild.",
+    "Consequence for the guard: it covers 8 of production's 9 jobs. It is not",
+    "listed in `expected` because a guard must not assert what it cannot observe,",
+    "and it is written down here so that '8 jobs OK' is never read as '9 covered'.",
+    "VERIFY THE NINTH BY HAND after any real rebuild:",
+    "  select jobname, schedule from cron.job order by jobname;   -- expect 9"
+   ]
+  },
+  "fixture_only": {
+   "_why": [
+    "tests/sql/pglite-fixture.sql pre-schedules these two so that",
+    "2026-08-11-market-v2.sql's unschedule has a real pre-state to act on. No",
+    "migration in the chain creates them and production does not have them",
+    "(both were disarmed — trim-expired-listings would DESTROY escrowed goods",
+    "under market v2). They are subtracted before comparison. A rebuild does",
+    "NOT resurrect them."
+   ],
+   "jobs": ["trim-expired-listings", "trim-market-sales"]
+  }
+ },
+
+ "restore_drill": {
+  "runbook": "docs/design/restore-runbook.md",
+  "last_executed": null,
+  "_why": [
+   "An untested backup is a rumour. This census proves which rows a restore",
+   "must carry. It does not prove Supabase gives them back — only executing the",
+   "runbook against a real restore target does that. Set `last_executed` to the",
+   "date it was run and record the measured RTO in the runbook."
+  ]
+ },
+
+ "tables": {
+  "beta_invites": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "20 codes with used_by/used_at. The CODES are operator-recreatable in one INSERT; the record of WHICH are burned is not, so a restore-free rebuild re-opens every spent invite. Low value, cheap to accept."
+  },
+  "bug_reports": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "27 rows of player-submitted support history. No player value at stake, real diagnostic value. Survivable loss; not worth a decision at 3am."
+  },
+  "chat_blocks": { "class": "restore_only", "wiped_at_cutover": false, "note": "Per-player mute list. Empty today. Losing it silently un-mutes someone a player chose to block — small, but it is a player-authored safety setting, not telemetry." },
+  "chat_messages": { "class": "restore_only", "wiped_at_cutover": true, "note": "60-day retention job already trims this. Loss is acceptable at any time." },
+  "clan_bans": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_board": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_invites": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_ledger": { "class": "restore_only", "wiped_at_cutover": true, "note": "Append-only clan journal; the budget source for clan_deposit clamps. Clan surface — see clans." },
+  "clan_members": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_order_ballots": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_order_votes": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_raids": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_stores": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_tavern": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_withdrawals": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_work_labour": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clan_work_orders": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "clans": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "⚠ DECISION NOT RECORDED ANYWHERE. CLAUDE.md says 'the beta WILL BE WIPED at cutover' with no carve-outs, and clan standing is derived from contributions earned in the wiped client-authored economy — so `true` is the defensible reading and is what is written here. But the clan/raid/world surface was built server-authoritative FROM THE START (docs/design/server-authority.md §2), which makes it the one part of the beta that was never exploitable, and nobody has written down whether it is in or out of the wipe. Owner: Tyler + Backend Architect. Settle it BEFORE the cutover, not during it."
+  },
+  "display_names": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "The uniqueness ledger behind 2026-08-08-unique-names.sql. This is IDENTITY, not progression: a wipe of progress does not take a player's name. Losing it frees every claimed name for re-registration by someone else, which is unrecoverable once a stranger takes it. Treat as must-restore."
+  },
+  "game_events": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "Telemetry, 7-day retention (trim-game-events). Reached 1,598,269 rows / 229 MB — 94% of a 244 MB database — before the retention job and truncate brought it to 5,132 rows / 1,096 kB. Zero player value; total loss acceptable. It is in this census only so the retention job that keeps it small stays pinned."
+  },
+  "game_saves": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "The client-authored blob: gold, inventory, every skill's XP, equipment, farm. 6 rows / 464 kB. server-authority.md §2a-iv is explicit — 'Starting state is FRESH. game_saves.snapshot is never read' — so a post-cutover restore has NO reason to bring it back, and reading it would launder the forged values the audit found. PRE-cutover it is every player's entire save and a total loss. This is the single table whose value flips from critical to worthless the moment the cutover completes."
+  },
+  "hr_activities": { "class": "seeded", "replay": 344, "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight." },
+  "hr_castle_board_tasks": { "class": "seeded", "replay": 9, "note": "Hand-seeded by 2026-08-08-clan-seat-2.sql." },
+  "hr_castle_buildings": { "class": "seeded", "replay": 5, "note": "Hand-seeded by 2026-08-08-clan-seat.sql." },
+  "hr_castle_items": {
+   "class": "seeded",
+   "replay": 34,
+   "note": "Hand-maintained, seeded 'from src/data/items.js' BY COMMENT ONLY — server-authority.md §3.4 records it as the one catalogue tools/gen-catalogues.mjs does not own. Its migration DOES self-check, but asymmetrically: `if v_n < 34` is a FLOOR, so a catalogue that shrinks fails the migration and a catalogue that GROWS applies clean. The exact count pinned here is the only guard covering the second direction — proven by the shrink/grow mutation pair in tests/restore-census.mjs, which are caught by different mechanisms on purpose."
+  },
+  "hr_castle_tiers": { "class": "seeded", "replay": 5, "note": "Hand-seeded by 2026-08-08-clan-seat.sql." },
+  "hr_catalogue_meta": { "class": "seeded", "replay": 1, "note": "The catalogue digest row; the generator's own fingerprint." },
+  "hr_client_rpc_baseline": { "class": "seeded", "replay": 51, "note": "The approved client-callable RPC list. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions." },
+  "hr_crops": { "class": "seeded", "replay": 9, "note": "Generated catalogue." },
+  "hr_equip_slots": { "class": "seeded", "replay": 15, "note": "Generated catalogue." },
+  "hr_hunt_bosses": { "class": "seeded", "replay": 6, "note": "Hand-seeded by 2026-08-08-hunt.sql." },
+  "hr_hunt_tiers": { "class": "seeded", "replay": 5, "note": "Hand-seeded by 2026-08-08-hunt.sql." },
+  "hr_item_slots": { "class": "seeded", "replay": 222, "note": "Generated catalogue." },
+  "hr_items": { "class": "seeded", "replay": 426, "note": "Generated catalogue — the market tradeable allowlist. 15 untradeable. Content digest d10936764d0e…, guarded by tools/gen-catalogues.mjs --check." },
+  "hr_ledger_config": { "class": "seeded", "replay": 1, "note": "Ledger retention window for hr_ledger_prune." },
+  "hr_rate_counters": { "class": "operational", "note": "Unlogged rate-limit counters. 104 in production, 2 in a rebuild (the migrations' own self-checks spend budget). Losing them resets every rate window to empty — the correct failure direction, and self-healing within a minute." },
+  "hr_rejections": { "class": "operational", "note": "Sampled hr_apply rejections, pruned by cron. Anomaly-detection history only." },
+  "hr_server_secrets": {
+   "class": "regenerated",
+   "replay": 1,
+   "note": "A REBUILD PRODUCES ONE ROW WITH A DIFFERENT VALUE. 2026-08-11-player-state.sql seeds it with sha256(gen_random_uuid()||gen_random_uuid()||clock_timestamp()), so the 256-bit PRNG secret is FRESH on every apply. A count-based census reports this table as reconstructed; it is not. What changes if the value changes: (1) hr_seed's accrual PRNG re-rolls, so a disputed drop can no longer be replayed deterministically from player_ledger — the stated reason the seed is deterministic at all; (2) the accrual idempotency key hr_seed(user,slot,'intent:accrue:<watermark>') moves, so an in-flight accrual retried across the boundary is no longer deduplicated and can pay twice — bounded, because accrued_to is restored with it and hr_apply re-validates against the restored watermark. Neither is fatal. Both are silent. A restore from a BACKUP keeps the real value; only a repo rebuild re-rolls it."
+  },
+  "hr_skills": { "class": "seeded", "replay": 15, "note": "Generated catalogue." },
+  "hr_start_equipment": { "class": "seeded", "replay": 1, "note": "Generated from src/data/start-kit.js. A divergence here means server-created characters start with different gear than the client shows — a live bug this file's guard chain already caught once (0 gold, no weapon, into server-side combat)." },
+  "hr_start_inventory": { "class": "seeded", "replay": 3, "note": "Generated from src/data/start-kit.js." },
+  "hr_start_kit": { "class": "seeded", "replay": 1, "note": "Generated from src/data/start-kit.js." },
+  "hr_start_skill_xp": { "class": "seeded", "replay": 1, "note": "Generated from src/data/start-kit.js." },
+  "hr_xp_table": { "class": "seeded", "replay": 99, "note": "The XP curve, 99 levels, with 3 anchor assertions in the migration." },
+  "leaderboard_meta": { "class": "seeded", "replay": 1, "note": "Board namespace metadata. The board itself, leaderboard_ranked, is a MATERIALIZED VIEW — derived, not stored, and recomputed by hr_leaderboard_refresh; it is correctly absent from this census." },
+  "maintenance_alerts": { "class": "operational", "note": "hr_cron_health output. Losing it loses alert history, not the alerts." },
+  "maintenance_log": { "class": "operational", "note": "Retention/cron run log. 106 rows in production, 2 in a rebuild." },
+  "market_buy_offers": { "class": "restore_only", "wiped_at_cutover": true, "note": "Legacy market. 2026-08-11-market-v2.sql drops and recreates the market tables; the old economy is discarded at cutover by design." },
+  "market_listings": { "class": "restore_only", "wiped_at_cutover": true, "note": "Legacy market — see market_buy_offers. NOTE: under market v2 a listing row IS the seller's escrowed goods, so once v2 ships this table stops being disposable and this classification must be revisited in the same change." },
+  "market_sales": { "class": "restore_only", "wiped_at_cutover": true, "note": "Legacy market — see market_buy_offers." },
+  "player_equipment": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION. Empty today. After cutover the database is the only copy and a repo rebuild returns this empty." },
+  "player_farm": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION. Empty today." },
+  "player_intents": { "class": "operational", "note": "24-hour idempotency window, pruned hourly by hr-intents-prune. Losing it means a retry inside the window is no longer deduplicated — bounded by the same version/watermark checks hr_apply already makes." },
+  "player_inventory": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION. Empty today. One row per item; the bank cap is count(*) over it." },
+  "player_ledger": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "POST-CUTOVER PROGRESSION AND THE AUDIT TRAIL. 3 rows today. Append-only by trigger (UPDATE, TRUNCATE and in-window DELETE all refused). It is the source of every daily budget: hr_day_budget_used SUMS this table rather than reading a counter, so restoring player_state WITHOUT player_ledger silently resets every player's daily gold/XP/item ceiling to zero-used — a restore that grants a second full day of budget. Restore the two together or not at all."
+  },
+  "player_ledger_rollup": { "class": "operational", "note": "Aggregates written by hr_ledger_prune as it deletes aged ledger rows. Derived — but NOT re-derivable once the source rows are pruned. Losing it loses history beyond the ledger window, never live state." },
+  "player_progress": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION — quests, dailies, bounties, stats, collections, flags. Empty today." },
+  "player_skills": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION — XP per skill, the value every level and every leaderboard score is derived from. Empty today." },
+  "player_state": { "class": "restore_only", "wiped_at_cutover": false, "note": "POST-CUTOVER PROGRESSION — gold, gems, hearth_tokens, hp, the activity pointer, version. Empty today. THE row every write locks. After cutover this table has no second copy anywhere in the world." },
+  "profiles": { "class": "restore_only", "wiped_at_cutover": false, "note": "IDENTITY, not progression: display name derived server-side for chat and the market. 8 rows. Losing it makes every player 'Adventurer' and breaks name authority until each player re-registers a name." },
+  "raid_claims": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans. Empty today. Its purpose is to make a raid reward unclaimable twice, so losing it re-opens every past claim; empty means nothing is at stake right now." },
+  "raid_contributions": { "class": "restore_only", "wiped_at_cutover": true, "note": "Clan surface — see clans." },
+  "session_claims": { "class": "operational", "note": "Single-active-session heartbeat rows, keyed on the tab. Self-healing: a lost claim is re-taken on the next heartbeat. Losing them cannot lock a player out (save-invariant #2 — eviction requires a definitive fresh-heartbeat row, and absence is not that)." },
+  "world_event_joins": { "class": "restore_only", "wiped_at_cutover": true, "note": "World-event surface — same open decision as clans." },
+  "world_event_pledges": { "class": "restore_only", "wiped_at_cutover": true, "note": "World-event surface — same open decision as clans." },
+  "world_event_totals": { "class": "restore_only", "wiped_at_cutover": true, "note": "World-event surface — same open decision as clans." }
+ }
+}

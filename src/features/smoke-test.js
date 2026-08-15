@@ -22850,8 +22850,20 @@ const TESTS = [
          CHARACTERS, so a recently-saved-but-untouched character 1 reads as
          "cloud is newer" and gets overlaid onto character 3's live game. So the
          read must name the same slot as the write, from the same config. */
+      /* ⚠ RECORD ONLY THE game_saves READ. The first version of this stub kept
+         the LAST url that went through window.fetch, and the game preloads
+         icons through fetch() during the same await — so roughly half of all
+         runs measured `.../painted/items/dragon_gem.png?1786763534435`, parsed
+         no `slot=eq.N` out of it, and reported "the cloud read asked for slot
+         NaN". Measured 2 red in 4 runs on an unmodified tree.
+
+         An intermittently-red guard is worse than no guard: it trains everyone
+         to re-run until green, which is exactly how a real red gets waved
+         through. The bug was never in the product — b342's fix is fine — it was
+         a probe that did not say WHICH request it was grading. */
       window.fetch = function (u) {
-        pulledUrl = String(u);
+        const seen = String(u);
+        if (/\/rest\/v1\/game_saves/.test(seen)) pulledUrl = seen;
         return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
       };
       S.setClockTrusted(true);
@@ -22859,7 +22871,9 @@ const TESTS = [
       await S.__withConfig({ ...cfg, onSyncFailure: () => {}, onSyncRecovered: () => {} },
         async () => { await S.pullLatestDetailed(); });
 
-      assert(pulledUrl, 'the read path issued no request at all — this assertion would otherwise pass vacuously');
+      assert(pulledUrl, 'the read path issued no game_saves request at all — this assertion would otherwise pass '
+        + 'vacuously, and now that the stub filters by endpoint it is the only thing standing between "the read '
+        + 'names the right slot" and "the read never happened"');
       const readSlot = Number((String(pulledUrl).match(/slot=eq\.(\d+)/) || [])[1]);
       assert(readSlot === 2,
         'the cloud read asked for slot ' + readSlot + ' while the player is on slot 2 (' + pulledUrl + ') — '

@@ -47,3 +47,8 @@ export * as combatSim from './combat-sim.js?v=349';
    client's away gather branch and the accrual Edge Function both run. Before
    it, 313 of 344 catalogue activities accrued nothing server-side. */
 export * as skillSim from './skill-sim.js?v=349';
+/* The ARTISAN half — the last third of the catalogue with no DOM-free form.
+   `artisanSim.simulateArtisanSpan` runs on `skillSim.sliceSpan`, not on a
+   second copy of it, which is what keeps one buff-expiry timeline serving all
+   three simulations. 290 of the 344 catalogue rows are artisan. */
+export * as artisanSim from './artisan-sim.js?v=349';

@@ -1157,65 +1157,47 @@ function offlineIntervalMs(fallbackMs){
                                                  means the run stopped inside the slice
    @returns { ticks, paidMs, stopped, buffPaidMs, buffsExpired }
    ════════════════════════════════════════════════════════════════════════════ */
-function replayAwaySpan(spanMs, opts){
-  const out={ ticks:0, paidMs:0, stopped:false, buffPaidMs:0, buffsExpired:[] };
-  let remaining=Math.max(0,Number(spanMs)||0);
-  if(remaining<=0||!opts||typeof opts.run!=='function') return out;
-  const C=window.HearthriseCore;
-  const nextExpiry=(C&&C.buffs&&typeof C.buffs.nextBuffExpiryMs==='function')
-    ? function(){ return C.buffs.nextBuffExpiryMs(G.buffs); }
-    /* No core, no boundaries — one slice, which is exactly the old behaviour.
-       A missing bridge must degrade to "the night still pays", never to a
-       thrown replay that costs the player everything. */
-    : function(){ return Infinity; };
-  const buffLive=(C&&C.buffs&&typeof C.buffs.hasActiveBuff==='function')
-    ? function(){ return C.buffs.hasActiveBuff(G.buffs); }
-    : function(){ return false; };
-  let carryMs=0, slices=0;
-  while(remaining>0){
-    const stepMs=Math.max(1,opts.stepMs());
-    /* THE SLICE BUDGET DEGRADES TO THE OLD FLAT LOOP, IT DOES NOT ABANDON THE
-       NIGHT. `applyBuff` merges by type, so a real queue holds at most one
-       entry per BUFFS_DEF row (9) and this ceiling is never approached. A
-       corrupt or edited save could carry thousands of entries with distinct
-       remaining times, and the tempting `while(guard++ < N)` would then exit
-       with `remaining` unspent — the player silently loses the rest of their
-       absence, which is the single worst failure this file can produce and the
-       one every away bug in its history has been. So the budget stops the
-       SPLITTING, not the replay: past it the boundary is Infinity, the rest of
-       the span runs as one slice at the current rate, and the loop ends.
+/* ── b351: THIS IS NOW A DELEGATION, AND THE LOOP LIVES IN CORE ──────────
+   The body that used to be here is `src/core/skill-sim.js sliceSpan`, verbatim
+   in behaviour. It moved for the reason every other simulation moved: the
+   accrual Edge Function cannot import a function declared inside a 16,000-line
+   classic script, and a server that re-implements this loop is a second away
+   path — which is the exact defect b325 deleted for combat and b347 nearly
+   reintroduced here.
 
-       It also covers the one shape that would otherwise spin: core present but
-       `window.advanceBuffClock` missing (block 36 never ran), so the boundary
-       is real and nothing ever retires it. Ordinarily each pass consumes the
-       span up to the SOONEST expiry and then drains that buff to exactly zero,
-       so the pass count is bounded by the queue; without a clock it would not
-       be. Sixty-four passes and it flattens. */
-    const boundary=(slices++ < 64) ? nextExpiry() : Infinity;
-    const sliceMs=Math.min(remaining, boundary);
-    const wasBuffed=buffLive();
-    const budget=sliceMs+carryMs;
-    const n=Math.floor(budget/stepMs);
-    const ran=n>0?(opts.run(n,stepMs)||0):0;
-    out.ticks+=ran;
-    /* The run stopped INSIDE this slice (supplies, or the activity cleared).
-       Only the time that actually worked is paid — and only that time is
-       charged to the buff, because a buff is spent on work. */
-    if(ran<n){
-      const workedMs=ran*stepMs;
-      out.paidMs+=workedMs;
-      if(wasBuffed) out.buffPaidMs+=workedMs;
-      _drainAwayBuffs(workedMs,out);
-      out.stopped=true;
-      break;
-    }
-    carryMs=budget-n*stepMs;
-    out.paidMs+=sliceMs;
-    if(wasBuffed) out.buffPaidMs+=sliceMs;
-    _drainAwayBuffs(sliceMs,out);
-    remaining-=sliceMs;
+   The BOUNDARY SOURCE is injected rather than reached for, which is what lets
+   one loop serve gathering, artisan and (via `utcDaySegments`) combat. The
+   degradation rule is unchanged and still load-bearing: no core, no boundaries,
+   one slice — the night still pays. */
+function replayAwaySpan(spanMs, opts){
+  const C=window.HearthriseCore;
+  const o=Object.assign({}, opts||{});
+  if(!(C&&C.skillSim&&typeof C.skillSim.sliceSpan==='function')){
+    /* Core absent (a bare page, or a cold load that never finished). Run the
+       span as ONE slice at the current rate rather than throwing — a missing
+       bridge must never cost the player their whole absence. */
+    const out={ ticks:0, paidMs:0, stopped:false, buffPaidMs:0, buffsExpired:[] };
+    const span=Math.max(0,Number(spanMs)||0);
+    if(span<=0||typeof o.run!=='function'||typeof o.stepMs!=='function') return out;
+    const stepMs=Math.max(1,o.stepMs());
+    const n=Math.floor(span/stepMs);
+    const ran=n>0?(o.run(n,stepMs)||0):0;
+    out.ticks=ran; out.paidMs=ran*stepMs; out.stopped=ran<n;
+    return out;
   }
-  return out;
+  if(C.buffs&&typeof C.buffs.nextBuffExpiryMs==='function'){
+    o.nextBoundaryMs=function(){ return C.buffs.nextBuffExpiryMs(G.buffs); };
+  }
+  if(C.buffs&&typeof C.buffs.hasActiveBuff==='function'){
+    o.boosted=function(){ return C.buffs.hasActiveBuff(G.buffs); };
+  }
+  /* THE CLOCK IS `advanceBuffClock`, not a second implementation of it — see
+     the note below. `sliceSpan` collects `{expired}` off whatever this returns. */
+  o.drain=function(ms){
+    const clock=window.advanceBuffClock;
+    return (typeof clock==='function')?clock(ms):null;
+  };
+  return C.skillSim.sliceSpan(spanMs, o);
 }
 /* THE CLOCK IS `advanceBuffClock`, not a second implementation of it.
    That function already asks core's `tickBuffs` with the two context flags the
@@ -1227,12 +1209,41 @@ function replayAwaySpan(spanMs, opts){
    inside block 36's IIFE and published on window; a bare identifier here would
    resolve only by falling through to the global object, which is the exact
    shape of the `hasInputs` guard b345 found sitting dead in this same
-   function since the day it was written. Name the object. */
-function _drainAwayBuffs(elapsedMs,out){
-  if(!(elapsedMs>0)) return;
-  const clock=window.advanceBuffClock;
-  const res=(typeof clock==='function')?clock(elapsedMs):null;
-  if(res&&res.expired) for(const t of res.expired) out.buffsExpired.push(t);
+   function since the day it was written. Name the object.
+
+   b351: `_drainAwayBuffs` is GONE — it had exactly one caller and folded into
+   the `drain` adapter inside `replayAwaySpan` above, where `sliceSpan` collects
+   the `{expired}` list itself. */
+
+/* ── b351: the two preconditions the away branches ask about, named once ──
+   `processOffline` used to reach straight for `window.ARTISAN_RECIPES[skill]`
+   and `.find()` the recipe, which is the fourth copy of a lookup core already
+   owns and is exactly how `rich_coal_rock` comes to be a fishing spot on one
+   side and a mine on the other. Both branches now ask these.
+
+   THE CORE GUARD IS HONEST, NOT DEFENSIVE. Without core there is no away
+   simulation at all today: `doArtisanAction` dereferences
+   `HearthriseCore.artisan` unguarded on its first statement and `doSkillAction`
+   dereferences `HearthriseCore.progression`, so the pre-b351 branches would
+   have thrown, not degraded. The guard states that dependency instead of
+   discovering it. */
+function _awaySpanCore(){
+  const C=window.HearthriseCore;
+  return (C&&C.skillSim&&C.artisanSim&&typeof C.gatherNodes==='function'
+          &&typeof C.artisanRecipes==='function') ? C : null;
+}
+/* `{skill, recipe}` for the pointer, or null — via the ONE index. Answers
+   "is the running activity an artisan bench?" without a second mapping. */
+function _awayArtisanEntry(){
+  const C=_awaySpanCore();
+  if(!C||!G||!G.skillTargetId) return null;
+  const e=C.artisanRecipe(G.skillTargetId);
+  /* The pointer and the index must agree about the bench. If they do not the
+     state is inconsistent and paying would credit the wrong skill's XP — fall
+     through to the gather branch, which refuses on the same disagreement. */
+  if(!e) return null;
+  if(G.activeSkill && G.activeSkill!==e.skill) return null;
+  return e;
 }
 /* ════════════════════════════════════════════════════════════════
    b337 — SERVER-AUTHORITATIVE AWAY TIME (roadmap item 2, one vertical slice).
@@ -1758,112 +1769,104 @@ function processOffline(){
          the honest answer to "a new character dies in sixty seconds" is the
          death line on the receipt below, not an empty night. */
       combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
-    } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
-      // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
-      // sessions used to make ZERO offline progress (the gather replay below
-      // no-ops for artisan skills). Replay doArtisanAction at the session
-      // rate; it self-stops when inputs run out, so we just watch for that.
-      const recipes=window.ARTISAN_RECIPES[G.activeSkill];
-      const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
-      if(rec && typeof window.doArtisanAction==='function'){
-        /* b347: THE SINGLE `stepMs` THAT USED TO BE CAPTURED HERE IS GONE.
-           It was `offlineIntervalMs(rec.ms)` read once, and the whole night was
-           divided by it — which is precisely why a `cookSpeed` buff that ran
-           out mid-night kept paying until dawn. The interval is now re-derived
-           per slice inside replayAwaySpan, and the one other thing that read it
-           (`stoppedPerHour`) takes the slice's own rate instead, because that
-           is the rate the run was ACTUALLY going at when it ran dry. */
-        /* b225: cooking burns offline at exactly the same odds as online —
-           doArtisanAction is the single source of truth and this replay drives
-           it. `silent` suppresses the per-burn toast (a night's cooking would
-           queue thousands) and counts them into window._hrOfflineBurns instead — a
-           window counter, NOT a G field, so nothing transient lands in the save.
-           The count is reported once by the summary below.
-           the summary line below reports once. */
-        window._hrOfflineBurns = 0;
-        /* ── b345: THE GUARD ON THE NEXT LINE WAS DEAD FOR ITS WHOLE LIFE ───
-           It read `typeof hasInputs==='function' && !hasInputs(rec)`. But
-           `hasInputs` is declared INSIDE the IIFE at the artisan-data block
-           near line 10800 and is never published, so at THIS scope the free
-           identifier resolves against the global object and is `undefined` —
-           the `typeof` test is false and the `break` never executed. Measured
-           on the reported save: 7,500 calls into a bag that had been empty
-           since call 9, versus 8 once a global `hasInputs` is published.
+    } else if(_awaySpanCore() && _awayArtisanEntry()){
+      /* ════════════════════════════════════════════════════════════════════
+         b351 — THE ARTISAN AWAY BRANCH IS ONE CALL INTO CORE.
 
-           A guarded call to a name that does not exist in scope is the one
-           bug shape this file already carries three scars from. The fix is
-           not to publish another global: core IS the authority on recipe
-           shape (`hasInputs` above delegates to exactly this function), and
-           `window.HearthriseCore` is in scope everywhere.
+         What was here was ~90 lines that replayed `window.doArtisanAction`
+         thousands of times: the whole production step lived behind a function
+         that writes the bag, queues toasts and repaints two panels, which is
+         why `hr-accrue` refused all 290 artisan activities — 84% of the
+         catalogue — and a player who logged off smelting was paid nothing.
 
-           WHY THE LOOP STILL MAKES ONE MORE CALL AFTER IT DECIDES TO STOP:
-           because the honest stop the player already gets today — the
-           activity being cleared and the "Out of Raw Shrimp — cooking
-           stopped" toast — comes from doArtisanAction's OWN refusal branch,
-           not from this loop. Proved by mutation: publishing a global
-           `hasInputs` (making the old break fire) left `G.activeSkill` stuck
-           on 'cooking' and deleted that toast entirely. So the loop asks the
-           refusal branch to do its job ONCE, rather than growing a second
-           copy of the stop-and-say-why logic that could then drift from it. */
-        const _art=(window.HearthriseCore&&window.HearthriseCore.artisan)||null;
-        /* b347: the ONE refusal call is now made AFTER the span, not inside it.
-           It is the same single call for the same reason b345 gives — the
-           honest "Out of Raw Shrimp — cooking stopped" toast and the cleared
-           activity come from doArtisanAction's own refusal branch, never from a
-           second copy here. What moved is only WHEN: that branch clears
-           `G.activeSkill`, which flips `advanceBuffClock`'s `active` flag to
-           false and would freeze the drain for the very minutes the run DID
-           work. The buff is charged for the work first, then the refusal
-           speaks. Nothing else observes the gap — the inputs are missing either
-           way and the toast is identical. */
-        let _refuse=false;
-        const span=replayAwaySpan(hrs*3600000,{
-          stepMs:function(){ return offlineIntervalMs(rec.ms); },
-          run:function(n,sliceStepMs){
-            let done=0;
-            for(let i=0;i<n;i++){
-              const _missing=_art ? _art.missingInput(rec, G.inventory) : null;
-              if(_missing){
-                /* Captured HERE, not read at report time: the refusal call
-                   clears G.activeSkill, so anything downstream that asked
-                   "what was running?" would find null and say "the run". */
-                stoppedBy='supplies'; stoppedById=_missing; stoppedSkill=G.activeSkill;
-                const _need=(_art.recipeInputs(rec)||{})[_missing]||1;
-                stoppedPerHour=Math.round(_need*3600000/Math.max(1,sliceStepMs));
-                _refuse=true;
-                return done;              // fewer than n -> the span stops here
-              }
-              window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
-              done++;
-            }
-            return done;
-          },
-        });
-        if(_refuse) window.doArtisanAction(stoppedSkill, G.skillTargetId, {silent:true});
-        if(stoppedBy) paidMs=Math.round(span.paidMs);
-        buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
+         `src/core/artisan-sim.js simulateArtisanSpan` is that branch, made
+         pure. It runs on the SAME `sliceSpan` the gather branch runs on, so
+         the buff-expiry timeline b347 built is one mechanism, not three.
+
+         ⚠ IT MUST STAY INSIDE `withOfflineReplay`. The interval is derived
+           from `getBonus` at call time and a cook/smith-speed BLESSING is
+           presence-gated; asking from outside the latch answers a smaller
+           number. (Measured on the gather side while AWAY-16 was written: 375
+           core actions against 400 live ones, from nothing but which side of
+           the latch asked.)
+
+         THE ONE REFUSAL CALL SURVIVES, and still for b345's reason: the honest
+         "Out of Raw Shrimp — cooking stopped" toast and the cleared activity
+         come from `doArtisanAction`'s OWN refusal branch. Core states the stop;
+         it does not grow a second copy of the sentence. It is made AFTER the
+         span (b347) because that branch clears `G.activeSkill`, which would
+         freeze the buff drain for the very minutes the run did work. */
+      const _entry=_awayArtisanEntry();
+      const _C=_awaySpanCore();
+      window._hrOfflineBurns = 0;
+      const span=_C.artisanSim.simulateArtisanSpan(G, {
+        away:true, fromMs:_now - hrs*3600000, toMs:_now, capped: hrs >= (cap - 0.05),
+        rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
+        recipes:_C.artisanRecipes(),
+        bonus:window.getBonus,
+        /* THE ADAPTER — every side effect the client performs, named. The two
+           per-action repaints `doArtisanAction` used to fire even on a silent
+           tick are deliberately NOT here: the replay is followed by exactly one
+           renderProfile()/renderQuestStrip() below (b326), so a night's cooking
+           now costs one frame instead of thousands. */
+        fx:{
+          addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
+          removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
+          addXp:function(sk,amt){ if(typeof addXp==='function') addXp(sk,amt); },
+          updateDaily:function(k,n){ if(typeof updateDaily==='function') updateDaily(k,n); },
+          updateQuest:function(k,n){ if(typeof updateQuest==='function') updateQuest(k,n); },
+        },
+      });
+      window._hrOfflineBurns = span.burnt||0;
+      buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
+      if(span.stoppedBy){
+        paidMs=Math.round(span.paidMs);
+        stoppedBy=span.stoppedBy; stoppedById=span.stoppedById;
+        stoppedSkill=span.stoppedSkill; stoppedPerHour=span.stoppedPerHour;
+        if(typeof window.doArtisanAction==='function'){
+          window.doArtisanAction(_entry.skill, G.skillTargetId, {silent:true});
+        }
       }
-    } else if(G.activeSkill){
-      /* Offline gather runs at the same rate as active play — no dampening.
-         b347: through the same timeline the artisan branch uses, so a
-         `gather_speed` buff speeds up only the slice it was alive for and the
-         rest of the night runs at the base interval. */
-      const span=replayAwaySpan(hrs*3600000,{
-        stepMs:function(){ return offlineIntervalMs(5000); },
-        run:function(n){
-          let done=0;
-          for(let i=0;i<n;i++){
-            /* doSkillAction's own level gate calls stopSkill(), which clears
-               the activity — every later call would be a silent no-op, so the
-               span is told the run ended instead of being billed for it. */
-            if(!G.activeSkill) return done;
-            doSkillAction(true);
-            done++;
-          }
-          return done;
+    } else if(_awaySpanCore() && G.activeSkill){
+      /* ════════════════════════════════════════════════════════════════════
+         b351 — THE GATHER AWAY BRANCH IS ONE CALL INTO CORE.
+
+         Offline gather runs at the same rate as active play — no dampening —
+         through `src/core/skill-sim.js simulateSkillSpan`, which is what this
+         branch (`replayAwaySpan` over `doSkillAction(true)`) was, made pure.
+         The accrual Edge Function runs the same function on the same 23 nodes.
+
+         The precondition was proven BEFORE the switch, not after: AWAY-16
+         PARITY runs 400 live `doSkillAction` calls against one core span of
+         exactly 400 actions' worth of time and asserts the same bag, XP,
+         counters and fractional tool carry. So this is a delegation, not a
+         balance change.
+
+         ⚠ INSIDE `withOfflineReplay`, for the reason that test records: a
+           gather-speed BLESSING is presence-gated, and sizing the span from
+           outside the latch measured 375 core actions against 400 live ones. */
+      const _C=_awaySpanCore();
+      const span=_C.skillSim.simulateSkillSpan(G, {
+        away:true, fromMs:_now - hrs*3600000, toMs:_now, capped: hrs >= (cap - 0.05),
+        rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
+        nodes:_C.gatherNodes(),
+        bonus:window.getBonus,
+        /* THE ADAPTER. `onStop` is the level gate: core STATES the fact and the
+           client decides what it means — here, `stopSkill()`, exactly as
+           `doSkillAction`'s own gate did. Core never nulls the pointer itself. */
+        fx:{
+          addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
+          addXp:function(sk,amt){ if(typeof addXp==='function') addXp(sk,amt); },
+          updateDaily:function(k,n){ if(typeof updateDaily==='function') updateDaily(k,n); },
+          updateQuest:function(k,n){ if(typeof updateQuest==='function') updateQuest(k,n); },
+          onStop:function(){ if(typeof stopSkill==='function') stopSkill(); },
         },
       });
       buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
+      if(span.stoppedBy){
+        paidMs=Math.round(span.paidMs);
+        stoppedBy=span.stoppedBy; stoppedById=span.stoppedById; stoppedSkill=span.stoppedSkill;
+      }
     }
   });
 

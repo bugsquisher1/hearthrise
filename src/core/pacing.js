@@ -58,14 +58,32 @@ export function speedKeyFor(skillId) {
   return ARTISAN_SPEED_KEY[skillId] || 'gatherSpeed';
 }
 
-/** The total speed bonus spent on an action: perks + (gathering) tools. */
+/** The total speed bonus spent on an action: perks + tools, for EVERY skill.
+ *
+ *  ⚠ THE `GATHER_SKILLS` GATE THAT USED TO BE ON THE TOOL TERM WAS A DEFECT,
+ *  and it had already produced two live divergences:
+ *
+ *    1. legacy.js's `activityIntervalMs()` — the interval the LIVE loop and the
+ *       away replay actually run at — adds `HearthriseTools.bestToolSpeed(skill)`
+ *       UNCONDITIONALLY. Wave 3 made tools speed up artisan benches ("a Forge
+ *       Hammer speeds smithing exactly as a Rune Axe speeds woodcutting", and
+ *       smoke-test.js:2339 asserts `bestToolSpeed('smithing') > 0`). So core and
+ *       the engine disagreed about the single largest lever in an accrual: a
+ *       server pricing a smithing night off `actionIntervalMs` would have run
+ *       the bench SLOWER than the client does, by up to the tool ladder's 25%.
+ *       Under the away ruling that is a defect, not a rounding difference.
+ *    2. `actionRate` (the ONE rate calculator every artisan tile and the
+ *       activity pill read) quoted the tool-less interval, so the screen
+ *       under-reported the rate the game was already paying.
+ *
+ *  The client's expression is the ground truth here — it is what shipped and
+ *  what players are paid at — so core moves to it rather than the reverse.
+ *  A caller that genuinely wants perks-only omits `ctx.toolSpeed`. */
 export function actionSpeedBonus(skillId, ctx) {
   const c = ctx || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   let speed = bonus(speedKeyFor(skillId)) || 0;
-  if (GATHER_SKILLS.indexOf(skillId) >= 0 && typeof c.toolSpeed === 'function') {
-    speed += (c.toolSpeed(skillId) || 0);
-  }
+  if (typeof c.toolSpeed === 'function') speed += (c.toolSpeed(skillId) || 0);
   return speed;
 }
 

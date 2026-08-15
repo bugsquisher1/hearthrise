@@ -2,6 +2,83 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b347 — the seam, and the record that had two writers
+
+Branch `worktree-agent-aa3e8484ab2c37486`, commit `b0b7ac4`. Suite **702/702** (baseline 692; +10),
+0 runtime errors, 0 console errors, four consecutive full runs after the last code change. **Thirteen
+mutations, each RED on exactly its target.** `AWAY-1 PARITY` never moved. No version bump, nothing
+deployed. `src/core/**`, `supabase/functions/**`, `src/data/**`, `docs/design/*.md` untouched.
+
+**The lesson, stated once: A DIAGNOSTIC THAT REPORTS AN INTENTION AS AN OUTCOME IS AN ASSERTION THAT
+ASSERTS NOTHING, WEARING A DIFFERENT HAT — and it is worse, because it is what an incident gets read
+from.** Two instances, one hour apart, both found by driving a real gesture rather than by reading:
+
+1. `getActivityState().applied.envelope` was set to `true` immediately after `fire('onEnvelope')`. It
+   meant "a hook was called". It read as "the envelope was applied". Measured in real Chromium on a
+   switch where the replacement gate had refused and NOTHING was written: `envelope: true`, gold
+   unmoved, no receipt. `fire` now returns the hook's value and the field is `!!wrote`.
+2. Which immediately exposed the second: legacy's hook was `function(res){ applyServerEnvelope(...); }`
+   — no `return`. So the honest field reported `false` on a switch that had genuinely paid 512 gold.
+   The first bug had been *hiding* the second.
+
+**The same family, one layer out, in my own test.** ACT-6 ("the away death branch declares nothing")
+first drove `window.simulateAwayCombat()` — which is what the b341 death test does — and went RED
+with a captured stack showing `onDeath → stopCombat → declareActivity`. Not a bug in the seam:
+`ctx.away` is `inOfflineReplay()`, the b227 latch, and **the latch is set by `processOffline`, not by
+the simulation.** Called directly the sim runs the LIVE death branch, so my assertion was grading the
+wrong half of an `if`. Generalise: *when a test asserts that a branch does NOT do something, first
+prove the fixture reaches that branch.* And the control is the whole test — "zero calls" passes
+trivially against a dead spy, so ACT-6 requires the same spy to record exactly one live stop first.
+Mutation M12 (delete the declare from `stopCombat`) reddens ACT-6 as well as ACT-1, which is that
+control doing its job.
+
+**The design call I would defend: one applier for two verbs.** The spec's warning was "route
+`collected` through the SAME renderer the away card uses, not through a second one written for this
+call". Obeying that literally was impossible — `applyEnvelope` demands `accrued:true` and an `away`
+block, which a `set_activity` answer has neither of. So the *shared part* was factored out
+(`applyEnvelopeState`, and `summaryFromAway` was already shared) and legacy grew ONE
+`applyServerEnvelope(res,{intent})` where the b337 hook body used to be. Two verbs, one idea of what
+a server answer means. Adapting the body into a fake `accrued:true` envelope would have been three
+lines and a lie in the shape.
+
+**And the one the spec did not mention.** `applyRecord` fails closed on `ok !== true`, so a
+`stage:'switch'` refusal — which DID collect, and therefore DID move `accrued_to` — would have left
+the record stale by exactly the window that was just paid. `applyIntentEnvelope` returns its
+CONSTRUCTED envelope and legacy hands that to `applyRecord`, so a refusal's state reaches the record
+without `decodeRecord` learning to trust `ok:false`.
+
+**Part 2 is four lines of guard and a page of reasoning, and the reasoning is the deliverable.**
+`offlineBudget` is the only entry on `SERVER_OF_RECORD` and it had two live client writers after b340
+moved it — `saveLocal` advancing it to `lastSeen` on every autosave, and the cloud overlay
+re-stamping it to `cloudAt` **three lines after stripping it out of that same snapshot**. The header
+of `record.js` said "there is no third writer and no fallback"; that was true of `record.js` and
+false of the game. What makes it not recur is that the rule is now *askable* (`mayClientWrite`, one
+implementation, switch from accrue.js and field list from record.js so neither vouches for the
+other's absence, failing CLOSED) and *checkable* (`fingerprint` + `_record.stamp`, so `recordValue`
+compares what is there against what it saw arrive). Prevention alone would have left the accessor
+still able to lie the day a fifth writer appears for gold.
+
+**Both R-tests mutate the CALLER, which is the b339 condition.** B347-R1 drives the real
+`window.saveLocal()` with `document.hidden` forced false — without that force the line never runs in
+the harness and the test would pass with the fix reverted, deleted, or replaced by anything at all.
+B347-R2 drives `auth.js`'s own `applyCloudOverlay`, which now contains the whole cloud→G seam so that
+`pullAndMaybeRestore` (unreachable without a live session) holds no blob→G statement of its own. Both
+carry a switch-OFF **control**: a "fix" that freezes the watermark unconditionally breaks a shipping
+game to protect a field nothing owns yet.
+
+**Not mine, captured as asked:** `AWAY-16` went red ONCE, alongside mutation M1, and did not recur in
+five further M1 runs or eight clean runs. M1 restores the pre-b347 line, which is behaviourally
+identical to the shipped one whenever the switch is off — and AWAY-16 runs with it off, so M1 cannot
+be the cause. It runs two 8-hour gather nights against the wall clock and compares action counts, so
+a tick boundary between the two changes the pile: the same shape as the known `b227 blessing` flake.
+Someone should pin its clock.
+
+**Operational note for the next agent:** the session scratchpad is SHARED between concurrently
+running agents. A file I wrote as `mutate.mjs` was overwritten mid-session by another agent's harness
+of the same name, pointing at a different worktree. Nothing crossed into my files (git status stayed
+exactly my seven), but a long background job reading a generically-named scratchpad script can be
+swapped under it. Use a name nobody else would pick.
+
 ## 2026-08-15 — b347 — the loop that paid a buff all night and spent none of it
 
 Branch `worktree-agent-a454de83fe91b6768`, with `agent-a06ecbcee310aa2c7` merged in. Suite

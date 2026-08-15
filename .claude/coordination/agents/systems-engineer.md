@@ -1150,3 +1150,67 @@ of it. It closes the hole from b333 forward. A server-pushed variant (realtime b
 strictly better and rests on exactly the connection that is dead in this failure mode.
 
 Smoke: **609/609**, 0 runtime errors (602 + 7). Ten mutations, each RED on the intended test.
+
+---
+
+## 2026-08-15 · b343 · Removing a rule the player could not parse — without removing its tests
+
+**Ruling (Tyler, verbatim).** *"I think we just needed to make it a quest and get rid of the
+license shit it's way too confusing. The marks that sell auto complete basically make it desirable
+to do afk combat anyway."* He could not parse his own UI; round two wipes all 20 beta players to
+hour one, so they meet the word with less context than he had. That is a usability finding and it
+is decisive.
+
+**What the gate actually was.** b341 shipped `src/core/licence.js` — a precondition asked once,
+before `simulateSpan`, that declined a whole combat absence under 100 hand-landed kills. b342 built
+five surfaces to explain it. Three facts settled the removal:
+
+1. **It was a second lock on a door that was never open.** `TRAITS.auto_eat` is the real gate:
+   `auto-actions.js` eats nothing without the trait, so an unattended fight ends in ~60 seconds. The
+   trait costs 100 Bounty Marks and marks come from bounties played by hand. The economy already
+   enforced "learn combat attended".
+2. **The P0 it shipped for was an HONESTY bug, not a balance bug** — a new character died ~60s into
+   an 8h absence and the card reported a normal base-rate night. That fix (`died` / `diedAfterMs` /
+   `diedTo` on the receipt) is independent of any gate and survives untouched.
+3. **`supabase/functions/hr-accrue` never adopted it** — zero references. The gate was client-only,
+   i.e. decorative against the save-editing it was never meant to stop. Confirmed by the Edge payload
+   hash being byte-identical after deleting the module (`65f0e8ed297f71b5…` before and after).
+
+**The engineering lessons worth keeping.**
+
+- **A rename of a quest id is a SAVE MIGRATION.** `field_licence → hundred_kills` looks like a data
+  edit; it is not. `ensureRetentionState` merges by id, so renaming without moving the saves that
+  hold it leaves the retired LABEL on screen AND seeds the new id fresh — a 1,500 XP re-grant to
+  every player who had already finished it. `QUEST_ID_RENAMES` + `migrateQuestIds()` renames in
+  place, carries `done`/`progress`, and dedupes (two rows under one id complete twice and PAY twice).
+  Gated behind a `some()` pre-check so the hot path allocates nothing.
+- **A predicate that three surfaces answer must be ONE function.** The gate's one genuine virtue was
+  that every surface asked `licence.check()`. Replacing it with per-surface `hasTrait && foodSlot`
+  copies would have rebuilt the drift. `awayFightSustains()` is that one function, published on
+  window only because `features/combat-render.js` needs it.
+- **Removing a state-dependent surface removes machinery you forget about.** b342's boss cards
+  needed a third paint watermark (`lastLicOk`) and a once-a-second predicate call purely so the card
+  would notice a player crossing the gate mid-session. Gone with the branch.
+- **A mutation that "escapes" is usually telling you the test is aimed at the wrong thing.** Two
+  did. (a) Parking the offline watermark did not fail my budget test — because `saveLocal` pins
+  `offlineBudget.at` to `lastSeen` on every visible save, so `claimOfflineMs` is not the only writer.
+  I re-aimed the mutation at the per-absence cap and wrote the masking into the test's comment rather
+  than leaving an assertion that claims more than it proves. (b) The rename-dedupe carry-over was
+  unreachable from my fixture until I built a save holding BOTH ids — and only in the order where
+  the FRESH row is met first. Defensive code nothing exercises is debt, not safety.
+- **Removing a gate makes previously-unreachable code paths reachable, and they may be wrong.**
+  Measured in the browser: a new character's first away card printed
+  `0m on the Boss of the Day (+100% drops)` — the featured line was gated on `featuredMs > 0` while
+  `fmtSpanShort` floors to minutes. Unreachable while the span was declined; now the FIRST card a new
+  player sees. Fixed to `>= 60000`, the same one-minute slack the death line uses.
+
+**The word guard.** `b343-1` asserts /licen[cs]e/i appears in no player-facing copy via three passes
+— authored tables (`QUEST_DEFS`, FTUE steps, `TRAITS`), BOTH branches of every state-dependent
+renderer (away card x4 receipts, activity bar x2, boss cards x2, monster preview x2), and all 16
+rendered panels including `title` attributes. Deliberately NOT a source scan: comments and test names
+must be free to record WHY the thing was removed, and deleting that record is how it comes back.
+
+**Verification.** 681/681 x 3 runs, 0 runtime errors, 0 console errors. 18 mutations, each RED on the
+named test. Runtime-verified in a real browser: zero hits sweeping all 16 tabs + quests modal +
+monster preview; the away card reads *"8h away — your camp was quiet. You died to Green Dragon 2s in
+— the remaining 7h 59m paid nothing."* with a Train-a-skill CTA.

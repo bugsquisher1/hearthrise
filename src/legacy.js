@@ -1192,32 +1192,38 @@ function processOffline(){
   accrueRestedXp(_now);
   /* The budget watermark advances whether or not anything was running, so a
      day spent with no activity set cannot be banked and spent later. */
-  /* ── THE FIELD LICENCE — a PRECONDITION, asked ONCE, before anything is
-     simulated (docs/design/away-combat-licence.md §3).
+  /* ── b343: THE AWAY-COMBAT GATE IS GONE. AWAY COMBAT PAYS FROM KILL ONE ───
+     b341/b342 put a precondition here (100 hand-landed kills — the "Field
+     Licence") that declined the whole combat span for a new character. Tyler's
+     ruling, verbatim: "I think we just needed to make it a quest and get rid
+     of the license shit it's way too confusing. The marks that sell auto
+     complete basically make it desirable to do afk combat anyway."
 
-     Read src/core/licence.js's header before moving this. It is deliberately
-     NOT a channel in src/core/away.js and it is NOT a rate: `AWAY_RATE_MULT`
-     is still 1.00 and `AWAY_SCOPE` is untouched byte for byte. A gate inside
-     the resolver would be a reward vanishing inside a per-grant check — the
-     eleventh-plus instance of the one bug that table exists to end. Here, its
-     failure mode is loud and singular: the span is not simulated at all.
+     THE REASONING, kept here because this is where a future author will be
+     tempted to reintroduce it:
 
-     The client's verdict is PREDICTION. The authority is hr-accrue, which
-     asks the same fieldLicence() against server-known `stats.kills`. */
-  const _licence=(window.HearthriseLicence)
-    ? window.HearthriseLicence.check(G)
-    : {ok:true,kills:0,need:0,remaining:0};
-  const _combatDeclined=!!G.activeMonster && !_licence.ok;
-  /* Pre-licence combat is not an ACCRUING activity, so it does not make the
-     absence claimable. §3.3.1: a night that paid nothing must not cost the
-     player their allowance. Under b307's per-absence budget nothing is
-     "spent" either way — the watermark advances on any visible return, which
-     is the anti-banking guard, not a currency — so the guarantee this buys is
-     the one that matters: the next absence still gets the full cap. */
-  const active=!!(G.activeSkill||(G.activeMonster&&_licence.ok)||G.activeArtisanRecipe);
-  /* Read the watermark BEFORE the claim moves it — a declined span still has
-     a length, and the player is owed the sentence that explains it. */
-  const _awayMsBefore=Math.max(0,_now-(((G.offlineBudget&&G.offlineBudget.at)||_now)));
+       1. A SECOND LOCK ON A DOOR THAT WAS NEVER OPEN. `TRAITS.auto_eat` is
+          the real gate on unattended combat: auto-actions.js returns false
+          without the trait, so nobody eats while you are away and a fresh
+          character's fight is over in ~60 seconds. The trait costs 100 Bounty
+          Marks and marks come from bounties played by hand. The economy
+          already enforces "learn combat attended"; the gate only added a
+          word the player could not parse.
+       2. THE P0 IT SHIPPED FOR WAS AN HONESTY BUG, NOT A BALANCE BUG. A new
+          character died ~60s into an eight-hour absence and the away card
+          reported it as a normal base-rate night. That was fixed separately
+          and INDEPENDENTLY of any gate: `died` / `diedAfterMs` / `diedTo` are
+          their own payload on the receipt below, and every welcome-back
+          surface prints them. That fix stands.
+       3. The gate was CLIENT-ONLY in the end — `supabase/functions/hr-accrue`
+          never adopted it (zero references), so it was decorative against the
+          save-editing it was never meant to stop anyway.
+
+     What replaces it is not a rule but a SENTENCE: every surface that offers
+     away pay now states what actually ends the night (you fall / your food
+     runs out / your daily cap), and the away card says plainly when a night
+     went badly. See `awayFightSustains()` and `awayCardHtml()`. */
+  const active=!!(G.activeSkill||G.activeMonster||G.activeArtisanRecipe);
   /* b261: 60s floor (was 180s). With the watermark now only advancing while
      visible, a genuine 1–3 min AFK is credited instead of silently dropped;
      sub-minute tab-flips still cost nothing. */
@@ -1235,64 +1241,10 @@ function processOffline(){
       active:active, activeMonster:G.activeMonster||null,
       activeSkill:G.activeSkill||null, hrs:+hrs.toFixed(3),
       budgetAt:(G.offlineBudget&&G.offlineBudget.at)||null, lastSeen:G.lastSeen||null,
-      kills:(G.stats&&G.stats.kills)||0, licence:_licence.ok };
+      kills:(G.stats&&G.stats.kills)||0 };
     window._hrOfflineDiag=_diag;
     localStorage.setItem('hr:offlineDiag', JSON.stringify(_diag));
   }catch(e){}
-  /* A DECLINED span is the one case where "nothing happened" is the correct
-     outcome AND a silent return is the wrong behaviour. An empty night with a
-     reason is a lesson; an empty night with no reason is a bug report — see
-     the ruling's "Player-facing honesty" clause.
-
-     ── b342: THE RECEIPT, NOT JUST THE SCRATCH FIELD ──────────────────────
-     b341 published `G._awayLicence` and fired a toast, and deferred the CARD
-     to "another author's surface". Nobody built it, and the guard test asserted
-     that the FIELD exists rather than that the player is told — so the only
-     record of a declined night was a toast measured at ~8 seconds, rendered
-     behind two stacked modals. The player left a fight running overnight, came
-     back, and the game said nothing.
-
-     `lastOfflineSummary` is the RECEIPT every welcome-back surface already
-     reads (the Home away card, the welcome-back modal, the dashboard line).
-     A declined night is a thing that happened to the player, so it writes one
-     — with every gain EXPLICITLY ZERO and `licence.declined` stating why,
-     rather than leaving a renderer to work out for itself why the numbers are
-     empty. Same rule as `blessed`, `crits` and `died`: stated, never inferred.
-
-     Zeroes rather than omissions is deliberate: three existing readers print
-     `summary.gainedItems` unguarded, and an absent field renders "undefined"
-     — a shape of lie this file has shipped before.
-
-     `_awayLicence` is kept and written from the SAME locals (one computation,
-     two names) because it is the `_`-prefixed scratch marker the b341 guard
-     and any in-flight work read. Both stay out of the cloud snapshot: `_`
-     prefix for one, the NO_SYNC denylist for the other. */
-  if(_combatDeclined && _awayMsBefore>=60000
-     && !(typeof document!=='undefined' && document.hidden)){
-    G._awayLicence={declined:true,kills:_licence.kills,need:_licence.need,
-      awayMs:_awayMsBefore,at:_now};
-    G.lastOfflineSummary={
-      /* Nothing was claimed, so `hrs` — which every reader treats as "hours
-         PAID" — is honestly 0. The span the player actually lost is `awayMs`,
-         which is what fmtAway() prints. */
-      hrs:0, awayMs:_awayMsBefore,
-      gainedItems:0, gainedXp:0, gainedGold:0, gainedKills:0, burnt:0,
-      combat:null,
-      /* No cap line and no budget line: §3.3.1 — a night that paid nothing
-         must not read as though it cost the player their allowance. */
-      capped:false, budgetHrs:offlineCapHours(),
-      blessed:false, buffsPaused:false, crits:0,
-      died:false, diedAfterMs:0, diedTo:null,
-      featuredMs:0, featuredDropMult:1,
-      rateMult:(window.HearthriseCore&&window.HearthriseCore.away
-        &&window.HearthriseCore.away.AWAY_RATE_MULT)||1,
-      licence:{ok:false,kills:_licence.kills,need:_licence.need,declined:true},
-      at:_now,
-    };
-    notify('⏰ Away '+fmtHm(_awayMsBefore)+' — your camp was quiet. Combat pays away once '
-      +'you\'ve earned your Field Licence ('+_licence.kills+'/'+_licence.need+' kills). '
-      +'Skills pay in full while you\'re gone.','info');
-  }
   if(hrs<=0) return;
   const cap=offlineCapHours();
   const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=G.gold||0,beforeKills=G.stats?.kills||0;
@@ -1314,13 +1266,11 @@ function processOffline(){
          combat loop; it is one span of the SAME simulateTick() the live 2.4s
          tick runs, with `away:true`. See src/core/combat-sim.js.
 
-         The licence gate is HERE, at the caller, wrapping the whole call —
-         not inside simulateSpan and not inside the resolver. A licensed
-         player's span is byte-identical to b340's; an unlicensed one does not
-         run. Belt and braces with the `active` computation above: combat
-         takes priority over a skill in this branch chain, so without this the
-         one save that has BOTH set would slip a declined fight through. */
-      if(_licence.ok) combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
+         b343: UNCONDITIONAL. There is no precondition on this call and there
+         must not be one — a gate here is a whole night silently missing, and
+         the honest answer to "a new character dies in sixty seconds" is the
+         death line on the receipt below, not an empty night. */
+      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05));
     } else if(G.activeSkill && window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[G.activeSkill]){
       // b204 (SYS-5 batch): ARTISAN OFFLINE — cooking/smithing/crafting/prayer
       // sessions used to make ZERO offline progress (the gather replay below
@@ -1399,14 +1349,6 @@ function processOffline(){
     buffsPaused: combatSummary ? !!combatSummary.buffsPaused
       : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
     crits: combatSummary ? (combatSummary.crits||0) : 0,
-    /* The licence verdict THIS absence was resolved under, stated rather than
-       inferred — same rule as `blessed` and `crits`. A card that had to work
-       out for itself why a combat night paid nothing would eventually guess
-       "you died" at a player who was simply not licensed yet. Death and the
-       licence are DIFFERENT reasons a combat night paid nothing, and the card
-       must be able to tell them apart — so both are stated, neither inferred. */
-    licence: {ok:_licence.ok, kills:_licence.kills, need:_licence.need,
-      declined: _combatDeclined},
     /* DEATH IS PART OF THE RECEIPT.
        `combat.died` has existed since b325 and only ever reached a toast that
        is gone in ten seconds; the durable Home card read the totals and the
@@ -2766,16 +2708,20 @@ const QUEST_DEFS=[
   {id:'first_cook',type:'cooked',label:'Cook 5 dishes',goal:5,progress:0,reward:{gold:200,item:'carrot_seed',qty:3},done:false},
   {id:'first_blood',type:'kill_any',label:'Defeat 5 monsters',goal:5,progress:0,reward:{gold:150,item:'turnip_seed',qty:5},done:false},
   {id:'farmhand',type:'harvest',label:'Harvest 10 crops',goal:10,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
-  /* ── THE FIELD LICENCE (docs/design/away-combat-licence.md) ──────────────
-     Tyler: "Build it and make it into a quest, that provides some good combat
-     experience." So the counter, the guidance and the reward all live in the
-     quest system rather than as bespoke Combat-panel UI.
+  /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
+     b341 shipped this as the "Field Licence": a GATE that withheld away
+     combat until it was earned. b343 removes the gate (see processOffline's
+     header) on Tyler's ruling — "we just needed to make it a quest and get rid
+     of the license shit it's way too confusing" — and keeps the quest, which
+     was always the good half of it: a legible early goal that pays.
 
-     It MIRRORS `stats.kills` — the same field src/core/licence.js gates on —
-     so the number the player is watching and the number the server checks are
-     one number. An event-counted quest could not do that: it would read 0/100
-     for every existing save and would drift from the gate on any path that
-     moves kills without calling updateQuest.
+     It is now an ordinary QUEST_DEFS row and nothing anywhere reads it as a
+     permission. If you are here to re-add a precondition, read processOffline.
+
+     It MIRRORS `stats.kills` rather than counting `kill_any` events, so it is
+     correct on a save that already had the kills before the quest existed and
+     it cannot drift from the counter it displays. (That property is why the
+     row survived the gate's removal unchanged.)
 
      THE REWARD: 1,500 combat XP, routed through the player's active style
      exactly the way a kill routes (src/core/styles.js killXpRoute), so a bow
@@ -2795,18 +2741,52 @@ const QUEST_DEFS=[
        • Against the 57.2-day first-99 floor (`pacing-overhaul.md` A.2):
          1,500 / 13,034,431 = 0.0115% of one skill's first 99. It cannot
          distort the first hour because it is not a rate. */
-  {id:'field_licence',type:'kill_any',mirror:'stats.kills',
-   label:'Field Licence — defeat 100 monsters',goal:100,progress:0,
+  {id:'hundred_kills',type:'kill_any',mirror:'stats.kills',
+   label:'Defeat 100 monsters',goal:100,progress:0,
    reward:{combatXp:1500},
-   note:'🎖️ Field Licence earned — your fights now carry on while you\'re away.',
+   note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
 ];
 window.QUEST_DEFS=QUEST_DEFS;
 
+/* ── RENAMED QUEST IDS — a TABLE, because a rename is save state ───────────
+   A quest id is the merge key AND the save key, so renaming a row without
+   moving the saves that hold it does two bad things at once: the old row
+   survives under its old LABEL (the player keeps reading the retired copy)
+   and the new row is seeded fresh, re-granting a reward that was already
+   paid. `hundred_kills` was `field_licence` until b343, and ~every live beta
+   save carries it — a 1,500 XP double-pay for anyone who had finished it.
+
+   A row here renames in place, keeping `done` and `progress`. Deduping is
+   part of the same pass because "both ids present" is the one state a rename
+   can produce, and two rows with one id would complete — and PAY — twice. */
+const QUEST_ID_RENAMES={ field_licence:'hundred_kills' };
+function migrateQuestIds(){
+  if(!Array.isArray(G.quests)) return;
+  /* Cheap pre-check: this runs on every ensureRetentionState (which runs on
+     every kill), and the answer is `false` for every save written after this
+     build ships. No allocation on the hot path. */
+  if(!G.quests.some(function(q){ return q && QUEST_ID_RENAMES[q.id]; })) return;
+  const byId={};
+  G.quests=G.quests.filter(function(q){
+    if(!q||!q.id) return false;
+    q.id=QUEST_ID_RENAMES[q.id]||q.id;
+    const prev=byId[q.id];
+    if(prev){
+      /* Keep the furthest-along truth from both rows, drop the duplicate. */
+      prev.done=!!(prev.done||q.done);
+      prev.progress=Math.max(prev.progress||0,q.progress||0);
+      return false;
+    }
+    byId[q.id]=q;
+    return true;
+  });
+}
+
 /* Where a mirrored quest reads its progress from. A TABLE, so a second
    mirrored quest is a row here plus a row above — never a branch in
    updateQuest(). Every reader is defensive: a save missing `stats` reads 0,
-   which is the safe direction for a gate. */
+   which is the safe direction for a counter that pays on completion. */
 const MIRRORED_QUEST_SOURCES={
   'stats.kills':function(g){ var n=Number((g&&g.stats&&g.stats.kills)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
@@ -2843,6 +2823,9 @@ function ensureRetentionState(){
      idempotent: a completed quest keeps its `done`, an in-flight one keeps its
      `progress`, and nothing is ever re-granted. */
   if(!Array.isArray(G.quests))G.quests=[];
+  /* Renames run BEFORE the merge, or the merge would seed the new id beside
+     the old row and pay its reward a second time. */
+  migrateQuestIds();
   QUEST_DEFS.forEach(function(def){
     if(!G.quests.some(function(q){ return q && q.id===def.id; })) G.quests.push(Object.assign({},def));
   });
@@ -2995,8 +2978,8 @@ function updateQuest(type,amt=1,meta={}){
          every quest tick (not only on its own `type`) so it self-heals: any
          path that moves the source, including one written years from now,
          moves the quest. That is the property an event counter cannot have,
-         and it is why the licence counter and the server's gate can never
-         disagree by a kill. */
+         and it is why the hundred-kill counter can never disagree with
+         `stats.kills` by a kill. */
       q.progress=Math.min(q.goal,mirroredQuestValue(q.mirror));
     } else {
       if(q.type!==type)return;
@@ -7397,6 +7380,35 @@ function _activityAwayXpHr(live){
   return out;
 }
 
+/* ── b343: DOES A FIGHT LEFT RUNNING ACTUALLY KEEP PAYING? ─────────────────
+   ONE predicate, because three surfaces answer this question to the player —
+   the activity bar's away chip, the monster preview's Away line, and the
+   Stats modal's away row (features/combat-render.js) — and three copies of it
+   is three places for the answer to drift.
+
+   The honest limit on unattended combat is not a permission, it is FOOD.
+   `auto-actions.js` returns false without `traits.auto_eat`, so without the
+   trait nothing eats while you are gone and the fight ends the first time the
+   bar empties (measured: ~60s for a fresh character on Slime). Counting food
+   the player owns but has not SLOTTED, or food they cannot reach without the
+   trait, would rebuild exactly the forecast lie b341 removed.
+
+   A plain function, NOT a module and NOT a "may I?" API: it answers HOW LONG,
+   never WHETHER, and nothing in the engine branches on it. Published on window
+   only so features/combat-render.js can ask the same question — a second copy
+   of the predicate over there is the drift this exists to prevent. */
+function awayFightSustains(){
+  try{
+    if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
+    const id = G && G.foodSlot;
+    if(!id) return false;
+    const item = window.ITEMS && window.ITEMS[id];
+    if(!item || !(item.heals>0)) return false;
+    return ((G.inventory && G.inventory[id]) || 0) > 0;
+  }catch(e){ return false; }
+}
+window.awayFightSustains = awayFightSustains;
+
 function refreshActivityBar(){
   const bar = document.getElementById('activity-bar'); if(!bar) return;
   const iconEl = document.getElementById('ab-icon');
@@ -7445,38 +7457,28 @@ function refreshActivityBar(){
             : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
         }
       }
-      /* ── b342: THE COMBAT SCREEN HAS TO SAY "LICENCE" ─────────────────────
-         docs/design/away-combat-licence.md §4.2: "the counter has to exist
-         before the goal does". It did not exist anywhere a fighting player
-         looks — the word appeared on ZERO panels — while the two boss cards at
-         the top of this same screen promised "Pays while you're away" twice.
+      /* ── b343: THE AWAY CHIP SAYS WHAT ACTUALLY ENDS THE NIGHT ────────────
+         b342 put a "Field Licence 41 / 100 · no away pay yet" pair here, and
+         the gate behind it is gone (see processOffline). What is NOT gone is
+         the reason that chip existed: this bar is the one readout on screen
+         for every second of every fight, and the question a player asks at it
+         is "can I leave this running?".
 
-         This bar is the cheapest place in the game to fix that: it is the one
-         readout that is on screen for every second of every fight, and it was
-         already printing a lifetime kill total that is the SAME NUMBER the
-         licence gates on. So before the licence, the total re-labels itself as
-         the counter (41 / 100), and after it, it goes back to Lifetime and
-         says the thing the counter was earning. No new number, no new query,
-         no new panel real estate — one chip that changes what it means when
-         the player's situation changes.
+         So the chip still answers, from the thing that is now the real limit —
+         auto-eat plus a stocked food slot. Nobody eats for you without the
+         trait (auto-actions.js), so an unequipped fight is over in about a
+         minute whether or not anyone is watching. Saying "pays away" flatly to
+         that player would be the same false promise b342 was filed against,
+         with the licence merely swapped out.
 
-         `check()` is the same predicate src/core/licence.js gives the away
-         path, so the bar and the gate can never disagree. Missing module →
-         no chip, never a wrong chip. */
-      let licChip = '', awayChip = '';
-      const _lic = (window.HearthriseLicence && typeof window.HearthriseLicence.check==='function')
-        ? window.HearthriseLicence.check(G) : null;
-      if(_lic && !_lic.ok){
-        licChip = '<span class="ab-tkills" title="Land '+_lic.need+' kills by hand to earn your Field '
-          +'Licence. Until then a fight only pays while you are here — skills pay in full either way.">'
-          +'Field Licence <b>'+_lic.kills.toLocaleString()+'</b> / '+_lic.need.toLocaleString()+'</span>';
-        awayChip = '<span class="ab-xph ab-away" title="Combat does not pay while you are away until the '
-          +'Field Licence is earned.">no away pay yet</span>';
-      } else {
-        licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
-        if(_lic) awayChip = '<span class="ab-xph ab-away" title="Your Field Licence is earned — this fight '
-          +'carries on while you are away, at the base rate.">pays away</span>';
-      }
+         ONE predicate, shared with the monster preview's Away line
+         (`awayFightSustains`), so the two surfaces cannot drift. */
+      const licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
+      const awayChip = awayFightSustains()
+        ? '<span class="ab-xph ab-away" title="Auto-Eat and a stocked food slot keep this fight '
+          +'running while you are away, at the base rate.">pays away</span>'
+        : '<span class="ab-xph ab-away" title="A fight carries on while you are away, but it ends '
+          +'when you fall — nobody eats for you without Auto-Eat.">away: until you fall</span>';
       metaEl.innerHTML = ''
         + '<span class="ab-kills">⚔️ <b>'+kills.toLocaleString()+'</b> this fight</span>'
         + xpChip
@@ -7907,7 +7909,7 @@ console.log('Activity bar: loaded');
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
-     b341 — THE MISSING HALF OF THE FORECAST (docs/design/away-combat-licence.md §4.1).
+     b341 — THE MISSING HALF OF THE FORECAST.
 
      estimateCombat() modelled OUTGOING damage only. It had no term for being
      hit — none, anywhere — which is how the preview came to advertise
@@ -7942,7 +7944,7 @@ console.log('Activity bar: loaded');
      save (10 HP, bronze sword, empty food slot) against Slime must land within
      5 kills +/-1 and 75s +/-20s. This model returns 5 kills / 61.3s.
      Ground truth from 4,000 seeded runs of the REAL engine: 4.49 kills /
-     58.5s. Guarded by LICENCE-7.
+     58.5s. Guarded by AWAY-HONEST-3.
 
      GATHERING PREVIEWS ARE NOT TOUCHED and must not be. `legacy.js:4062` and
      `:8663` quote an hourly rate for an activity that genuinely sustains it
@@ -7978,7 +7980,7 @@ console.log('Activity bar: loaded');
     return { incomingDps: incomingDps, effectiveHp: effectiveHp,
       survivalKills: survivalKills, survivalSeconds: survivalSeconds };
   }
-  /* Published for the suite. LICENCE-7 asserts the acceptance criterion
+  /* Published for the suite. AWAY-HONEST-3 asserts the acceptance criterion
      against the REAL estimator rather than a re-implementation of it — a
      test that recomputes the formula it is testing proves only that the
      tester can copy. */
@@ -8043,19 +8045,15 @@ console.log('Activity bar: loaded');
     var h=Math.floor(s/3600), mm=Math.round((s%3600)/60);
     return h+'h'+(mm?' '+mm+'m':'');
   }
-  /* The Away line. ALWAYS present, three states, and each one names the thing
-     that actually ends the night — the licence, then death, then food. The
-     player's question at this screen is "can I leave this running?", and the
-     preview never answered it at all before. */
+  /* The Away line. ALWAYS present, two states, each naming the thing that
+     actually ends the night — death, then food. The player's question at this
+     screen is "can I leave this running?", and the preview never answered it
+     at all before b341. (b343 removed the third state, which named a
+     permission that no longer exists; the two that remain are the two real
+     limits.) */
   function awayLineHtml(est){
-    var L = (window.HearthriseLicence) ? window.HearthriseLicence.check(G) : {ok:true,kills:0,need:0};
-    if(!L.ok){
-      return '<b>Away:</b> not yet — land '+L.need+' kills for your Field Licence. '+
-             '<b>'+L.kills+' / '+L.need+'.</b>';
-    }
-    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
     var foodId = G && G.foodSlot;
-    if(!owns || !foodId || !(G.inventory[foodId] > 0)){
+    if(!awayFightSustains()){
       return '<b>Away:</b> about <b>'+fmtNum(est.survivalKills)+' kills</b>, then you fall and the '+
              'fight ends. Auto-Eat keeps it running.';
     }
@@ -9395,14 +9393,6 @@ function maybeShowWelcome(){
     if(_off.gainedGold > 0)  rows.push({g:'gold',        t:'Gold earned',  v:'+' + Number(_off.gainedGold).toLocaleString()});
     if(_off.gainedKills > 0) rows.push({g:'uiSword',     t:'Kills',        v:'+' + Number(_off.gainedKills).toLocaleString()});
     if(_off.burnt > 0)       rows.push({g:'uiFire',      t:'Burnt on the fire', v:Number(_off.burnt).toLocaleString()});
-    /* THE DECLINED NIGHT, on the first screen the player reads. Same sentence
-       as the Home card, from the same field, so the two surfaces cannot drift
-       into telling different stories about one absence. */
-    if(_off.licence && _off.licence.declined){
-      rows.push({g:'uiHourglass', bad:true,
-        t:'A fight was running, but combat pays away only once your Field Licence is earned',
-        v:(Number(_off.licence.kills)||0) + ' / ' + (Number(_off.licence.need)||0)});
-    }
   }
   /* b341 — THE FIRST SURFACE A RETURNING PLAYER READS must not put "Time away
      8h 0m" directly above "Total kills 2" and leave the death between them

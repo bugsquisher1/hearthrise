@@ -1,6 +1,62 @@
+> # ⚠ SUPERSEDED — b343, 2026-08-14. THE GATE IS REMOVED.
+>
+> **Everything below §0 describing away combat as GATED is no longer how the
+> game works.** The Field Licence shipped in b341, its honesty surfaces shipped
+> in b342, and Tyler removed the gate the same day. His ruling, verbatim:
+>
+> > *"I think we just needed to make it a quest and get rid of the license shit
+> > it's way too confusing. The marks that sell auto complete basically make it
+> > desirable to do afk combat anyway."*
+>
+> **The file is kept, unedited below this banner, because the reasoning in it is
+> still the best written record of why away combat is asymmetric with gathering
+> and of what a new character's first night actually looks like.** Read it as
+> history and as the source of the honesty work that SURVIVED, not as a spec.
+>
+> ### What was removed
+> - The gate itself. **Away combat pays from kill one, for everyone.** There is
+>   no precondition on the span (`legacy.js processOffline`).
+> - `src/core/licence.js`, `window.HearthriseLicence`, `HearthriseCore.licence`,
+>   the `licence` block on `lastOfflineSummary`, `G._awayLicence`, the Combat
+>   panel's counter chip, the boss cards' locked state, and the word "licence"
+>   from every player-facing surface. Guarded by `b343-1` in the smoke suite.
+>
+> ### What survived, and must keep surviving
+> - **The quest.** `QUEST_DEFS` id `hundred_kills` — *"Defeat 100 monsters"*,
+>   1,500 authored combat XP, mirroring `stats.kills`. Renamed from
+>   `field_licence` with a save migration (`QUEST_ID_RENAMES`) so nobody is paid
+>   twice. Guarded by `QUEST-100`.
+> - **Every b342 honesty surface**, which was always the real fix for the P0:
+>   `died` / `diedAfterMs` / `diedTo` on the receipt, the away card's *"You died
+>   to Slime 48s in — the remaining 7h 59m paid nothing"*, and §4.1's rule that
+>   **a rate may only be quoted over a span the character can survive.**
+> - The FTUE's honesty, reframed from a rule into advice.
+>
+> ### Why the gate was redundant, in one line
+> **Auto-Eat is the real gate on AFK combat** — `auto-actions.js` eats nothing
+> without the trait, so an unattended fight is over in ~60 seconds; the trait
+> costs 100 Bounty Marks and marks come from bounties played by hand. §5 of this
+> document works that arithmetic out in full and then argues against acting on
+> it. The economy already enforced "play manually first"; the licence was a
+> second lock on a door that was never open. (It was also never adopted by
+> `supabase/functions/hr-accrue`, so it was client-only and decorative.)
+>
+> **The one consequence worth knowing:** a brand-new character who leaves a
+> fight running overnight now banks a real, small night (measured ~3 kills /
+> ~49 XP / ~6 gold on Slime) and an away card that says plainly that they died a
+> minute in — instead of an empty night and a rule to read. That is the trade.
+>
+> ### If you are here to re-add a gate
+> `AWAY-SCOPE-1` asserts the module and its window API stay gone, and
+> `AWAY-HONEST-1/2` assert there is no precondition and no attenuation at either
+> end of the kill range. You will have to delete a test first. That is
+> deliberate — have the conversation.
+
+---
+
 # SPEC — the Field Licence: away combat is earned, not given
 
-**Owner:** Game Designer · **Date:** 2026-08-14 · **Status:** spec, not built.
+**Owner:** Game Designer · **Date:** 2026-08-14 · **Status:** SUPERSEDED (b343). Shipped b341–b342, removed b343.
 **Ruling being implemented (Tyler, verbatim):** *"Afk combat exp shouldn't come
 immediately, the player should be guided to play the game manually early on to get
 the hang of it."*

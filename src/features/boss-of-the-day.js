@@ -212,49 +212,26 @@
      line existed, "set the featured boss before bed" was folklore passed
      between testers — an unstated rule that only rewards the player who
      already knew it. One line, on the card, where the decision is made. */
-  /* ── b342: THE SAME LINE MUST NOT PROMISE WHAT THE PLAYER CANNOT HAVE ──────
-     This line is drawn TWICE at the top of the Combat panel (daily + weekly),
-     in gold, and it was unconditional. So the first thing an unlicensed player
-     read on the combat screen was "Pays while you're away" — the exact
-     sentence the Field Licence makes false for them — stated twice, over
-     bosses locked at Combat Lv 75, on the one screen where the licence is
-     never mentioned. That is not a missing feature; it is the game promising
-     the opposite of its own rule at the moment of the decision.
+  /* ── b343: BACK TO ONE UNCONDITIONAL SENTENCE, AND IT IS TRUE ──────────────
+     b342 made this state-dependent because an away-combat gate could make it
+     false. That gate is gone (see legacy.js processOffline), and with it the
+     reason for the branch, the `lastLicOk` paint watermark and the once-a-
+     second predicate call behind it.
 
-     A FUNCTION, not a constant, for the reason the constant was wrong: the
-     sentence depends on player state. It reads the same `licence.check()` the
-     away path and the activity bar read, so all three agree by construction.
-     A missing module keeps the original copy — the licensed sentence is the
-     one that has always been true for an established player, so an
-     unavailable predicate degrades to the pre-b341 behaviour rather than to
-     a scarier claim. */
+     What this line CLAIMS is worth being precise about, because the honest
+     reading is what makes a constant correct here: it says the featured-boss
+     BONUS survives an absence — which it does, uniquely, where blessings and
+     food buffs do not (src/core/away.js AWAY_SCOPE.botd === true). It is not a
+     promise about how long you personally last, and the surfaces where that
+     question is actually asked — the monster preview's Away line and the
+     activity bar's away chip — answer it there, from `awayFightSustains()`.
+     These two bosses are locked at Combat Lv 75; nobody meets this card before
+     they have met those.
+
+     ONE <span>, not a bare text node: `.botd-away` is a flex row whose
+     `::before` draws the short gilt rule, so every inline child becomes its
+     own FLEX ITEM and an unwrapped <b> lays out as a second column. */
   function awayLine() {
-    var L = null;
-    try {
-      if (window.HearthriseLicence && typeof window.HearthriseLicence.check === 'function') {
-        L = window.HearthriseLicence.check(window.G);
-      }
-    } catch (e) {}
-    /* THE CACHE IS SET BY THE RENDERER, NOT BY THE TICK. `lastLicOk` means
-       "the verdict the DOM is currently showing", so the only place that may
-       write it is the place that writes the DOM. Maintained from the tick
-       instead, it would go stale the moment anything else repainted a card
-       (a day rollover, a manual render, the panel being rebuilt) and the tick
-       would then see "no change" against a screen that had changed. Same
-       failure shape as the rewire-walkers b341 retired: a cache of what
-       something else did. */
-    lastLicOk = L ? !!L.ok : null;
-    /* ONE <span>, not a bare text node with a <b> inside it. `.botd-away` is a
-       flex row whose `::before` draws the short gilt rule, so every inline
-       child becomes its own FLEX ITEM: an unwrapped `<b>41 / 100</b>` laid out
-       as a second column and the sentence broke around it mid-clause
-       ("…Field Licence (  41 /   100  ). Until then…"). Verified in the
-       browser, not reasoned about. */
-    if (L && !L.ok) {
-      return '<div class="botd-away is-locked"><span>Away pay needs your Field Licence — ' +
-        '<b>' + L.kills + ' / ' + L.need + '</b> kills. Until then this fight only pays ' +
-        'while you\'re here.</span></div>';
-    }
     return '<div class="botd-away"><span>Pays while you\'re away — leave this fight set.</span></div>';
   }
 
@@ -369,25 +346,12 @@
   }
 
   var lastDay = null, lastWeek = null;
-  /* b342: `lastLicOk` is the verdict the CARDS ARE CURRENTLY SHOWING, written
-     by awayLine() — the one place that puts it in the DOM. See the note there.
-     Declared here beside the other two paint watermarks so the tick's three
-     "has this changed?" questions read as one idea. */
-  var lastLicOk = null;
-  /* These cards now say something that depends on PLAYER STATE, not just on the
-     clock — and this tick deliberately does the cheap thing (rewrite the
-     countdown text) unless the day rolled over. Without the check below, the
-     100th kill would earn the licence and both cards would keep saying "not
-     yours yet" until the next UTC day. One boolean compared once a second is
-     the whole cost. */
-  function licenceOk() {
-    try {
-      if (window.HearthriseLicence && typeof window.HearthriseLicence.check === 'function') {
-        return !!window.HearthriseLicence.check(window.G).ok;
-      }
-    } catch (e) {}
-    return null;
-  }
+  /* b343: these cards depend on THE CLOCK ONLY again. b342 added a third paint
+     watermark (`lastLicOk`) plus a once-a-second predicate call so the cards
+     would notice a player crossing the away-combat gate mid-session; with the
+     gate gone there is no player-state term in the copy, so the watermark and
+     the predicate are gone with it. Cheapest correct tick: rewrite the
+     countdown text, and only re-render on a real UTC rollover. */
   function tick() {
     applyCombatVisibility();
     var c = CB();
@@ -395,12 +359,11 @@
     var now = nowMs();
     var today = c.utcDayKey(now);
     var thisWeek = c.utcWeekKey(now);
-    var licChanged = (licenceOk() !== lastLicOk);   // awayLine() clears it by repainting
     var card = document.getElementById('hr-botd-card');
-    if (!card || today !== lastDay || licChanged) { lastDay = today; render(); }
+    if (!card || today !== lastDay) { lastDay = today; render(); }
     else { var timer = document.getElementById('hr-botd-timer'); if (timer) timer.textContent = 'new in ' + fmtCountdown(msUntilRotate()); }
     var wcard = document.getElementById('hr-weekly-card');
-    if (!wcard || thisWeek !== lastWeek || licChanged) { lastWeek = thisWeek; renderWeekly(); }
+    if (!wcard || thisWeek !== lastWeek) { lastWeek = thisWeek; renderWeekly(); }
     else { var wtimer = document.getElementById('hr-weekly-timer'); if (wtimer) wtimer.textContent = 'resets in ' + fmtWeekCountdown(msUntilWeeklyRotate()); }
     applyCombatVisibility();   // after any re-render, so it cannot re-show mid-fight
   }

@@ -487,6 +487,10 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          that as 0 for every key, which is the `zeroBonus` behaviour that
          shipped before b349. Nothing here comes from the request body. */
       perks,
+      /* THE ARTISAN GATE. `?? null`, not `?? {}` — null means this database
+         predates the model, and the engine reads that as LOCKED. Nothing here
+         comes from the request. */
+      unlockedRecipes: ((perkEnv && perkEnv.ok === true ? perkEnv.unlockedRecipes : null) ?? null) as Record<string, boolean> | null,
       items: ITEMS,
       monsters: MONSTERS,
       nodes: GATHER_NODES,

@@ -73,7 +73,11 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
      apply-engine        hr_apply, the one writer
      character-bootstrap hr_create_character, so the character under test is
                          made the way a real player's is
-     activity-intent     the file this slice stages */
+     activity-intent     the file this slice stages
+     key-hygiene         b346 — the C1/C3 conditions from the adversarial
+                         review. It `create or replace`s hr_apply, so it must be
+                         LAST: applied before apply-engine it would simply be
+                         deleted. A15 and A16 measure its behaviour. */
 const EXTRA = [
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
   ['daily-budget', MIG('2026-08-11-daily-budget.sql')],
@@ -81,6 +85,7 @@ const EXTRA = [
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
   ['activity-intent', MIG('2026-08-15-activity-intent.sql')],
+  ['key-hygiene', MIG('2026-08-15-intent-key-hygiene.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -92,9 +97,10 @@ const EXTRA = [
 const MUTATIONS = {
   no_collect: {
     file: FN('set-activity.js'),
-    why: 'the switch stops collecting first — the elapsed window is confiscated',
-    find: '  const collect = await collectCurrentWindow({',
-    repl: '  const collect = { outcome: \'nothing\', version: env.version }; const _unused = ({',
+    why: 'the switch stops collecting first — the elapsed window is confiscated. (Distinct from '
+       + 'registry_collects_first_false: there the REGISTRY lies, here the CODE ignores it.)',
+    find: '  const collect = collectsFirst(VERB)',
+    repl: '  const collect = false /* mutated: the code stops asking the registry */',
   },
   gate_open: {
     file: FN('intents.js'),
@@ -155,8 +161,109 @@ const MUTATIONS = {
   no_shape_check: {
     file: FN('set-activity.js'),
     why: 'a malformed request reaches the database and spends the player\'s rate budget',
-    find: '  if (!intentId) {\n    return { status: 400, body: { ok: false, error: INTENT_ERRORS.MISSING_INTENT_ID } };\n  }',
+    find: '  if (requiresKey(VERB) && !intentId) {\n    return { status: 400, body: { ok: false, error: INTENT_ERRORS.MISSING_INTENT_ID } };\n  }',
     repl: '  /* mutated: the shape check is gone, so a keyless intent spends the gate */',
+  },
+
+  /* ── b346 — the adversarial review's conditions ────────────────────────── */
+
+  no_key_release: {
+    file: MIG('2026-08-15-intent-key-hygiene.sql'),
+    migration: 'key-hygiene',
+    why: 'C1 — a version_conflict STICKS to its key again, so the retry the error asks for can '
+       + 'never succeed and the DERIVED accrual key is locked out for 25 hours',
+    find: "     and v_out->>'error' = 'version_conflict' then",
+    repl: "     and v_out->>'error' = 'a_code_that_never_happens' then",
+  },
+  key_ignores_version: {
+    file: FN('intents.js'),
+    why: 'C1 — the derived key drops `version`, so a REFUSED accrual re-derives a byte-identical, '
+       + 'permanently-poisoned key (the half that does not need the migration to be applied)',
+    find: '  const label = `hr-accrue|${o.user}|${o.slot}|${o.watermark}|${o.version}|${o.salt}|${o.attempt}`;',
+    repl: '  const label = `hr-accrue|${o.user}|${o.slot}|${o.watermark}|${o.salt}|${o.attempt}`;',
+  },
+  call_site_drops_version: {
+    file: FN('set-activity.js'),
+    why: 'C1 — the collect stops passing `version` to intentIdFor, so the two verbs derive '
+       + 'different keys for one window',
+    find: '    user, slot, watermark: String(st.accrued_to), version: env.version, salt, attempt: 0,',
+    repl: '    user, slot, watermark: String(st.accrued_to), salt, attempt: 0,',
+  },
+  no_slot_scope: {
+    file: MIG('2026-08-15-intent-key-hygiene.sql'),
+    migration: 'key-hygiene',
+    why: 'C3 — hr_apply stops comparing the slot, so one key means one thing on two characters',
+    find: '    if v_prev_intent is distinct from v_this_intent\n       or v_prev_slot is distinct from v_slot then',
+    repl: '    if v_prev_intent is distinct from v_this_intent then',
+  },
+  refusal_no_state: {
+    file: FN('set-activity.js'),
+    why: 'C2 — a refusal stops carrying the envelope, so "put the local pointer back to what the '
+       + 'envelope says" is unexecutable on the path that needs it',
+    find: '  if (!env) return { ok: false, verb: VERB, ...refusal };',
+    repl: '  return { ok: false, verb: VERB, ...refusal };\n  /* mutated */ if (!env) return null;',
+  },
+  registry_bucket_bogus: {
+    file: FN('intents.js'),
+    why: 'C4 — the registry names a bucket the database does not have; if nothing READS the '
+       + 'registry this is invisible',
+    find: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),",
+    repl: "  set_activity: Object.freeze({ bucket: 'activity_typo', needsKey: true, collectsFirst: true }),",
+  },
+  registry_needs_key_false: {
+    file: FN('intents.js'),
+    why: 'C4 — the registry says this intent needs no idempotency key',
+    find: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),",
+    repl: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: false, collectsFirst: true }),",
+  },
+  registry_collects_first_false: {
+    file: FN('intents.js'),
+    why: 'C4 — the registry says this intent does not collect first, and the code believes it, so '
+       + 'the elapsed window is confiscated',
+    find: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),",
+    repl: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),",
+  },
+  gate_literal_bucket: {
+    file: FN('set-activity.js'),
+    why: 'C4 — the rate bucket becomes a literal at the call site again. Behaviourally IDENTICAL '
+       + 'today, so only the source assertion can see it — which is the whole point',
+    find: '  const [read] = await exec(READ_SQL, [user, slot, rateBucketFor(VERB)]);',
+    repl: "  const [read] = await exec(READ_SQL, [user, slot, 'activity']);",
+  },
+  collected_dropped_on_replay: {
+    file: FN('set-activity.js'),
+    why: 'C5 — a replayed SWITCH nulls the receipt for a collect that genuinely applied '
+       + '(measured: 3,809 gold / 744 kills reported as null)',
+    find: '      collected: collect.receipt || null,\n      ...(res.replayed === true ? { replayed: true } : {}),',
+    repl: '      collected: res.replayed === true ? null : (collect.receipt || null),\n'
+        + '      ...(res.replayed === true ? { replayed: true } : {}),',
+  },
+  activity_echoed: {
+    file: FN('set-activity.js'),
+    why: 'C5 — the response echoes the CLIENT\'s declaration as `activity` while `state` reports '
+       + 'what the server actually holds',
+    find: '      activity: activityOf(res),',
+    repl: '      activity: { kind: decl.kind, id: decl.id },',
+  },
+  catalogue_truthy: {
+    file: FN('set-activity.js'),
+    why: 'C6 — the catalogue guard goes back to truthiness, so `constructor` and `__proto__` walk '
+       + 'past it and reach the database',
+    find: "  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {",
+    repl: "  if (decl.kind === 'combat' && !MONSTERS[decl.id]) {",
+  },
+  skip_bare_literal: {
+    file: FN('accrual.js'),
+    why: 'C6 — a skip reason is produced as a bare literal again, so the contract\'s partition '
+       + 'cannot see it (this is exactly how `no_cap` was right only by accident)',
+    find: "  if (!(capMs > 0)) return { accrued: false, reason: SKIP.NO_CAP };",
+    repl: "  if (!(capMs > 0)) return { accrued: false, reason: 'no_cap' };",
+  },
+  skip_unclassified: {
+    file: FN('accrual.js'),
+    why: 'C6 — the engine gains a skip reason that neither group classifies',
+    find: "  NO_CAP: 'no_cap',",
+    repl: "  NO_CAP: 'no_cap',\n  FROM_THE_FUTURE: 'a_reason_from_the_future',",
   },
 };
 
@@ -734,6 +841,451 @@ async function run(mutate) {
     ok(found.length === 0, `A14: ${found[0] || ''}`);
   }
 
+  /* ══ b346 — THE ADVERSARIAL REVIEW'S CONDITIONS ═══════════════════════════
+     Everything below was named by the Security Engineer's review of this intent
+     and measured against PRODUCTION first, rolled back. The measurements are
+     quoted in the assertion messages so a future reader knows the failure is a
+     regression of a KNOWN defect and not a hypothesis. */
+
+  /** hr_apply, driven directly as the engine. Some of these probes are about
+      the KEY rather than about the intent, and going through runSetActivity
+      would only be able to reach two of hr_apply's dozen rejection codes. */
+  const applyRaw = async (o) => {
+    const [r] = await exec(
+      'select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::jsonb) as res',
+      [o.user ?? UID, o.slot ?? 0, o.version, o.key, JSON.stringify(o.delta)]);
+    return r && r.res;
+  };
+  const clearGate = () => db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
+  /** Bump the version between the READ and the switch's apply — the state a
+      concurrent writer leaves behind. A fault injection, not a race (PGlite is
+      one backend); stated, not implied. */
+  const conflictingExec = (fired) => makeExec(db, {
+    before: async (text) => {
+      if (!fired.hit && /hr_apply/.test(text)) {
+        fired.hit = true;
+        await db.query(
+          'update public.player_state set version = version + 1 where user_id = $1 and slot = 0', [UID]);
+      }
+    },
+  });
+
+  // ── A15. A REJECTED INTENT IS RETRIED WITH A NEW KEY — AND THE ONE KEY
+  //         THAT CANNOT CHANGE IS RELEASED INSTEAD. (Review C1.)
+  //
+  // The contract used to say two things that could not both be true: hr_apply
+  // step (5) records a rejection under the key and replays it, while the client
+  // seam said "keep the key for every RETRY of that tap". Measured on
+  // production, rolled back: (1) stale version → version_conflict; (2) the SAME
+  // key at the CORRECT version → version_conflict, replayed:true; (3) a NEW key
+  // at the same correct version → ok:true.
+  {
+    await clearGate();
+    await db.query(
+      `update public.player_state
+          set accrued_to = now(), active_since = now(), active_kind = 'combat', active_id = 'goblin'
+        where user_id = $1 and slot = 0`, [UID]);
+
+    // (a) THE REFUSAL. accrued_to = now() so the collect exits at below_min_span
+    //     without an apply — the only hr_apply in this call is the switch, which
+    //     is what makes the injector's target unambiguous.
+    const key = uuid();
+    const fired = { hit: false };
+    const r1 = await sa.runSetActivity({
+      exec: conflictingExec(fired), user: UID, slot: 0, intentId: key,
+      activity: { kind: 'combat', id: 'rat' },
+    });
+    ok(fired.hit, 'A15-CONTROL: the injector never fired — no hr_apply was seen, so A15 proves nothing');
+    ok(r1.body.ok === false && r1.body.error === 'version_conflict' && r1.body.stage === 'switch',
+      `A15-CONTROL: expected a version_conflict at the switch, got ${JSON.stringify(r1.body).slice(0, 200)}`);
+
+    // (b) THE RETRY. Same key, correct version, nothing injected.
+    const r2 = await call({ intentId: key, activity: { kind: 'combat', id: 'rat' } });
+    ok(r2.body.ok === true,
+      `A15: THE REJECTED KEY IS STILL POISONED — retrying it at the CORRECT version returned `
+      + `${JSON.stringify(r2.body).slice(0, 200)}. A version conflict is a statement about the `
+      + 'caller\'s READ, it applied nothing, and the recovery it names is "re-read and try again". '
+      + 'Storing it locks out every caller whose key cannot change — which is the accrual engine, '
+      + 'whose key is DERIVED — for up to 25 hours.');
+    ok(r2.body.replayed !== true,
+      'A15: the retry was answered as a REPLAY — the key was re-read, not released');
+    ok((await state(db, UID)).active_id === 'rat', 'A15: the successful retry did not actually switch');
+
+    // (c) CONTROL — THE RELEASE IS NARROW. A rejection about the DELTA must
+    //     still be sticky, or (b) only proves hr_apply stopped recording
+    //     rejections at all.
+    const st = await state(db, UID);
+    const gold = Number(st.gold);
+    ok(gold < 10000000, `A15-CONTROL: the probe holds ${gold} gold — the overspend below would clamp`);
+    const stickyKey = uuid();
+    const spend = { gold: -(gold + 1000), journal: { kind: 'admin', intent: 'a15:overspend' } };
+    const s1 = await applyRaw({ version: Number(st.version), key: stickyKey, delta: spend });
+    ok(s1 && s1.error === 'insufficient_gold',
+      `A15-CONTROL: the overspend probe returned ${JSON.stringify(s1).slice(0, 160)} — expected `
+      + 'insufficient_gold, so the stickiness assertion below is not measuring what it says');
+    const s2 = await applyRaw({ version: Number(st.version), key: stickyKey, delta: spend });
+    ok(s2 && s2.replayed === true && s2.error === 'insufficient_gold',
+      `A15: a NON-version rejection was released too (${JSON.stringify(s2).slice(0, 160)}). `
+      + '"Same key, same answer" is the right contract for a decision about the DELTA — the caller '
+      + 'must change something, and changing the key is how it says "this is a new attempt".');
+
+    // (d) THE DERIVED HALF. `version` is in the key, so a refused accrual cannot
+    //     re-derive a byte-identical one; everything else about the derivation
+    //     is unchanged, which is what keeps two racing verbs on ONE key.
+    const base = { user: UID, slot: 0, watermark: 'w', version: 1, salt: 's', attempt: 0 };
+    const k0 = await it.intentIdFor({ ...base });
+    const k0again = await it.intentIdFor({ ...base });
+    const kVer = await it.intentIdFor({ ...base, version: 2 });
+    ok(k0 === k0again,
+      'A15: the derived key is not stable for identical inputs — two verbs racing on one window '
+      + 'would stop sharing a key, and the window would be priced twice');
+    ok(k0 !== kVer,
+      'A15: the derived key IGNORES `version`. A rejection does not move `accrued_to`, so the next '
+      + 'call re-derives a byte-identical, already-refused key — for both the accrue verb and every '
+      + 'set_activity, whose collect derives the same one. That is the deadlock C1 names.');
+    let threw = false;
+    try { await it.intentIdFor({ user: UID, slot: 0, watermark: 'w', salt: 's', attempt: 0 }); }
+    catch { threw = true; }
+    ok(threw,
+      'A15: intentIdFor accepted a call with a missing field. Six positional-shaped values across '
+      + 'two call sites in two languages is exactly how the two verbs silently stop sharing a key.');
+
+    // (e) BOTH CALL SITES PASS THE WHOLE FIELD SET. A drift here does not fail,
+    //     it just pays twice or conflicts — so it is asserted on the source.
+    for (const f of ['index.ts', 'set-activity.js']) {
+      const src = (await readFile(join(fnDir, f), 'utf8')).replace(/\r\n/g, '\n');
+      const at = src.indexOf('intentIdFor({');
+      ok(at >= 0, `A15-CONTROL: no intentIdFor({…}) call site in ${f} — the scan is blind`);
+      const lit = src.slice(at, src.indexOf('}', at));
+      const missing = [...it.INTENT_ID_FIELDS].filter((k) => !new RegExp(`\\b${k}\\b`).test(lit));
+      ok(missing.length === 0,
+        `A15: ${f}'s intentIdFor call omits [${missing}] — the two verbs would derive different `
+        + 'keys for one window');
+    }
+  }
+
+  // ── A16. ONE KEY, TWO SLOTS. (Review C3.)
+  // `intentNameFor` yields `set_activity:idle` for EVERY stop on EVERY
+  // character, and `player_intents` is keyed (user_id, intent_id) with no slot.
+  // Measured on production, rolled back: the same key on slot 1 answered
+  // ok:true, replayed:true and applied nothing (gold 500 → 500) while a control
+  // with a fresh key applied (500 → 507).
+  {
+    await clearGate();
+    const made = (await db.query('select public.__a345_create($1,1) as v', [UID])).rows[0].v;
+    ok(made.ok === true && made.created === true,
+      `A16-CONTROL: could not create a second character: ${JSON.stringify(made)}`);
+    await db.query(
+      'update public.player_state set accrued_to = now(), active_since = now() where user_id = $1', [UID]);
+
+    const key = uuid();
+    const first = await sa.runSetActivity({
+      exec, user: UID, slot: 0, intentId: key, activity: { kind: 'idle', id: null },
+    });
+    ok(first.body.ok === true, `A16-CONTROL: the slot-0 claim failed: ${JSON.stringify(first.body).slice(0, 200)}`);
+
+    const before1 = await state(db, UID, 1);
+    const second = await sa.runSetActivity({
+      exec, user: UID, slot: 1, intentId: key, activity: { kind: 'idle', id: null },
+    });
+    ok(second.body.ok === false && second.body.error === 'intent_mismatch',
+      `A16: THE SAME KEY WAS ACCEPTED ON A SECOND CHARACTER — ${JSON.stringify(second.body).slice(0, 200)}. `
+      + 'The intent NAME cannot carry the slot (it is also player_ledger.intent, which the rollup '
+      + 'groups on), so without hr_apply comparing player_intents.slot this answers ok:true, '
+      + 'replayed:true and applies NOTHING, silently, on the character the player is looking at.');
+    const after1 = await state(db, UID, 1);
+    ok(Number(after1.version) === Number(before1.version), 'A16: the refused cross-slot call applied something');
+
+    const third = await sa.runSetActivity({
+      exec, user: UID, slot: 1, intentId: uuid(), activity: { kind: 'idle', id: null },
+    });
+    ok(third.body.ok === true,
+      `A16-CONTROL: a FRESH key on slot 1 was also refused (${JSON.stringify(third.body).slice(0, 200)}) — `
+      + 'the refusal above would then prove nothing about the key');
+    ok(Number((await state(db, UID, 1)).version) === Number(before1.version) + 1,
+      'A16-CONTROL: the fresh-key call on slot 1 applied nothing either');
+  }
+
+  // ── A17. THE SKIP PARTITION COVERS THE ENGINE — DERIVED, NOT RESTATED.
+  // The contract's comment said SIX reasons and the engine had SEVEN: `no_cap`
+  // was a bare literal, absent from SKIP and from both groups, and landed in the
+  // right one only because classifySkip fails closed. Right by accident.
+  {
+    const engine = Object.values(ac.SKIP);
+    ok(engine.length >= 6,
+      `A17-CONTROL: accrual.js SKIP holds ${engine.length} reasons — the comparison would be trivial`);
+    const classified = [...it.SAFE_SKIP_REASONS, ...it.REFUSING_SKIP_REASONS];
+    const dupes = classified.filter((r, i) => classified.indexOf(r) !== i);
+    ok(dupes.length === 0, `A17: [${dupes}] is in BOTH the safe and the refusing group`);
+    const unclassified = engine.filter((r) => !classified.includes(r));
+    ok(unclassified.length === 0,
+      `A17: the engine can return [${unclassified}] and the contract has no opinion about it. `
+      + 'classifySkip fails closed, so it would REFUSE every switch — which is the safe direction '
+      + 'and also a total lockout if the reason is ordinary. Decide which group it is in.');
+    const phantom = classified.filter((r) => !engine.includes(r));
+    ok(phantom.length === 0,
+      `A17: [${phantom}] is classified but accrual.js cannot produce it — a rule about nothing`);
+
+    /* And every `reason:` the engine returns must NAME a SKIP member. A bare
+       literal is invisible to the partition above, which is precisely how
+       `no_cap` escaped it for four builds. */
+    const src = (await readFile(join(fnDir, 'accrual.js'), 'utf8')).replace(/\r\n/g, '\n');
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    const sites = [...code.matchAll(/reason:\s*([^,}\n]+)/g)].map((m) => m[1].trim());
+    ok(sites.length >= 6,
+      `A17-CONTROL: the scan found ${sites.length} \`reason:\` sites in accrual.js — it is blind`);
+    for (const s of sites) {
+      ok(!/['"`]/.test(s),
+        `A17: accrual.js produces a reason as a BARE LITERAL (\`reason: ${s}\`). It must name a SKIP `
+        + 'member, or the contract\'s partition cannot see it and classifies it by luck.');
+      ok(/SKIP\./.test(s), `A17: \`reason: ${s}\` does not name a SKIP member`);
+      for (const ref of s.match(/SKIP\.([A-Za-z_]+)/g) || []) {
+        const k = ref.slice(5);
+        ok(Object.prototype.hasOwnProperty.call(ac.SKIP, k),
+          `A17: a reason names SKIP.${k}, which does not exist — it would be undefined at runtime`);
+      }
+    }
+    ok(it.classifySkip('no_cap') === 'refused',
+      'A17: no_cap must refuse — with capMs = 0 NOTHING in the window can be priced, so switching '
+      + 'confiscates a window that will become payable');
+  }
+
+  // ── A18. EVERY REFUSAL THAT REACHED THE DATABASE CARRIES THE ENVELOPE.
+  // (Review C2.) The seam tells the client to put its optimistic local pointer
+  // back to what the envelope says. Measured: a switch-stage refusal carried no
+  // `state` at all, which makes that instruction unexecutable on exactly the
+  // path that needs it.
+  {
+    await clearGate();
+    const hasEnvelope = (b) => !!(b && b.state && typeof b.state === 'object' && b.state.active_kind);
+    const withState = []; const without = [];
+
+    // (1) stage:'collect' — an unpriceable window.
+    await db.query(
+      `update public.player_state
+          set accrued_to = now() - interval '4 hours', active_since = null,
+              active_kind = 'combat', active_id = 'goblin'
+        where user_id = $1 and slot = 0`, [UID]);
+    const c = await call({ intentId: uuid(), activity: { kind: 'combat', id: 'rat' } });
+    ok(c.body.error === 'uncollectable_window' && c.body.stage === 'collect',
+      `A18-CONTROL: expected a stage:collect refusal, got ${JSON.stringify(c.body).slice(0, 200)}`);
+    ok(hasEnvelope(c.body),
+      'A18: a stage:collect refusal carries NO state envelope, so the client cannot reconcile the '
+      + 'pointer it moved optimistically to anything but its own guess');
+    ok(c.body.ok === false,
+      'A18: the envelope spread overwrote ok — a refusal that says ok:true is worse than no envelope');
+    ok(c.body.activity && c.body.activity.id === 'goblin',
+      `A18: the refusal reports activity ${JSON.stringify(c.body.activity)} — it must be the pointer `
+      + 'the SERVER holds, which is what the client reconciles to');
+    ok(Number.isFinite(Number(c.body.version)), 'A18: the refusal carries no version');
+    withState.push('collect');
+
+    // (2) stage:'switch' — a version conflict.
+    await db.query(
+      'update public.player_state set active_since = accrued_to where user_id = $1 and slot = 0', [UID]);
+    await db.query(
+      `update public.player_state set accrued_to = now(), active_since = now()
+        where user_id = $1 and slot = 0`, [UID]);
+    const fired = { hit: false };
+    const s = await sa.runSetActivity({
+      exec: conflictingExec(fired), user: UID, slot: 0, intentId: uuid(),
+      activity: { kind: 'combat', id: 'rat' },
+    });
+    ok(fired.hit && s.body.stage === 'switch' && s.body.error === 'version_conflict',
+      `A18-CONTROL: expected a stage:switch version_conflict, got ${JSON.stringify(s.body).slice(0, 200)}`);
+    ok(hasEnvelope(s.body),
+      'A18: a stage:switch refusal carries NO state envelope. This is the one that most needs it: a '
+      + 'version conflict MEANS the state moved, so the envelope the call started from is stale by '
+      + 'definition and the client has nothing correct to fall back to.');
+    ok(Number(s.body.version) === Number((await state(db, UID)).version),
+      'A18: the refusal carries a STALE version — it must be re-read, not echoed from the failed call');
+    withState.push('switch');
+
+    // (3) THE DOCUMENTED EXCEPTIONS, and they are exceptions on purpose.
+    const keyless = await sa.runSetActivity({
+      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'combat', id: 'goblin' },
+    });
+    ok(keyless.body.error === 'missing_intent_id' && !hasEnvelope(keyless.body),
+      'A18: a SHAPE refusal carried an envelope — reading one is the database work the shape check '
+      + 'exists to avoid, and it would let a malformed client spend a real player\'s rate budget');
+    without.push('missing_intent_id');
+    const noChar = await sa.runSetActivity({
+      exec, user: UID2, slot: 4, intentId: uuid(), activity: { kind: 'combat', id: 'goblin' },
+    });
+    ok(noChar.body.error === 'no_character' && !hasEnvelope(noChar.body),
+      'A18: no_character carried an envelope — hr_state_of itself said there is no state');
+    without.push('no_character');
+
+    ok(withState.length >= 2 && without.length >= 1,
+      `A18-CONTROL: ${withState.length} refusals with state and ${without.length} without — the `
+      + 'assertion is vacuous unless both sides are populated');
+    /* The contract's own predicate must agree with what the code does, or the
+       client is told one thing by a doc and another by the wire. */
+    ok(it.refusalCarriesState('version_conflict') === true
+      && it.refusalCarriesState('uncollectable_window') === true
+      && it.refusalCarriesState('rate_limited') === false
+      && it.refusalCarriesState('missing_intent_id') === false
+      && it.refusalCarriesState('no_character') === false,
+      'A18: refusalCarriesState disagrees with the behaviour measured above');
+  }
+
+  // ── A19. THE REGISTRY IS READ, NOT DECORATION. (Review C4.)
+  // Its three columns were read by NOTHING: READ_SQL hard-coded 'activity', the
+  // key check and the collect were hand-written branches. Intent #2 could have
+  // declared collectsFirst:true, never collected, spent the wrong bucket, and
+  // every guard would have stayed green.
+  {
+    await clearGate();
+    const req = await import(
+      (await import('node:url')).pathToFileURL(FN('request.js')).href + `?t=${Date.now()}`);
+    const verbs = [...req.VERBS].sort().join(',');
+    const rows = Object.keys(it.INTENT_REGISTRY).sort().join(',');
+    ok(verbs === rows,
+      `A19: request.js accepts [${verbs}] but the registry describes [${rows}]. A verb the parser `
+      + 'admits and the registry does not describe has no rate bucket, no key rule and no collect '
+      + 'rule — it would fail closed at intentSpec, which is right, but it should never be reachable.');
+    for (const v of Object.keys(it.INTENT_REGISTRY)) {
+      for (const f of it.REGISTRY_FIELDS) {
+        ok(Object.prototype.hasOwnProperty.call(it.INTENT_REGISTRY[v], f),
+          `A19: registry row '${v}' has no '${f}' — a column REGISTRY_FIELDS names and no row carries`);
+      }
+      ok(typeof it.rateBucketFor(v) === 'string' && it.rateBucketFor(v).length > 0,
+        `A19: registry row '${v}' names no rate bucket`);
+    }
+    let threw = false;
+    try { it.intentSpec('not_a_verb'); } catch { threw = true; }
+    ok(threw,
+      'A19: intentSpec DEFAULTED an unknown verb. A default here is how a new intent silently '
+      + 'inherits accrue\'s budget and skips the collect.');
+
+    // BEHAVIOURAL: the bucket the registry names is the counter the call spends.
+    await db.query(
+      `update public.player_state set accrued_to = now(), active_since = now()
+        where user_id = $1 and slot = 0`, [UID]);
+    const r = await call({ intentId: uuid(), activity: { kind: 'combat', id: 'goblin' } });
+    ok(r.body.ok === true || r.status === 429,
+      `A19-CONTROL: the probe call failed for an unrelated reason: ${JSON.stringify(r.body).slice(0, 200)}`);
+    const spent = (await db.query(
+      'select bucket from public.hr_rate_counters where user_id = $1', [UID])).rows.map((x) => x.bucket);
+    ok(spent.includes(it.rateBucketFor(sa.VERB)),
+      `A19: the call spent [${spent}] but the registry names '${it.rateBucketFor(sa.VERB)}'. The `
+      + 'registry does not describe the code, which means it describes nothing.');
+
+    // SOURCE: no bucket LITERAL at any hr_rate_gate call site, and every file
+    // that gates goes through rateBucketFor. A literal is behaviourally
+    // identical today, so only this can see it — which is the whole point.
+    for (const f of ['index.ts', 'set-activity.js']) {
+      const src = (await readFile(join(fnDir, f), 'utf8'))
+        .replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      const at = src.indexOf('hr_rate_gate(');
+      ok(at >= 0, `A19-CONTROL: no hr_rate_gate call site in ${f} — the scan is blind`);
+      let d = 0; let end = -1;
+      for (let i = src.indexOf('(', at); i < src.length; i++) {
+        if (src[i] === '(') d++;
+        else if (src[i] === ')') { d--; if (d === 0) { end = i; break; } }
+      }
+      const args = src.slice(at, end + 1).replace(/rateBucketFor\([^)]*\)/g, 'REGISTRY');
+      ok(!/['"]/.test(args),
+        `A19: ${f} names a rate bucket as a LITERAL at the gate (${args.trim().slice(0, 120)}). `
+        + 'A literal at a call site is a second registry.');
+      ok(/rateBucketFor\(/.test(src),
+        `A19: ${f} calls hr_rate_gate but never calls rateBucketFor — the value it passes came from `
+        + 'somewhere other than the registry');
+    }
+  }
+
+  // ── A20. THE BODY SPEAKS FOR THE SERVER. (Review C5.)
+  {
+    await clearGate();
+    // (a) `activity` is READ OUT OF state, not echoed from the request.
+    await db.query(
+      `update public.player_state
+          set accrued_to = now(), active_since = now(), active_kind = 'combat', active_id = 'goblin'
+        where user_id = $1 and slot = 0`, [UID]);
+    const key = uuid();
+    const first = await call({ intentId: key, activity: { kind: 'combat', id: 'bear' } });
+    ok(first.body.ok === true && first.body.activity && first.body.activity.id === 'bear',
+      `A20-CONTROL: the first switch did not report bear: ${JSON.stringify(first.body.activity)}`);
+    // A concurrent writer moves the pointer. The harness plays that part, which
+    // is a privilege the engine does not have and must not be given.
+    await db.query(
+      "update public.player_state set active_id = 'wolf' where user_id = $1 and slot = 0", [UID]);
+    const replay = await call({ intentId: key, activity: { kind: 'combat', id: 'bear' } });
+    ok(replay.body.replayed === true, 'A20-CONTROL: the second call was not a replay');
+    ok(replay.body.activity && replay.body.activity.id === 'wolf',
+      `A20: the response reported activity '${replay.body.activity && replay.body.activity.id}' — the `
+      + `CLIENT's own declaration — while state says '${replay.body.state.active_id}'. Two fields in `
+      + 'one body disagreeing, with the client-authored one on top. Read it out of state.');
+
+    // (b) `collected` survives a REPLAYED SWITCH whose collect genuinely paid.
+    //     Measured: 3,809 gold and 744 kills of applied payment reported as null.
+    await clearGate();
+    await db.query(
+      `update public.player_state
+          set max_hp = 900, hp = 900, active_kind = 'combat', active_id = 'goblin',
+              accrued_to = now() - interval '2 hours', active_since = now() - interval '2 hours'
+        where user_id = $1 and slot = 0`, [UID]);
+    const goldBefore = Number((await state(db, UID)).gold);
+    const again = await call({ intentId: key, activity: { kind: 'combat', id: 'bear' } });
+    const goldAfter = Number((await state(db, UID)).gold);
+    ok(again.body.replayed === true,
+      `A20-CONTROL: the switch was not a replay (${JSON.stringify(again.body).slice(0, 200)}) — the `
+      + 'assertion below would then be about an ordinary success');
+    ok(goldAfter > goldBefore,
+      `A20-CONTROL: the collect paid ${goldAfter - goldBefore} gold for two hours, so "the receipt `
+      + 'was dropped" would be indistinguishable from "there was nothing to receipt"');
+    ok(again.body.collected && again.body.collected.gold === goldAfter - goldBefore,
+      `A20: a REPLAYED switch reported collected=${JSON.stringify(again.body.collected)} while `
+      + `${goldAfter - goldBefore} gold was genuinely applied by THIS invocation's collect. The test `
+      + 'is "did this collect apply", never "was the switch a replay" — the two halves are separate '
+      + 'applies precisely so that they can differ.');
+    ok(again.body.collected.kills > 0,
+      `A20-CONTROL: the receipt reports ${again.body.collected.kills} kills, so gold could have come `
+      + 'from somewhere other than the collect');
+  }
+
+  // ── A21. A CATALOGUE LOOKUP IS `hasOwnProperty`, NEVER TRUTHINESS.
+  // (Review C6.) The id shape is /^[a-z0-9_]{1,64}$/, which matches both
+  // `constructor` and `__proto__`; both are truthy on any plain object, so
+  // `if (!MONSTERS[id]) refuse` ADMITS them. Harmless here because hr_apply
+  // re-validates — and a free craft the day an intent writes
+  // `if (!RECIPES[id]) refuse` and then reads `RECIPES[id].cost.gold`.
+  {
+    await clearGate();
+    ok(it.catalogueHas({ goblin: { hp: 1 } }, 'goblin') === true,
+      'A21-CONTROL: catalogueHas refuses a real entry — every lookup would fail');
+    ok(it.catalogueHas({}, 'constructor') === false, 'A21: catalogueHas admits `constructor`');
+    ok(it.catalogueHas({}, '__proto__') === false, 'A21: catalogueHas admits `__proto__`');
+    ok(it.catalogueGet({}, 'toString') === undefined, 'A21: catalogueGet returns an inherited member');
+    ok(it.catalogueHas({ x: 1 }, 42) === false, 'A21: catalogueHas accepted a non-string id');
+
+    /* BEHAVIOURAL, and the measurement is the STATEMENT COUNT: a prototype id
+       that reaches the database has walked past the guard. A genuinely unknown
+       id is the control — it must cost the same nothing. */
+    const probe = async (id) => {
+      let stmts = 0;
+      const counting = makeExec(db, { before: async () => { stmts++; } });
+      const r = await sa.runSetActivity({
+        exec: counting, user: UID, slot: 0, intentId: uuid(), activity: { kind: 'combat', id },
+      });
+      return { stmts, body: r.body };
+    };
+    for (const id of ['constructor', '__proto__']) {
+      const p = await probe(id);
+      ok(p.body.error === 'unknown_activity',
+        `A21: declaring '${id}' returned ${JSON.stringify(p.body).slice(0, 160)} — expected unknown_activity`);
+      ok(p.stmts === 0,
+        `A21: declaring '${id}' issued ${p.stmts} database statement(s). A genuinely unknown id `
+        + 'issues none, so this one walked past the catalogue guard — MONSTERS[\'' + id + '\'] is '
+        + 'truthy. Today that is a wasted round trip; the day a lookup is followed by a property '
+        + 'read it is a free craft.');
+    }
+    const control = await probe('not_a_monster_at_all');
+    ok(control.body.error === 'unknown_activity' && control.stmts === 0,
+      `A21-CONTROL: a genuinely unknown id issued ${control.stmts} statement(s) — the count is not `
+      + 'discriminating');
+  }
+
   await db.close();
   return fails;
 }
@@ -767,7 +1319,9 @@ async function run(mutate) {
     process.exit(1);
   }
   console.log('activity-intent: OK — collect-before-switch, replay, mismatch, stale version, '
-    + 'uncollectable window, gate, parser (13 groups, real PG18 + the deployed intent module)');
+    + 'uncollectable window, gate, parser, retry-after-rejection, two-slot key reuse, skip '
+    + 'coverage, refusal envelopes, registry-vs-implementation, server-stated body, own-property '
+    + 'catalogue lookups (22 groups, real PG18 + the deployed intent module)');
 
   if (has('selftest')) {
     let slipped = 0;

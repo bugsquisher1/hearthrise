@@ -155,6 +155,15 @@ const ALSO_LINTED = [
      precisely the shape this lint is the only static defence against. It is the
      CURRENT last toucher of hr_rate_gate; PART 1f-ii below pins that chain too. */
   '2026-08-16-claim-reward.sql',
+  /* b352 — the artisan progress model, plus the perk-channel file its
+     hr_perks_of is DERIVED from. Between them they `create or replace` three
+     SECURITY DEFINER functions in `public` (hr_perks_of twice, hr_unlock_levels
+     once) and create a trigger function — exactly the shapes these grant lints
+     are the only static defence against. artisan-progress-model is the CURRENT
+     last toucher of hr_perks_of; PART 1f-ii below pins that chain, as a third
+     object. */
+  '2026-08-15-perk-channel.sql',
+  '2026-08-16-artisan-progress-model.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -193,6 +202,24 @@ const HR_APPLY_CHAIN = [
 // grades both. A new file that replaces hr_rate_gate is appended here AND to
 // tests/schema-apply-order.json, in the same commit, and its body is extracted
 // from its predecessor's rather than retyped.
+// ── THE hr_perks_of DERIVATION CHAIN ─────────────────────────────────────
+// The third object, added 2026-08-16 with the artisan progress model, for the
+// same reason and by the same mechanism. 2026-08-15-perk-channel.sql
+// introduces hr_perks_of; 2026-08-16-artisan-progress-model.sql restates the
+// WHOLE body in order to add ONE key (`unlockedRecipes`, the artisan gate).
+//
+// Its body is extracted from perk-channel's by tools/derive-perks-of.mjs and
+// patched at four named anchors — INSERTIONS ONLY, which is why this chain's
+// declared-removals list below is EMPTY. An empty declared-removals list is
+// the strongest form this check can take: nothing of the base body may go.
+//
+// A new file that replaces hr_perks_of is appended here AND to
+// tests/schema-apply-order.json, in the same commit.
+const HR_PERKS_OF_CHAIN = [
+  '2026-08-15-perk-channel.sql',
+  '2026-08-16-artisan-progress-model.sql',
+];
+
 const HR_RATE_GATE_CHAIN = [
   '2026-08-11-accrue-gate.sql',
   '2026-08-15-activity-intent.sql',
@@ -676,6 +703,12 @@ const DERIVED_BODIES = [
     chain: HR_RATE_GATE_CHAIN,
     chainName: 'HR_RATE_GATE_CHAIN',
   },
+  {
+    fn: 'hr_perks_of',
+    open: 'create or replace function public.hr_perks_of(',
+    chain: HR_PERKS_OF_CHAIN,
+    chainName: 'HR_PERKS_OF_CHAIN',
+  },
 ];
 
 for (const SPEC of DERIVED_BODIES) {
@@ -813,6 +846,65 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     }
   }
 }
+}
+
+// ── PART 1f-iii — NO MIGRATION MAY MAKE A LEVEL UNLOCK ADDITIVE ─────────
+// `kind='unlock'` is deliberately ABSENT from hr_apply's progress allowlist.
+// That absence is the entire mechanism by which a room rung cannot be climbed
+// by the additive `value = value + add` merge — buying the 500-gold Hearthstone
+// twice would otherwise yield room:kitchen = 2, i.e. the 2,000-gold Iron Stove
+// for 1,000 gold.
+//
+// It is an ABSENCE, and an absence has no self-check anywhere: a future
+// hr_apply revision that widened the list would pass its own §0, pass every
+// grant lint, and pass the derivation chain above (widening a list is an
+// insertion, not a removal). So the guard is here, static, over every migration
+// in the tree.
+//
+// ⚠ SCOPED TO THE PROGRESS-KIND LIST, not to the word 'unlock' anywhere — the
+//   artisan model's own files contain that word hundreds of times. The anchor
+//   is hr_apply's literal kind list, which PART 1f-ii already proves is
+//   carried verbatim from link to link.
+// (Inherited from the parked economy-substrate branch, which wrote this lint
+//  first; re-derived here against the current chain.)
+say('── the progress-kind allowlist (a level unlock must stay unwritable by hr_apply)');
+{
+  const KIND_LIST = /not\s+in\s*\n?\s*\(\s*'quest'[^)]*\)/g;
+  let sawOne = false;
+  for (const [file, sql] of sources.entries()) {
+    if (!/create\s+or\s+replace\s+function\s+public\.hr_apply\s*\(/i.test(stripComments(sql))) continue;
+    const lists = stripComments(sql.replace(/\r\n/g, '\n')).match(KIND_LIST) || [];
+    if (!lists.length) {
+      fail(`${file} restates hr_apply but its progress-kind allowlist could not be located. The `
+         + 'anchor moved, so this lint is now blind on the one file it exists to grade.');
+      continue;
+    }
+    for (const list of lists) {
+      sawOne = true;
+      if (/'unlock'/.test(list)) {
+        fail(`${file} ADDS 'unlock' to hr_apply's progress-kind allowlist: ${list.replace(/\s+/g, ' ')}\n`
+           + '    Its merge is `value = value + add`, so every room rung and property tier becomes '
+           + 'additive — two cheap rungs buy an expensive one. If a MAX-merged write through '
+           + 'hr_apply is genuinely needed, add a SEPARATE delta key with its own merge; do not '
+           + 'widen the additive one.');
+      }
+      if (!/'flag'/.test(list)) {
+        fail(`${file} REMOVES 'flag' from hr_apply's progress-kind allowlist: ${list.replace(/\s+/g, ' ')}\n`
+           + '    unlockedRecipes is stored as a flag row precisely so the accrual engine can grant '
+           + 'a recipe scroll its own drop roll produced. Without it the artisan gate can never '
+           + 'open server-side.');
+      }
+    }
+  }
+  /* The lint's own control: if it stopped finding ANY kind list, every check
+     above passes vacuously on a tree where hr_apply's allowlist says anything
+     at all. Four files restate hr_apply today. */
+  if (!sawOne) {
+    fail('the progress-kind allowlist lint found NO kind list in any hr_apply file — it is blind, '
+       + 'and a blind lint reports a clean bill on a broken tree.');
+  } else {
+    pass("no migration adds 'unlock' to (or removes 'flag' from) hr_apply's progress kinds");
+  }
 }
 
 // ── PART 1g — EVERY CURRENCY THE ENGINE CAN WRITE HAS A DAILY CEILING ────

@@ -19,6 +19,7 @@ import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
+import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
@@ -995,10 +996,45 @@ async function perkDriftPreflight() {
   return 0;
 }
 
+// PREFLIGHT — the UNLOCK CATALOGUE must match src/data, and the restated
+// hr_perks_of must still be perk-channel's body plus its four declared patches.
+//
+// Two checks, one block, because they fail for the same reason and both are
+// silent otherwise:
+//   · hr_unlocks is what hr_unlock_guard and hr_unlock_levels read. A stale
+//     catalogue makes a newly added unlock UNWRITABLE — the guard refuses it,
+//     hr_apply answers bad_delta, and whoever earned it loses the night.
+//   · 2026-08-16-artisan-progress-model.sql restates hr_perks_of in order to
+//     add ONE key. `create or replace` on a body you have not read is the most
+//     destructive statement in this repo, so the body is EXTRACTED from
+//     2026-08-15-perk-channel.sql and patched at named anchors. A hand-edit
+//     between the markers, or a moved anchor, fails here.
+async function unlockModelPreflight() {
+  const { spawnSync } = await import('node:child_process');
+  for (const [tool, label, why] of [
+    ['gen-unlocks.mjs', 'Unlock preflight',
+      'a shop grant or a recipe gate no longer matches the generated catalogue'],
+    ['derive-perks-of.mjs', 'hr_perks_of derivation',
+      'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
+  ]) {
+    const gen = join(ROOT, 'tools', tool);
+    try { await stat(gen); } catch { continue; }
+    const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+    const out = ((r.stdout || '') + (r.stderr || '')).trim();
+    if (r.status !== 0) {
+      console.error(`\n${label} FAILED — ${why}.\n${out}\n`);
+      return 1;
+    }
+    console.log(`${label}: ${out}`);
+  }
+  return 0;
+}
+
 const run = async () => {
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
   if (await perkDriftPreflight()) process.exit(1);
+  if (await unlockModelPreflight()) process.exit(1);
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 
@@ -1097,6 +1133,32 @@ const run = async () => {
       console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
         + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
     }
+    /* ── The artisan progress model guard (b352) ────────────────────────
+       The two shapes that block a server-paid artisan night, end to end on a
+       real PostgreSQL with the WHOLE migration chain applied — so both new
+       migrations' own self-verifying blocks execute here on every run, not
+       only when somebody applies them.
+
+       The load-bearing half is the DELETIONS: a recipe unlock row is written
+       through hr_apply, the recipe cooks, the row is deleted, and the same
+       seeded span must LOCK at tick 0; a Kitchen rung makes a 400-cook span
+       burn NOTHING, and deleting it must restore the catalogue's 25% byte for
+       byte. A gate that opens when its state is missing hands out eight
+       recipes. `--mutate` plants twelve real defects; the two that would
+       silently zero the whole channel are planted TWICE, once with the
+       migration's own self-check silenced, so this guard is proven to catch
+       them alone. */
+    const artisanProblems = await artisanProgressGuard();
+    if (artisanProblems.length) {
+      console.log('\nArtisan progress model guard (unlockedRecipes + noBurn) — FAILED:');
+      for (const p of artisanProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nArtisan progress model guard — a recipe row opens the gate and its deletion '
+        + 'closes it; a Kitchen rung cooks a span with 0 burns and its deletion restores the '
+        + 'catalogue rate.');
+    }
+
     /* ── The activity-seam guard (b348) ─────────────────────────────────
        The one guard that would have stopped Tyler's switch-on test failing.
        The server's SETTABLE_KINDS is DERIVED from PAYABLE_KINDS, so teaching

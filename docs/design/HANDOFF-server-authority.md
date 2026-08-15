@@ -1044,6 +1044,18 @@ re-created on the authoritative side.
   Plaguewarden question and pre-empts re-litigating it when the armour stat asymmetry
   (cloth as the only damage-carrying archetype; dead rangeAtkB/magicAtkB accuracy) comes up
   for its own rescale — the STAT rebalance is still open; the REQUIREMENT model is not.
+- **ARMOUR IDENTITIES — RULED BY TYLER 2026-08-15, same hour, numbers pass in flight.** The
+  triangle, all weapon-agnostic: **plate = survival, leather = crit, cloth = raw damage**
+  ("cloth should give the character dps regardless of the weapon type", "or crit instead of
+  armor - leather"). Delivered (at least partly) as **per-2-piece set bonuses** — "each 2
+  pieces gives 2.5% boost… or something like that", the trailing clause being explicit tuning
+  latitude. Six slots → breakpoints at 2/4/6 → mixed builds read as arithmetic (4 cloth + 2
+  leather = +5% damage +2.5% crit), which is the mix-and-match ruling #1 exists to enable.
+  This RETIRES b343's "cut cloth's magicStrB" recommendation — the defect was never that
+  cloth has damage, it is that its damage paid one weapon class. Numbers (coefficients, the
+  reconciliation with armorSetBonus's 5-of-6 system, fuse/crit-cap interactions, away-night
+  pricing) are a PROPOSAL in  when it lands; direction is
+  closed, numbers are Tyler's veto.
 - **WORLD-BOSS COOPERATION BLESSING — requested by Tyler 2026-08-15, architecture only.**
   "An additional blessing for world bosses when players work together to kill it." Recorded,
   not built — features are paused until cutover.

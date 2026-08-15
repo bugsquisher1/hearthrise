@@ -1,5 +1,24 @@
 # HANDOFF — server-authority program (as of 2026-08-11, b328 / commit 511736d)
 
+## 🏁 BUILD AND REVIEW PHASES COMPLETE (2026-08-15, end of night — b352 LIVE, 728/728)
+
+**Every workstream is merged, reviewed, applied, and deployed.** `main` 728/728,
+deployed engine == repo (`ca3a7ebc…`), hygiene clean with the widened detector + 42-pair
+justified baseline armed, b352 released to players (the sellJunk 5× faucet fix, with its
+changelog line; the gold seam shipped DARK with the prediction lifecycle fixed — every
+prediction terminates, ten flip-blockers closed and mutation-proven). `unlock_buy` is
+LIVE end to end (both Security conditions rounds closed incl. C3a absorb→raise).
+The six vulnerable catalogue tables are swept.
+
+**WHAT REMAINS IS PURELY OPERATIONAL, in order:** (1) market-v2 revalidation + apply +
+client swap (the last unreviewed surface); (2) C6 — `tools/race-test.mjs` against the
+live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway first,
+it was wiped by the restore); (3) enable PITR-7 (~$105/mo, DECIDED, before the wipe);
+(4) TOTAL wipe; (5) flip `'artisan'` payable + `gold` into SERVER_OF_RECORD (the flip
+commit — needs its own Security look at the 33 deferred-site behaviours, each now
+declared); (6) switch-on. Security's own queue: the 21 baselined tables (starting
+display_names/leaderboard_meta), the service_role default-ACL program.
+
 ## 📍 START HERE — STATE AT END OF 2026-08-15 (the day the program broke open)
 
 **`main` is 723/723, 0 runtime errors, deployed engine == repo (`fc3dec9f…`), hygiene

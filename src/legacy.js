@@ -13240,158 +13240,33 @@ console.log('[Companions A: logic] loaded — table owned by data/companions.js 
   + Object.keys(window.COMPANIONS || {}).length + ' seen at this point)');
 })();
 
-// ===== block 31: companions-hooks =====
-(function(){
-"use strict";
+/* ── b342 P0 — THE COMPANION PROC HOOKS, REMOVED ──────────────────────────
+   Block 31 (companions-hooks) lived here. b228 above deleted the duplicated
+   getBonus wrapper and left this standing; it is the SAME defect one layer up.
+   `rollProc` and `awardXpForRole` existed HERE and in features/companions.js,
+   and BOTH files wrapped window.killMonster, window.combatTick and
+   window.addItem. Each wrapper calls the next, so one trigger ran TWO proc
+   rolls and TWO XP awards.
 
-function rng(){return Math.random();}
+   MEASURED in the real client, headless, before the fix (proc chance forced
+   to 1 and the payout marked, so it could not be confused with a kill reward):
+     one killMonster()    -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
+     one combatTick()     -> proc applied 2x, 2 toasts
+     one addItem() gather -> proc applied 2x, 2 toasts
+     one addItem() cook   -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
+   So a Raccoon advertising "20% on kill" really fired at 1-0.8^2 = 36%, and
+   every proc pet in the game paid roughly double its declared rate against a
+   power budget that had never been told. This block also ran a 250ms interval
+   that fired a THIRD gather proc each time G.skillProgress crossed 0.99.
 
-// Show a small floating proc indicator on the active panel
-function showProc(label){
-  if(typeof notify==='function') notify(label, 'loot');
-  // Optional: small floating div above topbar
-  try{
-    var el = document.createElement('div');
-    el.textContent = label;
-    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'+
-      'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));'+
-      'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
-    document.body.appendChild(el);
-    setTimeout(function(){el.remove();}, 1700);
-  }catch(e){}
-}
-// Inject keyframe once
-(function(){
-  if(document.getElementById('proc-fade-css')) return;
-  var s = document.createElement('style');
-  s.id = 'proc-fade-css';
-  s.textContent = '@keyframes proc-fade{0%{opacity:0;transform:translateY(-10px)}20%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(20px)}}';
-  document.head.appendChild(s);
-})();
+   It cannot be found by reading either file — each wrapper is correct on its
+   own — so it is pinned by a behavioural regression test:
+   'b342 P0: a companion proc applies EXACTLY ONCE per trigger'.
 
-function rollProc(triggerType, ctx){
-  if(typeof G==='undefined' || !G.companions) return;
-  var eq = G.companions.equipped;
-  if(!eq) return;
-  var def = window.COMPANIONS[eq];
-  if(!def || !def.proc) return;
-  if(def.proc.trigger !== triggerType) return;
-  if(rng() > def.proc.chance) return;
-  // Trigger effect
-  var e = def.proc.effect;
-  switch(e){
-    case 'gold':
-      G.gold = (G.gold||0) + (def.proc.amount||1);
-      break;
-    case 'extraGold':
-      G.gold = (G.gold||0) + (def.proc.amount||5);
-      break;
-    case 'doubleDrop':
-      // ctx might contain droppedItems; if available, double them
-      if(ctx && ctx.lastDrop && ctx.lastDrop.id && G.inventory){
-        G.inventory[ctx.lastDrop.id] = (G.inventory[ctx.lastDrop.id]||0) + (ctx.lastDrop.qty||1);
-      }
-      break;
-    case 'doubleYield':
-      if(ctx && ctx.cropId && G.inventory){
-        G.inventory[ctx.cropId] = (G.inventory[ctx.cropId]||0) + (ctx.qty||1);
-      }
-      break;
-    case 'instant':
-      if(typeof G.skillProgress === 'number') G.skillProgress = 1;
-      break;
-    case 'refundIngredients':
-      if(ctx && ctx.inputs && G.inventory){
-        Object.entries(ctx.inputs).forEach(function(kv){
-          G.inventory[kv[0]] = (G.inventory[kv[0]]||0) + (kv[1]||1);
-        });
-      }
-      break;
-    case 'guaranteedRare':
-      // Mark a flag for the next drop calculation (fallback if not implemented)
-      G._companionRareNext = true;
-      break;
-    case 'fireDot':
-      if(G.activeMonster) G.activeMonster.hp = Math.max(0, (G.activeMonster.hp||0) - 5);
-      break;
-  }
-  showProc((def.icon||'')+' '+def.proc.label);
-}
-
-// XP awarding
-function awardXpForRole(activityType){
-  if(typeof G==='undefined' || !G.companions) return;
-  var eq = G.companions.equipped;
-  if(!eq) return;
-  var def = window.COMPANIONS[eq];
-  if(!def) return;
-  var role = def.role;
-  // Map activity to XP gain by role
-  var xp = 0;
-  if(activityType === 'combat-kill' && (role === 'combat' || role === 'utility' || role === 'hybrid')) xp = role === 'utility' ? 0.5 : 1;
-  if(activityType === 'gather' && (role === 'gather' || role === 'utility' || role === 'hybrid')) xp = role === 'utility' ? 0.5 : 1;
-  if(activityType === 'artisan' && (role === 'artisan' || role === 'utility' || role === 'hybrid')) xp = role === 'utility' ? 0.5 : 1;
-  if(xp) window.awardCompanionXp(xp);
-}
-
-// ── Wrap killMonster to award XP + roll proc ──
-(function(){
-  if(typeof window.killMonster !== 'function') return;
-  var orig = window.killMonster;
-  window.killMonster = function(){
-    var r = orig.apply(this, arguments);
-    awardXpForRole('combat-kill');
-    rollProc('kill', {});
-    return r;
-  };
-})();
-
-// Wrap combatTick to roll combatHit procs (every tick where damage dealt)
-(function(){
-  if(typeof window.combatTick !== 'function') return;
-  var orig = window.combatTick;
-  window.combatTick = function(){
-    var r = orig.apply(this, arguments);
-    if(G.activeMonster) rollProc('combatHit', {});
-    return r;
-  };
-})();
-
-// Hook startSkill completion — we don't have a direct hook, so wrap the skill interval finisher.
-// Instead, watch for skillProgress reaching 1 via a low-overhead listener.
-(function(){
-  setInterval(function(){
-    if(!G || !G.companions || !G.companions.equipped) return;
-    if(G.activeSkill && G.skillProgress >= 0.99 && !G._companionGatherCounted){
-      G._companionGatherCounted = true;
-      awardXpForRole('gather');
-      rollProc('gather', {});
-    }
-    if(G.skillProgress < 0.5) G._companionGatherCounted = false;
-  }, 250);
-})();
-
-// Wrap artisan completion (window.startArtisan or _stopArtisan tick)
-(function(){
-  // The artisan system completes via setInterval. We hook into the recipe completion event by
-  // wrapping addItem to detect when the player gets a skill output.
-  if(typeof window.addItem !== 'function') return;
-  var orig = window.addItem;
-  window.addItem = function(id, qty){
-    var r = orig.apply(this, arguments);
-    if(G.activeArtisanRecipe){
-      awardXpForRole('artisan');
-      rollProc('cook', {inputs: {}});
-    } else if(G.activeSkill && (G.activeSkill === 'mining' || G.activeSkill === 'woodcutting' || G.activeSkill === 'fishing' || G.activeSkill === 'farming')){
-      awardXpForRole('gather');
-      rollProc('gather', {lastDrop:{id:id, qty:qty}});
-    }
-    return r;
-  };
-})();
-
-console.log('[Companions B: hooks] loaded');
-})();
+   features/companions.js keeps the hooks. It owns the data, the level curve,
+   the seeded drop roll and the HearthrisePetSession attribution this copy
+   never reported to (which is why the pet-impact panel was under-reporting by
+   exactly half). Do not reintroduce a second set. */
 
 // ===== block 32: companions-ui-js =====
 (function(){
@@ -13886,70 +13761,31 @@ console.log('[Character Rebuild v1] loaded');
 (function(){
 "use strict";
 
-/* Drop-rate map (per design doc). Keyed by companion id. */
-var DROP_CHANCES = {
-  wolf_pup: 0.01,      // small_wolf 1%
-  badger:   0.005,     // bear 0.5%
-  hawk:     0.01,      // panther 1%
-  scorpion: 0.005,     // shadow_creeper 0.5%
-  tortoise: 0.005,     // ancient_bear 0.5%
-};
+/* ── b342 P0 — THE DUPLICATED ACQUISITION HOOKS, REMOVED ──────────────────
+   Same defect as block 31, same fix, same commit. The companion DROP roll,
+   the dragon-egg hatch prompt and the bunny harvest counter each existed here
+   AND in features/companions.js, and both copies wrapped the same seams:
+
+     killMonster -> TWO independent drop rolls per kill, so the Wolf Pup's 1%
+                    was really 1.99%. This copy also rolled on Math.random()
+                    while companions.js deliberately rolls on the SEEDED core
+                    stream (HearthriseCore.rng) so an away kill stays
+                    replayable — so this copy was also the one breaking
+                    determinism on the away path.
+     invItemTap  -> MEASURED: one tap on a Dragon Egg cost the player TWO
+                    confirm() prompts (2 -> 1 after this removal).
+     harvestPlot -> MEASURED: G.stats.cropsHarvested rose by 2 per harvest, so
+                    the Bunny quest ("harvest 100") completed at 50 and the
+                    weekly wk_harvest ("Harvest 120 crops") at 60.
+
+   The shop injection below has NO ESM equivalent and stays — it, parseSource
+   and _buyCompanion are the only things this block still owns. */
 
 function parseSource(src){
   if(!src) return null;
   var parts = src.split(':');
   return {kind: parts[0], arg1: parts[1], arg2: parts[2]};
 }
-
-/* On kill, check drop sources */
-(function hookKillForDrops(){
-  if(typeof window.killMonster !== 'function') return;
-  var orig = window.killMonster;
-  window.killMonster = function(m){
-    var r = orig.apply(this, arguments);
-    /* m may be the monster id string or object */
-    var monsterId = (typeof m === 'string') ? m : (m && (m.id || m.key));
-    if(!monsterId && typeof MONSTERS === 'object'){
-      // Reverse-lookup: find the key whose value matches this monster object
-      for(var k in MONSTERS){ if(MONSTERS[k] === m){ monsterId = k; break; } }
-    }
-    if(!monsterId || !window.COMPANIONS) return r;
-    Object.entries(window.COMPANIONS).forEach(function(kv){
-      var id = kv[0], def = kv[1];
-      var src = parseSource(def.source);
-      if(!src || src.kind !== 'drop') return;
-      if(src.arg1 !== monsterId) return;
-      /* Skip if already owned */
-      if(G.companions && G.companions.ownedIds && G.companions.ownedIds.indexOf(id) >= 0) return;
-      var chance = DROP_CHANCES[id] !== undefined ? DROP_CHANCES[id] : 0.01;
-      if(Math.random() < chance){
-        if(typeof window.unlockCompanion === 'function'){
-          window.unlockCompanion(id);
-          /* Big toast */
-          try{
-            var t = document.createElement('div');
-            t.textContent = '🎉 New companion unlocked: '+def.icon+' '+def.n+'!';
-            t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
-              'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'+
-              'font-weight:800;font-size:calc(16px * var(--ui-scale, 1));box-shadow:0 8px 32px rgba(0,0,0,.5);'+
-              'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
-            document.body.appendChild(t);
-            setTimeout(function(){t.remove();}, 4500);
-          }catch(e){}
-        }
-      }
-    });
-    return r;
-  };
-  /* Animation */
-  if(!document.getElementById('comp-bigtoast-css')){
-    var s = document.createElement('style');
-    s.id = 'comp-bigtoast-css';
-    s.textContent = '@keyframes bigtoast{0%{opacity:0;transform:translate(-50%,-20px)}15%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,20px)}}';
-    document.head.appendChild(s);
-  }
-})();
-
 /* Try to add companion entries to the in-game shop's Equipment tab */
 (function injectShopCompanions(){
   function tryInject(){
@@ -14013,40 +13849,7 @@ window._buyCompanion = function(id, price){
   if(typeof renderShop === 'function') renderShop();
 };
 
-/* Hatch dragon egg → Whelp companion */
-(function hookEggUse(){
-  /* Add a "Hatch" action on dragon_egg item if it gets used. */
-  var origInvTap = window.invItemTap;
-  if(typeof origInvTap !== 'function') return;
-  window.invItemTap = function(id){
-    if(id === 'dragon_egg' && G.inventory && G.inventory.dragon_egg > 0){
-      if(confirm('Hatch a Dragon Egg to gain a Whelp companion?')){
-        G.inventory.dragon_egg--;
-        if(window.unlockCompanion) window.unlockCompanion('whelp');
-        if(typeof renderInvFancy==='function') renderInvFancy();
-        return;
-      }
-    }
-    return origInvTap.apply(this, arguments);
-  };
-})();
-
-/* Bunny quest: harvest 100 crops -> unlock */
-(function hookBunnyQuest(){
-  var origHarvest = window.harvestPlot;
-  if(typeof origHarvest !== 'function') return;
-  window.harvestPlot = function(){
-    var r = origHarvest.apply(this, arguments);
-    G.stats = G.stats || {};
-    G.stats.cropsHarvested = (G.stats.cropsHarvested||0) + 1;
-    if(G.stats.cropsHarvested >= 100 && G.companions && G.companions.ownedIds.indexOf('bunny') < 0){
-      if(window.unlockCompanion) window.unlockCompanion('bunny');
-    }
-    return r;
-  };
-})();
-
-console.log('[Companions D: acquisition] wired — drops, shop, hatch, quest');
+console.log('[Companions D: acquisition] wired — shop rows only; drops, hatch and the bunny quest are owned by features/companions.js (b342)');
 })();
 
 // ===== block 36: buff-queue-js =====

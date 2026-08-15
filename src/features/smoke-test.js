@@ -16650,6 +16650,149 @@ const TESTS = [
     } finally { E._force(null); restoreG(snap); }
   }),
 
+  /* ── b342 P0 — THE COMPANION PROC DOUBLE-FIRE ────────────────────────────
+     b228 (the test above) deleted a getBonus wrapper that lived in BOTH
+     legacy.js and features/companions.js. The PROC hooks were left behind, and
+     they are the same bug one layer up: `rollProc` + `awardXpForRole` existed
+     in both files, and BOTH files wrapped window.killMonster, window.combatTick
+     and window.addItem. Each wrapper calls the next, so one trigger ran TWO
+     rolls. MEASURED in the real client before the fix: 2 proc applications and
+     2 toasts on every one of kill / combatHit / gather / cook, and 1.0
+     companion XP where a utility pet earns 0.5. A Raccoon advertising "20% on
+     kill" really fired at 1-0.8^2 = 36%, against a power budget that had never
+     been told — and the pet-impact panel, which only the ESM copy reports to,
+     showed the player exactly half of what their pet was really paying.
+
+     Neither wrapper is wrong when read on its own, which is why this can only
+     be held by COUNTING. The proc is forced to certainty and given a payout no
+     kill or gather reward can approach, so the gold delta IS the number of
+     applications; the toast count is the same fact as the player sees it; and
+     the pet-XP delta is a third witness that involves no RNG at all. */
+  () => tryRun('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
+    if (!window.COMPANIONS || !window.COMPANIONS.raccoon || !window.COMPANIONS.fox
+        || typeof window.killMonster !== 'function' || typeof window.addItem !== 'function') {
+      assert(true, 'no companion proc surface'); return;
+    }
+    const MARK = 1e7;                    // no kill or gather reward is near this
+    const LABEL = '__b342proc__';
+    const G = window.G;
+    const snap = snapshotG();
+    const combatSnap = { mh: G.monsterHp, mmh: G.monsterMaxHp, ph: G.playerHp, pmh: G.playerMaxHp };
+    const savedProcs = {
+      raccoon: JSON.parse(JSON.stringify(window.COMPANIONS.raccoon.proc)),
+      fox: JSON.parse(JSON.stringify(window.COMPANIONS.fox.proc)),
+    };
+    const savedNotify = window.notify;
+    let toasts = 0;
+    // Count showProc() at the seam BOTH copies go through, so neither can hide.
+    const countTrigger = (setup, fire) => {
+      toasts = 0;
+      const gold0 = G.gold;
+      setup();
+      fire();
+      return { applied: Math.floor((G.gold - gold0) / MARK), toasts };
+    };
+    try {
+      window.notify = function (msg) { if (String(msg).indexOf(LABEL) >= 0) toasts++; };
+
+      // ── kill ── Raccoon: kill-triggered, role 'utility' → 0.5 XP per kill.
+      G.companions = { ownedIds: ['raccoon'], xp: { raccoon: 0 }, equipped: 'raccoon' };
+      Object.assign(window.COMPANIONS.raccoon.proc,
+        { trigger: 'kill', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+      const kill = countTrigger(() => {
+        G.activeMonster = 'goblin';
+        G.monsterHp = 999999; G.monsterMaxHp = 999999;
+        G.playerHp = 999999; G.playerMaxHp = 999999;
+      }, () => window.killMonster(window.MONSTERS.goblin));
+      assert(kill.applied === 1, 'one kill paid the proc ' + kill.applied + ' times, expected exactly 1');
+      assert(kill.toasts === 1, 'one kill showed ' + kill.toasts + ' proc toasts, expected exactly 1');
+      assert(G.companions.xp.raccoon === 0.5,
+        'one kill gave the pet ' + G.companions.xp.raccoon + ' XP; a utility pet earns 0.5, awarded once');
+
+      // ── combatHit ── Fox, combatHit-triggered.
+      G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
+      Object.assign(window.COMPANIONS.fox.proc,
+        { trigger: 'combatHit', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+      const hit = countTrigger(() => {
+        G.activeMonster = 'goblin';
+        G.monsterHp = 999999; G.monsterMaxHp = 999999;
+        G.playerHp = 999999; G.playerMaxHp = 999999;
+      }, () => { try { window.combatTick(); } catch (e) { throw new Error('combatTick threw: ' + e.message); } });
+      assert(hit.applied === 1, 'one combat tick paid the proc ' + hit.applied + ' times, expected exactly 1');
+      assert(hit.toasts === 1, 'one combat tick showed ' + hit.toasts + ' proc toasts, expected exactly 1');
+
+      // ── gather ── the addItem seam, with a gathering skill active.
+      G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
+      Object.assign(window.COMPANIONS.fox.proc,
+        { trigger: 'gather', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+      const gather = countTrigger(() => {
+        G.activeMonster = null; G.activeArtisanRecipe = null; G.activeSkill = 'mining';
+      }, () => window.addItem('copper_ore', 1));
+      assert(gather.applied === 1, 'one gather paid the proc ' + gather.applied + ' times, expected exactly 1');
+      assert(gather.toasts === 1, 'one gather showed ' + gather.toasts + ' proc toasts, expected exactly 1');
+      assert(G.companions.xp.fox === 0.5,
+        'one gather gave the pet ' + G.companions.xp.fox + ' XP; a utility pet earns 0.5, awarded once');
+
+      // ── cook (artisan) ── the same seam, with a recipe active.
+      G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
+      Object.assign(window.COMPANIONS.fox.proc,
+        { trigger: 'cook', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+      const cook = countTrigger(() => {
+        G.activeSkill = null; G.activeArtisanRecipe = 'wheat_bread';
+      }, () => window.addItem('wheat_bread', 1));
+      assert(cook.applied === 1, 'one artisan output paid the proc ' + cook.applied + ' times, expected exactly 1');
+      assert(cook.toasts === 1, 'one artisan output showed ' + cook.toasts + ' proc toasts, expected exactly 1');
+      assert(G.companions.xp.fox === 0.5,
+        'one artisan output gave the pet ' + G.companions.xp.fox + ' XP; a utility pet earns 0.5, awarded once');
+    } finally {
+      window.notify = savedNotify;
+      window.COMPANIONS.raccoon.proc = savedProcs.raccoon;
+      window.COMPANIONS.fox.proc = savedProcs.fox;
+      try { window.stopCombat && window.stopCombat(); } catch (e) {}
+      G.monsterHp = combatSnap.mh; G.monsterMaxHp = combatSnap.mmh;
+      G.playerHp = combatSnap.ph; G.playerMaxHp = combatSnap.pmh;
+      restoreG(snap); try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  /* b342, the same removal's other half: the companion ACQUISITION hooks (drop
+     roll, dragon-egg hatch, bunny harvest counter) were duplicated between
+     legacy.js block 35 and features/companions.js too. MEASURED before the fix:
+     one harvest moved G.stats.cropsHarvested by 2 — so the Bunny's "harvest
+     100 crops" completed at 50 and the weekly "Harvest 120 crops" at 60 — and
+     one tap on a Dragon Egg asked the player to confirm TWICE. */
+  () => tryRun('b342: one harvest counts once, and one Dragon Egg tap asks once', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const savedConfirm = window.confirm;
+    try {
+      if (typeof window.harvestPlot === 'function') {
+        G.stats = G.stats || {};
+        const before = G.stats.cropsHarvested || 0;
+        window.harvestPlot(0);
+        const moved = (G.stats.cropsHarvested || 0) - before;
+        assert(moved === 1,
+          'one harvest moved cropsHarvested by ' + moved + ', expected exactly 1 '
+          + '(2 = the duplicated bunny-quest hook is back, and every crop quest completes at half cost)');
+      }
+      if (typeof window.invItemTap === 'function') {
+        G.inventory = G.inventory || {};
+        G.inventory.dragon_egg = 1;
+        G.companions = G.companions || { ownedIds: [], xp: {}, equipped: null };
+        G.companions.ownedIds = (G.companions.ownedIds || []).filter((x) => x !== 'whelp');
+        let prompts = 0;
+        window.confirm = function () { prompts++; return false; };   // the player declines
+        window.invItemTap('dragon_egg');
+        assert(prompts === 1,
+          'one Dragon Egg tap raised ' + prompts + ' confirm prompts, expected exactly 1');
+      }
+    } finally {
+      window.confirm = savedConfirm;
+      try { window.closeInvDetail && window.closeInvDetail(); } catch (e) {}
+      restoreG(snap); try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b228: a fractional flat bonus is ROLLED, not floored away', () => {
     /* harvestPlot spent `farmYield` through Math.floor(), so every fractional
        grant paid exactly zero: the Scarecrow (+0.1), the Bunny, the Squirrel,

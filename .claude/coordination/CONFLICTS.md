@@ -12,6 +12,18 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-14 · b342 · SEMANTIC — every proc pet just got HALVED to its declared rate (Systems → Game Designer)
+Companion procs were applying **twice per trigger** — measured, in the real client: 2 applications, 2 toasts and 1.0 pet XP (a utility pet earns 0.5) on each of kill / combatHit / gather / cook. Two identical hook sets, one in `src/legacy.js` block 31 and one in `src/features/companions.js`, both wrapping `killMonster` / `combatTick` / `addItem`. The legacy copy is deleted (b228's fix, one layer up).
+
+**This is a correctness fix that lands as a live NERF**, and Design should know the numbers rather than read them off a changelog:
+- A Raccoon's advertised "20% on kill" was really **36%** (1 − 0.8²). Every proc pet was ~2× its declared rate. The power budget was never told, so the census figures for companions have been understating real pet value since the hooks were written.
+- Companion **XP** was also double: every pet levelled at 2× the intended rate, so live beta pets are roughly twice the level their playtime earns.
+- Companion **drop** rolls were double: Wolf Pup's 1% was really 1.99% per kill (2 independent rolls; the unlock itself was self-limiting).
+- `G.stats.cropsHarvested` moved **+2 per harvest**, so the Bunny quest ("harvest 100 crops") completed at **50** and the weekly `wk_harvest` ("Harvest 120 crops") at **60**. Both now cost what they say.
+- The pet-impact panel (`HearthrisePetSession`) only ever heard from the ESM copy, so it was reporting **exactly half** of what pets really paid. It is now accurate — which will read to players as pets "getting better at reporting" in the same build they get worse at paying.
+
+**No balance VALUE was changed** — `src/data/companions.js` is untouched. If Design wants the effective rates restored, that is a data edit to `proc.chance` and it should be made deliberately, with the budget re-run. **→ Game Designer to rule on whether the declared rates are the intended rates.**
+
 ### 2026-08-11 · b330 · SERVER GAP — leadership has no read for its own outstanding invitations (Systems → whoever next owns the membership SQL)
 `2026-08-11-clan-membership-authority.sql` shipped `clan_invites_list()` for the **invitee** only, and `clan_invites` deliberately has **no client SELECT policy**. So a leader can send an invitation and revoke one, but the server offers no way to ask *"who have we invited?"* — which the panel needs before it can draw a Withdraw button beside a name.
 

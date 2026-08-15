@@ -23,7 +23,8 @@
 // ============================================================================
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const file = process.argv[2];
 const verifyOnly = process.argv.includes('--verify-only');
@@ -32,7 +33,7 @@ if (!file || !/^[\w.-]+\.sql$/.test(file)) {
   process.exit(2);
 }
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sql = readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8');
 const token = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
 const URL_Q = 'https://api.supabase.com/v1/projects/nezapsylztqbbwuwembx/database/query';

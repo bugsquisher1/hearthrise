@@ -418,7 +418,51 @@ version is accepted and labelled it "stale". Re-run reporting the actual numbers
 and probing `v1-1` and `v1+500`, both refused, with `v1` accepted as the control. **A probe
 that hardcodes a value it did not measure is asserting about a database it imagined.**
 
-## 📍 START HERE — STATE AT END OF 2026-08-14
+## 📍 START HERE — STATE AT 2026-08-15, OVERNIGHT
+
+**Shipped and LIVE: b345.** `main` is 685/685, 0 runtime errors. The deployed engine matches
+the repo (`65f0e8ed…`) and the payload guard now RUNS without env vars, so it can no longer
+skip silently — it did, for three hours today, under a green suite.
+
+**Tyler's governing rule, stated 2026-08-15 and binding:** *"The offline portion should
+function exactly the same as if the player was still online. The caveat is that after the
+player's max offline time is reached, their character stops all activity."* Clarified: server-
+wide daily/weekly blessings do NOT pay offline; personal and clan buffs DO, and consumable
+buffs must count down while away. **This deletes "accept the divergence" as an option** —
+every gap between the client's away night and the server's is now a defect, not a tradeoff.
+
+**Round 2 = 7 days, 20 invites, opening AFTER cutover, on a full wipe.** Tyler has authorised
+wiping player characters whenever it speeds things up ("I don't care about preserving
+anything") — the judgement made was NOT to spend it yet, because the critical path is blocked
+on missing capability rather than legacy data. Cash it in when the monster/item id renames
+land, which is what it actually buys.
+
+**Scope: EVERYTHING moves at cutover** (Tyler, asked directly). No phased cutover.
+
+### THE CRITICAL PATH, and the long pole is not gold
+1. ~~prices are data~~ **DONE** — 128 offers, 221 cost lines, drift guard mutation-proven.
+2. **Provisioning + the activity intent** — IN FLIGHT. `player_state` has ZERO rows because
+   nothing calls `hr_create_character`, and NOTHING writes `active_kind` (it appears twice in
+   all of `src/`: a fixture and a comment). Flipping the switch today would not move away time
+   to the server — **it would delete it.**
+3. **Non-combat away progression** — THE LONG POLE, ~1–2 weeks, not started. `accrual.js`
+   refuses anything that isn't combat. Gathering and crafting live inside `legacy.js` and
+   touch the DOM; they must come out before the server can run them (task #129's strangler-fig
+   step). Cannot be parallelised — one file.
+4. Gold becomes server-of-record → the 26 spend sites in ONE commit → market-v2 → wipe.
+
+**Estimate: 4–6 weeks, with real variance.** Six recorded blockers were disproven today and
+two unrecorded ones surfaced; this program keeps finding both.
+
+### ARCHITECTURE DECISION MADE 2026-08-15 — do not re-litigate
+**If an operation needs the game's RULES, it is JavaScript in an Edge Function that computes a
+delta and hands it to `hr_apply` to commit. If it is pure bookkeeping, it is a database
+function.** The reason is specific to this codebase: the rules ARE JavaScript and `src/core/**`
+is vendored byte-for-byte into the Edge Function, so a PL/pgSQL intent would be a second copy
+of 426 items, 31 monsters and 60+ recipes — and a second copy drifts, which has already
+happened here once. The first intent is being built as the template the other eight copy.
+
+## 📍 STATE AT END OF 2026-08-14
 
 **Shipped:** b331–b341. `main` is **662/662**, 0 runtime errors. `schema-drift` OK
 (fingerprint `98aa94bacf9c`), `rpc-resolution` 41/41, `schema-drift --mutate` 7/7.

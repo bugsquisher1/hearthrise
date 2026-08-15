@@ -10,6 +10,16 @@ prediction terminates, ten flip-blockers closed and mutation-proven). `unlock_bu
 LIVE end to end (both Security conditions rounds closed incl. C3a absorb→raise).
 The six vulnerable catalogue tables are swept.
 
+**⚠ SCOPE CHANGE (Tyler, 2026-08-15 late): THE CUTOVER WIPE IS DEFERRED.** Current
+players (close friends) keep their progress with explicit amnesty for any pre-cutover
+forgery; the wipe moves to the feature/skills launch, where it pays for the monster/item
+id renames as originally intended. Consequences, all accepted: cutover becomes
+**freeze → IMPORT (client snapshot → server tables, trusted exactly once, per-player
+verified, journalled) → verify → switch-on**; the room/unlock import MUST precede the
+artisan payable-flip (the from-empty safety argument is replaced by the import); id
+renames stay migrations until the deferred wipe; PITR matters MORE (current progress
+becomes permanent). The import tool is in flight.
+
 **WHAT REMAINS IS PURELY OPERATIONAL, in order:** (1) market-v2 revalidation + apply +
 client swap (the last unreviewed surface); (2) C6 — `tools/race-test.mjs` against the
 live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway first,

@@ -140,6 +140,18 @@ const snapshotG = () => {
     traits: G.traits,
     foodSlot: G.foodSlot,
     lastSeen: G.lastSeen,
+    /* b345: the BESTIARY, and the reason is worth stating because it caught a
+       real cross-test failure the moment a test finally killed a boss.
+       `killMonster` stamps `G.bestiary[id] = {kills, firstKill}` (legacy.js),
+       and `firstKill` is the ONE derived fact the Chronicle's seed is allowed
+       to DATE — so a test that kills a boss and does not put the bestiary back
+       leaves a dated first-kill in the save, and the very next run of
+       "b228: reconcile SEEDS an existing save undated" fails on
+       `every seeded entry must be undated`. MEASURED exactly that way while
+       adding the b345 away-parity night, which fights the lich.
+       It is also the player's collection log — a suite run must never write a
+       first-kill date into a monster they have not met. */
+    bestiary: G.bestiary,
   }));
 };
 
@@ -14254,6 +14266,270 @@ const TESTS = [
       if (typeof window.stopCombat === 'function') window.stopCombat();
       restoreG(snap);
       try { window.saveLocal(); } catch (e) {}   // the turn-ins wrote saves; put the real one back
+    }
+  }),
+
+  /* ── b345: THE LAST THREE UNSEEDED ROLLS ON THE AWAY PATH ─────────────────
+     The server recomputes an absence from (user_id, slot, accrued_to) and its
+     answer must equal the client's. Any bare Math.random() reachable from the
+     away replay breaks that BY CONSTRUCTION — not probabilistically, not
+     rarely: every single time.
+
+     Three sites were left, and they were found by INSTRUMENTING the real
+     global across a set of away nights, not by grep. Measured before the fix:
+
+       companions.js rollProc     23 draws in a 30-min away night on the lich,
+                                  400 in a 400-action away gather night
+       pets.js       rollSkillPet 400 draws (it hangs off addXp)
+       pets.js       rollBossPet  23 draws (it hangs off killMonster)
+
+     …and with the SEED PINNED and only Math.random() varied, that same night
+     paid 7,899 gold against 7,789 (the Raccoon's +5-a-kill proc), unlocked
+     `lichling` in one replay and not the other, and unlocked `beaver` in one
+     and not the other. After the fix the same measurement reports ZERO bare
+     draws on both nights.
+
+     THE TEST HAS THREE LAYERS, and it needs all three:
+
+       LAYER 1 — THE CONTRACT, at night scale. Hold the seed fixed, vary
+         Math.random() between two constants, and require the night to be
+         byte-identical. One observable per site, so a single site coming back
+         is named rather than lumped into "something diverged".
+
+       LAYER 2 — THE MECHANISM, at single-action scale. Layer 1 alone is
+         satisfied by DELETING a roll, which is the assertions-that-assert-
+         nothing failure this repo has met fifteen times. So each roll is also
+         driven with the two sources set to OPPOSITE verdicts — the SEAM says
+         "hit", the global says "miss" — and the outcome must follow the seam.
+         Deterministic in both directions under both code paths, so reverting
+         any one site turns exactly its own assertion red rather than making
+         it flaky.
+
+       LAYER 3 — THE CENSUS. Layers 1 and 2 can only see the sites they were
+         written for. This counts every bare Math.random() the away replay
+         touches and requires zero, which is the only assertion that can see a
+         FOURTH site nobody has thought of yet. It names the offender's stack
+         when it fails, so a future red is a thirty-second diagnosis.
+
+     NO RATE, CHANCE OR AMOUNT IS TOUCHED — the Raccoon's 20%, the Beaver's
+     1-in-2,500 and the Lichling's 1-in-200 are read from the live data. The
+     proc counter reads the pet's OWN label out of COMPANIONS rather than
+     hardcoding it, so a designer renaming a proc cannot rot this. */
+  () => tryRun('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
+    if (typeof window.simulateAwayCombat !== 'function' || typeof window.doSkillAction !== 'function'
+        || !window.HearthrisePets || !window.COMPANIONS || !window.MONSTERS.lich) {
+      assert(true, 'seam absent'); return;
+    }
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const realRandom = Math.random;
+    const savedNotify = window.notify;
+    const savedSkill = { ms: G.skillMs, progress: G.skillProgress };
+    /* A FIXED away timestamp, not Date.now(): the Boss of the Day is a
+       function of the clock, so a wall-clock `now` would change the featured
+       monster mid-suite and the two replays would not be comparable. */
+    const AT_MS = 1767225600000;
+    const SEED = 0xC0FFEE;
+    const GATHER_ACTIONS = 200;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree');
+    assert(tree, 'FIXTURE: normal_tree must exist or the gather night has nothing to cut');
+
+    // ── fixtures ───────────────────────────────────────────────────────────
+    // Both start from an IDENTICAL state, quests and kill counter included —
+    // the b341/b344 lesson: a one-time quest payout collected by the first
+    // replay and not the second reads as a divergence caused by the roll.
+    const combatFixture = () => {
+      G.skills = Object.assign({}, G.skills,
+        { attack: 900000, strength: 900000, defense: 900000, hitpoints: 900000 });
+      G.equipment = {}; G.buffs = []; G.inventory = {}; G.gold = 0;
+      G.playerMaxHp = 1e6; G.playerHp = 1e6;
+      G.quests = [];
+      G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0, crits: 0, rareDrops: 0 });
+      G.activeSkill = null; G.skillTargetId = null; G.activeArtisanRecipe = null;
+      G.activeMonster = 'lich';
+      G.monsterHp = window.MONSTERS.lich.hp; G.monsterMaxHp = window.MONSTERS.lich.hp;
+      // Auto-bounty OFF: it would switch the monster mid-night (b344) and the
+      // boss-pet roll would stop being about the lich.
+      G.bountyHunter = { marks: 0, xp: 0, completed: 0, autoBounty: 0, boardGeneratedAt: 0,
+        freeRerolls: 0, rerollsToday: 0, upgrades: {}, warrants: {}, active: null, board: [] };
+      // A kill-proc pet equipped, and NO pet owned that the night could roll —
+      // an owned pet is skipped without drawing, which would make this vacuous.
+      G.companions = { equipped: 'raccoon', ownedIds: ['raccoon'], xp: { raccoon: 0 } };
+    };
+    const gatherFixture = () => {
+      G.equipment = {}; G.buffs = []; G.inventory = {}; G.gold = 0;
+      G.quests = [];
+      G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0, crits: 0, rareDrops: 0 });
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      G.skillMs = tree.ms; G.skillProgress = 0;
+      G.companions = { equipped: 'sparrow', ownedIds: ['sparrow'], xp: { sparrow: 0 } };
+    };
+    const combatNight = () => {
+      P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, AT_MS, false); });
+    };
+    const gatherNight = () => {
+      P._withOfflineReplay(() => {
+        for (let i = 0; i < GATHER_ACTIONS; i++) window.doSkillAction(true);
+      });
+    };
+    const owns = (id) => (G.companions.ownedIds || []).indexOf(id) >= 0;
+
+    try {
+      // ── LAYER 1: same seed, different Math.random() → the same night ──────
+      const night = (fixture, run, mathRandomValue) => {
+        fixture();
+        C.reseed(SEED);
+        Math.random = () => mathRandomValue;
+        try { run(); } finally { Math.random = realRandom; }
+        return { gold: G.gold, kills: (G.stats.kills || 0),
+          logs: (G.inventory.normal_log || 0),
+          lichling: owns('lichling'), beaver: owns('beaver') };
+      };
+
+      // Warm-up first, then measure between two STEADY-STATE nights: the first
+      // replay in a fresh page banks one-time grants no later replay can
+      // collect, and comparing first-against-second would make this pass or
+      // fail on suite ORDER rather than on the rolls (b344, measured).
+      night(combatFixture, combatNight, 0.5);
+      const cLo = night(combatFixture, combatNight, 0.0001);   // every bare roll HITS
+      const cHi = night(combatFixture, combatNight, 0.9999);   // every bare roll MISSES
+
+      assert(cLo.kills > 5,
+        'FIXTURE: the away night must land several kills or every assertion below is vacuous, got ' + cLo.kills);
+      // SITE 1 — companions.js rollProc. The Raccoon pays extraGold on kill, so
+      // an unseeded proc shows up as gold and nothing else.
+      assert(cLo.gold === cHi.gold,
+        'companions.js rollProc reads Math.random(): the SAME seeded night paid ' + cLo.gold
+        + ' gold with Math.random()=0.0001 and ' + cHi.gold + ' with 0.9999. A companion proc pays, '
+        + 'so the server and the client would compute different totals for the same absence.');
+      // SITE 2 — pets.js rollBossPet, on the lich's 1-in-200.
+      assert(cLo.lichling === cHi.lichling,
+        'pets.js rollBossPet reads Math.random(): the SAME seeded night unlocked lichling='
+        + cLo.lichling + ' with Math.random()=0.0001 and ' + cHi.lichling + ' with 0.9999.');
+      assert(cLo.kills === cHi.kills,
+        'the same seeded night diverged beyond the two rolls under test — kills ' + cLo.kills
+        + ' vs ' + cHi.kills + '; something ELSE on the away combat path reads Math.random()');
+
+      night(gatherFixture, gatherNight, 0.5);
+      const gLo = night(gatherFixture, gatherNight, 0.0001);
+      const gHi = night(gatherFixture, gatherNight, 0.9999);
+
+      assert(gLo.logs === GATHER_ACTIONS,
+        'FIXTURE: the gather night must actually cut ' + GATHER_ACTIONS + ' logs, got ' + gLo.logs);
+      // SITE 3 — pets.js rollSkillPet, on woodcutting's 1-in-2,500.
+      assert(gLo.beaver === gHi.beaver,
+        'pets.js rollSkillPet reads Math.random(): the SAME seeded gather night unlocked beaver='
+        + gLo.beaver + ' with Math.random()=0.0001 and ' + gHi.beaver + ' with 0.9999.');
+      assert(gLo.logs === gHi.logs,
+        'the same seeded gather night diverged beyond the roll under test — something else reads Math.random()');
+
+      /* ── LAYER 2: the seam says HIT, the global says MISS ────────────────
+         Every assertion above is also satisfied by deleting the roll outright,
+         so each roll is now driven with the two sources contradicting each
+         other. The outcome must follow the SEAM. Both directions are pinned,
+         so a revert of any single site turns exactly that site's pair red and
+         never merely flaky. */
+      const followsSeam = (setup, fire, read, seamValue, globalValue) => {
+        setup();
+        C.setRng(C.rngMod.rngFrom(() => seamValue));
+        Math.random = () => globalValue;
+        try { fire(); } finally { Math.random = realRandom; C.setRng(null); }
+        return read();
+      };
+
+      // SITE 1 again — count the Raccoon's own proc toast, read from the data
+      // so a renamed label cannot make this silently stop counting.
+      const raccoonLabel = window.COMPANIONS.raccoon.proc.label;
+      assert(raccoonLabel && window.COMPANIONS.raccoon.proc.trigger === 'kill',
+        'FIXTURE: the Raccoon must still be a kill-triggered proc for this to measure anything');
+      let procs = 0;
+      window.notify = function (msg) { if (String(msg).indexOf(raccoonLabel) >= 0) procs++; };
+      const oneKill = (seamValue, globalValue) => followsSeam(
+        () => {
+          combatFixture();
+          G.monsterHp = 999999; G.monsterMaxHp = 999999;
+          procs = 0;
+        },
+        () => window.killMonster(window.MONSTERS.goblin),
+        () => procs, seamValue, globalValue);
+      assert(oneKill(0, 0.9999) === 1,
+        'companions.js rollProc did not follow the SEEDED stream: the seam said hit (0 < 0.20) and the '
+        + 'global said miss, and the proc did not fire — either it reads Math.random() or the roll is gone');
+      assert(oneKill(0.9999, 0.0001) === 0,
+        'companions.js rollProc followed Math.random(): the seam said miss (0.9999 > 0.20) and the global '
+        + 'said hit, and the proc fired anyway');
+      window.notify = savedNotify;
+
+      // SITE 2 again — a real lich kill through the killMonster hook, not the
+      // rollBossPet(id, rng) test seam, which exercises a different branch.
+      const oneBossKill = (seamValue, globalValue) => followsSeam(
+        () => {
+          combatFixture();
+          G.monsterHp = 999999; G.monsterMaxHp = 999999;
+        },
+        () => window.killMonster(window.MONSTERS.lich),
+        () => owns('lichling'), seamValue, globalValue);
+      assert(oneBossKill(0, 0.9999) === true,
+        'pets.js rollBossPet did not follow the SEEDED stream: the seam said hit (0 < 1/200) and the '
+        + 'global said miss, and no lichling was unlocked');
+      assert(oneBossKill(0.9999, 0.0001) === false,
+        'pets.js rollBossPet followed Math.random(): the seam said miss and the global said hit, '
+        + 'and the lichling unlocked anyway');
+
+      // SITE 3 again — a real gather action through the addXp hook.
+      const oneGather = (seamValue, globalValue) => followsSeam(
+        gatherFixture,
+        () => window.doSkillAction(true),
+        () => owns('beaver'), seamValue, globalValue);
+      assert(oneGather(0, 0.9999) === true,
+        'pets.js rollSkillPet did not follow the SEEDED stream: the seam said hit (0 < 1/2500) and the '
+        + 'global said miss, and no beaver was unlocked');
+      assert(oneGather(0.9999, 0.0001) === false,
+        'pets.js rollSkillPet followed Math.random(): the seam said miss and the global said hit, '
+        + 'and the beaver unlocked anyway');
+
+      /* ── LAYER 3: the census ─────────────────────────────────────────────
+         The only assertion here that can see a site nobody has named. */
+      const census = (fixture, run) => {
+        fixture();
+        C.reseed(SEED);
+        let n = 0; const where = [];
+        Math.random = function () {
+          n++;
+          if (where.length < 3) {
+            where.push((new Error().stack || '').split('\n').slice(2, 4)
+              .map((s) => s.trim().replace(/^at\s+/, '').replace(/https?:\/\/[^/]+/, '')).join(' <- '));
+          }
+          return realRandom();
+        };
+        try { run(); } finally { Math.random = realRandom; }
+        return { n, where };
+      };
+      const cCensus = census(combatFixture, combatNight);
+      assert(cCensus.n === 0,
+        'the away COMBAT replay drew ' + cCensus.n + ' bare Math.random() value(s) — an away night must be '
+        + 'replayable from its seed alone, so every draw belongs to HearthriseCore.rng. Offender(s): '
+        + cCensus.where.join(' | '));
+      const gCensus = census(gatherFixture, gatherNight);
+      assert(gCensus.n === 0,
+        'the away GATHER replay drew ' + gCensus.n + ' bare Math.random() value(s). Offender(s): '
+        + gCensus.where.join(' | '));
+    } finally {
+      Math.random = realRandom;
+      window.notify = savedNotify;
+      try { C.setRng(null); C.randomSeed(); } catch (e) {}
+      try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch (e) {}
+      try { window.__drainBountySwitch(); } catch (e) {}
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      /* No skill interval to clear: the gather night drives doSkillAction()
+         directly and never calls startSkill(), so nothing is armed. skillMs /
+         skillProgress ARE written by hand above and are not in snapshotG's
+         list, so they are put back by hand. */
+      G.skillMs = savedSkill.ms; G.skillProgress = savedSkill.progress;
+      restoreG(snap);
+      try { window.saveLocal(); } catch (e) {}   // the nights wrote saves; put the real one back
     }
   }),
 

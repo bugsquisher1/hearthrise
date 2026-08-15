@@ -57,9 +57,33 @@
     return true;
   }
 
+  /* THE SEEDED STREAM, not Math.random() — the same rule companions.js's drop
+     roll and dungeons.js's key drop already follow.
+
+     Both rolls below hang off hooks the AWAY replay drives: rollSkillPet wraps
+     addXp (400 draws in a 400-action away gather night, measured) and
+     rollBossPet wraps killMonster (23 draws in a 30-minute away night on the
+     lich, measured). A bare Math.random() there makes an away night
+     unreplayable by construction: with the seed PINNED and only Math.random()
+     varied, the same night unlocked `beaver` in one replay and not the other,
+     and `lichling` in one and not the other. The server recomputes an absence
+     from (user_id, slot, accrued_to); a grant it cannot reproduce is a grant it
+     cannot adjudicate.
+
+     `rng` stays the FIRST branch: it is the published test seam (the suite
+     calls rollSkillPet('woodcutting', () => 0)), and delegation must never
+     quietly remove a link from a chain a caller already had. Falls back to
+     Math.random only if the core has not booted. */
+  function rollRandom(rng) {
+    if (typeof rng === 'function') return rng;
+    var C = window.HearthriseCore;
+    if (C && C.rng) return function () { return C.rng.next(); };
+    return Math.random;
+  }
+
   // Roll a pet for one skill-XP event. Exposed for tests.
   function rollSkillPet(skillId, rng) {
-    var r = (typeof rng === 'function') ? rng : Math.random;
+    var r = rollRandom(rng);
     var pets = parse('skill');
     for (var i = 0; i < pets.length; i++) {
       if (pets[i].key !== skillId || owned(pets[i].petId)) continue;
@@ -69,7 +93,7 @@
   }
 
   function rollBossPet(monsterId, rng) {
-    var r = (typeof rng === 'function') ? rng : Math.random;
+    var r = rollRandom(rng);
     var pets = parse('boss');
     for (var i = 0; i < pets.length; i++) {
       if (pets[i].key !== monsterId || owned(pets[i].petId)) continue;

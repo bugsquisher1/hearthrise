@@ -59,7 +59,7 @@
 // write exactly when the server is unhappy.
 // ════════════════════════════════════════════════════════════════════════
 
-import { getSession } from './auth.js?v=345';
+import { getSession } from './auth.js?v=346';
 
 /* The market RPCs ship in ONE migration, so one capability governs all four
    decisions below (list / cancel / buy / collect). Probing them separately

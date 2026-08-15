@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=345' directly.
+// modularised, will import { G } from '../state/game.js?v=346' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=345';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=345';
+import { on, snapshot } from '../net/events.js?v=346';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=346';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=345';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=346';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4940,6 +4940,69 @@ const TESTS = [
         'cooked_shrimp should decrement by 1, before=' + preQty + ' after=' + window.G.inventory.cooked_shrimp);
     } finally {
       window.HearthriseAuto.setEat(eatBefore);
+      window.G.traits = traitsBefore;
+      restoreG(snap);
+    }
+  }),
+
+  /* b343: THE CLIENT'S AUTO-EAT DECISION IS THE SERVER'S.
+   *
+   * The rule used to live only in this classic script, which Deno cannot
+   * import — so the server accrual engine had NO auto-eat at all, and because
+   * a missing fx handler is a no-op by construction in combat-sim.js, the
+   * omission was silent. Measured on the same seed and state, the server paid
+   * 63%-99% LESS than the client for an unattended night and the character
+   * died minutes into it.
+   *
+   * The fix moved the DECISION to src/core/auto-eat.js, which both sides
+   * import. This test is the client half of that contract: whatever
+   * maybeAutoEat() does, resolveAutoEat() must have decided — including WHICH
+   * food and how much it heals. If someone re-inlines the rule here "for
+   * speed", the two sides can drift again and only this goes red.
+   */
+  () => tryRun('b343: maybeAutoEat routes through the SHARED core decision (server parity)', () => {
+    const A = window.HearthriseAuto, C = window.HearthriseCore;
+    if (!A || typeof A.maybeAutoEat !== 'function') return;
+    assert(C && C.autoEat && typeof C.autoEat.resolveAutoEat === 'function',
+      'HearthriseCore.autoEat.resolveAutoEat missing — the client and the server no longer share the rule');
+    if (!window.ITEMS || !window.ITEMS.cooked_shrimp || !window.ITEMS.cooked_shrimp.heals) return;
+    const snap = snapshotG();
+    const eatBefore = A.getEat();
+    const traitsBefore = JSON.parse(JSON.stringify(window.G.traits || {}));
+    try {
+      window.G.traits = { auto_eat: true };
+      window.G.playerMaxHp = 10;
+      window.G.playerHp = 3;
+      window.G.inventory = { cooked_shrimp: 5 };
+      window.G.combatLog = [];
+      A.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
+
+      // Ask the CORE what should happen, before letting the client do it.
+      const decision = C.autoEat.resolveAutoEat({
+        enabled: true, owned: true, hp: 3, maxHp: 10, threshold: A.eatThreshold(),
+        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
+      });
+      assert(decision && decision.foodId === 'cooked_shrimp',
+        'the core declined to eat on a fixture the client is about to eat on');
+
+      const ate = A.maybeAutoEat();
+      assert(ate === true, 'maybeAutoEat should have eaten');
+      assert(window.G.playerHp === decision.hp,
+        'the client healed to ' + window.G.playerHp + ' but the core decided ' + decision.hp
+        + ' — the two sides would pay a different night');
+      assert(window.G.inventory.cooked_shrimp === 4,
+        'the client consumed a different amount than the one meal the core decided');
+
+      // ...and the purchased-trait gate is the CORE's gate, not a local one.
+      window.G.traits = {};
+      window.G.playerHp = 3;
+      assert(A.maybeAutoEat() === false, 'auto-eat fired without the purchased trait');
+      assert(C.autoEat.resolveAutoEat({
+        enabled: true, owned: false, hp: 3, maxHp: 10, threshold: 0.5,
+        foodId: 'cooked_shrimp', inventory: window.G.inventory, items: window.ITEMS,
+      }) === null, 'the core ate without the purchased trait — the server would too');
+    } finally {
+      A.setEat(eatBefore);
       window.G.traits = traitsBefore;
       restoreG(snap);
     }
@@ -21017,7 +21080,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=345');
+    const KIT = await import('../data/start-kit.js?v=346');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -23947,7 +24010,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=345');
+    const S = await import('../data/shops.js?v=346');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');

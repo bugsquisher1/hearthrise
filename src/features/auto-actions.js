@@ -184,6 +184,29 @@
   }
   function isAutoEatable(it){ return foodClassOf(it) === 'healing'; }
 
+  /* ── THE DECISION MOVED TO src/core/auto-eat.js ──────────────────────
+   * Not because it was impure — it never was — but because the SERVER has
+   * to make the same one when it prices an unattended night, and Deno
+   * cannot import a classic <script>. Until it moved, `fx.autoEat` had no
+   * server implementation at all; a missing fx handler is a no-op by
+   * construction in combat-sim.js, so the server simply never healed and
+   * every away night ended at the first death. Measured on the same seed
+   * and state: the server paid 63%-99% less than the client.
+   *
+   * Same treatment as the burn maths (src/features/cooking-fire.js is a
+   * shim over src/core/artisan.js): the RULE lives in core, this file keeps
+   * the APPLY step, because the client mutates G and the server accumulates
+   * a delta for hr_apply.
+   *
+   * Load order: this is a classic script and runs BEFORE core-bridge.js (a
+   * deferred module), so nothing may read the core at IIFE time — the
+   * reference below is inside a function, which runs later. The local
+   * fallback is kept for the boot window, exactly as foodClassOf() above. */
+  function core(){
+    var C = window.HearthriseCore;
+    return (C && C.autoEat) || null;
+  }
+
   // ── Engine hooks ────────────────────────────────────────────
 
   /* b134: maybeAutoEat()
@@ -212,54 +235,49 @@
     if(!window.G) return false;
     var cfg = ensureShape(); if(!cfg) return false;
     var eat = cfg.eat;
-    if(!eat || !eat.enabled) return false;
-    // b217: auto-eat is a purchased trait — unbypassable gate. Until bought in
-    // the Store, combat healing is manual (the player clicks food). ensureShape()
-    // above grandfathers pre-b217 saves that already had auto-eat on.
-    if(!(window.G.traits && window.G.traits.auto_eat)) return false;
-    var hp = window.G.playerHp, maxHp = window.G.playerMaxHp;
-    if(typeof hp !== 'number' || typeof maxHp !== 'number' || maxHp <= 0) return false;
-    if(hp <= 0) return false;                    // already dead — respawn handles itself
-    if(hp / maxHp > eatThreshold()) return false;
-    // Pick food.
-    var foodId = eat.foodId;
-    var foodItem = foodId && window.ITEMS ? window.ITEMS[foodId] : null;
-    var qty = foodId ? ((window.G.inventory && window.G.inventory[foodId]) || 0) : 0;
-    if(!isAutoEatable(foodItem) || qty <= 0){
-      /* b220: fall back to the biggest-healing PROVISION in the bag.
-       *
-       * This replaces a "prefer food with no buff, else eat anything that
-       * heals" heuristic. That rule was reading the wrong signal: EVERY cooked
-       * food carries a buff, so "no buff" meant raw ingredients — auto-eat
-       * would pick Raw Shrimp (3 HP) over Cooked Shark (42 HP) and then, once
-       * the raws ran out, reach for a Void Banquet. foodClass says what a food
-       * is FOR, so the pool is now exactly the Provisions line and the pick
-       * inside it is simply the best heal. */
-      var inv = window.G.inventory || {};
-      var bestId = null, bestHeals = 0;
-      for(var id in inv){
-        if(!Object.prototype.hasOwnProperty.call(inv, id)) continue;
-        if((inv[id] || 0) <= 0) continue;
-        var it = window.ITEMS && window.ITEMS[id];
-        if(!isAutoEatable(it)) continue;
-        if(it.heals > bestHeals){ bestId = id; bestHeals = it.heals; }
-      }
-      if(!bestId) return false;
-      foodId = bestId; foodItem = window.ITEMS[foodId];
-    }
-    // Consume.
-    var heals = foodItem.heals;
-    window.G.playerHp = Math.min(maxHp, hp + heals);
+    var A = core();
+    /* No core, no eat. This is NOT a silent regression dressed as a guard:
+     * core-bridge.js is a deferred module that publishes HearthriseCore before
+     * DOMContentLoaded, and legacy.js — which owns every caller of this
+     * function (COMBAT_FX.autoEat, and processOffline via simulateSpan) — does
+     * not boot until DOMContentLoaded. The engine path already hard-depends on
+     * the core the same way (legacy.js doSkillAction calls
+     * C.progression.resolveGatherAction with no null check at all), and
+     * src/core-ready.js parks the boot timers until the core is online.
+     * Returning false here matches what this function already did before its
+     * data was loaded, rather than inventing a second copy of the rule to
+     * cover a window that cannot occur. */
+    if(!A) return false;
+    var decision = A.resolveAutoEat({
+      enabled: !!(eat && eat.enabled),
+      // b217: auto-eat is a purchased trait — unbypassable gate. Until bought
+      // in the Store, combat healing is manual (the player clicks food).
+      // ensureShape() above grandfathers pre-b217 saves that already had it on.
+      owned: !!(window.G.traits && window.G.traits.auto_eat),
+      hp: window.G.playerHp,
+      maxHp: window.G.playerMaxHp,
+      threshold: eatThreshold(),
+      foodId: eat ? eat.foodId : null,
+      inventory: window.G.inventory,
+      items: window.ITEMS,
+    });
+    if(!decision) return false;
+
+    /* THE APPLY STEP — the half that stays client-side, because the server's
+     * half accumulates a delta for hr_apply instead of mutating a save. */
+    window.G.playerHp = decision.hp;
     if(typeof window.removeItem === 'function'){
-      window.removeItem(foodId, 1);
+      window.removeItem(decision.foodId, 1);
     } else if(window.G.inventory){
-      window.G.inventory[foodId] = (window.G.inventory[foodId] || 1) - 1;
-      if(window.G.inventory[foodId] <= 0) delete window.G.inventory[foodId];
+      window.G.inventory[decision.foodId] = (window.G.inventory[decision.foodId] || 1) - 1;
+      if(window.G.inventory[decision.foodId] <= 0) delete window.G.inventory[decision.foodId];
     }
     window.G.stats = window.G.stats || {};
     window.G.stats.buffsConsumed = (window.G.stats.buffsConsumed || 0) + 1;
     if(Array.isArray(window.G.combatLog)){
-      window.G.combatLog.push('🍖 Auto-ate ' + (foodItem.n || foodId) + ' (+' + heals + ' HP)');
+      var _it = window.ITEMS && window.ITEMS[decision.foodId];
+      window.G.combatLog.push('🍖 Auto-ate ' + ((_it && _it.n) || decision.foodId)
+        + ' (+' + decision.heals + ' HP)');
     }
     return true;
   }

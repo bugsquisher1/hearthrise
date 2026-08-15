@@ -17,6 +17,7 @@
 import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
+import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -860,6 +861,24 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nAccrual guard — server accrual matches the client for the same seed; hostile inputs inert.');
+    }
+
+    /* ── The auto-eat authority guard ───────────────────────────────────
+       The accrual guard above proves the ENGINE eats correctly. This proves
+       the DATABASE only ever lets it: hr_set_auto_eat is the sole writer of
+       the three columns the engine reads, and it is the thing standing
+       between "the server heals you" and "the server hands every character
+       a 100-Bounty-Mark trait". Runs a real PostgreSQL in process (PGlite)
+       with the real migrations applied verbatim, and pairs every refusal
+       with a control. See tests/auto-eat-authority.mjs. */
+    const autoEatProblems = await autoEatAuthorityGuard();
+    if (autoEatProblems.length) {
+      console.log('\nAuto-eat authority guard (the entitlement gate holds) — FAILED:');
+      for (const p of autoEatProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nAuto-eat authority guard — the entitlement gate, the catalogue, the threshold, '
+        + 'collect_first and the grants all hold, each against a control.');
     }
 
     /* ── The identity guard (D2) ────────────────────────────────────────

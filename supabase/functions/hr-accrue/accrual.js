@@ -37,6 +37,7 @@ import {
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
 import { simulateSpan } from '../../../src/core/combat-sim.js';
+import { resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 import { createRng } from '../../../src/core/rng.js';
 import { grantXp } from '../../../src/core/progression.js';
@@ -165,6 +166,16 @@ function nat(v, fallback) {
  *   hp, maxHp, gold   player_state
  *   skills       { skill_id: xp }        from player_skills
  *   equipment    { equip_slot: item_id } from player_equipment
+ *   inventory    { item_id: qty }        from player_inventory — READ, and
+ *                partially SPENT: auto-eat consumes food out of it. This is
+ *                the first input the engine both reads and debits, which is
+ *                why the delta below is signed.
+ *   autoEatEnabled  player_state.auto_eat_enabled — the purchased-trait
+ *                receipt. FALSE by default and false for every character until
+ *                hr_set_auto_eat is called, so this handler is inert rather
+ *                than generous on the day it ships.
+ *   autoEatFood  player_state.auto_eat_food — the nominated Provision, or null
+ *   autoEatPct   player_state.auto_eat_pct — integer percent, 0..100
  *   items        ITEMS,   the authored catalogue (src/data/items.js)
  *   monsters     MONSTERS, ditto
  *
@@ -254,6 +265,56 @@ export function computeAccrual(input) {
   const events = [];
   const levelUps = [];
 
+  /* THE LIVE BAG. A running view of what the character owns DURING the
+     absence, not just what they gained: `startInv + everything addItem has
+     credited - everything autoEat has consumed`.
+
+     It has to be live rather than a snapshot for one reason the parity test
+     pins: the client's maybeAutoEat reads `G.inventory`, which `addItem`
+     mutates, so a Cooked Shark that DROPS at hour two is edible at hour three.
+     A server that ate only from the starting stack would diverge from the
+     client on exactly the long absences where it matters most.
+
+     Quantities are coerced through nat() because they arrive from a jsonb
+     round trip, where a bigint is a string. `'5000' - 1` is 4999 in JS but
+     `'5000' > 0` and `Number('5000')` are the only forms that survive being
+     compared and decremented, so the coercion is not decoration. */
+  const bag = Object.create(null);
+  for (const id in (inp.inventory || {})) {
+    const q = Math.floor(nat(inp.inventory[id], 0));
+    if (q > 0) bag[id] = q;
+  }
+
+  /* THE PURCHASED-TRAIT GATE, and it fails CLOSED.
+     Auto-Eat costs 100 Bounty Marks in the Store and the client refuses to eat
+     without `G.traits.auto_eat` (auto-actions.js). `player_state.auto_eat_enabled`
+     can only be set true by hr_set_auto_eat, which requires the server-side
+     ownership flag — so the column IS the receipt that the trait was owned when
+     it was switched on. Reading it here rather than re-deriving ownership from
+     the progress envelope is deliberate: that envelope is LIMIT-ed (hr_state_of
+     caps the progress read at 1000 rows and reports `progress_truncated`), and a
+     survival mechanic must never depend on a read that can be truncated. One
+     non-truncatable column on the row hr_apply already locks. */
+  /* ONE input, not two. `resolveAutoEat` takes `enabled` and `owned`
+     separately because the CLIENT genuinely holds two facts —
+     `G.autoActions.eat.enabled` (the toggle) and `G.traits.auto_eat` (the
+     purchase). The server holds one: hr_set_auto_eat refuses to write
+     `auto_eat_enabled = true` without the ownership flag, so the column IS
+     both facts and there is nothing to cross-check.
+     Deriving them from the same value under two names was the first shape
+     here, and it was worse than useless: it read like defence in depth while
+     being one variable, so a mutation that bypassed `owned` changed nothing and
+     the test that was supposed to catch it passed. One name, and the core's
+     `owned` gate is asserted directly in tests/accrual-engine.mjs instead. */
+  const autoEatOn = inp.autoEatEnabled === true;
+  const eatCfg = {
+    enabled: autoEatOn,
+    owned: autoEatOn,
+    threshold: thresholdFromPct(inp.autoEatPct),
+    foodId: (typeof inp.autoEatFood === 'string' && inp.autoEatFood) ? inp.autoEatFood : null,
+  };
+  let foodEaten = 0;
+
   const fx = {
     /* XP goes through the SHARED grant, not a bare accumulator. grantXp applies
        PACE.xp (0.39 — a raw sum would over-pay by 2.5x), the perk block, the
@@ -280,17 +341,65 @@ export function computeAccrual(input) {
       const n = Math.floor(Number(qty) || 0);
       if (!id || n <= 0) return;
       itemDelta[id] = (itemDelta[id] || 0) + n;
+      bag[id] = (bag[id] || 0) + n;      // edible from the moment it drops
     },
     onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
+
+    /* ── AUTO-EAT ─ survival, not a bonus. The ruling is explicit that it
+       stays away and keeps consuming, and combat-sim.js calls it after the
+       monster's swing and BEFORE the death check, so a successful eat is what
+       keeps an unattended night running.
+
+       It was absent here until 2026-08-15, and because a missing fx handler is
+       a no-op by construction the absence was silent: the server never healed,
+       the character died at the first bad streak, and everything after that
+       moment paid nothing. Measured against the client on the same seed and
+       the same state — the ONLY difference being whether this handler exists:
+
+         early-game goblin        -90.5% kills, died 1.17h into a 12h night
+         maxed vs slime           -62.9% kills, died 4.44h in
+         maxed vs the day-1 boss  -99.0% kills, died 7.9 MINUTES in
+
+       The decision is `src/core/auto-eat.js resolveAutoEat` — literally the
+       same function `HearthriseAuto.maybeAutoEat()` now calls — so the two
+       sides cannot answer differently. Only the APPLY differs: the client
+       mutates G, this accumulates a delta.
+
+       IT DRAWS NO RANDOM NUMBERS. That is a contract, not a coincidence: the
+       fight is seeded, so a handler that consumed a draw would shift every
+       later roll and the parity test would be comparing two different fights.
+
+       The debit is signed into the SAME `items` map as the gains, because
+       hr_apply's item block is signed and re-checks `have + delta >= 0`
+       server-side. The bag bookkeeping means the engine structurally cannot
+       propose eating food the character does not own — which matters because
+       `insufficient_item` is NOT on index.ts's DEGRADABLE list, so proposing
+       one would 409 an entire night rather than shorten it. */
+    autoEat() {
+      const decision = resolveAutoEat({
+        enabled: eatCfg.enabled,
+        owned: eatCfg.owned,
+        hp: state.playerHp,
+        maxHp: state.playerMaxHp,
+        threshold: eatCfg.threshold,
+        foodId: eatCfg.foodId,
+        inventory: bag,
+        items,
+      });
+      if (!decision) return false;
+      state.playerHp = decision.hp;
+      bag[decision.foodId] -= 1;
+      if (bag[decision.foodId] <= 0) delete bag[decision.foodId];
+      itemDelta[decision.foodId] = (itemDelta[decision.foodId] || 0) - 1;
+      foodEaten++;
+      return true;
+    },
+
     /* Deliberately ABSENT, and each absence is a decision, not an oversight:
          killMonster  — the client's five wrappers (dungeon keys, companions,
                         pets, collection log, chronicle) are client features
                         with no server model. simulateTick falls back to
                         resolveKill, which is the whole reward path.
-         autoEat      — food_slot / auto_eat_pct are not columns on
-                        player_state, so the server cannot know which food the
-                        player nominated. The player therefore dies EARLIER
-                        server-side than client-side: an under-pay, not a mint.
          recordKill / rollKillDeed / handleBountyKill / updateDaily /
          updateQuest  — the drop log, Farmer's Deeds, bounties, dailies and
                         quests have no server progress model yet. Emitting
@@ -300,7 +409,12 @@ export function computeAccrual(input) {
                         progress kind with a defined meaning.
        A missing fx handler is a no-op by construction in combat-sim.js, so
        every one of these is a silent skip rather than a crash — which is why
-       they are listed here instead of being discovered by their absence. */
+       they are listed here instead of being discovered by their absence.
+
+       ⚠ AND UNDER THE 2026-08-15 RULING ("the offline portion should function
+         exactly the same as if the player was still online", Tyler) every one
+         of them is a MUST-CLOSE, not a tradeoff. They are listed as remaining
+         work with a named dependency, not as accepted behaviour. */
   };
 
   // ── (4) The ctx. CONSTRUCTED FIELD BY FIELD. ─────────────────────────────
@@ -364,15 +478,38 @@ export function computeAccrual(input) {
   }
   const goldDelta = Math.floor(state.gold || 0);
 
+  /* THE ITEM DELTA IS SIGNED. Gains come from drops; the one negative is food
+     auto-eat consumed. hr_apply's item block is signed too — it re-reads
+     `player_inventory` under the row lock and rejects `have + delta < 0` as
+     `insufficient_item` — so the bag arithmetic above is the engine's promise
+     and that check is the database's verification of it. */
   const items_ = {};
   let itemKinds = 0;
+  const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0));
   for (const id in itemDelta) {
     // Unknown ids are refused by hr_apply against the generated hr_items
     // catalogue, which would reject the WHOLE delta — one cut monster drop
     // would cost a player their entire night. Filter here against the same
     // authored data the catalogue is generated from, and report it.
     if (!items[id]) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    items_[id] = Math.floor(itemDelta[id]);
+    const n = Math.floor(itemDelta[id]);
+    // A net zero is not a no-op to hr_apply — it is a catalogue lookup, a row
+    // lock and a ledger byte for nothing. Drop it.
+    if (n === 0) continue;
+    /* THE FLOOR, and it is deliberately redundant. `bag` already makes a
+       propose-more-than-owned impossible, but this delta is the thing that
+       crosses a network hop into a function whose rejection costs the player a
+       whole night — and `insufficient_item` is NOT on index.ts's DEGRADABLE
+       list, so it does not shorten the span, it 409s it. Two independent locks
+       on the one error that has no recovery path. */
+    if (n < 0 && startQty(id) + n < 0) {
+      events.push({ type: 'overeat_clamped', item: id });
+      const floored = -startQty(id);
+      if (floored === 0) continue;
+      items_[id] = floored;
+    } else {
+      items_[id] = n;
+    }
     itemKinds++;
   }
 
@@ -408,7 +545,12 @@ export function computeAccrual(input) {
       // AGGREGATE, never per-tick and never per-kill. The receipt for why:
       // game_events reached 1.6M rows / 229 MB from six players in four days by
       // journalling every kill. One row per accrual, a handful of scalars.
-      meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped },
+      // `ate` is the count of auto-eats. It is an aggregate like everything
+      // else here — never a row per meal — and it is the only trace of the
+      // food a night consumed, which a support request about a vanished
+      // Cooked Shark stack has to be answerable from.
+      meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
+              ate: foodEaten },
     },
   };
   if (goldDelta > 0) delta.gold = goldDelta;
@@ -426,6 +568,7 @@ export function computeAccrual(input) {
     grantMs,
     capped,
     tickMs,
+    foodEaten,
     watermark: delta.accrued_to,
     events,
     levelUps,

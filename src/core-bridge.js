@@ -29,22 +29,26 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=345';
-import * as xp from './core/xp.js?v=345';
-import * as combat from './core/combat.js?v=345';
-import * as drops from './core/drops.js?v=345';
-import * as pacing from './core/pacing.js?v=345';
-import * as rested from './core/rested.js?v=345';
-import * as tools from './core/tools.js?v=345';
-import * as farm from './core/farm.js?v=345';
-import * as progression from './core/progression.js?v=345';
-import * as styles from './core/styles.js?v=345';
-import * as artisan from './core/artisan.js?v=345';
-import * as bounty from './core/bounty.js?v=345';
-import * as away from './core/away.js?v=345';
-import * as botd from './core/botd.js?v=345';
-import * as buffs from './core/buffs.js?v=345';
-import * as combatSim from './core/combat-sim.js?v=345';
+import * as rngMod from './core/rng.js?v=346';
+import * as xp from './core/xp.js?v=346';
+import * as combat from './core/combat.js?v=346';
+import * as drops from './core/drops.js?v=346';
+import * as pacing from './core/pacing.js?v=346';
+import * as rested from './core/rested.js?v=346';
+import * as tools from './core/tools.js?v=346';
+import * as farm from './core/farm.js?v=346';
+import * as progression from './core/progression.js?v=346';
+import * as styles from './core/styles.js?v=346';
+import * as artisan from './core/artisan.js?v=346';
+import * as bounty from './core/bounty.js?v=346';
+import * as away from './core/away.js?v=346';
+import * as botd from './core/botd.js?v=346';
+import * as buffs from './core/buffs.js?v=346';
+import * as combatSim from './core/combat-sim.js?v=346';
+/* The auto-eat DECISION, shared with the server accrual engine. Published so
+   src/features/auto-actions.js — a classic script, which cannot import — can
+   delegate to the same predicate Deno runs. */
+import * as autoEat from './core/auto-eat.js?v=346';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -151,7 +155,7 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim,
+  styles, artisan, bounty, away, botd, buffs, combatSim, autoEat,
 
   /* The session RNG. */
   get rng() { return rng; },

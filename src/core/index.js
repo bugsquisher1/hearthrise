@@ -15,24 +15,30 @@
 // If you add a module here, add it to CORE_MODULES in tests/core-purity.mjs.
 // ============================================================
 
-export * as rng from './rng.js?v=345';
-export * as xp from './xp.js?v=345';
-export * as combat from './combat.js?v=345';
-export * as drops from './drops.js?v=345';
-export * as pacing from './pacing.js?v=345';
-export * as rested from './rested.js?v=345';
-export * as tools from './tools.js?v=345';
-export * as farm from './farm.js?v=345';
-export * as progression from './progression.js?v=345';
-export * as styles from './styles.js?v=345';
-export * as artisan from './artisan.js?v=345';
-export * as bounty from './bounty.js?v=345';
+export * as rng from './rng.js?v=346';
+export * as xp from './xp.js?v=346';
+export * as combat from './combat.js?v=346';
+export * as drops from './drops.js?v=346';
+export * as pacing from './pacing.js?v=346';
+export * as rested from './rested.js?v=346';
+export * as tools from './tools.js?v=346';
+export * as farm from './farm.js?v=346';
+export * as progression from './progression.js?v=346';
+export * as styles from './styles.js?v=346';
+export * as artisan from './artisan.js?v=346';
+export * as bounty from './bounty.js?v=346';
+/* Auto-eat is the ONE fx handler combat-sim.js calls that the server accrual
+   engine did not implement, and a missing handler is a silent no-op — so the
+   server's character died early and the night stopped paying (measured: -63%
+   to -99% of an absence). The DECISION now lives here so both sides run the
+   same predicate; each caller keeps its own apply step. */
+export * as autoEat from './auto-eat.js?v=346';
 /* The away/active unification (docs/design/away-time-ruling.md). `away` is
    the contract as data, `botd` the featured-boss rotation as a function of a
    timestamp, `buffs` the registry plus the clock as a function of elapsed
    time, and `combatSim` the ONE loop both the live tick and server accrual
    run. There is deliberately no second combat loop to export. */
-export * as away from './away.js?v=345';
-export * as botd from './botd.js?v=345';
-export * as buffs from './buffs.js?v=345';
-export * as combatSim from './combat-sim.js?v=345';
+export * as away from './away.js?v=346';
+export * as botd from './botd.js?v=346';
+export * as buffs from './buffs.js?v=346';
+export * as combatSim from './combat-sim.js?v=346';

@@ -327,6 +327,15 @@ export function simulateSpan(state, ctx) {
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0;
   let died = false; let featuredMs = 0; let featuredDropMult = 1;
   let carryMs = 0;
+  /* b341 — HOW LONG THE ABSENCE ACTUALLY PAID, and WHAT ENDED IT.
+     `died` has been on this payload since b325 and the welcome-back card never
+     read it, so a night that ended sixty seconds in still rendered as
+     "8h away — +53 XP … at the base rate". Saying "you died" is not enough on
+     its own either: without the span, "8h away" and "you died" sit side by side
+     and the player still has to guess which minutes earned. So the simulation
+     STATES both — the ruling's rule is that a renderer must never infer. */
+  let survivedMs = 0;   // ms actually simulated before the loop stopped
+  let diedTo = null;    // the monster id that landed the killing blow
   const segLog = [];
 
   for (const seg of segments) {
@@ -348,12 +357,16 @@ export function simulateSpan(state, ctx) {
     const run = () => {
       for (let i = 0; i < n; i++) {
         if (!state.activeMonster) break;
+        /* Read the target BEFORE the tick: the death fx nulls `activeMonster`
+           (legacy COMBAT_FX.onDeath), so after the fact there is nothing left
+           to name and the card would have to say "you died" to nobody. */
+        const facing = state.activeMonster;
         const r = simulateTick(state, segCtx);
         ran++;
         if (r.crit) crits++;
         if (r.ate) foodEaten++;
         if (r.outcome === OUTCOME.KILL) kills++;
-        if (r.outcome === OUTCOME.DEATH) { died = true; break; }
+        if (r.outcome === OUTCOME.DEATH) { died = true; diedTo = facing; break; }
         if (r.outcome === OUTCOME.STOP) break;
       }
     };
@@ -367,6 +380,7 @@ export function simulateSpan(state, ctx) {
     /* Count only the time actually simulated — a death two minutes into a
        segment must not report eight hours on the featured boss. */
     const simulatedMs = Math.min(seg.ms, ran * tickMs);
+    survivedMs += simulatedMs;
     if (wasFeatured) {
       featuredMs += simulatedMs;
       /* The largest drop multiplier this absence actually paid. The welcome-back
@@ -385,6 +399,13 @@ export function simulateSpan(state, ctx) {
     kills,
     foodEaten,
     died,
+    /* b341 — the two facts that make `died` sayable on a durable surface.
+       `survivedMs` is the span the simulation actually ran; on a death that is
+       the ONLY part of the absence that earned anything, because the fx clears
+       the target and every later branch of processOffline is gated on it.
+       `diedTo` is the monster id, so the card can name the foe. */
+    survivedMs,
+    diedTo,
     crits,
     ticks,
     hrs: +(spanMs / 3600000).toFixed(2),

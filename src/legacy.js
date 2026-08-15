@@ -1313,6 +1313,19 @@ function processOffline(){
     buffsPaused: combatSummary ? !!combatSummary.buffsPaused
       : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
     crits: combatSummary ? (combatSummary.crits||0) : 0,
+    /* b341 — DEATH IS PART OF THE RECEIPT.
+       `combat.died` has existed since b325 and only ever reached a toast that
+       is gone in ten seconds; the durable Home card read the totals and the
+       hours and said "8h away — +53 XP … at the base rate", which is how an
+       absence that ended sixty seconds in reads as a full night's honest pay.
+       Death is mirrored to the TOP LEVEL beside `crits` and `featuredMs` for
+       the same reason those are: a welcome-back renderer reads one flat
+       payload and infers nothing. `diedAfterMs` is the span that actually
+       earned; the remainder provably paid nothing, because COMBAT_FX.onDeath
+       clears activeMonster and every other branch above is gated on it. */
+    died: combatSummary ? !!combatSummary.died : false,
+    diedAfterMs: (combatSummary && combatSummary.died) ? (combatSummary.survivedMs||0) : 0,
+    diedTo: (combatSummary && combatSummary.died) ? (combatSummary.diedTo||null) : null,
     featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
     /* The MULTIPLIER that featured time actually paid, so the welcome-back
        line can say "(+50% drops)" without a renderer inferring which boss it
@@ -3860,7 +3873,9 @@ function renderMonsterList(){
       : fighting
         ? '<span class="mr-fighting">Fighting</span>'
         : `<span class="mr-stats"><i>${m.hp}<em>HP</em></i><i>${m.atk}<em>ATK</em></i></span>`;
-    return `<button class="monster-row ${fighting?'fighting':''}" ${unlocked?'':'disabled'} onclick="${unlocked?`startCombat('${id}')`:''}">
+    /* b341: the row carries its id, not an inline startCombat(). See the
+       MONSTER ROW DELEGATION block for why. */
+    return `<button class="monster-row ${fighting?'fighting':''}" ${unlocked?'':'disabled'} data-monster="${id}" title="${m.name}">
       <span class="mi">${m.icon}</span>
       <div style="flex:1;min-width:0">
         <span class="mn">${m.name}${m.boss?' <span class="tag">Boss</span>':''}</span>
@@ -4897,7 +4912,38 @@ function renderShop(){
   if(shopTab==='seeds'){
     offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
   } else if(shopTab==='equip'){
-    offers=EQUIP_SHOP.map(s=>{const d=ITEMS[s.id];const can=G.gold>=s.cost;const stats=[d.atkB?`+${d.atkB} ATK`:'',d.defB?`+${d.defB} DEF`:'',d.strB?`+${d.strB} STR`:''].filter(Boolean).join(' · ');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',1,${s.cost})">Buy</button></div>`;}).join('');
+    /* b341 — THE SHOP SAYS WHAT YOU CAN WEAR.
+       An Iron Sword rendered as "Iron Sword · +7 ATK · +6 STR · 500 · Buy" and
+       nothing on the row, in its title, or in its aria-label mentioned that it
+       needs Attack Lv 15. A new player starts with 500 gold, the purchase
+       succeeds, and the requirement is first spoken at EQUIP time — by which
+       point undoing it costs 300 gold, because the vendor buys back at 40%.
+       Six items in this shop behave that way.
+
+       The gate itself has existed since b246 (`gearWieldReq` / `canWield`, the
+       same pair equipItem() enforces); the shop simply never asked. Asking is
+       the whole fix — one authority, read at the point of sale.
+
+       NOT blocked, deliberately. The Skills panel disables a locked activity
+       because that action cannot work at all; buying gear early DOES work —
+       you own it, and buying ahead of a level is a normal thing to do on
+       purpose. Blocking would punish that and would strand any player who
+       banked for a sword before training for it. So the row STATES the
+       requirement and marks itself locked; the decision stays the player's.
+       (`.mr-lock` is the same lock chip the monster list uses for "CL 15", so
+       "you cannot use this yet" reads identically on both screens.) */
+    offers=EQUIP_SHOP.map(s=>{
+      const d=ITEMS[s.id];const can=G.gold>=s.cost;
+      const stats=[d.atkB?`+${d.atkB} ATK`:'',d.defB?`+${d.defB} DEF`:'',d.strB?`+${d.strB} STR`:''].filter(Boolean).join(' · ');
+      const req=(typeof gearWieldReq==='function')?gearWieldReq(d):null;
+      const reqName=req?(((typeof SKILLS_DEF!=='undefined'&&SKILLS_DEF[req.skill]&&SKILLS_DEF[req.skill].name)||req.skill)):'';
+      const wieldable=req?((typeof canWield==='function')?canWield(s.id).ok:true):true;
+      const reqText=req?`Requires ${reqName} Lv ${req.lv}`:'';
+      const lockGly=(window.HR&&window.HR.icon)?(window.HR.icon('uiLock',11,'currentColor')||''):'';
+      const reqChip=req?`<span class="mr-lock" style="margin-left:8px">${lockGly}${reqText}</span>`:'';
+      const label=`${d.n}${reqText?' — '+reqText+(wieldable?' (met)':''):''}`;
+      return `<div class="shop-row"${req?` data-req-skill="${req.skill}" data-req-lv="${req.lv}"`:''} title="${label.replace(/"/g,'&quot;')}" aria-label="${label.replace(/"/g,'&quot;')}"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}${wieldable?'':reqChip}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',1,${s.cost})">Buy</button></div>`;
+    }).join('');
   } else {
     /* cosmetics — gem-priced.
        b221: these four shipped `icon:'✨' / '🐲' / '🦅' / '😎'` and rendered them
@@ -5731,19 +5777,31 @@ window.openAutoEatPicker = function(){
   const foods = Object.entries(G.inventory||{}).filter(([id])=> _aeOk(id));
   const cur = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? (window.HearthriseAuto.getEat().foodId||null) : null;
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  /* b341 — DO NOT OFFER A CHOICE THAT WILL BE REFUSED.
+     setAutoEatFood() has always rejected every pick when the Auto-Eat trait is
+     not owned, but this picker rendered its rows live anyway: tapping one closed
+     the overlay as if it had taken, `foodId` stayed null, the only contradiction
+     was a toast that expires, and re-opening showed "— Off —" still marked
+     `is-on`. The player is told they failed by an artifact that is gone in ten
+     seconds while the surface itself keeps insisting nothing happened.
+     Locked now means locked ON THE ROWS, with the reason stated in place. */
+  const _locked = (typeof hasTrait === 'function') && !hasTrait('auto_eat');
+  const _act = (arg)=> _locked ? '' : ` onclick="setCombatAutoEat(${arg});closeAutoEatPicker()"`;
   const rows = foods.map(([id,q])=>{
     const it=ITEMS[id]; if(!it) return '';
-    const on = cur===id;
-    return `<button class="aep-row${on?' is-on':''}" onclick="setCombatAutoEat('${id}');closeAutoEatPicker()">
+    const on = !_locked && cur===id;
+    return `<button class="aep-row${on?' is-on':''}"${_locked?' disabled':''}${_act(`'${id}'`)}>
         <span class="aep-ic">${it.icon||''}</span>
         <span class="aep-nm">${esc(it.n)}</span>
         <span class="aep-heal">+${it.heals||0} HP</span>
         <span class="aep-q">×${(q||0).toLocaleString()}</span>
       </button>`;
   }).join('');
-  const offRow = `<button class="aep-row${!cur?' is-on':''}" onclick="setCombatAutoEat('');closeAutoEatPicker()">
+  const offRow = `<button class="aep-row${(!_locked && !cur)?' is-on':''}"${_locked?' disabled':''}${_act(`''`)}>
       <span class="aep-ic">—</span><span class="aep-nm">Off — heal by hand</span></button>`;
-  const empty = foods.length ? '' : '<div class="aep-empty">No Provisions in your bag. Cook fish or bake bread first — Feasts &amp; Draughts are eaten by hand only.</div>';
+  const empty = _locked
+    ? '<div class="aep-empty">Auto-eat is locked. Unlock it in the Store to choose a food — until then, heal by hand with the Eat button beside your champion.</div>'
+    : (foods.length ? '' : '<div class="aep-empty">No Provisions in your bag. Cook fish or bake bread first — Feasts &amp; Draughts are eaten by hand only.</div>');
   let ov = document.getElementById('aep-overlay');
   if(!ov){
     ov = document.createElement('div'); ov.id='aep-overlay'; ov.className='aep-overlay';
@@ -6796,42 +6854,25 @@ function openMonsterDetail(monsterId){
   el.classList.add('show');
 }
 
-/* Hijack the monster row click: replace inline onclick="startCombat(...)" with our detail opener.
-   We do this by re-rendering after renderMonsterList so the new click goes through detail.
-   Cleaner: walk the DOM after each renderMonsterList and rewire. */
-function rewireMonsterRows(){
-  document.querySelectorAll('.monster-row').forEach(row=>{
-    if(row.disabled) return;
-    if(row.__rewired) return;
-    const oc = row.getAttribute('onclick') || '';
-    const m = oc.match(/startCombat\('([^']+)'\)/);
-    if(!m) return;
-    const id = m[1];
-    row.setAttribute('onclick', '');
-    row.addEventListener('click', e=>{
-      e.preventDefault(); e.stopPropagation();
-      /* If currently fighting THIS monster, the row's old behavior was "stop combat"
-         — preserve that: if active, stopCombat(); else open detail. */
-      if(G.activeMonster === id){
-        if(typeof stopCombat === 'function') stopCombat();
-      } else {
-        openMonsterDetail(id);
-      }
-    });
-    row.__rewired = true;
-  });
-}
+/* b341: `rewireMonsterRows()` lived here — the SECOND of two independent
+   walkers that stripped a monster row's inline onclick and re-pointed it, this
+   one at openMonsterDetail() above. It has been removed along with its
+   renderMonsterList wrapper and its 200ms boot timer.
 
-const _prevRenderMonsterList = window.renderMonsterList;
-if(typeof _prevRenderMonsterList === 'function'){
-  window.renderMonsterList = function(){
-    _prevRenderMonsterList.apply(this, arguments);
-    setTimeout(rewireMonsterRows, 0);
-  };
-}
+   Two reasons. First, it was already dead in practice: its wrapper closed over
+   the `window.renderMonsterList` that existed when legacy.js ran, and
+   src/features/combat-render.js replaces that global afterwards, so the wrapper
+   was orphaned and the boot timer fired at t=200ms against an empty
+   #monster-list. Second, when it was NOT dead — a reload straight onto the
+   Combat tab — it and the preview's walker both attached to the same row, and
+   one tap opened two different modals.
 
-/* Initial paint */
-setTimeout(rewireMonsterRows, 200);
+   Row clicks now go through the single delegated listener in the combat-preview
+   block (search "MONSTER ROW DELEGATION"), which routes them to the preview.
+   openMonsterDetail() above is consequently unreferenced; it is the older and
+   thinner of the two surfaces (no forecast, no food line) and is left in place
+   rather than deleted because removing a modal is the Art Director's call —
+   flagged for that decision, not kept as a live path. */
 
 /* ESC closes detail */
 document.addEventListener('keydown', e=>{
@@ -7646,50 +7687,51 @@ console.log('Activity bar: loaded');
   window.__estimateCombat = estimateCombat;
   window.__lootRowHtml = lootRowHtml;
 
-  // ── Wire monster row clicks to open the preview instead of starting
-  //    combat directly. Walks .monster-row in #panel-combat after every
-  //    render and replaces the inline onclick. ──
-  function rewireRows(){
-    var rows = document.querySelectorAll('#panel-combat .monster-row');
-    rows.forEach(function(row){
-      if(row.__previewWired) return;
-      var oc = row.getAttribute('onclick') || '';
-      var m = oc.match(/startCombat\(['"]([^'"]+)['"]\)/);
-      if(!m) return;
-      var id = m[1];
-      row.setAttribute('onclick', '');
-      row.addEventListener('click', function(e){
-        e.preventDefault(); e.stopPropagation();
-        // If currently fighting THIS monster, click stops it. Otherwise preview.
-        if(window.G && window.G.activeMonster === id){
-          if(typeof window.stopCombat === 'function') window.stopCombat();
-          return;
-        }
-        renderPreview(id);
-      });
-      row.__previewWired = true;
-    });
-  }
-  // Re-wire whenever renderMonsterList runs
-  var origRender = window.renderMonsterList;
-  if(typeof origRender === 'function'){
-    window.renderMonsterList = function(){
-      var r = origRender.apply(this, arguments);
-      setTimeout(rewireRows, 0);
-      return r;
-    };
-  }
-  // Also re-wire on tab change to combat
-  var origShowTab = window.showTab;
-  if(typeof origShowTab === 'function'){
-    window.showTab = function(tab){
-      var r = origShowTab.apply(this, arguments);
-      if(tab === 'combat') setTimeout(rewireRows, 60);
-      return r;
-    };
-  }
-  // Initial wire after a short delay
-  setTimeout(rewireRows, 1000);
+  /* ══════════════════════════════════════════════════════════════════════
+     MONSTER ROW DELEGATION (b341)
+
+     A monster row opens the PREVIEW. It has never been allowed to start a
+     fight on one tap — the preview is the only place a player sees what the
+     foe hits for before standing in front of it.
+
+     That rule used to be enforced by re-wiring: two independent walkers
+     (`rewireRows` here and `rewireMonsterRows` in the monster-detail block)
+     each stripped the row's inline `onclick="startCombat(id)"` after every
+     render, hooked on `renderMonsterList` and on `showTab('combat')`. Both
+     hooks were wrappers around `window.renderMonsterList`, and
+     src/features/combat-render.js later REPLACES that global outright and
+     calls its own module-local copy from the tier-chip handler — a render
+     path neither wrapper could see. So pressing any Tier chip repainted the
+     list with live inline handlers, and the next tap started the fight:
+     measured 3/3, a Combat-Lv-3 character one-tapped a Green Dragon and died
+     within six seconds, and mid-fight it went slime → lich → dead with no
+     confirmation.
+
+     A third wrapper would have been a third thing to forget. Instead the rows
+     no longer carry a handler at all (they carry `data-monster`), and ONE
+     delegated listener on `#panel-combat` — a static element in index.html
+     that no renderer replaces — owns every row click, however the list came to
+     be painted. Same shape as the b334 combat-style picker fix.
+
+     Delegation on the PANEL rather than on `#monster-list` is deliberate: the
+     list's innerHTML is rewritten constantly, and a listener on a node that
+     gets replaced is the class of bug this is retiring.
+     ══════════════════════════════════════════════════════════════════════ */
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || typeof t.closest !== 'function') return;
+    var row = t.closest('#panel-combat .monster-row');
+    if(!row || row.disabled) return;
+    var id = row.getAttribute('data-monster');
+    if(!id) return;
+    e.preventDefault(); e.stopPropagation();
+    // Tapping the foe you are already fighting stops the fight (unchanged).
+    if(window.G && window.G.activeMonster === id){
+      if(typeof window.stopCombat === 'function') window.stopCombat();
+      return;
+    }
+    renderPreview(id);
+  }, true);
 
   // Esc to close
   document.addEventListener('keydown', function(e){
@@ -8422,10 +8464,19 @@ function paintSkillIcons(){
 }
 function paintMonsterIcons(){
   document.querySelectorAll('.monster-row').forEach(function(el){
-    var oc = el.getAttribute('onclick') || '';
-    var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
-    if(!m) return;
-    var id = m[1];
+    /* b341: the row's id moved from an inline onclick to `data-monster` when
+       row clicks became delegated. This reader is a HIDDEN DEPENDENCY on that
+       attribute — it has no name fallback, so missing it here would have
+       silently stopped every painted monster portrait rather than throwing.
+       The onclick match stays as the fallback for any row still authored the
+       old way (the skills panel reuses this class with inline handlers). */
+    var id = el.getAttribute('data-monster');
+    if(!id){
+      var oc = el.getAttribute('onclick') || '';
+      var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
+      if(!m) return;
+      id = m[1];
+    }
     var path = window._monsterIcon[id];
     if(!path) return;
     var iconEl = el.querySelector('.mi');
@@ -8796,15 +8847,47 @@ function maybeShowWelcome(){
   var label = hours > 0 ? (hours + 'h ' + mins + 'm') : (mins + 'm');
   var rows = [];
   rows.push({e:'⏳', t: 'Time away', v: label});
+  /* b341 — THE FIRST SURFACE A RETURNING PLAYER READS must not put "Time away
+     8h 0m" directly above "Total kills 2" and leave the death between them
+     unsaid. Reads the SAME receipt the Home card reads (`lastOfflineSummary`),
+     stated not inferred, and prints nothing at all when nobody died. Glyph, not
+     emoji — the four above are pre-existing debt and this does not add a fifth. */
+  try{
+    var _off = G.lastOfflineSummary;
+    var _dead = _off && (_off.died || (_off.combat && _off.combat.died));
+    if(_dead){
+      var _ms = Number(_off.diedAfterMs || (_off.combat && _off.combat.survivedMs) || 0);
+      var _to = _off.diedTo || (_off.combat && _off.combat.diedTo) || null;
+      var _nm = (_to && MONSTERS[_to] && MONSTERS[_to].name) || null;
+      var _when = _ms > 0
+        ? (_ms < 60000 ? Math.max(1, Math.round(_ms/1000)) + 's in'
+                       : Math.floor(_ms/60000) < 60 ? Math.floor(_ms/60000) + 'm in'
+                       : Math.floor(_ms/3600000) + 'h in')
+        : '—';
+      rows.push({g:'uiSkull', t: 'You died' + (_nm ? ' to ' + _nm : '') + ' — nothing was earned after', v: _when});
+    }
+  }catch(e){}
   if(G.streak.count > 0) rows.push({e:'🔥', t: 'Daily streak', v: G.streak.count + ' day' + (G.streak.count===1?'':'s')});
   rows.push({e:'🎯', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({e:'🪙', t: 'Gold in pocket', v: (G.gold||0).toLocaleString()});
   document.getElementById('welcome-rows').innerHTML = rows.map(function(r){
-    return '<div class="wb-row"><span class="wb-emoji">'+r.e+'</span><span style="flex:1">'+r.t+'</span><b>'+r.v+'</b></div>';
+    var icon = r.g ? _hrGly(r.g, 17) : (r.e || '');
+    return '<div class="wb-row'+(r.g?' wb-row-bad':'')+'"><span class="wb-emoji">'+icon+'</span>'
+      +'<span style="flex:1">'+r.t+'</span><b>'+r.v+'</b></div>';
   }).join('');
   var ov = document.getElementById('welcome-overlay');
   if(ov) ov.classList.add('show');
 }
+/* b341 TEST SEAM, deliberately NOT `window.maybeShowWelcome`.
+   This function is not on `window` at all (its block is IIFE-scoped), and the
+   welcome-v2 block later does `window.maybeShowWelcome = function(){}` to
+   "suppress the old modal" — which suppresses nothing, because the boot already
+   captured the lexical reference in `setTimeout(maybeShowWelcome, 1500)` before
+   that line ran. So THIS is the modal players actually see on return, and it
+   needs to be assertable under a name the dead suppression cannot shadow.
+   (The suppression that does not suppress is real debt — flagged, not fixed
+   here: deciding which of the two welcome modals survives is a design call.) */
+window.__maybeShowWelcome = maybeShowWelcome;
 function buildWelcomeOverlay(){
   if(document.getElementById('welcome-overlay')) return;
   var ov = document.createElement('div');

@@ -45,7 +45,16 @@ function renderMonsterList() {
       const right = fighting
         ? '<span class="mr-fighting">Fighting</span>'
         : `<span class="mr-stats"><i>${m.hp}<em>HP</em></i><i>${m.atk}<em>ATK</em></i></span>`;
-      return `<button class="monster-row ${tooHigh ? 'too-high' : ''} ${fighting ? 'fighting' : ''}" onclick="startCombat('${id}')" title="${m.name}">
+      /* b341: NO inline `onclick="startCombat(...)"`. Two wrappers used to strip
+         that attribute after each render and re-point the row at the preview
+         modal, and the tier-chip handler below re-rendered through neither — so
+         a disarmed row came back armed, and the next tap started a Tier-6 fight
+         with no preview and no confirmation. A row now carries only its id; the
+         single delegated listener in legacy.js (search "MONSTER ROW DELEGATION")
+         owns the click. The failure mode of a missed wire is now "the row does
+         nothing" instead of "you are fighting a dragon" — the safe direction for
+         a control that can kill you. */
+      return `<button class="monster-row ${tooHigh ? 'too-high' : ''} ${fighting ? 'fighting' : ''}" data-monster="${id}" title="${m.name}">
         <span class="mi">${getMonsterIconHtml(id)}</span>
         <div style="flex:1;min-width:0">
           <span class="mn">${m.name}${m.boss ? ' <span class="tag">Boss</span>' : ''}</span>

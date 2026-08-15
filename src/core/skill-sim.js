@@ -495,6 +495,74 @@ export function simulateSkillSpan(state, ctx) {
 export function isGatherSkill(skillId) { return GATHER_SKILLS.indexOf(skillId) >= 0; }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   THE CLIENT SWITCH-OVER — four edits in legacy.js, and their preconditions.
+
+   NOT DONE HERE: another agent held legacy.js while this was written, and a
+   race on a 9,000-line file is how two people's away rules end up in one
+   function. Nothing below is speculative — every claim is executed by AWAY-16
+   in src/features/smoke-test.js, whose `fx` map IS the adapter and whose rig
+   already proved the two columns agree (400 live actions vs one core span:
+   same bag, same XP, same counters, same fractional carry).
+
+   1. `replayAwaySpan` (legacy.js:1153) becomes a delegation:
+        function replayAwaySpan(spanMs, opts){
+          const C = window.HearthriseCore;
+          return C.skillSim.sliceSpan(spanMs, Object.assign({}, opts, {
+            nextBoundaryMs: () => C.buffs.nextBuffExpiryMs(G.buffs),
+            boosted:        () => C.buffs.hasActiveBuff(G.buffs),
+            drain:          (ms) => window.advanceBuffClock(ms),
+          }));
+        }
+      `_drainAwayBuffs` then has one caller and folds into `drain`. THE ARTISAN
+      BRANCH KEEPS USING IT UNCHANGED — `sliceSpan` is the same function with
+      the boundary source injected, so artisan's away replay moves onto core
+      without waiting for an artisan simulation.
+
+   2. The GATHER branch (legacy.js:1521-1542) becomes one call:
+        const span = C.skillSim.simulateSkillSpan(G, {
+          away: true, fromMs: _now - hrs*3600000, toMs: _now,
+          rng: C.rng, items: window.ITEMS,
+          nodes: window.HearthriseCore.__gatherNodes,   // see (4)
+          bonus: window.getBonus,
+          fx: { addItem, addXp, updateDaily, updateQuest,
+                onStop: () => stopSkill() },
+        });
+        buffPaidMs = span.buffPaidMs; buffsExpired = span.buffsExpired;
+        if (span.stoppedBy) { paidMs = Math.round(span.paidMs);
+                              stoppedBy = span.stoppedBy;
+                              stoppedById = span.stoppedById;
+                              stoppedSkill = span.stoppedSkill; }
+      ⚠ IT MUST STAY INSIDE `withOfflineReplay`. The interval is derived from
+        `ctx.bonus` at call time, and a gather-speed BLESSING is presence-gated
+        — asking from outside the latch answers a smaller number. Measured
+        while writing AWAY-16: 375 core actions against 400 live ones, a 6.25%
+        divergence caused by nothing but which side of the latch asked.
+
+   3. `SKILL_ACTION_STAT` (legacy.js:3817) becomes a re-export of the object
+      above: `const SKILL_ACTION_STAT = C.skillSim.SKILL_ACTION_STAT;`. Two
+      copies of the map the daily goals read is how an away night and a live
+      hour come to move different rows.
+
+   4. The index is built ONCE, at boot, beside the other bridges:
+        window.HearthriseCore.__gatherNodes = C.skillSim.indexGatherNodes(
+          { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
+      Rebuilding it per absence is 23 rows and harmless; rebuilding it per
+      ACTION is not, which is why it is not derived inside the loop.
+
+   WHAT DOES NOT CHANGE: `doSkillAction` stays exactly as it is for the LIVE
+   loop. This is the away path only — the same scope b325 took for combat.
+
+   ONE DELIBERATE BEHAVIOUR CHANGE, stated so it is not discovered:
+   legacy.js drains the buff clock through `advanceBuffClock`, whose `active`
+   flag reads `!!(G.activeSkill || …)`. On a level-gate stop `stopSkill()` has
+   already cleared that, so `tickBuffs` FREEZES and the minutes the run really
+   worked are never charged to the buff. `simulateSkillSpan` charges them
+   (`active: true`), which is the b347 rule — a buff is spent on work — applied
+   in the one place b347 could not reach. Unreachable in practice for gathering
+   (levels do not fall), and it is the correct direction.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════
    ARTISAN IS NOT HERE, AND THE REASON IS A MISSING MODEL, NOT MISSING CODE.
 
    `sliceSpan` above is already the loop legacy.js's artisan away branch runs —

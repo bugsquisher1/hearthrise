@@ -439,6 +439,38 @@ land, which is what it actually buys.
 
 **Scope: EVERYTHING moves at cutover** (Tyler, asked directly). No phased cutover.
 
+### ⏸ ONE BRANCH IS FINISHED AND DELIBERATELY NOT MERGED
+`worktree-agent-a06ecbcee310aa2c7` (commit `98e20a1`) makes personal consumable buffs PAY and
+DRAIN while away, per Tyler's rule. It is measured, mutation-proven and 685/685 — **and it must
+not merge until `legacy.js`'s gather/artisan replay is split at the buff-expiry boundary.**
+
+Why: `AWAY_SCOPE` is a table, so opening `buff` opens it for EVERY away caller. Combat's
+`simulateSpan` owns a per-tick timeline and drains correctly (proven: a 10-minute buff pays
+exactly 10.00 minutes of an 8-hour night, then expires and is pruned). But legacy's
+gather/artisan replay is a flat single-rate loop — `ticks = floor(spanMs / offlineIntervalMs())`
+with the interval derived ONCE — so it would pay a buff all night and drain none. Measured
+ceiling with the shipped catalogue: **+4% speed, +5% XP** on a deliberate eat-then-logoff, and
+it makes `home-dashboard.js:565`'s "your buffs were paused" a lie on a gather night.
+
+**DO NOT close `AWAY_SCOPE.buff` to work around it** — that reinstates the bug the branch fixes.
+The fix is the legacy split; the branch author did not hold that file.
+
+Worth keeping from that work: leaving the freeze in while opening the payout pays a whole
+3,600,000 ms absence out of a 300,000 ms consumable — **12×, worse than the exploit b326
+closed**. The two halves genuinely are one change.
+
+Also measured there, and it answers a question Tyler asked: **the offline cap is (a), not (b).**
+The payout is capped and the character KEEPS RUNNING — verified at 3h/1h and 18h/12h on both
+gathering and combat. Tyler described (b), "the character stops all activity". The CLIENT does
+(a) too, so this is not a client/server divergence; both deviate from his description, which
+makes it a feature request rather than a parity defect. The payout is identical either way —
+only the state you return to differs. One line (`if (capped) delta.activity = {kind:'idle'}`)
+plus client wiring.
+⚠ And a second half nobody had stated: `simulateAwayCombat` sets `fromMs = now − paidMs`, so
+the credited window is the **LAST** cap-hours before returning, not the FIRST after leaving. An
+18h absence simulates as "idle 6h, then fought 12h" — same payout, but **credited against the
+wrong UTC day's Boss of the Day.**
+
 ### THE CRITICAL PATH, and the long pole is not gold
 1. ~~prices are data~~ **DONE** — 128 offers, 221 cost lines, drift guard mutation-proven.
 2. **Provisioning + the activity intent** — IN FLIGHT. `player_state` has ZERO rows because

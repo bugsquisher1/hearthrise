@@ -52,6 +52,11 @@ import { levelFromXp } from '../../../src/core/xp.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
    0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
 import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
+/* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
+   day key, the clamp and the vocabulary live in ONE module that both this
+   engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
+   and why the daily period is the day the player RETURNS. */
+import { makeGoalCounter, goalProgressOps } from '../../../src/core/goals.js';
 /* The ONE catalogue-lookup guard in this payload. See its definition for why a
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
@@ -485,6 +490,10 @@ export function computeAccrual(input) {
      one of ~18,000 ticks in a 12h night. `inp.perks` absent → EMPTY_PERKS → 0
      for every key, which is exactly the `zeroBonus` behaviour this replaces. */
   const bonus = bonusFor(inp.perks);
+  /* THE GOAL COUNTER (b353). Fed by the `updateDaily`/`updateQuest` fx handlers
+     below — the two seams resolveKill has always called and this engine has
+     always ignored. */
+  const goals = makeGoalCounter();
   const autoEatOn = inp.autoEatEnabled === true;
   const eatCfg = {
     enabled: autoEatOn,
@@ -574,18 +583,39 @@ export function computeAccrual(input) {
       return true;
     },
 
-    /* Deliberately ABSENT, and each absence is a decision, not an oversight:
+    /* ── THE DAILY / QUEST COUNTERS (b353, Designer Ruling 3.1) ──────────
+       Two of the named gaps above, CLOSED. `resolveKill` has always called
+       both of these — `fx.updateDaily('kill_any', 1)` and
+       `fx.updateQuest('kill_any', 1, {target})` — on the same function body
+       the live client runs; a missing handler is a no-op by construction, so
+       for every away night since accrual shipped the kills were paid and the
+       counters were not. That is the ruling's exact wording: "an away night
+       that pays XP and items but leaves 'Slay 10 monsters' at 0/10".
+
+       The two seams are kept SEPARATE rather than folded into one accumulator.
+       They are called at the same sites with the same amounts today, and a
+       single counter fed by both would double every count — so mirroring the
+       seam is not tidiness, it is the difference between 25 kills and 50.
+
+       `meta` is accepted and ignored: the client only consults `meta.target`
+       for a quest row that declares `q.target`, and no authored row does.
+       tests/goal-counters.mjs asserts that, so it is a stated equivalence
+       rather than an assumption. */
+    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
+    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
+
+    /* Still deliberately ABSENT, and each absence is a decision, not an
+       oversight:
          killMonster  — the client's five wrappers (dungeon keys, companions,
                         pets, collection log, chronicle) are client features
                         with no server model. simulateTick falls back to
                         resolveKill, which is the whole reward path.
-         recordKill / rollKillDeed / handleBountyKill / updateDaily /
-         updateQuest  — the drop log, Farmer's Deeds, bounties, dailies and
-                        quests have no server progress model yet. Emitting
-                        invented progress keys now would hand the quest
-                        workstream a contract it has to break. Stats ARE
-                        journalled (below), because `stat` is already a legal
-                        progress kind with a defined meaning.
+         recordKill / rollKillDeed / handleBountyKill — the drop log, Farmer's
+                        Deeds and bounties have no server progress model yet.
+                        Emitting invented progress keys for them now would hand
+                        those workstreams a contract they have to break. Stats
+                        ARE journalled (below), because `stat` is already a
+                        legal progress kind with a defined meaning.
        A missing fx handler is a no-op by construction in combat-sim.js, so
        every one of these is a silent skip rather than a crash — which is why
        they are listed here instead of being discovered by their absence.
@@ -729,6 +759,15 @@ export function computeAccrual(input) {
   stat('crits', stats.crits);
   stat('deaths', stats.deaths);
   stat('rare_drops', stats.rareDrops);
+  /* THE GOAL COUNTERS. `nowMs` — the day the player RETURNS — is the daily
+     period, not the credited window; src/core/goals.js states why the other
+     two anchors both reproduce the failure this closes. `events` is passed so
+     a clamp or an unknown type leaves a receipt instead of vanishing.
+     ⚠ `stat:kills` and `stat:ev:kill_any` are BOTH written, deliberately: the
+       first is the lifetime kill count the Hero screen reads, the second is
+       the goal-event counter. They will agree on a combat night, and G3
+       asserts that they do — the redundancy IS the drift guard. */
+  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
 
   const delta = {
     // A watermark the SERVER computed and hr_apply then clamps into
@@ -919,6 +958,9 @@ function accrueGather(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
+  /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the
+     combat path — one contract, not a gather-flavoured copy of one. */
+  const goals = makeGoalCounter();
 
   const fx = {
     addXp(skillId, amt) {
@@ -939,20 +981,18 @@ function accrueGather(inp, span) {
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;
     },
-    /* Deliberately ABSENT, each an omission with a named dependency rather than
-       an oversight — the same list combat carries:
-         updateDaily / updateQuest — no server progress model for dailies or
-                        quests yet, and emitting invented keys now would hand
-                        that workstream a contract it has to break. Gathering
-                        STATS are journalled below, because `stat` is already a
-                        legal progress kind with a defined meaning.
+    /* ── THE DAILY / QUEST COUNTERS (b353) ───────────────────────────────
+       `resolveGatherTick` calls `fx.updateDaily('gather', res.qty)` and
+       `fx.updateQuest('gather', res.qty)` — the AMOUNT is the yield, not 1, so
+       a tool double moves "Gather 50 resources" by 2 exactly as it does live.
+       Passing `amt` through rather than assuming 1 is the same defect class as
+       the b352 recipe-scroll `add: 1` the parity guard caught. */
+    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
+    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
+    /* Still deliberately ABSENT:
          onStop       — the level gate. Handled from the SUMMARY instead (see
                         the `activity` key below), because the server's "stop"
-                        is a delta, not a call.
-       ⚠ Under the 2026-08-15 ruling these are MUST-CLOSE, not accepted
-         behaviour. A gathering night currently makes no progress on "Gather 25
-         logs" server-side, exactly as an away combat night makes none on
-         "Slay 10 monsters". */
+                        is a delta, not a call. */
   };
 
   const ctx = {
@@ -1051,6 +1091,11 @@ function accrueGather(inp, span) {
      move the same row. */
   const perSkill = SKILL_ACTION_STAT[summary.skill];
   if (perSkill) stat(perSkill, stats[perSkill]);
+  /* THE GOAL COUNTERS — the day the player RETURNS, same rule as combat.
+     `stat:gathered` and `stat:ev:gather` are both written for the reason the
+     combat builder states: one is the lifetime yield, one is the goal event,
+     and their agreement is asserted by G3. */
+  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
 
   const delta = {
     accrued_to: new Date(nowMs).toISOString(),

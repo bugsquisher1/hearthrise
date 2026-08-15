@@ -14055,6 +14055,208 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     b344 — THE TWO BOUNTY-TURN-IN DEFECTS, AND WHY NEITHER HAD A TEST.
+
+     The b264 test directly above is the reason the first one survived. It
+     asserts the switch by CALLING `bountyAutoSwitch('wolf')` itself, which
+     proves the switch function works and says nothing about whether anything
+     ever calls it — and it runs live, where a `setTimeout(…,0)` genuinely does
+     fire. Away, the whole night is one synchronous pass, so that callback
+     cannot run until the absence is already over. A live-play test passes with
+     the bug present; that is the entire reason it lasted from b264 to b344.
+
+     So the test below drives the AWAY path and reads the fight state
+     SYNCHRONOUSLY, before any timer can flush. There is no `await`, no
+     `setTimeout`, and it asserts on the monster's HIT POINTS as well as its
+     name, because the failure the b264 defer existed to avoid (switching
+     before resolveKill's respawn line) leaves the new foe wearing the old
+     foe's hit points and would otherwise read as a pass.
+     ═══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => {
+    if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { assert(true, 'seam absent'); return; }
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      /* The 11pm situation: mid-fight on GOBLIN, one kill from finishing a
+         goblin cull, a WOLF bounty next on the board, Auto-Accept owned. */
+      const fixture = () => {
+        G.skills = Object.assign({}, G.skills, { attack: 500000, strength: 500000, defense: 500000, hitpoints: 500000 });
+        G.equipment = {}; G.buffs = []; G.inventory = {};
+        G.playerMaxHp = 1e6; G.playerHp = 1e6;
+        G.activeMonster = 'goblin';
+        G.monsterHp = window.MONSTERS.goblin.hp; G.monsterMaxHp = window.MONSTERS.goblin.hp;
+        G.combatKillsThisFoe = 0;
+        G.bountyHunter = {
+          marks: 0, xp: 0, completed: 0, autoBounty: 1, boardGeneratedAt: 0,
+          freeRerolls: 0, rerollsToday: 0, upgrades: {}, warrants: {},
+          active: { id: 'a', type: 'cull', target: 'goblin', tier: 1, difficulty: 'easy',
+            progress: 2, required: 3, rewards: { gold: 10, marks: 20, xp: 5 } },
+          board: [{ id: 'b', type: 'cull', target: 'wolf', tier: 2, difficulty: 'easy',
+            progress: 0, required: 1e9, rewards: { gold: 20, marks: 3, xp: 8 } }],
+        };
+      };
+
+      fixture();
+      C.reseed(0xB0117A);
+      let sum = null;
+      P._withOfflineReplay(() => { sum = window.simulateAwayCombat(1, Date.now(), false); });
+
+      // Vacuity first: a night that fought nothing would pass everything below.
+      assert(sum && sum.kills > 20, 'FIXTURE: the replayed night must produce kills, got ' + JSON.stringify(sum && sum.kills));
+      assert(G.bountyHunter.active && G.bountyHunter.active.target === 'wolf',
+        'auto-accept must take the wolf bounty during the night, got ' + JSON.stringify(G.bountyHunter.active && G.bountyHunter.active.target));
+
+      /* THE BUG. Read synchronously — no timer has been given a chance to run. */
+      assert(G.activeMonster === 'wolf',
+        'the away night must switch to the new bounty target INSIDE the loop; still on ' + G.activeMonster
+        + ' (a deferred switch fires only after the whole absence is over)');
+      /* THE RACE the b264 defer existed to avoid: a switch applied before
+         resolveKill respawns the foe leaves the wolf wearing goblin hit points. */
+      assert(G.monsterMaxHp === window.MONSTERS.wolf.hp,
+        'the new target must carry ITS OWN hit points, got monsterMaxHp=' + G.monsterMaxHp
+        + ' (wolf is ' + window.MONSTERS.wolf.hp + ', goblin is ' + window.MONSTERS.goblin.hp + ')');
+      /* …and the night must actually have PAID the new bounty. This is the
+         player-facing loss: before the fix, progress at sunrise was 0. */
+      assert((G.bountyHunter.active.progress || 0) > 0,
+        'the rest of the night must count toward the new bounty; progress is ' + G.bountyHunter.active.progress);
+      assert((G.inventory.wolf_pelt || 0) > 0, 'the bag must hold the NEW target\'s trophies, wolf_pelt=' + (G.inventory.wolf_pelt || 0));
+      /* AND IT MUST BE ON DISK. processOffline() never calls saveLocal(), and
+         completeBounty()'s own save runs BEFORE the drain — measured, the local
+         save still read `goblin` after a night that had switched to `wolf`, and
+         only the next ordinary autosave corrected it. Close the browser inside
+         that window and the player reopens on the old monster holding the new
+         bounty, which is the pre-fix symptom in miniature. */
+      let disk = null;
+      try { disk = JSON.parse(localStorage.getItem('hearthbound-save-v2') || 'null'); } catch (e) {}
+      assert(disk && disk.activeMonster === 'wolf',
+        'the switched target must reach the local save, found ' + (disk && disk.activeMonster));
+
+      /* LIVE IS STILL DEFERRED, and that is not an accident to be tidied away:
+         startCombat() clears and re-arms combatInterval and then calls
+         combatTick() itself, so applying it from inside a tick is re-entrancy
+         into the running loop. Pinned so a future "simplification" that makes
+         live switch inline fails here instead of in a player's fight. */
+      fixture();
+      window.completeBounty();
+      assert(G.bountyHunter.active && G.bountyHunter.active.target === 'wolf', 'live auto-accept must still take the next bounty');
+      assert(G.activeMonster === 'goblin',
+        'LIVE must NOT switch synchronously inside the tick (startCombat re-enters combatTick); activeMonster=' + G.activeMonster);
+      assert(window.__bountySwitchPending() === null, 'live must not leave a pending away-switch queued');
+    } finally {
+      try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch (e) {}
+      try { window.__drainBountySwitch(); } catch (e) {}
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      C.randomSeed();
+      restoreG(snap);
+      /* The drain WRITES a save, so the restored state has to be written back
+         over it — same rule AWAY-11 follows. Without this the suite would leave
+         the player's local save naming a monster from a test fixture. */
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
+    if (typeof window.simulateAwayCombat !== 'function') { assert(true, 'seam absent'); return; }
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const realRandom = Math.random;
+    try {
+      /* A night of one-kill bounties, so a single span turns in dozens of
+         them and the 10% bonus is drawn dozens of times. */
+      const fixture = () => {
+        G.skills = Object.assign({}, G.skills, { attack: 500000, strength: 500000, defense: 500000, hitpoints: 500000 });
+        G.equipment = {}; G.buffs = []; G.inventory = {}; G.gold = 0;
+        G.playerMaxHp = 1e6; G.playerHp = 1e6;
+        /* IDENTICAL STARTING STATE, quests and kill counter included — the same
+           contract AWAY-1's rig learned in b341. Left un-reset, the first run
+           collects the Field Licence quest's one-time 1,500 XP and the second
+           cannot, and the comparison below reads that as a divergence caused by
+           the roll under test. MEASURED while writing this: the two runs
+           differed by exactly 1,500 attack XP and one quest reward, and the
+           marks assertion never got a chance to speak. */
+        G.quests = [];
+        G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0, crits: 0, rareDrops: 0 });
+        G.activeMonster = 'goblin';
+        G.monsterHp = window.MONSTERS.goblin.hp; G.monsterMaxHp = window.MONSTERS.goblin.hp;
+        G.bountyHunter = {
+          marks: 0, xp: 0, completed: 0, autoBounty: 1, boardGeneratedAt: 0,
+          freeRerolls: 0, rerollsToday: 0, upgrades: {}, warrants: {},
+          active: { id: 'a', type: 'cull', target: 'goblin', tier: 1, difficulty: 'easy',
+            progress: 0, required: 1, rewards: { gold: 10, marks: 20, xp: 5 } },
+          board: Array.from({ length: 30 }, (_, i) => ({ id: 'x' + i, type: 'cull', target: 'goblin',
+            tier: 1, difficulty: 'easy', progress: 0, required: 1, rewards: { gold: 10, marks: 20, xp: 5 } })),
+        };
+      };
+      /* THE EXPERIMENT: hold the SEED fixed and vary Math.random(). A replayable
+         night cannot notice. Deterministic — not a coin flip that could pass by
+         luck. Before the fix this measured 1,230 Marks against 820 for the
+         identical seed, with gold identical, which is what pins the divergence
+         on the turn-in bonus rather than on the fight. */
+      const night = (mathRandomValue, rngOverride) => {
+        fixture();
+        if (rngOverride) C.setRng(rngOverride); else C.reseed(0xB0117B);
+        Math.random = () => mathRandomValue;
+        try { P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, 1767225600000, false); }); }
+        finally { Math.random = realRandom; }
+        return { marks: G.bountyHunter.marks, completed: G.bountyHunter.completed, gold: G.gold };
+      };
+
+      /* WARM-UP, then measure. MEASURED on a fresh page: five identical
+         replays paid marks 640/640/640/640/640 and gold 5901/5401/5401/5401/
+         5401 — the FIRST replay banks a one-time 500-gold grant that no later
+         identical replay can collect, and `G.quests`/`G.stats` resets do not
+         reach whatever tracks it. That is a property of the harness, not of the
+         roll under test, so the comparison below is taken between two
+         steady-state nights rather than between the first and the second.
+         Without this the gold assertion would pass or fail on suite ORDER. */
+      night(0.01);
+      const lo = night(0.01);   // every bare 10% roll would SUCCEED
+      const hi = night(0.99);   // every bare 10% roll would FAIL
+      assert(lo.completed > 5, 'FIXTURE: the night must turn in several bounties, got ' + lo.completed);
+      assert(lo.marks === hi.marks,
+        'the same seeded night paid different Marks depending only on Math.random() — the turn-in bonus is not replayable: '
+        + JSON.stringify([lo, hi]));
+      /* Everything else must match too. Not a precondition — a second reading of
+         the same property, and the one that catches a future unseeded draw
+         anywhere else in the turn-in path. */
+      assert(lo.completed === hi.completed && lo.gold === hi.gold,
+        'the same seeded night diverged beyond Marks — something else on the turn-in path reads Math.random(): '
+        + JSON.stringify([lo, hi]));
+
+      /* …and the roll is not simply GONE. Forcing the SEAM (not Math.random)
+         must still move the payout, or the assertion above would be satisfied
+         by deleting the bonus altogether. Driven through a single turn-in
+         rather than a whole night, because a rigged generator also rigs the
+         fight — `()=>0.999` misses every swing, so a night-shaped version of
+         this would "pass" by killing nothing, which is the assertion-that-
+         asserts-nothing failure wearing a different hat. */
+      const rngFrom = C.rngMod.rngFrom;
+      const turnIn = (rng) => {
+        fixture();
+        const base = G.bountyHunter.active.rewards.marks;
+        C.setRng(rng);
+        const before = G.bountyHunter.marks || 0;
+        window.completeBounty();
+        return { paid: (G.bountyHunter.marks || 0) - before, base };
+      };
+      const always = turnIn(rngFrom(() => 0));           // 0 < 0.10 -> bonus every time
+      const never = turnIn(rngFrom(() => 0.999));        // never
+      assert(never.paid === never.base, 'a suppressed roll must pay the base marks only, got ' + JSON.stringify(never));
+      assert(always.paid > never.paid,
+        'the turn-in bonus must still be payable and must read the SEEDED stream, got '
+        + JSON.stringify([always, never]));
+    } finally {
+      Math.random = realRandom;
+      try { C.setRng(null); C.randomSeed(); } catch (e) {}
+      try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch (e) {}
+      try { window.__drainBountySwitch(); } catch (e) {}
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      restoreG(snap);
+      try { window.saveLocal(); } catch (e) {}   // the turn-ins wrote saves; put the real one back
+    }
+  }),
+
   () => tryRun('b262: active bounty progress shows in the combat activity bar (paione: task kills-left hidden on landscape)', () => {
     if(typeof window.refreshActivityBar !== 'function'){ assert(true, 'no activity-bar fn'); return; }
     const meta = document.getElementById('ab-meta');
@@ -14332,11 +14534,19 @@ const TESTS = [
       assert(window.bountyProofHave(a) === 0, 'progress must read 0 right after accept, got ' + window.bountyProofHave(a));
       // Collect the required NEW items → it completes.
       G.inventory[proof] = 999 + 3;
-      // completeBounty() rolls a 10% BONUS-marks turn-in (Math.random<0.10) — real
-      // game behaviour, but it made this exact-marks assertion flaky. Suppress the
-      // roll deterministically so we test the base 5-mark payout.
-      const _rand = Math.random; Math.random = () => 0.99;
-      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { Math.random = _rand; }
+      /* completeBounty() rolls a 10% BONUS-marks turn-in — real game behaviour,
+         but it makes this exact-marks assertion a coin flip, so the roll is
+         pinned rather than tolerated.
+         b344: it is pinned through the RNG SEAM now, not by assigning
+         Math.random. That roll used to read the global; when it moved to the
+         seeded stream (because completeBounty runs inside the away replay and
+         a night has to be replayable) this stub silently stopped suppressing
+         anything and this test went ~10% flaky — the b330 lesson, in the one
+         test that had already been bitten by this exact roll. A stub that no
+         longer stubs the thing it names is worse than no stub. */
+      const _C = window.HearthriseCore;
+      _C.setRng(_C.rngMod.rngFrom(() => 0.99));   // 0.99 > 0.10 → no bonus, deterministically
+      try { window.handleBountyKill(monId, window.MONSTERS[monId]); } finally { _C.setRng(null); }
       assert(!G.bountyHunter.active, 'bounty must complete once the required NEW proof items are collected');
       assert((G.bountyHunter.marks||0) === marksBefore + 5, 'marks must pay out on real completion');
     } finally { restoreG(snap); }

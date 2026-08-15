@@ -2504,7 +2504,24 @@ function completeBounty(){
   const r=b.rewards||{gold:0,marks:0,xp:0};
   G.gold+=r.gold||0;G.bountyHunter.marks=(G.bountyHunter.marks||0)+(r.marks||0);G.bountyHunter.xp=(G.bountyHunter.xp||0)+(r.xp||0);G.bountyHunter.completed=(G.bountyHunter.completed||0)+1;
   const oldLevel=levelFromXp((G.bountyHunter.xp||0)-(r.xp||0)),newLevel=getBountyHunterLevel();
-  const bonusRoll=Math.random()<0.10;
+  /* b344 — THE SEEDED STREAM, not Math.random(). completeBounty runs inside
+     handleBountyKill, which runs inside killMonster, which runs inside the AWAY
+     replay — so a bare draw here means the same seeded night pays a different
+     number of Marks every time it is replayed, and replayability is the single
+     property server-side accrual rests on (given the same state and seed the
+     server must be able to re-run an absence and prove what it paid).
+
+     MEASURED before the fix, with the seed pinned and only Math.random() varied:
+     the identical night, 41 turn-ins, 4,519 gold either way — and 1,230 Marks
+     with Math.random()=0.01 against 820 Marks with 0.99.
+
+     The b221 pass that moved board generation into src/core/bounty.js converted
+     "the id stamp and the third-slot type roll" (see the note above
+     generateBountyBoard) and missed this one, because it lives in the turn-in
+     rather than the generator. Same idiom as companions.js and dungeons.js: the
+     bare fallback exists only for a pre-boot call, never for a real fight. */
+  const _CK=window.HearthriseCore;
+  const bonusRoll=(_CK&&_CK.rng)?_CK.rng.chance(0.10):(Math.random()<0.10);
   /* b221: these three toasts/log lines shipped a literal 🎯 — emoji as art,
      on a screen whose whole point this pass was to stop looking generated. */
   if(bonusRoll){const bonus=Math.max(1,Math.round((r.marks||0)*0.5));G.bountyHunter.marks+=bonus;notify(`Bonus turn-in! +${bonus} Marks`,'levelup');}
@@ -2522,14 +2539,15 @@ function completeBounty(){
     acceptBounty(0);
     /* b264 (tester): Auto-Accept took the next bounty but left you grinding the
        OLD monster. If you were in a fight, seamlessly switch combat to the new
-       bounty's target (when you meet its level gate). Deferred past this tick —
-       completeBounty runs INSIDE killMonster/combatTick, and startCombat mid-tick
-       would race killMonster's monster-respawn line. */
+       bounty's target (when you meet its level gate).
+       b344: the SCHEDULING of that switch is now requestBountySwitch's job,
+       because "defer it past this tick" is only correct while a tick is a tick.
+       Read the block above that function before changing this. */
     const _na = G.bountyHunter.active;
     if(_wasFighting && _na && MONSTERS[_na.target] && G.activeMonster !== _na.target){
       const _req = (MONSTERS[_na.target].tier - 1) * 15;
       if((typeof getCombatLevel==='function' ? getCombatLevel() : 0) >= _req){
-        setTimeout(()=>bountyAutoSwitch(_na.target), 0);
+        requestBountySwitch(_na.target);
       } else {
         notify(`New bounty: ${MONSTERS[_na.target].name} (Combat Lv ${_req} to fight)`,'info');
       }
@@ -2537,6 +2555,78 @@ function completeBounty(){
   }
   updateTopbar();renderCombat();saveLocal();
 }
+/* ══════════════════════════════════════════════════════════════════════
+   b344 — THE SWITCH HAS TO HAPPEN INSIDE THE NIGHT.
+
+   The b264 defer was correct for LIVE play and silently wrong AWAY, and the
+   b325 unification is exactly what hid it: there is now ONE combat loop, and
+   an away absence computes the whole night SYNCHRONOUSLY in a single pass. A
+   `setTimeout(…,0)` callback therefore cannot run until the night is already
+   over. MEASURED on a two-hour absence: 1,589 kills, the bounty auto-accepted
+   on kill #1, 806 goblin ears and ZERO wolf pelts in the bag, and the new
+   bounty's progress at sunrise was 0. The player ground the old monster until
+   morning and the switch landed after the last swing.
+
+   This is the interesting shape of bug: a fix that is right in one mode and
+   wrong in the other, invisible precisely BECAUSE the two modes were unified.
+   So the two modes now share one request function and differ only in WHEN and
+   HOW the switch lands — context, not a second code path, same as the rest of
+   the away ruling:
+
+     LIVE   still deferred a turn, then the full startCombat(): interval, log,
+            repaint. Still deferred for the reason the b264 comment gives, and
+            it is stronger than "a race" — startCombat CLEARS AND RE-ARMS
+            combatInterval and then calls combatTick() itself, so running it
+            from inside a tick is re-entrancy into the loop that is running.
+     AWAY   queued, and drained at COMBAT_FX.killMonster: the one point in a
+            tick where every killMonster wrapper has returned AND resolveKill
+            has already executed its `state.monsterHp = m.hp` respawn line.
+            THAT LINE IS THE RACE the b264 comment names — switching before it
+            leaves the new foe wearing the old foe's hit points. Draining after
+            it makes the switch safe rather than merely late. Away needs none
+            of startCombat's other work: there is no interval to arm, no panel
+            to paint and no combat log while the latch is closed.
+
+   `_pendingBountySwitch` is a module-level let, never a G field: it is
+   in-flight combat state with a lifetime of one tick, and the save must not
+   learn about it (a persisted pending id would fire on a device that never
+   completed the bounty).
+   ══════════════════════════════════════════════════════════════════════ */
+let _pendingBountySwitch=null;
+function requestBountySwitch(targetId){
+  if(inOfflineReplay()){ _pendingBountySwitch=targetId; return; }
+  setTimeout(()=>bountyAutoSwitch(targetId), 0);
+}
+/* Drained from COMBAT_FX.killMonster after every away kill, and once more when
+   the span ends — a bounty completed on the night's LAST kill still has to
+   leave the player pointed at the right foe, and no pending id may leak across
+   the away/live boundary. Returns whether it moved the fight, so a caller (and
+   the suite) can tell "nothing pending" from "refused". */
+function drainBountySwitch(){
+  const id=_pendingBountySwitch;
+  if(!id)return false;
+  _pendingBountySwitch=null;
+  const a=G.bountyHunter&&G.bountyHunter.active;
+  if(!a||a.target!==id)return false;                        // abandoned / rerolled mid-night
+  if(!G.activeMonster||G.activeMonster===id)return false;   // died, stopped, or already there
+  const m=MONSTERS[id];
+  if(!m)return false;
+  G.activeMonster=id;
+  G.monsterHp=m.hp;G.monsterMaxHp=m.hp;
+  G.combatKillsThisFoe=0;
+  /* PERSIST THE NEW TARGET. processOffline() never calls saveLocal(), and
+     completeBounty()'s own save runs BEFORE this drain — so measured, the local
+     save still read `goblin` after a night that had switched to `wolf`, and only
+     the next ordinary autosave corrected it. Close the browser inside that
+     window and the player reopens on the old monster holding the new bounty:
+     the pre-fix symptom, in miniature. Costs nothing — completeBounty already
+     writes a save on every turn-in, and this fires strictly less often. */
+  try{ if(typeof saveLocal==='function') saveLocal(); }catch(e){}
+  return true;
+}
+/* Read-only seams for the suite: "is a switch queued?" and "drain it now". */
+window.__bountySwitchPending=function(){ return _pendingBountySwitch; };
+window.__drainBountySwitch=drainBountySwitch;
 /* b264: seamless auto-bounty combat switch (exposed for the smoke test). Guarded
    so a stale deferred call can't hijack combat after the player moved on. */
 function bountyAutoSwitch(targetId){
@@ -3064,7 +3154,16 @@ const COMBAT_FX={
      (they never were, because the away loop called none of these). */
   addXp:function(sk,amt){ addXp(sk,amt); },
   addItem:function(id,qty){ addItem(id,qty); },
-  killMonster:function(m){ return killMonster(m); },
+  killMonster:function(m){
+    const info=killMonster(m);
+    /* b344 — THE ONE SAFE POINT IN A TICK FOR THE TARGET TO CHANGE. Every
+       killMonster wrapper has returned AND resolveKill has already run its
+       `state.monsterHp = m.hp` respawn line, so nothing left in this tick can
+       overwrite the new target's hit points. See requestBountySwitch(). Live
+       play queues nothing, so this is a null check on the live path. */
+    drainBountySwitch();
+    return info;
+  },
   recordKill:function(id,dropped){
     if(window.HearthriseDropLog&&typeof window.HearthriseDropLog.recordKill==='function'){
       window.HearthriseDropLog.recordKill(id,dropped);
@@ -3232,7 +3331,14 @@ function simulateAwayCombat(hrs,nowMs,capped){
   ctx.fx=Object.assign({},COMBAT_FX,{
     segment:function(atMs,run){ return withAwaySegment(atMs,run); },
   });
-  return C.combatSim.simulateSpan(G,ctx);
+  /* b344: no pending target switch may enter or leave a span. Cleared going in
+     (nothing from an earlier replay may hijack this fight) and drained coming
+     out, so a bounty completed on the night's LAST kill still leaves the player
+     pointed at the right foe instead of at the one they finished with. */
+  _pendingBountySwitch=null;
+  const out=C.combatSim.simulateSpan(G,ctx);
+  drainBountySwitch();
+  return out;
 }
 window.simulateAwayCombat=simulateAwayCombat;
 

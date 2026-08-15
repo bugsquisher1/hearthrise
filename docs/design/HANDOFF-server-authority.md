@@ -346,14 +346,76 @@ tables and leaderboard views.
 a field moves only after every path that mutates it has, or the server copy goes stale and the
 load-strip eats the fresh local value. Gold has ~40 client write sites (being measured now).
 
-**⚠ TWO AGENTS WERE IN FLIGHT when this was written.** Their worktrees are `locked` and their
-branches exist; nothing is lost, but neither was merged:
-- `worktree-agent-ace7b6027e7202f2f` — the away card's death honesty (the card says
-  "at the base rate" for a night the player died 60s into), the tier-tab preview bypass, and
-  the shop's missing level requirements. All three are LIVE player-facing bugs.
-- `worktree-agent-abc05d54528d007b5` — sizing the gold intent surface, the largest unsized
-  piece of the program.
-Check them before starting anything new.
+**Both agents that were in flight have LANDED and are merged** (b341 shipped the playthrough
+honesty fixes + the Field Licence; the gold sizing is below). Nothing is orphaned.
+
+## 💰 THE GOLD SURFACE IS SIZED — read this before planning the next phase
+
+Measured with a scanner that has a **control**: blinding its pattern set drops the count
+47 → 40, so it is not blind. `tests/gold-intent-shape.mjs` (preserved, not yet wired into the
+suite) drives one real call site through the real `hr_apply` on PGlite/PG18.
+
+**47 write sites, not the recorded ~40. 44 are real player-gold mutations across 20 files.**
+15 grants · 13 spends · 6 vendor conversions · 8 transfers that cross to another player ·
+2 dev · 1 already server-sourced · 2 false positives (verified by reading). `legacy.js` holds
+20 of them and cannot be parallelised across agents.
+
+**NO GOLD SITE HAS A SERVER-SIDE STORY TODAY. Not one.** `hr_apply` covers the *shape* of
+every grant/spend/vendor site and zero route through it. `market_list`/`market_cancel`/
+`market_buy` **do not exist in production** (queried directly) — b340 moved the client onto
+RPCs that are not there yet, which is correct sequencing but means the market gold sites are
+still 100% client-authored.
+
+**~9 intents cover all 44 sites.** Proven atomic on real PostgreSQL: a gold spend and an item
+grant survive as one delta, one transaction, one version bump — with hostile replay refused,
+`intent_mismatch`, `insufficient_gold`, `version_conflict`, `gold_clamp`, the 25M daily
+ceiling biting at 24×1M, and a spend still succeeding after the ceiling.
+
+### ⛔ HARD PRECONDITION — do not ship any gold intent against production's `hr_apply`
+
+Production is the stale revision and **has no `intent_mismatch` branch**. Today the intent-id
+namespace has exactly one producer (the accrual engine, switched off). **Adding client-chosen
+intent ids to gold spends makes S6 live and turns it from 3 market calls into 44 surfaces:** a
+player who computes their own next accrual key and burns it on a shop purchase gets
+`replayed:true, ok:true`, no payment, no watermark advance — silently, for 24 hours. Mutation-
+proved: disabling that branch makes the migration refuse to install, reproducing production's
+`no_character` answer independently. Also unenforced there: the daily budget, so the real
+blast radius of a compromised engine is `50M gold/call × 240 calls/min` = **12 billion
+gold/minute**, with the per-call clamp as the only fuse.
+
+### 🚧 THE LARGEST UNSIZED PIECE, AND NOBODY HAD NAMED IT: prices are not data
+
+A server that authorises a spend must own the price. `tools/gen-catalogues.mjs` reads five
+modules and **not one carries a gold price**. Measured in `legacy.js`: 44 `cost:{gold:…}`,
+`SEED_SHOP` 9, `EQUIP_SHOP` 20, `TRAITS` 7, `HOUSE_THEMES` 6, `BOUNTY_SHOP` 5, plus
+`homestead.js` 5 and formula-derived costs in `workers.js`/`dungeons.js` — **~100 priced
+entries, ~96 of them inside `legacy.js`**, which is a classic script and **cannot import an
+ESM module** (the b222 trap; the same constraint that forced the starting-kit double copy).
+
+So extracting prices is not a move, it is either a refactor of `legacy.js`'s data seam or a
+second copy with a drift guard — the `B338-1` precedent. **That decision gates 26 of 44 sites
+(59%) and the phase cannot be sized until it is made.**
+
+### Ordering (each intermediate state justified in the agent's report)
+0. **Apply `2026-08-11-apply-engine.sql`** — precondition, zero blast radius today.
+1. Extract the price catalogue (no authority moves).
+2. **Grants first** (9 sites). Server copy runs *behind* the client, so the failure mode is a
+   refund to the player, not a loss — but keep this step short.
+3. **Spends + vendor, all 26 in ONE commit.** No safe partial: a half-moved spend surface is
+   server-record + live-client-writer, and the strip discards the fresh local value.
+   `gold` joins `SERVER_OF_RECORD` here.
+4. market-v2 + `clan_deposit_gold` (8 sites) — still blocked on `player_inventory` having rows.
+5. Delete the 5 accrual-computed sites.
+
+**Gold must ride the same kill switch, flipped only after the build is live** — the deploy
+window is the one intermediate state that cannot be made safe by design.
+
+### Two non-gold findings from the same pass
+- **`rollProc` exists in TWO copies** (`legacy.js:12870` and `features/companions.js:200`),
+  each wired to its own hook set, one using `rng()` and one `Math.random()`. If both load,
+  companion procs fire twice. **Not chased** — the five-copies-of-FNV shape again.
+- `postgres → hr_engine` is granted `WITH SET FALSE`, so only `hr_engine_login` can assume it.
+  Correct hardening, and the reason the probe could not run against production's live body.
 
 **NEEDS TYLER, still:** `2026-08-11-apply-engine.sql` (47,455-char body — from a file, not a
 tool argument) and `2026-08-12-raid-band-fairness.sql` (unapplied; decide apply-or-exclude).

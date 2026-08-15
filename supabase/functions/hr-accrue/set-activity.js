@@ -41,7 +41,10 @@
 // ============================================================================
 
 import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS } from './accrual.js';
-import { collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS } from './intents.js';
+import {
+  collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
+  rateBucketFor, requiresKey, collectsFirst, catalogueHas,
+} from './intents.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -142,14 +145,31 @@ export function activityDelta(kind, id, from) {
    full hr_state_of (player_state + fifteen skills + the whole inventory + every
    farm plot + up to 1,000 progress rows). One round trip, not two: at
    max_connections = 60 the cost of a round trip is not latency, it is the
-   §2a-ii total outage. */
+   §2a-ii total outage.
+
+   ⚠ THE BUCKET IS A BIND PARAMETER READ OUT OF `INTENT_REGISTRY`, not a literal.
+     It was a literal, and the registry row that named it was read by nothing —
+     so intent #2 could have declared one bucket and spent another with every
+     guard green. `$3` makes the registry the only source, and it is a parameter
+     rather than an interpolation because a bucket name is data. An unknown
+     bucket fails closed inside hr_rate_gate, so a wrong row here is a 429, not a
+     new unlimited namespace. */
 const READ_SQL = `
-  with g as (select public.hr_rate_gate($1::uuid, $2::int, 'activity') as allowed)
+  with g as (select public.hr_rate_gate($1::uuid, $2::int, $3::text) as allowed)
   select g.allowed                                                          as allowed,
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end  as state,
          case when g.allowed then public.hr_offline_cap_ms($1::uuid, $2::int) end as cap_ms,
          now()                                                              as now
     from g`;
+
+/* THE REFUSAL ENVELOPE (review C2). A refusal that reached the database says
+   what the server's state IS, so the client's "put the local pointer back to
+   what the envelope says" is executable on the failure path and not only on the
+   happy one. It is a FRESH read rather than the one taken at the top of the
+   call, because the refusal that most needs it — `version_conflict` — means by
+   definition that the state moved after that read. Costs one extra statement,
+   on the refusal path only, behind a gate that has already been spent. */
+const REFRESH_SQL = 'select public.hr_state_of($1::uuid, $2::int) as state';
 
 const SEED_SQL = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
@@ -174,8 +194,15 @@ export async function runSetActivity(o) {
   const { exec, user, slot, intentId, activity } = o;
 
   /* (0) SHAPE FIRST — refused before ANY database work, so a malformed client
-         cannot spend a real player's rate budget by looping on garbage. */
-  if (!intentId) {
+         cannot spend a real player's rate budget by looping on garbage. THIS is
+         why the four shape refusals carry no state envelope: reading one would
+         be the database work this check exists to avoid (intents.js §"WHICH
+         REFUSALS CARRY STATE").
+
+         `requiresKey(VERB)` rather than an unconditional test — the registry is
+         the only statement of which intents need a key, and a column nothing
+         reads is decoration. */
+  if (requiresKey(VERB) && !intentId) {
     return { status: 400, body: { ok: false, error: INTENT_ERRORS.MISSING_INTENT_ID } };
   }
   const decl = validateDeclaration(activity);
@@ -189,13 +216,20 @@ export async function runSetActivity(o) {
      This is an EARLY ANSWER, not the authority: hr_apply re-checks the pair
      against the GENERATED hr_activities catalogue and would refuse it there
      too. Both matter — the catalogue is what a compromised engine cannot lie
-     to, and this is what stops a typo costing a collect. */
-  if (decl.kind === 'combat' && !MONSTERS[decl.id]) {
-    return { status: 409, body: { ok: false, error: 'unknown_activity', kind: decl.kind, id: decl.id } };
+     to, and this is what stops a typo costing a collect.
+
+     ⚠ `catalogueHas`, NOT `!MONSTERS[id]`. The id shape is /^[a-z0-9_]{1,64}$/,
+       which matches `constructor` and `__proto__`; both are truthy on MONSTERS
+       and both walked straight past the truthiness form of this check. */
+  if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {
+    return {
+      status: 409,
+      body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
+    };
   }
 
-  /* (1) GATE + READ. */
-  const [read] = await exec(READ_SQL, [user, slot]);
+  /* (1) GATE + READ. The bucket comes out of the registry, never a literal. */
+  const [read] = await exec(READ_SQL, [user, slot, rateBucketFor(VERB)]);
   if (!read || read.allowed !== true) {
     return { status: 429, body: { ok: false, error: INTENT_ERRORS.RATE_LIMITED } };
   }
@@ -205,25 +239,34 @@ export async function runSetActivity(o) {
   }
   const st = env.state;
 
-  /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. */
-  const collect = await collectCurrentWindow({
-    exec, user, slot, env, st,
-    nowMs: new Date(read.now).getTime(),
-    capMs: Number(read.cap_ms) || 0,
-  });
+  /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. Whether it
+         applies is the registry's `collectsFirst`, read here and nowhere else;
+         an intent that does not collect states so as a verdict rather than by
+         skipping the gate, so `collectGate` stays the one implementation. */
+  const collect = collectsFirst(VERB)
+    ? await collectCurrentWindow({
+      exec, user, slot, env, st,
+      nowMs: new Date(read.now).getTime(),
+      capMs: Number(read.cap_ms) || 0,
+    })
+    : { outcome: 'nothing', version: env.version, reason: 'verb_does_not_collect' };
   const gate = collectGate(collect);
   if (!gate.proceed) {
     /* NOTHING WAS WRITTEN and the watermark did not move: the elapsed window is
        intact. The client's recovery is to run the `accrue` verb — which owns the
-       degrade ladder — and retry. Saying WHICH half failed is the difference
-       between that and a player retrying the switch forever. */
+       degrade ladder, and the ladder is what escapes a clamp — and then to retry
+       the switch WITH A NEW KEY. Saying WHICH half failed is the difference
+       between that and a player retrying the switch forever.
+
+       Note the key was never presented to hr_apply on this path (the switch was
+       not attempted), so it is unspent — but the contract's rule is "a refusal
+       means a new key", one rule and not a taxonomy, because a new key is
+       always safe and a reused one sometimes is not. */
     return {
       status: 409,
-      body: {
-        ok: false, error: gate.error, stage: 'collect',
-        detail: collect.detail ?? null,
-        version: env.version,
-      },
+      body: await refusalBody(exec, user, slot, {
+        error: gate.error, stage: 'collect', detail: collect.detail ?? null,
+      }, env),
     };
   }
 
@@ -235,28 +278,84 @@ export async function runSetActivity(o) {
   const res = applied && applied.res;
 
   if (!res || res.ok !== true) {
+    /* ⚠ THE COLLECT MAY HAVE PAID. A refused switch does NOT roll back the
+       collect — they are two applies, deliberately (intents.js §4) — so the
+       envelope attached here is the one that carries the money the player just
+       earned. `collected` rides along for the same reason: dropping it because
+       the SWITCH failed would report genuinely applied payment as nothing. */
     return {
       status: 409,
-      body: { ok: false, error: (res && res.error) || 'apply_failed', stage: 'switch', detail: res ?? null },
+      body: await refusalBody(exec, user, slot, {
+        error: (res && res.error) || 'apply_failed', stage: 'switch', detail: res ?? null,
+        collected: collect.receipt || null,
+      }, null),
     };
   }
 
   /* THE ENVELOPE. `hr_state_of` verbatim — the client renders it and computes
-     nothing. `collected` is a RECEIPT for the window that was paid on the way
-     here, stated by the server, so no renderer has to infer that a switch also
-     paid something. A replay reports `collected:null` for the same reason the
-     accrue verb drops its `away` block on a replay: this invocation applied
-     nothing, and a receipt for work that did not happen is a lie. */
+     nothing.
+
+     `activity` IS READ OUT OF `res.state`, NOT ECHOED FROM `decl`. The first
+     revision echoed the request, so a replayed switch reported the CLIENT's own
+     declaration as though the server had computed it while `state` said
+     something else. Two fields disagreeing in one body, with the client-authored
+     one on top, is the exact shape this whole program exists to remove.
+
+     `collected` is a RECEIPT for the window that was paid on the way here,
+     stated by the server. It is reported whenever THIS invocation's collect
+     applied — which is NOT the same question as "was the switch a replay". The
+     first revision asked the second question and reported 3,809 gold and 744
+     kills of genuinely applied payment as `null`, destroying the welcome-back
+     card for a night the player had earned. `collect.receipt` is already null
+     when the collect itself was a replay or had nothing to pay, which is the
+     honest condition. */
   return {
     status: 200,
     body: {
       ...res,
       ok: true,
       verb: VERB,
-      activity: { kind: decl.kind, id: decl.id },
-      collected: res.replayed === true ? null : (collect.receipt || null),
+      activity: activityOf(res),
+      collected: collect.receipt || null,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
+  };
+}
+
+/** The pointer, AS THE SERVER HOLDS IT. One reader, so a refusal and a success
+    report the same field from the same place. */
+function activityOf(env) {
+  const st = env && env.state;
+  if (!st) return null;
+  return { kind: st.active_kind ?? null, id: st.active_id ?? null };
+}
+
+/**
+ * Build a refusal body that carries the CURRENT `hr_state_of` envelope.
+ *
+ * @param fallback  the envelope read at the top of the call, used only if the
+ *                  fresh read fails. Null where it is known to be stale.
+ *
+ * ⚠ A FAILED REFRESH MUST NOT TURN A 409 INTO A 500. The refusal is the answer;
+ *   the envelope is an aid to reconciling. So the read is best-effort and the
+ *   body degrades to "no envelope" — the same shape the four documented
+ *   stateless refusals have, which the client already handles.
+ */
+async function refusalBody(exec, user, slot, refusal, fallback) {
+  let env = null;
+  try {
+    const [row] = await exec(REFRESH_SQL, [user, slot]);
+    const fresh = row && row.state;
+    if (fresh && fresh.ok === true) env = fresh;
+  } catch { /* best effort — see above */ }
+  if (!env && fallback && fallback.ok === true) env = fallback;
+  if (!env) return { ok: false, verb: VERB, ...refusal };
+  return {
+    ...env,
+    ok: false,
+    verb: VERB,
+    activity: activityOf(env),
+    ...refusal,
   };
 }
 
@@ -362,7 +461,15 @@ async function collectCurrentWindow(o) {
     };
   }
 
-  const intentId = await intentIdFor(user, slot, String(st.accrued_to), salt, 0);
+  /* THE DERIVED KEY. Named arguments and `version` among them — see the block
+     above `intentIdFor` in ./intents.js. `version` is what stops a refused
+     collect from re-deriving a byte-identical, permanently-poisoned key: the
+     rejection does not move `accrued_to`, but a `version_conflict` means the
+     version DID move, so the next call derives a different key by construction.
+     It must be the SAME version this apply names, or the two stop agreeing. */
+  const intentId = await intentIdFor({
+    user, slot, watermark: String(st.accrued_to), version: env.version, salt, attempt: 0,
+  });
   const [applied] = await exec(APPLY_SQL, [user, slot, env.version, intentId, JSON.stringify(out.delta)]);
   const res = applied && applied.res;
 

@@ -73,7 +73,7 @@ import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
-import { intentIdFor, isKnownVerb, INTENT_ERRORS } from './intents.js';
+import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { runSetActivity } from './set-activity.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
@@ -148,9 +148,11 @@ const json = (body: unknown, status = 200) =>
    `intentIdFor` MOVED to ./intents.js in b345 and is imported above. It is
    shared now, not copied, because the COLLECT that every collect-before-switch
    intent runs derives the same key — so an `accrue` and a `set_activity` racing
-   on one watermark land on one key and the window is paid EXACTLY once, across
-   two verbs that have never heard of each other. The salting argument and the
-   `intent_mismatch` second lock are documented at its definition. */
+   on one watermark AND one version land on one key and the window is paid
+   EXACTLY once, across two verbs that have never heard of each other. The
+   salting argument, the `version` term that keeps a REFUSED accrual from
+   re-deriving a poisoned key forever, and the `intent_mismatch` second lock are
+   all documented at its definition. */
 
 /* ── The clamps that a smaller span can escape (review S8) ──────────────────
    Every clamp in hr_apply is a BLAST RADIUS, set far above honest play, and any
@@ -291,7 +293,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     //   not have one.
     const read = await sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
-      const [gate] = await tx`select public.hr_rate_gate(${user}::uuid, ${slot}::int, 'accrue') as allowed`;
+      /* The bucket is READ OUT OF INTENT_REGISTRY, never written here. A literal
+         at this call site is a second registry, and a second registry is how the
+         row over there became decoration in the first place. */
+      const [gate] = await tx`select public.hr_rate_gate(${user}::uuid, ${slot}::int,
+                                                         ${rateBucketFor('accrue')}::text) as allowed`;
       if (!gate?.allowed) return { limited: true } as Row;
       const [row] = await tx`
         select public.hr_state_of(${user}::uuid, ${slot}::int)      as state,
@@ -392,7 +398,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     // ── APPLY. The single writer. ──────────────────────────────────────────
     const apply = async (delta: unknown, attempt: number) => {
-      const intentId = await intentIdFor(user, slot, String(st.accrued_to), salt, attempt);
+      /* THE DERIVED KEY. Named arguments, and `version` is one of them — the
+         anti-deadlock half documented above `intentIdFor` in ./intents.js. It
+         MUST be the same version this statement names below, and it must match
+         set-activity.js's collect field for field, or the two verbs stop sharing
+         a key and a window that should replay conflicts instead. */
+      const intentId = await intentIdFor({
+        user, slot, watermark: String(st.accrued_to), version: env.version, salt, attempt,
+      });
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         const [r] = await tx`

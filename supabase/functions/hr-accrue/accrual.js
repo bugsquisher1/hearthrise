@@ -43,6 +43,10 @@ import { createRng } from '../../../src/core/rng.js';
 import { grantXp } from '../../../src/core/progression.js';
 import { resolveStyle } from '../../../src/core/styles.js';
 import { levelFromXp } from '../../../src/core/xp.js';
+/* The ONE catalogue-lookup guard in this payload. See its definition for why a
+   truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
+   so this cannot cycle. */
+import { catalogueHas } from './intents.js';
 
 /* The floor on an accrual. Below this nothing is simulated and — unlike the
    client, which advances its watermark regardless (legacy.js:987) — NOTHING IS
@@ -61,7 +65,18 @@ export const ACCRUE_MAX_SPAN_MS = 24 * 3600000;
 
 /* Reasons a call did nothing. Machine codes, never prose — the client
    localises (design §2, "Error taxonomy"). These are not errors: they are the
-   ordinary answer for a player who has nothing to collect. */
+   ordinary answer for a player who has nothing to collect.
+
+   ⚠ THIS TABLE IS THE WHOLE SET. Every `reason:` this function returns must be
+     a member of it — never a bare string literal at the return site. The
+     collect-before-switch rule in ./intents.js partitions these into "safe to
+     switch" and "switching would confiscate", and it can only do that for
+     reasons it can see. `'no_cap'` was a bare literal here for four builds:
+     absent from this table, absent from both lists over there, and classified
+     correctly only because classifySkip fails closed. It was right by accident,
+     and an accident is not a mechanism. tests/activity-intent.mjs A17 reads
+     THIS object and asserts the partition covers it exactly, and that no reason
+     is produced as a literal. */
 export const SKIP = {
   NO_ACTIVITY: 'idle',
   UNSUPPORTED: 'unsupported_activity',
@@ -71,6 +86,11 @@ export const SKIP = {
   /* An activity pointer with no `active_since`. Fail-closed rather than
      substituted — see the precondition below. */
   NO_ACTIVE_SINCE: 'no_active_since',
+  /* hr_offline_cap_ms returned 0 (or the read failed). NOTHING in the window
+     can be priced, so this is a refusing reason — see the lockout note beside
+     REFUSING_SKIP_REASONS in ./intents.js. Unreachable today: the cap function
+     floors at 12h. */
+  NO_CAP: 'no_cap',
 };
 
 /* ⚠ THE KINDS THIS ENGINE CAN PAY. THE ACTIVITY INTENT'S ALLOWLIST IS DERIVED
@@ -210,11 +230,20 @@ export function computeAccrual(input) {
   // would advance the watermark and silently confiscate the gathering time the
   // next phase is supposed to pay.
   if (!PAYABLE_KINDS.includes(inp.activeKind) || !inp.activeId) {
-    return { accrued: false, reason: inp.activeKind && inp.activeKind !== 'idle'
-      ? SKIP.UNSUPPORTED : SKIP.NO_ACTIVITY };
+    /* The predicate is lifted out of the `reason:` expression on purpose: the
+       A17 coverage guard reads every `reason:` site and requires it to name a
+       SKIP member and nothing else, and a comparison against `'idle'` INSIDE
+       the expression is a string literal the scan cannot tell from a reason. */
+    const isIdle = !inp.activeKind || inp.activeKind === 'idle';
+    return { accrued: false, reason: isIdle ? SKIP.NO_ACTIVITY : SKIP.UNSUPPORTED };
   }
   const monsters = inp.monsters || {};
-  if (!monsters[inp.activeId]) return { accrued: false, reason: SKIP.NO_TARGET };
+  /* OWN-PROPERTY, never truthiness. `activeId` is bounded by
+     /^[a-z0-9_]{1,64}$/ at the request layer — which matches `constructor` and
+     `__proto__`, both of which are truthy on any plain object. See catalogueHas
+     in ./intents.js for the measurement and for why it stops being harmless the
+     moment a lookup is followed by a property read. */
+  if (!catalogueHas(monsters, inp.activeId)) return { accrued: false, reason: SKIP.NO_TARGET };
 
   /* ── THE FAIL-CLOSED `active_since` RULE (Phase-D, the half that is not SQL) ─
      `active_since` is the second watermark and the only defence against a
@@ -251,7 +280,7 @@ export function computeAccrual(input) {
   const sinceActivityMs = Math.max(0, nowMs - sinceMs);
   const grantMs = Math.min(elapsedMs, sinceActivityMs, capMs);
 
-  if (!(capMs > 0)) return { accrued: false, reason: 'no_cap' };
+  if (!(capMs > 0)) return { accrued: false, reason: SKIP.NO_CAP };
   if (grantMs < ACCRUE_MIN_MS) return { accrued: false, reason: SKIP.TOO_SOON };
   const capped = elapsedMs > grantMs;
 
@@ -528,7 +557,7 @@ export function computeAccrual(input) {
     // catalogue, which would reject the WHOLE delta — one cut monster drop
     // would cost a player their entire night. Filter here against the same
     // authored data the catalogue is generated from, and report it.
-    if (!items[id]) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
     const n = Math.floor(itemDelta[id]);
     // A net zero is not a no-op to hr_apply — it is a catalogue lookup, a row
     // lock and a ledger byte for nothing. Drop it.

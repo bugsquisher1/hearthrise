@@ -10,6 +10,15 @@
 // executable from plain Node, which is why the guards can be behavioural
 // instead of a regex over TypeScript nobody can import.
 //
+// ⚠ A RULE IN THIS FILE THAT NO CODE PATH READS IS NOT A RULE. Everything
+//   declarative here — the registry, the skip classification, the catalogue
+//   lookup — is READ by the implementation at runtime and mutation-proven by
+//   tests/activity-intent.mjs (A17, A19). The first revision shipped an
+//   `INTENT_REGISTRY` that nothing read: intent #2 could have declared
+//   `collectsFirst:true`, never collected, spent the wrong rate bucket, and
+//   every guard would have stayed green. Do not add a field here without a
+//   reader and a mutation.
+//
 // ════════════════════════════════════════════════════════════════════════════
 // THE CONTRACT — read this before writing intent number two
 // ════════════════════════════════════════════════════════════════════════════
@@ -26,6 +35,14 @@
 //    MACHINE CODES, never prose (design §2 "Error taxonomy"), and a refusal
 //    carries `stage` so the client knows which half failed.
 //
+//    ⚠ A REFUSAL THAT REACHED THE DATABASE CARRIES THE ENVELOPE TOO. The seam
+//      tells the client to put its optimistic local pointer back to what the
+//      envelope says; a refusal with no envelope makes that instruction
+//      unexecutable, and the client's only remaining option is to keep its own
+//      guess — which is the one thing a client is never allowed to do. See
+//      §"WHICH REFUSALS CARRY STATE" below: the exceptions are enumerated, each
+//      has a reason, and `refusalCarriesState()` is the single implementation.
+//
 // 3. ⚠ AN INTENT MUST COLLECT BEFORE IT SWITCHES.
 //    `hr_apply` stamps `accrued_to = now()` on any delta carrying `equip` or
 //    `activity` (apply-engine.sql §S5). That makes the equip-at-collect
@@ -38,7 +55,8 @@
 //    So every state-changing intent that touches `equip` or `activity` runs a
 //    COLLECT first, in its own apply, and only proceeds if that collect did not
 //    fail. `collectGate()` below is the one implementation of "did it fail",
-//    and it is exhaustively tested.
+//    and it is exhaustively tested. WHICH intents collect is the registry's
+//    `collectsFirst` column, and `collectsFirst()` is the only reader of it.
 //
 // 4. TWO APPLIES, NOT ONE MERGED DELTA — and the reason is not taste.
 //      • The collect's key is SERVER-DERIVED and salted with a 256-bit secret
@@ -82,10 +100,10 @@
 // with ok:true, for 24 hours. Two independent locks close it, and BOTH are
 // already live in production (verified 2026-08-15 against the deployed body):
 //
-//   · the accrual key is `sha256(user, slot, watermark, SALT, attempt)` where
-//     SALT = hr_seed(user, slot, 'intent:accrue:<watermark>') mixes a 256-bit
-//     secret held in a table with RLS on, no policy and no client grant. It is
-//     not computable from anything hr_load returns.
+//   · the accrual key is `sha256(user, slot, watermark, version, SALT, attempt)`
+//     where SALT = hr_seed(user, slot, 'intent:accrue:<watermark>') mixes a
+//     256-bit secret held in a table with RLS on, no policy and no client grant.
+//     It is not computable from anything hr_load returns.
 //   · `hr_apply` refuses a replay that is not a replay of the SAME THING:
 //     `player_intents.intent` records what the key was claimed for, and a
 //     different name answers `intent_mismatch`.
@@ -100,8 +118,87 @@
 // a correctness trap with no error anywhere. With it, the second call is
 // `intent_mismatch`: loud, refused, nothing applied. The name is also what
 // lands in `player_ledger.intent`, so the journal says what was declared.
-// ============================================================================
-
+//
+// ⚠ AND THE NAME IS NOT ENOUGH ON ITS OWN, BECAUSE IT DOES NOT NAME THE SLOT.
+//   `intentNameFor` yields 'set_activity:combat:goblin' for slot 0 and slot 1
+//   alike, and `set_activity:idle` is worse still — every STOP a player makes
+//   shares one name. Measured against production on 2026-08-15, rolled back:
+//   one key applied on slot 0, then replayed on slot 1, answered
+//   `ok:true, replayed:true` and APPLIED NOTHING (slot 1 gold 500 → 500), while
+//   a control with a fresh key applied (500 → 507). The fix is one comparison
+//   in `hr_apply` — `player_intents.slot` already records the slot and was
+//   simply never read — and it is staged in
+//   supabase/migrations/2026-08-15-intent-key-hygiene.sql. It covers all nine
+//   intents at once, which is why it is not solved a tenth time out here.
+//
+// ════════════════════════════════════════════════════════════════════════════
+// A REJECTED INTENT IS RETRIED WITH A **NEW** KEY
+// ════════════════════════════════════════════════════════════════════════════
+// This is the rule the first revision of this file got backwards, and it is the
+// one rule a client can get wrong in a way that produces a silent 25-hour
+// outage rather than an error. Measured against production, rolled back:
+//
+//     (1) apply, stale version   → {"ok":false,"error":"version_conflict"}
+//     (2) retry, SAME key,
+//         CORRECT version        → {"ok":false,"error":"version_conflict",
+//                                   "replayed":true}
+//     (3) control, NEW key,
+//         CORRECT version        → {"ok":true}
+//
+// Same delta, same correct version. Only the key differed, and the key the old
+// text told you to reuse could never succeed. The mechanism is `hr_apply` step
+// (5): the decision — success OR rejection — is recorded under the key OUTSIDE
+// the protected block, so it survives the rollback, and step (3) hands the
+// stored decision back to every later call that presents the same key.
+//
+//   ⇒ RULE: a REJECTED intent is retried with a NEW idempotency key.
+//     Only an UNANSWERED one — a timeout, an aborted fetch, a dropped socket —
+//     reuses the old key. That is the case idempotency exists for: "I do not
+//     know whether it landed." A refusal is an ANSWER; the client knows.
+//
+// A new key is always safe after a refusal, whatever the stage, because a
+// refusal applied nothing: the collect refuses before the switch is attempted,
+// and hr_apply's protected block rolls back in full. There is no partial effect
+// for a second key to duplicate.
+//
+// ── AND THE HALF THAT HAS NO CLIENT TO WORK AROUND IT ──────────────────────
+// The COLLECT's key is derived, not chosen, so "use a new key" is not advice it
+// can take. A rejection does not advance `accrued_to`, so the next call
+// re-derives from the same watermark. Two things keep that from becoming a
+// permanent deadlock, and they are complementary rather than redundant:
+//
+//   (a) `version` IS PART OF THE DERIVATION (here). A `version_conflict` means
+//       the state moved under us; the next call reads the NEW version and
+//       therefore derives a DIFFERENT key. The property the derivation exists
+//       for is untouched — two verbs racing on one watermark read the SAME
+//       version and still land on the SAME key, so the loser is a replay and
+//       the window is paid exactly once. And where they read DIFFERENT versions
+//       they could never both have applied anyway: `hr_apply` refuses the stale
+//       one at step (4). So this can only ever turn a poisoned replay into an
+//       honest conflict, never a single payment into two.
+//
+//       This is what makes intent #2 survivable. A gold spend or a craft bumps
+//       `version` WITHOUT stamping `accrued_to`, which is precisely the shape
+//       that re-derives an identical key forever; today it is rare because
+//       nothing else writes, and the day a second intent ships it is routine.
+//
+//   (b) `hr_apply` RELEASES A KEY IT CLAIMED ITSELF WHEN THE DECISION WAS
+//       `version_conflict` (staged, 2026-08-15-intent-key-hygiene.sql). A
+//       version conflict is a statement about the caller's READ, not about the
+//       delta, it is rolled back in full, and the defined recovery is "re-read
+//       and try again" — so storing it converts an ordinary concurrency outcome
+//       into a lockout for any caller whose key cannot change. That covers the
+//       CLIENT-chosen keys too, which (a) cannot.
+//
+// RESIDUAL, STATED: a rejection that is neither a version conflict nor a
+// DEGRADABLE clamp still sticks to a derived key until `hr_intents_prune` runs
+// (`17 * * * *`, 24h window ⇒ ≤25h). The clamp family escapes through the
+// accrue verb's degrade ladder, which re-derives with `attempt+1` and, at the
+// end, forfeits — moving the watermark and freeing every key derived from it.
+// What is left is `bad_delta` / `insufficient_item` / `unknown_item`: engine
+// bugs, not player-reachable states. If one of those ever becomes routine, the
+// answer is to widen the release set in hr_apply, not to un-derive the key.
+//
 // ════════════════════════════════════════════════════════════════════════════
 // THE CLIENT SEAM — the wire, specified. NOT YET IMPLEMENTED (b345).
 //
@@ -109,6 +206,12 @@
 // another workstream and the seam runs through it. This is the specification it
 // implements, kept in the CONTRACT file rather than in a design doc so the two
 // sides of the wire cannot drift apart in different folders.
+//
+// ⚠ THE SEAM DEPENDS ON A MIGRATION, NOT ONLY ON A DEPLOY. Two of the rules
+//   below — "a rejection is retried with a new key and that retry can succeed"
+//   and "one key means one thing on one slot" — are enforced in `hr_apply`.
+//   supabase/migrations/2026-08-15-intent-key-hygiene.sql must be APPLIED, not
+//   merely staged, before the client half is written.
 //
 // ── THE REQUEST ────────────────────────────────────────────────────────────
 //   POST <SUPABASE_URL>/functions/v1/hr-accrue
@@ -129,27 +232,84 @@
 //   200 {ok:true, verb, activity:{kind,id}, version, now, state, skills,
 //        inventory, equipment, farm, progress, total_level,
 //        collected:{ms,capped,kills,gold,xp,items,levelUps,died} | null}
-//        `collected` is the RECEIPT for the window the switch paid on the way
-//        through, stated by the server. It is null on a replay, and on a switch
-//        that had nothing to collect. RENDER IT, DO NOT RECOMPUTE IT.
+//
+//        `activity` IS READ OUT OF `state`, NOT ECHOED FROM THE REQUEST. The
+//        first revision echoed the client's own declaration back at it, so a
+//        replayed switch reported what the CLIENT said while `state` reported
+//        what the SERVER did — two fields in one body disagreeing, with the
+//        forged-looking one on top. If they can disagree, only one of them is
+//        the server's, and the other should not exist.
+//
+//        `collected` is the RECEIPT for the window this call paid on the way
+//        through, stated by the server. RENDER IT, DO NOT RECOMPUTE IT. It is
+//        null when there was nothing to collect, and null when the COLLECT
+//        itself was a replay — but it is PRESENT on a replayed SWITCH whose
+//        collect applied, which is the case the first revision got wrong:
+//        measured, 3,809 gold and 744 kills of genuinely applied payment were
+//        reported as `null` because the SWITCH half was a replay. The test is
+//        "did THIS invocation's collect apply", never "was the switch a replay".
 //   200 {ok:true, replayed:true, …}                this exact intent already landed
 //   400 {ok:false, error:'unknown_verb'|'missing_intent_id'|'bad_activity'}
 //   409 {ok:false, error:'no_character'|'unknown_activity'|'activity_unsupported'}
-//   409 {ok:false, error:<code>, stage:'collect'}  NOTHING CHANGED and the elapsed
-//        window is INTACT. Recovery: run the accrue verb (it owns the degrade
-//        ladder), then retry. Never retry the switch alone in a loop.
-//   409 {ok:false, error:'version_conflict'|'intent_mismatch', stage:'switch'}
+//   409 {ok:false, error:<code>, stage:'collect', …envelope}
+//        NOTHING CHANGED and the elapsed window is INTACT. Recovery: run the
+//        `accrue` verb — it owns the degrade ladder, which is what escapes a
+//        clamp — then retry the switch WITH A NEW KEY. Never retry the switch
+//        alone in a loop.
+//   409 {ok:false, error:'version_conflict'|'intent_mismatch', stage:'switch',
+//        collected, …envelope}
+//        ⚠ `collected` IS PRESENT HERE, AND IT IS NOT A CONTRADICTION. The
+//        collect and the switch are two applies (rule 4): a refused switch does
+//        not roll the payment back. The player was paid and did not switch, and
+//        the body has to be able to say both. Render the receipt, then reconcile
+//        the pointer to the envelope.
 //   429 {ok:false, error:'rate_limited'}           30/min. Back off; do not spin.
 //
+//   Every body — success and refusal alike — carries `verb`, so one dispatcher
+//   can route a response without remembering what it asked for.
+//
+// ── WHICH REFUSALS CARRY STATE, AND WHY THE OTHERS CANNOT ──────────────────
+//   Every refusal that reached the database carries the full `hr_state_of`
+//   envelope (`state`, `version`, `now`, `skills`, `inventory`, `equipment`,
+//   `farm`, `progress`, `total_level`) plus a top-level `activity` read out of
+//   it, so "reconcile to the envelope" is one code path for success and failure
+//   alike. `refusalCarriesState(error)` is the single implementation and the
+//   test asserts it against the reachable set.
+//
+//   FOUR do not, and each is a decision rather than an omission:
+//     missing_intent_id / bad_activity / activity_unsupported / unknown_activity
+//                     refused on SHAPE, before any database work. Reading a
+//                     state envelope for them would let a malformed client
+//                     spend a real player's rate budget by looping on garbage —
+//                     the exact property A10 measures.
+//     rate_limited    the gate exists so an over-caller does NOT pay for a full
+//                     envelope read (player_state + fifteen skills + the whole
+//                     inventory + every farm plot + up to 1,000 progress rows).
+//                     Attaching one here would hand the budget back.
+//     no_character    there is no state to send. `hr_state_of` itself answered
+//                     `no_character`; an empty object would be a lie.
+//   In all four, nothing was written, so the client's LAST envelope is still
+//   current — which is what it must reconcile to. Never to its own guess.
+//
 // ── THE IDEMPOTENCY KEY — THE ONE RULE A CLIENT CAN GET WRONG ──────────────
-//   ONE KEY PER PLAYER GESTURE. Generate it with crypto.randomUUID() at the
-//   moment the player taps a monster, keep it for every RETRY of that tap, and
-//   throw it away when the tap is answered. A NEW tap gets a NEW key.
+//   ONE KEY PER ATTEMPT AT A GESTURE. Generate it with crypto.randomUUID() when
+//   the player taps a monster. Reuse it ONLY when the call was UNANSWERED — a
+//   timeout, an aborted fetch, a dropped socket — because that is the case where
+//   the client genuinely does not know whether the intent landed, and reuse is
+//   what makes the retry safe.
+//
+//   ⇒ ON ANY ANSWERED REFUSAL, THROW THE KEY AWAY AND GENERATE A NEW ONE.
+//     A refusal is recorded under the key by `hr_apply`, and (except for a
+//     version conflict, which is released) presenting it again returns the same
+//     refusal — for up to 25 hours. See §"A REJECTED INTENT IS RETRIED WITH A
+//     NEW KEY" above for the measurement.
 //
 //   Reusing a key for a DIFFERENT target answers `intent_mismatch` (loud, and
 //   nothing is applied) rather than silently leaving the player on the old one —
 //   that is the whole reason `journal.intent` names the target. Reusing it for
 //   the SAME target answers `replayed:true`, which is what makes a retry safe.
+//   Reusing it on a DIFFERENT SLOT answers `intent_mismatch` too, once
+//   2026-08-15-intent-key-hygiene.sql is applied.
 //
 // ── WHERE IT GOES IN src/legacy.js ─────────────────────────────────────────
 //   THE POINTER HAS FOUR WRITERS TODAY. All four are the seam; a fifth added
@@ -171,7 +331,9 @@
 //     immediately (an idle game must feel instant) and the envelope reconciles
 //     it. The prediction is DISPLAY-ONLY: nothing local may be treated as
 //     authoritative, and on a refusal the local pointer is put back to what the
-//     envelope says — never to what the client guessed.
+//     envelope says — never to what the client guessed. When the refusal carries
+//     no envelope (the four named above) nothing was written, so the last
+//     envelope the client holds is still the server's answer.
 //
 //   ⚠ AND THE ONE THAT WILL BITE: a switch PAYS. The response carries a
 //     `collected` receipt with gold, XP, items and level-ups that the player has
@@ -188,6 +350,14 @@
 
 /** The verb registry. One row per intent; adding an intent adds a row.
  *
+ *  ⚠ EVERY COLUMN IS READ ON THE HOT PATH. `rateBucketFor`, `requiresKey` and
+ *    `collectsFirst` below are the only readers, and the implementations call
+ *    them instead of hard-coding — so a wrong row here is a wrong BEHAVIOUR, in
+ *    a test, rather than a comment nobody checks. tests/activity-intent.mjs A19
+ *    mutation-proves each column: change `bucket` and the call is refused,
+ *    change `needsKey` and a keyless call reaches the database, change
+ *    `collectsFirst` and the elapsed window is confiscated.
+ *
  *  bucket      — the `hr_rate_gate` bucket. The gate owns the LIMIT (a caller
  *                that names its own rate limit does not have one), so this names
  *                only which budget is spent. An unknown bucket fails closed in
@@ -203,6 +373,38 @@ export const INTENT_REGISTRY = Object.freeze({
   set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
 });
 
+/** The registry columns every row must carry, exported so the guard reads the
+    contract instead of restating it — a hard-coded list cannot notice a column
+    being ADDED, which is the direction that produces decoration. */
+export const REGISTRY_FIELDS = Object.freeze(['bucket', 'needsKey', 'collectsFirst']);
+
+/** Is this verb one this build implements? */
+export function isKnownVerb(verb) {
+  return typeof verb === 'string' && Object.prototype.hasOwnProperty.call(INTENT_REGISTRY, verb);
+}
+
+/**
+ * The registry row for a verb. THROWS on an unknown one rather than returning a
+ * default: a default here is how a new intent silently inherits `accrue`'s rate
+ * budget and skips the collect. index.ts already refuses an unknown verb at the
+ * door with `unknown_verb`, so reaching this with one is a programming error and
+ * a 500 is the honest report of it.
+ */
+export function intentSpec(verb) {
+  if (!isKnownVerb(verb)) throw new Error(`intents: no registry row for verb '${verb}'`);
+  return INTENT_REGISTRY[verb];
+}
+
+/** Which `hr_rate_gate` bucket this verb spends. THE ONLY SOURCE OF IT — a
+    literal at a call site is a second registry. */
+export function rateBucketFor(verb) { return intentSpec(verb).bucket; }
+
+/** Must the caller supply an idempotency key? */
+export function requiresKey(verb) { return intentSpec(verb).needsKey === true; }
+
+/** Does rule 3 (collect before switch) apply to this verb? */
+export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === true; }
+
 /** Machine codes this layer produces itself. Everything else is `hr_apply`'s own
     code, returned verbatim so it survives to the client and to `hr_rejections`. */
 export const INTENT_ERRORS = Object.freeze({
@@ -210,12 +412,32 @@ export const INTENT_ERRORS = Object.freeze({
   MISSING_INTENT_ID: 'missing_intent_id',       // 400 — no key, or not a canonical uuid
   BAD_ACTIVITY: 'bad_activity',                 // 400 — the declaration is malformed
   ACTIVITY_UNSUPPORTED: 'activity_unsupported', // 409 — a real kind the server cannot pay YET
+  UNKNOWN_ACTIVITY: 'unknown_activity',         // 409 — not in the authored data
   NO_CHARACTER: 'no_character',                 // 409 — nothing to act on in this slot
   RATE_LIMITED: 'rate_limited',                 // 429
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
      would confiscate it. Nothing was written; the window is intact. */
   UNCOLLECTABLE_WINDOW: 'uncollectable_window',
 });
+
+/* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
+   Four, enumerated, each with its reason in §"WHICH REFUSALS CARRY STATE"
+   above. This is an ALLOWLIST OF EXEMPTIONS and everything else must carry
+   state: a code added to the taxonomy without a decision therefore lands on the
+   side that keeps the client's instruction executable. */
+export const STATELESS_REFUSALS = Object.freeze([
+  INTENT_ERRORS.MISSING_INTENT_ID,
+  INTENT_ERRORS.BAD_ACTIVITY,
+  INTENT_ERRORS.ACTIVITY_UNSUPPORTED,
+  INTENT_ERRORS.UNKNOWN_ACTIVITY,
+  INTENT_ERRORS.RATE_LIMITED,
+  INTENT_ERRORS.NO_CHARACTER,
+]);
+
+/** Must a refusal with this code carry the `hr_state_of` envelope? */
+export function refusalCarriesState(error) {
+  return !STATELESS_REFUSALS.includes(error);
+}
 
 /* ── COLLECT-GATE OUTCOMES ─────────────────────────────────────────────────
    Three, and they are not three shades of the same thing:
@@ -230,7 +452,7 @@ export const COLLECT_OUTCOMES = Object.freeze(['paid', 'nothing', 'refused']);
 /* ── "NOTHING OWED" IS AN ALLOWLIST, NOT A FALLBACK ────────────────────────
    THIS IS THE SUBTLEST PART OF THE WHOLE CONTRACT, so it is a table.
 
-   `computeAccrual` returns `{accrued:false, reason}` for six different
+   `computeAccrual` returns `{accrued:false, reason}` for SEVEN different
    situations and they fall into two groups that look identical at the call site
    and are opposites:
 
@@ -245,6 +467,8 @@ export const COLLECT_OUTCOMES = Object.freeze(['paid', 'nothing', 'refused']);
          unsupported_activity  a real activity this engine cannot simulate yet
          unknown_monster       the pointer names a target that is not in the data
          no_active_since       an inconsistent row; the span cannot be bounded
+         no_cap                hr_offline_cap_ms returned 0, so NOTHING in the
+                               window can be priced — see the note below
 
    The naive implementation treats every `accrued:false` as "nothing to do" and
    switches. That is EXACTLY the bug Tyler named: mine for three hours, declare
@@ -252,26 +476,60 @@ export const COLLECT_OUTCOMES = Object.freeze(['paid', 'nothing', 'refused']);
    invisible — no error, no log, `ok:true`, and the player's only evidence is
    that their night was smaller than it should have been.
 
-   The list is an ALLOWLIST and `classifySkip` FAILS CLOSED on anything not in
-   it, so a reason added to accrual.js in future refuses a switch until somebody
-   decides which group it belongs to. That is the correct direction: a refused
-   switch is a visible, recoverable annoyance; a confiscated window is silent
-   and permanent.
+   ⚠ THE COUNT IS DERIVED, NOT RESTATED. The previous revision of this comment
+     said SIX and the engine had SEVEN: `'no_cap'` was a bare string literal in
+     accrual.js, absent from `SKIP`, absent from both lists here, and landed in
+     the refusing group only because `classifySkip` fails closed. It was right by
+     accident. tests/activity-intent.mjs A17 now reads `SKIP` out of accrual.js
+     and asserts SAFE ∪ REFUSING is EXACTLY its value set, and that no reason is
+     produced as a bare literal — so a reason added to the engine fails the build
+     until somebody decides which group it belongs to.
 
-   ⚠ KNOWN AND BOUNDED COST of putting `below_min_span` in the safe group: a
-     switch always closes the window (hr_apply stamps accrued_to unconditionally
-     on an `activity` delta), so a remainder of up to ACCRUE_MIN_MS − 1 ms is
-     discarded per switch. Bounded at <60 s, self-inflicted, and rate-limited to
-     30 switches/minute. The alternative — refusing every switch made within a
-     minute of the last collect — makes the intent unusable. The real fix is to
-     let a CLOSING collect simulate a sub-minute span, which changes the accrual
-     engine's contract and has a balance dimension; it is named here rather than
-     shipped quietly. */
+   ⚠ `no_cap` IS A LOCKOUT, AND IT IS THE RIGHT ONE. With capMs = 0 the grant is
+     0 for the whole window, so refusing means the player cannot change activity
+     at all until the cap is positive again. That is deliberate: confiscating a
+     window that WILL become payable is permanent, and a refusal is not. It is
+     unreachable today — hr_offline_cap_ms floors at 12h — and the day something
+     gates the cap to zero, this is the line that decides what happens. Decide
+     it there, on purpose.
+
+   ⚠ THE COST OF PUTTING `below_min_span` IN THE SAFE GROUP IS NOT "<60 s".
+     A switch always closes the window (hr_apply stamps accrued_to
+     unconditionally on an `activity` delta), so the remainder since the last
+     collect is discarded — at most ACCRUE_MIN_MS − 1 ms per switch. Stating
+     that as "bounded at <60 s" is the dishonest half of the truth, because the
+     bound that matters to a player is a FRACTION, not an absolute: a player
+     whose mean switch interval is under a minute never accumulates a payable
+     span and therefore ACCRUES NOTHING AT ALL, indefinitely. Not 60 seconds —
+     everything. And target-hopping is ordinary idle behaviour: chasing a bounty,
+     clearing a slayer list, re-targeting after a death. The rate gate (30/min)
+     bounds the CALLS, not the loss.
+     Left as-is on purpose — this is balance, and balance is the Game Designer's.
+     The real fix is to let a CLOSING collect simulate a sub-minute span, which
+     changes the accrual engine's contract and has a balance dimension; it is
+     named here rather than shipped quietly. What is fixed here is the claim. */
 export const SAFE_SKIP_REASONS = Object.freeze([
   'idle',            // SKIP.NO_ACTIVITY
-  'below_min_span',  // SKIP.TOO_SOON      — see the bounded cost above
+  'below_min_span',  // SKIP.TOO_SOON      — see the fraction note above
   'nothing_accrued', // SKIP.NOTHING
 ]);
+
+/** The other half of the partition. Exported so the coverage guard can assert
+    SAFE ∪ REFUSING is EXACTLY the engine's reason set — a total classification
+    is checkable, a fail-closed default alone is not. `classifySkip` still fails
+    closed at runtime, so a reason that reaches production unlisted refuses
+    rather than confiscates. */
+export const REFUSING_SKIP_REASONS = Object.freeze([
+  'unsupported_activity', // SKIP.UNSUPPORTED
+  'unknown_monster',      // SKIP.NO_TARGET
+  'no_active_since',      // SKIP.NO_ACTIVE_SINCE
+  'no_cap',               // SKIP.NO_CAP — see the lockout note above
+]);
+
+/** Every reason this contract has an opinion about. */
+export const CLASSIFIED_SKIP_REASONS = Object.freeze(
+  [...SAFE_SKIP_REASONS, ...REFUSING_SKIP_REASONS],
+);
 
 /**
  * Classify a `{accrued:false, reason}` from the accrual engine.
@@ -306,9 +564,45 @@ export function collectGate(v) {
   return { proceed: false, version: null, error: 'collect_unknown' };
 }
 
+/* ── CATALOGUE LOOKUPS ARE `hasOwnProperty`, NEVER TRUTHINESS ───────────────
+   `ACTIVITY_ID_RE` is /^[a-z0-9_]{1,64}$/ — which matches `constructor` and
+   matches `__proto__`. So `MONSTERS['constructor']` is the Object constructor,
+   `!MONSTERS[id]` is false, and a guard written as `if (!CATALOGUE[id]) refuse`
+   ADMITS BOTH. Measured on the real ITEMS/MONSTERS maps: the early check was
+   bypassed and three database statements were issued where a genuinely unknown
+   id issued none.
+
+   Today that costs a wasted round trip and nothing more, because hr_apply
+   re-validates the pair against the generated `hr_activities` catalogue and
+   refuses it there. It stops being harmless the moment an intent does the
+   ordinary next thing:
+
+       if (!RECIPES[id]) return refuse;      // passes for 'constructor'
+       const cost = RECIPES[id].cost.gold;   // reads a function's property
+                                             // → undefined → a FREE craft
+
+   So the lookup is a function, it is exported, and every catalogue guard in
+   this payload calls it. */
+export function catalogueGet(catalogue, id) {
+  if (!catalogue || typeof id !== 'string') return undefined;
+  if (!Object.prototype.hasOwnProperty.call(catalogue, id)) return undefined;
+  return catalogue[id];
+}
+
+/** Is `id` an OWN key of the catalogue? The guard form of `catalogueGet`. */
+export function catalogueHas(catalogue, id) {
+  return catalogueGet(catalogue, id) !== undefined;
+}
+
 /**
  * The journal intent NAME. See "THE KEY" above — the target is part of the name
  * because `hr_apply`'s `intent_mismatch` compares exactly this string.
+ *
+ * ⚠ IT DOES NOT NAME THE SLOT, and it must not start: `player_ledger.intent`
+ *   would then carry a slot number in a text column that the rollup groups on,
+ *   and the same declaration on two characters would read as two different
+ *   things in the journal. The slot is a COLUMN on `player_intents` and the
+ *   comparison belongs in hr_apply, where it covers all nine intents at once.
  *
  * Exported and pure so the client, the server and the tests derive it from one
  * function rather than three format strings that agree today.
@@ -318,20 +612,16 @@ export function intentNameFor(verb, kind, id) {
   return `${verb}:${kind}:${id}`;
 }
 
-/** Is this verb one this build implements? */
-export function isKnownVerb(verb) {
-  return typeof verb === 'string' && Object.prototype.hasOwnProperty.call(INTENT_REGISTRY, verb);
-}
-
 /* ── THE ACCRUAL KEY — DERIVED, NOT ACCEPTED ────────────────────────────────
    Lives HERE rather than in index.ts because TWO verbs now derive it: the
    `accrue` verb, and the COLLECT that every collect-before-switch intent runs
    first. A second copy would be a drift generator, and the property that copy
    would destroy is a good one:
 
-     an `accrue` call and a `set_activity` call racing on the SAME watermark
-     derive the SAME key, so the loser is a replay and the window is paid
-     EXACTLY ONCE — across two verbs that have never heard of each other.
+     an `accrue` call and a `set_activity` call racing on the SAME watermark AND
+     the SAME version derive the SAME key, so the loser is a replay and the
+     window is paid EXACTLY ONCE — across two verbs that have never heard of
+     each other.
 
    ⚠ SALTED WITH A SERVER SECRET (review S6). A key derived only from
      (user, slot, watermark) is COMPUTABLE BY THE PLAYER: hr_load returns
@@ -341,10 +631,35 @@ export function isKnownVerb(verb) {
      while keeping it identical across two concurrent invocations — the only
      property the derivation actually needed.
 
+   ⚠ AND KEYED ON `version`, WHICH IS THE ANTI-DEADLOCK HALF. See §"A REJECTED
+     INTENT IS RETRIED WITH A NEW KEY". A rejection does not move `accrued_to`,
+     so without `version` a refused accrual re-derives a byte-identical key
+     forever and the stored refusal is handed back for up to 25 hours — to the
+     accrue verb AND to every `set_activity`, which derives the same key for its
+     collect. With it, a `version_conflict` (the one rejection that means "the
+     state moved") produces a different key on the next call, by construction.
+
+   ⚠ NAMED ARGUMENTS, NOT POSITIONAL, AND IT THROWS ON A MISSING ONE. Six
+     positional arguments across two call sites in two languages is how the two
+     verbs silently stop sharing a key — and a key that silently differs does
+     not fail, it just pays twice or conflicts. A missing field is a thrown
+     error, which index.ts's catch turns into a loud 500.
+
    SHA-256, formatted as a v4-shaped uuid (the version/variant bits are set so
    Postgres's uuid type accepts it and it can never collide with a real v4). */
-export async function intentIdFor(user, slot, watermark, salt, attempt) {
-  const label = `hr-accrue|${user}|${slot}|${watermark}|${salt}|${attempt}`;
+export const INTENT_ID_FIELDS = Object.freeze(
+  ['user', 'slot', 'watermark', 'version', 'salt', 'attempt'],
+);
+
+export async function intentIdFor(o) {
+  for (const k of INTENT_ID_FIELDS) {
+    if (o == null || o[k] === undefined || o[k] === null || o[k] === '') {
+      throw new Error(
+        `intentIdFor: '${k}' is missing. A derived key with a missing field is a `
+        + 'DIFFERENT key, and the two verbs that share this derivation would stop sharing it.');
+    }
+  }
+  const label = `hr-accrue|${o.user}|${o.slot}|${o.watermark}|${o.version}|${o.salt}|${o.attempt}`;
   const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(label)));
   buf[6] = (buf[6] & 0x0f) | 0x40;
   buf[8] = (buf[8] & 0x3f) | 0x80;

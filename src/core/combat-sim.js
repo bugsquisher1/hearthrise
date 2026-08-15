@@ -64,7 +64,7 @@ import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=3
 import { rollDropTable } from './drops.js?v=351';
 import { hitXpRoute, killXpRoute } from './styles.js?v=351';
 import { applyGoldFind } from './pacing.js?v=351';
-import { AWAY_RATE_MULT, rateMult, utcDaySegments } from './away.js?v=351';
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, utcDaySegments } from './away.js?v=351';
 import { NO_BONUS } from './botd.js?v=351';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=351';
 
@@ -472,7 +472,31 @@ export function simulateSpan(state, ctx) {
     /* ── the honesty payload (ruling, "Player-facing honesty") ──
        Stated by the simulation, not inferred by a renderer. A welcome-back
        card that had to guess would eventually quote a blessing nobody paid. */
-    blessed: false,          // blessings are presence-gated (b227)
+    /* ── RULING 3.5 (Game Designer, 2026-08-15): ONE AUTHORITY ────────────
+       This was the literal `false`, with the comment "blessings are
+       presence-gated (b227)". The value was right and the SOURCE was wrong:
+       it restated a decision that `AWAY_SCOPE.blessing` already owns, in four
+       places (here, skill-sim, artisan-sim, legacy's own summary). A rule
+       written down twice is a rule that can disagree with itself, and the
+       first world-boss blessing that pays away would have flipped the table
+       and left every welcome-back card in the game still saying "no blessing
+       touched this night" — the summary is the ONLY thing a renderer is
+       allowed to read, so the lie would have been the player-facing one.
+
+       `channelApplies` is the same resolver `buffs.js` asks and the same one
+       `rateMult` two lines below comes from. Nothing here decides anything;
+       it reports what the table decided. Flip `AWAY_SCOPE.blessing` and this
+       follows in the client, in the three sims and in the Edge Function that
+       imports this file — with no second edit and no chance of missing one.
+
+       KNOWN LIMITATION, deliberate: the client's live gate is
+       `blessingsApply()` = not-in-replay AND session-online, so a LIVE span
+       computed while the connection is down would report `blessed:true` here.
+       No production caller is affected — all three span callers pass
+       `away:true` — and a span summary has no presence signal but `ctx.away`.
+       If a live-span consumer ever appears, it must pass its own gate through
+       `ctx`, NOT re-derive the rule here. */
+    blessed: channelApplies(CHANNEL.BLESSING, ctx),
     /* ALWAYS FALSE NOW, and deliberately still here.
        Under b326 a held buff was frozen through the absence and three
        renderers printed "your buffs were paused" off this flag. Buffs pay away

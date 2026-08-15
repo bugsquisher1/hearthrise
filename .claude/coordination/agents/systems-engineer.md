@@ -1657,3 +1657,64 @@ its own fault, every one bracketed by a green control and a green restore. Tyler
 driven end to end in a real browser on the fixed build: intent recorded, `player_state` =
 `gather/oak_tree` version 1, woodcutting still running on return, daily still claimed, stop declares
 `idle`, cooking declares `idle` (not silence), zero console errors.
+
+---
+
+## 2026-08-15 · Revalidating the parked consumable-buffs branch, and Design Ruling 3.5
+
+**Branch `worktree-agent-a06ecbcee310aa2c7` (`98e20a1`) needed no merge: it is already an ancestor
+of `main`.** `git merge-base 98e20a1 main` returns `98e20a1` itself — it landed through
+`b6aaa39 → b348`, and the KNOWN GAP it shipped with (legacy's flat gather/artisan replay could pay a
+buff all night and drain none) was closed afterwards by b347 and generalised by b351's
+`skillSim.sliceSpan`. Nothing survived to merge, nothing was redundant to delete, and no semantic
+conflict was left to resolve. **`main` is a strict superset of the branch**, so the honest work was
+to re-measure the claims and pay down the one duplication Ruling 3.5 names.
+
+**Re-measured on merged main, in pure core (no browser, no legacy), exact numbers:**
+
+| claim | combat (`simulateSpan`) | gather (`simulateSkillSpan`) |
+|---|---|---|
+| 10-min buff over an 8h night | `buffPaidMs` **600,000 ms**, expired + pruned | **600,000 ms**, expired + pruned |
+| that night's work | 12,000 ticks | **6,005** actions vs a **6,000** control (**+0.0833%**) |
+| **the 12× shape** — 300,000 ms buff, 3,600,000 ms absence | pays **300,000 ms** = **1.0000×** | **300,000 ms** = **1.0000×** |
+| drain-is-not-a-nerf — 60-min buff, 15-min absence | spends **900,000 ms**, 2,700,000 left | spends **900,000 ms**, 2,700,000 left |
+
+6,005 is the branch's own "honest" figure reproduced exactly; the pre-b347 flat loop produced 6,250.
+**Both halves of Tyler's rule hold together** — buffs pay AND drain on all three away callers — and
+the 1.0000× ratio is the number that says the pay-without-drain mint (12.0000×) is gone.
+Existing coverage was already sufficient and was NOT duplicated: AWAY-5 measures the 12× shape on
+combat (a 300,000 ms buff against a 3,600,000 ms absence), AWAY-16 on gather/artisan, AWAY-23 on the
+over-cap window. The forfeited-tail drain lives OUTSIDE the branch arms in `processOffline`, so
+AWAY-23 covers gather's capped night by construction; a gather-flavoured copy would have asserted
+the same line twice.
+
+**Ruling 3.5 — `blessed` had FOUR authors, not one.** The ruling named `combat-sim.js`'s literal;
+b350/b351 had since copied the same `blessed: false` into `skill-sim.js` and `artisan-sim.js`'s
+`emptySummary`, and `legacy.js`'s `lastOfflineSummary` carried a fourth. Each restated "blessings are
+presence-gated (b227)" in its own comment. They agreed with `AWAY_SCOPE.blessing` by coincidence of
+authorship. All four now read `channelApplies(CHANNEL.BLESSING, ctx)` — the resolver `buffs.js` asks
+and the file `rateMult` already comes from — so the first world-boss blessing that pays away flips
+one line and every receipt follows, including the Edge Function's (it imports `combat-sim.js`).
+Guarded by **AWAY-24**, four mutations, each RED independently after a green control.
+
+**Learnings.**
+- **"Parked branch, needs merging" is a claim to verify, not a premise.** One `git merge-base` saved
+  a whole speculative conflict resolution.
+- **A duplicated constant multiplies while a branch is parked.** One `blessed: false` became four
+  because b350/b351 copied `emptySummary` from a *correct* sibling. Copying a correct file is how a
+  restated rule spreads — the copy gets reviewed against the original, never against the authority.
+- **`Object.freeze` on the authority makes the obvious test impossible.** `AWAY_SCOPE` cannot be
+  flipped at runtime, so a guard cannot mutate the table. Discriminating by *context* (`away:true`
+  vs `away:false` on the same span) catches a re-hardcoded literal in both regimes without
+  unfreezing anything; where there is no second context (`processOffline` is always an absence) the
+  discriminator has to be structural, which is what AWAY-12 already established here.
+- **Do not add a defensive fallback that cannot fire.** My first `_awayBlessed` returned `null` when
+  core was missing. `processOffline` dereferences `window.HearthriseCore.away.creditWindow` a
+  hundred lines earlier, so the branch was unreachable — and the only value it could have returned
+  was a fifth handwritten copy of the rule. Removed; the call is unguarded, matching the stated
+  convention of the `creditWindow` call above it.
+
+**Verification.** 723/723, 0 failures, 0 runtime errors (722 baseline + AWAY-24). Edge payload guard
+RED as expected — `src/core` changed, so the deployed `hr-accrue` bytes no longer match the repo
+(`2673befa442f5c40…` deployed vs `788b4222fb255f75…` packed). Redeploy is the Coordinator's, not
+mine; no push, no deploy, no migration.

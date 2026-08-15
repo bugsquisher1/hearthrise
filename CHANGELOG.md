@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 349 — 2026-08-15 (A call the game had no right to make)
+
+- 🔌 **Every page load was making one server request it wasn't allowed to make.** The game asked the server for the time before it had finished signing you in — so the server refused, every time, for every player. It was ~3,200 refused requests a day and 61% of all our error traffic. The game now waits until it's actually signed in before asking. You won't see a difference; our error logs will.
+- ⏱️ A second boot-time check was quietly losing the same race and doing nothing until a minute after you loaded the game. It now runs when it should.
+- 🏠 **Groundwork, switched off:** the server can now read your House rooms, property and perks. It was reading zero for all of them, which means when server-side progression is switched on it would have quietly under-paid anyone with upgrades — measured at 16.5% of a night's XP. Nothing changes for you today.
+
 ## v0.9.2-beta build 348 — 2026-08-15 (Your bug reports, fixed — and buffs now tick while you sleep)
 
 - ⚒️ **The smithing ladder is in order.** Steel Platebody demanded smithing 60 while the *better* Mithril one asked 55 — and two more lanes were tied or inverted. Five requirements moved down onto the proper curve (Iron Helm 25→20, Steel Helm 50→35, Iron Platebody 35→25, Steel Platebody 60→40, Bronze Belt 18→4). Thanks Xarn.

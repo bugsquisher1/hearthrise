@@ -191,10 +191,7 @@ export async function setupAuth(config) {
 function enableLiveSync() {
   if (!authConfig || !session) return;
   setupSync({
-    endpoint: `${authConfig.url}/rest/v1/game_events`,
-    snapshotEndpoint: `${authConfig.url}/rest/v1/game_saves`,
-    claimEndpoint: `${authConfig.url}/rest/v1/session_claims`,   // b302 single-active-device
-    apiKey: authConfig.anonKey,
+    ...buildSaveWiring(authConfig),
     authToken: () => session?.access_token,
     userId: () => session?.user?.id,
     // G has no stored totalLevel — it's summed from skills. Feed it in so the
@@ -264,6 +261,34 @@ function enableLiveSync() {
   }, 60000);
   // Pull cloud snapshot on first connection if local save is older
   pullAndMaybeRestore();
+}
+
+/* ── WHERE THIS ACCOUNT'S SAVE LIVES (b342) ─────────────────────────────────
+   The three table addresses, plus the key, as ONE named thing a test can drive
+   — because this was the THIRD caller of the b339 slot bug and the only silent
+   one. accrue.js and character.js were fixed then; the save blob was not.
+
+   NO `slot` KEY, and that omission is now the whole point. sync.js's write
+   (buildSnapshotRequest) and read (pullLatestDetailed) both resolve the ACTIVE
+   character from src/multi-character.js when no slot is pinned, so leaving it
+   out is what addresses the live character. Adding `slot: 0` back here sends
+   every autosave to character 1 again, silently, on a 60s cadence.
+
+   It is deliberately NOT resolved here and passed down. A slot captured at
+   sign-in is a slot that is wrong the moment the player switches character —
+   the same rule the token and the user id follow, and for the same reason.
+
+   Mutation-checked twice over: `slot: 0` anywhere in the setupSync config turns
+   B342-1 red (this function) AND the save-slot guard in tests/run-smoke.mjs
+   red (the whole literal, read off the wire). */
+export function buildSaveWiring(cfg) {
+  const base = String((cfg && cfg.url) || '').replace(/\/+$/, '');
+  return {
+    endpoint: `${base}/rest/v1/game_events`,
+    snapshotEndpoint: `${base}/rest/v1/game_saves`,
+    claimEndpoint: `${base}/rest/v1/session_claims`,   // b302 single-active-device
+    apiKey: cfg && cfg.anonKey,
+  };
 }
 
 /* ── HOW THE TWO SERVER INTENTS ARE WIRED (b339) ────────────────────────────
@@ -854,7 +879,7 @@ function showEvictedGate() {
 // Expose for legacy callers
 window.HearthriseAuth = {
   setupAuth, signUp, signIn, signOut, getSession, isSignedIn, getClient, currentUserId,
-  decideLocalOwnership, buildIntentWiring, wireServerIntents,
+  decideLocalOwnership, buildIntentWiring, wireServerIntents, buildSaveWiring,
   // b340 — the cloud half of the record strip, exported so the test drives the
   // CALLER rather than re-deriving what the caller ought to do (B339's lesson).
   stripRecordFieldsForOverlay,

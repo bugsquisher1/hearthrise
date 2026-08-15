@@ -497,6 +497,130 @@ async function authResilienceGuard(browser, url) {
   return problems;
 }
 
+// ── The save-slot guard (b342) ───────────────────────────────────────────────
+// WHY THIS IS NOT IN THE IN-PAGE SUITE, AND WHY IT EXISTS AT ALL:
+//
+// "the client hard-codes character slot 0" has now been found THREE times —
+// accrue.js and character.js (b339), record.js (b340), and src/net/sync.js,
+// which carries the SAVE ITSELF (b342). The b339 fix shipped nine mutations and
+// the one that SLIPPED was exactly this shape: a test configured the module and
+// proved the module resolved the slot correctly, while the CALLER went on
+// pinning `slot: 0`. B342-1 in the in-page suite drives auth.js's
+// buildSaveWiring() directly, which closes that specific gap — but it can still
+// be defeated by putting `slot: 0` in the half of enableLiveSync()'s setupSync
+// literal that was not extracted. Any test of a partial extraction can.
+//
+// So this one reads the BYTES. It boots the real index.html, drives a player
+// through the real multi-character API onto character 3, signs in for real, and
+// asserts on the actual outgoing HTTP request. The only stub is the
+// third-party supabase-js SDK, which is fetched from a CDN and is not the thing
+// under test — setupAuth() -> enableLiveSync() -> setupSync() -> snapshotIfDue()
+// is all real. There is nowhere to hide a slot from it.
+//
+// It pins BOTH directions, because they are two different failures:
+//   WRITE  the autosave upserts (user_id, slot) — the wrong slot silently
+//          overwrites another character's cloud save every 60 seconds.
+//   READ   the pull feeds decideRestore(), which resolves by FRESHNESS. Reading
+//          another character's row compares two different saves by timestamp,
+//          so the wrong one gets restored over the live game. "Newest wins" is
+//          only correct between two copies of the SAME save.
+const SUPABASE_SDK_STUB = `
+export function createClient(url, key, opts) {
+  return { auth: {
+    setSession: async (s) => ({ data: { session: s }, error: null }),
+    refreshSession: async () => ({ data: { session: null }, error: null }),
+    onAuthStateChange: (cb) => ({ data: { subscription: { unsubscribe(){} } } }),
+    getSession: async () => ({ data: { session: null } }),
+  } };
+}
+export default { createClient };
+`;
+async function saveSlotGuard(browser, url) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  await page.route(/cdn\.skypack\.dev/, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: SUPABASE_SDK_STUB }));
+  const problems = [];
+  try {
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.waitForFunction(() => typeof window.G !== 'undefined' && !!window.HearthriseProfile
+      && !!window.HearthriseAuth && !!window.HearthriseSync, { timeout: 60_000 });
+    await page.waitForTimeout(5_000);
+
+    const r = await page.evaluate(async () => {
+      const P = window.HearthriseProfile;
+      // Become a player with three characters, on the third — through the REAL
+      // slot API (unlockSlot/switchSlot), not by writing the profile record.
+      P.init();
+      window.G.gems = 5000;
+      P.unlockSlot(1); P.unlockSlot(2); P.switchSlot(2);
+      const activeSlot = P.activeSlot();
+
+      const seen = [];
+      const realFetch = window.fetch;
+      window.fetch = (input, init) => {
+        seen.push({
+          url: typeof input === 'string' ? input : (input && input.url) || String(input),
+          method: (init && init.method) || 'GET',
+          body: (init && init.body) || null,
+        });
+        // A definitive "no row" so the b314 reconcile completes and releases the
+        // snapshot gate, instead of holding uploads and retrying forever.
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      try {
+        const b64 = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        localStorage.setItem('hearthrise:supabaseSession', JSON.stringify({
+          access_token: b64({ alg: 'ES256' }) + '.'
+            + b64({ sub: 'user-A', exp: Math.floor(Date.now() / 1000) + 3600 }) + '.sig',
+          refresh_token: 'rt', user: { id: 'user-A' },
+        }));
+        // The real thing: this reaches enableLiveSync() and its setupSync literal.
+        await window.HearthriseAuth.setupAuth({ url: 'https://proj.supabase.co', anonKey: 'anon-key' });
+        await new Promise((res) => setTimeout(res, 1200));
+        await window.HearthriseSync.snapshotIfDue(true, false);
+        await new Promise((res) => setTimeout(res, 300));
+      } finally { window.fetch = realFetch; }
+
+      const pull = seen.find((s) => /game_saves\?/.test(s.url) && s.method === 'GET');
+      const post = seen.find((s) => /game_saves/.test(s.url) && s.method === 'POST');
+      let writeSlot = null;
+      if (post && post.body) { try { writeSlot = JSON.parse(post.body).slot; } catch (e) {} }
+      const m = pull ? String(pull.url).match(/slot=eq\.(\d+)/) : null;
+      return {
+        activeSlot,
+        sawPull: !!pull, sawWrite: !!post,
+        readSlot: m ? Number(m[1]) : null,
+        writeSlot,
+        pullUrl: pull ? pull.url : null,
+      };
+    });
+
+    // Vacuity first: a guard that silently observed nothing is the failure this
+    // program has met eleven times.
+    if (r.activeSlot !== 2) problems.push(`the harness never reached character 3 (activeSlot=${r.activeSlot}) — nothing below was tested`);
+    if (!r.sawWrite) problems.push('no autosave request was captured — the write assertion would pass vacuously');
+    if (!r.sawPull) problems.push('no cloud-read request was captured — the read assertion would pass vacuously');
+    if (r.sawWrite && r.writeSlot !== 2) {
+      problems.push(`the autosave wrote slot ${r.writeSlot} while the player is on character 3 (slot 2) — `
+        + 'game_saves is UNIQUE (user_id, slot), so this silently overwrites another character\'s cloud save');
+    }
+    if (r.sawPull && r.readSlot !== 2) {
+      problems.push(`the cloud read asked for slot ${r.readSlot} while the player is on character 3 (${r.pullUrl}) — `
+        + 'decideRestore compares by freshness, so a different character\'s save would be restored over the live game');
+    }
+    if (r.sawPull && r.sawWrite && r.readSlot !== r.writeSlot) {
+      problems.push(`read slot ${r.readSlot} != write slot ${r.writeSlot} — the save is read from one character and written to another`);
+    }
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+  return problems;
+}
+
 // ── The landscape guard (b260) ───────────────────────────────────────────────
 // Landscape is now the ONLY mobile orientation (portrait is gated, b259). The
 // in-page suite runs at desktop width, so it never sees the cramped landscape
@@ -767,6 +891,15 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Auth-resilience guard — a dead token costs one request and terminates; a 2h-fast clock keeps syncing.');
+    }
+
+    const slotProblems = await saveSlotGuard(browser, url);
+    if (slotProblems.length) {
+      console.log('\nSave-slot guard (the autosave addresses the character being played) — FAILED:');
+      for (const p of slotProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Save-slot guard — on character 3, the real save path reads and writes slot 2 on the wire.');
     }
 
     const landProblems = await landscapeGuard(browser, url);

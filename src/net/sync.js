@@ -17,6 +17,11 @@
 // mode and just buffers events to localStorage for later replay.
 
 import { on, snapshot } from './events.js?v=341';
+/* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
+   character,record}.js use, imported rather than re-derived: multi-character.js
+   owns the answer and a second reader of that record is a second thing to
+   drift. accrue.js has no imports of its own, so this adds no cycle. */
+import { resolveActiveSlot } from './accrue.js?v=341';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -580,17 +585,31 @@ async function flush() {
 }
 
 /**
- * Pure builder for the snapshot upsert request. Exported so the smoke test can
+ * Builder for the snapshot upsert request. Exported so the smoke test can
  * assert the b146 contract without a live network: correct table (via cfg's
  * snapshotEndpoint — must be game_saves, NOT the non-existent game_snapshots),
  * a `slot` value (NOT NULL on the table), and upsert-on-conflict semantics
  * (game_saves has `unique (user_id, slot)`, so a plain insert 409s every save
  * after the first).
+ *
+ * b342 — THE THIRD CALLER OF THE b339 BUG, AND THE ONLY SILENT ONE.
+ * This read `cfg.slot ?? 0`, and auth.js's enableLiveSync() passes no `slot` at
+ * all — so EVERY autosave went to slot 0 no matter which character was live.
+ * accrue.js and character.js were fixed for exactly this in b339; the save blob
+ * itself was not. Measured before the fix, through the real
+ * setupAuth->enableLiveSync->setupSync path with the wire intercepted: profile
+ * activeSlot()===2, request body slot===0. A player on character 3 overwrote
+ * character 1's cloud save on a 60s cadence and was told nothing.
+ *
+ * The default is now "ask the module that owns the answer", not "0". A pinned
+ * integer still wins — that is the seam the suite drives and the one a future
+ * "snapshot a specific slot" caller would use — but the SAFE direction is the
+ * default, so a caller that forgets to say which character gets the live one
+ * rather than silently getting someone else's.
  */
 export function buildSnapshotRequest(cfg, userId, snap, nowMs) {
-  // `slot` is NOT NULL on game_saves. Single-character today = slot 0; the
-  // leaderboard views also join on slot = 0. Parameterise when multi-char ships.
-  const slot = (cfg && cfg.slot != null) ? cfg.slot : 0;
+  // `slot` is NOT NULL on game_saves and CHECKed to 0..4.
+  const slot = resolveActiveSlot(cfg && cfg.slot);
   const headers = {
     'Content-Type': 'application/json',
     // resolution=merge-duplicates + on_conflict turns POST into an upsert.
@@ -765,7 +784,18 @@ export async function pullLatestDetailed() {
   // feeds the breaker like every other call.
   if (!authPreflight('pull')) return { status: 'error', snap: null, reason: 'auth-blocked' };
   try {
-    const slot = (config.slot != null) ? config.slot : 0;
+    /* b342 — THE READ MUST ADDRESS THE SAME CHARACTER AS THE WRITE, and it did
+       not: this pinned slot 0 too. That is a SECOND data-loss channel running
+       the other way, and the more dangerous of the pair, because it defeats the
+       freshness invariant rather than merely mis-addressing it. The snap
+       returned here is handed to decideRestore() against the ACTIVE character's
+       local save; reading slot 0 while playing slot 2 compares two DIFFERENT
+       CHARACTERS, so an untouched-but-recently-saved character 1 reads as
+       "cloud is newer" and gets overlaid onto character 3's live game.
+       "Newest wins" is only a safe rule between two copies of the SAME save.
+       Same resolver, same config, same instant as buildSnapshotRequest — the
+       two cannot disagree, which is the property that matters here. */
+    const slot = resolveActiveSlot(config.slot);
     const res = await fetchWithAuthRetry(
       `${config.snapshotEndpoint}?user_id=eq.${encodeURIComponent(userId)}&slot=eq.${slot}&order=saved_at.desc&limit=1`,
       () => ({ headers: withAuthHeaders({}) }), 'pull');

@@ -697,6 +697,76 @@ async function landscapeGuard(browser, url) {
     });
     if (gateShown) problems.push('the portrait gate is visible in LANDSCAPE (should be hidden)');
 
+    /* b348 — THE COMBAT STYLE PICKER MUST SAY WHAT XP IT GIVES, ON A PHONE.
+       Xarn: "Combat styles no longer show what XP they give. It used to show:
+       Controlled / Def/att/str." Cause: `#panel-combat .csb-btn small
+       {display:none}` inside theme-cozy's mobile media query — so the fact was
+       in the DOM and computed away, and the desktop-width in-page suite could
+       never see it. The in-page CSSOM guard catches the RULE; this catches the
+       RESULT, at a viewport where the rule actually applies. Both, because a
+       future density pass could hide it by some other mechanism (a zero height,
+       a clipped parent) that no rule-scan would name. */
+    const styleSeen = await page.evaluate(async () => {
+      const panel = document.getElementById('panel-combat');
+      if (!panel) return { err: 'no combat panel' };
+      /* WAIT FOR THE PANEL TO ACTUALLY OPEN. `#panel-combat.active
+         .combat-style-block` is what forces the ribbon visible
+         (audit-overrides.css), so measuring before showTab has taken effect
+         reads display:none and blames the label for the panel being shut —
+         which is exactly what this guard did on its first run. */
+      for (let i = 0; i < 20 && !panel.classList.contains('active'); i++) {
+        try { window.showTab('combat'); } catch (e) {}
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!panel.classList.contains('active')) return { err: 'the combat panel never opened' };
+      /* The picker lives on the phone Combat panel's dedicated Style sub-tab,
+         and it is reached BY TAPPING IT — which is also the only correct way,
+         because the seeded save above is mid-fight and combat-mobile-tabs.js
+         steers a live fight to the Arena until the player chooses for
+         themselves (b334). Writing `dataset.mobileSub` directly is silently
+         undone by that steer within 1.5s; the tap sets `_playerChose` and
+         sticks, exactly as a player's does. */
+      const tab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
+      if (tab) tab.click(); else panel.dataset.mobileSub = 'style';
+      await new Promise((r) => setTimeout(r, 150));
+      if (panel.dataset.mobileSub !== 'style') {
+        return { err: 'tapping the Style sub-tab did not open it (sub=' + panel.dataset.mobileSub + ')' };
+      }
+      if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
+      await new Promise((r) => setTimeout(r, 200));
+      const block = document.querySelector('.combat-style-block');
+      if (!block) return { err: 'the style picker did not render at all' };
+      const br = block.getBoundingClientRect();
+      /* If the picker itself is not laid out, the XP label being invisible is a
+         CONSEQUENCE, not the fault — say which, or a future reader chases the
+         wrong thing (and the sub-tab machinery genuinely can put it in a hidden
+         host depending on which combat hosts exist at that instant). */
+      if (!(br.width > 0 && br.height > 0)) {
+        const chain = [];
+        for (let e = block; e && e !== document.documentElement; e = e.parentElement) {
+          chain.push((e.id ? '#' + e.id : e.tagName) + '[' + String(e.className) + ']=' + getComputedStyle(e).display);
+        }
+        return { err: 'the style picker is not laid out on the Style sub-tab'
+          + ` · body[${document.body.className}] blocks=${document.querySelectorAll('.combat-style-block').length}`
+          + ` · ${chain.join(' < ')}` };
+      }
+      const btns = [...block.querySelectorAll('.csb-btn')];
+      if (!btns.length) return { err: 'no style buttons rendered' };
+      const bad = btns.filter((b) => {
+        const t = b.querySelector('.csb-trains');
+        if (!t || !t.textContent.trim()) return true;
+        if (getComputedStyle(t).display === 'none') return true;
+        const r = t.getBoundingClientRect();
+        return !(r.width > 0 && r.height > 0);
+      }).map((b) => (b.getAttribute('data-style-key') || b.textContent.trim()));
+      return { total: btns.length, bad, sample: btns[0].innerText.replace(/\s+/g, ' ').trim() };
+    });
+    if (styleSeen.err) problems.push(`combat style picker: ${styleSeen.err}`);
+    else if (styleSeen.bad.length) {
+      problems.push(`combat style buttons hide their XP route on a phone: ${styleSeen.bad.join(', ')}`
+        + ` (rendered: "${styleSeen.sample}")`);
+    }
+
     for (const tab of TABS) {
       const res = await page.evaluate(async (t) => {
         try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {}

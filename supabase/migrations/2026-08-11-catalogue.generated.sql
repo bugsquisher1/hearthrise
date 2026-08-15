@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d10936764d0e6d754ff99fa0083ba1d1c7311fda10ad9d75283d59e6e287b399
+--   catalogue digest: fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76
 --   rows: 426 items (15 untradeable) ·
 --         222 item-slot pairs · 15 equip slots ·
 --         15 skills · 9 crops · 344 activities
@@ -977,7 +977,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','fletch_steel_arrows','crafting',33),
   ('artisan','forge_abyssal_greaves','smithing',97),
   ('artisan','forge_bronze_axe','smithing',3),
-  ('artisan','forge_bronze_belt','smithing',18),
+  ('artisan','forge_bronze_belt','smithing',4),
   ('artisan','forge_bronze_boots','smithing',3),
   ('artisan','forge_bronze_gauntlets','smithing',2),
   ('artisan','forge_bronze_hammer','smithing',5),
@@ -1013,9 +1013,9 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','forge_iron_belt','smithing',18),
   ('artisan','forge_iron_boots','smithing',17),
   ('artisan','forge_iron_gauntlets','smithing',16),
-  ('artisan','forge_iron_helm','smithing',25),
+  ('artisan','forge_iron_helm','smithing',20),
   ('artisan','forge_iron_pickaxe','smithing',18),
-  ('artisan','forge_iron_platebody','smithing',35),
+  ('artisan','forge_iron_platebody','smithing',25),
   ('artisan','forge_iron_platelegs','smithing',23),
   ('artisan','forge_iron_sword','smithing',20),
   ('artisan','forge_iron_warhammer','smithing',35),
@@ -1046,10 +1046,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','forge_steel_boots','smithing',32),
   ('artisan','forge_steel_gauntlets','smithing',31),
   ('artisan','forge_steel_hammer','smithing',35),
-  ('artisan','forge_steel_helm','smithing',50),
+  ('artisan','forge_steel_helm','smithing',35),
   ('artisan','forge_steel_knife','smithing',35),
   ('artisan','forge_steel_pickaxe','smithing',38),
-  ('artisan','forge_steel_platebody','smithing',60),
+  ('artisan','forge_steel_platebody','smithing',40),
   ('artisan','forge_steel_platelegs','smithing',38),
   ('artisan','forge_steel_sword','smithing',40),
   ('artisan','forge_stone_maul','smithing',10),
@@ -1194,7 +1194,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd10936764d0e6d754ff99fa0083ba1d1c7311fda10ad9d75283d59e6e287b399', now())
+  values (true, 'fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1323,6 +1323,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest d10936764d0e6d754ff99fa0083ba1d1c7311fda10ad9d75283d59e6e287b399',
+  raise notice 'CATALOGUES OK — % items, % activities, digest fe7588c1624f66acc41157e2f63822c4cf37dfd48a301673baf1c106cc323a76',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

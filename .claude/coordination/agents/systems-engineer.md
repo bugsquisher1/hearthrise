@@ -2,6 +2,88 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b348 — Xarn's five, and the runner that could not fail
+
+Branch `agent-a597c79506d8d0445`. Suite **696/696** (baseline 692; +4), 0 runtime errors, 0 console
+errors, five consecutive full runs. **Seventeen mutations, each RED on exactly one test.** No version
+bump, nothing deployed, nothing applied. Labelled b348 — b347 is the merged away-buff work.
+
+**THE LESSON, AND IT IS ABOUT MY OWN TOOLING: A TEST RUNNER CAN BE THE THING THAT ASSERTS NOTHING.**
+`tryRun` is `try { fn(); return pass(name); } catch {…}`. Hand it an `async` body and it receives a
+PROMISE — nothing throws synchronously, the catch is unreachable, and PASS is returned before one
+assertion executes. I wrote two of those. **Seven mutations, including restoring the exact bug the
+tests existed for, all came back GREEN.** Reading them would never have found it. This is b347's
+lying-guard family one layer DOWN: not a wrong assertion, a runner that never reaches an assertion.
+`tryRun` now fails loudly on a thenable return, naming `tryRunAsync`. **Generalise: when a whole
+batch of mutations comes back green, suspect the harness before you congratulate the code.**
+
+**The bug under Xarn's bug was structural, exactly as the brief guessed.** Two recipe authorities: the
+generated curve in `gear-tiers.js`, and hand-authored rows in `recipes.js` spread FIRST so they win.
+Five of those rows share an ID with their generated twin, so `mergeGenerated` drops the generated
+recipe by id and the hand-authored `req` replaces the curve **leaving no trace at all**. Measured
+across 22 lanes: **16 rungs off the curve, 3 lanes disordered** — platebody INVERTED (steel 60 >
+mithril 55, Xarn's exact case), helm and belt TIED. I moved five values onto the curve and left the
+other eleven, because they are ORDERED and retuning them is balance churn with no defect behind it.
+
+**The guard's shape is the part I would defend.** Rebuilding the lanes from item-id patterns would
+carry a SECOND copy of the id scheme (plate is `mat.id + '_' + slot.key`; leather/cloth are
+`tierId + '_' + slot.slot`) — the same two-authority bug one layer up. So the generator PUBLISHES
+`GEAR_LADDERS`, and the guard grades the live merged table against it. It asserts **monotonicity, not
+equality to the curve**: a deliberate deviation that keeps the ladder ordered stays legal, because
+order is the property the player actually experiences. And it looks rungs up by **OUTPUT**, so
+`tailor_leather_boots` beating `craft_leather_boots` is still seen.
+
+**Report #2 was a stylesheet eating a fact, and the archaeology matters.**
+`#panel-combat .csb-btn small { display:none }` — comment: *"hide ATTACK/STRENGTH/DEFENSE labels"* —
+landed in **b110**, when that font was 10px and the block had no room. Then b227 raised the type floor
+to 14.5px (the density argument expired) and **b329 put the per-style SWING TIME inside the same
+`<small>`** — the number that answered Xarn's PREVIOUS report, invisible on his phone from the day it
+shipped. Measured at 922×423: computed `display:none`, innerText carrying neither fact. And on mobile
+`.csb-meta` is hidden too, so there was **no surface at all** stating the XP route. Fixed by splitting
+the two facts into `.csb-trains` / `.csb-swing` so a future density pass can drop the speed and never
+the route. **Generalise: when you add a fact to an existing element, check what already governs it.**
+
+**Two guards, deliberately, for one bug.** An in-page test cannot force a media query, so it walks the
+**CSSOM** (rules inside `@media` included) and fails on any rule hiding the label — it grades the rule
+wherever it sleeps. The landscape guard then proves the RESULT at 820×360, because a future density
+pass could hide it by a mechanism no rule-scan would name (a zero height, a clipped parent). Its first
+run failed for the wrong reason and that was worth more than a pass: the picker was not laid out
+because the seeded save is mid-fight and `combat-mobile-tabs.js` steers a live fight to the Arena
+until the player chooses. Writing `dataset.mobileSub` is undone within 1.5s; **tapping** the tab sets
+`_playerChose` and sticks. The guard now taps, and reports "not laid out" as a DISTINCT failure from
+"hides its label", so the next reader is not sent after the wrong thing.
+
+**Report #3 had two causes and only fixing both makes the purchase visible.** The grid sized itself
+`max(88, ceil(items/11)*11)` — item count, and the `/11` did not even align to a row because
+`.invc-grid` is `repeat(auto-fill, minmax(72px,1fr))`. AND `_renderInvSummary()` overwrote the whole
+`.invc-space` node on every tab entry, so the one label stating capacity survived ~50ms and was
+replaced by "16 items · 63 gp". Measured before: 88 tiles at cap 100, **88 at cap 160 after paying 45
+gems**, 88 at cap 200. After: 100/160/200. **Perf is bounded and measured** — an empty tile costs
+~0.006ms, so the grid draws capacity up to a 600 ceiling (~18ms, plateaus there) and states the
+surplus as one chip; gold slots self-limit at 1.32× a buy but GEM slots are flat, so capacity has no
+upper bound and neither would the DOM.
+
+**A mutation caught my filtered-view assertion being satisfiable by the bug.** I asserted
+`filtered.total < bankCap()`. Free space is `cap − used`, so a lane holding fewer items than the bag
+lands under the cap **even when it IS deriving from capacity** — the mutation stayed green. Rewritten
+as an equality against the container fill, it goes red at "155 tiles for 1 matches (cap 160)".
+**A `<` on a derived quantity is usually a `=` you have not worked out yet.**
+
+**Report #4's data half is the same one-authority story.** The six classic hand-authored plate pieces
+carry NO `reqSkill`/`reqLv` at all — their gate comes from `tier` through `gearWieldReq`. So
+`openInvDetail`'s `if(it.reqSkill && it.reqLv)` line **existed and printed nothing for exactly the gear
+a mid-game player is deciding about**. Every surface now asks `gearWieldReq`, the pair `equipItem()`
+enforces and the b341 shop row already asked.
+
+**Found in passing, not fixed:** on the generated ladder a tier's gear unlocks BELOW the bar it is
+made from — bronze gauntlets 2 / boots 3 / belt 4 / helm 6 against `smelt_bronze` at **8**; mithril
+gauntlets 46 through body 55 against `smelt_mithril` at **55**. Pre-existing, systemic, and a
+MATERIAL_TIERS design call rather than a bug fix. And `AWAY-16` is **flaky** — twice in ~20 runs under
+mutations that cannot touch it.
+
+**Edge payload hash moved; catalogue regenerated (5 `hr_activities` rows, nothing else) — REDEPLOY
+AND RE-APPLY NEEDED, NEITHER PERFORMED.**
+
 ## 2026-08-15 — b347 — the loop that paid a buff all night and spent none of it
 
 Branch `worktree-agent-a454de83fe91b6768`, with `agent-a06ecbcee310aa2c7` merged in. Suite

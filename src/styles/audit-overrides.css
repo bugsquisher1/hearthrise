@@ -1021,6 +1021,23 @@ body.in-combat #combat-area {
   margin: 4px 0 6px;
 }
 #item-tooltip .ttl-cmp b { color: var(--gold-2); font-style: normal; }
+/* b348 — the wear requirement, in the vs-equipped card's own vocabulary rather
+   than a new surface. Tokens only: gold for a gate you have cleared, the
+   existing danger ink for one you have not. */
+#item-tooltip .ttl-req {
+  display: block;
+  margin: 4px 0 6px; padding: 5px 8px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+  font-size: calc(14.5px * var(--ui-scale, 1));
+  line-height: 1.35;
+}
+#item-tooltip .ttl-req .ttl-req-line { display: block; }
+#item-tooltip .ttl-req b { font-weight: 700; }
+#item-tooltip .ttl-req i { display: block; font-style: normal; color: var(--ink-3); }
+#item-tooltip .ttl-req.met { border-color: rgba(201,162,74,.30); }
+#item-tooltip .ttl-req.met b { color: var(--gold-2); }
+#item-tooltip .ttl-req.unmet { border-color: var(--red); background: var(--red-bg); }
+#item-tooltip .ttl-req.unmet b { color: var(--red); }
 #item-tooltip .ttl-market {
   border-top: 1px solid rgba(255,255,255,.06);
   padding-top: 8px;

@@ -6500,7 +6500,21 @@ function openInvDetail(id){
   if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
   if(it.noBurn != null) stats.push(`<div><b>+${Math.round((it.noBurn||0)*100)}%</b><span>no-burn</span></div>`);
   if(it.weaponType) stats.push(`<div><b>${it.weaponType}</b><span>weapon type</span></div>`);
-  if(it.reqSkill && it.reqLv) stats.push(`<div><b>${SKILLS_DEF[it.reqSkill]?.name||it.reqSkill} ${it.reqLv}</b><span>required</span></div>`);
+  /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
+     hand-authored plate pieces (iron/steel helm + platebody, bronze belt) and
+     the early weapons carry neither field; their gate comes from `tier` via
+     gearWieldReq's ladder. Measured: opening a Steel Platebody showed +22
+     defense, a value and a Source line, and nothing at all about needing
+     Defence 30 — for precisely the gear a mid-game player is deciding about.
+     Ask the authority equipItem() enforces, and say whether you meet it. */
+  (function(){
+    const req = (typeof gearWieldReq==='function') ? gearWieldReq(it) : null;
+    if(!req) return;
+    const skillName = (SKILLS_DEF[req.skill] && SKILLS_DEF[req.skill].name) || req.skill;
+    const have = (typeof getLevel==='function') ? getLevel(req.skill) : null;
+    const ok = (typeof canWield==='function') ? canWield(id).ok : true;
+    stats.push(`<div class="${ok?'':'inv-stat-unmet'}"><b>${skillName} ${req.lv}</b><span>${ok?'to wear':'to wear · you have '+(have==null?'—':have)}</span></div>`);
+  })();
 
   /* Action buttons — detect by type/heals/seed/buryXp instead of kind */
   const acts = [];
@@ -9000,6 +9014,42 @@ window.getCombatStatProfile = function(){
   return {type:t, accuracySkill:'attack', damageSkill:'strength', accuracyBonusField:'atkB', strengthBonusField:'strB'};
 };
 
+/* styleXpRouteText(style) — "what XP does this style actually give?", DERIVED
+   from the routing table rather than restated beside it (b348).
+
+   `style.trains` is an authored abbreviation ("Atk/Str/Def"); `style.xp` is the
+   object `hitXpRoute`/`killXpRoute` genuinely pay from. Those are two copies of
+   one fact, and this project has been bitten by exactly that shape often enough
+   to stop writing a third. So every surface that explains the split reads THIS,
+   which walks `style.xp` and can therefore never describe a route the engine
+   does not run. `trains` stays as the short chip on the button; the suite
+   asserts the two agree about which skills are named.
+
+   Shares are shown only when the split is uneven enough to matter — an even
+   50/50 reads "Ranged & Defence", not "Ranged 50% · Defence 50%". */
+window.styleXpRouteText = function(style){
+  var xp = style && style.xp;
+  if(!xp || typeof xp !== 'object') return 'Attack & Strength';   // the pre-styles fallback hitXpRoute uses
+  var nameOf = function(k){
+    var d = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[k]) || (window.SKILLS_DEF && window.SKILLS_DEF[k]);
+    return (d && d.name) || (k.charAt(0).toUpperCase() + k.slice(1));
+  };
+  /* AUTHORED order is kept for an even split (so Controlled reads
+     "Attack & Strength & Defence", matching its "Atk/Str/Def" chip) and only an
+     UNEVEN split is sorted, where "which gets most" is the point. Sorting the
+     even case put Defence first purely because 0.34 rounds above 0.33 — true,
+     and misleading. */
+  var rows = Object.keys(xp).map(function(k){ return { skill:k, share:Number(xp[k])||0 }; })
+                            .filter(function(r){ return r.share > 0; });
+  if(!rows.length) return 'nothing';
+  if(rows.length === 1) return 'all to ' + nameOf(rows[0].skill);
+  var total = rows.reduce(function(t,r){ return t + r.share; }, 0) || 1;
+  var even = rows.every(function(r){ return Math.abs(r.share/total - 1/rows.length) < 0.02; });
+  if(even) return rows.map(function(r){ return nameOf(r.skill); }).join(' & ') + ' (even split)';
+  return rows.slice().sort(function(a,b){ return b.share - a.share; })
+             .map(function(r){ return nameOf(r.skill) + ' ' + Math.round(r.share/total*100) + '%'; }).join(' · ');
+};
+
 /* The ONE writer for the player's style choice (b334).
    It used to be an anonymous closure attached to each button on every rebuild.
    Naming it and hoisting it out is what lets a single delegated listener own
@@ -9065,6 +9115,13 @@ function renderStyleSelector(){
      would produce with the gear currently worn — computed by the same
      swingIntervalMs() the fight and the away replay use, so the panel cannot
      quote a speed the simulation does not run. */
+  /* Never let the copy helper take the picker down with it — a style button
+     that cannot be pressed is the b334 failure, and this panel is the one the
+     player fights from. Falls back to the authored abbreviation. */
+  var _xpRoute = function(s){
+    try { return (typeof window.styleXpRouteText === 'function') ? window.styleXpRouteText(s) : (s.trains || ''); }
+    catch(e){ return s && s.trains || ''; }
+  };
   var swingOf = function(s){
     try{
       var C = window.HearthriseCore;
@@ -9101,6 +9158,7 @@ function renderStyleSelector(){
 
   var metaHtml =
     'Style: <b>' + styleObj.name + '</b> · Trains: <b>' + styleObj.trains + '</b> · Swing: <b>' + swingOf(styleObj) + '</b><br>' +
+    'XP: <b>' + _xpRoute(styleObj) + '</b><br>' +
     (styleObj.desc ? styleObj.desc + '<br>' : '') +
     'Accuracy skill: <b>' + profile.accuracySkill + '</b> · Damage skill: <b>' + profile.damageSkill + '</b>';
 
@@ -9130,9 +9188,23 @@ function renderStyleSelector(){
         var s = styles[k];
         var act = (k === styleKey) ? ' active' : '';
         var sw = swingOf(s);
-        var tip = (s.desc ? s.desc + ' · ' : '') + (sw ? 'swing ' + sw : '');
+        var tip = 'Trains ' + _xpRoute(s)
+                + (s.desc ? ' · ' + s.desc : '') + (sw ? ' · swing ' + sw : '');
+        /* b348 (Xarn: "Combat styles no longer show what XP they give. It used
+           to show: Controlled / Def/att/str"). The trains label and the b329
+           swing readout used to be ONE text node inside <small>, so the only
+           lever a density pass had was all-or-nothing — and b110's mobile rule
+           (`#panel-combat .csb-btn small{display:none}`, comment: "hide
+           ATTACK/STRENGTH/DEFENSE labels") took both. Measured on a 922x423
+           landscape phone: display "none", innerText carries neither fact.
+           b329 then added the swing time to that same hidden element, so the
+           number that answered Xarn's PREVIOUS report was invisible on his
+           device from the day it shipped.
+           Two spans, so the XP route and the speed can be governed separately
+           and the route can never be collateral damage again. */
         return '<button class="csb-btn' + act + '" data-style-key="' + k + '" title="' + tip.replace(/"/g,'&quot;') + '">' +
-               s.name + '<small>' + s.trains + (sw ? ' · ' + sw : '') + '</small></button>';
+               s.name + '<small><span class="csb-trains">' + s.trains + '</span>' +
+               (sw ? '<span class="csb-swing"> · ' + sw + '</span>' : '') + '</small></button>';
       }).join('') +
     '</div>';
   host.appendChild(wrap);
@@ -10021,6 +10093,17 @@ window._renderInvSummary = function(){
     total += (typeof vendorPrice==='function' ? vendorPrice(id) : (ITEMS[id].v||0)) * qty;
     count += qty;
   });
+  /* b348: write into the SUB-span, never over the whole line. This used to do
+     `slot.textContent = ...` on `.invc-space`, which destroyed the "3 / 100
+     slots (97 free)" figure renderInvFancy had just written — measured: the
+     capacity readout survived ~50ms after every tab entry and was then replaced
+     by "16 items · 63 gp". The bank cap is genuinely enforced (addItem refuses
+     a new stack at the wall), so the one surface that stated it was being
+     erased by a summary updater. Falls back to the old target only if the sub
+     span is missing, so an older layout still gets its summary. */
+  var sub = panel.querySelector('.invc-space .invc-space-sub');
+  var line = ' · ' + count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
+  if(sub){ sub.textContent = line; return; }
   var slot = panel.querySelector('.invc-space');
   if(slot) slot.textContent = count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
 };
@@ -12386,7 +12469,15 @@ function renderInvFancy(){
        b213 QA note kept: the old "Space: N/360" ceiling was never enforced
        anywhere, so the honest item count stays until real storage ships. */
     '<div class="invc-topbar">'+
-      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
+      /* b348: the free-stack count is the number the "Buy space" button is
+         selling, so it is stated rather than left to be inferred. The volatile
+         half (item + gold totals) lives in .invc-space-sub, which is the ONLY
+         thing _renderInvSummary() may rewrite — it used to overwrite this whole
+         node's textContent on every tab entry, so the slot figure survived for
+         about 50ms and the player never saw their capacity at all. */
+      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots'
+        +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
+        +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
         '<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
@@ -12429,14 +12520,61 @@ function renderInvFancy(){
                A uniform filled grid is what makes a bag scannable — you learn
                the shape of the container, and item positions stay stable. */
             (function(html){
-              /* b217: 40 slots laid out at ~11 columns filled four rows and
-                 then stopped, leaving the lower two thirds of the bag as a
-                 black void — which reads as "the grid failed to render", not
-                 as "the bag has room". Fill the visible container instead. */
-              var perRow = 11;
-              var minSlots = 88;                                   // ~8 rows
-              var target = Math.max(minSlots, Math.ceil(visible.length / perRow) * perRow);
+              /* ── b348 · THE BAG SHOWS THE SPACE YOU BOUGHT ────────────────
+                 Xarn: "You can see the inventory you bought when you exceed the
+                 inventory space. A new row will be visible once you found more
+                 items, but it should appear once the slots are purchased."
+
+                 Measured before this change: at cap 100 the grid drew 88 tiles;
+                 buying +60 gem slots (cap 160) drew 88; buying +40 more gold
+                 slots (cap 200) still drew 88. The grid only grew when the
+                 player reached 89 STACKS — so a purchase you paid gems for was
+                 literally invisible until you outgrew it. The old expression
+                 was `max(88, ceil(items/11)*11)`: sized by ITEM COUNT, and the
+                 `/11` did not even align to a row, because `.invc-grid` is
+                 `repeat(auto-fill, minmax(72px,1fr))` — a responsive column
+                 count that is ~8 at desktop width and ~13 at another.
+
+                 Now the empty tiles ARE your free stacks, so a purchase adds
+                 rows the instant it completes and counting squares tells you
+                 the truth. bankCap()/bankUsed() are the same pair addItem()
+                 enforces (legacy.js:2638), so the picture cannot disagree with
+                 the rule.
+
+                 FILTERED VIEWS DO NOT CLAIM CAPACITY. Free space is a property
+                 of the BAG, not of "Weapons": padding a filtered lane to the
+                 bank cap would assert you have 160 weapon slots. A filtered or
+                 searched view keeps b217's "don't leave a black void" fill and
+                 says nothing about space.
+
+                 RENDER CEILING — measured, not guessed. renderInvFancy runs on
+                 the game tick (see the note at the doll rebuild), and an empty
+                 tile costs ~0.006 ms: 500 tiles 3.4 ms, 2,000 tiles 15 ms,
+                 4,000 tiles 23.6 ms against a base render of 6-18 ms. Gold
+                 slots self-limit (the price grows 1.32x a buy, so 400 stacks
+                 already costs ~2.8M gold) but GEM slots are flat, so capacity
+                 has no upper bound and neither would the DOM. 600 covers every
+                 cap normal play can reach, costs ~4 ms, and past it the surplus
+                 is stated as one chip instead of five thousand squares — the
+                 header keeps quoting the real number either way. */
+              var RENDER_CEILING = 600;
+              var MIN_FILL = 88;                                    // b217's "fill the container"
+              var unfiltered = (f.category === 'all') && !search;
+              var cap = (typeof bankCap === 'function') ? bankCap() : 0;
+              var used = (typeof bankUsed === 'function') ? bankUsed() : visible.length;
+              var target, surplus = 0;
+              if (unfiltered && cap > 0) {
+                var free = Math.max(0, cap - used);
+                target = visible.length + free;
+                if (target > RENDER_CEILING) { surplus = target - RENDER_CEILING; target = RENDER_CEILING; }
+              } else {
+                target = Math.max(MIN_FILL, visible.length);
+              }
               for (var i = visible.length; i < target; i++) html += '<div class="invc-tile invc-slot" aria-hidden="true"></div>';
+              if (surplus > 0) {
+                html += '<div class="invc-tile invc-slot invc-slot-more" title="' + surplus.toLocaleString()
+                  + ' more free stacks — too many to draw">+' + fmtQty(surplus) + '</div>';
+              }
               return html;
             })(
             visible.map(function(kv){
@@ -12511,7 +12649,9 @@ function renderInvFancy(){
           (function(){ var xpB=0,spdB=0; Object.values(G.equipment||{}).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
           '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
-        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div></div></div>'; })()+
+        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
+          var _route = (typeof window.styleXpRouteText==='function') ? window.styleXpRouteText(style) : style.trains;
+          return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP <b>'+_route+'</b></div></div></div>'; })()+
       '</div>'+
       '</div>'+
     '</div>';
@@ -12573,6 +12713,19 @@ window._invLoadoutManage = function(){
   };
 })();
 window._renderInvFancy = renderInvFancy;
+/* b348: `window.renderInvFancy` (no underscore) is called from seven places —
+   item-ux.js x2, dungeons.js x3, companions.js x3, admin.js, dungeon-scavenger
+   — and has NEVER existed; the published name has always carried the
+   underscore. Every call site is `typeof`-guarded, so they resolved to nothing
+   silently rather than throwing. It is masked today because addItem/removeItem
+   are wrapped just below to repaint an active bag anyway, which is why nobody
+   noticed — but a guarded call to a name that cannot exist is a trap waiting
+   for the first caller that isn't covered by that wrapper. DELEGATES rather
+   than binds, so it always resolves the currently-wrapped implementation (the
+   drag/drop hook near the foot of this block re-wraps `_renderInvFancy`). */
+window.renderInvFancy = function(){
+  if(typeof window._renderInvFancy === 'function') return window._renderInvFancy.apply(this, arguments);
+};
 
 /* Re-render when relevant state changes */
 ['updateTopbar','equip','unequip','addItem','removeItem'].forEach(function(name){
@@ -12938,6 +13091,31 @@ function tileForGather(action, skillId){
     +'</div>';
 }
 
+/* hrWearLineHtml(outputId) — "and what do I need to WEAR it?", for a recipe
+   tile (b348).
+
+   Xarn: "It would be great to see in the crafting/smithing section what def
+   requirements we need to wear those too." The tile has always stated the
+   CRAFT gate (its lock chip) and never the WEAR gate, which is a different
+   number on a different skill — Steel Platebody is Smithing 40 to forge and
+   Defence 30 to put on. A player training Smithing on a mule build could forge
+   a full set they cannot wear and only find out at the equip screen.
+
+   Shared by the legacy tile builder and its ESM twin in
+   features/activities-grid.js, so the two renderers cannot drift — the same
+   arrangement hrToolLineHtml/burnRiskLine already use. Reads gearWieldReq, the
+   authority equipItem() enforces, so it is right for the hand-authored pieces
+   whose gate is derived from `tier` rather than authored on the item. */
+window.hrWearLineHtml = function(outputId){
+  if(typeof gearWieldReq !== 'function' || typeof ITEMS === 'undefined') return '';
+  var it = ITEMS[outputId]; if(!it) return '';
+  var req = gearWieldReq(it); if(!req) return '';
+  var SD = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF) || window.SKILLS_DEF || {};
+  var skillName = (SD[req.skill] && SD[req.skill].name) || req.skill;
+  var ok = (typeof canWield==='function') ? canWield(outputId).ok : true;
+  return '<div class="at-wear'+(ok?'':' at-wear-short')+'">Wear: <b>'+skillName+' '+req.lv+'</b></div>';
+};
+
 /* ── Build an artisan tile ── */
 /* Wave 1 (audit fix, Tyler: "the only tool I can craft is a fishing rod"):
    handle a click on a GATED artisan tile — say exactly why it's locked and, for
@@ -13028,6 +13206,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(actMs)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
+    +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')

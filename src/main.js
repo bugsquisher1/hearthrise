@@ -28,6 +28,10 @@ import { MONSTERS } from './data/monsters.js?v=346';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=346';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=346';
 import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=346';
+// b348 — the generated progression lanes, published so the suite can grade the
+// LIVE recipe table against the ladder the generator actually laid down (a
+// hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
+import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=346';
 import { COMPANIONS } from './data/companions.js?v=346';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=346';
 
@@ -86,6 +90,9 @@ Object.assign(window, {
   // b222 — the Castle Stores predicate, shared by the artisan lane and (once
   // the Clan Seat migration is applied) the Storehouse deposit filter.
   isCastleGood,
+  // b348 — the progression spine, readable by the guard that keeps the two
+  // recipe authorities (generated curve vs hand-authored row) in order.
+  GEAR_LADDERS, MATERIAL_TIERS,
 });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.

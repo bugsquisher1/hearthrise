@@ -35,9 +35,28 @@ on('*', () => {});
 
 const pass = (name) => ({ name, status: 'PASS' });
 const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
+/* b348 — A SYNC RUNNER HANDED AN ASYNC BODY IS AN ALWAYS-GREEN TEST.
+   `tryRun` calls fn() inside a try/catch. Give it an `async` function and it
+   receives a PROMISE: nothing throws synchronously, so the catch is unreachable
+   and `pass(name)` is returned before a single assertion has run. The test then
+   passes whatever it claims, forever, and looks identical to a real one in the
+   output.
+   MEASURED: I wrote two of these while fixing Xarn's reports and only found out
+   because seven separate mutations — including restoring the exact bug — all
+   came back GREEN. This file's own recurring lesson ("a test can pass while
+   asserting nothing, and the giveaway is a mutation that stays green") applied
+   to the runner rather than to an assertion.
+   Detect it instead of documenting it: a thenable return is now a LOUD failure
+   naming the fix. `tryRunAsync` is the awaiting runner. */
 const tryRun = (name, fn) => {
-  try { fn(); return pass(name); }
-  catch (e) { return fail(name, e && (e.message || e)); }
+  try {
+    const r = fn();
+    if (r && typeof r.then === 'function') {
+      return fail(name, 'ASYNC BODY ON A SYNC RUNNER — this test was registered with tryRun(), which cannot '
+        + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().');
+    }
+    return pass(name);
+  } catch (e) { return fail(name, e && (e.message || e)); }
 };
 /* b337 — THE SUITE CAN NOW AWAIT.
    Until now every test was synchronous, which meant a network path could only
@@ -152,6 +171,13 @@ const snapshotG = () => {
        It is also the player's collection log — a suite run must never write a
        first-kill date into a monster they have not met. */
     bestiary: G.bestiary,
+    /* b348: the BANK. `goldBuys`/`gemBuys` are purchased permanent progress —
+       one paid with escalating gold, one with real-money gems — and the suite
+       buys space to prove the bag renders it. Every bank test to date restored
+       it by hand in its own `finally`; that works right up until one does not,
+       and the failure mode is silently gifting a player capacity they never
+       bought (or, on the other branch, taking capacity they did). */
+    bank: G.bank,
   }));
 };
 
@@ -15276,6 +15302,76 @@ const TESTS = [
       ' — past the cap every further crit item is a null item');
   }),
 
+  /* ════════════════════════════════════════════════════════════
+     b348 — THE TWO RECIPE AUTHORITIES MUST AGREE ABOUT ORDER
+     (Xarn, live report: "Steel Platebody adds 22 Def requires 60 smithing;
+     Mithril Platebody adds 34 Def requires 54ish… the order of armour items to
+     smith is not based on requirement yet.")
+
+     He was right, and the cause is structural rather than a typo. Hearthrise
+     has TWO recipe authorities: the generated curve in src/data/gear-tiers.js,
+     and hand-authored rows in src/data/recipes.js that are spread FIRST and
+     therefore win the merge — deliberately, so historical costs survive. Five
+     of those rows share an ID with their generated twin, so the merge drops the
+     generated recipe and the hand-authored `req` replaces the curve with no
+     trace at all. Three lanes were disordered by it (platebody INVERTED, helm
+     and belt TIED) and no test could see it, because nothing compared a live
+     gate to the lane it belongs to.
+
+     WHAT THIS GUARDS, AND WHY IT IS NOT "req === curveReq". Deviating from the
+     curve is legitimate — eleven rungs still do (a bespoke Rune Sword costs
+     more and asks for more). The property the PLAYER experiences is ORDER: a
+     strictly better item at a strictly higher material tier must never unlock
+     at or below the rung beneath it. So the assertion is monotonicity, and a
+     deliberate deviation that keeps the ladder ordered stays legal.
+
+     It reads `GEAR_LADDERS` — published by the generator itself — rather than
+     rebuilding the lanes from item-id patterns, because plate ids are
+     `mat + '_' + slot.key` while leather/cloth are `tierId + '_' + slot.slot`,
+     and a guard carrying its own copy of that scheme is the same two-authority
+     bug one layer up. And it looks a rung up by OUTPUT, not by recipe id, so an
+     override that renames the recipe (tailor_leather_boots beats
+     craft_leather_boots) is still seen.
+     ════════════════════════════════════════════════════════════ */
+  () => tryRun('b348: no gear ladder is out of order — a higher material tier never unlocks at or below the rung beneath it', () => {
+    const L = window.GEAR_LADDERS, R = window.ARTISAN_RECIPES, ITEMS = window.ITEMS || {};
+    assert(Array.isArray(L) && L.length >= 20,
+      'GEAR_LADDERS must be published by main.js — got ' + (Array.isArray(L) ? L.length + ' lanes' : typeof L));
+    assert(L.some((l) => l.key === 'plate/platebody') && L.some((l) => l.key === 'weapon/sword'),
+      'the lane set lost a known lane — this guard is grading nothing');
+    assert(L.every((l) => Array.isArray(l.rungs) && l.rungs.length >= 7),
+      'every lane must carry its full material ladder');
+
+    // The LIVE gate for each output, whatever recipe survived the merge.
+    const live = {};
+    Object.keys(R || {}).forEach((sk) => (R[sk] || []).forEach((r) => {
+      if (!r || !r.output) return;
+      const q = Number(r.req) || 0;
+      if (live[r.output] === undefined || q < live[r.output].req) live[r.output] = { req: q, id: r.id };
+    }));
+
+    const unreachable = [], disordered = [];
+    L.forEach((lane) => {
+      let prev = null;
+      lane.rungs.forEach((rung) => {
+        const lv = live[rung.itemId];
+        // A generated rung with no surviving recipe is content the player can
+        // never make — the merge silently ate it.
+        if (!lv) { unreachable.push(lane.key + ' t' + rung.tier + ' → ' + rung.itemId); return; }
+        if (prev && lv.req <= prev.req) {
+          const statOf = (id) => (ITEMS[id] && (ITEMS[id].defB || ITEMS[id].atkB)) || 0;
+          disordered.push(lane.key + ': ' + prev.itemId + ' (tier ' + prev.tier + ', ' + statOf(prev.itemId)
+            + ') gates at ' + prev.req + ' via ' + prev.id + ', but ' + rung.itemId + ' (tier ' + rung.tier + ', '
+            + statOf(rung.itemId) + ') gates at ' + lv.req + ' via ' + lv.id);
+        }
+        prev = { req: lv.req, id: lv.id, tier: rung.tier, itemId: rung.itemId };
+      });
+    });
+    assert(unreachable.length === 0, 'generated ladder rungs with no recipe — ' + unreachable.join(' | '));
+    assert(disordered.length === 0,
+      'THE b348 BUG: gear ladders whose craft gate is out of order with the material tier — ' + disordered.join('  ||  '));
+  }),
+
   () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {
     // A deterministic reachability check: seed the "roots" a player can obtain
     // (gather, drops, shops, dungeons, the clan Hunt, coded drops), then close
@@ -25297,6 +25393,273 @@ const TESTS = [
     } finally {
       window.getBonus = realBonus;
       restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b348 — XARN'S REPORTS #2, #3 AND #4
+
+     All three are SURFACE contracts, so every assertion below reads a rendered
+     surface rather than a field. That is this file's own hard-won rule (b342:
+     a guard that asserted `G._awayLicence` EXISTS could not tell that the card
+     meant to read it had never been built) and it is exactly the shape of #2 —
+     the data was always correct, and a stylesheet was eating it.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b348: every combat style SAYS which skills its XP goes to, and no stylesheet may hide it', () => {
+    const S = window.COMBAT_STYLES || {};
+    const skillNames = Object.keys(S).length;
+    assert(skillNames >= 4, 'COMBAT_STYLES must be published — got ' + skillNames + ' weapon families');
+
+    /* (1) THE TABLE IS HONEST. `trains` is an authored abbreviation and `xp` is
+       what the engine pays; two copies of one fact. Assert they name the same
+       skills, so a new style cannot advertise a route it does not run. */
+    const ABBREV = { attack: ['atk', 'attack'], strength: ['str', 'strength'], defense: ['def', 'defen'],
+      ranged: ['ranged', 'range'], magic: ['magic'], hitpoints: ['hp', 'hitpoints'] };
+    const mismatches = [];
+    Object.keys(S).forEach((fam) => Object.entries(S[fam]).forEach(([k, s]) => {
+      const claimed = String(s.trains || '').toLowerCase();
+      Object.keys(s.xp || {}).forEach((sk) => {
+        const forms = ABBREV[sk] || [sk];
+        if (!forms.some((f) => claimed.indexOf(f) >= 0)) {
+          mismatches.push(fam + '.' + k + ' pays ' + sk + ' XP but its label says "' + s.trains + '"');
+        }
+      });
+      // …and the reverse: no skill named that is never paid.
+      Object.entries(ABBREV).forEach(([sk, forms]) => {
+        if (!(sk in (s.xp || {})) && forms.some((f) => claimed.indexOf(f) >= 0) && sk !== 'hitpoints') {
+          mismatches.push(fam + '.' + k + ' NAMES ' + sk + ' but pays it no XP');
+        }
+      });
+    }));
+    assert(mismatches.length === 0, 'a style label disagrees with its XP routing table — ' + mismatches.join(' | '));
+
+    /* (2) THE DERIVED SENTENCE MATCHES THE TABLE. styleXpRouteText walks
+       `style.xp`, so it cannot describe a route the engine does not run — but
+       it can still be wired to nothing. Grade it. */
+    assert(typeof window.styleXpRouteText === 'function', 'styleXpRouteText must be published');
+    const solo = window.styleXpRouteText(S.sword.aggressive);
+    assert(/all to/i.test(solo) && /strength/i.test(solo),
+      'a single-skill style should read "all to Strength", got "' + solo + '"');
+    const split = window.styleXpRouteText(S.sword.controlled);
+    ['attack', 'strength', 'defen'].forEach((n) => assert(new RegExp(n, 'i').test(split),
+      'the three-way split must name ' + n + ', got "' + split + '"'));
+    /* Authored order, not sorted — Controlled is 33/33/34 and sorting put
+       Defence first purely on a rounding difference. */
+    assert(split.toLowerCase().indexOf('attack') < split.toLowerCase().indexOf('defen'),
+      'an even split must keep the authored order so it agrees with the "Atk/Str/Def" chip, got "' + split + '"');
+
+    /* (3) THE BUTTON ACTUALLY CARRIES IT. This is the assertion the regression
+       needed: the data was always right. */
+    if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
+    const block = document.querySelector('.combat-style-block');
+    assert(block, 'the combat style picker did not render');
+    const btns = [...block.querySelectorAll('.csb-btn')];
+    assert(btns.length >= 3, 'expected the weapon family\'s styles, got ' + btns.length + ' buttons');
+    btns.forEach((b) => {
+      const tr = b.querySelector('.csb-trains');
+      assert(tr && tr.textContent.trim().length > 0,
+        'style button "' + b.textContent.trim() + '" carries no .csb-trains — the XP route is unstated');
+    });
+
+    /* (4) AND NO STYLESHEET MAY HIDE IT. THE ACTUAL b348 BUG: theme-cozy.css
+       carried `#panel-combat .csb-btn small { display:none }` inside the mobile
+       media query, with the comment "hide ATTACK/STRENGTH/DEFENSE labels". It
+       landed in b110 when this font was 10px, survived b227 raising the type
+       floor, and then swallowed b329's swing readout too — so the number that
+       answered Xarn's PREVIOUS report was invisible on his phone from the day
+       it shipped.
+       An in-page test cannot force a media query, so this walks the CSSOM
+       instead — including rules inside @media, which is where the offender
+       lived. That is the point: it grades the rule wherever it sleeps, not only
+       the viewport the suite happens to run at. */
+    const offenders = [];
+    const walk = (rules, media) => {
+      for (const r of rules || []) {
+        if (r.type === CSSRule.MEDIA_RULE || r.cssRules) { walk(r.cssRules, media || (r.conditionText || '')); }
+        if (!r.selectorText || !r.style) continue;
+        const hidesTrains = /\.csb-trains\b/.test(r.selectorText)
+          || (/\.csb-btn\b/.test(r.selectorText) && /\bsmall\b/.test(r.selectorText));
+        if (hidesTrains && (r.style.display === 'none' || r.style.visibility === 'hidden')) {
+          offenders.push(r.selectorText + (media ? ' @media ' + media : ''));
+        }
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      try { walk(sheet.cssRules, ''); } catch (e) { /* cross-origin sheet — none of ours */ }
+    }
+    assert(offenders.length === 0,
+      'THE b348 BUG: a stylesheet hides the combat style XP label — ' + offenders.join(' | '));
+  }),
+
+  () => tryRunAsync('b348: the bag renders the space you PURCHASED, not the space you have filled', async () => {
+    const G = window.G;
+    assert(typeof window.bankCap === 'function' && typeof window.buyBankSpaceGem === 'function',
+      'the bank helpers must exist');
+    /* G.bank is NOT in snapshotG, and buying slots is permanent progress — save
+       and restore it here exactly as the b269 bank tests do. */
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})),
+      gems: G.gems, gold: G.gold, filter: JSON.parse(JSON.stringify(window._invFilter || {})) };
+    const prevTab = window.activeTab;
+    try {
+      window._invFilter = { category: 'all', search: '' };
+      /* The fixture must hold at least one WEAPON, because the filtered half of
+         this test switches to that lane — and an EMPTY lane renders the "no
+         items in this category" message instead of tiles, which would make the
+         filtered assertion read 0 and fail for the wrong reason. (Found by
+         mutation: an unrelated mutation showed this test red at "0 tiles for 0
+         matches".) */
+      G.inventory = {}; Object.keys(window.ITEMS).slice(0, 5).forEach((id) => { G.inventory[id] = 1; });
+      G.inventory.bronze_sword = 1;
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      window.showTab('inventory');
+      await new Promise((r) => setTimeout(r, 60));
+
+      const paint = async () => {
+        window._renderInvFancy();
+        await new Promise((r) => setTimeout(r, 20));
+        const grid = document.querySelector('#panel-inventory .invc-grid');
+        assert(grid, 'the bag grid did not render');
+        return {
+          filled: grid.querySelectorAll('.invc-tile:not(.invc-slot)').length,
+          empty: grid.querySelectorAll('.invc-tile.invc-slot:not(.invc-slot-more)').length,
+          total: grid.querySelectorAll('.invc-tile').length,
+          head: (document.querySelector('#panel-inventory .invc-space') || {}).textContent || '',
+        };
+      };
+
+      const before = await paint();
+      assert(before.total === window.bankCap(),
+        'the bag must draw one tile per PURCHASED stack: cap ' + window.bankCap() + ', tiles ' + before.total);
+      assert(before.filled === window.bankUsed(), 'filled tiles must equal the stacks held');
+
+      /* THE REPORT, exactly: buy space and the rows must appear NOW, not when
+         you next find an item. Measured before the fix: 88 tiles at cap 100, 88
+         at cap 160, 88 at cap 200 — the purchase was invisible until the player
+         outgrew it. */
+      G.gems = 10_000;
+      assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed');
+      const after = await paint();
+      assert(after.total - before.total === window.BANK_SPACE.gem.slots,
+        'THE b348 BUG: buying +' + window.BANK_SPACE.gem.slots + ' stacks changed the bag by '
+          + (after.total - before.total) + ' tiles — the purchase is invisible until you outgrow it');
+      assert(after.filled === before.filled, 'a space purchase must not change what you are holding');
+
+      /* The header states the truth, and keeps stating it — _renderInvSummary()
+         used to overwrite this whole node, so the capacity readout survived
+         about 50ms after every tab entry. */
+      assert(/\b\d+\s*\/\s*\d+\s*slots/.test(after.head),
+        'the bag header must state used / cap slots, got "' + after.head + '"');
+      window._renderInvSummary();
+      const head2 = (document.querySelector('#panel-inventory .invc-space') || {}).textContent || '';
+      assert(/\b\d+\s*\/\s*\d+\s*slots/.test(head2),
+        'THE b348 BUG: _renderInvSummary erased the slot capacity from the bag header — "' + head2 + '"');
+      assert(/gp/.test(head2), 'the summary itself must still be written: "' + head2 + '"');
+
+      /* A FILTERED lane must not claim bag capacity: free space belongs to the
+         bag, not to "Weapons". */
+      window._invFilter = { category: 'weapons', search: '' };
+      const filtered = await paint();
+      /* Asserted as an EQUALITY against the container fill, not as "less than
+         the cap": free space is `cap - used`, so a lane holding fewer items
+         than the bag does still lands under the cap even when it IS deriving
+         from capacity — a `< cap` assertion passes on the bug. (Found by
+         mutation: forcing every view to the capacity path stayed green.) */
+      const MIN_FILL = 88;
+      assert(filtered.total === Math.max(MIN_FILL, filtered.filled),
+        'a filtered lane must show its matches padded only to the container fill, not derived from the bank cap — '
+          + filtered.total + ' tiles for ' + filtered.filled + ' matches (cap ' + window.bankCap() + ')');
+    } finally {
+      G.inventory = saved.inv; G.bank = saved.bank; G.gems = saved.gems; G.gold = saved.gold;
+      window._invFilter = saved.filter;
+      try { window._renderInvFancy(); window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('b348: every surface that offers gear states the level needed to WEAR it, through the one authority', async () => {
+    const G = window.G;
+    assert(typeof window.gearWieldReq === 'function' && typeof window.canWield === 'function',
+      'the wield-gate seam must exist');
+    /* The probe item is deliberately `steel_platebody`: it is hand-authored, so
+       it carries NO `reqSkill`/`reqLv` fields at all and its gate is derived
+       from `tier`. Any surface reading the raw fields shows nothing for exactly
+       this class of gear — which is what the item modal was doing. */
+    const probe = 'steel_platebody';
+    const it = window.ITEMS[probe];
+    assert(it, 'the probe item must exist');
+    assert(it.reqLv == null && it.reqSkill == null,
+      'this test is only meaningful while ' + probe + ' has no raw req fields — it now has some, pick another probe');
+    const req = window.gearWieldReq(it);
+    assert(req && req.skill === 'defense' && req.lv > 0,
+      'the authority must derive a defence gate for ' + probe + ', got ' + JSON.stringify(req));
+
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    const prevTab = window.activeTab;
+    try {
+      G.inventory[probe] = 1;
+
+      /* (1) HOVER TOOLTIP — b341 put this on the shop row; the tooltip a player
+         uses to compare gear they already own never said it. */
+      const tipHost = document.getElementById('item-tooltip');
+      assert(tipHost, 'the item tooltip host must exist');
+      const tile = document.createElement('div');
+      tile.className = 'invc-tile'; tile.setAttribute('data-item-id', probe);
+      document.body.appendChild(tile);
+      try {
+        tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        const reqEl = tipHost.querySelector('.ttl-req');
+        assert(reqEl, 'the hover tooltip states no wear requirement for ' + probe);
+        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /defen/i.test(reqEl.textContent),
+          'the tooltip requirement must name the skill and the level, got "' + reqEl.textContent + '"');
+      } finally { tile.remove(); }
+
+      /* (2) THE ITEM DETAIL MODAL — the mobile equivalent of the hover tip. */
+      window.openInvDetail(probe);
+      await new Promise((r) => setTimeout(r, 60));
+      const modal = document.getElementById('inv-detail-overlay');
+      const modalText = (modal ? modal.textContent : '').replace(/\s+/g, ' ');
+      assert(/to wear/i.test(modalText) && modalText.indexOf('' + req.lv) >= 0,
+        'the item detail modal states no wear requirement for ' + probe + ' — "' + modalText.slice(0, 200) + '"');
+      if (typeof window.closeInvDetail === 'function') window.closeInvDetail();
+
+      /* (3) THE CRAFTING TILE — "what def requirements we need to wear those
+         too". The craft gate and the wear gate are different numbers on
+         different skills (Smithing 40 to forge, Defence 30 to wear). */
+      const rec = window.ARTISAN_RECIPES.smithing.find((r) => r.output === probe);
+      assert(rec, 'no smithing recipe produces ' + probe);
+      assert(typeof window.hrWearLineHtml === 'function', 'the shared wear-line helper must be published');
+      const line = window.hrWearLineHtml(probe);
+      assert(/at-wear/.test(line) && line.indexOf('' + req.lv) >= 0,
+        'the wear line does not state the requirement: "' + line + '"');
+      assert(window.hrWearLineHtml('normal_log') === '',
+        'a non-wearable output must produce no wear line');
+
+      // Painted, through whichever tile builder is actually wired.
+      G.skills.smithing = 1e7;
+      window._actLastRender = { skillId: null, activeKey: null };
+      window.showTab('skills');
+      window.openSkillDetail('smithing');
+      await new Promise((r) => setTimeout(r, 80));
+      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'armour');
+      await new Promise((r) => setTimeout(r, 80));
+      const plate = [...document.querySelectorAll('#skill-detail .act-tile')]
+        .find((t) => t.getAttribute('data-prod') === probe);
+      assert(plate, 'the ' + probe + ' recipe tile did not render on the Armour lane');
+      const wearEl = plate.querySelector('.at-wear');
+      assert(wearEl && wearEl.textContent.indexOf('' + req.lv) >= 0,
+        'the crafting tile does not say what you need to WEAR the output — "' + plate.innerText.replace(/\s+/g, ' ') + '"');
+
+      /* (4) AND THE ESM TWIN, which paints nothing today and therefore drifts
+         (b345's lesson). Graded through its published builder. */
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForArtisan === 'function', 'the activities-grid test seam is gone');
+      assert(/at-wear/.test(AG.__tileForArtisan(rec, 'smithing')),
+        'the activities-grid TWIN does not carry the wear line — the two tile builders have drifted');
+    } finally {
+      G.inventory = saved.inv; G.skills = saved.skills;
+      window._actLastRender = { skillId: null, activeKey: null };
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),

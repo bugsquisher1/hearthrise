@@ -19203,6 +19203,253 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     AWAY-19 — THE ARTISAN SPAN IS ONE LOOP TOO. (b351)
+
+     AWAY-16's assertion, for the 290 catalogue rows it did not cover — 84% of
+     all activities, and the last simulation in the game that had no DOM-free
+     form. `src/core/artisan-sim.js simulateArtisanSpan` is what legacy.js's
+     away branch (`replayAwaySpan` over thousands of `window.doArtisanAction`
+     calls) became.
+
+     N live production ticks and ONE core span of exactly N ticks' worth of
+     time must produce the same bag, the same XP, the same counters, the same
+     burns and the same fractional tool carry.
+
+     THE FIXTURE IS COOKING ON PURPOSE. It is the only bench that rolls a burn,
+     so it exercises the second of the three RNG draws whose ORDER is part of
+     the replay contract (craftSave, burn, yield). A fixture on smithing would
+     pass while a reordered stream went unnoticed. */
+  () => tryRun('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    try {
+      assert(C && C.artisanSim && typeof C.artisanSim.simulateArtisanSpan === 'function',
+        'src/core/artisan-sim.js is not published on HearthriseCore — the client can never call it');
+
+      /* ⚠ THE FIRST FIXTURE WAS `cook_shrimp` AT LEVEL 99 AND IT PROVED NOTHING.
+         Burn relief is 1pp per level above the recipe's req, so 99 against a
+         req-1 recipe is 98pp of relief: the chance is clamped to ZERO and the
+         column never burnt once in 300 ticks. Every parity assertion passed —
+         on a fixture that had silently stopped exercising draw 2 of 3. The
+         `live.burns > 0` precondition below is what caught it, which is exactly
+         why a parity test needs preconditions and not just comparisons.
+
+         `cook_moonfish` is req 88; the level is pinned to exactly 88, so the
+         burn sits at the full 25% base and 300 ticks of its 420 XP do not reach
+         89 (measured: 4,385,776 + 126,000 is still level 88). */
+      const RECIPE = 'cook_moonfish';
+      const N = 300;
+      const entry = C.artisanRecipe(RECIPE);
+      assert(entry && entry.skill === 'cooking', 'the recipe index does not resolve ' + RECIPE + ' to cooking');
+      const REQ_XP = C.xp.XP_TABLE[entry.recipe.req - 1];
+
+      const setup = () => {
+        G.activeMonster = null;
+        G.activeSkill = 'cooking';
+        G.skillTargetId = RECIPE;
+        G.skills = Object.assign({}, G.skills, { cooking: REQ_XP });
+        G.inventory = { moonfish: N + 50 };         // never runs dry inside the span
+        G.equipment = Object.assign({}, G.equipment);
+        G.unlockedRecipes = Object.assign({}, G.unlockedRecipes);
+        G.toolCarry = {};
+        G.stats = Object.assign({}, G.stats, { cooked: 0, burnt: 0, toolDoubles: 0 });
+        G.buffs = [];
+        window._hrOfflineBurns = 0;
+      };
+      window.notify = function () {};             // a burn toast per tick otherwise
+
+      // ── Column A: the LIVE production tick, N times, under a pinned seed ──
+      /* Read INSIDE the latch, for the reason AWAY-16 records: a cook-speed
+         BLESSING is presence-gated, so `activityIntervalMs()` answers a smaller
+         number outside `withOfflineReplay` than inside it, and the span would be
+         sized off a rate the replay never runs at. */
+      setup();
+      let stepMs = 0;
+      C.reseed(0x5EAF00D);
+      P._withOfflineReplay(() => {
+        stepMs = window.activityIntervalMs();
+        for (let i = 0; i < N; i++) window.doArtisanAction('cooking', RECIPE, { silent: true });
+      });
+      assert(stepMs > 0, 'activityIntervalMs() returned ' + stepMs + ' — the rig cannot size a span');
+      const live = {
+        inventory: Object.assign({}, G.inventory),
+        xp: G.skills.cooking,
+        cooked: G.stats.cooked, burnt: G.stats.burnt, doubles: G.stats.toolDoubles,
+        burns: window._hrOfflineBurns,
+        carry: Object.assign({}, G.toolCarry),
+      };
+
+      // ── Column B: ONE core span, sized to exactly N actions ───────────
+      setup();
+      C.reseed(0x5EAF00D);
+      let summary = null;
+      P._withOfflineReplay(() => {
+        summary = C.artisanSim.simulateArtisanSpan(G, {
+          away: true,
+          fromMs: 0, toMs: N * stepMs,
+          rng: C.rng,
+          items: window.ITEMS,
+          recipes: C.artisanRecipes(),
+          bonus: window.getBonus,
+          /* THE ADAPTER — the same one processOffline passes. Written out here
+             so "what does the client have to supply?" has an executable answer. */
+          fx: {
+            addItem: (id, q) => window.addItem(id, q),
+            removeItem: (id, q) => window.removeItem(id, q),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: (k, n) => window.updateDaily(k, n),
+            updateQuest: (k, n) => window.updateQuest(k, n),
+          },
+        });
+      });
+      const core = {
+        inventory: Object.assign({}, G.inventory),
+        xp: G.skills.cooking,
+        cooked: G.stats.cooked, burnt: G.stats.burnt, doubles: G.stats.toolDoubles,
+        burns: summary.burnt,
+        carry: Object.assign({}, G.toolCarry),
+      };
+
+      assert(summary && summary.ticks === N,
+        'the core span ran ' + (summary && summary.ticks) + ' actions, not the ' + N + ' it was sized for — '
+        + 'the comparison below would be measuring two different amounts of work');
+      assert(summary.stoppedBy === null,
+        'the span stopped early (' + summary.stoppedBy + ') — the fixture was meant to run clean');
+      /* Preconditions, so a green result can never be vacuous. */
+      assert(live.cooked > 0, 'the live column cooked nothing — the parity assertion would be vacuous');
+      assert(live.burns > 0, 'the fixture never burnt, so the burn roll (draw 2 of 3) is untested');
+
+      assert(JSON.stringify(live.inventory) === JSON.stringify(core.inventory),
+        'BAG DIVERGED between the live loop and the core span.\n  live: ' + JSON.stringify(live.inventory)
+        + '\n  core: ' + JSON.stringify(core.inventory));
+      assert(live.xp === core.xp, 'cooking XP diverged: live ' + live.xp + ' vs core ' + core.xp);
+      assert(live.cooked === core.cooked, 'stats.cooked diverged: ' + live.cooked + ' vs ' + core.cooked);
+      assert(live.burnt === core.burnt, 'stats.burnt diverged: ' + live.burnt + ' vs ' + core.burnt);
+      assert(live.burns === core.burns,
+        'the REPORTED burn count diverged: the live replay counted ' + live.burns
+        + ' into window._hrOfflineBurns, the span reported ' + core.burns
+        + ' — the welcome-back card reads this number');
+      assert(live.doubles === core.doubles, 'tool doubles diverged: ' + live.doubles + ' vs ' + core.doubles);
+      assert(JSON.stringify(live.carry) === JSON.stringify(core.carry),
+        'the fractional artisan tool carry diverged.\n  live: ' + JSON.stringify(live.carry)
+        + '\n  core: ' + JSON.stringify(core.carry));
+    } finally {
+      window.notify = realNotify;
+      window._hrOfflineBurns = 0;
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     AWAY-20 — THE RECIPE INDEX IS THE ONE MAPPING, AND IT IS SAFE. (b351)
+
+     The server holds ONE id (`player_state.active_id`) and no skill column, so
+     an index is the only thing that can say which bench an id belongs to.
+     legacy.js answered that question four separate times with
+     `ARTISAN_RECIPES[skill].find(...)`, which is how a recipe comes to pay one
+     bench's XP on the client and another's on the server.
+
+     Two hazards, both asserted rather than trusted:
+       • a DUPLICATE id across benches makes the answer depend on iteration
+         order — 290 recipes today, 0 collisions, and a fifth bench is a data row;
+       • `active_id` is bounded by /^[a-z0-9_]{1,64}$/ at the request layer,
+         which MATCHES `constructor` and `__proto__`. On a plain object both are
+         truthy, and a truthy miss here reaches `recipe.inputs` / `recipe.output`
+         — Security's pre-registered C6, in the one index where it would pay. */
+  () => tryRun('AWAY-20: the artisan recipe index has no duplicate ids and no prototype to fall through to', () => {
+    const C = window.HearthriseCore;
+    assert(C && C.artisanSim, 'src/core/artisan-sim.js is not published');
+    const src = window.ARTISAN_RECIPES;
+    assert(src && Object.keys(src).length >= 4, 'ARTISAN_RECIPES is not loaded — the guard would be vacuous');
+
+    const dupes = C.artisanSim.duplicateRecipeIds(src);
+    assert(dupes.length === 0,
+      'a recipe id is claimed by more than one bench, so which skill it pays depends on key order: '
+      + JSON.stringify(dupes));
+
+    const idx = C.artisanRecipes();
+    const n = Object.keys(idx).length;
+    let authored = 0;
+    Object.keys(src).forEach((sk) => { authored += (src[sk] || []).length; });
+    assert(n === authored,
+      'the index holds ' + n + ' recipes but ' + authored + ' are authored — rows were dropped or collided');
+    assert(n > 250, 'only ' + n + ' recipes indexed — the catalogue did not load');
+
+    assert(Object.getPrototypeOf(idx) === null,
+      'the recipe index has a prototype — `constructor` and `__proto__` are reachable ids that would '
+      + 'resolve to something truthy and then be read as a recipe');
+    ['constructor', '__proto__', 'toString', 'hasOwnProperty'].forEach((probe) => {
+      assert(!C.artisanRecipe(probe),
+        'artisanRecipe("' + probe + '") returned something — a forged active_id reaches recipe.inputs');
+    });
+
+    /* The lookup and the index must be the same object, or the memo is a second
+       copy that can go stale against a catalogue swap. */
+    assert(C.artisanRecipes() === idx, 'artisanRecipes() is not memoised — it rebuilds 290 rows per call');
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     AWAY-21 — CORE AND THE ENGINE MUST AGREE ABOUT THE ARTISAN INTERVAL. (b351)
+
+     `n = floor(sliceMs / stepMs)` makes the interval the divisor of the whole
+     grant — the single largest lever in an accrual. legacy's
+     `activityIntervalMs()` is what the LIVE loop and the away replay actually
+     run at, and it adds `bestToolSpeed(skill)` for EVERY skill (Wave 3: "a Forge
+     Hammer speeds smithing exactly as a Rune Axe speeds woodcutting").
+     `core/pacing.js actionSpeedBonus` gated that term to GATHER_SKILLS, so a
+     server pricing a smithing night off `actionIntervalMs` ran the bench up to
+     the tool ladder's 25% SLOWER than the client — and `actionRate`, the ONE
+     rate calculator every artisan tile reads, under-quoted it on screen.
+
+     Asserted against a bench WITH a tool, or the fixture proves nothing: with
+     no hammer owned both expressions agree trivially. */
+  () => tryRun('AWAY-21: the artisan interval core derives == the one the live loop runs, tool speed included', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    try {
+      const hammer = Object.keys(window.ITEMS)
+        .filter((id) => window.ITEMS[id] && window.ITEMS[id].type === 'tool' && window.ITEMS[id].toolSkill === 'smithing')
+        .sort((a, b) => (window.ITEMS[b].toolTier || 0) - (window.ITEMS[a].toolTier || 0))[0];
+      assert(!!hammer, 'no smithing tool in the catalogue — the fixture would be vacuous');
+
+      const entry = C.artisanRecipe('smelt_copper');
+      assert(entry && entry.skill === 'smithing', 'smelt_copper does not resolve to smithing');
+
+      G.activeMonster = null;
+      G.activeSkill = 'smithing';
+      G.skillTargetId = 'smelt_copper';
+      G.inventory = { [hammer]: 1, copper_ore: 100 };
+      G.equipment = Object.assign({}, G.equipment);
+
+      const toolSpeed = window.HearthriseTools.bestToolSpeed('smithing');
+      assert(toolSpeed > 0, 'the best smithing tool contributes no speed — the assertion below is vacuous');
+
+      const live = window.activityIntervalMs();
+      const core = C.artisanSim.artisanIntervalMs(G, 'smithing', entry.recipe, {
+        items: window.ITEMS, bonus: window.getBonus,
+      });
+      assert(live === core,
+        'THE LARGEST LEVER IN AN ACCRUAL DISAGREES. legacy activityIntervalMs() says ' + live
+        + 'ms, core artisanIntervalMs() says ' + core + 'ms. The tool contributes '
+        + (toolSpeed * 100).toFixed(0) + '%, so a server would pay a different night than the client.');
+
+      /* And the number on screen must be the number the game runs at — the
+         second half of the same defect. */
+      const rate = window.actionRate('smithing', entry.recipe);
+      assert(rate && rate.ms === live,
+        'actionRate quotes ' + (rate && rate.ms) + 'ms while the bench runs at ' + live
+        + 'ms — the artisan tile is under-reporting the rate the player is already paid at');
+    } finally {
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('AWAY-13 (perf): the analytics bridge must not write localStorage once per engine event', () => {
     /* Found with the CPU profiler while measuring a 12-hour away catch-up:
        observability.js subscribes to the event bus with on('*') and its track()

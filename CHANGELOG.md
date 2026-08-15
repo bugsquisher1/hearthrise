@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 345 — 2026-08-15 (Four empty gear slots, and the permit is gone)
+
+- 💍 **The earrings slot has something to put in it.** It has been on your character sheet since the beginning with *nothing in the entire game* that could fill it. Six earrings now exist, built around crit. Also: five new capes closing a gap that ran from level 35 straight to level 76, eight more necklaces and rings, and a full seven-tier arrow ladder — a bow climbed seven tiers while its ammo never upgraded once.
+- 🎖️ **The "Field Licence" is gone.** It was a confusing name for a rule that was doing nothing useful: away combat was locked until 100 kills, but without Auto-Eat an unattended fight ends in about a minute anyway. The lock is removed. The 100-kill quest stays as a goal that pays 1,500 combat XP, and every screen that mentions away pay now tells you the real limit — *"about 5 kills, then you fall and the fight ends. Auto-Eat keeps it running."*
+- 🎯 **Auto-accepted bounties now actually switch your target while you're away.** They were switching *after* the night ended. Measured on a two-hour absence: 1,589 kills on the old monster, and zero progress on the bounty you were holding.
+- 🌙 **Away nights now play out identically every time.** Companion procs and pet drops were being rolled outside the game's seeded randomness, so the same night could pay differently. Groundwork for the server owning your progress — but it also means your pet's listed rate is now the rate you actually get.
+- 🐝 Two pets that promised a refund and delivered nothing are **known and queued** — not fixed yet, but no longer silently wrong.
+
 ## v0.9.2-beta build 342 — 2026-08-14 (Two things were counting twice, and the morning after now explains itself)
 
 - 🐾 **Your companion was firing about twice as often as its card said.** A pet advertising "20% on kill" was really proccing at 36%, levelling at double speed, and rolling loot at double the listed rate — the code that runs pets was installed twice, so every roll happened twice. Now correct, which means **your pet will visibly pay less than it did yesterday**. It was never meant to pay that much; the card was right and the game was wrong. Your pet-progress panel, meanwhile, had been showing you exactly *half* of what your pet was actually paying.

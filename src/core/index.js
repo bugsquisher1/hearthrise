@@ -42,3 +42,8 @@ export * as away from './away.js?v=346';
 export * as botd from './botd.js?v=346';
 export * as buffs from './buffs.js?v=346';
 export * as combatSim from './combat-sim.js?v=346';
+/* The GATHERING half of the same unification. `skillSim.sliceSpan` IS
+   legacy.js's `replayAwaySpan`, lifted; `simulateSkillSpan` is the loop the
+   client's away gather branch and the accrual Edge Function both run. Before
+   it, 313 of 344 catalogue activities accrued nothing server-side. */
+export * as skillSim from './skill-sim.js?v=346';

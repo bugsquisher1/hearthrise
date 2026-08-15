@@ -77,6 +77,7 @@ import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intent
 import { runSetActivity } from './set-activity.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
+import { GATHER_NODES } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -382,8 +383,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       autoEatEnabled: st.auto_eat_enabled === true,
       autoEatFood: st.auto_eat_food ?? null,
       autoEatPct: Number(st.auto_eat_pct),
+      /* THE GATHER CARRY. `?? null` and NOT `?? {}`: null means the column does
+         not exist on this database, and the engine reads that as "do not write
+         a tool_carry key", because hr_apply refuses an unknown delta key and
+         that refusal costs a whole night. The presence of the column IS the
+         switch — there is no flag to forget to flip.
+         Mirrors set-activity.js field for field (A14). */
+      toolCarry: st.tool_carry ?? null,
       items: ITEMS,
       monsters: MONSTERS,
+      nodes: GATHER_NODES,
     });
 
     let out = runAccrual(capMs);

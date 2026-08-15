@@ -45,6 +45,7 @@ import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas,
 } from './intents.js';
+import { GATHER_NODES } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -222,6 +223,16 @@ export async function runSetActivity(o) {
        which matches `constructor` and `__proto__`; both are truthy on MONSTERS
        and both walked straight past the truthiness form of this check. */
   if (decl.kind === 'combat' && !catalogueHas(MONSTERS, decl.id)) {
+    return {
+      status: 409,
+      body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
+    };
+  }
+  /* The same early answer for the other payable kind. Both catalogues, one
+     rule — a kind that can be SET but whose id is never checked here would
+     reach hr_apply, which refuses it correctly but one round trip later and
+     after the collect has already run. */
+  if (decl.kind === 'gather' && !catalogueHas(GATHER_NODES, decl.id)) {
     return {
       status: 409,
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
@@ -439,8 +450,15 @@ async function collectCurrentWindow(o) {
     autoEatEnabled: st.auto_eat_enabled === true,
     autoEatFood: st.auto_eat_food ?? null,
     autoEatPct: Number(st.auto_eat_pct),
+    /* THE GATHER CARRY — `?? null`, and the null is load-bearing. See the same
+       field in index.ts and the `toolCarry` note in computeAccrual's contract:
+       an absent column means the engine must NOT put `tool_carry` in the delta,
+       because hr_apply's answer to an unknown key is a 409 that costs the
+       window this collect exists to pay. */
+    toolCarry: st.tool_carry ?? null,
     items: ITEMS,
     monsters: MONSTERS,
+    nodes: GATHER_NODES,
   });
 
   if (!out.accrued) {

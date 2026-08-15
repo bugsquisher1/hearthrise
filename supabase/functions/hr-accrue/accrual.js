@@ -37,6 +37,7 @@ import {
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
 import { simulateSpan } from '../../../src/core/combat-sim.js';
+import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 import { resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 import { createRng } from '../../../src/core/rng.js';
@@ -83,6 +84,18 @@ export const SKIP = {
   TOO_SOON: 'below_min_span',
   NO_TARGET: 'unknown_monster',
   NOTHING: 'nothing_accrued',
+  /* A `gather` pointer whose id is not in the gather index. The mirror of
+     NO_TARGET for the other payable kind, and a separate code because
+     "unknown_monster" is a lie about a missing tree — the two are produced by
+     different catalogues and a support request has to be able to tell them
+     apart. REFUSING, exactly like NO_TARGET: an unpriceable window must be
+     deferred, never confiscated by a switch. */
+  NO_NODE: 'unknown_node',
+  /* The pointer names a node whose skill is not the one the character is set
+     to. Reachable only from an inconsistent row (the server holds no skill
+     column, so this is the CLIENT-side arm), and paying it would credit the
+     wrong skill's XP. REFUSING. */
+  WRONG_SKILL: 'wrong_skill',
   /* An activity pointer with no `active_since`. Fail-closed rather than
      substituted — see the precondition below. */
   NO_ACTIVE_SINCE: 'no_active_since',
@@ -106,9 +119,18 @@ export const SKIP = {
    very rule that closed the over-payment.
 
    Widening this array is therefore the SAME EDIT as teaching the engine to pay
-   that kind. If you add 'gather' here without a gather simulation below, the
-   guard fails; that is the guard's entire job. */
-export const PAYABLE_KINDS = Object.freeze(['combat']);
+   that kind. If you add a kind here without a simulation below, the guard
+   fails; that is the guard's entire job.
+
+   `gather` joined `combat` on 2026-08-15 (23 of the 344 rows). `artisan` — the
+   other 290 — is NOT here and is blocked on two models that do not exist:
+   `unlockedRecipes` (8 gated recipes, needing `flag` progress rows) and
+   `noBurn` (the Kitchen rung of a property model). `zeroBonus()` returns 0, so
+   a server that cooked today would burn at the base 25% while the player's
+   Kitchen says 0% — the server DESTROYING items the client would have kept.
+   Refusing it keeps the existing mitigation: `delta: NONE`, index.ts returns
+   before hr_apply, the watermark does not move, the time is DEFERRED. */
+export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);
 
 /* The perk stack, server-side. Returns 0 for every channel.
    THIS IS NOT A STUB THAT FORGOT SOMETHING — it is the honest state of the
@@ -218,6 +240,22 @@ function nat(v, fallback) {
  *   autoEatPct   player_state.auto_eat_pct — integer percent, 0..100
  *   items        ITEMS,   the authored catalogue (src/data/items.js)
  *   monsters     MONSTERS, ditto
+ *   nodes        the GATHER INDEX — `indexGatherNodes({woodcutting: TREES,
+ *                mining: ROCKS, fishing: FISH_SPOTS})`, built once in
+ *                ./catalogue.js so the skill↔array mapping exists in exactly
+ *                one place. Null-prototype, so a `__proto__` id cannot resolve.
+ *   toolCarry    player_state.tool_carry — the deterministic fractional
+ *                double-yield carry, `{ skill: 0..1 }`. **NULL means the
+ *                column does not exist yet**, and that is a deliberate,
+ *                self-configuring switch rather than a flag: the engine then
+ *                starts each span from an empty carry and OMITS `tool_carry`
+ *                from the delta, because hr_apply refuses an unknown delta key
+ *                and that refusal would cost the player a whole night. The day
+ *                2026-08-15-tool-carry.sql is applied, hr_state_of starts
+ *                returning `{}` instead of undefined and the key starts being
+ *                written. Cost of the gap: at most one bonus unit per skill
+ *                per accrual (~0.5 expected), measured in
+ *                tests/accrual-engine.mjs' carry-continuity fixture.
  *
  * @returns { accrued: false, reason } | { accrued: true, delta, summary, … }
  */
@@ -242,8 +280,16 @@ export function computeAccrual(input) {
      /^[a-z0-9_]{1,64}$/ at the request layer — which matches `constructor` and
      `__proto__`, both of which are truthy on any plain object. See catalogueHas
      in ./intents.js for the measurement and for why it stops being harmless the
-     moment a lookup is followed by a property read. */
-  if (!catalogueHas(monsters, inp.activeId)) return { accrued: false, reason: SKIP.NO_TARGET };
+     moment a lookup is followed by a property read.
+     (The gather index is null-prototype, so its own lookup needs no such
+     guard — see `indexGatherNodes`. It is checked through the same helper
+     anyway, because one reader is one rule.) */
+  if (inp.activeKind === 'combat' && !catalogueHas(monsters, inp.activeId)) {
+    return { accrued: false, reason: SKIP.NO_TARGET };
+  }
+  if (inp.activeKind === 'gather' && !catalogueHas(inp.nodes || {}, inp.activeId)) {
+    return { accrued: false, reason: SKIP.NO_NODE };
+  }
 
   /* ── THE FAIL-CLOSED `active_since` RULE (Phase-D, the half that is not SQL) ─
      `active_since` is the second watermark and the only defence against a
@@ -283,6 +329,16 @@ export function computeAccrual(input) {
   if (!(capMs > 0)) return { accrued: false, reason: SKIP.NO_CAP };
   if (grantMs < ACCRUE_MIN_MS) return { accrued: false, reason: SKIP.TOO_SOON };
   const capped = elapsedMs > grantMs;
+
+  /* ── (1b) THE KIND BRANCH ────────────────────────────────────────────────
+     Everything above is shared: the pointer, the two watermarks, the cap and
+     the minimum span are properties of an ABSENCE, not of what was being done
+     in it. Everything below is combat. `accrueGather` runs the same shape over
+     src/core/skill-sim.js and returns the same envelope; it is a separate
+     function rather than a branch inside this one so that the combat path is
+     textually unchanged and its parity fixtures still cover the bytes they
+     were written against. */
+  if (inp.activeKind === 'gather') return accrueGather(inp, { nowMs, grantMs, capped });
 
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
@@ -650,6 +706,260 @@ export function computeAccrual(input) {
       levelUps,
     },
   };
+}
+
+/* ── THE TOOL CARRY, NORMALISED ─────────────────────────────────────────────
+   `player_state.tool_carry` is jsonb the database CHECKs is an object, but it
+   arrives here through a jsonb round trip where a bigint is a string and a
+   NULL column is `null`. Every value is coerced into the half-open [0,1) the
+   carry is defined on: `advanceToolCarry` banks `qty × rate` and pays out whole
+   units, so a carry of 0.9 is legal and a carry of 900 would be a 900-item mint
+   on the first action of the next span. Out-of-range, non-finite and negative
+   values are DROPPED rather than clamped — a carry is worth less than one item
+   and there is no honest way for it to be 900, so the only safe reading of a
+   corrupt one is "start again".
+
+   Returns null when the input is null/absent, and that null is load-bearing:
+   see the `toolCarry` note in computeAccrual's contract. */
+export function normaliseToolCarry(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const k in raw) {
+    if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
+    const n = Number(raw[k]);
+    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = n;
+  }
+  return out;
+}
+
+/**
+ * THE GATHER ACCRUAL. Same envelope, same rules, a different simulation.
+ *
+ * Nothing below re-implements a rule: the span loop, the interval, the yield
+ * roll, the deterministic tool carry and the XP grant all come out of
+ * src/core/skill-sim.js — the SAME function the client's away gather replay
+ * runs. The only thing that is server-specific is the APPLY: the client mutates
+ * G, this accumulates a delta hr_apply re-validates.
+ *
+ * @param inp  computeAccrual's input, verbatim
+ * @param span { nowMs, grantMs, capped } — computed by the shared preamble
+ */
+function accrueGather(inp, span) {
+  const { nowMs, grantMs, capped } = span;
+
+  const items = inp.items || {};
+  const nodes = inp.nodes || {};
+  const equipment = inp.equipment || {};
+  /* Equipment reaches a gathering night through exactly one channel — `xpB`,
+     the same term the client's xpGrantCtx() supplies. Gathering has no
+     accuracy, no max hit and no swing speed, so `equipmentStats` is read for
+     that one field and nothing else. (Tool SPEED is not equipment: it is the
+     best tool the character OWNS, resolved from the bag by src/core/tools.js.) */
+  const eq = equipmentStats(equipment, items);
+
+  const skills0 = {};
+  for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
+
+  /* THE LIVE BAG, for the same reason the combat path keeps one: the tool
+     lookup reads it, and the client's `addItem` mutates `G.inventory` during
+     the replay. A server that resolved tools against a frozen snapshot would
+     agree with the client today and diverge the day a node yields one. */
+  const bag = Object.create(null);
+  for (const id in (inp.inventory || {})) {
+    const q = Math.floor(nat(inp.inventory[id], 0));
+    if (q > 0) bag[id] = q;
+  }
+
+  const carry0 = normaliseToolCarry(inp.toolCarry);
+  const state = {
+    /* The pointer. `activeSkill` is DERIVED by simulateSkillSpan from the
+       index — the server holds no skill column — so it is deliberately not set
+       here: setting it would be the engine asserting something it does not
+       know, and the mismatch branch exists precisely to catch that. */
+    skillTargetId: inp.activeId,
+    skills: { ...skills0 },        // a COPY: grantXp mutates it, and the diff below is the delta
+    inventory: bag,
+    equipment,
+    toolCarry: { ...(carry0 || {}) },
+    stats: {},
+  };
+
+  const itemDelta = Object.create(null);
+  const events = [];
+  const levelUps = [];
+
+  const fx = {
+    addXp(skillId, amt) {
+      const res = grantXp(state, skillId, amt, {
+        bonus: zeroBonus,
+        xpB: eq.xpB || 0,
+        restedQuantum: 0,     // Rested XP is not server state yet. Under-pays.
+        authored: false,
+      });
+      for (const ev of res.events) {
+        if (ev.type !== 'levelup') continue;
+        levelUps.push({ skill: ev.skill, from: ev.from, to: ev.to });
+      }
+    },
+    addItem(id, qty) {
+      const n = Math.floor(Number(qty) || 0);
+      if (!id || n <= 0) return;
+      itemDelta[id] = (itemDelta[id] || 0) + n;
+      bag[id] = (bag[id] || 0) + n;
+    },
+    /* Deliberately ABSENT, each an omission with a named dependency rather than
+       an oversight — the same list combat carries:
+         updateDaily / updateQuest — no server progress model for dailies or
+                        quests yet, and emitting invented keys now would hand
+                        that workstream a contract it has to break. Gathering
+                        STATS are journalled below, because `stat` is already a
+                        legal progress kind with a defined meaning.
+         onStop       — the level gate. Handled from the SUMMARY instead (see
+                        the `activity` key below), because the server's "stop"
+                        is a delta, not a call.
+       ⚠ Under the 2026-08-15 ruling these are MUST-CLOSE, not accepted
+         behaviour. A gathering night currently makes no progress on "Gather 25
+         logs" server-side, exactly as an away combat night makes none on
+         "Slay 10 monsters". */
+  };
+
+  const ctx = {
+    away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
+    fromMs: nowMs - grantMs,
+    toMs: nowMs,
+    capped,
+    rng: createRng(nat(inp.seed, 0)),
+    items,
+    nodes,
+    bonus: zeroBonus,
+    /* `minStepMs` is NOT SET, so resolveStepMs uses the real MIN_ACTION_MS
+       floor. Exactly as in the combat ctx, this object is built field by field
+       and nothing is spread into it — if it were built from a request body,
+       `minStepMs` would ride in through the same door as everything else and
+       defeat the clamp that is supposed to be the second line of defence. */
+    fx,
+  };
+
+  const summary = simulateSkillSpan(state, ctx);
+
+  /* A pointer the simulation could not resolve is a REFUSAL, not an empty
+     night: `delta: NONE` means index.ts returns before hr_apply, the watermark
+     does not advance, and the window is DEFERRED. Reachable only from an
+     inconsistent row — hr_apply validates `active_id` against hr_activities
+     when the pointer is set — but "unreachable today" is not a reason to
+     confiscate a night if it ever becomes reachable. */
+  if (summary.stoppedBy === STOP_REASON.UNKNOWN_NODE) return { accrued: false, reason: SKIP.NO_NODE, summary };
+  if (summary.stoppedBy === STOP_REASON.WRONG_SKILL) return { accrued: false, reason: SKIP.WRONG_SKILL, summary };
+
+  // ── Turn the mutated state into a delta hr_apply will accept. ────────────
+  // Every value below is an INTEGER. hr_apply casts with `::bigint`, and a
+  // fractional string is `bad_delta` — which costs the player the whole night.
+  const xpDelta = {};
+  for (const k in state.skills) {
+    const gained = Math.floor((state.skills[k] || 0) - (skills0[k] || 0));
+    if (gained > 0) xpDelta[k] = gained;
+  }
+
+  const items_ = {};
+  let itemKinds = 0;
+  for (const id in itemDelta) {
+    /* Unknown ids are refused by hr_apply against the generated hr_items
+       catalogue, which would reject the WHOLE delta — one renamed product id
+       would cost a player their entire night. Filter here against the same
+       authored data the catalogue is generated from, and report it. */
+    if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
+    const n = Math.floor(itemDelta[id]);
+    if (n <= 0) continue;          // gathering never debits; a zero is not a no-op to hr_apply
+    items_[id] = n;
+    itemKinds++;
+  }
+
+  /* ⚠ A LEVEL-GATED NODE MUST STILL CLEAR THE POINTER, and that is why this
+     test comes BEFORE the nothing-happened return rather than after it.
+     `resolveGatherAction` refuses on the first action when the character's
+     server level is under `node.req`, so the span produces nothing — and
+     returning `nothing_accrued` there would leave `active_id` pointing at a
+     node that can never pay, forever, with every future accrual answering
+     "nothing" and the player's pointer stuck on an activity they cannot do.
+     Unreachable through the intent surface (hr_apply refuses to SET a node
+     above the server level, and levels do not fall), so this is the arm for a
+     content re-balance that raises a requirement under a live character. */
+  const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
+  if (nothingHappened && summary.stoppedBy !== STOP_REASON.LEVEL) {
+    return { accrued: false, reason: SKIP.NOTHING, summary };
+  }
+
+  const stats = state.stats || {};
+  const progress = [];
+  const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
+  stat('gathered', stats.gathered);
+  stat('tool_doubles', stats.toolDoubles);
+  /* The per-SKILL counter the daily and weekly goals actually read
+     (`chopped`/`mined`/`fished`). Read out of core's SKILL_ACTION_STAT — the
+     same object legacy.js increments live — so an away night and a live hour
+     move the same row. */
+  const perSkill = SKILL_ACTION_STAT[summary.skill];
+  if (perSkill) stat(perSkill, stats[perSkill]);
+
+  const delta = {
+    accrued_to: new Date(nowMs).toISOString(),
+    journal: {
+      kind: 'gather',
+      intent: 'accrue',
+      // AGGREGATE, never per-action. A 24h woodcutting night is ~27,000
+      // actions; the receipt for what per-action journalling costs is
+      // game_events — 1.6M rows / 229 MB from six players in four days.
+      meta: { ms: grantMs, ticks: summary.ticks, qty: stats.gathered || 0,
+              capped, node: summary.nodeId, skill: summary.skill },
+    },
+  };
+  if (itemKinds > 0) delta.items = items_;
+  if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  if (progress.length) delta.progress = progress;
+  /* THE CARRY, written back only when the server actually owns it. See the
+     `toolCarry` note in computeAccrual's contract: a null input means the
+     column does not exist, and emitting the key against an hr_apply that does
+     not implement it is `unknown_delta_key` — a 409 that costs the night. */
+  if (carry0) delta.tool_carry = roundCarry(state.toolCarry);
+  /* The level gate stopped the activity, so the pointer must stop too — the
+     same statement `died` makes for combat. Sent only when it happened,
+     because an `activity` key is a complete, re-validated activity statement
+     and restating an unchanged pointer buys nothing but a catalogue lookup. */
+  if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
+
+  return {
+    accrued: true,
+    delta,
+    grantMs,
+    capped,
+    tickMs: summary.intervalMs,     // the ACTION interval; same field name, same meaning
+    foodEaten: 0,
+    watermark: delta.accrued_to,
+    events,
+    levelUps,
+    summary: {
+      ...summary,
+      gold: 0,
+      xp: xpDelta,
+      items: items_,
+      levelUps,
+    },
+  };
+}
+
+/* The carry is a float and jsonb stores it exactly, but 17 significant digits
+   per skill in a column that is read on every accrual is noise: nine decimals
+   is ~1e-9 of one item, which is the same epsilon `advanceToolCarry` already
+   uses to decide a payout. Rounding at the boundary keeps the stored value
+   readable and bounded without changing a single payout. */
+function roundCarry(carry) {
+  const out = {};
+  for (const k in (carry || {})) {
+    const n = Number(carry[k]);
+    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.round(n * 1e9) / 1e9;
+  }
+  return out;
 }
 
 /** Derived levels for the envelope, so the client never computes one. */

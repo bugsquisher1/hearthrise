@@ -18928,6 +18928,138 @@ const TESTS = [
       'and it must be spent and pruned by the end of the absence, found ' + JSON.stringify(grew.buffs));
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     AWAY-16 — THE GATHER SPAN IS ONE LOOP TOO.
+
+     `src/core/skill-sim.js simulateSkillSpan` is what legacy.js's away gather
+     branch (`replayAwaySpan` + `doSkillAction(true)`) becomes, and what the
+     accrual Edge Function already runs — 23 of the 344 catalogue activities
+     that used to accrue NOTHING server-side.
+
+     This is the AWAY-1 assertion for gathering, in the browser, on the real
+     `G`: N live actions and one core span of exactly N actions' worth of time
+     must produce the same bag, the same XP, the same counters and the same
+     fractional tool carry. It is the client switch-over's precondition — if
+     these two columns match, replacing the legacy branch with a call to core
+     is a delegation and not a balance change.
+
+     The fx map below IS the adapter the switch-over needs. It is written out
+     here rather than described, so "what does the client have to pass?" has an
+     executable answer. */
+  () => tryRun('AWAY-16 PARITY: N live gather actions == one core span of N actions (bag, XP, counters, tool carry)', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const P = window.HearthrisePresence;
+    const snap = snapshotG();
+    try {
+      assert(C && C.skillSim && typeof C.skillSim.simulateSkillSpan === 'function',
+        'src/core/skill-sim.js is not published on HearthriseCore — the client can never call it');
+
+      /* The best axe in the CATALOGUE, not an invented one: tool speed, tool
+         double-yield and tool XP all have to be live or the fixture proves
+         parity of the easy path only. */
+      const axe = Object.keys(window.ITEMS)
+        .filter((id) => window.ITEMS[id] && window.ITEMS[id].type === 'tool' && window.ITEMS[id].toolSkill === 'woodcutting')
+        .sort((a, b) => (window.ITEMS[b].toolTier || 0) - (window.ITEMS[a].toolTier || 0))[0];
+      assert(!!axe, 'no woodcutting tool in the catalogue — the fixture would be vacuous');
+
+      const NODE = 'maple_tree';                 // qty [1,2] → a real RNG draw per action
+      const N = 400;
+      const setup = () => {
+        G.activeSkill = 'woodcutting';
+        G.skillTargetId = NODE;
+        G.skills = Object.assign({}, G.skills, { woodcutting: 13034431 });   // 99: no level-up toasts
+        G.inventory = { [axe]: 1 };
+        G.equipment = Object.assign({}, G.equipment);
+        G.toolCarry = {};
+        G.stats = Object.assign({}, G.stats, { gathered: 0, chopped: 0, toolDoubles: 0 });
+        G.buffs = [];
+      };
+
+      // ── Column A: the LIVE loop, N silent actions under a pinned seed ──
+      /* THE INTERVAL IS READ INSIDE THE LATCH, and that is not a detail: a
+         rotating gather-speed BLESSING is presence-gated, so `activityIntervalMs()`
+         answers a smaller number outside `withOfflineReplay` than inside it.
+         Sizing the span from the outside reading measured 375 core actions
+         against 400 live ones the first time this test ran — a 6.25% divergence
+         caused entirely by which side of the latch the question was asked from.
+         legacy.js's `offlineIntervalMs()` is called from inside the latch for
+         exactly this reason (b227), and the client switch-over must call
+         `simulateSkillSpan` from inside it too. */
+      setup();
+      let stepMs = 0;
+      C.reseed(0xC0FFEE);
+      P._withOfflineReplay(() => {
+        stepMs = window.activityIntervalMs();
+        for (let i = 0; i < N; i++) window.doSkillAction(true);
+      });
+      assert(stepMs > 0, 'activityIntervalMs() returned ' + stepMs + ' — the rig cannot size a span');
+      const live = {
+        inventory: Object.assign({}, G.inventory),
+        xp: G.skills.woodcutting,
+        gathered: G.stats.gathered, chopped: G.stats.chopped, doubles: G.stats.toolDoubles,
+        carry: Object.assign({}, G.toolCarry),
+      };
+
+      // ── Column B: ONE core span, sized to exactly N actions ───────────
+      setup();
+      C.reseed(0xC0FFEE);
+      const nodes = C.skillSim.indexGatherNodes({
+        woodcutting: window.TREES, mining: window.ROCKS, fishing: window.FISH_SPOTS,
+      });
+      let summary = null;
+      P._withOfflineReplay(() => {
+        summary = C.skillSim.simulateSkillSpan(G, {
+          away: true,
+          fromMs: 0, toMs: N * stepMs,
+          rng: C.rng,
+          items: window.ITEMS,
+          nodes,
+          bonus: window.getBonus,
+          /* THE ADAPTER. Every side effect legacy.js performs inline, named. */
+          fx: {
+            addItem: (id, qty) => window.addItem(id, qty),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: (k, n) => window.updateDaily(k, n),
+            updateQuest: (k, n) => window.updateQuest(k, n),
+            onStop: () => window.stopSkill && window.stopSkill(),
+          },
+        });
+      });
+      const core = {
+        inventory: Object.assign({}, G.inventory),
+        xp: G.skills.woodcutting,
+        gathered: G.stats.gathered, chopped: G.stats.chopped, doubles: G.stats.toolDoubles,
+        carry: Object.assign({}, G.toolCarry),
+      };
+
+      assert(summary && summary.ticks === N,
+        'the core span ran ' + (summary && summary.ticks) + ' actions, not the ' + N + ' it was sized for — '
+        + 'the comparison below would be measuring two different amounts of work');
+      assert(live.gathered > 0, 'the live column gathered nothing — the parity assertion would be vacuous');
+      assert(live.doubles > 0, 'the fixture earned no tool doubles, so the deterministic carry is untested');
+      assert(JSON.stringify(live.inventory) === JSON.stringify(core.inventory),
+        'BAG DIVERGED between the live loop and the core span.\n  live: ' + JSON.stringify(live.inventory)
+        + '\n  core: ' + JSON.stringify(core.inventory));
+      assert(live.xp === core.xp, 'XP diverged: live ' + live.xp + ' vs core ' + core.xp);
+      assert(live.gathered === core.gathered, 'stats.gathered diverged: ' + live.gathered + ' vs ' + core.gathered);
+      assert(live.chopped === core.chopped, 'stats.chopped diverged: ' + live.chopped + ' vs ' + core.chopped);
+      assert(live.doubles === core.doubles, 'tool doubles diverged: ' + live.doubles + ' vs ' + core.doubles);
+      assert(JSON.stringify(live.carry) === JSON.stringify(core.carry),
+        'the fractional tool carry diverged.\n  live: ' + JSON.stringify(live.carry)
+        + '\n  core: ' + JSON.stringify(core.carry));
+      /* The map legacy.js increments live must be the one core owns, or an
+         away night and a live hour move different rows. */
+      assert(C.skillSim.SKILL_ACTION_STAT.woodcutting === 'chopped'
+        && C.skillSim.SKILL_ACTION_STAT.mining === 'mined'
+        && C.skillSim.SKILL_ACTION_STAT.fishing === 'fished',
+        'core SKILL_ACTION_STAT drifted from the counters the daily goals read');
+    } finally {
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('AWAY-13 (perf): the analytics bridge must not write localStorage once per engine event', () => {
     /* Found with the CPU profiler while measuring a 12-hour away catch-up:
        observability.js subscribes to the event bus with on('*') and its track()

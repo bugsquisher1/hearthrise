@@ -520,6 +520,42 @@ them), and `dblink`/`postgres_fdw`/`pg_net` are all uninstalled so a second back
 opened from SQL. **This remains the program's standing cutover blocker.** What it needs: two
 processes with real user JWTs firing overlapping POSTs at one character.
 
+### ✅ SECURITY'S CONDITIONS ARE LANDED AND APPLIED — the client seam is UNBLOCKED
+All six conditions shipped and `2026-08-15-intent-key-hygiene.sql` is APPLIED. `hr_apply` went
+47,457 → 51,916 chars and every load-bearing property survived: `intent_mismatch`, the S5
+`accrued_to` stamp, the 12M XP clamp, the daily budget, `hr_engine`-only, hygiene clean, zero
+residue. **The migration was not retyped** — it was extracted programmatically from
+`apply-engine.sql` and patched at four anchors, and I independently confirmed that base was
+byte-identical to what production ran (`md5 917967d4bb03ca1c098b3e896a3e8317`, 47,457 chars)
+before applying.
+
+**Proven against the live body, rolled back:**
+
+| condition | before | after |
+|---|---|---|
+| C1 — retry a rejected key at the CORRECT version | `version_conflict, replayed` — stuck ~25h | **ACCEPTED, gold 7** |
+| control — a NON-version rejection | — | still **sticky** (`insufficient_gold` twice, `replayed:true`) |
+| C3 — same key, different slot | `ok:true, replayed` — applied nothing, silently | **`intent_mismatch`** |
+
+The release is deliberately narrow: it frees a version conflict without destroying "same key,
+same answer" for decisions about the DELTA. A blanket release would have been worse than the
+bug — an `intent_mismatch` returned against a row recording somebody's SUCCESS would free that
+row and let a genuine retry apply twice.
+
+⚠ **`2026-08-15-intent-key-hygiene.sql` MUST STAY LAST of anything touching `hr_apply`.** A
+later migration that also `create or replace`s it would silently delete both C1 and C3 — the
+exact defect that nearly shipped in the clan work, where three files each defined one policy
+and filename order would have installed the wrong one with every self-check still passing.
+
+**Residual, stated rather than buried:** a rejection that is neither a version conflict nor a
+`DEGRADABLE` clamp still sticks to a derived key until `hr_intents_prune` runs (≤25h). The
+clamp family escapes via the accrue verb's ladder. What remains is `bad_delta` /
+`insufficient_item` / `unknown_item` — engine bugs, not player-reachable. If one becomes
+routine, widen the release set in `hr_apply`; do NOT un-derive the key.
+
+**Not proven, and it is the same gap as everywhere else:** true concurrency. A15/A18's version
+conflict is a fault injection at the point a race would produce one, not a race.
+
 ### THE CRITICAL PATH, and the long pole is not gold
 1. ~~prices are data~~ **DONE** — 128 offers, 221 cost lines, drift guard mutation-proven.
 2. **Provisioning + the activity intent** — IN FLIGHT. `player_state` has ZERO rows because

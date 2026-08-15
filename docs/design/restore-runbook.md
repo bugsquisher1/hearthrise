@@ -6,6 +6,14 @@ Everything below is either measured (marked ✅ with the date) or staged and une
 (marked **NOT EXECUTED**). Nothing in here has been proven end to end, and until §9 has
 been run once, this is a plan and not a capability.
 
+**Last re-verified against live production: 2026-08-15 ~20:55 UTC.** That pass re-measured
+backups, health, disk, pooler, roles, cron, row counts and object counts; it corrected the
+schema digest, the seeded-table count, the Edge Function version, the `player_*` row
+inventory and the method used to check role passwords; and it added §6a (custom-role
+recovery) and the connection-headroom model in §11. **Restore-readiness: the schema half and
+the inventory half are proven by execution; the restore mechanism itself remains 0% proven.
+See §12.**
+
 **Why this exists.** Today the database losing everything is survivable: every player's
 browser holds a copy of their save and `game_saves` is a cache of it. **After cutover that
 stops being true.** `player_state` / `player_skills` / `player_inventory` /
@@ -19,25 +27,34 @@ losing everything is a backup that nobody has ever restored.
 ## 0. The one-paragraph version
 
 Backups exist and are healthy: **8 daily physical (WAL-G) backups, all `COMPLETED`, newest
-2026-08-15 10:26:47 UTC** ✅. PITR is **off**, so the accepted data-loss window is **up to
-23h59m**. The repo rebuilds the schema and every catalogue exactly — **21 seeded tables,
-all matching production's row counts, plus 8 of production's 9 cron jobs** ✅ — so a restore
-only ever has to carry *rows*, never structure. **36 tables come back empty from a repo
-rebuild and only a backup has them**, and four of those matter in a way nothing else does:
-`auth.users` (outside `public`, created by no file, the root of 17 foreign keys), the
-`player_*` progression tables, `display_names`, and `hr_server_secrets` — which rebuilds to
-the right *count* and the wrong *value*. The restore mechanism on Pro with physical backups
-is **in-place restore (API-callable)** or **Restore to a New Project (dashboard-only)**;
-the second changes the project ref and therefore the client URL, the Edge Function secrets
-and the engine role's password. Recommendation: **turn PITR on at cutover, not before**
-(§8).
+2026-08-15 10:26:47 UTC** ✅ — **re-verified 2026-08-15 20:55 UTC, unchanged, newest 10h29m
+old, zero `FAILED`, eight consecutive days with no gap** ✅. PITR is **off**, so the accepted
+data-loss window is **up to 23h59m**. The repo rebuilds the schema and every catalogue
+exactly — **22 seeded tables** (`hr_unlocks` shipped 2026-08-15) **plus 8 of production's 9
+cron jobs** ✅ — so a restore only ever has to carry *rows*, never structure. **36 tables come
+back empty from a repo rebuild and only a backup has them**, and four of those matter in a
+way nothing else does: `auth.users` (outside `public`, created by no file, the root of 17
+foreign keys), the `player_*` progression tables, `display_names`, and `hr_server_secrets` —
+which rebuilds to the right *count* and the wrong *value*. The restore mechanism on Pro with
+physical backups is **in-place restore (API-callable)** or **Restore to a New Project
+(dashboard-only)**; the second changes the project ref and therefore the client URL, the Edge
+Function secrets and the engine role's password. Recommendation: **turn PITR on at cutover,
+not before** (§8).
+
+> ⚠ **CHANGED 2026-08-15 — the `player_*` tables are no longer empty.** Every prior revision
+> of this document recorded `player_state = 0`. Production now holds **state 2 · skills 30 ·
+> inventory 11 · equipment 2 · farm 8 · progress 3 · ledger 29** ✅. That is test-generated,
+> not player-generated, and it is still disposable — but it means the sole-record property
+> has started arriving in fact rather than in plan, and the §8 PITR trigger ("before the
+> first real player progression is written") is now the nearest gate in this document.
 
 ---
 
 ## 1. What backups actually exist — MEASURED, not assumed ✅
 
 Measured 2026-08-15 via `GET /v1/projects/nezapsylztqbbwuwembx/database/backups`
-(read-only, Management API, executed).
+(read-only, Management API, executed). **Re-executed 2026-08-15 20:55 UTC — byte-identical
+response, same 8 ids, same timestamps** ✅.
 
 ```
 region        us-west-2
@@ -75,10 +92,21 @@ physical_backup_data  {}     ← empty because there is no PITR window to descri
   stop being true.*
 * **They do NOT contain custom role passwords.** Supabase documents: *"daily backups do not
   store passwords for custom roles… you will need to reset their passwords after the
-  restoration completes."* **This project has exactly one such role and it is load-bearing:
-  `hr_engine_login` (LOGIN, NOINHERIT, connlimit 20, member of `hr_engine`, password set)**
-  ✅. It is the identity the accrual Edge Function connects as. Miss this step and every
-  accrual fails after an otherwise perfect restore. See §6 gate 7.
+  restoration completes."* **This project has exactly TWO custom roles and exactly ONE of
+  them has a password to lose** ✅ — the full enumeration and the copy-paste recovery are
+  now §6a, which is the section to read before any restore. Short version:
+  `hr_engine_login` (LOGIN, SCRAM-SHA-256, connlimit 20) is the identity the accrual Edge
+  Function connects as; `hr_engine` is NOLOGIN and has **no password at all**, so it needs
+  nothing reset. Miss the one that matters and every accrual fails after an otherwise
+  perfect restore. See §6 gate 7 and §6a.
+
+  > **Method note, because the obvious query gives the wrong answer.** `pg_roles.rolpassword`
+  > returns the literal string `'********'` for *every* role including ones with no password,
+  > so `rolpassword is not null` reports "password set" for `anon`, `authenticated` and
+  > `hr_engine` alike — all false positives. The only honest source is **`pg_authid`**, which
+  > returns `NULL` for `hr_engine` and `SCRAM-SHA-256$…` for `hr_engine_login` ✅. An earlier
+  > revision of this document asserted "password set" from `pg_roles`; the conclusion happened
+  > to be right for `hr_engine_login` and wrong for `hr_engine`. Use `pg_authid`.
 * **Restore points / undo are NOT available on this project today.**
   `GET /database/backups/restore-point` returns **HTTP 400 "This endpoint is unavailable at
   the moment"** ✅. The API *has* `POST …/restore-point` and `POST …/undo`, which would make
@@ -87,8 +115,12 @@ physical_backup_data  {}     ← empty because there is no PITR window to descri
   as if undo does not exist.** (This is a second, independent argument for §8.)
 
 **Health assertion, numerically:** healthy = 7 or 8 `COMPLETED` backups present, newest
-less than 26 hours old, zero `FAILED`. Measured 2026-08-15: **8 / 0 / newest 3h51m old —
-healthy.**
+less than 26 hours old, zero `FAILED`, **and no gap larger than 26h between consecutive
+`inserted_at` values** (the last clause is what actually proves the cadence — a count alone
+cannot distinguish "one per day" from "eight taken in one week"). Measured 2026-08-15
+10:30 UTC: **8 / 0 / newest 3h51m — healthy.** Re-measured 2026-08-15 20:55 UTC:
+**8 / 0 / newest 10h29m, largest inter-backup gap 24h03m — healthy, cadence confirmed
+daily across all 8** ✅.
 
 ---
 
@@ -96,11 +128,21 @@ healthy.**
 
 ### 2a. The schema half is proven, and it is proven by execution ✅
 
-`tests/schema-drift.mjs` replays `supabase/schema.sql` + all 48 migrations in the order
+`tests/schema-drift.mjs` replays `supabase/schema.sql` + every migration in the order
 declared by `tests/schema-apply-order.json` into a real PostgreSQL and fingerprints the
-result: 75 relations, 171 functions, 74 policies, 102 indexes, 14 triggers, 181
-constraints, 440 columns, 66 RLS states, 1 event trigger. Its `known_production_delta`
-records the last live comparison (2026-08-14): **production_only: NONE**.
+result. **Re-run 2026-08-15 20:5x UTC: green** ✅, at digest
+**`f166dc74f8e0…`** — *not* the `df0fbe3178…` earlier revisions of this file pinned; twelve
+migrations landed on 2026-08-15/16 and moved it. Current shape: **76 relations, 175
+functions, 75 policies, 103 indexes, 15 triggers, 187 constraints, 447 columns, 67 RLS
+states, 1 event trigger.**
+
+**The live delta was re-measured for this revision, category by category, read-only** ✅ —
+production returns **76 relations / 175 functions / 103 indexes / 75 public policies / 67
+base tables**, matching the replay exactly in every category. `production_only` remains
+**NONE**. (The baseline's own `known_production_delta.measured` still says 2026-08-14 and
+its stated method is a fuller object-level set-difference than the count comparison done
+here; counts agreeing is necessary, not sufficient. Treat the object-level delta as
+**last proven 2026-08-14**.)
 
 That guard's own header states what it does not cover, in point B:
 
@@ -121,8 +163,25 @@ restore-census: OK — 66 tables classified, 8 scheduled job(s) reproduced by th
   regenerated    1
 ```
 
-**The good news is better than expected. All 21 `seeded` tables rebuild to *exactly*
-production's row count** — measured against live counts the same day:
+> ⚠ **THE CENSUS IS RED AS OF 2026-08-15 20:5x UTC, and it is right to be** ✅:
+>
+> ```
+> RESTORE CENSUS FAILED — what a rebuild gives back has changed.
+>   · UNCLASSIFIED TABLE: public.hr_unlocks (61 row(s) after a rebuild).
+> ```
+>
+> `hr_unlocks` arrived with `2026-08-16-unlocks.generated.sql` and holds **61 rows in
+> production, 61 after a rebuild** ✅ — a **seeded** catalogue, no restore dependency. The
+> guard fired exactly as designed: a new table shipped and nobody stated its DR class.
+> **This is the single best evidence in the document that the guard works**, and it is also
+> why the seeded count is now 22 and the table count 67. *Fixing the classification is a
+> one-line edit to `tests/restore-census.baseline.json` and belongs to whoever ships the
+> next migration — it is deliberately left RED here rather than silently green, because the
+> census going red is the notification.*
+
+**The good news is better than expected. All `seeded` tables rebuild to *exactly*
+production's row count** — 21 at the time of the run below, **22 including `hr_unlocks`
+(61 = 61 ✅, re-measured 2026-08-15 20:5x UTC)** — measured against live counts the same day:
 
 | | rebuild | production | | | rebuild | production |
 |---|---|---|---|---|---|---|
@@ -159,17 +218,21 @@ any prior document — and the brief's "known set" was close but not exact
 
 **Group A — matters post-cutover. These are the reason this runbook exists.**
 
-| Table | prod rows today | Why a backup is the only copy |
-|---|---|---|
-| `player_state` | 0 | Gold, gems, hearth tokens, hp, the activity pointer, `version`. After cutover there is no second copy anywhere in the world. |
-| `player_skills` | 0 | XP per skill — the value every level and every leaderboard score is derived from. |
-| `player_inventory` | 0 | One row per item; the bank cap is `count(*)` over it. |
-| `player_equipment` | 0 | |
-| `player_farm` | 0 | |
-| `player_progress` | 0 | Quests, dailies, bounties, stats, collections, flags. |
-| `player_ledger` | 3 | Progression **and** the audit trail. See the trap below. |
-| `profiles` | 8 | Identity, not progression. Losing it makes every player `Adventurer`. |
-| `display_names` | 6 | The uniqueness ledger. Losing it frees every claimed name for a stranger to take — **unrecoverable once taken**. |
+Counts below **re-measured 2026-08-15 20:5x UTC** ✅. The `prev` column is the figure the
+previous revision recorded the same morning — every progression table moved, which is the
+point.
+
+| Table | prev | prod rows now | Why a backup is the only copy |
+|---|---|---|---|
+| `player_state` | 0 | **2** | Gold, gems, hearth tokens, hp, the activity pointer, `version`. After cutover there is no second copy anywhere in the world. |
+| `player_skills` | 0 | **30** | XP per skill — the value every level and every leaderboard score is derived from. |
+| `player_inventory` | 0 | **11** | One row per item; the bank cap is `count(*)` over it. |
+| `player_equipment` | 0 | **2** | |
+| `player_farm` | 0 | **8** | |
+| `player_progress` | 0 | **3** | Quests, dailies, bounties, stats, collections, flags. Pruned at 31 days, but only rows with a non-empty `period_key` — permanent progress is never pruned. |
+| `player_ledger` | 3 | **29** | Progression **and** the audit trail. See the trap below. |
+| `profiles` | 8 | 8 | Identity, not progression. Losing it makes every player `Adventurer`. |
+| `display_names` | 6 | **7** | The uniqueness ledger. Losing it frees every claimed name for a stranger to take — **unrecoverable once taken**. |
 
 > **The `player_ledger` trap, and it is not obvious.** Every daily cap is read by *summing
 > this table* — `hr_day_budget_used` sums `gold_in`/`xp_in`/`qty_in` over the day's rows
@@ -204,9 +267,24 @@ flips from critical to worthless at a known instant.
 > disposable at cutover; nothing in this runbook needs a carve-out path.
 
 **Group C — `operational`, 8 tables. Losing them costs observability history, never player
-value:** `game_events` (5,132) · `maintenance_log` (106) · `hr_rate_counters` (104) ·
-`maintenance_alerts` (13) · `hr_rejections` (1) · `player_intents` (0) ·
-`player_ledger_rollup` (0) · `session_claims` (5).
+value.** Re-measured 2026-08-15 20:5x UTC ✅: `game_events` (**5,174**) · `maintenance_log`
+(**112**) · `hr_rate_counters` (**145**) · `maintenance_alerts` (13) · `hr_rejections`
+(**2**) · `player_intents` (**22**) · `player_ledger_rollup` (0) · `session_claims` (**6**).
+
+> **`hr_rate_counters` is `UNLOGGED`, and that has a restore consequence worth one line.**
+> An unlogged table's contents are not WAL-logged, so a **physical restore or PITR brings it
+> back EMPTY regardless of what it held** — this is not a bug and needs no remediation. The
+> effect is that every player starts the restored database with a fresh rate-limit window.
+> For a spam brake that is the correct failure direction, and it is *why* the table was made
+> unlogged. Do not "fix" it by making it logged: it is a hot upsert on a per-user row and
+> logging it would put the rate limiter in the WAL path of every RPC.
+>
+> Its growth is also **bounded, not append-only** — `primary key (user_id, bucket)` with an
+> `on conflict … do update` that reuses the row and slides `window_start`, so the ceiling is
+> *users × distinct buckets*, roughly **18 rows per user** at today's bucket list (145 rows /
+> 8 users ✅). At 600 players that is ~11k rows / ~2 MB. **No prune is needed and none should
+> be added.** The only unbounded edge is rows belonging to deleted users, which the
+> `auth.users` cascade does not cover — negligible, noted for completeness.
 
 **Group D — `regenerated`, exactly one table, and it is the one a count would lie about.**
 
@@ -401,10 +479,10 @@ change plus a redeploy; nothing here is lost, only re-pointed.
 | 1 | Project URL | `src/net/supabase-bootstrap.js:52` `url: 'https://<ref>.supabase.co'` | Ships to browsers — needs a cache-buster bump (`./bump-version.sh <NNN>`) or players run the old ref for ~10 min |
 | 2 | anon key | `src/net/supabase-bootstrap.js:53` | New project ⇒ new key. Never paste a service-role key here |
 | 3 | CLI project id | `supabase/config.toml:30` `project_id` | Needed before `supabase functions deploy` |
-| 4 | Edge Functions | redeploy **both**: `hr-accrue` (v12) and `bug-report-bridge` (v4) ✅ | Code is in the repo. Pack with `tools/pack-edge.mjs` — do **not** hand-edit the `?v=` rule |
-| 5 | `HR_ENGINE_DB_URL` | Edge Function secret | Embeds host **and** the `hr_engine_login` password. Both change. Pooler port **6543**, never 5432 (design §2a-ii — `max_connections` is 60 and an unpooled driver exhausts it) |
+| 4 | Edge Functions | redeploy **both**: `hr-accrue` (**v22**, was v12 this morning — it ships several times a day) and `bug-report-bridge` (v4) ✅ re-verified 2026-08-15 20:5x UTC | Code is in the repo. Pack with `tools/pack-edge.mjs` — do **not** hand-edit the `?v=` rule |
+| 5 | `HR_ENGINE_DB_URL` | Edge Function secret | Embeds host **and** the `hr_engine_login` password. Both change. Pooler port **6543**, never 5432 (design §2a-ii — `max_connections` is 60 and an unpooled driver exhausts it). **Full procedure: §6a-iii step 2** |
 | 6 | `DISCORD_WEBHOOK_URL` | Edge Function secret (`bug-report-bridge`) | Re-set; value lives at `~/.hearthrise/`, never in the repo |
-| 7 | `hr_engine_login` password | `alter role hr_engine_login password '<new>'` | Must match #5 exactly |
+| 7 | `hr_engine_login` password | `alter role hr_engine_login password '<new>'` | Must match #5 exactly. **§6a.** `hr_engine` needs nothing — it has no password ✅ |
 | 8 | MCP / local tooling | `.mcp.json` | Developer convenience only |
 | 9 | Documentation refs | `tests/schema-drift.baseline.json` → `known_production_delta.project`; comment at `supabase/functions/hr-accrue/jwt.js:53` | Cosmetic — but a stale ref in a DR doc is how the *next* incident goes wrong |
 
@@ -424,7 +502,10 @@ Run against whichever database you intend to make production. **Fail any gate �
 over.** All read-only except gate 7.
 
 **Gate 1 — the schema is the schema.** `node tests/schema-drift.mjs` → must print the
-committed digest `df0fbe3178…`. Then re-measure the live delta with the queries in
+digest **currently committed in `tests/schema-drift.baseline.json`**. As of 2026-08-15 that
+is **`f166dc74f8e0…`** ✅ — but *read it from the baseline, do not trust this line*: the
+digest moved twice today and a runbook that hardcodes it will be wrong again by the next
+migration. Then re-measure the live delta with the queries in
 `tests/schema-drift.baseline.json` → `how_to_remeasure`; expect `production_only: NONE`.
 
 **Gate 2 — the catalogues are the catalogues.** Compare against
@@ -435,13 +516,18 @@ select 'hr_activities', count(*) from hr_activities union all
 select 'hr_item_slots', count(*) from hr_item_slots union all
 select 'hr_xp_table', count(*) from hr_xp_table union all
 select 'hr_castle_items', count(*) from hr_castle_items union all
-select 'hr_client_rpc_baseline', count(*) from hr_client_rpc_baseline order by 1;
--- expect 426 / 344 / 222 / 99 / 34 / 51
+select 'hr_client_rpc_baseline', count(*) from hr_client_rpc_baseline union all
+select 'hr_unlocks', count(*) from hr_unlocks order by 1;
+-- expect 426 / 344 / 222 / 99 / 34 / 51 / 61   (re-verified 2026-08-15 20:5x UTC ✅)
 ```
+> `hr_client_rpc_baseline` is a trap for anyone spot-checking with `reltuples`: the planner
+> estimate reads **66** while `count(*)` is **51** ✅, because rows were deleted and `analyze`
+> has not run. **Every count in this document is `count(*)`.** Never verify a restore with
+> `reltuples`.
 
-**Gate 3 — the players exist.** `select count(*) from auth.users;` → **8** (or whatever the
-last census recorded). **Zero here means the restore did not carry auth and everything else
-is moot.**
+**Gate 3 — the players exist.** `select count(*) from auth.users;` → **8** ✅ (re-verified
+2026-08-15 20:5x UTC), or whatever the last census recorded. **Zero here means the restore
+did not carry auth and everything else is moot.**
 
 **Gate 4 — progression came back as a set.** Every `player_*` count matches the census, and
 `player_ledger` is non-empty whenever `player_state` is (§2c trap):
@@ -462,28 +548,228 @@ that comes back without `trim-game-events` regrows `game_events` without bound; 
 reached **1,598,269 rows / 229 MB — 94% of a 244 MB database — in four days** the last time
 nothing was watching.
 
+**Gate 5 note — verified running, not merely present.** All **9** jobs are scheduled,
+`active = true`, and **every one succeeded within the last 48h with zero failures** ✅
+(`cron.job_run_details`, measured 2026-08-15 20:5x UTC: leaderboards 576 runs, cron-health
+48, ledger-prune 48, intents-prune 48, grant-hygiene/progress-prune/rejections-prune/
+trim-chat/trim-game-events 2 each). `hr-cron-health` has raised **0 alerts** on each of its
+last 12 hourly runs ✅. Presence is the gate; this is the evidence the machinery actually
+fires. Re-run the same query after a restore — a job can be present and disarmed.
+
 **Gate 6 — grants and RLS survived.** `select public.hr_assert_grant_hygiene(true);` — the
 project's own nightly detector, and a stronger check than any fingerprint. Then confirm
-`hr_engine` still holds zero table privileges.
+`hr_engine` still holds zero table privileges:
+```sql
+select count(*) as must_be_zero from information_schema.role_table_grants where grantee='hr_engine';
+```
+✅ **Verified 0 on 2026-08-15 20:5x UTC**, after b353 revoked the two grants the nightly
+detector raised on. The engine's entire authority is `usage` on `public` plus `execute` on
+**10 allowlisted functions** — enumerated in §6a.
 
 **Gate 7 — the engine can actually connect. ⚠ THE ONE EVERYONE WILL FORGET.** *(the only
 gate that writes)*
 
-Supabase does not restore custom role passwords. `hr_engine_login` is a custom role.
-```sql
--- Reset it, then set HR_ENGINE_DB_URL to match. One statement, no code change.
-alter role hr_engine_login password '<new strong password>';
--- Verify the shape survived:
-select rolcanlogin, rolinherit, rolconnlimit from pg_roles where rolname='hr_engine_login';
---   expect  t / f / 20
-```
-Then re-set the Edge Function secret and call `hr-accrue` once with a real player token.
+Supabase does not restore custom role passwords. `hr_engine_login` is a custom role. **The
+complete, copy-paste-runnable recovery — including the `HR_ENGINE_DB_URL` re-set — is §6a.**
+Do not improvise it from this gate; the port is the part people get wrong.
+
 **A restore that passes gates 1–6 and fails this one looks completely healthy and pays
 nobody.**
 
 **Gate 8 — a real player round-trip.** Sign in as a test account, load a character, run one
 accrual, confirm the ledger row lands and `version` bumps. Nothing above proves the game
 works; only this does.
+
+---
+
+## 6a. The custom-role gap — the complete recovery ⚠
+
+**This is the known hole in every restore path and the most likely cause of a restore that
+looks perfect and pays nobody.** Enumerated live 2026-08-15 20:5x UTC ✅.
+
+### 6a-i. What exists, exactly
+
+Two custom roles. Nothing else in this cluster is ours — every other role is a Supabase
+platform role and the platform restores its own.
+
+| | `hr_engine` | `hr_engine_login` |
+|---|---|---|
+| Purpose | The **capability**. Holds the grants. | The **identity**. The thing that connects. |
+| `rolcanlogin` | **false** | **true** |
+| `rolinherit` | **false** (NOINHERIT) | **false** (NOINHERIT) |
+| `rolconnlimit` | `-1` | **20** |
+| `rolbypassrls` / `rolsuper` / `rolcreaterole` / `rolcreatedb` / `rolreplication` | all false | all false |
+| `rolvaliduntil` | null | null |
+| `rolconfig` | null | null |
+| Member of | — | **`hr_engine`** |
+| Members | `hr_engine_login`, `postgres` | `postgres` |
+| **Password (`pg_authid`)** | **NONE — `rolpassword is null`** ✅ | **SCRAM-SHA-256** ✅ |
+| **Lost by a restore?** | **No.** Nothing to lose. | **YES — the password, and only the password.** |
+
+**`rolinherit = false` on both is load-bearing, not incidental.** `hr_engine_login` is a
+member of `hr_engine` but does **not** automatically hold its privileges — the engine's
+session must `set role` explicitly. Recreate either role with the default `INHERIT` and the
+privilege model silently changes shape. Every `create role` below therefore says `NOINHERIT`.
+
+### 6a-ii. What the roles hold — the complete grant surface
+
+`hr_engine` holds **zero table privileges** ✅ (gate 6). Its entire authority is:
+
+* `grant usage on schema public to hr_engine;`
+* `execute` on exactly **10** functions ✅ — `hr_apply(uuid,int,bigint,uuid,jsonb)`,
+  `hr_claim_lookup(uuid,int,text,text)`, `hr_level_from_xp(bigint)`,
+  `hr_offline_cap_ms(uuid,int)`, `hr_perks_of(uuid,int)`, `hr_rate_gate(uuid,int,text)`,
+  `hr_seed(uuid,int,text)`, `hr_state_of(uuid,int)`, `hr_total_level(uuid,int)`,
+  `hr_xp_for_level(int)`.
+
+`hr_engine_login` holds **no grants of its own at all** — everything it can do, it does by
+`set role hr_engine`.
+
+> **A physical restore CARRIES the roles, the memberships and the grants.** They are cluster
+> catalog data. **Only the password is dropped.** So in the overwhelmingly likely case,
+> §6a-iii step 1 is the *only* step you need and steps 2–3 are a no-op that costs nothing to
+> run. §6a-iv exists for the other case — a repo rebuild, where the roles come back from the
+> migration chain but you should verify rather than assume.
+
+### 6a-iii. The recovery — run in this order
+
+**Step 1 — reset the password.** Generate it first; never type one you invent.
+
+```bash
+# Generate a strong password with no shell-hostile or URL-hostile characters.
+# (Percent-encoding a password inside a connection URL is the second-most-common way
+#  this step goes wrong. Avoiding the characters entirely is cheaper than escaping them.)
+NEW_PW="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40)"
+echo "$NEW_PW"    # copy it — you need it twice and it is not readable back afterwards
+```
+
+```sql
+-- On the restored database, as postgres.
+alter role hr_engine_login with login noinherit connection limit 20 password '<NEW_PW>';
+
+-- Verify the SHAPE survived the restore, from pg_authid (NOT pg_roles — see §1).
+select rolname, rolcanlogin, rolinherit, rolconnlimit,
+       (rolpassword is not null) as has_password,
+       left(rolpassword, 14) as method
+  from pg_authid where rolname = 'hr_engine_login';
+--   expect  hr_engine_login | t | f | 20 | t | SCRAM-SHA-256$
+
+-- Verify the MEMBERSHIP survived (the grants are useless without it).
+select r.rolname as member, b.rolname as member_of
+  from pg_auth_members m
+  join pg_roles r on r.oid = m.member
+  join pg_roles b on b.oid = m.roleid
+ where r.rolname = 'hr_engine_login';
+--   expect  hr_engine_login | hr_engine
+```
+
+**Step 2 — rebuild `HR_ENGINE_DB_URL` and re-set the secret. ⚠ PORT 6543, NEVER 5432.**
+
+The value embeds the host **and** the password, so it changes whenever either does. Get the
+host from the API rather than typing it — a restored-to-new project gets a **new pooler
+host**, and this is precisely where the port rule gets broken by copy-paste.
+
+```bash
+export SUPABASE_ACCESS_TOKEN="$(cat ~/.supabase-token)"
+export PROJECT_REF=<ref>          # unchanged for mechanism A; the NEW ref for mechanism B
+
+# Read the pooler host/port from the platform. Confirm db_port is 6543 before continuing.
+curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/config/database/pooler"
+# verified 2026-08-15 ✅:
+#   db_host "aws-1-us-west-2.pooler.supabase.com" · db_port 6543 · pool_mode "transaction"
+#   db_user "postgres.<ref>" · is_using_scram_auth true
+
+# The username is the CUSTOM role qualified by the project ref — NOT "postgres.<ref>".
+# Supavisor routes on the tenant AFTER the dot and authenticates the role BEFORE it.
+#
+# ⚠ INFERRED, NOT VERIFIED. This shape mirrors the `postgres.<ref>` the pooler API returns
+#    for the default role, and it is the only shape consistent with how Supavisor routes.
+#    But the live secret's value is deliberately unreadable, so I could NOT confirm that the
+#    working production string uses it. VERIFY IT WITH THE CONNECT TEST BELOW BEFORE relying
+#    on it at 3am — do not discover the answer during an incident.
+HR_ENGINE_DB_URL="postgresql://hr_engine_login.${PROJECT_REF}:${NEW_PW}@aws-1-us-west-2.pooler.supabase.com:6543/postgres"
+
+# FAIL-CLOSED CHECK — the same regex the Edge Function applies at module load.
+echo "$HR_ENGINE_DB_URL" | grep -qE ':6543(/|\?|$)' \
+  && echo "port OK" || { echo "REFUSING: not the transaction pooler"; false; }
+
+# CONNECT TEST — prove the string before you commit it to a secret. Costs one connection.
+# This is also the cheapest way to settle the username-shape question above, and it can be
+# run on production TODAY (read-only, one round trip) to retire the ⚠ before an incident.
+psql "$HR_ENGINE_DB_URL" -c "select current_user, inet_server_port();"
+#   expect  hr_engine_login | 6543
+#   'Tenant not found'        → the .<ref> suffix is wrong
+#   'password authentication' → step 1's password and this string disagree
+
+supabase secrets set --project-ref "$PROJECT_REF" HR_ENGINE_DB_URL="$HR_ENGINE_DB_URL"
+
+# Confirm the name is present (values are never readable back — by design).
+curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/secrets"
+# expect HR_ENGINE_DB_URL and DISCORD_WEBHOOK_URL among the names ✅ (both present 2026-08-15)
+```
+
+> **Why the port rule is enforced in three places and should stay that way.**
+> `hr-accrue/index.ts:104` computes `POOLER_OK = /:6543(\/|\?|$)/.test(DB_URL)` at **module
+> load**, and when it fails the pool is never constructed and every request answers
+> `engine_unconfigured` ✅. That is deliberate: a session-mode (5432) connection string works
+> fine in testing and only fails when the project is busy — at which point it exhausts
+> `max_connections = 60` and takes the **dashboard** down with it, i.e. it breaks the tool
+> you would use to fix it. **A restore is the single most likely moment for this string to
+> be rebuilt by hand.** Fail-closed is the correct behaviour; do not "temporarily" relax it.
+
+**Step 3 — redeploy the functions (mechanism B only) and prove the round trip.**
+
+```bash
+# Mechanism B only: a new project has no functions. Code is in the repo.
+# Pack first — do NOT hand-edit the ?v= rule (CLAUDE.md, b332).
+node tools/pack-edge.mjs
+supabase functions deploy hr-accrue        --project-ref "$PROJECT_REF"
+supabase functions deploy bug-report-bridge --project-ref "$PROJECT_REF"
+```
+
+Then **gate 8**: call `hr-accrue` once with a real player token and confirm a `player_ledger`
+row lands and `player_state.version` bumps. An `engine_unconfigured` response means step 2
+is wrong — almost always the port or the username shape.
+
+### 6a-iv. If the roles are missing entirely (repo-rebuild path only)
+
+Idempotent, additive, safe to run when they already exist. **Rollback:** `drop role` — but
+note that dropping `hr_engine` requires its grants be revoked first, and dropping either role
+while the Edge Function is live takes accrual down; do it only on a database not serving
+traffic.
+
+```sql
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'hr_engine') then
+    create role hr_engine nologin noinherit;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'hr_engine_login') then
+    create role hr_engine_login login noinherit connection limit 20;
+  end if;
+end $$;
+
+grant hr_engine to hr_engine_login;
+grant usage on schema public to hr_engine;
+
+grant execute on function public.hr_apply(uuid,int,bigint,uuid,jsonb)  to hr_engine;
+grant execute on function public.hr_claim_lookup(uuid,int,text,text)   to hr_engine;
+grant execute on function public.hr_level_from_xp(bigint)              to hr_engine;
+grant execute on function public.hr_offline_cap_ms(uuid,int)           to hr_engine;
+grant execute on function public.hr_perks_of(uuid,int)                 to hr_engine;
+grant execute on function public.hr_rate_gate(uuid,int,text)           to hr_engine;
+grant execute on function public.hr_seed(uuid,int,text)                to hr_engine;
+grant execute on function public.hr_state_of(uuid,int)                 to hr_engine;
+grant execute on function public.hr_total_level(uuid,int)              to hr_engine;
+grant execute on function public.hr_xp_for_level(int)                  to hr_engine;
+
+-- Then §6a-iii step 1 to set the password, and gate 6 to confirm zero table privileges.
+```
+
+**Then re-run gate 6** (`hr_assert_grant_hygiene`) — it is the authority on this surface and
+will catch anything the block above got wrong or left over.
 
 ---
 
@@ -508,15 +794,17 @@ every gate in §6.
 
 ## 8. The PITR decision, priced
 
-**Verified from this organisation's own billing API on 2026-08-15, not from a docs page:**
-PITR is offered at **7 days = $100/month**, 14 days = $200/month, 28 days = $400/month.
-`selected_addons` is empty — no PITR, and the project runs on **Micro compute** (which
-matches the `max_connections = 60` measured on the database ✅). Supabase documents that PITR
-requires **at least the Small compute add-on** (~$15/month list; Pro's $10 monthly compute
-credit offsets most of the Micro→Small step — *the credit is documented behaviour, not
-something I verified on this account*), and that **enabling PITR replaces daily backups
-rather than adding to them**, so there is no double charge and the 7-day window is the same
-span you have now.
+**Verified from this organisation's own billing API on 2026-08-15, and re-verified 20:5x UTC
+the same day** ✅ — not from a docs page: PITR is offered at **7 days = $100/month**, 14 days
+= $200/month, 28 days = $400/month, and `selected_addons` is still **empty** ✅ (no PITR, no
+compute add-on). The same response prices compute: **Micro $0.01344/h (~$10/mo)** — what the
+project runs on today, matching the `max_connections = 60` measured on the database ✅ — and
+**Small $0.0206/h (~$15/mo)**. Supabase documents that PITR requires **at least Small**, so
+the true incremental cost is **$100 + the $5/month Micro→Small step = ~$105/month** (Pro's
+$10 monthly compute credit already offsets Micro; *the credit is documented behaviour, not
+something I verified on this account*). Enabling PITR **replaces daily backups rather than
+adding to them**, so there is no double charge and the 7-day window is the same span you
+have now.
 
 **The recommendation, in one paragraph.** Today PITR is **not worth $100/month and I am not
 going to upsell it**: the database is a *cache* of client-authored saves — every player's
@@ -535,10 +823,18 @@ but answer HTTP 400 here (§1), which almost certainly means they arrive with PI
 are what makes an in-place restore reversible instead of a one-way door. **So: switch PITR-7
 on as part of the cutover checklist — after the restore drill in §9 has been rehearsed and
 before the first real player progression is written to `player_state` — and not a day
-earlier.** $100/month against "every player loses everything and we have no recovery path"
+earlier.** ~$105/month against "every player loses everything and we have no recovery path"
 is not a close call once the sole-record property is live; against a beta with a client-side
-copy, it is $100/month for nothing. One number to hold onto: **$100/month is roughly
-$3.30/day, and the thing it prevents is losing a day.**
+copy, it is ~$105/month for nothing. One number to hold onto: **~$105/month is roughly
+$3.45/day, and the thing it prevents is losing a day.**
+
+> **The trigger is closer than it was this morning.** `player_state` is no longer empty — 2
+> rows, 29 ledger rows, 30 skill rows ✅. Those are test-generated and still disposable, so
+> the recommendation does **not** change today. But the condition this paragraph defers to
+> ("before the first real player progression") is no longer months away; it is the cutover
+> itself, and the cutover is the nearest gate in this document. **Decide PITR before the
+> wipe-and-launch, not after** — after is when it is already too late to have protected the
+> first day.
 
 ---
 
@@ -547,14 +843,27 @@ $3.30/day, and the thing it prevents is losing a day.**
 **This is the item that closes the durability blocker. Everything above is a plan until it
 runs once.** It is deliberately designed to touch production zero times.
 
-**Cost:** one extra project for a few hours (mechanism B mirrors the source's compute; on
-Micro, roughly the source's own daily rate, hours not months).
+**Cost — priced from the billing API, and it is the most surprising number in this
+document.** Mechanism B mirrors the source's compute, and the source is **Micro at
+$0.01344/hour** ✅. A clone alive for **three hours costs about four cents** ($0.040), plus a
+prorated slice of 2 GB of gp3 disk — call the whole drill **well under $1**. The organisation
+is already on Pro, so there is no second subscription fee; the marginal cost is compute-hours
+and disk only.
+
+> **This reframes the entire durability blocker.** The reason no restore has ever been tested
+> was implicitly assumed to be cost. It is not — it is **~$0.04 and one dashboard click**.
+> The only real inputs are Tyler's approval and 60–90 minutes of mostly-waiting. *Confirm the
+> figure on the cost-estimate screen before approving (§7 item 2) — the API prices compute,
+> not the clone flow's own estimate, and the screen is authoritative.*
+
 **Estimated wall-clock:** 60–90 minutes, most of it waiting. **UNMEASURED — the first run
 is what produces the real RTO, and recording it is the point.**
 
 1. **Pre-flight (no cost).** `node tests/schema-drift.mjs` and `node tests/restore-census.mjs`
    both green. Re-measure production counts (`how_to_remeasure`) so the drill has a target
-   to diff against. ✅ *Done 2026-08-15 — both green, counts recorded in the baseline.*
+   to diff against. ✅ *schema-drift green 2026-08-15 20:5x.* ⚠ *restore-census is **RED** —
+   `hr_unlocks` is unclassified (§2b). **Classify it before the drill**, or the census cannot
+   serve as the diff target the drill needs.*
 2. **Tyler clicks Restore to a New Project** on the newest backup (§7 item 1). Nothing about
    production changes; the source project stays live and serving players throughout.
 3. **Disarm cron on the clone immediately** (§4d step 4).
@@ -592,24 +901,31 @@ measured is a hope.
 
 ## 11. Capacity — because a restore you cannot afford to take is not a plan
 
-Measured 2026-08-15 ✅.
+Measured 2026-08-15, **all figures below re-measured 20:55 UTC** ✅.
 
 * **The disk is 2 GB, not 8 — and this is the number that binds.** `GET
   /v1/projects/{ref}/config/disk` → `{"size_gb": 2, "iops": 3000, "type": "gp3",
-  "throughput_mibps": 125}` ✅, and `/config/disk/util` → **425 MiB used of 1.93 GiB
-  (21.5%), 1.52 GiB free** ✅. Note the gap: `pg_database_size` says **20 MB** but the
-  filesystem holds **425 MiB** — WAL, catalog and logs are the rest, and *the disk fills on
-  the filesystem number, not the database one*. `/config/disk/autoscale` returns all nulls
-  ✅ — **no custom autoscale policy is configured**, so the platform default applies and the
-  ceiling is whatever Supabase grows it to, billed per GB. Do not plan against 8 GB.
-* **Database: 20 MB** (`pg_database_size`). The 244 MB / 94%-`game_events` incident is
-  fully resolved: `game_events` is **5,132 rows / 1,096 kB**, down from 1,598,269 rows /
-  229 MB.
+  "throughput_mibps": 125}` ✅, and `/config/disk/util` → **425.7 MiB used of 1.93 GiB
+  (21.5%), 1.52 GiB free** ✅ — up **704 kB in ~10 hours**, i.e. flat. Note the gap:
+  `pg_database_size` says **21 MB** but the filesystem holds **425.7 MiB** — WAL, catalog and
+  logs are the rest, and *the disk fills on the filesystem number, not the database one*.
+  `/config/disk/autoscale` returns all nulls ✅ — **no custom autoscale policy is
+  configured**, so the platform default applies and the ceiling is whatever Supabase grows it
+  to, billed per GB. Do not plan against 8 GB.
+* **Database: 21 MB** (`pg_database_size`, was 20 MB this morning). The 244 MB /
+  94%-`game_events` incident is fully resolved: `game_events` is **5,174 rows / 1,136 kB**,
+  down from 1,598,269 rows / 229 MB. It remains the largest table in the database and is
+  **5.4% of it**, versus 94% at the incident.
 * **The retention fix is working, and by a factor nobody should have to guess at.** Rows per
   day, by day: **2026-08-11: 5,089** (the day the cap landed) → **08-12: 14** → **08-13: 6**
-  → **08-14: 11** → **08-15: 12**. That is roughly **4.4 rows per player per day** against a
-  prior rate near 400,000 rows/day — a **~30,000× reduction**, and it holds at 100× players
-  (600 players × 4.4 × 7-day retention ≈ 18,500 rows ≈ **2.4 MB steady state**). No action.
+  → **08-14: 11** → **08-15: 54**. The 08-15 figure is **~5× the settled rate and it is
+  explained, not mysterious** — the race test and the new activity/gold/claim verbs shipped
+  today and each writes events. Taking the honest worst case of **54 rows/day across 8 users
+  ≈ 6.8 rows per player per day** (rather than the settled 1.4), 100× players is
+  600 × 6.8 × 7-day retention ≈ **28,600 rows ≈ 3.7 MB steady state**. Still nothing. Against
+  a prior rate near 400,000 rows/day this remains a **~7,400× reduction**. No action —
+  **but 08-15 is the first day since the cap that the rate rose, so the next reading is worth
+  taking rather than assuming.**
 * **`player_ledger` is the table that will actually grow, and its policy already exists** —
   `hr_ledger_config.retain_days = 90`, with `hr_ledger_prune` rolling aged rows up into
   `player_ledger_rollup` (per user/slot/month/kind, gold in and out) before deleting them.
@@ -637,7 +953,45 @@ Measured 2026-08-15 ✅.
   number (`p_limit`, or the cron frequency), which is why this is a note and not a blocker.
   **Add it to the observability list: alert when `player_ledger` row count rises for 7
   consecutive days.**
-* **Connections: 60 max, 25 in use** ✅ — `ci_micro.connections_direct = 60` from the billing
+
+* **Retention coverage — every growing table, audited 2026-08-15 20:5x UTC** ✅. The rule is
+  that an append-only table ships its retention policy in the migration that creates it. Here
+  is where that actually stands, measured rather than assumed:
+
+  | Table | rows | Policy | Enforced by | Verdict |
+  |---|---|---|---|---|
+  | `game_events` | 5,174 | 7 days | `trim-game-events` cron → `hr_trim_game_events(7)` | ✅ covered, ran 03:00 today |
+  | `player_ledger` | 29 | 90 days + rollup | `hr-ledger-prune` hourly, `hr_ledger_prune(20000)` | ✅ covered |
+  | `player_intents` | 22 | 24 h (floor 1 h) | `hr-intents-prune` hourly | ✅ covered |
+  | `player_progress` | 3 | 31 d, **periodic rows only** (`period_key <> ''`) | `hr-progress-prune` daily | ✅ correct — permanent progress is deliberately never pruned |
+  | `hr_rejections` | 2 | 180 d (floor 30 d) | `hr-rejections-prune` daily | ✅ covered |
+  | `chat_messages` | 8 | 60 d | `trim-chat-messages` cron | ✅ covered |
+  | `hr_rate_counters` | 145 | none needed — bounded by PK | upsert on `(user_id, bucket)` | ✅ bounded by design, not append-only |
+  | `session_claims` | 6 | none needed — `primary key (user_id)` | one row per user | ✅ bounded |
+  | `player_ledger_rollup` | 0 | **none — and this is the deliberate one** | — | ⚠ see below |
+  | `maintenance_log` | 112 | **NONE** | — | ⚠ gap, low severity |
+  | `maintenance_alerts` | 13 | **NONE** | — | ⚠ gap, low severity |
+  | `bug_reports` | 27 | **NONE** | — | ⚠ gap, low severity |
+
+  **`player_ledger_rollup` having no prune is correct** — it is the *destination* of the
+  ledger prune and exists to outlive the rows it summarises. But it is not free:
+  `primary key (user_id, slot, month, kind)` means it grows by *players × slots × kinds* rows
+  **every month, forever**. At 600 players × 3 slots × ~6 kinds that is **~11k rows/month,
+  ~130k rows/year (~28 MB/year)** — slow, bounded per month, and it should be a conscious
+  decision rather than a discovery in year two. **Recommendation: none today; revisit when
+  `player_ledger_rollup` passes 100k rows.**
+
+  **The three `NONE` rows are a real gap and a small one.** `maintenance_log` grows at
+  **~25 rows/day** ✅ (hourly cron-health plus the daily jobs) — about **9k rows/year**,
+  under 2 MB, and it does not scale with players. `maintenance_alerts` and `bug_reports` grow
+  slower still. **None of these blocks cutover.** But all three are observability tables that
+  will be read during an incident, and an unbounded table with no stated policy is exactly
+  the shape that produced the `game_events` incident — the difference is three orders of
+  magnitude in rate, not in kind. **Recommended (P3, Backend Architect's call since it is a
+  migration): one `hr_maintenance_prune()` retaining 180 days of `maintenance_log` and acked
+  `maintenance_alerts`, on the existing 04:xx cron slot.** Explicitly NOT recommended for
+  `bug_reports` — those are player-reported evidence and should be curated, not aged out.
+* **Connections: 60 max, 24 in use** ✅ — `ci_micro.connections_direct = 60` from the billing
   API matches the database exactly. Pooler allows 200. The hard rule in design §2a-ii
   (port 6543, never 5432) is what keeps this from being the first thing to break, and §5
   item 5 is where a restore could quietly violate it. **The pooler is correctly configured
@@ -645,6 +999,40 @@ Measured 2026-08-15 ✅.
   **6543**, host `aws-1-us-west-2.pooler.supabase.com`, SCRAM auth. Re-verify that after
   any restore: a new project gets a new pooler host, and rebuilding `HR_ENGINE_DB_URL`
   against port 5432 would work in testing and exhaust the pool in production.
+
+* **Connection headroom against the 80-calls/min/user ceiling — the number that was missing,
+  and it bites before the disk does.** The binding limit is **not** `max_connections = 60`;
+  it is **`hr_engine_login`'s `connection limit 20`** ✅, which is the whole point of that
+  setting — the engine cannot starve PostgREST, `pg_cron` or the dashboard no matter how
+  badly it behaves. Grounding the model in a measured figure rather than a guess:
+  **`hr_apply` mean execution 28.7 ms over 29 real calls, max 142.7 ms** ✅
+  (`pg_stat_statements`; the multi-second entries in that view are the deliberate
+  lock-contention race test, not representative). At 20 backend connections and 28.7 ms per
+  transaction, the engine's theoretical ceiling is **~700 accruals/second** with perfect
+  packing — call it **~500/s** with realistic scheduling slack.
+
+  | players | at the permitted 80 calls/min/user | connections needed at 28.7 ms | vs `connlimit 20` |
+  |---|---|---|---|
+  | 6 (today) | 8/min = 0.13/s | ~0.004 | 0.02% — irrelevant |
+  | 60 (10×) | 4,800/min = 80/s | **~2.3** | 11% — comfortable |
+  | 600 (100×) | 48,000/min = 800/s | **~23** | **EXCEEDS 20 — saturated** |
+
+  **So the engine's connection budget is exhausted somewhere around 520 concurrent players
+  sustaining the maximum rate the rate-limiter permits.** Two honest caveats, both of which
+  make this less alarming than the table looks: 80 calls/min/user is the *rate-limit ceiling*,
+  not expected play — a real idle-game client sends far fewer — and saturation here degrades
+  as queueing at the pooler (slower accruals), **not** as an outage, because Supavisor holds
+  the clients rather than erroring. **This is a P2 to revisit before 100×, not a blocker for
+  cutover at 6–60 players.** The lever is one number (`connection limit` on
+  `hr_engine_login`, with `max_connections` 60 as the true wall and 24 already in use, so
+  there is room to raise it to ~30 without touching compute). **Add to the observability
+  list: alert when `hr_engine_login`'s concurrent connection count exceeds 15** — that is the
+  early warning, and it is currently unmonitored.
+
+  > **Do not "fix" this by raising `max: 2` in `hr-accrue/index.ts`.** That constant is per
+  > warm isolate and is correct at 2 (an invocation runs at most two transactions, never
+  > concurrently). Raising it multiplies isolates × connections and would exhaust
+  > `connlimit 20` at *fewer* players, not more.
 * **Query cost, stated honestly.** The daily-budget sum
   (`hr_day_budget_used`: `user_id = ? and slot = ? and at >= ? and at < ?`) is matched
   exactly by `player_ledger_user_idx (user_id, slot, at DESC)` — leading equality columns
@@ -667,9 +1055,20 @@ Measured 2026-08-15 ✅.
 
 Kept so that nobody reads this document as a completed capability.
 
+**Restore-readiness scored, 2026-08-15.** Of the eight verification gates in §6, **six can be
+and have been proven against production today** (1, 2, 3, 4, 5, 6 — all measured ✅), **one is
+now fully written but never executed** (7 / §6a — and one line inside it, the pooler username
+shape, is inferred rather than verified), and **one is untestable without a restore target**
+(8). The gates are therefore ~75% proven *as checks*. But the thing they check — **that
+Supabase hands the rows back at all — is 0% proven**, and no amount of gate-writing changes
+that. **The honest verdict: the preparation is close to complete; the capability is
+untested.** One 90-minute drill costing ~$0.04 (§9) moves this from ~75% to ~100%.
+
 | | Why not |
 |---|---|
-| **Any restore, of any kind** | Destructive and/or billable. Requires explicit authorisation. **This is the open blocker.** |
+| **Any restore, of any kind** | Destructive and/or billable. Requires explicit authorisation. **This is the open blocker, and §9 now prices it at ~$0.04 — cost was never the reason.** |
+| **The pooler username shape for a custom role** (`hr_engine_login.<ref>`) | Inferred from the API's `postgres.<ref>`, not confirmed — the live secret's value is deliberately unreadable. **Closeable today, read-only, one `psql` round trip (§6a-iii step 2).** |
+| **`hr_unlocks` DR classification** | The census is RED. A one-line edit to `tests/restore-census.baseline.json`, owned by whoever ships the next migration. |
 | **Creating a project or a branch** | Out of scope for this task and billable. |
 | **Enabling PITR** | A recurring charge. §8 is the recommendation; the decision is Tyler's. |
 | **The §9 rehearsal** | Needs mechanism B, which needs a dashboard click and a cost approval. |
@@ -679,12 +1078,50 @@ Kept so that nobody reads this document as a completed capability.
 
 ---
 
+## 13. Currency audit — every section walked against production, 2026-08-15 20:55 UTC
+
+The failure mode this table exists to prevent: a DR document that reads authoritative and is
+quietly six migrations out of date. **Twelve migrations landed on 2026-08-15/16 and four
+sections were already wrong.** Re-run this walk after any migration batch.
+
+| § | Claim | Verdict | Note |
+|---|---|---|---|
+| 0 | Summary | **STALE → FIXED** | seeded 21→22; `player_*` no longer empty |
+| 1 | 8 daily backups, all COMPLETED | **VERIFIED-CURRENT** | re-fetched; identical, cadence gap ≤24h03m |
+| 1 | Backup schedule is Enterprise-only (HTTP 402) | **VERIFIED-CURRENT** | unchanged |
+| 1 | `hr_engine_login` password set | **STALE METHOD → FIXED** | `pg_roles` cannot answer this; `pg_authid` can. `hr_engine` has *no* password |
+| 1 | Restore points unavailable (HTTP 400) | VERIFIED-CURRENT (asserted from prior run, not re-fetched) | |
+| 2a | Digest `df0fbe3178…`, 75/171/74/102… | **STALE → FIXED** | now `f166dc74f8e0…`, 76/175/75/103/15/187/447/67/1 |
+| 2a | `production_only: NONE` | **VERIFIED-CURRENT (counts)** | object-level delta still last proven 2026-08-14 |
+| 2b | Census green, 21 seeded, 66 tables | **STALE → FIXED** | census is **RED**: `hr_unlocks` unclassified; 22 seeded, 67 tables |
+| 2c | Group A row counts all 0 | **STALE → FIXED** | every progression table now non-zero |
+| 2c | Group C operational counts | **STALE → FIXED** | + `hr_rate_counters` is UNLOGGED (restores empty) |
+| 2d | `auth.users` = 8, 17 FKs | **VERIFIED-CURRENT** | count re-confirmed 8 |
+| 3 | The four things a restore must carry | **VERIFIED-CURRENT** | unchanged and still correct |
+| 4a | Classify-before-restore triage | **VERIFIED-CURRENT** | health endpoint all four services healthy |
+| 4b | Mechanism A vs B comparison | **VERIFIED-CURRENT** | API surface unchanged |
+| 4c / 4d | The restore procedures | **UNTESTABLE-WITHOUT-RESTORE** | the open blocker |
+| 5 | Ref-change checklist | **STALE → FIXED** | `hr-accrue` v12 → **v22**; secret names re-confirmed present |
+| 6 gates 1–3 | | **STALE → FIXED** | digest, `hr_unlocks`, `reltuples` trap |
+| 6 gate 4 | progression as a set | **VERIFIED-CURRENT** | and now actually exercisable — the tables have rows |
+| 6 gate 5 | 9 cron jobs | **VERIFIED-CURRENT +** | all 9 present, active, **zero failures in 48h** |
+| 6 gate 6 | `hr_engine` zero table privileges | **VERIFIED-CURRENT** | confirmed 0 after b353 |
+| 6 gate 7 | custom-role reset | **WAS INCOMPLETE → REWRITTEN as §6a** | one line inside it still inferred |
+| 6 gate 8 | player round-trip | **UNTESTABLE-WITHOUT-RESTORE** | |
+| 7 | What Tyler must click | **VERIFIED-CURRENT** | |
+| 8 | PITR $100/mo | **VERIFIED-CURRENT +** | + $5/mo Micro→Small = **~$105/mo**; trigger is nearer |
+| 9 | The rehearsal | **NOT EXECUTED** | now **priced: ~$0.04** |
+| 10 | RTO/RPO | **UNTESTABLE-WITHOUT-RESTORE** | every "unknown" closes with one drill |
+| 11 | Capacity | **STALE → FIXED** | disk/db/events refreshed; **connection model added**; retention coverage audited |
+
+---
+
 ## Appendix — the guards that keep this document from going stale
 
 * `tests/schema-drift.mjs` — the repo rebuilds the schema to a pinned fingerprint.
   `--mutate` proves it sees failure (7 planted defects).
 * `tests/restore-census.mjs` + `tests/restore-census.baseline.json` — **new.** Which rows a
-  rebuild gives back and which only a backup has; pins all 21 seeded catalogues and 8 cron
+  rebuild gives back and which only a backup has; pins all 22 seeded catalogues and 8 cron
   jobs; **fails the build on a new table whose DR class nobody has decided**. `--mutate`
   proves it sees failure (5 planted defects, 4 caught by the census and 1 deliberately
   caught upstream — see below).

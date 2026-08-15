@@ -20,6 +20,7 @@ import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
+import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -1115,6 +1116,36 @@ const run = async () => {
     } else {
       console.log('\nActivity-seam guard — every settable kind is declarable, wired to a call site, and '
         + 'resolves through the accrual engine\'s own catalogue.');
+    }
+
+    /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────
+       hr_apply had NEVER applied a delta through the Edge Function: both
+       call sites bound a `JSON.stringify`d delta into a `::jsonb` parameter,
+       and postgres.js — which learns the resolved parameter type from
+       ParameterDescription on the describe-first path `prepare:false` always
+       takes — re-serialised it into a jsonb STRING SCALAR. hr_apply's first
+       guard is `jsonb_typeof(p_delta) <> 'object'`, so every call answered
+       409 bad_delta.
+
+       tests/activity-intent.mjs could not see it and never will: it drives
+       the same module bytes but injects a PGlite `exec`, and the bug is in
+       the TRANSPORT. 27 mutations passed against code that had never once
+       worked in production. This guard changes exactly one thing — the wire.
+       PGlite is exposed over the real PostgreSQL protocol and the REAL
+       postgres@3.4.5 driver connects to it with the Edge Function's own pool
+       options, so `runSetActivity` runs end to end against the real
+       hr_apply. It carries its own control: if the double-encode ever stops
+       being reproducible, that is reported as a FAILURE, because every
+       assertion after it would be passing for free.
+       `node tests/delta-transport.mjs --selftest` reinstates the shipped bug
+       at each call site and requires both to turn the run RED. */
+    const { problems: deltaProblems, note: deltaNote } = await deltaTransportGuards();
+    if (deltaProblems.length) {
+      console.log('\nDelta-transport guard (the delta reaches hr_apply as a jsonb OBJECT) — FAILED:');
+      for (const p of deltaProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nDelta-transport guard — ${deltaNote}.`);
     }
 
     /* ── The identity guard (D2) ────────────────────────────────────────

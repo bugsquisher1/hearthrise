@@ -459,9 +459,28 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       });
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
+        /* ⚠ `::text::jsonb`, NEVER `::jsonb`, ON A PRE-STRINGIFIED DELTA.
+           THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb
+           makes postgres.js re-serialize the value with JSON.stringify. With
+           `prepare: false` (required in transaction mode, see the pool above)
+           every statement takes the describe-first path — Parse with an
+           unspecified type, then Describe — so the driver ALWAYS learns the
+           resolved type from ParameterDescription and Bind then looks it up in
+           `options.serializers`. `serializers[3802]` is JSON.stringify, so the
+           already-stringified delta is encoded a SECOND time and arrives as a
+           jsonb STRING SCALAR. hr_apply's first guard is
+           `jsonb_typeof(p_delta) <> 'object'`, so every apply this function has
+           ever attempted in production returned `bad_delta` — never once
+           applied, from the first deploy (found 2026-08-15).
+           Casting the parameter to `text` first makes Postgres describe it as
+           text (25), whose serializer is `x => '' + x` — a passthrough — and
+           the SQL cast does the parse. This shape is correct under BOTH driver
+           typings (an unspecified type 0 is also a passthrough), which is why
+           it is preferred over handing the driver the raw object.
+           set-activity.js's APPLY_SQL must use the same shape. */
         const [r] = await tx`
           select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
-                                 ${intentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res`;
+                                 ${intentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
         return r as Row;
       });
       return applied?.res as Record<string, any>;

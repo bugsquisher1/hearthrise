@@ -291,6 +291,17 @@ curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   "https://api.supabase.com/v1/projects/$PROJECT_REF/database/backups" | tee /tmp/backups-at-incident.json
 curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   "https://api.supabase.com/v1/projects/$PROJECT_REF" | tee /tmp/project-at-incident.json
+
+# Per-service health — this is what tells you it is an outage and not a data loss.
+curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/health?services=db&services=auth&services=rest&services=storage"
+# healthy baseline, measured 2026-08-15: db / auth (GoTrue v2.195.0) / rest / storage
+#   all {"healthy":true,"status":"ACTIVE_HEALTHY"}
+
+# Disk, because "the database is broken" is sometimes "the disk is full".
+curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/config/disk/util"
+# healthy baseline, measured 2026-08-15: 445,685,760 used of 2,077,073,408 (21.5%)
 ```
 
 …then the row census, so "what did we lose" is a diff and not a memory. The exact statement
@@ -485,7 +496,7 @@ as a click.
 
 | # | Action | Why it cannot be automated |
 |---|---|---|
-| 1 | **Restore to a New Project** (dashboard → Database → Backups → Restore to a New Project) | **Verified absence:** there is no clone / restore-to-new-project endpoint anywhere in the Management API spec (115 paths, checked). Dashboard-only, full stop. |
+| 1 | **Restore to a New Project** (dashboard → Database → Backups → Restore to a New Project) | **Verified absence, and audited rather than assumed:** the Management API spec was fetched (`https://api.supabase.com/api/v1-json`, **115 paths**) and searched for `clone` / `duplicate` / `restore-to-new` / `new_project` across every path *and* every operation body — **zero hits** ✅. The 94 `/v1/projects/{ref}/…` sub-paths were then listed and read by eye. The backup endpoints that exist are `GET backups`, `POST backups/restore`, `POST backups/restore-pitr`, `GET,POST backups/restore-point`, `GET,PATCH backups/schedule`, `POST backups/undo` — and none of them creates a project. Dashboard-only, full stop. |
 | 2 | **Approve the cost estimate** on that screen | It creates a billable project. Financial consent is his, never inferred. |
 | 3 | **Enable PITR** — *if he decides yes* (§8) | Technically `PATCH /v1/projects/{ref}/billing/addons` with `{"addon_type":"pitr","addon_variant":"pitr_7"}` ✅ would do it, and the Small compute upgrade the same way. **I am listing it as his action anyway because it is a recurring charge, not because the API cannot.** Say the word and it is one command. |
 | 4 | **Authorise any destructive step, out loud, every time** | Mechanism A's restore, any truncate, any wipe. Stated loss → explicit yes → act. Never inferred from context or from a previous approval. |
@@ -585,6 +596,14 @@ measured is a hope.
 
 Measured 2026-08-15 ✅.
 
+* **The disk is 2 GB, not 8 — and this is the number that binds.** `GET
+  /v1/projects/{ref}/config/disk` → `{"size_gb": 2, "iops": 3000, "type": "gp3",
+  "throughput_mibps": 125}` ✅, and `/config/disk/util` → **425 MiB used of 1.93 GiB
+  (21.5%), 1.52 GiB free** ✅. Note the gap: `pg_database_size` says **20 MB** but the
+  filesystem holds **425 MiB** — WAL, catalog and logs are the rest, and *the disk fills on
+  the filesystem number, not the database one*. `/config/disk/autoscale` returns all nulls
+  ✅ — **no custom autoscale policy is configured**, so the platform default applies and the
+  ceiling is whatever Supabase grows it to, billed per GB. Do not plan against 8 GB.
 * **Database: 20 MB** (`pg_database_size`). The 244 MB / 94%-`game_events` incident is
   fully resolved: `game_events` is **5,132 rows / 1,096 kB**, down from 1,598,269 rows /
   229 MB.
@@ -599,13 +618,19 @@ Measured 2026-08-15 ✅.
   That is the right shape: aggregates and value transfers, never per-tick.
   At **215 bytes/row** measured, and ~300 ledger rows per active character per day:
 
-  | players | `player_ledger` at 90 days |
-  |---|---|
-  | 6 (today) | ~35 MB |
-  | 60 (10×) | ~350 MB |
-  | 600 (100×) | **~3.5 GB** — the dominant object in the database |
+  | players | `player_ledger` at 90 days | against a 2 GB disk holding 425 MiB already |
+  |---|---|---|
+  | 6 (today) | ~35 MB | fine |
+  | 60 (10×) | ~350 MB | ~775 MiB total — **~40% of the disk**, comfortable but no longer trivial |
+  | 600 (100×) | **~3.5 GB** | **exceeds the whole 2 GB disk on its own.** Autoscale would grow it and bill for it; this is a cost event, not an outage, but it is a cost event nobody has budgeted |
 
-  **The finding worth acting on before 100×, not after:** `hr_ledger_prune(20000)` runs
+  **That is the capacity headline: the first thing to outgrow this project is
+  `player_ledger` against a 2 GB disk, and it happens somewhere between 10× and 100×
+  players.** The lever is `hr_ledger_config.retain_days` (90 today) — halving it halves the
+  table, and the rollup already preserves the aggregate history that matters. Revisit that
+  number before 100×, not during it.
+
+  **A second finding worth acting on before 100×, not after:** `hr_ledger_prune(20000)` runs
   hourly, and its `limit` is per invocation ✅ — a hard ceiling of **480,000 rows/day**. At
   600 players that is a budget of **800 ledger rows per character per day**. Realistic load
   (~300) fits with room; the worst case the design permits (`ACCRUE_MIN_MS` = 60,000 ⇒ one
@@ -617,7 +642,11 @@ Measured 2026-08-15 ✅.
 * **Connections: 60 max, 25 in use** ✅ — `ci_micro.connections_direct = 60` from the billing
   API matches the database exactly. Pooler allows 200. The hard rule in design §2a-ii
   (port 6543, never 5432) is what keeps this from being the first thing to break, and §5
-  item 5 is where a restore could quietly violate it.
+  item 5 is where a restore could quietly violate it. **The pooler is correctly configured
+  today** ✅ — `GET /config/database/pooler` returns `pool_mode: "transaction"`, port
+  **6543**, host `aws-1-us-west-2.pooler.supabase.com`, SCRAM auth. Re-verify that after
+  any restore: a new project gets a new pooler host, and rebuilding `HR_ENGINE_DB_URL`
+  against port 5432 would work in testing and exhaust the pool in production.
 * **Query cost, stated honestly.** The daily-budget sum
   (`hr_day_budget_used`: `user_id = ? and slot = ? and at >= ? and at < ?`) is matched
   exactly by `player_ledger_user_idx (user_id, slot, at DESC)` — leading equality columns

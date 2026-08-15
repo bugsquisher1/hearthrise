@@ -40,6 +40,24 @@
   "db_size": "20 MB",
   "max_connections": 60,
   "connections_in_use_at_measurement": 25,
+  "disk": {
+   "_why": [
+    "The disk fills on the FILESYSTEM number, not on pg_database_size. 20 MB of",
+    "database sits on a filesystem holding 425 MiB (WAL, catalog, logs). Plan",
+    "capacity against fs_used_bytes.",
+    "Measured via GET /v1/projects/{ref}/config/disk and /config/disk/util."
+   ],
+   "size_gb": 2,
+   "type": "gp3",
+   "iops": 3000,
+   "throughput_mibps": 125,
+   "fs_size_bytes": 2077073408,
+   "fs_used_bytes": 445685760,
+   "fs_avail_bytes": 1631387648,
+   "pct_used": 21.5,
+   "autoscale_policy": "none configured (growth_percent, min_increment_gb, max_size_gb all null) — platform default applies",
+   "first_table_to_outgrow_it": "player_ledger — ~3.5 GB projected at 100x players against a 90-day retain_days. See docs/design/restore-runbook.md §11."
+  },
   "rows": {
    "beta_invites": 20, "bug_reports": 27, "chat_blocks": 0, "chat_messages": 8,
    "clan_bans": 0, "clan_board": 21, "clan_invites": 0, "clan_ledger": 8,

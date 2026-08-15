@@ -1511,6 +1511,22 @@ async function shellGuard() {
   }
   ok(/auto_eat_enabled/.test(code) && /auto_eat_pct/.test(code) && /auto_eat_food/.test(code),
     'SHELL: index.ts no longer reads the auto_eat_* columns off hr_state_of');
+
+  /* (i) THE SAME RULE FOR GATHERING, and it has the same silent shape. Drop
+     `nodes:` and every gathering night answers `unknown_node` — a REFUSING
+     reason, so the time is deferred rather than confiscated, but the player
+     accrues nothing from gathering ever again and no test here notices, because
+     accrual-engine.mjs calls computeAccrual directly and never goes through the
+     shell. Drop `toolCarry:` and the carry silently restarts from zero every
+     span. Both are one-line omissions with no exception and no log. */
+  for (const field of ['nodes:', 'toolCarry:']) {
+    ok(code.includes(field),
+      `SHELL: index.ts does not pass '${field.replace(':', '')}' to computeAccrual — gathering would `
+      + 'silently stop paying (nodes) or silently lose its deterministic carry (toolCarry)');
+  }
+  ok(/tool_carry/.test(code),
+    'SHELL: index.ts no longer reads tool_carry off hr_state_of — the null branch would be permanent '
+    + 'and applying the migration would change nothing');
 }
 
 // ── 4b. CROSS-FILE CONSTANTS ────────────────────────────────────────────────
@@ -1609,6 +1625,34 @@ const HONEST_SUSTAIN = {
   autoEatEnabled: true, autoEatFood: HONEST_FOOD, autoEatPct: 50,
 };
 
+/* ── THE GATHERING SWEEP, so the clamp reports cover the OTHER payable kind ──
+   Every gathering node in the catalogue, at maxed skills, holding the best tool
+   for that node's skill (which is the honest ceiling: tool speed shortens the
+   interval, so it MULTIPLIES the action count, and tool double adds to every
+   yield). A guard whose envelope stops at combat would report comfortable
+   headroom the day gathering became payable and keep reporting it. */
+function gatherSweep(spanH, seed = SEED) {
+  const out = [];
+  for (const nodeId of Object.keys(GATHER_INDEX)) {
+    const skill = GATHER_INDEX[nodeId].skill;
+    const toolId = bestOwnedTool(skill);
+    const r = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000,
+      activeSinceMs: NOW_MS - spanH * 3600000,
+      activeKind: 'gather', activeId: nodeId, capMs: spanH * 3600000, seed,
+      hp: HONEST_MAX_HP, maxHp: HONEST_MAX_HP, gold: 0,
+      skills: { ...MAXED, ...GATHER_MAXED }, equipment: EQUIPMENT,
+      inventory: toolId ? { [toolId]: 1 } : {},
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+      toolCarry: {},
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    });
+    if (r.accrued) out.push([`${spanH}h ${nodeId}`, r.delta]);
+  }
+  return out;
+}
+
 function clampsFromMigration(sql) {
   const out = {};
   for (const m of sql.matchAll(/c_(max_[a-z_]+)\s+constant\s+(?:bigint|int)\s*:=\s*(\d+)/g)) {
@@ -1665,6 +1709,19 @@ async function clampGuard() {
       });
       if (!r.accrued) continue;
       const d = r.delta; const where = `${spanH}h ${id}`;
+      bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
+      bump('max_gold_delta', d.gold || 0, where);
+      bump('max_item_delta', Math.max(0, ...Object.values(d.items || {})), where);
+      bump('max_item_kinds', Object.keys(d.items || {}).length, where);
+      bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
+      bump('max_progress_ops', (d.progress || []).length, where);
+    }
+    /* …and every GATHERING node, at the same two spans. Gathering's shape is
+       the opposite of combat's — one item kind, no gold, modest XP, but a very
+       large SINGLE-ITEM quantity, which is the dimension c_max_item_delta
+       bounds. Sweeping it is the only way "gathering has plenty of headroom"
+       stops being a sentence. */
+    for (const [where, d] of gatherSweep(spanH)) {
       bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
       bump('max_gold_delta', d.gold || 0, where);
       bump('max_item_delta', Math.max(0, ...Object.values(d.items || {})), where);
@@ -1758,6 +1815,14 @@ async function dayBudgetGuard() {
        auto-eat now puts a negative in this map — summing it signed would let a
        night of eating pay for a night of looting. */
     bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), `24h ${id}`);
+  }
+  /* Gathering, at the same span. It is the `qty` dimension's real worst case —
+     a night of chopping is one item kind in five figures, where a night of
+     fighting is a handful of drop rows. */
+  for (const [where, d] of gatherSweep(24)) {
+    bump('gold', d.gold || 0, where);
+    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
+    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);
   }
 
   dayBudgetGuard.report = [];

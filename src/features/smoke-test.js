@@ -890,11 +890,30 @@ const TESTS = [
       const ids = dropsOf(mid);
       assert(ids.length === new Set(ids).size, mid + ' has a duplicated drop entry');
     });
-    // The b145 Phase-B suppression still holds — a scroll that unlocks nothing
-    // is a dead end, so these three must NOT drop until their items ship.
+    // The b145 Phase-B suppression holds — a scroll that unlocks nothing is a
+    // dead end, so a scroll must NOT drop until its target item ships.
+    //
+    // b343: two of the original three have now shipped their targets
+    // (spellstone_diagram → spellstone_ring, gemcutter_note →
+    // dragon_gem_earrings, both in src/data/slot-ladders.js), so they are
+    // asserted the OTHER way round below. dragon_marrow_recipe's target
+    // (dragonbone_spear) still does not exist and stays suppressed. The rule is
+    // now stated as a rule rather than as a hardcoded list, so it cannot rot:
+    // EVERY scroll item is checked against whether its target exists.
     const all = Object.keys(M).reduce((a, k) => a.concat(dropsOf(k)), []);
-    ['spellstone_diagram', 'dragon_marrow_recipe', 'gemcutter_note'].forEach((s) => {
-      assert(all.indexOf(s) < 0, s + ' is dropping but its target item does not exist yet (b145)');
+    assert(all.indexOf('dragon_marrow_recipe') < 0,
+      'dragon_marrow_recipe is dropping but its target item (dragonbone_spear) does not exist yet (b145)');
+    Object.entries(window.ITEMS || {}).forEach(([id, it]) => {
+      if (!it || !it.recipe) return;                       // not a scroll
+      const targetExists = !!(window.ITEMS || {})[it.recipe];
+      if (!targetExists) {
+        assert(all.indexOf(id) < 0, 'scroll ' + id + ' drops but its target item "' + it.recipe + '" does not exist (b145)');
+      }
+    });
+    // b343: and the two that were unblocked must actually be obtainable now —
+    // shipping the item without the drop leaves the recipe permanently locked.
+    ['spellstone_diagram', 'gemcutter_note'].forEach((s) => {
+      assert(all.indexOf(s) >= 0, s + ' must now drop — its target item shipped in b343 (slot-ladders.js)');
     });
     // And every scroll that DOES drop must actually unlock a live recipe.
     const gates = new Set();
@@ -14554,6 +14573,173 @@ const TESTS = [
       window.remapItemIds(G);
       assert(!('iron_ore' in G.inventory), 'an item aliased to null (cut) must be dropped, not linger');
     } finally { window.ITEM_ALIAS = savedAlias; restoreG(snap); }
+  }),
+
+  // ════════════════════════════════════════════════════════════
+  // b343 — THE EQUIPMENT-LANE GUARDS
+  //
+  // `earrings` sat in EQUIP_SLOTS with ZERO items that could fill it for the
+  // whole life of the project, and the equip doll rendered the empty socket to
+  // every player the entire time. Nothing caught it because nothing ever asked
+  // the question. These two guards ask it, every run.
+  // ════════════════════════════════════════════════════════════
+
+  () => tryRun('b343: every EQUIP_SLOTS slot has at least one item that can fill it', () => {
+    const ITEMS = window.ITEMS || {};
+    const SLOTS = window.EQUIP_SLOTS || (window.__LEGACY_INLINE || {}).EQUIP_SLOTS || [];
+    assert(SLOTS.length > 0, 'EQUIP_SLOTS must be readable from the page');
+
+    // ring1/ring2 are two sockets served by one item slot key ('ring').
+    const slotKey = (s) => (s === 'ring1' || s === 'ring2') ? 'ring' : s;
+    const filled = new Set();
+    Object.values(ITEMS).forEach((it) => { if (it && it.slot) filled.add(it.slot); });
+
+    /* The ONE documented exception, asserted as an exact set so it can never
+       grow quietly. `shield` (Offhand) was added to EQUIP_SLOTS in b216 and has
+       never had an item. Filling it is NOT a data change: nothing in the engine
+       models weapon handedness, so a shield would hand every 2H warhammer, bow
+       and staff user free defence. That needs an engine seam first — raised as
+       a handoff, deliberately not papered over with items here. */
+    const KNOWN_EMPTY = ['shield'];
+
+    const empty = SLOTS.filter((s) => !filled.has(slotKey(s)));
+    const unexpected = empty.filter((s) => KNOWN_EMPTY.indexOf(s) < 0);
+    assert(unexpected.length === 0,
+      'these EQUIP_SLOTS can NEVER be filled — a socket the player can see and nothing can go in: ' + unexpected.join(', '));
+    // And the exception list may not outlive its reason: if someone ships a
+    // shield, this fails until they delete the entry.
+    const staleExceptions = KNOWN_EMPTY.filter((s) => filled.has(slotKey(s)));
+    assert(staleExceptions.length === 0,
+      'KNOWN_EMPTY still lists ' + staleExceptions.join(', ') + ' but items now exist for it — delete the exception');
+  }),
+
+  () => tryRun('b343: no equipment ladder has a hole bigger than 20 levels', () => {
+    const ITEMS = window.ITEMS || {};
+    const R = window.ARTISAN_RECIPES || {};
+    /* MEASURE AVAILABILITY, NOT THE WIELD GATE. An item's rung is the higher of
+       (a) the level it may be worn at and (b) the level it may be MADE at.
+       Reading `reqLv` alone reports a 30-level hole in the weapon slot that no
+       player has ever experienced — every tier-1-to-3 weapon is ungated to
+       wield, and the real cadence is the smithing/crafting requirement. Reading
+       the craft gate alone would miss a wield-gated boss drop. The max of the
+       two is what a player actually feels.
+
+       MAX_GAP is 20 because the generated armour spine (gear-tiers.js) rungs
+       every 15 levels and the hand-authored uniques sit off that grid, so 20 is
+       the smallest threshold that passes every healthy ladder with margin. A
+       wider gap means a player wearing the best item they can get watches it
+       stay best for a fifth of the whole game. Measured this way before b343:
+       cape 25 (level 35 to level 60), ring 23 (35 to 58), and necklace's first
+       rung at 25 with a 21-level hole above the Panther's Eye. */
+    const MAX_GAP = 20;
+    const FIRST_RUNG_BY = 25;   // and something must be reachable reasonably early
+
+    const craftReq = {};
+    Object.keys(R).forEach((skill) => (R[skill] || []).forEach((r) => {
+      if (!r || !r.output) return;
+      const q = Number(r.req) || 0;
+      if (craftReq[r.output] === undefined || q < craftReq[r.output]) craftReq[r.output] = q;
+    }));
+    const availabilityOf = (id, it) =>
+      Math.max(Number(it.reqLv) || 0, craftReq[id] === undefined ? 0 : craftReq[id]);
+
+    const bySlot = {};
+    Object.entries(ITEMS).forEach(([id, it]) => {
+      if (!it || !it.slot) return;
+      (bySlot[it.slot] = bySlot[it.slot] || []).push(availabilityOf(id, it));
+    });
+
+    const problems = [];
+    Object.entries(bySlot).forEach(([slot, levels]) => {
+      if (levels.length < 2) return;                // a one-item slot is the coverage guard's problem
+      const rungs = [...new Set(levels)].sort((a, b) => a - b);
+      if (rungs[0] > FIRST_RUNG_BY) {
+        problems.push(slot + ': nothing available until level ' + rungs[0]);
+      }
+      for (let i = 1; i < rungs.length; i++) {
+        const gap = rungs[i] - rungs[i - 1];
+        if (gap > MAX_GAP) problems.push(slot + ': a ' + gap + '-level hole between ' + rungs[i - 1] + ' and ' + rungs[i]);
+      }
+    });
+    assert(problems.length === 0, 'equipment ladders with holes — ' + problems.join(' | '));
+  }),
+
+  () => tryRun('b343: the ammo ladder is a well-formed, priced consumable', () => {
+    const ITEMS = window.ITEMS || {};
+    const ammo = Object.entries(ITEMS).filter(([, it]) => it && it.slot === 'ammo');
+    assert(ammo.length >= 7, 'the ammo lane must run the full material ladder, got ' + ammo.length);
+
+    // Every rung declares its burn as DATA, so a save/recover perk or a
+    // two-per-shot bolt is a data change and never a code change.
+    const tiered = ammo.filter(([, it]) => it.tier);
+    tiered.forEach(([id, it]) => {
+      assert(typeof it.ammoPerShot === 'number' && it.ammoPerShot >= 0 && isFinite(it.ammoPerShot),
+        'ammo "' + id + '" must declare a numeric ammoPerShot (the per-swing burn)');
+      assert(it.v > 0, 'ammo "' + id + '" needs a gold value — the server is about to own prices');
+    });
+
+    // THE FTUE RULING, pinned: the first rung does not burn. At tier 1 a ranged
+    // player fires ~13,900 arrows across an 8-hour absence and grosses ~18,600
+    // gold doing it, so no integer price makes tier-1 ammo cost under a third
+    // of the income it earns. Free at tier 1, a supply loop from tier 2 up.
+    const t1 = tiered.filter(([, it]) => it.tier === 1);
+    assert(t1.length > 0 && t1.every(([, it]) => it.ammoPerShot === 0),
+      'the tier-1 ammo rung must be free to fire (ammoPerShot 0) — see the b343 ammo economics');
+    assert(tiered.filter(([, it]) => it.tier >= 2).every(([, it]) => it.ammoPerShot >= 1),
+      'every ammo rung above tier 1 must actually be spent');
+
+    // Prices climb with the ladder — a cheaper better arrow is a free upgrade.
+    const sorted = tiered.slice().sort((a, b) => a[1].tier - b[1].tier);
+    for (let i = 1; i < sorted.length; i++) {
+      assert(sorted[i][1].v >= sorted[i - 1][1].v,
+        'ammo value must not go DOWN with tier: ' + sorted[i][0] + ' (' + sorted[i][1].v + ') <= ' + sorted[i - 1][0] + ' (' + sorted[i - 1][1].v + ')');
+    }
+  }),
+
+  () => tryRun('b343: the spdB speed budget is closed (the pacing anchor holds)', () => {
+    const ITEMS = window.ITEMS || {};
+    /* `spdB` sits OUTSIDE the getBonus power budget — it is an item stat, not a
+       getBonus key, so power-budget.js never sees it. It multiplies the swing
+       RATE, which multiplies combat XP, gold per hour AND drops per hour at
+       once: the permanent fuse allows +20% on ONE governed key, and the
+       best-in-slot spdB sum already buys +19.0% on three.
+       swingIntervalMs() clamps at 0.20. If gear ever sums past that clamp,
+       every further speed item becomes a NULL item — it says "+2% attack speed"
+       on the tooltip and does nothing. That is the failure this guard prevents.
+       BUDGET = the live best-in-slot sum, frozen. The speed ladder is closed;
+       raising this number is a design decision, not a tuning pass. */
+    const BUDGET = 0.16;
+    const best = {};
+    Object.entries(ITEMS).forEach(([id, it]) => {
+      if (!it || !it.spdB || !it.slot) return;
+      const k = it.slot;
+      if (!best[k] || it.spdB > best[k].spdB) best[k] = { id, spdB: it.spdB };
+    });
+    const sum = Object.values(best).reduce((t, x) => t + x.spdB, 0);
+    const roster = Object.entries(best).map(([k, x]) => k + ':' + x.id + '(' + x.spdB + ')').join(' ');
+    assert(sum <= BUDGET + 1e-9,
+      'best-in-slot spdB sums to ' + sum.toFixed(3) + ', over the ' + BUDGET + ' design budget — ' + roster);
+    // And the budget must stay strictly under the engine clamp, or the clamp
+    // binds and the top of the ladder stops paying.
+    const clamp = (window.HearthriseCore && window.HearthriseCore.combat && window.HearthriseCore.combat.COMBAT_BALANCE)
+      ? 0.20 : 0.20;
+    assert(BUDGET < clamp, 'the spdB design budget must stay strictly under the engine clamp of ' + clamp);
+  }),
+
+  () => tryRun('b343: crit stays under the engine cap even in a perfect kit', () => {
+    const ITEMS = window.ITEMS || {};
+    const CAP = 0.60;   // COMBAT_BALANCE.critCap
+    const best = {};
+    Object.entries(ITEMS).forEach(([id, it]) => {
+      if (!it || !it.critB || !it.slot) return;
+      if (!best[it.slot] || it.critB > best[it.slot].critB) best[it.slot] = { id, critB: it.critB };
+    });
+    // rings are two sockets served by one slot key
+    let sum = Object.entries(best).reduce((t, [slot, x]) => t + x.critB * (slot === 'ring' ? 2 : 1), 0);
+    sum += 0.08;   // the best armorSetBonus (tier 8 x 0.01) plus headroom
+    assert(sum <= CAP,
+      'best-in-slot critB + set bonus reaches ' + sum.toFixed(3) + ', at or over the engine cap of ' + CAP +
+      ' — past the cap every further crit item is a null item');
   }),
 
   () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {

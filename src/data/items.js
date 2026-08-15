@@ -2,6 +2,7 @@
 
 import { GEAR_ITEMS } from './gear-tiers.js?v=342';
 import { WAVE3_ITEMS } from './wave3-uniques.js?v=342';
+import { SLOT_ITEMS } from './slot-ladders.js?v=342';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=342';
 
 export const ITEMS={
@@ -13,6 +14,11 @@ export const ITEMS={
   /* b247 (Wave 3): 14 curated unique items that route ~26 orphan boss/mid
      drops into real gear. New ids only — no collision with hand entries. */
   ...WAVE3_ITEMS,
+
+  /* b343: the four structurally-incomplete equipment lanes — ammo (1 item),
+     earrings (0), cape (holes at 5 of 7 tiers) and jewelry (no capstone).
+     New ids only. See src/data/slot-ladders.js for the stat rationale. */
+  ...SLOT_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

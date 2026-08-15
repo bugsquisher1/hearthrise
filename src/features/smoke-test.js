@@ -22597,6 +22597,105 @@ const TESTS = [
       'the skills step must still promise offline progress — it is true, and it is the promise the game keeps');
   }),
 
+  () => tryRunAsync('B342-1: the SAVE BLOB addresses the active character — both directions — and auth.js pins no slot', async () => {
+    /* THE BUG, THIRD OCCURRENCE. b339 fixed accrue.js and character.js; b340
+       fixed record.js. src/net/sync.js — the module that carries the SAVE
+       ITSELF — was never fixed. buildSnapshotRequest read `cfg.slot ?? 0` and
+       enableLiveSync() passes no slot, so every 60s autosave wrote slot 0
+       whatever character was live. MEASURED before the fix, through the real
+       setupAuth->enableLiveSync->setupSync path with the wire intercepted:
+       HearthriseProfile.activeSlot() === 2, request body slot === 0.
+
+       Silent today (once 2026-08-10-save-integrity.sql is applied it becomes a
+       hard 23514 instead), and silent is the dangerous half: character 3's
+       progress lands on character 1's row and nothing says so.
+
+       MUTATIONS, all three RED:
+         M1 buildSnapshotRequest  -> `(cfg && cfg.slot != null) ? cfg.slot : 0`
+         M2 pullLatestDetailed    -> `(config.slot != null) ? config.slot : 0`
+         M3 auth.js buildSaveWiring -> add `slot: 0`   (the CALLER — b339's
+            escaped mutation was exactly this shape, so it is asserted here) */
+    const S = window.HearthriseSync;
+    const Auth = window.HearthriseAuth;
+    const P = window.HearthriseProfile;
+    assert(S && typeof S.buildSnapshotRequest === 'function' && typeof S.pullLatestDetailed === 'function',
+      'sync.js does not expose the save request paths');
+    assert(P && typeof P.activeSlot === 'function', 'multi-character.js does not publish the active slot');
+
+    const savedProfile = P.profile;
+    const realFetch = window.fetch;
+    let pulledUrl = null;
+    try {
+      P.profile = { activeSlot: 2, unlockedSlots: 3, slots: [{ id: 0 }, { id: 1 }, { id: 2 }] };
+
+      /* ── (1) THE CALLER. No `slot` key anywhere in what auth.js hands to
+         setupSync — that omission is what selects the live character. */
+      assert(typeof Auth.buildSaveWiring === 'function',
+        'auth.js does not expose its save wiring — the only way to check what it passes to setupSync would be '
+        + 'to re-derive it, which proves nothing about auth.js (B339-3b, same lesson)');
+      const wiring = Auth.buildSaveWiring({ url: 'https://proj.supabase.co', anonKey: 'anon' });
+      assert(!('slot' in wiring),
+        'auth.js pins slot ' + wiring.slot + ' for the save blob — every autosave would go to that character\'s '
+        + 'row regardless of who is being played, which is silent cross-character data loss');
+      assert(/\/rest\/v1\/game_saves$/.test(wiring.snapshotEndpoint),
+        'the snapshot endpoint is no longer game_saves: ' + wiring.snapshotEndpoint);
+
+      /* ── (2) THE WRITE. The config auth.js actually produces, through the
+         real builder, with the player on character 3. */
+      const cfg = { ...wiring, userId: () => 'user-A', authToken: () => 'jwt' };
+      const req = S.buildSnapshotRequest(cfg, 'user-A', { gold: 7 }, Date.now());
+      assert(req.body.slot === 2,
+        'the autosave targets slot ' + req.body.slot + ' while the player is on slot 2 — game_saves is '
+        + 'UNIQUE (user_id, slot), so this upsert overwrites another character\'s save');
+      assert(/on_conflict=user_id,slot/.test(req.url), 'the upsert lost its on_conflict key: ' + req.url);
+
+      /* The pin still works — the suite seam, and what a future "snapshot a
+         specific slot" caller would use. Only the DEFAULT changed, to the safe
+         direction: forget to say which character and you get the live one. */
+      assert(S.buildSnapshotRequest({ ...cfg, slot: 4 }, 'u', {}, 0).body.slot === 4,
+        'an explicitly pinned slot is ignored — the seam is gone');
+      assert(S.buildSnapshotRequest({ ...cfg, slot: '2' }, 'u', {}, 0).body.slot === 2,
+        'a STRING slot was coerced onto the wire instead of falling back to the resolved active slot');
+
+      /* ── (3) THE READ, AND THE ANTI-ROLLBACK INVARIANT IT PROTECTS.
+         pullLatestDetailed() feeds decideRestore(), which resolves by
+         FRESHNESS. "Newest wins" is only safe between two copies of the SAME
+         save: reading slot 0 while playing slot 2 compares two different
+         CHARACTERS, so a recently-saved-but-untouched character 1 reads as
+         "cloud is newer" and gets overlaid onto character 3's live game. So the
+         read must name the same slot as the write, from the same config. */
+      window.fetch = function (u) {
+        pulledUrl = String(u);
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      S.setClockTrusted(true);
+      S.resetAuthGate();
+      await S.__withConfig({ ...cfg, onSyncFailure: () => {}, onSyncRecovered: () => {} },
+        async () => { await S.pullLatestDetailed(); });
+
+      assert(pulledUrl, 'the read path issued no request at all — this assertion would otherwise pass vacuously');
+      const readSlot = Number((String(pulledUrl).match(/slot=eq\.(\d+)/) || [])[1]);
+      assert(readSlot === 2,
+        'the cloud read asked for slot ' + readSlot + ' while the player is on slot 2 (' + pulledUrl + ') — '
+        + 'decideRestore would then compare a DIFFERENT character\'s save against this one by timestamp, and '
+        + 'restore the wrong one over the live game');
+      assert(readSlot === req.body.slot,
+        'the read and the write address different characters (' + readSlot + ' vs ' + req.body.slot + ') — '
+        + 'freshness only decides correctly between two copies of the same save');
+
+      /* ── (4) And it TRACKS. Switching character moves both, with no
+         reconfiguration — a slot captured at sign-in is wrong the moment the
+         player switches, the same rule the auth token follows. */
+      P.profile = { activeSlot: 0, unlockedSlots: 3, slots: [{ id: 0 }] };
+      assert(S.buildSnapshotRequest(cfg, 'user-A', {}, Date.now()).body.slot === 0,
+        'the slot was captured at configure time rather than resolved per call');
+    } finally {
+      window.fetch = realFetch;
+      P.profile = savedProfile;
+      try { S.resetAuthGate(); S.__resetSyncHealth(); } catch (e) {}
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

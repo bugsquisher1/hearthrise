@@ -17,7 +17,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=341';
+import { levelOf } from './xp.js?v=342';
 
 export const WEAPON_TYPES = {
   sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',

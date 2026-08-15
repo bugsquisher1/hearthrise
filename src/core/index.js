@@ -15,28 +15,28 @@
 // If you add a module here, add it to CORE_MODULES in tests/core-purity.mjs.
 // ============================================================
 
-export * as rng from './rng.js?v=341';
-export * as xp from './xp.js?v=341';
-export * as combat from './combat.js?v=341';
-export * as drops from './drops.js?v=341';
-export * as pacing from './pacing.js?v=341';
-export * as rested from './rested.js?v=341';
-export * as tools from './tools.js?v=341';
-export * as farm from './farm.js?v=341';
-export * as progression from './progression.js?v=341';
-export * as styles from './styles.js?v=341';
-export * as artisan from './artisan.js?v=341';
-export * as bounty from './bounty.js?v=341';
+export * as rng from './rng.js?v=342';
+export * as xp from './xp.js?v=342';
+export * as combat from './combat.js?v=342';
+export * as drops from './drops.js?v=342';
+export * as pacing from './pacing.js?v=342';
+export * as rested from './rested.js?v=342';
+export * as tools from './tools.js?v=342';
+export * as farm from './farm.js?v=342';
+export * as progression from './progression.js?v=342';
+export * as styles from './styles.js?v=342';
+export * as artisan from './artisan.js?v=342';
+export * as bounty from './bounty.js?v=342';
 /* The away/active unification (docs/design/away-time-ruling.md). `away` is
    the contract as data, `botd` the featured-boss rotation as a function of a
    timestamp, `buffs` the registry plus the clock as a function of elapsed
    time, and `combatSim` the ONE loop both the live tick and server accrual
    run. There is deliberately no second combat loop to export. */
-export * as away from './away.js?v=341';
-export * as botd from './botd.js?v=341';
-export * as buffs from './buffs.js?v=341';
-export * as combatSim from './combat-sim.js?v=341';
+export * as away from './away.js?v=342';
+export * as botd from './botd.js?v=342';
+export * as buffs from './buffs.js?v=342';
+export * as combatSim from './combat-sim.js?v=342';
 /* The Field Licence (docs/design/away-combat-licence.md) — a PRECONDITION on
    whether an away span runs, asked before simulateSpan. Deliberately NOT a
    channel in away.js; see that file's header. */
-export * as licence from './licence.js?v=341';
+export * as licence from './licence.js?v=342';

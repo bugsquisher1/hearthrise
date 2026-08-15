@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 342 — 2026-08-14 (Two things were counting twice, and the morning after now explains itself)
+
+- 🐾 **Your companion was firing about twice as often as its card said.** A pet advertising "20% on kill" was really proccing at 36%, levelling at double speed, and rolling loot at double the listed rate — the code that runs pets was installed twice, so every roll happened twice. Now correct, which means **your pet will visibly pay less than it did yesterday**. It was never meant to pay that much; the card was right and the game was wrong. Your pet-progress panel, meanwhile, had been showing you exactly *half* of what your pet was actually paying.
+- 🥕 **Harvest quests were counting each harvest twice.** "Harvest 100 crops" was completing at 50, and the weekly "Harvest 120" at 60. One harvest now counts once — so those take the full amount from here.
+- 🥚 One Dragon Egg tap asked you to confirm twice.
+- 🌙 **The morning after a fight you left running now explains itself.** If you left combat going without your Field Licence, you came back to *nothing* — no card, no record, just a toast that was gone in eight seconds and usually hidden behind a modal. There is now a proper welcome-back band that says how long you were away, why the fight paid nothing, how far along your Licence is, and that gathering, cooking and smithing pay in full while you sleep.
+- 🎖️ **The Combat screen now tells you where you stand.** It never mentioned the Licence anywhere — while promising "Pays while you're away" twice in gold. The activity bar now reads your Licence progress during every fight, and the boss cards say plainly that away pay needs it.
+- 🎯 **The Recommended fight opens the forecast first** instead of throwing you straight into combat past the one screen that tells you how long you'll survive.
+- 📋 **Coming back shows what you earned** — XP, items, gold and kills — instead of telling you twice how long you'd been gone and never what you got.
+- 💾 **A second character can no longer overwrite your first one's cloud save.** Every autosave was writing to character slot 1's row no matter which character you were playing — and reading from it too, which is worse: it could pull the wrong character's save back over the one you were playing.
+- ⚡ Away catch-up got cheaper — a background timer and a per-kill lookup that shouldn't have existed are gone.
+
 ## v0.9.2-beta build 341 — 2026-08-14 (What the game told you, and what it actually did)
 
 - ⚰️ **The welcome-back card now tells you when you died.** If you left a fight running and your character was killed, the card used to report the night as a normal one at the base rate — so eight hours that ended sixty seconds in read as eight honest hours. It now says what killed you, how long you lasted, and that the rest of the time paid nothing.

@@ -17231,6 +17231,16 @@ const TESTS = [
       Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
       window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
       R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
+      /* b349 — THE CAPSTONE IS DRIVEN BY REAL STATE NOW, not by a stub of
+         isCastle(). getBonus's layer 0 delegates to src/core/perks.js and hands
+         it `propertyTier` (an INT), because the server has a tier and not a
+         boolean; `isCastle()` is a derived predicate the perk state no longer
+         consults. Setting the tier is strictly stronger than stubbing the
+         predicate — it drives HearthriseHomestead's real accessor — and the
+         stub is kept because other readers in this suite still call it.
+         CASTLE_TIER is read from core rather than typed as 5, so a sixth
+         property tier moves one constant and this test follows it. */
+      window.G.homestead = { tier: window.HearthriseCore.perks.CASTLE_TIER };
       if (H) H.isCastle = () => true;
       UI._reset();
       UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
@@ -26567,6 +26577,57 @@ const TESTS = [
     }
   }),
 
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b349 — THE PERMANENT PERK CHANNEL, from the BROWSER side.
+
+     tests/perk-channel.mjs proves the SERVER half against a real PostgreSQL:
+     an unlock row reaches burnChance with the right magnitude. It cannot
+     prove the CLIENT half, because `getBonus` is a classic-script function
+     inside a seven-layer monkey-patch chain that only exists in a page.
+
+     So these five drive the REAL `window.getBonus` and the REAL
+     `window.clientPerkState`. That distinction is the b339 lesson: an
+     extraction can be perfect and the CALLER can still pass a literal, and
+     every test of the extracted half passes anyway.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
+    const snap = snapshotG();
+    try {
+      /* MEASURED EXPECTATIONS, not restated from the table under test:
+         src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
+         13/19/25/25/25, so a cook AT the required level burns
+         0.25 / 0.12 / 0.06 / 0.00 / 0.00 / 0.00.
+         MUTATION: point getBonus's delegation at a stale table, or drop the
+         `bx` merge from tools/gen-perks.mjs → every row below goes RED. */
+      const EXPECT = [
+        [0, 0, 0.25],
+        [1, 0.13, 0.12],
+        [2, 0.19, 0.06],
+        [3, 0.25, 0.00],
+        [5, 0.25, 0.00],
+      ];
+      const A = window.HearthriseCore.artisan;
+      for (const [rung, noBurn, burn] of EXPECT) {
+        G.rooms = rung > 0 ? { kitchen: rung } : {};
+        assert(Math.abs(window.getBonus('noBurn') - noBurn) < 1e-9,
+          'Kitchen ' + rung + ' gives noBurn ' + window.getBonus('noBurn') + ', expected ' + noBurn
+          + ' — the client and the accrual engine now read ONE table, so this is both sides');
+        const got = A.burnChance({ req: 10 }, 10, window.getBonus('noBurn'));
+        assert(Math.abs(got - burn) < 1e-9,
+          'Kitchen ' + rung + ' burns at ' + got + ', expected ' + burn);
+      }
+      /* The other headline key off the same rung, so a delegation that only
+         forwarded `bx` (or only `bk`) cannot pass. */
+      G.rooms = { kitchen: 5 };
+      assert(Math.abs(window.getBonus('cookSpeed') - 0.10) < 1e-9,
+        'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
+        + 'half is not reaching getBonus');
+      assert(Math.abs(window.getBonus('yield_cooking') - 0.08) < 1e-9,
+        'Kitchen 5 yield_cooking is ' + window.getBonus('yield_cooking') + ', expected 0.08');
+    } finally { restoreG(snap); }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {

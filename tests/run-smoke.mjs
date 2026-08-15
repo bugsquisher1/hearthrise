@@ -18,6 +18,7 @@ import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
+import { perkChannelGuard } from './perk-channel.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -869,9 +870,37 @@ async function shopDriftPreflight() {
   return 0;
 }
 
+// PREFLIGHT - the ROOM RUNG PAYLOAD must match src/legacy.js.
+//
+// Same trap as the prices, with a sharper consequence: BOTH SIDES READ THE
+// GENERATED FILE AT RUNTIME. src/legacy.js getBonus delegates to
+// src/core/perks.js, and so does the accrual engine, so a stale
+// src/data/perks.js does not merely mis-describe the game - it IS the game,
+// on both sides, including the Kitchen's `noBurn`. The check therefore fails
+// the build rather than warning.
+//
+// The generator also hard-fails on a room count, a rung count or a KEY SET
+// that no longer matches its tripwires, so an anchor that silently missed
+// cannot produce an empty table that diffs clean against an empty committed
+// file - this repo's signature failure.
+async function perkDriftPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-perks.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status !== 0) {
+    console.error(`\nPerk preflight FAILED - a room rung no longer matches src/data/perks.js.\n${out}\n`);
+    return 1;
+  }
+  console.log(`Perk preflight: ${out}`);
+  return 0;
+}
+
 const run = async () => {
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
+  if (await perkDriftPreflight()) process.exit(1);
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 
@@ -949,6 +978,26 @@ const run = async () => {
     } else {
       console.log('\nAuto-eat authority guard — the entitlement gate, the catalogue, the threshold, '
         + 'collect_first and the grants all hold, each against a control.');
+    }
+
+    /* ── The perk channel guard (b349) ───────────────────────
+       The whole chain, EXECUTED: a player_progress unlock row ->
+       hr_unlock_levels -> hr_perks_of -> normalisePerkState -> makeBonus ->
+       burnChance, on a real PostgreSQL in process with the real migration
+       applied verbatim. Its parity block starts from ONE SAVE and travels
+       BOTH real adapters — the client's clientPerkState() shape and the
+       server's unlock rows — because the adapters are where drift lives.
+       `node tests/perk-channel.mjs --mutate` plants six real defects and
+       fails if any escapes; five of the six are caught by the migration's
+       own self-check, which is the stronger place to catch them. */
+    const perkProblems = await perkChannelGuard();
+    if (perkProblems.length) {
+      console.log('\nPerk channel guard (noBurn reaches the engine) — FAILED:');
+      for (const p of perkProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
+        + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
     }
 
     /* ── The identity guard (D2) ────────────────────────────────────────

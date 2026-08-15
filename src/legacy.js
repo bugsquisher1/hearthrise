@@ -2194,31 +2194,62 @@ function speedClamp(speed){return window.HearthriseCore.pacing.speedClamp(speed)
    See the Rested block below (`restedQuantum`), where a charge became a flat
    XP grant and its ceiling became 1,600 XP/charge. */
 window.speedClamp=speedClamp;
+/* ════════════════════════════════════════════════════════════════
+   b349 — THE PERMANENT PERK STATE, read out of the save in ONE place.
+
+   This is the argument `src/core/perks.js` takes, and the SAME shape
+   `hr_perks_of` returns from the database. Extracted from getBonus and
+   published on window so the suite can drive the REAL caller rather than a
+   reconstruction of it — the b339 lesson, where the escaped mutation was a
+   caller-side literal that every test of the extracted half still passed.
+
+   `plotBuildings` is an ARRAY with one entry per building owned (Scarecrow's
+   max is 2), so it is counted, not flagged. getBonus used to iterate it and
+   add per entry; a `{toolshed:true}` shape here would have silently halved a
+   two-Scarecrow farm.
+   ════════════════════════════════════════════════════════════════ */
+function clientPerkState(){
+  const plots={};
+  (G.plotBuildings||[]).forEach(b=>{ if(b&&b.id) plots[b.id]=(plots[b.id]||0)+1; });
+  let renownAllXp=0;
+  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
+    try{ renownAllXp=window.HearthriseRenown.getPerks(G).allXP||0; }catch(e){}
+  }
+  /* The capstone is `getTier() === TIERS.length - 1` on this side and
+     `propertyTier >= CASTLE_TIER` in core. Both are 5, and core names the
+     constant so a sixth tier has to move one number rather than two. */
+  let propertyTier=0;
+  if(window.HearthriseHomestead && typeof window.HearthriseHomestead.getTier==='function'){
+    try{ propertyTier=window.HearthriseHomestead.getTier()||0; }catch(e){}
+  }
+  return { rooms: G.rooms||{}, plots, propertyTier, renownAllXp, clanPerks:{}, castle:null };
+}
+window.clientPerkState = clientPerkState;
+
 function getBonus(key){
-  let t=0;
-  /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
-     headline bk/bv pair — the Kitchen buys cook speed AND burn reliability off
-     the same rung, and one bk/bv pair can only ever express one of those. */
-  for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;if(ld&&ld.bx&&ld.bx[key]!=null)t+=ld.bx[key];}}
-  /* b228 (bonus-rebase.md §3.1): Toolshed 5% → 2% (the 2% narrow step);
-     Watchtower was already in grammar; the Scarecrow's +0.1 was a GHOST —
-     harvestPlot floored the farmYield total, so a fractional grant paid
-     exactly zero from the day it shipped. It becomes a real +1, and the
-     flooring itself is fixed at the reader (see harvestPlot). */
-  G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.02;if(b.id==='scarecrow'&&key==='farmYield')t+=1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
+  /* ── b349: LAYER 0 IS src/core/perks.js NOW, ON BOTH SIDES ─────────────
+     Room rungs, plot buildings, the property capstone and the renown allXP
+     rank all used to be computed inline here — and `hr-accrue` passed
+     `zeroBonus()`, so the server read every one of them as 0. That is not a
+     rounding difference: `noBurn` is the Kitchen rung, and a server cooking
+     at the base 25% burn rate while the player's Cast-Iron Range says 0%
+     DESTROYS a quarter of the input. src/core/skill-sim.js refuses artisan
+     accrual in writing for exactly that reason.
+
+     The arithmetic is the same arithmetic; it just lives in one pure module
+     that Deno can import, so the two sides cannot answer differently. This
+     function stays the CHAIN's layer 0 — the six wrappers above it
+     (companions, buffs, clan perks, castle, muster, blessings) are untouched
+     and still add on top, and the fuse still lives at the end of the chain in
+     features/power-budget.js where nothing can be added after it.
+
+     UNCLAMPED here, deliberately: `permanentBonus` returns the raw sum and
+     power-budget.js applies the ceiling, because clamping twice would make
+     HearthrisePowerBudget.rawFor() — which is what the "at its limit" panel
+     reads — under-report by exactly the amount the fuse bound. */
+  let t=window.HearthriseCore.perks.permanentBonus(key, clientPerkState());
   /* b215: Season Pass retired — no purchasable XP multiplier exists. Premium
      stays convenience/cosmetic (offline hours, slots, themes). */
-  /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
-  if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-    try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
-  }
-  /* b201 (SYS-1): castle capstone — the pride of the realm.
-     b228: +5% → +2% (bonus-rebase.md §3.1). `allXP` is a WIDE key — it pays on
-     all fifteen skills, every action, forever — so it moves on the 1% half-step
-     and the capstone is worth two of them. */
-  if(key==='allXP' && window.HearthriseHomestead){
-    try{ if(window.HearthriseHomestead.isCastle()) t += 0.02; }catch(e){}
-  }
   /* ── b228: WHERE THE BUDGET LIVES NOW ─────────────────────────────────
      This function is layer 0 of a seven-layer additive chain, so a clamp
      placed here clamps the base and is then escaped by all six wrappers. The

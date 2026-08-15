@@ -100,6 +100,39 @@ export function hasActiveBuff(buffs) {
 }
 
 /**
+ * How much longer until the SOONEST live buff runs out — the next instant at
+ * which the away payout changes. `Infinity` when nothing is running, which is
+ * the honest answer and also the one a caller can pass straight to
+ * `Math.min(remaining, boundary)` without a special case.
+ *
+ * WHY THIS EXISTS AND WHY IT IS HERE. `simulateSpan` can afford to ask "is a
+ * buff alive?" once per swing because it already walks a tick timeline. The
+ * gather/artisan away replay does not walk one: it computes `ticks = floor(
+ * spanMs / interval)` once and runs that many identical actions, and it CANNOT
+ * become a per-tick loop cheaply, because a `gather_speed` buff expiring
+ * changes the interval itself — the very number the tick count was derived
+ * from. So that caller needs the other shape: split the span at the boundaries
+ * and run each slice at its own rate, exactly as `utcDaySegments` splits an
+ * absence at the boundaries where the Boss of the Day changes.
+ *
+ * This is the boundary query for that split, and it lives beside `activeBuffs`
+ * so it applies the SAME liveness rule (`remainingMs > 0` and a type the
+ * registry knows). A caller re-deriving it would eventually disagree with the
+ * function that decides what pays — an unknown buff type would create a
+ * boundary that changes nothing, which is a segment that pays twice.
+ */
+export function nextBuffExpiryMs(buffs) {
+  let soonest = Infinity;
+  if (!Array.isArray(buffs)) return soonest;
+  for (const b of buffs) {
+    if (!b || !isKnownBuff(b.type)) continue;
+    const r = Number(b.remainingMs);
+    if (isFinite(r) && r > 0 && r < soonest) soonest = r;
+  }
+  return soonest;
+}
+
+/**
  * Aggregate a buff queue into { bonusKey: total }.
  *
  * @param buffs the queue (G.buffs)

@@ -18205,6 +18205,222 @@ const TESTS = [
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
+  () => tryRun('AWAY-16: the GATHER/ARTISAN away replay has a timeline too — a 10-minute buff pays 10 minutes of an 8-hour night and is spent', () => {
+    const G = window.G;
+    const C = window.HearthriseCore;
+    const snap = snapshotG();
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      /* ── WHY THIS TEST EXISTS SEPARATELY FROM AWAY-5 ──────────────────────
+         AWAY-5 measures the same rule on the COMBAT path and passes with this
+         bug fully present, which is exactly how the bug survived. `AWAY_SCOPE`
+         is a TABLE, so opening `buff` opened it for every away caller at once —
+         but only `simulateSpan` owned a timeline. `processOffline`'s gather and
+         artisan branches computed `ticks = floor(spanMs / offlineIntervalMs())`
+         with the interval derived ONCE and nothing advancing a clock inside the
+         loop, so a buff paid the WHOLE absence and drained NONE of it.
+
+         MEASURED before the fix, on this exact fixture: 6,250 actions against a
+         6,000-action control (+250 — a 10-minute consumable buying 50x the
+         actions it earned), and the buff came back reading a full 10:00.
+
+         So this drives the REAL `window.processOffline()` — not a core
+         primitive — because the defect was in the caller that owns no
+         timeline, and a core-level test cannot see a caller.
+
+         MUTATION PROVEN RED four ways, each independently:
+           (i)   revert the gather branch to the flat loop -> (b) fails on THE
+                 MINT with 6250 vs 6005;
+           (ii)  drop the `_drainAwayBuffs` call from `replayAwaySpan` -> (c)
+                 fails: the buff comes back at 600000ms;
+           (iii) drain WITHOUT re-deriving the interval per slice (hoist
+                 `stepMs` out of the while) -> (b) fails, 6250 again;
+           (iv)  restore `buffsPaused` to "did they hold a buff" -> (e) fails. */
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      const AWAY_MS = 8 * 3600000;
+      const BUFF_MS = 600000;
+
+      const gatherNight = (buffs) => {
+        G.activeMonster = null; G.activeArtisanRecipe = null;
+        G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+        G.inventory = {}; G.gold = 0; G.toolCarry = {};
+        G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
+        G.buffs = buffs.map((b) => Object.assign({ addedAt: Date.now() }, b));
+        G.skillMs = null;
+        G.offlineBudget = { at: Date.now() - AWAY_MS };
+        window.processOffline();
+        return {
+          actions: G.inventory.normal_log || 0,
+          xp: G.skills.woodcutting || 0,
+          left: (G.buffs || []).slice(),
+          sum: G.lastOfflineSummary || {},
+        };
+      };
+
+      /* (a) THE CONTROL. Without it every number below is a number, not a
+         measurement — and the control is what makes (b) a RATIO rather than a
+         magic constant that a pacing dial would invalidate next month. */
+      const ctrl = gatherNight([]);
+      assert(ctrl.actions > 1000,
+        'the gather fixture banked ' + ctrl.actions + ' actions — everything below would be vacuous');
+      assert(ctrl.sum.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
+
+      /* (b) THE MINT, CLOSED. A `gather_speed` buff shortens the interval, so
+         the honest lift is the handful of extra actions its own ten minutes
+         bought — NOT 4% of the whole night. Stated as a bound on the ratio so
+         it survives a pacing change: the buff was alive for 1/48th of the
+         absence, so it may not buy more than a small fraction of its magnitude. */
+      const speed = gatherNight([{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_MS }]);
+      const liftPct = ((speed.actions / ctrl.actions) - 1) * 100;
+      assert(speed.actions > ctrl.actions,
+        'the buff bought nothing at all (' + speed.actions + ' vs ' + ctrl.actions + ') — it must pay for the span it was alive');
+      assert(liftPct < 4 * (BUFF_MS / AWAY_MS) * 3,
+        'THE MINT: a ' + (BUFF_MS / 60000) + '-minute +4% speed buff lifted an '
+        + (AWAY_MS / 3600000) + '-hour night by ' + liftPct.toFixed(3) + '% — it was alive for '
+        + ((BUFF_MS / AWAY_MS) * 100).toFixed(2) + '% of it. The replay paid it all night.');
+
+      /* (c) AND IT WAS SPENT. Paying without spending is the b326 exploit
+         written backwards and is strictly worse than the one b326 closed. */
+      assert(speed.left.length === 0,
+        'the buff survived an 8-hour absence intact (' + JSON.stringify(speed.left) + ') — it paid but never drained');
+      assert(speed.sum.buffPaidMs === BUFF_MS,
+        'the receipt must state the buff covered exactly its own ' + BUFF_MS + 'ms, got ' + speed.sum.buffPaidMs);
+      assert((speed.sum.buffsExpired || []).indexOf('gather_speed') >= 0,
+        'the receipt must name the buff that ran out mid-night, got ' + JSON.stringify(speed.sum.buffsExpired));
+
+      /* (d) THE XP SIDE, which travels a different route: `gather_speed` is
+         read once per SLICE by the interval formula, `all_xp` is read live
+         inside addXp on every action. Both must stop at the same instant, so
+         both are measured — one of them passing is not the rule holding. */
+      const xpBuff = gatherNight([{ type: 'all_xp', magnitude: 5, remainingMs: BUFF_MS }]);
+      const xpLiftPct = ((xpBuff.xp / ctrl.xp) - 1) * 100;
+      assert(xpBuff.xp > ctrl.xp, 'the all_xp buff paid nothing (' + xpBuff.xp + ' vs ' + ctrl.xp + ')');
+      assert(xpLiftPct < 5 * (BUFF_MS / AWAY_MS) * 6,
+        'THE MINT (xp): a ' + (BUFF_MS / 60000) + '-minute +5% XP buff lifted the night by '
+        + xpLiftPct.toFixed(3) + '% — it was alive for ' + ((BUFF_MS / AWAY_MS) * 100).toFixed(2) + '% of it');
+      assert(xpBuff.left.length === 0, 'the all_xp buff was never spent');
+
+      /* (e) A BUFF LONGER THAN THE ABSENCE SURVIVES IT, minus exactly the time
+         that passed. Only testing the expiry case would pass a replay that
+         drained every buff to zero regardless — a different theft. */
+      const SHORT = 300000;
+      G.offlineBudget = { at: Date.now() - SHORT };
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: 1200000, addedAt: Date.now() }];
+      G.skillMs = null;
+      window.processOffline();
+      assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
+      assert(G.buffs[0].remainingMs === 1200000 - SHORT,
+        'a 5-minute absence must spend 5 minutes of a 20-minute buff, left ' + G.buffs[0].remainingMs);
+
+      /* (f) THE COPY WAS A LIE IN BOTH DIRECTIONS. home-dashboard.js prints
+         "Food buffs paused — their time was kept, not spent." off this flag,
+         and the non-combat arm used to compute it as `G.buffs.some(alive)` —
+         "did the player still hold a buff when they got back". On a gather
+         night nothing is paused AND the buff was spent, so the card described
+         the opposite of what happened.
+
+         ASSERTED HERE, ON THE SURVIVING-BUFF CASE, AND THAT PLACEMENT IS THE
+         WHOLE POINT. It was originally asserted on the expiring case above and
+         mutation testing caught it GREEN: that buff is pruned during the
+         replay, so `G.buffs.some(alive)` is false by the time the summary is
+         written and the old expression accidentally agrees. A buff that
+         OUTLIVES the absence is the only state where the two expressions
+         differ, so it is the only state where the assertion means anything. */
+      assert(G.lastOfflineSummary.buffsPaused === false,
+        'the receipt claims the buffs were PAUSED on a night that spent 5 minutes of them');
+
+      /* (g) ARTISAN IS THE SAME REPLAY AND THE SAME RULE — and the b345
+         supplies stop must survive the split, including the ONE refusal call
+         that produces the "out of X" toast and clears the activity. The buff is
+         charged for the WORK, not for the absence: the run stopped 31 seconds
+         in, so 31 seconds is what the Feast paid for. */
+      const recipes = (window.ARTISAN_RECIPES || {}).cooking || [];
+      const rec = recipes[0];
+      if (rec && window.HearthriseCore.artisan) {
+        const inputs = C.artisan.recipeInputs(rec) || {};
+        G.activeMonster = null; G.activeSkill = 'cooking'; G.skillTargetId = rec.id;
+        G.inventory = {};
+        Object.keys(inputs).forEach((k) => { G.inventory[k] = 8; });
+        G.skills = Object.assign({}, G.skills, { cooking: 0 });
+        G.buffs = [{ type: 'all_xp', magnitude: 5, remainingMs: BUFF_MS, addedAt: Date.now() }];
+        G.skillMs = null;
+        G.offlineBudget = { at: Date.now() - AWAY_MS };
+        window.processOffline();
+        const s = G.lastOfflineSummary || {};
+        assert(s.stoppedBy === 'supplies',
+          'the b345 supplies stop was lost in the split, stoppedBy=' + s.stoppedBy);
+        assert(G.activeSkill === null,
+          'the refusal call must still clear the activity (that is what produces the "out of X" toast)');
+        assert(s.paidMs > 0 && s.paidMs < AWAY_MS / 100,
+          'the run stopped on supplies; paidMs must be the short span that worked, got ' + s.paidMs);
+        assert(G.buffs.length === 1, 'a 10-minute buff must survive a 31-second run');
+        const spent = BUFF_MS - G.buffs[0].remainingMs;
+        assert(spent === s.paidMs,
+          'the buff must be charged for the work the run did (' + s.paidMs + 'ms) and nothing more, spent ' + spent);
+        assert(s.buffPaidMs === s.paidMs,
+          'the receipt must state the same span it charged, buffPaidMs=' + s.buffPaidMs + ' paidMs=' + s.paidMs);
+      }
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      /* This test drives the REAL processOffline seven times, and a paid
+         absence is what raises the welcome-back overlay. It does not raise one
+         today (verified: the suite ends with zero blocking modals present), but
+         b342-4 three hundred tests later asserts it can observe a CLEAN screen
+         — so the day that changes, this test's failure would arrive as a
+         confusing SECOND failure somewhere else. Two lines to make that
+         impossible is cheaper than the afternoon of diagnosing it. */
+      try {
+        document.querySelectorAll('#welcome-overlay.show, .modal.show, #wbv-overlay.show, .ach-overlay.show, .ftue-shade.show, .ftue-card.show')
+          .forEach((el) => el.classList.remove('show'));
+      } catch (e) {}
+      C.randomSeed();
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('AWAY-17: nextBuffExpiryMs is the ONE boundary oracle — it agrees with activeBuffs and cannot hang the replay', () => {
+    const C = window.HearthriseCore;
+    const B = C.buffs;
+    assert(typeof B.nextBuffExpiryMs === 'function',
+      'the away replay reads its slice boundaries from core; without this it silently degrades to the flat loop that caused b347');
+    /* NO BUFF, NO BOUNDARY. `Infinity` rather than null/0 so the caller can
+       write `Math.min(remaining, boundary)` with no special case — and a 0
+       would be a slice of zero length, i.e. an infinite loop. */
+    assert(B.nextBuffExpiryMs([]) === Infinity, 'an empty queue must have no boundary');
+    assert(B.nextBuffExpiryMs(null) === Infinity, 'a missing queue must have no boundary');
+    assert(B.nextBuffExpiryMs([{ type: 'all_xp', magnitude: 1, remainingMs: 0 }]) === Infinity,
+      'a dead buff must not produce a boundary — the slice would be zero-length');
+    /* THE SOONEST, not the first or the last. */
+    assert(B.nextBuffExpiryMs([
+      { type: 'all_xp', magnitude: 1, remainingMs: 900000 },
+      { type: 'gather_speed', magnitude: 1, remainingMs: 120000 },
+      { type: 'drop_rate', magnitude: 1, remainingMs: 400000 },
+    ]) === 120000, 'the boundary must be the SOONEST expiry');
+    /* IT MUST AGREE WITH WHAT PAYS. `activeBuffs` filters on a KNOWN type, so a
+       junk row in a save must not create a boundary — a slice that changes no
+       bonus is a segment paid twice, which is exactly the class of bug the
+       split exists to remove. */
+    const junk = [{ type: 'not_a_real_buff_type', magnitude: 99, remainingMs: 1000 }];
+    assert(B.activeBuffs(junk).length === 0, 'the rig is wrong: this type must be unknown');
+    assert(B.nextBuffExpiryMs(junk) === Infinity,
+      'an unknown buff type paid nothing, so it must not move the boundary either');
+    /* HOSTILE NUMBERS MUST NOT PRODUCE A ZERO-LENGTH OR NEGATIVE SLICE. */
+    [NaN, Infinity, -1, -0, undefined, null, '600000'].forEach((v) => {
+      const r = B.nextBuffExpiryMs([{ type: 'all_xp', magnitude: 1, remainingMs: v }]);
+      assert(r === Infinity || (isFinite(r) && r > 0),
+        'remainingMs=' + String(v) + ' produced boundary ' + r + ' — a non-positive or infinite boundary hangs the replay');
+    });
+    /* AND `hasActiveBuff` must answer the same question `activeBuffs` does —
+       simulateSpan asks it ~12,000 times a night and the two must not drift. */
+    [[], [{ type: 'all_xp', magnitude: 1, remainingMs: 5 }],
+      [{ type: 'all_xp', magnitude: 1, remainingMs: 0 }], junk].forEach((q) => {
+      assert(B.hasActiveBuff(q) === (B.activeBuffs(q).length > 0),
+        'hasActiveBuff disagreed with activeBuffs on ' + JSON.stringify(q));
+    });
+  }),
+
   () => tryRun('AWAY-6: blessings still contribute 0 away (the b227 latch is unchanged by the unification)', () => {
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;

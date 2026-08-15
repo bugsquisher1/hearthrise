@@ -1090,6 +1090,143 @@ function offlineIntervalMs(fallbackMs){
   const derived=(typeof activityIntervalMs==='function')?activityIntervalMs():null;
   return derived || G.skillMs || fallbackMs || 3000;
 }
+/* ════════════════════════════════════════════════════════════════════════════
+   b347 — THE GATHER/ARTISAN AWAY REPLAY GETS A TIMELINE.
+
+   THE BUG THIS CLOSES, measured on the real engine before the fix (8h away,
+   woodcutting Normal Tree, one 10-minute `gather_speed +4%` eaten on the way
+   out):
+
+     base interval 4,800ms -> 6,000 actions.   Buffed: 4,608ms for the WHOLE
+     NIGHT -> 6,250 actions, and the buff came back reading 10:00 with ZERO ms
+     drained. The honest answer is 130 buffed actions and then 5,875 unbuffed
+     ones — about +5 actions, not +250. Fifty times the earned value, from one
+     consumable, by shutting the tab.
+
+   WHY IT HAPPENED. `AWAY_SCOPE.buff` is a TABLE (src/core/away.js), so opening
+   the buff channel opened it for every away caller at once. Away COMBAT was
+   fine: `simulateSpan` already owned a per-tick timeline (it segments the
+   absence by UTC day for the Boss of the Day), so it drives the buff clock and
+   a buff expires at the right instant. Gather/artisan owned NO timeline —
+   `ticks = floor(spanMs / offlineIntervalMs())`, the interval derived once,
+   nothing advancing a clock inside the loop. A caller with no clock cannot
+   honour "it drains", and paying without draining is the b326 exploit written
+   backwards.
+
+   THE SHAPE, and why it is not `simulateSpan`'s. Combat can ask "is a buff
+   alive?" once per swing because its tick length is fixed — no combat buff
+   changes swing speed. Here `gather_speed` changes THE INTERVAL, which is the
+   number the tick count is derived from, so a per-tick loop would have to
+   re-derive it 6,000 times to be correct and would still be wrong at the
+   instant of expiry. So this uses the OTHER shape core already established:
+   split the span at its boundaries and run each slice at its own rate —
+   exactly `utcDaySegments`, with `nextBuffExpiryMs` as the boundary function
+   instead of UTC midnight. One mechanism, two boundary sources.
+
+   THE ORDER IS LOAD-BEARING, the same rule `simulateSpan` states: derive the
+   rate and run the slice's actions FIRST, drain the clock AFTER. A buff that
+   is alive when the action happens pays for that action, exactly as it would
+   live.
+
+   THE CARRY IS NOT OPTIONAL. `floor()` per slice would silently cost the
+   player one action per boundary, so the sub-tick remainder rides across —
+   the same line `simulateSpan` carries across midnight, for the same reason.
+   With no buff held there is exactly ONE slice and the arithmetic is
+   byte-identical to the flat loop this replaces; that equivalence is what
+   keeps every pre-existing away test honest rather than re-baselined.
+
+   TERMINATION. Each pass either consumes the rest of the span or retires at
+   least one buff (the slice ends exactly ON the soonest expiry, so
+   `advanceBuffClock` takes it to zero and `pruneBuffs` drops it), so the pass
+   count is bounded by the queue length + 1 — and `applyBuff` merges by type,
+   so a real queue is at most one entry per BUFFS_DEF row. The slice budget in
+   the loop below is for the two shapes that argument does not cover; its own
+   comment says which, and what it degrades to.
+
+   @param spanMs  the absence to replay, in ms
+   @param opts    { stepMs(): number,            the interval, re-derived per slice
+                    run(n, stepMs): number }     runs up to n actions, returns how
+                                                 many ACTUALLY ran; fewer than n
+                                                 means the run stopped inside the slice
+   @returns { ticks, paidMs, stopped, buffPaidMs, buffsExpired }
+   ════════════════════════════════════════════════════════════════════════════ */
+function replayAwaySpan(spanMs, opts){
+  const out={ ticks:0, paidMs:0, stopped:false, buffPaidMs:0, buffsExpired:[] };
+  let remaining=Math.max(0,Number(spanMs)||0);
+  if(remaining<=0||!opts||typeof opts.run!=='function') return out;
+  const C=window.HearthriseCore;
+  const nextExpiry=(C&&C.buffs&&typeof C.buffs.nextBuffExpiryMs==='function')
+    ? function(){ return C.buffs.nextBuffExpiryMs(G.buffs); }
+    /* No core, no boundaries — one slice, which is exactly the old behaviour.
+       A missing bridge must degrade to "the night still pays", never to a
+       thrown replay that costs the player everything. */
+    : function(){ return Infinity; };
+  const buffLive=(C&&C.buffs&&typeof C.buffs.hasActiveBuff==='function')
+    ? function(){ return C.buffs.hasActiveBuff(G.buffs); }
+    : function(){ return false; };
+  let carryMs=0, slices=0;
+  while(remaining>0){
+    const stepMs=Math.max(1,opts.stepMs());
+    /* THE SLICE BUDGET DEGRADES TO THE OLD FLAT LOOP, IT DOES NOT ABANDON THE
+       NIGHT. `applyBuff` merges by type, so a real queue holds at most one
+       entry per BUFFS_DEF row (9) and this ceiling is never approached. A
+       corrupt or edited save could carry thousands of entries with distinct
+       remaining times, and the tempting `while(guard++ < N)` would then exit
+       with `remaining` unspent — the player silently loses the rest of their
+       absence, which is the single worst failure this file can produce and the
+       one every away bug in its history has been. So the budget stops the
+       SPLITTING, not the replay: past it the boundary is Infinity, the rest of
+       the span runs as one slice at the current rate, and the loop ends.
+
+       It also covers the one shape that would otherwise spin: core present but
+       `window.advanceBuffClock` missing (block 36 never ran), so the boundary
+       is real and nothing ever retires it. Ordinarily each pass consumes the
+       span up to the SOONEST expiry and then drains that buff to exactly zero,
+       so the pass count is bounded by the queue; without a clock it would not
+       be. Sixty-four passes and it flattens. */
+    const boundary=(slices++ < 64) ? nextExpiry() : Infinity;
+    const sliceMs=Math.min(remaining, boundary);
+    const wasBuffed=buffLive();
+    const budget=sliceMs+carryMs;
+    const n=Math.floor(budget/stepMs);
+    const ran=n>0?(opts.run(n,stepMs)||0):0;
+    out.ticks+=ran;
+    /* The run stopped INSIDE this slice (supplies, or the activity cleared).
+       Only the time that actually worked is paid — and only that time is
+       charged to the buff, because a buff is spent on work. */
+    if(ran<n){
+      const workedMs=ran*stepMs;
+      out.paidMs+=workedMs;
+      if(wasBuffed) out.buffPaidMs+=workedMs;
+      _drainAwayBuffs(workedMs,out);
+      out.stopped=true;
+      break;
+    }
+    carryMs=budget-n*stepMs;
+    out.paidMs+=sliceMs;
+    if(wasBuffed) out.buffPaidMs+=sliceMs;
+    _drainAwayBuffs(sliceMs,out);
+    remaining-=sliceMs;
+  }
+  return out;
+}
+/* THE CLOCK IS `advanceBuffClock`, not a second implementation of it.
+   That function already asks core's `tickBuffs` with the two context flags the
+   rule is stated in (`away`, `active`) and prunes what ran out — so the replay
+   spends buffs through the identical seam the live 1-second interval does, and
+   the two cannot drift.
+
+   Reached through `window.`, DELIBERATELY. `advanceBuffClock` is declared
+   inside block 36's IIFE and published on window; a bare identifier here would
+   resolve only by falling through to the global object, which is the exact
+   shape of the `hasInputs` guard b345 found sitting dead in this same
+   function since the day it was written. Name the object. */
+function _drainAwayBuffs(elapsedMs,out){
+  if(!(elapsedMs>0)) return;
+  const clock=window.advanceBuffClock;
+  const res=(typeof clock==='function')?clock(elapsedMs):null;
+  if(res&&res.expired) for(const t of res.expired) out.buffsExpired.push(t);
+}
 /* ════════════════════════════════════════════════════════════════
    b337 — SERVER-AUTHORITATIVE AWAY TIME (roadmap item 2, one vertical slice).
 
@@ -1265,6 +1402,15 @@ function processOffline(){
      already makes that true on a perfectly ordinary night. */
   let paidMs = Math.round(hrs*3600000);
   let stoppedBy = null, stoppedById = null, stoppedSkill = null, stoppedPerHour = 0;
+  /* ── b347: WHAT THE BUFFS ACTUALLY DID ON A GATHER/ARTISAN NIGHT ─────────
+     The same two facts `simulateSpan` reports for a combat night, so the
+     welcome-back card asks ONE question of the receipt regardless of which
+     activity was running. `buffPaidMs` is the slice of the absence at least
+     one buff was live for; `buffsExpired` names the types that ran out
+     mid-night. Both STATED by the replay, never inferred by a renderer — the
+     inference a renderer would otherwise make ("the whole night was buffed")
+     is precisely the mint b347 exists to prevent. */
+  let buffPaidMs = 0, buffsExpired = [];
 
   /* ── b227: EVERYTHING that simulates elapsed time runs inside the latch ──
      The rotating blessings are session-gated, and every "is the player here?"
@@ -1295,8 +1441,13 @@ function processOffline(){
       const recipes=window.ARTISAN_RECIPES[G.activeSkill];
       const rec=recipes && recipes.find(x=>x.id===G.skillTargetId);
       if(rec && typeof window.doArtisanAction==='function'){
-        const stepMs=offlineIntervalMs(rec.ms);
-        const ticks=Math.floor((hrs*3600000)/stepMs);
+        /* b347: THE SINGLE `stepMs` THAT USED TO BE CAPTURED HERE IS GONE.
+           It was `offlineIntervalMs(rec.ms)` read once, and the whole night was
+           divided by it — which is precisely why a `cookSpeed` buff that ran
+           out mid-night kept paying until dawn. The interval is now re-derived
+           per slice inside replayAwaySpan, and the one other thing that read it
+           (`stoppedPerHour`) takes the slice's own rate instead, because that
+           is the rate the run was ACTUALLY going at when it ran dry. */
         /* b225: cooking burns offline at exactly the same odds as online —
            doArtisanAction is the single source of truth and this replay drives
            it. `silent` suppresses the per-burn toast (a night's cooking would
@@ -1330,30 +1481,64 @@ function processOffline(){
            refusal branch to do its job ONCE, rather than growing a second
            copy of the stop-and-say-why logic that could then drift from it. */
         const _art=(window.HearthriseCore&&window.HearthriseCore.artisan)||null;
-        let done=0;
-        for(let i=0;i<ticks;i++){
-          const _missing=_art ? _art.missingInput(rec, G.inventory) : null;
-          if(_missing){
-            /* Captured HERE, not read at report time: the refusal call below
-               clears G.activeSkill, so anything downstream that asked "what
-               was running?" would find null and say "the run". */
-            stoppedBy='supplies'; stoppedById=_missing; stoppedSkill=G.activeSkill;
-            const _need=(_art.recipeInputs(rec)||{})[_missing]||1;
-            stoppedPerHour=Math.round(_need*3600000/Math.max(1,stepMs));
-            window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
-            break;
-          }
-          window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
-          done++;
-        }
-        if(stoppedBy) paidMs=done*stepMs;
+        /* b347: the ONE refusal call is now made AFTER the span, not inside it.
+           It is the same single call for the same reason b345 gives — the
+           honest "Out of Raw Shrimp — cooking stopped" toast and the cleared
+           activity come from doArtisanAction's own refusal branch, never from a
+           second copy here. What moved is only WHEN: that branch clears
+           `G.activeSkill`, which flips `advanceBuffClock`'s `active` flag to
+           false and would freeze the drain for the very minutes the run DID
+           work. The buff is charged for the work first, then the refusal
+           speaks. Nothing else observes the gap — the inputs are missing either
+           way and the toast is identical. */
+        let _refuse=false;
+        const span=replayAwaySpan(hrs*3600000,{
+          stepMs:function(){ return offlineIntervalMs(rec.ms); },
+          run:function(n,sliceStepMs){
+            let done=0;
+            for(let i=0;i<n;i++){
+              const _missing=_art ? _art.missingInput(rec, G.inventory) : null;
+              if(_missing){
+                /* Captured HERE, not read at report time: the refusal call
+                   clears G.activeSkill, so anything downstream that asked
+                   "what was running?" would find null and say "the run". */
+                stoppedBy='supplies'; stoppedById=_missing; stoppedSkill=G.activeSkill;
+                const _need=(_art.recipeInputs(rec)||{})[_missing]||1;
+                stoppedPerHour=Math.round(_need*3600000/Math.max(1,sliceStepMs));
+                _refuse=true;
+                return done;              // fewer than n -> the span stops here
+              }
+              window.doArtisanAction(G.activeSkill, G.skillTargetId, {silent:true});
+              done++;
+            }
+            return done;
+          },
+        });
+        if(_refuse) window.doArtisanAction(stoppedSkill, G.skillTargetId, {silent:true});
+        if(stoppedBy) paidMs=Math.round(span.paidMs);
+        buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
       }
     } else if(G.activeSkill){
-      // Offline gather runs at the same rate as active play — no dampening.
-      const ticks=Math.floor((hrs*3600000)/offlineIntervalMs(5000));
-      if(ticks>0){
-        for(let i=0;i<ticks;i++)doSkillAction(true);
-      }
+      /* Offline gather runs at the same rate as active play — no dampening.
+         b347: through the same timeline the artisan branch uses, so a
+         `gather_speed` buff speeds up only the slice it was alive for and the
+         rest of the night runs at the base interval. */
+      const span=replayAwaySpan(hrs*3600000,{
+        stepMs:function(){ return offlineIntervalMs(5000); },
+        run:function(n){
+          let done=0;
+          for(let i=0;i<n;i++){
+            /* doSkillAction's own level gate calls stopSkill(), which clears
+               the activity — every later call would be a silent no-op, so the
+               span is told the run ended instead of being billed for it. */
+            if(!G.activeSkill) return done;
+            doSkillAction(true);
+            done++;
+          }
+          return done;
+        },
+      });
+      buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
     }
   });
 
@@ -1392,8 +1577,16 @@ function processOffline(){
        Everything a welcome-back renderer needs in order to describe the
        absence WITHOUT inferring anything:
          blessed:false   blessings are presence-gated and paid nothing
-         buffsPaused     a timed buff was held and frozen — not ticking, not
-                         paid, no food consumed. False when there were none.
+         buffsPaused     ALWAYS FALSE since b347. Personal buffs pay away and
+                         spend away on EVERY path now (combat via
+                         simulateSpan, gather/artisan via replayAwaySpan), so
+                         nothing is ever paused. The key is kept rather than
+                         deleted: home-dashboard.js reads `off.buffsPaused`
+                         unguarded, and `undefined` on a stale summary is a
+                         larger blast radius than a false. What replaced it as
+                         the interesting fact is buffPaidMs / buffsExpired.
+         buffPaidMs      ms of the absence at least one buff was actually live
+         buffsExpired    the buff types that ran out DURING the absence
          crits           away crits, so "142 kills · 21 crits" is sayable
          featuredMs      ms spent on the Boss of the Day / Week, so the card
                          can add "· 8h on the Boss of the Day (+50% drops)"
@@ -1401,8 +1594,17 @@ function processOffline(){
          rateMult        the away rate actually applied (1.00)
        A renderer that has to guess will eventually quote a bonus nobody
        paid; this is the cheapest possible way to make that impossible. */
-    buffsPaused: combatSummary ? !!combatSummary.buffsPaused
-      : (Array.isArray(G.buffs) && G.buffs.some(b=>b&&b.remainingMs>0)),
+    /* b347: the non-combat arm used to answer this with "did the player hold a
+       buff?", which was a fair proxy while a held buff really was frozen. Buffs
+       spend away on this path now, so that expression became a lie in both
+       directions on a gather night — nothing was paused, and the buff paid the
+       whole night. Both arms now state the same false, from the same rule. */
+    buffsPaused: combatSummary ? !!combatSummary.buffsPaused : false,
+    /* Stated by whichever engine ran the night: simulateSpan for combat,
+       replayAwaySpan for gather/artisan. One shape, so the card does not care
+       which was running. */
+    buffPaidMs: combatSummary ? (combatSummary.buffPaidMs||0) : buffPaidMs,
+    buffsExpired: combatSummary ? (combatSummary.buffsExpired||[]) : buffsExpired,
     crits: combatSummary ? (combatSummary.crits||0) : 0,
     /* DEATH IS PART OF THE RECEIPT.
        `combat.died` has existed since b325 and only ever reached a toast that
@@ -3426,7 +3628,14 @@ function simulateAwayCombat(hrs,nowMs,capped){
      awake. Weapon speed is gear, gear is permanent, permanent always applies. */
   ctx.tickMs=combatTickMs();
   ctx.capped=!!capped;
-  ctx.activeBuffCount=Array.isArray(G.buffs)?G.buffs.filter(b=>b&&b.remainingMs>0).length:0;
+  /* b347: `ctx.activeBuffCount` is GONE. It existed for exactly one consumer —
+     `simulateSpan`'s `buffsPaused: ctx.activeBuffCount > 0` — and buffs are not
+     paused any more, so that field now reports an unconditional false and this
+     input feeds nothing. Deleted rather than left as a harmless-looking
+     assignment: a live-looking input nobody reads is how the next author
+     concludes the away path still counts buffs. `supabase/functions/hr-accrue/
+     accrual.js` still passes its own `activeBuffCount: 0`, which is inert and
+     out of this branch's boundary — flagged in HANDOFFS.md. */
   ctx.botdFor=function(atMs){
     return { killBonuses:function(id){ return C.botd.killBonusesFor(id,atMs,MONSTERS); } };
   };
@@ -14362,22 +14571,34 @@ window.applyBuff = function(buff){
 
 /* Aggregate active buffs into a {bonusKey: total} map.
 
-   ── THE AWAY GATE, and the exploit it closes ─────────────────────────────
-   Timed buffs used to reach the away replay through this function, because
-   getBonus is not presence-gated — while the buff CLOCK was a setInterval
-   that only runs in a live tab. So:
+   ── THE AWAY QUESTION, AND WHERE ITS ANSWER MOVED ────────────────────────
+   The hazard this function has always sat next to: getBonus is not
+   presence-gated, so a buff reaches the away replay through here, while the
+   buff CLOCK was a setInterval that only runs in a live tab. Left alone that
+   is a mint —
 
      eat a 10-minute drop-rate buff -> close the tab -> come back twelve
      hours later -> collect twelve hours of buffed gathering -> and the buff
      still reads 10:00, because nothing ticked it.
 
-   The ruling freezes buffs while away: they neither pay nor drain, and no
-   food is consumed. Both halves are needed — freezing only the payout would
-   be a nerf, and draining only would be a different theft.
+   b326 closed it by FREEZING the buff away — no pay, no drain, no food
+   consumed. b347 replaces that with the rule Tyler actually stated
+   (2026-08-14): the away line is SERVER-WIDE vs PERSONAL, not timed vs
+   permanent. A Feast the player ate is theirs and stays true while they
+   sleep; a rotating blessing is something the world does for people who are
+   in it. So `AWAY_SCOPE.buff` is TRUE and this function pays away.
 
-   The gate is `inOfflineReplay()`, the SAME b227 latch blessings use, asked
-   through src/core/away.js's channel table so the client and the accrual
-   Edge Function read one rule. It is asked HERE rather than at the twelve
+   THE EXPLOIT IS CLOSED BY THE CLOCK INSTEAD, and that is the whole of the
+   design: every away caller now advances real elapsed time through
+   `tickBuffs`, so the 10-minute buff above pays ten minutes of the night and
+   the other eleven hours fifty minutes run unbuffed. Combat does it per tick
+   (src/core/combat-sim.js `simulateSpan`); gather and artisan do it per
+   buff-expiry slice (`replayAwaySpan`, near processOffline). Paying and
+   draining are ONE change — either half alone is an exploit or a nerf.
+
+   `ctx.away` is still passed, still from `inOfflineReplay()` — the SAME b227
+   latch blessings use — because the channel table is what decides, and it
+   still says no to blessings. It is asked HERE rather than at the twelve
    getBonus call sites for the reason b228 documents at length: getBonus is a
    seven-deep wrapper chain, and a gate below a wrapper is escaped by it. */
 window.getBuffBonuses = function(){
@@ -14479,11 +14700,22 @@ window.eatFood = function(foodId, opts){
    out the entire time (see getBuffBonuses above). A function of elapsed time
    can answer both, and it is the same function the accrual engine calls.
 
-   The drain rules live in src/core/buffs.js `tickBuffs`:
-     • away   -> FROZEN (no drain), matching "no pay"
-     • idle   -> frozen (long-standing: you are not spending an effect that
-                 is not modifying anything)
-     • active -> drains by real elapsed time */
+   b347 — THREE CALLERS NOW SUPPLY IT, and away is no longer one of the
+   freeze conditions:
+     • the 1s setInterval below   — live play, one second at a time
+     • `replayAwaySpan`           — the gather/artisan absence, one
+                                    buff-expiry slice at a time
+     • src/core/combat-sim.js `simulateSpan` calls `tickBuffs` directly (it
+       drives `state.buffs` per swing and does its own pruning), which is the
+       same core function this delegates to.
+
+   The drain rules live in src/core/buffs.js `tickBuffs`, and there is now
+   exactly ONE of them:
+     • idle (`active === false`) -> frozen. A buff is spent on WORK, and
+       idling is not work. This is the only freeze that survives.
+     • otherwise -> drains by real elapsed time, away or live. Personal buffs
+       pay away (src/core/away.js `AWAY_SCOPE.buff`), so they must be spent
+       away; paying without spending is the b326 exploit written backwards. */
 function advanceBuffClock(elapsedMs){
   if(typeof G === 'undefined' || !Array.isArray(G.buffs) || G.buffs.length === 0) return null;
   const C = window.HearthriseCore;
@@ -14605,11 +14837,13 @@ window.__renderBuffsSection = function(){
   /* b326 — A PAUSED BUFF MUST RENDER AS PAUSED (away-time-ruling.md
      §"Player-facing honesty" 3).
 
-     `tickBuffs` freezes a buff on exactly two conditions: `away` (the whole
-     absence) and `active === false` (nothing running). Both are the SAME
-     rule to the player — "a buff is spent on work, and it is not working" —
-     so the row asks the same question the clock does, rather than inventing
-     a third answer. `buffFrozen()` is that question, in one place.
+     b347: `tickBuffs` now freezes a buff on exactly ONE condition —
+     `active === false`, nothing running. Away is no longer a freeze: personal
+     buffs pay while you are gone and are spent while you are gone. So the
+     rule the player is being taught narrowed to a single sentence, "a buff is
+     spent on work", and the row still asks the same question the clock does
+     rather than inventing a second answer. `buffFrozen()` is that question,
+     in one place.
 
      Why this and not a welcome-back-only banner: a clock that ticks in front
      of a player while the engine is not draining it teaches the wrong rule by
@@ -14629,17 +14863,23 @@ window.__renderBuffsSection = function(){
     +'</div>';
   }).join('')
   + (frozen
-    ? '<div class="buff-frozen-note">Buff time is kept, not spent — it only runs down while an activity is running, and freezes entirely while you are away.</div>'
+    /* b347: the second clause of this sentence used to read "…and freezes
+       entirely while you are away." It stopped being true the day personal
+       buffs started paying away, and a player-facing string that describes
+       the opposite of the engine is worse than no string at all. What is left
+       is the one rule that survives: buff time is spent on WORK. */
+    ? '<div class="buff-frozen-note">Buff time is kept, not spent — it only runs down while an activity is running, including while you are away.</div>'
     : '');
 };
 
 /* The engine's freeze condition, asked once. Mirrors src/core/buffs.js
-   `tickBuffs`: frozen while away, and frozen while nothing is running.
-   PUBLISHED, because Home renders the buff ladder too and two renderers
-   answering "is this clock running?" differently is exactly how the ruling's
-   honesty clause gets quietly undone. One oracle. */
+   `tickBuffs`, which since b347 has exactly one: nothing is running.
+   Away is NOT a freeze any more — an away gather or fight is work, it pays
+   the buff and spends it, so a returning player must not be told their buffs
+   sat still. PUBLISHED, because Home renders the buff ladder too and two
+   renderers answering "is this clock running?" differently is exactly how the
+   ruling's honesty clause gets quietly undone. One oracle. */
 function buffFrozen(){
-  if(typeof inOfflineReplay === 'function' && inOfflineReplay()) return true;
   return !(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
 }
 window.buffsFrozen = buffFrozen;

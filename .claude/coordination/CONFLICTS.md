@@ -26,6 +26,8 @@ Tyler removed the away-combat gate ("get rid of the license shit it's way too co
 
 **Two authored payouts are now reachable during an absence** and were not before, because a declined span was never simulated: `first_blood` (Defeat 5 monsters → 150g + 5 turnip seeds) completes at ~46% of first nights, and `hundred_kills` (1,500 combat XP) can complete for a player parked at 95+ kills. Both are **one-time per character** and both are minutes of attended play away, so neither is a faucet — but they are new value entering during the server-authority rebuild and Design should say yes rather than have it assumed.
 
+### ✅ 2026-08-15 · BLOCKER — RESOLVED IN b347 (Systems). The gather/artisan replay has a timeline; the held branch is unblocked. Full record under Resolved. Original text kept below because the measurement in it is the before-half of the fix.
+
 ### 2026-08-15 · BLOCKER (code + semantic) — the away buff rule is landed in CORE only; the gather/artisan replay in `legacy.js` must land before this ships (Systems → whoever holds `src/legacy.js`)
 
 Branch `agent-a06ecbcee310aa2c7`. `AWAY_SCOPE.buff` is now `true` (Tyler, 2026-08-14: personal buffs pay away, server-wide blessings do not). That flag is a property of the SCOPE TABLE, so it opens for every away caller at once — but only one of them can honour the other half of the rule.
@@ -149,6 +151,26 @@ Clan-overhaul spec introduces a new `getBonus('raidPower')` that `src/features/r
 Flagship Throne board needs `renown` written into the client save snapshot on save (leaderboards §3.2). Touches the fragile `snapshotG` allowlist — Systems change. Wave 3.
 
 ## Resolved
+
+### 2026-08-15 · BLOCKER · the away buff rule reached only one of three away callers — RESOLVED in b347 (Systems)
+**Was:** `AWAY_SCOPE.buff` opened for every away caller at once, but only `simulateSpan` owned a timeline. `processOffline`'s gather and artisan branches ran `ticks = floor(spanMs / offlineIntervalMs())` with the interval derived once — so a buff paid the whole absence and drained none of it.
+
+**Measured, real engine, 8h away on woodcutting Normal Tree, one 10-minute consumable eaten on the way out:**
+
+| | control (no buff) | `gather_speed +4%` | `all_xp +5%` |
+|---|---|---|---|
+| BEFORE — actions | 6,000 | **6,250 (+250)** | 6,000 |
+| BEFORE — woodcutting XP | 30,000 | 31,250 | **36,000 (+20.0%)** |
+| BEFORE — buff drained | — | **0 of 600,000 ms** | **0 of 600,000 ms** |
+| AFTER — actions | 6,000 | **6,005 (+5)** | 6,000 |
+| AFTER — woodcutting XP | 30,000 | 30,025 | **30,125 (+0.417%)** |
+| AFTER — buff drained | — | **600,000 ms, expired + pruned** | **600,000 ms, expired + pruned** |
+
+So the consumable bought **50× the actions** and **48× the XP** it had earned, and came back reading a full 10:00 — repeatable every night, forever. It now buys exactly the slice it was alive for and is spent.
+
+**Fix:** `replayAwaySpan` in `legacy.js` (beside `offlineIntervalMs`) — the span is split at buff-expiry boundaries, the interval is re-derived per slice, the sub-tick remainder carries across, and `advanceBuffClock` (the ONE clock) is called per slice. The boundary function is `nextBuffExpiryMs` in `src/core/buffs.js`, beside `activeBuffs` so it applies the same liveness rule. Same shape as `utcDaySegments`; NO second mechanism. `AWAY_SCOPE.buff` stayed `true`.
+**Also fixed:** the non-combat `buffsPaused` expression (was "did they hold a buff", a lie in both directions on a gather night) and four stale comment blocks + one player-facing string that described the freeze that no longer exists.
+**Guards:** `AWAY-16` (drives the real `processOffline`; 4 mutations RED) and `AWAY-17` (the boundary oracle; 3 mutations RED). In all seven, `AWAY-1 PARITY` and `AWAY-5` stayed GREEN — which is precisely why a combat test could never have caught this.
 
 ### 2026-08-08 · SEMANTIC · Auto-eat vs foodClass split — RESOLVED in b220 (Game Designer)
 **Was:** cooking taxonomy adds `foodClass: 'healing' | 'buff'` and auto-eat must draw from `'healing'` only, but fish-line Provisions carry incidental combat buffs, so the line was unclear.

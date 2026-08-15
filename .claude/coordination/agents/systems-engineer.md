@@ -2,6 +2,52 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b347 — the loop that paid a buff all night and spent none of it
+
+Branch `worktree-agent-a454de83fe91b6768`, with `agent-a06ecbcee310aa2c7` merged in. Suite
+**692/692**, 0 runtime errors, 0 console errors, four consecutive full runs. Seven mutations, each
+RED on exactly one test. No version bump, nothing deployed.
+
+**The lesson, stated once: a RULE THAT LIVES IN A TABLE REACHES EVERY CONSUMER, AND NOT EVERY
+CONSUMER IS READY FOR IT.** `AWAY_SCOPE` was built precisely so the away/active split could not be
+a code path — that was the right call and it is why the b326 exploit stayed closed. But flipping
+`buff: false → true` opened the channel for three callers simultaneously, and only one of them owned
+a clock. The table made the payout universal and could not make the DRAIN universal, because
+draining needs a timeline and a timeline is a property of the caller. **When a scope table gains a
+member whose rule has two halves, audit every consumer for the half the table cannot express.**
+
+**Measured before/after**, 8h away, woodcutting Normal Tree, one 10-minute consumable eaten on the
+way out: `gather_speed +4%` bought **250 extra actions** (6,250 vs a 6,000 control) and drained
+**0 of 600,000 ms**; `all_xp +5%` bought **+20.0% XP**. After: **+5 actions**, **+0.417% XP**, buff
+spent to zero and pruned. 50× and 48× overpay. **`AWAY-1 PARITY` and `AWAY-5` pass with every bit
+of that present** — the combat path was genuinely correct, which is exactly what made the gap
+invisible.
+
+**The shape I did NOT invent.** `simulateSpan` asks "is a buff alive?" once per swing, which works
+because combat's tick length is fixed. Copying that here would have been wrong: `gather_speed`
+changes THE INTERVAL, the number the tick count is derived from. So `replayAwaySpan` uses core's
+other established shape — `utcDaySegments` — splitting the span at boundaries and running each slice
+at its own rate, carrying the sub-tick remainder across exactly as the UTC-midnight split does. With
+no buff held there is ONE slice and the arithmetic is identical to the flat loop, which is what let
+every pre-existing away test stay honest rather than be re-baselined. Two boundary sources, one
+mechanism.
+
+**A mutation caught a lying guard of MINE, and that is the part worth remembering.** I asserted
+`buffsPaused === false` on the expiring-buff scenario. Mutation (iv) — restore the old
+`G.buffs.some(alive)` expression — came back **GREEN**: the buff is pruned during the replay, so the
+old expression is coincidentally false by summary time. The two expressions differ ONLY when a buff
+outlives the absence. **An assertion placed on the wrong fixture is indistinguishable from a passing
+one, and only mutation tells you which you wrote.** Four lying guards were found on this repo in a
+day; this would have been the fifth, and it would have been mine.
+
+**Termination is a design property, not an accident.** Each pass either consumes the rest of the
+span or drains the soonest buff to exactly zero, so the pass count is bounded by the queue. The
+64-slice budget exists for the one shape that breaks that — core present but `advanceBuffClock`
+missing — and it **flattens to the old behaviour rather than abandoning the night.** `while(guard++
+< N)` would have exited with `remaining` unspent, i.e. the player silently losing their absence,
+which is the failure mode of every away bug in this file's history. Mutation (vii) demonstrated it
+live: with every boundary forced to 0, the budget held and the night still paid.
+
 ## 2026-08-15 — b345 — the break that never broke, and two more surfaces that argued with the engine
 
 Branch `worktree-agent-a7cbb539ab26abecb`. Suite **687/687** (baseline 684; +3), 0 runtime errors,

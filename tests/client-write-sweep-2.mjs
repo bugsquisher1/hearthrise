@@ -249,16 +249,50 @@ async function probeWrite(db, role, table) {
   return verdict;
 }
 
+/** Every `[ 'table', 'grantee' ]` literal inside the named array declaration in
+ *  `sql`, or [] if the declaration is not there.
+ *  ⚠ `\s+` before `constant`, not one space: both sweep files align the keyword
+ *    in a declaration block, so `c_pairs  constant` carries two. */
+function pairsIn(sql, decl) {
+  const block = sql.match(
+    new RegExp(`${decl}\\s+constant text\\[\\]\\[\\] := array\\[([\\s\\S]*?)\\];`));
+  if (!block) return [];
+  return [...block[1].matchAll(/\[\s*'([a-z0-9_]+)'\s*,\s*'([a-z]+)'\s*\]/g)]
+    .map((m) => `${m[1]}:${m[2]}`);
+}
+
 /** The (table, grantee) pairs the PREDECESSOR declares in its c_expected array. */
 async function predecessorPairs() {
   const { readFile } = await import('node:fs/promises');
   const { join } = await import('node:path');
   const { ROOT } = await import('./schema-replay.mjs');
-  const sql = await readFile(join(ROOT, 'supabase', 'migrations', PRED), 'utf8');
-  const block = sql.match(/c_expected constant text\[\]\[\] := array\[([\s\S]*?)\];/);
-  if (!block) return [];
-  return [...block[1].matchAll(/\[\s*'([a-z0-9_]+)'\s*,\s*'([a-z]+)'\s*\]/g)]
-    .map((m) => `${m[1]}:${m[2]}`);
+  return pairsIn(await readFile(join(ROOT, 'supabase', 'migrations', PRED), 'utf8'), 'c_expected');
+}
+
+/* ── EVERY PAIR ANY BATCH DECLARES IT CONSUMES ─────────────────────────────
+   ⚠ REVISION (batch 3). This used to be `declared.length - 4` — the four rows
+   THIS file consumes, typed. That is correct exactly until a LATER batch lands,
+   and batch 3 landing turned this arm red for a database that was in perfect
+   order: the baseline had shrunk by eight because two sweeps had run, which is
+   the direction the list is supposed to move. A guard that fails when the
+   programme it guards makes progress gets loosened, and a loosened guard is the
+   b339 failure mode.
+   So the expected baseline is now DERIVED end to end: batch 1's declared class,
+   minus the union of every `c_pairs` array declared by every sweep batch in the
+   migrations directory. It stays true when batch 4 lands, and it is a statement
+   about the files agreeing with the database rather than about a number. */
+async function consumedPairs() {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const { join } = await import('node:path');
+  const { ROOT } = await import('./schema-replay.mjs');
+  const dir = join(ROOT, 'supabase', 'migrations');
+  const files = (await readdir(dir))
+    .filter((f) => /client-write-grant-sweep(-\d+)?\.sql$/.test(f)).sort();
+  const out = new Set();
+  for (const f of files) {
+    for (const k of pairsIn(await readFile(join(dir, f), 'utf8'), 'c_pairs')) out.add(k);
+  }
+  return { pairs: [...out], files };
 }
 
 async function seedUsers(db) {
@@ -464,16 +498,30 @@ async function run({ patches } = {}) {
     }
     /* ⚠ NO HARDCODED COUNT (CLAUDE.md b339: "DO NOT WRITE A COUNT HERE" — three
        different wrong numbers shipped in prose about this exact allowlist). The
-       expected size is DERIVED from the predecessor's own declared c_expected
-       list, so it stays true when batch 3 lands and it is a statement about the
-       two files agreeing rather than about a number somebody typed. */
+       expected SET is DERIVED: the predecessor's declared c_expected class,
+       minus the union of every pair every sweep batch declares it consumes. See
+       consumedPairs() for why this is no longer `declared.length - 4`. */
     const declared = await predecessorPairs();
+    const { pairs: eaten, files: sweeps } = await consumedPairs();
     ok(declared.length > 4,
       `C6 CONTROL: only ${declared.length} pair(s) were parsed out of ${PRED}'s c_expected — the `
       + 'parser has stopped matching and the comparison below would be vacuous');
-    ok(based.length === declared.length - 4,
-      `C6: the baseline should be ${declared.length - 4} pair(s) (${declared.length} declared by `
-      + `${PRED}, 4 consumed here) and is ${based.length}: ${based.join(', ')}`);
+    ok(eaten.length >= 4 && eaten.length % 4 === 0,
+      `C6 CONTROL: ${eaten.length} consumed pair(s) parsed out of ${sweeps.length} sweep file(s) `
+      + `(${sweeps.join(', ')}). Each batch consumes a whole number of (table, grantee) pairs; the `
+      + 'c_pairs parser is not reading them.');
+    for (const k of ['display_names:anon', 'display_names:authenticated',
+      'leaderboard_meta:anon', 'leaderboard_meta:authenticated']) {
+      ok(eaten.includes(k),
+        `C6 CONTROL: ${k} is not among the pairs the sweep files declare they consume, so the `
+        + 'derivation below is not reading THIS file\'s own c_pairs array.');
+    }
+    const want = declared.filter((k) => !eaten.includes(k)).sort();
+    ok(JSON.stringify(based) === JSON.stringify(want),
+      `C6: the baseline is not "${PRED}'s declared class minus everything the sweep batches `
+      + `consume" (${sweeps.length} batch file(s)).\n    baseline only: `
+      + `${based.filter((k) => !want.includes(k)).join(', ') || '(none)'}\n    expected only: `
+      + `${want.filter((k) => !based.includes(k)).join(', ') || '(none)'}`);
 
     // The predecessor's own invariant, re-measured: the declared baseline and
     // the live class must agree EXACTLY, in both directions. A class member the
@@ -495,8 +543,8 @@ async function run({ patches } = {}) {
       `C6: the declared baseline and reality disagree.\n    class only: `
       + `${classNow.filter((k) => !based.includes(k)).join(', ') || '(none)'}\n    baseline only: `
       + `${based.filter((k) => !classNow.includes(k)).join(', ') || '(none)'}`);
-    log(`  ok   C6  baseline is ${based.length} (declared − 4), holds neither swept table, and `
-      + 'matches the live class exactly');
+    log(`  ok   C6  baseline is ${based.length} (declared − every batch's consumed pairs), holds `
+      + 'neither swept table, and matches the live class exactly');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── C7 · RE-APPLYING THE PREDECESSOR DOES NOT RESURRECT THE ROWS ─────

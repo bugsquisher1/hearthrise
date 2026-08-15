@@ -23,6 +23,7 @@ import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
+import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
@@ -1246,6 +1247,36 @@ const run = async () => {
       console.log('\nClient write sweep guard — no client write privilege survives on display_names '
         + 'or leaderboard_meta (MAINTAIN included), the refusal is on the GRANT rather than on RLS, '
         + 'both writer RPCs still work, and the four baseline rows are consumed.');
+    }
+
+    /* ── The client-write-grant sweep, batch 3 (Security) ───────────────
+       raid_claims and raid_contributions — the batch-2 reviewer's #1 pick on
+       blast radius, because raid_contributions is the ONE table in the baseline
+       that has already hosted a LIVE client-write exploit: the b209 "own
+       contribution claim" UPDATE policy, removed by raid-hardening, whose GRANT
+       was never removed. Its damage/strikes set the payout BAND and, on a
+       partial kill, the clan-wide factor — how much SOMEBODY ELSE is paid — and
+       DELETE on raid_claims is unlimited weekly chest replay.
+       Plus PART B: the MAINTAIN pass over batch 1's six catalogues, which
+       reported "0 remain" and were not — information_schema cannot see PG17's
+       MAINTAIN, so every measurement in that file was blind to it. C2b
+       demonstrates that blindness rather than asserting it.
+       The whole chain replays here, so the migration's refuse-to-install checks
+       (including the server-DERIVED privilege vocabulary) and its
+       execute-the-refusal probe run on every suite run, and both confirmed
+       writers are then DRIVEN as a signed-in player. `--selftest` plants twelve
+       real defects; every one must read RED. */
+    const sweep3Problems = await clientWriteSweep3Guard();
+    if (sweep3Problems.length) {
+      console.log('\nClient write grant sweep batch 3 (raid_claims, raid_contributions, MAINTAIN) '
+        + '— FAILED:');
+      for (const p of sweep3Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 3 — no client write privilege survives on either raid '
+        + "table or on batch 1's six catalogues (MAINTAIN included), the refusal is on the GRANT "
+        + 'rather than on RLS, raid_claim and raid_strike still write, and the four baseline rows '
+        + 'are consumed.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

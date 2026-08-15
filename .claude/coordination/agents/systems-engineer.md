@@ -2,6 +2,46 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-14 — b342 — the Field Licence had a rule, honesty copy, and NO SURFACES
+
+Branch `worktree-agent-ae97e9393a06e3ca9` · commit `1a4eeb8` · smoke **675/675**, 0 runtime errors.
+
+**The finding under the five findings.** b341's guard asserted `G._awayLicence` EXISTS. It does. The
+away card that was supposed to read it was never built, and the assertion could not tell. That is
+this repo's "passes while asserting nothing" family one layer out: it graded DATA where the contract
+was EXPERIENCE. Every b342 test reads a rendered surface — `.hd-awayband` inside `#hd-root`,
+`#ab-meta`'s text, `.botd-away`'s classList, a click on `.ce-next`, `#welcome-rows` — and not one of
+them is satisfied by a field being present in G.
+
+**The receipt is the seam.** A declined night now writes `lastOfflineSummary` (every gain an explicit
+0, `licence.declined` stated) instead of only the `_`-prefixed scratch field, so it travels the paths
+that already exist: Home card, welcome-back modal, dashboard line. One receipt per absence, whatever
+happened in it. Verified: survives save/load, present in the local save, **absent from the cloud
+snapshot** (`NO_SYNC` untouched).
+
+**Two things the browser caught that reading could not.**
+1. `.botd-away` is a flex row with a `::before` rule, so an unwrapped `<b>41 / 100</b>` became a
+   second COLUMN and the sentence broke mid-clause. Wrapped in one `<span>`.
+2. Both boss cards only fully re-render on a UTC day rollover — the 1s tick otherwise just rewrites
+   the countdown. State-dependent copy would have gone stale until midnight. The tick now watches the
+   verdict, and the cache is written by `awayLine()` (the one place that puts it in the DOM), not by
+   the tick. A cache of what something ELSE did is the rewire-walker shape b341 retired.
+
+**Measured, adjacent, and someone should decide on it:** whether the welcome-back modal appears at
+all is a RACE. Both modals gate on `Date.now() - G.lastSeen`, and `chronicle.js reconcile()` →
+`persist()` → `saveLocal()` stamps `lastSeen = now` at ~315ms — before the 1500ms boot timer reads
+it. A seeding or newly-levelled account never sees the modal; a quiet established one does. I fixed
+the modal's CONTENT, not its trigger: making a currently-intermittent modal reliable is a design
+call, and there are still TWO welcome modals (b341 already flagged that the v2 block's "suppression"
+suppresses nothing).
+
+**Handoff — the licence gate is still client-only.** `legacy.js:1205` claims "The authority is
+hr-accrue, which asks the same fieldLicence() against server-known `stats.kills`". There is no
+`licence` anywhere in `supabase/functions/hr-accrue/**`, and `summaryFromAway()` carries no licence
+field. `isServerAccrualEnabled()` is off by default, so the client path is what the beta runs and
+this is correct today — and wrong the moment the switch flips: under server accrual a declined night
+would go silent again. Spec §3.2 / §11 owns it.
+
 ## 2026-08-14 — b342 P0 — the companion proc hooks fired TWICE per trigger (measured, fixed)
 
 Branch `worktree-agent-a45c8f05da721f460`. Suite **670/670** (baseline 668; +2), 0 runtime errors,

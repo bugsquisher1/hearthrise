@@ -36,18 +36,34 @@
     try { return localStorage.getItem('hearthrise:admin') === '1'; }
     catch (e) { return false; }
   }
+  // Every selector that means "a modal owns the screen right now". A miss here
+  // does not fail loudly — it just draws this card on top of another one — so
+  // it is a LIST that must be kept true, and it is published (below) so a test
+  // can hold it against the DOM the game actually builds.
+  //
+  // b342: `#welcome-modal.show` never matched anything. The welcome-back modal
+  // legacy.js builds is `<div id="welcome-overlay" class="welcome-overlay">`
+  // with an INNER `.welcome-modal` — so the selector had the right word in the
+  // wrong position (id vs class) and the wrong element (the inner card never
+  // takes `.show`; the overlay does). Result, measured: "Welcome back,
+  // adventurer" with "This is a beta build" drawn on top of it and `Continue`
+  // peeking out below. Both real ids are listed now, and the retry that was
+  // already here (`setTimeout(maybeShow, 2000)`) turns the collision into a
+  // QUEUE — the banner waits its turn instead of racing.
+  var BLOCKING_MODALS = [
+    '.modal.show',
+    '#welcome-overlay.show',      // legacy.js maybeShowWelcome()
+    '#wbv-overlay.show',          // legacy.js welcome-v2
+    /* daily-reward.js has no `.show` state at all — the scrim IS the modal and
+       it is removed on dismiss, so PRESENCE is the condition. A `.show` here
+       would have been a third selector that matches nothing. */
+    '#hr-dl-modal',
+    '.ach-overlay.show',
+    '.ftue-shade.show',
+    '.ftue-card.show'
+  ].join(', ');
   function modalAlreadyOpen(){
-    // b142: FTUE was being missed by the original selector. The actual
-    // FTUE DOM uses `.ftue-shade.show` (the dim layer) and `.ftue-card.show`
-    // (the floating card), neither matched `#ftue-overlay.show`. Same for
-    // the cloud welcome modal which uses `#wbv-overlay.show`. The result
-    // was the beta banner stacked UNDER the FTUE on first load, looking
-    // bad and confusing. Now we cover the real selectors.
-    return !!document.querySelector(
-      '.modal.show, #wbv-overlay.show, .ach-overlay.show, ' +
-      '.ftue-shade.show, .ftue-card.show, ' +
-      '#welcome-modal.show'
-    );
+    return !!document.querySelector(BLOCKING_MODALS);
   }
 
   function ack(){
@@ -193,6 +209,13 @@
     ack: ack,
     reset: function(){ try { localStorage.removeItem(ACK_KEY); } catch(_){} },
     DISCORD_INVITE: DISCORD_INVITE,
+    /* b342 TEST SEAMS. The stacking bug was a selector that matched nothing,
+       which is invisible from outside: the banner "correctly" saw no modal and
+       drew. Publishing the predicate AND the list lets the suite build the real
+       welcome overlay and assert that this queue actually sees it — the check
+       the original selector would have failed for four builds. */
+    __modalAlreadyOpen: modalAlreadyOpen,
+    __blockingModals: BLOCKING_MODALS,
   };
 
   console.log('[beta-banner] loaded');

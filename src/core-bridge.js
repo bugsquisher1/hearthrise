@@ -51,6 +51,12 @@ import * as combatSim from './core/combat-sim.js?v=349';
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
 import * as skillSim from './core/skill-sim.js?v=349';
+/* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
+   branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
+   344 catalogue rows, and the last simulation in the game with no DOM-free
+   form. It runs on `skillSim.sliceSpan`, so there is still exactly one
+   buff-expiry timeline. */
+import * as artisanSim from './core/artisan-sim.js?v=349';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
@@ -117,6 +123,27 @@ function gatherNode(id) {
   /* Null-prototype index (see indexGatherNodes), so `__proto__`/`constructor`
      resolve to undefined rather than to something truthy. */
   return idx[id] || null;
+}
+
+/* The same construction for the 290 artisan recipes, for the same reason and
+   with the same hazard: `ARTISAN_RECIPES[G.activeSkill].find(...)` is answered
+   in four places in legacy.js, and a recipe id that resolves to one bench here
+   and another there pays the wrong skill's XP. Memoised on the ARTISAN_RECIPES
+   identity, which src/main.js's unify merge replaces the contents of. */
+let _recipeIdx = null;
+let _recipeSrc = null;
+function artisanRecipes() {
+  const src = window.ARTISAN_RECIPES;
+  if (_recipeIdx && _recipeSrc === src) return _recipeIdx;
+  _recipeIdx = artisanSim.indexArtisanRecipes(src || {});
+  _recipeSrc = src;
+  return _recipeIdx;
+}
+
+/** `{skill, recipe}` for a recipe id, or null. The one lookup. */
+function artisanRecipe(id) {
+  if (typeof id !== 'string' || !id) return null;
+  return artisanRecipes()[id] || null;
 }
 
 /* The perk stack. On the client this is a chain seven wrappers deep
@@ -216,8 +243,8 @@ window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
-  styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, autoEat,
-  perks,
+  styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
+  autoEat, perks,
 
   /* The session RNG. */
   get rng() { return rng; },
@@ -239,6 +266,8 @@ window.HearthriseCore = {
   bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
+  /* …and the artisan index, on the same contract. */
+  artisanRecipes, artisanRecipe,
   items: ITEMS,
 };
 
@@ -299,6 +328,20 @@ Object.assign(window, {
      and from the suite: a dial nobody can read is a dial nobody trusts. */
   BUFFS_DEF: buffs.BUFFS_DEF,
   AWAY_RATE_MULT: away.AWAY_RATE_MULT,
+
+  /* b351 — the per-skill gathering counters. This was a `const` literal in
+     legacy.js AND an object in skill-sim.js: two copies of the map that decides
+     which of `stats.chopped` / `mined` / `fished` a gather action moves, one
+     read by quest-nav.js and the other WRITTEN by `resolveGatherTick` — which
+     is what both the live tick and the away span run. An away night and a live
+     hour moving different rows is the b226 failure in miniature, so this is one
+     identity now, not two maps a guard reconciles.
+
+     It is published HERE rather than re-exported in legacy.js because legacy.js
+     is a classic script and this file is a module: legacy.js's top level has
+     already run by the time this executes, so a re-export there would take its
+     fallback branch every time and quietly restore the second copy. */
+  SKILL_ACTION_STAT: skillSim.SKILL_ACTION_STAT,
 });
 
 /* THE READINESS SIGNAL — must be the last statement in this file.

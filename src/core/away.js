@@ -147,36 +147,46 @@ export function utcDaySegments(fromMs, toMs) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   KNOWN GAP — the buff channel pays every away caller; only ONE of them can
-   currently drain. READ THIS BEFORE TOUCHING THE GATHER/ARTISAN AWAY REPLAY.
+   CLOSED (b347 + b351) — WHAT THIS BLOCK USED TO WARN ABOUT, AND WHY THE
+   HISTORY IS WORTH KEEPING. Read it before touching any away replay.
 
-   `AWAY_SCOPE.buff` is a property of the SCOPE TABLE, so it opens for every
-   consumer of `channelApplies` at once. There are three away callers:
+   `AWAY_SCOPE.buff` is a property of the SCOPE TABLE, so opening it opens the
+   buff channel for EVERY consumer of `channelApplies` at once. That is the
+   table's whole virtue and it was also the trap: for a while it paid three away
+   callers and only one of them could drain.
 
-     1. away COMBAT   — src/core/combat-sim.js `simulateSpan`. Owns a timeline
-                        (it already segments the absence by UTC day for the
-                        Boss of the Day), so it drives the buff clock per tick
-                        and a buff expires at the right instant. CORRECT.
-     2. away GATHER    ) legacy.js processOffline: `ticks = floor(spanMs /
-     3. away ARTISAN   ) offlineIntervalMs())`, then that many identical
-                        actions. A FLAT SINGLE-RATE LOOP: the interval is
-                        derived once, before the first action, and nothing
-                        advances a clock inside it. It therefore pays a buff
-                        for the whole absence and drains none of it.
+     1. away COMBAT   — src/core/combat-sim.js `simulateSpan`. Owned a timeline
+                        from the start (it segments the absence by UTC day for
+                        the Boss of the Day), so it drove the buff clock and a
+                        buff expired at the right instant.
+     2. away GATHER   ) legacy.js processOffline: `ticks = floor(spanMs /
+     3. away ARTISAN  ) offlineIntervalMs())`, the interval derived ONCE before
+                        the first action and nothing advancing a clock inside.
+                        A flat single-rate loop cannot express a buff expiring
+                        mid-window: it paid the buff for the whole absence and
+                        drained none of it. Measured, 8h woodcutting with one
+                        10-minute `gather_speed +4%`: 6,250 actions against an
+                        honest 6,005, and the buff came back reading 10:00.
+                        Fifty times the earned value, by shutting the tab.
 
-   Measured exposure on (2)/(3) with the shipped food catalogue (src/data/
-   items.js — buff magnitudes are 1–5, durations 2–20 min): a `gather_speed`
-   buff eaten immediately before logging off applies its speed term to the
-   ENTIRE night (max +4%, via the one-shot `activityIntervalMs()` read), and an
-   `all_xp` buff applies to every action of the night (max +5%). It is bounded
-   and it is not free — the player must deliberately eat a Feast on the way out
-   — but it is the b326 exploit in miniature and it is not the stated rule.
+   HOW IT WAS CLOSED, in the order it had to happen:
+     b347 gave (2)/(3) a timeline in legacy.js — split the span at the
+          buff-expiry boundary, run each slice at its OWN re-derived rate, drain
+          after the slice's actions rather than before.
+     b351 moved that loop into `skillSim.sliceSpan` and put BOTH branches on it
+          (`simulateSkillSpan`, `simulateArtisanSpan`), so all three away
+          callers now run a boundary-split timeline and the shape cannot be
+          reintroduced by writing a fourth caller: the loop is the injectable
+          primitive, and its boundary source is a parameter.
 
-   THE FIX IS IN legacy.js, NOT HERE: the gather/artisan replay must be split
-   at the buff-expiry boundary — run `min(buffRemainingMs, spanMs)` of ticks
-   with the buff live, call `advanceBuffClock` for that slice, then re-derive
-   `offlineIntervalMs()` and run the remainder. That is the same shape
-   `simulateSpan` uses, one level up. Do NOT "fix" it by closing
-   `AWAY_SCOPE.buff` again — that reverts a stated design rule to work around
-   a loop that should have had a timeline all along.
+   TWO RULES THAT SURVIVE THE FIX:
+     • Do NOT "fix" a future variant by closing `AWAY_SCOPE.buff` again. That
+       reverts a stated design rule to work around a loop that should have had a
+       timeline all along — and leaving the freeze in while the payout is open
+       pays a whole 3,600,000 ms absence out of a 300,000 ms consumable: 12x,
+       worse than the exploit b326 closed. The payout and the drain are ONE
+       change, always.
+     • The ORDER inside a slice is load-bearing: derive the rate and run the
+       slice's actions FIRST, drain the clock AFTER. A buff alive when the
+       action happens pays for that action, exactly as it would live.
    ══════════════════════════════════════════════════════════════════════════ */

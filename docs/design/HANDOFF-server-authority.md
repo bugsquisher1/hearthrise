@@ -27,7 +27,12 @@ post-wipe or with cooking excluded until a server-owned room purchase exists (§
 artisan model migration states it; the model reads noBurn 0 for a client-bought Kitchen
 until then); (2) daily/quest progress counters (Designer ruling 3.1: CUTOVER-BLOCKING);
 (3) the ~44 client gold-site rewires in ONE commit; (4) market-v2 apply + client swap;
-(5) TOTAL wipe + switch-on. Known open defect: B349-1 flakes ~1/6 runs (task chip
+(5) **enable PITR-7 (~$105/mo) — DECIDED by Tyler 2026-08-15 ("option 1 until we launch,
+then the more expensive version"): the restore drill runs now, PITR flips on AT LAUNCH,
+BEFORE the wipe — the wipe must not happen without it**; (6) TOTAL wipe + switch-on.
+Daily/quest counters are DONE and DEPLOYED (b353+, `src/core/goals.js` contract —
+away nights advance the counters players watch, exact counts, zero new ledger rows,
+no migration needed and that was proven by execution). Known open defect: B349-1 flakes ~1/6 runs (task chip
 parked). The claim double-pay window opens when the client reward seam is wired — that
 wiring needs its own Security review.
 

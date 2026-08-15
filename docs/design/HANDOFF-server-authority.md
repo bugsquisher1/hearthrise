@@ -1,5 +1,36 @@
 # HANDOFF — server-authority program (as of 2026-08-11, b328 / commit 511736d)
 
+## 📍 START HERE — STATE AT END OF 2026-08-15 (the day the program broke open)
+
+**`main` is 723/723, 0 runtime errors, deployed engine == repo (`fc3dec9f…`), hygiene
+CLEAN, b351 LIVE.** Every migration in the repo chain through
+`2026-08-16-engine-allowlist-claim-perks.sql` is APPLIED to production (perk-channel,
+gold-intents, gem-daily-budget, claim-reward, unlocks catalogue, artisan-progress-model,
+engine-allowlist — all via `tools/apply-migration.mjs`, the new one-command apply path
+with landed-body md5 verification; the allow rule for it is in settings.local.json).
+
+**Closed today, each proven against production:** the delta-transport P0 (first
+`hr_apply` write ever, first paid away window ever); TRUE CONCURRENCY (all three race
+scenarios held, exactly-once); the long-pole extraction (artisan/gather in src/core,
+one buff timeline); the window-crediting exploit (first-window, one `creditWindow`);
+FOUR economy verbs live end to end (set_activity, shop_buy, vendor_sell, claim_reward —
+gem ceiling 5,000/day proven with the gold control); the artisan progress model
+(unlockedRecipes + noBurn rows, scroll drops become unlock ops, quantity-safe); blessing
+authority consolidated to AWAY_SCOPE (four hardcoded copies deleted).
+
+**Design authority is DELEGATED to the game-designer role (Tyler, binding). Migration
+applies are agent-runnable. Deploys are agent-runnable.** Tyler's remaining exclusives:
+money decisions (PITR) and live-account test passwords.
+
+**THE REMAINING CRITICAL PATH:** (1) flip `'artisan'` into PAYABLE_KINDS — safe only
+post-wipe or with cooking excluded until a server-owned room purchase exists (§9 of the
+artisan model migration states it; the model reads noBurn 0 for a client-bought Kitchen
+until then); (2) daily/quest progress counters (Designer ruling 3.1: CUTOVER-BLOCKING);
+(3) the ~44 client gold-site rewires in ONE commit; (4) market-v2 apply + client swap;
+(5) TOTAL wipe + switch-on. Known open defect: B349-1 flakes ~1/6 runs (task chip
+parked). The claim double-pay window opens when the client reward seam is wired — that
+wiring needs its own Security review.
+
 Read this first, then `docs/design/server-authority.md` (the architecture) and
 `docs/design/away-time-ruling.md` (binding balance ruling). CLAUDE.md's
 "Server authority (locked 2026-08-10)" section is the governing rule.

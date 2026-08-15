@@ -1056,6 +1056,12 @@ re-created on the authoritative side.
   reconciliation with armorSetBonus's 5-of-6 system, fuse/crit-cap interactions, away-night
   pricing) are a PROPOSAL in docs/design/armour-identities.md when it lands; direction is
   closed, numbers are Tyler's veto.
+  **UPDATE, same day: heavy is named DEFLECT and the 7.5% rate is ACCEPTED.** Tyler: "we can
+  call the heavy armor deflect where they have a 7.5% chance to miss." Recorded as 7.5% per
+  2 pieces (7.5/15/22.5 at 2/4/6), post-clamp — the design doc's pricing, which he took over
+  his own 2.5% once the XP-per-food table showed uniform 2.5% leaves plate strictly dominated.
+  Player-facing name: Deflect. "Monster misses" framing, which matches the existing combat-log
+  voice (the log already prints "Wolf misses!").
 - **WORLD-BOSS COOPERATION BLESSING — requested by Tyler 2026-08-15, architecture only.**
   "An additional blessing for world bosses when players work together to kill it." Recorded,
   not built — features are paused until cutover.

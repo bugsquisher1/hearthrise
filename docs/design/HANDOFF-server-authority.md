@@ -471,6 +471,55 @@ the credited window is the **LAST** cap-hours before returning, not the FIRST af
 18h absence simulates as "idle 6h, then fought 12h" — same payout, but **credited against the
 wrong UTC day's Boss of the Day.**
 
+### 🔐 SECURITY REVIEWED THE FIRST INTENT — SIGN-OFF WITH TWO BLOCKING CONDITIONS
+The server half is sound and they said so: they could not create value, cross to another
+player, or forge identity. Verified by execution with controls — the deployed bytes ARE the
+reviewed bytes (`c36dcc63…` both sides); an anon key acting as a player gets 401; 14 hostile
+bodies through `parseIntent` always yield exactly 4 keys on a null prototype; **both S6 locks
+are live** (`hr_server_secrets` has RLS on with 0 policies and 0 grants including `hr_engine`,
+and `intent_mismatch` refuses a same-key-different-target replay); RLS was exercised
+behaviourally as `authenticated` and refused every read, UPDATE and DELETE with a control
+proving the victim row existed; and racing accrue against collect pays the window **exactly
+once** — the replay check sits at offset 12,877 and the version check at 15,059, so replay
+genuinely precedes version.
+
+**What they found is a CONTRACT DEFECT CLASS, which is the thing that gets multiplied by nine.**
+
+⛔ **C1 — THE CONTRACT INSTRUCTS THE CLIENT TO DO SOMETHING GUARANTEED TO FAIL.** `hr_apply`
+step (5) returns the same rejection for a replayed rejected intent. The seam spec says "keep it
+for every RETRY of that tap." Both cannot be true. Proven in production:
+`tap → version_conflict`; `retry SAME key → version_conflict, replayed:true`; `CONTROL new key
+→ ok:true`. Worse on the server-derived side: a rejection does not advance `accrued_to`, so
+`intentIdFor` re-derives the SAME uuid byte-identically, and `hr_intents_prune` (`17 * * * *`,
+24h window) means **~25 hours locked out of BOTH accrual and switching** — and the documented
+recovery ("run accrue, then retry") hits the same poisoned key, so the stated recovery is a
+no-op in exactly the case it was written for. **Today most races resolve safely; intent #2 is
+what makes the deadlock routine**, because a gold spend or craft bumps `version` WITHOUT
+stamping `accrued_to`.
+
+⛔ **C2 — refusals carry no `state` envelope**, so the seam's own instruction ("put the pointer
+back to what the envelope says") is unexecutable.
+
+Before intent #2: **C3** slot-scope the key identity — the same key on slot 1 returned
+`ok:true, replayed:true` and applied NOTHING, because `player_intents`' PK has no slot and
+`intentNameFor` omits it (fix once in `hr_apply`, which already has the unread column);
+**C4** `INTENT_REGISTRY` is decoration — `bucket`/`needsKey`/`collectsFirst` are read by nothing,
+so intent #2 could declare `collectsFirst:true`, never collect, and every guard stays green;
+**C5** `body.activity` is echoed from the REQUEST while `body.state` says otherwise, and
+`collected` is dropped on replay (measured: 3,809 gold / 744 kills of APPLIED payment reported
+as null); **C6** `MONSTERS['constructor']` passes `!MONSTERS[id]` — harmless now, a free craft
+when intent #3 reads `RECIPES[id].cost.gold` after the same check.
+
+Also corrected: the contract's "bounded at <60s per switch" is wrong. **A player switching more
+often than once a minute accrues nothing at all** — an unbounded fraction, not a bounded
+absolute, and target-hopping is ordinary idle behaviour.
+
+**STILL NOT EXECUTED, and they tried:** true concurrency. Two parallel `execute_sql` calls
+landed on distinct backends but did NOT overlap in time (2.13s gap — the MCP channel serialises
+them), and `dblink`/`postgres_fdw`/`pg_net` are all uninstalled so a second backend cannot be
+opened from SQL. **This remains the program's standing cutover blocker.** What it needs: two
+processes with real user JWTs firing overlapping POSTs at one character.
+
 ### THE CRITICAL PATH, and the long pole is not gold
 1. ~~prices are data~~ **DONE** — 128 offers, 221 cost lines, drift guard mutation-proven.
 2. **Provisioning + the activity intent** — IN FLIGHT. `player_state` has ZERO rows because

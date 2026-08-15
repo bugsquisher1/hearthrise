@@ -424,7 +424,32 @@ that hardcodes a value it did not measure is asserting about a database it imagi
 (`a2a42250…`) — verified by the race harness's own preflight, which is now the third
 independent check of that fact.**
 
-## ⛔ THE P0 THAT BLOCKS EVERYTHING — read this first, a fix is in flight
+## ✅ THE P0 IS CLOSED (2026-08-15, b350+ / commit 6382a45) — proven in production
+
+**Fix:** `::text::jsonb` at both apply sites (`index.ts`, `set-activity.js` `APPLY_SQL`).
+Mechanism proven in postgres.js source: with `prepare:false` the driver always describes
+first, learns type 3802 from the `::jsonb` cast via ParameterDescription, and then applies
+`serializers[3802] = JSON.stringify` to the ALREADY-stringified value — double-encoding it
+into a jsonb string scalar. `::text` makes the described type a passthrough and the SQL
+parses the JSON. Chosen over passing the raw object because it is correct under BOTH driver
+typings; the raw-object form fails silently (`"[object Object]"`) if the driver ever
+describes text.
+
+**Guard:** `tests/delta-transport.mjs` — PGlite exposed over the REAL wire protocol
+(`@electric-sql/pglite-socket`) with the REAL `postgres@3.4.5` driver and index.ts's own
+pool options, driving `runSetActivity` end to end. Proven RED against the unfixed code
+(reproduces the production transcript verbatim, sqlstate absence included); mutation-proven
+per site; pins the driver version against the shipped specifier (T5). This closes the
+instance-#18 transport gap.
+
+**Deployed and proven live:** payload `9040b4fe…` matches repo (third-party-verified by the
+suite's payload guard against production); Tyler's `probe-intent.mjs` run 2026-08-15
+17:41 UTC returned **HTTP 200 ok:true** — version 0→1, `active_kind=combat`,
+`active_id=slime`, `accrued_to` stamped by `now()`. The first successful `hr_apply` delta
+through the Edge Function in production. Deploys are now agent-runnable (allow rules in
+`.claude/settings.local.json` cover the token-prefixed CLI form).
+
+## ~~⛔ THE P0 THAT BLOCKS EVERYTHING~~ — CLOSED above; original diagnosis kept for the record
 
 **`hr_apply` has NEVER successfully applied a delta through the Edge Function in production.**
 Found 2026-08-15 by Tyler running `tools/probe-intent.mjs` against the live function:

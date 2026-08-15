@@ -725,8 +725,54 @@ async function catalogueDriftPreflight() {
   return 1;
 }
 
+// PREFLIGHT — the price catalogue must match the shop tables it was extracted
+// from.
+//
+// A server that authorises a spend must own the price, and every price in the
+// game lives in a table inside src/legacy.js — a classic script that neither
+// ESM nor Deno can import (the b222 trap). tools/gen-shops.mjs extracts them
+// into src/data/shops.js, which makes a SECOND COPY, and a second copy is only
+// defensible while something proves it is not diverging. That is this check.
+// It fails in both directions: a price edited in legacy.js without a
+// regenerate, and a hand edit to the generated file.
+//
+// NOT skippable on an empty extraction: the generator hard-fails a table that
+// yields zero rows, because an empty table diffs clean against an empty
+// committed file and would report "in sync" forever while asserting nothing —
+// this repo's signature failure, at instance #15.
+// It runs in TWO parts, and the second is not optional. `--check` passing
+// proves nothing by itself, so tests/shop-drift-guard.mjs mutates the real
+// sources in a temp copy and asserts the guard goes RED for each — eight
+// mutations, each preceded by a green control. ~3s. The repo's own rule
+// (tests/rpc-resolution.mjs) is that a probe which cannot demonstrate it can
+// see failure is treated as broken, not as a pass.
+async function shopDriftPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-shops.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status !== 0) {
+    console.error(`\nPrice preflight FAILED — a shop price no longer matches src/data/shops.js.\n${out}\n`);
+    return 1;
+  }
+  const meta = join(ROOT, 'tests', 'shop-drift-guard.mjs');
+  try { await stat(meta); } catch { console.log(`Price preflight: ${out}`); return 0; }
+  const m = spawnSync(process.execPath, [meta], { encoding: 'utf8' });
+  const mout = ((m.stdout || '') + (m.stderr || '')).trim();
+  if (m.status !== 0) {
+    console.error(`\nPrice preflight FAILED — the drift guard is BLIND. It reports "in sync" but `
+      + `cannot see a price change.\n${mout}\n`);
+    return 1;
+  }
+  console.log(`Price preflight: ${out}`);
+  console.log(`  ${mout}`);
+  return 0;
+}
+
 const run = async () => {
   if (await catalogueDriftPreflight()) process.exit(1);
+  if (await shopDriftPreflight()) process.exit(1);
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 

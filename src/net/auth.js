@@ -316,8 +316,11 @@ export function buildIntentWiring(cfg) {
      about five copies of one hash is recent enough not to need restating. */
   /* b347 — the ACTIVITY intent is wired from the same base for the same reason.
      Four copies of a url would be four things to drift. */
+  /* b354 — the three economy verbs ride the same base. Five copies of a url
+     would be five things to drift; the b332 lesson about five copies of one
+     hash is recent enough not to need restating. */
   return { accrual: { ...base }, character: { ...base, userId: c.userId },
-    record: { ...base }, activity: { ...base } };
+    record: { ...base }, activity: { ...base }, gold: { ...base } };
 }
 
 /** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
@@ -334,6 +337,8 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] record wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseActivity) win.HearthriseActivity.configureActivity(w.activity); }
   catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseGold) win.HearthriseGold.configureGold(w.gold); }
+  catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
   return w;
 }
 

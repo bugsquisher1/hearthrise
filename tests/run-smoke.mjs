@@ -22,6 +22,7 @@ import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
+import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
@@ -1216,6 +1217,31 @@ const run = async () => {
     } else {
       console.log('\nActivity-seam guard — every settable kind is declarable, wired to a call site, and '
         + 'resolves through the accrual engine\'s own catalogue.');
+    }
+
+    /* ── The gold-site census (b354) ─────────────────────────────────────
+       The same failure as the activity seam, applied to money — and with a
+       worse symptom, because a gold site the server was never told about
+       does not error. It goes on paying a client-authored number forever,
+       under a green suite.
+
+       The surface was hand-counted twice ("~40", then "47") by two agents
+       with a scanner that was written, run and thrown away both times, and
+       it was already wrong: b350's extraction moved legacy.js underneath
+       it. This derives the site list from the SOURCE on every push and
+       fails the build on any site missing from src/net/gold-sites.js —
+       with a control that blinds one pattern and demands the count fall
+       while staying above zero, because a scanner that reports 0 "drops"
+       too. `node tests/gold-site-census.mjs --selftest` plants five real
+       defects (two of them in a file that does not exist yet — the T6
+       lesson) and every one must turn it red. */
+    const goldCensus = await goldCensusGuard();
+    if (goldCensus.problems.length) {
+      console.log('\nGold-site census (every client gold write is declared) — FAILED:');
+      for (const p of goldCensus.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nGold-site census — ${goldCensus.note}.`);
     }
 
     /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────

@@ -323,10 +323,30 @@
     });
     var msg = 'Sell ' + ids.length + ' stacks (' + totalCount.toLocaleString() + ' items) for ' + totalGold.toLocaleString() + ' gold?';
     if(!window.confirm(msg)) return 0;
+    /* ⚠ THE QUOTE AND THE PAYMENT WERE TWO DIFFERENT PRICES. Found by the gold
+       census: the loop above totals with `vendorPrice(id)` — the game's ONE
+       vendor bid, raws discounted to 20% since b226 — and this loop used to pay
+       `ITEMS[id].v`, the undiscounted book value. So the confirm said "sell 40
+       stacks for 12,000 gold" and the sweep paid 60,000. A silent 5x faucet on
+       every raw material, and a dialog that lied about it.
+
+       legacy.js's own header for vendorPrice states the rule this broke: "ONE
+       choke-point… A price that differs by which button you pressed is not a
+       price." The fix is not "use the same expression twice" — the second
+       computation is DELETED, so the quote IS the payment by construction.
+       Regression: B354-6, proven RED against the original two-loop shape.
+
+       The payment goes through the seam (ledger site `vendor.sell_junk`), which
+       is DEFERRED: the sweep is N item ids in one gesture and `vendor_sell`
+       prices one per call. See B.BULK_VENDOR in src/net/gold-sites.js.
+
+       PAID FIRST, REMOVED SECOND, and that order is load-bearing: `goldSettle`
+       THROWS when the kill switch is on and src/net/gold.js is absent, and a
+       throw between "items gone" and "gold paid" is the only way this function
+       can cost a player their bag. */
+    window.goldSettle(totalGold, 'vendor.sell_junk', null);
     ids.forEach(function(id){
       var qty = window.G.inventory[id] | 0;
-      var v = window.ITEMS[id].v | 0;
-      window.G.gold = (window.G.gold | 0) + qty * v;
       if(typeof window.removeItem === 'function') window.removeItem(id, qty);
       else delete window.G.inventory[id];
     });

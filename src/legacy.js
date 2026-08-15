@@ -718,8 +718,15 @@ function saveLocal(){
      against the daily allowance. processOffline() is the only thing that
      advances it ahead of a grant — which is what makes double-pay impossible.
      b261: only WHILE VISIBLE — a throttled background autosave must not advance
-     the watermark, or it slices an AFK gap into uncredited sub-threshold pieces. */
-  if(G.offlineBudget && typeof G.offlineBudget==='object' && !(typeof document!=='undefined' && document.hidden)) G.offlineBudget.at=G.lastSeen;
+     the watermark, or it slices an AFK gap into uncredited sub-threshold pieces.
+     b347: and only while the CLIENT still owns the field. Under the b337 switch
+     `offlineBudget` is on the SERVER_OF_RECORD registry, applyRecord is its only
+     writer, and this line was overwriting the server's watermark with `lastSeen`
+     on every autosave — measured: server 06:00Z, this line 09:30Z, and the
+     record accessor still reported it as `source:'server'`. */
+  if(G.offlineBudget && typeof G.offlineBudget==='object'
+     && clientMayWriteRecordField('offlineBudget')
+     && !(typeof document!=='undefined' && document.hidden)) G.offlineBudget.at=G.lastSeen;
   // Route through the platform Storage seam (src/platform/storage.js) so Steam
   // (electron-store) / mobile (Capacitor) can swap the backend without touching
   // this. Falls back to localStorage directly if the seam hasn't loaded.
@@ -1254,6 +1261,147 @@ function serverAccrualActive(){
   const A=window.HearthriseAccrual;
   return !!(A && typeof A.isServerAccrualEnabled==='function' && A.isServerAccrualEnabled());
 }
+/* ── b347: THE RECORD FOLLOWS THE WRITER, AND THIS IS THE WRITER ASKING ─────
+   Every client site that mutates a field on the SERVER_OF_RECORD registry asks
+   this first. Today that is exactly one line (`saveLocal`'s watermark advance);
+   the value of the seam is that gold, inventory, skill xp and hearth tokens are
+   queued behind `offlineBudget` in record.js's ordering table and every one of
+   them ends at the same sentence at its ~40 write sites.
+
+   The rule and the fail-closed direction both live in ONE place —
+   accrue.js `mayClientWrite`, which reads the SWITCH from itself and the FIELD
+   LIST from record.js so neither can vouch for the other's absence. This
+   wrapper exists only because legacy.js is a classic script and cannot import.
+   With accrue.js itself absent the switch cannot be on, so `true` is both safe
+   and exactly today's behaviour. */
+function clientMayWriteRecordField(field){
+  const A=window.HearthriseAccrual;
+  if(!A||typeof A.mayClientWrite!=='function') return !serverAccrualActive();
+  try{ return A.mayClientWrite(field, window)!==false; }catch(e){ return false; }
+}
+window.clientMayWriteRecordField=clientMayWriteRecordField;
+/* ══════════════════════════════════════════════════════════════════════
+   b347 — THE ACTIVITY INTENT SEAM. Contract:
+   supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM".
+
+   THE POINTER HAS FOUR WRITERS IN THIS FILE AND ALL FOUR ARE THE SEAM; a fifth
+   added later without this call is a client that silently disagrees with the
+   server about what the player is doing, which under server-side accrual means
+   being paid for the wrong thing all night.
+
+     startCombat(mId)          → {combat, mId}
+     stopCombat()              → {idle, null}
+     drainBountySwitch()       → {combat, id}   (the b344 away switch)
+     COMBAT_FX.onDeath (away)  → NO CALL, deliberately. The SERVER already set
+                                 the pointer to idle in the accrual delta; the
+                                 client is RECONCILING to state it was told, not
+                                 declaring. A declaration there would be the
+                                 client telling the server something the server
+                                 told it — and it would spend an intent key and
+                                 a rate budget doing it.
+
+   ── WHY A QUIET COUNTER AND NOT A BOOLEAN ─────────────────────────────────
+   Two things must be able to move the pointer WITHOUT declaring, and they nest:
+   `startCombat` begins by calling `stopCombat` (so a naive pair of calls
+   declares idle-then-combat, two intents and two collects for one gesture), and
+   the RECONCILE puts the server's answer into the pointer by calling those same
+   two functions — which must not then declare it straight back, a loop with a
+   round trip in it. A boolean would be cleared by the inner scope and re-arm
+   the outer one; a counter nests correctly.
+
+   Reconciling THROUGH startCombat/stopCombat rather than by assigning
+   `G.activeMonster` is deliberate: those two own the interval, the combat log
+   and the repaint, and a second way to enter a fight is a second thing that
+   forgets one of the three. */
+let _activityQuiet=0;
+function activityQuietly(fn){ _activityQuiet++; try{ return fn(); } finally { _activityQuiet--; } }
+function declareActivity(kind,id){
+  if(_activityQuiet)return null;
+  const M=window.HearthriseActivity;
+  if(!M||typeof M.declare!=='function')return null;
+  /* The switch is checked INSIDE the module, so there is exactly one reader of
+     it on this path and no way for legacy and the transport to disagree about
+     whether the seam is armed. */
+  wireServerActivity();
+  try{ return M.declare(kind,id); }catch(e){ return null; }
+}
+window.declareActivity=declareActivity;
+/* Move the local pointer to what the SERVER says, without declaring it back. */
+function reconcileActivityPointer(a){
+  if(!a||typeof a!=='object')return null;
+  const kind=a.kind, id=a.id;
+  return activityQuietly(function(){
+    if(kind==='combat'&&id&&MONSTERS[id]){
+      if(G.activeMonster!==id&&typeof startCombat==='function')startCombat(id);
+    } else if(!kind||kind==='idle'){
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+    }
+    return {kind:kind||'idle',id:id==null?null:id};
+  });
+}
+window.reconcileActivityPointer=reconcileActivityPointer;
+/* Wired lazily and once, same reason wireServerAccrual() is: legacy.js is a
+   classic script and may run before the ESM module publishes itself. */
+function wireServerActivity(){
+  const M=window.HearthriseActivity;
+  if(!M||M.__hrWired)return;
+  M.__hrWired=true;
+  M.setActivityHooks({
+    /* ⚠ THE ONE THAT BITES. A switch PAYS — the collect runs first — so this
+       envelope can carry real gold, XP, items and level-ups. It goes through the
+       SAME applier and the SAME receipt the away card uses; there is no second
+       renderer for this call. */
+    /* RETURNS what it wrote. `getActivityState()` reports `applied.envelope`
+       from this value, and a hook that returns nothing made that field read
+       "the envelope was applied" when it only meant "a hook was called" —
+       measured in a real browser on a switch where the replacement gate had
+       refused and NOTHING was written. */
+    onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); },
+    onReconcile:function(a){ return reconcileActivityPointer(a); },
+  });
+}
+/* ── ONE APPLIER FOR BOTH VERBS ───────────────────────────────────────────
+   The away accrual and the activity switch return the same envelope and owe the
+   player the same four things afterwards: the state written, the record
+   followed, the save stamped and the screen repainted. This was the body of the
+   b337 onApplied hook; it is a named function now because a second copy of it
+   is a second idea of what a server answer means. */
+function applyServerEnvelope(res,opts){
+  const o=opts||{};
+  const A=window.HearthriseAccrual;
+  const M=window.HearthriseActivity;
+  let written=null;
+  if(o.intent){ written=(M&&typeof M.applyIntentEnvelope==='function')?M.applyIntentEnvelope(G,res):null; }
+  else { written=(A&&typeof A.applyEnvelope==='function')?A.applyEnvelope(G,res):null; }
+  if(!written)return null;
+  /* b340: the RECORD fields ride the same envelope, but they are written by
+     record.js's applyRecord and by nothing else — one writer, three callers
+     (this, the hr_load boot read, and now the switch), rather than three
+     implementations that agree today. applyRecord is monotonic on `version`, so
+     whichever answers last cannot put back an older watermark.
+     b347: A SWITCH MOVES THE WATERMARK. `hr_apply` stamps `accrued_to = now()`
+     on any delta carrying `activity`, so the record MUST follow a switch or the
+     client's idea of "paid up to" is stale by the length of the session. */
+  try{ if(window.HearthriseRecord) window.HearthriseRecord.applyRecord(G,(written&&written.envelope)||res); }catch(e){}
+  try{ saveLocal(); }catch(e){}
+  try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
+  try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
+  if(written.summary){
+    const s=G.lastOfflineSummary||{};
+    /* Every number here was STATED by the server. The two sentences differ
+       because the two events differ: one is a night you were away for, the
+       other is a window that was settled the instant you changed your mind. */
+    if(s.source==='switch'){
+      notify('Collected '+fmtSince(s.awayMs||0)+' — +'+s.gainedGold+' gold, +'
+        +s.gainedXp+' XP, +'+s.gainedItems+' items','info');
+    } else {
+      notify('⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'
+        +s.gainedXp+' XP, +'+s.gainedGold+' gold','info');
+    }
+  }
+  return written;
+}
+window.applyServerEnvelope=applyServerEnvelope;
 /* Wired lazily and once: legacy.js is a classic script and may load before the
    ESM module publishes itself, so binding at definition time would silently
    bind nothing — the exact "guarded call to a name that never existed" shape
@@ -1263,27 +1411,11 @@ function wireServerAccrual(){
   if(!A||A.__hrWired) return;
   A.__hrWired=true;
   A.setAccrualHooks({
-    onApplied:function(res){
-      /* The envelope IS the state. applyEnvelope refuses anything incomplete,
-         so a half-parsed 200 can never blank a save. */
-      const written=A.applyEnvelope(G,res);
-      if(!written) return;
-      /* b340: the RECORD fields ride the same envelope, but they are written by
-         record.js's applyRecord and by nothing else — one writer, two callers
-         (this hook and the hr_load boot read), rather than two implementations
-         that agree today. applyRecord is monotonic on `version`, so whichever
-         of the two answers second cannot put back an older watermark. */
-      try{ if(window.HearthriseRecord) window.HearthriseRecord.applyRecord(G,res); }catch(e){}
-      try{ saveLocal(); }catch(e){}
-      try{ if(typeof refreshAll==='function') refreshAll(); }catch(e){}
-      try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
-      const s=G.lastOfflineSummary||{};
-      /* Every number in this line was STATED by the server. Nothing here is
-         inferred, which is the same rule the local summary follows — see the
-         honesty payload in the b326 block below. */
-      notify('⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'
-        +s.gainedXp+' XP, +'+s.gainedGold+' gold','info');
-    },
+    /* The envelope IS the state. applyEnvelope refuses anything incomplete, so
+       a half-parsed 200 can never blank a save. b347: the body of this hook is
+       `applyServerEnvelope`, shared with the activity intent — see the block
+       above it for why there is one applier and not two. */
+    onApplied:function(res){ applyServerEnvelope(res,{intent:false}); },
   });
 }
 window.serverAccrualActive=serverAccrualActive;
@@ -2887,6 +3019,15 @@ function drainBountySwitch(){
      the pre-fix symptom, in miniature. Costs nothing — completeBounty already
      writes a save on every turn-in, and this fires strictly less often. */
   try{ if(typeof saveLocal==='function') saveLocal(); }catch(e){}
+  /* b347 SEAM 3. This is the one pointer writer that does NOT go through
+     startCombat — away needs none of its interval/paint work — so it is also
+     the one that would silently stop telling the server. Stated honestly: with
+     the b337 switch ON there is no client-side away replay at all
+     (processOffline returns before it), so today this line is unreachable while
+     the seam is armed. It is here because the contract says all four writers
+     are the seam, and because the alternative is a fifth writer appearing the
+     day the away path and the switch overlap. */
+  declareActivity('combat',id);
   return true;
 }
 /* Read-only seams for the suite: "is a switch queued?" and "drain it now". */
@@ -3393,7 +3534,13 @@ function retimeCombat(){
 window.retimeCombat=retimeCombat;
 function startCombat(mId){
   if(G.activeMonster===mId){stopCombat();return;}
-  stopCombat();
+  /* b347 SEAM 1. The inner stopCombat is QUIET: one gesture is one declaration
+     and one idempotency key, and declaring idle-then-combat would run two
+     collects for a single tap — the second of which prices a span of
+     milliseconds and classifies `below_min_span`. The declaration goes out
+     AFTER the local pointer moves (fire-and-reconcile: an idle game must feel
+     instant, and the envelope reconciles the guess). */
+  activityQuietly(stopCombat);
   const m=MONSTERS[mId];
   G.activeMonster=mId;G.monsterHp=m.hp;G.monsterMaxHp=m.hp;G.combatKillsThisFoe=0;
   G.combatLog=[`⚔️ You attack the ${m.name}!`];
@@ -3401,6 +3548,13 @@ function startCombat(mId){
   combatInterval=setInterval(combatTick,_combatIntervalMs);
   combatTick();
   renderCombat();renderMonsterList();
+  /* DECLARE WHAT IS STILL TRUE. `combatTick()` above runs a real swing, and a
+     first-tick death calls stopCombat() — which has already declared `idle`.
+     Declaring `combat` unconditionally after that would tell the server the
+     player is fighting a monster that just killed them, and the LAST
+     declaration wins. Measured shape, not a hypothetical: the away-death branch
+     exists precisely because a fresh character can die in one exchange. */
+  if(G.activeMonster===mId) declareActivity('combat',mId);
 }
 function stopCombat(){
   // b138: launchpad Resume hook — see stopSkill() above.
@@ -3410,6 +3564,10 @@ function stopCombat(){
   if(combatInterval){clearInterval(combatInterval);combatInterval=null;}
   G.activeMonster=null;
   renderCombat();renderMonsterList();
+  /* b347 SEAM 2. A stop is a declaration too — without it the server goes on
+     paying an activity the player abandoned, which is the away-time bug in
+     reverse. `{idle, null}`: a stop never names what it stopped. */
+  declareActivity('idle',null);
 }
 /* ══════════════════════════════════════════════════════════════════════
    THE UNIFICATION (docs/design/away-time-ruling.md, locked 2026-08-11)
@@ -3536,7 +3694,15 @@ const COMBAT_FX={
     if(ctx.away){
       /* No stopCombat() away: it repaints, and processOffline runs inside
          loadLocal() before the combat panel exists. Clearing the target is
-         the whole of the state change; the summary reports `died`. */
+         the whole of the state change; the summary reports `died`.
+         b347 — AND NO set_activity DECLARATION EITHER, deliberately. This is
+         the fourth pointer writer and the only one that must stay silent: the
+         SERVER already set the pointer to idle inside the accrual delta, so the
+         client here is RECONCILING to state it was told, not declaring. A
+         declaration would tell the server something the server told it, spend an
+         idempotency key and a rate budget doing it, and run a collect on a
+         window the accrual just closed. See the seam block above
+         serverAccrualActive(); guarded by ACT-7. */
       G.activeMonster=null;
       return;
     }

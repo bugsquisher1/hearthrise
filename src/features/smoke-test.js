@@ -23131,6 +23131,777 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     b347 — THE RECORD FOLLOWS THE WRITER (Part 2 of the record seam).
+
+     b340 moved ONE field — `offlineBudget` — and stated the rule in as many
+     words: "a field on the SERVER_OF_RECORD registry is DELETED from every save
+     blob on the way IN, and is only ever written by applyRecord() from a server
+     envelope. There is no third writer and no fallback." That was true of
+     record.js and false of the game. TWO client sites went on writing it:
+
+       legacy.js saveLocal()      advanced it to `lastSeen` on every autosave
+       auth.js   the cloud overlay re-stamped it to `cloudAt` THREE LINES after
+                 stripping it out of that same snapshot
+
+     Measured with a control: the server said 06:00Z, a client write moved it to
+     09:30Z, and `recordValue` — the accessor built to catch exactly this — went
+     on answering `source:'server'`.
+
+     WHY THIS IS URGENT OUT OF PROPORTION TO ITS SIZE: this field is the
+     TEMPLATE. Gold (~40 writers), inventory, skill xp and hearth tokens are
+     queued behind it in record.js's ordering table, and a broken template gets
+     copied four times.
+
+     THE TESTS MUTATE THE CALLERS. That is b339's post-mortem verbatim — a test
+     configured the module under test, proved it correct, and the caller went on
+     doing the wrong thing. B347-R1 drives the real `window.saveLocal()` and
+     B347-R2 drives auth.js's own overlay function; neither is satisfied by
+     record.js being right. */
+
+  () => tryRun('B347-R1: saveLocal() stops advancing a watermark the SERVER owns — the caller, not the callee', () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const G = window.G;
+    assert(A && R, 'accrue.js + record.js must both load');
+    if (typeof window.saveLocal !== 'function') { assert(true, 'no save'); return; }
+    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen,
+      _record: G._record };
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      /* saveLocal only advances the watermark WHILE VISIBLE (b261). The harness
+         reports hidden, so a test that did not force this would pass with the
+         line deleted, the fix reverted, or anything at all. */
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+
+      /* ── THE CONTROL. Switch OFF, the client owns the field, and saveLocal
+         MUST still advance it. Byte-for-byte b346: the b226 budget watermark and
+         the b305 battery both depend on this, and a "fix" that stops the write
+         unconditionally breaks a shipping game to protect a field nothing owns
+         yet. A guard with no control is a guard that cannot tell the two apart. */
+      A.setServerAccrualEnabled(false);
+      const stale = Date.now() - 3600000;
+      G.offlineBudget = { at: stale };
+      window.saveLocal();
+      assert(G.offlineBudget.at > stale,
+        'with the switch OFF saveLocal stopped advancing the local watermark — the client still owns this '
+        + 'field, and freezing it means every returning-player catch-up measures from the wrong instant');
+
+      /* ── THE FIX. Switch ON, the server has ANSWERED (applyRecord wrote a real
+         watermark), and saveLocal must leave it alone.
+         MUTATION: drop `clientMayWriteRecordField('offlineBudget')` from the
+         condition in legacy.js's saveLocal → RED here. */
+      A.setServerAccrualEnabled(true);
+      const serverAt = Date.parse('2026-08-15T06:00:00Z');
+      G._record = null;
+      const wrote = R.applyRecord(G, { ok: true, version: 900, now: '2026-08-15T06:00:00Z',
+        state: { accrued_to: '2026-08-15T06:00:00Z' } });
+      assert(wrote.written.indexOf('offlineBudget') !== -1 && G.offlineBudget.at === serverAt,
+        'the fixture never got a server watermark in place, so nothing below would mean anything: '
+        + JSON.stringify(wrote));
+
+      G.lastSeen = 0;                      // so a client write is unmistakable
+      window.saveLocal();
+      assert(G.offlineBudget.at === serverAt,
+        'saveLocal() overwrote the SERVER\'s watermark with its own (' + G.offlineBudget.at + ' vs '
+        + serverAt + ') — the field now has two sources, which is the exact divergence class b340 exists '
+        + 'to close, and it is the TEMPLATE gold/inventory/skills/tokens all copy');
+
+      const v = R.recordValue(G, 'offlineBudget');
+      assert(v.known === true && v.source === 'server' && v.value.at === serverAt,
+        'after an honest save the record no longer reports as the server\'s: ' + JSON.stringify(v));
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B347-R2: the cloud overlay stops re-stamping the watermark it just stripped — auth.js\'s own caller', () => {
+    const Auth = window.HearthriseAuth;
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    assert(Auth && typeof Auth.applyCloudOverlay === 'function',
+      'auth.js does not expose the cloud→G seam — the strip and the re-stamp were undoing each other and '
+      + 'the only way to check either would be to re-derive it, which proves nothing about auth.js');
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      const cloudAt = Date.parse('2026-08-15T09:30:00Z');
+      const serverAt = Date.parse('2026-08-15T06:00:00Z');
+
+      /* ── THE CONTROL. Switch OFF: b305's restore behaviour, unchanged. The
+         overlay lands whole and the watermark IS re-stamped to the cloud's save
+         time, which is what makes a returning player's catch-up measure from
+         when the ACCOUNT was last active rather than when this device saved. */
+      A.setServerAccrualEnabled(false);
+      const off = { offlineBudget: { at: 1 }, gold: 3 };
+      const rOff = Auth.applyCloudOverlay(off, { gold: 7, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(off.gold === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
+        && rOff.restampedWatermark === true,
+        'with the switch OFF the cloud overlay changed shape — every b305 restore path reads this: '
+        + JSON.stringify({ g: off, r: rOff }));
+
+      /* ── THE FIX. Switch ON with a SERVER-SUPPLIED watermark already in place.
+         The strip removes `offlineBudget` from the snapshot; the re-stamp used
+         to put a blob-derived number straight back over the server's, three
+         lines later, in the same function.
+         MUTATION: restore `if (G.offlineBudget) G.offlineBudget.at = cloudAt;`
+         unguarded in auth.js applyCloudOverlay → RED here. */
+      A.setServerAccrualEnabled(true);
+      const on = {};
+      R.applyRecord(on, { ok: true, version: 901, now: '2026-08-15T06:00:00Z',
+        state: { accrued_to: '2026-08-15T06:00:00Z' } });
+      assert(on.offlineBudget.at === serverAt, 'the fixture never got a server watermark');
+
+      const rOn = Auth.applyCloudOverlay(on, { gold: 7, offlineBudget: { at: 5 } }, cloudAt, window);
+      assert(on.gold === 7 && on.lastSeen === cloudAt,
+        'the overlay stopped applying the fields the client DOES own: ' + JSON.stringify(on));
+      assert(on.offlineBudget.at === serverAt && rOn.restampedWatermark === false,
+        'the cloud overlay re-stamped the server\'s watermark to the snapshot\'s own save time ('
+        + on.offlineBudget.at + ' vs ' + serverAt + ') — the strip deleted the field from the blob and the '
+        + 'next statement put a blob-derived number back under the server\'s name');
+      assert(R.recordValue(on, 'offlineBudget').source === 'server',
+        'after a restore the record no longer reports as the server\'s: '
+        + JSON.stringify(R.recordValue(on, 'offlineBudget')));
+    } finally {
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+    }
+  }),
+
+  () => tryRun('B347-R3: the accessor cannot report a CLIENT number under the server\'s name', () => {
+    const R = window.HearthriseRecord;
+    const serverAt = Date.parse('2026-08-15T06:00:00Z');
+    const clientAt = Date.parse('2026-08-15T09:30:00Z');
+
+    /* Every registry entry carries every column. A hard-coded list cannot notice
+       a column being ADDED, so the guard reads the contract (REGISTRY_FIELDS)
+       instead of restating it — hr-accrue/intents.js's shape, same reason. */
+    assert(Array.isArray(R.REGISTRY_FIELDS) && R.REGISTRY_FIELDS.indexOf('fingerprint') !== -1,
+      'the registry contract does not require a fingerprint: ' + JSON.stringify(R.REGISTRY_FIELDS));
+    for (const e of R.SERVER_OF_RECORD) {
+      for (const k of R.REGISTRY_FIELDS) {
+        assert(e[k] !== undefined && e[k] !== null,
+          'registry entry ' + e.field + ' is missing `' + k + '` — a field with no fingerprint is a field '
+          + 'whose provenance cannot be checked, which is the state this test exists to end');
+      }
+    }
+
+    const g = {};
+    R.applyRecord(g, { ok: true, version: 3, now: '2026-08-15T06:00:00Z',
+      state: { accrued_to: '2026-08-15T06:00:00Z' } });
+    const good = R.recordValue(g, 'offlineBudget');
+    assert(good.known === true && good.source === 'server' && good.value.at === serverAt,
+      'the control failed — an honestly applied record is not reported as the server\'s: ' + JSON.stringify(good));
+
+    /* THE MEASUREMENT, REPRODUCED. A client write of exactly the shape
+       saveLocal() and the cloud overlay were making. `known` is a claim about
+       the PAST ("an envelope wrote this during this session"); it says nothing
+       about the present, and the entire point of an accessor built to catch a
+       second writer is that a second writer may have run since.
+       MUTATION: drop the `want !== have` branch in record.js recordValue → RED. */
+    g.offlineBudget.at = clientAt;
+    const lied = R.recordValue(g, 'offlineBudget');
+    assert(lied.known === false && lied.source === 'client-overwrote',
+      'a client write is still reported as ' + JSON.stringify(lied) + ' — the forged number wearing the '
+      + 'server\'s name, which is strictly worse than never having moved the record, because everyone '
+      + 'downstream now believes it');
+    assert(lied.expected !== lied.found,
+      'the accessor reported tampering without being able to say what changed: ' + JSON.stringify(lied));
+
+    /* AND THE STALE-SESSION HOLE THAT FALLS OUT OF IT. `_record` is `_`-prefixed
+       so it never syncs — but saveLocal() writes all of G, so a `_record` from a
+       PREVIOUS session survives a reload while stripServerOfRecord deletes the
+       field it claims. That pair used to report `known:true, value:undefined`. */
+    const stale = { _record: { version: 2, known: ['offlineBudget'] } };
+    const v = R.recordValue(stale, 'offlineBudget');
+    assert(v.known === false,
+      'a `known` claim restored from a previous session vouches for a field that is not there: '
+      + JSON.stringify(v));
+
+    /* The guard direction: a field that is NOT on the registry is not this
+       module's business and must never be reported as anything but 'not-moved'. */
+    assert(R.recordValue(g, 'gold').source === 'not-moved', 'an unmoved field was claimed');
+  }),
+
+  () => tryRun('B347-R4: the write guard is ONE implementation, and it fails CLOSED', () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.setServerAccrualEnabled(false);
+      assert(A.mayClientWrite('offlineBudget', window) === true,
+        'with the switch OFF the client was refused its own field — that is not a fix, that is a freeze');
+      assert(R.clientMayWrite('offlineBudget') === true, 'record.js disagrees with the switch');
+
+      A.setServerAccrualEnabled(true);
+      assert(A.mayClientWrite('offlineBudget', window) === false,
+        'with the switch ON a client site is still allowed to write the record');
+      assert(A.mayClientWrite('gold', window) === true,
+        'a field that has NOT moved was refused — the registry is the list, not the switch');
+
+      /* FAIL CLOSED, and it is why the switch is read from accrue.js and the
+         field list from record.js: a missing record.js must not be able to
+         present itself as "nothing has moved". Same property
+         stripRecordFieldsForOverlay holds, same reason.
+         MUTATION: `if (!R) return true;` in accrue.js mayClientWrite → RED. */
+      assert(A.mayClientWrite('offlineBudget', { HearthriseAccrual: A }) === false,
+        'with record.js absent and the switch ON, the client was told it may write — a missing module '
+        + 'silently answering "not moved" is the failure this pairing exists to prevent');
+    } finally {
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b347 — THE ACTIVITY INTENT SEAM (src/net/activity.js).
+
+     Contract: supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM". The
+     server half has been live since b346 with Security's two conditions landed
+     and proven against production; this is the client half.
+
+     THE FOUR PROPERTIES THESE TESTS EXIST FOR, in the order they would hurt:
+
+       ONE KEY PER GESTURE, AND A REJECTED KEY IS NEVER REUSED. `hr_apply`
+         records the DECISION under the key outside the protected block, so it
+         survives the rollback — a refusal retried with the same key returns the
+         same refusal for up to 25 hours. Measured against production: the same
+         delta with the same CORRECT version answered `version_conflict,
+         replayed` on the reused key and `ok:true` on a fresh one. Getting this
+         backwards produces a silent 25-hour outage rather than an error.
+       A SWITCH PAYS. The collect runs first, so a successful switch returns a
+         `collected` receipt with real gold, XP and items. Discard it and those
+         numbers appear out of nowhere at the next hr_load.
+       ONE SWITCH, ONE KILL SWITCH. Two would let the client start activities
+         the server never hears about.
+       FIRE AND RECONCILE. The optimistic pointer is DISPLAY-ONLY and goes back
+         to what the ENVELOPE says on a refusal — never to the client's guess.
+
+     Every one of these drives the REAL pointer writers in legacy.js and reads
+     what actually went on the wire. */
+
+  () => tryRunAsync('ACT-1: startCombat/stopCombat put the CONTRACT set_activity bytes on the wire — the callers', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    assert(M, 'src/net/activity.js did not load — the seam is absent and nothing below means anything');
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      combatLog: G.combatLog, combatKillsThisFoe: G.combatKillsThisFoe, gold: G.gold,
+      skills: G.skills, inventory: G.inventory, playerHp: G.playerHp, playerMaxHp: G.playerMaxHp,
+      los: G.lastOfflineSummary, offlineBudget: G.offlineBudget, restedAt: G.restedAt,
+      _record: G._record, _serverAccrual: G._serverAccrual };
+    const realFetch = window.fetch;
+    const seen = [];
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      /* THE ENVELOPE MIRRORS THE LIVE CHARACTER. applyIntentEnvelope replaces
+         gold/skills/inventory wholesale (that IS server authority), so an
+         envelope built from G leaves the running game exactly as it found it and
+         the test still drives every line of the real path. */
+      const mirror = (over) => Object.assign({
+        ok: true, verb: 'set_activity', version: 910, now: '2026-08-15T06:00:00Z',
+        activity: { kind: 'combat', id: mid },
+        state: { slot: 0, gold: G.gold, hp: G.playerHp, max_hp: G.playerMaxHp,
+          active_kind: 'combat', active_id: mid, accrued_to: '2026-08-15T06:00:00Z' },
+        skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+        inventory: Object.assign({}, G.inventory), collected: null,
+      }, over || {});
+
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        let body = null;
+        try { body = JSON.parse(init && init.body); } catch (e) {}
+        seen.push({ url: s, init, body });
+        const kind = body && body.activity && body.activity.kind;
+        return Promise.resolve(new Response(JSON.stringify(mirror(kind === 'idle'
+          ? { activity: { kind: 'idle', id: null },
+            state: { slot: 0, gold: G.gold, hp: G.playerHp, max_hp: G.playerMaxHp,
+              active_kind: 'idle', active_id: null, accrued_to: '2026-08-15T06:00:00Z' } }
+          : null)), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token' });
+      A.setServerAccrualEnabled(true);
+
+      /* THE GESTURE. The real function a monster row calls. The pointer is
+         cleared first ON PURPOSE: startCombat TOGGLES when it is already on that
+         monster, so a test that inherited `mid` from an earlier test would be
+         grading a stop while claiming to grade a start. */
+      G.activeMonster = null;
+      window.startCombat(mid);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      assert(seen.length === 1,
+        'one tap produced ' + seen.length + ' set_activity calls. startCombat begins by calling stopCombat, '
+        + 'so an unquieted pair declares idle-then-combat: two idempotency keys and two COLLECTS for one '
+        + 'gesture: ' + JSON.stringify(seen.map((r) => r.body && r.body.activity)));
+      const req = seen[0];
+      assert(req.url === 'https://proj.supabase.co/functions/v1/hr-accrue',
+        'wrong endpoint: ' + req.url);
+      assert(req.init.method === 'POST', 'set_activity must be POSTed');
+      assert(req.init.headers['Authorization'] === 'Bearer jwt-token'
+        && req.init.headers['apikey'] === 'anon-key',
+        'the request is missing its credentials: ' + JSON.stringify(req.init.headers));
+      assert(req.body.verb === 'set_activity',
+        'the verb is not the contract\'s (an ABSENT verb still means `accrue`, so a missing one silently '
+        + 'runs the accrual instead of the switch): ' + JSON.stringify(req.body));
+      assert(req.body.slot === 0, 'the slot is not an integer: ' + JSON.stringify(req.body.slot));
+      assert(M.isIntentKey(req.body.intentId),
+        'the idempotency key is not a canonical uuid — the server answers `missing_intent_id` before any '
+        + 'database work: ' + JSON.stringify(req.body.intentId));
+      assert(req.body.activity && req.body.activity.kind === 'combat' && req.body.activity.id === mid,
+        'the declaration does not name what the player tapped: ' + JSON.stringify(req.body.activity));
+      assert(!('user' in req.body) && !('userId' in req.body) && !('gold' in req.body)
+        && !('xp' in req.body) && !('at' in req.body),
+        'the body carries something other than a DECLARATION — never a computed value, never a timestamp, '
+        + 'and never an identity (the JWT is the only identity there is): ' + JSON.stringify(req.body));
+
+      /* THE STOP is the same call with {kind:'idle', id:null} — it never names
+         what it stopped, because `set_activity:idle` is one intent name. */
+      seen.length = 0;
+      window.stopCombat();
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(seen.length === 1, 'a stop produced ' + seen.length + ' calls');
+      assert(seen[0].body.activity.kind === 'idle' && seen[0].body.activity.id === null,
+        'a stop declared ' + JSON.stringify(seen[0].body.activity) + ' — without a stop the server goes on '
+        + 'paying an activity the player abandoned, which is the away-time bug in reverse');
+      assert(seen[0].body.intentId !== req.body.intentId,
+        'the stop reused the start\'s idempotency key — a key means ONE gesture, and hr_apply answers '
+        + '`intent_mismatch` for a reuse against a different target');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
+        monsterMaxHp: save.monsterMaxHp, combatLog: save.combatLog,
+        combatKillsThisFoe: save.combatKillsThisFoe, gold: save.gold, skills: save.skills,
+        inventory: save.inventory, playerHp: save.playerHp, playerMaxHp: save.playerMaxHp,
+        lastOfflineSummary: save.los, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
+        _record: save._record, _serverAccrual: save._serverAccrual });
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('ACT-2: a REJECTED key is retried with a NEW one; only an UNANSWERED call reuses it', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+
+    /* ── THE RULE, PURE. Reuse is the EXCEPTION, and the first revision of the
+       contract had it backwards. A key is spent the moment it is ANSWERED,
+       whatever the answer said. */
+    assert(M.nextIntentKey('KEY-A', { outcome: 'unreachable' }) === 'KEY-A',
+      'an UNANSWERED call rotated its key — that is the one case idempotency exists for ("I do not know '
+      + 'whether it landed"), and a new key there can pay the same window twice');
+    assert(M.nextIntentKey('KEY-A', { outcome: 'timeout' }) === 'KEY-A', 'a timeout rotated its key');
+    for (const o of ['refused', 'rate-limited', 'not-signed-in', 'unavailable', 'malformed', 'switched', 'replayed']) {
+      const k = M.nextIntentKey('KEY-A', { outcome: o });
+      assert(k !== 'KEY-A' && M.isIntentKey(k),
+        'an ANSWERED `' + o + '` reused its key — hr_apply records the DECISION under the key OUTSIDE the '
+        + 'protected block, so it survives the rollback and is handed back to every later call presenting '
+        + 'it, for up to 25 hours. Measured in production: same delta, same CORRECT version, '
+        + '`version_conflict replayed` on the reused key and ok:true on a fresh one');
+    }
+    assert(M.shouldRetryActivity({ outcome: 'unreachable' }, 1, 2) === true, 'an unanswered call is not retried');
+    assert(M.shouldRetryActivity({ outcome: 'refused', reason: 'version_conflict' }, 1, 2) === true,
+      'a version conflict is not retried — it is a statement about the READ, rolled back in full, and the '
+      + 'defined recovery is re-read and try again');
+    assert(M.shouldRetryActivity({ outcome: 'refused', reason: 'uncollectable_window', stage: 'collect' }, 1, 2) === false,
+      'a refused COLLECT is being retried in a loop — the contract says never; the recovery is the ACCRUE '
+      + 'verb, which owns the degrade ladder');
+    assert(M.shouldRetryActivity({ outcome: 'unreachable' }, 2, 2) === false, 'the retry is unbounded');
+
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt, gold: G.gold, skills: G.skills,
+      inventory: G.inventory, los: G.lastOfflineSummary, _record: G._record };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    let seen = [];
+    let plan = [];
+    try {
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        let body = null;
+        try { body = JSON.parse(init && init.body); } catch (e) {}
+        seen.push(body);
+        const step = plan.shift();
+        if (!step) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        if (step.throw) return Promise.reject(new TypeError('Failed to fetch'));
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      /* ── UNANSWERED → THE SAME KEY. The declaration may have landed; reuse is
+         what makes the retry safe. */
+      seen = []; plan = [{ throw: true }, { status: 200, body: { ok: true, version: 1, now: null,
+        activity: { kind: 'combat', id: mid },
+        state: { active_kind: 'combat', active_id: mid }, skills: {}, inventory: {} } }];
+      await window.declareActivity('combat', mid);
+      assert(seen.length === 2, 'an unanswered call was not retried (' + seen.length + ' requests)');
+      assert(seen[0].intentId === seen[1].intentId,
+        'the retry of an UNANSWERED call rotated its key (' + seen[0].intentId + ' → ' + seen[1].intentId
+        + ') — the first attempt may have landed, and a second key would collect the window again');
+
+      /* ── ANSWERED REFUSAL → A NEW KEY. This is Security's C1 and the condition
+         the whole review turned on.
+         MUTATION: `return prevKey;` unconditionally in nextIntentKey → RED. */
+      seen = []; plan = [
+        { status: 409, body: { ok: false, error: 'version_conflict', stage: 'switch' } },
+        { status: 200, body: { ok: true, version: 2, now: null, activity: { kind: 'combat', id: mid },
+          state: { active_kind: 'combat', active_id: mid }, skills: {}, inventory: {} } }];
+      await window.declareActivity('combat', mid);
+      assert(seen.length === 2, 'a version conflict was not retried (' + seen.length + ' requests)');
+      assert(seen[0].intentId !== seen[1].intentId,
+        'the retry of a REJECTED intent reused the key (' + seen[0].intentId + ') — a rejected key stays '
+        + 'rejected by design until hr_intents_prune runs, so that retry could never have succeeded');
+
+      /* ── A REFUSED COLLECT IS NOT RETRIED, AND THE ACCRUE VERB IS ASKED ONCE.
+         The window is intact; the degrade ladder lives in the accrue verb, and
+         spinning the switch against a clamp can only burn the rate budget. */
+      seen = []; plan = [{ status: 409, body: { ok: false, error: 'uncollectable_window', stage: 'collect' } }];
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      await window.declareActivity('combat', mid);
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      const switches = seen.filter((b) => b && b.verb === 'set_activity');
+      const accruals = seen.filter((b) => b && !b.verb);
+      assert(switches.length === 1,
+        'a refused COLLECT was retried ' + switches.length + ' times — the contract says never retry the '
+        + 'switch alone in a loop');
+      assert(accruals.length === 1,
+        'a refused collect did not kick the ACCRUE verb (' + accruals.length + ' accrual calls) — that is '
+        + 'the contract\'s named recovery, and without it a clamped player can never change activity again');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      A.resetAccrualGate(); A.configureAccrual(null);
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('ACT-3: A SWITCH PAYS — `collected` reaches the player through the away card\'s own renderer', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    const save = { gold: G.gold, skills: G.skills, inventory: G.inventory,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
+      activeMonster: G.activeMonster, offlineBudget: G.offlineBudget, restedAt: G.restedAt,
+      _record: G._record, _serverAccrual: G._serverAccrual };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    let body = null;
+    try {
+      /* The server is AHEAD of the client by the collected gold, which is what a
+         real collect looks like — and it keeps the replacement gate quiet, since
+         nothing local would be lost. */
+      const goldAfter = (Number(G.gold) || 0) + 512;
+      const mkBody = (collected) => ({
+        ok: true, verb: 'set_activity', version: 920, now: '2026-08-15T06:00:00Z',
+        activity: { kind: 'combat', id: mid },
+        state: { slot: 0, gold: goldAfter, hp: G.playerHp, max_hp: G.playerMaxHp,
+          active_kind: 'combat', active_id: mid, accrued_to: '2026-08-15T06:00:00Z' },
+        skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+        inventory: Object.assign({}, G.inventory),
+        collected,
+      });
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      body = mkBody({ ms: 1800000, capped: false, kills: 7, gold: 512,
+        xp: { attack: 1200, hitpoints: 400 }, items: { bone: 3 }, levelUps: [], died: false });
+      G.lastOfflineSummary = null;
+      await window.declareActivity('combat', mid);
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+
+      const rec = G.lastOfflineSummary;
+      assert(rec,
+        'THE ONE THE CONTRACT SAYS WILL BITE: a switch PAYS (the collect runs first), and this client wrote '
+        + 'no receipt at all — 512 gold, 1,600 XP, 3 items and 7 kills the player genuinely earned would '
+        + 'appear out of nowhere at the next hr_load');
+      assert(rec.gainedGold === 512 && rec.gainedXp === 1600 && rec.gainedItems === 3 && rec.gainedKills === 7,
+        'the receipt does not carry what the server said it paid: ' + JSON.stringify(rec));
+      assert(rec.awayMs === 1800000 && rec.hrs === 0.5,
+        'the receipt did not go through summaryFromAway — the away card and this call must not describe the '
+        + 'same kind of payment differently: ' + JSON.stringify({ awayMs: rec.awayMs, hrs: rec.hrs }));
+      assert(rec.serverAuthoritative === true && rec.source === 'switch',
+        'the receipt cannot say it came from a SWITCH rather than an absence, so no surface can tell the '
+        + 'two apart and a bug report cannot either: ' + JSON.stringify({ sa: rec.serverAuthoritative, s: rec.source }));
+      assert(G.gold === goldAfter,
+        'the ENVELOPE was not applied (gold ' + G.gold + ' vs ' + goldAfter + ') — the receipt would then '
+        + 'describe a payment the client never received');
+      assert(G._serverAccrual && G._serverAccrual.via === 'set_activity',
+        'the provenance stamp does not name the verb that wrote it');
+
+      /* A ZERO RECEIPT IS NOT A RECEIPT. `collected` is null when there was
+         nothing to collect and null when the collect itself was a replay;
+         rendering a zero over a real away card is the mirror image of the bug
+         above, and it is the one a naive `if (body.collected)` ships.
+         MUTATION: `if (collected !== undefined)` in collectedOf → RED. */
+      const kept = G.lastOfflineSummary;
+      body = mkBody(null);
+      await window.declareActivity('idle', null);
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      assert(G.lastOfflineSummary === kept,
+        'a switch that collected NOTHING overwrote the last real receipt: ' + JSON.stringify(G.lastOfflineSummary));
+
+      body = mkBody({ ms: 0, kills: 0, gold: 0, xp: {}, items: {}, levelUps: [] });
+      await window.declareActivity('combat', mid);
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      assert(G.lastOfflineSummary === kept,
+        'an all-zero receipt was rendered — the welcome-back card would read "+0 gold" over a real night');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory,
+        playerHp: save.playerHp, playerMaxHp: save.playerMaxHp, lastOfflineSummary: save.los,
+        activeMonster: save.activeMonster, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
+        _record: save._record, _serverAccrual: save._serverAccrual });
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('ACT-4: the pointer reconciles to the ENVELOPE, never to the client\'s guess', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const ids = Object.keys(window.MONSTERS || {});
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : ids[0];
+    const other = ids.find((k) => k !== mid);
+    assert(mid && other, 'the fixture needs two monsters');
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      combatLog: G.combatLog, gold: G.gold, skills: G.skills, inventory: G.inventory,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt, _record: G._record };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    let answer = null;
+    try {
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify(answer.body), { status: answer.status }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      /* A REFUSED SWITCH THAT CARRIES AN ENVELOPE. The player tapped `other`;
+         the server says they are still on `mid`. The optimistic pointer is
+         DISPLAY-ONLY and goes back to what the server says.
+         MUTATION: skip the onReconcile fire for a refusal in activity.js settle
+         → RED here. */
+      answer = { status: 409, body: { ok: false, error: 'version_conflict', stage: 'switch',
+        version: 930, now: null, activity: { kind: 'combat', id: mid },
+        state: { slot: 0, active_kind: 'combat', active_id: mid, gold: G.gold,
+          hp: G.playerHp, max_hp: G.playerMaxHp, accrued_to: '2026-08-15T06:00:00Z' },
+        skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+        inventory: Object.assign({}, G.inventory), collected: null } };
+      G.activeMonster = other; G.monsterHp = 1; G.monsterMaxHp = 1;
+      await window.declareActivity('combat', other);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(G.activeMonster === mid,
+        'a refused switch left the client fighting ' + G.activeMonster + ' while the server says ' + mid
+        + ' — the client kept its own guess, which is the one thing it is never allowed to do');
+
+      /* A STATELESS REFUSAL (rate_limited: refused BEFORE any database work, so
+         attaching an envelope would hand the rate budget back). Nothing was
+         written, so the client reconciles to the LAST envelope it holds. */
+      answer = { status: 429, body: { ok: false, error: 'rate_limited' } };
+      G.activeMonster = other; G.monsterHp = 1; G.monsterMaxHp = 1;
+      await window.declareActivity('combat', other);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(G.activeMonster === mid,
+        'a stateless refusal left the optimistic pointer on ' + G.activeMonster + ' — nothing was written '
+        + 'server-side, so the last envelope is still current and is what it must reconcile to');
+
+      /* AND THE RECONCILE DOES NOT DECLARE ITSELF BACK. Moving the pointer runs
+         through startCombat/stopCombat (they own the interval, the log and the
+         repaint); without the quiet counter that is an intent per round trip,
+         forever. */
+      const st = M.getActivityState();
+      assert(st.last && st.last.applied && st.last.applied.reconciled
+        && st.last.applied.reconciled.id === mid,
+        'the module does not report what it reconciled to: ' + JSON.stringify(st.last));
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('ACT-5: the SAME kill switch as accrual — off means nothing reaches the wire', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      combatLog: G.combatLog, gold: G.gold, playerHp: G.playerHp, inventory: G.inventory,
+      skills: G.skills, offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    let hits = 0;
+    try {
+      window.fetch = function (u) {
+        if (/hr-accrue/.test(String(u))) { hits++; return Promise.resolve(new Response('{}', { status: 200 })); }
+        return realFetch.apply(this, arguments);
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(false);
+      assert(M.isActivityIntentEnabled() === false,
+        'the activity seam is armed while the accrual switch is off — TWO switches means a state where the '
+        + 'client starts activities the server never hears about, and "which half is on" becomes a question '
+        + 'during an incident');
+      window.startCombat(mid);
+      window.stopCombat();
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      assert(hits === 0,
+        'the seam sent ' + hits + ' request(s) with the kill switch OFF — this ships DARK, and b346 combat '
+        + 'behaviour must be byte-for-byte unchanged');
+
+      /* Configured-but-unauthenticated is inert too: an intent with no token is
+         a request that can only be refused, and sending it spends a rate budget
+         to learn that. */
+      A.setServerAccrualEnabled(true);
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => null });
+      const v = await window.declareActivity('combat', mid);
+      assert(v && v.outcome === 'unconfigured' && hits === 0,
+        'a tokenless client still put an intent on the wire: ' + JSON.stringify(v));
+
+      /* The client refuses its OWN request rather than declaring something the
+         server can only answer `activity_unsupported` to. */
+      const bad = await M.declareActivity('woodcutting', 'oak');
+      assert(bad && bad.outcome === 'undeclarable' && hits === 0,
+        'an unsupported kind was declared: ' + JSON.stringify(bad));
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('ACT-6: the AWAY death branch declares NOTHING — the fourth pointer writer, and the silent one', () => {
+    /* The contract names four pointer writers and says the fourth must NOT call
+       the seam: the SERVER already set the pointer to idle inside the accrual
+       delta, so the client here is RECONCILING to state it was told, not
+       declaring. A declaration would tell the server something the server told
+       it, and spend an idempotency key and a rate budget doing it.
+
+       THE CONTROL IS THE WHOLE TEST. "Zero calls" passes trivially if the spy is
+       dead or the away path never touches combat, which would make this the
+       thirteenth assertion in this repo that asserts nothing. So the same spy
+       must record exactly one declaration from a LIVE stop first.
+
+       ⚠ AND THE FIXTURE HAS TO BE THE REAL AWAY PATH, WHICH IS NOT THE OBVIOUS
+         ONE. This test first called `window.simulateAwayCombat()` directly, the
+         way the b341 death test does, and it FAILED with a captured stack
+         showing `onDeath → stopCombat → declareActivity`. Not a bug in the seam:
+         `ctx.away` is `inOfflineReplay()`, the b227 latch, and the latch is set
+         by processOffline — NOT by the simulation. Called directly the sim runs
+         the LIVE death branch, so the assertion was grading the wrong half of
+         an `if`. It goes through processOffline(), with the switch OFF, because
+         that is the only mode in which the client-side away replay runs at all.
+         The spy sits ABOVE the kill switch, so what is proven is the property
+         the contract states: the away death branch does not reach the seam. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    if (typeof window.processOffline !== 'function') { assert(true, 'no processOffline'); return; }
+    const realDeclare = window.declareActivity;
+    const calls = [];
+    const wasOn = A.isServerAccrualEnabled();
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, equipment: G.equipment,
+      skills: JSON.parse(JSON.stringify(G.skills)), stats: JSON.parse(JSON.stringify(G.stats || {})),
+      los: G.lastOfflineSummary, gold: G.gold, inventory: G.inventory, combatLog: G.combatLog,
+      activeSkill: G.activeSkill, activeArtisanRecipe: G.activeArtisanRecipe,
+      offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, restedAt: G.restedAt, restedXp: G.restedXp };
+    try {
+      A.setServerAccrualEnabled(false);
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.declareActivity = function (kind, id) {
+        calls.push({ kind, id, from: String((new Error()).stack || '').split('\n').slice(1, 4).join(' | ') });
+        return null;
+      };
+
+      // CONTROL: a live stop declares idle, exactly once, through this spy.
+      const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS)[0];
+      G.activeMonster = mid;
+      window.stopCombat();
+      assert(calls.length === 1 && calls[0].kind === 'idle' && calls[0].id === null,
+        'the spy never saw a live stop declare, so a zero below would prove nothing: ' + JSON.stringify(calls));
+
+      // THE AWAY DEATH. A level-1 character bare-handed against a Tier-7 foe.
+      calls.length = 0;
+      const dragon = window.MONSTERS.dragon ? 'dragon' : mid;
+      const dm = window.MONSTERS[dragon];
+      G.equipment = {};
+      G.playerMaxHp = 10; G.playerHp = 10;
+      G.activeMonster = dragon; G.monsterMaxHp = dm.hp; G.monsterHp = dm.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
+      G.lastOfflineSummary = null;
+      if (typeof window.ensureOfflineBudget === 'function') {
+        const b = window.ensureOfflineBudget(Date.now());
+        b.at = Date.now() - 4 * 3600000; b.usedMs = 0;      // four hours away
+      }
+      window.processOffline();
+      const rec = G.lastOfflineSummary;
+      assert(rec && rec.died === true,
+        'the fixture did not produce an AWAY death, so the branch under test never ran: ' + JSON.stringify(rec));
+      assert(G.activeMonster === null, 'the away death branch did not clear the pointer at all');
+      assert(calls.length === 0,
+        'the away death branch declared ' + JSON.stringify(calls) + ' — the server set the pointer to idle '
+        + 'in the accrual delta already, so this is the client telling the server what the server told it, '
+        + 'at the cost of an idempotency key and a rate-gate spend, running a collect on a window the '
+        + 'accrual just closed');
+    } finally {
+      window.declareActivity = realDeclare;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      else A.setServerAccrualEnabled(true);
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      b343 — AWAY COMBAT PAYS FROM KILL ONE, AND EVERY SURFACE SAYS WHAT IT PAYS
 
      b341/b342 gated away combat behind 100 hand-landed kills (the "Field

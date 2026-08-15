@@ -314,7 +314,10 @@ export function buildIntentWiring(cfg) {
   /* b340 — the record read (`hr_load`) is wired from the SAME base as the other
      two. Three copies of a url would be three things to drift; the b332 lesson
      about five copies of one hash is recent enough not to need restating. */
-  return { accrual: { ...base }, character: { ...base, userId: c.userId }, record: { ...base } };
+  /* b347 — the ACTIVITY intent is wired from the same base for the same reason.
+     Four copies of a url would be four things to drift. */
+  return { accrual: { ...base }, character: { ...base, userId: c.userId },
+    record: { ...base }, activity: { ...base } };
 }
 
 /** Apply that wiring to whatever `win` publishes. Returns what was passed, so a
@@ -329,6 +332,8 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] character wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseRecord) win.HearthriseRecord.configureRecord(w.record); }
   catch (e) { console.warn('[auth] record wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseActivity) win.HearthriseActivity.configureActivity(w.activity); }
+  catch (e) { console.warn('[auth] activity wiring skipped:', e && e.message); }
   return w;
 }
 
@@ -362,6 +367,44 @@ export function stripRecordFieldsForOverlay(snap, win) {
       + 'cloud save that still carries server-owned fields');
   }
   return R.stripServerOfRecord(snap).blob;
+}
+
+/* ── b347: THE WHOLE CLOUD→G SEAM, IN ONE FUNCTION A TEST CAN DRIVE ─────────
+   This used to be five inline statements inside pullAndMaybeRestore(), which
+   needs a live Supabase session to reach — and two of them undid each other:
+   `stripRecordFieldsForOverlay` deleted `offlineBudget` from the snapshot, and
+   three lines later the watermark was re-stamped to the snapshot's OWN save
+   time out of `cloudAt`. The strip removed the field from the blob and the very
+   next statement put a blob-derived number back into G under the server's name.
+   Measured with a control: server 06:00Z, this line 09:30Z.
+
+   So the whole seam is one named export and pullAndMaybeRestore holds no blob→G
+   statement of its own. That is B339's lesson applied as far as it goes here: a
+   test cannot reach pullAndMaybeRestore, but it CAN drive every line that
+   touches G, and the remaining untested surface is a single call expression
+   rather than five statements nobody can see.
+
+   `lastSeen` is NOT on the registry and stays client-owned; the watermark is,
+   and asks. Returns what it did, so the test asserts the effect rather than
+   that code exists which might produce it. */
+export function applyCloudOverlay(G, snap, cloudAt, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  const overlay = stripRecordFieldsForOverlay(snap, w);
+  Object.assign(G, overlay);
+  // Reset the offline watermark to the cloud's save time so the returning-
+  // player catch-up credits the gap since the account was LAST active anywhere,
+  // not since this (possibly long-idle) device last saved.
+  G.lastSeen = cloudAt;
+  const A = w && w.HearthriseAccrual;
+  /* FAIL CLOSED, and through accrue.js's single implementation. A missing
+     accrue.js means the switch cannot be on, which is why `true` is the right
+     answer to an absent module here and `false` is the right answer to an absent
+     record.js inside it. */
+  const mayWrite = !A || typeof A.mayClientWrite !== 'function'
+    ? true : A.mayClientWrite('offlineBudget', w) !== false;
+  const restamped = !!(mayWrite && G.offlineBudget && typeof G.offlineBudget === 'object');
+  if (restamped) G.offlineBudget.at = cloudAt;
+  return { stripped: overlay !== snap, restampedWatermark: restamped, lastSeen: cloudAt };
 }
 
 /**
@@ -594,16 +637,11 @@ async function pullAndMaybeRestore() {
        authored blob; it is a CACHE, not a record. Any field the server owns is
        deleted on the way in so it cannot be read back out of it — see
        src/net/record.js. No-op while the b337 switch is off, so every restore
-       path b305 exercises is byte-for-byte unchanged. */
-    const overlay = stripRecordFieldsForOverlay(snap);
-    Object.assign(window.G, overlay);
-    // Reset the offline watermark to the cloud's save time so the returning-
-    // player catch-up credits the gap since the account was LAST active anywhere,
-    // not since this (possibly long-idle) device last saved.
-    window.G.lastSeen = cloudAt;
-    if (window.G.offlineBudget && typeof window.G.offlineBudget === 'object') {
-      window.G.offlineBudget.at = cloudAt;
-    }
+       path b305 exercises is byte-for-byte unchanged.
+       b347 — and the watermark re-stamp that followed it is INSIDE the same
+       function now, because it was undoing the strip. This line is the whole of
+       the cloud→G seam; there is deliberately nothing left inline. */
+    applyCloudOverlay(window.G, snap, cloudAt);
     try { sessionStorage.setItem('hr:cloudRestoreDone', '1'); } catch (e) {}
     try { sessionStorage.setItem('hr:restoredFromCloud', '1'); } catch (e) {}   // toast after reload
     console.log(`[Auth] restoring newer cloud save (cloudAt ${cloudAt} > localAt ${d.localAt}; Lv ${d.cloudTotalLv}).`);
@@ -883,6 +921,9 @@ window.HearthriseAuth = {
   // b340 — the cloud half of the record strip, exported so the test drives the
   // CALLER rather than re-deriving what the caller ought to do (B339's lesson).
   stripRecordFieldsForOverlay,
+  // b347 — the whole cloud→G seam, exported for the same reason: the strip and
+  // the watermark re-stamp were undoing each other and no test could see either.
+  applyCloudOverlay,
   // b331 — expired-session recovery + the sheet that tells the player the truth
   recoverSession, syncFailureMessage, ESCALATE_AFTER_MS,
   showAuthExpiredGate, hideAuthExpiredGate,

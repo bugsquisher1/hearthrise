@@ -112,6 +112,12 @@ import './net/character.js?v=346';
 // the switch is on and this module is absent, rather than silently reading a
 // moved field back out of the save blob. B340-7 asserts the pairing.
 import './net/record.js?v=346';
+// b347 — the ACTIVITY intent (`set_activity`). AFTER accrue.js: it imports the
+// same kill switch, the same slot resolver, the same endpoint derivation AND the
+// envelope/receipt writers, so the switch verb and the accrue verb cannot form
+// two ideas of what the server's answer means. BEFORE auth.js, which configures
+// all four with one copy of the credentials. Ships DARK behind the SAME switch.
+import './net/activity.js?v=346';
 import './net/auth.js?v=346';
 import './net/supabase-bootstrap.js?v=346';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

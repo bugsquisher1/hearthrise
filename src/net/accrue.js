@@ -164,6 +164,30 @@ export function setServerAccrualEnabled(on) {
 /** Test seam: forget the in-memory override and go back to reading storage. */
 export function __clearAccrualOverride() { override = null; }
 
+/* ── MAY A CLIENT SITE WRITE THIS FIELD? (b347) ─────────────────────────────
+   THE ONE IMPLEMENTATION, and it lives here rather than in record.js for the
+   reason stripRecordFieldsForOverlay already established: **the switch is read
+   from accrue.js and the field list from record.js, so neither module can vouch
+   for the other's absence.** A version of this that lived entirely in record.js
+   would answer "not moved, go ahead" by simply failing to load — which is the
+   exact failure it exists to prevent, silently.
+
+   It is here rather than copied into each caller because two copies of a
+   fail-closed guard are two chances to get the closed direction wrong; this
+   repo has paid for five copies of one hash and three copies of one renderer.
+   legacy.js and auth.js both call THIS.
+
+   FAILS CLOSED: with the switch ON and record.js missing, the answer is NO. The
+   cost of a wrong "no" is a stale local number nothing reads for authority; the
+   cost of a wrong "yes" is the record acquiring a second source. */
+export function mayClientWrite(field, win) {
+  if (!isServerAccrualEnabled()) return true;      // switch off → byte-for-byte b346
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  const R = w && w.HearthriseRecord;
+  if (!R || typeof R.clientMayWrite !== 'function') return false;
+  try { return R.clientMayWrite(field) !== false; } catch (e) { return false; }
+}
+
 /* ── WHICH CHARACTER ARE WE TALKING ABOUT? (b339) ───────────────────────────
    `slot: 0`, hard-coded in auth.js, was wired at sign-in and never revisited —
    while `src/multi-character.js` gives every account up to 5 characters with a
@@ -552,6 +576,43 @@ export function describeReplacement(G, res) {
   return { destructive: gold > 0 || skillXp > 0 || items > 0, gold, skillXp, items, skills };
 }
 
+/* ── "THE ENVELOPE IS THE TRUTH", WRITTEN ONCE (b347) ───────────────────────
+   Split out of applyEnvelope because the activity intent (src/net/activity.js)
+   applies the SAME envelope from a different verb, and the spec's instruction
+   for its receipt is "route it through the SAME renderer the away card uses,
+   not through a second one written for this call". A second copy of these
+   twenty lines is how the two verbs' idea of "the server's state" drifts apart,
+   and this program has already paid for five copies of one hash.
+   applyEnvelope's own contract is UNCHANGED — it still gates, still writes the
+   away receipt, still stamps `_serverAccrual`. */
+export function applyEnvelopeState(G, res) {
+  const st = (res && res.state) || {};
+  const written = { skills: {}, inventory: 0 };
+
+  if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
+  if (Number.isFinite(Number(st.hp))) { G.playerHp = Number(st.hp); written.hp = G.playerHp; }
+  if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
+
+  /* skills: {<id>:{xp,level}} on the wire, {<id>: xp} in G. The LEVEL is
+     derived from xp everywhere in this client, so taking the server's xp and
+     letting the existing derivation run keeps one source of that rule. */
+  const skills = {};
+  for (const k of Object.keys(res.skills || {})) {
+    const xp = Number(res.skills[k] && res.skills[k].xp);
+    if (Number.isFinite(xp)) { skills[k] = xp; written.skills[k] = xp; }
+  }
+  G.skills = skills;
+
+  const inv = {};
+  for (const k of Object.keys(res.inventory || {})) {
+    const q = Number(res.inventory[k]);
+    if (Number.isFinite(q) && q > 0) inv[k] = q;
+  }
+  G.inventory = inv;
+  written.inventory = Object.keys(inv).length;
+  return written;
+}
+
 export function applyEnvelope(G, res) {
   if (!G || !isEnvelopeApplicable(res)) return null;
   /* THE ONE GATE. Refusing here writes nothing at all — the server has already
@@ -566,29 +627,7 @@ export function applyEnvelope(G, res) {
     return null;
   }
   const st = res.state || {};
-  const written = { skills: {}, inventory: 0 };
-
-  if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
-  if (Number.isFinite(Number(st.hp))) { G.playerHp = Number(st.hp); written.hp = G.playerHp; }
-  if (Number.isFinite(Number(st.max_hp))) { G.playerMaxHp = Number(st.max_hp); written.maxHp = G.playerMaxHp; }
-
-  /* skills: {<id>:{xp,level}} on the wire, {<id>: xp} in G. The LEVEL is
-     derived from xp everywhere in this client, so taking the server's xp and
-     letting the existing derivation run keeps one source of that rule. */
-  const skills = {};
-  for (const k of Object.keys(res.skills)) {
-    const xp = Number(res.skills[k] && res.skills[k].xp);
-    if (Number.isFinite(xp)) { skills[k] = xp; written.skills[k] = xp; }
-  }
-  G.skills = skills;
-
-  const inv = {};
-  for (const k of Object.keys(res.inventory)) {
-    const q = Number(res.inventory[k]);
-    if (Number.isFinite(q) && q > 0) inv[k] = q;
-  }
-  G.inventory = inv;
-  written.inventory = Object.keys(inv).length;
+  const written = applyEnvelopeState(G, res);
 
   /* The receipt. Shaped to the SAME contract legacy.js's local summary uses, so
      every welcome-back renderer keeps working unchanged — and every field is a
@@ -721,7 +760,12 @@ function num(v) {
   try { return n.toLocaleString(); } catch (e) { return String(n); }
 }
 
-export function showReplacementSheet(loss, G, res) {
+/* `onConfirm` (b347) is how a SECOND applier gets its consent honoured. The
+   hook path below re-runs `applyEnvelope`, which is the away verb's applier and
+   correctly refuses an intent envelope (no `away` block) — so without this the
+   activity intent's player would click "Use the server's character" and nothing
+   at all would happen. One sheet, one acknowledgement key, two appliers. */
+export function showReplacementSheet(loss, G, res, onConfirm) {
   if (typeof document === 'undefined' || !document.body) return null;
   if (document.getElementById('hr-evicted-gate')) return null;        // b302 wins
   if (document.getElementById('hr-auth-expired-gate')) return null;   // b331 wins
@@ -765,7 +809,8 @@ export function showReplacementSheet(loss, G, res) {
        happen exactly as they would have on the original apply. Only if nothing
        is wired does this apply the envelope itself. */
     try {
-      if (typeof (hooks && hooks.onApplied) === 'function') fire('onApplied', res);
+      if (typeof onConfirm === 'function') onConfirm(G, res);
+      else if (typeof (hooks && hooks.onApplied) === 'function') fire('onApplied', res);
       else applyEnvelope(G, res);
     } catch (e) { console.warn('[accrue] replacement apply failed:', e && e.message); }
   });
@@ -802,14 +847,14 @@ if (typeof window !== 'undefined') {
     ACCRUE_KILL_KEY, ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
     ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
-    stampAwayWatermarks, clampSlot, resolveActiveSlot,
+    stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement,
     showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, summaryFromAway,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet,
   };

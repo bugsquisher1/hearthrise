@@ -6,7 +6,16 @@ Everything below is either measured (marked ✅ with the date) or staged and une
 (marked **NOT EXECUTED**). Nothing in here has been proven end to end, and until §9 has
 been run once, this is a plan and not a capability.
 
-**Last re-verified against live production: 2026-08-15 ~20:55 UTC.** That pass re-measured
+> **DRILL ATTEMPTED 2026-08-15 ~21:15–21:40 UTC — BLOCKED AT THE CLONE, WHICH HAS NO API.**
+> Authorised, priced at ~$0.04, pre-flight green, every gate that does not need a restored
+> database re-run and passing, and the last inferred line in the document (the pooler
+> username shape) closed by execution — **but no clone was created, so $0.00 was billed, no
+> RTO was measured, and the restore mechanism is still 0% proven.** It now rests on a single
+> ~90-second dashboard click, written out step by step in **§9**. Results: **§9a**.
+
+**Last re-verified against live production: 2026-08-15 ~21:3x UTC** (backups, health, disk,
+pooler, roles, cron, row counts, grant hygiene — all re-measured for the drill attempt; the
+prior pass at ~20:55 UTC is superseded). That earlier pass re-measured
 backups, health, disk, pooler, roles, cron, row counts and object counts; it corrected the
 schema digest, the seeded-table count, the Edge Function version, the `player_*` row
 inventory and the method used to check role passwords; and it added §6a (custom-role
@@ -683,11 +692,9 @@ curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
 # The username is the CUSTOM role qualified by the project ref — NOT "postgres.<ref>".
 # Supavisor routes on the tenant AFTER the dot and authenticates the role BEFORE it.
 #
-# ⚠ INFERRED, NOT VERIFIED. This shape mirrors the `postgres.<ref>` the pooler API returns
-#    for the default role, and it is the only shape consistent with how Supavisor routes.
-#    But the live secret's value is deliberately unreadable, so I could NOT confirm that the
-#    working production string uses it. VERIFY IT WITH THE CONNECT TEST BELOW BEFORE relying
-#    on it at 3am — do not discover the answer during an incident.
+# ✅ VERIFIED BY EXECUTION 2026-08-15 21:2x UTC — this was the last ⚠ INFERRED line in the
+#    document and it is now closed. See §6b for the method, the four controls that make it a
+#    verdict rather than a guess, and the error-signature table. The inferred shape was RIGHT.
 HR_ENGINE_DB_URL="postgresql://hr_engine_login.${PROJECT_REF}:${NEW_PW}@aws-1-us-west-2.pooler.supabase.com:6543/postgres"
 
 # FAIL-CLOSED CHECK — the same regex the Edge Function applies at module load.
@@ -695,12 +702,17 @@ echo "$HR_ENGINE_DB_URL" | grep -qE ':6543(/|\?|$)' \
   && echo "port OK" || { echo "REFUSING: not the transaction pooler"; false; }
 
 # CONNECT TEST — prove the string before you commit it to a secret. Costs one connection.
-# This is also the cheapest way to settle the username-shape question above, and it can be
-# run on production TODAY (read-only, one round trip) to retire the ⚠ before an incident.
-psql "$HR_ENGINE_DB_URL" -c "select current_user, inet_server_port();"
-#   expect  hr_engine_login | 6543
-#   'Tenant not found'        → the .<ref> suffix is wrong
-#   'password authentication' → step 1's password and this string disagree
+# ⚠ psql IS NOT INSTALLED on this project's dev machine (verified 2026-08-15). Use the
+#   node probe instead — it uses the `postgres` dep the repo already has, and unlike psql
+#   it needs NO password, so it can be run against production at any time:
+node tools/pooler-probe.mjs "$PROJECT_REF"
+#   expect: ROUTED+RESOLVED for hr_engine_login.<ref>, exit 0
+# Then, once you DO have the password, the full round trip (psql if you have it, else any
+# client): select current_user, inet_server_port();  → expect  hr_engine_login | 6543
+#   'user not found in the database' → wrong role before the dot (see §6b — a NOLOGIN role
+#                                      looks IDENTICAL to a nonexistent one here)
+#   'no tenant identifier'           → the .<ref> suffix is missing
+#   'password authentication failed' → shape is RIGHT; step 1's password and this disagree
 
 supabase secrets set --project-ref "$PROJECT_REF" HR_ENGINE_DB_URL="$HR_ENGINE_DB_URL"
 
@@ -773,6 +785,40 @@ will catch anything the block above got wrong or left over.
 
 ---
 
+## 6b. The pooler username shape — VERIFIED, and how ✅
+
+**Executed 2026-08-15 21:2x UTC against production, read-only.** This closes the last
+`⚠ INFERRED` item in the document. `tools/pooler-probe.mjs` is the reusable form.
+
+**The answer: `hr_engine_login.<ref>` is correct.** The inferred shape was right —
+Supavisor routes on the tenant *after* the dot and resolves the role *before* it.
+
+**The method, because it is the interesting part.** The live secret's value is deliberately
+unreadable, so the shape could not be confirmed by reading the working string. But it does
+not need a password: connect with a **deliberately wrong** one and read *which* error comes
+back. Nothing authenticates, so nothing runs SQL, reads a row, or occupies one of
+`hr_engine_login`'s 20 connection slots, and Postgres has no login lockout.
+
+**One sample would not have been a verdict, so it was run with four controls:**
+
+| # | Username tried | Result | What it proves |
+|---|---|---|---|
+| A | `hr_engine_login.<ref>` | **`28P01` password authentication failed for user "hr_engine_login"** | **THE ANSWER.** Routed, role resolved, only the password rejected |
+| B | `postgres.<ref>` | `28P01`, same shape | The probe **discriminates** — a known-good username gives the same signature A did |
+| C | `hr_engine_login` (bare) | `XX000 (ENOIDENTIFIER) no tenant identifier provided` | The `.<ref>` suffix is load-bearing |
+| D | `nosuchrole_zzz.<ref>` | `XX000 (EAUTHQUERY) user not found in the database` | **THE CONTROL THAT MATTERS.** A nonexistent role gives a *different* error from A — so Supavisor really does resolve the role at connect time, and A's `28P01` is positive evidence rather than a generic fallback. Without this control, A proves nothing |
+| E | `hr_engine.<ref>` | `XX000 (EAUTHQUERY) user not found in the database` | **A finding — see below** |
+
+> **Control E is the one to remember at 3am.** `hr_engine` exists, but it is `NOLOGIN`, and
+> the pooler reports it **identically to a role that does not exist** — *"user not found in
+> the database"*. So if the URL is rebuilt with the **capability** role instead of the
+> **login** role (an easy slip: they differ by one suffix and §6a-ii talks about `hr_engine`
+> far more than `hr_engine_login`), the error actively points away from the real cause. You
+> will go looking for a missing role that is sitting right there. **The error text does not
+> distinguish "wrong role" from "no such role" — the probe's control set does.**
+
+---
+
 ## 7. What Tyler personally must click — and nothing more
 
 I have been strict here. Everything the Management API can do is listed as a command, not
@@ -838,7 +884,47 @@ $3.45/day, and the thing it prevents is losing a day.**
 
 ---
 
-## 9. The rehearsal — how to prove any of this, safely  **NOT EXECUTED**
+## 9. The rehearsal — how to prove any of this, safely  **ATTEMPTED 2026-08-15 — BLOCKED AT STEP 2**
+
+> ## ⛔ THE DRILL DID NOT RUN. THE BACKUP IS STILL UNTESTED.
+>
+> **Attempted 2026-08-15 ~21:15–21:40 UTC with Tyler's explicit authorisation** ("Let's do
+> option 1 until we launch"), covering both billable steps on the clone. **It stopped at
+> step 2, which is the one step no amount of engineering removes: creating the clone is a
+> dashboard action and there is no API for it.** Everything that did not require the clone
+> was executed and is recorded in §9a. **RTO remains UNMEASURED and the restore mechanism
+> remains 0% proven** — see §12, which is unchanged on the line that matters.
+>
+> **What Tyler must click, precisely** (this is the whole blocker, and it is ~90 seconds):
+>
+> 1. https://supabase.com/dashboard/project/nezapsylztqbbwuwembx/database/backups/scheduled
+> 2. Find the row **`1381873494` — 2026-08-15 10:26:47 UTC** (the newest `COMPLETED`).
+> 3. Click **Restore to a New Project** on that row *(NOT the plain "Restore" button —
+>    that one is the in-place mechanism A and it OVERWRITES production).*
+> 4. Approve the cost estimate. Expect **~$0.014/hour** (Micro, mirrored from the source) —
+>    **about $0.04 for a three-hour drill.** If the screen shows a number materially larger
+>    than that, stop and say so; the estimate screen is authoritative and the API is not.
+> 5. Paste the new project ref back. Everything after that point is automatable and §9a's
+>    remaining gates run against it unattended.
+>
+> **Re-audited today rather than inherited** ✅: the Management API spec was re-fetched
+> (`https://api.supabase.com/api/v1-json`, **115 paths**, 334 kB) and re-searched for
+> `clone` / `duplicate` / `restore-to-new` / `new_project` / `copy` across every path and
+> every operation body — **zero hits**, unchanged from the 2026-08-15 audit. `POST
+> /v1/projects` was read field-by-field: its body is
+> `db_pass, name, organization_id, organization_slug, plan, region, region_selection,
+> kps_enabled, desired_instance_size, template_url, release_channel, postgres_engine,
+> high_availability` — **no backup or source-project parameter exists**, so a clone cannot be
+> expressed as a project creation either. The three `restore` endpoints that do exist
+> (`/database/backups/restore`, `/restore-pitr`, `/v1/projects/{ref}/restore`) all target an
+> **existing** ref and would therefore have to be pointed at production. **They were not
+> called and must not be.**
+>
+> **Explicitly rejected rather than overlooked: `create_branch`.** A Supabase branch replays
+> *migrations* into a fresh database and carries **no production data** — it would have
+> proven the schema half, which §2a already proves by execution, while proving **nothing**
+> about whether a backup hands the rows back. Substituting it would have produced a green
+> drill report for an untested backup, which is worse than no drill.
 
 **This is the item that closes the durability blocker. Everything above is a plan until it
 runs once.** It is deliberately designed to touch production zero times.
@@ -882,6 +968,61 @@ is what produces the real RTO, and recording it is the point.**
 
 **Repeat cadence once it works:** before the cutover, and after any change to the auth
 schema, the role setup, or the Edge Function's connection path.
+
+### 9a. Results — 2026-08-15 attempt
+
+**Reading rule for this table: a gate marked ✅ was run against PRODUCTION, not against a
+restored clone.** That proves the *gate* works and gives the drill its diff target. It does
+**not** prove the restore, because there was no restore. Only the "clone" column can do that,
+and every row in it is blank.
+
+| Step | Phase | Wall clock | Verdict |
+|---|---|---|---|
+| 1 | Pre-flight: `schema-drift`, `restore-census`, live census | ~6 min | ✅ **PASS** |
+| 2 | **Create clone from backup `1381873494`** | — | ⛔ **BLOCKED — dashboard-only, no API. Drill ends here.** |
+| 3 | Disarm cron on clone | — | not reached |
+| 4 | Gates 1–8 against the clone | — | not reached |
+| 5 | Diff clone vs production census | — | not reached |
+| 6 | **Measured RTO** | — | ⛔ **STILL UNMEASURED** |
+| 7 | Delete clone | — | not reached — **no clone was ever created, so nothing was deleted and nothing was billed** |
+| 8 | Set `restore_drill.last_executed` | — | **deliberately NOT set** — the census must keep printing `NEVER EXECUTED`, because it has never been executed |
+
+**Gates, as run against production 2026-08-15 21:1x–21:3x UTC (read-only):**
+
+| Gate | What | Production | Clone |
+|---|---|---|---|
+| 1 | Schema digest | ✅ `f166dc74f8e0…`, matches baseline | — |
+| 2 | Catalogues | ✅ 426 / 344 / 222 / 99 / 34 / 51 / 61 — all seven exact | — |
+| 3 | `auth.users` | ✅ **8** | — |
+| 4 | Progression as a set | ✅ state 2 · skills 30 · inventory 11 · equipment 2 · farm 8 · progress 3 · **ledger 29** (non-empty alongside a non-empty `player_state` — the §2c trap is satisfied) | — |
+| 5 | Retention armed | ✅ **9/9** cron jobs present and `active = true`, including `hearthrise-leaderboards` | — |
+| 6 | Grants + RLS | ✅ `hr_assert_grant_hygiene(true)` returns **every finding array empty** except the known un-editable `supabase_admin:public` residual; `hr_engine` table privileges = **0**; execute surface = **exactly the 10 allowlisted functions**, verified by signature | — |
+| 7 | Engine can connect | **PARTIAL.** The password reset itself needs a restored database and was **not** run — nothing was written to production. But every *checkable* half passed: `pg_authid` shape ✅ (`hr_engine_login` LOGIN / NOINHERIT / connlimit 20 / SCRAM-SHA-256; `hr_engine` NOLOGIN, `rolpassword` **null**), membership ✅, the 10-function surface ✅, and **the pooler username shape is now VERIFIED rather than inferred (§6b)** | — |
+| 8 | Player round-trip | ⛔ untestable without a restore target — unchanged | — |
+
+**Cost actually incurred: $0.00.** No project was created, so nothing was billed. The ~$0.04
+estimate is untested and remains an estimate.
+
+**What was fixed along the way:**
+
+* **The last inferred line in the document is now measured** — §6b. This was worth the
+  evening on its own: it is the line most likely to be wrong at 3am and the one hardest to
+  check *during* an incident.
+* **`tools/pooler-probe.mjs`** — the check is now automated, not just answered. It needs no
+  password and no clone, so it can be re-run against any project at any time, and it is the
+  post-restore verification for §6a-iii step 2.
+* **§6a-iii step 2 was unrunnable as written** — it specified `psql`, which is **not
+  installed** on this project's dev machine. A DR step that cannot execute on the machine
+  the responder is sitting at is not a DR step. Replaced with the node probe.
+* **The §9 pre-flight blocker cleared itself** — `restore-census` was RED on `hr_unlocks`
+  when this section was written; it is now **green** (exit 0, 67 tables, 22 seeded,
+  `hr_unlocks` classified `seeded`, 61 = 61). The census can now serve as the drill's diff
+  target, which was step 1's stated prerequisite.
+
+**Stale figures corrected in `tests/restore-census.baseline.json`'s production block:** it
+still records `player_ledger = 3` and `display_names = 6`; production measured **29** and
+**7** tonight. Not a fault — the baseline records when it was last measured — but the drill's
+diff target must be the live numbers above, not the baseline's.
 
 ---
 
@@ -1055,20 +1196,26 @@ Measured 2026-08-15, **all figures below re-measured 20:55 UTC** ✅.
 
 Kept so that nobody reads this document as a completed capability.
 
-**Restore-readiness scored, 2026-08-15.** Of the eight verification gates in §6, **six can be
-and have been proven against production today** (1, 2, 3, 4, 5, 6 — all measured ✅), **one is
-now fully written but never executed** (7 / §6a — and one line inside it, the pooler username
-shape, is inferred rather than verified), and **one is untestable without a restore target**
-(8). The gates are therefore ~75% proven *as checks*. But the thing they check — **that
-Supabase hands the rows back at all — is 0% proven**, and no amount of gate-writing changes
-that. **The honest verdict: the preparation is close to complete; the capability is
-untested.** One 90-minute drill costing ~$0.04 (§9) moves this from ~75% to ~100%.
+**Restore-readiness re-scored 2026-08-15 21:4x UTC, after the blocked drill.** Of the eight
+verification gates in §6, **six are proven against production** (1–6, all re-measured ✅
+tonight), **one is now proven in every half that does not require a restored database**
+(7 — the role shape, the membership, the 10-function surface and, new tonight, **the pooler
+username shape, which is no longer inferred**: §6b), and **one remains untestable without a
+restore target** (8). The gates are ~90% proven *as checks*, up from ~75%.
+
+**But the number that matters has not moved at all: the thing they check — that Supabase
+hands the rows back — is still 0% proven.** Tonight closed every remaining item that could be
+closed without a clone, which has the uncomfortable effect of making the single remaining gap
+*more* conspicuous rather than less: **preparation is now essentially complete, authorisation
+exists, cost is ~$0.04, and the capability is still untested because of one dashboard click.**
+Do not let the volume of ✅ above read as readiness. **A backup nobody has restored is a
+rumour, and this project's is still a rumour.**
 
 | | Why not |
 |---|---|
-| **Any restore, of any kind** | Destructive and/or billable. Requires explicit authorisation. **This is the open blocker, and §9 now prices it at ~$0.04 — cost was never the reason.** |
-| **The pooler username shape for a custom role** (`hr_engine_login.<ref>`) | Inferred from the API's `postgres.<ref>`, not confirmed — the live secret's value is deliberately unreadable. **Closeable today, read-only, one `psql` round trip (§6a-iii step 2).** |
-| **`hr_unlocks` DR classification** | The census is RED. A one-line edit to `tests/restore-census.baseline.json`, owned by whoever ships the next migration. |
+| **Any restore, of any kind** | **STILL THE OPEN BLOCKER, and now for one reason only: the click.** Authorisation exists (Tyler, 2026-08-15, both billable steps on the clone). Cost is ~$0.04. The drill was attempted the same evening and **stopped at step 2 — restore-to-a-new-project has no Management API, re-audited across all 115 paths today.** Nothing else stands in the way. §9's box has the exact five-step click. |
+| ~~**The pooler username shape for a custom role**~~ | ✅ **CLOSED 2026-08-15 by execution.** `hr_engine_login.<ref>` confirmed, with four controls including the one that makes it a verdict. §6b. Automated as `tools/pooler-probe.mjs`. |
+| ~~**`hr_unlocks` DR classification**~~ | ✅ **CLOSED.** Census green: 67 tables, 22 seeded, 61 = 61. |
 | **Creating a project or a branch** | Out of scope for this task and billable. |
 | **Enabling PITR** | A recurring charge. §8 is the recommendation; the decision is Tyler's. |
 | **The §9 rehearsal** | Needs mechanism B, which needs a dashboard click and a cost approval. |
@@ -1106,11 +1253,12 @@ sections were already wrong.** Re-run this walk after any migration batch.
 | 6 gate 4 | progression as a set | **VERIFIED-CURRENT** | and now actually exercisable — the tables have rows |
 | 6 gate 5 | 9 cron jobs | **VERIFIED-CURRENT +** | all 9 present, active, **zero failures in 48h** |
 | 6 gate 6 | `hr_engine` zero table privileges | **VERIFIED-CURRENT** | confirmed 0 after b353 |
-| 6 gate 7 | custom-role reset | **WAS INCOMPLETE → REWRITTEN as §6a** | one line inside it still inferred |
+| 6 gate 7 | custom-role reset | **VERIFIED-CURRENT** | role shape / membership / 10-fn surface all re-measured ✅; the password reset itself needs a restore target |
+| 6b | Pooler username shape | **INFERRED → VERIFIED ✅** | `hr_engine_login.<ref>`, 4 controls, `tools/pooler-probe.mjs`. **The last inferred line in the document** |
 | 6 gate 8 | player round-trip | **UNTESTABLE-WITHOUT-RESTORE** | |
-| 7 | What Tyler must click | **VERIFIED-CURRENT** | |
+| 7 | What Tyler must click | **VERIFIED-CURRENT +** | API re-audited today: 115 paths, still zero clone endpoints; `POST /v1/projects` has no source-backup field |
 | 8 | PITR $100/mo | **VERIFIED-CURRENT +** | + $5/mo Micro→Small = **~$105/mo**; trigger is nearer |
-| 9 | The rehearsal | **NOT EXECUTED** | now **priced: ~$0.04** |
+| 9 | The rehearsal | **ATTEMPTED → BLOCKED AT STEP 2** | §9a records per-gate results, $0.00 billed, **RTO still unmeasured** |
 | 10 | RTO/RPO | **UNTESTABLE-WITHOUT-RESTORE** | every "unknown" closes with one drill |
 | 11 | Capacity | **STALE → FIXED** | disk/db/events refreshed; **connection model added**; retention coverage audited |
 
@@ -1128,6 +1276,11 @@ sections were already wrong.** Re-run this walk after any migration batch.
 * `tools/gen-catalogues.mjs --check` — content drift in the generated catalogues. Stronger
   than any count; do not duplicate it.
 * `hr_assert_grant_hygiene()` — nightly on `pg_cron`, owns grants and role capability.
+* `tools/pooler-probe.mjs` — **new.** Proves a pooler username shape **without a password**,
+  so it is safe against production and runnable during an incident. Carries its own controls
+  (a known-good role, a bare username, a NOLOGIN role and a nonexistent one), so a single
+  green line is a verdict and not a sample. Run it after any restore, before setting
+  `HR_ENGINE_DB_URL`. Not part of the smoke suite — it makes a real network connection.
 
 > **One finding from building the census, recorded because the *shape* of it recurs.**
 > The plan was to prove the count-pin bites by shrinking `hr_castle_items` — the catalogue

@@ -2,6 +2,60 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b349 — 19% of all traffic was a question the client had no right to ask
+
+Worktree `agent-aea11985dd254af77`, commit `ce9dc9c`. Suite **710/710** (baseline 707; +3), 0 runtime
+errors, **four consecutive clean runs**, no `AWAY-16` flake. **Nine mutations, each RED on exactly its
+target.** No version bump, nothing deployed. `src/core/**`, `src/data/**`, `supabase/functions/**`,
+migrations, `hr_client_rpc_baseline` — all untouched. No grant changed.
+
+**The lesson: A RATIO THAT IS AN EXACT INTEGER IS NOT A COINCIDENCE, IT IS AN ATTRIBUTION.** The
+offender table looked like nine unrelated problems. It was two. `53` divides every non-`hr_server_now`
+row exactly — 6 RPCs sharing `p_clan_id` → 318, 3 sharing `p_day_key` → 159, 2 sharing `p_slot` → 106,
+1 alone → 53 — and the multiplier is the *count of `tests/rpc-resolution.targets.json` entries with
+that parameter signature*. So 2,014 of the 5,217 are 53 CI runs of a deliberate, documented,
+production-safe anon probe, and I changed nothing about it. The remaining 3,196 are one client bug.
+**Arithmetic did the attribution that reading nine call sites would not have.**
+
+**The bug was not "signed-out players".** That was my first hypothesis and it was wrong by an order of
+magnitude. Driven in real Chromium with a VALID cached session and the wall open on `reason:'session'`,
+`isSignedIn()` true: `hr_server_now` still went out anonymous. It is a **boot race that always loses** —
+muster boots at DOMContentLoaded+420ms, auth.js cannot publish a session until a CDN `import()` of
+supabase-js resolves, measured 94 / 159 / 358 / 1,040ms later across four runs *on localhost*. Every
+player, every page load. **A hypothesis about who is affected is worth exactly one measurement.**
+
+**The mechanism was one expression, copied six times:**
+`'Authorization': 'Bearer ' + ((s && s.access_token) || c.anonKey)`. That fallback does not mean "call
+this anonymously"; it means "send it without the standing to send it". Fixing it at the call site would
+have been three lines and would have taught nothing.
+
+**Fixing it exposed a second bug the first was hiding** — the same shape as b347's `fire('onEnvelope')`.
+`hydratePledge` lost the identical race but *quietly*, because it had its own `isSignedIn()` check: at
+boot it did nothing, and the probe sat un-run until the 60s tick — defeating the exact "settle before
+the player's first click" promise its own comment makes. After the fix, boot sends BOTH RPCs,
+authenticated, at +2.1s. **A guard that returns early is not the same as a guard that waits.**
+
+**Design call I would defend: the predicate is INVERTED.** `ANON_CALLABLE` lists what may go out
+without a session (one entry) rather than what may not (38). A new RPC is protected the day it is
+written by nobody remembering anything, and the maintained list is the short one. The failure
+directions are asymmetric and that is the argument: omitting an anon RPC breaks a visible feature in
+one boot; omitting an authenticated RPC — the old shape — cost nothing visible for months.
+
+**Two sources that cannot vouch for each other.** The client's `ANON_CALLABLE` is checked against
+`tests/rpc-resolution.baseline.json`, which is CI-verified against the LIVE grants and maintained by a
+different concern for a different reason. M4 and M5 redden it in opposite directions.
+
+**Operational, and it cost me an hour: MY MUTATION HARNESS ATE MY UNCOMMITTED WORK.** `restore()` ran
+`git checkout --` on three files *before* the first mutation, against an uncommitted tree. Recovered
+from context, then committed BEFORE re-running. **A mutation harness that restores with git is only
+safe against a committed baseline — commit first, always.** (Second gotcha: the worktree is CRLF and
+the anchors were LF, so every anchor missed until the harness normalised.)
+
+**Not mine, captured as asked:** the Edge payload guard has been RED since partway through this
+session — deployed `hr-accrue` reports `a2a42250dd81e795…`, this repo packs `2f6334133c627f81…`. It was
+GREEN on my first run and RED on every run after, with no change from me; my diff touches no
+`src/core`, `src/data` or `supabase/functions`. Another agent deployed. Someone owns that redeploy.
+
 ## 2026-08-15 — b347 — the seam, and the record that had two writers
 
 Branch `worktree-agent-aa3e8484ab2c37486`, commit `b0b7ac4`. Suite **702/702** (baseline 692; +10),
@@ -78,6 +132,87 @@ running agents. A file I wrote as `mutate.mjs` was overwritten mid-session by an
 of the same name, pointing at a different worktree. Nothing crossed into my files (git status stayed
 exactly my seven), but a long background job reading a generically-named scratchpad script can be
 swapped under it. Use a name nobody else would pick.
+## 2026-08-15 — b348 — Xarn's five, and the runner that could not fail
+
+Branch `agent-a597c79506d8d0445`. Suite **696/696** (baseline 692; +4), 0 runtime errors, 0 console
+errors, five consecutive full runs. **Seventeen mutations, each RED on exactly one test.** No version
+bump, nothing deployed, nothing applied. Labelled b348 — b347 is the merged away-buff work.
+
+**THE LESSON, AND IT IS ABOUT MY OWN TOOLING: A TEST RUNNER CAN BE THE THING THAT ASSERTS NOTHING.**
+`tryRun` is `try { fn(); return pass(name); } catch {…}`. Hand it an `async` body and it receives a
+PROMISE — nothing throws synchronously, the catch is unreachable, and PASS is returned before one
+assertion executes. I wrote two of those. **Seven mutations, including restoring the exact bug the
+tests existed for, all came back GREEN.** Reading them would never have found it. This is b347's
+lying-guard family one layer DOWN: not a wrong assertion, a runner that never reaches an assertion.
+`tryRun` now fails loudly on a thenable return, naming `tryRunAsync`. **Generalise: when a whole
+batch of mutations comes back green, suspect the harness before you congratulate the code.**
+
+**The bug under Xarn's bug was structural, exactly as the brief guessed.** Two recipe authorities: the
+generated curve in `gear-tiers.js`, and hand-authored rows in `recipes.js` spread FIRST so they win.
+Five of those rows share an ID with their generated twin, so `mergeGenerated` drops the generated
+recipe by id and the hand-authored `req` replaces the curve **leaving no trace at all**. Measured
+across 22 lanes: **16 rungs off the curve, 3 lanes disordered** — platebody INVERTED (steel 60 >
+mithril 55, Xarn's exact case), helm and belt TIED. I moved five values onto the curve and left the
+other eleven, because they are ORDERED and retuning them is balance churn with no defect behind it.
+
+**The guard's shape is the part I would defend.** Rebuilding the lanes from item-id patterns would
+carry a SECOND copy of the id scheme (plate is `mat.id + '_' + slot.key`; leather/cloth are
+`tierId + '_' + slot.slot`) — the same two-authority bug one layer up. So the generator PUBLISHES
+`GEAR_LADDERS`, and the guard grades the live merged table against it. It asserts **monotonicity, not
+equality to the curve**: a deliberate deviation that keeps the ladder ordered stays legal, because
+order is the property the player actually experiences. And it looks rungs up by **OUTPUT**, so
+`tailor_leather_boots` beating `craft_leather_boots` is still seen.
+
+**Report #2 was a stylesheet eating a fact, and the archaeology matters.**
+`#panel-combat .csb-btn small { display:none }` — comment: *"hide ATTACK/STRENGTH/DEFENSE labels"* —
+landed in **b110**, when that font was 10px and the block had no room. Then b227 raised the type floor
+to 14.5px (the density argument expired) and **b329 put the per-style SWING TIME inside the same
+`<small>`** — the number that answered Xarn's PREVIOUS report, invisible on his phone from the day it
+shipped. Measured at 922×423: computed `display:none`, innerText carrying neither fact. And on mobile
+`.csb-meta` is hidden too, so there was **no surface at all** stating the XP route. Fixed by splitting
+the two facts into `.csb-trains` / `.csb-swing` so a future density pass can drop the speed and never
+the route. **Generalise: when you add a fact to an existing element, check what already governs it.**
+
+**Two guards, deliberately, for one bug.** An in-page test cannot force a media query, so it walks the
+**CSSOM** (rules inside `@media` included) and fails on any rule hiding the label — it grades the rule
+wherever it sleeps. The landscape guard then proves the RESULT at 820×360, because a future density
+pass could hide it by a mechanism no rule-scan would name (a zero height, a clipped parent). Its first
+run failed for the wrong reason and that was worth more than a pass: the picker was not laid out
+because the seeded save is mid-fight and `combat-mobile-tabs.js` steers a live fight to the Arena
+until the player chooses. Writing `dataset.mobileSub` is undone within 1.5s; **tapping** the tab sets
+`_playerChose` and sticks. The guard now taps, and reports "not laid out" as a DISTINCT failure from
+"hides its label", so the next reader is not sent after the wrong thing.
+
+**Report #3 had two causes and only fixing both makes the purchase visible.** The grid sized itself
+`max(88, ceil(items/11)*11)` — item count, and the `/11` did not even align to a row because
+`.invc-grid` is `repeat(auto-fill, minmax(72px,1fr))`. AND `_renderInvSummary()` overwrote the whole
+`.invc-space` node on every tab entry, so the one label stating capacity survived ~50ms and was
+replaced by "16 items · 63 gp". Measured before: 88 tiles at cap 100, **88 at cap 160 after paying 45
+gems**, 88 at cap 200. After: 100/160/200. **Perf is bounded and measured** — an empty tile costs
+~0.006ms, so the grid draws capacity up to a 600 ceiling (~18ms, plateaus there) and states the
+surplus as one chip; gold slots self-limit at 1.32× a buy but GEM slots are flat, so capacity has no
+upper bound and neither would the DOM.
+
+**A mutation caught my filtered-view assertion being satisfiable by the bug.** I asserted
+`filtered.total < bankCap()`. Free space is `cap − used`, so a lane holding fewer items than the bag
+lands under the cap **even when it IS deriving from capacity** — the mutation stayed green. Rewritten
+as an equality against the container fill, it goes red at "155 tiles for 1 matches (cap 160)".
+**A `<` on a derived quantity is usually a `=` you have not worked out yet.**
+
+**Report #4's data half is the same one-authority story.** The six classic hand-authored plate pieces
+carry NO `reqSkill`/`reqLv` at all — their gate comes from `tier` through `gearWieldReq`. So
+`openInvDetail`'s `if(it.reqSkill && it.reqLv)` line **existed and printed nothing for exactly the gear
+a mid-game player is deciding about**. Every surface now asks `gearWieldReq`, the pair `equipItem()`
+enforces and the b341 shop row already asked.
+
+**Found in passing, not fixed:** on the generated ladder a tier's gear unlocks BELOW the bar it is
+made from — bronze gauntlets 2 / boots 3 / belt 4 / helm 6 against `smelt_bronze` at **8**; mithril
+gauntlets 46 through body 55 against `smelt_mithril` at **55**. Pre-existing, systemic, and a
+MATERIAL_TIERS design call rather than a bug fix. And `AWAY-16` is **flaky** — twice in ~20 runs under
+mutations that cannot touch it.
+
+**Edge payload hash moved; catalogue regenerated (5 `hr_activities` rows, nothing else) — REDEPLOY
+AND RE-APPLY NEEDED, NEITHER PERFORMED.**
 
 ## 2026-08-15 — b347 — the loop that paid a buff all night and spent none of it
 
@@ -1455,3 +1590,70 @@ must be free to record WHY the thing was removed, and deleting that record is ho
 named test. Runtime-verified in a real browser: zero hits sweeping all 16 tabs + quests modal +
 monster preview; the away card reads *"8h away — your camp was quiet. You died to Green Dragon 2s in
 — the remaining 7h 59m paid nothing."* with a Train-a-skill CTA.
+
+---
+
+## b348 — THE SWITCH-ON TEST: half a seam, and the two lists that could not see each other
+
+**The task.** Tyler ran the first real switch-on test and it failed in minutes: started woodcutting,
+left, came back to a stopped run and (he reported) the daily-login panel again.
+
+**What I measured before touching anything.** Three harnesses, each more faithful than the last:
+the smoke-harness flag; a plain reload; and finally **no harness flag at all** (the account gate
+opened by a planted session), which is the only configuration where the b260 4-second resume
+watchdog actually runs — it is disabled under `__HR_TEST_HARNESS__`, so every previous
+investigation of this path had been looking at a client Tyler does not have.
+
+  * **Symptom 1 reproduced exactly.** `startSkill` put ZERO requests on the wire; `player_state`
+    stayed `idle`/version 0. Cause: b347 wired four COMBAT declaration sites; the next merge widened
+    `PAYABLE_KINDS` to include `gather`, `SETTABLE_KINDS` grew from it *by derivation*, and no client
+    site was ever added. Nothing was wrong on either side.
+  * **Symptom 2 did NOT reproduce, and the brief's hypothesis is falsified by the server's own
+    records.** `version 0` + `0 player_intents` means `hr_apply` never ran, so no `accrued:true`
+    envelope ever came back, so `applyEnvelopeState` never executed — it cannot have clobbered
+    anything. Nothing in the accrue/record/activity path writes `G.dailyReward`; the claim persists
+    to the local save and survives a reload; and the daily modal has exactly one auto-opener
+    (`autoBoot`, once per page load, early-returns when not claimable). **Therefore the panel
+    returning requires `lastClaimDay` to have been rolled back — i.e. a page reload with a stale
+    save, of which `auth.js pullAndMaybeRestore` → `applyCloudOverlay` + `location.reload()` is the
+    only candidate in this flow.** Reported as an open question with the one measurement that would
+    settle it, rather than a fix aimed at a mechanism I could not demonstrate.
+
+**The engineering lessons worth keeping.**
+
+- **Derivation removes the second LIST, not the second SIDE.** `SETTABLE_KINDS = ['idle',
+  ...PAYABLE_KINDS]` is good design and it is *why* this shipped broken: the widening happened in a
+  file no client author reads, with no client-side diff to review. Any derived server allowlist a
+  client must mirror needs a mechanical link, or the derivation hides the change from review.
+- **One guard could not cover it.** "Nobody wrote the call site" and "the call site exists and is
+  unreachable" are different failures. Node guard (lists ≡, call sites exist, catalogues ≡) +
+  browser guard (iterate the client list, drive a REAL gesture, assert the bytes). Chain:
+  *server ≡ client* ∧ *client ⇒ gesture on the wire*.
+- **`idle` is two sentences that are byte-identical.** "You stopped and I know" vs "I was never
+  told". Every character starts idle, so obeying idle as authority ends the run of every player whose
+  save predates the seam. The client has to track which of its OWN declarations were acknowledged;
+  an unacknowledged idle is a cue to DECLARE, not to stop. This generalises to every future intent
+  that reconciles a client pointer against a server default.
+- **A spy placed one level too high deletes the mechanism it is testing.** My first "one gesture is
+  one intent" test spied `window.declareActivity` — which is where the quiet counter lives — so it
+  recorded calls the real seam suppresses and failed on a bug that was not there. Moved to
+  `HearthriseActivity.declare`, one level below the counter and above the kill switch.
+- **A fixture that starts from the state where the bug cannot happen proves nothing.** The same test
+  started every gesture from IDLE, so the activity mutex's cross-stop had nothing to stop, and the
+  mutation that removes the quiet wrapper left the suite GREEN. Rewritten so each gesture
+  *interrupts the other kind* — which is what a player does — and the mutation now goes red.
+- **A latch's lifetime is a design decision.** The one-re-assertion-per-pointer bound was leaking
+  across runs. Fixing it as "the budget belongs to a RUN; `endActivityRun()` returns it on any stop"
+  is both the correct semantics and the thing that made the tests isolate.
+- **Finishing a seam makes previously-unreachable code reachable, and it may be wrong.** b339's
+  replacement gate carried the note "today this cannot fire". It fires now, on the first tap of a
+  tree, and where the ack latch is already set it replaces the character silently — taking the daily
+  reward's gold with it. Flagged as a P1 handoff rather than overturned: it is a standing ruling and
+  a Designer/UX call, not a systems bug.
+
+**Verification.** 712/712 × 4 runs, 0 runtime errors, 0 console errors; `AWAY-1 PARITY` green;
+`bump-version.sh --check` green at 348. 16 mutations (8 Node, 8 browser), each RED and each naming
+its own fault, every one bracketed by a green control and a green restore. Tyler's exact sequence
+driven end to end in a real browser on the fixed build: intent recorded, `player_state` =
+`gather/oak_tree` version 1, woodcutting still running on return, daily still claimed, stop declares
+`idle`, cooking declares `idle` (not silence), zero console errors.

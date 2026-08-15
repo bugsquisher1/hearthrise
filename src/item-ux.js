@@ -99,6 +99,52 @@
     };
   }
 
+  /* ── b348 · WHAT DO I NEED TO WEAR THIS? ────────────────────────────────
+     Xarn: "Is it possible to add the level-requirements for gear to see when we
+     can wear those items?" b341 put exactly this on the SHOP row; the hover
+     tooltip — the surface a player uses to compare gear they already own — never
+     said it at all. Measured before this change: hovering a Steel Platebody
+     produced +22 DEF, a vs-equipped line, a vendor price and a market price, and
+     not one word about needing Defence 30.
+
+     It reads `gearWieldReq`, the same pair equipItem() enforces (legacy.js:4660)
+     and the shop row asks. That matters beyond tidiness: the six classic
+     hand-authored plate pieces (iron/steel helm + platebody, bronze belt) carry
+     NO `reqSkill`/`reqLv` fields at all — their gate is derived from `tier`. Any
+     surface reading the raw fields therefore shows nothing for precisely the
+     gear a mid-game player is looking at, which is why the item modal was
+     silent too. One authority, asked at every point of decision.
+
+     Armour requirements are DEFENCE-ONLY by standing ruling (Tyler, 2026-08-15
+     — see the armour block in src/data/gear-tiers.js): there is no per-style
+     requirement to display, and there must never be one, because defence-only
+     gating is what keeps mix-and-match armour viable. */
+  function wieldLine(itemId, item){
+    if(typeof window.gearWieldReq !== 'function') return '';
+    var req = window.gearWieldReq(item);
+    if(!req) return '';
+    var SD = window.SKILLS_DEF || {};
+    var skillName = (SD[req.skill] && SD[req.skill].name) || req.skill;
+    var w = (typeof window.canWield === 'function') ? window.canWield(itemId) : { ok: true };
+    var have = (typeof window.getLevel === 'function') ? window.getLevel(req.skill) : null;
+    /* "Already worn" is its own state, not a pass: the grandfather list keeps
+       gear you have legitimately equipped once re-wearable forever, so saying
+       "met" when the level is not met would be a different lie. */
+    var grandfathered = w.ok && have !== null && have < req.lv;
+    var status = grandfathered
+      ? 'already unlocked for you'
+      : w.ok
+        ? 'you can wear this'
+        : 'you have ' + (have === null ? '—' : have);
+    /* Two BLOCK lines, not a flex row: the tooltip is ~280px, and flexing the
+       bold clause against a trailing one wrapped it mid-phrase
+       ("Requires / Defense Lv / 30  to wear you have 15"). Verified in the
+       browser at the real tooltip width. */
+    return '<div class="ttl-req ' + (w.ok ? 'met' : 'unmet') + '">'
+      + '<span class="ttl-req-line"><b>Requires ' + skillName + ' Lv ' + req.lv + '</b> to wear</span>'
+      + '<i>' + status + '</i></div>';
+  }
+
   function renderTooltip(itemId, qty){
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return '';
@@ -125,7 +171,7 @@
       ? '<div class="ttl-archetype">' + _armLabel[item.armourClass] + '</div>'
       : '';
 
-    var statsBlock = archetypeTag;
+    var statsBlock = archetypeTag + wieldLine(itemId, item);
     if(item.slot && (item.type === 'weapon' || item.type === 'armor' || item.type === 'jewelry')){
       var cmp = compareToEquipped(itemId);
       if(cmp){

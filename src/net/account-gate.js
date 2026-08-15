@@ -647,6 +647,84 @@
   }
 
   // ════════════════════════════════════════════════════════════
+  // 6b · whenSignedIn — "there is a token to sign this with" (b349)
+  // ════════════════════════════════════════════════════════════
+  // whenOpen() answers "may the game run", which the harness and a CACHED
+  // session both satisfy. That is not the same question as "is there a live
+  // access token", and conflating the two cost 3,196 refused database calls a
+  // day: muster.js fired its clock sync 420ms after DOMContentLoaded, auth.js
+  // could not publish a session until a CDN import() of supabase-js resolved
+  // (measured 94–1,040ms later, every run), and the fallback in every
+  // transport helper in this repo —
+  //
+  //     'Authorization': 'Bearer ' + ((s && s.access_token) || c.anonKey)
+  //
+  // — quietly downgraded the call to anonymous instead of not making it. The
+  // server refused it with 42501 and nothing anywhere said so.
+  //
+  // ── WHY THIS MODULE OWNS IT ─────────────────────────────────
+  // Because it already owns the hard half. authClientReady() exists here, with
+  // a paragraph of reasoning, precisely because "isSignedIn() is false" means
+  // two completely different things depending on whether auth has finished
+  // looking — and the lapse watcher below already runs on that distinction.
+  // A second module re-deriving it would be the b332 shape: one predicate,
+  // several copies, one of them subtly wrong.
+  //
+  // ── THE CONTRACT ────────────────────────────────────────────
+  //   • signed in now            → run immediately (synchronously)
+  //   • not signed in yet        → hold, run on the first live session
+  //   • signed out, and auth has  → HOLD FOREVER. Never run. A 42501 is
+  //     finished looking            "you are not signed in", which is an
+  //                                 ANSWER, not a failure to retry.
+  //   • signs in later (the       → runs then. The realm came back; the
+  //     reauth sheet, another        deferred work is still worth doing.
+  //     tab, a token refresh)
+  //
+  // It is therefore NOT a promise: a promise must settle, and the honest
+  // answer here is often "never". A callback that is simply never invoked is
+  // the shape that cannot be accidentally awaited into a call that goes out
+  // anyway.
+  var signedInQueue = [];   // [{ fn, label }]
+
+  /**
+   * Run everything that has been waiting for a session. With `onlyLabel`, run
+   * just that one and leave the rest queued — which is how the guard exercises
+   * its own deferral without consuming the boot-path deferral it also has to
+   * be able to see.
+   */
+  function drainSignedIn(onlyLabel) {
+    if (!signedInQueue.length) return 0;
+    /* The invariant lives HERE, not in the one caller that currently honours
+       it. The watcher below already checks `signed` before calling — but a
+       rule that is true only because its single call site remembers is the
+       b347 shape, and the next caller will not remember. Asking is free. */
+    if (!isSignedIn()) return 0;
+    var run = [], keep = [], i;
+    for (i = 0; i < signedInQueue.length; i++) {
+      if (onlyLabel == null || signedInQueue[i].label === onlyLabel) run.push(signedInQueue[i]);
+      else keep.push(signedInQueue[i]);
+    }
+    signedInQueue = keep;
+    for (i = 0; i < run.length; i++) {
+      try { run[i].fn(); }
+      catch (e) { try { console.warn('[account-gate] deferred signed-in work failed (' + run[i].label + ')', e); } catch (e2) {} }
+    }
+    return run.length;
+  }
+
+  /**
+   * Run `fn` once, as soon as there is a live session. Never without one.
+   * `label` names the work, so "what is currently blocked on sign-in?" is a
+   * question with an answer — in the console, and in the guard that has to be
+   * able to tell one caller's deferral from another's.
+   */
+  function whenSignedIn(fn, label) {
+    if (typeof fn !== 'function') return;
+    if (isSignedIn()) { try { fn(); } catch (e) { try { console.warn('[account-gate] signed-in work failed', e); } catch (e2) {} } return; }
+    signedInQueue.push({ fn: fn, label: String(label || 'anonymous') });
+  }
+
+  // ════════════════════════════════════════════════════════════
   // 7 · BOOT
   // ════════════════════════════════════════════════════════════
   if (!open) {
@@ -672,9 +750,11 @@
     var signed = isSignedIn();
     if (!open) {
       if (signed) { unmountWall(); markOpen('session'); }
-      return;
+      else return;                                      // still walled — nothing to drain
     }
-    if (signed) { promptedForLapse = false; return; }   // re-arm for the NEXT lapse
+    // b349: the whenSignedIn() queue drains HERE — one timer, not two, and
+    // strictly after markOpen(), so deferred work can never run behind the wall.
+    if (signed) { drainSignedIn(); promptedForLapse = false; return; }   // re-arm for the NEXT lapse
     if (reason === 'harness') return;                   // the suite has no session to lose
     if (!authClientReady()) return;                     // not a finding yet — see authClientReady()
     if (promptedForLapse) return;                       // asked once; "later" means later
@@ -686,6 +766,7 @@
     isOpen: isOpen,
     openReason: openReason,
     whenOpen: whenOpen,
+    whenSignedIn: whenSignedIn,
     promptReauth: promptReauth,
     hasLocalSave: hasLocalSave,
     // pure, for the guard tests
@@ -697,7 +778,15 @@
     // test seams
     _buildGate: buildGate,
     _readCachedSession: readCachedSession,
-    _whenSessionPersisted: whenSessionPersisted
+    _whenSessionPersisted: whenSessionPersisted,
+    // b349: how many jobs are still holding for a session, WHICH ones, and the
+    // drain the 2s watcher calls. A test that could only observe "it did not
+    // run" would pass against a whenSignedIn() that threw the callback away;
+    // one that could only count would pass against a caller that stopped
+    // deferring while some other caller kept the number the same.
+    _signedInPending: function () { return signedInQueue.length; },
+    _signedInWaiting: function () { return signedInQueue.map(function (j) { return j.label; }); },
+    _drainSignedIn: drainSignedIn
   };
 
   console.log('[account-gate] ' + (open ? 'open (' + reason + ')' : 'CLOSED — account required'));

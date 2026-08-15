@@ -94,7 +94,18 @@
 //
 //   200 {ok:true, verb, version, now, state, skills, inventory, equipment,
 //        farm, progress, total_level,
-//        granted:{kind,key,period,gold,gems,streak,cycleDay,weeksDone} | null}
+//        granted:{kind,key,period,gold,gems,streak,cycle_day,weeks,mult} | null}
+//        ⚠ snake_case, and that is not a style choice — the four trailing fields
+//          are SPREAD from the pricer's `meta`, so whatever a pricer spells is
+//          what reaches the wire. The first revision of this header said
+//          `cycleDay,weeksDone` and omitted `mult` while the code emitted
+//          `cycle_day, weeks, mult` (Security G3): a client written from the
+//          documentation would have rendered three undefineds. The EMITTED
+//          spelling wins, because it is the one that ships. The literal key set
+//          is asserted in tests/claim-intent.mjs (C4) and again over the real
+//          driver in tests/delta-transport.mjs (T7), so this line and the code
+//          can no longer drift apart in silence — a new `meta` key is a red
+//          build until it is written here too.
 //   200 {ok:true, replayed:true, granted:null, …}
 //        ⚠ `granted` IS NULL ON A REPLAY, and that is the OPPOSITE of
 //          set_activity's `collected`. There the receipt belonged to a SEPARATE
@@ -233,25 +244,60 @@ export function deriveLoginStreak(lookup) {
   return Number.isFinite(v) && v >= 1 ? Math.floor(v) + 1 : 1;
 }
 
+/* ── THE PERIOD, AND THE FAIL-CLOSED ROW CHECK — SHARED BY EVERY PRICER ─────
+   Security G6. Both of these were written INSIDE priceLoginClaim, where they
+   read as part of pricing a login streak. They are not: they are the terms on
+   which ANY claimable may be paid, and pricer #2 — written by copying the
+   shape of pricer #1, as pricer #1 was written by copying set-activity.js —
+   would have inherited the arithmetic and not the guard. Extracted so it is
+   inherited STRUCTURALLY: a pricer that does not call this does not get a
+   period at all.
+
+   AND IT NOW COVERS THE NON-PERIODIC CASE, WHICH THE ORIGINAL DID NOT. Only
+   `daily:login` is priced today and it is periodic, so the `''` period was
+   unreachable — but four of the six registry rows are `periodic:false`
+   (collection:milestone, flag:renown_rank, bounty:turnin), they file under the
+   PERMANENT key `''`, and `hr_claim_lookup` returns `''` rows precisely so this
+   can be checked. A one-off claimable is the case where a foreign row matters
+   MOST: there is no tomorrow to recover into, so compounding an unknown value
+   into a permanent row and then paying for it is unrecoverable rather than
+   merely wrong for a day. */
+
 /**
- * THE DAILY LOGIN REWARD. The only claimable that is a pure function of server
- * state plus the server clock — which is why it is first, rather than merely
- * easiest. Every other claim-shaped grant tests a counter the server does not
- * keep yet (see the registry's `needs` fields).
+ * The period key a claimable is filed under. ONE spelling, used by the gate
+ * below AND by `claimDelta`, because a gate that checks one key while the delta
+ * writes another is a check that guards nothing.
+ *
+ * @returns the key, or `null` when the row is periodic and the SERVER gave no
+ *          day — which is a refusal, never a fallback to `''`.
  */
-export function priceLoginClaim(o) {
-  const { lookup } = o;
+export function periodKeyFor(spec, lookup) {
+  if (!spec || !spec.periodic) return '';
   const today = lookup && lookup.today;
-  if (typeof today !== 'string' || today === '') {
+  return (typeof today === 'string' && today !== '') ? today : null;
+}
+
+/**
+ * THE GATE EVERY PRICER RUNS FIRST. Pure.
+ *
+ * @returns `{ period }` when the claim may proceed, or `{ error, detail }` —
+ *          the same refusal shape a pricer returns, so a pricer forwards it
+ *          verbatim and cannot accidentally swallow it.
+ */
+export function resolveClaimPeriod(o) {
+  const { spec, lookup } = o;
+  const period = periodKeyFor(spec, lookup);
+  if (period === null) {
     /* The server did not give us a day. Refusing is the only honest answer: a
-       claim written under period '' would be a PERMANENT row that can never be
-       claimed again, which is a one-line way to end a player's daily reward
-       forever. */
+       PERIODIC claim written under period '' would be a PERMANENT row that can
+       never be claimed again, which is a one-line way to end a player's daily
+       reward forever. Note this is not the same as a genuinely non-periodic
+       claimable, which is FILED under '' on purpose. */
     return { error: INTENT_ERRORS.REWARD_UNAVAILABLE, detail: { needs: 'a server day key' } };
   }
-  /* ⚠ A TODAY-ROW THIS ENGINE DID NOT WRITE IS REFUSED — AND AN ALREADY-CLAIMED
-     ONE IS DELIBERATELY NOT. The distinction cost a red test to find and it is
-     the subtlest thing in this file.
+  /* ⚠ A ROW THIS ENGINE DID NOT WRITE IS REFUSED — AND AN ALREADY-CLAIMED ONE
+     IS DELIBERATELY NOT. The distinction cost a red test to find and it is the
+     subtlest thing in this file.
 
      The first revision refused ANY existing today-row, "to save a round trip on
      a second click". Measured: it also intercepted a REPLAY. A client whose
@@ -268,25 +314,45 @@ export function priceLoginClaim(o) {
      lock, with the `progress` write rolled back with it.
 
      What is refused here is a row in any OTHER state. This engine creates a
-     `daily:login` row only as part of an atomic claim, so 'active' or 'done' is
-     a state it did not write and cannot interpret — and hr_apply's generic
-     `progress` block ADDS to `value`, so proceeding would compound a number
-     whose meaning is unknown into tomorrow's streak, then claim it and pay for
-     it. hr_apply cannot catch that: from its side it is a well-formed claim of
-     a 'done' row, which is precisely what it is built to honour. This check is
-     the ONLY thing standing there. FAIL CLOSED. */
+     claim row only as part of an atomic claim, so 'active' or 'done' is a state
+     it did not write and cannot interpret — and hr_apply's generic `progress`
+     block ADDS to `value`, so proceeding would compound a number whose meaning
+     is unknown into the next period, then claim it and pay for it. hr_apply
+     cannot catch that: from its side it is a well-formed claim of a 'done' row,
+     which is precisely what it is built to honour. This check is the ONLY thing
+     standing there. FAIL CLOSED. */
   const rows = (lookup && lookup.rows) || {};
-  const existing = Object.prototype.hasOwnProperty.call(rows, today) ? rows[today] : null;
+  const existing = Object.prototype.hasOwnProperty.call(rows, period) ? rows[period] : null;
   if (existing && existing.state !== 'claimed') {
     return {
       error: 'not_claimable',
       detail: {
-        period: today,
+        period,
         state: existing.state ?? null,
-        why: 'a daily:login row for today exists in a state this engine did not write',
+        why: 'a claim row for this period exists in a state this engine did not write',
       },
     };
   }
+  return { period };
+}
+
+/**
+ * THE DAILY LOGIN REWARD. The only claimable that is a pure function of server
+ * state plus the server clock — which is why it is first, rather than merely
+ * easiest. Every other claim-shaped grant tests a counter the server does not
+ * keep yet (see the registry's `needs` fields).
+ */
+export function priceLoginClaim(o) {
+  const { spec, lookup } = o;
+  /* The shared gate, and its refusal forwarded verbatim. runClaimReward ALREADY
+     ran this — that is what makes it structural, and pricer #2 inherits it by
+     not being reached until it has passed. It is repeated here because the
+     pricers are also called directly (by tests, and by whatever tool prices a
+     claim for support), it is pure and free, and a pricer that is safe on its
+     own is a pricer that cannot be made unsafe by a future refactor of its
+     caller. Idempotent by construction: same inputs, same answer. */
+  const gate = resolveClaimPeriod({ spec, lookup });
+  if (gate.error) return gate;
   const streak = deriveLoginStreak(lookup);
   const p = priceDailyLogin(streak);
   return {
@@ -359,7 +425,15 @@ export function validateClaim(r) {
  */
 export function claimDelta(o) {
   const { kind, key, spec, period, priced } = o;
-  const p = spec.periodic ? period : '';
+  /* THE GATE'S OWN PERIOD, VERBATIM. This used to be a second
+     `spec.periodic ? period : ''` ternary — the same rule, spelled twice, in the
+     function that WRITES the row while the fail-closed check spelled it in the
+     function that READS it. Two copies that agree today are two copies, and the
+     day they disagree the check guards a period nothing writes to (G6). There is
+     now exactly one producer, `resolveClaimPeriod`, and runClaimReward hands its
+     answer to both. `spec` is still read here — for `ledgerKind` and for the
+     intent name — so this is not a parameter that lost its purpose. */
+  const p = period;
   const delta = {
     gold: priced.gold,
     progress: [{ kind, key, period: p, add: priced.add, state: 'done' }],
@@ -416,8 +490,30 @@ const READ_SQL = `
          now()                                                               as now
     from g`;
 
+/* ⚠ `$5::text::jsonb`, NEVER `$5::jsonb`, BECAUSE THE DELTA IS PRE-STRINGIFIED.
+   Identical constraint to set-activity.js's APPLY_SQL and index.ts's tagged
+   apply — read either for the full mechanism. The short form: the engine
+   connects with `prepare: false` (mandatory in transaction-pooler mode), so
+   every statement takes postgres.js's describe-first path, the driver learns the
+   resolved parameter type from ParameterDescription, and Bind looks it up in
+   `options.serializers` — where jsonb (3802) maps to JSON.stringify. A delta
+   that step (4) already stringified is then encoded a SECOND time and reaches
+   hr_apply as a jsonb STRING SCALAR, which its first guard
+   (`jsonb_typeof(p_delta) <> 'object'`) refuses as `bad_delta`. Every claim
+   would 409, forever, and the player would be told the reward was not claimable.
+   `::text` makes Postgres describe the parameter as text (25), whose serializer
+   is `x => '' + x` — a passthrough — and the SQL cast does the parse. Correct
+   under BOTH driver typings (an unspecified type 0 is a passthrough too).
+   ALL THREE apply sites must state the same shape; tests/delta-transport.mjs's
+   T6 censuses the whole deployed payload for every apply call site and fails on
+   any one whose delta argument does not end `::text::jsonb`, so a fourth site
+   written by copying an older shape is caught rather than shipped.
+   ⚠ And do not write the apply function's name followed by an open parenthesis
+     anywhere in this prose: T6's scanner is a balanced-paren walk from that
+     exact token, so a mention in a comment is read as a call site with an
+     unreadable argument list and fails the guard. (It did, once, here.) */
 const APPLY_SQL = `
-  select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::jsonb) as res`;
+  select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text::jsonb) as res`;
 
 /**
  * THE INTENT.
@@ -476,8 +572,19 @@ export async function runClaimReward(o) {
   }
   const lookup = read.lookup || {};
 
-  /* (2) PRICE. Pure, in process, from server values only. */
-  const priced = pricer({ spec: v.spec, lookup, env });
+  /* (1b) THE PERIOD GATE — SHARED, AND RUN BEFORE ANY PRICER (Security G6).
+          This is the "a row for this period exists in a state this engine did
+          not write" check, plus "a periodic claimable with no server day key is
+          refused, never filed under ''". It lived inside priceLoginClaim, where
+          pricer #2 would have had to remember to copy it; running it HERE means
+          a pricer inherits it by not being called until it has passed. Its
+          refusal shape is a pricer's refusal shape, so the handling below is
+          shared too. */
+  const gate = resolveClaimPeriod({ spec: v.spec, lookup });
+
+  /* (2) PRICE. Pure, in process, from server values only. The gate's period is
+         passed in so a pricer that needs it does not re-derive it. */
+  const priced = gate.error ? gate : pricer({ spec: v.spec, lookup, env, period: gate.period });
   if (priced && priced.error) {
     return {
       status: 409,
@@ -493,8 +600,12 @@ export async function runClaimReward(o) {
          registry row: `collectsFirst:false` is only correct while the delta
          cannot stamp `accrued_to`. Checked rather than trusted, because the
          failure it guards is silent — an unpaid night, no error anywhere. */
+  /* `gate.period`, NOT `lookup.today`. The gate is what decided which period was
+     checked for a foreign row, and it is the only thing that knows a
+     non-periodic claimable is filed under ''. Handing claimDelta `lookup.today`
+     here is what made the second ternary necessary in the first place. */
   const delta = claimDelta({
-    kind: v.kind, key: v.key, spec: v.spec, period: lookup.today, priced,
+    kind: v.kind, key: v.key, spec: v.spec, period: gate.period, priced,
   });
   if (deltaClosesWindow(delta) && !collectsFirst(VERB)) {
     return {
@@ -549,7 +660,7 @@ export async function runClaimReward(o) {
       granted: res.replayed === true ? null : {
         kind: v.kind,
         key: v.key,
-        period: v.spec.periodic ? (lookup.today ?? null) : null,
+        period: v.spec.periodic ? (gate.period ?? null) : null,
         gold: priced.gold,
         gems: priced.gems || 0,
         ...(priced.meta || {}),

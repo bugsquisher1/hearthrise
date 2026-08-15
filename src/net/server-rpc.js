@@ -40,6 +40,40 @@
 // IIFE. A classic script published on `window` is reachable from both; an ESM
 // module is reachable from one. Module scripts are deferred, so by the time the
 // market backend evaluates, this has run.
+//
+// ── b349: THE SECOND DECISION — "may this call go out at all?" ──────────
+// The first decision above is "does the server HAVE this RPC". Its twin is
+// "does this caller have the standing to make the call", and the repo learned
+// it the expensive way: 3,196 `hr_server_now` calls a day were leaving the
+// client with the ANON key in the Authorization header, because muster.js's
+// clock sync fires 420ms after DOMContentLoaded and auth.js cannot publish a
+// session until a CDN `import()` of supabase-js has resolved — measured at
+// 94–1,040ms LATER, on every run, on localhost. Postgres refused every one
+// (42501) and the client shrugged. 19% of all database traffic was a client
+// asking a question it had no right to ask yet, and it made the error
+// dashboard useless as an incident signal.
+//
+// The predicate is deliberately INVERTED — a list of what may go out
+// anonymously, not a list of what may not. Fail CLOSED, the same direction
+// `AWAY_SCOPE` and `mayClientWrite` chose:
+//
+//   • A NEW authenticated RPC is protected the day it is written, by nobody
+//     remembering anything.
+//   • The list that must be maintained is the SHORT one. There is exactly one
+//     entry today (hr_leaderboard, the deliberately public board) against 38
+//     authenticated-only RPCs, and `tests/rpc-resolution.baseline.json` — the
+//     committed record of what production actually answers an anonymous
+//     caller — proves that ratio on every CI run.
+//   • Getting the list WRONG in the unsafe direction (an anon RPC omitted)
+//     costs a feature that visibly stops working. Getting the old, positive
+//     shape wrong (an authenticated RPC omitted) cost nothing visible at all
+//     for months. Prefer the mistake that shows up.
+//
+// This is the DECISION only, per the charter above. "When does a session
+// exist?" is a timing question owned by whoever owns the session — see
+// HearthriseGate.whenSignedIn() in src/net/account-gate.js, which is the
+// module that already knows the difference between "signed out" and "auth has
+// not finished looking yet".
 // ============================================================
 (function () {
   'use strict';
@@ -102,12 +136,49 @@
     else probes = Object.create(null);
   }
 
+  // ══════════════════════════════════════════════════════════════════════
+  // MAY THIS CALL GO OUT? (see the b349 note in the header)
+  // ══════════════════════════════════════════════════════════════════════
+
+  /* The whole anonymous surface. Every OTHER RPC the client can name needs a
+     session, without being listed anywhere.
+
+     `hr_leaderboard` is the honour roll: public by design, and the one RPC
+     src/features/leaderboards.js is allowed to retry anonymously when a
+     player's token has expired (b222 — an expired JWT should cost you the
+     "you are here" block, never the whole board).
+
+     ⚠ Adding an entry here OPENS a call to unauthenticated traffic. Do it only
+       with a matching grant on the server, and expect
+       tests/rpc-resolution.baseline.json to move in the same commit. */
+  var ANON_CALLABLE = { hr_leaderboard: true };
+
+  /** Does this RPC require a live session? Unknown ⇒ YES. */
+  function needsSession(name) { return ANON_CALLABLE[String(name || '')] !== true; }
+
+  /**
+   * THE GUARD. `hasSession` is a FACT the caller supplies (it owns its own
+   * transport and its own idea of a token), not something re-derived here —
+   * this module has no business reaching into auth.js.
+   *
+   * Anything other than a literal `true` is read as "no session". A caller
+   * that passes an object, a promise, or `undefined` because it has not
+   * looked yet is exactly the caller this exists to stop.
+   */
+  function mayCall(name, hasSession) {
+    return hasSession === true || !needsSession(name);
+  }
+
   window.HearthriseRpc = {
     NEGATIVE_TTL_MS: NEGATIVE_TTL_MS,
     isMissingRpc: isMissingRpc,
     note: note,
     capability: capability,
     shouldTry: shouldTry,
-    reset: reset
+    reset: reset,
+    // b349 — the session decision
+    ANON_CALLABLE: Object.keys(ANON_CALLABLE),
+    needsSession: needsSession,
+    mayCall: mayCall
   };
 })();

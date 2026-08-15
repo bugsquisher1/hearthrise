@@ -186,11 +186,20 @@
 
   // What the calendar OFFERS for a key — the raw pool value, ungated. This is
   // what the UI reads to describe the day; it is never what the engine pays.
+  /* b349 — the lookups are OWN-PROPERTY GUARDED, and that is a bug fix rather
+     than hygiene. `ev.bonus` is an ordinary object literal, so
+     `ev.bonus['constructor']` is the Object constructor: truthy, and
+     `t += Object` turns getBonus's answer into a STRING for the rest of the
+     session — every multiplier downstream then reads NaN. Measured through the
+     real seven-layer chain by src/features/smoke-test.js B349-5, which is where
+     it surfaced. Security's C6 in a new costume; the matching guard at layer 0
+     is `own()` in src/core/perks.js. No real key changes value: every blessing
+     magnitude is a number. */
   function bonusFor(key) {
     var t = 0;
     var d = daily(), w = weekly();
-    if (d && d.bonus[key]) t += d.bonus[key];
-    if (w && w.bonus[key]) t += w.bonus[key];
+    if (d && typeof d.bonus[key] === 'number') t += d.bonus[key];
+    if (w && typeof w.bonus[key] === 'number') t += w.bonus[key];
     return t;
   }
   // What the calendar actually PAYS for a key, right now. This is the only

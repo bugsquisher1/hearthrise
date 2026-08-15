@@ -29,32 +29,41 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=346';
-import * as xp from './core/xp.js?v=346';
-import * as combat from './core/combat.js?v=346';
-import * as drops from './core/drops.js?v=346';
-import * as pacing from './core/pacing.js?v=346';
-import * as rested from './core/rested.js?v=346';
-import * as tools from './core/tools.js?v=346';
-import * as farm from './core/farm.js?v=346';
-import * as progression from './core/progression.js?v=346';
-import * as styles from './core/styles.js?v=346';
-import * as artisan from './core/artisan.js?v=346';
-import * as bounty from './core/bounty.js?v=346';
-import * as away from './core/away.js?v=346';
-import * as botd from './core/botd.js?v=346';
-import * as buffs from './core/buffs.js?v=346';
-import * as combatSim from './core/combat-sim.js?v=346';
+import * as rngMod from './core/rng.js?v=349';
+import * as xp from './core/xp.js?v=349';
+import * as combat from './core/combat.js?v=349';
+import * as drops from './core/drops.js?v=349';
+import * as pacing from './core/pacing.js?v=349';
+import * as rested from './core/rested.js?v=349';
+import * as tools from './core/tools.js?v=349';
+import * as farm from './core/farm.js?v=349';
+import * as progression from './core/progression.js?v=349';
+import * as styles from './core/styles.js?v=349';
+import * as artisan from './core/artisan.js?v=349';
+import * as bounty from './core/bounty.js?v=349';
+import * as away from './core/away.js?v=349';
+import * as botd from './core/botd.js?v=349';
+import * as buffs from './core/buffs.js?v=349';
+import * as combatSim from './core/combat-sim.js?v=349';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=346';
+import * as skillSim from './core/skill-sim.js?v=349';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=346';
+import * as autoEat from './core/auto-eat.js?v=349';
+/* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
+   of the getBonus chain — room rungs, plot buildings and the property
+   capstone — is this module now, on both sides, so the client's `noBurn` and
+   the server's cannot differ. src/legacy.js `getBonus` delegates to it
+   through this bridge; hr-accrue calls the same functions with the state
+   `hr_perks_of` returns. Published rather than inlined for the reason every
+   other core module is: a core module the client cannot reach is a second
+   implementation waiting to happen. */
+import * as perks from './core/perks.js?v=349';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -63,6 +72,52 @@ let rng = rngMod.createRng((Math.random() * 0x100000000) >>> 0);
 
 const G = () => window.G;
 const ITEMS = () => window.ITEMS || {};
+
+/* ── THE GATHER INDEX, CLIENT SIDE (b348) ──────────────────────────────────
+   `{ [nodeId]: { skill, node } }` over every gathering node, built by the SAME
+   `indexGatherNodes` and from the SAME three arrays as
+   supabase/functions/hr-accrue/catalogue.js. It is the client's answer to
+   "which skill does `oak_tree` belong to, and how long is a swing?" — the
+   question the activity intent's reconcile has to answer when the SERVER names
+   a gathering node the local pointer is not on.
+
+   ⚠ IT MUST NOT BE A SECOND MAPPING. legacy.js already answers that question
+     three times over in `currentActionDef()` (an if/else per skill), and a
+     fourth hand-rolled copy here is how the client comes to think `rich_coal_rock`
+     is a fishing spot while the server pays it as mining. One function, one
+     source, both sides — and `tests/activity-seam.mjs` asserts the two indexes
+     have identical keys, so a node that exists on one side and not the other
+     fails the build rather than a player's night.
+
+   The ARRAYS are read off `window` rather than imported, the same way `ITEMS`
+   above is: src/main.js merges the ESM content INTO the objects legacy.js holds
+   (`unifyArray`), so `window.TREES` is the same identity as the module's export
+   — importing it here would be a second reference to one array, which is the
+   data double-copy CLAUDE.md forbids reintroducing.
+
+   Memoised on the three array IDENTITIES, not on a boolean: the unify merge
+   runs after this module loads, and a `built` flag would freeze whatever
+   happened to exist at first call. */
+let _gatherIdx = null;
+let _gatherSrc = null;
+function gatherNodes() {
+  const t = window.TREES; const r = window.ROCKS; const f = window.FISH_SPOTS;
+  if (_gatherIdx && _gatherSrc && _gatherSrc[0] === t && _gatherSrc[1] === r && _gatherSrc[2] === f) {
+    return _gatherIdx;
+  }
+  _gatherIdx = skillSim.indexGatherNodes({ woodcutting: t, mining: r, fishing: f });
+  _gatherSrc = [t, r, f];
+  return _gatherIdx;
+}
+
+/** `{skill, node}` for a gathering node id, or null. The one lookup. */
+function gatherNode(id) {
+  if (typeof id !== 'string' || !id) return null;
+  const idx = gatherNodes();
+  /* Null-prototype index (see indexGatherNodes), so `__proto__`/`constructor`
+     resolve to undefined rather than to something truthy. */
+  return idx[id] || null;
+}
 
 /* The perk stack. On the client this is a chain seven wrappers deep
    (world-events, companions, clans, clan-seat-ui, muster + two in
@@ -162,6 +217,7 @@ window.HearthriseCore = {
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, autoEat,
+  perks,
 
   /* The session RNG. */
   get rng() { return rng; },
@@ -181,6 +237,8 @@ window.HearthriseCore = {
 
   /* The adapters legacy.js calls. */
   bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  /* b348 — the gather index and its lookup, shared with the accrual engine. */
+  gatherNodes, gatherNode,
   items: ITEMS,
 };
 

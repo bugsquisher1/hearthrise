@@ -13,10 +13,10 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=346';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=346';
-import { SLOT_RECIPES } from './slot-ladders.js?v=346';
-import { ITEMS, foodClassOf } from './items.js?v=346';
+import { GEAR_RECIPES } from './gear-tiers.js?v=349';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=349';
+import { SLOT_RECIPES } from './slot-ladders.js?v=349';
+import { ITEMS, foodClassOf } from './items.js?v=349';
 
 const BASE_RECIPES = {
   cooking: [
@@ -93,12 +93,30 @@ const BASE_RECIPES = {
     {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1},  output:'rune_sword',    xp:1200,  req:75, ms:5500},
     {id:'forge_stone_maul',    name:'Forge Stone Maul',    icon:'🔨', inputs:{normal_plank:2, copper_ore:4},                output:'stone_maul',    xp:100,   req:10, ms:2700},
     {id:'forge_iron_warhammer',name:'Forge Iron Warhammer',icon:'🔨', inputs:{iron_bar:4, oak_plank:2},                     output:'iron_warhammer',xp:350,   req:35, ms:3800},
-    // Forge armor
-    {id:'forge_iron_helm',     name:'Forge Iron Helm',     icon:'⛑️', inputs:{iron_bar:2},  output:'iron_helm',      xp:200, req:25, ms:3000},
-    {id:'forge_iron_platebody',name:'Forge Iron Platebody',icon:'🦺', inputs:{iron_bar:5},  output:'iron_platebody', xp:350, req:35, ms:3800},
-    {id:'forge_steel_helm',    name:'Forge Steel Helm',    icon:'⛑️', inputs:{steel_bar:3}, output:'steel_helm',     xp:600, req:50, ms:4500},
-    {id:'forge_steel_platebody',name:'Forge Steel Platebody',icon:'🦺',inputs:{steel_bar:7},output:'steel_platebody',xp:900, req:60, ms:5000},
-    {id:'forge_bronze_belt',   name:'Forge Bronze Belt',   icon:'🟫', inputs:{bronze_bar:2, wolf_pelt:1}, output:'bronze_belt', xp:120, req:18, ms:2800},
+    /* Forge armor.
+       ── b348 · THE LEVEL GATES BELOW ARE THE GENERATED CURVE, NOT GUESSES ──
+       Xarn, live report: "Steel Platebody adds 22 Def requires 60 smithing;
+       Mithril Platebody adds 34 Def requires 54ish… the order of armour items
+       to smith is not based on requirement yet." Measured: he was exactly
+       right, and it was not a typo. These five rows share an id with their
+       GENERATED twin in gear-tiers.js, so `mergeGenerated` below drops the
+       generated recipe and this `req` silently replaces the curve — invisibly,
+       because the ids match. Three lanes were disordered by it:
+         plate/platebody  steel 60  >  mithril 55   (INVERTED — Xarn's report)
+         plate/helm       steel 50  =  mithril 50   (TIED: a strictly better
+                                                     helm at the same level)
+         plate/belt       bronze 18 =  iron 18      (TIED, at the bottom rung)
+       Each `req` is now `MATERIAL_TIERS[t].smith + ARMOUR_SLOTS[s].lvOff` —
+       the same expression the generator uses, so the lane reads 15 levels a
+       rung like every other slot. Everything else about these recipes (their
+       bespoke bar costs, XP and durations) is untouched: the hand-authored row
+       still wins, it just no longer wins an argument about ORDER.
+       `GEAR_LADDERS` + the b348 guard in smoke-test.js keep it that way. */
+    {id:'forge_iron_helm',     name:'Forge Iron Helm',     icon:'⛑️', inputs:{iron_bar:2},  output:'iron_helm',      xp:200, req:20, ms:3000},
+    {id:'forge_iron_platebody',name:'Forge Iron Platebody',icon:'🦺', inputs:{iron_bar:5},  output:'iron_platebody', xp:350, req:25, ms:3800},
+    {id:'forge_steel_helm',    name:'Forge Steel Helm',    icon:'⛑️', inputs:{steel_bar:3}, output:'steel_helm',     xp:600, req:35, ms:4500},
+    {id:'forge_steel_platebody',name:'Forge Steel Platebody',icon:'🦺',inputs:{steel_bar:7},output:'steel_platebody',xp:900, req:40, ms:5000},
+    {id:'forge_bronze_belt',   name:'Forge Bronze Belt',   icon:'🟫', inputs:{bronze_bar:2, wolf_pelt:1}, output:'bronze_belt', xp:120, req:4, ms:2800},
     // Gated forges (single-use recipe scrolls flip G.unlockedRecipes)
     {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
     {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
@@ -210,6 +228,16 @@ const BASE_RECIPES = {
    id OR its output already exists above. That keeps historical recipes (e.g.
    forge_bronze_sword, which uses a bespoke bar+plank cost) authoritative
    while the generator fills in every rung nobody wrote by hand.
+
+   ── b348: WINNING THE MERGE IS NOT THE SAME AS OWNING THE LADDER ─────────
+   Sixteen hand-authored rows sit on a generated lane, and each one's `req`
+   replaces the curve for that rung. That is fine for a bespoke COST and fatal
+   for ORDER: three lanes ended up with a lower tier gated above a higher one
+   (see the note on the armour block). The override is deliberately kept — but
+   `GEAR_LADDERS` (gear-tiers.js) now publishes every lane with the curve value
+   it generated, and the b348 guard asserts the LIVE gate is strictly
+   increasing in material tier down each lane. A deviation from the curve is
+   allowed; a deviation that disorders the ladder is not.
 
    Recipes are then sorted by required level so each artisan panel reads as a
    clean ladder instead of "original chain, then a pile of new stuff".

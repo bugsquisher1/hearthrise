@@ -17,6 +17,8 @@
     "test:raid-card": "node tests/raid-card-copy.mjs",
     "test:clan-journal": "node tests/clan-journal-guard.mjs --selftest",
     "test:anon-rate": "node tests/anon-rate-gate.mjs --selftest",
+    "test:delta-transport": "node tests/delta-transport.mjs",
+    "test:delta-transport:selftest": "node tests/delta-transport.mjs --selftest",
     "test:schema-drift": "node tests/schema-drift.mjs",
     "test:schema-drift:selftest": "node tests/schema-drift.mjs --mutate",
     "test:schema-replay": "node tests/schema-replay.mjs --list",
@@ -25,7 +27,9 @@
     "test:conservation:soak": "node tests/conservation-fuzz.mjs --ops=5000 --users=6 --slots=2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@electric-sql/pglite-socket": "^0.2.8",
     "playwright": "^1.47.0",
-    "@electric-sql/pglite": "^0.5.4"
+    "postgres": "3.4.5"
   }
 }

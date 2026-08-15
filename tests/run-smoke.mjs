@@ -18,6 +18,9 @@ import { chromium } from 'playwright';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
+import { perkChannelGuard } from './perk-channel.mjs';
+import { runAll as activitySeamGuards } from './activity-seam.mjs';
+import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
 import { runAll as corsGuards } from './cors-preflight.mjs';
 import { pack as packEdge, runAll as packCheck } from '../tools/pack-edge.mjs';
@@ -72,12 +75,85 @@ function serve() {
 // gate defers), that nothing was written to the player's save, and that the
 // console is clean — which is the only automated check that catches a module
 // throwing behind the wall, because no in-page test can reach that state.
+// ── The pre-auth RPC surface (b349) ─────────────────────────────────────────
+// Which RPCs may a client legitimately call with no session? Answered from
+// tests/rpc-resolution.baseline.json — the CI-verified record of what
+// production actually answers an anonymous caller — and NOT from the client's
+// own src/net/server-rpc.js list, so the two cannot vouch for each other. An
+// entry whose baseline code is 42501 is authenticated-only: the client sending
+// it anonymously is a guaranteed refusal and pure dashboard noise.
+async function anonSafeRpcNames() {
+  const raw = JSON.parse(await readFile(join(ROOT, 'tests', 'rpc-resolution.baseline.json'), 'utf8'));
+  const safe = new Set();
+  for (const [sig, v] of Object.entries(raw)) {
+    if (v && v.status === 200) safe.add(sig.split('(')[0]);
+  }
+  return safe;
+}
+
+// The client's own idea of the anonymous surface (src/net/server-rpc.js
+// ANON_CALLABLE) must equal what production actually permits. These two are
+// read from different files maintained by different people for different
+// reasons, which is the only arrangement in which either can check the other:
+//   • an RPC in ANON_CALLABLE but NOT anon-granted → the client will keep
+//     sending refused calls, which is the b349 bug wearing a new hat;
+//   • an RPC anon-granted but NOT in ANON_CALLABLE → the client refuses a call
+//     it is entitled to make, and a public surface silently stops working.
+async function anonSurfaceGuard() {
+  const problems = [];
+  const src = await readFile(join(ROOT, 'src', 'net', 'server-rpc.js'), 'utf8');
+  const m = /var\s+ANON_CALLABLE\s*=\s*\{([^}]*)\}/.exec(src);
+  if (!m) {
+    problems.push('ANON_CALLABLE is gone from src/net/server-rpc.js — the client no longer has one '
+      + 'answer to "may this RPC go out without a session", so every transport helper is free to '
+      + 'invent its own again');
+    return { problems, note: '' };
+  }
+  const claimed = new Set([...m[1].matchAll(/([A-Za-z_][\w]*)\s*:\s*true/g)].map((x) => x[1]));
+  const actual = await anonSafeRpcNames();
+  for (const n of claimed) {
+    if (!actual.has(n)) {
+      problems.push(`server-rpc.js says ${n} may be called anonymously, but rpc-resolution.baseline.json `
+        + `says production refuses an anonymous caller. Either the grant never landed or the client list is `
+        + `stale — every such call is a logged 42501.`);
+    }
+  }
+  for (const n of actual) {
+    if (!claimed.has(n)) {
+      problems.push(`production answers ${n} to an anonymous caller but server-rpc.js will refuse to send `
+        + `it without a session — a public surface that stops working for signed-out and expired-token `
+        + `players. Add it to ANON_CALLABLE, or close the grant.`);
+    }
+  }
+  return { problems, note: `${claimed.size} anon-callable RPC(s) — ${[...claimed].join(', ')} — match the live grant baseline` };
+}
+
 async function wallGuard(browser, url) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+
+  /* b349 — WHAT LEFT THE CLIENT, not what the client believes it would send.
+     A session-less boot sent hr_server_now() with the anon key in the
+     Authorization header on EVERY page load: 3,249 refused calls in 24h, 19%
+     of all database traffic answering 42501, which made the error dashboard
+     useless as an incident signal. Observed, never routed — the point is to
+     grade the real behaviour of a real boot, and after the fix there is
+     nothing left to send. */
+  const rpcCalls = [];
+  page.on('request', (r) => {
+    const m = /\/rest\/v1\/rpc\/([^?]+)/.exec(r.url());
+    if (!m) return;
+    let anon = true;
+    try {
+      const tok = String(r.headers()['authorization'] || '').replace(/^Bearer\s+/i, '');
+      anon = JSON.parse(Buffer.from(tok.split('.')[1] || '', 'base64').toString('utf8')).role !== 'authenticated';
+    } catch { anon = true; }
+    rpcCalls.push({ name: m[1], anon });
+  });
+
   const problems = [];
   try {
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
@@ -114,6 +190,29 @@ async function wallGuard(browser, url) {
 
     const real = errors.filter((t) => !/Failed to load resource|net::ERR|supabase|skypack|raw\.githubusercontent/i.test(t));
     if (real.length) problems.push('console errors behind the wall: ' + real.slice(0, 5).join(' | '));
+
+    // ── b349: no authenticated-only RPC may leave a session-less client ──
+    const anonSafe = await anonSafeRpcNames();
+    const leaked = rpcCalls.filter((c) => c.anon && !anonSafe.has(c.name));
+    if (leaked.length) {
+      const tally = {};
+      for (const c of leaked) tally[c.name] = (tally[c.name] || 0) + 1;
+      problems.push(
+        'THE b349 BUG: ' + leaked.length + ' authenticated-only RPC call(s) left a client with no session — '
+        + Object.entries(tally).map(([n, k]) => n + ' ×' + k).join(', ')
+        + '. Postgres answers every one of these 42501 and the client cannot tell that apart from a call it '
+        + 'forgot to read. Hold the call behind HearthriseGate.whenSignedIn() and let HearthriseRpc.mayCall() '
+        + 'refuse it at the transport; if the RPC genuinely should be public, that is a GRANT change plus a '
+        + 'tests/rpc-resolution.targets.json entry, not a silent call.');
+    }
+    /* THE CONTROL. "Zero leaked calls" also passes against a listener that
+       never fired, a renamed REST path, or a boot that died before it got to
+       the network. The public honour roll is read on every boot, signed out
+       included, so the observation is only meaningful if it saw that. */
+    if (!rpcCalls.length) {
+      problems.push('the RPC observer recorded NOTHING on a full boot — it is not watching the requests it '
+        + 'claims to grade, so the "no pre-auth call" result above is worthless');
+    }
   } catch (err) {
     problems.push('harness failure: ' + err.message);
   } finally {
@@ -697,6 +796,76 @@ async function landscapeGuard(browser, url) {
     });
     if (gateShown) problems.push('the portrait gate is visible in LANDSCAPE (should be hidden)');
 
+    /* b348 — THE COMBAT STYLE PICKER MUST SAY WHAT XP IT GIVES, ON A PHONE.
+       Xarn: "Combat styles no longer show what XP they give. It used to show:
+       Controlled / Def/att/str." Cause: `#panel-combat .csb-btn small
+       {display:none}` inside theme-cozy's mobile media query — so the fact was
+       in the DOM and computed away, and the desktop-width in-page suite could
+       never see it. The in-page CSSOM guard catches the RULE; this catches the
+       RESULT, at a viewport where the rule actually applies. Both, because a
+       future density pass could hide it by some other mechanism (a zero height,
+       a clipped parent) that no rule-scan would name. */
+    const styleSeen = await page.evaluate(async () => {
+      const panel = document.getElementById('panel-combat');
+      if (!panel) return { err: 'no combat panel' };
+      /* WAIT FOR THE PANEL TO ACTUALLY OPEN. `#panel-combat.active
+         .combat-style-block` is what forces the ribbon visible
+         (audit-overrides.css), so measuring before showTab has taken effect
+         reads display:none and blames the label for the panel being shut —
+         which is exactly what this guard did on its first run. */
+      for (let i = 0; i < 20 && !panel.classList.contains('active'); i++) {
+        try { window.showTab('combat'); } catch (e) {}
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!panel.classList.contains('active')) return { err: 'the combat panel never opened' };
+      /* The picker lives on the phone Combat panel's dedicated Style sub-tab,
+         and it is reached BY TAPPING IT — which is also the only correct way,
+         because the seeded save above is mid-fight and combat-mobile-tabs.js
+         steers a live fight to the Arena until the player chooses for
+         themselves (b334). Writing `dataset.mobileSub` directly is silently
+         undone by that steer within 1.5s; the tap sets `_playerChose` and
+         sticks, exactly as a player's does. */
+      const tab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
+      if (tab) tab.click(); else panel.dataset.mobileSub = 'style';
+      await new Promise((r) => setTimeout(r, 150));
+      if (panel.dataset.mobileSub !== 'style') {
+        return { err: 'tapping the Style sub-tab did not open it (sub=' + panel.dataset.mobileSub + ')' };
+      }
+      if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
+      await new Promise((r) => setTimeout(r, 200));
+      const block = document.querySelector('.combat-style-block');
+      if (!block) return { err: 'the style picker did not render at all' };
+      const br = block.getBoundingClientRect();
+      /* If the picker itself is not laid out, the XP label being invisible is a
+         CONSEQUENCE, not the fault — say which, or a future reader chases the
+         wrong thing (and the sub-tab machinery genuinely can put it in a hidden
+         host depending on which combat hosts exist at that instant). */
+      if (!(br.width > 0 && br.height > 0)) {
+        const chain = [];
+        for (let e = block; e && e !== document.documentElement; e = e.parentElement) {
+          chain.push((e.id ? '#' + e.id : e.tagName) + '[' + String(e.className) + ']=' + getComputedStyle(e).display);
+        }
+        return { err: 'the style picker is not laid out on the Style sub-tab'
+          + ` · body[${document.body.className}] blocks=${document.querySelectorAll('.combat-style-block').length}`
+          + ` · ${chain.join(' < ')}` };
+      }
+      const btns = [...block.querySelectorAll('.csb-btn')];
+      if (!btns.length) return { err: 'no style buttons rendered' };
+      const bad = btns.filter((b) => {
+        const t = b.querySelector('.csb-trains');
+        if (!t || !t.textContent.trim()) return true;
+        if (getComputedStyle(t).display === 'none') return true;
+        const r = t.getBoundingClientRect();
+        return !(r.width > 0 && r.height > 0);
+      }).map((b) => (b.getAttribute('data-style-key') || b.textContent.trim()));
+      return { total: btns.length, bad, sample: btns[0].innerText.replace(/\s+/g, ' ').trim() };
+    });
+    if (styleSeen.err) problems.push(`combat style picker: ${styleSeen.err}`);
+    else if (styleSeen.bad.length) {
+      problems.push(`combat style buttons hide their XP route on a phone: ${styleSeen.bad.join(', ')}`
+        + ` (rendered: "${styleSeen.sample}")`);
+    }
+
     for (const tab of TABS) {
       const res = await page.evaluate(async (t) => {
         try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {}
@@ -799,9 +968,37 @@ async function shopDriftPreflight() {
   return 0;
 }
 
+// PREFLIGHT - the ROOM RUNG PAYLOAD must match src/legacy.js.
+//
+// Same trap as the prices, with a sharper consequence: BOTH SIDES READ THE
+// GENERATED FILE AT RUNTIME. src/legacy.js getBonus delegates to
+// src/core/perks.js, and so does the accrual engine, so a stale
+// src/data/perks.js does not merely mis-describe the game - it IS the game,
+// on both sides, including the Kitchen's `noBurn`. The check therefore fails
+// the build rather than warning.
+//
+// The generator also hard-fails on a room count, a rung count or a KEY SET
+// that no longer matches its tripwires, so an anchor that silently missed
+// cannot produce an empty table that diffs clean against an empty committed
+// file - this repo's signature failure.
+async function perkDriftPreflight() {
+  const gen = join(ROOT, 'tools', 'gen-perks.mjs');
+  try { await stat(gen); } catch { return 0; }
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
+  const out = ((r.stdout || '') + (r.stderr || '')).trim();
+  if (r.status !== 0) {
+    console.error(`\nPerk preflight FAILED - a room rung no longer matches src/data/perks.js.\n${out}\n`);
+    return 1;
+  }
+  console.log(`Perk preflight: ${out}`);
+  return 0;
+}
+
 const run = async () => {
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
+  if (await perkDriftPreflight()) process.exit(1);
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 
@@ -881,6 +1078,76 @@ const run = async () => {
         + 'collect_first and the grants all hold, each against a control.');
     }
 
+    /* ── The perk channel guard (b349) ───────────────────────
+       The whole chain, EXECUTED: a player_progress unlock row ->
+       hr_unlock_levels -> hr_perks_of -> normalisePerkState -> makeBonus ->
+       burnChance, on a real PostgreSQL in process with the real migration
+       applied verbatim. Its parity block starts from ONE SAVE and travels
+       BOTH real adapters — the client's clientPerkState() shape and the
+       server's unlock rows — because the adapters are where drift lives.
+       `node tests/perk-channel.mjs --mutate` plants six real defects and
+       fails if any escapes; five of the six are caught by the migration's
+       own self-check, which is the stronger place to catch them. */
+    const perkProblems = await perkChannelGuard();
+    if (perkProblems.length) {
+      console.log('\nPerk channel guard (noBurn reaches the engine) — FAILED:');
+      for (const p of perkProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
+        + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
+    }
+    /* ── The activity-seam guard (b348) ─────────────────────────────────
+       The one guard that would have stopped Tyler's switch-on test failing.
+       The server's SETTABLE_KINDS is DERIVED from PAYABLE_KINDS, so teaching
+       the engine to pay gathering widened it in a single edit — correctly, and
+       invisibly to the client, which went on declaring nothing. Seven accruals
+       ran against a pointer that had never been set.
+
+       This asserts the two lists are one contract, that every settable kind
+       has a real declaration site, that the client's gather index IS the
+       engine's, and that an activity the engine cannot price declares `idle`
+       rather than nothing. See tests/activity-seam.mjs. */
+    const seamProblems = await activitySeamGuards();
+    if (seamProblems.length) {
+      console.log('\nActivity-seam guard (the client declares what the server can set) — FAILED:');
+      for (const p of seamProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nActivity-seam guard — every settable kind is declarable, wired to a call site, and '
+        + 'resolves through the accrual engine\'s own catalogue.');
+    }
+
+    /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────
+       hr_apply had NEVER applied a delta through the Edge Function: both
+       call sites bound a `JSON.stringify`d delta into a `::jsonb` parameter,
+       and postgres.js — which learns the resolved parameter type from
+       ParameterDescription on the describe-first path `prepare:false` always
+       takes — re-serialised it into a jsonb STRING SCALAR. hr_apply's first
+       guard is `jsonb_typeof(p_delta) <> 'object'`, so every call answered
+       409 bad_delta.
+
+       tests/activity-intent.mjs could not see it and never will: it drives
+       the same module bytes but injects a PGlite `exec`, and the bug is in
+       the TRANSPORT. 27 mutations passed against code that had never once
+       worked in production. This guard changes exactly one thing — the wire.
+       PGlite is exposed over the real PostgreSQL protocol and the REAL
+       postgres@3.4.5 driver connects to it with the Edge Function's own pool
+       options, so `runSetActivity` runs end to end against the real
+       hr_apply. It carries its own control: if the double-encode ever stops
+       being reproducible, that is reported as a FAILURE, because every
+       assertion after it would be passing for free.
+       `node tests/delta-transport.mjs --selftest` reinstates the shipped bug
+       at each call site and requires both to turn the run RED. */
+    const { problems: deltaProblems, note: deltaNote } = await deltaTransportGuards();
+    if (deltaProblems.length) {
+      console.log('\nDelta-transport guard (the delta reaches hr_apply as a jsonb OBJECT) — FAILED:');
+      for (const p of deltaProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`\nDelta-transport guard — ${deltaNote}.`);
+    }
+
     /* ── The identity guard (D2) ────────────────────────────────────────
        The accrual engine's ENTIRE authorisation model is "the sub in this
        token is the player". It used to be a DECODE — the shell read the
@@ -939,15 +1206,25 @@ const run = async () => {
       console.log(`Edge payload guard — ${deployProblems.note}`);
     }
 
+    const anonSurface = await anonSurfaceGuard();
+    if (anonSurface.problems.length) {
+      console.log('\nAnon-surface guard (the client\'s anon list == the live grants) — FAILED:');
+      for (const p of anonSurface.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`Anon-surface guard — ${anonSurface.note}.`);
+    }
+
     // Wall guard FIRST, in its own clean context, before the harness page below
-    // ever declares itself.
+    // ever declares itself. b349: it also grades what left the client on the
+    // wire — a session-less boot may issue no authenticated-only RPC.
     const wallProblems = await wallGuard(browser, url);
     if (wallProblems.length) {
       console.log('\nAccount-wall guard — FAILED:');
       for (const p of wallProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it.');
+      console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it, and no authenticated RPC left it.');
     }
 
     const migProblems = await migrationGuard();

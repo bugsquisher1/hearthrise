@@ -922,6 +922,16 @@ body[data-theme] .at-lock {
 /* Wave 1: a workbench/scroll lock is ACTIONABLE (go build the room) — gild it so
    it reads as "do this next", not the grey "not yet" of a level lock. */
 body[data-theme] .at-lock.at-lock-bench { color: var(--gold-2); }
+/* b348: the WEAR gate on a crafting tile — a different skill and a different
+   number from the craft gate above it, so it gets its own quiet line rather
+   than being folded into the meta. Gold when you can already wear it, the
+   danger ink when you would be forging something you cannot put on. */
+body[data-theme] .at-wear {
+  margin-top: 4px; font-size: var(--t-micro); color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] .at-wear b { color: var(--gold-2); font-weight: 700; }
+body[data-theme] .at-wear.at-wear-short b { color: var(--red); }
 /* Wave 1: the active gathering tool + its bonus, named on the tile. */
 body[data-theme] .at-tool {
   margin-top: 4px; font-size: var(--t-micro); color: var(--ink-2);
@@ -1095,6 +1105,19 @@ body[data-theme] .invc-topbar button.invc-buyspace {
   background: linear-gradient(180deg, rgba(201,162,74,.18), rgba(201,162,74,.05));
 }
 body[data-theme] .invc-space .invc-space-sub { color: var(--ink-2); font-weight: 600; }
+/* b348: the free-stack count is what "Buy space" is selling, so it sits beside
+   the used/cap pair in the quieter ink — a fact, not a headline. */
+body[data-theme] .invc-space .invc-space-free { color: var(--ink-2); font-weight: 600; }
+/* b348: the surplus chip that stands in for free stacks past the render
+   ceiling. It is a SLOT, so it keeps the well treatment above and only adds the
+   numeral. */
+body[data-theme] #panel-inventory .invc-tile.invc-slot-more {
+  color: var(--ink-2);
+  font-family: var(--f-label);
+  font-size: var(--t-small);
+  font-weight: 700;
+  cursor: default;
+}
 /* b269: the Buy-space dialog rows (reuses .qm-overlay/.qm-modal chrome). */
 body[data-theme] .bank-modal .bank-cap-line { color: var(--ink-2); margin: 2px 0 12px; }
 body[data-theme] .bank-modal .bank-cap-line b { color: var(--gold-2); }

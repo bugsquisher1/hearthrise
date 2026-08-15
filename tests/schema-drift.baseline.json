@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-08-15",
- "digest": "32a16e711afe914fcd12e09d63363c528e826ecb597a0628c1499dfb5d4649db",
+ "digest": "504d908a6eca14a408e3d94b6770df03df7def3b6fdf12f466074bc4a0a6507b",
  "counts": {
   "relations": 75,
-  "functions": 172,
+  "functions": 174,
   "policies": 74,
   "indexes": 102,
   "triggers": 14,
@@ -249,6 +249,7 @@
    "hr_max_hunt_tier(p_clan_id uuid)",
    "hr_muster_window(p_at timestamp with time zone)",
    "hr_offline_cap_ms(p_user uuid, p_slot integer)",
+   "hr_perks_of(p_user uuid, p_slot integer)",
    "hr_progress_prune(p_older interval)",
    "hr_rally_absent_chest(p_event_key text)",
    "hr_rally_chest(p_event_key text, p_gold bigint, p_gems integer, p_seals integer)",
@@ -277,6 +278,7 @@
    "hr_state_of(p_user uuid, p_slot integer)",
    "hr_total_level(p_user uuid, p_slot integer)",
    "hr_trim_game_events(p_days integer, p_batch integer)",
+   "hr_unlock_levels(p_user uuid, p_slot integer)",
    "hr_utc_day_key(p_at timestamp with time zone)",
    "hr_utc_day_start(p_at timestamp with time zone)",
    "hr_utc_week_key(p_at timestamp with time zone)",

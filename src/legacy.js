@@ -1284,14 +1284,19 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    b347 — THE ACTIVITY INTENT SEAM. Contract:
    supabase/functions/hr-accrue/intents.js §"THE CLIENT SEAM".
 
-   THE POINTER HAS FOUR WRITERS IN THIS FILE AND ALL FOUR ARE THE SEAM; a fifth
-   added later without this call is a client that silently disagrees with the
-   server about what the player is doing, which under server-side accrual means
-   being paid for the wrong thing all night.
+   THE POINTER HAS EIGHT WRITERS IN THIS FILE AND ALL EIGHT ARE THE SEAM; a
+   ninth added later without this call is a client that silently disagrees with
+   the server about what the player is doing, which under server-side accrual
+   means being paid for the wrong thing all night.
 
      startCombat(mId)          → {combat, mId}
      stopCombat()              → {idle, null}
      drainBountySwitch()       → {combat, id}   (the b344 away switch)
+     startSkill(t,id,ms)       → {gather, id}   ← b348
+     stopSkill()               → {idle, null}   ← b348
+     startArtisan(s,r) ×2      → {artisan, r}, downgraded to {idle,null} by
+                                 declarationFor until the engine can price it
+                                 ← b348
      COMBAT_FX.onDeath (away)  → NO CALL, deliberately. The SERVER already set
                                  the pointer to idle in the accrual delta; the
                                  client is RECONCILING to state it was told, not
@@ -1299,6 +1304,22 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
                                  client telling the server something the server
                                  told it — and it would spend an intent key and
                                  a rate budget doing it.
+
+   ── b348: WHY FOUR OF THESE ARE NEW, AND WHAT IT COST ──────────────────────
+   b347 wired the pointer's four COMBAT writers and stopped there, correctly:
+   `combat` was the only payable kind. The very next merge taught the server to
+   pay `gather` — `PAYABLE_KINDS` grew, `SETTABLE_KINDS` grew with it by
+   derivation, exactly as designed — and nothing on this side moved, because
+   nothing had to. Tyler's first switch-on test: started woodcutting, left,
+   came back. `player_intents`: 0 rows. `player_state`: idle, version 0. The
+   server was never told, so there was nothing to pay and nothing to reconcile
+   to but `idle`.
+
+   The lesson is not "remember the client next time". It is that a contract
+   split across two files with no link between them will be half-shipped, and
+   the fix is the link: `tests/activity-seam.mjs` reads the server's
+   SETTABLE_KINDS, this file's declaration sites and src/net/activity.js's
+   ACTIVITY_KINDS, and fails the build when they disagree.
 
    ── WHY A QUIET COUNTER AND NOT A BOOLEAN ─────────────────────────────────
    Two things must be able to move the pointer WITHOUT declaring, and they nest:
@@ -1326,18 +1347,190 @@ function declareActivity(kind,id){
   try{ return M.declare(kind,id); }catch(e){ return null; }
 }
 window.declareActivity=declareActivity;
-/* Move the local pointer to what the SERVER says, without declaring it back. */
+/* The mutex wrappers (block 22) cross-stop the OTHER loop before starting one,
+   and those inner stops must not declare — see the quiet-counter note above.
+   Exported because that block is a separate IIFE and an explicit name is
+   cheaper to read than a lexical reach across 8,000 lines. */
+window.activityQuietly=activityQuietly;
+/* ── WHAT THIS CLIENT IS DOING, AS ONE {kind,id} ───────────────────────────
+   The pointer is three fields in G (`activeMonster`, `activeSkill` +
+   `skillTargetId`) and the server's is one pair, so SOMETHING has to translate.
+   Doing it once, here, is what stops the reconcile and the declaration sites
+   disagreeing about whether cooking counts as an activity.
+
+   `artisan` is reported as itself, not as idle — the DOWNGRADE to idle is
+   src/net/activity.js's job and belongs at the wire, not here. This function
+   answers "what is the player doing", and the honest answer is "cooking". */
+function localActivityPointer(){
+  if(typeof G==='undefined'||!G) return {kind:'idle',id:null};
+  if(G.activeMonster) return {kind:'combat',id:G.activeMonster};
+  if(G.activeSkill&&G.skillTargetId){
+    const artisan=!!(window.ARTISAN_RECIPES&&window.ARTISAN_RECIPES[G.activeSkill]);
+    return {kind:artisan?'artisan':'gather',id:G.skillTargetId};
+  }
+  return {kind:'idle',id:null};
+}
+window.localActivityPointer=localActivityPointer;
+/* One re-assertion per RUN, and the latch that bounds it. Without a bound, a
+   server that keeps refusing a declaration (an id it does not have in its
+   catalogue, say) would be re-told on every answer, forever, at one intent and
+   one rate spend each.
+
+   The budget belongs to a RUN, not to a session: `endActivityRun()` returns it
+   whenever the local pointer goes back to idle, so a player who starts the same
+   activity again gets a fresh backstop rather than inheriting the last run's
+   spent one. Called from stopSkill/stopCombat — the two functions that end a
+   run — including when they are QUIET, because the run really did end whether
+   or not the server was told about it here. */
+let _reassertedPointer=null;
+function endActivityRun(){ _reassertedPointer=null; }
+/**
+ * TELL THE SERVER WHAT THIS CLIENT IS DOING, IF IT HAS NOT BEEN TOLD.
+ *
+ * Idempotent and bounded. This is the self-heal for every pointer that exists
+ * without a declaration behind it, and after b348 that is not a rare state:
+ *   • every save written before the seam shipped (Tyler's, and every beta save
+ *     at cutover) holds a running activity the server has never heard of;
+ *   • a declaration that failed — offline, rate-limited, a dead token — leaves
+ *     the optimistic local pointer standing by design (rule 3), and nothing
+ *     else would ever retry it;
+ *   • the switch being flipped ON mid-session starts from exactly this state.
+ * Called on resume and whenever the server contradicts an unacknowledged
+ * pointer.
+ */
+function assertActivityDeclaration(){
+  const M=window.HearthriseActivity;
+  if(!M||typeof M.isActivityConfirmed!=='function')return null;
+  const p=localActivityPointer();
+  if(p.kind==='idle')return null;           // nothing to assert; a stop declares itself
+  const key=p.kind+':'+(p.id==null?'':p.id);
+  if(M.isActivityConfirmed(p.kind,p.id)){ _reassertedPointer=null; return null; }
+  /* `artisan` and `idle` both declare `idle` on the wire; asking about the
+     DECLARATION rather than the pointer is what stops an artisan run
+     re-asserting on every resume once the server has already been told idle. */
+  const d=(typeof M.declarationFor==='function')?M.declarationFor(p.kind,p.id):null;
+  if(d&&M.isActivityConfirmed(d.kind,d.id)){ _reassertedPointer=null; return null; }
+  if(_reassertedPointer===key)return null;
+  /* ⚠ THE LATCH IS SPENT ONLY WHEN THE SEAM IS ARMED, and the switch is read
+     from the MODULE — the one reader on this path, the same rule legacy's
+     `declareActivity` follows by delegating rather than checking. A second
+     reader here would be a second answer to "is the seam on" during an
+     incident, and spending the latch on an inert attempt is a real hole: the
+     switch being flipped ON mid-session is one of the three states this
+     function exists for, and it would arrive with its one re-assertion already
+     used up, leaving the running activity permanently undeclared. An unarmed
+     call cannot recurse — it never reaches the network, so no answer comes
+     back to reconcile — which is why it needs no bound. */
+  const armed=(typeof M.isActivityIntentEnabled==='function')&&M.isActivityIntentEnabled();
+  if(armed)_reassertedPointer=key;
+  return declareActivity(p.kind,p.id);
+}
+window.assertActivityDeclaration=assertActivityDeclaration;
+/* Move the local pointer to what the SERVER says, without declaring it back.
+   ══════════════════════════════════════════════════════════════════════════
+   b348 — TWO CHANGES, AND THE SECOND IS A RULING.
+
+   (1) IT CAN NOW REPRESENT `gather`. It could only ever act on `combat`, which
+       was complete while `combat` was the only settable kind and became a hole
+       the moment `gather` joined: a server saying "you are chopping oak" landed
+       on a branch that did nothing at all, so the one function whose job is
+       "the envelope is the truth" silently declined to apply half of it.
+       Resolving the node through `HearthriseCore.gatherNode` — the index the
+       ACCRUAL ENGINE reads — rather than through a fresh if/else per skill is
+       what keeps the two sides agreeing about which skill a node belongs to.
+
+   (2) A SERVER `idle` MAY NOT STOP A RUN THE SERVER WAS NEVER TOLD ABOUT.
+       This is the ruling, and it is narrow on purpose.
+
+       `idle` on the wire is two different sentences: "you stopped, and I know
+       because you told me" and "I have no idea what you are doing". The first
+       is authority and the client must obey it. The second is the ABSENCE of
+       authority — the server holds `active_kind='idle'` for every character
+       that has never declared anything, which after b348 is every existing beta
+       save and, for the whole of Tyler's failed test, his — and obeying it
+       ends the player's session on the strength of a statement nobody made.
+
+       `isActivityConfirmed` is what tells them apart: it is true only for a
+       {kind,id} this client SENT and the server then reported back as its own.
+       So:
+         • confirmed → the server was told and now says idle → STOP. Authority.
+         • not confirmed → the server was never told → do NOT stop; DECLARE,
+           once, and let the answer settle it. Self-correcting rather than
+           destructive, and it converges in one round trip.
+
+       WHY THIS DOES NOT REOPEN b339. The replacement sheet exists because
+       `applyEnvelopeState` REPLACES gold, skills and inventory with the server
+       character's, permanently. That gate is on the ENVELOPE and is untouched:
+       `applyIntentEnvelope` still calls `describeReplacement` and still refuses
+       until the player consents. This function writes no game value at all — it
+       starts and stops loops — and re-declaring sends an intent, it does not
+       apply an envelope. The two are orthogonal, and a test asserts it: a
+       reconcile that arrives while the replacement gate is refusing must move
+       the loops and must not move gold. What WOULD reopen b339 is the opposite
+       change — letting an unconfirmed `idle` stop the run and then applying the
+       fresh server character over the top — which is precisely the pair of
+       events Tyler hit.
+   ══════════════════════════════════════════════════════════════════════════ */
 function reconcileActivityPointer(a){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
-  return activityQuietly(function(){
+  const applied=activityQuietly(function(){
     if(kind==='combat'&&id&&MONSTERS[id]){
+      if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
       if(G.activeMonster!==id&&typeof startCombat==='function')startCombat(id);
-    } else if(!kind||kind==='idle'){
-      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      return {kind:'combat',id:id};
     }
-    return {kind:kind||'idle',id:id==null?null:id};
+    if(kind==='gather'&&id){
+      const C=window.HearthriseCore;
+      const hit=(C&&typeof C.gatherNode==='function')?C.gatherNode(id):null;
+      /* An id the client cannot resolve is NOT a reason to stop the player.
+         The two catalogues are guarded to be identical, so this means the
+         guard is wrong or the build is old — either way the honest move is to
+         leave the run alone and say so, not to act on a node we cannot name. */
+      if(!hit){
+        console.warn('[activity] the server says gather:'+id+', which is not in this build\'s '
+          +'gather index — leaving the local activity alone rather than acting on a node it cannot resolve');
+        return null;
+      }
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)&&typeof startSkill==='function'){
+        startSkill(hit.skill,id,hit.node.ms);
+      }
+      return {kind:'gather',id:id};
+    }
+    if(!kind||kind==='idle'){
+      const local=localActivityPointer();
+      if(local.kind==='idle')return {kind:'idle',id:null};
+      const M=window.HearthriseActivity;
+      /* THE DECLARATION THIS POINTER WOULD MAKE, not the pointer. They differ
+         for `artisan`, which declares `idle` — so an artisan run and a server
+         that says `idle` are in perfect AGREEMENT and there is nothing to
+         reconcile. Asking about the pointer instead would read that agreement
+         as a contradiction and stop a player mid-smelt, which is the same
+         class of bug as the one this whole block exists to fix. */
+      const d=(M&&typeof M.declarationFor==='function')?M.declarationFor(local.kind,local.id):null;
+      const told=!!(d&&typeof M.isActivityConfirmed==='function'&&M.isActivityConfirmed(d.kind,d.id));
+      if(d&&d.kind==='idle'&&told)return {kind:'idle',id:null,agreed:true};
+      if(!told){
+        /* THE b348 RULING. Not an error and not a warning the player sees — it
+           is the ordinary state of a save written before the seam existed. */
+        console.log('[activity] the server says idle but was never told about '
+          +local.kind+(local.id?':'+local.id:'')+' — declaring it rather than stopping the player');
+        return {kind:local.kind,id:local.id,undeclared:true};
+      }
+      /* Told, acknowledged, and now the server says the run is over. Authority. */
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
+      return {kind:'idle',id:null};
+    }
+    return null;
   });
+  /* OUTSIDE the quiet block, deliberately: this is the one declaration the
+     reconcile is allowed to make, and making it inside would be swallowed by
+     the very counter that stops a reconcile from echoing. Bounded by
+     `assertActivityDeclaration`'s own latch. */
+  if(applied&&applied.undeclared)assertActivityDeclaration();
+  return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;
 /* Wired lazily and once, same reason wireServerAccrual() is: legacy.js is a
@@ -2194,31 +2387,62 @@ function speedClamp(speed){return window.HearthriseCore.pacing.speedClamp(speed)
    See the Rested block below (`restedQuantum`), where a charge became a flat
    XP grant and its ceiling became 1,600 XP/charge. */
 window.speedClamp=speedClamp;
+/* ════════════════════════════════════════════════════════════════
+   b349 — THE PERMANENT PERK STATE, read out of the save in ONE place.
+
+   This is the argument `src/core/perks.js` takes, and the SAME shape
+   `hr_perks_of` returns from the database. Extracted from getBonus and
+   published on window so the suite can drive the REAL caller rather than a
+   reconstruction of it — the b339 lesson, where the escaped mutation was a
+   caller-side literal that every test of the extracted half still passed.
+
+   `plotBuildings` is an ARRAY with one entry per building owned (Scarecrow's
+   max is 2), so it is counted, not flagged. getBonus used to iterate it and
+   add per entry; a `{toolshed:true}` shape here would have silently halved a
+   two-Scarecrow farm.
+   ════════════════════════════════════════════════════════════════ */
+function clientPerkState(){
+  const plots={};
+  (G.plotBuildings||[]).forEach(b=>{ if(b&&b.id) plots[b.id]=(plots[b.id]||0)+1; });
+  let renownAllXp=0;
+  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
+    try{ renownAllXp=window.HearthriseRenown.getPerks(G).allXP||0; }catch(e){}
+  }
+  /* The capstone is `getTier() === TIERS.length - 1` on this side and
+     `propertyTier >= CASTLE_TIER` in core. Both are 5, and core names the
+     constant so a sixth tier has to move one number rather than two. */
+  let propertyTier=0;
+  if(window.HearthriseHomestead && typeof window.HearthriseHomestead.getTier==='function'){
+    try{ propertyTier=window.HearthriseHomestead.getTier()||0; }catch(e){}
+  }
+  return { rooms: G.rooms||{}, plots, propertyTier, renownAllXp, clanPerks:{}, castle:null };
+}
+window.clientPerkState = clientPerkState;
+
 function getBonus(key){
-  let t=0;
-  /* b225: a room rung may now carry a SECONDARY bonus map (`bx`) alongside its
-     headline bk/bv pair — the Kitchen buys cook speed AND burn reliability off
-     the same rung, and one bk/bv pair can only ever express one of those. */
-  for(const rId in G.rooms){const lv=G.rooms[rId];if(lv>0&&ROOMS[rId]){const ld=ROOMS[rId].levels[lv-1];if(ld&&ld.bk===key)t+=ld.bv;if(ld&&ld.bx&&ld.bx[key]!=null)t+=ld.bx[key];}}
-  /* b228 (bonus-rebase.md §3.1): Toolshed 5% → 2% (the 2% narrow step);
-     Watchtower was already in grammar; the Scarecrow's +0.1 was a GHOST —
-     harvestPlot floored the farmYield total, so a fractional grant paid
-     exactly zero from the day it shipped. It becomes a real +1, and the
-     flooring itself is fixed at the reader (see harvestPlot). */
-  G.plotBuildings.forEach(b=>{if(b.id==='toolshed'&&key==='gatherSpeed')t+=0.02;if(b.id==='scarecrow'&&key==='farmYield')t+=1;if(b.id==='watchtower'&&key==='combatXP')t+=0.02;});
+  /* ── b349: LAYER 0 IS src/core/perks.js NOW, ON BOTH SIDES ─────────────
+     Room rungs, plot buildings, the property capstone and the renown allXP
+     rank all used to be computed inline here — and `hr-accrue` passed
+     `zeroBonus()`, so the server read every one of them as 0. That is not a
+     rounding difference: `noBurn` is the Kitchen rung, and a server cooking
+     at the base 25% burn rate while the player's Cast-Iron Range says 0%
+     DESTROYS a quarter of the input. src/core/skill-sim.js refuses artisan
+     accrual in writing for exactly that reason.
+
+     The arithmetic is the same arithmetic; it just lives in one pure module
+     that Deno can import, so the two sides cannot answer differently. This
+     function stays the CHAIN's layer 0 — the six wrappers above it
+     (companions, buffs, clan perks, castle, muster, blessings) are untouched
+     and still add on top, and the fuse still lives at the end of the chain in
+     features/power-budget.js where nothing can be added after it.
+
+     UNCLAMPED here, deliberately: `permanentBonus` returns the raw sum and
+     power-budget.js applies the ceiling, because clamping twice would make
+     HearthrisePowerBudget.rawFor() — which is what the "at its limit" panel
+     reads — under-report by exactly the amount the fuse bound. */
+  let t=window.HearthriseCore.perks.permanentBonus(key, clientPerkState());
   /* b215: Season Pass retired — no purchasable XP multiplier exists. Premium
      stays convenience/cosmetic (offline hours, slots, themes). */
-  /* renown rank perks — passive bonuses from your Rise-to-Jarl rank */
-  if(key==='allXP' && window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-    try{ t += (window.HearthriseRenown.getPerks(G).allXP||0); }catch(e){}
-  }
-  /* b201 (SYS-1): castle capstone — the pride of the realm.
-     b228: +5% → +2% (bonus-rebase.md §3.1). `allXP` is a WIDE key — it pays on
-     all fifteen skills, every action, forever — so it moves on the 1% half-step
-     and the capstone is worth two of them. */
-  if(key==='allXP' && window.HearthriseHomestead){
-    try{ if(window.HearthriseHomestead.isCastle()) t += 0.02; }catch(e){}
-  }
   /* ── b228: WHERE THE BUDGET LIVES NOW ─────────────────────────────────
      This function is layer 0 of a seven-layer additive chain, so a clamp
      placed here clamps the base and is then escaped by all six wrappers. The
@@ -3562,6 +3786,7 @@ function stopCombat(){
     window.HearthriseLaunchpad.recordStop('monster', G.activeMonster);
   }
   if(combatInterval){clearInterval(combatInterval);combatInterval=null;}
+  endActivityRun();      /* b348 — the run ended; the backstop budget is returned */
   G.activeMonster=null;
   renderCombat();renderMonsterList();
   /* b347 SEAM 2. A stop is a declaration too — without it the server goes on
@@ -3888,6 +4113,15 @@ function armSkillTimers(ms){
    the tick. */
 function resumeActiveActivity(){
   if(typeof G==='undefined'||!G) return;
+  /* b348 — RE-ARMING THE LOOP AND RE-ASSERTING THE DECLARATION ARE ONE JOB.
+     This function's whole reason for existing is "the client is running
+     something and the machinery for it has gone quiet"; under server accrual
+     the SERVER's knowledge of that run is part of the machinery, and it goes
+     quiet in exactly the same situations (a save from before the seam shipped,
+     a declaration that failed while offline, the switch flipped on mid-run).
+     Bounded to one intent per pointer by the latch inside; a no-op when the
+     switch is off or the server has already acknowledged this activity. */
+  try{ assertActivityDeclaration(); }catch(e){}
   /* Combat first. Bug (paione: "afk/offline combat stuck at 71 kills"): mobile
      browsers suspend the tab on background and can CLEAR the combat setInterval.
      This function runs on every visibility-resume, but it used to bail whenever a
@@ -3932,7 +4166,11 @@ function retimeActivity(){
 }
 window.retimeActivity=retimeActivity;
 function startSkill(type,targetId,ms){
-  stopSkill();
+  /* b348 SEAM 4. The inner stop is QUIET for the reason startCombat's is: one
+     gesture is one declaration and one idempotency key, and declaring
+     idle-then-gather would run two collects for a single tap — the second
+     pricing a span of milliseconds and classifying `below_min_span`. */
+  activityQuietly(stopSkill);
   G.activeSkill=type;G.skillTargetId=targetId;G.skillProgress=0;
   /* b201 (SYS-3): your best owned tool auto-applies — rune axe out-chops bronze.
      b227: through activityIntervalMs(), the single formula the live loop, the
@@ -3955,6 +4193,12 @@ function startSkill(type,targetId,ms){
   G.skillMs=actualMs;
   armSkillTimers(actualMs);
   renderSkillsList();renderSkillDetail(type);
+  /* DECLARE WHAT IS STILL TRUE, the same guard startCombat uses: the level gate
+     inside doSkillAction calls stopSkill(), and although nothing above can fire
+     a tick synchronously today, a declaration that outlived its own activity
+     would tell the server the player is chopping a tree they were just refused.
+     The LAST declaration wins, so "still true" is the property that matters. */
+  if(G.activeSkill===type&&G.skillTargetId===targetId)declareActivity('gather',targetId);
 }
 function stopSkill(){
   // b138: capture lastActivity BEFORE we null G.activeSkill so the
@@ -3966,11 +4210,26 @@ function stopSkill(){
   if(skillInterval){clearInterval(skillInterval);skillInterval=null;}
   if(skillProgressInterval){clearInterval(skillProgressInterval);skillProgressInterval=null;}
   var _prevSkill = null; /* b228 (Tyler): switching to combat left the old tile saying Active */
+  /* b348 SEAM 5 — captured BEFORE the pointer is cleared, for the same reason
+     the launchpad hook above is. */
+  const _wasRunning=!!G.activeSkill;
+  endActivityRun();
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
   try{
     document.querySelectorAll('.act-tile.active').forEach(function(t){ t.classList.remove('active'); var st=t.querySelector('.at-stop'); if(st) st.remove(); var f=t.querySelector('.at-prog-fill'); if(f) f.style.width='0%'; });
   }catch(e){}
   renderSkillsList();
+  /* A stop is a declaration too — without it the server goes on paying an
+     activity the player abandoned, which is the away-time bug in reverse.
+
+     GUARDED ON "SOMETHING WAS ACTUALLY RUNNING", where stopCombat is not, and
+     the asymmetry is measured rather than stylistic: `stopSkill()` has thirteen
+     callers in this file and is used DEFENSIVELY (startArtisan calls it, the
+     mutex calls it, the launchpad calls it) — an unguarded declaration here
+     would put an `idle` intent, an idempotency key and a rate spend on the wire
+     every time a player opened a screen with nothing running. `stopCombat` is
+     called only to stop a fight. */
+  if(_wasRunning)declareActivity('idle',null);
 }
 window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers guarded on finding it and bailed, so window.stopSkill has not existed since they shipped (auto-actions' stop call was a no-op too) */
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
@@ -6666,7 +6925,21 @@ function openInvDetail(id){
   if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);
   if(it.noBurn != null) stats.push(`<div><b>+${Math.round((it.noBurn||0)*100)}%</b><span>no-burn</span></div>`);
   if(it.weaponType) stats.push(`<div><b>${it.weaponType}</b><span>weapon type</span></div>`);
-  if(it.reqSkill && it.reqLv) stats.push(`<div><b>${SKILLS_DEF[it.reqSkill]?.name||it.reqSkill} ${it.reqLv}</b><span>required</span></div>`);
+  /* b348: was `if(it.reqSkill && it.reqLv)` — the RAW fields. The six classic
+     hand-authored plate pieces (iron/steel helm + platebody, bronze belt) and
+     the early weapons carry neither field; their gate comes from `tier` via
+     gearWieldReq's ladder. Measured: opening a Steel Platebody showed +22
+     defense, a value and a Source line, and nothing at all about needing
+     Defence 30 — for precisely the gear a mid-game player is deciding about.
+     Ask the authority equipItem() enforces, and say whether you meet it. */
+  (function(){
+    const req = (typeof gearWieldReq==='function') ? gearWieldReq(it) : null;
+    if(!req) return;
+    const skillName = (SKILLS_DEF[req.skill] && SKILLS_DEF[req.skill].name) || req.skill;
+    const have = (typeof getLevel==='function') ? getLevel(req.skill) : null;
+    const ok = (typeof canWield==='function') ? canWield(id).ok : true;
+    stats.push(`<div class="${ok?'':'inv-stat-unmet'}"><b>${skillName} ${req.lv}</b><span>${ok?'to wear':'to wear · you have '+(have==null?'—':have)}</span></div>`);
+  })();
 
   /* Action buttons — detect by type/heals/seed/buryXp instead of kind */
   const acts = [];
@@ -9166,6 +9439,42 @@ window.getCombatStatProfile = function(){
   return {type:t, accuracySkill:'attack', damageSkill:'strength', accuracyBonusField:'atkB', strengthBonusField:'strB'};
 };
 
+/* styleXpRouteText(style) — "what XP does this style actually give?", DERIVED
+   from the routing table rather than restated beside it (b348).
+
+   `style.trains` is an authored abbreviation ("Atk/Str/Def"); `style.xp` is the
+   object `hitXpRoute`/`killXpRoute` genuinely pay from. Those are two copies of
+   one fact, and this project has been bitten by exactly that shape often enough
+   to stop writing a third. So every surface that explains the split reads THIS,
+   which walks `style.xp` and can therefore never describe a route the engine
+   does not run. `trains` stays as the short chip on the button; the suite
+   asserts the two agree about which skills are named.
+
+   Shares are shown only when the split is uneven enough to matter — an even
+   50/50 reads "Ranged & Defence", not "Ranged 50% · Defence 50%". */
+window.styleXpRouteText = function(style){
+  var xp = style && style.xp;
+  if(!xp || typeof xp !== 'object') return 'Attack & Strength';   // the pre-styles fallback hitXpRoute uses
+  var nameOf = function(k){
+    var d = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[k]) || (window.SKILLS_DEF && window.SKILLS_DEF[k]);
+    return (d && d.name) || (k.charAt(0).toUpperCase() + k.slice(1));
+  };
+  /* AUTHORED order is kept for an even split (so Controlled reads
+     "Attack & Strength & Defence", matching its "Atk/Str/Def" chip) and only an
+     UNEVEN split is sorted, where "which gets most" is the point. Sorting the
+     even case put Defence first purely because 0.34 rounds above 0.33 — true,
+     and misleading. */
+  var rows = Object.keys(xp).map(function(k){ return { skill:k, share:Number(xp[k])||0 }; })
+                            .filter(function(r){ return r.share > 0; });
+  if(!rows.length) return 'nothing';
+  if(rows.length === 1) return 'all to ' + nameOf(rows[0].skill);
+  var total = rows.reduce(function(t,r){ return t + r.share; }, 0) || 1;
+  var even = rows.every(function(r){ return Math.abs(r.share/total - 1/rows.length) < 0.02; });
+  if(even) return rows.map(function(r){ return nameOf(r.skill); }).join(' & ') + ' (even split)';
+  return rows.slice().sort(function(a,b){ return b.share - a.share; })
+             .map(function(r){ return nameOf(r.skill) + ' ' + Math.round(r.share/total*100) + '%'; }).join(' · ');
+};
+
 /* The ONE writer for the player's style choice (b334).
    It used to be an anonymous closure attached to each button on every rebuild.
    Naming it and hoisting it out is what lets a single delegated listener own
@@ -9231,6 +9540,13 @@ function renderStyleSelector(){
      would produce with the gear currently worn — computed by the same
      swingIntervalMs() the fight and the away replay use, so the panel cannot
      quote a speed the simulation does not run. */
+  /* Never let the copy helper take the picker down with it — a style button
+     that cannot be pressed is the b334 failure, and this panel is the one the
+     player fights from. Falls back to the authored abbreviation. */
+  var _xpRoute = function(s){
+    try { return (typeof window.styleXpRouteText === 'function') ? window.styleXpRouteText(s) : (s.trains || ''); }
+    catch(e){ return s && s.trains || ''; }
+  };
   var swingOf = function(s){
     try{
       var C = window.HearthriseCore;
@@ -9267,6 +9583,7 @@ function renderStyleSelector(){
 
   var metaHtml =
     'Style: <b>' + styleObj.name + '</b> · Trains: <b>' + styleObj.trains + '</b> · Swing: <b>' + swingOf(styleObj) + '</b><br>' +
+    'XP: <b>' + _xpRoute(styleObj) + '</b><br>' +
     (styleObj.desc ? styleObj.desc + '<br>' : '') +
     'Accuracy skill: <b>' + profile.accuracySkill + '</b> · Damage skill: <b>' + profile.damageSkill + '</b>';
 
@@ -9296,9 +9613,23 @@ function renderStyleSelector(){
         var s = styles[k];
         var act = (k === styleKey) ? ' active' : '';
         var sw = swingOf(s);
-        var tip = (s.desc ? s.desc + ' · ' : '') + (sw ? 'swing ' + sw : '');
+        var tip = 'Trains ' + _xpRoute(s)
+                + (s.desc ? ' · ' + s.desc : '') + (sw ? ' · swing ' + sw : '');
+        /* b348 (Xarn: "Combat styles no longer show what XP they give. It used
+           to show: Controlled / Def/att/str"). The trains label and the b329
+           swing readout used to be ONE text node inside <small>, so the only
+           lever a density pass had was all-or-nothing — and b110's mobile rule
+           (`#panel-combat .csb-btn small{display:none}`, comment: "hide
+           ATTACK/STRENGTH/DEFENSE labels") took both. Measured on a 922x423
+           landscape phone: display "none", innerText carries neither fact.
+           b329 then added the swing time to that same hidden element, so the
+           number that answered Xarn's PREVIOUS report was invisible on his
+           device from the day it shipped.
+           Two spans, so the XP route and the speed can be governed separately
+           and the route can never be collateral damage again. */
         return '<button class="csb-btn' + act + '" data-style-key="' + k + '" title="' + tip.replace(/"/g,'&quot;') + '">' +
-               s.name + '<small>' + s.trains + (sw ? ' · ' + sw : '') + '</small></button>';
+               s.name + '<small><span class="csb-trains">' + s.trains + '</span>' +
+               (sw ? '<span class="csb-swing"> · ' + sw + '</span>' : '') + '</small></button>';
       }).join('') +
     '</div>';
   host.appendChild(wrap);
@@ -10187,6 +10518,17 @@ window._renderInvSummary = function(){
     total += (typeof vendorPrice==='function' ? vendorPrice(id) : (ITEMS[id].v||0)) * qty;
     count += qty;
   });
+  /* b348: write into the SUB-span, never over the whole line. This used to do
+     `slot.textContent = ...` on `.invc-space`, which destroyed the "3 / 100
+     slots (97 free)" figure renderInvFancy had just written — measured: the
+     capacity readout survived ~50ms after every tab entry and was then replaced
+     by "16 items · 63 gp". The bank cap is genuinely enforced (addItem refuses
+     a new stack at the wall), so the one surface that stated it was being
+     erased by a summary updater. Falls back to the old target only if the sub
+     span is missing, so an older layout still gets its summary. */
+  var sub = panel.querySelector('.invc-space .invc-space-sub');
+  var line = ' · ' + count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
+  if(sub){ sub.textContent = line; return; }
   var slot = panel.querySelector('.invc-space');
   if(slot) slot.textContent = count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
 };
@@ -10720,12 +11062,19 @@ window.startArtisan = function(skillId, recipeId){
   if(!r) return;
   if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
-  if(typeof stopSkill === 'function') stopSkill();
+  /* b348 SEAM 6 — quiet inner stop, one gesture one declaration. */
+  if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
+  /* DECLARED AS `artisan`, SENT AS `idle`. src/net/activity.js's
+     `declarationFor` owns the downgrade and the reason for it — the short
+     version is that saying nothing leaves the server paying for the tree the
+     player stopped chopping an hour ago. The day the engine can price artisan,
+     this line starts declaring `artisan` with no edit here. */
+  declareActivity('artisan',recipeId);
 };
 
 /* b227: ONE place that arms the artisan timers, so retimeActivity() can swap
@@ -11507,12 +11856,16 @@ window.startArtisan = function(skillId, recipeId){
     Object.entries(inp).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) missing.push((ITEMS[kv[0]]?.n||kv[0])+' x'+kv[1]); });
     if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
   }
-  if(typeof stopSkill === 'function') stopSkill();
+  /* b348 SEAM 7 — the inputs-aware override is the one that actually runs;
+     seam 6 above is the base it shadows. BOTH declare, because a build that
+     loaded only one of them must not be silent. */
+  if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
+  declareActivity('artisan',recipeId);
 };
 
 /* Override renderArtisanActivities to handle multi-input display + gating */
@@ -11617,12 +11970,31 @@ console.log('Phase A.1 recipe set loaded:',
 // ===== block 22: activity-mutex =====
 (function(){
 "use strict";
+/* ── b348: THE MUTEX'S CROSS-STOPS ARE QUIET ───────────────────────────────
+   These wrappers are OUTSIDE the functions that declare, so the quiet counter
+   startCombat/startSkill use on their own inner stops cannot reach them. Left
+   alone, one tap on a monster while chopping would put TWO intents on the wire
+   — `idle` from this stopSkill and then `combat` from the real start — which
+   means two idempotency keys, two rate spends and two collects for one gesture,
+   the second pricing a span of milliseconds. The pointer would still end up
+   right; the cost is real and the duplicate is invisible in every surface a
+   player or a bug report can see.
+
+   `q` degrades to a plain call if the seam has not loaded, because a mutex that
+   stopped working when a network module was missing would be a worse bug than
+   a duplicate intent. */
+var q = function(fn){
+  if(typeof window.activityQuietly === 'function') return window.activityQuietly(fn);
+  return fn();
+};
 (function(){
   var orig = window.startCombat;
   if(typeof orig !== 'function') return;
   window.startCombat = function(mId){
-    if(typeof stopSkill === 'function') stopSkill();
-    if(typeof window._stopArtisan === 'function') window._stopArtisan();
+    q(function(){
+      if(typeof stopSkill === 'function') stopSkill();
+      if(typeof window._stopArtisan === 'function') window._stopArtisan();
+    });
     return orig.apply(this, arguments);
   };
 })();
@@ -11630,7 +12002,7 @@ console.log('Phase A.1 recipe set loaded:',
   var orig = window.startSkill;
   if(typeof orig !== 'function') return;
   window.startSkill = function(type, targetId, ms){
-    if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };
 })();
@@ -11638,7 +12010,7 @@ console.log('Phase A.1 recipe set loaded:',
   var orig = window.startArtisan;
   if(typeof orig !== 'function') return;
   window.startArtisan = function(skillId, recipeId){
-    if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };
 })();
@@ -12552,7 +12924,15 @@ function renderInvFancy(){
        b213 QA note kept: the old "Space: N/360" ceiling was never enforced
        anywhere, so the honest item count stays until real storage ships. */
     '<div class="invc-topbar">'+
-      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
+      /* b348: the free-stack count is the number the "Buy space" button is
+         selling, so it is stated rather than left to be inferred. The volatile
+         half (item + gold totals) lives in .invc-space-sub, which is the ONLY
+         thing _renderInvSummary() may rewrite — it used to overwrite this whole
+         node's textContent on every tab entry, so the slot figure survived for
+         about 50ms and the player never saw their capacity at all. */
+      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots'
+        +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
+        +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
         '<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
@@ -12595,14 +12975,61 @@ function renderInvFancy(){
                A uniform filled grid is what makes a bag scannable — you learn
                the shape of the container, and item positions stay stable. */
             (function(html){
-              /* b217: 40 slots laid out at ~11 columns filled four rows and
-                 then stopped, leaving the lower two thirds of the bag as a
-                 black void — which reads as "the grid failed to render", not
-                 as "the bag has room". Fill the visible container instead. */
-              var perRow = 11;
-              var minSlots = 88;                                   // ~8 rows
-              var target = Math.max(minSlots, Math.ceil(visible.length / perRow) * perRow);
+              /* ── b348 · THE BAG SHOWS THE SPACE YOU BOUGHT ────────────────
+                 Xarn: "You can see the inventory you bought when you exceed the
+                 inventory space. A new row will be visible once you found more
+                 items, but it should appear once the slots are purchased."
+
+                 Measured before this change: at cap 100 the grid drew 88 tiles;
+                 buying +60 gem slots (cap 160) drew 88; buying +40 more gold
+                 slots (cap 200) still drew 88. The grid only grew when the
+                 player reached 89 STACKS — so a purchase you paid gems for was
+                 literally invisible until you outgrew it. The old expression
+                 was `max(88, ceil(items/11)*11)`: sized by ITEM COUNT, and the
+                 `/11` did not even align to a row, because `.invc-grid` is
+                 `repeat(auto-fill, minmax(72px,1fr))` — a responsive column
+                 count that is ~8 at desktop width and ~13 at another.
+
+                 Now the empty tiles ARE your free stacks, so a purchase adds
+                 rows the instant it completes and counting squares tells you
+                 the truth. bankCap()/bankUsed() are the same pair addItem()
+                 enforces (legacy.js:2638), so the picture cannot disagree with
+                 the rule.
+
+                 FILTERED VIEWS DO NOT CLAIM CAPACITY. Free space is a property
+                 of the BAG, not of "Weapons": padding a filtered lane to the
+                 bank cap would assert you have 160 weapon slots. A filtered or
+                 searched view keeps b217's "don't leave a black void" fill and
+                 says nothing about space.
+
+                 RENDER CEILING — measured, not guessed. renderInvFancy runs on
+                 the game tick (see the note at the doll rebuild), and an empty
+                 tile costs ~0.006 ms: 500 tiles 3.4 ms, 2,000 tiles 15 ms,
+                 4,000 tiles 23.6 ms against a base render of 6-18 ms. Gold
+                 slots self-limit (the price grows 1.32x a buy, so 400 stacks
+                 already costs ~2.8M gold) but GEM slots are flat, so capacity
+                 has no upper bound and neither would the DOM. 600 covers every
+                 cap normal play can reach, costs ~4 ms, and past it the surplus
+                 is stated as one chip instead of five thousand squares — the
+                 header keeps quoting the real number either way. */
+              var RENDER_CEILING = 600;
+              var MIN_FILL = 88;                                    // b217's "fill the container"
+              var unfiltered = (f.category === 'all') && !search;
+              var cap = (typeof bankCap === 'function') ? bankCap() : 0;
+              var used = (typeof bankUsed === 'function') ? bankUsed() : visible.length;
+              var target, surplus = 0;
+              if (unfiltered && cap > 0) {
+                var free = Math.max(0, cap - used);
+                target = visible.length + free;
+                if (target > RENDER_CEILING) { surplus = target - RENDER_CEILING; target = RENDER_CEILING; }
+              } else {
+                target = Math.max(MIN_FILL, visible.length);
+              }
               for (var i = visible.length; i < target; i++) html += '<div class="invc-tile invc-slot" aria-hidden="true"></div>';
+              if (surplus > 0) {
+                html += '<div class="invc-tile invc-slot invc-slot-more" title="' + surplus.toLocaleString()
+                  + ' more free stacks — too many to draw">+' + fmtQty(surplus) + '</div>';
+              }
               return html;
             })(
             visible.map(function(kv){
@@ -12677,7 +13104,9 @@ function renderInvFancy(){
           (function(){ var xpB=0,spdB=0; Object.values(G.equipment||{}).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
           '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
-        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div></div></div>'; })()+
+        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
+          var _route = (typeof window.styleXpRouteText==='function') ? window.styleXpRouteText(style) : style.trains;
+          return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP <b>'+_route+'</b></div></div></div>'; })()+
       '</div>'+
       '</div>'+
     '</div>';
@@ -12739,6 +13168,19 @@ window._invLoadoutManage = function(){
   };
 })();
 window._renderInvFancy = renderInvFancy;
+/* b348: `window.renderInvFancy` (no underscore) is called from seven places —
+   item-ux.js x2, dungeons.js x3, companions.js x3, admin.js, dungeon-scavenger
+   — and has NEVER existed; the published name has always carried the
+   underscore. Every call site is `typeof`-guarded, so they resolved to nothing
+   silently rather than throwing. It is masked today because addItem/removeItem
+   are wrapped just below to repaint an active bag anyway, which is why nobody
+   noticed — but a guarded call to a name that cannot exist is a trap waiting
+   for the first caller that isn't covered by that wrapper. DELEGATES rather
+   than binds, so it always resolves the currently-wrapped implementation (the
+   drag/drop hook near the foot of this block re-wraps `_renderInvFancy`). */
+window.renderInvFancy = function(){
+  if(typeof window._renderInvFancy === 'function') return window._renderInvFancy.apply(this, arguments);
+};
 
 /* Re-render when relevant state changes */
 ['updateTopbar','equip','unequip','addItem','removeItem'].forEach(function(name){
@@ -13104,6 +13546,31 @@ function tileForGather(action, skillId){
     +'</div>';
 }
 
+/* hrWearLineHtml(outputId) — "and what do I need to WEAR it?", for a recipe
+   tile (b348).
+
+   Xarn: "It would be great to see in the crafting/smithing section what def
+   requirements we need to wear those too." The tile has always stated the
+   CRAFT gate (its lock chip) and never the WEAR gate, which is a different
+   number on a different skill — Steel Platebody is Smithing 40 to forge and
+   Defence 30 to put on. A player training Smithing on a mule build could forge
+   a full set they cannot wear and only find out at the equip screen.
+
+   Shared by the legacy tile builder and its ESM twin in
+   features/activities-grid.js, so the two renderers cannot drift — the same
+   arrangement hrToolLineHtml/burnRiskLine already use. Reads gearWieldReq, the
+   authority equipItem() enforces, so it is right for the hand-authored pieces
+   whose gate is derived from `tier` rather than authored on the item. */
+window.hrWearLineHtml = function(outputId){
+  if(typeof gearWieldReq !== 'function' || typeof ITEMS === 'undefined') return '';
+  var it = ITEMS[outputId]; if(!it) return '';
+  var req = gearWieldReq(it); if(!req) return '';
+  var SD = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF) || window.SKILLS_DEF || {};
+  var skillName = (SD[req.skill] && SD[req.skill].name) || req.skill;
+  var ok = (typeof canWield==='function') ? canWield(outputId).ok : true;
+  return '<div class="at-wear'+(ok?'':' at-wear-short')+'">Wear: <b>'+skillName+' '+req.lv+'</b></div>';
+};
+
 /* ── Build an artisan tile ── */
 /* Wave 1 (audit fix, Tyler: "the only tool I can craft is a fishing rod"):
    handle a click on a GATED artisan tile — say exactly why it's locked and, for
@@ -13194,6 +13661,7 @@ function tileForArtisan(recipe, skillId){
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(actMs)+'</div>'
     +'<div class="at-inputs">'+inputsLine+'</div>'
+    +(typeof window.hrWearLineHtml==='function' ? window.hrWearLineHtml(outId) : '')   /* b348 */
     +burnLine
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')

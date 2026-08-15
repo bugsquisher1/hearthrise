@@ -1462,6 +1462,15 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
 #panel-combat .combat-style-block p {
     display: none !important;
   }
+  /* b348 — …EXCEPT on the dedicated Style sub-tab, where the picker IS the
+     whole screen and the line naming the XP split is precisely what belongs
+     there. The hide above was written when this block sat inline under the
+     monster list; the sub-tabs (b256) gave it a room of its own. Measured at
+     922x423 and 500x900: the block is 109px/126px tall with the meta shown and
+     nothing spills sideways. */
+  #panel-combat[data-mobile-sub="style"] .combat-style-block .csb-meta {
+    display: block !important;
+  }
   /* Combat-style buttons in a tight 4-up grid */
   #panel-combat .combat-style-buttons {
     display: grid !important;
@@ -1473,8 +1482,30 @@ body[data-theme="cozy-light"] #panel-market #mk-list-btn {
     padding: 6px 4px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
+  /* b348 — THE XP ROUTE IS NOT DECORATION, SO IT IS NOT HIDDEN.
+     This rule was `display:none` with the comment "hide
+     ATTACK/STRENGTH/DEFENSE/ATK-STR-DEF labels". It landed in b110, when the
+     button font here was 10px and the block genuinely had no room. Two things
+     then changed underneath it and neither noticed: b227 raised the type floor
+     to 14.5px (so the density argument had already expired), and b329 put the
+     per-style SWING TIME inside the same <small> — the number that answered
+     Xarn's own previous report, invisible on his phone from the day it shipped.
+     Measured on a 922x423 landscape phone before this change: computed display
+     "none", innerText carrying neither the trained skill nor the swing.
+     A style picker whose entire purpose is choosing an XP route must say which
+     route. So the label WRAPS instead of vanishing, and the swing time — the
+     genuinely secondary fact — is the only thing the narrowest phones drop. */
   #panel-combat .csb-btn small {
-    display: none !important;       /* hide ATTACK/STRENGTH/DEFENSE/ATK-STR-DEF labels */
+    display: block !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    word-break: break-word !important;
+  }
+  /* Only at true phone width does anything get dropped, and it is the speed,
+     never the route. */
+  @media (max-width: 420px) {
+    #panel-combat .csb-btn .csb-swing { display: none !important; }
   }
 
   /* Combat picker — make the tier buttons compact */

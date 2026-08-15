@@ -2,6 +2,43 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+<<<<<<< HEAD
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Security, QA (b349 — the 42501 flood is two sources, one of them ours on purpose)
+
+Worktree `agent-aea11985dd254af77`, commit **`ce9dc9c`**. Smoke **710/710** (baseline 707; +3), 0 runtime errors, four consecutive runs, nine mutations each RED on target. **No version bump, nothing deployed. No grant changed, `hr_client_rpc_baseline` untouched.**
+
+**1. TO SECURITY — I did NOT change a grant, and I am recommending you do not either.** `hr_server_now` is `authenticated`-only by the deliberate §3 ruling in `2026-08-11-authenticated-surface-lockdown.sql`, and that file's own header predicted this failure class in words ("would 42501 the muster clock for every signed-in player, at page load, with no client change to blame it on"). Opening it to `anon` would silence ~3,196 log lines a day and fix **nothing**: the client was calling an authenticated RPC without a token, and the pattern — not that one function's grant — is the bug. It would also add an anon-callable `volatile` function to the surface you just closed. **Recommendation: leave the grant exactly as it is.** If anyone later wants the clock public, it is a grant change plus a `tests/rpc-resolution.targets.json` entry plus an `ANON_CALLABLE` entry in `src/net/server-rpc.js`, in one commit — and a new node-side guard now FAILS the build if those two disagree in either direction.
+
+**2. TO QA + COORDINATOR — 39% of the flood is `tests/rpc-resolution.mjs`, working exactly as designed. Do not "fix" it.** 38 deliberate anon probes × ~53 CI runs = ~2,014 42501s/day. This is arithmetic, not inference: `53` divides every non-`hr_server_now` offender row to the exact integer, and the multiplier is the number of probe targets sharing that parameter signature (6→318, 3→159, 2→106, 1→53). The probe is production-safe by construction (38 of 41 calls are refused before the function body runs) and it is the only thing standing between us and a silent `PGRST202` breaking every RPC for real players. **The consequence for the dashboard is what matters: our own CI is now the single largest source of logged database errors, so "42501 count" can never be an incident signal on its own.** Grade the RATIO instead — see the confirmation SQL below, which calibrates CI's contribution from a row only CI can produce.
+
+**3. TO WHOEVER ADDS THE NEXT SERVER-BACKED FEATURE — there is now a seam, use it.**
+  - **"May this call go out?"** → `HearthriseRpc.mayCall(name, hasSession)` in `src/net/server-rpc.js`. **Inverted and fails CLOSED** — an RPC nobody listed needs a session. `hasSession` must be a literal `true`; a caller that has not looked yet passes `undefined` and is refused, which is the whole point.
+  - **"When is there a session?"** → `HearthriseGate.whenSignedIn(fn, label)` in `src/net/account-gate.js`. Holds; runs on the first live session; **never runs at all if one never arrives** — a 42501 is an answer, not a retryable failure. It is not a promise, deliberately: a promise must settle and the honest answer here is often "never". `label` makes "what is blocked on sign-in?" answerable.
+  - **Do not** re-derive either from `auth.js`. `whenOpen()` is NOT the same question — the harness and a stale cached session both open the gate with no live token, and conflating the two is what this cost.
+
+**4. TO THE COORDINATOR — an unrelated guard has been RED all session and it is not mine.** The Edge payload guard: deployed `hr-accrue` reports `a2a42250dd81e795…`, this repo packs `2f6334133c627f81…`. GREEN on my first run of the session, RED on every run after, with no change from me — my diff touches no `src/core`, `src/data` or `supabase/functions/**`. Another agent deployed a different payload mid-session; someone owes a redeploy or a re-pack.
+=======
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Security, Game Designer, Art Director (b348 — the switch-on test failed because HALF the seam shipped; it is whole now)
+
+Branch `agent-aa4009fd4c0be62ae`. Smoke **712/712** (baseline 707; +5), 0 runtime errors, 0 console errors, four consecutive runs; `AWAY-1 PARITY` green; `bump-version.sh --check` green at 348. **16 mutations, all RED and each naming its own fault** (8 against the new Node guard, 8 against the new browser tests), every one preceded by a green control and followed by a green restore. No version bump, nothing deployed, `supabase/functions/**` and `supabase/migrations/**` NOT touched.
+
+**1. THE ROOT CAUSE, CONFIRMED ON THE WIRE — and the Coordinator's second hypothesis is FALSIFIED by the server's own records.** b347 wired four combat declaration sites. The next merge widened `PAYABLE_KINDS` to `['combat','gather']`, which widened `SETTABLE_KINDS` by derivation — the server half was finished — and no client site was added. Reproduced before fixing, in a real browser with the switch armed: starting woodcutting put **zero** requests on the wire and `player_state` stayed `idle`/version 0, matching production exactly (0 `player_intents`, version 0).
+
+**But the brief's other claim — that "the state application re-armed the daily panel" — cannot be what happened, and the server proves it.** `version 0` + `0 intents` means `hr_apply` never ran, so no envelope with `accrued:true` ever came back, so `applyEnvelopeState` never executed. Nothing in the accrue/record/activity path writes `G.dailyReward` at all. I could not reproduce the daily re-presenting across three increasingly faithful harnesses (harness-flag; plain reload; **no** harness flag so the real 4-second resume watchdog runs). The claim persists to the local save and survives a reload. **The daily modal has exactly one auto-opener — `daily-reward.js autoBoot`, once per page load, which returns early when `isClaimable` is false — so for it to re-present, `G.dailyReward.lastClaimDay` must have been rolled back, which needs a cloud restore (`auth.js pullAndMaybeRestore` → `applyCloudOverlay` + `location.reload()`) or a save rollback.** I have no DB access from this worktree to check Tyler's `game_saves` row. **ASK TYLER ONE QUESTION: did the page reload itself?** If yes it is the cloud-overlay path and it is a different bug in a different file.
+
+**2. ⚠ P1 TO THE COORDINATOR + GAME DESIGNER — MY FIX MAKES b339 REACHABLE ON A ROUTINE TAP, AND IT TAKES THE DAILY REWARD BACK.** This is the next thing that will end a switch-on test, and it is a design ruling, not a bug, so I did not overturn it. Measured end-to-end: claim the daily (+500 gold → 1,000), tap a tree. The declaration now COLLECTS, so an envelope comes back, and `applyEnvelopeState` replaces `G.gold` wholesale with the server's fresh character — **gold 1,000 → 500, the daily reward silently gone.** b339's replacement sheet is what stops that being silent, and it fires correctly (I verified it, and B348-8 asserts nothing moves while it is refusing) — **but `hr:serverAccrual:replaceAck` is a permanent localStorage latch, and Tyler almost certainly set it during the b347 combat test.** For him the first tap of a tree will replace his character with no prompt at all. Before the next switch-on run: either clear that key on his device, or rule on re-asking when the loss is materially larger than what was consented to. b339's own note ("today this cannot fire, because accrual.js refuses any activeKind !== combat") is now stale — I have marked it in this handoff rather than editing accrue.js, which is adjacent to another workstream.
+
+**3. TO SECURITY — the retry question you would have asked, answered.** `activity_unsupported` is classified ANSWERED and is **not** retried: `shouldRetryActivity` retries only unanswered outcomes and `version_conflict`. Asserted in `tests/activity-seam.mjs` S5 **with a control** (the two outcomes that must retry still do, so S5 cannot pass because retrying was switched off wholesale). Mutation M7 turns it red. Also asserted: a REFUSED switch is never recorded as an acknowledgement even when it carries a perfectly good envelope — a refusal's `activity` field is the server's OLD state, and treating it as agreement would let a refused switch stop a player's run.
+
+**4. THE GUARD YOU ASKED FOR, AND IT IS TWO LINKS, NOT ONE.** A single check could not cover both failure modes. `tests/activity-seam.mjs` (Node, wired into `run-smoke.mjs`, gates every push) asserts the server's `SETTABLE_KINDS` and the client's `ACTIVITY_KINDS` are the SAME SET, that every settable kind has a declaration call site in `legacy.js`, that the client gather index and the engine's `GATHER_NODES` have identical keys, and that a non-settable game activity is downgraded to `idle` rather than dropped. `B348-2/3/4` (browser) then iterates `ACTIVITY_KINDS` and drives a **real player gesture** for each, failing by name when one has none. Chain: *server list ≡ client list* ∧ *client list ⇒ a gesture that puts the bytes on the wire*. **Widening `PAYABLE_KINDS` to include `artisan` now fails the build twice before it can ship server-only.** Proven: mutation M1 does exactly that and the guard says so by name.
+
+**5. TO THE GAME DESIGNER — an activity the engine cannot price now declares `idle`, and that is a deliberate, visible behaviour change.** Starting a cooking/smithing/crafting run sends `{kind:'idle'}`. Silence was NOT the neutral option: it leaves the server's pointer on the previous activity, so a player who chops oak for an hour and then cooks is **paid for oak for as long as they cook**. `idle` collects what was really earned and stops the meter; the artisan time itself pays nothing, which is the deferral `PAYABLE_KINDS` already documents. The day artisan becomes payable, every one of those call sites starts declaring `artisan` with no edit — the downgrade is a function of the kind list, not a literal at the call site.
+
+**6. TO WHOEVER TOUCHES THE RESUME PATH — a load observation, not mine to fix.** With the switch ON, the b260 watchdog runs `processOffline()` every 4 seconds while visible, and under the switch that is `hr-accrue` + `hr_load` on every tick. Measured in a real browser with no harness flag: **1 create + 5 loads + 3 accruals in 30 seconds**, which is consistent with the 7/7 counters in Tyler's window and burns a real share of the 30/min budget for an answer that cannot change between ticks.
+
+---
+>>>>>>> worktree-agent-aa4009fd4c0be62ae
+
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Art Director, Game Designer, QA, Security (b347 — the activity seam is BUILT, and the record template is fixed)
 
 Branch `worktree-agent-aa3e8484ab2c37486`, commit **`b0b7ac4`**. Smoke **702/702** (baseline 692; +10), 0 runtime errors, 0 console errors, four consecutive runs. Thirteen mutations, each RED on exactly its target. `AWAY-1 PARITY` untouched. **No version bump, nothing deployed.** `src/core/**`, `supabase/functions/**`, `src/data/**` and `docs/design/*.md` NOT touched.
@@ -23,6 +60,28 @@ Branch `worktree-agent-aa3e8484ab2c37486`, commit **`b0b7ac4`**. Smoke **702/702
 **6. Reachability, stated rather than implied.** Seam 3 (`drainBountySwitch`) is UNREACHABLE while the seam is armed: with the b337 switch ON, `processOffline` returns before any client-side away replay, and `requestBountySwitch` only queues during a replay. It is wired because the contract names all four writers and because the alternative is a fifth writer appearing the day the two paths overlap. Gathering/artisan (`startSkill`, `startArtisan`) are NOT declared — the server answers `activity_unsupported` for them today — but the activity mutex means starting one calls `stopCombat()`, which correctly declares `idle`. When the server engine learns gathering, those are seams 5 and 6 and they go in the same place.
 
 **7. Known limitation, measured, not fixed.** Under the switch, live client-side combat still mints XP and gold locally while the server's character does not know about it — so a switch envelope can be BEHIND local, `describeReplacement` reports the switch as destructive, and `applyIntentEnvelope` refuses and raises the b339 replacement sheet instead of applying. I reproduced this once in the browser. That is the designed consequence of server authority plus a client that still simulates live play, the sheet is the designed mitigation (asks once, in numbers, then silent), and the acknowledgement key is shared with the accrual path because it is one consent. It stops being a question when live ticks move server-side.
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, QA (b348 — Xarn's five reports)
+
+Branch `agent-a597c79506d8d0445`. Suite **696/696** (baseline 692; +4), 0 runtime errors, 0 console errors, five consecutive full runs. **Seventeen mutations, each RED on exactly one test.** No version bump, nothing deployed, nothing applied. Labelled **b348** because b347 is the merged away-buff work.
+
+**1. TO THE COORDINATOR — TWO THINGS NEED YOU.**
+- **The Edge payload no longer matches.** `src/data/recipes.js` changed, so `hr-accrue` packs to a different hash than the deployed function. The guard is RED and correctly so. **Redeploy needed, not performed.**
+- **The catalogue migration was REGENERATED and needs re-applying.** `node tools/gen-catalogues.mjs` run; the diff is exactly five `hr_activities` rows (the reconciled reqs) and nothing else — no items, no slot pairs. **Not applied.**
+
+**2. TO THE GAME DESIGNER — five craft gates moved, and one systemic thing you own.**
+The reconciliation is listed exhaustively in my report for Tyler's veto (all five move DOWN, onto the generated curve). Three lanes were genuinely disordered: platebody INVERTED (steel 60 > mithril 55 — Xarn's report), helm and belt TIED. **Eleven other hand-authored rungs still sit off the curve and were left alone** because they are ordered; changing them would be balance churn with no defect behind it. They are listed in the report if you want them.
+
+**The systemic thing, measured and NOT fixed:** on the generated ladder a tier's gear can unlock BELOW the bar it is made from. Bronze gauntlets req 2, boots 3, belt 4, helm 6, platebody 11 — but `smelt_bronze` is Smithing **8**. Mithril gauntlets 46 / boots 47 / belt 48 vs `smelt_mithril` **55**: nine levels of recipes you can select and cannot supply. This is pre-existing in shipped generated content, it is a MATERIAL_TIERS-vs-smelt-req relationship, and it is a design call, not a bug fix.
+
+**3. TO QA — the trap I fell into, now impossible.** `tryRun(name, fn)` is synchronous. Hand it an `async` body and it receives a promise, nothing throws synchronously, and it returns PASS **before a single assertion runs**. I wrote two of these and only found out because seven separate mutations — including restoring the exact reported bug — all came back GREEN. `tryRun` now detects a thenable return and fails loudly naming `tryRunAsync`. Mutation-proven (M17). Only my two tests were affected; the other 676 registrations are clean.
+
+**Also for QA: `AWAY-16` is FLAKY.** It failed twice across ~20 harness runs under mutations that cannot touch it (`_renderInvSummary`, a comment edit) and passed every other time. It re-runs an 8h absence and compares piles, so it is the same wall-clock-boundary shape as the known-flaky `b227 OFFLINE parity`. Someone should pin its clock. It is not mine and it is not new.
+
+**4. TO THE ART DIRECTOR — three surfaces gained a line, all on existing components and tokens.**
+- `.ttl-req` in the hover tooltip (uses the `.ttl-cmp` card vocabulary; `--gold-2` met / `--red` + `--red-bg` unmet).
+- `.at-wear` on every artisan tile whose output is wieldable (`--gold-2` met / `--red` short) — 39 of 50 tiles on the Armour lane.
+- `.invc-space-free` in the bag header, and `.invc-slot-more` for the surplus chip past the 600-tile render ceiling.
+`theme-cozy.css`'s mobile rule `#panel-combat .csb-btn small{display:none}` is GONE — it was hiding the combat style XP label AND b329's swing time on every phone. `.csb-meta` is now shown on the dedicated Style sub-tab only. Measured at 922×423 and 500×900: zero horizontal overflow, block height 145px/126px.
 
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, Art Director, QA (b347 — the held away-buff branch is UNBLOCKED)
 
@@ -800,3 +859,88 @@ CHECKs `slot between 0 and 4` (`player_state` uses 0..5 — the two tables disag
 `HearthriseProfile.activeSlot()` only ever returns 0..4 and no caller pins 5. Tightening it crosses
 accrue/character/record and their RPC clamps, which is not a hotfix-weekend change.
 
+---
+
+## b349 · Backend Architect → Coordinator, Security, Systems · the perk channel (`zeroBonus` is gone)
+
+**Branch:** `worktree-agent-a9cea97efb408d57a` · **708/708, 0 runtime errors, 3 consecutive runs.**
+No version bump, nothing applied, nothing deployed.
+
+**WHAT IT WAS.** `hr-accrue/accrual.js` passed `zeroBonus()`, so every permanent bonus read **0**
+server-side. `noBurn` is the Kitchen rung, so a server that cooked would burn at the base 25%
+while a Cast-Iron Range says 0% — **artisan accrual was blocked on that in writing**
+(`skill-sim.js`). And combat accrual has been under-paying every decorated player since the day
+it shipped.
+
+**MEASURED, on the real engine, same seed, varying only the perk state** (`tests/perk-channel.mjs`
+P9, 12h Slime, maxed character so no death truncates the night):
+`651,398 → 758,572 XP (+16.5%)`, 14,097 kills. Trophy rung 2 pays 663,832 and rung 5 pays 698,258,
+so the ladder is monotone rather than a constant. **Mutation-proven:** reverting the four
+`bonus:` sites in `accrual.js` to `zeroBonus` takes the lift to exactly +0.0% and turns P9 red.
+
+**THE SHAPE.** SQL returns bookkeeping (`hr_perks_of` → which room at which rung, how many plot
+buildings, which property tier); `src/core/perks.js` turns that into magnitudes. **No room table
+is copied into SQL.** The client runs the SAME module — `legacy.js getBonus` is layer 0 and now
+delegates — so the two sides cannot answer differently. Contract in
+`docs/design/server-authority.md` §10.
+
+**⚠ THE UNLOCK SEAM — THIS IS THE COORDINATION POINT.** `public.hr_unlock_levels(uuid,int) →
+table(unlock_id text, level int)` is created **ONLY IF ABSENT**. Whichever migration lands first
+is authoritative, so the unlock-storage work may land before or after this with no ordering
+hazard, and repointing it is a one-function change that touches nothing downstream. `level` is
+the RESOLVED value: absolute for rooms/property, a **COUNT** for repeatable plot buildings
+(Scarecrow's max is 2 and `getBonus` pays per instance). Do NOT tidy the create-if-absent into an
+unconditional `create or replace` — that is the `clan_members "join as self"` defect.
+
+**TWO LIVE BUGS FOUND AND FIXED, neither of them mine to expect.**
+1. **`getBonus('constructor')` returned a STRING, through the real seven-layer chain.**
+   `src/features/clans.js:669` (`if (p[key]) t += p[key]`) and `src/features/world-events.js:192-193`
+   (`if (d.bonus[key])`) index ordinary object literals, so the Object constructor is truthy and
+   `t += Object` poisons the whole chain for the session. Security's C6 in a new costume. Both are
+   own-property/typeof guarded now; behaviour is unchanged for every real key. Pinned by B349-5,
+   which drives the real chain. Found by `tests/perk-channel.mjs` P5 against my own first draft.
+2. **`set-activity.js` is a second `computeAccrual` caller** and the A14 parity guard caught the
+   perk field landing in `index.ts` only — before a line of it shipped. A collect would have
+   priced a window at zero perks while an accrue over the same window priced it at the player's
+   real Kitchen.
+
+**WHAT YOU NEED TO KNOW.**
+* **The Edge payload guard is RED and that is correct** — `src/core`/`src/data`/the function moved,
+  so `hr-accrue` needs a redeploy (`55ab7e4302ab9185…` at the time of writing; derive it, do not
+  trust this line). Nothing was deployed. The deployed hash also moved under me mid-session
+  (`721f3499…` → `2f633413…`), so another agent redeployed — re-derive before acting.
+* **Safe in either order, both directions.** No unlock rows → 0 for every key → byte-identical to
+  `zeroBonus`. No `hr_perks_of` → a hard **42883**, caught in `index.ts` and `set-activity.js`
+  (and *only* 42883) with the seed read re-run without the column.
+* `schema-drift` was re-baselined (+2 functions, `hr_perks_of` and `hr_unlock_levels`);
+  `--mutate` 7/7.
+* **`hr_apply` was NOT touched.** `2026-08-15-tool-carry.sql` remains the last file that may
+  replace it; this migration may sit before or after.
+
+**WHAT I NEED FROM YOU.**
+* **Security:** review before authority moves. The property I claim is that a perk state can name
+  an **id**, never a **number** (P5). Also please rule on the S5-inherited note in §10.5 — the perk
+  stack is read at COLLECT time and prices the whole window, so building a rung mid-absence prices
+  the whole absence at the new rung. Bounded by the +20% per-key fuse, closed by S5's `accrued_to`
+  stamp, stated rather than buried.
+* **Systems:** `renown` and the `castle` are the two remaining channels. Castle is blocked on
+  SCOPE, not capability — the levels are server-owned; the perk ladder and `perkScale()`'s upkeep
+  multiplier are in `clan-seat-ui.js`. `state.castle` is `null` and the contract shape is settled.
+* **Designer:** a measured finding worth having — **`grantXp` floors each grant, so a percentage
+  bonus is worth MORE than its headline on a low-XP monster.** +14% of nominal perk measured
+  +16.5% on a Slime. The bonus economy is not linear in the pacing model at the bottom of the
+  monster ladder.
+
+**WHAT MUST NOT BE CHANGED.**
+* `src/data/perks.js` is GENERATED and **both sides read it at runtime**. Edit `ROOMS` in
+  `src/legacy.js` and re-run `node tools/gen-perks.mjs`. `--check` is a smoke preflight.
+* `permanentBonus` stays UNCLAMPED and `makeBonus` clamps. Clamping at layer 0 too would make
+  `HearthrisePowerBudget.rawFor()` — what the "at its limit" panel reads — under-report by
+  exactly the amount the fuse bound.
+* `own()` in `src/core/perks.js`. Every dynamic lookup goes through it; without it a room map is
+  a NaN injection.
+
+**KNOWN LIMITATIONS.** Nothing WRITES an unlock row yet, so the channel is live and pays zero
+until the unlock intent exists — by design, and it is why applying this changes no player's night.
+Artisan is still refused (`unlockedRecipes` remains). True concurrency is unraced, as everywhere.
+`hr_perks_of` adds no round trip (it rides the seed transaction) and no table grant.

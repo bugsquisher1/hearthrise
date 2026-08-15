@@ -566,7 +566,34 @@
   function noteRpc(n, present) { probe[n] = { known: present, at: Date.now() }; }
   function _resetProbes() { probe = {}; }
 
+  /**
+   * b349 — THE REFUSAL, at the transport rather than at each call site.
+   *
+   * `headers()` above ends in `|| c.anonKey`, which does not mean "call this
+   * anonymously" — it means "send the call anyway, without the standing to
+   * make it". For an authenticated-only RPC that is a guaranteed 42501, and
+   * this one helper produced 3,196 of them a day against production: boot()
+   * ran syncClock() 420ms after DOMContentLoaded and auth.js could not publish
+   * a session until a CDN import() of supabase-js resolved, 94–1,040ms later.
+   *
+   * Refusing HERE and not in syncClock() is the point — every RPC that ever
+   * goes through this helper is covered, including the ones nobody has written
+   * yet. The decision itself is HearthriseRpc.mayCall(), shared with the rest
+   * of the client so there is one idea of it and not six.
+   *
+   * The refusal is shaped as the server's own `{ok:false, error:'not_signed_in'}`
+   * at 401, deliberately:
+   *   • every reducer below already routes that to its `not_signed_in` copy,
+   *     so no caller learns a new failure shape;
+   *   • it is NOT an isMissingRpc() shape, so a refusal can never poison the
+   *     feature probe into believing the RPC does not exist for ten minutes.
+   */
   async function rpc(name, body) {
+    var R = window.HearthriseRpc;
+    if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
+      return { status: 401, ok: false, json: { ok: false, error: 'not_signed_in' },
+               headers: null, refused: true };
+    }
     var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
       method: 'POST', headers: headers(true), body: JSON.stringify(body || {})
     });
@@ -1727,8 +1754,33 @@
       // pledgeTick's first pass hydrates, which is also what PROBES the pledge
       // RPCs. Re-render once it settles so an un-migrated project drops the
       // affordance on its own rather than after the player's first click.
-      syncClock().then(function () { tickPill(); return pledgeTick(); })
-                 .then(function () { renderAll(); }).catch(function () {});
+      //
+      // ── b349: HELD UNTIL THERE IS A TOKEN TO SIGN IT WITH ──────────────
+      // Both halves of this chain are authenticated-only RPCs (hr_server_now,
+      // hr_rally_pledge_state) and both used to fire right here — 420ms after
+      // DOMContentLoaded, which is BEFORE auth.js can publish a session,
+      // because auth.js has to resolve a CDN import() of supabase-js first.
+      // Measured on a warm local server: the session landed 94–1,040ms too
+      // late, on every run. So hr_server_now went out with the anon key in the
+      // Authorization header and Postgres refused it — 3,196 times a day, 61%
+      // of every database error the project logged. hydratePledge's own
+      // isSignedIn() check meant it lost the same race quietly instead of
+      // loudly: it did nothing at boot and the probe sat un-run until the 60s
+      // tick, which is the exact "settle before the player's first click"
+      // promise the comment above makes.
+      //
+      // whenSignedIn() holds it until a session exists and NEVER runs it if
+      // one never does. If the seam itself is missing (only reachable with a
+      // half-stale service-worker payload mid-deploy) the work is DROPPED, not
+      // run unguarded: skew is 0 for any healthy device clock, so the cost is
+      // nothing and it heals on the next load. Fail closed.
+      var holdForSession = (window.HearthriseGate && window.HearthriseGate.whenSignedIn) || null;
+      if (holdForSession) {
+        holdForSession(function () {
+          syncClock().then(function () { tickPill(); return pledgeTick(); })
+                     .then(function () { renderAll(); }).catch(function () {});
+        }, 'muster:clock+pledge');
+      }
       tickPill();
       setInterval(tickPill, 1000);
       setInterval(flush, FLUSH_MS);

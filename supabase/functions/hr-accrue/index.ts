@@ -346,16 +346,52 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     // The idempotency salt uses a DIFFERENT LABEL on purpose. The PRNG seed is
     // masked to 32 bits and its consequences (which drops landed) are visible
     // to the player; the intent salt must not be inferable from them.
-    const seedRow = await sql.begin(async (tx) => {
+    //
+    // THE PERK STATE RIDES THIS TRANSACTION, not a third one. `hr_perks_of`
+    // returns bookkeeping only — which rooms at which rung, how many plot
+    // buildings, the property tier — and src/core/perks.js turns that into
+    // magnitudes, so the room table is never copied into SQL.
+    //
+    // ⚠ AND IT DEGRADES ON EXACTLY ONE ERROR CODE. A missing COLUMN reads as
+    //   null (that is how `tool_carry` self-configures), but a missing
+    //   FUNCTION is a hard 42883 that aborts the whole transaction — so a
+    //   deploy that landed before the migration would 500 every accrual
+    //   instead of quietly paying what it paid yesterday. Catching 42883 and
+    //   ONLY 42883, then re-running the seed read without the perk column,
+    //   restores the "safe in either order" property the tool-carry column has
+    //   by construction. Any other error still propagates: a swallowed error
+    //   is how a guard reports SKIPPED and gets read as a pass.
+    const seedSql = (withPerks: boolean) => sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
-      const [r] = await tx`
+      const [r] = withPerks
+        ? await tx`
+        select (public.hr_seed(${user}::uuid, ${slot}::int,
+                               ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
+               public.hr_seed(${user}::uuid, ${slot}::int,
+                              ${'intent:accrue:' + String(st.accrued_to)})::text as salt,
+               public.hr_perks_of(${user}::uuid, ${slot}::int) as perks`
+        : await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
                                ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed,
                public.hr_seed(${user}::uuid, ${slot}::int,
                               ${'intent:accrue:' + String(st.accrued_to)})::text as salt`;
       return r as Row;
     });
+    let seedRow: Row;
+    let perkChannel = 'live';
+    try {
+      seedRow = await seedSql(true) as Row;
+    } catch (e) {
+      if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+      // This database predates the perk channel. Pay what yesterday paid.
+      perkChannel = 'absent';
+      seedRow = await seedSql(false) as Row;
+    }
     const salt = String(seedRow?.salt ?? '');
+    /* `ok !== true` covers both "no character" and a future refusing shape.
+       null → EMPTY_PERKS in the engine → 0 for every key → today's behaviour. */
+    const perkEnv = seedRow?.perks as Record<string, unknown> | null;
+    const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     const skills: Record<string, number> = {};
@@ -407,6 +443,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          switch — there is no flag to forget to flip.
          Mirrors set-activity.js field for field (A14). */
       toolCarry: st.tool_carry ?? null,
+      /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
+         rung, the plot buildings, the property tier. `null` means the channel
+         is absent or the character has bought nothing, and the engine reads
+         that as 0 for every key, which is the `zeroBonus` behaviour that
+         shipped before b349. Nothing here comes from the request body. */
+      perks,
       items: ITEMS,
       monsters: MONSTERS,
       nodes: GATHER_NODES,
@@ -434,9 +476,28 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       });
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
+        /* ⚠ `::text::jsonb`, NEVER `::jsonb`, ON A PRE-STRINGIFIED DELTA.
+           THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb
+           makes postgres.js re-serialize the value with JSON.stringify. With
+           `prepare: false` (required in transaction mode, see the pool above)
+           every statement takes the describe-first path — Parse with an
+           unspecified type, then Describe — so the driver ALWAYS learns the
+           resolved type from ParameterDescription and Bind then looks it up in
+           `options.serializers`. `serializers[3802]` is JSON.stringify, so the
+           already-stringified delta is encoded a SECOND time and arrives as a
+           jsonb STRING SCALAR. hr_apply's first guard is
+           `jsonb_typeof(p_delta) <> 'object'`, so every apply this function has
+           ever attempted in production returned `bad_delta` — never once
+           applied, from the first deploy (found 2026-08-15).
+           Casting the parameter to `text` first makes Postgres describe it as
+           text (25), whose serializer is `x => '' + x` — a passthrough — and
+           the SQL cast does the parse. This shape is correct under BOTH driver
+           typings (an unspecified type 0 is also a passthrough), which is why
+           it is preferred over handing the driver the raw object.
+           set-activity.js's APPLY_SQL must use the same shape. */
         const [r] = await tx`
           select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
-                                 ${intentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res`;
+                                 ${intentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
         return r as Row;
       });
       return applied?.res as Record<string, any>;
@@ -521,6 +582,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         grantMs: out.grantMs,
         capped: out.capped,
         tickMs: out.tickMs,
+        /* Which permanent perks this night was PRICED AT — 'live' when
+           hr_perks_of answered, 'absent' when this database predates it. It is
+           reported for the same reason `capped` and `blessed` are: the away
+           ruling's honesty clause says the card may not imply a bonus that was
+           not applied, and a night silently priced at zero perks is exactly
+           that. It is also the only way to tell "deployed and correctly paying
+           nothing because nothing is unlocked" from "deployed against a
+           database with no perk channel" from the outside. */
+        perkChannel,
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

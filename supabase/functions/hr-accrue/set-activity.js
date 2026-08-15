@@ -173,10 +173,39 @@ const READ_SQL = `
 
 const SEED_SQL = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
+         public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,
+         public.hr_perks_of($1::uuid, $2::int)                              as perks`;
+
+/* The same read WITHOUT the perk channel, for a database that predates it.
+   A missing COLUMN reads as null; a missing FUNCTION is a hard 42883 that
+   aborts the statement, so the "safe in either order" property the tool_carry
+   column has by construction has to be restored by hand here — by catching
+   42883 AND ONLY 42883 and retrying. Mirrors index.ts. */
+const SEED_SQL_NO_PERKS = `
+  select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt`;
 
+/* ⚠ `$5::text::jsonb`, NEVER `$5::jsonb`, BECAUSE THE DELTA IS PRE-STRINGIFIED.
+   THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb makes
+   postgres.js re-serialize the bound value with JSON.stringify. The engine
+   connects with `prepare: false` (required in transaction mode), so every
+   statement takes the describe-first path — Parse with an unspecified type,
+   then Describe — the driver learns the resolved type 3802 from
+   ParameterDescription, and Bind looks it up in `options.serializers`, where
+   3802 maps to JSON.stringify. The already-stringified delta is therefore
+   encoded a SECOND time and arrives as a jsonb STRING SCALAR, which hr_apply's
+   first guard (`jsonb_typeof(p_delta) <> 'object'`) refuses as `bad_delta`.
+   That is why no apply through this Edge Function had ever succeeded in
+   production before 2026-08-15.
+   Casting to `text` first makes Postgres describe the parameter as text (25),
+   whose serializer is `x => '' + x` — a passthrough — and the SQL cast parses
+   it. Correct under BOTH driver typings (an unspecified type 0 is also a
+   passthrough), which is why this is preferred over binding the raw object and
+   relying on the driver to stringify exactly once.
+   index.ts's tagged-template apply must use the same shape.
+   Guarded by tests/delta-transport.mjs, which drives the REAL postgres driver. */
 const APPLY_SQL = `
-  select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::jsonb) as res`;
+  select public.hr_apply($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text::jsonb) as res`;
 
 /**
  * THE INTENT.
@@ -378,10 +407,24 @@ async function collectCurrentWindow(o) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 
-  const [seedRow] = await exec(SEED_SQL, [
+  const seedArgs = [
     user, slot, `accrue:${String(st.accrued_to)}`, `intent:accrue:${String(st.accrued_to)}`,
-  ]);
+  ];
+  let seedRow;
+  try {
+    [seedRow] = await exec(SEED_SQL, seedArgs);
+  } catch (e) {
+    /* ONLY 42883 (undefined_function) degrades. Anything else propagates —
+       a swallowed error is how a guard reports SKIPPED and gets read as a
+       pass. See SEED_SQL_NO_PERKS above. */
+    if (String((e && e.code) ?? '') !== '42883') throw e;
+    [seedRow] = await exec(SEED_SQL_NO_PERKS, seedArgs);
+  }
   const salt = String((seedRow && seedRow.salt) ?? '');
+  /* `ok !== true` covers "no character" and any future refusing shape. null →
+     EMPTY_PERKS in the engine → 0 for every key → pre-b349 behaviour. */
+  const perkEnv = seedRow && seedRow.perks;
+  const perks = (perkEnv && perkEnv.ok === true) ? perkEnv : null;
 
   /* The engine is called with a LITERAL, field by field, from named server
      values — no spread of anything request-derived, ever. `slot` is the only
@@ -438,6 +481,13 @@ async function collectCurrentWindow(o) {
        because hr_apply's answer to an unknown key is a 409 that costs the
        window this collect exists to pay. */
     toolCarry: st.tool_carry ?? null,
+    /* THE PERMANENT PERK STACK (b349). A collect that priced a window at zero
+       perks while an accrue over the same window priced it at the player's real
+       Kitchen would pay DIFFERENT amounts for the identical time — which is the
+       exact class of silent divergence A14 exists to catch, and it caught this
+       one: the first draft added `perks` to index.ts only and the parity guard
+       went red before a single line of it shipped. */
+    perks,
     items: ITEMS,
     monsters: MONSTERS,
     nodes: GATHER_NODES,

@@ -236,6 +236,18 @@ const MUTATIONS = {
     find: '  return `${kind}:${key}`;',
     repl: '  return key;',
   },
+  /* Security G4, planted. `site` was REQUIRED and unread, so any value at all
+     satisfied it. This mutation is what unread looks like in practice: the
+     client site is renamed (or the file moved) and the registry keeps pointing
+     at a symbol that no longer exists. Nothing behavioural can see it — the
+     server never reads `site` — so if C0b is not doing real work this SLIPS. */
+  site_points_nowhere: {
+    file: DATA('rewards.js'),
+    why: 'a claimable\'s `site` names a symbol that is not in the file it names — the required-'
+       + 'but-unread field going stale, which is the whole of G4',
+    find: "    site: 'src/features/daily-reward.js:76 claim()',",
+    repl: "    site: 'src/features/daily-reward.js:76 claimTheThingThatWasRenamed()',",
+  },
   registry_status_lies: {
     file: DATA('rewards.js'),
     why: 'the registry calls a claimable priced when this build has no pricer for it — the two '
@@ -257,6 +269,48 @@ const MUTATIONS = {
        + 'confiscated night',
     find: '  if (priced.gems) delta.gems = priced.gems;',
     repl: "  delta.equip = { weapon: null };\n  if (priced.gems) delta.gems = priced.gems;",
+  },
+  /* Security G3, planted. The receipt's tail is SPREAD from the pricer's `meta`,
+     so renaming a key there is a one-word edit that changes the wire and touches
+     nothing that looks like an interface — the client renders undefined and
+     every behavioural assertion (gold, streak, period) stays green. Only a
+     literal key-set assertion sees it. */
+  meta_key_renamed: {
+    file: FN('claim-reward.js'),
+    why: 'the receipt\'s documented `cycle_day` is renamed in the pricer\'s meta. The wire shape '
+       + 'changes, the header stops being true, and the client renders undefined — the exact G3 '
+       + 'drift, in the direction it actually happens',
+    find: '    meta: { streak, cycle_day: p.cycleDay, weeks: p.weeksDone, mult: p.mult },',
+    repl: '    meta: { streak, cycleDay: p.cycleDay, weeks: p.weeksDone, mult: p.mult },',
+  },
+  /* The OTHER half of G3, and the half that actually shipped: the code is right
+     and the PROSE is wrong. Nothing executes a comment, so only a test that
+     reads the header can see it — and a client is written from the header. */
+  header_spelling_drift: {
+    file: FN('claim-reward.js'),
+    why: 'the documented receipt goes back to the camelCase spelling the server does not emit '
+       + '(`cycleDay,weeksDone`, no `mult`) — the literal G3 defect, which no behavioural '
+       + 'assertion can see because a comment does not run',
+    find: '//        granted:{kind,key,period,gold,gems,streak,cycle_day,weeks,mult} | null}',
+    repl: '//        granted:{kind,key,period,gold,gems,streak,cycleDay,weeksDone} | null}',
+  },
+  /* Security G6, both halves, planted. */
+  gate_skips_empty_period: {
+    file: FN('claim-reward.js'),
+    why: 'the shared period gate stops covering the \'\' period — the pre-fix behaviour, where a '
+       + 'foreign row under a NON-PERIODIC claimable\'s permanent key is admitted, compounded and '
+       + 'paid for',
+    find: '  const existing = Object.prototype.hasOwnProperty.call(rows, period) ? rows[period] : null;',
+    repl: "  const existing = (period !== '' && Object.prototype.hasOwnProperty.call(rows, period))\n"
+        + '    ? rows[period] : null;',
+  },
+  gate_not_run_before_pricer: {
+    file: FN('claim-reward.js'),
+    why: 'runClaimReward stops running the shared gate and derives the period itself, so the check '
+       + 'is again only whatever each pricer remembered to copy. BEHAVIOURALLY IDENTICAL today — '
+       + 'priceLoginClaim still calls it — which is precisely why it needs a source assertion',
+    find: '  const gate = resolveClaimPeriod({ spec: v.spec, lookup });',
+    repl: '  const gate = { period: v.spec.periodic ? lookup.today : \'\' };',
   },
   gate_bucket_missing: {
     file: MIG('2026-08-16-claim-reward.sql'),
@@ -473,6 +527,68 @@ async function run(mutate) {
     }
   }
 
+  /* ── C0b. `site` HAS A READER (Security G4) ──────────────────────────────
+     THE FINDING: `site` was in CLAIMABLE_FIELDS — i.e. REQUIRED — and nothing
+     anywhere read `spec.site`. A required field with no reader is decoration
+     with a guard in front of it, which is worse than an optional one: it forces
+     every future author to fill in a value that nothing will ever check, so the
+     values rot and the rot is invisible. The registry's own header states the
+     rule ("a row that no code path reads is decoration") and this row broke it.
+
+     THE RULING: keep the field and GIVE IT A READER, rather than demote it.
+     `site` is the wiring map — it is how the next author finds the six client
+     call sites this verb replaces, and claim-reward.js's header is written
+     against it. That is worth having. What it was missing is enforcement, so
+     this is it: every `site` must name a file that EXISTS and a symbol that is
+     actually IN it. The day daily-reward.js's `claim()` is renamed or the file
+     moves, this goes red instead of the registry quietly pointing at nothing.
+
+     WHAT IS DELIBERATELY NOT GRADED: the exact line number. It drifts on every
+     edit above it, so asserting it would make an unrelated one-line change a
+     red build and the number would be "fixed" by deleting the assertion. It is
+     bounded (must be inside the file) and the SYMBOL is what is really pinned —
+     a symbol is what a reader searches for anyway. */
+  {
+    const seen = [];
+    for (const id of Object.keys(rw.CLAIMABLES)) {
+      const site = rw.CLAIMABLES[id].site;
+      ok(typeof site === 'string' && site.length > 0,
+        `C0b: claimable '${id}' has no site — CLAIMABLE_FIELDS requires one`);
+      const m = /^([^\s:]+):(\d+)\s+([A-Za-z_$][\w$]*)/.exec(site);
+      ok(!!m,
+        `C0b: claimable '${id}' spells its site as '${site}', which this reader cannot parse. The `
+        + 'contract is `path/to/file.js:LINE symbolName(...)` — a shape a human AND this guard can '
+        + 'both follow. A free-text site is a field nothing can check, which is what G4 was about.');
+      const [, rel, lineStr, symbol] = m;
+      let text = null;
+      try { text = await readFile(join(ROOT, rel), 'utf8'); } catch { /* reported below */ }
+      ok(text !== null,
+        `C0b: claimable '${id}' names the site ${rel}, which does not exist. The registry is the `
+        + 'wiring map for the six client call sites this verb replaces; one that points at a '
+        + 'deleted or moved file sends the next author nowhere.');
+      const lines = text.split('\n').length;
+      ok(Number(lineStr) >= 1 && Number(lineStr) <= lines,
+        `C0b: claimable '${id}' names ${rel}:${lineStr} but that file has ${lines} lines. The line `
+        + 'is not graded exactly (it drifts on every edit above it) — only that it is inside the '
+        + 'file, which a stale copy of a since-shrunk file is not.');
+      ok(new RegExp(`\\b${symbol}\\b`).test(text),
+        `C0b: claimable '${id}' names \`${symbol}\` in ${rel}, and that symbol is not in the file. `
+        + 'It was renamed or removed and the registry still points at it.');
+      seen.push(id);
+    }
+    ok(seen.length === Object.keys(rw.CLAIMABLES).length && seen.length >= 6,
+      `C0b-CONTROL: ${seen.length} sites were read, and the registry has `
+      + `${Object.keys(rw.CLAIMABLES).length} rows (expected at least the six claim-shaped grants). `
+      + 'A reader that reads nothing is the decoration this assertion exists to end.');
+    /* And the field is REQUIRED, which is the half of G4 that makes the reader
+       load-bearing rather than opportunistic: an optional field read by a guard
+       that skips absent ones is still a field nobody has to fill in. */
+    ok(rw.CLAIMABLE_FIELDS.includes('site'),
+      'C0b: `site` left CLAIMABLE_FIELDS. Either it is required AND read (what G4 asked for, and '
+      + 'what this group provides), or it is neither — but a field this guard reads while the '
+      + 'registry treats it as optional would fail on the first row that omits it.');
+  }
+
   // ── C1. THE PARSER: A NAME, AND NOTHING ELSE ─────────────────────────────
   // The hostile body carries a period, an amount, a gold field and a poisoned
   // prototype. Every one of them must be inert BY CONSTRUCTION — parseIntent
@@ -621,6 +737,41 @@ async function run(mutate) {
     ok(r.body.granted.period === day,
       `C4: the receipt names period '${r.body.granted.period}' but the server's day key is '${day}'`);
     ok(r.body.verb === 'claim_reward', 'C4: the body does not name its verb');
+
+    /* THE RECEIPT'S LITERAL KEY SET (Security G3). `granted` is a DOCUMENTED
+       WIRE SHAPE — claim-reward.js's header specifies it and the client renders
+       it field by field — but its last four keys are SPREAD from the pricer's
+       `meta`, so a pricer is free to rename a field the client reads without
+       touching anything that looks like an interface. That is exactly what had
+       happened: the header said `cycleDay,weeksDone` (and omitted `mult`) while
+       the code emitted `cycle_day, weeks, mult`, so a client written from the
+       documentation would have rendered three undefineds and nothing would have
+       failed. Asserted EXACTLY, in both directions: a new key is a red build
+       until the header names it, and a removed one is red until the client
+       stops expecting it. */
+    {
+      const want = ['kind', 'key', 'period', 'gold', 'gems', 'streak', 'cycle_day', 'weeks', 'mult']
+        .sort().join(',');
+      const have = Object.keys(r.body.granted).sort().join(',');
+      ok(have === want,
+        `C4: granted's key set is [${have}], the contract is [${want}]. This object is what the `
+        + 'client renders and what claim-reward.js\'s header promises; its tail is spread from the '
+        + 'pricer\'s `meta`, so a rename there silently changes the wire. Move the header and this '
+        + 'assertion together, or not at all.');
+      /* And the header itself, read from the shipped bytes — the assertion above
+         pins the code to a list in this file, which is only half of G3. The
+         defect WAS a header that disagreed with the code, so the header is
+         graded too, against the same list. */
+      const hdr = await readFile(join(fnDir, 'claim-reward.js'), 'utf8');
+      const line = /granted:\{([^}]*)\}/.exec(hdr);
+      ok(!!line, 'C4: claim-reward.js\'s header no longer documents `granted:{…}` — the wire shape '
+        + 'this test pins has stopped being written down anywhere a reader would look');
+      const doc = line[1].split(',').map((s) => s.trim()).filter(Boolean).sort().join(',');
+      ok(doc === want,
+        `C4: claim-reward.js's header documents granted as [${doc}] but the server emits [${want}]. `
+        + 'A client is written from the header. This is Security G3 — the code and the prose must '
+        + 'name the same fields.');
+    }
 
     // THE PROGRESS ROW — 'claimed', under the SERVER's period key.
     const rows = await progress(db, UID);
@@ -989,6 +1140,104 @@ async function run(mutate) {
       `C13b: request.js accepts [${verbs}] but the registry describes [${rows}]`);
   }
 
+  /* ── C13e. THE PERIOD GATE IS SHARED, AND IT COVERS '' (Security G6) ─────
+     THE FINDING: the fail-closed "a row for this period exists in a state this
+     engine did not write" check lived INSIDE priceLoginClaim. Two consequences,
+     and the second is the one that would have cost money:
+
+       (a) PRICER #2 WOULD NOT HAVE INHERITED IT. Pricer #1 was written by
+           copying set-activity.js; pricer #2 will be written by copying pricer
+           #1, and what gets copied is the arithmetic, not the guard buried
+           under it. Now the gate runs in runClaimReward BEFORE any pricer, so a
+           pricer inherits it by not being called until it has passed.
+       (b) IT ONLY EVER CHECKED `today`. Four of the six registry rows are
+           `periodic:false` and file under the PERMANENT key '' — and '' is
+           returned by hr_claim_lookup precisely so it can be checked. A foreign
+           row matters MOST there: there is no tomorrow to recover into, so
+           compounding an unknown value into a permanent row and paying for it
+           is unrecoverable rather than wrong for a day.
+
+     Unit-level, deliberately: the only PRICED claimable today is periodic, so
+     the '' path cannot be driven end to end without inventing a claimable the
+     server does not have. Inventing one would test the fixture. The behavioural
+     end-to-end proof of the periodic half is C4/C5/C8; this is the proof that
+     the SAME code answers for '' the day a one-off claimable is priced. */
+  {
+    const periodic = Object.freeze({ status: 'priced', periodic: true, ledgerKind: 'quest' });
+    const oneOff = Object.freeze({ status: 'priced', periodic: false, ledgerKind: 'quest' });
+
+    ok(typeof cr.resolveClaimPeriod === 'function',
+      'C13e: claim-reward.js exports no resolveClaimPeriod — the gate is not shared, so pricer #2 '
+      + 'has to remember to copy it');
+
+    // (1) A PERIODIC claimable with no server day is refused, never filed under ''.
+    const noDay = cr.resolveClaimPeriod({ spec: periodic, lookup: { today: '', rows: {} } });
+    ok(noDay.error === 'reward_unavailable',
+      `C13e: a periodic claim with no server day key answered ${JSON.stringify(noDay)}. Filing it `
+      + "under '' writes a PERMANENT row for a DAILY reward — the player's login reward ends "
+      + 'forever, silently.');
+
+    // (2) The periodic happy path still resolves to the server's day.
+    const okDay = cr.resolveClaimPeriod({ spec: periodic, lookup: { today: day, rows: {} } });
+    ok(okDay.period === day && !okDay.error,
+      `C13e-CONTROL: the periodic happy path answered ${JSON.stringify(okDay)} — if the gate refuses `
+      + 'everything, the refusals above prove nothing');
+
+    // (3) A foreign TODAY row is refused; a 'claimed' one falls through to hr_apply.
+    const foreignToday = cr.resolveClaimPeriod({
+      spec: periodic, lookup: { today: day, rows: { [day]: { value: 9, state: 'done' } } } });
+    ok(foreignToday.error === 'not_claimable',
+      `C13e: a 'done' today-row this engine did not write was ADMITTED (${JSON.stringify(foreignToday)}). `
+      + "hr_apply cannot catch it — from its side it is a well-formed claim of a 'done' row.");
+    const claimedToday = cr.resolveClaimPeriod({
+      spec: periodic, lookup: { today: day, rows: { [day]: { value: 1, state: 'claimed' } } } });
+    ok(claimedToday.period === day && !claimedToday.error,
+      `C13e: a 'claimed' today-row was intercepted here (${JSON.stringify(claimedToday)}). Only `
+      + 'hr_apply holds player_intents, so only hr_apply can tell a REPLAY from an honest second '
+      + 'click — intercepting it is review C5 again: money in the envelope, receipt gone.');
+
+    // (4) THE NEW COVERAGE. A NON-PERIODIC claimable files under '' and is
+    //     gated there by the same code.
+    const empty = cr.resolveClaimPeriod({ spec: oneOff, lookup: { today: day, rows: {} } });
+    ok(empty.period === '' && !empty.error,
+      `C13e: a non-periodic claimable resolved to ${JSON.stringify(empty)} — it must file under the `
+      + "permanent key '', not under today, or a one-off reward becomes claimable once a day");
+    const foreignEmpty = cr.resolveClaimPeriod({
+      spec: oneOff, lookup: { today: day, rows: { '': { value: 400, state: 'active' } } } });
+    ok(foreignEmpty.error === 'not_claimable',
+      `C13e: a foreign '' row was ADMITTED for a non-periodic claimable (${JSON.stringify(foreignEmpty)}). `
+      + "This is the '' half of G6: the pre-fix check only ever looked at `today`, so every one-off "
+      + 'claimable would have compounded an unknown value into a PERMANENT row and paid for it.');
+    const claimedEmpty = cr.resolveClaimPeriod({
+      spec: oneOff, lookup: { today: day, rows: { '': { value: 1, state: 'claimed' } } } });
+    ok(claimedEmpty.period === '' && !claimedEmpty.error,
+      `C13e: a claimed '' row was intercepted (${JSON.stringify(claimedEmpty)}) — the replay rule is `
+      + 'the same for a one-off claim as for a daily one');
+
+    /* (5) THE GATE RUNS BEFORE THE PRICER, read from the source. Behaviourally
+           identical today, because priceLoginClaim ALSO calls it belt-and-braces
+           — which is exactly why only a source assertion can see the day
+           runClaimReward stops running it and pricer #2 (which will not have
+           copied it) is admitted ungated. */
+    const src = (await readFile(join(fnDir, 'claim-reward.js'), 'utf8'))
+      .replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    const body = src.slice(src.indexOf('export async function runClaimReward'));
+    ok(body.length > 0, 'C13e-CONTROL: runClaimReward not found in the source — the scan is blind');
+    const atGate = body.indexOf('resolveClaimPeriod(');
+    const atPricer = body.indexOf('pricer({');
+    ok(atGate >= 0,
+      'C13e: runClaimReward never calls resolveClaimPeriod. The shared gate is then only whatever '
+      + 'each pricer remembered to call itself, which is the arrangement G6 was raised about.');
+    ok(atPricer >= 0, 'C13e-CONTROL: runClaimReward never calls its pricer — the scan is blind');
+    ok(atGate < atPricer,
+      'C13e: runClaimReward calls its pricer BEFORE the shared period gate. A pricer must not be '
+      + 'reachable until the gate has passed — that is the whole of "inherited structurally".');
+    ok(/period:\s*gate\.period/.test(body),
+      'C13e: the delta no longer takes its period from the gate. The gate decides which period is '
+      + 'CHECKED for a foreign row; if the delta WRITES a different one, the check guards a period '
+      + 'nothing writes to.');
+  }
+
   // ── C13c. hr_claim_lookup IS BOUNDED BY CONSTRUCTION ────────────────────
   // Three period keys — '', today, yesterday — and there is no argument through
   // which a caller could widen it. Without the bound, one call scans a
@@ -1115,8 +1364,9 @@ async function run(mutate) {
   }
   console.log('claim-intent: OK — claim-once, server price, server period, server streak, replay '
     + 'receipts nothing, key reuse across days is loud, stale version, rate gate, capped '
-    + 'multiplier, window-closing check, cross-player isolation (15 groups, real PG18 + the '
-    + 'deployed intent module)');
+    + 'multiplier, window-closing check, cross-player isolation, the receipt\'s literal key set, '
+    + 'the registry\'s sites resolve, the shared period gate covers \'\' (15 groups + 6 sub-groups, '
+    + 'real PG18 + the deployed intent module)');
 
   if (has('selftest')) {
     let slipped = 0;

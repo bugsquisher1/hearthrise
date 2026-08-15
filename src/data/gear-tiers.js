@@ -96,6 +96,25 @@ export const WEAPON_FAMILIES = [
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
 /* ── Armour ARCHETYPES — the combat triangle (b278). ───────────────────────
+
+   ── TWO STANDING RULINGS (Tyler, 2026-08-15). DO NOT RE-LITIGATE. ─────────
+   1. ARMOUR REQUIREMENTS ARE DEFENCE-ONLY, PERMANENTLY. Every line below —
+      plate, leather AND cloth — gates on `defense` at the tier's level, and a
+      magic/ranged piece must NEVER be gated on Magic/Ranged instead. The
+      reasoning is load-bearing rather than cosmetic: defence-only gating is
+      exactly what makes MIX-AND-MATCH viable. The planned elemental /
+      enemy-type system expects a melee player to put cloth pieces on against a
+      magic-weak monster; gate cloth behind a Magic level and that whole
+      strategy dies at the requirements screen. (Raised by Xarn on the
+      Plaguewarden Greaves; ruled, and closed.)
+   2. THE ARCHETYPES ARE TRADES, NOT TIERS. Plate buys survival; cloth buys
+      DAMAGE FOR ANY WEAPON — "if someone wants crit instead of armor they can
+      still use cloth with melee; cloth should give the character dps
+      regardless of the weapon type." So cloth's damage is not a mage
+      entitlement to be deleted when magic out-scales melee; the defect to fix
+      there is that its damage pays only one weapon class. Any rescale converts
+      cloth's damage to weapon-agnostic — it does not remove it.
+
    Three lines per tier so armour finally participates in the melee/ranged/magic
    triangle instead of one generic "plate" fitting everyone:
      • PLATE (heavy): the highest defence, but it TANKS your ranged and (badly)
@@ -190,6 +209,26 @@ export const GEAR_ITEMS = (() => {
   return out;
 })();
 
+/* ── THE LADDERS, AS DATA (b348) ───────────────────────────────────────────
+   `GEAR_LADDERS` names every ordered rung the generator lays down: one entry
+   per (archetype × slot) and per weapon family, its rungs in material-tier
+   order, each rung carrying the item id and the generated recipe id.
+
+   WHY IT IS EXPORTED RATHER THAN RECONSTRUCTED. Xarn reported that a Steel
+   Platebody (22 DEF) asked for MORE Smithing than a Mithril one (34 DEF). The
+   cause was two authorities: this generator lays a curve, and a hand-authored
+   row in recipes.js is spread first and WINS (see the header note). Nothing
+   compared the two, so a hand-authored gate could sit anywhere and no test
+   could see it — the drift shape this repo has been bitten by repeatedly.
+
+   A guard that rebuilt the lanes by pattern-matching item ids would be a
+   SECOND copy of the id scheme (plate is `mat.id + '_' + slot.key`, leather and
+   cloth are `tierId + '_' + slot.slot`), i.e. the same failure one layer up.
+   So the generator publishes the lanes it actually built, and the guard reads
+   the live ARTISAN_RECIPES gate for each rung. One authority for what a lane
+   IS; the merged recipe table for what each rung COSTS.                      */
+const LADDERS = [];
+
 // ── Generate the recipes that produce them ───────────────────────────
 // Returns { smithing:[...], crafting:[...] } in the engine's recipe shape.
 export const GEAR_RECIPES = (() => {
@@ -201,15 +240,37 @@ export const GEAR_RECIPES = (() => {
   // the ranged- and mage-armour lines are a real reason to level Crafting.
   ARMOUR_LINES.forEach((line) => {
     ARMOUR_SLOTS.forEach((slotDef) => {
+      const lane = {
+        key: line.key + '/' + slotDef.key,
+        label: line.key + ' ' + slotDef.label,
+        kind: 'armour',
+        skill: line.key === 'plate' ? 'smithing' : 'crafting',
+        rungs: [],
+      };
+      LADDERS.push(lane);
       MATERIAL_TIERS.forEach((mat, i) => {
         const output = line.id(mat, slotDef, line, i);
+        /* The curve, computed ONCE and shared by the recipe and the lane. A
+           rung that quoted the gate separately from the recipe that carries it
+           would be the very drift this table exists to detect. */
+        const curveReq = line.key === 'plate'
+          ? Math.min(99, mat.smith + slotDef.lvOff)
+          // Cap below 95 so the Hunt-forged Wyrmgilt Mantle stays the pinnacle crafting rung.
+          : Math.min(94, mat.craft + slotDef.lvOff);
+        lane.rungs.push({
+          tier: mat.tier,
+          material: mat.name,
+          itemId: output,
+          recipeId: (line.key === 'plate' ? 'forge_' : 'craft_') + output,
+          curveReq,
+        });
         if (line.key === 'plate') {
           const inputs = {}; inputs[mat.bar] = slotDef.bars;
           smithing.push({
             id: 'forge_' + output, name: 'Forge ' + line.name(mat, slotDef, line, i), icon: line.icon,
             inputs, output,
             xp: Math.round(20 * slotDef.bars * (1 + mat.tier * 0.85)),
-            req: Math.min(99, mat.smith + slotDef.lvOff),
+            req: curveReq,
             ms: 2400 + mat.tier * 320,
           });
         } else {
@@ -220,8 +281,7 @@ export const GEAR_RECIPES = (() => {
             id: 'craft_' + output, name: (line.key === 'cloth' ? 'Weave ' : 'Stitch ') + line.name(mat, slotDef, line, i), icon: line.icon,
             inputs, output,
             xp: Math.round(18 * slotDef.bars * (1 + mat.tier * 0.85)),
-            // Cap below 95 so the Hunt-forged Wyrmgilt Mantle stays the pinnacle crafting rung.
-            req: Math.min(94, mat.craft + slotDef.lvOff),
+            req: curveReq,
             ms: 2400 + mat.tier * 320,
           });
         }
@@ -230,6 +290,17 @@ export const GEAR_RECIPES = (() => {
   });
 
   WEAPON_FAMILIES.forEach((fam) => {
+    const lane = {
+      key: 'weapon/' + fam.key,
+      label: fam.label,
+      kind: 'weapon',
+      skill: fam.mat === 'bar' ? 'smithing' : 'crafting',
+      rungs: MATERIAL_TIERS.map((mat, i) => ({
+        tier: mat.tier, material: mat.name, itemId: fam.ids[i], recipeId: 'make_' + fam.ids[i],
+        curveReq: Math.min(99, (fam.mat === 'bar' ? mat.smith : mat.craft) + fam.lvOff),
+      })),
+    };
+    LADDERS.push(lane);
     MATERIAL_TIERS.forEach((mat, i) => {
       const inputs = {};
       if (fam.mat === 'bar') {
@@ -247,7 +318,7 @@ export const GEAR_RECIPES = (() => {
         inputs,
         output: fam.ids[i],
         xp: Math.round(45 * (1 + mat.tier * 0.95)),
-        req: Math.min(99, (fam.mat === 'bar' ? mat.smith : mat.craft) + fam.lvOff),
+        req: lane.rungs[i].curveReq,
         ms: 2400 + mat.tier * 340,
       };
       (fam.mat === 'bar' ? smithing : crafting).push(recipe);
@@ -256,3 +327,7 @@ export const GEAR_RECIPES = (() => {
 
   return { smithing, crafting };
 })();
+
+/* Frozen after GEAR_RECIPES has run — the lanes are a description of what was
+   generated, never a place to author. */
+export const GEAR_LADDERS = LADDERS;

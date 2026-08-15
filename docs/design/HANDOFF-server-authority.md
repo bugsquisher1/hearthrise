@@ -418,7 +418,179 @@ version is accepted and labelled it "stale". Re-run reporting the actual numbers
 and probing `v1-1` and `v1+500`, both refused, with `v1` accepted as the control. **A probe
 that hardcodes a value it did not measure is asserting about a database it imagined.**
 
-## 📍 START HERE — STATE AT 2026-08-15, OVERNIGHT
+## 📍 START HERE — STATE AT 2026-08-15 (END OF SESSION)
+
+**`main` is 716/716, 0 runtime errors. b349 is LIVE. Deployed engine matches the repo
+(`9040b4fe…`) — verified by the suite's own payload guard against production.**
+
+**Next hands on this: the two branches under "WAITING ON SECURITY" are with Security now.
+Nothing else is blocked.**
+
+## ✅ TRUE CONCURRENCY IS CLOSED (2026-08-15 18:06 UTC) — ALL THREE SCENARIOS RACED AND HELD
+
+The program's oldest standing cutover blocker — "true concurrency has never been executed" —
+is closed on its own stated terms: two OS processes, measured transport overlap, SERVER-
+confirmed interleaving, exactly-once payment. Run by Tyler with `tools/race-test.mjs --yes`
+against production (preflight independently re-confirmed deployed == repo, `9040b4fe…`):
+
+| scenario | overlap | server's own contention evidence | payment |
+|---|---|---|---|
+| accrue-vs-accrue | 1,849 ms | B: `replayed` (derived key — both read the same watermark+version) | exactly once, 54g/1177xp |
+| accrue-vs-set_activity | 1,829 ms | A: `replayed` — two DIFFERENT verbs deriving the SAME collect key, the property intents.js claimed and nothing had tested | exactly once, 48g/891xp |
+| set_activity-vs-set_activity | 2,122 ms | A: **`version_conflict`** at 6 ms stagger (two different client keys, so replay cannot be the marker) | exactly once, 57g/1255xp |
+
+Receipts balanced state to the gold piece in EVERY attempt, including the retries the
+harness refused to grade (it demands server-side contention evidence, not just overlapping
+sockets — three NOT-OVERLAPPED retries were declared honestly rather than passed vacuously).
+
+**Worth keeping — the first run's "failure" was the engine working:** the initial run came
+back INCONCLUSIVE because the character (10 HP, auto-eat off) DIED mid-control-span; the
+engine paid the partial window, respawned it, and idled the activity, making every later
+window unpayable. Verified in the ledger (`k:["accrued_to","activity","hp",...]`, ate:0).
+The throwaway is now a fixture that cannot die — hitpoints 13M xp, atk/str/def 1M, hp 99/99,
+auto-eat shrimp@50 ×500 — all journalled as `race-test-fixture` admin ledger rows.
+
+Also proven along the way, firsts in production: the accrual engine PAID a real away window
+(control spans of ~78s paying 44–65g/900–1,300xp with kills, drops, and auto-eat), and death
+mid-span pays the partial and idles — the away path and the death path both work live.
+
+## ✅ THE P0 IS CLOSED (2026-08-15, b350+ / commit 6382a45) — proven in production
+
+**Fix:** `::text::jsonb` at both apply sites (`index.ts`, `set-activity.js` `APPLY_SQL`).
+Mechanism proven in postgres.js source: with `prepare:false` the driver always describes
+first, learns type 3802 from the `::jsonb` cast via ParameterDescription, and then applies
+`serializers[3802] = JSON.stringify` to the ALREADY-stringified value — double-encoding it
+into a jsonb string scalar. `::text` makes the described type a passthrough and the SQL
+parses the JSON. Chosen over passing the raw object because it is correct under BOTH driver
+typings; the raw-object form fails silently (`"[object Object]"`) if the driver ever
+describes text.
+
+**Guard:** `tests/delta-transport.mjs` — PGlite exposed over the REAL wire protocol
+(`@electric-sql/pglite-socket`) with the REAL `postgres@3.4.5` driver and index.ts's own
+pool options, driving `runSetActivity` end to end. Proven RED against the unfixed code
+(reproduces the production transcript verbatim, sqlstate absence included); mutation-proven
+per site; pins the driver version against the shipped specifier (T5). This closes the
+instance-#18 transport gap.
+
+**Deployed and proven live:** payload `9040b4fe…` matches repo (third-party-verified by the
+suite's payload guard against production); Tyler's `probe-intent.mjs` run 2026-08-15
+17:41 UTC returned **HTTP 200 ok:true** — version 0→1, `active_kind=combat`,
+`active_id=slime`, `accrued_to` stamped by `now()`. The first successful `hr_apply` delta
+through the Edge Function in production. Deploys are now agent-runnable (allow rules in
+`.claude/settings.local.json` cover the token-prefixed CLI form).
+
+**T6 — the census (commit 6122c58).** T1/T2 grade `index.ts` and `set-activity.js` because
+this guard spells those two paths as literals; that is the whole of its coverage. The site
+that brings this P0 back is therefore the **third** — a future verb, in a file nothing names,
+written by copying a shape that was wrong in both call sites until this morning. T6 walks the
+deployed directory, finds each `public.hr_apply(...)` by balanced-paren scan, and requires
+`::text::jsonb` on its last top-level argument. Fewer than two sites found is itself RED, so
+a scanner that stops matching reality cannot report green. Its mutation **plants a new file**
+rather than editing an old one — an edit is caught by T1/T2 whether or not T6 works, so it
+could never show T6 sees anything.
+
+**Convergent work, resolved — do NOT merge `worktree-agent-ab2e207f07ac493d8`.** Two agents
+were on this P0 at once (my dispatch error). The second reached the *identical* `::text::jsonb`
+cast from the same reading of the driver source, and its harness duplicates
+`tests/delta-transport.mjs`. The one thing it had that main did not was the structural
+property above, taken as T6 rather than as the `intents.js` seam it proposed: the payload had
+been deployed and verified in production forty minutes earlier, and a verified payload does
+not get re-cut for a tidiness win. **The seam (one `applyDelta()`, `hr_apply(` spelled once)
+is still the right shape when a third verb actually needs it** — T6 is what makes deferring
+it safe. Its branch is kept, unmerged, for whoever does that.
+
+## ~~⛔ THE P0 THAT BLOCKS EVERYTHING~~ — CLOSED above; original diagnosis kept for the record
+
+**`hr_apply` has NEVER successfully applied a delta through the Edge Function in production.**
+Found 2026-08-15 by Tyler running `tools/probe-intent.mjs` against the live function:
+
+```
+HTTP 409  error: "bad_delta"  stage: "switch"  detail: {"ok":false,"error":"bad_delta"}
+```
+
+`detail` carries no `sqlstate`, which rules out the exception-handler `bad_delta` and pins it
+to the first site: `if p_delta is null or jsonb_typeof(p_delta) <> 'object'`. Mechanism
+confirmed on production:
+
+| binding | `jsonb_typeof` |
+|---|---|
+| sent as TEXT | `object` ✅ |
+| sent as JSON | `string` ❌ → `bad_delta` |
+
+Both call sites do `JSON.stringify(delta)` into a `::jsonb` cast
+(`set-activity.js:190,298` via `tx.unsafe`; `index.ts:463` via a tagged template). The
+`postgres` driver appears to bind the string as json rather than text, so the cast re-wraps it
+into a jsonb **string scalar**.
+
+**Everything either side of the binding is PROVEN CORRECT, so do not re-investigate it:**
+`hr_apply` accepts that exact delta at version 0 (`ok:true`, run against production, rolled
+back); `collectGate` proceeds for an idle character (real `computeAccrual`); the envelope's
+`version` is 0 and correct. The only ledger row on the throwaway is `create_character`, written
+by SQL — **assume the accrue path is broken too until measured.**
+
+### ⚠ THE TEST GAP IS THE MORE IMPORTANT HALF — instance #18
+`tests/activity-intent.mjs` deliberately drives THE SAME MODULE BYTES that deploy — correct,
+and it has caught real bugs — but injects a **PGlite** `exec` while production runs
+**`postgres` + `tx.unsafe`**. Same bytes, different transport, and the bug is in the transport.
+**27 mutations all passed against something that had never once worked in production.** The
+fix in flight must ship a guard that exercises the REAL driver's parameter binding and is
+proven RED against today's code.
+
+## WHAT TYLER PERSONALLY FOUND THIS SESSION (both invisible to a green suite)
+1. The **gather declaration gap** — the server was taught to pay gathering and
+   `SETTABLE_KINDS` widened BY DERIVATION, so no client site was ever added. Fixed in b350
+   with a structural guard: a payable kind with no client declaration site now fails the build
+   by name. *Derivation removes the second LIST; it does not remove the second SIDE.*
+2. **This P0.**
+
+## RUNNING WHEN THE SESSION ENDED
+- **Security review of BOTH unmerged branches below** — dispatched 2026-08-15, one reviewer
+  each, holding veto. Neither branch may merge until they report.
+- ~~delta-transport fix (agent `ab2e207f`)~~ — CLOSED; see the convergent-work note above.
+- **self-reload workflow** (`w7ss67yp9`) — Tyler confirmed *"it refreshed on its own"* and the
+  daily claim rolled back. Four candidate triggers tested in parallel; the prime suspect is
+  `build-watch.js`, because FOUR builds shipped during his test window and a reload before the
+  save flushes loses the claim. A previous agent DISPROVED the `applyEnvelopeState` theory
+  using the server's records (version 0 + 0 intents ⇒ it never ran).
+
+## FINISHED, UNMERGED, WAITING ON SECURITY — do not merge without it
+- `worktree-agent-aa956d14cdb43079e` — **gold grant intents** (`claim_reward`). One verb, not
+  six. Only **1 of 6 claim types is server-payable today**; the rest are refused BY NAME with
+  their dependency attached. Removed an **unbounded** login-streak multiplier the client has
+  been paying: `1 + weeksDone*0.5`, worth **1,060,000 gold** from one day-7 claim at two years.
+  Capped at ×26. **First server path that mints gems, and gems have NO daily-budget dimension —
+  Security must rule.**
+- `worktree-agent-a079e5c2e5260c6f8` — **economy substrate**: `player_state.marks` (inert by
+  design — wiring it needs an `hr_apply` change, which is forbidden, so it STOPPED and staged
+  the exact patch), and the ruling that **unlocks are `player_progress` rows with
+  `kind='unlock'`, deliberately absent from `hr_apply`'s allowlist so the additive merge
+  structurally cannot reach a rung**.
+
+## NEEDS TYLER
+1. **Re-run `node tools/race-test.mjs --yes`** — the P0 has landed, so the window it refused to
+   race is payable now. It stopped correctly last time. PowerShell notes: no `&&`, and do NOT
+   pipe or use `Start-Transcript` (a pipe hides the password prompt; PS 5.1's transcript does
+   not capture native stdout — both cost a real run). **True concurrency is still the last
+   unproven property of the apply path**, and this is the tool that proves it.
+2. **Clear `hr:serverAccrual:replaceAck`** before the next switch-on test, or the b339
+   replacement sheet fires SILENTLY and takes back his daily reward.
+3. **PITR at cutover** — $100/mo, priced from the org's own billing API. Decision recorded, not
+   yet actioned.
+4. **Armour numbers** — `docs/design/armour-identities.md` is a PROPOSAL awaiting veto. Heavy is
+   named **Deflect at 7.5%/pair** (accepted). Magic takes a 27-38% cut; that is the number to
+   look at.
+
+## ALSO TRUE
+- **b349 fixed ~3,200 refused requests/day** (61% of error traffic): the client asked the server
+  for the time before it had a session. **Our own CI is now the largest source of logged DB
+  errors — grade the RATIO, not the count** (acceptance query in the b349 commit).
+- The **restore runbook** exists (`docs/design/restore-runbook.md`). Backups don't carry
+  custom-role passwords, so a restore would leave the engine unable to connect — it's a gate now.
+- **Wipe scope: TOTAL** — players, clans, raids, world events (Tyler, 2026-08-15).
+- **True concurrency is still unproven**, but now has a tool: `tools/race-test.mjs`, self-test
+  8/8, mutation-proven five ways.
+
+## 📍 EARLIER THAT DAY — OVERNIGHT STATE
 
 **Shipped and LIVE: b345.** `main` is 685/685, 0 runtime errors. The deployed engine matches
 the repo (`65f0e8ed…`) and the payload guard now RUNS without env vars, so it can no longer

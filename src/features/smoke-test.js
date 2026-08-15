@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=346' directly.
+// modularised, will import { G } from '../state/game.js?v=349' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=346';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=346';
+import { on, snapshot } from '../net/events.js?v=349';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=349';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=346';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=349';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -35,9 +35,28 @@ on('*', () => {});
 
 const pass = (name) => ({ name, status: 'PASS' });
 const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
+/* b348 — A SYNC RUNNER HANDED AN ASYNC BODY IS AN ALWAYS-GREEN TEST.
+   `tryRun` calls fn() inside a try/catch. Give it an `async` function and it
+   receives a PROMISE: nothing throws synchronously, so the catch is unreachable
+   and `pass(name)` is returned before a single assertion has run. The test then
+   passes whatever it claims, forever, and looks identical to a real one in the
+   output.
+   MEASURED: I wrote two of these while fixing Xarn's reports and only found out
+   because seven separate mutations — including restoring the exact bug — all
+   came back GREEN. This file's own recurring lesson ("a test can pass while
+   asserting nothing, and the giveaway is a mutation that stays green") applied
+   to the runner rather than to an assertion.
+   Detect it instead of documenting it: a thenable return is now a LOUD failure
+   naming the fix. `tryRunAsync` is the awaiting runner. */
 const tryRun = (name, fn) => {
-  try { fn(); return pass(name); }
-  catch (e) { return fail(name, e && (e.message || e)); }
+  try {
+    const r = fn();
+    if (r && typeof r.then === 'function') {
+      return fail(name, 'ASYNC BODY ON A SYNC RUNNER — this test was registered with tryRun(), which cannot '
+        + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().');
+    }
+    return pass(name);
+  } catch (e) { return fail(name, e && (e.message || e)); }
 };
 /* b337 — THE SUITE CAN NOW AWAIT.
    Until now every test was synchronous, which meant a network path could only
@@ -152,6 +171,13 @@ const snapshotG = () => {
        It is also the player's collection log — a suite run must never write a
        first-kill date into a monster they have not met. */
     bestiary: G.bestiary,
+    /* b348: the BANK. `goldBuys`/`gemBuys` are purchased permanent progress —
+       one paid with escalating gold, one with real-money gems — and the suite
+       buys space to prove the bag renders it. Every bank test to date restored
+       it by hand in its own `finally`; that works right up until one does not,
+       and the failure mode is silently gifting a player capacity they never
+       bought (or, on the other branch, taking capacity they did). */
+    bank: G.bank,
   }));
 };
 
@@ -15366,6 +15392,76 @@ const TESTS = [
       ' — past the cap every further crit item is a null item');
   }),
 
+  /* ════════════════════════════════════════════════════════════
+     b348 — THE TWO RECIPE AUTHORITIES MUST AGREE ABOUT ORDER
+     (Xarn, live report: "Steel Platebody adds 22 Def requires 60 smithing;
+     Mithril Platebody adds 34 Def requires 54ish… the order of armour items to
+     smith is not based on requirement yet.")
+
+     He was right, and the cause is structural rather than a typo. Hearthrise
+     has TWO recipe authorities: the generated curve in src/data/gear-tiers.js,
+     and hand-authored rows in src/data/recipes.js that are spread FIRST and
+     therefore win the merge — deliberately, so historical costs survive. Five
+     of those rows share an ID with their generated twin, so the merge drops the
+     generated recipe and the hand-authored `req` replaces the curve with no
+     trace at all. Three lanes were disordered by it (platebody INVERTED, helm
+     and belt TIED) and no test could see it, because nothing compared a live
+     gate to the lane it belongs to.
+
+     WHAT THIS GUARDS, AND WHY IT IS NOT "req === curveReq". Deviating from the
+     curve is legitimate — eleven rungs still do (a bespoke Rune Sword costs
+     more and asks for more). The property the PLAYER experiences is ORDER: a
+     strictly better item at a strictly higher material tier must never unlock
+     at or below the rung beneath it. So the assertion is monotonicity, and a
+     deliberate deviation that keeps the ladder ordered stays legal.
+
+     It reads `GEAR_LADDERS` — published by the generator itself — rather than
+     rebuilding the lanes from item-id patterns, because plate ids are
+     `mat + '_' + slot.key` while leather/cloth are `tierId + '_' + slot.slot`,
+     and a guard carrying its own copy of that scheme is the same two-authority
+     bug one layer up. And it looks a rung up by OUTPUT, not by recipe id, so an
+     override that renames the recipe (tailor_leather_boots beats
+     craft_leather_boots) is still seen.
+     ════════════════════════════════════════════════════════════ */
+  () => tryRun('b348: no gear ladder is out of order — a higher material tier never unlocks at or below the rung beneath it', () => {
+    const L = window.GEAR_LADDERS, R = window.ARTISAN_RECIPES, ITEMS = window.ITEMS || {};
+    assert(Array.isArray(L) && L.length >= 20,
+      'GEAR_LADDERS must be published by main.js — got ' + (Array.isArray(L) ? L.length + ' lanes' : typeof L));
+    assert(L.some((l) => l.key === 'plate/platebody') && L.some((l) => l.key === 'weapon/sword'),
+      'the lane set lost a known lane — this guard is grading nothing');
+    assert(L.every((l) => Array.isArray(l.rungs) && l.rungs.length >= 7),
+      'every lane must carry its full material ladder');
+
+    // The LIVE gate for each output, whatever recipe survived the merge.
+    const live = {};
+    Object.keys(R || {}).forEach((sk) => (R[sk] || []).forEach((r) => {
+      if (!r || !r.output) return;
+      const q = Number(r.req) || 0;
+      if (live[r.output] === undefined || q < live[r.output].req) live[r.output] = { req: q, id: r.id };
+    }));
+
+    const unreachable = [], disordered = [];
+    L.forEach((lane) => {
+      let prev = null;
+      lane.rungs.forEach((rung) => {
+        const lv = live[rung.itemId];
+        // A generated rung with no surviving recipe is content the player can
+        // never make — the merge silently ate it.
+        if (!lv) { unreachable.push(lane.key + ' t' + rung.tier + ' → ' + rung.itemId); return; }
+        if (prev && lv.req <= prev.req) {
+          const statOf = (id) => (ITEMS[id] && (ITEMS[id].defB || ITEMS[id].atkB)) || 0;
+          disordered.push(lane.key + ': ' + prev.itemId + ' (tier ' + prev.tier + ', ' + statOf(prev.itemId)
+            + ') gates at ' + prev.req + ' via ' + prev.id + ', but ' + rung.itemId + ' (tier ' + rung.tier + ', '
+            + statOf(rung.itemId) + ') gates at ' + lv.req + ' via ' + lv.id);
+        }
+        prev = { req: lv.req, id: lv.id, tier: rung.tier, itemId: rung.itemId };
+      });
+    });
+    assert(unreachable.length === 0, 'generated ladder rungs with no recipe — ' + unreachable.join(' | '));
+    assert(disordered.length === 0,
+      'THE b348 BUG: gear ladders whose craft gate is out of order with the material tier — ' + disordered.join('  ||  '));
+  }),
+
   () => tryRun('b243: PROGRESSION IS REACHABLE — every craftable item traces back to an obtainable source', () => {
     // A deterministic reachability check: seed the "roots" a player can obtain
     // (gather, drops, shops, dungeons, the clan Hunt, coded drops), then close
@@ -17225,6 +17321,16 @@ const TESTS = [
       Object.keys(window.ROOMS).forEach((id) => { window.G.rooms[id] = window.ROOMS[id].levels.length; });
       window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
       R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
+      /* b349 — THE CAPSTONE IS DRIVEN BY REAL STATE NOW, not by a stub of
+         isCastle(). getBonus's layer 0 delegates to src/core/perks.js and hands
+         it `propertyTier` (an INT), because the server has a tier and not a
+         boolean; `isCastle()` is a derived predicate the perk state no longer
+         consults. Setting the tier is strictly stronger than stubbing the
+         predicate — it drives HearthriseHomestead's real accessor — and the
+         stub is kept because other readers in this suite still call it.
+         CASTLE_TIER is read from core rather than typed as 5, so a sixth
+         property tier moves one constant and this test follows it. */
+      window.G.homestead = { tier: window.HearthriseCore.perks.CASTLE_TIER };
       if (H) H.isCastle = () => true;
       UI._reset();
       UI._setClan({ id: 'test-hold', name: 'Testhold', level: 10, treasury: 0, myRole: 'leader' });
@@ -18392,16 +18498,53 @@ const TESTS = [
 
       /* (e) A BUFF LONGER THAN THE ABSENCE SURVIVES IT, minus exactly the time
          that passed. Only testing the expiry case would pass a replay that
-         drained every buff to zero regardless — a different theft. */
+         drained every buff to zero regardless — a different theft.
+
+         ⚠ THE BOUND IS SELF-CALIBRATING, AND IT HAS TO BE. This assertion used
+           to be `remainingMs === 1200000 - SHORT`, which flaked at roughly 5%
+           (measured: 2 failures in ~36 consecutive suite runs, reporting
+           `left 899999`). The fixture pins only the START of the absence —
+           `offlineBudget.at = Date.now() - SHORT` — while processOffline reads
+           its OWN, strictly later, Date.now() to size the span. When the
+           millisecond ticks in between, the real absence is SHORT+1 and the
+           replay correctly drains SHORT+1. The product was right and the test
+           was asserting a clock coincidence.
+
+           A fixed tolerance would have worked, but this is better: the extra
+           can never exceed the wall time this test itself burned around the
+           call, so measuring that gives an exact upper bound with no magic
+           number to tune. It stays strictly tighter than any tolerance a
+           reviewer would have picked (typically a few ms), so every mutation
+           the old form caught is still caught: no drain leaves 0 and fails the
+           floor; a double drain leaves 600000 and a full drain leaves 1200000,
+           both failing the ceiling.
+
+           A gate that goes red ~5% of the time on work that did not break it
+           teaches the team to re-run instead of to read, which is how a real
+           regression gets waved through. */
       const SHORT = 300000;
-      G.offlineBudget = { at: Date.now() - SHORT };
+      const BUFF_START = 1200000;
+      const t0 = Date.now();
+      G.offlineBudget = { at: t0 - SHORT };
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: 1200000, addedAt: Date.now() }];
+      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_START, addedAt: Date.now() }];
       G.skillMs = null;
       window.processOffline();
+      /* The absence processOffline sized is (ITS Date.now()) - (t0 - SHORT), i.e.
+         SHORT plus however long this block took to reach it. `Date.now() - t0`
+         IS that extra, directly — do NOT subtract SHORT from it as well. Doing
+         so yields an upper bound BELOW the lower bound, an empty accepted band,
+         and an assertion that fails unconditionally while looking tighter than
+         ever. Caught here by arithmetic, not by a red run: two mutations were
+         already "proven" against it before anybody ran a GREEN CONTROL, and a
+         mutation that fails against a test which cannot pass has proven nothing
+         at all. */
+      const slopMs = Date.now() - t0;   // >= 0; the ms this test itself burned
       assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
-      assert(G.buffs[0].remainingMs === 1200000 - SHORT,
-        'a 5-minute absence must spend 5 minutes of a 20-minute buff, left ' + G.buffs[0].remainingMs);
+      const drainedMs = BUFF_START - G.buffs[0].remainingMs;
+      assert(drainedMs >= SHORT && drainedMs <= SHORT + slopMs,
+        'a 5-minute absence must spend 5 minutes of a 20-minute buff — drained ' + drainedMs
+        + 'ms, accepted ' + SHORT + '..' + (SHORT + slopMs) + ' (left ' + G.buffs[0].remainingMs + ')');
 
       /* (f) THE COPY WAS A LIE IN BOTH DIRECTIONS. home-dashboard.js prints
          "Food buffs paused — their time was kept, not spent." off this flag,
@@ -21779,7 +21922,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=346');
+    const KIT = await import('../data/start-kit.js?v=349');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -23992,6 +24135,469 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     b348 — THE HALF OF THE SEAM THAT WAS NEVER WIRED
+
+     b347 wired the pointer's four COMBAT writers. The next merge taught the
+     server to pay `gather` (`PAYABLE_KINDS`, and `SETTABLE_KINDS` by
+     derivation) and nothing here moved. Tyler's first switch-on test:
+     woodcutting started, a few minutes away, back — `player_intents` 0 rows,
+     `player_state` idle at version 0. Not a bug in either half; the two halves
+     simply had no link.
+
+       B348-1  a gathering gesture puts the CONTRACT bytes on the wire
+       B348-2  a stop declares idle — and a defensive stop with nothing
+               running declares nothing
+       B348-3  EVERY declarable kind is produced by a real player gesture
+               (the guard that makes the next widening impossible to half-ship)
+       B348-4  one gesture is one intent, through the mutex wrappers
+       B348-5  THE RULING: a server `idle` may not stop a run it was never
+               told about — it declares instead
+       B348-6  ...and it MUST stop one it was told about. Authority.
+       B348-7  the reconcile can represent `gather` at all
+       B348-8  b339 is not reopened: a gated envelope moves the loops and
+               moves no gold
+       B348-9  an activity the engine cannot price declares IDLE, not silence
+       B348-10 the client gather index IS the accrual engine's
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* One rig for the whole block: arm the switch, own `fetch`, hand back a
+     scripted answer, and put everything back afterwards. Written once because
+     ten copies of a teardown is ten chances to leave the kill switch on. */
+  () => tryRunAsync('B348-1: starting a gathering activity puts the CONTRACT bytes on the wire', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    assert(M && typeof M.declarationFor === 'function',
+      'src/net/activity.js has no declarationFor — the b348 seam is absent and nothing below means anything');
+    assert(M.ACTIVITY_KINDS.indexOf('gather') !== -1,
+      'the client may not declare `gather`, but the server\'s SETTABLE_KINDS can SET it — that is exactly '
+      + 'the b348 gap: the server pays an activity this client can never tell it about');
+
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold, offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const seen = [];
+    try {
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        seen.push(body);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'set_activity', version: 7, now: null,
+          activity: { kind: 'gather', id: tree.id },
+          state: { active_kind: 'gather', active_id: tree.id },
+          skills: {}, inventory: {},
+        }), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      const sw = seen.filter((b) => b && b.verb === 'set_activity');
+      /* MUTATION: delete `declareActivity('gather', targetId)` from startSkill
+         in src/legacy.js → RED here, naming `gather`. That is the b348 bug,
+         reproduced exactly. */
+      assert(sw.length >= 1,
+        'starting woodcutting declared NOTHING (' + seen.length + ' requests). This is the b348 bug: the '
+        + 'server can be TOLD `gather` and this client never says it, so `player_state` stays idle through '
+        + 'a real session and the away grant is zero');
+      const b = sw[sw.length - 1];
+      assert(b.verb === 'set_activity', 'wrong verb: ' + b.verb);
+      assert(b.activity && b.activity.kind === 'gather',
+        'the declaration named kind `' + (b.activity && b.activity.kind) + '` — the server\'s SETTABLE_KINDS '
+        + 'has `gather`, and any other kind is refused or, worse, silently rewritten to a STOP');
+      assert(b.activity.id === tree.id, 'the declaration named the wrong node: ' + b.activity.id);
+      assert(M.isIntentKey(b.intentId), 'the declaration carried no canonical uuid key: ' + b.intentId);
+      assert(Object.keys(b).sort().join(',') === 'activity,intentId,slot,verb',
+        'the request body grew a field: ' + Object.keys(b).join(',') + ' — the body is CONSTRUCTED field by '
+        + 'field precisely so a future value cannot ride into it');
+      assert(M.getActivityState().confirmed
+        && M.getActivityState().confirmed.kind === 'gather' && M.getActivityState().confirmed.id === tree.id,
+        'the server agreed with the declaration and it was not recorded as CONFIRMED — the reconcile then '
+        + 'cannot tell "the server stopped me" from "the server was never told", which is B348-5');
+
+      /* ── AND A REFUSAL IS NOT AN ACKNOWLEDGEMENT, even when it carries a
+         perfectly good envelope. A refused switch's `activity` field is the
+         server's OLD state; recording it as agreement to THIS declaration
+         would make a refused switch indistinguishable from a successful one —
+         and the next `idle` would then stop the player's run on the strength
+         of a switch that never happened.
+         MUTATION: `confirmed = {…}` unconditionally in settle() → RED. */
+      M.setConfirmedActivity(null);
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: false, verb: 'set_activity', error: 'unknown_activity', version: 8, now: null,
+          activity: { kind: 'idle', id: null },
+          state: { active_kind: 'idle', active_id: null }, skills: {}, inventory: {},
+        }), { status: 409 }));
+      };
+      await window.declareActivity('gather', 'not_a_real_node');
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(M.getActivityState().confirmed === null,
+        'a REFUSED switch was recorded as CONFIRMED (' + JSON.stringify(M.getActivityState().confirmed)
+        + ') — the refusal\'s `activity` field is the server\'s OLD state, and treating it as agreement '
+        + 'makes a refusal look like a success to the one check that decides whether an `idle` may stop '
+        + 'the player');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B348-2/3/4: every declarable kind has a real gesture; a stop declares idle; one gesture is one intent', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+
+    /* ── B348-3, AND IT IS THE POINT OF THE WHOLE FILE ────────────────────
+       The table is keyed by KIND and the loop iterates `ACTIVITY_KINDS` — the
+       list src/net/activity.js keeps in step with the server's SETTABLE_KINDS
+       (tests/activity-seam.mjs asserts that half). So the day `artisan` becomes
+       payable, `SETTABLE_KINDS` grows, the Node guard forces `ACTIVITY_KINDS`
+       to grow, and THIS loop then fails by name until somebody wires a gesture.
+       A kind cannot be settable, declarable and unreachable all at once. */
+    const GESTURES = {
+      combat: () => window.startCombat(mid),
+      gather: () => window.startSkill('woodcutting', tree.id, tree.ms),
+    };
+
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, combatLog: G.combatLog,
+      gold: G.gold, skills: JSON.parse(JSON.stringify(G.skills)),
+      inventory: JSON.parse(JSON.stringify(G.inventory)),
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    const realDeclare = M.declare;
+    let calls = [];
+    try {
+      /* ⚠ THE SPY GOES ON `HearthriseActivity.declare`, NOT ON
+         `window.declareActivity`, AND THE DIFFERENCE IS THE TEST.
+
+         legacy.js's `declareActivity` is where the QUIET COUNTER lives — the
+         thing that stops one gesture declaring twice. Replacing that function
+         (which is what the b347 tests do, for a different property) removes the
+         counter along with it, so the spy then records calls the real seam
+         would have suppressed and this test fails on a bug that is not there.
+         Measured: it did exactly that on the first run.
+
+         `M.declare` is one level below the counter and one level above the
+         kill switch, which makes it the honest answer to "what actually left
+         the seam" — and it never reaches the network. */
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+
+      for (const kind of M.ACTIVITY_KINDS) {
+        if (kind === 'idle') continue;
+        assert(typeof GESTURES[kind] === 'function',
+          'the client may declare `' + kind + '` and this suite has no PLAYER GESTURE that produces it. '
+          + 'Either a call site was never wired (the b348 bug: the server grew a payable kind and legacy.js '
+          + 'did not) or the gesture table is stale. Wire the declaration, then add the gesture here.');
+        try { window.stopSkill(); } catch (e) {}
+        try { window.stopCombat(); } catch (e) {}
+        calls = [];
+        GESTURES[kind]();
+        const got = calls.filter((c) => c.kind === kind);
+        assert(got.length >= 1,
+          'the real player gesture for `' + kind + '` declared ' + JSON.stringify(calls) + ' — no `' + kind
+          + '` reached the seam, so the server would never learn the player was doing it');
+        assert(calls.length === 1,
+          'one `' + kind + '` gesture from idle produced ' + calls.length + ' declarations ('
+          + JSON.stringify(calls) + ')');
+      }
+
+      /* ── B348-4: ONE GESTURE, ONE INTENT — ACROSS THE MUTEX ──────────────
+         ⚠ THE FIXTURE IS THE TEST, and the first version of it proved nothing.
+           It started each gesture from IDLE, so the activity mutex's
+           cross-stop (`startCombat` stops the skill; `startSkill` stops the
+           fight) never had anything to stop — and the mutation that removes
+           the quiet wrapper left the suite green. A guard that only exercises
+           the branch where the bug cannot happen is decoration.
+
+         So each gesture here interrupts the OTHER kind, which is what a player
+         actually does. Unless the mutex's inner stop is quiet, one tap sends
+         `idle` and then the real kind: two idempotency keys, two rate spends,
+         and a second collect pricing a span of milliseconds.
+         MUTATION: drop the `q(...)` wrapper in block 22 → RED. */
+      const SWITCHES = [
+        { from: () => window.startSkill('woodcutting', tree.id, tree.ms), to: 'combat',
+          go: () => window.startCombat(mid) },
+        { from: () => window.startCombat(mid), to: 'gather',
+          go: () => window.startSkill('woodcutting', tree.id, tree.ms) },
+      ];
+      for (const s of SWITCHES) {
+        try { window.stopSkill(); } catch (e) {}
+        try { window.stopCombat(); } catch (e) {}
+        s.from();
+        assert(!!(G.activeSkill || G.activeMonster),
+          'the switch fixture never started anything, so the cross-stop below has nothing to stop and this '
+          + 'assertion would pass on a build with no quiet counter at all');
+        calls = [];
+        s.go();
+        assert(calls.length === 1 && calls[0].kind === s.to,
+          'switching to `' + s.to + '` mid-activity produced ' + calls.length + ' declarations ('
+          + JSON.stringify(calls) + ') — the activity mutex cross-stops the other loop OUTSIDE the function '
+          + 'that declares, so unless that stop is quiet a single tap spends two idempotency keys and runs a '
+          + 'second collect over a span of milliseconds');
+      }
+
+      /* ── B348-2: A STOP IS A DECLARATION — AND ONLY WHEN THERE WAS A RUN. */
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      calls = [];
+      window.stopSkill();
+      assert(calls.length === 1 && calls[0].kind === 'idle' && calls[0].id === null,
+        'stopping a gathering run declared ' + JSON.stringify(calls) + ' — without an `idle` the server goes '
+        + 'on paying an activity the player abandoned, which is the away-time bug in reverse');
+
+      calls = [];
+      window.stopSkill();
+      window.stopSkill();
+      assert(calls.length === 0,
+        'a DEFENSIVE stop with nothing running declared ' + JSON.stringify(calls) + '. stopSkill() has '
+        + 'thirteen callers in legacy.js and most of them are "make sure nothing is running" — an unguarded '
+        + 'declaration here puts an intent, a key and a rate spend on the wire every time a player opens a '
+        + 'screen');
+    } finally {
+      M.declare = realDeclare;
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B348-5/6/7: a server `idle` stops a run it was TOLD about, and declares one it was not', () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold,
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+    /* Below the quiet counter, above the kill switch — see the note in
+       B348-2/3/4 for why spying on `window.declareActivity` would delete the
+       very mechanism this test is checking. Nothing reaches the network: the
+       spy is the last thing before the transport. */
+    const realDeclare = M.declare;
+    const wasOn = A.isServerAccrualEnabled();
+    let calls = [];
+    try {
+      /* ARMED, because the re-assertion LATCH is only spent when the seam is
+         armed — an inert attempt must not consume the one re-assertion a
+         pointer gets, or flipping the switch on mid-run would leave the current
+         activity permanently undeclared. The bound below is only meaningful in
+         the state the bound applies to. */
+      A.setServerAccrualEnabled(true);
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+
+      /* ── B348-7: THE RECONCILE CAN REPRESENT `gather` AT ALL. Before b348 it
+         had a `combat` branch and an `idle` branch, so a server saying "you are
+         chopping oak" landed on nothing — the one function whose contract is
+         "the envelope is the truth" silently applied half of it. */
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      /* The setup stops are REAL stops and declare a real `idle`; clearing here
+         rather than before them is what keeps this an assertion about the
+         reconcile instead of about whatever the previous test left running. */
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'gather', id: tree.id });
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'the server said gather:' + tree.id + ' and the local pointer is ' + G.activeSkill + '/'
+        + G.skillTargetId + ' — a reconcile that cannot represent a settable kind is a reconcile that '
+        + 'silently disagrees with the server');
+      assert(window.__isSkillLoopArmed(),
+        'the reconcile moved the pointer but armed no loop — the player would sit on an "active" tile '
+        + 'earning nothing, which is the b237 bug arriving through a new door');
+      assert(calls.length === 0,
+        'reconciling ECHOED a declaration back at the server (' + JSON.stringify(calls) + ') — that is a '
+        + 'loop with a round trip in it, and the quiet counter exists to stop it');
+
+      /* ── B348-5: THE RULING. Never told → do not stop; declare. */
+      M.setConfirmedActivity(null);
+      calls = [];
+      let out = window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'a server `idle` STOPPED a gathering run the server was never told about. `active_kind=idle` is the '
+        + 'default for every character that has never declared anything — obeying it as authority ends the '
+        + 'session of every player whose save predates the seam, which is exactly what happened to Tyler');
+      assert(out && out.undeclared === true, 'the reconcile did not report the undeclared case: ' + JSON.stringify(out));
+      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === tree.id,
+        'the undeclared pointer was not DECLARED (' + JSON.stringify(calls) + ') — leaving it alone is safe '
+        + 'but not self-correcting; the recovery for "we never told it" is to tell it');
+
+      /* BOUNDED. A server that keeps refusing must not be re-told forever. */
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(calls.length === 0,
+        're-asserting the same pointer is unbounded (' + calls.length + ' more declarations) — an id the '
+        + 'server does not have in its catalogue would then cost one intent and one rate spend per answer, '
+        + 'forever');
+
+      /* ── B348-6: AND IT MUST STOP ONE IT WAS TOLD ABOUT. Authority. Without
+         this half, "do not stop" would just be the client ignoring the server,
+         which is the opposite failure and a worse one.
+         MUTATION: make the idle branch return early unconditionally → RED. */
+      M.setConfirmedActivity({ kind: 'gather', id: tree.id });
+      calls = [];
+      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(!G.activeSkill,
+        'the server ACKNOWLEDGED this exact activity and then said idle, and the client kept running it. '
+        + 'That is not caution, it is the client overruling the server — the one thing server authority '
+        + 'removes');
+      assert(calls.length === 0, 'the authoritative stop declared back at the server: ' + JSON.stringify(calls));
+    } finally {
+      M.declare = realDeclare;
+      M.setConfirmedActivity(null);
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B348-8: b339 is NOT reopened — a gated envelope moves the loops and moves no gold', async () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const G = window.G;
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+      activeMonster: G.activeMonster, gold: G.gold,
+      skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)),
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt, _serverAccrual: G._serverAccrual };
+    const hadAck = A.isReplacementAcknowledged();
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.acknowledgeReplacement(false);                       // the gate is ARMED
+      try { A.hideReplacementSheet(); } catch (e) {}
+      G.gold = 999999;                                       // far ahead of the server
+      G.skills = Object.assign({}, G.skills, { woodcutting: 500000 });
+
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'set_activity', version: 11, now: null,
+          activity: { kind: 'gather', id: tree.id },
+          state: { active_kind: 'gather', active_id: tree.id, gold: 500 },
+          skills: { woodcutting: { xp: 0, level: 1 } }, inventory: {},
+        }), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      /* THE PROPERTY. The declaration LANDED (the server switched), the pointer
+         is reconciled, and NOT ONE game value moved — because the replacement
+         gate is on the ENVELOPE and b348 does not touch it. The failure this
+         guards against is the tempting simplification "we are reconciling
+         anyway, just apply the state": that is the b339 clobber, silently, on
+         every tap of a tree. */
+      assert(G.gold === 999999,
+        'the server character was applied over local progress with the replacement gate ARMED — gold went '
+        + G.gold + ' instead of 999999. b339 exists because that write is permanent and there is no merge');
+      assert((G.skills.woodcutting || 0) === 500000, 'skills were replaced behind the gate: ' + G.skills.woodcutting);
+      assert(!!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the replacement was refused and the player was never asked — a silent refusal is how a switch that '
+        + 'pays real gold ends up reporting nothing');
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'the gated envelope also lost the POINTER — the server did switch, and only the state application '
+        + 'was withheld; conflating the two would stop the run the player is watching');
+      const st = M.getActivityState();
+      assert(st.last && st.last.applied && st.last.applied.envelope === false,
+        'the seam reported an envelope it did not apply: ' + JSON.stringify(st.last && st.last.applied));
+    } finally {
+      window.fetch = realFetch;
+      try { A.hideReplacementSheet(); } catch (e) {}
+      A.acknowledgeReplacement(hadAck ? true : false);
+      A.setServerAccrualEnabled(false);
+      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('B348-9/10: an unpriceable activity declares IDLE, not silence; and the client index IS the engine\'s', () => {
+    const M = window.HearthriseActivity;
+    const C = window.HearthriseCore;
+    const G = window.G;
+
+    /* ── B348-9. The tempting answer for `artisan` is to say nothing: the
+       server refuses the kind anyway. Silence leaves the server's pointer on
+       the PREVIOUS activity, so a player who chops oak for an hour and then
+       cooks is paid for oak for as long as they cook. `idle` collects what was
+       really earned and stops the meter.
+       MUTATION: return null from declarationFor for a non-settable kind → RED. */
+    const d = M.declarationFor('artisan', 'cook_shrimp');
+    assert(d && d.kind === 'idle' && d.id === null,
+      'an activity this build cannot declare produced ' + JSON.stringify(d) + '. Saying nothing is not '
+      + 'neutral — it leaves the server paying for the activity the player STOPPED, which is the server '
+      + 'authoring a number nobody earned');
+    assert(d.downgradedFrom === 'artisan', 'the downgrade did not record what it downgraded: ' + JSON.stringify(d));
+    assert(M.declarationFor('combat', 'slime').kind === 'combat', 'a settable kind was downgraded');
+    assert(M.declarationFor('gather', 'normal_tree').kind === 'gather', 'gather was downgraded');
+    assert(M.declarationFor('nonsense', 'x') === null, 'a kind the game cannot do was accepted as a stop');
+    assert(M.declarationFor('combat', 'BAD ID') === null,
+      'a malformed id was quietly turned into a STOP — that hides a client bug behind a legitimate-looking '
+      + 'declaration');
+    /* And the wire builder may never emit a kind this build has not decided on. */
+    const body = JSON.parse(M.buildActivityRequest({ kind: 'artisan', id: 'cook_shrimp', intentId: 'k' }).init.body);
+    assert(body.activity.kind === 'idle' && body.activity.id === null,
+      'buildActivityRequest put `' + body.activity.kind + '` on the wire — the body must only ever carry a '
+      + 'kind from ACTIVITY_KINDS');
+
+    /* ── B348-10. The reconcile resolves a node id through the SAME index the
+       accrual engine reads (`indexGatherNodes` over TREES/ROCKS/FISH_SPOTS). A
+       hand-rolled fourth copy is how the client comes to think a rock is a fish. */
+    assert(C && typeof C.gatherNode === 'function', 'HearthriseCore.gatherNode is missing — the reconcile has no index');
+    const idx = C.gatherNodes();
+    const authored = [].concat(window.TREES || [], window.ROCKS || [], window.FISH_SPOTS || []).map((n) => n.id).sort();
+    assert(Object.keys(idx).sort().join(',') === authored.join(','),
+      'the client gather index and the authored data disagree — index has ' + Object.keys(idx).length
+      + ' nodes, data has ' + authored.length + '. tests/activity-seam.mjs holds the other half of this '
+      + '(index === the accrual engine\'s GATHER_NODES)');
+    assert(C.gatherNode('normal_tree') && C.gatherNode('normal_tree').skill === 'woodcutting',
+      'normal_tree does not resolve to woodcutting');
+    assert(C.gatherNode('__proto__') === null && C.gatherNode('constructor') === null,
+      'the index is not null-prototype — `__proto__` resolves to something truthy, and a lookup followed by '
+      + 'a property read walks straight past every truthiness check downstream');
+    assert(typeof window.localActivityPointer === 'function', 'localActivityPointer is missing');
+    const before = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, activeMonster: G.activeMonster };
+    try {
+      G.activeMonster = null; G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';
+      assert(window.localActivityPointer().kind === 'artisan',
+        'a cooking run reports as `' + window.localActivityPointer().kind + '` — the reconcile would then '
+        + 'read an agreeing server as a contradiction and stop the player mid-smelt');
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      assert(window.localActivityPointer().kind === 'gather', 'a chopping run does not report as gather');
+    } finally { Object.assign(G, before); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      b343 — AWAY COMBAT PAYS FROM KILL ONE, AND EVERY SURFACE SAYS WHAT IT PAYS
 
      b341/b342 gated away combat behind 100 hand-landed kills (the "Field
@@ -25486,7 +26092,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=346');
+    const S = await import('../data/shops.js?v=349');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -26291,6 +26897,504 @@ const TESTS = [
       window.getBonus = realBonus;
       restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b348 — XARN'S REPORTS #2, #3 AND #4
+
+     All three are SURFACE contracts, so every assertion below reads a rendered
+     surface rather than a field. That is this file's own hard-won rule (b342:
+     a guard that asserted `G._awayLicence` EXISTS could not tell that the card
+     meant to read it had never been built) and it is exactly the shape of #2 —
+     the data was always correct, and a stylesheet was eating it.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b348: every combat style SAYS which skills its XP goes to, and no stylesheet may hide it', () => {
+    const S = window.COMBAT_STYLES || {};
+    const skillNames = Object.keys(S).length;
+    assert(skillNames >= 4, 'COMBAT_STYLES must be published — got ' + skillNames + ' weapon families');
+
+    /* (1) THE TABLE IS HONEST. `trains` is an authored abbreviation and `xp` is
+       what the engine pays; two copies of one fact. Assert they name the same
+       skills, so a new style cannot advertise a route it does not run. */
+    const ABBREV = { attack: ['atk', 'attack'], strength: ['str', 'strength'], defense: ['def', 'defen'],
+      ranged: ['ranged', 'range'], magic: ['magic'], hitpoints: ['hp', 'hitpoints'] };
+    const mismatches = [];
+    Object.keys(S).forEach((fam) => Object.entries(S[fam]).forEach(([k, s]) => {
+      const claimed = String(s.trains || '').toLowerCase();
+      Object.keys(s.xp || {}).forEach((sk) => {
+        const forms = ABBREV[sk] || [sk];
+        if (!forms.some((f) => claimed.indexOf(f) >= 0)) {
+          mismatches.push(fam + '.' + k + ' pays ' + sk + ' XP but its label says "' + s.trains + '"');
+        }
+      });
+      // …and the reverse: no skill named that is never paid.
+      Object.entries(ABBREV).forEach(([sk, forms]) => {
+        if (!(sk in (s.xp || {})) && forms.some((f) => claimed.indexOf(f) >= 0) && sk !== 'hitpoints') {
+          mismatches.push(fam + '.' + k + ' NAMES ' + sk + ' but pays it no XP');
+        }
+      });
+    }));
+    assert(mismatches.length === 0, 'a style label disagrees with its XP routing table — ' + mismatches.join(' | '));
+
+    /* (2) THE DERIVED SENTENCE MATCHES THE TABLE. styleXpRouteText walks
+       `style.xp`, so it cannot describe a route the engine does not run — but
+       it can still be wired to nothing. Grade it. */
+    assert(typeof window.styleXpRouteText === 'function', 'styleXpRouteText must be published');
+    const solo = window.styleXpRouteText(S.sword.aggressive);
+    assert(/all to/i.test(solo) && /strength/i.test(solo),
+      'a single-skill style should read "all to Strength", got "' + solo + '"');
+    const split = window.styleXpRouteText(S.sword.controlled);
+    ['attack', 'strength', 'defen'].forEach((n) => assert(new RegExp(n, 'i').test(split),
+      'the three-way split must name ' + n + ', got "' + split + '"'));
+    /* Authored order, not sorted — Controlled is 33/33/34 and sorting put
+       Defence first purely on a rounding difference. */
+    assert(split.toLowerCase().indexOf('attack') < split.toLowerCase().indexOf('defen'),
+      'an even split must keep the authored order so it agrees with the "Atk/Str/Def" chip, got "' + split + '"');
+
+    /* (3) THE BUTTON ACTUALLY CARRIES IT. This is the assertion the regression
+       needed: the data was always right. */
+    if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
+    const block = document.querySelector('.combat-style-block');
+    assert(block, 'the combat style picker did not render');
+    const btns = [...block.querySelectorAll('.csb-btn')];
+    assert(btns.length >= 3, 'expected the weapon family\'s styles, got ' + btns.length + ' buttons');
+    btns.forEach((b) => {
+      const tr = b.querySelector('.csb-trains');
+      assert(tr && tr.textContent.trim().length > 0,
+        'style button "' + b.textContent.trim() + '" carries no .csb-trains — the XP route is unstated');
+    });
+
+    /* (4) AND NO STYLESHEET MAY HIDE IT. THE ACTUAL b348 BUG: theme-cozy.css
+       carried `#panel-combat .csb-btn small { display:none }` inside the mobile
+       media query, with the comment "hide ATTACK/STRENGTH/DEFENSE labels". It
+       landed in b110 when this font was 10px, survived b227 raising the type
+       floor, and then swallowed b329's swing readout too — so the number that
+       answered Xarn's PREVIOUS report was invisible on his phone from the day
+       it shipped.
+       An in-page test cannot force a media query, so this walks the CSSOM
+       instead — including rules inside @media, which is where the offender
+       lived. That is the point: it grades the rule wherever it sleeps, not only
+       the viewport the suite happens to run at. */
+    const offenders = [];
+    const walk = (rules, media) => {
+      for (const r of rules || []) {
+        if (r.type === CSSRule.MEDIA_RULE || r.cssRules) { walk(r.cssRules, media || (r.conditionText || '')); }
+        if (!r.selectorText || !r.style) continue;
+        const hidesTrains = /\.csb-trains\b/.test(r.selectorText)
+          || (/\.csb-btn\b/.test(r.selectorText) && /\bsmall\b/.test(r.selectorText));
+        if (hidesTrains && (r.style.display === 'none' || r.style.visibility === 'hidden')) {
+          offenders.push(r.selectorText + (media ? ' @media ' + media : ''));
+        }
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      try { walk(sheet.cssRules, ''); } catch (e) { /* cross-origin sheet — none of ours */ }
+    }
+    assert(offenders.length === 0,
+      'THE b348 BUG: a stylesheet hides the combat style XP label — ' + offenders.join(' | '));
+  }),
+
+  () => tryRunAsync('b348: the bag renders the space you PURCHASED, not the space you have filled', async () => {
+    const G = window.G;
+    assert(typeof window.bankCap === 'function' && typeof window.buyBankSpaceGem === 'function',
+      'the bank helpers must exist');
+    /* G.bank is NOT in snapshotG, and buying slots is permanent progress — save
+       and restore it here exactly as the b269 bank tests do. */
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})),
+      gems: G.gems, gold: G.gold, filter: JSON.parse(JSON.stringify(window._invFilter || {})) };
+    const prevTab = window.activeTab;
+    try {
+      window._invFilter = { category: 'all', search: '' };
+      /* The fixture must hold at least one WEAPON, because the filtered half of
+         this test switches to that lane — and an EMPTY lane renders the "no
+         items in this category" message instead of tiles, which would make the
+         filtered assertion read 0 and fail for the wrong reason. (Found by
+         mutation: an unrelated mutation showed this test red at "0 tiles for 0
+         matches".) */
+      G.inventory = {}; Object.keys(window.ITEMS).slice(0, 5).forEach((id) => { G.inventory[id] = 1; });
+      G.inventory.bronze_sword = 1;
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      window.showTab('inventory');
+      await new Promise((r) => setTimeout(r, 60));
+
+      const paint = async () => {
+        window._renderInvFancy();
+        await new Promise((r) => setTimeout(r, 20));
+        const grid = document.querySelector('#panel-inventory .invc-grid');
+        assert(grid, 'the bag grid did not render');
+        return {
+          filled: grid.querySelectorAll('.invc-tile:not(.invc-slot)').length,
+          empty: grid.querySelectorAll('.invc-tile.invc-slot:not(.invc-slot-more)').length,
+          total: grid.querySelectorAll('.invc-tile').length,
+          head: (document.querySelector('#panel-inventory .invc-space') || {}).textContent || '',
+        };
+      };
+
+      const before = await paint();
+      assert(before.total === window.bankCap(),
+        'the bag must draw one tile per PURCHASED stack: cap ' + window.bankCap() + ', tiles ' + before.total);
+      assert(before.filled === window.bankUsed(), 'filled tiles must equal the stacks held');
+
+      /* THE REPORT, exactly: buy space and the rows must appear NOW, not when
+         you next find an item. Measured before the fix: 88 tiles at cap 100, 88
+         at cap 160, 88 at cap 200 — the purchase was invisible until the player
+         outgrew it. */
+      G.gems = 10_000;
+      assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed');
+      const after = await paint();
+      assert(after.total - before.total === window.BANK_SPACE.gem.slots,
+        'THE b348 BUG: buying +' + window.BANK_SPACE.gem.slots + ' stacks changed the bag by '
+          + (after.total - before.total) + ' tiles — the purchase is invisible until you outgrow it');
+      assert(after.filled === before.filled, 'a space purchase must not change what you are holding');
+
+      /* The header states the truth, and keeps stating it — _renderInvSummary()
+         used to overwrite this whole node, so the capacity readout survived
+         about 50ms after every tab entry. */
+      assert(/\b\d+\s*\/\s*\d+\s*slots/.test(after.head),
+        'the bag header must state used / cap slots, got "' + after.head + '"');
+      window._renderInvSummary();
+      const head2 = (document.querySelector('#panel-inventory .invc-space') || {}).textContent || '';
+      assert(/\b\d+\s*\/\s*\d+\s*slots/.test(head2),
+        'THE b348 BUG: _renderInvSummary erased the slot capacity from the bag header — "' + head2 + '"');
+      assert(/gp/.test(head2), 'the summary itself must still be written: "' + head2 + '"');
+
+      /* A FILTERED lane must not claim bag capacity: free space belongs to the
+         bag, not to "Weapons". */
+      window._invFilter = { category: 'weapons', search: '' };
+      const filtered = await paint();
+      /* Asserted as an EQUALITY against the container fill, not as "less than
+         the cap": free space is `cap - used`, so a lane holding fewer items
+         than the bag does still lands under the cap even when it IS deriving
+         from capacity — a `< cap` assertion passes on the bug. (Found by
+         mutation: forcing every view to the capacity path stayed green.) */
+      const MIN_FILL = 88;
+      assert(filtered.total === Math.max(MIN_FILL, filtered.filled),
+        'a filtered lane must show its matches padded only to the container fill, not derived from the bank cap — '
+          + filtered.total + ' tiles for ' + filtered.filled + ' matches (cap ' + window.bankCap() + ')');
+    } finally {
+      G.inventory = saved.inv; G.bank = saved.bank; G.gems = saved.gems; G.gold = saved.gold;
+      window._invFilter = saved.filter;
+      try { window._renderInvFancy(); window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('b348: every surface that offers gear states the level needed to WEAR it, through the one authority', async () => {
+    const G = window.G;
+    assert(typeof window.gearWieldReq === 'function' && typeof window.canWield === 'function',
+      'the wield-gate seam must exist');
+    /* The probe item is deliberately `steel_platebody`: it is hand-authored, so
+       it carries NO `reqSkill`/`reqLv` fields at all and its gate is derived
+       from `tier`. Any surface reading the raw fields shows nothing for exactly
+       this class of gear — which is what the item modal was doing. */
+    const probe = 'steel_platebody';
+    const it = window.ITEMS[probe];
+    assert(it, 'the probe item must exist');
+    assert(it.reqLv == null && it.reqSkill == null,
+      'this test is only meaningful while ' + probe + ' has no raw req fields — it now has some, pick another probe');
+    const req = window.gearWieldReq(it);
+    assert(req && req.skill === 'defense' && req.lv > 0,
+      'the authority must derive a defence gate for ' + probe + ', got ' + JSON.stringify(req));
+
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})) };
+    const prevTab = window.activeTab;
+    try {
+      G.inventory[probe] = 1;
+
+      /* (1) HOVER TOOLTIP — b341 put this on the shop row; the tooltip a player
+         uses to compare gear they already own never said it. */
+      const tipHost = document.getElementById('item-tooltip');
+      assert(tipHost, 'the item tooltip host must exist');
+      const tile = document.createElement('div');
+      tile.className = 'invc-tile'; tile.setAttribute('data-item-id', probe);
+      document.body.appendChild(tile);
+      try {
+        tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        const reqEl = tipHost.querySelector('.ttl-req');
+        assert(reqEl, 'the hover tooltip states no wear requirement for ' + probe);
+        assert(reqEl.textContent.indexOf(String(req.lv)) >= 0 && /defen/i.test(reqEl.textContent),
+          'the tooltip requirement must name the skill and the level, got "' + reqEl.textContent + '"');
+      } finally { tile.remove(); }
+
+      /* (2) THE ITEM DETAIL MODAL — the mobile equivalent of the hover tip. */
+      window.openInvDetail(probe);
+      await new Promise((r) => setTimeout(r, 60));
+      const modal = document.getElementById('inv-detail-overlay');
+      const modalText = (modal ? modal.textContent : '').replace(/\s+/g, ' ');
+      assert(/to wear/i.test(modalText) && modalText.indexOf('' + req.lv) >= 0,
+        'the item detail modal states no wear requirement for ' + probe + ' — "' + modalText.slice(0, 200) + '"');
+      if (typeof window.closeInvDetail === 'function') window.closeInvDetail();
+
+      /* (3) THE CRAFTING TILE — "what def requirements we need to wear those
+         too". The craft gate and the wear gate are different numbers on
+         different skills (Smithing 40 to forge, Defence 30 to wear). */
+      const rec = window.ARTISAN_RECIPES.smithing.find((r) => r.output === probe);
+      assert(rec, 'no smithing recipe produces ' + probe);
+      assert(typeof window.hrWearLineHtml === 'function', 'the shared wear-line helper must be published');
+      const line = window.hrWearLineHtml(probe);
+      assert(/at-wear/.test(line) && line.indexOf('' + req.lv) >= 0,
+        'the wear line does not state the requirement: "' + line + '"');
+      assert(window.hrWearLineHtml('normal_log') === '',
+        'a non-wearable output must produce no wear line');
+
+      // Painted, through whichever tile builder is actually wired.
+      G.skills.smithing = 1e7;
+      window._actLastRender = { skillId: null, activeKey: null };
+      window.showTab('skills');
+      window.openSkillDetail('smithing');
+      await new Promise((r) => setTimeout(r, 80));
+      if (typeof window.setArtisanCategory === 'function') window.setArtisanCategory('smithing', 'armour');
+      await new Promise((r) => setTimeout(r, 80));
+      const plate = [...document.querySelectorAll('#skill-detail .act-tile')]
+        .find((t) => t.getAttribute('data-prod') === probe);
+      assert(plate, 'the ' + probe + ' recipe tile did not render on the Armour lane');
+      const wearEl = plate.querySelector('.at-wear');
+      assert(wearEl && wearEl.textContent.indexOf('' + req.lv) >= 0,
+        'the crafting tile does not say what you need to WEAR the output — "' + plate.innerText.replace(/\s+/g, ' ') + '"');
+
+      /* (4) AND THE ESM TWIN, which paints nothing today and therefore drifts
+         (b345's lesson). Graded through its published builder. */
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForArtisan === 'function', 'the activities-grid test seam is gone');
+      assert(/at-wear/.test(AG.__tileForArtisan(rec, 'smithing')),
+        'the activities-grid TWIN does not carry the wear line — the two tile builders have drifted');
+    } finally {
+      G.inventory = saved.inv; G.skills = saved.skills;
+      window._actLastRender = { skillId: null, activeKey: null };
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b349 — THE PERMANENT PERK CHANNEL, from the BROWSER side.
+
+     tests/perk-channel.mjs proves the SERVER half against a real PostgreSQL:
+     an unlock row reaches burnChance with the right magnitude. It cannot
+     prove the CLIENT half, because `getBonus` is a classic-script function
+     inside a seven-layer monkey-patch chain that only exists in a page.
+
+     So these five drive the REAL `window.getBonus` and the REAL
+     `window.clientPerkState`. That distinction is the b339 lesson: an
+     extraction can be perfect and the CALLER can still pass a literal, and
+     every test of the extracted half passes anyway.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B349-1: the real getBonus reads the room rung through core — noBurn, rung by rung', () => {
+    const snap = snapshotG();
+    try {
+      /* MEASURED EXPECTATIONS, not restated from the table under test:
+         src/core/artisan.js BURN_BASE is 0.25 and the Kitchen ladder is
+         13/19/25/25/25, so a cook AT the required level burns
+         0.25 / 0.12 / 0.06 / 0.00 / 0.00 / 0.00.
+         MUTATION: point getBonus's delegation at a stale table, or drop the
+         `bx` merge from tools/gen-perks.mjs → every row below goes RED. */
+      const EXPECT = [
+        [0, 0, 0.25],
+        [1, 0.13, 0.12],
+        [2, 0.19, 0.06],
+        [3, 0.25, 0.00],
+        [5, 0.25, 0.00],
+      ];
+      const A = window.HearthriseCore.artisan;
+      for (const [rung, noBurn, burn] of EXPECT) {
+        G.rooms = rung > 0 ? { kitchen: rung } : {};
+        assert(Math.abs(window.getBonus('noBurn') - noBurn) < 1e-9,
+          'Kitchen ' + rung + ' gives noBurn ' + window.getBonus('noBurn') + ', expected ' + noBurn
+          + ' — the client and the accrual engine now read ONE table, so this is both sides');
+        const got = A.burnChance({ req: 10 }, 10, window.getBonus('noBurn'));
+        assert(Math.abs(got - burn) < 1e-9,
+          'Kitchen ' + rung + ' burns at ' + got + ', expected ' + burn);
+      }
+      /* The other headline key off the same rung, so a delegation that only
+         forwarded `bx` (or only `bk`) cannot pass. */
+      G.rooms = { kitchen: 5 };
+      assert(Math.abs(window.getBonus('cookSpeed') - 0.10) < 1e-9,
+        'Kitchen 5 cookSpeed is ' + window.getBonus('cookSpeed') + ', expected 0.10 — the rung\'s bk '
+        + 'half is not reaching getBonus');
+      assert(Math.abs(window.getBonus('yield_cooking') - 0.08) < 1e-9,
+        'Kitchen 5 yield_cooking is ' + window.getBonus('yield_cooking') + ', expected 0.08');
+    } finally { restoreG(snap); }
+  }),
+  /* ══════════════════════════════════════════════════════════════════════
+     b349 — THE CALL THAT WAS MADE BEFORE THE CLIENT HAD THE RIGHT TO MAKE IT
+
+     MEASURED, not suspected. 24h of postgres_logs: 5,217 rows of
+     sql_state_code 42501 as `authenticator` — 19% of every request the project
+     served — and 3,249 of them were hr_server_now(). That RPC has exactly ONE
+     call site (muster.js syncClock, once per boot), so the count is one refused
+     call PER PAGE LOAD, from every player, signed in or not.
+
+     THE CAUSE IS A RACE, AND IT ALWAYS LOSES. muster.js boots at
+     DOMContentLoaded+420ms. auth.js cannot publish a session until a CDN
+     import() of supabase-js resolves. Instrumented in real Chromium over four
+     runs on a warm LOCAL server, with a valid cached session in place: the
+     session landed 94ms / 159ms / 358ms / 1,040ms AFTER the RPC had already
+     gone out, and it went out anonymous every time — because every transport
+     helper in this repo ends its Authorization header with `|| c.anonKey`,
+     which does not mean "call this anonymously", it means "send it without the
+     standing to send it". Postgres refused each one and the client shrugged.
+
+     Nothing was exposed and no player was broken. What it broke was the error
+     dashboard: at 81% success, a real outage is invisible in the noise.
+
+     THE SHAPE OF THE FIX, and what these three tests hold down:
+       R1  the DECISION  — HearthriseRpc.mayCall(), inverted so a NEW RPC is
+                           protected by nobody remembering anything.
+       R2  the TIMING    — HearthriseGate.whenSignedIn(): holds, then runs, and
+                           never runs at all if no session ever arrives.
+       R3  the CALLER    — muster.js's own rpc(), driven for real. b339's rule:
+                           a test that only proves the seam correct is the test
+                           that let the caller go on being wrong.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B349-R1: the client knows which RPCs need a session, and an unknown one DOES', () => {
+    const R = window.HearthriseRpc;
+    assert(R && typeof R.mayCall === 'function' && typeof R.needsSession === 'function',
+      'HearthriseRpc.mayCall/needsSession are gone — the one shared answer to "may this call go out" '
+      + 'is what stops six transport helpers each inventing their own');
+
+    /* FAIL CLOSED. This is the whole design: the maintained list is the SHORT
+       one (what may go out anonymously), so an RPC nobody has told this module
+       about is protected on the day it is written. */
+    assert(R.needsSession('hr_server_now') === true, 'hr_server_now must need a session');
+    assert(R.needsSession('an_rpc_written_next_year') === true,
+      'an unknown RPC was judged safe to call anonymously — the predicate has been inverted back to a '
+      + 'denylist, and every RPC added after this line is unguarded until someone remembers it');
+    assert(R.mayCall('hr_server_now', false) === false, 'a session-less authenticated call was permitted');
+    assert(R.mayCall('hr_server_now', true) === true, 'a signed-in authenticated call was refused');
+
+    /* Anything that is not literally `true` is "no session". A caller that has
+       not looked yet hands over undefined, and that caller is the bug. */
+    [undefined, null, 0, '', 'yes', {}, []].forEach((v) => {
+      assert(R.mayCall('hr_server_now', v) === false,
+        'mayCall accepted a truthy non-boolean (' + JSON.stringify(v) + ') as proof of a session');
+    });
+
+    /* THE CONTROL. A "fix" that refuses everything would silently delete the
+       public honour roll — leaderboards.js is allowed to read it anonymously
+       when a player's token has expired (b222), and production grants it to
+       anon (tests/rpc-resolution.baseline.json: the sole 200/OK entry). */
+    assert(R.needsSession('hr_leaderboard') === false && R.mayCall('hr_leaderboard', false) === true,
+      'the public leaderboard now needs a session — an expired token would blank the whole board, '
+      + 'which is the b222 bug back again');
+  }),
+
+  () => tryRunAsync('B349-R2: whenSignedIn() holds without a session, runs with one, and never fires signed-out', async () => {
+    const gate = window.HearthriseGate;
+    assert(gate && typeof gate.whenSignedIn === 'function',
+      'HearthriseGate.whenSignedIn is gone — this is the seam that knows the difference between '
+      + '"signed out" and "auth has not finished looking yet", and without it every caller re-derives it');
+    assert(typeof gate._signedInPending === 'function' && typeof gate._drainSignedIn === 'function'
+      && typeof gate._signedInWaiting === 'function',
+      'the whenSignedIn test seams are gone — a test that could only observe "it did not run" would '
+      + 'pass against an implementation that threw the callback away');
+
+    /* ── THE CALLER, by name. The suite boots with no session, so muster.js's
+       clock+pledge chain must still be SITTING here waiting. Counting alone
+       would pass the day some other module started deferring and muster
+       stopped, so the label is the assertion.
+       MUTATION: call syncClock() directly from muster's boot() again → RED. */
+    assert(gate._signedInWaiting().indexOf('muster:clock+pledge') !== -1,
+      'muster.js is not holding its clock sync behind a session — it is back to firing hr_server_now '
+      + '420ms after DOMContentLoaded, which is before auth.js can publish a token, which is 3,196 '
+      + 'refused calls a day. Waiting: [' + gate._signedInWaiting().join(', ') + ']');
+
+    const Auth = window.HearthriseAuth;
+    /* account-gate reads HearthriseAuth.isSignedIn() — not getSession() — so
+       this is the function the seam actually consults. Stubbing the other one
+       would leave the test measuring a path the gate never takes. */
+    assert(Auth && typeof Auth.isSignedIn === 'function', 'auth.js is not loaded');
+    const realIsSignedIn = Auth.isSignedIn;
+    const TAG = 'test:b349';
+    const before = gate._signedInPending();
+    let ran = 0;
+    try {
+      /* ── SIGNED OUT: held, not dropped, not run. */
+      Auth.isSignedIn = () => false;
+      gate.whenSignedIn(() => { ran++; }, TAG);
+      assert(ran === 0, 'whenSignedIn ran its callback with no session — this is the 3,196-a-day bug itself');
+      assert(gate._signedInPending() === before + 1,
+        'the callback was not queued either; it was thrown away, so a player who signs in mid-session '
+        + 'never gets the work that was waiting for them');
+
+      /* A drain while STILL signed out must not fire it. The watcher ticks
+         every 2s for the whole life of a walled page — if a drain could fire
+         without a session, the fix would leak once every two seconds instead
+         of once per boot. */
+      gate._drainSignedIn(TAG);
+      assert(ran === 0 && gate._signedInPending() === before + 1,
+        'a drain fired the callback while signed out — worse than the original bug, which at least '
+        + 'only fired once');
+
+      /* ── SIGNED IN: the held work runs, exactly once. Only this test's own
+         job is drained; muster's stays parked, so re-running the suite in the
+         same page grades the same thing it graded the first time. */
+      Auth.isSignedIn = () => true;
+      gate._drainSignedIn(TAG);
+      assert(ran === 1, 'the held callback did not run once a session appeared (ran ' + ran + 'x)');
+      gate._drainSignedIn(TAG);
+      assert(ran === 1, 'the callback ran again on a second drain — a boot probe would repeat forever');
+
+      /* ── ALREADY SIGNED IN: runs immediately, no wait. */
+      let now = 0;
+      gate.whenSignedIn(() => { now++; }, TAG);
+      assert(now === 1, 'whenSignedIn deferred work that could have run immediately — a signed-in '
+        + 'player would wait up to a watcher tick for something with no reason to wait');
+    } finally {
+      Auth.isSignedIn = realIsSignedIn;
+      try { gate._drainSignedIn(TAG); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B349-R3: muster\'s OWN transport refuses to send an authenticated RPC with no session', async () => {
+    const M = window.HearthriseMuster;
+    assert(M && typeof M.syncClock === 'function', 'muster.js is not loaded');
+    const Auth = window.HearthriseAuth;
+    const realGetSession = Auth.getSession;
+    const realFetch = window.fetch;
+    const sent = [];
+    try {
+      window.fetch = function (u, o) {
+        const url = typeof u === 'string' ? u : (u && u.url) || '';
+        if (url.indexOf('/rest/v1/rpc/') !== -1) {
+          const h = (o && o.headers) || {};
+          sent.push({ url: url, auth: h.Authorization || h.authorization || '' });
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, epoch_ms: Date.now() }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+
+      /* ── THE BUG, driven through the real caller. MUTATION: delete the
+         mayCall() refusal from muster.js's rpc() → this goes RED, because the
+         request is exactly what production logged 3,196 times a day. */
+      Auth.getSession = () => null;
+      await M.syncClock();
+      assert(sent.length === 0,
+        'THE b349 BUG: muster.js sent ' + sent.length + ' RPC(s) with no session — '
+        + sent.map((s) => s.url.split('/rpc/')[1]).join(', ') + '. Postgres answers 42501 and the '
+        + 'client cannot tell that apart from a healthy call it forgot to read');
+
+      /* THE CONTROL, and it is the whole test. "Zero calls" passes trivially
+         against a broken fetch stub, a renamed function, or a syncClock that
+         was deleted. The SAME stub must record a real, correctly-signed call
+         the moment a session exists — otherwise the assertion above is
+         measuring nothing. */
+      Auth.getSession = () => ({ access_token: 'real-token-abc', user: { id: 'u1' } });
+      await M.syncClock();
+      assert(sent.length === 1 && sent[0].url.indexOf('/rpc/hr_server_now') !== -1,
+        'with a session the clock did NOT sync (' + sent.length + ' call(s)) — the guard above is '
+        + 'passing against a dead path and proves nothing');
+      assert(sent[0].auth === 'Bearer real-token-abc',
+        'the clock went out signed with something other than the player\'s token ("' + sent[0].auth
+        + '") — the `|| anonKey` fallback in headers() is still downgrading the call');
+    } finally {
+      window.fetch = realFetch;
+      Auth.getSession = realGetSession;
+      try { M._setSkew(0); } catch (e) {}
     }
   }),
 

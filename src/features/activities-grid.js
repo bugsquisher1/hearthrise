@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=346';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=346';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=346';
+import { SKILLS_DEF } from '../data/skills.js?v=349';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=349';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=349';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -200,6 +200,7 @@ function tileForArtisan(recipe, skillId) {
     <div class="at-name">${recipe.name || recipe.id}</div>
     <div class="at-meta">${effXp(skillId, recipe)} XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
+    ${(typeof window.hrWearLineHtml === 'function') ? window.hrWearLineHtml(outId) : ''}
     ${burnLine}
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${recipe.req}</div>`}

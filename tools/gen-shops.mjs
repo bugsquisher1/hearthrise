@@ -68,6 +68,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+/* The anchor/brace-match/evaluate slicer, shared with tools/gen-perks.mjs.
+   It used to be two local functions here; a SECOND generator needing the same
+   trick is exactly when a helper stops being local. Moving it changed no
+   behaviour, and `--check` passing is the proof: the catalogue digest hashes
+   the extracted DATA, so any difference in the slicer moves it. */
+import { makeDie, sliceLiteral as sliceLiteral_, sliceNumber as sliceNumber_ }
+  from './lib/slice-literal.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'src', 'data', 'shops.js');
@@ -75,59 +82,14 @@ const OUT = join(ROOT, 'src', 'data', 'shops.js');
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 const read = (rel) => readFile(join(ROOT, rel), 'utf8');
 
-const die = (msg) => { console.error(`gen-shops: ${msg}`); process.exit(1); };
+const die = makeDie('gen-shops');
 
 // ── 1. Slice a literal out of a classic script ───────────────────────────
-// `anchor` must end on the literal's opening bracket, e.g. 'const ROOMS={'.
-// Comments and string/template bodies are skipped so a `}` inside a comment
-// or a `'{'` inside a description cannot close the object early. Regex
-// literals are NOT tracked — none of the ten anchored literals contains one,
-// and if that ever changes the slice stops parsing and this throws, which is
-// the correct outcome rather than a silently truncated table.
-function sliceLiteral(src, anchor, where) {
-  const hits = [];
-  let at = -1;
-  while ((at = src.indexOf(anchor, at + 1)) !== -1) hits.push(at);
-  if (hits.length !== 1) {
-    die(`anchor ${JSON.stringify(anchor)} matched ${hits.length} times in ${where} `
-      + '— expected exactly 1. The table was renamed, moved, or duplicated; '
-      + 'fix the anchor rather than letting the extraction guess.');
-  }
-  const open = hits[0] + anchor.length - 1;
-  const openCh = src[open];
-  if (openCh !== '{' && openCh !== '[') die(`anchor ${JSON.stringify(anchor)} must end on { or [`);
-  const closeCh = openCh === '{' ? '}' : ']';
-  let depth = 0, i = open;
-  for (; i < src.length; i++) {
-    const c = src[i];
-    if (c === '/' && src[i + 1] === '*') { const e = src.indexOf('*/', i + 2); if (e < 0) break; i = e + 1; continue; }
-    if (c === '/' && src[i + 1] === '/') { const e = src.indexOf('\n', i); if (e < 0) break; i = e; continue; }
-    if (c === '"' || c === "'" || c === '`') {
-      const q = c; i++;
-      for (; i < src.length; i++) { if (src[i] === '\\') { i++; continue; } if (src[i] === q) break; }
-      continue;
-    }
-    if (c === openCh) depth++;
-    else if (c === closeCh) { depth--; if (depth === 0) break; }
-  }
-  if (depth !== 0) die(`unbalanced literal for ${JSON.stringify(anchor)} in ${where}`);
-  const text = src.slice(open, i + 1);
-  try {
-    // eslint-disable-next-line no-new-func
-    return new Function(`return (${text});`)();
-  } catch (e) {
-    return die(`literal at ${JSON.stringify(anchor)} in ${where} does not evaluate: ${e.message}`);
-  }
-}
-
-// A bare numeric constant (`const VENDOR_RAW_RATE = 0.20;`). Same uniqueness
-// rule as sliceLiteral: exactly one declaration, or the build fails.
-function sliceNumber(src, decl, where) {
-  const re = new RegExp(`${decl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`, 'g');
-  const hits = [...src.matchAll(re)];
-  if (hits.length !== 1) die(`${decl} matched ${hits.length} declarations in ${where} — expected exactly 1`);
-  return Number(hits[0][1]);
-}
+// Both helpers now live in tools/lib/slice-literal.mjs (shared with
+// tools/gen-perks.mjs); these two lines bind `die` so every call site below
+// reads exactly as it did before the move.
+const sliceLiteral = (src, anchor, where) => sliceLiteral_(src, anchor, where, die);
+const sliceNumber  = (src, decl, where)   => sliceNumber_(src, decl, where, die);
 
 // ── 2. THE COST SHAPE ────────────────────────────────────────────────────
 // One line shape, used on BOTH sides of every offer:

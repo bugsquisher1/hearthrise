@@ -120,11 +120,13 @@ export function priceDailyLogin(streak) {
    simply never acquire a server path, and which are named here so that "there
    is no intent for them" is a decision on the record rather than an omission.
 
-   ⚠ EVERY FIELD BELOW IS READ ON THE HOT PATH. `supabase/functions/hr-accrue/
-     claim-reward.js` reads `status` to choose between paying, answering
-     `reward_unavailable` (with `needs`) and answering `unknown_reward`, and it
-     reads `periodic` to decide whether the server stamps a period key. A row
-     that no code path reads is decoration — the same rule INTENT_REGISTRY
+   ⚠ EVERY REQUIRED FIELD BELOW HAS A READER, AND WHICH READER IS NAMED.
+     `supabase/functions/hr-accrue/claim-reward.js` reads `status` on the hot
+     path to choose between paying, answering `reward_unavailable` (with
+     `needs`) and answering `unknown_reward`; it reads `periodic` to decide
+     whether the server stamps a period key; and `claimDelta` reads
+     `ledgerKind`, which is the bucket `player_ledger_rollup` aggregates on. A
+     row that no code path reads is decoration — the same rule INTENT_REGISTRY
      carries, and for the same reason.
 
      status: 'priced'  the server can price and pay it TODAY.
@@ -132,6 +134,22 @@ export function priceDailyLogin(streak) {
                        so a player is told "not yet", never "bad request", and
                        so the dependency is discoverable from the response.
      needs:  the exact missing capability. Prose, aimed at the next author.
+             Required only on a 'blocked' row, and graded there (C0).
+     site:   the CLIENT call site this claimable replaces, spelled
+             `path/to/file.js:LINE symbolName(...)`.
+
+     ⚠ `site` IS THE ONE FIELD WITH NO RUNTIME READER, AND THAT WAS A FINDING
+       (Security G4): it was required and nothing read `spec.site`, which is
+       decoration with a guard in front of it. It is KEPT REQUIRED because it is
+       the wiring map — how the next author finds the six client sites this verb
+       replaces — and it now has a BUILD-TIME reader instead: tests/
+       claim-intent.mjs C0b parses the shape, resolves the path against the repo
+       and asserts the named symbol is really in that file. So the format above
+       is a contract, not a convention; free text will fail the build. The line
+       number is bounded but not graded exactly — it drifts on every edit above
+       it, and an assertion that goes red for unrelated reasons gets deleted.
+       `note` is NOT required and is not graded: it is prose for a human, and it
+       is honest about being that.
 */
 export const CLAIMABLES = Object.freeze({
   /* ── PRICED ─────────────────────────────────────────────────────────────

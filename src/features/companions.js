@@ -202,7 +202,22 @@ function rollProc(triggerType, ctx) {
   if (!G?.companions?.equipped) return;
   const def = COMPANIONS[G.companions.equipped];
   if (!def?.proc || def.proc.trigger !== triggerType) return;
-  if (Math.random() > def.proc.chance) return;
+  /* Through the SEEDED session stream, not Math.random() — the same rule the
+     drop roll below and dungeons.js's key drop already follow, and the last of
+     the three deferred in b342.
+
+     Every proc trigger is reachable from the AWAY replay: 'kill' rides the
+     killMonster wrapper (23 draws in a 30-minute away night on the lich,
+     measured), 'gather' and 'cook' ride the addItem wrapper (400 draws in a
+     400-action away gather night, measured). A proc PAYS — the raccoon's
+     `extraGold` is 5 gold a kill — so a bare draw here means the server and
+     the client compute different totals for the same absence from the same
+     seed: measured at 7,899 gold against 7,789 for one identical pinned-seed
+     night, varying nothing but Math.random(). Falls back only if the core has
+     not booted. */
+  const C = window.HearthriseCore;
+  const hit = (C && C.rng) ? C.rng.chance(def.proc.chance) : (Math.random() < def.proc.chance);
+  if (!hit) return;
   const e = def.proc.effect;
   switch (e) {
     case 'gold': G.gold = (G.gold || 0) + (def.proc.amount || 1); break;

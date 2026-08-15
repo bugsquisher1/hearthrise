@@ -2,7 +2,6 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
-<<<<<<< HEAD
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Security, QA (b349 — the 42501 flood is two sources, one of them ours on purpose)
 
 Worktree `agent-aea11985dd254af77`, commit **`ce9dc9c`**. Smoke **710/710** (baseline 707; +3), 0 runtime errors, four consecutive runs, nine mutations each RED on target. **No version bump, nothing deployed. No grant changed, `hr_client_rpc_baseline` untouched.**
@@ -17,7 +16,6 @@ Worktree `agent-aea11985dd254af77`, commit **`ce9dc9c`**. Smoke **710/710** (bas
   - **Do not** re-derive either from `auth.js`. `whenOpen()` is NOT the same question — the harness and a stale cached session both open the gate with no live token, and conflating the two is what this cost.
 
 **4. TO THE COORDINATOR — an unrelated guard has been RED all session and it is not mine.** The Edge payload guard: deployed `hr-accrue` reports `a2a42250dd81e795…`, this repo packs `2f6334133c627f81…`. GREEN on my first run of the session, RED on every run after, with no change from me — my diff touches no `src/core`, `src/data` or `supabase/functions/**`. Another agent deployed a different payload mid-session; someone owes a redeploy or a re-pack.
-=======
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Security, Game Designer, Art Director (b348 — the switch-on test failed because HALF the seam shipped; it is whole now)
 
 Branch `agent-aa4009fd4c0be62ae`. Smoke **712/712** (baseline 707; +5), 0 runtime errors, 0 console errors, four consecutive runs; `AWAY-1 PARITY` green; `bump-version.sh --check` green at 348. **16 mutations, all RED and each naming its own fault** (8 against the new Node guard, 8 against the new browser tests), every one preceded by a green control and followed by a green restore. No version bump, nothing deployed, `supabase/functions/**` and `supabase/migrations/**` NOT touched.
@@ -37,7 +35,6 @@ Branch `agent-aa4009fd4c0be62ae`. Smoke **712/712** (baseline 707; +5), 0 runtim
 **6. TO WHOEVER TOUCHES THE RESUME PATH — a load observation, not mine to fix.** With the switch ON, the b260 watchdog runs `processOffline()` every 4 seconds while visible, and under the switch that is `hr-accrue` + `hr_load` on every tick. Measured in a real browser with no harness flag: **1 create + 5 loads + 3 accruals in 30 seconds**, which is consistent with the 7/7 counters in Tyler's window and burns a real share of the 30/min budget for an answer that cannot change between ticks.
 
 ---
->>>>>>> worktree-agent-aa4009fd4c0be62ae
 
 ### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Art Director, Game Designer, QA, Security (b347 — the activity seam is BUILT, and the record template is fixed)
 

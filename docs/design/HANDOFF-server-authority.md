@@ -324,6 +324,53 @@ now stage the file, commit, and report; the Coordinator reviews and applies. Rol
 single-call `begin … rollback` probes and read-only queries are unchanged — that is how
 an exploit gets proven open before it is closed, and that bar stays.
 
+## 📍 START HERE — STATE AT END OF 2026-08-14
+
+**Shipped:** b331–b341. `main` is **662/662**, 0 runtime errors. `schema-drift` OK
+(fingerprint `98aa94bacf9c`), `rpc-resolution` 41/41, `schema-drift --mutate` 7/7.
+
+**Applied to production today:** F1 `clan_contribute` (journalled + 10M/member/day cap),
+F3 `clan_board_progress` (attributed), F4 `hr_rpc_gate` (the anon bypass is gone), A11
+(`beta_invites` → 42501), F2 `market_buy_offers` (the `FOR ALL` policy is gone), F5 in full
+(both leaderboard views dropped, `leaderboard_ranked` revoked, `hr_clan_browser` added),
+the catalogue regen, and `character-bootstrap`. **All four of Security's veto conditions are
+closed.** The Edge Function is deployed with CORS, and its payload hash matches the repo.
+
+**Client rewire — four slices, ALL SHIPPED DARK** behind `localStorage['hr:serverAccrual'] === 'on'`
+(only the literal `'on'` enables; absent = off, deliberately inverted from b319):
+away accrual → the server; character creation; the record seam; the client off the market
+tables and leaderboard views.
+
+**Exactly ONE field is server-of-record: `offlineBudget`.** That is the honest measure. §9 of
+`server-authority.md` has the rule that governs the rest: **the record follows the writer** —
+a field moves only after every path that mutates it has, or the server copy goes stale and the
+load-strip eats the fresh local value. Gold has ~40 client write sites (being measured now).
+
+**⚠ TWO AGENTS WERE IN FLIGHT when this was written.** Their worktrees are `locked` and their
+branches exist; nothing is lost, but neither was merged:
+- `worktree-agent-ace7b6027e7202f2f` — the away card's death honesty (the card says
+  "at the base rate" for a night the player died 60s into), the tier-tab preview bypass, and
+  the shop's missing level requirements. All three are LIVE player-facing bugs.
+- `worktree-agent-abc05d54528d007b5` — sizing the gold intent surface, the largest unsized
+  piece of the program.
+Check them before starting anything new.
+
+**NEEDS TYLER, still:** `2026-08-11-apply-engine.sql` (47,455-char body — from a file, not a
+tool argument) and `2026-08-12-raid-band-fairness.sql` (unapplied; decide apply-or-exclude).
+Then: flip the switch on a **throwaway account** and take a real absence — Security's
+condition 4 is explicit that it is not a real one until the destructive-apply confirmation
+has been seen in the wild.
+
+**A live P0 with a design ruling attached.** A new character on the game's own *Recommended*
+foe dies ~60s into an 8h absence and the away card reports it as an honest base-rate night.
+Tyler ruled: *"Afk combat exp shouldn't come immediately, the player should be guided to play
+the game manually early on."* Built as the **Field Licence** (b341) — away combat gated on 100
+hand-landed kills, delivered as a quest paying 1,500 combat XP. **The gate is currently
+DECORATIVE**: `stats.kills` is not server-of-record, and the server's own kill counter is
+written only by `computeAccrual`, i.e. it counts *away* kills — exactly what the licence
+blocks — so a naive server gate would never open. It becomes real when live combat is an
+intent. `docs/design/away-combat-licence.md` §Edge-Function has the three-step change.
+
 ## ✅ APPLIED TO PRODUCTION 2026-08-13 (each verified by query AFTER the apply)
 
 Applied by the Coordinator on Tyler's explicit authorization, via `execute_sql` with the

@@ -2,6 +2,55 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-14 - FROM Systems Engineer -> TO Coordinator, Game Designer (b343, gold step 1)
+
+**THE PRICE CATALOGUE IS EXTRACTED AND GUARDED — step 1 of the gold ordering is done.**
+`tools/gen-shops.mjs` -> `src/data/shops.js`, **128 offers across 16 tables in 7 files**,
+plus **6 prices that are formulas and are deliberately NOT in it**. Nothing consumes the file
+yet; phase one moves no authority and changes no price. Branch
+`worktree-agent-a7eec0a87d32fa4ce`. Smoke **682/682**, 0 runtime errors, three consecutive runs.
+`src/legacy.js` NOT touched.
+
+**1. The handoff's counts were low, and two of its claims were wrong. Re-measured:**
+- `TRAITS` holds **1** priced entry, not 7 (`auto_eat`, 100 Bounty Marks). The other six do not exist.
+- `workers.js` is **not formula-derived** — `HIRE_COSTS = [500, 2500, 10000, 30000, 80000, 200000]`
+  is a table with a clamped index. All six rungs extracted.
+- `dungeons.js` is **not formula-derived either** — six entries costing a key ITEM
+  (`cost:{key:'bone_key'}`), no gold anywhere. Extracted. Its `cost.gold` and
+  `cost.hearth_token` branches are live code with no data using them.
+- Six priced tables the handoff never named: the inline `cosmetics` array inside `renderShop()`
+  (4, gems), `BANK_SPACE.gem` (1), `SLOT_COSTS_GEMS` in `multi-character.js` (4, gems),
+  companion shop prices encoded in `COMPANIONS[id].source` strings (4, gold),
+  `PLOT_TIERS` deed costs in `core/farm.js` (4, items), and `IAP_CATALOG` (9, real money).
+
+**2. GAME DESIGNER — two prices to rule on. I changed neither.**
+- **`COMPANIONS.owl` costs 50 gold.** `source:'shop:50:prayer50'`. It is the only companion with a
+  Prayer-50 gate — the highest in the set — and it costs 100x less than the *ungated* Sparrow
+  (5,000) and 500x less than the Raccoon (25,000). Reads as a truncated `50000`. The parse is not
+  in doubt: `parseSource()` at `legacy.js:13955` splits the same string the same way, so the shop
+  really does charge 50.
+- **`legacy.js:6152` holds a SECOND, unguarded copy of the Auto-Eat price** —
+  `(window.TRAITS && window.TRAITS.auto_eat) || {cost:100, currency:'marks'}`. Normally dead
+  (`window.TRAITS` is published at load), but if the Marks price ever moves, that sentence in the
+  food tooltip keeps quoting 100 forever. It is the exact duplicate-price class this extraction
+  exists to end, and it is inside `legacy.js` where I was asked not to edit. One-line fix for
+  whoever next holds that file: drop the literal and let the tooltip skip itself when TRAITS is absent.
+
+**3. COORDINATOR — what the next phase needs from me, and what it must not assume.**
+- `hr_shop_buy(p_offer_id, p_intent_id, p_version)` is the shape the file is built for: the client
+  sends an **offer id**, never a price. Postgres transliteration is
+  `hr_shop_lines(offer_id, side, ord, kind, id, amount)` and `gen-catalogues.mjs` already knows how
+  to emit exactly that.
+- **`marks` has no server column at all.** `player_state` carries `gold`, `gems`, `hearth_tokens`
+  and nothing else (verified in `2026-08-11-player-state.sql`). 6 cost lines are priced in Marks
+  (`BOUNTY_SHOP` x5, `TRAITS` x1) and cannot be authorised server-side until that column exists.
+- **`hearth_token` is BOTH an `hr_items` row and a `player_state` column.** The dungeon spend path
+  debits it from `G.inventory` (as an item); IAP grants it as a currency. That is why every cost
+  line carries a `kind` and not just a currency name — a bare `{currency:'hearth_token'}` is
+  genuinely ambiguous, in the one currency the Final Directive says may never be minted.
+- **No version bump, no CHANGELOG entry** — those belong to whoever picks the build number.
+
+
 ### 2026-08-14 - FROM Systems Engineer -> TO Coordinator, Game Designer, Art Director (b342)
 
 **1. The Field Licence gate is client-only, and a comment in the engine says otherwise.**

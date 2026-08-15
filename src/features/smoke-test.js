@@ -23331,6 +23331,156 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b343 — THE PRICE CATALOGUE IS WHAT THE GAME ACTUALLY CHARGES.
+
+     A server that authorises a spend must own the price, and every price in
+     Hearthrise lives in a shop table inside `src/legacy.js` — a classic
+     script that neither ESM nor Deno can import (the b222 trap). So
+     `tools/gen-shops.mjs` extracts them into `src/data/shops.js`: a SECOND
+     COPY, chosen knowingly over refactoring legacy.js's data seam mid-program,
+     exactly as b338's starting kit was.
+
+     `gen-shops.mjs --check` already guards that copy — but it compares the
+     generated file to a fresh extraction from the SOURCE TEXT, and this test
+     asserts something the text cannot: that the catalogue equals the tables
+     THE RUNNING GAME READS, after main.js's ESM merge and after every
+     `window.X = X` publication in legacy.js. "The file says 100" and "the shop
+     charges 100" are different claims, and only the second one is the one a
+     player pays.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
+    const S = await import('../data/shops.js?v=342');
+    assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
+      'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
+      + 'catalogue would make every assertion below vacuous');
+
+    const byId = new Map(S.SHOP_OFFERS.map((o) => [o.id, o]));
+    const goldOf = (id) => {
+      const o = byId.get(id);
+      assert(o, 'the catalogue has no offer "' + id + '" — the extraction lost a table');
+      const l = o.cost.find((c) => c.kind === 'currency' && c.id === 'gold');
+      assert(l, 'offer "' + id + '" carries no gold line');
+      return l.amount;
+    };
+    const anyOf = (id, kind, cid) => {
+      const o = byId.get(id);
+      assert(o, 'the catalogue has no offer "' + id + '"');
+      const l = o.cost.find((c) => c.kind === kind && c.id === cid);
+      assert(l, 'offer "' + id + '" carries no ' + kind + ':' + cid + ' line');
+      return l.amount;
+    };
+
+    /* THE CONTROL. Every comparison below is `catalogue === live`, which
+       passes trivially if the live table is missing and both sides read
+       `undefined`. So prove the live tables are actually here first — this is
+       the assertion-that-asserts-nothing check, done before the assertions. */
+    for (const t of ['ROOMS', 'SEED_SHOP', 'EQUIP_SHOP', 'TRAITS', 'IAP_CATALOG', 'BANK_SPACE', 'DUNGEONS']) {
+      assert(window[t] && (Array.isArray(window[t]) ? window[t].length : Object.keys(window[t]).length),
+        'window.' + t + ' is missing or empty at runtime, so comparing prices against it would '
+        + 'assert nothing');
+    }
+
+    /* ROOMS — the biggest table, and the only multi-currency one. Walk EVERY
+       rung of every room, both the gold and the material lines. 40 rungs. */
+    let rungs = 0;
+    for (const roomId of Object.keys(window.ROOMS)) {
+      (window.ROOMS[roomId].levels || []).forEach((lv, i) => {
+        rungs++;
+        const oid = 'room.' + roomId + '.' + (i + 1);
+        for (const k of Object.keys(lv.cost)) {
+          const live = lv.cost[k];
+          const got = k === 'gold' ? goldOf(oid) : anyOf(oid, 'item', k);
+          assert(got === live,
+            oid + ' costs ' + live + ' ' + k + ' in the LIVE table but ' + got
+            + ' in src/data/shops.js — the server would authorise the wrong price');
+        }
+        assert(byId.get(oid).cost.length === Object.keys(lv.cost).length,
+          oid + ' has ' + byId.get(oid).cost.length + ' cost lines against '
+          + Object.keys(lv.cost).length + ' live — a cost line was invented or dropped');
+      });
+    }
+    assert(rungs >= 40, 'only ' + rungs + ' room rungs walked — the live ROOMS table shrank');
+
+    /* SEED_SHOP — the price is per BUNDLE. A catalogue that recorded the unit
+       price would let the server charge a tenth of the real cost. */
+    for (const s of window.SEED_SHOP) {
+      assert(goldOf('seed.' + s.id) === s.cost, 'seed.' + s.id + ' price disagrees with SEED_SHOP');
+      const g = byId.get('seed.' + s.id).grant.find((x) => x.kind === 'item' && x.id === s.id);
+      assert(g && g.amount === s.qty,
+        'seed.' + s.id + ' grants ' + (g && g.amount) + ' but SEED_SHOP sells a bundle of ' + s.qty);
+    }
+    for (const s of window.EQUIP_SHOP) {
+      assert(goldOf('equip.' + s.id) === s.cost, 'equip.' + s.id + ' price disagrees with EQUIP_SHOP');
+    }
+
+    /* TRAITS and the bank gem rung — the two non-gold player currencies that
+       the server has no column for and one it does. */
+    for (const id of Object.keys(window.TRAITS)) {
+      const t = window.TRAITS[id];
+      const cur = t.currency === 'marks' ? 'marks' : 'gold';
+      assert(anyOf('trait.' + id, 'currency', cur) === t.cost,
+        'trait.' + id + ' price disagrees with TRAITS');
+    }
+    assert(anyOf('bank.gems', 'currency', 'gems') === window.BANK_SPACE.gem.cost,
+      'bank.gems price disagrees with BANK_SPACE');
+
+    /* DUNGEONS — the item-priced class, and the one whose spend code has a
+       live `hearth_token` branch that debits G.inventory rather than the
+       currency column. If a dungeon ever gains a gold or token cost, this
+       catches a catalogue that still thinks entry is a key. */
+    for (const id of Object.keys(window.DUNGEONS)) {
+      const d = window.DUNGEONS[id];
+      const o = byId.get('dungeon.' + id);
+      assert(o, 'the catalogue has no offer for dungeon "' + id + '"');
+      const want = [];
+      if (d.cost && d.cost.gold) want.push('currency:gold:' + d.cost.gold);
+      if (d.cost && d.cost.hearth_token) want.push('item:hearth_token:' + d.cost.hearth_token);
+      if (d.cost && d.cost.key) want.push('item:' + d.cost.key + ':1');
+      const got = o.cost.map((l) => l.kind + ':' + l.id + ':' + l.amount);
+      assert(JSON.stringify(want.sort()) === JSON.stringify(got.sort()),
+        'dungeon.' + id + ' entry fee is ' + JSON.stringify(want) + ' live but '
+        + JSON.stringify(got) + ' in the catalogue');
+      assert(o.reqLv === (d.reqLv | 0),
+        'dungeon.' + id + ' gate is Lv ' + d.reqLv + ' live but ' + o.reqLv + ' in the catalogue — '
+        + 'a server that authorises the spend re-checks this');
+    }
+
+    /* IAP — money in CENTS. A float or a string here is a billing bug. */
+    for (const p of window.IAP_CATALOG) {
+      const cents = anyOf('iap.' + p.sku, 'money', 'usd');
+      assert(Number.isSafeInteger(cents) && cents > 0,
+        'iap.' + p.sku + ' price ' + cents + ' is not a positive integer number of cents');
+      assert('$' + (cents / 100).toFixed(2) === String(p.price).replace('/mo', ''),
+        'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
+    }
+
+    /* The catalogue must never be mistaken for complete. Six spend sites
+       compute their price at call time and are deliberately absent; a server
+       that could not find an offer and invented a price is worse than one with
+       no catalogue at all. */
+    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
+      'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
+      + 'known set is 6, and dropping one hides a price the server cannot compute');
+    for (const d of S.DERIVED_PRICES) {
+      assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
+      assert(d.where && d.formula && d.server_needs,
+        'DERIVED_PRICES entry "' + d.id + '" does not say where it lives, what its formula is, '
+        + 'and what the server would need — a TODO with no address is not a finding');
+    }
+
+    /* THE FINAL DIRECTIVE, as a runtime assertion: no offer may grant the
+       Hearth Token bond for anything but real money. */
+    for (const o of S.SHOP_OFFERS) {
+      const mints = o.grant.some((l) => l.kind === 'currency' && l.id === 'hearth_tokens');
+      if (mints) {
+        assert(o.cost.every((l) => l.kind === 'money'),
+          'offer "' + o.id + '" mints Hearth Tokens for something other than real money');
+      }
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

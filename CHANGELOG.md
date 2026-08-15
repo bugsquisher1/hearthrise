@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 341 — 2026-08-14 (What the game told you, and what it actually did)
+
+- ⚰️ **The welcome-back card now tells you when you died.** If you left a fight running and your character was killed, the card used to report the night as a normal one at the base rate — so eight hours that ended sixty seconds in read as eight honest hours. It now says what killed you, how long you lasted, and that the rest of the time paid nothing.
+- 🎯 **Pressing a Tier tab no longer arms the monster list.** After using the tier buttons, tapping a monster started the fight instead of opening its preview — which on a high tier could kill your character in seconds, and could swap a running fight for a lethal one with no confirmation.
+- 🔒 **The shop tells you what you can wield.** Gear now shows its level requirement on the row, instead of letting you spend your starting gold on a sword you can't hold and buy it back at 40%.
+- 📊 **"XP TODAY" was always zero** — for everyone, always, online XP included. It read the wrong field.
+- 🎖️ **The Field Licence.** Away combat now begins once you've won 100 fights yourself, tracked as a quest that pays 1,500 combat XP. Early fights are meant to be fought, not left running — and the monster preview no longer quotes you an hourly rate over a span your character can't survive.
+
 ## v0.9.2-beta build 340 — 2026-08-14 (The market and the boards go through the server)
 
 - 🏪 **Listing, cancelling and buying now go through the server** instead of the game writing to the market tables itself. Nothing changes about how the market works for you — but the price, the seller name and the timestamp on a listing are now the server's, not whatever the sender claims.

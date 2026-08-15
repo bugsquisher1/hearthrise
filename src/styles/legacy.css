@@ -2325,6 +2325,12 @@ body[data-theme="dark"] .lane1-toggle{
 .welcome-modal .wb-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(243,209,129,.08);border:1px solid rgba(243,209,129,.25);border-radius:6px}
 .welcome-modal .wb-row .wb-emoji{font-size:calc(23.5px * var(--ui-scale, 1))}
 .welcome-modal .wb-row b{color:var(--gold-2)}
+/* b341: the death row. Every other row on this modal is gilt because every
+   other row is good news; a death read in gilt beside "Gold in pocket" is the
+   omission this fixes, only prettier. Tokens only (--red / --red-bg). */
+.welcome-modal .wb-row-bad{background:var(--red-bg);border-color:var(--red)}
+.welcome-modal .wb-row-bad b,.welcome-modal .wb-row-bad span{color:var(--red)}
+.welcome-modal .wb-row-bad .wb-emoji{display:grid;place-items:center;width:20px;color:var(--red)}
 .welcome-modal .wb-claim{padding:10px 24px;background:linear-gradient(180deg,#f9c54e,#e8a838);color:#3a1812;border:2px solid #5b2618;border-radius:8px;font-weight:800;cursor:pointer;font-size:calc(17px * var(--ui-scale, 1))}
 
 /* ─── Daily Goals card ─── */
@@ -3697,6 +3703,12 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   font-size:calc(14.5px * var(--ui-scale,1));
 }
 .aep-row:hover{ border-color:var(--gold-2); background:rgba(226,184,78,.10); }
+/* b341: the picker disables its rows when the Auto-Eat trait is not owned (it
+   used to offer them live and then silently refuse the pick). A disabled row
+   that still lights up on hover reads as a working control that broke, so the
+   state has to be visible: dimmed, no pointer, no hover lift. */
+.aep-row[disabled]{ opacity:.45; cursor:not-allowed; }
+.aep-row[disabled]:hover{ border-color:var(--line-soft); background:rgba(255,255,255,.03); }
 .aep-row.is-on{ border-color:var(--gold-2); background:var(--gold-bg,rgba(201,162,74,.14)); }
 .aep-row .aep-ic{ font-size:calc(20px * var(--ui-scale,1)); width:24px; text-align:center; flex:0 0 auto; }
 .aep-row .aep-nm{ flex:1; min-width:0; font-weight:600; }

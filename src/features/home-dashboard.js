@@ -316,6 +316,12 @@
       R + '.hd-away-note.is-base{color:var(--ink-3) !important}',
       R + '.hd-away-note.is-good{color:var(--gold-2) !important}',
       R + '.hd-away-note.is-held{color:var(--ink-3) !important}',
+      /* b341 — a FOURTH tone, and the only one that is allowed to be red: the
+         absence ended in a death. The comment above is still right that a held
+         buff is not a penalty — this is, and it is the one clause on the card
+         a player must not skim past. `--red` is a per-theme token (rust in
+         cozy-light, ember in hearthlight), never a hardcoded colour. */
+      R + '.hd-away-note.is-bad{color:var(--red) !important;font-weight:600}',
       /* Short landscape phone: the band is the first thing on screen and must
          not eat it. Tighter rhythm only — no size drops, the 14.5px floor
          holds, and nothing is hidden (every clause is load-bearing honesty). */
@@ -434,6 +440,24 @@
     return h ? (h + ':' + p2(m) + ':' + p2(sec)) : (m + ':' + p2(sec));
   }
 
+  /* b341 — DID THE ABSENCE END IN A DEATH, and when?
+     Reads the flat payload first (`died` / `diedAfterMs` / `diedTo`, written by
+     processOffline) and falls back to the nested `combat` block, which is the
+     shape the server-accrual receipt writes. Returns null when nobody died, so
+     every caller is one truthy check. NOTHING here is inferred: no `died` flag
+     means no death line, and a missing span means the line simply omits the
+     "N in" clause rather than guessing one. */
+  function awayDeath(off) {
+    var c = (off && off.combat) || {};
+    var died = !!(off && (off.died || c.died));
+    if (!died) return null;
+    var afterMs = Number((off && off.diedAfterMs) || c.survivedMs || 0);
+    if (!isFinite(afterMs) || afterMs < 0) afterMs = 0;
+    var id = (off && off.diedTo) || c.diedTo || null;
+    var M = window.MONSTERS;
+    return { afterMs: afterMs, name: (id && M && M[id] && M[id].name) || null };
+  }
+
   function awayCardHtml(off) {
     var bits = [];
     if (off.gainedXp) bits.push('+' + num(off.gainedXp) + ' XP');
@@ -451,6 +475,39 @@
     /* The notes, in the order a returning player needs them: what the rule is,
        then what it paid on top, then what it held back, then the ceiling. */
     var notes = [];
+    /* THE DEATH LINE COMES FIRST, because it changes the meaning of every
+       number above it. Without it the card reads "8h away — +53 XP · +5 gold ·
+       at the base rate", which a player correctly understands as "eight hours
+       of honest pay" — when the truth was sixty seconds of fighting and then
+       nothing. Three clauses, each only printed when its fact is known:
+         • that you died, and to what (omitted when the id is unknown);
+         • how far into the absence (omitted when the span is unknown);
+         • that the remainder paid nothing (omitted when there is no remainder,
+           i.e. the death landed in the last minute of the window).
+       See docs/design/away-time-ruling.md §"Player-facing honesty". */
+    var death = awayDeath(off);
+    if (death) {
+      var awayMs = (typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
+        ? off.awayMs : Math.max(0, off.hrs || 0) * 3600000;
+      var restMs = death.afterMs > 0 ? Math.max(0, awayMs - death.afterMs) : 0;
+      var t = 'You died' + (death.name ? ' to ' + death.name : '');
+      /* SECONDS, below a minute. This is not a nicety: the case that started
+         b341 is a new character on the game's own Recommended foe dying about
+         sixty seconds into an eight-hour night, and `fmtSpanShort` floors to
+         whole minutes — so the most important number on the card would have
+         rendered "0m in", which reads as a bug and tells the player nothing. */
+      if (death.afterMs > 0) {
+        t += ' ' + (death.afterMs < 60000
+          ? Math.max(1, Math.round(death.afterMs / 1000)) + 's'
+          : fmtSpanShort(death.afterMs)) + ' in';
+      }
+      /* One minute of slack: a death 30s from the end is "the whole absence",
+         not "and then 42 seconds paid nothing". */
+      t += (restMs >= 60000)
+        ? ' — the remaining ' + fmtSpanShort(restMs) + ' paid nothing.'
+        : ' — nothing was earned after that.';
+      notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
+    }
     notes.push({ tone: 'base', icon: 'uiInfo',
       text: 'At the base rate — blessings and food buffs pay while you play.' });
     if (off.featuredMs > 0) {
@@ -603,7 +660,15 @@
       if (_rn) rankLine = '<b>' + esc(_rn.rank.name) + '</b><span class="sep">·</span>' + num(_rn.renown) + ' Renown';
     } catch (e) {}
 
-    var xp = today && (today.xp != null ? today.xp : today.totalXp);
+    /* b341: this read `today.xp`, falling back to `today.totalXp`. getTodayDelta()
+       returns NEITHER — the field is `xpGained` (profile-launchpad.js) — so the
+       tile printed a hardcoded 0 for every player forever, while the Kills tile
+       beside it read `today.kills`, which does exist. The visible symptom was the
+       ledger contradicting itself: "0 XP TODAY" sitting directly above a
+       welcome-back card reading "+15,000 XP". Away XP was never the problem; it
+       lands in G.skills and getTodayDelta counts it correctly. */
+    var xp = today && (today.xpGained != null ? today.xpGained
+      : (today.xp != null ? today.xp : today.totalXp));
     var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
     var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
 
@@ -1018,6 +1083,12 @@
   if (document.readyState !== 'loading') setTimeout(maybeRender, 300);
   else document.addEventListener('DOMContentLoaded', function () { setTimeout(maybeRender, 300); });
 
-  window.HearthriseHome = { render: render };
+  /* b341: `__awayCardHtml` is a TEST SEAM. The welcome-back card's whole job is
+     telling the truth about what a night paid, and until b341 nothing in the
+     suite could read a single sentence of it — which is how "you died sixty
+     seconds in" stayed unsaid for a whole build. A renderer that no test can
+     quote is a renderer that will lie again. It takes a summary and returns
+     HTML; it touches nothing. */
+  window.HearthriseHome = { render: render, __awayCardHtml: awayCardHtml };
   console.log('[home-dashboard] loaded');
 })();

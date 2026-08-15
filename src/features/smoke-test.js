@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=340' directly.
+// modularised, will import { G } from '../state/game.js?v=341' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=340';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=340';
+import { on, snapshot } from '../net/events.js?v=341';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=341';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=340';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=341';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -4105,8 +4105,13 @@ const TESTS = [
     let clicked = 0;
     for (const r of Array.from(rows).slice(0, 3)) {
       try { r.click(); clicked++; } catch (e) { throw new Error(`monster row ${r.dataset.mid || ''} threw: ${e.message}`); }
-      // Close any preview modal
+      /* b341: a row click now genuinely opens the mob preview (before, it
+         started the fight, which is the bug this test's own NAME describes).
+         The preview is #mob-preview.open, not a `.modal.show` — leaving it up
+         floated a full-screen overlay over every later test, and the shop's
+         "nothing covers the buy control" check was the one that noticed. */
       document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+      if (typeof window.closeMobPreview === 'function') window.closeMobPreview();
     }
     if (typeof window.stopCombat === 'function') try { window.stopCombat(); } catch {}
     restoreG(snap);
@@ -20213,7 +20218,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=340');
+    const KIT = await import('../data/start-kit.js?v=341');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -21979,6 +21984,389 @@ const TESTS = [
         'the gathering rate must still be a rate — do not harmonise the honest preview with the dishonest one');
     } finally {
       try { window.closeMobPreview(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b341 regression suite — WHAT THE GAME TELLS YOU, AND WHAT IT DOES INSTEAD
+
+     Five findings from a live playthrough. Four of the five are the same
+     species of defect: a surface that states one thing while the engine did
+     another. They are grouped because the fix for each is "make the surface
+     read the authority that already exists" — not new mechanics.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b341: the away card SAYS you died, when, and that the rest paid nothing', () => {
+    const HD = window.HearthriseHome;
+    assert(HD && typeof HD.__awayCardHtml === 'function',
+      'the away card renderer has no test seam — a card whose text nothing can assert is a card that will lie again');
+    /* THE MEASURED BUG. A new character set on the game's own Recommended foe
+       died ~60s into an 8h absence: 3 kills, 51 XP, 7 gold, `combat.died:true`.
+       The toast that mentioned it is gone in ten seconds; the DURABLE Home card
+       read "8h away — +51 XP · +3 items · +7 gold … At the base rate", which a
+       player correctly reads as eight hours of honest pay. */
+    const died = {
+      hrs: 8, awayMs: 8 * 3600000, gainedXp: 51, gainedItems: 3, gainedGold: 7,
+      gainedKills: 3, burnt: 0, crits: 0, featuredMs: 0, featuredDropMult: 1,
+      capped: false, blessed: false, buffsPaused: false, rateMult: 1, at: Date.now(),
+      /* The measured span: 21 ticks x 2400ms ~= 50 SECONDS of an eight-hour
+         night. Sub-minute is the case that matters — a card that floors to
+         whole minutes prints "0m in" for exactly the death this was filed for. */
+      died: true, diedAfterMs: 50400, diedTo: 'slime',
+      combat: { kills: 3, died: true, survivedMs: 50400, diedTo: 'slime', crits: 0 },
+    };
+    const html = HD.__awayCardHtml(died);
+    const text = String(html).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
+    assert(/died/i.test(text),
+      'THE b341 BUG: the away card never mentions the death that ended the absence — ' + text);
+    assert(/Slime/.test(text),
+      'the card does not name what killed you, so "you died" is unactionable — ' + text);
+    // The card must state WHEN, or "8h away" and "you died" sit side by side
+    // and the player still has to guess which minutes earned. 50400ms is 50s —
+    // "0m in" would satisfy a sloppier assertion and tell the player nothing.
+    assert(/\b50s\b/.test(text),
+      'the card does not say how far into the absence you died — ' + text);
+    assert(!/\b0m\b/.test(text),
+      'a sub-minute death floored to "0m in", which reads as a broken number — ' + text);
+    assert(/paid nothing|earned after/i.test(text),
+      'the card does not say the remainder of the absence paid nothing — ' + text);
+    assert(/hd-away-note is-bad/.test(String(html)),
+      'the death line is not toned as the one clause a player must not skim past');
+
+    // …and the same card must NOT invent a death on an absence that survived.
+    const lived = Object.assign({}, died, { died: false, diedAfterMs: 0, diedTo: null,
+      combat: { kills: 3, died: false, survivedMs: 8 * 3600000, diedTo: null, crits: 0 } });
+    const livedText = String(HD.__awayCardHtml(lived)).replace(/<[^>]*>/g, ' ');
+    assert(!/died/i.test(livedText),
+      'the card claims a death on an absence that survived — the same lie, pointed the other way');
+
+    /* A pre-b341 receipt carries no death fields at all. It must degrade to
+       silence, never to a guess. */
+    const legacyShape = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 51, gainedKills: 3, at: Date.now() };
+    assert(!/died/i.test(String(HD.__awayCardHtml(legacyShape)).replace(/<[^>]*>/g, ' ')),
+      'an old summary with no death payload produced a death line — the renderer is inferring');
+
+    /* THE OTHER SURFACE. The welcome-back modal is the FIRST thing a returning
+       player reads, and it put "Time away 8h 0m" directly above "Total kills 2"
+       with the death between them unsaid. It reads the same receipt. */
+    const G = window.G;
+    const save = { los: G.lastOfflineSummary, lastSeen: G.lastSeen, lastWelcome: G.lastWelcome };
+    try {
+      G.lastOfflineSummary = died;
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      assert(typeof window.__maybeShowWelcome === 'function',
+        'the welcome-back modal has no test seam — and `window.maybeShowWelcome` is a no-op stub that '
+        + 'the welcome-v2 block installs, so asserting through that name would grade nothing');
+      const rowsEl = document.getElementById('welcome-rows');
+      assert(rowsEl, 'the welcome-back modal did not build');
+      const t2 = (rowsEl.textContent || '').replace(/\s+/g, ' ');
+      assert(/You died to Slime/.test(t2),
+        'THE b341 BUG: the first screen a returning player sees reports the hours and the kills and '
+        + 'never mentions the death that ended the night — ' + t2);
+      assert(/50s in/.test(t2), 'the modal does not say how far in you died — ' + t2);
+      assert(!/💀|☠/.test(rowsEl.innerHTML),
+        'the death row shipped an emoji as art — the project uses the glyph atlas');
+      // …and it must stay silent when nobody died.
+      G.lastOfflineSummary = null; G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      assert(!/You died/.test(document.getElementById('welcome-rows').textContent || ''),
+        'the modal claims a death with no receipt saying so');
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      Object.assign(G, save);
+    }
+  }),
+
+  () => tryRun('b341: the away SIMULATION states how long it survived and what killed you', () => {
+    /* The renderer above can only be honest if the engine tells it. This is the
+       caller-side half: processOffline must copy `survivedMs`/`diedTo` off the
+       combat summary onto the flat receipt every welcome-back surface reads.
+       (b339 ran nine mutations and the one that slipped was exactly here — in
+       the caller, not the module.) */
+    const G = window.G;
+    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
+      equipment: G.equipment, skills: JSON.parse(JSON.stringify(G.skills)),
+      stats: JSON.parse(JSON.stringify(G.stats || {})) };
+    try {
+      // A level-1 character bare-handed against a Tier-7 foe dies almost at once.
+      G.equipment = {};
+      G.playerMaxHp = 10; G.playerHp = 10;
+      G.activeMonster = 'dragon';
+      const m = window.MONSTERS.dragon;
+      assert(m, 'the fixture needs a dragon');
+      G.monsterMaxHp = m.hp; G.monsterHp = m.hp;
+      const sum = window.simulateAwayCombat(8, Date.now(), false);
+      assert(sum && sum.died === true, 'the fixture did not produce a death; pick a deadlier foe');
+      assert(typeof sum.survivedMs === 'number' && sum.survivedMs > 0,
+        'THE b341 BUG: the simulation reports `died` but not WHEN — survivedMs=' + sum.survivedMs);
+      assert(sum.survivedMs < 8 * 3600000,
+        'a death reported the whole absence as survived (' + sum.survivedMs + 'ms of ' + (8 * 3600000) + ')');
+      assert(sum.diedTo === 'dragon',
+        'the simulation did not name the foe that landed the killing blow (got ' + sum.diedTo + ') — '
+        + 'the death fx clears activeMonster, so it has to be captured before the tick');
+
+      /* ── AND THROUGH THE CALLER. The module can be perfect and the receipt
+         still silent: processOffline builds the flat `lastOfflineSummary` every
+         welcome-back surface reads, and dropping the mirror there is exactly the
+         mutation that slipped past b339 (module covered, caller not). */
+      G.playerHp = 10; G.playerMaxHp = 10;
+      G.activeMonster = 'dragon'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.lastOfflineSummary = null;
+      /* THE FIELD LICENCE MUST BE HELD, or processOffline declines the combat
+         span before it ever simulates and there is no death to report. That is
+         the licence working, not a bug — but it means this test would otherwise
+         assert death honesty against a night that never ran. The two features
+         landed in the same build and this is the seam between them: a receipt
+         can say "you died" or "you are not licensed", and it must never have to
+         guess which. Licensed here so the DEATH path is the one under test;
+         LICENCE-1..3 cover the declined path. `stats` is in the fixture's save
+         above, so this is restored with everything else. */
+      G.stats = Object.assign({}, G.stats, { kills: 500 });
+      if (typeof window.ensureOfflineBudget === 'function') {
+        const b = window.ensureOfflineBudget(Date.now());
+        b.at = Date.now() - 4 * 3600000; b.usedMs = 0;   // four hours away
+      }
+      window.processOffline();
+      const rec = G.lastOfflineSummary;
+      assert(rec, 'processOffline wrote no welcome-back receipt at all');
+      assert(rec.died === true,
+        'THE b341 BUG: the receipt the Home card reads does not carry `died`, so the card cannot say it — '
+        + JSON.stringify({ died: rec.died, combat: rec.combat && rec.combat.died }));
+      assert(typeof rec.diedAfterMs === 'number' && rec.diedAfterMs > 0,
+        'the receipt does not carry WHEN you died (diedAfterMs=' + rec.diedAfterMs + ')');
+      assert(rec.diedTo === 'dragon',
+        'the receipt does not carry WHAT killed you (diedTo=' + rec.diedTo + ')');
+      assert(rec.diedAfterMs < (rec.awayMs || Infinity),
+        'the receipt claims the whole absence was survived by a character who died in it');
+    } finally {
+      Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
+        monsterMaxHp: save.monsterMaxHp, playerHp: save.playerHp, playerMaxHp: save.playerMaxHp,
+        lastOfflineSummary: save.los, equipment: save.equipment, skills: save.skills, stats: save.stats });
+    }
+  }),
+
+  () => tryRun('b341: NO monster row can start a fight on one tap — however the list was painted', () => {
+    /* THE MEASURED BUG. Two wrappers re-pointed monster rows at the preview
+       after every render, both hooked on `renderMonsterList` / `showTab`.
+       src/features/combat-render.js REPLACES window.renderMonsterList and its
+       tier-chip handler calls the module-local copy — a render path neither
+       wrapper could see. So after pressing any Tier chip the rows kept their raw
+       inline `startCombat(...)`: a Combat-Lv-3 character one-tapped a Green
+       Dragon and was dead within six seconds, with no preview and no
+       confirmation. Measured 3/3.
+
+       The diagnostic that pinned it was the row's own onclick attribute, so
+       that is what this asserts — plus the behaviour, through the tier path. */
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTier = G.currentCombatTier;
+    try {
+      window.showTab('combat');
+      const chips = document.querySelectorAll('#panel-combat #tier-chips .chip');
+      assert(chips.length >= 6, 'the tier chips are the render path under test; found ' + chips.length);
+
+      const armed = (label) => {
+        const rows = document.querySelectorAll('#panel-combat .monster-row');
+        assert(rows.length > 0, label + ': no monster rows rendered');
+        const bad = Array.from(rows).filter((r) => /startCombat/.test(r.getAttribute('onclick') || ''));
+        assert(bad.length === 0,
+          'THE b341 BUG (' + label + '): ' + bad.length + ' monster row(s) carry a live inline '
+          + 'startCombat() — the next tap starts the fight with no preview. First: '
+          + (bad[0] && bad[0].getAttribute('onclick')));
+        return rows;
+      };
+
+      armed('first paint');
+      // Every tier, because the bug was tier-specific and Tier 6 is where it kills you.
+      for (const c of chips) {
+        c.click();
+        armed('after Tier ' + (c.dataset.tier || c.textContent));
+      }
+
+      /* THE BLAST RADIUS. Three separate readers identified a row's monster by
+         parsing its inline `startCombat(...)` — the exact attribute this fix
+         removes: the two rewire walkers (both retired) and the icon painters in
+         legacy.js `paintMonsterIcons()` / icon-set.js `paintMonsters()`. The
+         painters have no exception to throw when they miss; the portrait simply
+         stops appearing. Grade the visible outcome, which is the thing a player
+         would actually notice. */
+      const chipT1 = Array.from(chips).find((c) => (c.dataset.tier || '') === '1');
+      if (chipT1) chipT1.click();
+      const withArt = Array.from(document.querySelectorAll('#panel-combat .monster-row'))
+        .filter((r) => (window._monsterIcon || {})[r.getAttribute('data-monster')]);
+      assert(withArt.length > 0,
+        'no Tier-1 row resolved a painted portrait path — either the rows lost their ids or '
+        + '_monsterIcon is unwired, and both are ways for the art to vanish');
+      const blank = withArt.filter((r) => !r.querySelector('.mi img, .mi .hr-med, .mi svg'));
+      assert(blank.length === 0,
+        'THE b341 BLAST RADIUS: ' + blank.length + ' of ' + withArt.length + ' rows render no portrait '
+        + 'despite having painted art — a reader is still looking for the id in an inline onclick '
+        + 'that no longer exists. First: ' + (blank[0] && blank[0].getAttribute('data-monster')));
+
+      /* Behaviour, not just markup: on the deadliest tier available, a row tap
+         must open the preview and must NOT have entered combat. */
+      const last = chips[chips.length - 1];
+      last.click();
+      const rows = document.querySelectorAll('#panel-combat .monster-row');
+      const row = Array.from(rows).find((r) => !r.disabled);
+      assert(row, 'no clickable row on the top tier');
+      const id = row.getAttribute('data-monster');
+      assert(id && window.MONSTERS[id], 'a row must carry its monster id for the delegated listener: ' + id);
+      G.activeMonster = null;
+      row.click();
+      assert(G.activeMonster === null,
+        'THE b341 BUG: tapping ' + id + ' started the fight instead of opening the preview');
+      const ov = document.getElementById('mob-preview');
+      assert(ov && ov.classList.contains('open'),
+        'the row tap opened nothing at all — delegation is not bound (a silent row is safe, but it is not the feature)');
+    } finally {
+      if (typeof window.closeMobPreview === 'function') window.closeMobPreview();
+      try { window.stopCombat(); } catch (e) {}
+      G.currentCombatTier = prevTier;
+      restoreG(snap);
+      try { window.renderMonsterList(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b341: the shop states the level you need to WEAR what it is selling', () => {
+    /* THE MEASURED BUG. "Iron Sword · +7 ATK · +6 STR · 500 · Buy", and nothing
+       in the row, its title or its aria-label mentioned Attack Lv 15. A new
+       player has exactly 500 gold; the purchase succeeds; the requirement is
+       first spoken at equip time, and undoing it costs 300 gold because the
+       vendor buys back at 40%. */
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    // `wieldGrandfather` is not in snapshotG's allowlist — restore it by hand,
+    // or this test quietly strips the player's already-worn gear exemptions.
+    const prevGrand = G.wieldGrandfather;
+    try {
+      // A level-1 character, so every gated piece reads as locked.
+      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, defense: 0, ranged: 0, magic: 0 });
+      G.wieldGrandfather = {};
+      window.showTab('shop');
+      window.setShopTab('equip');
+      const panel = document.getElementById('shop-panel');
+      const rows = Array.from(panel.querySelectorAll('.sc-counter .shop-row'));
+      assert(rows.length > 0, 'no shop rows');
+
+      let gatedSeen = 0;
+      for (const s of window.EQUIP_SHOP) {
+        const req = window.gearWieldReq(window.ITEMS[s.id]);
+        if (!req) continue;
+        gatedSeen++;
+        const name = window.ITEMS[s.id].n;
+        const row = rows.find((r) => {
+          const b = r.querySelector('.info b');
+          return b && b.textContent.trim() === name;
+        });
+        assert(row, 'no shop row for ' + name);
+        /* Three separate assertions on purpose. The finding was that the
+           requirement appeared in NONE of the row, its title, or its
+           aria-label — so each surface is graded on its own, or a fix that
+           only tooltips it would pass while the row still reads
+           "Iron Sword · +7 ATK · +6 STR · 500 · Buy". */
+        const says = (s2) => /Requires/i.test(s2) && new RegExp('Lv\\s*' + req.lv).test(s2);
+        assert(says(row.textContent || ''),
+          'THE b341 BUG: ' + name + ' is sold for ' + s.cost + ' gold and the ROW never says it needs '
+          + req.skill + ' Lv ' + req.lv + ' — the player finds out at equip time, after paying, and the '
+          + 'vendor buys back at 40%. Row read: ' + (row.textContent || '').replace(/\s+/g, ' '));
+        assert(says(row.getAttribute('aria-label') || ''),
+          name + ': the requirement is visible but not in the aria-label — a screen reader still hears '
+          + 'a purchase with no gate. aria-label: ' + row.getAttribute('aria-label'));
+        assert(says(row.getAttribute('title') || ''),
+          name + ': the requirement is missing from the row title. title: ' + row.getAttribute('title'));
+        // Informed, not blocked: buying ahead of a level is a legitimate choice.
+        const buy = row.querySelector('button');
+        assert(buy && /Buy/i.test(buy.textContent),
+          'the row stopped offering the purchase — b341 informs, it does not block ' + name);
+      }
+      assert(gatedSeen >= 4,
+        'the fixture found only ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
+    } finally {
+      restoreG(snap);
+      G.wieldGrandfather = prevGrand;
+      try { window.setShopTab('seeds'); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b341: the daily ledger reads the field getTodayDelta actually returns', () => {
+    /* THE MEASURED BUG. The tile read `today.xp`, falling back to
+       `today.totalXp`. getTodayDelta() returns NEITHER — the field is
+       `xpGained` — so "XP today" printed a hardcoded 0 for every player forever,
+       while "Kills" beside it read `today.kills`, which does exist. Symptom:
+       "0 XP TODAY" directly above a welcome-back card reading "+15,000 XP". */
+    const LP = window.HearthriseLaunchpad;
+    assert(LP && typeof LP.getTodayDelta === 'function', 'no launchpad');
+    const d = LP.getTodayDelta();
+    assert(d && typeof d.xpGained === 'number',
+      'getTodayDelta no longer returns xpGained — the dashboard reads that name');
+
+    const G = window.G;
+    const save = { skills: JSON.parse(JSON.stringify(G.skills)), daily: G.daily, stats: JSON.parse(JSON.stringify(G.stats || {})) };
+    try {
+      G.daily = Object.assign({}, G.daily, { snapshot: null });
+      LP.getTodayDelta();                       // capture a fresh baseline
+      const first = Object.keys(G.skills)[0];
+      G.skills[first] = (G.skills[first] || 0) + 4321;
+      G.stats = Object.assign({}, G.stats, { kills: (G.stats.kills || 0) + 7 });
+      const after = LP.getTodayDelta();
+      assert(after.xpGained === 4321, 'getTodayDelta miscounted XP: ' + after.xpGained);
+
+      // Render synchronously — showTab defers the dashboard by 30ms, and a test
+      // that read the DOM before that would grade the PREVIOUS paint.
+      window.showTab('profile');
+      window.HearthriseHome.render();
+      const el = document.querySelector('#panel-profile .hd-ledger');
+      assert(el, 'the Home ledger is missing');
+      const led = Array.from(el.querySelectorAll('.hd-led'))
+        .find((n) => /XP today/i.test(n.textContent || ''));
+      assert(led, 'no "XP today" tile');
+      const printed = (led.querySelector('b') || {}).textContent || '';
+      assert(/4,?321/.test(printed),
+        'THE b341 BUG: the ledger printed "' + printed + '" XP today while 4,321 was earned today — '
+        + 'the tile is reading a field getTodayDelta does not return, so it can only ever print 0');
+    } finally {
+      G.skills = save.skills; G.daily = save.daily; G.stats = save.stats;
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b341: a LOCKED auto-eat picker offers no choice it is going to refuse', () => {
+    /* THE MEASURED BUG. setAutoEatFood() has always refused every pick without
+       the Auto-Eat trait, but the picker rendered its rows live anyway: tapping
+       one closed the overlay as if it had taken, `foodId` stayed null, and the
+       only contradiction was a toast that expires. Re-opening still showed
+       "— Off —" marked `is-on`. */
+    if (typeof window.openAutoEatPicker !== 'function') { assert(true, 'no picker'); return; }
+    const G = window.G;
+    const snap = snapshotG();
+    const realHasTrait = window.hasTrait;
+    try {
+      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 5 });
+      window.openAutoEatPicker();
+      const ov = document.getElementById('aep-overlay');
+      assert(ov, 'the picker did not open');
+      const rows = Array.from(ov.querySelectorAll('.aep-row'));
+      assert(rows.length >= 1, 'the picker rendered no rows at all');
+      const live = rows.filter((r) => !r.disabled);
+      assert(live.length === 0,
+        'THE b341 BUG: ' + live.length + ' of ' + rows.length + ' rows are still tappable while auto-eat is '
+        + 'locked — tapping one closes the overlay as if it took, and nothing is set');
+      assert(/locked/i.test(ov.textContent) && /Store/i.test(ov.textContent),
+        'the picker does not say WHY it is refusing, so a disabled row reads as broken: ' + ov.textContent.slice(0, 160));
+      assert(!rows.some((r) => r.classList.contains('is-on')),
+        'a locked picker still marks a row as the active selection — there is no active selection');
+    } finally {
+      window.hasTrait = realHasTrait;
+      const ov = document.getElementById('aep-overlay'); if (ov) ov.remove();
+
       restoreG(snap);
     }
   }),

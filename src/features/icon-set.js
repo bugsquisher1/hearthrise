@@ -180,10 +180,14 @@
       // Painted portrait art wins when the monster has one — the medallion is
       // the fallback, not a replacement for shipped art.
       if (iconEl.querySelector('img')) return;
-      var id = null;
-      var oc = el.getAttribute('onclick') || '';
-      var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
-      if (m) id = m[1];
+      // b341: rows carry `data-monster` now that row clicks are delegated;
+      // the onclick match stays as the fallback for older row markup.
+      var id = el.getAttribute('data-monster') || null;
+      if (!id) {
+        var oc = el.getAttribute('onclick') || '';
+        var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
+        if (m) id = m[1];
+      }
       if (!id) { var nmEl = el.querySelector('.mn, .mon-name, .m-name'); if (nmEl) id = monIdByName(nmEl.textContent); }
       if (!id || !monPaths[id]) return;
       var mv = medallionMon(id, 40);

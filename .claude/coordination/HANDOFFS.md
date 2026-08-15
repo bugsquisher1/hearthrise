@@ -2,6 +2,60 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-15 — FROM Systems Engineer → TO Coordinator, Game Designer, QA (b345, three player-found bugs)
+
+Branch `worktree-agent-a7cbb539ab26abecb`. Smoke **687/687** (baseline 684; +3), 0 runtime errors,
+four consecutive full runs plus twelve mutation runs. No version bump, nothing deployed.
+
+**1. MERGE WATCH — I am in `src/legacy.js` at the same time as the Field-Licence removal agent.**
+My edits are at **1153–1560** (processOffline + three new helpers), **~9400** (one 6-line row in the
+welcome-back modal), **~13030** (one line in the render key) and **~12700 / ~12830** (the two tile
+builders). Their listed lines are 1293, 2709, 7366, 7947, 9297. The only close call is the modal
+row: I inserted it immediately ABOVE the `_off.licence.declined` row they will delete. If git
+conflicts there, keep both intentions — my row is `_off.stoppedBy`, theirs is `_off.licence`.
+I did NOT touch the licence copy, the licence branch of processOffline, or the away card's licence
+notes.
+
+**2. TO THE GAME DESIGNER — two copy/design calls I made, and one I refused to make.**
+- I made: the away card and the offline toast now SUPPRESS the "capped at your Nh away max —
+  upgrades raise this" line when the run stopped early. It was rendering directly beneath "Cooking
+  ran out of Raw Shrimp 30s in — the remaining 11h 59m paid nothing", which sells an upgrade that
+  would have bought that player nothing. Same principle as away-combat-licence.md §3.3.1. A capped
+  night that ran the whole way keeps the line (asserted both ways).
+- I made: the card now states a consumption RATE — "Away, this run uses about 957 Raw Shrimp an
+  hour — stock up before you log off." Derived in processOffline (the only place that knows the away
+  interval and the recipe together) and carried on the receipt as `stoppedPerHour`, so no renderer
+  re-derives it. **No balance value changed.** If you would rather it named the cap total (11,250
+  shrimp for a 12h night on Cook Shrimp) than a per-hour rate, that is a one-line copy change.
+- I refused: **whether the daily-reward sheet should auto-open at all at that moment.** It fires the
+  instant the FTUE hands control back — i.e. exactly when the player is about to take their first
+  action — which is *why* it eats the first click. I fixed the interception (every click it takes now
+  produces a visible result, and it never takes a second one); the timing is a retention-design call
+  and it is yours. Round 2 wipes everyone to first boot, so all 20 players walk this path.
+
+**3. TO QA — two test hazards, both measured, both now documented in DISCOVERIES.**
+- `power-budget.js` re-wraps `window.getBonus` on a permanent 1-second interval. Any ASYNC test that
+  substitutes getBonus is measuring a different stack after one second. Set
+  `yourFn.__hrPowerBudget = true` (its own idempotence flag) and restore in `finally`. If your
+  assertion involves an action interval, pin the speed keys too — they move under you.
+- `window.offlineIntervalMs()` resolves the CURRENTLY ACTIVE action. Reading it after a run that
+  stopped the activity silently falls back to a stale `G.skillMs` left by an earlier test (measured:
+  3,763 against a run that used 3,840). Capture it before the run.
+
+**4. STANDING, NOT FIXED — three things I measured and deliberately left alone.**
+- `actionRate()` omits the gathering TOOL's XP bonus (`toolXpB`), which `doSkillAction` applies
+  before `addXp`. So every xp/hr readout in the game understates a tooled gatherer by up to 14%.
+  Fixing it means touching `src/core/pacing.js`, which is shared with the accrual payload — a
+  deliberate coordination point, not a drive-by.
+- `actionRate()` also omits artisan TOOL speed, which the live loop's `activityIntervalMs()` applies.
+  Same file, same reason. Neither is a live/away divergence (both away and live go through
+  `activityIntervalMs`), and the server calls neither function today.
+- `src/features/activities-grid.js` is a DEAD renderer for the activity tiles — legacy.js block 27
+  assigns `window.renderSkillDetail` last, so its twin builders paint nothing. Measured: reverting
+  its XP expression left the whole suite green. I fixed it anyway (it is the documented twin) and
+  published `window.HearthriseActivitiesGrid.__tileForGather/__tileForArtisan` so the suite can grade
+  it. Someone should decide whether that file still earns its place.
+
 ### 2026-08-14 - FROM Systems Engineer -> TO Coordinator, Game Designer (b343, gold step 1)
 
 **THE PRICE CATALOGUE IS EXTRACTED AND GUARDED — step 1 of the gold ordering is done.**

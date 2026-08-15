@@ -2,6 +2,68 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-08-15 — b345 — the break that never broke, and two more surfaces that argued with the engine
+
+Branch `worktree-agent-a7cbb539ab26abecb`. Suite **687/687** (baseline 684; +3), 0 runtime errors,
+0 console errors, four consecutive full runs. Twelve mutations, each RED on exactly one test with
+every other test green. No version bump, nothing deployed.
+
+**The brief's diagnosis was right about the symptom and wrong about the cause, and the difference
+mattered.** It said `legacy.js:1342` "KNOWS the run stopped and drops that fact on the floor."
+Measured: line 1342 knew nothing. `if(typeof hasInputs==='function' && !hasInputs(rec)) break;` names
+a function declared inside the IIFE at ~10670 and never published, so the free identifier resolved
+against the global object, the `typeof` was false, and the break **never executed once in its life**.
+7,500 `doArtisanAction` calls into a bag empty since call 9 (11,250 at the 12h cap). Had I only added
+fields to the summary I would have shipped an honest receipt attached to a loop still burning 11,241
+no-op calls.
+
+**And the trap under that.** The obvious repair — make the break work — DELETES player-facing
+behaviour. The one honest line the player currently gets ("Out of Raw Shrimp — cooking stopped", plus
+the activity actually stopping) is fired by `doArtisanAction`'s own refusal branch, i.e. by the extra
+call the broken loop kept making. Proved before believing it: publishing a global `hasInputs` left
+`G.activeSkill` stuck on `'cooking'` and the toast gone. So the loop now decides to stop and then
+asks the refusal branch to do its job ONCE, rather than growing a second copy of stop-and-say-why.
+**Generalise: when you repair a path that never ran, first find out what the broken path was
+incidentally doing.**
+
+**Design call I would defend:** death was FOLDED INTO the new `stoppedBy` seam rather than left
+beside it. `died`/`diedAfterMs`/`diedTo` are untouched (three surfaces read them, and death owns
+richer copy), but a death also reports as `stoppedBy:'death'` — so a renderer asks ONE question
+("did the run end before the absence did, and what ended it?") and a future reason (a full bank, a
+despawn) is a new VALUE plus a copy row, not a new field and a new branch. That is `AWAY_SCOPE`'s
+lesson applied one layer out. `paidMs` is set on EVERY receipt, and the renderers key on the stated
+`stoppedBy` — never on `paidMs < awayMs`, which tick-flooring makes true on an ordinary night.
+
+**The thing the browser caught that reading could not.** With the stop line added, the card read
+"Cooking ran out of Raw Shrimp 30s in — the remaining 11h 59m paid nothing." immediately above
+"Capped at your 12h away max — upgrades raise this." A true sentence standing where a cause belongs,
+selling an upgrade that would have bought that player nothing. Both the card and the toast now
+suppress the cap line when the run stopped early — and a capped night that ran the whole way keeps
+it, asserted both ways so the fix cannot over-correct.
+
+**My own tests were flaky and I found it by mutating.** `power-budget.js` re-installs itself as the
+outermost `window.getBonus` on a permanent 1-second interval, so an async test's substituted getBonus
+is a different stack after a second (measured: an override reading 3.03 came back 0.28). And
+`offlineIntervalMs()` resolves the CURRENTLY ACTIVE action, so reading it after a run that stopped
+the activity falls back to a stale `G.skillMs` (3,763 vs the 3,840 the run used). Both fixed by
+removing the moving part — claiming `__hrPowerBudget` and pinning the speed keys, capturing the
+interval before the run — never by a tolerance. A tolerance on a span accepts a mis-measured span,
+which is the whole bug.
+
+**A false-positive mutation, worth more than the true ones.** `M7` (revert `activities-grid.js`'s XP
+expression) went RED twice before the pinning and GREEN after — because the reds were the getBonus
+instability, not the mutation. The twin is a DEAD renderer: legacy block 27 assigns
+`window.renderSkillDetail` last, so reverting the ESM copy changes nothing a player sees. A twin no
+test can reach is a twin that drifts, so it now publishes `__tileForGather`/`__tileForArtisan` (the
+`__awayCardHtml` pattern) and the suite grades it directly. **Mutation-prove in both directions: a
+red that goes away when you stabilise the fixture was never proving your fix.**
+
+**Handed off, not fixed:** `actionRate()` omits the gathering tool's `toolXpB` (which
+`doSkillAction` applies before `addXp`), so every xp/hr readout understates a tooled gatherer by up
+to 14%; and it omits artisan tool speed, which `activityIntervalMs()` applies. Both live in
+`src/core/pacing.js`, shared with the accrual payload — a coordination point, not a drive-by. Neither
+is a live/away divergence and the server calls neither today.
+
 ## 2026-08-14 — b342 — the Field Licence had a rule, honesty copy, and NO SURFACES
 
 Branch `worktree-agent-ae97e9393a06e3ca9` · commit `1a4eeb8` · smoke **675/675**, 0 runtime errors.

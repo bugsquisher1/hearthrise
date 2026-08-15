@@ -20,10 +20,32 @@ const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
    through the same helpers the engine uses, so a card can never drift from
    the grant. Defensive fallbacks keep the module renderable if legacy.js has
    not published them yet (this module can render before boot completes). */
-const effXp = (skillId, xp) =>
-  (typeof window.pacedXp === 'function') ? Math.max(1, Math.floor(window.pacedXp(skillId, xp))) : xp;
-const artisanMs = (skillId, ms) => {
-  const base = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(ms) : ms;
+/* ── b345: ONE CALCULATOR, NOT THREE ───────────────────────────────────
+   `effXp` printed a bare `pacedXp(...)`, which drops the `(1 + allXP + xpB)`
+   term grantXp applies to every grant — so a tile advertised 5 XP on an
+   action the engine paid 6 for, while the activity header (which reads
+   actionRate) said 6 on the same screen. Measured, stock save, Normal Tree.
+
+   actionRate() is the ONE place a rate is computed, and it returns BOTH
+   numbers this file needs, so `effXp` + `artisanMs` are replaced by a single
+   reader rather than fixed in place: three hand-rolled copies of one formula
+   is how the disagreement happened, and two would have been a smaller version
+   of the same defect. Kept in lockstep with legacy.js's twin tile builders.
+
+   Fallback: this module can render before legacy.js publishes actionRate, so
+   it degrades to the old expressions rather than to `undefined` on a card. */
+const rateOf = (skillId, action) =>
+  (typeof window.actionRate === 'function' ? window.actionRate(skillId, action) : null) || null;
+const effXp = (skillId, action) => {
+  const r = rateOf(skillId, action);
+  if (r) return r.xpPerAction;
+  return (typeof window.pacedXp === 'function')
+    ? Math.max(1, Math.floor(window.pacedXp(skillId, action.xp))) : action.xp;
+};
+const effMs = (skillId, action, fallbackMs) => {
+  const r = rateOf(skillId, action);
+  if (r) return r.ms;
+  const base = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(fallbackMs) : fallbackMs;
   const key = { cooking:'cookSpeed', smithing:'smithSpeed', crafting:'craftSpeed', prayer:'prayerSpeed' }[skillId] || 'gatherSpeed';
   const speed = (typeof window.getBonus === 'function') ? window.getBonus(key) : 0;
   return Math.max(500, Math.floor(base * window.speedClamp(speed)));
@@ -100,14 +122,13 @@ function tileForGather(action, skillId) {
   const active = window.G.activeSkill === skillId && window.G.skillTargetId === action.id;
   const qty = window.G.inventory?.[action.prod] || 0;
   /* b226: the tile must state the paced duration, tool speed included — the
-     number on the card is a promise, and startSkill() honours PACE.actionMs. */
-  const toolSpeed = (window.HearthriseTools && window.HearthriseTools.bestToolSpeed) ? window.HearthriseTools.bestToolSpeed(skillId) : 0;
-  const speed = (typeof window.getBonus === 'function' ? window.getBonus('gatherSpeed') : 0) + toolSpeed;
-  const baseMs = (typeof window.pacedActionMs === 'function') ? window.pacedActionMs(action.ms) : action.ms;
-  /* b227: through the same fuse the live loop uses. This file is the renderer
+     number on the card is a promise, and startSkill() honours PACE.actionMs.
+     b227: through the same fuse the live loop uses. This file is the renderer
      TWIN of legacy.js's tile builder — patch both or you patch neither, or the
-     card quotes a rate the engine does not honour. */
-  const ms = Math.max(500, Math.floor(baseMs * window.speedClamp(speed)));
+     card quotes a rate the engine does not honour.
+     b345: both numbers now come off actionRate(), so "the same fuse" is no
+     longer a promise one reader keeps by hand. */
+  const ms = effMs(skillId, action, action.ms);
   // b129: locked tiles toast their level requirement instead of silently
   // doing nothing — players need feedback, not a dead click.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
@@ -127,7 +148,7 @@ function tileForGather(action, skillId) {
     data-prod="${action.prod}" onclick="${click}" title="${(action.name || '').replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(action.prod, action.icon)}</div>
     <div class="at-name">${action.name || action.id}</div>
-    <div class="at-meta">${effXp(skillId, action.xp)} XP · ${fmtSec(ms)}</div>
+    <div class="at-meta">${effXp(skillId, action)} XP · ${fmtSec(ms)}</div>
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
     ${unlocked ? '' : `<div class="at-lock">${lockGlyph()}Level ${action.req}</div>`}
     ${active ? '<span class="at-stop">Active</span>' : ''}
@@ -177,7 +198,7 @@ function tileForArtisan(recipe, skillId) {
     data-prod="${outId}" onclick="${click}" title="${tileTitle.replace(/"/g, '&quot;')}">
     <div class="at-icon">${actIconHtml(outId, outDef ? outDef.icon : '')}</div>
     <div class="at-name">${recipe.name || recipe.id}</div>
-    <div class="at-meta">${effXp(skillId, recipe.xp)} XP · ${fmtSec(artisanMs(skillId, recipe.ms || 3000))}</div>
+    <div class="at-meta">${effXp(skillId, recipe)} XP · ${fmtSec(effMs(skillId, recipe, recipe.ms || 3000))}</div>
     <div class="at-inputs">${inputsLine}</div>
     ${burnLine}
     ${qty > 0 ? `<div class="at-qty">${fmtQty(qty)}</div>` : ''}
@@ -256,7 +277,12 @@ function renderSkillDetail(id) {
   // live burn risk — building or upgrading a Kitchen must repaint them rather
   // than leave the old odds on screen. (Kept identical to the legacy twin.)
   const catBurn = (id === 'cooking' && typeof window.getBonus === 'function') ? window.getBonus('noBurn') : '';
-  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}|${catSel || ''}|${catLv}|${catBurn}`;
+  // b345: the XP multiplier is in the key now, because the tiles print the
+  // number the engine pays and that number includes allXP — a buff that moves
+  // it must repaint them rather than leave the pre-buff figure on screen.
+  // (Kept identical to the legacy twin in block 27.)
+  const catXp = (typeof window.getBonus === 'function') ? window.getBonus('allXP') : 0;
+  const activeKey = `${window.G.activeSkill || ''}|${window.G.skillTargetId || ''}|${window.G.activeArtisanRecipe || ''}|${catSel || ''}|${catLv}|${catBurn}|${catXp}`;
   const detailEl = document.getElementById('skill-detail');
   const alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
   if (alreadyRendered && window._actLastRender.skillId === id && window._actLastRender.activeKey === activeKey) {
@@ -351,6 +377,22 @@ function renderSkillsList() {
     if (title) title.textContent = 'Activities';
   }
 }
+
+/* b345 — TEST SEAM, same pattern as home-dashboard.js's `__awayCardHtml`.
+   This module is the documented TWIN of legacy.js's tile builders ("patch both
+   or you patch neither"), and in the shipped boot order legacy.js block 27
+   assigns window.renderSkillDetail LAST — so these builders currently paint
+   nothing, and a DOM test cannot see a regression in them. Measured: reverting
+   `effXp` here to the pre-b345 bare `pacedXp` left the suite fully green.
+   A twin that no test can reach is a twin that drifts, and this file has
+   already been the one that drifted (b227's note in tileForGather says as
+   much). Publishing the builders lets the suite grade BOTH against the one
+   calculator without depending on which of them happens to win the assignment
+   race today. */
+window.HearthriseActivitiesGrid = {
+  __tileForGather: tileForGather,
+  __tileForArtisan: tileForArtisan,
+};
 
 export function setupActivitiesGrid() {
   // Replace the existing renders with our patched versions

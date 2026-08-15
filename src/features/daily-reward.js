@@ -128,7 +128,18 @@
       '.hr-dl-day.today{border-color:var(--gold,#e0a64a);background:color-mix(in srgb,var(--gold,#e0a64a) 16%,transparent);color:var(--ink,#e9e2cf)}',
       '.hr-dl-day b{display:block;font-size:calc(16px * var(--ui-scale, 1));color:var(--gold,#e0a64a);margin-top:2px}',
       '.hr-dl-claim{border:none;border-radius:9px;padding:11px 22px;font-weight:800;font-size:calc(16px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
-      '.hr-dl-claim:active{transform:translateY(1px)}'
+      '.hr-dl-claim:active{transform:translateY(1px)}',
+      /* b345 — THE WAY OUT, MADE VISIBLE. See the block comment on open().
+         Tokens only (no hardcoded colour beyond the existing fallbacks this
+         file already uses), and it sits INSIDE the box so it is part of the
+         panel the player is looking at rather than floating chrome. */
+      '.hr-dl-box{position:relative}',
+      '.hr-dl-close{position:absolute;top:8px;right:10px;width:30px;height:30px;line-height:1;'
+        + 'border:1px solid var(--line-soft,rgba(122,94,58,.35));border-radius:8px;cursor:pointer;'
+        + 'background:transparent;color:var(--ink-3,#a5896a);font-size:calc(19px * var(--ui-scale, 1));'
+        + 'display:flex;align-items:center;justify-content:center;padding:0}',
+      '.hr-dl-close:hover{color:var(--ink,#e9e2cf);border-color:var(--gold,#e0a64a)}',
+      '.hr-dl-hint{margin-top:10px;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -151,26 +162,99 @@
     }).join('');
     var scrim = document.createElement('div');
     scrim.className = 'hr-dl-scrim'; scrim.id = 'hr-dl-modal';
+    scrim.setAttribute('role', 'dialog');
+    scrim.setAttribute('aria-modal', 'true');
+    scrim.setAttribute('aria-label', 'Daily reward');
     scrim.innerHTML =
       '<div class="hr-dl-box">' +
+        '<button class="hr-dl-close" data-dl-close="1" aria-label="Close" title="Close">&times;</button>' +
         '<div class="hr-dl-eyebrow">Daily reward · ' + streakCount(G) + '-day streak' + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
         '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div>' +
         '<div class="hr-dl-week">' + week + '</div>' +
         (claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +
+        '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div>' +
       '</div>';
+    /* ══════════════════════════════════════════════════════════════════════
+       b345 — EVERY CLICK THIS SHEET INTERCEPTS NOW PRODUCES A VISIBLE RESULT.
+
+       MEASURED, on a real first boot (storage cleared, tour finished, Skills ›
+       Woodcutting): the sheet's PANEL — `.hr-dl-box`, 420×242 dead centre —
+       sat on top of the first gathering tile, and the handler below only ever
+       reacted to two things: the claim button, and `e.target === scrim`. A
+       click that landed on the panel matched neither, so it did nothing at
+       all: no claim, no dismissal, no feedback, sheet still up. Four
+       consecutive clicks on "Normal Tree" were swallowed with `activeSkill`
+       still null and the scrim still present. There was also NO close control
+       of any kind (measured: `hasCloseControl: false`), so nothing on screen
+       told the player that the dark area — and only the dark area — was the
+       way out.
+
+       Round 2 wipes every beta save to first boot, so this is the opening
+       interaction of the game for all twenty players.
+
+       THE RULE IS NOW ONE RULE: the claim button claims; everything else
+       closes. A modal is entitled to take the click that reaches it — that is
+       what a modal is — but it is not entitled to take it SILENTLY, and it
+       must never take the next one too. So:
+         • a click on Claim claims and closes (unchanged);
+         • a click ANYWHERE else — panel, backdrop, the day pills — closes;
+         • the × states that in the corner and Escape does it from the
+           keyboard;
+         • and closing without claiming says where the reward went, because a
+           reward that vanishes when you were aiming at a tree is exactly the
+           silent loss this codebase keeps having to apologise for. It is
+           still claimable: `isClaimable` is untouched and the Home card is
+           the standing path.
+
+       What this deliberately does NOT do: change WHEN the sheet opens. It
+       auto-opens the instant the tour hands control back — i.e. precisely
+       when the player is about to take their first action — and whether a
+       retention pillar should front-door a player at that moment is the
+       Designer's call, not a bug fix's. Filed as a handoff.
+       ══════════════════════════════════════════════════════════════════════ */
+    function close() {
+      document.removeEventListener('keydown', onKey, true);
+      scrim.remove();
+    }
+    function onKey(e) {
+      /* SELF-EVICTING. `close()` unhooks this, but the sheet can also be torn
+         out by anything that removes #hr-dl-modal (the suite does; so would a
+         future "close every overlay" sweep), and a document-level keydown that
+         outlives its own modal is a listener that fires forever — here it
+         would toast "your reward is waiting" on every Escape press for the
+         rest of the session. */
+      if (!scrim.isConnected) { document.removeEventListener('keydown', onKey, true); return; }
+      if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); dismiss(); }
+    }
+    function dismiss() {
+      close();
+      /* Only when there was something to claim — telling a player who already
+         claimed today that "your reward is waiting" is a lie in the other
+         direction. */
+      if (isClaimable(window.G) && typeof window.notify === 'function') {
+        window.notify('Daily reward still waiting — claim it on the Home screen.', 'info');
+      }
+      try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (er) {}
+    }
     scrim.addEventListener('click', function (e) {
       if (e.target.closest && e.target.closest('[data-dl-claim]')) {
         var rw = claim(G);
         /* 'levelup' is the gold toast treatment; 'gold' was never a real
            toast type, so this toast had no tone at all. */
         if (rw && typeof window.notify === 'function') window.notify('Daily reward: ' + rewardPlain(rw), 'levelup');
-        scrim.remove();
+        close();
         try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (er) {}
-      } else if (e.target === scrim) { scrim.remove(); }
+        return;
+      }
+      dismiss();
     });
+    document.addEventListener('keydown', onKey, true);
     document.body.appendChild(scrim);
+    /* The claim button takes focus, so the FIRST Enter or Space a keyboard
+       player presses claims the reward instead of reaching nothing. */
+    try { var btn = scrim.querySelector('.hr-dl-claim'); if (btn) btn.focus({ preventScroll: true }); } catch (er) {}
   }
 
   window.HearthriseDaily = {

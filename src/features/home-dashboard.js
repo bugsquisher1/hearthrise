@@ -463,6 +463,58 @@
     return { afterMs: afterMs, name: (id && M && M[id] && M[id].name) || null };
   }
 
+  /* "31s" / "4m" / "2h 5m". SECONDS BELOW A MINUTE — b341's death line already
+     needed this (`fmtSpanShort` floors to whole minutes, so the sixty-second
+     death rendered "0m in"), and b345's supply stop needs exactly the same
+     thing for exactly the same reason: the case it exists for is 30.7 seconds
+     of an eight-hour night. One helper, both lines, so the two can never
+     describe the same length of time differently. */
+  function fmtSince(ms) {
+    var n = Math.max(0, Number(ms) || 0);
+    if (n < 60000) return Math.max(1, Math.round(n / 1000)) + 's';
+    return fmtSpanShort(n);
+  }
+
+  /* ── b345 — DID THE RUN END BEFORE THE ABSENCE DID, AND WHAT ENDED IT? ──
+     `lastOfflineSummary` had 21 fields and not one could express "the supplies
+     ran out", so a cooking session that burned through eight shrimp in 30.7
+     seconds rendered here as "8h away — +11 items · +80 XP · at the base rate".
+     Every clause below reads a field processOffline STATED (`stoppedBy`,
+     `stoppedById`, `stoppedSkill`, `paidMs`, `stoppedPerHour`); nothing is
+     inferred, and in particular "paidMs < awayMs" is NOT the test — flooring a
+     tick count makes that true on a perfectly ordinary night.
+
+     Death returns null on purpose: it is a stop too, and it reports through
+     the same seam, but it already owns richer copy above (who killed you).
+     One reason, one line. A future reason — a full bank, a despawn — is a new
+     row in COPY below and nothing else. */
+  var STOP_COPY = {
+    supplies: function (s) {
+      return s.skill + ' ran out of ' + s.what + ' ' + fmtSince(s.paidMs) + ' in'
+        + (s.restMs >= 60000
+            ? ' — the remaining ' + fmtSpanShort(s.restMs) + ' paid nothing.'
+            : ' — nothing was earned after that.');
+    },
+  };
+  function awayStop(off) {
+    var by = off && off.stoppedBy;
+    if (!by || by === 'death' || !STOP_COPY[by]) return null;
+    var awayMs = (typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
+      ? off.awayMs : Math.max(0, off.hrs || 0) * 3600000;
+    var paidMs = Math.max(0, Number(off.paidMs) || 0);
+    var id = off.stoppedById || null;
+    var sk = off.stoppedSkill || null;
+    return {
+      by: by,
+      paidMs: paidMs,
+      restMs: Math.max(0, awayMs - paidMs),
+      what: (id && window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || 'materials',
+      skill: (sk && window.SKILLS_DEF && window.SKILLS_DEF[sk] && window.SKILLS_DEF[sk].name) || 'Your run',
+      perHour: Math.max(0, Number(off.stoppedPerHour) || 0),
+    };
+  }
+
+
   function awayCardHtml(off) {
     var bits = [];
     if (off.gainedXp) bits.push('+' + num(off.gainedXp) + ' XP');
@@ -513,6 +565,22 @@
         : ' — nothing was earned after that.';
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
     }
+    /* ── b345: THE RUN THAT STOPPED, on the same durable surface and for the
+       same reason the death line is here — it changes the meaning of every
+       number above it. "8h away — +11 items · +80 XP" over a cook that ended
+       30.7 seconds in is the death card's exact failure with a different
+       cause. Second clause is the answer to the first: how much of the
+       missing material a night of this run actually eats, so "stock up" is a
+       number instead of an instruction nobody can size. */
+    var stop = awayStop(off);
+    if (stop) {
+      notes.push({ tone: 'bad', icon: 'uiHourglass', text: STOP_COPY[stop.by](stop) });
+      if (stop.perHour > 0) {
+        notes.push({ tone: 'held', icon: 'uiInfo',
+          text: 'Away, this run uses about ' + num(stop.perHour) + ' ' + stop.what
+            + ' an hour — stock up before you log off.' });
+      }
+    }
     /* ── AN EMPTY NIGHT (b342, generalised in b343) ────────────────────────
        b342 detected this from the away-combat gate's `licence.declined` flag.
        The gate is gone, so the card asks the only question that was ever
@@ -557,7 +625,18 @@
       notes.push({ tone: 'held', icon: 'uiHourglass',
         text: 'Food buffs paused — their time was kept, not spent.' });
     }
-    if (off.capped) {
+    /* b345 — THE CEILING ONLY COST YOU SOMETHING IF YOU WERE STILL EARNING
+       WHEN IT CLOSED. Measured on the card this fix was written for:
+       "Cooking ran out of Raw Shrimp 30s in — the remaining 11h 59m paid
+       nothing." sat directly above "Capped at your 12h away max — upgrades
+       raise this.", which invites the player to buy an upgrade that would
+       have bought them nothing. A true sentence in a place where it reads as
+       a cause is the same species of lie this whole card exists to end, and
+       the ruling already covers it — away-combat-licence.md §3.3.1: a night
+       that paid nothing must not read as though it cost the allowance.
+       Keyed on the STATED stop (which covers death too, for the same
+       reason), never on the numbers. */
+    if (off.capped && !off.stoppedBy) {
       notes.push({ tone: 'held', icon: 'uiClock',
         text: 'Capped at your ' + (off.budgetHrs || 12) + 'h away max — upgrades raise this.' });
     }

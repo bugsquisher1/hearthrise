@@ -4,6 +4,64 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-15 · Systems Engineer · P1 · `power-budget.js` RE-WRAPS `window.getBonus` EVERY SECOND, FOREVER — any test that substitutes it is stable for under a second
+
+**Discovery:** `src/features/power-budget.js` installs itself as the OUTERMOST `window.getBonus`
+wrapper and then runs `setInterval(ensureOutermost, 1000)` permanently. It re-wraps anything that
+does not carry `getBonus.__hrPowerBudget === true`. So a test that does
+
+```js
+window.getBonus = (k) => k === 'allXP' ? real(k) + 3 : real(k);
+await something();          // <-- one second passes
+window.actionRate(...)      // <-- reads a DIFFERENT, re-clamped stack
+```
+
+is measuring a stack it did not install. **Measured:** an override reading `3.03` came back as
+`0.28` at the next assertion, and the same fixture produced a 3,724ms action interval during a run
+and 3,763ms when read back a moment later. The existing synchronous overrides in the suite
+(`smoke-test.js` ~3269–3298) are safe *because they are synchronous*; every async one is exposed.
+
+**Affected systems:** any async test or measurement that substitutes `getBonus`, and any code that
+caches a bonus across more than a second. It is also the most likely explanation for the
+long-standing `b227: OFFLINE output is byte-identical…` flake (it replays a 3h absence twice against
+the wall clock).
+
+**Required action:** if you must substitute `window.getBonus`, set `f.__hrPowerBudget = true` on
+your replacement — that is power-budget's own published idempotence flag, so it stays outermost and
+untouched — and restore the original in `finally`. If your assertion depends on an ACTION INTERVAL,
+pin the speed keys (`gatherSpeed`/`cookSpeed`/`smithSpeed`/`craftSpeed`/`prayerSpeed`) to a constant
+too; buffs decay and world events rotate underneath a running test. Do NOT buy a tolerance instead —
+a tolerance on a span accepts a genuinely mis-measured one.
+
+---
+
+### 2026-08-15 · Systems Engineer · P1 · A GUARDED CALL TO A NAME THAT IS NOT IN SCOPE — `legacy.js` block scope is not one scope
+
+**Discovery:** `processOffline`'s artisan away loop read
+`if(typeof hasInputs==='function' && !hasInputs(rec)) break;`. `hasInputs` is declared inside the
+IIFE that begins around `legacy.js:10670` and is never published, so at `processOffline`'s scope the
+free identifier resolves against the **global object** and is `undefined` — the `typeof` test was
+false and **the `break` never executed in the function's entire life**. Measured: 7,500
+`doArtisanAction` calls into a bag that had been empty since call 9 (11,250 at the 12h cap); with a
+global `hasInputs` published, 8.
+
+**The trap under the trap:** naively "fixing" the guard *removes player-facing behaviour*. The
+honest stop the player currently gets — `G.activeSkill` cleared and the "Out of Raw Shrimp — cooking
+stopped" toast — comes from `doArtisanAction`'s own refusal branch, i.e. from the extra call the
+broken loop kept making. Proved by mutation: publishing a global `hasInputs` left `activeSkill`
+stuck on `'cooking'` and deleted that toast entirely.
+
+**Affected systems:** every `typeof someName === 'function'` guard in `legacy.js` that names a
+function declared inside one of its ~30 IIFE blocks. `grep` finds the declaration and makes the
+guard look wired.
+
+**Required action:** in `legacy.js`, a cross-block call must go through `window.X` (and be *published*
+there) or through `window.HearthriseCore.*`, which is in scope everywhere. A bare `typeof X` guard
+across block boundaries is silently always-false. When you repair one, check what the broken path was
+incidentally *doing* before you delete it.
+
+---
+
 ### 2026-08-14 · Systems Engineer · P0 · A WRAPPER PAIR IS A DOUBLE-COUNT. b228 fixed one instance; there were four more in the same feature
 
 **Discovery:** the b228 companion double-count was not a one-off, it was a **pattern**, and the b228

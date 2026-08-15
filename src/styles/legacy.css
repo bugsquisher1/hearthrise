@@ -3619,6 +3619,12 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    inside the 145px text column this sentence wrapped three ways). */
 .hr-botd .botd-away::before{content:"";flex:0 0 14px;height:1px;background:var(--gold);opacity:.55;
   align-self:center}
+/* b342: the same line, in its NOT-YET state. It carries a live counter, so the
+   number is the one thing in it that reads at a glance — hint ink for the
+   sentence, `--ink-2` for the figure. No red: an unearned licence is a target,
+   not a failure, and colouring it as a warning would teach the wrong thing.
+   Tokens only, per the no-hardcoded-colour rule. */
+.hr-botd .botd-away.is-locked b{color:var(--ink-2);font-weight:700;font-variant-numeric:tabular-nums}
 .hr-botd .botd-loot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
 .hr-botd .botd-loot-lab{text-transform:uppercase;letter-spacing:.06em;font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-3);margin-right:2px}
 .hr-botd .botd-drop{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line-soft);border-radius:999px;background:rgba(255,255,255,.03);font-size:calc(14.5px * var(--ui-scale,1))}

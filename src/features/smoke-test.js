@@ -22597,6 +22597,442 @@ const TESTS = [
       'the skills step must still promise offline progress — it is true, and it is the promise the game keeps');
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     b342 — THE FIELD LICENCE'S HONESTY SURFACES, ASSERTED AS SURFACES
+
+     b341 built the RULE and the copy. It shipped with the rule invisible at all
+     three moments a player meets it — starting a fight, dying, and coming back —
+     and its own guard test passed the whole time, because it asserted that
+     `G._awayLicence` EXISTS rather than that anything renders it. That is this
+     repo's recurring failure one layer out: a test that grades the DATA while
+     the player's EXPERIENCE is the thing under contract.
+
+     So every assertion below reads a rendered surface — the away band in
+     `#hd-root`, `#ab-meta`'s text, the boss cards' DOM, the `.ce-next` button's
+     click behaviour, `#welcome-rows` — and none of them is satisfied by a field
+     being present in G. Each one was mutation-proven; the mutation that breaks
+     it is named in its own comment.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('b342-1: a DECLINED away night renders a durable card that says why, with the counter and a way out', () => {
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const L = window.HearthriseCore.licence;
+    assert(H && typeof H.render === 'function' && typeof H.__awayCardHtml === 'function',
+      'the Home dashboard must expose render() and the away-card seam');
+    const snap = snapshotG();
+    const prevSummary = G.lastOfflineSummary;
+    const prevAwayLic = G._awayLicence;
+    const prevTab = window.activeTab;
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      /* THE MEASURED SCENARIO. A player one kill short of the licence leaves a
+         fight running overnight and comes back. b341's answer was a ~8s toast,
+         rendered behind two stacked modals. */
+      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
+      G.playerMaxHp = 9999; G.playerHp = 9999;
+      const m = window.MONSTERS.slime;
+      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS - 1 });
+      G.lastOfflineSummary = null;
+      delete G._awayLicence;
+      const now = Date.now();
+      G.lastSeen = now - 8 * 3600000;
+      G.offlineBudget = { at: now - 8 * 3600000 };
+
+      window.processOffline();
+
+      /* (1) THE RECEIPT. Not a scratch field the card has to know to look for —
+         the SAME `lastOfflineSummary` every welcome-back surface already reads,
+         so the declined night travels the paths that already exist. */
+      const rec = G.lastOfflineSummary;
+      assert(rec, 'THE b342 BUG: a declined night wrote no receipt at all, so no durable surface can render it');
+      assert(rec.licence && rec.licence.declined === true,
+        'the receipt must STATE that the night was declined, never leave a renderer to infer it: '
+        + JSON.stringify(rec.licence));
+      assert(rec.licence.kills === L.FIELD_LICENCE_KILLS - 1 && rec.licence.need === L.FIELD_LICENCE_KILLS,
+        'the receipt must carry the real counter: ' + JSON.stringify(rec.licence));
+      /* Explicit zeroes, not absent keys: three shipped readers print these
+         unguarded, and `undefined` on a welcome-back card is its own lie. */
+      ['gainedXp', 'gainedItems', 'gainedGold', 'gainedKills', 'burnt'].forEach((k) => {
+        assert(rec[k] === 0, 'a declined night must report ' + k + ' as an explicit 0, got ' + rec[k]);
+      });
+      assert(rec.awayMs >= 7.9 * 3600000,
+        'the receipt must carry the span the player actually lost (awayMs=' + rec.awayMs + ')');
+      assert(rec.capped === false,
+        'a night that paid nothing must not read as though it spent the offline allowance');
+
+      /* (2) THE SURFACE. THIS is the assertion b341 was missing: not that the
+         field exists, but that the dashboard ADMITS it and draws the band. The
+         old gate was `hrs >= 0.1`, and a declined night has hrs === 0 by
+         construction — so the one absence most needing an explanation was the
+         one absence the card was structurally unable to show.
+         MUTATION PROVEN: drop the `|| _declined` term from the render gate in
+         home-dashboard.js and this fails on "no away band"; drop the
+         lastOfflineSummary write in processOffline and it fails one step
+         earlier, on "no receipt at all". */
+      window.showTab('profile');
+      H.render();
+      const root = document.getElementById('hd-root');
+      assert(root, 'the Home dashboard root must exist');
+      const band = root.querySelector('.hd-awayband');
+      assert(band, 'THE b342 BUG: the declined night renders NO away band — the only record of the '
+        + 'night is a toast that is gone in eight seconds');
+      const txt = band.textContent.replace(/\s+/g, ' ');
+      assert(/Field Licence/.test(txt),
+        'the card never names the rule that took the night: ' + txt);
+      assert(new RegExp('\\b' + (L.FIELD_LICENCE_KILLS - 1) + ' of ' + L.FIELD_LICENCE_KILLS + '\\b').test(txt),
+        'the card must show the counter, or the rule reads as a confiscation rather than a target: ' + txt);
+      assert(/quiet/i.test(txt),
+        'the card must say the night was empty rather than printing a bare span: ' + txt);
+      assert(/pay in full while you are away/i.test(txt),
+        'the card must name the activities that DO pay — that contrast is the point of gating one: ' + txt);
+      assert(!/base rate/i.test(txt),
+        '"at the base rate" on a night that paid nothing stands where the explanation should be: ' + txt);
+
+      /* (3) THE WAY OUT. §4.4 Case A ends in an action, and it has to be wired
+         to the delegated handler rather than merely look like a button. */
+      const cta = band.querySelector('[data-hd="trainskill"]');
+      assert(cta, 'THE b342 BUG: the declined card has no "Train a skill" CTA — the spec\'s one action');
+      assert(/train a skill/i.test(cta.textContent), 'the CTA must say what it does: ' + cta.textContent);
+      assert(typeof cta.onclick === 'function',
+        'the CTA is not bound to the dashboard\'s delegated handler, so it is a picture of a button');
+      cta.onclick(new Event('click'));
+      /* The ACTIVE PANEL, not a tab-name variable: `showTab` is wrapped by half
+         a dozen features and the panel's own class is the thing the player sees
+         change. A test that graded a global would pass on a nav that painted
+         nothing. */
+      const skillsPanel = document.getElementById('panel-skills');
+      assert(skillsPanel && skillsPanel.classList.contains('active'),
+        'the CTA did not land on Skills — the alternative it names is the whole point of the card');
+      window.showTab('profile');
+
+      /* THE OTHER DIRECTION. A licensed receipt must produce none of this copy —
+         a card that explains a licence to someone who holds one is the same
+         defect pointed the other way. */
+      const licensed = Object.assign({}, rec, { hrs: 8, gainedXp: 900, gainedKills: 12,
+        licence: { ok: true, kills: 500, need: L.FIELD_LICENCE_KILLS, declined: false } });
+      const ltxt = String(H.__awayCardHtml(licensed)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(!/Field Licence/.test(ltxt), 'a licensed night still preaches the licence: ' + ltxt);
+      assert(!/data-hd="trainskill"/.test(String(H.__awayCardHtml(licensed))),
+        'a night that paid is being told to go do something else');
+      assert(/base rate/i.test(ltxt), 'the base-rate statement must survive on every paying night: ' + ltxt);
+      /* And a pre-b342 receipt (no `licence` key at all) degrades to silence. */
+      const legacyShape = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 51, at: Date.now() };
+      assert(!/Field Licence/.test(String(H.__awayCardHtml(legacyShape)).replace(/<[^>]*>/g, ' ')),
+        'an old receipt with no licence payload produced licence copy — the renderer is inferring');
+    } finally {
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
+      else { try { delete document.hidden; } catch (e) {} }
+      G.lastOfflineSummary = prevSummary;
+      if (prevAwayLic) G._awayLicence = prevAwayLic; else { try { delete G._awayLicence; } catch (e) {} }
+      restoreG(snap);
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b342-2: the COMBAT screen names the licence, and stops promising away pay to someone who has none', () => {
+    const G = window.G;
+    const L = window.HearthriseCore.licence;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      /* ── the always-on activity bar ──────────────────────────────────────
+         MEASURED: the word "Licence" appeared on ZERO panels. The bar was
+         already printing `Lifetime <b>N</b>` — the same `stats.kills` the gate
+         reads — so the counter costs no new number and no new real estate.
+         MUTATION PROVEN: put back the single unconditional
+         `<span class="ab-tkills">Lifetime …</span>` and the first assertion
+         fails; drop the `!_lic.ok` branch and the licensed half fails. */
+      G.activeMonster = 'slime';
+      G.stats = Object.assign({}, G.stats, { kills: 41 });
+      window.refreshActivityBar();
+      const meta = document.getElementById('ab-meta');
+      assert(meta, 'the activity bar has no meta element to assert');
+      let bar = meta.textContent.replace(/\s+/g, ' ');
+      assert(/Field Licence/.test(bar),
+        'THE b342 BUG: a fighting, unlicensed player is never told the licence exists: ' + bar);
+      assert(/41 \/ 100/.test(bar) || /41\s*\/\s*100/.test(bar),
+        'the bar must carry the live counter: ' + bar);
+      assert(/no away pay yet/i.test(bar),
+        'the bar must say what the counter is FOR — that the fight pays nothing while away: ' + bar);
+      assert(!/Lifetime/.test(bar),
+        'showing both a lifetime total and a licence counter puts the same number on screen twice: ' + bar);
+
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
+      window.refreshActivityBar();
+      bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
+      assert(/Lifetime/.test(bar) && !/Field Licence/.test(bar),
+        'once the licence is held the counter has done its job and must give the space back: ' + bar);
+      assert(/pays away/i.test(bar),
+        'a licensed fight must SAY it carries on while you are away — that is what was earned: ' + bar);
+
+      /* ── the two boss cards ──────────────────────────────────────────────
+         MEASURED: "Pays while you're away — leave this fight set." rendered
+         twice, in gold, at the top of this panel, to a player for whom away
+         combat pays nothing — on bosses locked at Combat Lv 75.
+         MUTATION PROVEN: turn `awayLine()` back into the `AWAY_LINE` constant
+         and the unlicensed half fails on "still promises away pay". */
+      const B = window.HearthriseBossOfDay;
+      assert(B, 'the boss-of-the-day feature must be loaded');
+      assert(typeof B.render === 'function' && typeof B.renderWeekly === 'function',
+        'both boss cards must be repaintable, or only one of the two promises can be graded');
+      const repaint = () => { B.render(); B.renderWeekly(); };
+      /* The cards are hidden during a fight (b292), and the copy under test is
+         read by a player choosing one — so grade them in the state they are
+         actually seen in, not through a display:none parent. */
+      G.activeMonster = null;
+      G.stats = Object.assign({}, G.stats, { kills: 41 });
+      repaint();
+      const panel = document.getElementById('panel-combat');
+      let lines = Array.from(panel.querySelectorAll('.botd-away'));
+      assert(lines.length >= 1, 'no away line rendered on the boss cards at all');
+      assert(lines.every((el) => el.classList.contains('is-locked')),
+        'THE b342 BUG: ' + lines.filter((e) => !e.classList.contains('is-locked')).length + ' boss card(s) '
+        + 'still promise away pay to an unlicensed player');
+      const ltext = lines.map((e) => e.textContent).join(' ').replace(/\s+/g, ' ');
+      assert(!/Pays while you're away/.test(ltext),
+        'the unconditional promise is still on screen: ' + ltext);
+      assert(/Field Licence/.test(ltext) && /41 \/ 100/.test(ltext),
+        'the replacement must name the rule AND the counter, not merely withhold the promise: ' + ltext);
+
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
+      repaint();
+      lines = Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'));
+      assert(lines.length >= 1 && lines.every((el) => !el.classList.contains('is-locked')),
+        'a LICENSED player lost the away promise — the b326 line is true for them and must return');
+      assert(/Pays while you're away/.test(lines.map((e) => e.textContent).join(' ')),
+        'the licensed copy must be the original sentence, unchanged');
+
+      /* THE STALENESS TRAP. These cards only fully re-render on a UTC day
+         rollover; the once-a-second tick otherwise just rewrites the countdown.
+         So the 100th kill would earn the licence and both cards would keep
+         saying "not yours yet" until midnight. The tick must notice the verdict
+         changed. Driven through `tick()` itself (published for this), not by
+         calling render() — the point is that nobody has to remember to.
+         MUTATION PROVEN: drop `|| licChanged` from either branch of tick() and
+         this fails with the stale locked line still on screen. */
+      assert(typeof B.__tick === 'function',
+        'the boss-card tick must be assertable — a surface that self-corrects only in theory does not');
+      G.stats = Object.assign({}, G.stats, { kills: 41 });
+      B.__tick();
+      assert(Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'))
+        .every((el) => el.classList.contains('is-locked')),
+        'the tick did not repaint when the licence verdict changed — the card is stale until midnight');
+      G.stats = Object.assign({}, G.stats, { kills: L.FIELD_LICENCE_KILLS + 7 });
+      B.__tick();
+      assert(Array.from(document.getElementById('panel-combat').querySelectorAll('.botd-away'))
+        .every((el) => !el.classList.contains('is-locked')),
+        'earning the licence mid-session left both boss cards claiming it is still unearned');
+    } finally {
+      restoreG(snap);
+      try { window.refreshActivityBar(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b342-3: the arena\'s Recommended card cannot start a fight — the fastest path still meets the forecast', () => {
+    /* THE MEASURED BUG. b341 removed one-tap-to-fight from every monster ROW
+       and left it on `<button class="ce-next" onclick="startCombat('slime')">`
+       — the single most likely first click in the game, the only call to action
+       on an empty arena. So the honesty work (the survival forecast, the Away
+       line, the licence counter) could be routed around by the shortest path
+       through the screen.
+       MUTATION PROVEN: restore the inline `onclick="startCombat(...)"` on
+       .ce-next and this fails on "started the fight"; narrow the delegated
+       selector back to `.monster-row` and it fails on "opened nothing". */
+    const G = window.G;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('combat');
+      G.activeMonster = null;
+      window._renderCombatEmpty();
+      const btn = document.querySelector('#panel-combat .ce-next');
+      assert(btn, 'the Recommended card did not render — nothing to grade');
+      assert(!/startCombat/.test(btn.getAttribute('onclick') || ''),
+        'THE b342 BUG: the Recommended card carries a live inline startCombat(): '
+        + btn.getAttribute('onclick'));
+      const id = btn.getAttribute('data-monster');
+      assert(id && window.MONSTERS[id],
+        'the card must name its foe in `data-monster` for the delegated listener, got ' + id);
+
+      btn.click();
+      assert(G.activeMonster === null,
+        'THE b342 BUG: the Recommended card started the fight instead of opening the preview');
+      const ov = document.getElementById('mob-preview');
+      assert(ov && ov.classList.contains('open'),
+        'the card opened nothing at all — a silent button is safe, but it is not the feature');
+      /* And the screen it lands on is the one that tells the truth. */
+      const away = document.querySelector('#mp-modal .mp-away-line');
+      assert(away && away.textContent.trim().length > 0,
+        'the preview it routes to carries no Away line, which is the reason for routing here');
+    } finally {
+      try { if (typeof window.closeMobPreview === 'function') window.closeMobPreview(); } catch (e) {}
+      const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b342-4: the beta banner QUEUES behind the welcome-back modal instead of drawing over it', () => {
+    /* THE MEASURED BUG. "Welcome back, adventurer" with "This is a beta build"
+       drawn on top of it and `Continue` peeking out below. The banner's
+       don't-stack check listed `#welcome-modal.show`, and legacy.js builds
+       `<div id="welcome-overlay" class="welcome-overlay">` with an INNER
+       `.welcome-modal` that never takes `.show` — so the selector matched
+       nothing, the banner "correctly" saw an empty screen, and drew.
+       A selector that matches nothing is invisible from outside, which is why
+       this asserts the predicate against the REAL overlay the game builds.
+       MUTATION PROVEN: revert the list to `#welcome-modal.show` and the first
+       assertion fails. */
+    const BB = window.HearthriseBetaBanner;
+    assert(BB && typeof BB.__modalAlreadyOpen === 'function',
+      'the beta banner must publish its don\'t-stack predicate for this to be assertable at all');
+    const G = window.G;
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    try {
+      /* Clear the screen first, and do it the way Escape does. The assertion
+         below is a DELTA (closed → open), so it only means something from a
+         clear start — and leaving that to test ordering is how a guard becomes
+         intermittent. */
+      document.querySelectorAll('.modal.show').forEach((m) => m.classList.remove('show'));
+      const before = BB.__modalAlreadyOpen();
+      assert(before === false,
+        'the fixture needs a clear screen — something else is already modal: ' + BB.__blockingModals);
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const ov = document.getElementById('welcome-overlay');
+      assert(ov && ov.classList.contains('show'),
+        'the fixture did not raise the welcome modal, so the collision cannot be observed');
+      assert(BB.__modalAlreadyOpen() === true,
+        'THE b342 BUG: the beta banner does not see the welcome-back modal and will draw on top of it');
+      ov.classList.remove('show');
+      assert(BB.__modalAlreadyOpen() === false,
+        'the banner is blocked forever once the modal has been shown — a queue that never drains');
+      /* The other real overlays are in the list too; a queue that only knows
+         one of them is a queue that will collide with the next one. */
+      ['#wbv-overlay.show', '#hr-dl-modal', '.ftue-shade.show'].forEach((sel) => {
+        assert(BB.__blockingModals.indexOf(sel) >= 0,
+          'the don\'t-stack list lost ' + sel + ': ' + BB.__blockingModals);
+      });
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      Object.assign(G, save);
+    }
+  }),
+
+  () => tryRun('b342-5: the welcome-back modal states the night ONCE, and states what it paid', () => {
+    /* THE MEASURED BUG, both halves in one screen:
+         · "While away 8.0h" AND "Time away 8h 0m" — one fact, twice, in two
+           units, from two estimators (a poller down the file prepended rows
+           built from calcCatchup(), an estimate that never saw the ledger);
+         · the actual gains (+1,553 XP · +4 items · +7 gold · 3 kills) were NOT
+           IN IT AT ALL — they lived only in a toast and on the card BEHIND it.
+       MUTATION PROVEN: restore the catchup injector and the duplicate-row
+       assertion fails; drop the receipt-sourced gain rows and "reports no
+       gains" fails; revert the row tone from `r.bad` to `r.g` and the
+       one-alarm assertion fails; put an emoji back and the glyph assertion
+       fails. */
+    const G = window.G;
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    try {
+      const PAID = {
+        hrs: 8, awayMs: 8 * 3600000, gainedXp: 1553, gainedItems: 4, gainedGold: 7,
+        gainedKills: 3, burnt: 0, crits: 0, featuredMs: 0, featuredDropMult: 1,
+        capped: false, blessed: false, buffsPaused: false, rateMult: 1, at: Date.now(),
+        died: true, diedAfterMs: 50400, diedTo: 'slime',
+        combat: { kills: 3, died: true, survivedMs: 50400, diedTo: 'slime', crits: 0 },
+      };
+      G.lastOfflineSummary = PAID;
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const rowsEl = document.getElementById('welcome-rows');
+      assert(rowsEl, 'the welcome-back modal did not build');
+      const rows = Array.from(rowsEl.querySelectorAll('.wb-row'));
+      const text = rowsEl.textContent.replace(/\s+/g, ' ');
+
+      /* ONE row about the span. Counting rows, not matching a string: the bug
+         was two rows saying the same thing in different words, so a text match
+         on either one would have passed while the screen was still wrong. */
+      const spanRows = rows.filter((r) => /away/i.test(r.textContent));
+      assert(spanRows.length === 1,
+        'THE b342 BUG: ' + spanRows.length + ' rows report the length of the absence — '
+        + spanRows.map((r) => r.textContent.replace(/\s+/g, ' ')).join(' | '));
+
+      /* THE GAINS. The modal is the first thing a returning player reads; it
+         reported the clock, the streak and the lifetime totals and never once
+         said what the night actually paid. */
+      /* Label-anchored, because `textContent` runs the rows together with no
+         separator ("Items found+4Gold earned+7") — a bare /\+4\b/ has no word
+         boundary there and would fail on a screen that is correct, which is
+         its own kind of untrustworthy test. */
+      assert(/XP earned\s*\+1,553/.test(text), 'the modal reports no XP for the night: ' + text);
+      assert(/Items found\s*\+4/.test(text), 'the modal reports no items for the night: ' + text);
+      assert(/Gold earned\s*\+7/.test(text), 'the modal reports no gold for the night: ' + text);
+      assert(/Kills\s*\+3/.test(text), 'the modal reports no kills for the night: ' + text);
+      /* b341's death line still has to survive all of this. */
+      assert(/You died to Slime/.test(text) && /50s in/.test(text),
+        'the death line was lost in the rebuild: ' + text);
+
+      /* THE FINAL DIRECTIVE. Every row in this list used to draw a full-colour
+         emoji as art. The whole template is glyphs now — asserted over the
+         markup, because an emoji inside a <b> would not show in textContent. */
+      const emoji = rowsEl.innerHTML.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || [];
+      assert(emoji.length === 0,
+        'the welcome-back modal still ships ' + emoji.length + ' emoji as art: ' + emoji.join(' '));
+
+      /* Exactly one row is toned as an alarm, and it is the death. */
+      const bad = rows.filter((r) => r.classList.contains('wb-row-bad'));
+      assert(bad.length === 1 && /You died/.test(bad[0].textContent),
+        'the alarm tone is on ' + bad.length + ' row(s); it belongs to the death and nothing else');
+
+      /* A zero channel gets NO row — "+0 gold" is noise, and it is the shape
+         the estimator used to print. */
+      G.lastOfflineSummary = Object.assign({}, PAID, { gainedGold: 0, at: Date.now() });
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      assert(!/Gold earned/.test(document.getElementById('welcome-rows').textContent),
+        'a channel that paid nothing still printed a row');
+
+      /* AND THE DECLINED NIGHT, on the same screen, from the same receipt —
+         so the modal and the Home card can never tell different stories. */
+      G.lastOfflineSummary = {
+        hrs: 0, awayMs: 8 * 3600000, gainedXp: 0, gainedItems: 0, gainedGold: 0,
+        gainedKills: 0, burnt: 0, combat: null, capped: false, blessed: false,
+        buffsPaused: false, crits: 0, died: false, diedAfterMs: 0, diedTo: null,
+        featuredMs: 0, featuredDropMult: 1, rateMult: 1, at: Date.now(),
+        licence: { ok: false, kills: 41, need: 100, declined: true },
+      };
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const dtext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
+      assert(/Field Licence/.test(dtext) && /41 \/ 100/.test(dtext),
+        'THE b342 BUG: the first screen a returning player reads says nothing about the night '
+        + 'their fight was declined: ' + dtext);
+      assert(!/You died/.test(dtext), 'a declined night was never simulated and cannot have killed anybody');
+
+      /* No fresh receipt → the modal falls back to the clock and simply says
+         less. It must never invent a night it has no record of. */
+      G.lastOfflineSummary = null; G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const ntext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
+      assert(!/XP earned|Gold earned|Field Licence|You died/.test(ntext),
+        'with no receipt the modal reported a night anyway: ' + ntext);
+      assert(/Time away/.test(ntext), 'the fallback still owes the player the span: ' + ntext);
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      Object.assign(G, save);
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

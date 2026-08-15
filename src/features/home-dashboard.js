@@ -322,6 +322,11 @@
          a player must not skim past. `--red` is a per-theme token (rust in
          cozy-light, ember in hearthlight), never a hardcoded colour. */
       R + '.hd-away-note.is-bad{color:var(--red) !important;font-weight:600}',
+      /* b342 — the declined night's one ACTION, at the foot of the reasons it
+         answers. Sized to its own content (align-self) so it never stretches
+         to the notes column on a wide screen. Styling is inherited from
+         `.hd-cta`; this rule contributes position only, and no colour. */
+      R + '.hd-away-cta{align-self:flex-start;margin-top:7px}',
       /* Short landscape phone: the band is the first thing on screen and must
          not eat it. Tighter rhythm only — no size drops, the 14.5px floor
          holds, and nothing is hidden (every clause is load-bearing honesty). */
@@ -458,6 +463,19 @@
     return { afterMs: afterMs, name: (id && M && M[id] && M[id].name) || null };
   }
 
+  /* b342 — WAS THIS NIGHT DECLINED FOR WANT OF A FIELD LICENCE?
+     Reads the receipt's stated verdict and nothing else. `licence.declined` is
+     written by processOffline (and only there); a receipt without it is an
+     older or licensed one and must produce no licence copy at all — the same
+     "no field, no claim" rule the death line follows. */
+  function awayLicence(off) {
+    var L = off && off.licence;
+    if (!L || !L.declined) return null;
+    var need = Number(L.need) || 0;
+    var kills = Math.max(0, Number(L.kills) || 0);
+    return { kills: kills, need: need };
+  }
+
   function awayCardHtml(off) {
     var bits = [];
     if (off.gainedXp) bits.push('+' + num(off.gainedXp) + ' XP');
@@ -508,8 +526,32 @@
         : ' — nothing was earned after that.';
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
     }
-    notes.push({ tone: 'base', icon: 'uiInfo',
-      text: 'At the base rate — blessings and food buffs pay while you play.' });
+    /* ── b342: THE DECLINED NIGHT, SPOKEN ON THE DURABLE SURFACE ──────────
+       docs/design/away-combat-licence.md §4.4 Case A. Two clauses, in this
+       order, because the second is the answer to the first:
+         1. why the fight paid nothing, WITH the counter, so the rule reads as
+            a target rather than a confiscation;
+         2. that every other activity in the game pays in full — which is the
+            whole point of gating exactly one activity type.
+       The counter is the receipt's, not a live re-read of stats.kills: this
+       card describes a night that has already happened, and a number that
+       moves while you read it is a number nobody can act on. */
+    var lic = awayLicence(off);
+    var quiet = lic && !bits.length && !combatBits.length;
+    if (lic) {
+      notes.push({ tone: 'held', icon: 'uiHourglass',
+        text: 'You left a fight running. Combat does not pay away until you have earned your '
+          + 'Field Licence — ' + num(lic.kills) + ' of ' + num(lic.need) + ' kills.' });
+      notes.push({ tone: 'good', icon: 'uiSprout',
+        text: 'Gathering, cooking and smithing pay in full while you are away. '
+          + 'Set one running before you go.' });
+    }
+    /* "At the base rate" on a night that paid nothing is noise standing where
+       an explanation should be. Every other case keeps it. */
+    if (!quiet) {
+      notes.push({ tone: 'base', icon: 'uiInfo',
+        text: 'At the base rate — blessings and food buffs pay while you play.' });
+    }
     if (off.featuredMs > 0) {
       /* The multiplier is PRINTED ONLY IF THE PAYLOAD CARRIES IT. A summary
          written before b326 has no `featuredDropMult`, and defaulting to the
@@ -535,17 +577,29 @@
         '<span>' + esc(n.text) + '</span></div>';
     }).join('');
 
+    /* THE CTA. §4.4 Case A ends with `[ Train a skill ]`, and it is the only
+       part of the card that is an ACTION rather than a report — the game's own
+       answer to "then what do I do tonight?". Shown only when the night was
+       declined AND paid nothing at all: a player who already had a skill
+       running does not need to be told to start one. It reuses the dashboard's
+       own `.hd-cta` (tokens only, no new colour) and routes through the same
+       delegated `data-hd` handler every other Home button uses. */
+    var ctaHtml = quiet
+      ? '<button class="hd-cta hd-away-cta" data-hd="trainskill">Train a skill</button>'
+      : '';
+
     return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' +
       '<div class="hd-away">' +
         '<div class="hd-away-sum">' +
           '<div class="mi">' + gly('uiIdle', 22, '', 'var(--gold-2)') + '</div>' +
           '<div class="bd">' +
             '<div class="t">' + esc(fmtAway(off)) + ' away' +
-              (bits.length ? ' — ' + esc(bits.join(' · ')) : '') + '</div>' +
+              (bits.length ? ' — ' + esc(bits.join(' · '))
+                : (quiet ? ' — your camp was quiet.' : '')) + '</div>' +
             (combatBits.length ? '<div class="hd-away-fight">' + esc(combatBits.join(' · ')) + '</div>' : '') +
           '</div>' +
         '</div>' +
-        '<div class="hd-away-notes">' + noteHtml + '</div>' +
+        '<div class="hd-away-notes">' + noteHtml + ctaHtml + '</div>' +
       '</div></div>';
   }
 
@@ -718,7 +772,14 @@
        to 30 minutes off `summary.at`, so it leads only while it is news and
        then vanishes — the rest of the session's composition is unchanged. */
     var _off = G.lastOfflineSummary;
-    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && (_off.hrs || 0) >= 0.1) {
+    /* b342: a DECLINED night has `hrs === 0` by construction — nothing was
+       claimed — so the `>= 0.1` liveness gate (which exists to keep a tab-flip
+       off the dashboard) was also the thing that hid the one absence the player
+       most needs explained. A declined receipt is admitted on its own terms; it
+       still has to be FRESH, so the 30-minute window is unchanged. */
+    var _declined = !!(_off && _off.licence && _off.licence.declined);
+    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000
+        && ((_off.hrs || 0) >= 0.1 || _declined)) {
       html += awayCardHtml(_off);
     }
 
@@ -1059,6 +1120,11 @@
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }
+          /* b342 — the away card's Case A action (§4.4). Skills are the
+             activity that DOES pay a whole night from the first session, so
+             the button that answers "combat paid nothing" lands on the screen
+             where the alternative is chosen. */
+          else if (kind === 'trainskill') { nav('skills'); }
           else if (kind === 'house') { nav('house'); }
         } catch (err) { /* no-op */ }
       };

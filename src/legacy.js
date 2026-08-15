@@ -1242,14 +1242,53 @@ function processOffline(){
   /* A DECLINED span is the one case where "nothing happened" is the correct
      outcome AND a silent return is the wrong behaviour. An empty night with a
      reason is a lesson; an empty night with no reason is a bug report — see
-     the ruling's "Player-facing honesty" clause, which this obeys in the one
-     surface this change owns (the welcome-back toast). The away CARD is
-     another author's surface; `G._awayLicence` is published for it, and the
-     `_` prefix keeps this scratch out of the cloud snapshot. */
+     the ruling's "Player-facing honesty" clause.
+
+     ── b342: THE RECEIPT, NOT JUST THE SCRATCH FIELD ──────────────────────
+     b341 published `G._awayLicence` and fired a toast, and deferred the CARD
+     to "another author's surface". Nobody built it, and the guard test asserted
+     that the FIELD exists rather than that the player is told — so the only
+     record of a declined night was a toast measured at ~8 seconds, rendered
+     behind two stacked modals. The player left a fight running overnight, came
+     back, and the game said nothing.
+
+     `lastOfflineSummary` is the RECEIPT every welcome-back surface already
+     reads (the Home away card, the welcome-back modal, the dashboard line).
+     A declined night is a thing that happened to the player, so it writes one
+     — with every gain EXPLICITLY ZERO and `licence.declined` stating why,
+     rather than leaving a renderer to work out for itself why the numbers are
+     empty. Same rule as `blessed`, `crits` and `died`: stated, never inferred.
+
+     Zeroes rather than omissions is deliberate: three existing readers print
+     `summary.gainedItems` unguarded, and an absent field renders "undefined"
+     — a shape of lie this file has shipped before.
+
+     `_awayLicence` is kept and written from the SAME locals (one computation,
+     two names) because it is the `_`-prefixed scratch marker the b341 guard
+     and any in-flight work read. Both stay out of the cloud snapshot: `_`
+     prefix for one, the NO_SYNC denylist for the other. */
   if(_combatDeclined && _awayMsBefore>=60000
      && !(typeof document!=='undefined' && document.hidden)){
     G._awayLicence={declined:true,kills:_licence.kills,need:_licence.need,
       awayMs:_awayMsBefore,at:_now};
+    G.lastOfflineSummary={
+      /* Nothing was claimed, so `hrs` — which every reader treats as "hours
+         PAID" — is honestly 0. The span the player actually lost is `awayMs`,
+         which is what fmtAway() prints. */
+      hrs:0, awayMs:_awayMsBefore,
+      gainedItems:0, gainedXp:0, gainedGold:0, gainedKills:0, burnt:0,
+      combat:null,
+      /* No cap line and no budget line: §3.3.1 — a night that paid nothing
+         must not read as though it cost the player their allowance. */
+      capped:false, budgetHrs:offlineCapHours(),
+      blessed:false, buffsPaused:false, crits:0,
+      died:false, diedAfterMs:0, diedTo:null,
+      featuredMs:0, featuredDropMult:1,
+      rateMult:(window.HearthriseCore&&window.HearthriseCore.away
+        &&window.HearthriseCore.away.AWAY_RATE_MULT)||1,
+      licence:{ok:false,kills:_licence.kills,need:_licence.need,declined:true},
+      at:_now,
+    };
     notify('⏰ Away '+fmtHm(_awayMsBefore)+' — your camp was quiet. Combat pays away once '
       +'you\'ve earned your Field Licence ('+_licence.kills+'/'+_licence.need+' kills). '
       +'Skills pay in full while you\'re gone.','info');
@@ -7300,11 +7339,44 @@ function refreshActivityBar(){
             : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
         }
       }
+      /* ── b342: THE COMBAT SCREEN HAS TO SAY "LICENCE" ─────────────────────
+         docs/design/away-combat-licence.md §4.2: "the counter has to exist
+         before the goal does". It did not exist anywhere a fighting player
+         looks — the word appeared on ZERO panels — while the two boss cards at
+         the top of this same screen promised "Pays while you're away" twice.
+
+         This bar is the cheapest place in the game to fix that: it is the one
+         readout that is on screen for every second of every fight, and it was
+         already printing a lifetime kill total that is the SAME NUMBER the
+         licence gates on. So before the licence, the total re-labels itself as
+         the counter (41 / 100), and after it, it goes back to Lifetime and
+         says the thing the counter was earning. No new number, no new query,
+         no new panel real estate — one chip that changes what it means when
+         the player's situation changes.
+
+         `check()` is the same predicate src/core/licence.js gives the away
+         path, so the bar and the gate can never disagree. Missing module →
+         no chip, never a wrong chip. */
+      let licChip = '', awayChip = '';
+      const _lic = (window.HearthriseLicence && typeof window.HearthriseLicence.check==='function')
+        ? window.HearthriseLicence.check(G) : null;
+      if(_lic && !_lic.ok){
+        licChip = '<span class="ab-tkills" title="Land '+_lic.need+' kills by hand to earn your Field '
+          +'Licence. Until then a fight only pays while you are here — skills pay in full either way.">'
+          +'Field Licence <b>'+_lic.kills.toLocaleString()+'</b> / '+_lic.need.toLocaleString()+'</span>';
+        awayChip = '<span class="ab-xph ab-away" title="Combat does not pay while you are away until the '
+          +'Field Licence is earned.">no away pay yet</span>';
+      } else {
+        licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
+        if(_lic) awayChip = '<span class="ab-xph ab-away" title="Your Field Licence is earned — this fight '
+          +'carries on while you are away, at the base rate.">pays away</span>';
+      }
       metaEl.innerHTML = ''
         + '<span class="ab-kills">⚔️ <b>'+kills.toLocaleString()+'</b> this fight</span>'
         + xpChip
         + bountyChip
-        + '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
+        + licChip
+        + awayChip;
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -8035,11 +8107,21 @@ console.log('Activity bar: loaded');
      Delegation on the PANEL rather than on `#monster-list` is deliberate: the
      list's innerHTML is rewritten constantly, and a listener on a node that
      gets replaced is the class of bug this is retiring.
+
+     b342 — THE SELECTOR IS `[data-monster]`, NOT `.monster-row`. b341 fixed
+     the rows and left the arena's "Recommended" card, which is the single most
+     likely first click in the game, still carrying an inline startCombat().
+     Scoping the rule to a CLASS meant every new way of naming a monster on
+     this panel had to remember to opt in; scoping it to the DATA means the
+     rule is "anything on the combat panel that names a foe opens that foe's
+     preview", which is the sentence we actually mean and which the next
+     surface gets for free. The preview overlay is appended to <body>, not to
+     this panel, so its own Fight button is unaffected.
      ══════════════════════════════════════════════════════════════════════ */
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t || typeof t.closest !== 'function') return;
-    var row = t.closest('#panel-combat .monster-row');
+    var row = t.closest('#panel-combat [data-monster]');
     if(!row || row.disabled) return;
     var id = row.getAttribute('data-monster');
     if(!id) return;
@@ -9165,14 +9247,62 @@ function maybeShowWelcome(){
   var hours = Math.floor(minutesAway/60), mins = Math.round(minutesAway%60);
   var label = hours > 0 ? (hours + 'h ' + mins + 'm') : (mins + 'm');
   var rows = [];
-  rows.push({e:'⏳', t: 'Time away', v: label});
+  /* ── b342: THE RECEIPT IS THE SOURCE, AND IT IS THE ONLY SOURCE ───────────
+     Measured on a returning player: this modal showed "While away 8.0h" AND
+     "Time away 8h 0m" — the same fact, twice, in different units, from two
+     different estimators — and the gains it was ostensibly reporting
+     (+1,553 XP · +4 items · +7 gold · 3 kills) WERE NOT IN IT AT ALL. They
+     existed only in a toast and on the Home card behind this modal.
+
+     The duplicate came from a second block further down this file that polled
+     for `#welcome-rows` and PREPENDED rows built from `calcCatchup()` — a
+     third, display-only ESTIMATE of the absence that b214 already had to stop
+     from double-granting. That block is deleted; its numbers were a forecast
+     of a night that had already been settled, and quoting a forecast next to
+     the ledger is how a player learns not to trust either.
+
+     `lastOfflineSummary` is the receipt processOffline (or the server accrual)
+     wrote for the absence THIS modal is about. Everything below is read from
+     it — the span, the gains, the death, the licence — and nothing is
+     inferred. When there is no fresh receipt the modal falls back to the
+     clock-derived label and simply says less, which is the honest degradation.
+     Glyphs, not emoji: the four this row list used to carry were pre-existing
+     Final Directive debt and are cleared here rather than copied forward. */
+  var _off = G.lastOfflineSummary;
+  var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000);
+  var _awayMs = _fresh && _off.awayMs > 0 ? _off.awayMs : since;
+  var _awayLbl = (function(ms){
+    var m = Math.max(0, Math.round(ms/60000));
+    if(m < 60) return m + 'm';
+    return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+  })(_awayMs);
+  rows.push({g:'uiHourglass', t: 'Time away', v: _fresh ? _awayLbl : label});
+  if(_fresh){
+    /* WHAT THE NIGHT ACTUALLY PAID. One row per channel that moved, and none
+       at all for a channel that did not — a "+0 gold" row is noise, and a
+       missing row for a channel that DID pay is the bug this fixes. */
+    if(_off.gainedXp > 0)    rows.push({g:'uiXp',        t:'XP earned',    v:'+' + Number(_off.gainedXp).toLocaleString()});
+    if(_off.gainedItems > 0) rows.push({g:'uiChest',     t:'Items found',  v:'+' + Number(_off.gainedItems).toLocaleString()});
+    /* `gold` is the atlas key every other gold render site in the game uses
+       (HR.amount('gold', …)); uiCoinStack is the gold-FIND modifier icon. Same
+       currency, one glyph. */
+    if(_off.gainedGold > 0)  rows.push({g:'gold',        t:'Gold earned',  v:'+' + Number(_off.gainedGold).toLocaleString()});
+    if(_off.gainedKills > 0) rows.push({g:'uiSword',     t:'Kills',        v:'+' + Number(_off.gainedKills).toLocaleString()});
+    if(_off.burnt > 0)       rows.push({g:'uiFire',      t:'Burnt on the fire', v:Number(_off.burnt).toLocaleString()});
+    /* THE DECLINED NIGHT, on the first screen the player reads. Same sentence
+       as the Home card, from the same field, so the two surfaces cannot drift
+       into telling different stories about one absence. */
+    if(_off.licence && _off.licence.declined){
+      rows.push({g:'uiHourglass', bad:true,
+        t:'A fight was running, but combat pays away only once your Field Licence is earned',
+        v:(Number(_off.licence.kills)||0) + ' / ' + (Number(_off.licence.need)||0)});
+    }
+  }
   /* b341 — THE FIRST SURFACE A RETURNING PLAYER READS must not put "Time away
      8h 0m" directly above "Total kills 2" and leave the death between them
      unsaid. Reads the SAME receipt the Home card reads (`lastOfflineSummary`),
-     stated not inferred, and prints nothing at all when nobody died. Glyph, not
-     emoji — the four above are pre-existing debt and this does not add a fifth. */
+     stated not inferred, and prints nothing at all when nobody died. */
   try{
-    var _off = G.lastOfflineSummary;
     var _dead = _off && (_off.died || (_off.combat && _off.combat.died));
     if(_dead){
       var _ms = Number(_off.diedAfterMs || (_off.combat && _off.combat.survivedMs) || 0);
@@ -9183,15 +9313,20 @@ function maybeShowWelcome(){
                        : Math.floor(_ms/60000) < 60 ? Math.floor(_ms/60000) + 'm in'
                        : Math.floor(_ms/3600000) + 'h in')
         : '—';
-      rows.push({g:'uiSkull', t: 'You died' + (_nm ? ' to ' + _nm : '') + ' — nothing was earned after', v: _when});
+      rows.push({g:'uiSkull', bad:true, t: 'You died' + (_nm ? ' to ' + _nm : '') + ' — nothing was earned after', v: _when});
     }
   }catch(e){}
-  if(G.streak.count > 0) rows.push({e:'🔥', t: 'Daily streak', v: G.streak.count + ' day' + (G.streak.count===1?'':'s')});
-  rows.push({e:'🎯', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
-  rows.push({e:'🪙', t: 'Gold in pocket', v: (G.gold||0).toLocaleString()});
+  if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Daily streak', v: G.streak.count + ' day' + (G.streak.count===1?'':'s')});
+  rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
+  rows.push({g:'gold', t: 'Gold in pocket', v: (G.gold||0).toLocaleString()});
+  /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
+     (has-a-glyph), which was equivalent only while the death row was the only
+     glyph row in the list — the moment the others stopped being emoji, every
+     row would have rendered as an alarm. A tone that is a side effect of an
+     icon choice is a tone that breaks the next time an icon changes. */
   document.getElementById('welcome-rows').innerHTML = rows.map(function(r){
     var icon = r.g ? _hrGly(r.g, 17) : (r.e || '');
-    return '<div class="wb-row'+(r.g?' wb-row-bad':'')+'"><span class="wb-emoji">'+icon+'</span>'
+    return '<div class="wb-row'+(r.bad?' wb-row-bad':'')+'"><span class="wb-emoji">'+icon+'</span>'
       +'<span style="flex:1">'+r.t+'</span><b>'+r.v+'</b></div>';
   }).join('');
   var ov = document.getElementById('welcome-overlay');
@@ -9402,7 +9537,21 @@ window._renderCombatEmpty = function(){
       '<div class="ce-hint">' + pickHint + '</div>' +
     '</div>';
   if (best) {
-    html += '<button class="ce-next" onclick="startCombat(\'' + best.id + '\')">' +
+    /* ── b342: THE FAST PATH MUST NOT SKIP THE ONE HONEST SCREEN ────────────
+       This card is the most likely first action in the game — it is the only
+       call-to-action on an empty arena, it names the foe, and it says "Fight".
+       It carried `onclick="startCombat(id)"`, so one click went straight into
+       combat, past the forecast modal that is the ONLY surface telling a new
+       player how long they survive and whether the fight pays while away.
+       b341 removed exactly that one-tap-to-fight from every monster ROW and
+       left it here, which meant the honesty work could be routed around by
+       the shortest path through the screen.
+
+       No handler and no third wrapper: it carries `data-monster` and the ONE
+       delegated listener on `#panel-combat` (see the b341 block by
+       renderPreview) opens the preview, however this card came to be painted.
+       The preview's own Fight button is the way into the fight. */
+    html += '<button class="ce-next" data-monster="' + best.id + '">' +
       '<span class="ce-next-art">' + foeArt + '</span>' +
       '<span class="ce-next-body">' +
         '<span class="ce-next-lbl">Recommended</span>' +
@@ -9792,36 +9941,31 @@ function injectFriendsStub(){ /* no-op — see the b225 note above */ }
   };
 })();
 
-/* Inject catchup info into the welcome modal AND apply rewards */
-(function(){
-  setTimeout(function(){
-    var rewards = calcCatchup();
-    if(!rewards) return;
-    /* b214 (correctness fix): DO NOT grant here. processOffline() in
-       loadLocal() is the single source of truth for offline rewards and
-       already replayed the active skill at full rate. This block used to
-       ALSO call _applyCatchup() — and a third system (applyRichCatchup)
-       granted again — so every gathering player banked ~2-3x their offline
-       yield on each login (G.lastSeen isn't refreshed between them). The
-       calcCatchup() numbers are now display-only for the welcome modal. */
-    // Augment the welcome modal if it appears
-    var pollUntilModal = setInterval(function(){
-      var rows = document.getElementById('welcome-rows');
-      if(!rows) return;
-      clearInterval(pollUntilModal);
-      var extra = '<div class="wb-row" style="background:rgba(63,185,80,.12);border-color:rgba(63,185,80,.4)"><span class="wb-emoji">⏱️</span><span style="flex:1">While away</span><b>'+rewards.hours.toFixed(1)+'h</b></div>';
-      Object.entries(rewards.xp||{}).forEach(function(kv){
-        extra += '<div class="wb-row"><span class="wb-emoji">⭐</span><span style="flex:1">'+kv[0]+' XP gained</span><b>+'+kv[1].toLocaleString()+'</b></div>';
-      });
-      if(rewards.itemId && rewards.itemQty){
-        var nm = (typeof ITEMS!=='undefined' && ITEMS[rewards.itemId]) ? ITEMS[rewards.itemId].n : rewards.itemId;
-        extra += '<div class="wb-row"><span class="wb-emoji">📦</span><span style="flex:1">Items gathered</span><b>+'+rewards.itemQty+' '+nm+'</b></div>';
-      }
-      rows.innerHTML = extra + rows.innerHTML;
-    }, 200);
-    setTimeout(function(){ clearInterval(pollUntilModal); }, 5000);
-  }, 800);
-})();
+/* ════════════════════════════════════════════════════════════════════════
+   THE CATCHUP INJECTOR LIVED HERE, AND IS DELIBERATELY NOT REPLACED. (b342)
+
+   It polled every 200ms for `#welcome-rows` and PREPENDED rows built from
+   `calcCatchup()` — a display-only ESTIMATE of the absence, computed from
+   `G.lastSeen` and the active node's rate, entirely independently of what the
+   engine had already granted. b214 had to stop it double-PAYING; what it kept
+   doing was double-SPEAKING:
+
+     · "While away  8.0h"   ← this block, an estimate, one decimal
+     · "Time away   8h 0m"  ← maybeShowWelcome, the clock, minutes
+
+   …the same fact twice in two units from two sources, and between them not
+   one of the numbers the player actually earned (+1,553 XP · +4 items ·
+   +7 gold · 3 kills lived only in a toast and on the Home card BEHIND this
+   modal). Its per-skill "XP gained" rows were the estimate's, not the
+   ledger's, so on any absence that ended in a death or hit the cap they
+   quoted a night that did not happen.
+
+   The modal now reads `G.lastOfflineSummary` — the receipt processOffline (or
+   the server accrual) actually wrote — so there is ONE number for one fact and
+   it is the number the save holds. `calcCatchup()` itself is left in place: it
+   is still exported as `window._catchupCalc` and covered by a smoke test, and
+   deleting a pure function is a separate, larger cleanup than this fix.
+   ════════════════════════════════════════════════════════════════════════ */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
 function injectProfileButtons(){

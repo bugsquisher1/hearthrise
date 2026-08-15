@@ -426,6 +426,45 @@ that hardcodes a value it did not measure is asserting about a database it imagi
 **Next hands on this: the two branches under "WAITING ON SECURITY" are with Security now.
 Nothing else is blocked.**
 
+## ✅ THE LONG POLE IS DONE — b350 SHIPPED AND DEPLOYED (2026-08-15 evening)
+
+**The gathering/crafting extraction (critical-path item 3) is merged, released as b350, and
+the deployed engine matches the repo (`c577dbc8…`, verified by the payload guard against
+production). Suite 719/719.** `src/core/artisan-sim.js` (new) + the gather span in
+`skill-sim.js` now serve live AND away through ONE `sliceSpan` buff timeline — the monolith's
+replay loops are deleted, not shimmed. Two corrections to the record:
+- **b347 had already split legacy's replay at buff-expiry boundaries** — the parked
+  consumable-buffs branch (`worktree-agent-a06ecbcee310aa2c7`) is therefore UNBLOCKED; its
+  blocking condition no longer exists. Re-verify against current main before merging.
+- **A live P1 fell out:** `core/pacing.js` gated tool speed to gather skills while legacy
+  applied it unconditionally — a server pricing a smithing night would have run 33% slower
+  than the client. Fixed to the client's expression, guarded by AWAY-21.
+
+**What still blocks server-paid artisan nights is a MODEL, not code** (~3–5 days): two
+`player_progress` shapes — `unlockedRecipes` and `noBurn` (Kitchen rung) — must exist before
+`'artisan'` enters `PAYABLE_KINDS`, or the server burns items the player's Kitchen says it
+kept. Same job as the unlock ruling parked in `worktree-agent-a079e5c2e5260c6f8`. Gather can
+wire server-side now (~1 day).
+
+## 🧑‍⚖️ DESIGN AUTHORITY DELEGATED (Tyler, 2026-08-15) — rulings are FINAL, stop queueing on Tyler
+
+Tyler delegated game-design decisions to the game-designer role. Rulings issued today (full
+text in the agent report; armour doc stamped):
+1. **Armour identities: ACCEPTED AS WRITTEN** including the magic cut (re-derived live:
+   magic-in-cloth was 18.47 DPS vs 0.69–5.35 for every other pairing — a subsidy, not an
+   identity). Medium ships BOTH crit numbers (S-4); `monsterMinAccuracy` stays 0.10.
+   Acceptance gate: ARM-5 ≤1.30× spread at 70/85/99, re-measured after the gear-tiers work.
+2. **Offline cap: (a) STANDS** — no idle-on-cap. **But the credited window MUST flip to
+   FIRST-cap-hours-after-leaving** (live exploit: return timing selects the BotD day
+   multiplier; also zeroes logoff-eaten buffs). Implementation contract + 4 mutation-proven
+   regressions specified; IN FLIGHT.
+3. Standing: `recordKill` + daily/quest progress are CUTOVER-BLOCKING for accrual (player-
+   visible counters); the other five reward hooks ship post-cutover. Companions are
+   PERMANENT and pay away. Away target-switch applies at span END. `ACCRUE_MIN_MS` floor
+   becomes one action, gated on `hr_rate_gate` sizing. Delete the hardcoded
+   `blessed:false` (combat-sim.js:415) BEFORE the world-boss blessing lands. Weapon-ladder
+   rebalance + tier-8 leather/cloth capstones: post-cutover, criteria recorded.
+
 ## ✅ TRUE CONCURRENCY IS CLOSED (2026-08-15 18:06 UTC) — ALL THREE SCENARIOS RACED AND HELD
 
 The program's oldest standing cutover blocker — "true concurrency has never been executed" —

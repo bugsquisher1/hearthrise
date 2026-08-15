@@ -148,10 +148,38 @@ returns numeric language sql immutable as $$
 $$;
 
 -- Grant hygiene, per 2026-08-11-grant-hygiene.sql: nothing is left callable by
--- `public`/`anon`. These three are pure arithmetic on numbers the client
--- already has, so `authenticated` may call them to render an honest preview --
--- but they decide nothing, and raid_claim reaches them as SECURITY DEFINER
--- regardless. Role-guarded so the PGlite harness can apply this file verbatim.
+-- `public`/`anon` — and, as of the security review below, nothing is left
+-- callable by `authenticated` either.
+--
+-- ⚠ R1 — THE `grant execute … to authenticated` LINES WERE REMOVED HERE, AND
+--   REMOVING THEM IS THE CONDITION THIS FILE SHIPS ON. They granted three
+--   brand-new client-callable RPCs without adding matching rows to
+--   `hr_client_rpc_baseline`, which is precisely what check (2) of
+--   `hr_assert_grant_hygiene` raises on. Proven against production inside a
+--   self-aborting transaction (create + grant + read the report + raise, whole
+--   thing reverted):
+--
+--     unapproved_client_rpcs = ["hr_hunt_band(...) → authenticated",
+--                               "hr_hunt_band_mul(...) → authenticated",
+--                               "hr_hunt_share(...) → authenticated"]
+--
+--   `hr_assert_grant_hygiene` runs on pg_cron (`hr-grant-hygiene`), so applying
+--   the file as written would have failed that job on EVERY run, and refused
+--   any later migration that calls the strict form. The detector was working;
+--   this file was the violation.
+--
+--   The grants bought nothing. The old comment claimed `authenticated` needs
+--   them "to render an honest preview" — the client never calls these RPCs.
+--   `src/features/raids.js` mirrors the ladder locally in `shareFor`/`bandFor`
+--   (lines ~289-313), and the only `hr_hunt` occurrences anywhere in `src/` are
+--   comments. `raid_claim` reaches them as SECURITY DEFINER regardless, which
+--   is the whole point of the definer boundary. So this is a pure subtraction:
+--   no capability is lost and the detector stays green.
+--
+--   The alternative — adding three baseline rows — was rejected. A baseline row
+--   is a standing statement that a client may call something; writing one to
+--   silence a detector for a surface the client does not use inverts what the
+--   baseline is for.
 do $$
 begin
   revoke all on function public.hr_hunt_share(bigint,int) from public;
@@ -163,9 +191,27 @@ begin
     execute 'revoke all on function public.hr_hunt_band_mul(text) from anon';
   end if;
   if exists (select 1 from pg_roles where rolname = 'authenticated') then
-    execute 'grant execute on function public.hr_hunt_share(bigint,int) to authenticated';
-    execute 'grant execute on function public.hr_hunt_band(bigint,bigint,boolean) to authenticated';
-    execute 'grant execute on function public.hr_hunt_band_mul(text) to authenticated';
+    execute 'revoke all on function public.hr_hunt_share(bigint,int) from authenticated';
+    execute 'revoke all on function public.hr_hunt_band(bigint,bigint,boolean) from authenticated';
+    execute 'revoke all on function public.hr_hunt_band_mul(text) from authenticated';
+  end if;
+end $$;
+
+-- R1 follow-through: assert the condition rather than trusting the block above.
+-- This is cheap and it is NOT self-fulfilling in the way §2's gate is (see the
+-- note there) — it reads a privilege, which the statements above set as a side
+-- effect, so a future edit that re-adds a grant trips it here at apply time.
+do $$
+declare v_bad text;
+begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    select string_agg(p.proname, ', ') into v_bad
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname in ('hr_hunt_share','hr_hunt_band','hr_hunt_band_mul')
+       and has_function_privilege('authenticated', p.oid, 'execute');
+    if v_bad is not null then
+      raise exception 'R1: % still executable by authenticated — this breaks hr_assert_grant_hygiene check (2)', v_bad;
+    end if;
   end if;
 end $$;
 

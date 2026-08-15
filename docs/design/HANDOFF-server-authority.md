@@ -324,6 +324,38 @@ now stage the file, commit, and report; the Coordinator reviews and applies. Rol
 single-call `begin … rollback` probes and read-only queries are unchanged — that is how
 an exploit gets proven open before it is closed, and that bar stays.
 
+## 🟢 THE SWITCH-ON TEST PASSED (2026-08-14) — the engine is proven END TO END
+
+**`POST /functions/v1/hr-accrue {"slot":5}` with a real user JWT → `HTTP 409
+{"ok":false,"error":"no_character"}` in 1,374 ms.** Run by Tyler on a throwaway account
+(`0a47ba77-…`) created in the Supabase dashboard with *Auto Confirm User* — anonymous
+sign-in is disabled and autoconfirm is off on this project, so that is the fast path;
+the invite code gates the game's sign-up modal, not Supabase auth.
+
+**This was the last unverified layer.** Everything below it had been proven directly
+against the database and everything above it stops at 401 without a real JWT, which is
+exactly why "deployed and correctly refusing" could not be told apart from "deployed but
+500ing on a bad `HR_ENGINE_DB_URL`". One 409 proves the pooler connection string, the
+in-function JWKS verification, the `set local role hr_engine`, and all five engine grants
+(`hr_rate_gate`, `hr_state_of`, `hr_offline_cap_ms`, `hr_seed`, `hr_apply`) at once.
+
+**Verified independently of the function's own success message** — it left a row only a
+real DB round trip could produce:
+
+```
+hr_rate_counters: user_id 0a47ba77-…  bucket 'accrue'  n=1  window_start 00:38:35Z
+```
+
+Harness: `tools/switch-on-test.mjs` (`node tools/switch-on-test.mjs`). It reads the project
+url/anon key out of `supabase-bootstrap.js`, prompts for the password on stdin — never argv,
+never an env var, so it stays out of shell history and the process table — and prints a
+spelled-out verdict per status code, because a bare status nobody can interpret is not a
+result. Re-run it after any engine redeploy; it is the cheapest honest end-to-end check.
+
+**Still to do for Security's condition 4:** this proves the transport. It is NOT yet the
+"real absence" — that needs a character on the throwaway, `localStorage['hr:serverAccrual']
+= 'on'`, and a genuine away window, with the destructive-apply confirmation seen in the wild.
+
 ## ✅ THE APPLY ENGINE IS LIVE (2026-08-14) — and the apply path is open
 
 **`2026-08-11-apply-engine.sql` is APPLIED to production.** Verified by query after, then by
@@ -581,12 +613,21 @@ habit exists for exactly this reason and should have been applied here first.
   the term in ~3.3 days instead of ~100 seconds. The complete fix is to score that term
   off the **journal** (a trailing-7-day `clan_ledger` sum, append-only and per-member
   rate-bounded by construction). View change + a balance call — Designer + Security.
-- **F4's key is unverified in production.** Nothing here could confirm Supabase's gateway
-  preserves `cf-connecting-ip` through to PostgREST. After real anon traffic, run:
-  `select bucket, count(*) from hr_rate_counters where bucket like 'rpc:anon%' group by 1;`
-  Many distinct keys → the IP path is live. Only `rpc:anon-unkeyed:*` → the gateway strips
-  both headers and protection is 600/min globally for that bucket. **Tell Security either
-  way; the residual changes materially.**
+- ~~**F4's key is unverified in production.**~~ **ANSWERED 2026-08-14 with real anon
+  traffic — THE IP PATH IS LIVE.** The prescribed query, run against production:
+
+  | bucket | rows | distinct keys | keys that are real users |
+  |---|---|---|---|
+  | `rpc:anon:hr_leaderboard` | 23 | **23** | 0 |
+  | `rpc:anon-unkeyed:hr_leaderboard` | 1 | 1 | 0 |
+  | `rpc:anon:beta_invite_check` | 1 | 1 | 0 |
+
+  23 distinct keys on the keyed bucket, and a left join to `auth.users` says **none of them
+  is a real user id** — so they are derived keys, not signed-in players. Supabase's gateway
+  DOES preserve `cf-connecting-ip` through to PostgREST. The unkeyed fallback exists and
+  fires (1 of 25 calls, ~4%), so it is not dead code either — that is the honest residual:
+  a caller who can suppress both headers still lands in one shared 600/min bucket.
+  **Security: the residual is much smaller than the worst case that was carried.**
 - **Code entropy, not the rate limit, is the load-bearing defence for the invite oracle.**
   20 codes; one IP still gets ~28,800 tries/day. Confirm the code space.
 - ~~**F5 is partial** — `leaderboard` and `clan_leaderboard` stay `anon`-readable because

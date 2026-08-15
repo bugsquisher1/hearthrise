@@ -68,7 +68,27 @@ export const SKIP = {
   TOO_SOON: 'below_min_span',
   NO_TARGET: 'unknown_monster',
   NOTHING: 'nothing_accrued',
+  /* An activity pointer with no `active_since`. Fail-closed rather than
+     substituted — see the precondition below. */
+  NO_ACTIVE_SINCE: 'no_active_since',
 };
+
+/* ⚠ THE KINDS THIS ENGINE CAN PAY. THE ACTIVITY INTENT'S ALLOWLIST IS DERIVED
+   FROM THIS ARRAY AND MUST NEVER BE WIDER (set-activity.js, asserted by
+   tests/activity-intent.mjs A1).
+
+   The reason is the whole "collect before you switch" rule: `hr_apply` stamps
+   `accrued_to = now()` on any activity change, so a window the engine cannot
+   PRICE is a window the switch CONFISCATES. `hr_activities` holds 344 rows
+   across three kinds and this engine simulates one of them, so an intent that
+   accepted the catalogue's vocabulary would let a player set `gather`, mine for
+   three hours, switch, and be paid nothing — an under-payment created by the
+   very rule that closed the over-payment.
+
+   Widening this array is therefore the SAME EDIT as teaching the engine to pay
+   that kind. If you add 'gather' here without a gather simulation below, the
+   guard fails; that is the guard's entire job. */
+export const PAYABLE_KINDS = Object.freeze(['combat']);
 
 /* The perk stack, server-side. Returns 0 for every channel.
    THIS IS NOT A STUB THAT FORGOT SOMETHING — it is the honest state of the
@@ -189,12 +209,29 @@ export function computeAccrual(input) {
   // rather than falling through to "no ticks" — matters, because a fall-through
   // would advance the watermark and silently confiscate the gathering time the
   // next phase is supposed to pay.
-  if (inp.activeKind !== 'combat' || !inp.activeId) {
+  if (!PAYABLE_KINDS.includes(inp.activeKind) || !inp.activeId) {
     return { accrued: false, reason: inp.activeKind && inp.activeKind !== 'idle'
       ? SKIP.UNSUPPORTED : SKIP.NO_ACTIVITY };
   }
   const monsters = inp.monsters || {};
   if (!monsters[inp.activeId]) return { accrued: false, reason: SKIP.NO_TARGET };
+
+  /* ── THE FAIL-CLOSED `active_since` RULE (Phase-D, the half that is not SQL) ─
+     `active_since` is the second watermark and the only defence against a
+     `start_activity` that forgot to send `accrued_to`: it clamps the grant to
+     "no more time than the activity has actually existed". It is stamped by
+     hr_apply itself from now(), never by the delta, so a NULL on a character
+     whose `active_kind` is payable is an INCONSISTENT ROW, not a default.
+
+     This used to be `nat(inp.activeSinceMs, accruedToMs)` — i.e. a missing
+     second watermark silently fell back to the first, which removes the clamp
+     at exactly the moment it is needed. Refusing costs a player nothing (the
+     next intent restamps it) and a mint is not available in the other
+     direction. Reachable only through an inconsistent row; unreachable through
+     the intent surface, which always sends `restart: true`. */
+  if (!Number.isFinite(Number(inp.activeSinceMs)) || Number(inp.activeSinceMs) <= 0) {
+    return { accrued: false, reason: SKIP.NO_ACTIVE_SINCE };
+  }
 
   // ── (1) The span. SERVER CLOCK ONLY. ─────────────────────────────────────
   const nowMs = nat(inp.nowMs, 0);

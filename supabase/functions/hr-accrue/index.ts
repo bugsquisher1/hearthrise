@@ -73,6 +73,8 @@ import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
+import { intentIdFor, isKnownVerb, INTENT_ERRORS } from './intents.js';
+import { runSetActivity } from './set-activity.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -134,40 +136,21 @@ const json = (body: unknown, status = 200) =>
   });
 
 /* ── Idempotency ────────────────────────────────────────────────────────────
-   THE KEY IS DERIVED, NOT ACCEPTED. Every other intent takes a
-   client-generated uuid, which is right for an intent the client initiates:
-   the client knows which retry is which. An accrual is different — it is the
-   same operation no matter who asks or how often, and it is defined entirely by
-   (user, slot, the watermark it starts from). Deriving the key from those
-   makes a replay idempotent even across two concurrent invocations that have
-   never heard of each other, and removes a client-supplied value from the one
-   call whose whole job is to pay out.
+   THE KEY IS DERIVED, NOT ACCEPTED, for the `accrue` verb. Every intent the
+   PLAYER initiates takes a client-generated uuid, which is right there: the
+   client knows which retry is which. An accrual is different — it is the same
+   operation no matter who asks or how often, and it is defined entirely by
+   (user, slot, the watermark it starts from). Deriving the key from those makes
+   a replay idempotent even across two concurrent invocations that have never
+   heard of each other, and removes a client-supplied value from the one call
+   whose whole job is to pay out.
 
-   ⚠ AND IT IS SALTED WITH A SERVER SECRET (review S6). A key derived only from
-     (user, slot, watermark) is COMPUTABLE BY THE PLAYER — hr_load returns
-     `accrued_to` so the UI can render a countdown. `player_intents` is one
-     namespace shared with the client-supplied uuids that market_list / cancel /
-     buy accept, so a player could burn their own next accrual key with a market
-     call, after which the accrual replays into a decision that paid nothing and
-     the watermark never advances until the 24h prune. Mixing
-     hr_seed(user, slot, 'intent:accrue:<watermark>') — a hash of a 256-bit
-     secret held in a table with RLS on, no policy and no client grant — makes
-     the key unguessable while keeping it identical across two concurrent
-     invocations, which is the only property the derivation actually needed.
-     hr_apply's `intent_mismatch` check is the second, independent lock.
-
-   SHA-256, formatted as a v4-shaped uuid (the version/variant bits are set so
-   Postgres's uuid type accepts it and it can never collide with a real v4). */
-async function intentIdFor(
-  user: string, slot: number, watermark: string, salt: string, attempt: number,
-): Promise<string> {
-  const label = `hr-accrue|${user}|${slot}|${watermark}|${salt}|${attempt}`;
-  const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(label)));
-  buf[6] = (buf[6] & 0x0f) | 0x40;
-  buf[8] = (buf[8] & 0x3f) | 0x80;
-  const h = Array.from(buf.slice(0, 16)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
-}
+   `intentIdFor` MOVED to ./intents.js in b345 and is imported above. It is
+   shared now, not copied, because the COLLECT that every collect-before-switch
+   intent runs derives the same key — so an `accrue` and a `set_activity` racing
+   on one watermark land on one key and the window is paid EXACTLY once, across
+   two verbs that have never heard of each other. The salting argument and the
+   `intent_mismatch` second lock are documented at its definition. */
 
 /* ── The clamps that a smaller span can escape (review S8) ──────────────────
    Every clamp in hr_apply is a BLAST RADIUS, set far above honest play, and any
@@ -236,13 +219,57 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     return json({ ok: false, error: 'not_signed_in' }, 401);
   }
 
-  /* The ENTIRE read of the request body — one call, one integer, in one place
-     that a Node test can execute. See ./request.js. */
-  const slot = parseIntent(await req.json().catch(() => ({}))).slot;
+  /* The ENTIRE read of the request body — one call, one reader, in one place
+     that a Node test can execute. See ./request.js. Four fields come back and
+     every one of them is a name or a selector; none is a value any progression
+     number is computed from. */
+  const intent = parseIntent(await req.json().catch(() => ({})));
+  const slot = intent.slot;
+
+  /* An UNKNOWN verb is refused, never defaulted to `accrue`. An ABSENT verb IS
+     `accrue`, because that is what the deployed client posts and a deploy that
+     stopped understanding the live client would take away time off every player
+     at once. request.js draws exactly that line; this is where it is answered. */
+  if (intent.verb === null || !isKnownVerb(intent.verb)) {
+    return json({ ok: false, error: INTENT_ERRORS.UNKNOWN_VERB }, 400);
+  }
 
   try {
     assertPooler();
     if (!sql) throw new Error('config:no_connection');
+
+    /* ── THE SEAM EVERY INTENT USES ────────────────────────────────────────
+       One statement, its own transaction, `set local role hr_engine` re-issued
+       inside it — because transaction mode does not keep a backend between
+       transactions, so a session-scoped SET would be silently lost and hr_apply
+       would then refuse to honour p_user. That failure surfaces as
+       `forbidden_impersonation`, which is a confusing name for a pooler
+       misconfiguration.
+
+       This is the ONLY database access an intent module has, and it can only
+       run one statement — so no intent can open a long transaction, hold a
+       connection, or write a table it was not granted (hr_engine holds zero
+       table privileges in every schema). */
+    const exec = async (text: string, params: unknown[]): Promise<Record<string, any>[]> =>
+      await sql.begin(async (tx) => {
+        await tx`set local role hr_engine`;
+        return await tx.unsafe(text, params as any[]);
+      }) as unknown as Record<string, any>[];
+
+    /* ── VERB DISPATCH ─────────────────────────────────────────────────────
+       Each intent is its own pure ESM module behind `exec`, so the bytes a Node
+       test drives are the bytes that deploy. index.ts stays what its header
+       says it is: prove who is asking, then hand off. */
+    if (intent.verb === 'set_activity') {
+      const out = await runSetActivity({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        activity: intent.activity,
+      });
+      return json(out.body, out.status);
+    }
 
     // ── READ. One transaction, engine role, rate gate FIRST. ───────────────
     // `set local role hr_engine` must be inside the transaction: transaction
@@ -321,7 +348,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       slot,
       nowMs,
       accruedToMs,
-      activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : accruedToMs,
+      /* NULL, not a fallback to accruedToMs (b345). `active_since` is the second
+         watermark and substituting the first one for it removes the clamp at
+         exactly the moment it is needed — a `start_activity` that forgot to send
+         `accrued_to` is the case it exists for. computeAccrual now refuses a
+         payable activity with no `active_since` by name (`no_active_since`). */
+      activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
       activeKind: st.active_kind,
       activeId: st.active_id,
       capMs: spanCapMs,

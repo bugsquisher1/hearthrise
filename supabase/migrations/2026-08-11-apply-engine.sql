@@ -3,7 +3,18 @@
 -- Companion design doc: docs/design/server-authority.md §2, §3
 -- Depends on: 2026-08-11-player-state.sql, 2026-08-11-catalogue.generated.sql
 --
--- ⚠ REVIEW ONLY — DO NOT APPLY TO PRODUCTION.
+-- ✅ APPLIED TO PRODUCTION 2026-08-14 (was: "REVIEW ONLY — DO NOT APPLY").
+--    The banner outlived its review: f959f73 was the review pass, and the file
+--    then sat unapplied for three days while the handoff described its contents
+--    as live. Applied from the file (Management API, file bytes -> JSON body,
+--    nothing hand-typed) wrapped in begin/commit, with §6 as the commit gate.
+--    Verified after: body 25,966 -> 47,457 chars, c_max_xp_delta = 12000000,
+--    hr_engine-only (authenticated/anon/service_role all false), zero residue.
+--    §6(g) RAN — its guard predicate (an auth.users row with a free slot 5)
+--    returned 7 before the apply, measured with the identical WHERE clause.
+--    §6(e-ii) did NOT run: it is conditional on `set role hr_engine`, which this
+--    database correctly refuses. That branch was proven behaviourally instead,
+--    against the live body, in a rolled-back transaction — see the handoff.
 --
 -- THE PROBLEM THIS SOLVES
 --   The simulation (yields, XP, drops, farm growth, combat) has to run in

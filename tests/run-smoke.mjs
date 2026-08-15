@@ -72,12 +72,85 @@ function serve() {
 // gate defers), that nothing was written to the player's save, and that the
 // console is clean — which is the only automated check that catches a module
 // throwing behind the wall, because no in-page test can reach that state.
+// ── The pre-auth RPC surface (b349) ─────────────────────────────────────────
+// Which RPCs may a client legitimately call with no session? Answered from
+// tests/rpc-resolution.baseline.json — the CI-verified record of what
+// production actually answers an anonymous caller — and NOT from the client's
+// own src/net/server-rpc.js list, so the two cannot vouch for each other. An
+// entry whose baseline code is 42501 is authenticated-only: the client sending
+// it anonymously is a guaranteed refusal and pure dashboard noise.
+async function anonSafeRpcNames() {
+  const raw = JSON.parse(await readFile(join(ROOT, 'tests', 'rpc-resolution.baseline.json'), 'utf8'));
+  const safe = new Set();
+  for (const [sig, v] of Object.entries(raw)) {
+    if (v && v.status === 200) safe.add(sig.split('(')[0]);
+  }
+  return safe;
+}
+
+// The client's own idea of the anonymous surface (src/net/server-rpc.js
+// ANON_CALLABLE) must equal what production actually permits. These two are
+// read from different files maintained by different people for different
+// reasons, which is the only arrangement in which either can check the other:
+//   • an RPC in ANON_CALLABLE but NOT anon-granted → the client will keep
+//     sending refused calls, which is the b349 bug wearing a new hat;
+//   • an RPC anon-granted but NOT in ANON_CALLABLE → the client refuses a call
+//     it is entitled to make, and a public surface silently stops working.
+async function anonSurfaceGuard() {
+  const problems = [];
+  const src = await readFile(join(ROOT, 'src', 'net', 'server-rpc.js'), 'utf8');
+  const m = /var\s+ANON_CALLABLE\s*=\s*\{([^}]*)\}/.exec(src);
+  if (!m) {
+    problems.push('ANON_CALLABLE is gone from src/net/server-rpc.js — the client no longer has one '
+      + 'answer to "may this RPC go out without a session", so every transport helper is free to '
+      + 'invent its own again');
+    return { problems, note: '' };
+  }
+  const claimed = new Set([...m[1].matchAll(/([A-Za-z_][\w]*)\s*:\s*true/g)].map((x) => x[1]));
+  const actual = await anonSafeRpcNames();
+  for (const n of claimed) {
+    if (!actual.has(n)) {
+      problems.push(`server-rpc.js says ${n} may be called anonymously, but rpc-resolution.baseline.json `
+        + `says production refuses an anonymous caller. Either the grant never landed or the client list is `
+        + `stale — every such call is a logged 42501.`);
+    }
+  }
+  for (const n of actual) {
+    if (!claimed.has(n)) {
+      problems.push(`production answers ${n} to an anonymous caller but server-rpc.js will refuse to send `
+        + `it without a session — a public surface that stops working for signed-out and expired-token `
+        + `players. Add it to ANON_CALLABLE, or close the grant.`);
+    }
+  }
+  return { problems, note: `${claimed.size} anon-callable RPC(s) — ${[...claimed].join(', ')} — match the live grant baseline` };
+}
+
 async function wallGuard(browser, url) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+
+  /* b349 — WHAT LEFT THE CLIENT, not what the client believes it would send.
+     A session-less boot sent hr_server_now() with the anon key in the
+     Authorization header on EVERY page load: 3,249 refused calls in 24h, 19%
+     of all database traffic answering 42501, which made the error dashboard
+     useless as an incident signal. Observed, never routed — the point is to
+     grade the real behaviour of a real boot, and after the fix there is
+     nothing left to send. */
+  const rpcCalls = [];
+  page.on('request', (r) => {
+    const m = /\/rest\/v1\/rpc\/([^?]+)/.exec(r.url());
+    if (!m) return;
+    let anon = true;
+    try {
+      const tok = String(r.headers()['authorization'] || '').replace(/^Bearer\s+/i, '');
+      anon = JSON.parse(Buffer.from(tok.split('.')[1] || '', 'base64').toString('utf8')).role !== 'authenticated';
+    } catch { anon = true; }
+    rpcCalls.push({ name: m[1], anon });
+  });
+
   const problems = [];
   try {
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
@@ -114,6 +187,29 @@ async function wallGuard(browser, url) {
 
     const real = errors.filter((t) => !/Failed to load resource|net::ERR|supabase|skypack|raw\.githubusercontent/i.test(t));
     if (real.length) problems.push('console errors behind the wall: ' + real.slice(0, 5).join(' | '));
+
+    // ── b349: no authenticated-only RPC may leave a session-less client ──
+    const anonSafe = await anonSafeRpcNames();
+    const leaked = rpcCalls.filter((c) => c.anon && !anonSafe.has(c.name));
+    if (leaked.length) {
+      const tally = {};
+      for (const c of leaked) tally[c.name] = (tally[c.name] || 0) + 1;
+      problems.push(
+        'THE b349 BUG: ' + leaked.length + ' authenticated-only RPC call(s) left a client with no session — '
+        + Object.entries(tally).map(([n, k]) => n + ' ×' + k).join(', ')
+        + '. Postgres answers every one of these 42501 and the client cannot tell that apart from a call it '
+        + 'forgot to read. Hold the call behind HearthriseGate.whenSignedIn() and let HearthriseRpc.mayCall() '
+        + 'refuse it at the transport; if the RPC genuinely should be public, that is a GRANT change plus a '
+        + 'tests/rpc-resolution.targets.json entry, not a silent call.');
+    }
+    /* THE CONTROL. "Zero leaked calls" also passes against a listener that
+       never fired, a renamed REST path, or a boot that died before it got to
+       the network. The public honour roll is read on every boot, signed out
+       included, so the observation is only meaningful if it saw that. */
+    if (!rpcCalls.length) {
+      problems.push('the RPC observer recorded NOTHING on a full boot — it is not watching the requests it '
+        + 'claims to grade, so the "no pre-auth call" result above is worthless');
+    }
   } catch (err) {
     problems.push('harness failure: ' + err.message);
   } finally {
@@ -1009,15 +1105,25 @@ const run = async () => {
       console.log(`Edge payload guard — ${deployProblems.note}`);
     }
 
+    const anonSurface = await anonSurfaceGuard();
+    if (anonSurface.problems.length) {
+      console.log('\nAnon-surface guard (the client\'s anon list == the live grants) — FAILED:');
+      for (const p of anonSurface.problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log(`Anon-surface guard — ${anonSurface.note}.`);
+    }
+
     // Wall guard FIRST, in its own clean context, before the harness page below
-    // ever declares itself.
+    // ever declares itself. b349: it also grades what left the client on the
+    // wire — a session-less boot may issue no authenticated-only RPC.
     const wallProblems = await wallGuard(browser, url);
     if (wallProblems.length) {
       console.log('\nAccount-wall guard — FAILED:');
       for (const p of wallProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it.');
+      console.log('\nAccount-wall guard — a clean boot is walled, nothing behind it, and no authenticated RPC left it.');
     }
 
     const migProblems = await migrationGuard();

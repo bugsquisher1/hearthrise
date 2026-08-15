@@ -26567,6 +26567,186 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     b349 — THE CALL THAT WAS MADE BEFORE THE CLIENT HAD THE RIGHT TO MAKE IT
+
+     MEASURED, not suspected. 24h of postgres_logs: 5,217 rows of
+     sql_state_code 42501 as `authenticator` — 19% of every request the project
+     served — and 3,249 of them were hr_server_now(). That RPC has exactly ONE
+     call site (muster.js syncClock, once per boot), so the count is one refused
+     call PER PAGE LOAD, from every player, signed in or not.
+
+     THE CAUSE IS A RACE, AND IT ALWAYS LOSES. muster.js boots at
+     DOMContentLoaded+420ms. auth.js cannot publish a session until a CDN
+     import() of supabase-js resolves. Instrumented in real Chromium over four
+     runs on a warm LOCAL server, with a valid cached session in place: the
+     session landed 94ms / 159ms / 358ms / 1,040ms AFTER the RPC had already
+     gone out, and it went out anonymous every time — because every transport
+     helper in this repo ends its Authorization header with `|| c.anonKey`,
+     which does not mean "call this anonymously", it means "send it without the
+     standing to send it". Postgres refused each one and the client shrugged.
+
+     Nothing was exposed and no player was broken. What it broke was the error
+     dashboard: at 81% success, a real outage is invisible in the noise.
+
+     THE SHAPE OF THE FIX, and what these three tests hold down:
+       R1  the DECISION  — HearthriseRpc.mayCall(), inverted so a NEW RPC is
+                           protected by nobody remembering anything.
+       R2  the TIMING    — HearthriseGate.whenSignedIn(): holds, then runs, and
+                           never runs at all if no session ever arrives.
+       R3  the CALLER    — muster.js's own rpc(), driven for real. b339's rule:
+                           a test that only proves the seam correct is the test
+                           that let the caller go on being wrong.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B349-R1: the client knows which RPCs need a session, and an unknown one DOES', () => {
+    const R = window.HearthriseRpc;
+    assert(R && typeof R.mayCall === 'function' && typeof R.needsSession === 'function',
+      'HearthriseRpc.mayCall/needsSession are gone — the one shared answer to "may this call go out" '
+      + 'is what stops six transport helpers each inventing their own');
+
+    /* FAIL CLOSED. This is the whole design: the maintained list is the SHORT
+       one (what may go out anonymously), so an RPC nobody has told this module
+       about is protected on the day it is written. */
+    assert(R.needsSession('hr_server_now') === true, 'hr_server_now must need a session');
+    assert(R.needsSession('an_rpc_written_next_year') === true,
+      'an unknown RPC was judged safe to call anonymously — the predicate has been inverted back to a '
+      + 'denylist, and every RPC added after this line is unguarded until someone remembers it');
+    assert(R.mayCall('hr_server_now', false) === false, 'a session-less authenticated call was permitted');
+    assert(R.mayCall('hr_server_now', true) === true, 'a signed-in authenticated call was refused');
+
+    /* Anything that is not literally `true` is "no session". A caller that has
+       not looked yet hands over undefined, and that caller is the bug. */
+    [undefined, null, 0, '', 'yes', {}, []].forEach((v) => {
+      assert(R.mayCall('hr_server_now', v) === false,
+        'mayCall accepted a truthy non-boolean (' + JSON.stringify(v) + ') as proof of a session');
+    });
+
+    /* THE CONTROL. A "fix" that refuses everything would silently delete the
+       public honour roll — leaderboards.js is allowed to read it anonymously
+       when a player's token has expired (b222), and production grants it to
+       anon (tests/rpc-resolution.baseline.json: the sole 200/OK entry). */
+    assert(R.needsSession('hr_leaderboard') === false && R.mayCall('hr_leaderboard', false) === true,
+      'the public leaderboard now needs a session — an expired token would blank the whole board, '
+      + 'which is the b222 bug back again');
+  }),
+
+  () => tryRunAsync('B349-R2: whenSignedIn() holds without a session, runs with one, and never fires signed-out', async () => {
+    const gate = window.HearthriseGate;
+    assert(gate && typeof gate.whenSignedIn === 'function',
+      'HearthriseGate.whenSignedIn is gone — this is the seam that knows the difference between '
+      + '"signed out" and "auth has not finished looking yet", and without it every caller re-derives it');
+    assert(typeof gate._signedInPending === 'function' && typeof gate._drainSignedIn === 'function'
+      && typeof gate._signedInWaiting === 'function',
+      'the whenSignedIn test seams are gone — a test that could only observe "it did not run" would '
+      + 'pass against an implementation that threw the callback away');
+
+    /* ── THE CALLER, by name. The suite boots with no session, so muster.js's
+       clock+pledge chain must still be SITTING here waiting. Counting alone
+       would pass the day some other module started deferring and muster
+       stopped, so the label is the assertion.
+       MUTATION: call syncClock() directly from muster's boot() again → RED. */
+    assert(gate._signedInWaiting().indexOf('muster:clock+pledge') !== -1,
+      'muster.js is not holding its clock sync behind a session — it is back to firing hr_server_now '
+      + '420ms after DOMContentLoaded, which is before auth.js can publish a token, which is 3,196 '
+      + 'refused calls a day. Waiting: [' + gate._signedInWaiting().join(', ') + ']');
+
+    const Auth = window.HearthriseAuth;
+    /* account-gate reads HearthriseAuth.isSignedIn() — not getSession() — so
+       this is the function the seam actually consults. Stubbing the other one
+       would leave the test measuring a path the gate never takes. */
+    assert(Auth && typeof Auth.isSignedIn === 'function', 'auth.js is not loaded');
+    const realIsSignedIn = Auth.isSignedIn;
+    const TAG = 'test:b349';
+    const before = gate._signedInPending();
+    let ran = 0;
+    try {
+      /* ── SIGNED OUT: held, not dropped, not run. */
+      Auth.isSignedIn = () => false;
+      gate.whenSignedIn(() => { ran++; }, TAG);
+      assert(ran === 0, 'whenSignedIn ran its callback with no session — this is the 3,196-a-day bug itself');
+      assert(gate._signedInPending() === before + 1,
+        'the callback was not queued either; it was thrown away, so a player who signs in mid-session '
+        + 'never gets the work that was waiting for them');
+
+      /* A drain while STILL signed out must not fire it. The watcher ticks
+         every 2s for the whole life of a walled page — if a drain could fire
+         without a session, the fix would leak once every two seconds instead
+         of once per boot. */
+      gate._drainSignedIn(TAG);
+      assert(ran === 0 && gate._signedInPending() === before + 1,
+        'a drain fired the callback while signed out — worse than the original bug, which at least '
+        + 'only fired once');
+
+      /* ── SIGNED IN: the held work runs, exactly once. Only this test's own
+         job is drained; muster's stays parked, so re-running the suite in the
+         same page grades the same thing it graded the first time. */
+      Auth.isSignedIn = () => true;
+      gate._drainSignedIn(TAG);
+      assert(ran === 1, 'the held callback did not run once a session appeared (ran ' + ran + 'x)');
+      gate._drainSignedIn(TAG);
+      assert(ran === 1, 'the callback ran again on a second drain — a boot probe would repeat forever');
+
+      /* ── ALREADY SIGNED IN: runs immediately, no wait. */
+      let now = 0;
+      gate.whenSignedIn(() => { now++; }, TAG);
+      assert(now === 1, 'whenSignedIn deferred work that could have run immediately — a signed-in '
+        + 'player would wait up to a watcher tick for something with no reason to wait');
+    } finally {
+      Auth.isSignedIn = realIsSignedIn;
+      try { gate._drainSignedIn(TAG); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('B349-R3: muster\'s OWN transport refuses to send an authenticated RPC with no session', async () => {
+    const M = window.HearthriseMuster;
+    assert(M && typeof M.syncClock === 'function', 'muster.js is not loaded');
+    const Auth = window.HearthriseAuth;
+    const realGetSession = Auth.getSession;
+    const realFetch = window.fetch;
+    const sent = [];
+    try {
+      window.fetch = function (u, o) {
+        const url = typeof u === 'string' ? u : (u && u.url) || '';
+        if (url.indexOf('/rest/v1/rpc/') !== -1) {
+          const h = (o && o.headers) || {};
+          sent.push({ url: url, auth: h.Authorization || h.authorization || '' });
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, epoch_ms: Date.now() }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+
+      /* ── THE BUG, driven through the real caller. MUTATION: delete the
+         mayCall() refusal from muster.js's rpc() → this goes RED, because the
+         request is exactly what production logged 3,196 times a day. */
+      Auth.getSession = () => null;
+      await M.syncClock();
+      assert(sent.length === 0,
+        'THE b349 BUG: muster.js sent ' + sent.length + ' RPC(s) with no session — '
+        + sent.map((s) => s.url.split('/rpc/')[1]).join(', ') + '. Postgres answers 42501 and the '
+        + 'client cannot tell that apart from a healthy call it forgot to read');
+
+      /* THE CONTROL, and it is the whole test. "Zero calls" passes trivially
+         against a broken fetch stub, a renamed function, or a syncClock that
+         was deleted. The SAME stub must record a real, correctly-signed call
+         the moment a session exists — otherwise the assertion above is
+         measuring nothing. */
+      Auth.getSession = () => ({ access_token: 'real-token-abc', user: { id: 'u1' } });
+      await M.syncClock();
+      assert(sent.length === 1 && sent[0].url.indexOf('/rpc/hr_server_now') !== -1,
+        'with a session the clock did NOT sync (' + sent.length + ' call(s)) — the guard above is '
+        + 'passing against a dead path and proves nothing');
+      assert(sent[0].auth === 'Bearer real-token-abc',
+        'the clock went out signed with something other than the player\'s token ("' + sent[0].auth
+        + '") — the `|| anonKey` fallback in headers() is still downgrading the call');
+    } finally {
+      window.fetch = realFetch;
+      Auth.getSession = realGetSession;
+      try { M._setSkew(0); } catch (e) {}
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

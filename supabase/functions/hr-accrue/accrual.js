@@ -949,15 +949,29 @@ function accrueGather(inp, span) {
 }
 
 /* The carry is a float and jsonb stores it exactly, but 17 significant digits
-   per skill in a column that is read on every accrual is noise: nine decimals
-   is ~1e-9 of one item, which is the same epsilon `advanceToolCarry` already
-   uses to decide a payout. Rounding at the boundary keeps the stored value
-   readable and bounded without changing a single payout. */
+   per skill in a column read on every accrual is noise: nine decimals is ~1e-9
+   of one item, the same epsilon `advanceToolCarry` already uses to decide a
+   payout. Quantising at the boundary keeps the stored value readable and
+   bounded without changing a payout — asserted, not assumed, by the CARRY
+   ROUNDING block in tests/accrual-engine.mjs.
+ *
+ * ⚠ FLOOR, NEVER ROUND, AND THAT IS A BUG FIX RATHER THAN A PREFERENCE.
+ *   `Math.round` was the first version and it is unsafe at exactly one place:
+ *   the top of the range. A carry of 0.9999999999 is legal — the range is the
+ *   half-open [0,1) — and `Math.round(0.9999999999 * 1e9) / 1e9` is **1**,
+ *   which hr_apply refuses as `bad_tool_carry`. That refusal is not on
+ *   index.ts's DEGRADABLE list, so it does not shorten the span, it 409s it:
+ *   the engine would have proposed an impossible value and cost the player
+ *   THE ENTIRE NIGHT. Every raw carry at or above 0.9999999995 hits it.
+ *   Flooring cannot leave the range by construction, and it gives away at most
+ *   1e-9 of one item — four orders of magnitude inside the payout epsilon.
+ *   Found by an edge-case assertion, not by reading the code; the assertion
+ *   (`a carry one epsilon under 1.0`) stays. */
 function roundCarry(carry) {
   const out = {};
   for (const k in (carry || {})) {
     const n = Number(carry[k]);
-    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.round(n * 1e9) / 1e9;
+    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.floor(n * 1e9) / 1e9;
   }
   return out;
 }

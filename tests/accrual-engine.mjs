@@ -938,7 +938,7 @@ function roundedCarry(carry) {
   const out = {};
   for (const k in (carry || {})) {
     const n = Number(carry[k]);
-    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.round(n * 1e9) / 1e9;
+    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.floor(n * 1e9) / 1e9;
   }
   return out;
 }
@@ -1080,6 +1080,45 @@ function toolCarryContinuityGuard() {
   ok(Math.max(...losses) === 1,
     'CARRY: no carry value in [0.1 … 0.9] changed the following span at all, so this guard is '
     + 'measuring nothing — the carry is not being read as a starting remainder');
+  /* ⚠ THE STORAGE ROUNDING MUST NOT BE A PAYOUT. `accrual.js roundCarry` stores
+     9 decimals, so the column holds 0.76 where the simulation held
+     0.7600000000000812 — and that is the ONLY difference between the two
+     columns in the parity table above. The argument that it is harmless is that
+     `advanceToolCarry` already floors with a 1e-9 epsilon, four orders of
+     magnitude larger than the discarded tail. An argument is not a measurement,
+     so here is the measurement: a span started from the rounded carry and the
+     same span started from the raw one must produce the same yield, for every
+     raw value the engine can actually emit. */
+  {
+    const raw = { woodcutting: 0.7600000000000812 };
+    const rounded = { woodcutting: Math.round(raw.woodcutting * 1e9) / 1e9 };
+    ok(rounded.woodcutting !== raw.woodcutting,
+      'CARRY ROUNDING: the fixture is not actually rounding anything — the assertion below is vacuous');
+    const a = qtyOf(call({ toolCarry: raw }));
+    const b = qtyOf(call({ toolCarry: rounded }));
+    ok(a === b,
+      `CARRY ROUNDING: storing 9 decimals changed a span's yield (${a} vs ${b}). The rounding must `
+      + 'sit strictly inside advanceToolCarry\'s 1e-9 payout epsilon; if it does not, it is not a '
+      + 'storage detail, it is a balance change.');
+    /* ⚠ THE TOP OF THE RANGE, and this assertion FOUND A REAL BUG rather than
+       confirming a belief. The carry's range is the half-open [0,1), so
+       0.9999999999 is legal — and `Math.round(0.9999999999 * 1e9) / 1e9` is
+       **1**, which hr_apply refuses as `bad_tool_carry`. That code is not on
+       index.ts's DEGRADABLE list, so it does not shorten the span, it 409s it:
+       the engine would propose an impossible value and cost the player THE
+       WHOLE NIGHT. `Math.floor` cannot leave the range by construction. Every
+       raw carry >= 0.9999999995 was affected. */
+    const edge = 1 - 1e-10;
+    const stored = roundedCarry({ woodcutting: edge }).woodcutting;
+    ok(stored < 1,
+      `CARRY ROUNDING: a carry of ${edge} is stored as ${stored}, which is OUTSIDE the [0,1) range `
+      + 'hr_apply enforces. The next accrual would be refused as bad_tool_carry — not degraded, '
+      + 'REFUSED — and the player would lose the entire night. Floor, do not round.');
+    ok(qtyOf(call({ toolCarry: { woodcutting: edge } }))
+       === qtyOf(call({ toolCarry: { woodcutting: stored } })),
+      'CARRY ROUNDING: a carry one epsilon under 1.0 pays differently stored than raw');
+  }
+
   toolCarryContinuityGuard.report = [
     `tool_carry: losing the carry costs ${Math.min(...losses)}-${Math.max(...losses)} units on the `
     + `following span (${losses.filter((n) => n > 0).length} of 9 carry values in [0.1 … 0.9] `

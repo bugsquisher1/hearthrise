@@ -66,6 +66,7 @@ import { hitXpRoute, killXpRoute } from './styles.js?v=342';
 import { applyGoldFind } from './pacing.js?v=342';
 import { AWAY_RATE_MULT, rateMult, utcDaySegments } from './away.js?v=342';
 import { NO_BONUS } from './botd.js?v=342';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=342';
 
 export { AWAY_RATE_MULT };
 
@@ -338,6 +339,47 @@ export function simulateSpan(state, ctx) {
   let diedTo = null;    // the monster id that landed the killing blow
   const segLog = [];
 
+  /* ── THE BUFF CLOCK, DRIVEN BY THIS TIMELINE ────────────────────────────
+     Timed buffs are PERSONAL, so they pay away (src/core/away.js `AWAY_SCOPE`
+     — Tyler, 2026-08-14: "they should still get their personal / clan buffs").
+     A bonus that pays away must also be SPENT away, or a ten-minute Feast
+     eaten on the way out covers an eight-hour night. This loop is the only
+     away caller that owns a timeline, so this loop owns the clock.
+
+     Crucially, NOTHING is plumbed to make the payout follow. `ctx.bonus` is
+     the client's seven-deep getBonus chain, whose buff term reads the SAME
+     `state.buffs` array this drains — one identity, not two copies — so the
+     Feast simply stops contributing on the tick after it runs out. The server
+     builds `state` from DB rows with no `buffs` field, so every line below is
+     an inert no-op there until the server grows a buff model.
+
+     Order is load-bearing: SAMPLE, TICK, THEN DRAIN. A buff that is alive when
+     the swing happens pays for that swing, exactly as it would live; draining
+     first would rob the last swing of a buff's life.
+
+     The queue is READ FRESH each tick rather than captured once, and the
+     reason is narrower than it first looks — worth stating, because the
+     obvious reason is wrong. `state` IS `G` on the client and
+     `window.pruneBuffs()` REASSIGNS `G.buffs`; that alone is harmless, because
+     it reassigns to a `filter()`ed array whose ELEMENTS are the same objects,
+     so draining through a stale reference still moves the very buffs the
+     getBonus chain reads. (Measured: capturing the array once passes a
+     reassignment test unchanged.) What a captured reference CANNOT see is a
+     buff APPEARING in a queue that was empty when the span began — it would
+     never be clocked, so it would pay for the rest of the absence and come
+     back reading full. A property lookup per tick costs less than the scan
+     beside it, so the hazard is removed rather than reasoned about. AWAY-15(f)
+     pins it. */
+  /* `active: true` because a running fight IS work — that is the one freeze
+     condition `tickBuffs` still honours, and away combat does not meet it. */
+  const buffCtx = { away: !!ctx.away, active: true };
+  const liveQueue = () => {
+    const q = state.buffs;
+    return (Array.isArray(q) && q.length > 0) ? q : null;
+  };
+  let buffPaidMs = 0;              // ms of the span a buff was actually live for
+  const buffsExpired = [];         // the types that ran out DURING the absence
+
   for (const seg of segments) {
     if (!state.activeMonster) break;
     /* Carry the sub-tick remainder across the UTC boundary so splitting a
@@ -361,8 +403,19 @@ export function simulateSpan(state, ctx) {
            (legacy COMBAT_FX.onDeath), so after the fact there is nothing left
            to name and the card would have to say "you died" to nobody. */
         const facing = state.activeMonster;
+        /* Read ONCE, before the tick, and both charge and drain THAT queue.
+           Reading it again afterwards looks equivalent and is not: `fx.onSwing`
+           runs inside the tick, so a buff added during the tick would be
+           charged one interval it was never alive for. */
+        const q = liveQueue();
+        const buffLive = q ? hasActiveBuff(q) : false;
         const r = simulateTick(state, segCtx);
         ran++;
+        if (q) {
+          if (buffLive) buffPaidMs += tickMs;
+          const bt = tickBuffs(q, tickMs, buffCtx);
+          for (const t of bt.expired) buffsExpired.push(t);
+        }
         if (r.crit) crits++;
         if (r.ate) foodEaten++;
         if (r.outcome === OUTCOME.KILL) kills++;
@@ -394,6 +447,13 @@ export function simulateSpan(state, ctx) {
     if (died) break;
   }
 
+  /* Drop what ran out. An expired entry already pays nothing (`activeBuffs`
+     filters on `remainingMs > 0`), so this is not correctness — it is the
+     player not coming back to a row reading "0s" that no live tick will ever
+     clear: `tickBuffs` skips an already-dead buff, so nothing else would
+     prune it. Reassigns rather than splices, matching `window.pruneBuffs`. */
+  if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
+
   const spanMs = Math.max(0, (Number(ctx.toMs) || 0) - (Number(ctx.fromMs) || 0));
   return {
     kills,
@@ -413,11 +473,26 @@ export function simulateSpan(state, ctx) {
        Stated by the simulation, not inferred by a renderer. A welcome-back
        card that had to guess would eventually quote a blessing nobody paid. */
     blessed: false,          // blessings are presence-gated (b227)
-    /* True when a timed buff was actually held through the absence — it was
-       frozen: it paid nothing and drained nothing. Reported as FALSE when the
-       player had none, because "your buffs were paused" beside an empty buff
-       list is the same species of lie as quoting a blessing that never paid. */
-    buffsPaused: ctx.activeBuffCount == null ? true : (ctx.activeBuffCount > 0),
+    /* ALWAYS FALSE NOW, and deliberately still here.
+       Under b326 a held buff was frozen through the absence and three
+       renderers printed "your buffs were paused" off this flag. Buffs pay away
+       now, so nothing is paused, and the honest value is false — which those
+       three renderers already handle (it is the no-buffs-held case they were
+       written for). Removing the key instead would leave
+       `if (off.buffsPaused)` reading `undefined` on a stale summary and is a
+       larger blast radius for no gain. What replaced it as the interesting
+       fact is `buffPaidMs` / `buffsExpired` below. */
+    buffsPaused: false,
+    /* WHAT THE BUFFS ACTUALLY DID, stated rather than inferred — the same rule
+       as `blessed`, `crits` and `died`. `buffPaidMs` is the slice of the
+       simulated span during which at least one buff was live (0 when none were
+       held, and never longer than the span), and `buffsExpired` names the types
+       that ran out mid-absence. A welcome-back card can now say "your Hunter's
+       Feast covered the first 14 minutes" instead of guessing, and the guess it
+       would otherwise make — "the whole night was buffed" — is exactly the mint
+       this design exists to prevent. */
+    buffPaidMs,
+    buffsExpired,
     featuredMs,              // ms spent on a Boss of the Day / Week
     featuredDropMult,        // the drop multiplier that featured time paid (1 when none)
     capped: !!ctx.capped,

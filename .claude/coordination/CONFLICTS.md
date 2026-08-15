@@ -12,6 +12,37 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-15 · BLOCKER (code + semantic) — the away buff rule is landed in CORE only; the gather/artisan replay in `legacy.js` must land before this ships (Systems → whoever holds `src/legacy.js`)
+
+Branch `agent-a06ecbcee310aa2c7`. `AWAY_SCOPE.buff` is now `true` (Tyler, 2026-08-14: personal buffs pay away, server-wide blessings do not). That flag is a property of the SCOPE TABLE, so it opens for every away caller at once — but only one of them can honour the other half of the rule.
+
+- **away COMBAT** — `src/core/combat-sim.js simulateSpan` owns a timeline (it already segments by UTC day for the Boss of the Day). It drives the buff clock per tick, so a buff expires at the right instant. **Correct, measured, tested (AWAY-5 / AWAY-15).**
+- **away GATHER / ARTISAN** — `legacy.js processOffline` computes `ticks = floor(spanMs / offlineIntervalMs())` and runs that many identical actions. A flat single-rate loop: the interval is derived ONCE before the first action and nothing advances a clock inside it. It therefore **pays a buff for the whole absence and drains none of it.**
+
+**Measured exposure** (shipped food catalogue — magnitudes 1–5, durations 2–20 min): a `gather_speed` buff eaten immediately before logging off applies its speed term to the entire night (max **+4%**, via the one-shot `activityIntervalMs()` read); an `all_xp` buff applies to every action of the night (max **+5%**). Bounded, deliberate to trigger, and still the b326 exploit in miniature.
+
+**Second, player-facing half of the same defect:** `legacy.js` line ~1399 computes `buffsPaused` for the non-combat branch as "did they hold a buff", and `src/features/home-dashboard.js:565` prints "your buffs were paused" off it. On a gather night that copy is now a lie in both directions — nothing was paused, and it paid all night.
+
+**The fix is in `legacy.js`, not in core:** split the gather/artisan replay at the buff-expiry boundary — run `min(buffRemainingMs, spanMs)` of ticks with the buff live, call `advanceBuffClock` for that slice, re-derive `offlineIntervalMs()`, then run the remainder. Same shape `simulateSpan` uses, one level up. Then drop `buffsPaused` from the non-combat summary. **Do NOT "fix" it by closing `AWAY_SCOPE.buff` again** — that reverts a stated design rule to work around a loop that should have had a timeline all along. The full note is at the foot of `src/core/away.js`.
+
+Also stale and now wrong in `legacy.js` (comments + one player-facing string, all untouched because another agent holds the file): the `getBuffBonuses` header (~14220), `advanceBuffClock`'s drain-rules comment (~14328), `buffFrozen()` and its copy *"freezes entirely while you are away"* (~14454–14490), and the `buffsPaused` doc block (~1390).
+
+### 2026-08-15 · FINDING (no change made) — the offline cap does NOT stop the character; it caps the payout and shifts the window to the END of the absence (Systems → Coordinator / whoever owns the cap)
+
+Tyler's rule: *"after that player's 'max offline time' is reached, their character stops all activity."* **Measured behaviour today is the other one.** Driving the real `processOffline()` with a stubbed cap and `document.hidden` forced false:
+
+| scenario | absence | cap | PAID | `capped` | activity still running on return | sim window |
+|---|---|---|---|---|---|---|
+| gathering | 3h | 1h | 1h | true | **yes** (`activeSkill: woodcutting`) | n/a |
+| combat | 3h | 1h | 1h | true | **yes** (`activeMonster: slime`) | now−1h → now |
+| combat | 18h | 12h | 12h | true | **yes** | now−12h → now |
+
+So today: **(a)** the payout is capped and the activity is still running when the player returns — not **(b)** the character stops at the cap and returns idle.
+
+There is a second, less obvious half nobody has stated: `simulateAwayCombat` sets `fromMs = now − paidMs`, so the credited window is the **LAST** `cap` hours before returning, not the **FIRST** `cap` hours after leaving. An 18-hour absence is simulated as "idle for 6 hours, then fought for 12". Under Tyler's rule it should be "fought for 12, then stopped". The amount paid is identical either way; **which UTC day's Boss of the Day is credited is not** — a long absence is currently credited against the wrong day's boss. It also decides which instant a held buff's remaining time maps onto.
+
+Reported, not changed — the cap is Tyler's call and it interacts with in-flight work elsewhere.
+
 ### 2026-08-14 · b342 · SEMANTIC — every proc pet just got HALVED to its declared rate (Systems → Game Designer)
 Companion procs were applying **twice per trigger** — measured, in the real client: 2 applications, 2 toasts and 1.0 pet XP (a utility pet earns 0.5) on each of kill / combatHit / gather / cook. Two identical hook sets, one in `src/legacy.js` block 31 and one in `src/features/companions.js`, both wrapping `killMonster` / `combatTick` / `addItem`. The legacy copy is deleted (b228's fix, one layer up).
 

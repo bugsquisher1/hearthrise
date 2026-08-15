@@ -643,14 +643,29 @@ function judge(o) {
   const transportOverlapped = Number.isFinite(overlap.minPairMs) && overlap.minPairMs > 0;
   const contended = evidence.length > 0;
 
+  /* ⚠ A RACE THAT PAID NOTHING IS NOT A PASS. Without this, N callers that all
+     answer `replayed` — every one a loser, no winner anywhere — would satisfy
+     "exactly one payment" vacuously (0 is not > 1), produce contention
+     evidence, and be reported RACED with zero receipts. That is the shape of a
+     vacuous green: the money property was never exercised because no money
+     moved. The only honest verdict is that the run did not test what it set out
+     to test. */
+  const paidNothing = receipts.length === 0;
+
   let verdict;
   if (violations.length) verdict = 'PROPERTY-VIOLATED';
   else if (contaminated) verdict = 'INCONCLUSIVE-CONTAMINATED';
+  else if (paidNothing) verdict = 'INCONCLUSIVE';
   else if (!transportOverlapped || !contended) verdict = 'NOT-OVERLAPPED';
   else verdict = 'RACED';
 
   return {
     verdict, violations, notes,
+    reason: paidNothing && !violations.length
+      ? 'the raced window paid NOTHING — every caller was a loser, so exactly-once was satisfied '
+        + 'vacuously and the money property was never exercised. Something drained the window between '
+        + 'the control and the race (a second signed-in client?), or the activity stopped being payable.'
+      : undefined,
     transportOverlapped, contended,
     evidence: evidence.map((c) => `${c.label}:${c.kind}`),
     receipts: receipts.length, claimedApplies, paidGold, paidXp, paidMs,
@@ -1252,6 +1267,13 @@ function makeStandIn(mode) {
           return send(200, { ok: true, accrued: false, reason: 'below_min_span', version: state.version });
         }
 
+        /* NOBODY WINS. Every contended caller answers `replayed` and no delta is
+           ever applied — the vacuous-green shape: contention evidence with zero
+           receipts. Must NOT be reported as RACED. */
+        if (mode === 'nopay' && contendedNow) {
+          return send(200, { ok: true, accrued: false, reason: 'replayed', version: state.version });
+        }
+
         return await withLock(async () => {
           const replay = state.intents.has(key);
           if (replay && mode !== 'doublepay') {
@@ -1283,6 +1305,7 @@ const SELFTEST_CASES = [
   { mode: 'phantom', expect: 'PROPERTY-VIOLATED', prop: 'P2 CONSERVATION', why: 'a receipt is issued for money that never landed in player_state' },
   { mode: 'halfwindow', expect: 'PROPERTY-VIOLATED', prop: 'P4 WINDOW CONSERVATION', why: 'half the absence is silently confiscated — the failure shape this codebase has bled from most' },
   { mode: 'serialised', expect: 'NOT-OVERLAPPED', prop: null, why: 'the backend serialises, so nothing contends — must NOT be reported as a pass' },
+  { mode: 'nopay', expect: 'INCONCLUSIVE', prop: null, why: 'every caller loses and nothing is paid: exactly-once holds VACUOUSLY, so it must not read as RACED' },
   { mode: 'error500', expect: 'PROPERTY-VIOLATED', prop: 'LOCK', why: 'a 5xx under contention (the shape a 40P01 deadlock would take)' },
   { mode: 'hang', expect: 'PROPERTY-VIOLATED', prop: 'LOCK', why: 'a request that never returns — under the transaction pooler that is a leaked backend' },
 ];

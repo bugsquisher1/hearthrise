@@ -426,6 +426,34 @@ that hardcodes a value it did not measure is asserting about a database it imagi
 **Next hands on this: the two branches under "WAITING ON SECURITY" are with Security now.
 Nothing else is blocked.**
 
+## ✅ TRUE CONCURRENCY IS CLOSED (2026-08-15 18:06 UTC) — ALL THREE SCENARIOS RACED AND HELD
+
+The program's oldest standing cutover blocker — "true concurrency has never been executed" —
+is closed on its own stated terms: two OS processes, measured transport overlap, SERVER-
+confirmed interleaving, exactly-once payment. Run by Tyler with `tools/race-test.mjs --yes`
+against production (preflight independently re-confirmed deployed == repo, `9040b4fe…`):
+
+| scenario | overlap | server's own contention evidence | payment |
+|---|---|---|---|
+| accrue-vs-accrue | 1,849 ms | B: `replayed` (derived key — both read the same watermark+version) | exactly once, 54g/1177xp |
+| accrue-vs-set_activity | 1,829 ms | A: `replayed` — two DIFFERENT verbs deriving the SAME collect key, the property intents.js claimed and nothing had tested | exactly once, 48g/891xp |
+| set_activity-vs-set_activity | 2,122 ms | A: **`version_conflict`** at 6 ms stagger (two different client keys, so replay cannot be the marker) | exactly once, 57g/1255xp |
+
+Receipts balanced state to the gold piece in EVERY attempt, including the retries the
+harness refused to grade (it demands server-side contention evidence, not just overlapping
+sockets — three NOT-OVERLAPPED retries were declared honestly rather than passed vacuously).
+
+**Worth keeping — the first run's "failure" was the engine working:** the initial run came
+back INCONCLUSIVE because the character (10 HP, auto-eat off) DIED mid-control-span; the
+engine paid the partial window, respawned it, and idled the activity, making every later
+window unpayable. Verified in the ledger (`k:["accrued_to","activity","hp",...]`, ate:0).
+The throwaway is now a fixture that cannot die — hitpoints 13M xp, atk/str/def 1M, hp 99/99,
+auto-eat shrimp@50 ×500 — all journalled as `race-test-fixture` admin ledger rows.
+
+Also proven along the way, firsts in production: the accrual engine PAID a real away window
+(control spans of ~78s paying 44–65g/900–1,300xp with kills, drops, and auto-eat), and death
+mid-span pays the partial and idles — the away path and the death path both work live.
+
 ## ✅ THE P0 IS CLOSED (2026-08-15, b350+ / commit 6382a45) — proven in production
 
 **Fix:** `::text::jsonb` at both apply sites (`index.ts`, `set-activity.js` `APPLY_SQL`).

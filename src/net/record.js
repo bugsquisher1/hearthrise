@@ -146,7 +146,16 @@ export function isRecordActive() { return isServerAccrualEnabled(); }
    `from` names a key inside the envelope's `state` object. `decode` turns the
    wire value into the client's representation and MUST return `null` for
    anything it is not certain about — that is what makes `known:false` reachable
-   rather than theoretical. */
+   rather than theoretical.
+
+   `fingerprint` is b347's addition and it is what makes the rule CHECKABLE at
+   runtime rather than merely stated. See "THE ACCESSOR MUST NOT VOUCH FOR A
+   NUMBER IT DID NOT SEE ARRIVE" below. Every entry must carry all four keys —
+   REGISTRY_FIELDS is exported so the guard reads the contract instead of
+   restating it, the same shape hr-accrue/intents.js uses for its verb registry
+   (a hard-coded list cannot notice a column being ADDED). */
+export const REGISTRY_FIELDS = Object.freeze(['field', 'from', 'decode', 'fingerprint']);
+
 export const SERVER_OF_RECORD = Object.freeze([
   Object.freeze({
     field: 'offlineBudget',
@@ -167,11 +176,54 @@ export const SERVER_OF_RECORD = Object.freeze([
       if (!Number.isFinite(ms) || ms <= 0) return null;
       return { at: ms };
     },
+    /* NOT JSON.stringify. The watermark is one number inside a wrapper object,
+       and the wrapper may legitimately grow a key (b226's `dayKey`/`usedMs` ride
+       in the same object); fingerprinting the whole object would report a
+       harmless neighbour as tampering. Fingerprint exactly the value the server
+       supplied and nothing else. Never NaN and never empty, so `want === have`
+       is a real comparison rather than two unknowns matching by accident. */
+    fingerprint: (v) => {
+      const at = v && typeof v === 'object' ? Number(v.at) : NaN;
+      return Number.isFinite(at) ? 'at=' + at : 'absent';
+    },
   }),
 ]);
 
 export function serverOfRecordFields() { return SERVER_OF_RECORD.map((e) => e.field); }
 export function isServerOfRecord(field) { return serverOfRecordFields().indexOf(field) !== -1; }
+export function recordEntry(field) {
+  for (const e of SERVER_OF_RECORD) if (e.field === field) return e;
+  return null;
+}
+
+/* ── MAY THE CLIENT WRITE THIS FIELD? (b347) ────────────────────────────────
+   THE RULE THE HEADER ALREADY STATED AND NOTHING ENFORCED. "There is no third
+   writer and no fallback" was true of record.js and false of the game: two
+   client sites went on writing `offlineBudget` after the strip had deleted it —
+   `saveLocal()` advanced it to `lastSeen` on every autosave, and the cloud
+   overlay re-stamped it to the snapshot's save time two lines after stripping
+   it out of that same snapshot. Measured: the server said 06:00Z and the client
+   reported 09:30Z.
+
+   ⚠ THIS IS THE TEMPLATE, WHICH IS WHY A FOUR-LINE PREDICATE IS WORTH A BLOCK
+     OF PROSE. Gold (~40 writers), inventory, skill xp and hearth tokens all
+     follow this field, and the ordering rule in the table above — the record
+     follows the writer — is exactly the rule this function makes askable. Every
+     one of those migrations ends with the same sentence at its write sites:
+     `if (!mayClientWrite('gold')) return;`
+
+   EXEMPT, DELIBERATELY, AND THE ONLY EXEMPTION: accrue.js's
+   `stampAwayWatermarks`, which runs from `setServerAccrualEnabled` at the exact
+   instant authority CHANGES HANDS. Flipping ON hands the span to the server
+   before any envelope has arrived (nothing is `known` yet, so nothing can be
+   overwritten); flipping OFF hands it back, and refusing the write there would
+   leave the client with no watermark at all and re-pay the whole span. A
+   steady-state writer asks; the switch does not, because it is not a writer of
+   the record — it is the thing that decides whose record it is. */
+export function clientMayWrite(field) {
+  if (!isServerOfRecord(field)) return true;   // not moved — the client still owns it
+  return !isRecordActive();                    // moved AND armed — applyRecord is the only writer
+}
 
 /* ── THE STRIP ──────────────────────────────────────────────────────────────
    PURE, and it never mutates its argument: the caller may be holding the parsed
@@ -220,7 +272,7 @@ export function forgetServerOfRecord(G) {
      field's presence precisely so a leftover value cannot be reported as
      server-supplied; forgetting the value without forgetting the claim would
      have inverted that into reporting `undefined` as server-supplied. */
-  if (G._record) G._record = { ...G._record, known: [], forgottenAt: Date.now() };
+  if (G._record) G._record = { ...G._record, known: [], stamp: {}, forgottenAt: Date.now() };
   return forgotten;
 }
 
@@ -274,12 +326,23 @@ export function applyRecord(G, res) {
   if (!written.length) {
     return { written: [], missing: dec.missing, skipped: 'no_record_fields', version: dec.version };
   }
+  /* THE FINGERPRINT OF WHAT ARRIVED (b347). Taken here, from the decoded value,
+     at the only moment this module can honestly claim to have seen the server's
+     number. `recordValue` compares against it; without it the accessor reports
+     whatever is in G under the server's name, which is how a client write comes
+     back labelled `source:'server'`. */
+  const stamp = {};
+  for (const f of written) {
+    const e = recordEntry(f);
+    stamp[f] = e && typeof e.fingerprint === 'function' ? e.fingerprint(G[f]) : null;
+  }
   G._record = {
     version: dec.version,
     at: Date.now(),
     serverNow: res.now || null,
     known: written.slice(),
     missing: dec.missing.slice(),
+    stamp,
   };
   return { written, missing: dec.missing, version: dec.version };
 }
@@ -289,12 +352,45 @@ export function applyRecord(G, res) {
    which under the switch is `undefined` — safe, but it does not say WHY. This
    says why, and `known:false` is the answer a consumer has to handle. It reads
    `G._record.known` rather than the presence of the field, so a value left over
-   from before a strip can never be reported as authoritative. */
+   from before a strip can never be reported as authoritative.
+
+   ── THE ACCESSOR MUST NOT VOUCH FOR A NUMBER IT DID NOT SEE ARRIVE (b347) ──
+   The `known` list is a claim about the PAST — "an envelope wrote this field
+   during this session". It says nothing about the present, and the whole point
+   of an accessor built to catch a second writer is that a second writer may
+   have run since. Measured, with a control: the server said 06:00Z, a client
+   write moved it to 09:30Z, and this function answered
+   `{known:true, source:'server'}` — the forged number wearing the server's
+   name, which is strictly worse than not having moved the record at all,
+   because everyone downstream now believes it.
+
+   So the claim is checked, not trusted. `_record.stamp` holds the fingerprint
+   of what applyRecord actually wrote; a mismatch means SOMETHING ELSE wrote it
+   and the honest answer is `known:false` — fail-closed, the same direction as
+   every other refusal in this file, and a state every consumer already has to
+   handle. `source` names the fault so a bug report can say which of the two
+   possible bugs it is (a stale claim, or a live second writer).
+
+   THE STALE-SESSION CASE FALLS OUT FOR FREE, and it was a real hole: `_record`
+   is `_`-prefixed so it never reaches the cloud, but saveLocal() writes all of
+   G, so a `_record` from a PREVIOUS session survives a reload while
+   stripServerOfRecord deletes the field it claims. That combination reported
+   `known:true, value:undefined`. It now reports `known:false`. */
 export function recordValue(G, field) {
   if (!isServerOfRecord(field)) return { known: false, value: undefined, source: 'not-moved' };
   const rec = G && G._record;
-  const known = !!(rec && Array.isArray(rec.known) && rec.known.indexOf(field) !== -1);
-  if (!known) return { known: false, value: undefined, source: 'unknown' };
+  const claimed = !!(rec && Array.isArray(rec.known) && rec.known.indexOf(field) !== -1);
+  if (!claimed) return { known: false, value: undefined, source: 'unknown' };
+  const entry = recordEntry(field);
+  const want = rec.stamp && Object.prototype.hasOwnProperty.call(rec.stamp, field)
+    ? rec.stamp[field] : null;
+  const have = entry && typeof entry.fingerprint === 'function' ? entry.fingerprint(G[field]) : null;
+  if (want === null || want !== have) {
+    return {
+      known: false, value: G[field], source: 'client-overwrote',
+      expected: want, found: have, version: rec.version,
+    };
+  }
   return { known: true, value: G[field], source: 'server', version: rec.version };
 }
 
@@ -457,8 +553,8 @@ export function beginRecordLoad(opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseRecord = {
-    SERVER_OF_RECORD, RECORD_OUTCOMES,
-    isRecordActive, serverOfRecordFields, isServerOfRecord,
+    SERVER_OF_RECORD, RECORD_OUTCOMES, REGISTRY_FIELDS,
+    isRecordActive, serverOfRecordFields, isServerOfRecord, recordEntry, clientMayWrite,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

@@ -673,9 +673,23 @@ async function run({ patches } = {}) {
     ok(declared.length > 8,
       `C5 CONTROL: only ${declared.length} pair(s) were parsed out of ${PRED1}'s c_expected — the `
       + 'parser has stopped matching and the comparison below would be vacuous');
-    ok(eaten.length >= 8 && eaten.length % 4 === 0,
-      `C5 CONTROL: ${eaten.length} consumed pair(s) parsed out of ${sweeps.length} sweep file(s) `
-      + `(${sweeps.join(', ')}); the c_pairs parser is not reading them`);
+    /* ⚠ SIZE-AGNOSTIC, since batch 4. This was `eaten.length >= 8 &&
+       eaten.length % 4 === 0`, which assumed every batch consumes a multiple of
+       four pairs — true of batches 2 and 3 (two tables each) and FALSE of batch
+       4, which takes seventeen: 4+4+34 = 42 and 42 % 4 = 2. The control would
+       then have gone red for a database in perfect order, which is the exact
+       pressure the comment below warns about. What it is FOR is "the c_pairs
+       parser is still reading the files", so that is what it asserts now. */
+    ok(sweeps.length > 0, 'C5 CONTROL: no sweep migration files were found at all');
+    for (const f of sweeps) {
+      if (f === PRED1) continue;   // batch 1 SEEDS the class; it declares no c_pairs
+      ok((await declaredPairs(f, 'c_pairs')).length > 0,
+        `C5 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that declares `
+        + 'no pairs contributes nothing to the expected baseline below, so the comparison would '
+        + 'demand rows the database is right not to have.');
+    }
+    ok(eaten.every((k) => /^[a-z0-9_]+:(anon|authenticated)$/.test(k)),
+      `C5 CONTROL: the parser produced a malformed pair: ${eaten.filter((k) => !/^[a-z0-9_]+:(anon|authenticated)$/.test(k)).join(', ')}`);
     for (const t of RAID) {
       for (const g of ['anon', 'authenticated']) {
         ok(eaten.includes(`${t}:${g}`),
@@ -704,8 +718,35 @@ async function run({ patches } = {}) {
                           where p.schemaname='public' and p.tablename = g.table_name
                             and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
        group by 1 order by 1`)).rows.map((x) => x.k);
-    ok(classNow.length > 0,
-      'C5: the dead-grant class is EMPTY on the replay, so the comparison below is vacuous');
+    /* ⚠ THE CLASS IS ALLOWED TO BE EMPTY, since batch 4 — and this control had
+       to change with it. It used to be `classNow.length > 0`, whose purpose was
+       "the class predicate has not gone blind". Batch 4 sweeps the last
+       seventeen tables, so an EMPTY class is now the correct end state and that
+       assertion would fail on a FINISHED programme. The property is therefore
+       proven directly: plant a table with RLS on, no write policy and an
+       authenticated INSERT grant, and demand the very same query NAMES it. That
+       tests the predicate rather than the size of its output. */
+    await db.query('savepoint clsprobe');
+    await db.query('create table public.hr__c5_probe (id int primary key)');
+    await db.query('alter table public.hr__c5_probe enable row level security');
+    await db.query('revoke all on public.hr__c5_probe from public, anon, authenticated, service_role');
+    await db.query('grant insert on public.hr__c5_probe to authenticated');
+    const probed = (await db.query(`
+      select g.table_name || ':' || g.grantee as k
+        from information_schema.role_table_grants g
+        join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+       where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+         and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
+         and not exists (select 1 from pg_policies p
+                          where p.schemaname='public' and p.tablename = g.table_name
+                            and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       group by 1`)).rows.map((x) => x.k);
+    await db.query('rollback to savepoint clsprobe');
+    await db.query('release savepoint clsprobe').catch(() => {});
+    ok(probed.includes('hr__c5_probe:authenticated'),
+      'C5 CONTROL: the dead-grant class predicate did NOT name a freshly-created table with RLS '
+      + 'on, no write policy and an authenticated INSERT grant. The predicate has gone blind, so '
+      + `every comparison in this arm is vacuous. saw=${probed.join(', ') || '(nothing)'}`);
     ok(JSON.stringify(classNow) === JSON.stringify(based),
       `C5: the declared baseline and reality disagree.\n    class only: `
       + `${classNow.filter((k) => !based.includes(k)).join(', ') || '(none)'}\n    baseline only: `
@@ -714,13 +755,27 @@ async function run({ patches } = {}) {
       + 'raid table, and matches the live class exactly');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
-  // ── C6 · RE-APPLYING EITHER PREDECESSOR DOES NOT RESURRECT THE ROWS ──
-  // Batch 1 is SAFE TO RE-RUN and seeds hr_client_write_baseline from its own
-  // 21-entry list. If its seed were unconditional, a re-run would put the four
-  // rows straight back and quietly re-exempt two swept tables. It is conditional
-  // on the pair being IN the class — so it must warn and seed nothing. Asserted,
-  // because the whole reason this file does not edit its predecessors is that
-  // this behaviour is already correct.
+  /* ── C6 · RE-APPLYING BATCH 1 DOES NOT RESURRECT THE ROWS ────────────────
+     Batch 1 is SAFE TO RE-RUN and seeds hr_client_write_baseline from its own
+     21-entry list. If its seed were unconditional, a re-run would put the four
+     rows straight back and quietly re-exempt two swept tables. It is conditional
+     on the pair being IN the class — so it must seed nothing.
+
+     ⚠ SINCE BATCH 4 THERE ARE TWO ACCEPTABLE OUTCOMES, and it is worth being
+     precise about why rather than widening the arm. Batch 1's §2 carries its own
+     control — "the dead-grant class is EMPTY on this database … investigate
+     before removing this control" — which RAISES. That control was written when
+     an empty class could only mean a blind predicate. Batch 4 sweeps the last
+     seventeen tables, so on a finished chain the class really is empty and batch
+     1's control now fires for a TRUE reason: a loud, deliberate stop that
+     applies nothing. Nothing is resurrected because nothing is applied, which is
+     a STRONGER outcome than "warns and seeds nothing", not a weaker one.
+
+     The invariant this arm actually owns is unchanged and is asserted on BOTH
+     paths: after the re-run attempt, no swept pair is back and the baseline is
+     the size it was. The two paths are distinguished and reported, so a batch 1
+     that started refusing for the WRONG reason still shows up in the log rather
+     than being absorbed by a try/catch. */
   try {
     const before = (await db.query(
       'select count(*)::int as n from public.hr_client_write_baseline')).rows[0].n;
@@ -730,7 +785,16 @@ async function run({ patches } = {}) {
     const sql = (await readFile(join(ROOT, 'supabase', 'migrations', PRED1), 'utf8'))
       .replace(/\r\n/g, '\n');
     await db.query('savepoint pred');
-    await db.exec(sql);
+    let refusal = null;
+    try { await db.exec(sql); } catch (e) { refusal = String(e.message || e).split('\n')[0]; }
+    if (refusal) {
+      // The transaction is aborted by the raise; unwind before reading anything.
+      await db.query('rollback to savepoint pred');
+      ok(/the dead-grant class is EMPTY/i.test(refusal),
+        `C6: re-applying ${PRED1} aborted, but NOT with its empty-class control. Batch 1 is `
+        + `supposed to be safe to re-run; this is a different failure: ${refusal}`);
+      await db.query('savepoint pred');
+    }
     const after = (await db.query(
       'select count(*)::int as n from public.hr_client_write_baseline')).rows[0].n;
     const back = (await db.query(
@@ -741,7 +805,8 @@ async function run({ patches } = {}) {
       + 'has become unconditional, which silently re-exempts every table any later batch sweeps.');
     ok(after === before, `C6: the baseline changed size on a predecessor re-run (${before} -> ${after})`);
     await db.query('rollback to savepoint pred');
-    log('  ok   C6  a batch-1 re-run warns and seeds nothing — the swept rows stay gone');
+    log(`  ok   C6  a batch-1 re-run ${refusal ? 'REFUSES (its empty-class control, now true — '
+      + 'batch 4 swept the last of them)' : 'warns and seeds nothing'} — the swept rows stay gone`);
   } catch (e) {
     await db.query('rollback to savepoint pred').catch(() => {});
     if (!(e instanceof Red)) throw e;

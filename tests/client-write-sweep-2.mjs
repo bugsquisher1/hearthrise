@@ -506,10 +506,29 @@ async function run({ patches } = {}) {
     ok(declared.length > 4,
       `C6 CONTROL: only ${declared.length} pair(s) were parsed out of ${PRED}'s c_expected — the `
       + 'parser has stopped matching and the comparison below would be vacuous');
-    ok(eaten.length >= 4 && eaten.length % 4 === 0,
-      `C6 CONTROL: ${eaten.length} consumed pair(s) parsed out of ${sweeps.length} sweep file(s) `
-      + `(${sweeps.join(', ')}). Each batch consumes a whole number of (table, grantee) pairs; the `
-      + 'c_pairs parser is not reading them.');
+    /* ⚠ SIZE-AGNOSTIC, since b354/batch-4. This control used to read
+       `eaten.length >= 4 && eaten.length % 4 === 0`, which quietly assumed every
+       batch consumes a multiple of four pairs — true of batches 2 and 3 (two
+       tables each) and FALSE of batch 4, which takes seventeen. 4+4+34 = 42, and
+       42 % 4 = 2, so the control would have gone red for a database in perfect
+       order: the same failure this arm's own header warns about, one level up.
+       What the control is actually for is "the c_pairs parser is still reading
+       the files", so THAT is what it now asserts — every sweep file on disk must
+       contribute at least one well-formed pair, whatever its size. */
+    ok(sweeps.length > 0, 'C6 CONTROL: no sweep migration files were found at all');
+    for (const f of sweeps) {
+      const n = (await pairsIn(
+        await (await import('node:fs/promises')).readFile(
+          (await import('node:path')).join(
+            (await import('./schema-replay.mjs')).ROOT, 'supabase', 'migrations', f), 'utf8'),
+        'c_pairs')).length;
+      ok(f === PRED || n > 0,
+        `C6 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that declares `
+        + 'no pairs contributes nothing to the expected baseline below, so the comparison would '
+        + 'demand rows the database is right not to have.');
+    }
+    ok(eaten.every((k) => /^[a-z0-9_]+:(anon|authenticated)$/.test(k)),
+      `C6 CONTROL: the parser produced a malformed pair: ${eaten.filter((k) => !/^[a-z0-9_]+:(anon|authenticated)$/.test(k)).join(', ')}`);
     for (const k of ['display_names:anon', 'display_names:authenticated',
       'leaderboard_meta:anon', 'leaderboard_meta:authenticated']) {
       ok(eaten.includes(k),
@@ -537,8 +556,35 @@ async function run({ patches } = {}) {
                           where p.schemaname='public' and p.tablename = g.table_name
                             and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
        group by 1 order by 1`)).rows.map((x) => x.k);
-    ok(classNow.length > 0,
-      'C6: the dead-grant class is EMPTY on the replay, so the comparison below is vacuous');
+    /* ⚠ THE CLASS IS ALLOWED TO BE EMPTY, since batch 4 — and this control had
+       to change with it. It used to be `classNow.length > 0`, whose purpose was
+       "the class predicate has not gone blind". Batch 4 sweeps the last
+       seventeen tables, so an EMPTY class is now the correct end state and that
+       assertion would fail on a finished programme. The property is therefore
+       proven directly instead: plant a table with RLS on, no write policy and an
+       authenticated INSERT grant, and demand the very same query NAMES it. That
+       tests the predicate rather than the size of its output. */
+    await db.query('savepoint clsprobe');
+    await db.query('create table public.hr__c6_probe (id int primary key)');
+    await db.query('alter table public.hr__c6_probe enable row level security');
+    await db.query('revoke all on public.hr__c6_probe from public, anon, authenticated, service_role');
+    await db.query('grant insert on public.hr__c6_probe to authenticated');
+    const probed = (await db.query(`
+      select g.table_name || ':' || g.grantee as k
+        from information_schema.role_table_grants g
+        join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+       where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+         and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
+         and not exists (select 1 from pg_policies p
+                          where p.schemaname='public' and p.tablename = g.table_name
+                            and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+       group by 1`)).rows.map((x) => x.k);
+    await db.query('rollback to savepoint clsprobe');
+    await db.query('release savepoint clsprobe').catch(() => {});
+    ok(probed.includes('hr__c6_probe:authenticated'),
+      'C6 CONTROL: the dead-grant class predicate did NOT name a freshly-created table with RLS '
+      + 'on, no write policy and an authenticated INSERT grant. The predicate has gone blind, so '
+      + `every comparison in this arm is vacuous. saw=${probed.join(', ') || '(nothing)'}`);
     ok(JSON.stringify(classNow) === JSON.stringify(based),
       `C6: the declared baseline and reality disagree.\n    class only: `
       + `${classNow.filter((k) => !based.includes(k)).join(', ') || '(none)'}\n    baseline only: `
@@ -554,6 +600,16 @@ async function run({ patches } = {}) {
   // conditional on the pair being IN the class — so it must warn and seed
   // nothing. Asserted, because the whole reason sweep-2 does not edit the
   // predecessor is that this behaviour is already correct.
+  //
+  // ⚠ SINCE BATCH 4 THERE ARE TWO ACCEPTABLE OUTCOMES. Batch 1's §2 carries its
+  // own control — "the dead-grant class is EMPTY on this database … investigate
+  // before removing this control" — which RAISES, and which was written when an
+  // empty class could only mean a blind predicate. Batch 4 sweeps the last
+  // seventeen tables, so on a finished chain the class really is empty and that
+  // control now fires for a TRUE reason: a loud, deliberate stop that applies
+  // nothing. Nothing is resurrected because nothing is applied, which is a
+  // STRONGER outcome than "warns and seeds nothing". The invariant this arm owns
+  // is asserted on both paths, and a refusal for any OTHER reason is still red.
   try {
     const before = (await db.query(
       'select count(*)::int as n from public.hr_client_write_baseline')).rows[0].n;
@@ -563,7 +619,15 @@ async function run({ patches } = {}) {
     const sql = (await readFile(join(ROOT, 'supabase', 'migrations', PRED), 'utf8'))
       .replace(/\r\n/g, '\n');
     await db.query('savepoint pred');
-    await db.exec(sql);
+    let refusal = null;
+    try { await db.exec(sql); } catch (e) { refusal = String(e.message || e).split('\n')[0]; }
+    if (refusal) {
+      await db.query('rollback to savepoint pred');
+      ok(/the dead-grant class is EMPTY/i.test(refusal),
+        `C7: re-applying ${PRED} aborted, but NOT with its empty-class control. Batch 1 is supposed `
+        + `to be safe to re-run; this is a different failure: ${refusal}`);
+      await db.query('savepoint pred');
+    }
     const after = (await db.query(
       'select count(*)::int as n from public.hr_client_write_baseline')).rows[0].n;
     const back = (await db.query(
@@ -574,7 +638,8 @@ async function run({ patches } = {}) {
       + 'has become unconditional, which silently re-exempts every table any later batch sweeps.');
     ok(after === before, `C7: the baseline changed size on a predecessor re-run (${before} -> ${after})`);
     await db.query('rollback to savepoint pred');
-    log('  ok   C7  a predecessor re-run warns and seeds nothing — the swept rows stay gone');
+    log(`  ok   C7  a predecessor re-run ${refusal ? 'REFUSES (its empty-class control, now true — '
+      + 'batch 4 swept the last of them)' : 'warns and seeds nothing'} — the swept rows stay gone`);
   } catch (e) {
     await db.query('rollback to savepoint pred').catch(() => {});
     if (!(e instanceof Red)) throw e;

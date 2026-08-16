@@ -24,6 +24,7 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
+import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
@@ -1277,6 +1278,43 @@ const run = async () => {
         + "table or on batch 1's six catalogues (MAINTAIN included), the refusal is on the GRANT "
         + 'rather than on RLS, raid_claim and raid_strike still write, and the four baseline rows '
         + 'are consumed.');
+    }
+
+    /* ── The client write grant sweep, BATCH 4 — the last one ───────────
+       All seventeen remaining baselined tables in one change: world_event_*
+       (world_event_totals is a shared, whole-population aggregate — its goal
+       and met_at decide what EVERY participant is paid), clan_* (clan_ledger
+       is the append-only journal every clan daily cap is READ FROM; a client
+       DELETE resets every cap and erases the evidence they were spent), and
+       maintenance_* (where the nightly detector's own failures surface).
+       After it, public.hr_client_write_baseline is EMPTY — every table batch 1
+       found in the dead-grant class has been swept rather than recorded.
+
+       ⚠ THE TWO THINGS THIS GUARD CARRIES THAT ITS PREDECESSORS COULD NOT:
+       (1) ALL FORTY-TWO confirmed writers are driven for real BEFORE and AFTER
+           the revoke on identical fixtures, and each must actually CHANGE its
+           target table (row fingerprint, not a returned ok:true). An after-only
+           drive cannot tell "the revoke was harmless" from "this never worked
+           on the replay".
+       (2) THE LIVE-POLICY RECONCILIATION. clan_members ("join as self",
+           "leave as self") and clans ("clans creatable") carry LIVE client
+           write policies, so their grants are NOT dead, they were never in the
+           class and never baselined, and this batch must not touch them. C6
+           asserts they keep their policies, keep the grants behind them, stay
+           unbaselined, and that the raw client founding/joining path still
+           WORKS — the one arm that catches a sweep quietly widening its revoke.
+       `--selftest` plants twenty-one real defects; every one must read RED. */
+    const sweep4Problems = await clientWriteSweep4Guard();
+    if (sweep4Problems.length) {
+      console.log('\nClient write grant sweep batch 4 (world_event_*, clan_*, maintenance_*) '
+        + '— FAILED:');
+      for (const p of sweep4Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 4 — no client write privilege survives on any of the '
+        + '17 remaining tables (MAINTAIN included), all 42 confirmed writers still write before AND '
+        + 'after the revoke, clan_members/clans keep the live policies and grants they need, and '
+        + 'the dead-grant baseline is now EMPTY.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

@@ -4,6 +4,32 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-16 · QA Engineer · P2 — the b357 BANE primitive shipped with ZERO gate coverage. Mutation-proved.
+**Affected systems:** `src/core/bane.js`, `src/core/combat.js` `weaknessInfo` (the hand-merged function),
+`src/features/smoke-test.js`. **Fixed here** — regression test `BANE-1` added, suite 761 → 762.
+
+Two independent mutations of the shipped code were run against the full gate:
+- `weaknessInfo`'s `baneMult` hard-wired to `1` — i.e. **bane gear deleted from the game outright** →
+  `761/761 passed, 0 failed`.
+- `baneMultFor`'s `MAX_BANE_MULT` ceiling removed — i.e. **the fuse gone**, so a `bane:{mult:40}` row
+  becomes a live 40x damage multiplier → `761/761 passed, 0 failed`.
+
+The word `bane` appeared exactly once in the whole 761-test suite, in an unrelated comment about
+`dragonsbane_key`. `MAX_COMBINED_DAMAGE_MULT` appeared zero times. So the entire class-multiplier
+mechanic — and the half of the hand-merged `weaknessInfo` that carries it — was unguarded on both the
+live tick and the Edge accrual (one expression, two callers).
+
+The BEHAVIOUR itself was verified CORRECT before the test was written: 111 monsters x 5 weapon types
+x 5 bane weapons produced 0 anomalies; each bane weapon hits exactly its own class and no other
+(undead 14, vermin 13, dragon 8, plant 6, extra_dimensional 6 — matching the taxonomy census); a
+forged `mult: 1e9` clamps to 1.40 and the weapon-weakness x bane product clamps to exactly 1.68.
+This was a coverage defect, not a behaviour defect.
+
+→ REQUIRED ACTION (general): **a hand-resolved SEMANTIC merge of two agents' rewrites of one function
+is exactly where to run a mutation probe before declaring green.** "The suite is green" proved nothing
+here, because the suite had never been told the mechanic existed. Any new primitive whose name does
+not appear in an `assert` is untested regardless of the pass count.
+
 ## 2026-08-16 · Art Director · The ~600-image art batch is NO-GO. Three constraints nobody had measured.
 **Affected systems:** `tools/gen-art.mjs`, `tools/qc-art.mjs`, `docs/design/art-direction-picker.md` §0.10b (the full ruling + evidence), both prompt sheets, the whole art batch.
 

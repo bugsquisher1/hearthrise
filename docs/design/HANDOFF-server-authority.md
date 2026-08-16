@@ -36,7 +36,16 @@ MUST ship a companion revoke of clan_members/clans i/u/d grants or the now-sharp
 detector raises. Also open (bounded, dead): leaderboard_ranked matview i/u/d, and the
 supabase_admin/service_role platform default ACLs.
 
-**⚠ MARKET-V2 IS MERGED, NOT APPLIED — IT IS A CUTOVER-DAY MIGRATION.** Its §0 wipe-guard
+**✅ SUPERSEDED WITHIN THE HOUR: MARKET-V2 IS APPLIED.** Tyler explicitly authorized the
+market wipe early ("go ahead and wipe the market offers I don't care") — the GUC + apply
+ran clean, the lockdown followed in correct sequence, the Edge payload with the market
+verbs is DEPLOYED and the guard is GREEN (`295c0c62…`). Consequence he accepted: the LIVE
+b352 client's market screen is broken (writes refused) until the cutover flip ships the
+swapped client. The import tool is MERGED (applies at freeze). **`main` is exit-0 green:
+730/730, zero FAILED guards, deployed == repo.** The paragraph below records the original
+sequencing and the incident for the record.
+
+**⚠ MARKET-V2 WAS MERGED-NOT-APPLIED — A CUTOVER-DAY MIGRATION (original record).** Its §0 wipe-guard
 REFUSES to apply while market rows exist (proven live 2026-08-16: refused with 1 listing +
 6 sales standing). Freeze-day order: `set hearthrise.market_wipe_ok = 'yes'` in the SAME
 session → apply `2026-08-17-market-v2.sql` → apply `2026-08-17-market-buy-offers-lockdown.sql`

@@ -38,6 +38,53 @@ obvious in the inventory grid.
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-16 · b357b — the wrapper was re-cut by an API limit, and the limit improved it
+
+**The blocker, found by execution.** The Coordinator built both style anchors and ran my own §0.10
+step-4 verification on four pilots before the batch. All four returned
+`HTTP 400 — "prompt length should be in [1, 1000]"`. **Recraft caps a prompt at 1000 characters.**
+My first cut assembled to a **median of 1141 and a max of 1665: 15 of 16 over the cap**, so the
+600-image batch would have failed 100%. **It cost $0.00 because rejected requests are not charged.**
+I wrote that step as "an anchor that changes the pilot will change everything" — it earned its place
+for an entirely different reason. **Keep a cheap end-to-end call in front of every funded batch; the
+failure it catches is rarely the one you wrote it for.** I did not catch this myself, and the reason
+is worth naming: I measured *pixels* everywhere in this pass and never once measured my own output.
+
+**Why the re-cut is genuinely better and not a compromise.** The clauses eating the budget were
+brushwork, the lighting recipe, the value-range sentence and the palette enumeration — that is the
+**hand**, and my own §0.10 argues that the anchor carries the hand far more strongly than words. They
+were redundant the moment the anchors existed; I had just left them in "belt and braces". The wrapper
+now carries only what an anchor cannot express: framing, the hard bans, and four rules that each
+prevent a specific observed failure.
+
+**Budgeted, not guessed.** Measured the longest subject clause across both sheets FIRST — **312**
+(MON-UND-07 Vampire Bride; items max 200, `iron_ore`) — then sized the wrapper to fit around it.
+Pieces: P-ITEM 248, P-WEAPON 239, P-MONSTER 212, C-METAL 118, C-ENCHANT 83, C-SIGNAL 83, SUFFIX 333.
+Assembled over all **597** live subject lines: **median 782, max 944, zero over 950, zero over 1000.**
+The monster path is the binding constraint (longest subjects, so the shortest wrapper budget); that
+is now written into the monster sheet as a **~318-character ceiling per subject line**.
+
+**One cut I had to think about.** Dropping C-METAL's "warmth only on leather, cord, wood and brass
+fittings" half felt like giving up the metal fix. It is safe for a specific reason: the item anchor
+is seeded with **two cold-metal exemplars** (`iron_sword`, `iron_platebody`) that demonstrate exactly
+that, and demonstration beats description. The half that survives is the half a picture cannot
+argue — which metals are cold and which stay warm.
+
+**The guard, mutation-proved four ways.** `gen-art.mjs` refuses to run (exit 2, before the dry-run
+summary and before any network call) on a prompt over 1000 or empty, naming every offender and its
+overage. 1001 → refused; **exactly 1000 → accepted** (an off-by-one guard is a broken guard); empty
+→ refused; and **the real pre-re-cut pilot manifest → refused with 6 offenders named, worst
+`grim_reaper.png` at 1147.** That last one is the proof that matters — the guard was tested against
+the exact file that would have burned the batch. It also now warns when `--style-id` is missing,
+because a wrapper that no longer describes brushwork produces poor output without its anchor.
+
+**All 13 pilot prompts re-assembled too** (max 891), because a manifest that cannot execute is a
+trap: with the guard in place the old file would have exited 2 and blocked the three re-runs sitting
+at the bottom of it. Style ids recorded in §0.10 so the batch is reproducible:
+items `96fc6650-52e5-458f-855f-62da2757f065`, monsters `52693fa5-649f-4d7c-993b-5ce9e5b33f91`.
+
+**Smoke 737/737, all green.** No src change in this pass — docs and tools only.
+
 ### 2026-08-16 · b357 — the square portrait + the ratified Hearthfire batch wrapper
 
 **Job 1 — the mask.** Tyler: *"should we just not use a circle for the portraits instead?"* He is

@@ -232,6 +232,13 @@ repeats it — that is what bought the character budget (§0.2). The trade is re
 that used to describe the brushwork are gone. `gen-art.mjs` should therefore always be run with
 `--style-id`, and a batch generated without one should be deleted rather than reviewed.
 
+> **⚠ SUPERSEDED 2026-08-16 by §0.10b.** The paragraph above is right that a bare run is wrong, and
+> wrong about why. It is *not* that the brushwork words are missing — it is that sending **no style at
+> all makes Recraft default to `realistic_image`** and return photographs. And the ruling it supports
+> — "always run with `--style-id`" — did not survive contact with real generations: **both custom
+> anchors override the subject's named colours.** Read §0.10b before spending anything. The status of
+> the ~600-image batch is **NO-GO**.
+
 **On seeds — say the true thing.** Recraft's v3 generation endpoint exposes no seed parameter in the
 call `gen-art.mjs` makes, so **there is no reproducibility lever from seeding** and any claim of one
 would be invented. The levers that do exist are: the `style_id` above, a **fixed `model` and `size`**
@@ -239,6 +246,104 @@ for the whole batch, and **contiguous family ordering** — which is a *QC* leve
 one (generation is stateless; ordering does not change the model's output, it changes what a reviewer
 sees side by side). If a `random_seed` parameter does turn out to be accepted, it is worth one test
 call, but do not design the batch around it.
+
+## 0.10b · RULING 2026-08-16 — the batch is NO-GO, and the warm% proxy was measuring the backdrop
+
+**This section is the current ruling and it overrides §0.10 wherever the two disagree.** It was
+written after looking at sixteen real generations at full size. Every claim below is an observation
+of a picture; the numbers are quoted only where they were *wrong*, because being wrong is their
+contribution.
+
+### The measurement that started it, and why it inverted
+
+A verification run scored three wrapper variants with `tools/qc-art.mjs`'s warm-dominant-pixel
+proxy and concluded that the style anchor was harmful and the un-anchored wrapper was the fix
+(`iron_ore` warm 38% → 10%; Hellhound warm 18% → 3%). **Both conclusions are artefacts. The proxy
+counts warm pixels over the whole opaque canvas, and in every un-anchored file the majority of that
+canvas is a BACKDROP the model was told not to paint.** A grey overcast sky scores beautifully.
+
+What the un-anchored files actually are — look at them, the numbers cannot see this:
+
+| file | what the proxy said | what it is |
+|---|---|---|
+| `nostyle/weapons/iron_sword.png` | best score in the batch, 88% clear / 9% warm | a smooth airbrushed sword on a **teal-blue rounded-rectangle app-store tile** with a drop shadow — a UI frame, an opaque backdrop, stray teal, and the exact house style Tyler rejected |
+| `nostyle/items/iron_ore.png` | best neutral score, 10% warm | a generic mobile-game boulder standing on a **ground disc with grass tufts and pebbles**, lava-orange cracks |
+| `nostyle/items/oak_log.png` | — | a log inside a **decorative badge with a ring border, a pine forest, sky, soil and foliage** |
+| `montest-plain/monsters/hellhound.png` | warm 18% → **3%**, the headline result | a **photorealistic 3-D wolf, full body, standing in a snowy forest under an overcast sky** |
+
+**The mechanism is one line in `tools/gen-art.mjs`: with no `--style-id` it sent neither `style` nor
+`style_id`, so the API applied its default, `realistic_image`.** "No anchor" was never a control. It
+was a fourth, worse style. The 3% warm score on the Hellhound is the colour temperature of a February
+sky. **`gen-art.mjs` now refuses to run when neither is passed** (verified: exit 2), and `--style` /
+`--substyle` were added so a built-in style can be selected deliberately.
+
+**Standing lesson, and it is the second time this exact shape has bitten this program (§0.2):
+a proxy metric scores the frame, not the subject. Never accept a QC number as a verdict on art
+without opening the file.** `qc-art.mjs` check 6 is documented as *advisory* for precisely this
+reason; the verification treated it as authority.
+
+### The real finding: the custom anchors override named colour
+
+The suspicion under test was that the SUFFIX suppresses named colour. **It does not.** Isolating the
+suffix under a fixed built-in style, the Hellhound came back with vivid red markings on **both** the
+old suffix (`v2-C`) and the re-cut one (`v2-A`). The suffix is exonerated and is **left byte-for-byte
+unchanged** — a clause with no observed failure behind it does not get rewritten, which is this
+document's own rule.
+
+The anchor is the culprit, and it is worse than suppression. The `hearthfire-monsters` anchor
+(`52693fa5-…`) was run twice on the same two prompts:
+
+| prompt | run 1 (`v2-B`) | run 2 (`v2-B2`) |
+|---|---|---|
+| **Hellhound** — *char black fur, ember red glow, ash grey, pale muzzle cracks* | a **white-and-ice-blue** beast | a **black-and-tan rottweiler**; no embers, no ash grey, no pale cracks |
+| **Winter Wolf** — *snow white, pale ice blue, raw madder-red only at the ear tips* | **char black** with **ember-orange horns** | **brown and olive** |
+
+Four generations, four palettes, **not one of them the palette its own subject line names**, and run 1
+is close to the two anchors' seed images swapped onto the wrong prompts. **A five-image custom style
+transfers PALETTE, not just hand, and with 85 monsters that is a roulette wheel over four seed
+colourways.** It also lost the two-headedness in 4/4. Per `monster-art-prompts.md` §0.1 a portrait
+with no hook is wrong even if it is beautiful — these are wrong *and* beautiful, which is the most
+expensive combination.
+
+The same defect on the item side is louder: `styletest/weapons/iron_sword.png` and
+`styletest/items/iron_ore.png` (item anchor `96fc6650-…`) are **salmon-pink** — the anchor generalised
+`wheat_bread` and `cooked_shrimp` into a palette and painted a cold-iron sword and a neutral grey rock
+with it. That is C-METAL and the neutral-material lock defeated at the source, by the very lever that
+was supposed to enforce them.
+
+### What the anchor *does* buy, which is why the answer is not "drop it"
+
+Across every anchored generation the subject is **isolated** — one object, no scenery, no ground, no
+frame, no text. Across every **un-anchored and built-in** generation those bans were ignored wholesale;
+the low point is `v2-D/weapons/iron_sword.png`, which came back as a **parchment infographic with
+callout lines and five labels of gibberish pseudo-text**, and `v2-D/items/iron_ore.png`, a boulder in a
+meadow inside a decorative border. **Prompt bans do not survive Recraft v3. Only the anchor enforces
+composition.** So the anchor is simultaneously the only thing holding the framing and the thing
+destroying the colour — which is exactly why neither "keep it" nor "drop it" is the answer.
+
+### Ruling
+
+1. **NO-GO on the 85-monster batch.** 4/4 anchored monsters missed the named palette; 4/4 missed the
+   subject's structure. ~$4 of monsters would be re-generated wholesale.
+2. **NO-GO on the 512-item batch.** Anchored items are pink; un-anchored and built-in items carry
+   backdrops, ground, frames and text. **No variant tested produces a shippable item icon.** At
+   $0.04–0.05 each this is a ~$25 mistake, and the real cost is a reviewer's day.
+3. **The only configuration that has ever produced correct output is the approved 13-image pilot:
+   the Recraft WEB UI with the pre-re-cut wrapper, 1141–1665 characters — which the API rejects at
+   1000.** That is the actual blocker, and it has been mislabelled twice: §0.2 recorded the character
+   cap as a constraint the anchors let us absorb, and the anchors do not.
+4. **Next step is a fix, not a batch.** Two candidates, in order of cheapness, both testable for well
+   under a dollar: **(a) rebuild both anchors with far more seeds** deliberately spread across the
+   palette, so no colourway dominates — the current sets are 5 and 4 images and both over-fit; **(b)**
+   if Recraft caps seeds at 5, **the anchors must be seeded to be palette-NEUTRAL** and the hand words
+   must come back into the wrapper, which means finding the ~150 characters the re-cut freed. Verify
+   with the same three subjects used here — Hellhound, Winter Wolf and an elemental are the cases where
+   named colour *is* the identity.
+
+**Spend on this ruling: $0.40 (10 images).** Evidence is local-only (`assets/art-pilot/` is
+gitignored) in `v2-A` built-in/new-suffix, `v2-B` + `v2-B2` monster anchor, `v2-C` built-in/old-suffix,
+`v2-D` built-in items — alongside the earlier `nostyle`, `styletest`, `montest-plain`,
+`montest-anchor`.
 
 ## 0.10a · The two defective pilots, and which is which
 

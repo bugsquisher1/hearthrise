@@ -58,6 +58,17 @@ const CONC = Math.max(1, Number(flag('concurrency', 3)));
 const MODEL = flag('model', 'recraftv3');
 const OUT = flag('out', 'assets/art-pilot/hearthfire');
 const STYLE_ID = flag('style-id', process.env.RECRAFT_STYLE_ID || '');
+// A BUILT-IN Recraft style (e.g. digital_illustration) is the third option
+// alongside a custom style_id and nothing at all. "Nothing at all" is NOT a
+// neutral control: the API defaults to realistic_image, which is why the
+// un-anchored 2026-08-16 verification came back as photographs and app-store
+// tiles rather than as a weaker Hearthfire. See art-direction-picker.md §0.10b.
+const STYLE = flag('style', '');
+const SUBSTYLE = flag('substyle', '');
+if (STYLE && STYLE_ID) {
+  console.error('--style and --style-id are mutually exclusive at the Recraft API. Pass one.');
+  process.exit(2);
+}
 const NO_SNAP = argv.includes('--no-alpha-snap');
 
 if (!manifestPath) {
@@ -151,6 +162,7 @@ async function generateOne(token, job) {
   // docs/design/art-direction-picker.md §0.10. `style` and `style_id` are
   // mutually exclusive at the API, so we only ever send the one we were given.
   if (STYLE_ID) body.style_id = STYLE_ID;
+  else if (STYLE) { body.style = STYLE; if (SUBSTYLE) body.substyle = SUBSTYLE; }
   const gen = await post(token, `${API}/images/generations`, body);
   const url = gen?.data?.[0]?.url;
   if (!url) throw new Error('no image url in response');
@@ -203,7 +215,20 @@ console.log(`manifest: ${manifestPath}`);
 console.log(`to generate: ${jobs.length} image(s) -> ${OUT}/  (existing files skipped)`);
 console.log(`cost: $${(jobs.length * COST_GEN).toFixed(2)} base, $${estMax} worst-case with bg-removal`);
 console.log(`prompt length: longest ${longest}/${PROMPT_MAX} chars — all within the API cap`);
-if (!STYLE_ID) console.log('WARNING: no --style-id. The wrapper no longer describes brushwork (the style anchor carries it),\n         so output will be markedly weaker than the pilot. See art-direction-picker.md §0.10.');
+// A run that sends NEITHER style_id NOR style falls through to Recraft's
+// default, which is `realistic_image` — photographs and app-store tiles with
+// opaque backdrops, not Hearthfire. That is a batch-destroying default and it
+// is silent, so it is refused rather than warned about. Custom anchors are NOT
+// mandatory (§0.10b reversed that); sending *a* style is.
+if (!STYLE_ID && !STYLE) {
+  console.error('\nREFUSING TO RUN — no --style-id and no --style.');
+  console.error('Recraft defaults to `realistic_image` when neither is sent: the 2026-08-16');
+  console.error('un-anchored verification came back as a photographic wolf on a landscape and a');
+  console.error('sword on a teal app-store tile. Pass --style digital_illustration (the ratified');
+  console.error('default) or --style-id <custom>. See art-direction-picker.md §0.10b.');
+  process.exit(2);
+}
+console.log(STYLE_ID ? `style: custom anchor ${STYLE_ID}` : `style: built-in ${STYLE}${SUBSTYLE ? '/' + SUBSTYLE : ''}`);
 
 if (!CONFIRM) {
   for (const j of jobs) console.log(`  would generate ${j.file}  (${j.prompt.slice(0, 60)}...)`);

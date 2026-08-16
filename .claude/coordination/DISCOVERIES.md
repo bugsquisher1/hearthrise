@@ -4,6 +4,31 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-08-16 (b361) · Art Director · **An AI image model draws a garment correctly only if you tell it the garment is EMPTY — and a test control keyed to a hardcoded id list has a shelf life**
+
+**DISCOVERY 1 — the state, not the words.** Describing clothing as an *object at rest* ("an empty
+hooded cloak hanging flat with no one wearing it" / "a pair of empty leggings laid out flat side by
+side, no wearer") took the cloak/cape/mantle/robe/sash/leggings classes from a **73% failure rate to
+15 of 17 correct**. b360 had already measured that anatomy words ("shoulders", "hem") were *not* the
+cause and correctly threw away a fix built on them. Both are true: **the fault was a state that was
+absent, never a word that was present.** Generalised rule, now in `art-direction-picker.md` §0.10d:
+**name what the object uniquely HAS, or the state it is uniquely IN — never name what it must not be.**
+Naming the artefact to ban it has now failed three separate times in this programme.
+
+**DISCOVERY 2 — some subjects are a model limit and no prose reaches them.** Ten generations across
+three wrapper cuts could not make Recraft v3 draw a plain slender pole in a square frame: it returns a
+short fat baton and ignores an explicit 8:1 aspect ratio *while obeying it for arrows in the same run*.
+Naming a canonical noun made it worse — `oak_staff` came back as a **signpost with the word
+"Quarterstaff" rendered as text on it**. Know when to stop; the remaining lever is an API field.
+
+**DISCOVERY 3 — a passing test can be a rotting test.** The b358 guard's control filtered ids by the
+hardcoded suffixes `_helm|_platebody|_sword` to prove the generated gear mapper still runs. Wiring
+`dawn_platebody` covered the last one, and the control went **vacuous**. It failed loudly here only by
+luck of ordering. **AFFECTED:** any guard whose control is a hardcoded id list over a growing dataset.
+**REQUIRED ACTION:** derive a control from live state, not from a literal. And note the second trap
+found while fixing it — `mapGeneratedGear` opens with `if (LOCAL_ITEM_ICON[id]) return`, so it is
+idempotent by short-circuit and a clear-and-repaint mutation on it can never pass.
+
 ### 2026-08-16 · Art Director · **A batch can pass every automated QC check and still be 21% WRONG**
 
 **DISCOVERY.** The 512-image item batch was handed over "QC-verified: real alpha, zero hash-duplicates,

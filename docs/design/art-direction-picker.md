@@ -88,6 +88,34 @@ as an armoury, 90 weapons at 90 angles read as a stock-image dump. **The cost is
 deliberately** — see §0.9a on silhouette collision, the failure this choice makes *more* likely and
 which the subject lines, not the wrapper, must answer.
 
+## 0.4a · P-SHAFT and P-BOW — the two prefixes for objects with no blade and no head
+
+Both live in `tools/gen-art-colors.mjs`, which is the executable source of truth for assembly.
+
+> **P-SHAFT** — Game icon, ONE long slender pole in full profile on a diagonal corner to corner, eight
+> times longer than it is wide, slim for its whole length with nothing wider than the pole at either
+> end, tip upper-left, foot lower-right, centred, a single specimen, never a bundle, sheaf or pair,
+
+> **P-BOW** — Game icon, ONE bow flat to the screen in full profile, a single slender curved limb
+> standing on a long diagonal with a taut thin bowstring running the whole way from upper tip to lower
+> tip, centred, a single specimen, never a bundle, rack or pair,
+
+**P-SHAFT (b360, re-cut b361)** exists because P-WEAPON's *"blade or head upper-left"* is a
+feature-summoning clause: objects that HAVE a blade or head failed 3%, objects that have neither
+failed **100%, 28 of 28**, every one by growing the blade the wrapper named. b361 then found that
+removing the word "blade" was necessary but not sufficient — *"filling the frame"* and *"chunky-heroic
+exaggerated proportions"* were still commissioning bulk at one end, and a slender pole cannot satisfy
+both and remain a pole. Both are gone, replaced by an aspect ratio. **It is deliberately kept inside
+the OLD P-SHAFT's character budget**: a longer prefix silently priced 17 rows over the 1000-char cap,
+the guard caught it at 1044, and the fix was to spend the words better rather than raise the ceiling.
+
+**P-BOW (b361)** is split out because a bow is the one shafted object that is not a pole — a longbow
+icon is roughly square, and P-SHAFT's eight-to-one rule is actively false for it. Under the shared
+prefix the bows split exactly on that line: `willow_longbow` and `fangdart_recurve` came back as real
+bows, `runewood_bow` and `alphaheart_longbow` as an axe and a giant dart.
+
+**Neither prefix names an artefact to avoid.** No "no axe head", no "no hammer head". See §0.10d.
+
 ## 0.5 · P-MONSTER — the creature bust
 
 > Creature bust, three-quarters to the viewer, filling a square frame with an even margin, the
@@ -463,6 +491,67 @@ has nowhere to go except onto the object. A bust leaves canvas around it, and th
 **Spend on this ruling: $1.09** — 27 images at $0.04 plus 10 credits for two styles. Evidence is
 local-only (`assets/art-pilot/` is gitignored) in `expA`–`expG`, with two contact sheets at
 `assets/art-pilot/_sheet.png` and `_sheetG.png`.
+
+## 0.10d · RULING 2026-08-16 (b361) — the SUBJECT-LINE grammar that works, and the one class that never will
+
+Everything before this section is about API fields and shared wrapper clauses. This one is about the
+**per-item subject line**, which is the half §0.10b/§0.10c kept (correctly) refusing to blame. It is
+not a contradiction: the wrapper had to be right *first*, and once it was, the subject line became
+the binding constraint for the ~100 items that were still wrong.
+
+**Spend: $2.68** — 10 probe images and 57 batch images (9 more were refused, `not_enough_credits`,
+and are therefore unfunded rather than failed). Judged by opening every result on a labelled contact
+sheet at review size; `assets/art-pilot/_sheet-regen.png`, `_sheet-probe.png`, `_sheet-probe2.png`,
+`_sheet-b361.png`.
+
+### The three patterns that reliably work
+
+1. **A garment must be described as an OBJECT AT REST, not as clothing.**
+   `an empty hooded cloak hanging flat with no one wearing it, <material>, <one detail>`
+   `a pair of empty <material> leggings laid out flat side by side, no wearer, <detail>`
+   Cloaks/capes/mantles/robes/sashes/leggings went from a **73% class failure rate to 15 of 17
+   correct.** This is the strongest single finding in the whole programme, and note what it is *not*:
+   b360 measured that anatomy words ("shoulders", "hem") were **not** the fault, and that measurement
+   was right. The fault was never a word that was PRESENT, it was a **state that was ABSENT.**
+2. **Ammunition must be spelled out as parts in reading order.**
+   `a single arrow: one long straight <colour> wooden shaft, three <colour> feather vanes at the lower
+   end, and a small <material> point at the upper end`
+   Before: axes and ringed archery targets (`steel_arrows` came back as a **round shield**). After,
+   5 of 8. "Vanes" and "point" belong to nothing else in the batch; "head" and "fletching" do.
+3. **A bow needs its STRING named.** P-BOW (new, §0.4a) says *"a taut thin bowstring running the whole
+   way from upper tip to lower tip"*. It is the one feature no other object in the batch has, and
+   naming it positively is cheaper and more reliable than any ban.
+
+The generalisation, and it is the same shape all three times: **name the thing the object uniquely
+HAS, or the state it is uniquely IN. Never name what it must not be.** §0.10b already proved that
+naming the exact artefact to ban it does not suppress it, and b360 proved that naming anatomy the
+object lacks actively DRAWS it. Positive-only is now the rule, not a preference.
+
+### The class that does not yield — staves and fishing rods. STOP RE-WORDING IT.
+
+Two funded probes, ten generations, three wrapper cuts:
+
+- Removing `filling the frame` + `chunky-heroic exaggerated proportions` from P-SHAFT **did** kill the
+  hammer head that had been growing on every haft — 28 of 28 before, 0 after. That diagnosis was
+  correct and the clauses are gone for good.
+- But the model then returns a **short fat baton** and simply ignores an explicit `eight times longer
+  than it is wide`. The same prefix, on the same run, produced correctly long thin ARROWS — so it is
+  not that the ratio is unreadable, it is that "a long plain oak pole" is too weak a concept to hold
+  a shape and the model falls back to a generic prop.
+- Naming a canonical thin noun made it **worse**: `oak_staff` came back as a signpost with the word
+  **"Quarterstaff" rendered as text on it**, `yew_staff` as a candy cane.
+
+**Ruling: 16 ids (8 staves, 7 rods, `rat_stick`) are deferred unrolled.** The lever, if one exists, is
+a non-square canvas or a different model — an **API field**, which is where every real lever in this
+programme has been. A fourth round of prose would be the fourth time this document learned that.
+
+### Also unsolved after a re-roll, for whoever funds the next one
+
+`iron_bar` is an **anvil** even when the line reads "a single solid rectangular brick-shaped block";
+`mithril_bar` and `death_steel` come back as **dice**; `steel_bar` came back as a **framed landscape
+painting**. `gold_ore` is a golden **fist**. `potato` has returned a humanoid figure **three times**.
+Bars and formless masses are the next class to diagnose, and the method that works is b360's: compute
+the failure rate against the SHIPPED set as a control, never read the failing prompts on their own.
 
 ## 0.10a · The two defective pilots, and which is which
 

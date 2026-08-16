@@ -2,6 +2,78 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b361 — the re-roll: 386 → 428 wired, 107 rejected → 65. The handed-down
+### verdicts did not survive my own eye, and the staff class is a MODEL limit, not a prompt bug.
+
+**The first thing I did was disbelieve the brief, and I was right to.** I was handed a list of
+"~15 CLEAR PASSES" from the previous 41-image experiment and told not to re-derive them. I built a
+contact sheet of all 66 re-rolls and looked anyway, because processing and wiring a file is the one
+irreversible step in this pipeline. **`yew_staff` — the flagship example in my own b358 entry — was on
+the pass list and is visibly a HAMMER. `dawnpoint_arrows` was on it and is a mallet. And
+`steel_arrows`, listed as an "archery target", is a round SHIELD with a boss.** Four of the fifteen
+were wrong and four more were marginal. I wired **8**, not 15. A verdict you did not make yourself is
+a hypothesis, and the cost of testing it here was ten minutes.
+
+**Spend: $2.68 of a $3.30 cap** (10 probe + 57 batch images; the run stopped at 57 of 66 on
+`not_enough_credits` — the account is empty, the 9 refusals were not charged). Programme total $4.36.
+
+**The one reproducible fix, and it is the strongest finding this programme has produced.** A garment
+must be described as an **object at rest, not as clothing**: *"an empty hooded cloak hanging flat with
+no one wearing it"*, *"a pair of empty leggings laid out flat side by side, no wearer"*. Cloaks,
+capes, mantles, robes, sashes and leggings went from a **73% class failure rate to 15 of 17 correct.**
+**And it vindicates b360's disconfirmation rather than overturning it.** My predecessor measured that
+anatomy words ("shoulders", "hem") were NOT the fault and threw away a half-written fix. That was
+correct: **the fault was never a word that was present, it was a state that was absent.** Every one of
+those rewritten lines still names shoulders and collars.
+
+Two more that hold: an arrow must be spelled out as parts in reading order (*"a single arrow: one long
+straight shaft, three feather vanes at the lower end, a small point at the upper end"* — 5 of 8, up
+from 0), and a bow needs its **string** named, which is the one feature nothing else in the batch has.
+The generalisation is the same shape all three times and is now the rule in the picker: **name what
+the object uniquely HAS or the state it is uniquely IN; never name what it must not be.**
+
+**The class I stopped spending on, and stopping was the decision I would defend hardest.** Staves and
+fishing rods: two funded probes, ten generations, three wrapper cuts. Removing *"filling the frame"*
+and *"chunky-heroic exaggerated proportions"* from P-SHAFT **did** kill the hammer head — 28 of 28
+before, 0 after, so that diagnosis was right — but the model then returns a short fat baton and simply
+**ignores an explicit eight-to-one aspect ratio**, while obeying it perfectly for arrows in the same
+run. Naming a canonical thin noun made it worse: **`oak_staff` came back as a signpost with the word
+"Quarterstaff" rendered as text on it, `yew_staff` as a candy cane.** Sixteen ids are deferred
+unrolled. This is the fourth round of re-wording that class would have been, and this document's own
+standing lesson says the lever is an API field, not prose. I saved $0.64 and, more to the point, I did
+not hand the next person a fifth round.
+
+**What I would not let through.** `dire_fang` came back as a molar rather than a canine and
+`willow_rod` is the best of seven rods in a class whose other six are unsolved — both held back. A
+mixed shelf inside one family is worse than a consistent fallback.
+
+**Honest score on the 60 judged: 34 pass, 26 fail.** Garments 15/17. Arrows 5/8. Bows 1/2. **Bars 0/4**
+— `iron_bar` is an ANVIL even when the line reads "a single solid rectangular brick-shaped block",
+`steel_bar` came back as a framed landscape **painting**. `gold_ore` is a golden **fist**. `potato` has
+returned a humanoid figure **three times running**. Those are the next class to diagnose and the method
+is b360's: base-rate against the SHIPPED control, never read the failing prompts alone.
+
+**A test failure that was a real message, not a nuisance.** Wiring `dawn_platebody` turned the b358
+guard's control **vacuous** — it pinned the suffixes `_helm|_platebody|_sword`, and I had just covered
+the last one, so a control meant to prove the generated mapper still runs instead proved only that its
+list was exhausted. **A control keyed to a hardcoded id shape has a shelf life and this batch is still
+growing.** I rewrote it to read live state. My first rewrite was a clear-and-repaint MUTATION and it
+**failed** — `mapGeneratedGear` opens with `if (LOCAL_ITEM_ICON[id]) return`, so it is idempotent by
+short-circuit and can never repaint. I deleted the mutation and wrote down why, because the next
+person will reach for exactly that.
+
+**Verified in-browser, my own server rooted in my own worktree.** 8 surfaces × 3 contexts:
+**0 404s, 0 console errors, 0 broken `<img>`, 0 tiny `<img>`, 1060 hearthfire icons rendered, 428
+wired.** Then I opened the inventory capture and read it — the new arrows, cloaks and robes hold at
+34 px and the shelf still reads as one set. Captures in `assets/art-pilot/_screenshots/b361/`.
+**Suite 764/764, three green runs. No version bump, no push.** (The pre-existing Edge-payload red from
+b357/b358 has cleared on its own — deployed now matches the repo.)
+
+**Standing lesson to add to the pile: the failing half is never the words — until the wrapper is right,
+and then it is exactly the words.** §0.10b and §0.10c were correct to refuse to blame prose, and this
+pass was correct to blame it. Which one applies is decided by whether an API-field lever is still
+unexhausted, not by taste.
+
 ### 2026-08-16 · b358 — the full item batch is WIRED, and it is 386 of 512, not 512 of 512
 
 **I was told the batch was done and asked to wire it. It is not done, and I found that by looking.**

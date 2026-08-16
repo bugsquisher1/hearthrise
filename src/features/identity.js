@@ -69,7 +69,43 @@
   var AVATAR_TYPES     = ['image/png', 'image/jpeg', 'image/webp'];
   var AVATAR_RAW_MAX   = 16 * 1024 * 1024;        // refuse to DECODE more than this
   var AVATAR_QUALITY   = [0.85, 0.72, 0.6, 0.5, 0.4];
-  var DEFAULT_AVATAR   = 'assets/icons-bundle/painted/npc/player.png';
+  // b360: the shown default is a NEUTRAL SILHOUETTE, not a painted face. Two
+  // reasons. (1) "Adventurer" was one shared name and player.png was one shared
+  // face — a default that looks like a real person invites the player to think
+  // it IS their portrait, and makes the picker feel skippable. A universal
+  // "no portrait yet" bust reads as "pick one", which is exactly the nudge the
+  // new picker wants. (2) It is a 1 KB shipped asset that can never 404, so the
+  // render seam never produces a broken image. player.png is retained only as a
+  // deep onerror last-ditch in index.html — never the face a new player sees.
+  var DEFAULT_AVATAR   = 'assets/avatars/_placeholder.webp';
+
+  // ── Prefab portrait catalogue (b360, backlog #26) ────────────
+  // Ten Recraft-painted faces, processed to the SAME 256² the upload pipeline
+  // produces and shipped as webp under assets/avatars/. This array is the ONE
+  // manifest both the picker grid and the smoke suite read — add a face by
+  // adding a row here plus its <id>.webp, nothing else. A prefab is NOT a
+  // "preset id": choosing one runs the exact upload pipeline (processImage →
+  // local save → cloud upload), so it persists and syncs across devices like
+  // any uploaded portrait. There is deliberately no stored "which prefab" — a
+  // chosen prefab becomes a portrait, indistinguishable from an upload, which
+  // is what gets it cross-device sync for free.
+  var PREFAB_BASE = 'assets/avatars/';
+  var PREFABS = [
+    { id: 'knight',     name: 'Knight'     },
+    { id: 'ranger',     name: 'Ranger'     },
+    { id: 'scholar',    name: 'Scholar'    },
+    { id: 'archer',     name: 'Archer'     },
+    { id: 'rogue',      name: 'Rogue'      },
+    { id: 'farmer',     name: 'Farmer'     },
+    { id: 'merchant',   name: 'Merchant'   },
+    { id: 'blacksmith', name: 'Blacksmith' },
+    { id: 'craftsman',  name: 'Craftsman'  },
+    { id: 'veteran',    name: 'Veteran'    }
+  ].map(function (p) { return { id: p.id, name: p.name, src: PREFAB_BASE + p.id + '.webp' }; });
+  function prefabById(id) {
+    for (var i = 0; i < PREFABS.length; i++) if (PREFABS[i].id === id) return PREFABS[i];
+    return null;
+  }
 
   var STORE_KEY = 'hearthrise:identity';
 
@@ -710,8 +746,11 @@
    * The LOCAL copy is written first and unconditionally, so an upload
    * failure costs the player nothing they can see.
    */
-  async function setAvatarFromFile(file) {
-    var img = await fileToImage(file);
+  // b360: the ONE persist+upload path, shared by uploads and prefab picks. A
+  // prefab is fetched, drawn to the same canvas and re-encoded exactly like an
+  // upload, so nothing downstream can tell the two apart — which is precisely
+  // why a prefab choice syncs across devices with no new code.
+  async function setAvatarFromImage(img) {
     var out = processImage(img);
     load();
     rec.avatar.data = out.dataUrl;
@@ -733,6 +772,30 @@
     persist();
     return { action: d.action === 'unsupported' ? 'local' : 'partial',
              bytes: out.bytes, type: out.type, message: d.message };
+  }
+
+  async function setAvatarFromFile(file) {
+    var img = await fileToImage(file);
+    return setAvatarFromImage(img);
+  }
+
+  // Load a bundled prefab portrait. Same-origin on the deploy, so the canvas
+  // processImage draws onto stays untainted and toDataURL succeeds; a move to a
+  // cross-origin CDN would need CORS headers, and until then a taint would
+  // surface as a caught "could not set" rather than a silent blank.
+  function loadImage(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('That portrait could not be loaded')); };
+      img.src = src;
+    });
+  }
+  async function setAvatarFromPrefab(id) {
+    var p = prefabById(id);
+    if (!p) throw new Error('Unknown portrait');
+    var img = await loadImage(p.src);
+    return setAvatarFromImage(img);
   }
 
   function clearAvatar() {
@@ -892,7 +955,22 @@
       '.hr-id-badge[data-tone="ok"]{color:var(--gold-2,#c9a24a);border-color:rgba(201,162,74,.5)}',
       '.hr-id-link{background:none;border:0;padding:0;font:inherit;font-size:calc(14.5px * var(--ui-scale, 1));',
       '  color:var(--ink-3,#a2968a);text-decoration:underline;cursor:pointer}',
-      '.hr-id-link:hover{color:var(--gold-2,#c9a24a)}'
+      '.hr-id-link:hover{color:var(--gold-2,#c9a24a)}',
+      /* b360: the prefab portrait picker. Tokens only, same palette as the name
+         modal. The grid is auto-fill so it stays square and reflows on a phone
+         instead of overflowing a fixed column count. */
+      '.hr-id-wrap-wide{max-width:560px}',
+      '.hr-id-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;margin:4px 0 2px}',
+      '.hr-id-tile{position:relative;padding:0;overflow:hidden;cursor:pointer;aspect-ratio:1/1;',
+      '  border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(0,0,0,.28);border-radius:10px;',
+      '  transition:box-shadow .15s ease,border-color .15s ease}',
+      '.hr-id-tile img{width:100%;height:100%;object-fit:cover;display:block}',
+      '.hr-id-tile:hover,.hr-id-tile:focus-visible{outline:none;border-color:var(--gold-2,#c9a24a);',
+      '  box-shadow:0 0 0 2px var(--bg-1,#17140f),0 0 0 4px var(--gold-2,#e3c77e)}',
+      '.hr-id-tile:disabled{cursor:progress;opacity:.55}',
+      '.hr-id-pick-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}',
+      '.hr-id-pick-foot .btn{flex:0 0 auto}',
+      '.hr-id-pick-spacer{flex:1 1 auto}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -1086,11 +1164,119 @@
 
   // b229 (Tyler): "clicking on the icon should give me the opportunity to
   // upload an avatar" — the portrait itself is the affordance, on the
-  // Character page AND the topbar, and both call this ONE trigger rather
-  // than each reimplementing "open the file input". No forking the pipeline.
-  function openAvatarPicker() {
+  // Character page AND the topbar, and both call ONE trigger rather than each
+  // reimplementing it. b360: that trigger now opens the PICKER (prefab grid +
+  // upload), not the raw file dialog. openUploadDialog() is the old behaviour,
+  // reached from the picker's "Upload your own…" affordance.
+  function openUploadDialog() {
     if (uploading) return;
     ensureFileInput().click();
+  }
+
+  // b360 — the prefab picker modal. Same scrim/wrap chrome and token colours as
+  // the name modal (openNameModal): one visual language, tokens only. This is a
+  // USER-INVOKED chooser, not the directed first-run prompt, so it closes on
+  // scrim-click, Escape and Cancel.
+  function openAvatarPicker() {
+    ensureStyle();
+    closeModal();
+
+    var scrim = document.createElement('div');
+    scrim.className = 'hr-id-scrim';
+    var wrap = document.createElement('div');
+    wrap.className = 'hr-id-wrap hr-id-wrap-wide';
+
+    var h = document.createElement('h3');
+    h.textContent = 'Choose your portrait';
+    wrap.appendChild(h);
+
+    var lead = document.createElement('p');
+    lead.className = 'hr-id-lead';
+    lead.textContent = isSignedIn()
+      ? 'Pick a face for your adventurer — it follows you to every device. Or upload your own.'
+      : 'Pick a face for your adventurer, or upload your own. Sign in to carry it across devices.';
+    wrap.appendChild(lead);
+
+    var grid = document.createElement('div');
+    grid.className = 'hr-id-grid';
+    PREFABS.forEach(function (p) {
+      var tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'hr-id-tile';
+      tile.title = p.name;
+      tile.setAttribute('aria-label', 'Choose the ' + p.name + ' portrait');
+      var img = document.createElement('img');
+      img.alt = '';
+      // Eager, not lazy: ten ~13 KB webps total, and lazy leaves tiles blank
+      // below the fold on a short screen until the grid is scrolled.
+      img.src = p.src;
+      tile.appendChild(img);
+      // The name lives on title + aria-label, not a baked-in caption: a caption
+      // small enough to fit an 84px tile would fall under the 14.5px readability
+      // floor (b227), and a portrait picker reads fine by face alone.
+      tile.addEventListener('click', function () { choosePrefab(p.id, scrim); });
+      grid.appendChild(tile);
+    });
+    wrap.appendChild(grid);
+
+    var note = document.createElement('div');
+    note.className = 'hr-id-note';
+    note.setAttribute('data-tone', 'muted');
+    wrap.appendChild(note);
+
+    var foot = document.createElement('div');
+    foot.className = 'hr-id-pick-foot';
+    var upload = document.createElement('button');
+    upload.type = 'button';
+    upload.className = 'btn btn-sm';
+    upload.textContent = 'Upload your own…';
+    upload.addEventListener('click', function () { closeModal(); openUploadDialog(); });
+    foot.appendChild(upload);
+    var spacer = document.createElement('span');
+    spacer.className = 'hr-id-pick-spacer';
+    foot.appendChild(spacer);
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn btn-sm';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', function () { closeModal(); });
+    foot.appendChild(cancel);
+    wrap.appendChild(foot);
+
+    scrim.appendChild(wrap);
+    document.body.appendChild(scrim);
+    scrim.addEventListener('click', function (e) { if (e.target === scrim) closeModal(); });
+    function onKey(e) {
+      if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', onKey); }
+    }
+    document.addEventListener('keydown', onKey);
+    return scrim;
+  }
+
+  // Selecting a prefab runs the SAME pipeline as an upload — process, persist,
+  // upload — so it is a portrait, not a preset, and syncs cross-device. Guarded
+  // by the same `uploading` latch so a pick and an upload cannot race.
+  function choosePrefab(id, scrim) {
+    if (uploading) return;
+    uploading = true;
+    var note = scrim && scrim.querySelector('.hr-id-note');
+    var tiles = scrim ? scrim.querySelectorAll('.hr-id-tile') : [];
+    if (note) { note.textContent = 'Setting your portrait…'; note.setAttribute('data-tone', 'muted'); }
+    Array.prototype.forEach.call(tiles, function (t) { t.disabled = true; });
+    setAvatarFromPrefab(id).then(function (d) {
+      if (d.action === 'synced') toast('Portrait set — it will follow you to every device.', 'levelup');
+      else if (d.action === 'local') toast(isSignedIn()
+        ? 'Portrait set on this device. It will sync once portrait storage is live.'
+        : 'Portrait set on this device.', 'info');
+      else toast(d.message || 'Portrait set on this device.', 'info');
+      closeModal();
+    }).catch(function (e) {
+      if (note) { note.textContent = (e && e.message) || 'That portrait could not be set.'; note.setAttribute('data-tone', 'bad'); }
+      Array.prototype.forEach.call(tiles, function (t) { t.disabled = false; });
+    }).then(function () {
+      uploading = false;
+      try { decorateCharacterPage(); } catch (e) {}
+    });
   }
 
   var uploading = false;
@@ -1354,11 +1540,15 @@
     // avatar
     avatarUrl: avatarUrl, avatarPublicUrl: avatarPublicUrl,
     processImage: processImage, setAvatarFromFile: setAvatarFromFile,
+    setAvatarFromImage: setAvatarFromImage,
     clearAvatar: clearAvatar, applyAvatar: applyAvatar,
     decorateCharacterPage: decorateCharacterPage,
     // b229: the one trigger both click affordances call — reused, not forked.
     openAvatarPicker: openAvatarPicker, decorateTopbarAvatar: decorateTopbarAvatar,
     avatarIsCustom: avatarIsCustom,
+    // b360: prefab picker — the manifest both the grid and the suite read.
+    PREFABS: PREFABS, prefabById: prefabById,
+    setAvatarFromPrefab: setAvatarFromPrefab, openUploadDialog: openUploadDialog,
     // server-contract seams — pure, no I/O. Exposed for the regression suite.
     _reduceClaim: reduceClaim, _reduceAvailability: reduceAvailability,
     _reduceUpload: reduceUpload, _isMissingRpc: isMissingRpc,

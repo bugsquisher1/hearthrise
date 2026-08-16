@@ -3904,7 +3904,11 @@ const TESTS = [
     const seam = window._playerAvatar;
     assert(seam, 'player avatar seam is empty');
     const uploaded = /^data:image\//.test(seam);
-    assert(uploaded || /assets\/icons-bundle\/painted\//.test(seam),
+    // b360: the neutral default now lives under assets/avatars/ (the placeholder
+    // silhouette), a prefab pick is a data: URL, and the old painted default is
+    // still a legitimate shipped resolution. The invariant this guards is
+    // UNCHANGED: never an unshipped folder, never a 404.
+    assert(uploaded || /assets\/(icons-bundle\/painted|avatars)\//.test(seam),
       'player avatar path bad: ' + String(seam).slice(0, 80));
     assert(!/raw-bundle|icons3/.test(seam), 'player avatar seam points at an unshipped folder: ' + seam);
     const img = document.querySelector('.player-avatar img');
@@ -8646,15 +8650,19 @@ const TESTS = [
   // #9g: rendering. NO broken-image states, ever — the portrait seam must
   // always resolve to something that loads, and a player's own dataURL must
   // win over the network so there is no flash on a slow connection.
-  () => tryRun('b221: portrait always resolves — uploaded first, painted default otherwise', () => {
+  () => tryRun('b221: portrait always resolves — uploaded first, neutral placeholder otherwise', () => {
     const I = window.HearthriseIdentity;
     const rec = I._record();
     const saved = JSON.parse(JSON.stringify(rec.avatar));
     try {
       rec.avatar = { data: null, remote: null, status: null, at: 0 };
       const def = I.avatarUrl();
-      assert(def && /assets\/icons-bundle\/painted\//.test(def),
-        'with no upload the portrait must be the painted default, got ' + def);
+      // b360: the default is now the neutral placeholder silhouette, never the
+      // retired painted player.png face.
+      assert(def && /assets\/avatars\/_placeholder\.webp/.test(def),
+        'with no upload the portrait must be the neutral placeholder, got ' + def);
+      assert(!/painted\/npc\/player\.png/.test(def),
+        'player.png must no longer be the default face');
       assert(def === I.DEFAULT_AVATAR, 'the default must come from the one constant');
 
       // A remote URL that has been verified is used; a local dataURL beats it.
@@ -17558,39 +17566,61 @@ const TESTS = [
   // had no upload affordance at all. The portrait itself is now the
   // affordance in both places, wired through identity.js's one existing
   // upload pipeline (never forked).
-  () => tryRun('b229: the avatar itself opens the upload flow — topbar and Character page', () => {
+  () => tryRun('b229/b360: the avatar itself opens the picker — topbar and Character page', () => {
     const I = window.HearthriseIdentity;
     assert(I && typeof I.openAvatarPicker === 'function',
       'identity.js must expose one shared open-picker trigger for both surfaces to call');
+    assert(typeof I.openUploadDialog === 'function',
+      'the picker must expose the raw upload dialog it delegates to');
 
-    // Force the lazily-created hidden <input type=file> into existence via
-    // the real seam, then spy on ITS .click() so a real DOM click on the
-    // portrait can be proven to reach the SAME pipeline — without popping
-    // an OS file dialog in headless CI.
-    I.openAvatarPicker();
+    // b360: clicking the portrait now opens the PREFAB PICKER, not the raw file
+    // dialog. Force the lazily-created hidden <input type=file> into existence
+    // via the real upload path, then spy on ITS .click() so the picker's
+    // "Upload your own…" affordance can be proven to reach the SAME pipeline —
+    // without popping an OS file dialog in headless CI.
+    I.openUploadDialog();
     const input = [...document.querySelectorAll('input[type="file"]')]
       .find((el) => el.accept && /image\//.test(el.accept));
     assert(input, 'identity.js must have created the hidden file-picker input');
     const realClick = input.click.bind(input);
-    let calls = 0;
-    input.click = () => { calls++; };
+    let uploadClicks = 0;
+    input.click = () => { uploadClicks++; };
+
+    const scrim = () => document.querySelector('.hr-id-scrim');
+    const closePicker = () => { const s = scrim(); if (s) s.remove(); };
+    const tiles = () => { const s = scrim(); return s ? s.querySelectorAll('.hr-id-tile').length : 0; };
+    const openVia = (el) => { closePicker(); el.click(); return tiles(); };
+    const clickUpload = () => {
+      const s = scrim(); if (!s) return false;
+      const up = [...s.querySelectorAll('button')].find((b) => /upload your own/i.test(b.textContent || ''));
+      if (up) up.click();
+      return !!up;
+    };
+
     const prevTab = window.activeTab;
     try {
+      closePicker();
       // Topbar avatar — present on every screen, never re-rendered wholesale.
       const topAvatar = document.querySelector('.player-avatar');
       assert(topAvatar, 'topbar avatar missing');
       assert(topAvatar.getAttribute('role') === 'button', 'topbar avatar must be role="button"');
       assert(topAvatar.tabIndex === 0, 'topbar avatar must be keyboard-reachable (tabindex=0)');
-      calls = 0;
-      topAvatar.click();
-      assert(calls === 1, 'clicking the topbar avatar must open the upload flow');
-      calls = 0;
+      assert(openVia(topAvatar) === 10, 'clicking the topbar avatar must open the 10-portrait picker');
+
+      // The picker's "Upload your own…" reaches the SAME upload pipeline.
+      uploadClicks = 0;
+      assert(clickUpload(), 'the picker must offer an "Upload your own…" affordance');
+      assert(uploadClicks === 1, 'choosing "Upload your own…" must reach the file-upload pipeline exactly once');
+
+      // Enter on the focused topbar avatar opens the picker too.
+      closePicker();
       topAvatar.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      assert(calls === 1, 'Enter on the focused topbar avatar must open the upload flow');
+      assert(tiles() === 10, 'Enter on the focused topbar avatar must open the picker');
 
       // Character-page portrait — rebuilt wholesale on every render, so the
       // click wiring has to survive that (decorateCharacterPage re-attaches).
-      // b229: the identity portrait lives on the Hero sub-tab now.
+      // The identity portrait lives on the Hero sub-tab.
+      closePicker();
       window.showTab('character');
       window._charPane = 'hero';
       if (typeof window.renderCharacter === 'function') window.renderCharacter();
@@ -17598,22 +17628,24 @@ const TESTS = [
       assert(portrait, 'character-page portrait missing');
       assert(portrait.getAttribute('role') === 'button', 'character portrait must be role="button"');
       assert(portrait.tabIndex === 0, 'character portrait must be keyboard-reachable (tabindex=0)');
-      calls = 0;
-      portrait.click();
-      assert(calls === 1, 'clicking the character-page portrait must open the upload flow');
-      calls = 0;
-      portrait.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      assert(calls === 1, 'Enter on the focused character portrait must open the upload flow');
+      assert(openVia(portrait) === 10, 'clicking the character-page portrait must open the picker');
 
-      // Clicking the bottom-bar label button (nested inside the portrait)
-      // must not double-open the picker via bubbling.
+      closePicker();
+      portrait.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      assert(tiles() === 10, 'Enter on the focused character portrait must open the picker');
+
+      // The bottom-bar label button (nested inside the portrait) opens the
+      // picker exactly once — its stopPropagation prevents a second open via
+      // bubbling to the portrait handler, so there is one scrim, never two.
+      closePicker();
       const btn = portrait.querySelector('.hr-id-upload');
       assert(btn, 'the existing label button must still be present');
-      calls = 0;
       btn.click();
-      assert(calls === 1, 'the label button must open the picker exactly once, not twice via bubbling');
+      assert(document.querySelectorAll('.hr-id-scrim').length === 1 && tiles() === 10,
+        'the label button must open the picker exactly once, not twice via bubbling');
     } finally {
       input.click = realClick;
+      closePicker();
       window.showTab(prevTab);
     }
   }),
@@ -31375,6 +31407,88 @@ const TESTS = [
          must not leak one even though the row carries it. */
       assert(html.indexOf('user-me') === -1, 'the ledger leaked an auth user id into the DOM');
     } finally { MH.__setHistoryCache(before); }
+  }),
+
+  // ════════════════════════════════════════════════════════════
+  // b360 — PREFAB AVATAR PICKER (backlog #26)
+  // ════════════════════════════════════════════════════════════
+  // (a) The ten prefab portraits all ship and are in the ONE manifest. The
+  // image-load half is real: it decodes every webp off the deploy, so a
+  // manifest row pointing at a missing/renamed file fails here, not in front of
+  // a player who opened the picker to an empty tile.
+  () => tryRunAsync('b360: the ten prefab portraits all ship and are in the manifest', async () => {
+    const I = window.HearthriseIdentity;
+    const P = I.PREFABS;
+    assert(Array.isArray(P) && P.length === 10,
+      'there must be exactly ten prefab portraits, got ' + (P && P.length));
+    assert(new Set(P.map((p) => p.id)).size === 10, 'prefab ids must be unique');
+    P.forEach((p) => {
+      assert(p.id && p.name && p.src, 'each prefab needs id/name/src: ' + JSON.stringify(p));
+      assert(/^assets\/avatars\/[a-z]+\.webp$/.test(p.src),
+        'a prefab src must be a shipped avatars webp, got ' + p.src);
+      assert(!/raw-bundle|icons3/.test(p.src), 'a prefab must be a shipped asset, got ' + p.src);
+      assert(!/painted\/npc\/player\.png/.test(p.src), 'a prefab must not be the retired default face');
+      assert(I.prefabById(p.id) === p, 'prefabById must resolve every manifest id');
+    });
+    // Every file actually decodes off the deploy — no dead manifest rows.
+    const results = await Promise.all(P.map((p) => new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res({ id: p.id, ok: im.naturalWidth > 0 });
+      im.onerror = () => res({ id: p.id, ok: false });
+      im.src = p.src + '?smoke=' + Date.now();
+    })));
+    const dead = results.filter((r) => !r.ok).map((r) => r.id);
+    assert(dead.length === 0, 'these prefab portraits failed to load off the deploy: ' + dead.join(', '));
+  }),
+
+  // (b) Selecting a prefab must flow through the SAME process+persist pipeline
+  // as an upload — proving it is a portrait, not a local-only preset id, which
+  // is what earns it cross-device sync. We assert the stored avatar is a
+  // freshly RE-ENCODED dataURL (only processImage produces that), not the bare
+  // bundled path, and that the render seam every surface reads now tracks it.
+  () => tryRunAsync('b360: choosing a prefab routes through process+persist and updates the seam', async () => {
+    const I = window.HearthriseIdentity;
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      I.clearAvatar();
+      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'a cleared avatar must resolve to the default placeholder');
+      const res = await I.setAvatarFromPrefab('knight');
+      assert(res && ['local', 'synced', 'partial'].indexOf(res.action) >= 0,
+        'a prefab pick must complete through the upload pipeline, got ' + JSON.stringify(res));
+      const r2 = I._record();
+      assert(r2.avatar && typeof r2.avatar.data === 'string' &&
+        /^data:image\/(webp|jpeg|png)/.test(r2.avatar.data),
+        'the prefab must be re-encoded by processImage into a stored dataURL — proof it used the real pipeline, not a bare path');
+      assert(r2.avatar.data.indexOf('assets/avatars/') === -1,
+        'the stored portrait must be pixels, never the bundled prefab path (a preset id would not sync)');
+      I.applyAvatar();
+      assert(window._playerAvatar === r2.avatar.data, '_playerAvatar must track the chosen prefab through the seam');
+      assert(window._playerAvatar !== I.DEFAULT_AVATAR, 'a chosen prefab must replace the default face');
+      assert(!/painted\/npc\/player\.png/.test(window._playerAvatar),
+        'player.png must never be the shown portrait after a choice');
+    } finally {
+      rec.avatar = saved;
+      I._persist();
+      I.applyAvatar();
+    }
+  }),
+
+  // (c) player.png is retired as the default face — the picker exists so nobody
+  // shares one default portrait, and the render seam must never resolve to it.
+  () => tryRun('b360: player.png is retired as the default face', () => {
+    const I = window.HearthriseIdentity;
+    assert(I.DEFAULT_AVATAR === 'assets/avatars/_placeholder.webp',
+      'the default face must be the neutral placeholder, got ' + I.DEFAULT_AVATAR);
+    assert(!/painted\/npc\/player\.png/.test(I.DEFAULT_AVATAR),
+      'player.png must no longer be the default portrait');
+    assert(!/raw-bundle|icons3/.test(I.DEFAULT_AVATAR), 'the default must be a shipped asset');
+    const rec = I._record();
+    const saved = JSON.parse(JSON.stringify(rec.avatar));
+    try {
+      rec.avatar = { data: null, remote: null, status: null, at: 0 };
+      assert(I.avatarUrl() === I.DEFAULT_AVATAR, 'with no upload the portrait must be the placeholder default');
+    } finally { rec.avatar = saved; I.applyAvatar(); }
   }),
 
 ];

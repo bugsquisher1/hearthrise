@@ -772,4 +772,3 @@ begin
                'role) pair(s) (0 wanted). check (4) now sees MAINTAIN and matviews permanently — the '
                'dead-grant sweep is a PROPERTY, not a state.', v_m, v_c;
 end $$;
--- ════════════════════════════════════════════════════════════════════════

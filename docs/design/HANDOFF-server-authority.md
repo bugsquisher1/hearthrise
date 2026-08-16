@@ -20,6 +20,11 @@ artisan payable-flip (the from-empty safety argument is replaced by the import);
 renames stay migrations until the deferred wipe; PITR matters MORE (current progress
 becomes permanent). The import tool is in flight.
 
+**✅ RACE TEST RE-RUN 2026-08-15 23:43 UTC on the CURRENT build (`ca3a7ebc…`): ALL THREE
+SCENARIOS RACED AND HELD, first attempt, no retries** — exactly-once payment, server-
+confirmed interleaving (replayed / replayed / version_conflict), receipts == state in
+every scenario. Security's C6 is satisfied against the live engine.
+
 **WHAT REMAINS IS PURELY OPERATIONAL, in order:** (1) market-v2 revalidation + apply +
 client swap (the last unreviewed surface); (2) C6 — `tools/race-test.mjs` against the
 live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway first,

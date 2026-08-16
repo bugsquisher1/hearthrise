@@ -29,6 +29,57 @@
 // prevent, so if you find yourself typing an arithmetic operator on a game
 // value in this file, you are writing a bug.
 //
+// ── ROLLING BACK A PAYABLE KIND — THE OPERATOR PROCEDURE (Security C3) ─────
+// Read this BEFORE reverting an Edge deploy or renaming a catalogue id, because
+// the safe order is not the obvious one.
+//
+// THE HAZARD. A pointer this build cannot price answers with a REFUSING skip
+// reason, which defers the window rather than confiscating it. That is right,
+// and it has a consequence: the collect refuses, and a refused collect refuses
+// the SWITCH, so the character cannot be moved off the pointer by any client
+// gesture. Roll the Edge payload back while players hold `artisan` pointers —
+// or rename a recipe id — and every one of those characters is frozen until a
+// deploy goes forward again.
+//
+// WHAT ALREADY HANDLES MOST OF IT. `set-activity.js` lets an incoming `idle`
+// declaration force-close such a window as a JOURNALLED FORFEIT, for the
+// reasons in `POINTER_SKIP_REASONS` (./intents.js) — the ones that are a
+// property of the pointer rather than of the absence. So a player who taps
+// STOP unfreezes themselves, loses only the window that could not be priced,
+// and gets a `forfeited` receipt saying so. That covers a rollback where the
+// OLD payload is still deployed and still has that code.
+//
+// WHAT DOES NOT. Rolling back to a payload that PREDATES the escape hatch (any
+// build before b356) removes it, and then nothing client-side unfreezes a
+// player. In that case the operator step is:
+//
+//   -- 1. WHO IS STUCK. Run first; if it returns 0 rows, do nothing.
+//   select user_id, slot, active_kind, active_id, accrued_to
+//     from public.player_state
+//    where active_kind = 'artisan';           -- or the kind being rolled back
+//
+//   -- 2. IDLE THE POINTER. This is the whole fix; it does not touch a balance.
+//   --    `accrued_to` is advanced in the SAME statement, because leaving it
+//   --    behind hands the next accrual an absence nobody spent working.
+//   update public.player_state
+//      set active_kind = 'idle', active_id = null,
+//          active_since = null, accrued_to = now(), version = version + 1
+//    where active_kind = 'artisan';
+//
+//   -- 3. JOURNAL IT. An untraced mass write to player_state is indistinguishable
+//   --    from an incident later. One row per character, `kind='admin'`.
+//   insert into public.player_ledger (user_id, slot, kind, intent, meta)
+//   select user_id, slot, 'admin', 'rollback:idle_pointer',
+//          jsonb_build_object('was_kind', 'artisan', 'was_id', active_id)
+//     from public.player_state where active_kind = 'idle';
+//
+// ⚠ RUN IT BEFORE THE ROLLBACK DEPLOY, NOT AFTER. Between the deploy and the
+//   update, every affected player is frozen; doing it first means they are
+//   merely idle, which is a state the old payload understands perfectly.
+// ⚠ AND THE DEPLOY ORDER FOR GOING FORWARD IS THE OPPOSITE: Edge first, verify
+//   `payload_sha256` on the GET route, client second. A client that declares a
+//   kind the deployed engine cannot set earns a 409 on every gesture.
+//
 // PURE ESM. No DOM, no window, no timers, no Math.random, no fetch.
 // ============================================================================
 
@@ -38,6 +89,16 @@ import {
 } from '../../../src/core/combat.js';
 import { simulateSpan } from '../../../src/core/combat-sim.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
+/* The third simulation. `simulateArtisanSpan` runs the SAME `sliceSpan` the
+   gather path runs, over the same `resolveArtisanAction` the live bench runs —
+   one loop, three callers, which is the whole b351 shape. `benchPayable` is the
+   payability PROPERTY (see its block in that file); it is read here, by
+   ./set-activity.js's shape check and by src/net/activity.js's downgrade, so
+   the three cannot disagree about which benches exist tonight. */
+import {
+  simulateArtisanSpan, STOP_REASON as ARTISAN_STOP, benchPayable, benchBlockedBy,
+} from '../../../src/core/artisan-sim.js';
+import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
 import { resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
@@ -76,6 +137,67 @@ export const ACCRUE_MIN_MS = 60000;
    accrual to a day of ticks. Two independent limits, because `capMs` is the
    single highest-leverage number in the grant after tickMs. */
 export const ACCRUE_MAX_SPAN_MS = 24 * 3600000;
+
+/**
+ * ── THE DEGRADE LADDER'S KNOB, AND IT IS A GAME RULE, SO IT LIVES HERE ─────
+ *
+ * index.ts answers a clamp rejection by asking for a SMALLER proposal and
+ * re-applying (review S8: a rejection rolls back the watermark too, so without
+ * this the character's accrual is bricked forever). What "smaller" MEANS is a
+ * property of the simulation, not of the HTTP shell — and getting it wrong is
+ * silent, because a ladder that does not shrink the proposal still terminates,
+ * at the last-resort forfeit that pays NOTHING.
+ *
+ * ⚠ HALVING THE SPAN IS ONLY CORRECT WHEN OUTPUT IS PROPORTIONAL TO TIME
+ *   (Security C1, b356). It is, for combat and gathering. It is NOT for
+ *   artisan: an artisan night is bounded by the BAG whenever the player left
+ *   less material than the clock could consume, and halving the span of a
+ *   bag-bound run reduces the proposal by less than half — sometimes by
+ *   NOTHING AT ALL. Measured on `forge_dawn_axe`, 24h absence, 4,000-craft
+ *   bag: the 24h span and the 12h span both run 4,000 actions and produce
+ *   byte-identical deltas. The ladder then spends an attempt, earns the same
+ *   rejection, and has one attempt left before it forfeits the night.
+ *
+ * So artisan degrades the ACTION BUDGET instead, which is the quantity the
+ * delta is actually proportional to — halving it halves the output, the XP and
+ * the consumption together, whether the clock or the bag was binding. The span
+ * is left ALONE on that path, because shrinking both would compound into a
+ * double reduction the player never owed.
+ *
+ * PURE. Takes the previous attempt's own result, returns the next attempt's
+ * inputs, and reaches for nothing ambient.
+ *
+ * @param out      the previous `computeAccrual` result (must be `accrued`)
+ * @param attempt  1-based rung number, for the receipt
+ * @returns { capMs, actionBudget, report } | null when there is nothing
+ *          smaller left to ask for — the caller then forfeits, which is the
+ *          honest end of the ladder rather than an infinite loop.
+ */
+export function degradeStep(out, attempt) {
+  if (!out || out.accrued !== true) return null;
+  const kind = out.delta && out.delta.journal && out.delta.journal.kind;
+  /* `craft` is the LEDGER kind an artisan accrual journals under (see
+     accrueArtisan — `artisan` is not in player_ledger_kind_check). Reading the
+     kind off the delta the previous attempt actually produced, rather than off
+     an input the caller still holds, keeps this a function of ONE argument. */
+  if (kind === 'craft') {
+    const ran = Math.floor(Number(out.summary && out.summary.ticks) || 0);
+    const next = Math.floor(ran / 2);
+    if (!(next > 0)) return null;
+    return {
+      capMs: Math.floor(Number(out.grantMs) || 0),
+      actionBudget: next,
+      report: { spanMs: Math.floor(Number(out.grantMs) || 0), actions: next, from: ran, attempt },
+    };
+  }
+  const smaller = Math.floor(Number(out.grantMs) / 2);
+  if (!(smaller > 0)) return null;
+  return {
+    capMs: smaller,
+    actionBudget: null,
+    report: { spanMs: smaller, attempt },
+  };
+}
 
 /* Reasons a call did nothing. Machine codes, never prose — the client
    localises (design §2, "Error taxonomy"). These are not errors: they are the
@@ -117,6 +239,26 @@ export const SKIP = {
      REFUSING_SKIP_REASONS in ./intents.js. Unreachable today: the cap function
      floors at 12h. */
   NO_CAP: 'no_cap',
+  /* An `artisan` pointer whose id is not in the recipe index. The third
+     member of the NO_TARGET / NO_NODE family, and a separate code for the same
+     reason those two are separate: three catalogues, three truths, and a
+     support request has to be able to tell a cut monster apart from a renamed
+     tree apart from a recipe that never existed. REFUSING. */
+  NO_RECIPE: 'unknown_recipe',
+  /* The recipe EXISTS and its bench is one the server may not pay tonight —
+     `benchPayable` is false because a bonus key that can DESTROY value on it
+     (cooking's `noBurn`) is not yet sourced from server-owned state. See the
+     property block at the foot of src/core/artisan-sim.js.
+
+     REFUSING, and that is the whole point of it being a distinct code rather
+     than `unsupported_activity`: this window is real work the engine will be
+     able to price the day `SERVER_OWNED_BONUS_KEYS` gains `noBurn`, so it must
+     be DEFERRED (delta NONE, watermark unmoved) and never confiscated by a
+     switch. Unreachable through the intent surface — ./set-activity.js refuses
+     an unpayable bench on SHAPE, before any database work, so the pointer can
+     never hold one — which makes this the arm for an inconsistent row or for a
+     bench that becomes unpayable under a live character. */
+  UNPAYABLE_BENCH: 'unpayable_bench',
 };
 
 /* ⚠ THE KINDS THIS ENGINE CAN PAY. THE ACTIVITY INTENT'S ALLOWLIST IS DERIVED
@@ -126,22 +268,98 @@ export const SKIP = {
    The reason is the whole "collect before you switch" rule: `hr_apply` stamps
    `accrued_to = now()` on any activity change, so a window the engine cannot
    PRICE is a window the switch CONFISCATES. `hr_activities` holds 344 rows
-   across three kinds and this engine simulates one of them, so an intent that
-   accepted the catalogue's vocabulary would let a player set `gather`, mine for
-   three hours, switch, and be paid nothing — an under-payment created by the
-   very rule that closed the over-payment.
+   across three kinds, so an allowlist wider than what this file simulates would
+   let a player set an activity, work it for three hours, switch, and be paid
+   nothing — an under-payment created by the very rule that closed the
+   over-payment.
 
-   Widening this array is therefore the SAME EDIT as teaching the engine to pay
-   that kind. If you add a kind here without a simulation below, the guard
-   fails; that is the guard's entire job.
+   ── WHAT PROTECTS A WIDENING, STATED HONESTLY (b356) ────────────────────
+   ⚠ THIS PARAGRAPH USED TO READ: "If you add a kind here without a simulation
+     below, the guard fails; that is the guard's entire job." THAT GUARD DID NOT
+     EXIST. Measured before rewriting this comment: adding a fourth kind to this
+     array and running the whole suite is GREEN, and the new kind then falls
+     through the branch below into the COMBAT tail — which looks its `active_id`
+     up in MONSTERS, finds nothing, and prices the night against an undefined
+     monster. Not a build failure: a wrong payment. The comment was describing
+     a protection somebody intended rather than one anybody wrote, which is the
+     "assertion that asserts nothing" family this repo has recorded eighteen
+     instances of, applied to prose.
 
-   `gather` joined `combat` on 2026-08-15 (23 of the 344 rows). `artisan` — the
-   other 290 — is NOT here, and after b349 it is blocked on ONE model rather
-   than two: `unlockedRecipes` (8 gated recipes, needing `flag` progress rows).
-   The other blocker, `noBurn`, is CLOSED — see the perk channel below.
-   Refusing it keeps the existing mitigation: `delta: NONE`, index.ts returns
-   before hr_apply, the watermark does not move, the time is DEFERRED. */
-export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);
+   What is TRUE, and each of these is a real mechanism you can break and watch
+   go red:
+
+     1. THE DISPATCH IS A TABLE, AND THE BRANCH IS TOTAL. `KIND_ACCRUERS`
+        (below) maps a kind to the function that prices it; `computeAccrual`
+        looks the kind up there and then REFUSES anything that is not `combat`
+        with `SKIP.UNSUPPORTED`. So a kind added here with no simulation is (a)
+        named by tests/artisan-accrual.mjs T1, which compares this array against
+        that table in both directions, and (b) paid NOTHING at runtime, its
+        window DEFERRED (a refusing reason: delta NONE, watermark unmoved)
+        rather than mis-simulated as a fight against a monster that does not
+        exist. Two independent mechanisms, one of which is a build failure.
+     2. `SETTABLE_KINDS` is DERIVED from this array (set-activity.js), and
+        tests/activity-seam.mjs S1 fails the build when the client's
+        `ACTIVITY_KINDS` does not match it, S2 when no `declareActivity('<kind>')`
+        call site exists in src/legacy.js, and B348-3 in the browser suite when
+        no real player GESTURE produces it. So a server-only widening cannot
+        ship — that is the b348 bill, and those three are what it bought.
+     3. tests/accrual-engine.mjs `settableKindsGuard` asserts the derivation in
+        both directions: nothing settable that cannot be paid, nothing payable
+        that cannot be set.
+
+   What is still NOT checked, so nobody mistakes this list for one: that the
+   simulation a new kind dispatches to is CORRECT. Only fixtures do that.
+
+   ── THE ROLL CALL ──────────────────────────────────────────────────────
+   `gather` joined `combat` on 2026-08-15 (23 of the 344 rows). `artisan` joins
+   on 2026-08-16 (290 rows, 84% of the catalogue) now that both of its blockers
+   are closed by 2026-08-16-artisan-progress-model.sql: `unlockedRecipes` is a
+   `kind='flag'` progress row projected by `hr_perks_of`, and the Kitchen rung
+   is a `kind='unlock'` row read through `hr_unlock_levels`.
+
+   ⚠ ONE BENCH OF THE FOUR IS STILL HELD BACK, AND IT IS HELD BACK BY A
+     PROPERTY RATHER THAN BY ITS NAME. Reading a Kitchen rung is not owning it:
+     `src/legacy.js upgradeRoom()` still writes `G.rooms` locally, `hr_unlock_buy`
+     has no client call site, and `rooms` is not on SERVER_OF_RECORD — so the two
+     copies agree only because the cutover import copied one into the other once,
+     and diverge at the first rung bought after it. For every other perk that
+     divergence under-pays a bonus; for `noBurn` it turns the recipe's INPUT into
+     `burnt_food`. `benchPayable` in src/core/artisan-sim.js is that rule, and
+     `SERVER_OWNED_BONUS_KEYS` is the one line that opens it. §9(3) of
+     2026-08-16-artisan-progress-model.sql authorises exactly this shape.
+
+   ⚠ AND `PAYABLE_KINDS` IS THE WRONG PLACE TO EXPRESS IT. Removing `artisan`
+     from this array would take the other 261 recipes down with it AND make
+     cooking un-settable-but-silent again; instead the intent refuses an
+     unpayable BENCH on shape (set-activity.js) and the engine answers a pointer
+     that somehow holds one with `unpayable_bench`, which DEFERS. Kind-level
+     coarseness is how "cooking is not ready" would have become "artisan pays
+     nothing", which is where this whole item started. */
+export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);
+
+/* ── KIND → THE FUNCTION THAT PRICES IT ────────────────────────────────────
+   The mechanism the block above could not previously claim, made real: this is
+   what `computeAccrual`'s branch DISPATCHES ON, and tests/artisan-accrual.mjs
+   T1 asserts it covers PAYABLE_KINDS in both directions — a payable kind with
+   no simulation, or a simulation nothing can reach, fails the build BY NAME.
+
+   `combat` is deliberately absent and is the reason this is a lookup with a
+   fallthrough rather than a total table: the fight is priced by the TAIL of
+   `computeAccrual` itself, kept inline so its parity fixtures still cover the
+   bytes they were written against (see the branch). T1 names `combat` as the
+   one permitted exception rather than accepting any absence, so a second
+   inline kind cannot appear by omission.
+
+   NULL-PROTOTYPE. `activeKind` reaches this from a database column whose CHECK
+   admits four values today — but the lookup pattern is the one that turned
+   `constructor` into a truthy hit everywhere else in this payload, and a
+   container with no prototype removes the hazard instead of guarding it. */
+export const KIND_ACCRUERS = (() => {
+  const t = Object.create(null);
+  t.gather = accrueGather;
+  t.artisan = accrueArtisan;
+  return Object.freeze(t);
+})();
 
 /* ── THE PERK STACK, SERVER-SIDE (b349) ───────────────────────────────────
    `makeBonus(perkState)` from src/core/perks.js — the SAME module
@@ -282,6 +500,37 @@ function nat(v, fallback) {
  *   autoEatPct   player_state.auto_eat_pct — integer percent, 0..100
  *   items        ITEMS,   the authored catalogue (src/data/items.js)
  *   monsters     MONSTERS, ditto
+ *   actionBudget the DEGRADE LADDER'S knob, and the only input on this object
+ *                that is not a fact about the player — it is the number of
+ *                artisan actions the engine's PREVIOUS attempt is allowed to
+ *                be cut down to (see `degradeStep`). `null` on a first
+ *                attempt and on every non-artisan path, which means
+ *                unbounded and is byte-for-byte the pre-b356 behaviour.
+ *                ⚠ It is computed by index.ts from `out.summary.ticks` — the
+ *                  engine's own previous answer — and NEVER from a request
+ *                  body. Even if it were forged it could only ever REDUCE a
+ *                  grant (`simulateArtisanSpan` floors it at 0 and treats a
+ *                  non-finite value as no cap), so the hostile direction is
+ *                  under-paying yourself. Asserted, not assumed, in
+ *                  tests/artisan-accrual.mjs T8.
+ *   recipes      the ARTISAN INDEX — `indexArtisanRecipes(ARTISAN_RECIPES)`,
+ *                built once in ./catalogue.js (`ARTISAN_RECIPES_ALL`) so the
+ *                recipe↔bench mapping exists in exactly one place.
+ *                Null-prototype, so a `__proto__` id cannot resolve — which
+ *                matters more here than for gather, because a truthy miss
+ *                reaches `recipe.inputs` and `recipe.cost`.
+ *                ⚠ THE **FULL** INDEX, NOT THE PAYABLE SUBSET. The engine has
+ *                to be able to tell a missing recipe apart from a bench that is
+ *                not server-owned yet; ./set-activity.js is the one that filters.
+ *   unlockedRecipes  `{ <scroll_id>: true }` from `hr_perks_of` — the artisan
+ *                GATE, not a magnitude, which is why it is a field of its own
+ *                rather than a key inside `perks` (see §5 of
+ *                2026-08-16-artisan-progress-model.sql). **NULL means this
+ *                database predates the model**, and the engine reads that as
+ *                LOCKED: `gateOk` refuses, the span stops with GATE, and only
+ *                the time actually worked is paid. Fail-closed is the shape's
+ *                own default here — an absent row is an absent key is a locked
+ *                recipe — so there is no branch to forget.
  *   nodes        the GATHER INDEX — `indexGatherNodes({woodcutting: TREES,
  *                mining: ROCKS, fishing: FISH_SPOTS})`, built once in
  *                ./catalogue.js so the skill↔array mapping exists in exactly
@@ -331,6 +580,23 @@ export function computeAccrual(input) {
   }
   if (inp.activeKind === 'gather' && !catalogueHas(inp.nodes || {}, inp.activeId)) {
     return { accrued: false, reason: SKIP.NO_NODE };
+  }
+  /* The third catalogue, and it is checked against the FULL recipe index rather
+     than the payable subset on purpose — the two answers are different facts
+     and a player deserves the right one. "That recipe does not exist" and "that
+     bench is not server-owned yet" both refuse and both defer, but only the
+     second one becomes payable by deploying a commit. */
+  if (inp.activeKind === 'artisan') {
+    if (!catalogueHas(inp.recipes || {}, inp.activeId)) {
+      return { accrued: false, reason: SKIP.NO_RECIPE };
+    }
+    const bench = inp.recipes[inp.activeId].skill;
+    if (!benchPayable(bench)) {
+      /* `blockedBy` names the BONUS KEY, not the bench — "cooking is not
+         supported" sends somebody looking at cooking; "`noBurn` is not
+         server-owned" points at the one commit that opens it. */
+      return { accrued: false, reason: SKIP.UNPAYABLE_BENCH, bench, blockedBy: benchBlockedBy(bench) };
+    }
   }
 
   /* ── THE FAIL-CLOSED `active_since` RULE (Phase-D, the half that is not SQL) ─
@@ -386,15 +652,30 @@ export function computeAccrual(input) {
   });
   const unpaidMs = credit.unpaidMs;
 
-  /* ── (1b) THE KIND BRANCH ────────────────────────────────────────────────
+  /* ── (1b) THE KIND BRANCH, AND IT IS TOTAL ───────────────────────────────
      Everything above is shared: the pointer, the two watermarks, the cap and
      the minimum span are properties of an ABSENCE, not of what was being done
-     in it. Everything below is combat. `accrueGather` runs the same shape over
-     src/core/skill-sim.js and returns the same envelope; it is a separate
-     function rather than a branch inside this one so that the combat path is
-     textually unchanged and its parity fixtures still cover the bytes they
-     were written against. */
-  if (inp.activeKind === 'gather') return accrueGather(inp, { nowMs, grantMs, capped, credit });
+     in it. Everything below is combat. `accrueGather` and `accrueArtisan` run
+     the same shape over src/core/skill-sim.js and src/core/artisan-sim.js and
+     return the same envelope; they are separate functions rather than branches
+     inside this one so that the combat path is textually unchanged and its
+     parity fixtures still cover the bytes they were written against.
+
+     ⚠ THE `UNSUPPORTED` LINE IS NOT DEAD CODE, AND IT IS THE ONLY THING THE
+       BLOCK ABOVE PAYABLE_KINDS CAN HONESTLY CLAIM. Without it a kind added to
+       that array with no simulation FALLS THROUGH INTO THE COMBAT TAIL, which
+       reads `MONSTERS[<a recipe id>]`, finds nothing, and prices the night
+       against an undefined monster — a wrong payment with no error anywhere.
+       With it, an unsimulated kind is refused with a REFUSING reason: delta
+       NONE, watermark unmoved, window DEFERRED until somebody writes the
+       simulation. Unreachable today by construction (the three names below are
+       exactly PAYABLE_KINDS, and the intent's allowlist is derived from it), so
+       tests/artisan-accrual.mjs T1 reaches it directly with a synthetic fourth
+       kind. Deleting it is how "add a kind" becomes "pay it wrong". */
+  const span = { nowMs, grantMs, capped, credit };
+  const accruer = KIND_ACCRUERS[inp.activeKind];
+  if (accruer) return accruer(inp, span);
+  if (inp.activeKind !== 'combat') return { accrued: false, reason: SKIP.UNSUPPORTED };
 
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
@@ -1125,6 +1406,409 @@ function accrueGather(inp, span) {
      because an `activity` key is a complete, re-validated activity statement
      and restating an unchanged pointer buys nothing but a catalogue lookup. */
   if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
+
+  return {
+    accrued: true,
+    delta,
+    grantMs,
+    capped,
+    tickMs: summary.intervalMs,     // the ACTION interval; same field name, same meaning
+    foodEaten: 0,
+    watermark: delta.accrued_to,
+    events,
+    levelUps,
+    summary: {
+      ...summary,
+      ...windowEnvelope(credit, summary.stoppedBy ? summary.paidMs : null),
+      gold: 0,
+      xp: xpDelta,
+      items: items_,
+      levelUps,
+    },
+  };
+}
+
+/**
+ * THE ARTISAN ACCRUAL. Same envelope, same rules, the third simulation.
+ *
+ * Nothing below re-implements a rule: the span loop (`sliceSpan`, shared with
+ * gather), the interval, the burn roll, craftSave, the yield roll, the
+ * deterministic tool carry and the XP grant all come out of
+ * src/core/artisan-sim.js and src/core/artisan.js — the SAME functions the live
+ * bench runs through `doArtisanAction`. The only thing that is server-specific
+ * is the APPLY: the client mutates G, this accumulates a delta hr_apply
+ * re-validates.
+ *
+ * ── THE ONE THING THIS PATH DOES THAT NEITHER OTHER PATH DOES ────────────
+ * IT SPENDS. Combat debits food (auto-eat) and gathering debits nothing; an
+ * artisan night consumes an INPUT on every single tick. That makes three
+ * properties load-bearing rather than incidental:
+ *
+ *   1. THE BAG IS THE SERVER'S INVENTORY, and the simulation reads it. A run
+ *      cannot produce more than the server can see, because `missingInput`
+ *      inside `simulateArtisanSpan` reads `state.inventory` — which IS `bag` —
+ *      and `fx.removeItem` decrements it. There is no separate "how much did I
+ *      have" number to get wrong and no client count anywhere in the loop.
+ *   2. RUNNING DRY IS A STOP, NOT A REFUSAL. The span pays the time it actually
+ *      worked and reports `SUPPLIES` with the ingredient named; the REMAINDER
+ *      of the absence pays nothing and is not confiscated either — the
+ *      watermark still advances to `now`, exactly as a capped night's tail is
+ *      forfeited, because the player genuinely was not producing. That is the
+ *      shipped client's behaviour (`stopSkill()` on the first missing input)
+ *      and it is preserved deliberately.
+ *   3. THE POINTER MUST BE CLEARED when it stops. A bench with no inputs can
+ *      never pay again, so leaving `active_id` on it would answer "nothing"
+ *      forever — the same reasoning the gather path's LEVEL gate states, and
+ *      the reason the nothing-happened return below is guarded by the stop
+ *      reason rather than by the totals.
+ *
+ * @param inp  computeAccrual's input, verbatim
+ * @param span { nowMs, grantMs, capped, credit } — computed by the shared
+ *             preamble. `credit` is the WINDOW (Ruling 2).
+ */
+function accrueArtisan(inp, span) {
+  const { nowMs, grantMs, capped, credit } = span;
+
+  const items = inp.items || {};
+  const recipes = inp.recipes || {};
+  const equipment = inp.equipment || {};
+  /* Equipment reaches an artisan night through exactly one channel — `xpB`,
+     the same term the client's xpGrantCtx() supplies. A bench has no accuracy,
+     no max hit and no swing speed. (Tool speed is not equipment: it is the best
+     tool the character OWNS, resolved from the bag by src/core/tools.js.) */
+  const eq = equipmentStats(equipment, items);
+
+  /* THE PERK STACK, and on this path it is not a bonus — it is the difference
+     between a dish and a lump of charcoal. `bonus('noBurn')` is the Kitchen
+     rung, read through hr_perks_of from a `kind='unlock'` progress row; absent
+     it is 0 and `burnChance` is the base 0.25. That is precisely why
+     `benchPayable` refuses the cooking bench until the rung's WRITE path is
+     server-owned — see the block at the foot of src/core/artisan-sim.js. */
+  const bonus = bonusFor(inp.perks);
+
+  const skills0 = {};
+  for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
+
+  /* THE LIVE BAG — and here it is the supply, not just a lookup table. Every
+     quantity is coerced through nat() and floored because it arrives from a
+     jsonb round trip where a bigint is a string: `'5' >= 1` is true but
+     `'5' - 1` being 4 is the only reason a string survived this far, and
+     `missingInput` compares with `<`, which would compare STRINGS. */
+  const bag = Object.create(null);
+  for (const id in (inp.inventory || {})) {
+    const q = Math.floor(nat(inp.inventory[id], 0));
+    if (q > 0) bag[id] = q;
+  }
+
+  const carry0 = normaliseToolCarry(inp.toolCarry);
+  const state = {
+    /* The pointer. `activeSkill` is DERIVED by simulateArtisanSpan from the
+       index — the server holds no skill column — so it is deliberately not set
+       here, exactly as on the gather path: setting it would be the engine
+       asserting something it does not know, and the WRONG_SKILL branch exists
+       to catch a row where the two disagree. */
+    skillTargetId: inp.activeId,
+    skills: { ...skills0 },        // a COPY: grantXp mutates it, and the diff below is the delta
+    inventory: bag,
+    equipment,
+    /* THE GATE, FAIL-CLOSED BY SHAPE. `null`/absent → `gateOk` false for any
+       recipe carrying `gated` → the span stops at tick 0 with GATE and pays
+       only what it worked. Never `|| {}` at a wider scope and never defaulted
+       to "unlocked": there is no code path in which an absent row grants a
+       recipe. Eight of the 290 recipes are gated. */
+    unlockedRecipes: (inp.unlockedRecipes && typeof inp.unlockedRecipes === 'object')
+      ? inp.unlockedRecipes : null,
+    toolCarry: { ...(carry0 || {}) },
+    stats: {},
+    /* NO BUFFS. The server holds no buff queue (there is no column and no
+       intent that writes one), so `sliceSpan` sees no boundary and runs the
+       window in one slice. Stated rather than left to a null-default, because
+       `simulateArtisanSpan` DRAINS what it pays and a caller that handed it a
+       queue it could not persist would spend a consumable into nothing. */
+    buffs: [],
+  };
+
+  const itemDelta = Object.create(null);
+  const events = [];
+  const levelUps = [];
+  /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the other
+     two paths — one contract, not an artisan-flavoured copy of one. */
+  const goals = makeGoalCounter();
+  let stoppedInput = null;
+
+  const fx = {
+    addXp(skillId, amt) {
+      const res = grantXp(state, skillId, amt, {
+        bonus,
+        xpB: eq.xpB || 0,
+        restedQuantum: 0,     // Rested XP is not server state yet. Under-pays.
+        authored: false,
+      });
+      for (const ev of res.events) {
+        if (ev.type !== 'levelup') continue;
+        levelUps.push({ skill: ev.skill, from: ev.from, to: ev.to });
+      }
+    },
+    addItem(id, qty) {
+      const n = Math.floor(Number(qty) || 0);
+      if (!id || n <= 0) return;
+      itemDelta[id] = (itemDelta[id] || 0) + n;
+      bag[id] = (bag[id] || 0) + n;
+    },
+    /* ── THE DEBIT, AND IT IS THE WHOLE MATERIAL CLAMP ────────────────────
+       `resolveArtisanTick` calls this once per consumed input, with the
+       quantity `resolveArtisanAction` decided (empty when craftSave refunded
+       them). Decrementing `bag` is not bookkeeping for the report — `bag` IS
+       `state.inventory`, which is what `missingInput` reads on the NEXT tick,
+       so this line is the thing that makes the run stop when the ore runs out.
+
+       Delete it and the span produces bars from an infinite ore pile all night;
+       the delta would then propose a debit deeper than the stack and hr_apply
+       would answer `insufficient_item` — which is NOT on index.ts's DEGRADABLE
+       list, so it 409s the WHOLE night rather than shortening it. Two failures
+       from one missing line, which is why T4 in tests/artisan-accrual.mjs
+       measures the stop rather than trusting it.
+
+       CLAMPED AT ZERO, not allowed to go negative: `resolveArtisanAction`
+       already refuses when the bag cannot cover the recipe, so a negative here
+       would mean the two disagree, and the honest response to that is to spend
+       what exists rather than to propose a debit the database will reject. */
+    removeItem(id, qty) {
+      const n = Math.floor(Number(qty) || 0);
+      if (!id || n <= 0) return;
+      const have = Math.floor(nat(bag[id], 0));
+      const take = Math.min(n, have);
+      if (take <= 0) return;
+      bag[id] = have - take;
+      if (bag[id] <= 0) delete bag[id];
+      itemDelta[id] = (itemDelta[id] || 0) - take;
+    },
+    /* `res.progress` is EMPTY on a burn — a "cook N dishes" goal counts
+       successful cooks only (src/core/artisan.js BENCH_COUNTERS). The AMOUNT is
+       1 per action, which is what resolveArtisanTick passes; passing it through
+       rather than assuming is the same defect class as the b352 recipe-scroll
+       `add: 1` the parity guard caught. */
+    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
+    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
+    /* WHICH ingredient ran out, captured at the stop. The client has shown that
+       line since b228 ("Out of Raw Shrimp — cooking stopped") and it is the
+       single most useful sentence in a welcome-back summary; the span reports
+       it too (`stoppedById`), and this handler exists so the two agree.
+       `onBurn` is deliberately absent: a burn is already counted in
+       `state.stats.burnt` and the summary, and a per-burn handler on a
+       ~14,000-action night is the per-tick journalling this file's header
+       forbids. */
+    onStop(reason, skill, targetId, missing) { stoppedInput = missing || null; },
+  };
+
+  const ctx = {
+    away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
+    /* THE FIRST `grantMs` AFTER THE PLAYER LEFT (Ruling 2). Same anchor the
+       other two paths get — passing a different one here is how two away paths
+       come to disagree about when the night happened. */
+    fromMs: credit.fromMs,
+    toMs: credit.toMs,
+    capped,
+    rng: createRng(nat(inp.seed, 0)),
+    items,
+    recipes,
+    bonus,
+    /* THE DEGRADE LADDER'S CAP (Security C1). Absent/null → Infinity inside the
+       span, i.e. unbounded, which is exactly the behaviour before it existed.
+       This is the ONE ctx field on this path that does not describe the player,
+       and it is set from `inp.actionBudget`, which index.ts computes from the
+       engine's own previous answer — never from a request body. */
+    maxActions: (inp.actionBudget === null || inp.actionBudget === undefined)
+      ? null : Number(inp.actionBudget),
+    /* `minStepMs` is NOT SET, so `resolveStepMs` uses the real MIN_ACTION_MS
+       floor. This object is built field by field and nothing is spread into it:
+       if it were built from a request body, `minStepMs` would ride in through
+       the same door as everything else and defeat the clamp that is supposed to
+       be the second line of defence. */
+    fx,
+  };
+
+  const summary = simulateArtisanSpan(state, ctx);
+
+  /* A pointer the simulation could not resolve is a REFUSAL, not an empty
+     night: `delta: NONE` means index.ts returns before hr_apply, the watermark
+     does not advance, and the window is DEFERRED. Both arms are unreachable
+     through the intent surface — the preamble above already checked the id
+     against the same index — which is exactly why they are cheap to keep:
+     "unreachable today" is not a reason to confiscate a night if a content
+     rename ever makes it reachable. */
+  if (summary.stoppedBy === ARTISAN_STOP.UNKNOWN_RECIPE) {
+    return { accrued: false, reason: SKIP.NO_RECIPE, summary };
+  }
+  if (summary.stoppedBy === ARTISAN_STOP.WRONG_SKILL) {
+    return { accrued: false, reason: SKIP.WRONG_SKILL, summary };
+  }
+
+  // ── Turn the mutated state into a delta hr_apply will accept. ────────────
+  // Every value below is an INTEGER. hr_apply casts with `::bigint`, and a
+  // fractional string is `bad_delta` — which costs the player the whole night.
+  const xpDelta = {};
+  for (const k in state.skills) {
+    const gained = Math.floor((state.skills[k] || 0) - (skills0[k] || 0));
+    if (gained > 0) xpDelta[k] = gained;
+  }
+
+  /* ── THE SIGNED ITEM DELTA. Gains are the output (and `burnt_food`); the
+     negatives are every input the night consumed. hr_apply's item block is
+     signed too — it re-reads `player_inventory` under the row lock and rejects
+     `have + delta < 0` as `insufficient_item` — so the bag arithmetic above is
+     the engine's promise and that check is the database's verification of it.
+     The redundant floor below is the same two-locks rule the combat path
+     states: `insufficient_item` is not DEGRADABLE, so it does not shorten the
+     span, it 409s it. */
+  const items_ = {};
+  let itemKinds = 0;
+  const recipeOps = [];
+  /* ── C5: THE SKIPPED IDS ARE JOURNALLED, NOT ONLY RETURNED ────────────────
+     `events` rides the HTTP response and is gone the moment the tab closes. On
+     the artisan path that is not good enough, and it is worse here than on the
+     other two: a renamed OUTPUT id means the run DEBITS ITS INPUTS ALL NIGHT
+     and credits nothing — a silent, total loss of the materials, repeating
+     every accrual, with the only receipt in a response nobody kept. So the ids
+     go into `journal.meta` as well, where they are a permanent ledger row a
+     support request can be answered from.
+     BOUNDED ON PURPOSE: ids only, deduplicated, and capped — an aggregate, not
+     a log. A renamed id affects one or two ids per night, and the cap is what
+     stops a pathological catalogue turning one ledger row into a blob. */
+  const skipped = [];
+  const SKIPPED_MAX = 8;
+  const startQty = (id) => Math.floor(nat((inp.inventory || {})[id], 0));
+  for (const id in itemDelta) {
+    /* Unknown ids are refused by hr_apply against the generated hr_items
+       catalogue, which would reject the WHOLE delta — one renamed output id
+       would cost a player their entire night. Filter here against the same
+       authored data the catalogue is generated from, and report it. */
+    if (!catalogueHas(items, id)) {
+      events.push({ type: 'unknown_item_skipped', item: id });
+      if (skipped.length < SKIPPED_MAX && skipped.indexOf(id) === -1) skipped.push(id);
+      continue;
+    }
+    /* b352: a recipe scroll is an UNLOCK, not an inventory row — the same rule
+       both other builders apply, `add` included; `flag` is in hr_apply's
+       allowlist. No authored recipe OUTPUTS a scroll today, so this arm is
+       unreachable at runtime and is held to the combat arm by the structural
+       census in tests/artisan-progress-model.mjs A10(v).
+       ⚠ Only a positive delta becomes a flag. A scroll cannot be CONSUMED as a
+         recipe input either (nothing authored does it), but if one ever were,
+         proposing a negative `add` would be refused by hr_apply with the whole
+         night attached — so it falls through to the item path, where the signed
+         contract is the one that exists. */
+    if (items[id] && items[id].recipe) {
+      const got = Math.floor(itemDelta[id]);
+      if (got > 0) {
+        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
+      }
+      continue;
+    }
+    const n = Math.floor(itemDelta[id]);
+    // A net zero is not a no-op to hr_apply — it is a catalogue lookup, a row
+    // lock and a ledger byte for nothing. Drop it. (Reachable here and nowhere
+    // else: craftSave refunds an input the same tick it was counted, so a
+    // recipe whose input is also its output nets out.)
+    if (n === 0) continue;
+    if (n < 0 && startQty(id) + n < 0) {
+      events.push({ type: 'overspend_clamped', item: id });
+      const floored = -startQty(id);
+      if (floored === 0) continue;
+      items_[id] = floored;
+    } else {
+      items_[id] = n;
+    }
+    itemKinds++;
+  }
+
+  /* ⚠ A STOPPED BENCH MUST STILL CLEAR THE POINTER, and that is why this test
+     comes BEFORE the nothing-happened return rather than after it. A run that
+     stops on its FIRST tick — the recipe is gated, or the ore is already gone —
+     produces nothing at all, and returning `nothing_accrued` there would leave
+     `active_id` pointing at a bench that can never pay, forever, with every
+     future accrual answering "nothing" and the player's pointer stuck on an
+     activity they cannot do. Reachable through ordinary play: a night that
+     exhausts its inputs and is then collected a second time. */
+  const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES
+                || summary.stoppedBy === ARTISAN_STOP.GATE;
+  const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
+  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };
+
+  const stats = state.stats || {};
+  const progress = [];
+  for (const op of recipeOps) progress.push(op);
+  const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
+  /* THE PER-BENCH LIFETIME COUNTERS, read out of core's BENCH_COUNTERS — the
+     same table `resolveArtisanAction` increments live — plus the two every
+     bench can produce. One table, so an away night and a live hour move the
+     same rows, and a fifth bench is a data row rather than a line here. */
+  const bench = BENCH_COUNTERS[summary.skill];
+  for (const key in (bench ? bench.stats : {})) stat(key, stats[key]);
+  stat('burnt', stats.burnt);
+  /* ⚠ `tool_doubles`, THE SAME KEY THE GATHER BUILDER WRITES — not `toolDoubles`,
+     which is what `state.stats` is keyed by in core. The lifetime counter is ONE
+     row on ONE character and a gathering tool double and a smithing tool double
+     are the same fact; two spellings would be two half-counters that never add
+     up and that no screen could total. Asserted against the gather site by
+     tests/artisan-accrual.mjs. */
+  stat('tool_doubles', stats.toolDoubles);
+  /* THE GOAL COUNTERS — the day the player RETURNS, same rule as the other two
+     paths. `events` is passed so a clamp or an unknown type leaves a receipt
+     instead of vanishing. */
+  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
+
+  const delta = {
+    accrued_to: new Date(nowMs).toISOString(),
+    journal: {
+      /* ⚠ `craft`, NOT `artisan`, AND THAT IS NOT A SYNONYM — it is the only
+         value `player_ledger_kind_check` accepts for this work. The constraint
+         allows thirteen kinds and `artisan` is not among them; a journal that
+         named it would raise check_violation inside the protected block,
+         hr_apply would answer `bad_delta`, and the player would lose the entire
+         night with nothing in the ledger to explain it. The vocabulary of the
+         LEDGER and the vocabulary of `hr_activities` are two different lists
+         that happen to overlap, and this is the one place they do not. */
+      kind: 'craft',
+      intent: 'accrue',
+      // AGGREGATE, never per-action and never per-burn. A 12h smithing night is
+      // ~14,000 actions; the receipt for what per-action journalling costs is
+      // game_events — 1.6M rows / 229 MB from six players in four days.
+      meta: {
+        ms: grantMs, ticks: summary.ticks, capped,
+        made: summary.produced, burnt: summary.burnt,
+        recipe: summary.recipeId, skill: summary.skill,
+        /* WHY it stopped and on WHAT, because "the night made 200 bars and the
+           bag had ore for 4,000" is only answerable from the stop. */
+        stopped: summary.stoppedBy || null,
+        out_of: stoppedInput,
+        /* C5. A COMMA-JOINED STRING, not an array: T7 asserts every meta value
+           is a scalar, because a nested structure in the ledger is how
+           game_events became 229 MB, and the rule is worth more than the two
+           characters of punctuation. Omitted entirely when nothing was skipped
+           — a key that is always present and almost always empty is a column
+           nobody reads. */
+        ...(skipped.length ? { skipped_items: skipped.join(',') } : {}),
+        // The credited window, for the reason the other two journals carry it.
+        from: new Date(credit.fromMs).toISOString(),
+        to: new Date(credit.toMs).toISOString(),
+      },
+    },
+  };
+  if (itemKinds > 0) delta.items = items_;
+  if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  if (progress.length) delta.progress = progress;
+  /* THE CARRY, written back only when the server actually owns it — see the
+     `toolCarry` note in computeAccrual's contract. Artisan tools share the one
+     `{ skill: 0..1 }` map with gathering tools, keyed by bench, so a smithing
+     carry and a mining carry cannot collide. */
+  if (carry0) delta.tool_carry = roundCarry(state.toolCarry);
+  /* THE RUN IS OVER, so the pointer must say so — the same statement `died`
+     makes for combat and the level gate makes for gathering. Sent only when it
+     happened, because an `activity` key is a complete, re-validated activity
+     statement and restating an unchanged pointer buys nothing but a catalogue
+     lookup. */
+  if (stopped) delta.activity = { kind: 'idle', id: null };
 
   return {
     accrued: true,

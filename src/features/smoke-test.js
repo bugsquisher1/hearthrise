@@ -25228,9 +25228,34 @@ const TESTS = [
        payable, `SETTABLE_KINDS` grows, the Node guard forces `ACTIVITY_KINDS`
        to grow, and THIS loop then fails by name until somebody wires a gesture.
        A kind cannot be settable, declarable and unreachable all at once. */
+    /* b356 — THE ARTISAN GESTURE. `artisan` joined ACTIVITY_KINDS when the
+       engine learned to price it, and this loop is what stopped that from
+       shipping server-only. The recipe is chosen from the DATA and filtered
+       through the client's OWN payability predicate (`isPayableRecipe`), so the
+       fixture follows the gate rather than naming a bench: the day cooking
+       becomes payable this picks whatever the ladder offers and nothing here
+       changes. `startArtisan` gates on a workbench, a level, the scroll and the
+       INPUTS, so the rig grants all four below — a gesture that silently
+       returns early would make this arm pass for the wrong reason, which
+       `armed` asserts against. */
+    const AR = window.ARTISAN_RECIPES || {};
+    const isPayable = (id) => !M.isPayableRecipe || M.isPayableRecipe(id);
+    let bench = null; let recipe = null;
+    for (const sk of Object.keys(AR)) {
+      const r = (AR[sk] || []).find((x) => x && x.id && !x.gated && isPayable(x.id)
+        && Object.keys((window.getInputs ? window.getInputs(x) : (x.inputs || {}))).length > 0);
+      if (r) { bench = sk; recipe = r; break; }
+    }
+
     const GESTURES = {
       combat: () => window.startCombat(mid),
       gather: () => window.startSkill('woodcutting', tree.id, tree.ms),
+      artisan: () => {
+        assert(!!recipe, 'no ungated, input-taking, PAYABLE artisan recipe exists in ARTISAN_RECIPES — '
+          + 'the artisan gesture has nothing to drive, so B348-3 cannot prove the call site exists. '
+          + 'That is a content/payability problem, not a missing declaration.');
+        window.startArtisan(bench, recipe.id);
+      },
     };
 
     const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
@@ -25238,7 +25263,17 @@ const TESTS = [
       playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, combatLog: G.combatLog,
       gold: G.gold, skills: JSON.parse(JSON.stringify(G.skills)),
       inventory: JSON.parse(JSON.stringify(G.inventory)),
+      rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       offlineBudget: G.offlineBudget, restedAt: G.restedAt };
+
+    /* The four gates `startArtisan` checks, satisfied — and then ASSERTED, so a
+       gesture that returns early cannot look like a missing declaration. */
+    if (recipe) {
+      G.rooms = Object.assign({}, G.rooms, { forge: 3, workshop: 3, shrine: 3, kitchen: 3 });
+      G.skills[bench] = Math.max(G.skills[bench] || 0, 14000000);
+      const inputs = window.getInputs ? window.getInputs(recipe) : (recipe.inputs || {});
+      for (const id of Object.keys(inputs)) G.inventory[id] = (G.inventory[id] || 0) + 500;
+    }
     const realDeclare = M.declare;
     let calls = [];
     try {
@@ -25267,6 +25302,14 @@ const TESTS = [
         try { window.stopCombat(); } catch (e) {}
         calls = [];
         GESTURES[kind]();
+        /* THE GESTURE ACTUALLY STARTED SOMETHING. `startArtisan` and
+           `startSkill` both return early — silently — when a gate is unmet, and
+           an early return declares nothing, which is indistinguishable from the
+           b348 bug this whole arm exists to catch. Asserting the run began is
+           what tells "the call site is missing" from "my fixture is wrong". */
+        assert(!!(G.activeSkill || G.activeMonster),
+          'the player gesture for `' + kind + '` started nothing at all, so the declaration below would '
+          + 'be missing for a reason that is NOT the b348 bug. Fix the fixture, not the assertion.');
         const got = calls.filter((c) => c.kind === kind);
         assert(got.length >= 1,
           'the real player gesture for `' + kind + '` declared ' + JSON.stringify(calls) + ' — no `' + kind
@@ -25503,29 +25546,58 @@ const TESTS = [
     const C = window.HearthriseCore;
     const G = window.G;
 
-    /* ── B348-9. The tempting answer for `artisan` is to say nothing: the
-       server refuses the kind anyway. Silence leaves the server's pointer on
-       the PREVIOUS activity, so a player who chops oak for an hour and then
-       cooks is paid for oak for as long as they cook. `idle` collects what was
-       really earned and stops the meter.
-       MUTATION: return null from declarationFor for a non-settable kind → RED. */
-    const d = M.declarationFor('artisan', 'cook_shrimp');
-    assert(d && d.kind === 'idle' && d.id === null,
-      'an activity this build cannot declare produced ' + JSON.stringify(d) + '. Saying nothing is not '
-      + 'neutral — it leaves the server paying for the activity the player STOPPED, which is the server '
-      + 'authoring a number nobody earned');
-    assert(d.downgradedFrom === 'artisan', 'the downgrade did not record what it downgraded: ' + JSON.stringify(d));
+    /* ── B348-9. The tempting answer for an activity this build cannot price is
+       to say nothing: the server refuses it anyway. Silence leaves the server's
+       pointer on the PREVIOUS activity, so a player who chops oak for an hour
+       and then cooks is paid for oak for as long as they cook. `idle` collects
+       what was really earned and stops the meter.
+
+       ⚠ b356 MOVED THE LINE WITHOUT MOVING THE RULE. `artisan` is settable now
+         and 261 of its 290 recipes are payable, so the downgrade is no longer
+         per-KIND — it is per-RECIPE, because the COOKING bench is still held
+         back (`noBurn`'s Kitchen rung is read from server state and written by
+         the client). The fixture therefore asks the payability model which
+         recipes are which, rather than naming `cook_shrimp`: the day the gate
+         opens, this follows it instead of going quietly vacuous.
+       MUTATION: return the declaration unchanged for an unpayable recipe → RED. */
+    const unpayable = ['cook_shrimp', 'cook_trout', 'cook_shark']
+      .filter((id) => M.isPayableRecipe && !M.isPayableRecipe(id));
+    if (unpayable.length) {
+      const d = M.declarationFor('artisan', unpayable[0]);
+      assert(d && d.kind === 'idle' && d.id === null,
+        'the unpayable recipe `' + unpayable[0] + '` produced ' + JSON.stringify(d) + '. Saying nothing is '
+        + 'not neutral — it leaves the server paying for the activity the player STOPPED — and declaring '
+        + 'it anyway earns a 409 and leaves the pointer in exactly the same wrong place');
+      assert(d.downgradedFrom === 'artisan',
+        'the downgrade did not record what it downgraded: ' + JSON.stringify(d));
+    }
+    /* THE CONTROL, and without it "downgrade everything" passes the arm above
+       while paying nothing for 261 recipes. */
+    const payable = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing || [])
+      .filter((r) => r && r.id && (!M.isPayableRecipe || M.isPayableRecipe(r.id)))[0];
+    assert(!!payable, 'no PAYABLE smithing recipe exists — the control below is vacuous');
+    if (payable) {
+      const p = M.declarationFor('artisan', payable.id);
+      assert(p && p.kind === 'artisan' && p.id === payable.id,
+        'a PAYABLE artisan recipe was downgraded to ' + JSON.stringify(p) + ' — the 261 recipes the '
+        + 'engine can price would all report `idle` and pay nothing');
+    }
     assert(M.declarationFor('combat', 'slime').kind === 'combat', 'a settable kind was downgraded');
     assert(M.declarationFor('gather', 'normal_tree').kind === 'gather', 'gather was downgraded');
     assert(M.declarationFor('nonsense', 'x') === null, 'a kind the game cannot do was accepted as a stop');
     assert(M.declarationFor('combat', 'BAD ID') === null,
       'a malformed id was quietly turned into a STOP — that hides a client bug behind a legitimate-looking '
       + 'declaration');
-    /* And the wire builder may never emit a kind this build has not decided on. */
-    const body = JSON.parse(M.buildActivityRequest({ kind: 'artisan', id: 'cook_shrimp', intentId: 'k' }).init.body);
+    /* And the wire builder may never emit a kind this build has not decided on.
+       Driven with a kind the GAME has and this build cannot declare, derived
+       from the two lists rather than named — `farm` is the fallback when they
+       coincide, and an unknown kind must fall to `idle` too. */
+    const nonDeclarable = (M.GAME_ACTIVITY_KINDS || [])
+      .filter((k) => M.ACTIVITY_KINDS.indexOf(k) === -1)[0] || 'farm';
+    const body = JSON.parse(M.buildActivityRequest({ kind: nonDeclarable, id: 'some_id', intentId: 'k' }).init.body);
     assert(body.activity.kind === 'idle' && body.activity.id === null,
-      'buildActivityRequest put `' + body.activity.kind + '` on the wire — the body must only ever carry a '
-      + 'kind from ACTIVITY_KINDS');
+      'buildActivityRequest put `' + body.activity.kind + '` on the wire for the non-declarable kind `'
+      + nonDeclarable + '` — the body must only ever carry a kind from ACTIVITY_KINDS');
 
     /* ── B348-10. The reconcile resolves a node id through the SAME index the
        accrual engine reads (`indexGatherNodes` over TREES/ROCKS/FISH_SPOTS). A

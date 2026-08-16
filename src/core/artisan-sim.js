@@ -75,6 +75,17 @@ export const STOP_REASON = Object.freeze({
   WRONG_SKILL: 'wrong_skill',         // pointer and index disagree about the bench
   SUPPLIES: 'supplies',               // an input ran out (the ordinary stop)
   GATE: 'gate',                       // the recipe scroll is not unlocked
+  /* The CALLER capped how much work this span may do (`ctx.maxActions`). Not a
+     property of the player's state at all — it is the accrual engine's degrade
+     ladder asking for a smaller proposal after a clamp rejection.
+
+     ⚠ IT IS NOT A "STOP" IN THE SENSE THE OTHER TWO ARE. Supplies and the gate
+       mean the bench cannot run any more; a budget means the CALLER stopped
+       asking. The player is still at the bench, so a caller must not clear the
+       activity pointer on this reason — see accrueArtisan in
+       supabase/functions/hr-accrue/accrual.js, which lists SUPPLIES and GATE by
+       name for exactly that reason. */
+  BUDGET: 'budget',
 });
 
 /* The benches this file can simulate. Derived from the index the caller builds
@@ -257,9 +268,25 @@ function emptySummary(spanMs, ctx) {
  * says so, and only the time actually worked is paid. Unreachable today (an
  * unlock is never revoked mid-absence) and it is the correct direction.
  *
+ * ── WHY THERE IS AN ACTION BUDGET AS WELL AS A SPAN (b356, Security C1) ──
+ * `ctx.maxActions` caps how many actions the span may run, independently of how
+ * long the span is. It exists because THE SPAN IS NOT THE THING THAT BOUNDS AN
+ * ARTISAN NIGHT — the BAG is, whenever the player left less material than the
+ * clock could consume. The server's degrade ladder (index.ts) answers a clamp
+ * rejection by halving the span and re-simulating, which works for combat and
+ * gathering because their output is proportional to time; here it is not.
+ * Measured on `forge_dawn_axe` over a 24h absence with a 4,000-craft bag: the
+ * 24h span and the 12h span both produce 4,000 actions and BYTE-IDENTICAL
+ * deltas, so the ladder spends an attempt, earns the same rejection, and has
+ * one attempt left before the last-resort forfeit that pays NOTHING.
+ * Capping ACTIONS makes each rung of the ladder an exact halving of the
+ * proposal whether the clock or the bag was binding, which is what the ladder's
+ * contract has always claimed.
+ *
  * @param state MUTATED. { activeSkill, skillTargetId, skills, inventory,
  *                         equipment, unlockedRecipes, toolCarry, stats, buffs? }
- * @param ctx   { fromMs, toMs, recipes, items, rng, bonus, fx, away, capped }
+ * @param ctx   { fromMs, toMs, recipes, items, rng, bonus, fx, away, capped,
+ *                maxActions? }
  * @returns the welcome-back summary.
  */
 export function simulateArtisanSpan(state, ctx) {
@@ -304,6 +331,27 @@ export function simulateArtisanSpan(state, ctx) {
   let burnt = 0;
   let toolDoubles = 0;
 
+  /* THE CALLER'S ACTION CAP. `null`/absent/non-finite → UNBOUNDED, which is
+     byte-for-byte the behaviour before it existed. Negatives floor to 0 rather
+     than wrapping to unbounded: the only honest reading of "less than no work"
+     is "no work", and the alternative — treating a garbage cap as no cap —
+     would turn a caller bug into a full-size proposal, which is the direction
+     that costs a player their night. */
+  /* ⚠ `null` AND `undefined` ARE TESTED BEFORE `Number()`, AND THAT IS A BUG
+     FIX RATHER THAN A STYLE. `Number(null)` is **0**, which is finite — so the
+     obvious `Number.isFinite(Number(c.maxActions))` reads an ABSENT budget as a
+     budget of ZERO and every artisan accrual returns `nothing_accrued`. Found
+     by running it: the very first call after wiring the field answered
+     `accrued:false / nothing_accrued / stoppedBy:budget` on a 24-hour night
+     with a full bag. `Number(undefined)` is NaN, so the undefined path would
+     have worked and the null path would not — the two callers that pass `null`
+     explicitly (index.ts's first attempt, and set-activity.js's collect, which
+     has no ladder at all) would have been the ones broken. */
+  const rawBudget = (c.maxActions === null || c.maxActions === undefined)
+    ? NaN : Number(c.maxActions);
+  const bounded = Number.isFinite(rawBudget);
+  let budgetLeft = bounded ? Math.max(0, Math.floor(rawBudget)) : Infinity;
+
   const span = sliceSpan(spanMs, {
     rateMult: rateMult(c),
     minStepMs: c.minStepMs,
@@ -324,6 +372,17 @@ export function simulateArtisanSpan(state, ctx) {
       };
       let done = 0;
       for (let i = 0; i < n; i++) {
+        /* ── THE CALLER'S BUDGET, CHECKED FIRST. Before the supply check and
+           before the gate, deliberately: those two report WHY THE BENCH cannot
+           continue, and a budget stop is not about the bench at all. Reporting
+           `supplies` for a run the ladder truncated would name an ingredient
+           that is still in the bag — a welcome-back line that is simply false,
+           and a `stoppedById` a support request would chase. */
+        if (budgetLeft <= 0) {
+          stopReason = STOP_REASON.BUDGET;
+          call(fx, 'onStop', stopReason, skill, targetId, null);
+          return done;                       // fewer than n → the span stops here
+        }
         /* The supply pre-check. Captured HERE rather than read at report time:
            the caller's refusal path clears the activity pointer, so anything
            downstream asking "what was running?" would find null. */
@@ -355,6 +414,7 @@ export function simulateArtisanSpan(state, ctx) {
         else produced += (r.res.produced ? r.res.produced.qty : 0);
         toolDoubles += r.res.toolDoubles || 0;
         done++;
+        budgetLeft--;
       }
       return done;
     },
@@ -382,26 +442,161 @@ export function simulateArtisanSpan(state, ctx) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   WHAT STILL BLOCKS THE SERVER FROM RUNNING THIS — a missing MODEL, not
-   missing code. Stated here because this file is where the next author looks.
+   WHICH BENCHES THE SERVER MAY PAY — a PROPERTY, not a list of names.
 
-   `simulateArtisanSpan` is pure and Deno-runnable today, and the accrual engine
-   could import it this afternoon. It must NOT be added to PAYABLE_KINDS until
-   two pieces of server state exist, because widening PAYABLE_KINDS widens
-   SETTABLE_KINDS with it and lets a player set an activity the engine prices
-   WRONG — which is worse than today's deferral, where the refusal returns
-   `delta: NONE` and the watermark does not move, so the time is DEFERRED rather
-   than confiscated:
+   ── THE HISTORY, BECAUSE THE SHAPE IS THE ARGUMENT ────────────────────
+   This block used to say "the server can never run this", for two named
+   reasons. Both are now closed, and the closure is worth reading before
+   changing anything below:
 
-     • `state.unlockedRecipes` — 8 gated recipes. There is no `player_progress`
-       row that holds it and no intent that writes one. Absent, `gateOk` refuses
-       and the span reports GATE, i.e. the night stops at tick 0.
-     • `bonus('noBurn')` — the Kitchen rung of the property model, which does
-       not exist server-side at all. `zeroBonus()` returns 0 for every channel,
-       so a server that cooked tonight would burn at the base 25% while the
-       player's Kitchen says 0%. That is not an under-payment at the margin; it
-       is the server DESTROYING items the client would have kept.
+     • `state.unlockedRecipes` (8 gated recipes) — the STORAGE is closed by
+       2026-08-16-artisan-progress-model.sql. Recipe scrolls are
+       `player_progress` rows of `kind='flag'`, key `recipe:<scroll_id>`,
+       projected by `hr_perks_of` into the CLIENT'S OWN wire shape
+       (`{ id: true }`) so `gateOk` consumes both with one expression. An
+       absent row is an absent key is a LOCKED recipe — the fail-closed
+       default is the shape's default rather than a branch somebody wrote.
+     • `bonus('noBurn')` — the READ is closed by the same migration
+       (`room:kitchen` is a `kind='unlock'` rung, `hr_unlock_levels` →
+       `hr_perks_of` → `makeBonus`). The WRITE is NOT: see below.
 
-   Both are `player_progress` shapes, and both are the same job as the unlock
-   ruling in worktree-agent-a079e5c2e5260c6f8. Neither is in this file's scope.
+   ⚠ CORRECTION (Security C4). AN EARLIER DRAFT OF THIS BLOCK SAID BOTH WERE
+     "CLOSED", FULL STOP, AND THAT ARGUMENT WAS WRONG. Owning the STORAGE is
+     not owning the PROVENANCE. Every `room:*` and `recipe:*` row standing in
+     production today was written by the CUTOVER IMPORT, which read the
+     client's own `G.rooms` / `G.unlockedRecipes` out of a save blob and
+     trusted it exactly once under Tyler's explicit amnesty (the wipe was
+     deferred, so those numbers were never re-earned). They are therefore
+     client-authored values that the server now stores and pays out of —
+     measured live: 5 of 7 characters hold room rows, 4 hold `room:kitchen`
+     at rungs 2-3, and 4 recipe flags exist.
+
+     WHAT THAT COSTS, STATED RATHER THAN GLOSSED: an imported rung pays real
+     ITEMS on every artisan night, through `yield_smithing` / `yield_crafting`
+     / `craftSave` and the bench speed keys. A forged pre-cutover save is
+     therefore still earning a small permanent bonus. It is BOUNDED — the
+     permanent perk fuse is +20% per key, the ladders are short, and nothing
+     here crosses to another player's economy or ranking, which is the target
+     property — and it is ACCEPTED, because it is the amnesty Tyler chose over
+     the wipe, not an oversight of this file. It is written down here so the
+     next author does not re-derive it, and so nobody reads "the server owns
+     the rung" as "the rung was honestly earned".
+
+   ── THE ONE THING THAT IS STILL OPEN, AND WHY IT GATES ONE BENCH ──────
+   Reading a rung is not owning the WRITE either. `src/legacy.js upgradeRoom()`
+   still writes `G.rooms[id] = lv + 1` locally and uploads it in the save blob;
+   `hr_unlock_buy` is deployed and has NO CLIENT CALL SITE, and `rooms` is
+   not on `src/net/record.js`'s SERVER_OF_RECORD. So the client and the
+   server hold two independent copies of every rung, and they agree only
+   because the import copied one into the other ONCE. They diverge at the
+   first rung a player buys after that import — and this time in the OTHER
+   direction: the server's copy goes STALE-LOW.
+
+   For almost every perk a stale-low rung is an UNDER-PAYMENT of a bonus —
+   the direction this engine is already wrong in, by name, for renown, the
+   clan castle and companions. `noBurn` is the single exception in the whole
+   catalogue: it does not shave a bonus, it decides whether the recipe's
+   INPUT becomes the dish or becomes `burnt_food`. A server reading a stale
+   Kitchen 0 against a client's Kitchen 3 destroys a quarter of the input
+   the player already paid gold to protect. That asymmetry — every other key
+   fails safe, this one fails destructive — is the whole reason the gate below
+   is per-KEY rather than per-bench or per-kind.
+
+   So the rule is written as the property, not as the name "cooking":
+
+     A BENCH IS PAYABLE WHEN EVERY BONUS KEY THAT CAN DESTROY VALUE ON IT
+     IS SOURCED FROM STATE THE SERVER OWNS END TO END.
+
+   `SERVER_OWNED_BONUS_KEYS` is the one line that changes when the client's
+   room purchase is routed through `hr_unlock_buy`: add `'noBurn'` and
+   cooking becomes payable, with no other edit anywhere. That is deliberate —
+   §9(3) of 2026-08-16-artisan-progress-model.sql authorises exactly this
+   ("…OR when cooking specifically is excluded until it is"), and a gate that
+   opens by adding a fact rather than by deleting a check is a gate somebody
+   can actually be trusted to open.
    ══════════════════════════════════════════════════════════════════════════ */
+
+/* The bonus keys whose SOURCE is server-owned GOING FORWARD: every future
+   change to the row comes from a SECURITY DEFINER RPC rather than from a save
+   blob. Deliberately NOT "never authored by a client" — the amnestied import
+   above means the current BASELINE is client-authored for everyone, and a
+   comment that claimed otherwise would be the same wrong argument C4 caught.
+   What this list promises is that the row cannot MOVE without the server.
+
+   EMPTY TODAY, and the emptiness is a measurement rather than a placeholder:
+   `hr_unlock_buy` exists and is deployed, and `grep -rn unlock_buy src/`
+   returns exactly one hit, in a comment. */
+export const SERVER_OWNED_BONUS_KEYS = Object.freeze([]);
+
+/* Per bench, the bonus keys that can make the server's answer WORSE than the
+   client's rather than merely smaller. One entry, and it is the whole table:
+   `noBurn` turns a Cooked Shark into `burnt_food`. `craftSave`, `yield_*` and
+   every speed key can only ever ADD, so a stale zero under-pays — which is the
+   safe direction and the one this engine already ships in four other places.
+
+   A bench absent from this map has no destructive key and is payable. That
+   default is asserted, not assumed: ARTISAN_BENCH_COVERAGE in
+   tests/artisan-accrual.mjs walks ARTISAN_RECIPES and fails on a bench this
+   file has never been told about. */
+export const BENCH_DESTRUCTIVE_KEYS = Object.freeze({
+  cooking: Object.freeze(['noBurn']),
+});
+
+/**
+ * May the accrual engine pay this bench tonight? Pure, total, and TRUE for a
+ * bench nobody has listed — the same fail-open-on-unknown default
+ * `channelApplies` takes, and for the same reason: every historical away bug in
+ * this codebase was a base reward silently vanishing, so an unlisted bench must
+ * not quietly stop paying. What it may NOT do is quietly pay a DESTRUCTIVE key
+ * the server cannot vouch for, which is what the map above enumerates.
+ */
+export function benchPayable(skill) {
+  const keys = BENCH_DESTRUCTIVE_KEYS[skill];
+  if (!Array.isArray(keys) || keys.length === 0) return true;
+  for (const k of keys) if (SERVER_OWNED_BONUS_KEYS.indexOf(k) === -1) return false;
+  return true;
+}
+
+/** Which bonus key is holding this bench back, or null. Named so a refusal can
+    say WHY instead of only NO — a player told "cooking is unsupported" files a
+    bug; a log line naming `noBurn` points at the one commit that opens it. */
+export function benchBlockedBy(skill) {
+  const keys = BENCH_DESTRUCTIVE_KEYS[skill];
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys) if (SERVER_OWNED_BONUS_KEYS.indexOf(k) === -1) return k;
+  return null;
+}
+
+/**
+ * Is this recipe id one the server may be told about AND pay?
+ *
+ * ⚠ THE TWO QUESTIONS ARE ONE ANSWER ON PURPOSE. A recipe the engine cannot
+ *   price must not be SETTABLE either, because `hr_apply` stamps
+ *   `accrued_to = now()` on any activity change: a pointer that can be set and
+ *   not paid is a window the next switch CONFISCATES, and — worse — a collect
+ *   that refuses on an unpayable pointer refuses the switch too, which locks
+ *   the player on that bench forever (the `no_cap` lockout shape). One
+ *   predicate, read by the engine, by the intent's shape check and by the
+ *   client's `declarationFor`, is what makes those three agree by construction.
+ *
+ * `hasOwn`, never truthiness: the index is null-prototype (see
+ * `indexArtisanRecipes`) but this is also called with plain objects in tests,
+ * and `active_id` is bounded by /^[a-z0-9_]{1,64}$/ — which spells `constructor`.
+ */
+export function recipePayable(index, recipeId) {
+  if (!index || typeof recipeId !== 'string' || !recipeId) return false;
+  if (!hasOwn(index, recipeId)) return false;
+  const entry = index[recipeId];
+  return !!(entry && entry.recipe && benchPayable(entry.skill));
+}
+
+/** Every recipe id the server may be told about, as a null-prototype set.
+    Derived from the index, so a fifth bench — or the day `noBurn` becomes
+    server-owned — moves this with no edit here. */
+export function payableRecipeIndex(index) {
+  const out = Object.create(null);
+  for (const id of Object.keys(index || {})) {
+    if (recipePayable(index, id)) out[id] = index[id];
+  }
+  return out;
+}

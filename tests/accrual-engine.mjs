@@ -60,6 +60,8 @@ import { levelOf } from '../src/core/xp.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
+import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
 import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD }
   from '../src/core/auto-eat.js';
@@ -997,6 +999,16 @@ function bestOwnedTool(skill) {
 /* SKILL XP high enough to open every rung, so a fixture is never silently
    testing the level gate instead of the yield. 13,034,431 = level 99. */
 const GATHER_MAXED = { woodcutting: 13034431, mining: 13034431, fishing: 13034431 };
+/* The artisan benches, at 99, for the clamp/day-budget sweeps below. Same
+   reason GATHER_MAXED exists: a fixture that is silently testing a level gate
+   is not testing a yield. */
+const ARTISAN_MAXED = { smithing: 13034431, crafting: 13034431, cooking: 13034431, prayer: 13034431 };
+const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
+/* Every gated recipe unlocked. DERIVED from the data — a hand-listed set would
+   go stale the day a ninth scroll is authored, and the recipes behind scrolls
+   are the top of the ladder, i.e. exactly the ones a clamp sweep must see. */
+const ARTISAN_SCROLLS = Object.fromEntries(
+  Object.values(ARTISAN_INDEX).filter((e) => e.recipe.gated).map((e) => [e.recipe.gated, true]));
 
 const GATHER_FIXTURES = [
   /* qty [1,1], no tool — the flat case. `rng.int(n,n)` returns WITHOUT drawing,
@@ -1880,6 +1892,56 @@ function gatherSweep(spanH, seed = SEED) {
   return out;
 }
 
+/* ── THE ARTISAN SWEEP (b356, Security C1) ──────────────────────────────────
+   Every one of the 290 recipes, at a given span, with UNLIMITED supply — which
+   is the honest worst case for a clamp: the bag is the only other bound, and a
+   player who left a full bank is not doing anything wrong.
+   Measured exposure at the time of writing: 0 of 290 reach c_max_xp_delta on a
+   plain 12h span with no perks, 10 of 290 at 24h. That is why this sweep had to
+   exist — the ladder is REACHED by honest play on this path, and nothing here
+   looked at artisan at all before b356.
+   Blocked benches are skipped rather than silently paying 0: they are refused
+   by the engine, and a refusal contributes no delta to bound. */
+function artisanSweep(spanH, seed = SEED) {
+  const out = [];
+  for (const id of Object.keys(ARTISAN_INDEX)) {
+    const entry = ARTISAN_INDEX[id];
+    if (!benchPayable(entry.skill)) continue;
+    const r = computeAccrual({
+      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+      nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000,
+      activeSinceMs: NOW_MS - spanH * 3600000,
+      activeKind: 'artisan', activeId: id, capMs: spanH * 3600000, seed,
+      actionBudget: null,
+      hp: HONEST_MAX_HP, maxHp: HONEST_MAX_HP, gold: 0,
+      skills: { ...MAXED, ...GATHER_MAXED, ...ARTISAN_MAXED }, equipment: EQUIPMENT,
+      inventory: artisanSupply(entry.recipe),
+      autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+      toolCarry: {},
+      /* The scroll for every gated recipe: a locked one stops at tick 0 and
+         would silently drop out of the sweep, which is the direction that hides
+         the highest-XP recipes in the catalogue. */
+      unlockedRecipes: ARTISAN_SCROLLS,
+      items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+      recipes: ARTISAN_INDEX,
+    });
+    if (r.accrued) out.push([`${spanH}h ${id}`, r.delta]);
+  }
+  return out;
+}
+
+/** Enough of every input that the CLOCK is the only bound. */
+function artisanSupply(recipe) {
+  const bag = {};
+  const add = (id, q) => { bag[id] = (bag[id] || 0) + q * 1e6; };
+  if (recipe.inputs) for (const [id, q] of Object.entries(recipe.inputs)) add(id, q);
+  else {
+    if (recipe.input) add(recipe.input, recipe.inputQty || 1);
+    if (recipe.secondary) for (const [id, q] of Object.entries(recipe.secondary)) add(id, q);
+  }
+  return bag;
+}
+
 function clampsFromMigration(sql) {
   const out = {};
   for (const m of sql.matchAll(/c_(max_[a-z_]+)\s+constant\s+(?:bigint|int)\s*:=\s*(\d+)/g)) {
@@ -1956,6 +2018,40 @@ async function clampGuard() {
       bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
       bump('max_progress_ops', (d.progress || []).length, where);
     }
+    /* …and every ARTISAN recipe (b356). This is the sweep that was missing, and
+       its absence was not neutral: artisan is 84% of the catalogue and it is
+       the ONLY payable kind that reaches c_max_xp_delta in honest play. The
+       item dimension is signed here — inputs leave, output arrives — so
+       `max_item_delta` is measured on the ABSOLUTE movement, because hr_apply's
+       clamp is `abs(v_n) > c_max_item_delta` and a 20,000-ore debit trips it
+       exactly as a 20,000-bar credit would. */
+    for (const [where, d] of artisanSweep(spanH)) {
+      bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
+      bump('max_gold_delta', d.gold || 0, where);
+      bump('max_item_delta', Math.max(0, ...Object.values(d.items || {}).map(Math.abs)), where);
+      bump('max_item_kinds', Object.keys(d.items || {}).length, where);
+      bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
+      bump('max_progress_ops', (d.progress || []).length, where);
+    }
+  }
+
+  /* ── THE OFFENDER LIST, PRINTED (b356) ────────────────────────────────────
+     `worst` names ONE recipe per dimension, which is enough to fail the build
+     and not enough to decide anything. Whoever sizes the fuse needs to know
+     whether it is one outlier or the whole top of the ladder — those are
+     opposite decisions (re-balance one row vs. raise a constant). */
+  {
+    const over = [];
+    for (const [where, d] of artisanSweep(24)) {
+      const xp = Math.max(0, ...Object.values(d.xp || {}));
+      const qty = Math.max(0, ...Object.values(d.items || {}).map(Math.abs));
+      if (xp > C.max_xp_delta || qty > C.max_item_delta) {
+        over.push({ where, xp, qty });
+      }
+    }
+    over.sort((a, b) => (b.qty / C.max_item_delta + b.xp / C.max_xp_delta)
+                      - (a.qty / C.max_item_delta + a.xp / C.max_xp_delta));
+    clampGuard.artisanOverflow = over;
   }
 
   clampGuard.report = [];
@@ -2047,6 +2143,17 @@ async function dayBudgetGuard() {
      a night of chopping is one item kind in five figures, where a night of
      fighting is a handful of drop rows. */
   for (const [where, d] of gatherSweep(24)) {
+    bump('gold', d.gold || 0, where);
+    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
+    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);
+  }
+  /* Artisan, at the same span (b356). POSITIVE entries only, for the reason
+     stated above and doubly so here: this is the one path whose item map is
+     routinely negative, and summing it signed would let the consumed inputs pay
+     for the produced output — a night that mints 20,000 bars would score as
+     nearly zero gross inflow, which is precisely the dimension the budget
+     exists to bound. */
+  for (const [where, d] of artisanSweep(24)) {
     bump('gold', d.gold || 0, where);
     bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
     bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);

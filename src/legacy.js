@@ -11224,11 +11224,14 @@ window.startArtisan = function(skillId, recipeId){
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
-  /* DECLARED AS `artisan`, SENT AS `idle`. src/net/activity.js's
-     `declarationFor` owns the downgrade and the reason for it — the short
-     version is that saying nothing leaves the server paying for the tree the
-     player stopped chopping an hour ago. The day the engine can price artisan,
-     this line starts declaring `artisan` with no edit here. */
+  /* DECLARED AS `artisan`, AND SINCE b356 MOST OF THEM ARE SENT AS `artisan`
+     TOO — the engine prices 261 of the 290 recipes. The COOKING bench is the
+     exception and is still downgraded to `idle`, per RECIPE rather than per
+     kind: `noBurn`'s Kitchen rung is read from server state but still written
+     by this client, so a server night would burn what the player's Range
+     protects. src/net/activity.js's `declarationFor` owns that decision and the
+     reason for it; nothing here needs to know which is which, and that is the
+     point — when the last bench opens, this line changes not at all. */
   declareActivity('artisan',recipeId);
 };
 

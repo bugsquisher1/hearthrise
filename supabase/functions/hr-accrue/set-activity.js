@@ -43,10 +43,10 @@
 import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS } from './accrual.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
-  rateBucketFor, requiresKey, collectsFirst, catalogueHas,
+  rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
 } from './intents.js';
 import { refusalBody } from './envelope.js';
-import { GATHER_NODES } from './catalogue.js';
+import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -266,6 +266,45 @@ export async function runSetActivity(o) {
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
     };
   }
+  /* ── THE THIRD CATALOGUE, AND IT IS THE ONE WITH TWO ANSWERS ─────────────
+     `artisan` is settable, but not every artisan recipe is. A bench whose
+     destructive bonus key is not yet server-owned (cooking's `noBurn`) is
+     refused HERE, on shape, before any database work — which is not a nicety,
+     it is what keeps the deferral safe:
+
+       · the pointer can never come to hold an unpayable recipe, so the engine's
+         `unpayable_bench` refusal can never stand between the player and their
+         next switch (the `no_cap` lockout shape, avoided by construction);
+       · nothing is confiscated, because the switch never ran and hr_apply never
+         stamped `accrued_to`;
+       · it costs no rate budget and no idempotency key.
+
+     TWO LOOKUPS, TWO ANSWERS, and the order is the same one `validateDeclaration`
+     uses for kinds: a recipe that does not exist is `unknown_activity`; a recipe
+     that exists on a bench this build cannot price is `activity_unsupported` —
+     the code that already means "real, and not server-side yet". Telling a
+     player "unknown recipe" about Cooked Shark files a bug against the wrong
+     system, exactly as `activity_unsupported` vs `bad_activity` does above. */
+  if (decl.kind === 'artisan') {
+    if (!catalogueHas(ARTISAN_RECIPES_ALL, decl.id)) {
+      return {
+        status: 409,
+        body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
+      };
+    }
+    if (!catalogueHas(ARTISAN_RECIPES_PAYABLE, decl.id)) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED,
+          kind: decl.kind,
+          id: decl.id,
+          bench: ARTISAN_RECIPES_ALL[decl.id].skill,
+        },
+      };
+    }
+  }
 
   /* (1) GATE + READ. The bucket comes out of the registry, never a literal. */
   const [read] = await exec(READ_SQL, [user, slot, rateBucketFor(VERB)]);
@@ -289,7 +328,39 @@ export async function runSetActivity(o) {
       capMs: Number(read.cap_ms) || 0,
     })
     : { outcome: 'nothing', version: env.version, reason: 'verb_does_not_collect' };
-  const gate = collectGate(collect);
+  let gate = collectGate(collect);
+
+  /* ── THE ESCAPE HATCH (Security C3) ──────────────────────────────────────
+     A refusing collect refuses the switch, and that includes a switch to
+     `idle` — so a pointer this build cannot price freezes the character until
+     a deploy. `mayForceCloseWindow` (./intents.js) is the partition that says
+     when a STOP may close such a window as a forfeit: only for reasons that
+     are a property of the POINTER, never for the transient ones (`no_cap`,
+     `no_active_since`) where waiting would have paid.
+
+     THE FORFEIT IS ITS OWN APPLY, WITH ITS OWN LEDGER ROW. It moves no value —
+     it stamps `accrued_to` and journals WHY — so the loss is exactly the window
+     the engine could not price, it is auditable, and it is reversible by hand
+     from the ledger. Doing it as a separate apply rather than folding it into
+     the switch delta is deliberate: a support request has to be able to see
+     that a forfeit happened AND that a switch happened, and one merged row
+     would show neither. */
+  if (!gate.proceed
+      && collect.outcome === 'refused'
+      && collect.error === 'uncollectable_window'
+      && mayForceCloseWindow(decl.kind, collect.detail && collect.detail.reason)) {
+    const forced = await forceCloseWindow({
+      exec, user, slot, version: env.version,
+      reason: (collect.detail && collect.detail.reason) || null,
+      from: { kind: st.active_kind, id: st.active_id },
+      salt: collect.salt || '', watermark: String(st.accrued_to),
+    });
+    /* A FAILED FORFEIT FALLS BACK TO THE REFUSAL. It must not proceed to the
+       switch on a version it did not confirm — that would be the one thing
+       worse than the lockout, a switch applied against a stale read. */
+    if (forced.ok) gate = { proceed: true, version: forced.version, error: null, forfeited: forced.receipt };
+  }
+
   if (!gate.proceed) {
     /* NOTHING WAS WRITTEN and the watermark did not move: the elapsed window is
        intact. The client's recovery is to run the `accrue` verb — which owns the
@@ -362,6 +433,12 @@ export async function runSetActivity(o) {
       verb: VERB,
       activity: activityOf(res),
       collected: collect.receipt || null,
+      /* C3: the window this stop FORFEITED, when it forfeited one. Stated
+         rather than silent — a stop that quietly discarded three hours is the
+         same class of defect as a payment the player is never told about, and
+         the client needs something to render other than "stopped". Absent on
+         every ordinary stop, which is all of them until a rollback or a rename. */
+      ...(gate.forfeited ? { forfeited: gate.forfeited } : {}),
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };
@@ -380,6 +457,79 @@ function activityOf(env) {
     place. `envelope.js` owns the mechanics; what a body says about an ACTIVITY
     is still this file's. */
 function decorateActivity(env) { return { activity: activityOf(env) }; }
+
+/**
+ * FORCE-CLOSE AN UNPRICEABLE WINDOW, as a journalled forfeit. Security C3.
+ *
+ * Called only when the player DECLARED `idle` and the collect refused for a
+ * reason that is a property of the POINTER (see `POINTER_SKIP_REASONS` in
+ * ./intents.js). It is the only path in this payload that advances
+ * `accrued_to` without paying for the time, and it exists because the
+ * alternative is worse: a character frozen on an activity this build cannot
+ * price, unable even to stop, until a deploy.
+ *
+ * ⚠ IT MOVES NO VALUE. The delta is a watermark and a journal row, nothing
+ *   else — no gold, no items, no xp, no progress. That is what makes it
+ *   reversible: the ledger row states the reason and the instant, so a
+ *   support request can reconstruct exactly what was given up.
+ *
+ * @returns { ok: true, version, receipt } | { ok: false }
+ */
+async function forceCloseWindow(o) {
+  const { exec, user, slot, version, reason, from, salt, watermark } = o;
+  /* A DISTINCT KEY BY CONSTRUCTION. The label carries a `forfeit:` prefix on
+     the watermark, so this can never collide with the collect's derived key for
+     the same (user, slot, watermark, version) — two different operations on one
+     window must not share an idempotency key, or the second one silently
+     replays the first. */
+  /* ⚠ CONCATENATION, NOT A TEMPLATE LITERAL, AND THAT IS NOT A STYLE CHOICE.
+     A15(e) in tests/activity-intent.mjs asserts that every derived-key call
+     site passes the WHOLE field set, and it locates the object literal by
+     scanning to the first closing brace after the call. An interpolation inside
+     that object closes the scan early, so the guard reads a truncated literal
+     and reports the remaining fields as MISSING. Found by running it — twice,
+     because the first fix put the offending spelling in this comment instead,
+     which the same scan then matched ahead of the real call site. The prefix is
+     therefore built on the line above rather than inline. */
+  const forfeitWatermark = 'forfeit:' + watermark;
+  let intentId;
+  try {
+    intentId = await intentIdFor({
+      user, slot, watermark: forfeitWatermark, version, salt, attempt: 0,
+    });
+  } catch (e) {
+    /* A missing derivation field means we cannot make a SAFE key. Falling back
+       to a random one would make a retry apply twice; falling back to the
+       refusal costs the player nothing they were owed. */
+    return { ok: false };
+  }
+  const delta = {
+    accrued_to: 'now',
+    journal: {
+      /* `admin`, like the declaration itself: a forfeit MOVES NO VALUE, and
+         filing it under the activity's own kind would put a zero row in the
+         bucket the rollup aggregates real earnings on. */
+      kind: 'admin',
+      intent: 'set_activity:forfeit',
+      meta: {
+        reason: reason || null,
+        from_kind: (from && from.kind) || null,
+        from_id: (from && from.id) || null,
+      },
+    },
+  };
+  const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
+  const res = applied && applied.res;
+  if (!res || res.ok !== true) return { ok: false };
+  return {
+    ok: true,
+    version: res.version ?? version,
+    /* STATED, so the client can tell the player what happened rather than
+       showing a stop that silently ate three hours. */
+    receipt: { reason: reason || null, from_kind: (from && from.kind) || null,
+               from_id: (from && from.id) || null },
+  };
+}
 
 /**
  * Pay the window that has elapsed on the CURRENT activity, in its own apply,
@@ -500,6 +650,19 @@ async function collectCurrentWindow(o) {
     items: ITEMS,
     monsters: MONSTERS,
     nodes: GATHER_NODES,
+    /* THE FULL artisan index, not the payable subset — see the field's note in
+       computeAccrual's contract. The subset is what the SHAPE check above
+       filters with; the engine needs both facts so its refusal can be honest.
+       Mirrors index.ts field for field (A14). */
+    recipes: ARTISAN_RECIPES_ALL,
+    /* THE LADDER'S KNOB — always null HERE, and the null is the statement.
+       This intent has NO degrade ladder, deliberately (intents.js rule 5): it
+       can refuse the switch and leave the window intact for the `accrue` verb,
+       which owns the ladder. So a collect always simulates the full window.
+       Carried as an explicit field rather than omitted because A14 compares the
+       two literals by FIELD NAME, and "absent here, present there" is exactly
+       the divergence that guard exists to catch. */
+    actionBudget: null,
   });
 
   if (!out.accrued) {
@@ -517,6 +680,11 @@ async function collectCurrentWindow(o) {
       version: null,
       error: 'uncollectable_window',
       detail: { reason: out.reason, active_kind: st.active_kind, active_id: st.active_id },
+      /* Carried so the C3 escape hatch can derive its own idempotency key
+         without a second seed round trip. It is the SAME server secret the
+         collect's key was derived from, which is what keeps the forfeit's key
+         unpredictable to the player. */
+      salt,
     };
   }
 

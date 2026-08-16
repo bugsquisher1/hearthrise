@@ -778,12 +778,82 @@ export const REFUSING_SKIP_REASONS = Object.freeze([
   'wrong_skill',          // SKIP.WRONG_SKILL
   'no_active_since',      // SKIP.NO_ACTIVE_SINCE
   'no_cap',               // SKIP.NO_CAP — see the lockout note above
+  'unknown_recipe',       // SKIP.NO_RECIPE — the artisan member of the
+                          //   NO_TARGET / NO_NODE family. Three catalogues,
+                          //   three truths.
+  /* SKIP.UNPAYABLE_BENCH — the recipe EXISTS and its bench is not one the
+     server may pay tonight (cooking, until `noBurn`'s WRITE path is
+     server-owned; see src/core/artisan-sim.js `benchPayable`).
+
+     REFUSING, and the choice is the same one `no_cap` documents above: this is
+     real work that BECOMES payable by deploying a commit, so confiscating it
+     would be permanent while deferring it is not. Unlike `no_cap` it carries no
+     lockout, because ./set-activity.js refuses an unpayable bench on SHAPE —
+     before any database work, before the collect — so `player_state` can never
+     come to hold one and this reason can never be the thing standing between a
+     player and their next switch. That asymmetry is why the two can share a
+     group without sharing a risk. */
+  'unpayable_bench',      // SKIP.UNPAYABLE_BENCH
 ]);
 
 /** Every reason this contract has an opinion about. */
 export const CLASSIFIED_SKIP_REASONS = Object.freeze(
   [...SAFE_SKIP_REASONS, ...REFUSING_SKIP_REASONS],
 );
+
+/* ── THE ESCAPE HATCH, AND WHY IT IS A PARTITION OF THE REFUSING SET ────────
+   (Security C3, b356.)
+
+   A REFUSING reason costs the player nothing and defers the window — which is
+   right, and which has one consequence nobody had written down: THE PLAYER
+   CANNOT LEAVE. The collect refuses, the collect refusing refuses the switch,
+   and every subsequent declaration — INCLUDING `idle` — gets the same 409. If a
+   recipe id is renamed, or an Edge deploy is rolled back while players hold
+   artisan pointers, every one of those characters is frozen on an activity the
+   server will not price and cannot be told to stop doing it. That is a
+   deploy-shaped outage with no client-side recovery.
+
+   So `idle` — and ONLY `idle` — may force-close a refusing window as a
+   JOURNALLED FORFEIT. It is the one declaration that cannot be about the thing
+   that is stuck: the player is asking to stop, and stopping is exactly the
+   operation that makes the unpriceable pointer go away.
+
+   ⚠ BUT NOT FOR EVERY REFUSING REASON, AND THE SPLIT IS THE WHOLE DESIGN.
+     Some refusals are a property of the POINTER — the pointer names something
+     this build cannot price, so it will still be unpriceable in a minute, an
+     hour and a week, and the ONLY thing that fixes it is clearing the pointer.
+     Forfeiting there costs the player a window that was never going to be paid
+     by waiting.
+     The others are a property of the ABSENCE — `no_cap` (the cap function
+     returned 0) and `no_active_since` (an inconsistent row). Neither is fixed
+     by stopping, both are transient, and both become payable on their own. A
+     forfeit there would destroy a window that waiting WOULD have paid, which is
+     precisely the confiscation the whole collect-before-switch rule exists to
+     prevent — and `no_cap`'s lockout was chosen DELIBERATELY over exactly that
+     trade (see the note above). This list is what keeps the escape hatch from
+     quietly reversing that decision.
+
+   Fails closed: a reason not on this list does not forfeit. A new refusing
+   reason is therefore a lockout until somebody decides it belongs here, which
+   is the safe direction and is asserted by tests/activity-intent.mjs A17. */
+export const POINTER_SKIP_REASONS = Object.freeze([
+  'unsupported_activity', // the kind is not payable by this build
+  'unknown_monster',      // the pointer names content that is not in the data
+  'unknown_node',
+  'unknown_recipe',
+  'unpayable_bench',      // real content, this build cannot price the bench
+  'wrong_skill',          // an inconsistent row; stopping is the repair
+]);
+
+/**
+ * May an incoming `idle` declaration force-close this refused collect?
+ *
+ * @param kind    the kind being DECLARED (only `idle` qualifies)
+ * @param reason  the engine's skip reason from the refused collect
+ */
+export function mayForceCloseWindow(kind, reason) {
+  return kind === 'idle' && POINTER_SKIP_REASONS.indexOf(reason) !== -1;
+}
 
 /**
  * Classify a `{accrued:false, reason}` from the accrual engine.

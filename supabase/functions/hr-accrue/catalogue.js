@@ -31,6 +31,8 @@
 
 import { TREES, ROCKS, FISH_SPOTS } from '../../../src/data/gathering.js';
 import { indexGatherNodes } from '../../../src/core/skill-sim.js';
+import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
+import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
@@ -49,6 +51,35 @@ export const GATHER_NODES = indexGatherNodes({
   mining: ROCKS,
   fishing: FISH_SPOTS,
 });
+
+/**
+ * `{ [recipeId]: { skill, recipe } }` over all 290 artisan recipes, and the
+ * PAYABLE subset of it.
+ *
+ * ⚠ TWO INDEXES, AND THE DIFFERENCE IS LOAD-BEARING.
+ *
+ *   ARTISAN_RECIPES_ALL  every authored recipe. The ENGINE resolves against
+ *                        this, so a pointer on an unpayable bench comes back as
+ *                        a NAMED refusal (`unpayable_bench`) that DEFERS the
+ *                        window, rather than as `unknown_recipe`, which would
+ *                        be a lie about content that plainly exists.
+ *   ARTISAN_RECIPES      the payable subset. The INTENT's shape check uses
+ *                        this, so an unpayable bench is refused BEFORE any
+ *                        database work and can therefore never become the
+ *                        pointer — which is what stops the refusal above from
+ *                        ever being reachable through a player gesture.
+ *
+ * Both are null-prototype (see `indexArtisanRecipes`), which matters more here
+ * than for gather: a truthy miss on a plain object reaches `recipe.inputs` and
+ * `recipe.cost`.
+ *
+ * The payable subset is DERIVED from src/core/artisan-sim.js's
+ * `benchPayable` — the same predicate `src/net/activity.js` reads for the
+ * client's downgrade — so the three sides cannot disagree about which benches
+ * exist tonight.
+ */
+export const ARTISAN_RECIPES_ALL = indexArtisanRecipes(ARTISAN_RECIPES);
+export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);
 
 /* ════════════════════════════════════════════════════════════════════════
    THE ECONOMY CATALOGUE — prices, derived from src/data, never restated.

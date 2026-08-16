@@ -78,8 +78,20 @@ import {
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
 } from './accrue.js?v=355';
+/* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
+   src/core/artisan-sim.js and is the SAME function the accrual engine's
+   `computeAccrual` and the intent's shape check read, so the client, the engine
+   and the intent cannot disagree about which benches exist tonight. Precedent:
+   src/net/gold.js already imports src/data/shops.js for exactly this reason. */
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=355';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=355';
 
 export const ACTIVITY_VERB = 'set_activity';
+
+/* Built once at module scope, null-prototype (see `indexArtisanRecipes`): the
+   id shape /^[a-z0-9_]{1,64}$/ spells `constructor`, and a truthy miss on a
+   plain object would reach `.recipe`. */
+const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
 
 /** The kinds this client is allowed to DECLARE. Mirrors the server's
  *  `SETTABLE_KINDS` (supabase/functions/hr-accrue/set-activity.js), which is
@@ -99,10 +111,14 @@ export const ACTIVITY_VERB = 'set_activity';
  *    exists in one and not the others. Widening this is still a decision — but
  *    it can no longer be a forgotten one.
  *
- *  `artisan` is deliberately absent: 290 of the 344 catalogue rows are artisan
- *  and the engine cannot price them (see the block above `PAYABLE_KINDS`). It
- *  is NOT silently undeclared, though — see `declarationFor`. */
-export const ACTIVITY_KINDS = Object.freeze(['combat', 'gather', 'idle']);
+ *  `artisan` JOINED on 2026-08-16 (b356) — 290 of the 344 catalogue rows, and
+ *  the engine prices 261 of them. The other 29 are the COOKING bench, which is
+ *  held back by a property rather than by its name: `noBurn`'s Kitchen rung is
+ *  READ from server state but still WRITTEN by the client (`upgradeRoom` in
+ *  src/legacy.js), so the server could burn what the player's Cast-Iron Range
+ *  protects. That exclusion is per-RECIPE, not per-kind, and it lives in
+ *  `declarationFor` below — see `benchPayable` in src/core/artisan-sim.js. */
+export const ACTIVITY_KINDS = Object.freeze(['combat', 'gather', 'artisan', 'idle']);
 
 /** Every kind the GAME can actually be doing — the server's whole vocabulary,
  *  not the payable subset. The difference between this and `ACTIVITY_KINDS` is
@@ -239,7 +255,49 @@ export function declarationFor(kind, id) {
   if (ACTIVITY_KINDS.indexOf(kind) === -1) {
     return { kind: 'idle', id: null, downgradedFrom: kind };
   }
+  /* ── THE SECOND DOWNGRADE, AND IT IS PER-RECIPE (b356) ────────────────────
+     `artisan` is settable and 261 of its 290 recipes are payable. The COOKING
+     bench is not, until `noBurn` is sourced from state the server owns end to
+     end — until then the server would burn at the base 25% while the player's
+     Kitchen says 0%, which is not an under-payment at the margin, it is the
+     server destroying the input.
+
+     THE DOWNGRADE IS NOT POLITENESS, IT IS THE ONLY SAFE OPTION, and the two
+     alternatives are both worse in ways this codebase has already paid for:
+       · SAY NOTHING → the server's pointer stays on the PREVIOUS activity and
+         the player is paid for the oak they stopped chopping an hour ago. That
+         is b348, and it is the reason this function exists at all.
+       · DECLARE IT ANYWAY → `set_activity` refuses it on shape
+         (`activity_unsupported`, 409, before any database work). Correct,
+         harmless, and it leaves the pointer exactly where the silence would.
+     `idle` is the only honest declaration for "I am doing something you cannot
+     price": it COLLECTS the window that really elapsed and stops the meter.
+
+     ⚠ AN UNKNOWN RECIPE ID IS **NOT** DOWNGRADED. It is declared as `artisan`
+       and refused by the server as `unknown_activity` — exactly as a bogus
+       monster id is. Turning a client bug into a legitimate-looking stop is how
+       a client bug becomes invisible, and the shape check above already draws
+       that line for every other kind.
+
+     Self-correcting, like the kind-level downgrade above it: the day
+     `SERVER_OWNED_BONUS_KEYS` gains `noBurn`, `recipePayable` starts answering
+     true and every cooking call site starts declaring `artisan` with no edit
+     anywhere. */
+  if (kind === 'artisan'
+      && Object.prototype.hasOwnProperty.call(ARTISAN_INDEX, id)
+      && !recipePayable(ARTISAN_INDEX, id)) {
+    return { kind: 'idle', id: null, downgradedFrom: kind, unpayableRecipe: id };
+  }
   return { kind, id };
+}
+
+/** Would a declaration of this recipe reach the server, or be downgraded?
+    Exported so a call site (and the suite) can ask without duplicating the
+    predicate. `true` for an id the client does not recognise — that is the
+    server's question to answer, not this module's. */
+export function isPayableRecipe(id) {
+  if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(ARTISAN_INDEX, id)) return true;
+  return recipePayable(ARTISAN_INDEX, id);
 }
 
 /* ── THE REQUEST, AS DATA ───────────────────────────────────────────────────
@@ -764,7 +822,8 @@ if (typeof window !== 'undefined') {
     ACTIVITY_VERB, ACTIVITY_KINDS, GAME_ACTIVITY_KINDS, ACTIVITY_OUTCOMES,
     ACTIVITY_TIMEOUT_MS, ACTIVITY_MAX_TRIES,
     UNANSWERED_OUTCOMES, isAnswered, newIntentKey, isIntentKey, nextIntentKey,
-    isActivityIntentEnabled, isDeclarableActivity, declarationFor, buildActivityRequest,
+    isActivityIntentEnabled, isDeclarableActivity, declarationFor, isPayableRecipe,
+    buildActivityRequest,
     classifyActivityResponse, shouldRetryActivity,
     envelopeOf, activityOf, collectedOf, awayFromCollected, applyIntentEnvelope,
     configureActivity, getActivityConfig, setActivityHooks,

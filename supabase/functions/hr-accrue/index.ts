@@ -70,7 +70,7 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf } from './accrual.js';
+import { computeAccrual, levelsOf, degradeStep } from './accrual.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
@@ -82,7 +82,7 @@ import { runUnlockBuy } from './unlock-buy.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { withCors } from './cors.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
-import { GATHER_NODES } from './catalogue.js';
+import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -507,8 +507,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     /* The engine is called with a LITERAL, field by field, from named server
        values. `slot` is the only field on this object whose value came from the
-       request, and it selects a row the caller already owns. */
-    const runAccrual = (spanCapMs: number) => computeAccrual({
+       request, and it selects a row the caller already owns.
+       `step` is what the DEGRADE LADDER varies between attempts, and it is
+       produced by `degradeStep` in accrual.js rather than computed here — what
+       "a smaller proposal" means is a game rule and this file holds none (see
+       the header). */
+    const runAccrual = (step: { capMs: number; actionBudget: number | null }) => computeAccrual({
       userId: user,
       slot,
       nowMs,
@@ -521,7 +525,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
       activeKind: st.active_kind,
       activeId: st.active_id,
-      capMs: spanCapMs,
+      capMs: step.capMs,
+      /* THE LADDER'S KNOB (Security C1). Null on the first attempt and on every
+         non-artisan path — unbounded, i.e. exactly the pre-b356 behaviour. On a
+         degraded artisan attempt it is HALF THE ACTIONS THE PREVIOUS ATTEMPT
+         RAN, because an artisan night is bounded by the BAG whenever the player
+         left less material than the clock could consume, and halving the span
+         of a bag-bound run reduces the proposal by less than half — measured,
+         sometimes by nothing at all. It is derived from the ENGINE'S OWN
+         previous answer; nothing here comes from the request body. */
+      actionBudget: step.actionBudget,
       seed: Number(seedRow?.seed) || 0,
       hp: Number(st.hp) || 0,
       maxHp: Number(st.max_hp) || 0,
@@ -561,9 +574,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       items: ITEMS,
       monsters: MONSTERS,
       nodes: GATHER_NODES,
+      /* THE ARTISAN INDEX — the FULL one, so the engine can tell "no such
+         recipe apart from a bench that is not server-owned yet. Built once in
+         ./catalogue.js; nothing here comes from the request.
+         Mirrors set-activity.js field for field (A14). */
+      recipes: ARTISAN_RECIPES_ALL,
     });
 
-    let out = runAccrual(capMs);
+    let out = runAccrual({ capMs, actionBudget: null });
 
     if (!out.accrued) {
       // Nothing to pay. NOTHING IS WRITTEN — in particular the watermark is not
@@ -621,11 +639,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     for (let attempt = 1;
          attempt <= MAX_DEGRADE && res && res.ok !== true && DEGRADABLE.has(String(res.error));
          attempt++) {
-      const smaller = Math.floor(Number(out.grantMs) / 2);
-      degraded = { from: String(res.error), attempt, spanMs: smaller };
-      if (!(smaller > 0)) break;
-      const next = runAccrual(smaller);
+      /* WHAT "SMALLER" MEANS IS THE ENGINE'S DECISION, NOT THIS FILE'S. It used
+         to be `Math.floor(out.grantMs / 2)` right here, which is correct only
+         while output is proportional to time — true for combat and gathering,
+         FALSE for artisan, where the bag can bound the night and halving the
+         span then shrinks the proposal by less than half or not at all
+         (Security C1). `degradeStep` picks the right knob per kind and returns
+         null when there is nothing smaller left to ask for. */
+      const step = degradeStep(out, attempt);
+      if (!step) break;
+      degraded = { from: String(res.error), ...step.report };
+      const next = runAccrual(step);
       if (!next.accrued) break;
+      /* THE RUNG MUST ACTUALLY BE SMALLER. A step that proposes the same work
+         as the attempt that was just rejected would earn the same rejection and
+         burn a rung for nothing — three of those and the night is forfeited.
+         This is the C1 defect expressed as a runtime fuse rather than only as a
+         test: if a future kind's degradeStep stops shrinking, the ladder stops
+         instead of grinding down to the forfeit. */
+      if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
       res = await apply(out.delta, attempt);
     }

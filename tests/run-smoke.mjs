@@ -30,6 +30,7 @@ import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
+import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
 import { runAll as jwtGuards } from './jwt-verify.mjs';
@@ -1210,6 +1211,39 @@ const run = async () => {
     } else {
       console.log('\nGoal counters guard — an away combat night moves \'slay N\' by exactly the kill '
         + 'count, a gather night by the yield, and neither touches the other\'s counter.');
+    }
+
+    /* ── The artisan accrual guard (b356) ───────────────────────────────
+       `artisan` is 290 of the 344 `hr_activities` rows and every one of them
+       paid NOTHING until this landed — declared idle rather than confiscated,
+       but zero all the same. It is also the first payable kind whose
+       simulation SPENDS: an input leaves the bag on every tick, so the
+       property that matters is not only "does it pay what the client pays" but
+       "can it ever propose a debit deeper than the SERVER'S inventory" — which
+       hr_apply answers with `insufficient_item`, a 409 that is not on the
+       degrade ladder and therefore costs the whole night.
+
+       Seven claims, each with a control: a payable kind with no simulation is
+       refused rather than priced as combat; parity against a TRANSCRIPTION of
+       legacy.js (not a call into the same span function); the material clamp,
+       swept rather than sampled; exhaustion pays what it worked and CLEARS the
+       pointer; the recipe gate is a server progress row and fails closed on
+       every shape of "I do not have the scroll"; noBurn comes out of the
+       unlock rows and the bench payability model is a property rather than a
+       list of names; and the delta shape — including `journal.kind = 'craft'`,
+       because `player_ledger_kind_check` does not accept `artisan` and naming
+       it would cost a player their night.
+       See tests/artisan-accrual.mjs. */
+    const artisanAccrualProblems = await artisanAccrualGuards();
+    if (artisanAccrualProblems.length) {
+      console.log('\nArtisan accrual guard (a smithing night pays, and pays no more than the bag) — FAILED:');
+      for (const p of artisanAccrualProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nArtisan accrual guard — a smithing night pays exactly what the shipped client '
+        + "pays, production is clamped to the SERVER'S inventory and swept across five supply levels, "
+        + 'running out stops the run and clears the pointer, and the recipe gate is a server row that '
+        + 'fails closed.');
     }
 
     /* ── The unlock-purchase guard (b354) ───────────────────────────────

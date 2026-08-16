@@ -649,23 +649,31 @@ async function run(patches) {
       }
     }
 
-    /* (v) THE SECOND BUILDER — a CENSUS, because nothing can drive it.
-       computeAccrual has TWO delta builders (combat and gather), each with its
-       own item loop; (i)-(iv) exercise the combat one. No gather node in
-       src/data drops an item carrying `.recipe`, so the gather branch is
-       unreachable at runtime today — and the site that brings this defect back
-       is precisely the one nothing exercises. So it is asserted structurally,
-       the way tests/delta-transport.mjs T6 handles the same problem: every item
-       loop that filters on the item catalogue must also carry the recipe
-       branch, and FEWER THAN TWO loops found is itself a failure, so a scanner
-       that has stopped matching reality cannot report green. */
+    /* (v) THE OTHER BUILDERS — a CENSUS, because nothing can drive them.
+       computeAccrual has THREE delta builders (combat, gather and — since b356
+       — artisan), each with its own item loop; (i)-(iv) exercise the combat
+       one. No gather node in src/data drops an item carrying `.recipe`, and no
+       artisan recipe OUTPUTS one, so both of those branches are unreachable at
+       runtime today — and the site that brings this defect back is precisely
+       the one nothing exercises. So it is asserted structurally, the way
+       tests/delta-transport.mjs T6 handles the same problem: every item loop
+       that filters on the item catalogue must also carry the recipe branch, and
+       FEWER THAN THREE loops found is itself a failure, so a scanner that has
+       stopped matching reality cannot report green.
+
+       ⚠ THE COUNT IS A FLOOR THAT MOVES WITH THE ENGINE, and it caught b356 on
+         the first run: the artisan builder was written with the positive-quantity
+         test folded into the `if`, which is behaviourally identical and did not
+         match this anchor. Right answer, wrong shape, and the census said so —
+         which is the census doing its job, not a false red. */
     const src = await readFile(
       join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js'), 'utf8');
     const loops = (src.match(/if \(!catalogueHas\(items, id\)\)/g) || []).length;
     const branches = (src.match(/if \(items\[id\] && items\[id\]\.recipe\)/g) || []).length;
-    ok(loops >= 2,
-      `A10(v): the census found ${loops} item loop(s) in accrual.js, expected at least 2 (combat and `
-      + 'gather). It has stopped matching the file it grades, so it cannot see a missing branch.');
+    ok(loops >= 3,
+      `A10(v): the census found ${loops} item loop(s) in accrual.js, expected at least 3 (combat, `
+      + 'gather and artisan). It has stopped matching the file it grades, so it cannot see a missing '
+      + 'branch.');
     ok(branches === loops,
       `A10(v): ${loops} item loop(s) in accrual.js but ${branches} carry the recipe branch. The `
       + 'builder without it would put a scroll in the bag as ordinary loot, where nothing ever '

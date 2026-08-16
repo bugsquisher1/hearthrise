@@ -138,7 +138,13 @@ const MUTATIONS = {
     file: FN('set-activity.js'),
     why: 'the intent accepts a kind the accrual engine cannot pay',
     find: "export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);",
-    repl: "export const SETTABLE_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisan']);",
+    /* `farm` is a real `player_state.active_kind` value the engine has no
+       simulation for, so this plants exactly the failure the derivation
+       prevents. It used to plant `artisan`, which stopped being a mutation the
+       day artisan became payable — a mutation that produces identical text is
+       caught by the harness, but a mutation that produces DIFFERENT text and
+       tests nothing would not have been. */
+    repl: "export const SETTABLE_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisan', 'farm']);",
   },
   /* b348, and it is the OPPOSITE failure to `widen_settable`. That one plants a
      kind the engine cannot pay; this one takes away a kind it CAN — which is
@@ -150,8 +156,36 @@ const MUTATIONS = {
   narrow_payable: {
     file: FN('accrual.js'),
     why: 'gathering silently stops being payable again',
-    find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);",
+    find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
     repl: "export const PAYABLE_KINDS = Object.freeze(['combat']);",
+  },
+  /* b356's mirror of `no_gather_nodes`: the artisan index reaching the engine.
+     Drop it and every artisan pointer answers `unknown_recipe` — refusing, so
+     the window is deferred rather than confiscated, but 261 of the 344
+     catalogue activities silently stop paying and no unit test sees it, because
+     tests/artisan-accrual.mjs calls computeAccrual directly with its own index. */
+  /* Security C3. The escape hatch itself, and its partition — two mutations,
+     because they fail in OPPOSITE directions and only one of them is loud.
+     Removing the hatch re-freezes every character on an unpriceable pointer;
+     widening it turns a STOP into a confiscation of a window that waiting would
+     have paid, which is silent. */
+  no_force_close: {
+    file: FN('set-activity.js'),
+    why: 'an unpriceable pointer can no longer be escaped, not even by stopping',
+    find: '      && mayForceCloseWindow(decl.kind, collect.detail && collect.detail.reason)) {',
+    repl: '      && false) {',
+  },
+  force_close_everything: {
+    file: FN('intents.js'),
+    why: 'a STOP forfeits TRANSIENT windows too — the confiscation the contract forbids',
+    find: '  return kind === \'idle\' && POINTER_SKIP_REASONS.indexOf(reason) !== -1;',
+    repl: '  return kind === \'idle\';',
+  },
+  no_artisan_recipes: {
+    file: FN('set-activity.js'),
+    why: 'the collect is not given the artisan catalogue',
+    find: '    recipes: ARTISAN_RECIPES_ALL,',
+    repl: '    recipes: {},',
   },
   /* The gather index reaching the engine. Drop it and every gathering pointer
      answers `unknown_node` — refusing, so the window is deferred rather than
@@ -272,9 +306,13 @@ const MUTATIONS = {
     file: FN('set-activity.js'),
     why: 'C5 — a replayed SWITCH nulls the receipt for a collect that genuinely applied '
        + '(measured: 3,809 gold / 744 kills reported as null)',
-    find: '      collected: collect.receipt || null,\n      ...(res.replayed === true ? { replayed: true } : {}),',
-    repl: '      collected: res.replayed === true ? null : (collect.receipt || null),\n'
-        + '      ...(res.replayed === true ? { replayed: true } : {}),',
+    /* ANCHORED ON THE ONE LINE, not on the pair it used to sit in: b356's C3
+       receipt (`forfeited`) landed between `collected` and `replayed`, and a
+       two-line anchor broke on a change that had nothing to do with it. An
+       anchor that spans a neighbour is an anchor a neighbour can break. */
+    find: '      activity: activityOf(res),\n      collected: collect.receipt || null,',
+    repl: '      activity: activityOf(res),\n'
+        + '      collected: res.replayed === true ? null : (collect.receipt || null),',
   },
   activity_echoed: {
     file: FN('set-activity.js'),
@@ -391,7 +429,8 @@ async function loadModules(patched) {
     const sa = await import(pathToFileURL(FN('set-activity.js')).href + bust);
     const it = await import(pathToFileURL(FN('intents.js')).href + bust);
     const ac = await import(pathToFileURL(FN('accrual.js')).href + bust);
-    return { sa, it, ac, fnDir: FN('') };
+    const cat = await import(pathToFileURL(FN('catalogue.js')).href + bust);
+    return { sa, it, ac, cat, fnDir: FN('') };
   }
   /* A mutated module has to be imported from disk, and it imports its siblings
      by relative path — so the WHOLE function directory is copied to a temp dir
@@ -409,10 +448,11 @@ async function loadModules(patched) {
   const sa = await import(pathToFileURL(join(dir, 'set-activity.js')).href);
   const it = await import(pathToFileURL(join(dir, 'intents.js')).href);
   const ac = await import(pathToFileURL(join(dir, 'accrual.js')).href);
+  const cat = await import(pathToFileURL(join(dir, 'catalogue.js')).href);
   /* SOURCE-READING ASSERTIONS MUST READ THE SOURCE THAT RAN. A14 originally read
      the repo path while a mutation ran from this temp copy, so its own mutation
      SLIPPED — an assertion pointed at a file nobody executed. */
-  return { sa, it, ac, fnDir: dir };
+  return { sa, it, ac, cat, fnDir: dir };
 }
 
 /** THE SEAM. One statement, rows out — exactly what index.ts hands the module.
@@ -465,7 +505,7 @@ const skillXp = async (db, uid, sk, slot = 0) => Number((await db.query(
 // ════════════════════════════════════════════════════════════════════════
 async function run(mutate) {
   fails.length = 0;
-  const { db, sa, it, ac, fnDir } = await boot(mutate);
+  const { db, sa, it, ac, cat, fnDir } = await boot(mutate);
   const exec = makeExec(db);
   const call = (o) => sa.runSetActivity({ exec, user: UID, slot: 0, ...o });
 
@@ -482,14 +522,43 @@ async function run(mutate) {
       ok(k === 'idle' || ac.PAYABLE_KINDS.includes(k),
         `A0: SETTABLE_KINDS contains '${k}', which computeAccrual cannot pay — a switch would confiscate it`);
     }
-    // CONTROL: at least one real catalogue kind must be REFUSED, or A0 is vacuous.
-    const unpayable = kinds.filter((k) => !sa.SETTABLE_KINDS.includes(k));
-    ok(unpayable.length > 0,
-      'A0-CONTROL: every catalogue kind is settable, so the refusal below proves nothing');
-    for (const k of unpayable) {
+    /* CONTROL: `activity_unsupported` must actually FIRE, or A0 proves only
+       that a list contains itself.
+
+       ⚠ THE CONTROL MOVED DOWN A LEVEL IN b356 AND HAD TO. It used to be "some
+         catalogue KIND is refused", which was true while the engine paid one
+         kind of three. All three are payable now, so that form goes vacuous and
+         reports it — correctly, and uselessly. What is still refused is an
+         unpayable RECIPE (cooking, until `noBurn` is server-owned), which is
+         where the granularity of the refusal actually lives now. Both arms are
+         driven from real data, and the ELSE arm is a real refusal too: a kind
+         `hr_activities` does not contain at all. */
+    const unpayableKinds = kinds.filter((k) => !sa.SETTABLE_KINDS.includes(k));
+    const unpayableRecipes = Object.keys(cat.ARTISAN_RECIPES_ALL)
+      .filter((id) => !Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_PAYABLE, id));
+    ok(unpayableKinds.length > 0 || unpayableRecipes.length > 0,
+      'A0-CONTROL: every catalogue kind AND every artisan recipe is settable, so nothing below can '
+      + 'produce an `activity_unsupported` and the refusal proves nothing. If that is genuinely the '
+      + 'state of the world, drive this with a synthetic kind rather than deleting it.');
+    for (const k of unpayableKinds) {
       const r = await call({ intentId: uuid(), activity: { kind: k, id: 'oak' } });
       ok(r.body.error === 'activity_unsupported',
         `A0: declaring kind '${k}' returned ${JSON.stringify(r.body)} — expected activity_unsupported`);
+    }
+    if (unpayableRecipes.length) {
+      const id = unpayableRecipes[0];
+      const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id } });
+      ok(r.status === 409 && r.body.error === 'activity_unsupported',
+        `A0: declaring the unpayable recipe '${id}' returned ${r.status} ${JSON.stringify(r.body)} — `
+        + 'expected 409 activity_unsupported, refused on shape before any statement');
+    }
+    /* AND A KIND THE CATALOGUE HAS NEVER HEARD OF. This arm cannot go vacuous
+       whatever the payability model does, which is what makes it worth keeping
+       alongside the two above. */
+    {
+      const r = await call({ intentId: uuid(), activity: { kind: 'farm', id: 'oak' } });
+      ok(r.body.error === 'activity_unsupported' || r.body.error === 'bad_activity',
+        `A0: an off-catalogue kind returned ${JSON.stringify(r.body)}`);
     }
   }
 
@@ -713,6 +782,249 @@ async function run(mutate) {
     const bogus = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_tree' } });
     ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
       `A3b: an unknown gathering node returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
+  }
+
+  /* ── A3c. THE THIRD PAYABLE KIND, END TO END (b356) ──────────────────────
+     Artisan is 290 of the 344 catalogue rows — 84% — and until b356 every one
+     of them answered `unsupported_activity`. It is the first payable kind whose
+     simulation SPENDS: every tick consumes an input, so the chain that has to
+     hold is longer again than gathering's. Three things are only provable here,
+     against a real hr_apply, and each one costs the player their whole night if
+     it is wrong:
+
+       · the SIGNED item map. An artisan delta debits inputs and credits an
+         output in the SAME `items` object. hr_apply re-reads player_inventory
+         under the row lock and refuses `have + delta < 0` as
+         `insufficient_item`, which is NOT on index.ts's DEGRADABLE list.
+       · `journal.kind = 'craft'`. `player_ledger_kind_check` allows thirteen
+         kinds and `artisan` is not one of them; a journal that named the
+         activity's own kind would raise check_violation inside the protected
+         block and come back as `bad_delta`. No unit test can see that — the
+         constraint lives in SQL.
+       · `qty_in`. The daily budget is computed from the delta's GROSS positive
+         inflow, so the consumed inputs must not net it down.
+
+     Bronze bars: `smelt_bronze` needs Smithing 8, 2 copper_ore + 1 coal, and
+     ~4.2s an action, so a three-hour window is bounded by the SUPPLY rather
+     than by the clock — which is the property the exhaustion arm asserts. */
+  {
+    await db.query(
+      `update public.player_skills set xp = 1000
+        where user_id = $1 and slot = 0 and skill_id = 'smithing'`, [UID]);
+    /* Enough for ~30 bars and no more: the run must STOP on supplies inside the
+       three hours, which is what makes the debit observable as a floor rather
+       than as an arbitrary number. */
+    await db.query(
+      `insert into public.player_inventory (user_id, slot, item_id, qty)
+       values ($1, 0, 'copper_ore', 60), ($1, 0, 'coal', 40)
+       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
+    await db.query(
+      `update public.player_state
+          set active_kind = 'artisan', active_id = 'smelt_bronze',
+              accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
+        where user_id = $1 and slot = 0`, [UID]);
+    const beforeXp = await skillXp(db, UID, 'smithing');
+    const beforeLedger = (await ledger(db, UID)).length;
+
+    const r = await call({ intentId: uuid(), activity: { kind: 'combat', id: 'rat' } });
+    ok(r.status === 200 && r.body.ok === true,
+      `A3c: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
+    ok(r.body.collected,
+      'A3c: NO collection receipt — three hours of smelting were confiscated by the switch. Artisan is '
+      + '290 of the 344 catalogue rows; this is the deferral b356 closed.');
+
+    const invRows = (await db.query(
+      'select item_id, qty from public.player_inventory where user_id=$1 and slot=0', [UID])).rows;
+    const qty = (id) => Number(invRows.find((x) => x.item_id === id)?.qty ?? 0);
+    const bars = qty('bronze_bar');
+    ok(bars > 0, `A3c: three hours of smelting produced ${bars} bronze_bar — the window paid nothing`);
+    /* THE MATERIAL CLAMP, MEASURED AGAINST THE DATABASE. 60 ore and 40 coal buy
+       exactly 30 bars; the run must have stopped there rather than smelting for
+       three hours off an inventory it only READ. */
+    ok(bars === 30,
+      `A3c: the run produced ${bars} bars from 60 copper_ore + 40 coal. Two ore and one coal per bar caps `
+      + 'it at 30 — anything more means the simulation is not spending the server\'s inventory, and the '
+      + 'delta it proposed would be refused by hr_apply as insufficient_item (a 409, not a degrade, so '
+      + 'the whole night is lost).');
+    ok(qty('copper_ore') === 0 && qty('coal') === 10,
+      `A3c: after 30 bars the bag holds ${qty('copper_ore')} copper_ore and ${qty('coal')} coal — expected `
+      + '0 and 10. The inputs were not debited through the same signed item map the output rode in on.');
+    ok((await skillXp(db, UID, 'smithing')) - beforeXp > 0,
+      'A3c: the smelting paid no smithing XP');
+
+    const rows = (await ledger(db, UID)).slice(beforeLedger);
+    const accrue = rows.find((x) => x.intent === 'accrue');
+    ok(!!accrue, `A3c: no 'accrue' ledger row (${rows.map((x) => x.intent)})`);
+    ok(accrue && accrue.kind === 'craft',
+      `A3c: the collect was journalled as '${accrue && accrue.kind}', expected 'craft'. `
+      + 'player_ledger_kind_check does not accept `artisan`; naming the activity kind here raises '
+      + 'check_violation inside hr_apply\'s protected block and the player loses the whole night.');
+    ok(accrue && Number(accrue.qty_in) === bars,
+      `A3c: the ledger stamped qty_in=${accrue && accrue.qty_in} but ${bars} items arrived — the consumed `
+      + 'inputs must not net down the GROSS inflow the daily budget is charged on');
+
+    /* THE RUN IS OVER, SO THE POINTER MOVED ON. The switch to `rat` is what
+       proves the collect ran first; the pointer being `rat` rather than a
+       smelting bench with an empty bag is what proves the two applies happened
+       in the right order. */
+    const st = await state(db, UID);
+    ok(st.active_kind === 'combat' && st.active_id === 'rat',
+      `A3c: the switch did not happen (${st.active_kind}/${st.active_id})`);
+
+    /* THE SKILL GATE, re-checked against SERVER XP — the artisan mirror of
+       A3b's Yew probe. `hr_activities` carries `req_skill`/`req_lv` for every
+       one of the 290 recipes, and a forged local level must buy nothing,
+       including the right to START a recipe the character cannot make. This is
+       also the control that the successful switch above satisfied a real gate
+       rather than an absent one. */
+    const topSmith = (await db.query(
+      `select activity_id, req_lv from public.hr_activities
+        where kind = 'artisan' and req_skill = 'smithing' order by req_lv desc limit 1`)).rows[0];
+    ok(!!topSmith && Number(topSmith.req_lv) > 20,
+      `A3c GATE: the catalogue's highest smithing recipe is ${JSON.stringify(topSmith)} — with the `
+      + 'probe at smithing 1,000 XP (level ~10) there is nothing here the gate can refuse');
+    if (topSmith) {
+      const locked = await call({ intentId: uuid(), activity: { kind: 'artisan', id: topSmith.activity_id } });
+      ok(locked.body.ok !== true && locked.body.error === 'activity_locked',
+        `A3c GATE: a smithing-10 character was allowed to start '${topSmith.activity_id}' `
+        + `(req ${topSmith.req_lv}): ${JSON.stringify(locked.body).slice(0, 200)}`);
+    }
+
+    /* A recipe that does not exist is refused BY NAME, before any statement. */
+    const bogus = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'not_a_recipe' } });
+    ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
+      `A3c: an unknown recipe returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
+
+    /* ── AND THE HELD-BACK BENCH. Cooking is settable-shaped and NOT payable
+       until `noBurn` is server-owned, so it must be refused as
+       `activity_unsupported` — the code that means "real, and not server-side
+       yet" — and the pointer must not move. If this ever starts succeeding
+       WITHOUT SERVER_OWNED_BONUS_KEYS gaining `noBurn`, the server is cooking
+       at the base 25% burn against a client whose Kitchen says 0%. */
+    const cook = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'cook_shrimp' } });
+    const artisanSim = await import('../src/core/artisan-sim.js');
+    if (artisanSim.benchPayable('cooking')) {
+      ok(cook.status === 200 && cook.body.ok === true,
+        `A3c: cooking is payable (\`noBurn\` is server-owned) but the intent refused it: `
+        + JSON.stringify(cook.body).slice(0, 200));
+    } else {
+      ok(cook.status === 409 && cook.body.error === 'activity_unsupported',
+        `A3c: an unpayable bench returned ${cook.status} ${JSON.stringify(cook.body).slice(0, 200)} — `
+        + 'expected 409 activity_unsupported, refused on SHAPE. If the pointer can hold it, the engine '
+        + 'refuses the COLLECT with `unpayable_bench`, which refuses the SWITCH, and the player is locked '
+        + 'on that bench until a deploy.');
+      const stillRat = await state(db, UID);
+      ok(stillRat.active_id === 'rat',
+        `A3c: the refused cooking switch still moved the pointer to ${stillRat.active_id}`);
+    }
+  }
+
+  /* ── A3d. THE ESCAPE HATCH FROM AN UNPRICEABLE POINTER (Security C3) ─────
+     A REFUSING skip defers the window rather than confiscating it, which is
+     right and has one consequence nobody had written down: the collect refuses,
+     the refusal refuses the SWITCH, and that includes a switch to `idle`. Roll
+     an Edge deploy back, or rename a recipe, while players hold artisan
+     pointers and every one of those characters is frozen — unable even to stop
+     — until a deploy goes forward again.
+
+     `idle`, and only `idle`, may now force-close such a window as a JOURNALLED
+     FORFEIT. The partition (POINTER_SKIP_REASONS) is the whole design: reasons
+     that are a property of the POINTER forfeit, because waiting would never
+     have paid them; reasons that are a property of the ABSENCE do NOT, because
+     waiting WOULD, and forfeiting there is exactly the confiscation the
+     collect-before-switch rule exists to prevent. Both arms are driven here. */
+  {
+    /* THE ROLLBACK, SIMULATED HONESTLY: the pointer holds a real catalogue row
+       (`cook_shrimp` IS in hr_activities) that THIS BUILD cannot price, which
+       is precisely what a rename or a payload rollback produces. Written by
+       direct SQL because the intent surface correctly refuses to create it. */
+    await db.query(
+      `update public.player_state
+          set active_kind = 'artisan', active_id = 'cook_shrimp',
+              accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
+        where user_id = $1 and slot = 0`, [UID]);
+
+    const stuckIsUnpriceable = !Object.prototype.hasOwnProperty.call(
+      cat.ARTISAN_RECIPES_PAYABLE, 'cook_shrimp');
+    ok(stuckIsUnpriceable,
+      'A3d: `cook_shrimp` is payable in this build, so the pointer below is not stuck and the whole '
+      + 'section proves nothing. Pick a recipe this build refuses, or drive it with a synthetic id.');
+
+    if (stuckIsUnpriceable) {
+      /* (i) THE LOCKOUT IS REAL — anything that is NOT a stop still refuses.
+         Without this the forfeit below could be "the pointer was never stuck". */
+      const sideways = await call({ intentId: uuid(), activity: { kind: 'combat', id: 'rat' } });
+      ok(sideways.status === 409 && sideways.body.error === 'uncollectable_window',
+        `A3d(i): switching off an unpriceable pointer returned ${sideways.status} `
+        + `${JSON.stringify(sideways.body).slice(0, 200)} — expected 409 uncollectable_window. If this `
+        + 'succeeds the escape hatch is not needed and (ii) is measuring nothing.');
+      const stillStuck = await state(db, UID);
+      ok(stillStuck.active_id === 'cook_shrimp',
+        `A3d(i): the refused switch moved the pointer to ${stillStuck.active_id}`);
+
+      /* (ii) …AND A STOP GETS OUT. */
+      const beforeGold = Number(stillStuck.gold);
+      const beforeLedger = (await ledger(db, UID)).length;
+      const stop = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
+      ok(stop.status === 200 && stop.body.ok === true,
+        `A3d(ii): a STOP could not close an unpriceable window: ${stop.status} `
+        + `${JSON.stringify(stop.body).slice(0, 250)}. The character is frozen on an activity this `
+        + 'build cannot price, with no client-side recovery at all.');
+      const after = await state(db, UID);
+      ok(after.active_kind === 'idle' && after.active_id === null,
+        `A3d(ii): the pointer is still ${after.active_kind}/${after.active_id}`);
+      ok(Number(after.gold) === beforeGold,
+        `A3d(ii): the forfeit MOVED GOLD (${beforeGold} -> ${after.gold}). It must move no value at `
+        + 'all — a watermark and a journal row, nothing else.');
+      ok(stop.body.forfeited && stop.body.forfeited.reason === 'unpayable_bench',
+        `A3d(ii): the response reports forfeited=${JSON.stringify(stop.body.forfeited)}. A stop that `
+        + 'silently discarded three hours is the same defect class as a payment nobody is told about.');
+
+      /* (iii) IT IS JOURNALLED, as its OWN row, separate from the declaration.
+         One merged row would show neither the forfeit nor the switch. */
+      const rows = (await ledger(db, UID)).slice(beforeLedger);
+      const forfeit = rows.find((x) => x.intent === 'set_activity:forfeit');
+      ok(!!forfeit,
+        `A3d(iii): no forfeit ledger row (${rows.map((x) => x.intent)}). An unaudited write that `
+        + 'discards a player\'s window is indistinguishable from an incident later.');
+      ok(forfeit && forfeit.kind === 'admin',
+        `A3d(iii): the forfeit was journalled as '${forfeit && forfeit.kind}' — it moves no value, so `
+        + 'filing it under an earning kind puts a zero row in the rollup\'s buckets');
+      ok(forfeit && forfeit.meta && forfeit.meta.reason === 'unpayable_bench'
+         && forfeit.meta.from_id === 'cook_shrimp',
+        `A3d(iii): the forfeit row does not say what was given up: ${JSON.stringify(forfeit && forfeit.meta)}`);
+      ok(!!rows.find((x) => x.intent === 'set_activity:idle'),
+        'A3d(iii): the stop itself was not journalled — the forfeit and the declaration are two '
+        + 'applies and must be two rows');
+    }
+
+    /* (iv) THE PARTITION'S OTHER HALF. `no_active_since` is a property of the
+       ABSENCE, not of the pointer: it is transient and waiting would pay. A
+       stop must NOT forfeit it, or the escape hatch has quietly become the
+       confiscation the whole contract exists to prevent — and the same
+       reasoning covers `no_cap`, which is unreachable to drive here (the cap
+       function floors at 12h) and shares this list. */
+    await db.query(
+      `update public.player_state
+          set active_kind = 'combat', active_id = 'rat',
+              accrued_to = now() - interval '3 hours', active_since = null
+        where user_id = $1 and slot = 0`, [UID]);
+    const transient = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
+    ok(transient.status === 409 && transient.body.error === 'uncollectable_window',
+      `A3d(iv): a STOP force-closed a \`no_active_since\` window (${transient.status} `
+      + `${JSON.stringify(transient.body).slice(0, 200)}). That reason is transient — the next intent `
+      + 'restamps the watermark and the window becomes payable — so forfeiting it destroys time the '
+      + 'player would otherwise have been paid for. Only POINTER reasons may forfeit.');
+    const untouched = await state(db, UID);
+    ok(untouched.active_kind === 'combat' && untouched.active_id === 'rat',
+      `A3d(iv): the refused stop moved the pointer to ${untouched.active_kind}/${untouched.active_id}`);
+
+    /* Restore a sane pointer for the sections that follow. */
+    await db.query(
+      `update public.player_state
+          set active_kind = 'combat', active_id = 'rat',
+              accrued_to = now(), active_since = now()
+        where user_id = $1 and slot = 0`, [UID]);
   }
 
   // ── A4. A REPLAYED INTENT APPLIES NOTHING ────────────────────────────────

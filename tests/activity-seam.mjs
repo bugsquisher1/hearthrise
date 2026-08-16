@@ -137,12 +137,97 @@ export async function runAll() {
     }
   }
   /* The DOWNGRADE has a call site too, or `artisan` is silent again — and
-     silence is the mis-payment, not the neutral option. */
+     silence is the mis-payment, not the neutral option. Redundant with the loop
+     above while `artisan` is settable, and kept anyway: it is the assertion
+     that survives `artisan` being pulled back out of PAYABLE_KINDS, which is
+     precisely the moment the silence would return unnoticed. */
   if (!/declareActivity\(\s*['"]artisan['"]/.test(legacy)) {
-    fail('ACTIVITY SEAM: nothing in src/legacy.js declares `artisan`. It is not settable today and it is '
-      + 'not supposed to be silent either: an artisan run that says nothing leaves the server\'s pointer on '
-      + 'the PREVIOUS activity, so a player who chops oak and then cooks is paid for oak for as long as '
-      + 'they cook. `declarationFor` turns it into an honest `idle`; the call site has to exist for it to.');
+    fail('ACTIVITY SEAM: nothing in src/legacy.js declares `artisan`. An artisan run that says nothing '
+      + 'leaves the server\'s pointer on the PREVIOUS activity, so a player who chops oak and then cooks '
+      + 'is paid for oak for as long as they cook. Whether the declaration reaches the server as `artisan` '
+      + 'or is downgraded to `idle` is `declarationFor`\'s decision; the call site has to exist either way.');
+  }
+
+  /* ── S6: THE PER-RECIPE DOWNGRADE (b356) ────────────────────────────────
+     `artisan` is settable and 261 of its 290 recipes are payable. The COOKING
+     bench is held back because `noBurn`'s Kitchen rung is READ from server
+     state but still WRITTEN by the client, so a server night would burn what
+     the player's Range protects. That exclusion has to hold on BOTH sides or
+     it is not an exclusion:
+       · the CLIENT must not declare an unpayable recipe (it declares `idle`,
+         which collects the real window and stops the meter);
+       · the SERVER must not accept one (refused on shape, so the pointer can
+         never come to hold it and the engine's `unpayable_bench` refusal can
+         never lock a player out of switching).
+     Driven off the DATA, never off the name "cooking", so the day the gate
+     opens this section follows it with no edit. */
+  let artisan;
+  let recipes;
+  try {
+    [artisan, recipes] = await Promise.all([
+      import(mod('src/core/artisan-sim.js')),
+      import(mod('src/data/recipes.js')),
+    ]);
+  } catch (e) {
+    fail('the artisan payability model could not be loaded, so S6 did not run: ' + (e && e.message));
+    return problems;
+  }
+  const idx = artisan.indexArtisanRecipes(recipes.ARTISAN_RECIPES);
+  const blocked = Object.keys(idx).filter((id) => !artisan.recipePayable(idx, id));
+  const payable = Object.keys(idx).filter((id) => artisan.recipePayable(idx, id));
+
+  /* CONTROLS FIRST. With every recipe payable — or none — the two loops below
+     would pass for the wrong reason, and this gate is supposed to be a
+     temporary exclusion rather than a permanent one. */
+  if (!payable.length) {
+    fail('ACTIVITY SEAM S6: NO artisan recipe is payable, so `artisan` is in PAYABLE_KINDS and pays '
+      + 'nothing at all — every declaration is downgraded to `idle` and the widening bought nothing.');
+  }
+  if (blocked.length) {
+    const b = blocked[0];
+    const d = client.declarationFor('artisan', b);
+    if (!d || d.kind !== 'idle' || d.id !== null) {
+      fail(`ACTIVITY SEAM S6: declarationFor('artisan', '${b}') produced ${JSON.stringify(d)}. `
+        + `That recipe's bench is not payable (blocked by \`${artisan.benchBlockedBy(idx[b].skill)}\`), so `
+        + 'declaring it spends a key and a rate budget to earn a 409 AND leaves the server\'s pointer on '
+        + 'the previous activity — the b348 mis-payment with an extra round trip. It must declare `idle`.');
+    }
+    const w = JSON.parse(client.buildActivityRequest({ kind: 'idle', id: null, intentId: 'k' }).init.body);
+    if (w.activity.kind !== 'idle' || w.activity.id !== null) {
+      fail('ACTIVITY SEAM S6: a stop no longer builds as {idle,null}, so the downgrade above has nowhere '
+        + 'to land.');
+    }
+    /* THE SERVER HALF, through the REAL intent. No database, no exec — the
+       refusal is on shape, which is the property being asserted. */
+    const refused = await server.runSetActivity({
+      exec: async () => { throw new Error('S6: an unpayable bench reached the DATABASE — it must be '
+        + 'refused on shape, before any statement, or it costs a rate budget and a state read'); },
+      user: '00000000-0000-4000-8000-0000000000s6'.replace('s6', '56'),
+      slot: 0, intentId: '00000000-0000-4000-8000-000000000001',
+      activity: { kind: 'artisan', id: b },
+    });
+    if (refused.status !== 409 || refused.body.error !== 'activity_unsupported') {
+      fail(`ACTIVITY SEAM S6: set_activity answered ${refused.status} ${JSON.stringify(refused.body)} for `
+        + `an unpayable recipe. It must be 409 activity_unsupported: if the pointer can hold it, the `
+        + 'engine refuses the COLLECT with `unpayable_bench`, which refuses the SWITCH, and the player is '
+        + 'locked on that bench until a deploy.');
+    }
+  }
+  /* …AND A PAYABLE ONE IS NOT DOWNGRADED. Without this, "downgrade everything"
+     passes S6 and pays nothing — the failure S6 exists to prevent. */
+  {
+    const p = payable[0];
+    const d = client.declarationFor('artisan', p);
+    if (!d || d.kind !== 'artisan' || d.id !== p) {
+      fail(`ACTIVITY SEAM S6 CONTROL: declarationFor('artisan', '${p}') produced ${JSON.stringify(d)} for a `
+        + 'PAYABLE recipe. The downgrade is refusing everything, so the 261 recipes the engine can price '
+        + 'would all report `idle` and pay nothing.');
+    }
+    const w = JSON.parse(client.buildActivityRequest({ kind: 'artisan', id: p, intentId: 'k' }).init.body);
+    if (w.activity.kind !== 'artisan' || w.activity.id !== p) {
+      fail(`ACTIVITY SEAM S6 CONTROL: buildActivityRequest rewrote a payable artisan declaration as `
+        + JSON.stringify(w.activity));
+    }
   }
 
   /* ── S3: ONE CATALOGUE, TWO READERS ─────────────────────────────────────
@@ -194,11 +279,17 @@ export async function runAll() {
     fail('ACTIVITY SEAM: a kind the game cannot do was accepted and downgraded to a stop — that hides a '
       + 'client bug behind a legitimate-looking declaration.');
   }
-  /* The wire builder is the last gate: it may only ever emit a declarable kind. */
-  const wire = JSON.parse(client.buildActivityRequest({ kind: 'artisan', id: 'cook_shrimp', intentId: 'k' }).init.body);
+  /* The wire builder is the last gate: it may only ever emit a declarable kind.
+     Driven with a kind the GAME has and this build cannot declare — derived
+     from the two lists rather than named, so it follows a widening instead of
+     going vacuous after one. (`farm` is the fallback when the two lists
+     coincide: an unknown kind must fall to `idle` too.) */
+  const undeclarable = client.GAME_ACTIVITY_KINDS.find((k) => declarable.indexOf(k) === -1) || 'farm';
+  const wire = JSON.parse(client.buildActivityRequest({ kind: undeclarable, id: 'some_id', intentId: 'k' }).init.body);
   if (wire.activity.kind !== 'idle' || wire.activity.id !== null) {
-    fail(`ACTIVITY SEAM: buildActivityRequest emitted ${JSON.stringify(wire.activity)} for a non-declarable `
-      + 'kind — the request body must only ever carry a kind from ACTIVITY_KINDS.');
+    fail(`ACTIVITY SEAM: buildActivityRequest emitted ${JSON.stringify(wire.activity)} for the `
+      + `non-declarable kind '${undeclarable}' — the request body must only ever carry a kind from `
+      + 'ACTIVITY_KINDS.');
   }
   for (const kind of declarable) {
     const w = JSON.parse(client.buildActivityRequest({ kind, id: 'oak_tree', intentId: 'k' }).init.body);

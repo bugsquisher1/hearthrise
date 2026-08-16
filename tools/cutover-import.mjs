@@ -10,6 +10,9 @@
 //   node tools/cutover-import.mjs --rehearse           full write + rollback
 //   node tools/cutover-import.mjs --apply --yes        the real thing
 //   node tools/cutover-import.mjs --user <uuid> …      one player
+//   node tools/cutover-import.mjs … --reopen-cutover   re-open a CLOSED cutover
+//                                                      (a marker row exists — the
+//                                                      ceremony has already run)
 //   node tools/cutover-import.mjs --report-dir <dir>   where the JSON lands
 //
 // ── WHY THIS EXISTS ─────────────────────────────────────────────────────
@@ -1119,7 +1122,8 @@ export async function run(argv) {
   let markers = [];
   let markerTable = true;
   try {
-    markers = await q('select user_id::text as user_id, slot, snapshot_sha from public.hr_import_marker');
+    markers = await q('select user_id::text as user_id, slot, snapshot_sha, '
+      + 'imported_at::text as imported_at from public.hr_import_marker');
   } catch (e) {
     if (!/hr_import_marker.*does not exist/.test(e.message)) throw e;
     markerTable = false;
@@ -1133,6 +1137,43 @@ export async function run(argv) {
   }
   const done = new Set((Array.isArray(markers) ? markers : []).map((m) => `${m.user_id}:${m.slot}`));
   void markerTable;
+
+  /* ⚠ THE CUTOVER IS A ONE-TIME CEREMONY (Security N1, 2026-08-17).
+     The per-player marker above stops a re-import of somebody already imported.
+     It does NOT stop the ceremony being run a second time — and the gap is real:
+     a player who registers AFTER the cutover has no marker row and sits at
+     version 0 with a live, client-authored game_saves.snapshot, so every check
+     in hr_import_apply reads their blob as a legitimate first import. A second
+     --apply would trust a forgeable client value, once, per new player.
+     ANY marker row therefore means the ceremony is over. The server refuses
+     independently (`cutover_closed`); this stop exists so the operator reads a
+     sentence instead of a batch of errors. */
+  const reopen = argv.includes('--reopen-cutover');
+  if (mode === 'apply' && done.size && !reopen) {
+    const when = markers.map((m) => m.imported_at).filter(Boolean).sort()[0];
+    die(`THE CUTOVER IS CLOSED. public.hr_import_marker holds ${done.size} row(s)`
+      + `${when ? ` (first import ${when})` : ''}, which means the one-time import ceremony has\n`
+      + '  already run. Importing again would take a CLIENT-AUTHORED snapshot as server truth for\n'
+      + '  any player who has no marker row — i.e. everyone who registered since — and that is the\n'
+      + '  exact trust the whole server-authority program exists to remove. There is no un-import.\n'
+      + '  The server refuses this too: hr_import_apply answers `cutover_closed` on every\n'
+      + '  p_commit call while a marker exists.\n'
+      + '  --rehearse and --dry-run are unaffected and are what you want for diagnosis.\n'
+      + '  If the cutover genuinely must be re-opened, that is a deliberate, reviewed act:\n'
+      + '    node tools/cutover-import.mjs --apply --yes --reopen-cutover');
+  }
+  /* --reopen-cutover must also lift the SERVER's seal, or the flag is a door
+     that opens onto a wall. The GUC is set transaction-locally INSIDE the same
+     statement as the RPC (a single statement is its own transaction, and the
+     FROM row is produced before the target list), so it can never leak onto a
+     pooled connection the way a session-level SET would. */
+  const reopenFrom = reopen
+    ? " from (select set_config('hearthrise.import_reopen', 'yes', true)) _reopen"
+    : '';
+  if (reopen && mode === 'apply') {
+    console.log('  ⚠ --reopen-cutover: the server seal is being lifted for THIS RUN ONLY. '
+      + 'Every player without a marker row will be imported from their client blob.');
+  }
 
   const reports = [];
   const tool = `tools/cutover-import.mjs@${process.env.GIT_SHA || 'local'}`;
@@ -1206,7 +1247,7 @@ export async function run(argv) {
       const res = await q(
         `select public.hr_import_apply(${lit(row.user_id)}::uuid, ${Number(row.slot)},
                 ${lit(JSON.stringify(plan))}::jsonb, ${lit(JSON.stringify(meta))}::jsonb,
-                ${commit ? 'true' : 'false'}) as r`);
+                ${commit ? 'true' : 'false'}) as r${reopenFrom}`);
       const out = Array.isArray(res) && res[0] ? res[0].r : null;
       rec.server = out;
       if (!out || out.ok !== true) {

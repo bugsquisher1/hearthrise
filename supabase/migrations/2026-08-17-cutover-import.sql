@@ -102,6 +102,32 @@
 -- FAILS CLOSED without any of them.
 --
 -- SAFE TO RE-RUN. Additive and idempotent.
+--
+-- ── ⚠ AMENDED AFTER APPLY — THIS FILE IS DESIGNATED FOR RE-APPLY ─────────
+-- APPLIED to production 2026-08-16 03:57 UTC (six markers). AMENDED 2026-08-17
+-- to add §(c2), the CUTOVER-CLOSED seal (Security N1, MEDIUM). It must be
+-- RE-APPLIED for the seal to exist in production:
+--
+--     node tools/apply-migration.mjs 2026-08-17-cutover-import.sql
+--
+-- Re-apply, rather than a new dated migration that replaces the body, and the
+-- reason is the one this repo has paid for twice (HANDOFF, "three definitions
+-- of join as self"): ONE FILE MUST OWN A DEFINITION. This file is a single
+-- `create or replace` of hr_import_apply with no other definer anywhere, and
+-- it is the file the mutation harness patches — tests/cutover-import.mjs
+-- plants eight real defects into THESE bytes and requires each to read RED. A
+-- second file replacing the body after it would silently override every one of
+-- those planted defects and turn eight RED proofs GREEN, in the guard built to
+-- prove this function cannot be broken quietly. The derivation-chain treatment
+-- (tools/derive-*.mjs, used for hr_apply / hr_rate_gate / hr_perks_of) exists
+-- for bodies with MANY authors across many files; this one has exactly one.
+--
+-- RE-APPLY IS SAFE AGAINST THE POST-CUTOVER DATABASE, asserted rather than
+-- assumed: §1 is create-table-IF-NOT-EXISTS so the six markers are untouched;
+-- §2 is create-or-replace; §3's revoke is idempotent; and every probe in §4 is
+-- a REHEARSAL (p_commit => false), which §(c2) deliberately does not seal — so
+-- the self-check passes on a closed cutover and would have been the thing that
+-- broke had the seal been written without the p_commit gate.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── 0. PRECONDITIONS — FAIL CLOSED ───────────────────────────────────────
@@ -269,6 +295,9 @@ revoke all on public.hr_import_marker from public, anon, authenticated, service_
 --   bad_plan              p_plan is not an object
 --   bad_plan_key          a top-level key nothing handles
 --   no_character          hr_create_character refused (its own error is echoed)
+--   cutover_closed        a marker row exists ANYWHERE and p_commit is true.
+--                         The ceremony is over; see §(c2). Rehearsals are
+--                         unaffected. Re-openable only by an owner-set GUC.
 --   character_already_played  version > 0, or a non-bootstrap ledger row exists.
 --                         The import seeds a FRESH server character; running it
 --                         over one that has already accrued would clobber real
@@ -343,6 +372,10 @@ declare
 
   v_slot     int;
   v_marker   public.hr_import_marker%rowtype;
+  -- The SEAL's evidence (§(c2)). `imported_at` is NOT NULL, so a null min() is
+  -- exactly "the table is empty", i.e. "the ceremony has not happened" — one
+  -- scan instead of an exists() plus an aggregate over the same six rows.
+  v_first_at timestamptz;
   v_ver      bigint;
   v_char_at  timestamptz;
   v_ledger_n int;
@@ -430,6 +463,48 @@ begin
       -- The disagreement, if there is one, is REPORTED rather than acted on.
       -- Re-importing over a live character is never the right automatic answer.
       'sha_matches', (v_marker.snapshot_sha = coalesce(p_meta->>'snapshot_sha', '')));
+    raise exception using errcode = 'HR001', message = v_payload::text;
+  end if;
+
+  -- ── (c2) THE CUTOVER IS CLOSED ────────────────────────────────────────
+  -- Security N1 (re-review, 2026-08-17). §(c) is a PER-PLAYER marker: it stops
+  -- a second import of somebody already imported and nothing else. It does not
+  -- stop the ceremony being run AGAIN, and the window that matters is real —
+  -- a player who registers after the cutover sits at version = 0 with a live,
+  -- client-authored `game_saves.snapshot` and no marker row of their own, so
+  -- §(c) waves them through and §(e) (version > 0 / ledger residue) has nothing
+  -- to refuse on. In that window a re-run of the tool imports a forgeable blob
+  -- into a fresh server character, in full, and every check in this file agrees
+  -- it is a normal first import — because for that player it looks like one.
+  --
+  -- ANY marker row therefore means THE CEREMONY IS OVER, for everybody. The
+  -- import is a one-time event in the life of this database and the marker
+  -- table is the only never-pruned record that it happened (see IDEMPOTENCY in
+  -- the header) — which makes it the right thing to key the seal on: it cannot
+  -- expire, and it cannot be deleted by any client (§1's revoke-all, including
+  -- TRUNCATE).
+  --
+  -- GATED ON p_commit, deliberately. `--rehearse` and `--dry-run` write nothing
+  -- (every path unwinds through §(o)'s HR001 raise) and stay usable forever:
+  -- rehearsing the shape of an import against a closed cutover is diagnosis, not
+  -- a write, and a seal that also blocks the diagnostic tool is a seal people
+  -- work around.
+  --
+  -- THE ESCAPE HATCH IS A GUC, NOT AN ARGUMENT. A `p_force` parameter is a value
+  -- the caller supplies inside the same JSON-shaped call it already controls;
+  -- `hearthrise.import_reopen` must be set as a separate statement in the SAME
+  -- session by whoever holds the owner connection, so re-opening the cutover is
+  -- an explicit, separate, auditable act. It is never set by the game, by the
+  -- Edge Function or by any migration — only by tools/cutover-import.mjs under
+  -- --reopen-cutover, which refuses without it too.
+  select min(imported_at) into v_first_at from public.hr_import_marker;
+  if p_commit and v_first_at is not null
+     and coalesce(current_setting('hearthrise.import_reopen', true), '') <> 'yes' then
+    v_payload := jsonb_build_object(
+      'ok', false, 'error', 'cutover_closed',
+      'detail', jsonb_build_object(
+        'imported_at', v_first_at,
+        'how', 'set hearthrise.import_reopen = ''yes'' in the SAME session'));
     raise exception using errcode = 'HR001', message = v_payload::text;
   end if;
 
@@ -1074,6 +1149,13 @@ declare
   v_r     jsonb;
   v_n     bigint;
   v_txt   text;
+  -- §4(b2), the seal probe. Two uuids that cannot be in auth.users, so the
+  -- commit-path probe below cannot write anything for a real player even if
+  -- the seal it is testing is absent — see the block for why that matters.
+  v_ghost  constant uuid := '00000000-0000-0000-0000-0000000c105e';
+  v_ghost2 constant uuid := '00000000-0000-0000-0000-0000000c105f';
+  v_seal    text;
+  v_planted boolean := false;
 begin
   -- (a) THE ACL. A privileged RPC left executable by a client role is the whole
   --     game. Asserted for every role that can reach PostgREST.
@@ -1109,6 +1191,87 @@ begin
                       'client can delete is not one.', v_txt;
     end if;
   end loop;
+
+  -- (b2) THE SEAL IS ARMED — Security N1. Proven by DRIVING it, on the commit
+  --      path, which is the only path it guards.
+  --
+  --      ⚠ HOW THIS PROBE IS MADE SAFE. It is the one check in this file that
+  --        calls hr_import_apply with p_commit => true, and a commit-path call
+  --        against a database whose seal is missing would perform a REAL
+  --        import. So the caller is a uuid that cannot exist in auth.users:
+  --        player_state.user_id references auth.users(id), so if the seal is
+  --        absent the call falls through to §(d) and dies on the foreign key
+  --        having written nothing. Sealed → `cutover_closed`. Unsealed → an
+  --        error, loudly, and the migration refuses. There is no third outcome
+  --        in which a player is touched, and §(b2-iv) asserts that.
+  --
+  --      The seal keys on ANY marker row, so on a database that has already
+  --      run the cutover (production: six markers) it is armed by the real
+  --      rows. On a fresh rebuild there are none, so one is PLANTED for the
+  --      probe and removed afterwards — a self-check that silently skips on a
+  --      rebuilt database is this project's most-named failure.
+  if not exists (select 1 from public.hr_import_marker) then
+    insert into public.hr_import_marker (user_id, slot, snapshot_sha, counts, tool)
+      values (v_ghost2, 5, repeat('c', 64), '{}'::jsonb, 'self-check §4(b2)');
+    v_planted := true;
+  end if;
+
+  -- (b2-i) SEALED: a commit-path call is refused by name.
+  begin
+    v_r := public.hr_import_apply(v_ghost, 5, '{}'::jsonb, '{}'::jsonb, true);
+    v_seal := coalesce(v_r->>'error', 'ok:' || coalesce(v_r->>'imported', '?'));
+  exception when others then
+    -- The unsealed outcome: it got past §(c2) and died downstream. Recorded
+    -- rather than swallowed, so the message below can say which.
+    v_seal := 'raised:' || sqlstate;
+  end;
+  if v_seal <> 'cutover_closed' then
+    raise exception 'THE CUTOVER SEAL IS NOT ARMED. A p_commit=true call against a database that '
+                    'has already been imported answered "%" instead of cutover_closed. §(c2) is '
+                    'missing or its condition is wrong, and a re-run of tools/cutover-import.mjs '
+                    'would import a client-authored blob into any player sitting at version 0.',
+                    v_seal;
+  end if;
+
+  -- (b2-ii) THE ESCAPE HATCH WORKS — or the seal is a wall with no door and
+  --         the next operator disables it in a hurry instead of using it.
+  perform set_config('hearthrise.import_reopen', 'yes', true);
+  begin
+    v_r := public.hr_import_apply(v_ghost, 5, '{}'::jsonb, '{}'::jsonb, true);
+    v_seal := coalesce(v_r->>'error', 'ok');
+  exception when others then
+    v_seal := 'raised:' || sqlstate;   -- past the seal, dead on the ghost's FK
+  end;
+  perform set_config('hearthrise.import_reopen', '', true);
+  if v_seal = 'cutover_closed' then
+    raise exception '§4(b2-ii): hearthrise.import_reopen = ''yes'' did not re-open the cutover — '
+                    'the seal cannot be lifted by the documented route.';
+  end if;
+
+  -- (b2-iii) THE REHEARSAL IS NOT SEALED. The whole reason §(c2) gates on
+  --          p_commit: --rehearse and --dry-run must stay usable forever.
+  begin
+    v_r := public.hr_import_apply(v_ghost, 5, '{}'::jsonb, '{}'::jsonb, false);
+    v_seal := coalesce(v_r->>'error', 'ok');
+  exception when others then
+    v_seal := 'raised:' || sqlstate;   -- the ghost's FK, i.e. past §(c2)
+  end;
+  if v_seal = 'cutover_closed' then
+    raise exception '§4(b2-iii): a REHEARSAL was refused as cutover_closed. The seal is not gated '
+                    'on p_commit, so the diagnostic tool is dead the moment the cutover runs.';
+  end if;
+
+  -- (b2-iv) THE PROBE TOUCHED NOTHING.
+  if exists (select 1 from public.player_state where user_id = v_ghost)
+     or exists (select 1 from public.hr_import_marker where user_id = v_ghost) then
+    raise exception '§4(b2-iv): the seal probe left rows behind for the ghost caller.';
+  end if;
+  if v_planted then
+    delete from public.hr_import_marker where user_id = v_ghost2 and slot = 5;
+  end if;
+  if v_planted and exists (select 1 from public.hr_import_marker where user_id = v_ghost2) then
+    raise exception '§4(b2): the planted probe marker was not removed.';
+  end if;
 
   -- (c) THE BEHAVIOURAL PROBE. Runs only if there is a real user with a free
   --     slot 5 — the same predicate 2026-08-14-character-bootstrap.sql §6(g)
@@ -1329,7 +1492,8 @@ begin
                     'append-only, so that row can never be cleaned up.';
   end if;
 
-  raise notice '§4 PASSED: ACL closed on four roles; a rehearsal imports, reads back through '
+  raise notice '§4 PASSED: the cutover SEAL refuses a commit-path call, lifts for the documented '
+               'GUC and leaves rehearsals alone; ACL closed on four roles; a rehearsal imports, reads back through '
                'hr_state_of, and rolls back leaving no marker and no player_state; a REFUSAL '
                'leaves neither a character nor a ledger row; 1e12 gold and over-99 xp clamp AND '
                'report; an unknown item, an off-ladder rung, a mis-kinded rung and an ungated '

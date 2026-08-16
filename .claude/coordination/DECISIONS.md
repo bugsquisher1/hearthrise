@@ -4,6 +4,62 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-08-16 · BESTIARY CHARMS (PROG-01, Tibia-style) — direction APPROVED by Tyler
+**Decision (Tyler, direct: "The bestiary system that tibia has would be SOOOOOO SICK").** The
+Tibia-style bestiary is approved as a direction: kill-count progress per monster unlocks bestiary
+entries; completing entries earns charm points spent on category-scoped perks. It composes with
+the monster-rework taxonomy (its value scales with the approved category system) and its power
+lives inside `weaknessInfo` with a `MAX_BANE_MULT` invariant — NEVER as a `getBonus` key, or the
+server engine reads it as zero (designer's routed flag). Kill-thresholds, charm list, and point
+economy flow through the review book; sequencing stays behind the monster rework it depends on.
+**Date:** 2026-08-16.
+
+---
+
+### 2026-08-16 · THE KINDLING / THE BEACON — APPROVED by Tyler, enthusiastically
+**Decision (Tyler, direct: "I LOVE THE KINDLING AND BEACON IDEA").** The events rework's headline
+is approved: The Muster is replaced by **The Kindling** (daily donation pool) and **The Beacon**
+(weekly pool + blessing vote), per `docs/design/events-donations-and-voting.md`. The rename, the
+embers donation concept, and the vote-then-boost shape are locked. Fine-grained parameters
+(tier thresholds, blessing-roll list, caps) still flow through the review book, but implementers
+may treat the system's existence and shape as settled. The three routed flags in CONFLICTS.md
+(fuse re-split, `beaconWeekKey`, away-channel rule) bind the implementation. **Date:** 2026-08-16.
+
+---
+
+### 2026-08-16 · Post-cutover feature ORDER locked (Tyler, batch 2)
+**Decision (Tyler, direct).** The Coordinator's recommended order is adopted as the build sequence,
+with Coordinator discretion to run overlapping items simultaneously: **Hunt band fairness (staged,
+apply it) → Completion Log → Quest Board rework → Supply projection + Fletching (one arc: the
+depletion economy) → World-boss blessing → then the remaining list as previously numbered.**
+Back burner: Practice tiers, buy-offers return. Elements/enchanting stays sequenced after the
+monster rework (batch-1 ruling).
+
+**The governing priority right now is THEORIZING THE SYSTEMS** — making them "fun / understandable
+but deep, familiar but unique" (Tyler's words). Design/spec work leads; implementation follows
+Tyler's approvals through the review book. Every new system spec is held to that bar: a player
+should recognize the shape from games they love (OSRS/Melvor/Tibia/Idle Clans lineage) and still
+find something Hearthrise-only in it.
+
+**Affected:** all agents. Design-first dispatches take precedence over feature implementation
+except where implementation is nearly free (staged migrations, small QoL). **Date:** 2026-08-16.
+
+---
+
+### 2026-08-16 · Tyler's post-cutover feature rulings (batch 1)
+**Decision (Tyler, direct).** Against the numbered post-cutover feature list:
+- **Back burner:** "Practice" familiarity tiers (#6) and buy-offers return (#11). Not cancelled — deprioritized.
+- **Elements/enchanting (#12):** sequence AFTER the monster rework (#7), because the monster rework redoes all weaknesses and elements hang off them. Steal liberally from RuneScape/Melvor — the original spec is a starting point, not a contract ("It doesn't have to be exactly how I laid it out. Just make it make sense.").
+- **Monster rework (#7):** the Game Designer produces a LIBRARY of monster categories/types/enemies as candidates; Tyler picks from it. Nothing ships un-picked.
+- **Auto-eat** must ALSO be purchasable in the bounty shop (100-mark auto-eat already decided 2026-08-09) so it can't be missed.
+- **UI:** on every building-upgrade panel, the "Build (hearthstone)" button moves to the TOP — no scrolling to find it.
+- **Events rework:** rename "The Muster" (name TBD by Designer). Replace the pick-one-rally shape with **daily + weekly donation pools** that boost the daily/weekly blessing: e.g. daily blessing is combat XP → a shared donation pool (food/gold) fills tiers granting +1–5% to that blessing; weekly is the same at much larger donation totals, also +1–5%. Add a **voting system for the weekly blessing** — needs a wider blessing-roll library; voting closes 1 day before the weekly reset, and the weekly reset is **Sunday night**.
+- **The Review Book:** Tyler wants an interactive HTML review page where he browses designer-proposed content (monster library, current + upcoming items, progression-advancement options) and approves/rejects each with notes. Designer content is custom but steals from Tibia, OSRS, RS3, EverQuest, Melvor, Idle Clans — use their wikis/online libraries. Tyler's exported decisions become binding design input.
+
+**Affected:** game-designer (monster library, events/blessing design, item + progression option catalogues), systems-engineer (bounty-shop auto-eat, build-button placement), Coordinator (review book build + decision import). **Date:** 2026-08-16.
+
+---
+
 ### 2026-08-12 · The Hunt band is measured against the boss, and there is no unpaid band
 **Decision (Game Designer, own authority).** `raid_claim`'s contribution band stops ranking players
 against each other. The bar is now `hr_hunt_share(max_hp, members_at_declare)` — the pool split over

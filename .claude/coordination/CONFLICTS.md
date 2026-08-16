@@ -12,6 +12,13 @@ _Open conflicts — code, design, asset, gameplay, architecture, integration. **
 
 ## Open
 
+### 2026-08-16 · events-donations spec · THREE ROUTED FLAGS (Game Designer → Systems/Backend), pre-build
+From `docs/design/events-donations-and-voting.md` (The Kindling/The Beacon — AWAITING TYLER'S REVIEW-BOOK APPROVAL; nothing builds until then). Whoever implements must honour:
+1. **Fuse re-split.** The `getBonus('allXP') ≤ 0.60` assertion was written against PERMANENT power; donation-boosted blessings can put 0.17 on one key and break it. Ruling: `BLESSING_KEY_CAP = 0.12` (UI-visible, never a silent clamp) and the assertion splits into `permanent ≤ 0.60` / `calendar ≤ 0.12`. First-99 floor holds (~55.7d vs ≥54 gate) even at ceiling.
+2. **Do NOT move `utcWeekKey`.** It is Thursday-aligned and consumed by raids/quests. The Beacon gets its own `beaconWeekKey` (Monday 03:00 UTC reset = Sunday night in all four US zones year-round).
+3. **Away rule.** The donation boost mutates the blessing's own bonus map — it must NEVER get its own channel, or it silently starts paying away (`AWAY_SCOPE.blessing=false` is the rule). Spec test #7 is the tripwire.
+Also: retiring the muster chest removes ~7,500g + 10 gems/player/day of faucet while adding a sink — Systems must check the gem side (cosmetic access rate) before launch; designer ruled measure-a-week-then-adjust rather than pre-compensate.
+
 ### 2026-08-15 · b343 · SEMANTIC — away combat now pays a new character's first night (Systems → Game Designer)
 Tyler removed the away-combat gate ("get rid of the license shit it's way too confusing"). Design should hold the real numbers, not read them off a changelog. **Measured, 400 seeds, live engine**, a fresh character (10 HP, bronze sword, no Auto-Eat, empty food slot) left on Slime for eight hours:
 

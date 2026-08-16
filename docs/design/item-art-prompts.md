@@ -885,9 +885,9 @@ blue-white with rime; ember = hot orange with char; blight = sickly yellow-green
 | ITEM-PLAN-06a | Rune of Frost | a single large flat rune-stone carved with a frost glyph, rime creeping out from the cut | `rune_of_frost.png` |
 | ITEM-PLAN-06b | Rune of Ember | a single large flat rune-stone carved with an ember glyph, the cut glowing hot orange and char around it | `rune_of_ember.png` |
 | ITEM-PLAN-06c | Rune of Blight | a single large flat rune-stone carved with a blight glyph, sickly yellow-green weeping from the cut | `rune_of_blight.png` |
-| ITEM-PLAN-06d | Frost Arrows | a small bundle of arrows with pale blue-white heads sheathed in rime and frost-stiffened fletching | `frost_arrows.png` |
-| ITEM-PLAN-06e | Ember Arrows | a small bundle of arrows with hot orange glowing heads and scorched blackened fletching | `ember_arrows.png` |
-| ITEM-PLAN-06f | Blight Arrows | a small bundle of arrows with sickly yellow-green heads beading with venom and stained fletching | `blight_arrows.png` |
+| ITEM-PLAN-06d | Frost Arrows | a single oversized arrow with a pale blue-white head sheathed in rime, a straight shaft and frost-stiffened fletching | `frost_arrows.png` |
+| ITEM-PLAN-06e | Ember Arrows | a single oversized arrow with a hot orange glowing head, a straight shaft and scorched blackened fletching | `ember_arrows.png` |
+| ITEM-PLAN-06f | Blight Arrows | a single oversized arrow with a sickly yellow-green head beading with venom, a straight shaft and stained fletching | `blight_arrows.png` |
 | ITEM-PLAN-06g | Frost Whetstone | a hand whetstone rimed pale blue-white, cold vapour sinking off its scored face | `frost_whetstone.png` |
 | ITEM-PLAN-06h | Ember Whetstone | a hand whetstone glowing hot orange through its cracks with char blackening its corners | `ember_whetstone.png` |
 | ITEM-PLAN-06i | Blight Whetstone | a hand whetstone slick with sickly yellow-green residue, its scored face pitted and stained | `blight_whetstone.png` |

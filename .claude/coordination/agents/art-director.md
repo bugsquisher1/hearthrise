@@ -2,6 +2,67 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b360 — the 107 diagnosed by BASE RATE. One class confirmed and fixed; one
+### hypothesis disconfirmed; NOT GENERATED — the spend was never authorised by Tyler to me.
+
+**The method that mattered: I did not read the failures, I compared them to the successes.** A list
+of 107 wrong images tells you nothing on its own — every class in it has a 100% failure rate when the
+list is all you look at. So I bucketed all 512 delivered files by object noun and computed
+**failure rate against the SHIPPED set as the control.** That one table is the whole diagnosis:
+
+| class | rejected | shipped | fail% |
+|---|---|---|---|
+| staff / rod / arrows / needle | 28 | **0** | **100%** |
+| block / masonry | 6 | 2 | 75% |
+| cloak / cape / mantle | 8 | 3 | 73% |
+| bow | 4 | 5 | 44% |
+| plank | 3 | 4 | 43% |
+| bar / ingot | 4 | 6 | 40% |
+| whetstone | 2 | 5 | 29% |
+| ore | 1 | 5 | 17% |
+| **sword / axe / pickaxe / warhammer / knife** | **1** | **32** | **3%** |
+
+**CONFIRMED root cause, class 1 — the feature-summoning trap, third proven instance.** P-WEAPON's
+wrapper says *"blade or head upper-left, grip lower-right."* Objects that HAVE a blade or head fail
+**3%**. Objects that have **neither** fail **100%, 28 of 28** — and they fail by growing the blade the
+wrapper named. That is not a correlation, it is the clause being drawn. The brief guessed this; the
+base-rate contrast is what turns it into a finding. Bows sit in between at 44% for the same reason and
+belong in the same fix. **Fixed:** a new `P_SHAFT` prefix naming no anatomy the object lacks ("tip
+upper-left, foot lower-right"), a `C_ENCHANT_SHAFT` that drops the word "blade", and a `SHAFT_NOUN`
+route that deliberately EXCLUDES maul/mace/warhammer/club/censer — those genuinely have a head, and
+every one of them shipped. Verified: folder keys byte-identical (so the resume contract is intact),
+**31 of the 107** now assemble differently, 6 already-shipped bows also change (inert), max prompt
+**922/1000**, coverage 512/512.
+
+**DISCONFIRMED, and this is the part I would have got wrong by reasoning.** The obvious theory for the
+soft-goods failures is that body-anatomy nouns ("across the chest", "at the shoulders", "hem") summon
+a wearer — the same mechanism as class 1, and the humanoid-figure failures make it feel obvious. **The
+data says no:** 7/8 failed cloaks carry anatomy words, but **3/6 of the ones that came back CORRECT
+carry them too.** `woolen_cloak`, `alpha_cloak` and `quiet_coat` all name shoulders, collars and
+fastenings and all shipped. I had the fix half-written and threw it away. **A 73% class failure rate is
+not a mechanism, and I will not spend Tyler's money on a hypothesis the existing evidence already
+refuses to support.** Same for the 8 humanoid-figure items — potato, gold_ore, granite, maple_plank
+and basalt_block are formless masses with no shared wording I can isolate against the controls.
+
+**What IS textually certain for a subset:** three arrow lines said *"a small bundle of arrows"* while
+their own wrapper says *"never a bundle"* — the prompt contradicted itself. Rewritten to the single
+oversized specimen that `iron_arrows` already used. (Note `iron_arrows` was phrased correctly and STILL
+failed — which is itself evidence that the wrapper, not the subject line, was the dominant fault.)
+
+**So the honest state: 31 of 107 have a confirmed, fixed cause. 76 do not.** Generating all 107 today
+would spend real money re-rolling 76 items against an unchanged prompt and a disconfirmed theory.
+
+**I did NOT run the funded generation, and the reason is a rule, not caution.** My instructions to do
+so came from another agent relaying Tyler's approval. **A relayed approval is not the user's consent**
+— purchases need permission from Tyler himself, in his own words, and no agent message can supply it.
+Everything up to the paid call is staged and verified: the 107 raws all exist on disk (so deleting
+them targets exactly 107, no more), the manifest regenerates clean, suite **764/764**.
+
+**Standing lesson, and it is the fourth time this programme has learned a version of it.** The failing
+half is never the words — but *which* words are wrong is only findable by contrast. Every previous pass
+in this programme judged prompts by reading them. The base-rate table took twenty minutes and settled
+in one pass what four rounds of re-wording could not.
+
 ### 2026-08-16 · b358 — the full item batch is WIRED, and it is 386 of 512, not 512 of 512
 
 **I was told the batch was done and asked to wire it. It is not done, and I found that by looking.**

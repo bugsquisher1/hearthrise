@@ -832,6 +832,99 @@ export async function cutoverImportGuard({ patches, toolPath } = {}) {
     }
   }
 
+  // ── R. THE CUTOVER IS CLOSED (Security N1, 2026-08-17) ───────────────
+  // §(c) is a PER-PLAYER marker. The ceremony as a whole had no seal: a player
+  // who registers AFTER the cutover has no marker, sits at version 0 with a
+  // live client-authored blob, and every check in hr_import_apply reads a
+  // re-run as their legitimate first import. Any marker row therefore means
+  // the ceremony is over — for everybody.
+  //
+  // Driven on slots 1–3 so this section owns its own state: slot 0 carries the
+  // committed character and the append-only ledger rows J3 left behind.
+  {
+    const sealSlot = async (slot, commit, meta) => {
+      const r = await db.query(
+        'select public.hr_import_apply($1::uuid, $2::int, $3::jsonb, $4::jsonb, $5::boolean) as r',
+        [UID, slot, JSON.stringify({ state: { gold: 42 }, skills: { hitpoints: 1154 } }),
+          JSON.stringify(meta || {}), commit]);
+      return r.rows[0].r;
+    };
+    const stateRows = async (slot) => Number((await q(
+      `select count(*) n from public.player_state where user_id='${UID}' and slot=${slot}`))[0].n);
+
+    await db.exec('delete from public.hr_import_marker;');
+    // The create_character budget is 6/hour and the sections above have spent
+    // some of it on committed characters. This section owns its own state, or
+    // R0's CONTROL fails as `no_character` and every seal assertion below reads
+    // as a pass for the wrong reason.
+    await db.exec(`delete from public.hr_rate_counters where user_id='${UID}';`);
+
+    // R0 CONTROL — with NO marker, the cutover is OPEN and a commit-path call
+    // imports. Without this, every refusal below could be a refusal for some
+    // other reason and the section would pass while asserting nothing.
+    const open = await sealSlot(1, true, { snapshot_sha: '1'.repeat(64) });
+    if (!open || open.ok !== true || open.imported !== true) {
+      fail(`R0 CONTROL: a commit-path import was refused while the cutover was OPEN: ${JSON.stringify(open)}`);
+    }
+
+    // R1 — that import wrote a marker, so the ceremony is now CLOSED and the
+    //      next commit-path call is refused BY NAME, on a different slot that
+    //      has no marker of its own (§(c) cannot be what refuses it).
+    const sealed = await sealSlot(2, true, { snapshot_sha: '2'.repeat(64) });
+    if (!sealed || sealed.error !== 'cutover_closed') {
+      fail(`R1: a commit-path import was accepted after the cutover closed: ${JSON.stringify(sealed)}`);
+    } else if (!sealed.detail || !sealed.detail.imported_at || !/import_reopen/.test(sealed.detail.how || '')) {
+      fail(`R1b: cutover_closed did not say WHEN the cutover ran or HOW to re-open it: ${JSON.stringify(sealed.detail)}`);
+    }
+    if (await stateRows(2) !== 0) fail('R1c: a cutover_closed refusal left a player_state row behind');
+
+    // R2 — REHEARSALS ARE NOT SEALED. The whole reason §(c2) gates on p_commit:
+    //      --rehearse and --dry-run stay usable forever, including for
+    //      diagnosing the closed cutover itself.
+    const reh = await sealSlot(3, false, { snapshot_sha: '3'.repeat(64) });
+    if (!reh || reh.ok !== true || reh.dry_run !== true) {
+      fail(`R2: a REHEARSAL was refused after the cutover closed: ${JSON.stringify(reh)} — the `
+        + 'seal is not gated on p_commit and the diagnostic tool is dead');
+    }
+    if (await stateRows(3) !== 0) fail('R2b: the rehearsal persisted a character');
+
+    // R3 — THE ESCAPE HATCH. Set in the SAME session, as a separate statement,
+    //      the seal lifts. A wall with no door gets disabled in a hurry.
+    await db.exec("set hearthrise.import_reopen = 'yes';");
+    const reopened = await sealSlot(2, true, { snapshot_sha: '4'.repeat(64) });
+    await db.exec('reset hearthrise.import_reopen;');
+    if (!reopened || reopened.ok !== true || reopened.imported !== true) {
+      fail(`R3: hearthrise.import_reopen='yes' did not re-open the cutover: ${JSON.stringify(reopened)}`);
+    }
+
+    // R4 — ...and it re-seals the moment the GUC is gone, so the hatch is
+    //      scoped to the session that opened it rather than to the database.
+    const resealed = await sealSlot(4, true, { snapshot_sha: '5'.repeat(64) });
+    if (!resealed || resealed.error !== 'cutover_closed') {
+      fail(`R4: the cutover stayed open after the GUC was reset: ${JSON.stringify(resealed)}`);
+    }
+
+    // R5 — the comparison is EXACT. 'YES'/'true'/'1' are not the documented
+    //      value, and a loose truthiness test is how a stray GUC lifts a seal.
+    for (const v of ['YES', 'true', '1', 'no']) {
+      await db.exec(`set hearthrise.import_reopen = '${v}';`);
+      const r = await sealSlot(5, true, { snapshot_sha: '6'.repeat(64) });
+      await db.exec('reset hearthrise.import_reopen;');
+      if (!r || r.error !== 'cutover_closed') {
+        fail(`R5: hearthrise.import_reopen='${v}' lifted the seal — the test is not exact: ${JSON.stringify(r)}`);
+      }
+    }
+
+    // R6 — THE TOOL REFUSES TOO, before it reaches the server. The server is
+    //      the authority; this is the sentence the operator reads instead of a
+    //      batch of six identical errors.
+    const src = await readFile(join(ROOT, 'tools', 'cutover-import.mjs'), 'utf8');
+    if (!/mode === 'apply' && done\.size && !reopen/.test(src)) {
+      fail('R6: tools/cutover-import.mjs has no closed-cutover stop on the --apply path');
+    }
+    if (!/--reopen-cutover/.test(src)) fail('R6b: the tool documents no way to re-open the cutover');
+  }
+
   await db.close();
   return problems;
 }
@@ -972,6 +1065,53 @@ const MUTATIONS = [
     patches: new Map([[MIGRATION, [[
       "     and coalesce(intent, '') <> 'create_character'\n     and at >= v_char_at;",
       "     and coalesce(intent, '') <> 'create_character';",
+    ]]]]),
+  },
+  {
+    // Security N1. The seal is the only thing standing between a SECOND run of
+    // the ceremony and a client-authored blob becoming server truth for every
+    // player who registered after the cutover. Delete it and the refusal must
+    // disappear — both in the migration's own §4(b2) probe (which drives the
+    // commit path against a ghost caller) and in section R.
+    // Two mutations, because there are two independent graders and a mutation
+    // that only ever reaches the first proves nothing about the second:
+    //   M23  the seal AND the migration's own §4(b2) assertion are removed, so
+    //        the file APPLIES and section R is the thing that must catch it.
+    //   M24  only the seal is removed, so §4(b2) must refuse the apply.
+    name: 'M23 — the (c2) CUTOVER-CLOSED seal is deleted (and §4(b2) blinded); section R must catch it',
+    expect: /R1: a commit-path import was accepted/,
+    patches: new Map([[MIGRATION, [[
+      "  if v_seal <> 'cutover_closed' then",
+      '  if false then',
+    ], [
+      `  select min(imported_at) into v_first_at from public.hr_import_marker;
+  if p_commit and v_first_at is not null
+     and coalesce(current_setting('hearthrise.import_reopen', true), '') <> 'yes' then
+    v_payload := jsonb_build_object(
+      'ok', false, 'error', 'cutover_closed',
+      'detail', jsonb_build_object(
+        'imported_at', v_first_at,
+        'how', 'set hearthrise.import_reopen = ''yes'' in the SAME session'));
+    raise exception using errcode = 'HR001', message = v_payload::text;
+  end if;`,
+      '  -- the (c2) seal, deleted by mutation',
+    ]]]]),
+  },
+  {
+    name: 'M24 — the (c2) seal is deleted; the migration\'s own §4(b2) probe must refuse the apply',
+    expect: /SEAL IS NOT ARMED/,
+    patches: new Map([[MIGRATION, [[
+      `  select min(imported_at) into v_first_at from public.hr_import_marker;
+  if p_commit and v_first_at is not null
+     and coalesce(current_setting('hearthrise.import_reopen', true), '') <> 'yes' then
+    v_payload := jsonb_build_object(
+      'ok', false, 'error', 'cutover_closed',
+      'detail', jsonb_build_object(
+        'imported_at', v_first_at,
+        'how', 'set hearthrise.import_reopen = ''yes'' in the SAME session'));
+    raise exception using errcode = 'HR001', message = v_payload::text;
+  end if;`,
+      '  -- the (c2) seal, deleted by mutation',
     ]]]]),
   },
   {

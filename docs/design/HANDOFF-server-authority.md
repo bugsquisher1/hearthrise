@@ -1,5 +1,33 @@
 # HANDOFF — server-authority program (as of 2026-08-11, b328 / commit 511736d)
 
+## 🏆 THE CUTOVER IS COMPLETE (2026-08-16 03:58 UTC, b353) — HEARTHRISE IS SERVER-AUTHORITATIVE
+
+**Every player now runs server-authoritative by default.** The ceremony: freeze (19 min,
+zero players online) → import (6/6 players, field-verified, journalled, idempotency proven
+live by a second run skipping all six, gold conserved to the coin) → b353 pushed (flag
+polarity flipped: absent = ON) → unfreeze → suite 733/733 exit-0 → switch-on probes run by
+Tyler against the flipped default: `no_character` transport proof PASS, then a real intent
+HTTP 200 with the pointer moving on imported state. **The rehearsal gate caught FOUR real
+defects before apply** — including a verify-composition divergence, a fox-companion
+asymmetry, a subtransaction leak where refusal-returns COMMITTED (one character leaked and
+was cleaned), and an unscoped played-before check — which is the entire argument for the
+gate. No player lost anything; the wipe was never needed.
+
+**DEFERRED FROM THE FLIP, queued (in order):** (1) `accrueArtisan` — cooking/crafting
+nights currently pay NOTHING (declared idle, not confiscated; same as pre-flip client
+behaviour, but now the shipping default for 290/344 catalogue rows — the Game Designer
+should weigh player comms); ALSO the guard comment above `PAYABLE_KINDS` claims a
+protection that does not exist — fix the guard WITH the feature. (2) The UNKNOWN-balance
+accessor (Art Director) — 359 unguarded `G.gold` reads block `gold`/`gems` entering
+`SERVER_OF_RECORD`; the seam, decoders and B353-3 guard are ready. (3) Security's morning
+pass over the import-tool ceremony fixes (the refusal-raise rework — flagged, not
+re-reviewed). (4) PITR at REAL launch (Tyler: betas run uninsured on daily backups,
+accepted). (5) The `applyRecord`-vs-prediction-ledger coupling becomes real when a balance
+moves into the record — b353's report documents it.
+
+**The target property, achieved and proven:** a forged client value cannot cross into
+another player's economy or ranking — and now, it cannot even cross into your own.
+
 ## 🏁 BUILD AND REVIEW PHASES COMPLETE (2026-08-15, end of night — b352 LIVE, 728/728)
 
 **Every workstream is merged, reviewed, applied, and deployed.** `main` 728/728,

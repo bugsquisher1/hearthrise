@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 357 — 2026-08-16 (The bestiary triples)
+
+- 🐗 **The monster roster goes from 31 to 111.** Eleven creature classes — beasts, vermin, plants, humanoids, people, undead, demons, dragons, elementals, constructs and things from elsewhere — each with its own weapon and elemental weaknesses. Learn eleven rules instead of memorising a hundred rows.
+- 🗡️ **Bring the right weapon.** Every monster now answers a real weapon type; the old "no weakness" cop-out is gone. The seven monsters that used to trade their weakness for better drops keep those drops — now as a stated property, not a side effect.
+- 🎒 **86 new items**, including bane weapons that hit a whole creature class harder, two new armour sets, and the materials that close some long-standing dead-end drops.
+- 🏹 **Bounties, boss rotations and the board all know about the new roster** — new hunts, new targets, new fights.
+- 🖼️ New artwork is arriving class by class; monsters still waiting on a portrait show their old icon until theirs lands.
+
 ## v0.9.2-beta build 356 — 2026-08-16 (Your crafting nights now pay)
 
 - 🔨 **Smithing, fletching and crafting now pay while you're away.** Leave your character at a workbench and the server works the night the same way it works a fight: real materials consumed, real items and XP earned, capped by your offline limit. Before this, a crafting night simply idled and paid nothing.

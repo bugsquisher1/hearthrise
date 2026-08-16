@@ -68,7 +68,7 @@
 // cannot). Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue } from './record.js?v=356';
+import { isServerOfRecord, recordValue } from './record.js?v=357';
 
 /** The fields this module knows are balances. Not a gate — every accessor
  *  works on any field name — but the set the guards sweep and the set a caller

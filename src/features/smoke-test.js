@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=352' directly.
+// modularised, will import { G } from '../state/game.js?v=353' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=352';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=352';
+import { on, snapshot } from '../net/events.js?v=353';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=353';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=352';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=353';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -72,6 +72,58 @@ const tryRunAsync = (name, fn) => Promise.resolve()
   .then(fn)
   .then(() => pass(name), (e) => fail(name, e && (e.message || e)));
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   b353 — THE RUNNERS FOR THE **LOCAL AWAY PATH**, WHICH IS NOW THE OFF POSITION.
+   ══════════════════════════════════════════════════════════════════════════
+   The server-authority switch defaults ON from b353 (see B353-1). `processOffline()`
+   therefore returns at the authority gate before it credits anything, which is
+   the entire point — and it means every test that drives the LOCAL away
+   simulation through `processOffline` measured nothing the moment the flip
+   landed. Twenty-nine of them went red in one run.
+
+   The wrong fix is to delete them or to pin the switch off for the whole suite.
+   These tests are not obsolete and the code they cover is not dead:
+
+     · `src/core/*` IS the server. combat-sim / skill-sim / artisan-sim are
+       vendored into the Edge Function by tools/pack-edge.mjs, so AWAY-1's
+       parity fixture and the b303/b305 batteries are asserting the bytes the
+       SERVER runs. Losing them would be losing the only executable check on the
+       accrual engine's simulation.
+     · the local path still ships, behind the kill switch, and a kill switch
+       whose off position is untested is not a kill switch.
+
+   So they run in the position they are about: OFF, pinned per test, restored to
+   PRISTINE (which is ON) afterwards — never left off for whatever runs next.
+   The runner is named for the reason rather than the mechanism, so the next
+   reader learns which half of the program a test belongs to from its
+   registration line.
+
+   ⚠ A TEST REGISTERED HERE IS A TEST THAT DOES **NOT** COVER THE SHIPPING
+     DEFAULT. Anything asserting server-authoritative behaviour must stay on
+     plain tryRun. */
+const pinClientAuthoritative = () => {
+  const A = window.HearthriseAccrual;
+  if (!A || typeof A.setServerAccrualEnabled !== 'function') return null;
+  A.setServerAccrualEnabled(false);
+  return A;
+};
+const unpinClientAuthoritative = (A) => {
+  if (!A) return;
+  /* PRISTINE, not "off" and not "whatever it was". The suite mutates the live
+     page a player is sitting in; leaving them client-authoritative because a
+     test needed that position would be the flip silently un-flipping itself. */
+  try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+};
+const tryRunClientAuthoritative = (name, fn) => {
+  const A = pinClientAuthoritative();
+  try { return tryRun(name, fn); } finally { unpinClientAuthoritative(A); }
+};
+const tryRunAsyncClientAuthoritative = (name, fn) => {
+  const A = pinClientAuthoritative();
+  return tryRunAsync(name, fn).then((r) => { unpinClientAuthoritative(A); return r; },
+    (e) => { unpinClientAuthoritative(A); throw e; });
+};
 
 // b219: the game tick runs THROUGH the suite, and earlier tests leave combat
 // or gathering active — so a genuine "Defeated Slime" toast can land in
@@ -1474,7 +1526,7 @@ const TESTS = [
       assert(E.isActive() === true, 'and reconnecting restores it');
     } finally { restoreG(snap); }
   }),
-  () => tryRun('b204: artisan offline — cooking session progresses offline (was zero)', () => {
+  () => tryRunClientAuthoritative('b204: artisan offline — cooking session progresses offline (was zero)', () => {
     const G = window.G;
     const saved = {
       activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
@@ -2136,7 +2188,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
+  () => tryRunClientAuthoritative('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
     // Regression: three systems read G.lastSeen and all granted —
     // processOffline() (100% rate) plus _applyCatchup() and applyRichCatchup()
     // (50% each), with G.lastSeen never refreshed between them. Every
@@ -3664,7 +3716,7 @@ const TESTS = [
       if (sCL === undefined) delete G.collectionLog; else G.collectionLog = sCL;
     }
   }),
-  () => tryRun('b166: daily login reward claims once per day + escalates with streak', () => {
+  () => tryRunClientAuthoritative('b166: daily login reward claims once per day + escalates with streak', () => {
     const D = window.HearthriseDaily;
     assert(D && typeof D.claim === 'function' && typeof D.isClaimable === 'function', 'HearthriseDaily missing');
     const G = window.G;
@@ -9297,7 +9349,7 @@ const TESTS = [
   // all read the same unrefreshed G.lastSeen. Rested XP accrues on exactly that
   // path, so it is watermarked instead: G.restedAt is the instant already paid
   // for, and it advances by what was granted. Re-running cannot re-pay.
-  () => tryRun('b222 SEAM 3: rested accrual is watermarked — no offline double-bank', () => {
+  () => tryRunClientAuthoritative('b222 SEAM 3: rested accrual is watermarked — no offline double-bank', () => {
     const snap = snapshotG();
     try {
       const CHARGE = window.RESTED_CHARGE_MS;
@@ -12076,7 +12128,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b225: offline cooking burns on the same math and reports it once', () => {
+  () => tryRunClientAuthoritative('b225: offline cooking burns on the same math and reports it once', () => {
     const G = window.G;
     const saved = {
       activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
@@ -12738,7 +12790,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b230: returning to a backgrounded tab catches up offline gather (paione — mobile "logs off, stops collecting ore")', () => {
+  () => tryRunClientAuthoritative('b230: returning to a backgrounded tab catches up offline gather (paione — mobile "logs off, stops collecting ore")', () => {
     // The bug: on a phone, "logging off" means backgrounding the app / locking
     // the screen — the page is NOT reloaded, so loadLocal()/processOffline()
     // never re-ran and the frozen gather span was credited nowhere. The fix
@@ -13193,7 +13245,7 @@ const TESTS = [
       'no emoji may render in the inventory sub-tab strip');
   }),
 
-  () => tryRun('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
+  () => tryRunClientAuthoritative('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
     assert(typeof window.processOffline === 'function' && typeof window.simulateAwayCombat === 'function', 'away combat seams must exist');
     const snap = snapshotG();
     try {
@@ -13683,7 +13735,7 @@ const TESTS = [
 
   // (3) CLOCK MANIPULATION: a forward clock jump (or a very long absence) must be
   // CAPPED at the daily offline budget — it can never mint unbounded progress.
-  () => tryRun('b305: offline catch-up is capped — a forward clock jump cannot mint unlimited progress', () => {
+  () => tryRunClientAuthoritative('b305: offline catch-up is capped — a forward clock jump cannot mint unlimited progress', () => {
     if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
     const G = window.G;
     const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, activeMonster:G.activeMonster, activeSkill:G.activeSkill, activeArtisanRecipe:G.activeArtisanRecipe, los:G.lastOfflineSummary };
@@ -13729,7 +13781,7 @@ const TESTS = [
 
   // b303: OFFLINE IS THE PREMISE. Guard that a gathering session credits XP
   // through the real gated processOffline() (only combat was guarded before).
-  () => tryRun('b303: offline GATHER credits XP through processOffline (idle premise)', () => {
+  () => tryRunClientAuthoritative('b303: offline GATHER credits XP through processOffline (idle premise)', () => {
     if(typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length){ assert(true, 'no gather'); return; }
     const G = window.G;
     const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
@@ -13757,7 +13809,7 @@ const TESTS = [
   }),
 
   // b303: and that an ARTISAN session (cooking) credits offline too.
-  () => tryRun('b303: offline ARTISAN credits XP through processOffline', () => {
+  () => tryRunClientAuthoritative('b303: offline ARTISAN credits XP through processOffline', () => {
     if(typeof window.processOffline !== 'function' || !window.ARTISAN_RECIPES || !window.ARTISAN_RECIPES.cooking){ assert(true, 'no artisan'); return; }
     const rec = window.ARTISAN_RECIPES.cooking.find(r => r.id === 'cook_shrimp') || window.ARTISAN_RECIPES.cooking[0];
     if(!rec){ assert(true, 'no cooking recipe'); return; }
@@ -13792,7 +13844,7 @@ const TESTS = [
   // entry point processOffline() (budget watermark + visibility + the activeMonster
   // branch). This exercises that real path end-to-end so a regression in the GATE
   // — not just the sim — is caught.
-  () => tryRun('b297: offline combat credits kills through the gated processOffline() path', () => {
+  () => tryRunClientAuthoritative('b297: offline combat credits kills through the gated processOffline() path', () => {
     if(typeof window.processOffline !== 'function'){ assert(true, 'no processOffline'); return; }
     const G = window.G;
     const save = {
@@ -14337,7 +14389,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
+  () => tryRunClientAuthoritative('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
     if (typeof window.simulateAwayCombat !== 'function') { assert(true, 'seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
@@ -14484,7 +14536,7 @@ const TESTS = [
      1-in-2,500 and the Lichling's 1-in-200 are read from the live data. The
      proc counter reads the pet's OWN label out of COMPANIONS rather than
      hardcoding it, so a designer renaming a proc cannot rot this. */
-  () => tryRun('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
+  () => tryRunClientAuthoritative('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.doSkillAction !== 'function'
         || !window.HearthrisePets || !window.COMPANIONS || !window.MONSTERS.lich) {
       assert(true, 'seam absent'); return;
@@ -14722,7 +14774,7 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {
+  () => tryRunClientAuthoritative('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {
     if(typeof window.processOffline !== 'function'){ assert(true, 'seam absent'); return; }
     const snap = snapshotG();
     const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
@@ -14778,7 +14830,7 @@ const TESTS = [
           byte-identical run to run, which is the same seam AWAY-1 uses. The
           stream is restored afterwards so no later test inherits it.
      ───────────────────────────────────────────────────────────────────────── */
-  () => tryRun('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
+  () => tryRunClientAuthoritative('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
     if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ assert(true, 'seam absent'); return; }
     const snap = snapshotG();
     const Core = window.HearthriseCore;
@@ -15536,7 +15588,7 @@ const TESTS = [
     assert(tip.style.display === 'none', 'a touch anywhere must clear a stray tooltip (it used to stick until you scrolled)');
   }),
 
-  () => tryRun('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', () => {
+  () => tryRunClientAuthoritative('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', () => {
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -15677,7 +15729,7 @@ const TESTS = [
     } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
-  () => tryRun('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
+  () => tryRunClientAuthoritative('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
     // THE test this rework exists for, and b229 left its assertions ALONE —
     // only the retired input-clock seam was dropped from the setup. The latch,
     // not the gate, is what holds the offline boundary: processOffline() runs
@@ -15989,7 +16041,7 @@ const TESTS = [
     } finally { NS.setMode('ok'); restoreG(snap); }
   }),
 
-  () => tryRun('b229: every surface states the same rule — while online, not while focused', () => {
+  () => tryRunClientAuthoritative('b229: every surface states the same rule — while online, not while focused', () => {
     // Four surfaces tell the player when a blessing pays: the Events panel
     // card, Home's "The realm", the live note beside the running activity, and
     // the welcome-back offline toast. They were three different sentences, one
@@ -18081,7 +18133,7 @@ const TESTS = [
   /* Shared rig: stand the player in a known fight with a known loadout, run
      N ticks under a PINNED seed through a given away flag, and report totals.
      Nothing here reads the wall clock except through `atMs`, which is passed. */
-  () => tryRun('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
+  () => tryRunClientAuthoritative('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -18401,7 +18453,7 @@ const TESTS = [
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
-  () => tryRun('AWAY-16: the GATHER/ARTISAN away replay has a timeline too — a 10-minute buff pays 10 minutes of an 8-hour night and is spent', () => {
+  () => tryRunClientAuthoritative('AWAY-16: the GATHER/ARTISAN away replay has a timeline too — a 10-minute buff pays 10 minutes of an 8-hour night and is spent', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
@@ -18784,7 +18836,7 @@ const TESTS = [
 
      Both drive the REAL `window.processOffline()`, because the anchor lives in
      the caller and a core-level test cannot see a caller. ══════════════════ */
-  () => tryRun('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
+  () => tryRunClientAuthoritative('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
@@ -18848,7 +18900,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
+  () => tryRunClientAuthoritative('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
@@ -19574,7 +19626,7 @@ const TESTS = [
      so it exercises the second of the three RNG draws whose ORDER is part of
      the replay contract (craftSave, burn, yield). A fixture on smithing would
      pass while a reordered stream went unnoticed. */
-  () => tryRun('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
+  () => tryRunClientAuthoritative('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -21992,29 +22044,390 @@ const TESTS = [
      gate for that; nothing here can stand in for it, because Chromium in this
      harness is talking to a stub, not to the gateway. */
 
-  () => tryRun('b337: the server-accrual kill switch DEFAULTS OFF — b336 away time is untouched', () => {
+  /* ══════════════════════════════════════════════════════════════════════════
+     B353-1 — THE FLIP. THE ONE TEST THAT SAYS THE SWITCH-ON HAPPENED.
+     ══════════════════════════════════════════════════════════════════════════
+     This test used to assert the exact opposite ("the kill switch DEFAULTS
+     OFF"), and that inversion is the whole of b353: the polarity was right
+     while the seam was dark and is wrong the moment the server IS the game.
+
+     It asserts FOUR things, and each one is a different way the flip could be
+     half-shipped:
+
+       (a) ABSENT ⇒ ON. This is the switch-on itself. A player who has never
+           opened devtools — i.e. every player — is server-authoritative.
+       (b) ONLY the literal 'off' turns it off. A garbage value, a leftover
+           'on', an empty string, a stale b352 key all resolve to ON. The
+           dangerous direction is now "the client owns the economy", so that is
+           the direction that must require somebody to have typed something.
+       (c) THE b352 STATE LANDS ON. A real pre-cutover device carries the key
+           absent (never armed) or the string 'on' (a tester). Both boot armed,
+           with no migration and nothing to remember.
+       (d) ONE DEFINITION, NOT SEVEN. Every consumer family —
+           activity / gold / character / record / market / legacy.js — is
+           re-read after each flip. A polarity that lived in more than one place
+           could be half-flipped, and the half that stayed client-authoritative
+           would be invisible: it would just quietly go on paying.
+
+     MUTATION THIS FAILS ON: re-invert the predicate in accrue.js
+     (`=== 'on'` instead of `!== 'off'`) and (a), (c) and (d) all go red. */
+  () => tryRun('b353: the server-authority switch DEFAULTS ON — only the literal \'off\' disables it', () => {
     const A = window.HearthriseAccrual;
     assert(A, 'src/net/accrue.js did not load — the whole slice is absent and nothing below means anything');
     const G = window.G;
-    /* b339: flipping the switch now stamps the local away watermarks (see
-       stampAwayWatermarks). This test flips it four times on the LIVE G, so a
+    /* b339: flipping the switch stamps the local away watermarks (see
+       stampAwayWatermarks). This test flips it several times on the LIVE G, so a
        player running the suite in-game would otherwise lose their banked rested
        charges to a test. Put them back. */
     const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt };
+    const KEY = A.ACCRUE_KILL_KEY;
+    const pristine = () => { A.__clearAccrualOverride(); try { localStorage.removeItem(KEY); } catch (e) {} };
+    /* Every family, re-read from scratch each time. Named, so a failure says
+       WHICH half of the client stayed behind rather than "false !== true". */
+    const families = () => {
+      const out = {};
+      out['legacy.js serverAccrualActive'] = window.serverAccrualActive();
+      const M = window.HearthriseActivity;
+      if (M && M.isActivityIntentEnabled) out['activity.js isActivityIntentEnabled'] = M.isActivityIntentEnabled();
+      const gold = window.HearthriseGold;
+      if (gold && gold.isGoldIntentEnabled) out['gold.js isGoldIntentEnabled'] = gold.isGoldIntentEnabled();
+      const C = window.HearthriseCharacter;
+      if (C && C.isCharacterIntentEnabled) out['character.js isCharacterIntentEnabled'] = C.isCharacterIntentEnabled();
+      const R = window.HearthriseRecord;
+      if (R && R.isRecordActive) out['record.js isRecordActive'] = R.isRecordActive();
+      const mk = window.HearthriseMarket;
+      if (mk && typeof mk.serverMarketActive === 'function') out['market.js serverMarketActive'] = mk.serverMarketActive();
+      return out;
+    };
+    const allAgree = (want) => {
+      const f = families();
+      const names = Object.keys(f);
+      assert(names.length >= 4, 'fewer than four switch consumers were reachable — B353-1(d) compared almost nothing');
+      for (const n of names) {
+        assert(f[n] === want, n + ' answers ' + f[n] + ' while the switch is ' + (want ? 'ON' : 'OFF')
+          + ' — the polarity is not living at one definition, and the half that stayed behind goes on '
+          + 'letting this client author the economy');
+      }
+      return names.length;
+    };
+    try {
+      // ── (a) ABSENT ⇒ ON. The switch-on. ───────────────────────────────────
+      pristine();
+      assert(A.isServerAccrualEnabled() === true,
+        'server accrual is OFF by default — the flip did not ship: every player boots client-authoritative, '
+        + 'which is the state the whole server-authority program exists to end');
+      const checked = allAgree(true);
+      assert(checked >= 4, 'consumer families: ' + checked);
+
+      // ── (b) ONLY 'off'. Everything else is ON. ────────────────────────────
+      A.__clearAccrualOverride();
+      try { localStorage.setItem(KEY, 'off'); } catch (e) {}
+      assert(A.isServerAccrualEnabled() === false, "the literal 'off' does not disable the switch — there is then no kill switch at all");
+      allAgree(false);
+      for (const junk of ['on', 'ON', 'OFF', '', 'true', 'false', '0', 'yes']) {
+        A.__clearAccrualOverride();
+        try { localStorage.setItem(KEY, junk); } catch (e) {}
+        assert(A.isServerAccrualEnabled() === true,
+          'the value ' + JSON.stringify(junk) + ' disabled server authority. Only the exact string '
+          + JSON.stringify(A.ACCRUE_OFF_VALUE) + ' may — a typo that hands the economy back to the client '
+          + 'is a typo nobody would notice.');
+      }
+
+      // ── (c) A REAL b352 DEVICE BOOTS ARMED. ──────────────────────────────
+      for (const legacyState of [null, 'on']) {
+        A.__clearAccrualOverride();
+        try {
+          if (legacyState === null) localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, legacyState);
+        } catch (e) {}
+        assert(A.isServerAccrualEnabled() === true,
+          'a b352 device whose key is ' + JSON.stringify(legacyState) + ' boots with server authority OFF — '
+          + 'the flip would then reach only players who clear their storage');
+      }
+
+      // ── The switch is still a switch, in both directions, and it persists. ─
+      assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
+      A.__clearAccrualOverride();
+      assert(localStorage.getItem(KEY) === A.ACCRUE_OFF_VALUE,
+        'turning it off did not persist the off value, so a reload would silently re-arm the player mid-incident');
+      assert(A.isServerAccrualEnabled() === false, 'the persisted off value does not survive a re-read');
+      assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn back on');
+      A.__clearAccrualOverride();
+      assert(localStorage.getItem(KEY) === null,
+        'turning it on left a key behind — ON is the ABSENCE of the key, so a later reader can tell a '
+        + 'deliberate decision from a pristine device');
+      assert(A.isServerAccrualEnabled() === true, 'the switch will not read back on');
+    } finally {
+      pristine();
+      if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     B353-2 — WITH THE FLAG ABSENT, THE THREE AUTHORITIES ROUTE TO THE SERVER.
+     ══════════════════════════════════════════════════════════════════════════
+     B353-1 proves the PREDICATE flipped. This proves the three things that
+     predicate is supposed to switch actually switched, from the pristine state
+     a real player boots in — because "the flag reads true" and "accrual, gold
+     and the market went server-side" are different claims, and the b348 outage
+     was exactly the gap between two such claims.
+
+       ACCRUAL  legacy.js's authority gate is armed, so processOffline() returns
+                before anything local is credited.
+       RECORD   the moved fields are stripped out of a save blob on the way in
+                and `clientMayWrite` refuses them — the blob is a cache.
+       MARKET   `serverMarketActive()` is true, so the v1 direct-table paths and
+                the whole buy-offer sub-market are unreachable.
+
+     ⚠ GOLD IS NOT ON THE REGISTRY AND THAT IS NOT AN OVERSIGHT — see the b353
+       block in src/net/record.js and B353-3 below for the measurement that held
+       it back. Its decoders ARE live and are exercised here, because they are
+       the reviewed half. */
+  () => tryRun('b353: flag ABSENT routes accrual, the record and the market through the server', () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    assert(A && R, 'accrue.js / record.js did not load');
+    const KEY = A.ACCRUE_KILL_KEY;
+    const G = window.G;
+    const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt,
+      gold: G && G.gold, gems: G && G.gems, _record: G && G._record };
     try {
       A.__clearAccrualOverride();
-      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-      assert(A.isServerAccrualEnabled() === false,
-        'server accrual is ON by default — that arms a brand-new authority for every player at once, with no redeploy to undo it');
-      assert(typeof window.serverAccrualActive === 'function' && window.serverAccrualActive() === false,
-        'legacy.js believes server accrual is active while the switch is off');
-      // The switch is a switch, in both directions, and it persists.
-      assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn on');
-      assert(window.serverAccrualActive() === true, 'legacy.js does not see the switch');
-      assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
-      assert(window.serverAccrualActive() === false, 'legacy.js still sees an off switch as on');
+      try { localStorage.removeItem(KEY); } catch (e) {}
+
+      // ── ACCRUAL: the gate is armed from the pristine state. ───────────────
+      assert(window.serverAccrualActive() === true, 'legacy.js does not see the flip');
+
+      // ── RECORD: the strip is what makes a field moved. ────────────────────
+      const fields = R.serverOfRecordFields();
+      assert(fields.length >= 1, 'SERVER_OF_RECORD is empty — nothing has moved at all');
+      const blob = { level: 7 };
+      for (const f of fields) {
+        assert(R.clientMayWrite(f) === false,
+          "clientMayWrite('" + f + "') answers true with the switch on — the record has a second writer");
+        blob[f] = 'FORGED';
+      }
+      const stripped = R.stripServerOfRecord(blob);
+      for (const f of fields) {
+        assert(stripped.blob[f] === undefined,
+          "a forged '" + f + "' in a save blob survived the strip, so a devtools edit is read back into a "
+          + "live G on every boot under the server's name");
+        assert(stripped.stripped.indexOf(f) !== -1, "the strip did not report removing '" + f + "'");
+      }
+      assert(stripped.blob.level === 7, 'the strip took a field it does not own');
+
+      /* THE BALANCE DECODER — live, unit-tested, and not yet armed. It is the
+         only way a balance may ever enter G, and it refuses everything it is
+         not certain about rather than substituting a zero: "you have nothing"
+         is a claim, not a default. `bigint` comes back from PostgREST as a
+         number when it fits and a string when it does not, so both are taken. */
+      assert(R.decodeBalance(123456) === 123456 && R.decodeBalance('123456') === 123456,
+        'the balance decoder does not accept a bigint in both of the shapes PostgREST sends it');
+      assert(R.decodeBalance(0) === 0, 'a real zero balance must decode — only UNCERTAIN is null');
+      for (const bad of [null, undefined, -1, 'abc', NaN, Infinity, {}, [], true]) {
+        assert(R.decodeBalance(bad) === null,
+          'the balance decoder accepted ' + JSON.stringify(String(bad)) + ' — an uncertain value must be '
+          + 'UNKNOWN, never a substituted number');
+      }
+      assert(R.fingerprintBalance(7) === 'n=7' && R.fingerprintBalance(undefined) === 'absent',
+        'the balance fingerprint is not total — `want === have` would then match two unknowns by accident');
+
+      // ── MARKET: the swap is live and the v1 halves are unreachable. ───────
+      const M = window.HearthriseMarket;
+      assert(M && typeof M.serverMarketActive === 'function',
+        'src/market.js does not publish serverMarketActive, so nothing can check that the market swapped');
+      assert(M.serverMarketActive() === true,
+        'the market is still on the v1 direct-table client with the flag absent — market-v2 is APPLIED in '
+        + 'production, so those writes are refused by the database and the market screen is simply broken');
+      const off = M.placeBuyOffer('normal_log', 1, 1);
+      assert(off && off.ok === false, 'a buy offer was accepted under the server market — the sub-market is '
+        + 'retired and has no server escrow, so this would escrow gold nothing on the server knows about');
+      const coff = M.cancelBuyOffer('anything');
+      assert(coff && coff.ok === false, 'a buy-offer cancel was accepted under the server market');
     } finally {
-      if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      if (G) {
+        G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
+        G.gold = save.gold; G.gems = save.gems; G._record = save._record;
+      }
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     B353-3 — A MOVED FIELD MUST BE RENDERABLE AS **UNKNOWN**.
+     ══════════════════════════════════════════════════════════════════════════
+     THIS IS THE GUARD WHOSE ABSENCE MADE THE b353 FLIP LOOK LIKE A ONE-LINER,
+     and it is written from a measurement rather than from a worry.
+
+     `gold` was scoped into SERVER_OF_RECORD for this commit. Every server-side
+     precondition was met. Adding the entry and running the suite produced, on
+     the first boot:
+
+         Cold-load guard — 1 uncaught error:
+         Cannot read properties of undefined (reading 'toLocaleString')
+         ...6 of 22 browser arms red, the engine never booted.
+
+     The site is `updateTopbar` in src/legacy.js:
+       document.getElementById('top-gold').textContent = G.gold.toLocaleString()
+     — one of 359 `G.gold` reads in src/**, and none of them has an UNKNOWN
+     case. record.js's header says a moved field "is briefly UNKNOWN until the
+     server answers, which is a state this module has". True of the module and
+     FALSE of the game: nothing renders unknown, so UNKNOWN is a crash.
+
+     The contract, stated so it holds for the NEXT field as well as for gold:
+
+       ⚠ A FIELD ON SERVER_OF_RECORD IS ABSENT FROM G BETWEEN A LOAD AND THE
+         FIRST ENVELOPE. Every render path must survive that. It is not enough
+         for the seam to be honest; the screen has to be.
+
+     So this deletes each moved field from the LIVE G, runs the real render, and
+     requires no uncaught error. It passes today (only `offlineBudget` has
+     moved, and nothing formats it).
+
+     ⚠ WHAT THE MUTATION ACTUALLY DOES, STATED HONESTLY — because "this guard
+       goes red" would be the fifteenth assertion in this file that asserts
+       something slightly different from what it claims. Arming `gold` and
+       re-running produced:
+
+         Cold-load guard — 1 uncaught error at src/legacy.js:4749
+         (`G.gold.toLocaleString()`), the engine did not boot, 16/22 browser
+         arms, 6 red — and THIS TEST NEVER RAN, because nothing ran.
+
+       The boot crash is louder and EARLIER than this guard, and that is fine:
+       the signal is unmissable either way and it names the same line. What this
+       guard is for is the other half — a moved field that is NOT read during
+       boot and therefore breaks a screen the player reaches later, or on one
+       device, or only while offline. That failure has no cold-load arm and
+       would otherwise ship. */
+  () => tryRun('B353-3: every SERVER_OF_RECORD field survives being UNKNOWN through a real render', () => {
+    const R = window.HearthriseRecord;
+    const G = window.G;
+    assert(R && G, 'record.js / G missing');
+    const fields = R.serverOfRecordFields();
+    assert(fields.length >= 1, 'SERVER_OF_RECORD is empty, so this compared nothing and would pass whatever broke');
+    /* The render paths a boot actually runs, in the order it runs them. Named
+       individually so a failure says WHICH screen cannot spell unknown. */
+    const renders = [
+      ['updateTopbar', window.updateTopbar],
+      ['renderProfile', window.renderProfile],
+      ['refreshAll', window.refreshAll],
+    ].filter((r) => typeof r[1] === 'function');
+    assert(renders.length >= 2,
+      'fewer than two render paths were reachable — B353-3 would pass by not looking. Reachable: '
+      + renders.map((r) => r[0]).join(', '));
+    for (const f of fields) {
+      const had = Object.prototype.hasOwnProperty.call(G, f);
+      const was = G[f];
+      try {
+        delete G[f];
+        for (const [name, fn] of renders) {
+          try {
+            fn();
+          } catch (e) {
+            assert(false,
+              name + '() threw with the SERVER_OF_RECORD field `' + f + '` UNKNOWN: ' + (e && e.message)
+              + '. That is the state EVERY boot is in between the local load and the first server envelope, '
+              + 'and for a player who is offline or rate-limited it is the state they stay in. A moved field '
+              + 'needs a read accessor that renders UNKNOWN as something a player understands and that can '
+              + 'never be spent, saved or uploaded — see the b353 block in src/net/record.js.');
+          }
+        }
+      } finally {
+        if (had) G[f] = was; else delete G[f];
+      }
+    }
+    /* CONTROL, AND IT IS THE EXACT PATH THE REAL FAILURE TOOK. These renders
+       must be capable of propagating a throw, or the loop above is an assertion
+       that asserts nothing — this file's most-repeated defect. `G.gold` is not
+       on the registry today, so setting it to a non-number is exactly the state
+       adding it would produce, at the site that actually crashed:
+       `G.gold.toLocaleString()` in updateTopbar. Set, not deleted, and restored
+       immediately: a control must not leave the live G damaged for whatever
+       runs next. */
+    let controlThrew = false;
+    const gold = G.gold;
+    try {
+      G.gold = null;
+      try { for (const [, fn] of renders) fn(); } catch (e) { controlThrew = true; }
+    } finally { G.gold = gold; }
+    assert(controlThrew,
+      'the control did not throw — these render functions swallow their own errors, so B353-3 cannot see a '
+      + 'crash and is an assertion that asserts nothing. Drive a path that propagates.');
+    try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     B353-4 — NOT SIGNED IN IS NOT AN OUTAGE.
+     ══════════════════════════════════════════════════════════════════════════
+     Found by the flip, and it is the clearest example of a defect that a dark
+     seam cannot have: `unconfigured` (no endpoint / no token — i.e. nobody is
+     signed in yet) counted toward the halt streak, so three settles raised the
+     "⏳ Away progress is paused / This device is not wired to the progress
+     server / Nothing has been credited for your time away" sheet.
+
+     While the switch defaulted OFF nobody ever saw it: a device that had armed
+     the switch had also signed in. With the switch defaulting ON it is what
+     EVERY signed-out boot does — a scary modal over the account gate, which
+     already owns that conversation, pinned to the bottom of the screen at
+     z-index 2147483645. Measured in this suite before the fix: it covered the
+     shop's buy control (b221) and the arena's Recommended card (b342-3), and
+     its own body copy failed the 14.5px legibility floor (b227). Three
+     unrelated-looking reds, one cause.
+
+     `rate-limited` already had this exemption and states the reason: the server
+     working correctly is not an outage. `unconfigured` is not even a server
+     condition. It backs off, it is recorded in `lastOutcome`, it never
+     escalates.
+
+     MUTATION: drop `&& outcome !== 'unconfigured'` from accrualGateStep → red
+     on the first assertion, and the three DOM tests above go red with it. */
+  () => tryRun('B353-4: "not signed in" never raises the away-outage sheet (and it is a real halt for real outages)', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.accrualGateStep === 'function', 'accrue.js did not load');
+    const now = Date.now();
+    let g = A.newAccrualGate();
+    for (let i = 0; i < 8; i++) g = A.accrualGateStep(g, 'unconfigured', now + i * 1000, 'no_token');
+    assert(g.halted === false,
+      'eight `unconfigured` settles halted the gate — every signed-out boot now shows the player an '
+      + '"away progress is paused" modal for the sin of not having signed in yet. It is not a server '
+      + 'condition and there is nothing to retry.');
+    assert(g.lastOutcome === 'unconfigured',
+      'the outcome was not even recorded — exempting it from the halt must not make it invisible to a bug report');
+    assert(g.blockedUntil > now, 'unconfigured did not back off, so a signed-out page would spin on it');
+
+    /* CONTROLS. Exempting one outcome must not have switched the halt off
+       wholesale — that is how this test would pass for the wrong reason. */
+    let real = A.newAccrualGate();
+    for (let i = 0; i < 3; i++) real = A.accrualGateStep(real, 'unreachable', now + i * 1000, 'net');
+    assert(real.halted === true,
+      'control: a genuine 3-strike outage no longer halts, so the sheet can never appear at all and '
+      + 'B353-4 proves nothing');
+    let mixed = A.newAccrualGate();
+    mixed = A.accrualGateStep(mixed, 'unconfigured', now, 'no_token');
+    for (let i = 1; i <= 3; i++) mixed = A.accrualGateStep(mixed, 'unavailable', now + i * 1000, '5xx');
+    assert(mixed.halted === true,
+      'control: an unconfigured settle before a real outage suppressed the halt — the exemption must not '
+      + 'count DOWN, only not count up');
+    let ok = A.accrualGateStep(real, 'accrued', now + 9000, null);
+    assert(ok.halted === false && ok.streak === 0,
+      'control: a success no longer clears the halt, so a recovered player is told they are broken forever');
+
+    /* And the sheet itself is legible, because it is now a surface players
+       actually reach. The b227 floor is 14.5px. */
+    const el = A.showAccrualHaltedSheet('unreachable');
+    try {
+      assert(el, 'the halted sheet did not render at all');
+      const sizes = [...el.querySelectorAll('p,button,div,strong')]
+        .map((n) => parseFloat(getComputedStyle(n).fontSize))
+        .filter((n) => Number.isFinite(n));
+      assert(sizes.length >= 3, 'the sheet rendered almost nothing to measure');
+      const small = sizes.filter((s) => s < 14.5);
+      assert(small.length === 0,
+        'the away-outage sheet draws text at ' + small.join('/') + 'px, under the 14.5px floor the rest of '
+        + 'the game is held to. It was invisible while the sheet only rendered for an armed tester.');
+    } finally {
+      try { A.hideAccrualHaltedSheet(); } catch (e) {}
     }
   }),
 
@@ -22433,7 +22846,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=352');
+    const KIT = await import('../data/start-kit.js?v=353');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -22756,7 +23169,13 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('B338-7: the character intent is behind the SAME kill switch as b337, and it defaults OFF', () => {
+  /* b353: retitled with the polarity. What this test is FOR has not changed —
+     the character intent must follow the accrual switch and never acquire one of
+     its own — and that is why the default assertion moved with the flip instead
+     of being deleted: a client that creates characters it will never accrue
+     against, or accrues against one it never created, is the failure either way
+     round. B353-1 owns the polarity itself; this owns the SHARING of it. */
+  () => tryRun('B338-7: the character intent is behind the SAME kill switch as b337, and it defaults ON (b353)', () => {
     const A = window.HearthriseAccrual;
     const C = window.HearthriseCharacter;
     const G = window.G;
@@ -22765,15 +23184,18 @@ const TESTS = [
       assert(C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY,
         'two different kill switches — a state exists where the client creates characters it will never '
         + 'accrue against, or accrues against one it never created');
-      A.setServerAccrualEnabled(false);
+      A.setServerAccrualEnabled(true);
       A.__clearAccrualOverride();
       try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-      assert(C.isCharacterIntentEnabled() === false, 'the character intent is ON by default');
-      A.setServerAccrualEnabled(true);
-      assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not arm the character intent');
+      assert(C.isCharacterIntentEnabled() === true, 'the character intent is OFF on a pristine device — it '
+        + 'is not sharing the b353 switch, so the flip reached accrual and not the character bootstrap');
       A.setServerAccrualEnabled(false);
       assert(C.isCharacterIntentEnabled() === false, 'the switch does not disarm the character intent');
+      A.setServerAccrualEnabled(true);
+      assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not re-arm the character intent');
     } finally {
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
       if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
     }
   }),
@@ -22990,8 +23412,14 @@ const TESTS = [
     const G = window.G;
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt };
     try {
+      /* b353: START FROM OFF EXPLICITLY. This used to clear the key, because
+         absent WAS off. Absent is now ON, and every assertion below turns on a
+         CHANGE of position — so leaving it pristine would have made
+         `setServerAccrualEnabled(true)` a no-op re-assert, no stamp, and a red
+         test that says nothing about the property it guards. */
+      try { localStorage.setItem(A.ACCRUE_KILL_KEY, A.ACCRUE_OFF_VALUE); } catch (e) {}
       A.__clearAccrualOverride();
-      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      assert(A.isServerAccrualEnabled() === false, 'B339-4 could not reach the OFF position to start from');
 
       /* An eight-hour-old pair of watermarks: with the switch OFF this is a
          paying absence, and the server has no idea it exists. */
@@ -23038,7 +23466,11 @@ const TESTS = [
       assert(A.stampAwayWatermarks(null, 1) === null, 'stampAwayWatermarks accepted a null target');
     } finally {
       G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
-      A.setServerAccrualEnabled(false);
+      /* b353: back to PRISTINE, which is now ON. Leaving it OFF here would hand
+         the rest of the suite — and the live page a player ran it from — a
+         client-authoritative session that nothing later would restore. */
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
       G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
     }
   }),
@@ -23631,7 +24063,8 @@ const TESTS = [
         'the field is reported KNOWN without the server ever having answered: ' + JSON.stringify(v));
     } finally {
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -23671,7 +24104,8 @@ const TESTS = [
         'a missing record.js silently restored a cloud save carrying server-owned fields');
     } finally {
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
 
@@ -23812,7 +24246,8 @@ const TESTS = [
           + 'makes the blob\'s shape depend on a kill switch: ' + JSON.stringify(snap.offlineBudget));
       }
     } finally {
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       G.offlineBudget = save.offlineBudget;
     }
   }),
@@ -23957,7 +24392,8 @@ const TESTS = [
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -24011,7 +24447,8 @@ const TESTS = [
         + JSON.stringify(R.recordValue(on, 'offlineBudget')));
     } finally {
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
 
@@ -24096,7 +24533,8 @@ const TESTS = [
         + 'silently answering "not moved" is the failure this pairing exists to prevent');
     } finally {
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
 
@@ -24224,7 +24662,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
@@ -24334,7 +24773,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       A.resetAccrualGate(); A.configureAccrual(null);
       try { window.stopCombat(); } catch (e) {}
@@ -24422,7 +24862,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory,
@@ -24497,7 +24938,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
@@ -24553,7 +24995,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
@@ -24638,8 +25081,8 @@ const TESTS = [
     } finally {
       window.declareActivity = realDeclare;
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
-      else A.setServerAccrualEnabled(true);
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -24762,7 +25205,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
@@ -24976,7 +25420,8 @@ const TESTS = [
       M.declare = realDeclare;
       M.setConfirmedActivity(null);
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -25044,7 +25489,8 @@ const TESTS = [
       try { A.hideReplacementSheet(); } catch (e) {}
       A.acknowledgeReplacement(hadAck ? true : false);
       A.setServerAccrualEnabled(false);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
@@ -25303,7 +25749,8 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -25508,7 +25955,8 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -25661,7 +26109,8 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
       Object.assign(G, save);
@@ -26022,7 +26471,8 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      if (!wasOn) { try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {} }
+      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -26114,7 +26564,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('AWAY-HONEST-2: the CALLER applies nothing — a seeded span through processOffline equals the direct simulation, at 0 kills and at 500', () => {
+  () => tryRunClientAuthoritative('AWAY-HONEST-2: the CALLER applies nothing — a seeded span through processOffline equals the direct simulation, at 0 kills and at 500', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -26186,7 +26636,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
+  () => tryRunClientAuthoritative('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
     const G = window.G;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -26280,7 +26730,7 @@ const TESTS = [
       'the retired away-gate window API is back — every surface that reads it will grow a branch again');
   }),
 
-  () => tryRun('AWAY-HONEST-4: gathering banks the whole absence, from kill zero', () => {
+  () => tryRunClientAuthoritative('AWAY-HONEST-4: gathering banks the whole absence, from kill zero', () => {
     const G = window.G;
     const snap = snapshotG();
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -26472,7 +26922,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b341: the away SIMULATION states how long it survived and what killed you', () => {
+  () => tryRunClientAuthoritative('b341: the away SIMULATION states how long it survived and what killed you', () => {
     /* The renderer above can only be honest if the engine tells it. This is the
        caller-side half: processOffline must copy `survivedMs`/`diedTo` off the
        combat summary onto the flat receipt every welcome-back surface reads.
@@ -27054,7 +27504,7 @@ const TESTS = [
      refused permission.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out', () => {
+  () => tryRunClientAuthoritative('b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out', () => {
     const G = window.G;
     const H = window.HearthriseHome;
     assert(H && typeof H.render === 'function' && typeof H.__awayCardHtml === 'function',
@@ -27523,7 +27973,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=352');
+    const S = await import('../data/shops.js?v=353');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -27774,7 +28224,7 @@ const TESTS = [
      and this repo is at instance #15 of the family.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('B345-1: a night whose supplies ran out is REPORTED as one — the toast and the card both say so', () => {
+  () => tryRunClientAuthoritative('B345-1: a night whose supplies ran out is REPORTED as one — the toast and the card both say so', () => {
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
        Starter cook: 8 Raw Shrimp on cook_shrimp, `lastSeen` rewound 8h. The
        away interval is 3,840 ms, so the run earned for 30.7 seconds of a
@@ -27992,7 +28442,14 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game', () => {
+  /* b353: CLIENT-AUTHORITATIVE, like its sibling b166. This test proves the
+     sheet's CLICK reaches the game, and it measures that by watching gold move.
+     Under the flip, a claim is a `claim_reward` intent: the local payment is a
+     PREDICTION, and on a device with no server configured it is rolled back
+     within the same turn — so the balance correctly nets zero and the test's
+     instrument reads nothing. The interaction it guards is unchanged; only its
+     yardstick needs the position where a local payment IS the payment. */
+  () => tryRunClientAuthoritative('B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game', () => {
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
        Real first boot (storage cleared, tour finished, Skills › Woodcutting):
        `.hr-dl-box` — the 420x242 panel, dead centre — sat on top of the first

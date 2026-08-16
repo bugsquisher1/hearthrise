@@ -894,6 +894,13 @@
     refreshFromBackend: refreshFromBackend,
     collectSaleProceeds: collectSaleProceeds,
     backendActive: backendActive,
+    /* b353: PUBLISHED FOR THE FLIP. `serverMarketActive` decided every v1-vs-v2
+       branch in this file from the day the seam was built, and it was the only
+       one of them a test could not read — so "the market swapped" was checkable
+       only by inference from a dozen behaviours. B353-1(d) and B353-2 read it
+       directly. It is a PREDICATE, not a setter: the switch is still
+       accrue.js's and there is no way to move the market alone. */
+    serverMarketActive: serverMarketActive,
   };
 
   // ── UI: Market host ───────────────────────────────────────────

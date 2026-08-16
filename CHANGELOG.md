@@ -4,6 +4,15 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 353 — 2026-08-16 (Your progress now lives on the server)
+
+- 🌐 **Hearthrise is now server-run.** Your character, your away time and your trades are held and worked out by the server instead of by your browser. Your progress was imported to the server at the freeze — nothing was reset, and nothing was taken away. The practical difference: your save is no longer a file on one device, so it can't be lost with a cleared cache, and it can't be edited.
+- 🌙 **Away time is worked out by the server, exactly the same way as playing.** Same fights, same yields, same buff timers — one set of rules, not two. If the server can't answer, the game says so plainly and credits nothing rather than guessing.
+- 🏪 **The market is new.** Listings, sales and payouts all happen on the server now: when your listing sells, the gold arrives — there's nothing to come back and collect. Old listings did not carry over.
+- 🚫 **Buy offers are retired for now.** "I'll pay up to X each" has no server home yet, so the panel is gone rather than pretending. Sell listings work as normal. It'll come back once it's built properly.
+- 🔌 **You need to be online to play.** That was already effectively true; it's now explicit.
+- 🙋 If a balance or an item looks wrong after this build, report it in Discord with roughly when — the server keeps a record of every change to your account, so we can actually check.
+
 ## v0.9.2-beta build 352 — 2026-08-15 (One vendor price, whichever button you press)
 
 - 💰 **Vendor sweep now pays the price it quotes.** "Sell junk" was paying full book value while the confirmation quoted the vendor's real bid, so raw materials sold through that button for about 5× what the same item fetches anywhere else in the game. It now pays the same bid as Sell 1, Sell All and the quick-sell slider — one vendor price, whichever button you press. Expect roughly a fifth of the old payout on raws; the number in the confirmation was always the honest one.

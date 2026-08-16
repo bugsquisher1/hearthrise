@@ -67,48 +67,67 @@
 // answers `not_signed_in`), and the deployed `payload_sha256` equals
 // `node tools/pack-edge.mjs hr-accrue --hash`.
 //
-// **NOBODY MAY REASON "the switch is inert because CORS fails."** It is not
-// inert; it is SWITCHED OFF. Exactly two things gate this module today:
-//
-//   1. THE KILL SWITCH (`ACCRUE_KILL_KEY`), which defaults OFF. This is the
-//      whole of the safety argument, and it is one localStorage write away
-//      from not being one.
-//   2. Until `2026-08-14-character-bootstrap.sql` is APPLIED, the production
-//      `hr_create_character` returns no `created` flag, so character.js
-//      classifies it `malformed`/`no_created_flag` and every accrual that
-//      follows answers `no_character`. That is a second, temporary gate that
-//      DISAPPEARS the moment the migration lands — it is not a safety property
-//      and must not be treated as one.
+// ⚠ b353 — THE SAFETY ARGUMENT ABOVE HAS EXPIRED, BY DESIGN. Everything below
+// used to read "this is dark; the switch defaults off". It does not any more:
+// the switch DEFAULTS ON (see ACCRUE_KILL_KEY), which is the switch-on. There
+// is no dark path left to reason about, and the only remaining gate is the one
+// that was always real — a deployed function, applied migrations, and a signed-
+// in player. The `2026-08-14-character-bootstrap.sql` gate named below is
+// APPLIED and is therefore no longer a gate either.
 //
 // A stale safety argument is worse than no safety argument: it is believed —
 // and unlike a stale assertion, no test can catch a stale sentence. What IS
-// asserted, because it is behaviour: the switch defaults off (b337 test 1), and
-// a pre-b338 server is refused rather than latched (B339-6).
+// asserted, because it is behaviour: the switch defaults ON (B353-1), only the
+// literal string `'off'` disables it (B353-1), and a pre-b338 server is refused
+// rather than latched (B339-6).
 // `tests/cors-preflight.mjs` C4 remains the live gate for the transport.
 //
-// ── WHY A KILL SWITCH, AND WHY IT DEFAULTS OFF (b319 precedent) ─────────────
-// Same shape as sync.js's event-log switch: a localStorage key plus a config
-// override, readable and writable at runtime, so this ships DARK and is turned
-// on for one tester without a client redeploy. Unlike b319's it defaults OFF,
-// because b319 was containing a live incident and this is arming a new authority.
+// ── WHY A KILL SWITCH AT ALL, NOW THAT IT DEFAULTS ON ──────────────────────
+// Same shape as sync.js's event-log switch, and now the same polarity: a
+// localStorage key plus a config override, readable and writable at runtime, so
+// ONE player can be dropped back to the pre-cutover client during an incident
+// without a redeploy. It shipped defaulting OFF while it was arming a new
+// authority; it defaults ON now that it IS the authority.
 //
 // DOM-free except for one honesty sheet at the bottom, which is guarded on
 // `typeof document` and is the ONLY thing in this file that touches the page.
 // ============================================================================
 
 /* ── The kill switch ────────────────────────────────────────────────────────
-   'on' enables. Anything else — including absent — is OFF. Stated positively on
-   purpose: b319's key is `'off' disables`, which is right for a switch that
-   defaults on and wrong for one that defaults off, because a typo'd value would
-   then ENABLE a new authority. */
+   ⚠ b353 — THE POLARITY IS INVERTED, AND THAT IS THE SWITCH-ON.
+
+   It shipped as `'on' enables; anything else — including absent — is OFF`,
+   which was right for arming a new authority on one tester's device without a
+   redeploy. It is exactly wrong once the authority IS the game: with that
+   polarity, "the flag failed to be written" and "the client owns the economy"
+   are the same state, and every player who has never touched devtools is in it.
+
+   So it is now b319's shape, for b319's reason: **the literal string 'off'
+   disables; anything else — including absent, including a typo — is ON.** A
+   corrupted or unreadable value now falls to the SERVER, not to the client, and
+   the one value that can hand authority back is a value somebody had to type.
+
+   Every consumer reads THIS function — `isActivityIntentEnabled`,
+   `isGoldIntentEnabled`, `isCharacterIntentEnabled`, `isRecordActive`,
+   `serverMarketActive` (through the gold one) and legacy.js's
+   `serverAccrualActive` are all one-line delegations, so the polarity lives at
+   one definition and cannot be half-flipped. B353-1 asserts that. */
 export const ACCRUE_KILL_KEY = 'hr:serverAccrual';
+/** The ONE value that turns it off. Exported so a test names the same string
+ *  the implementation does rather than restating it. */
+export const ACCRUE_OFF_VALUE = 'off';
 
 let config = null;          // {url, apiKey, authToken, slot}
 let override = null;        // in-memory switch state; null = consult storage
 
 export function isServerAccrualEnabled() {
   if (override !== null) return override;
-  try { return localStorage.getItem(ACCRUE_KILL_KEY) === 'on'; } catch (e) { return false; }
+  /* THE CATCH FLIPPED WITH THE POLARITY, DELIBERATELY. It used to answer
+     `false` when localStorage throws (Safari private mode, a locked-down
+     embed) — fail-closed when "closed" meant "do not arm the new thing".
+     "Closed" now means the SERVER owns the economy, so an unreadable storage
+     must not be a way to become client-authoritative. */
+  try { return localStorage.getItem(ACCRUE_KILL_KEY) !== ACCRUE_OFF_VALUE; } catch (e) { return true; }
 }
 
 /* ── THE WATERMARKS, AND WHY FLIPPING THE SWITCH MUST MOVE THEM (b339) ──────
@@ -142,13 +161,20 @@ export function stampAwayWatermarks(G, now) {
   return { offlineBudgetAt: t, restedAt: t };
 }
 
-/** Flip the switch. Persists, so a reload keeps the tester's choice. */
+/** Flip the switch. Persists, so a reload keeps the tester's choice.
+ *
+ *  ⚠ b353: ON is now the ABSENCE of the key and OFF is the literal string, which
+ *    is the inverse of what this wrote before. Writing `'on'` instead would work
+ *    (anything that is not `'off'` is on) and would be wrong: it would leave a
+ *    key behind that looks like a decision, so a later reader could not tell a
+ *    player who was deliberately armed from one who simply is. Pristine means
+ *    pristine, and pristine is ON. */
 export function setServerAccrualEnabled(on) {
   const was = isServerAccrualEnabled();
   override = !!on;
   try {
-    if (on) localStorage.setItem(ACCRUE_KILL_KEY, 'on');
-    else localStorage.removeItem(ACCRUE_KILL_KEY);
+    if (on) localStorage.removeItem(ACCRUE_KILL_KEY);
+    else localStorage.setItem(ACCRUE_KILL_KEY, ACCRUE_OFF_VALUE);
   } catch (e) {}
   const now = isServerAccrualEnabled();
   /* Only on an actual CHANGE. Re-asserting the current position (the suite does
@@ -377,13 +403,28 @@ export function decideAccrualGate(st, now) {
  * working correctly and telling us to slow down is not an outage, and treating
  * it as one would put a scary sheet in front of a player whose only sin was
  * reloading four times.
+ *
+ * ⚠ b353 — 'unconfigured' JOINS IT, AND THE FLIP IS WHAT MADE THAT URGENT.
+ *   `unconfigured` means this module has no endpoint or no token — i.e. nobody
+ *   is signed in yet. It is not a server condition at all, and there is nothing
+ *   for a player to retry. While the switch defaulted OFF it was unreachable in
+ *   practice (a device that had armed the switch had also signed in). With the
+ *   switch defaulting ON, EVERY signed-out boot walked straight into three
+ *   `unconfigured` settles and a modal reading "This device is not wired to the
+ *   progress server. Nothing has been credited for your time away" — over the
+ *   account gate, which already owns that conversation, and covering the bottom
+ *   of the screen (measured: it hid the shop's buy control and the arena's
+ *   Recommended card in the suite).
+ *
+ *   Same rule as rate-limited, for a stronger reason: it backs off, it is
+ *   recorded, and it never escalates. B353-4 is the regression.
  */
 export function accrualGateStep(st, outcome, now, reason) {
   const s = st || newAccrualGate();
   if (!isAccrualFailure(outcome)) {
     return { ...newAccrualGate(), lastOutcome: outcome, lastAt: now, lastReason: reason || null };
   }
-  const counts = outcome !== 'rate-limited';
+  const counts = outcome !== 'rate-limited' && outcome !== 'unconfigured';
   const streak = (s.streak || 0) + (counts ? 1 : 0);
   const firstAt = s.firstAt || now;
   const halted = !!s.halted || (counts && streak >= ACCRUE_HALT_AFTER_TRIES);
@@ -763,7 +804,10 @@ export function showAccrualHaltedSheet(outcome) {
     'z-index:2147483645', 'max-width:440px', 'width:calc(100% - 24px)',
     'background:rgba(9,12,17,.96)', 'color:#f2e9d8', 'border:1px solid #d9a441',
     'border-radius:12px', 'padding:16px 18px', 'box-sizing:border-box',
-    'font:400 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    /* b353: 15px, not 14px. The suite's legibility floor is 14.5px and both of
+       these sheets sat under it — invisible while they only rendered for an armed
+       tester, and a real failure the moment the switch defaulted on. */
+    'font:400 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
     'box-shadow:0 10px 30px rgba(0,0,0,.5)',
   ].join(';');
   const why = HALT_COPY[outcome] || HALT_COPY.unreachable;
@@ -775,7 +819,7 @@ export function showAccrualHaltedSheet(outcome) {
     + 'server, so it will be there once it answers.</p>'
     + '<div style="display:flex;gap:8px">'
     + '<button id="hr-accrue-retry" style="flex:1;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Try again</button>'
-    + '<button id="hr-accrue-later" style="font:500 14px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Not now</button>'
+    + '<button id="hr-accrue-later" style="font:500 15px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Not now</button>'
     + '</div>';
   document.body.appendChild(el);
   const retry = el.querySelector('#hr-accrue-retry');
@@ -829,7 +873,10 @@ export function showReplacementSheet(loss, G, res, onConfirm) {
     'z-index:2147483646', 'max-width:460px', 'width:calc(100% - 24px)',
     'background:rgba(9,12,17,.98)', 'color:#f2e9d8', 'border:1px solid #d9a441',
     'border-radius:12px', 'padding:18px 20px', 'box-sizing:border-box',
-    'font:400 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+    /* b353: 15px, not 14px. The suite's legibility floor is 14.5px and both of
+       these sheets sat under it — invisible while they only rendered for an armed
+       tester, and a real failure the moment the switch defaulted on. */
+    'font:400 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
     'box-shadow:0 10px 40px rgba(0,0,0,.65)',
   ].join(';');
   el.innerHTML =
@@ -845,7 +892,7 @@ export function showReplacementSheet(loss, G, res, onConfirm) {
     + 'Nothing is credited until you decide, and you can ask again at any time.</p>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + '<button id="hr-accrue-replace" style="flex:1;min-width:180px;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Use the server’s character</button>'
-    + '<button id="hr-accrue-keep" style="font:500 14px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Keep my local save</button>'
+    + '<button id="hr-accrue-keep" style="font:500 15px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Keep my local save</button>'
     + '</div>';
   document.body.appendChild(el);
   const go = el.querySelector('#hr-accrue-replace');
@@ -893,7 +940,7 @@ export function beginServerAccrual(opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseAccrual = {
-    ACCRUE_KILL_KEY, ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
+    ACCRUE_KILL_KEY, ACCRUE_OFF_VALUE, ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
     ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,

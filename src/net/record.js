@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=352';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=353';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
    state where the record has moved but the computation has not, or the reverse
@@ -187,7 +187,121 @@ export const SERVER_OF_RECORD = Object.freeze([
       return Number.isFinite(at) ? 'at=' + at : 'absent';
     },
   }),
+  /* ── b353 — GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
+     ⚠ THE ENTRIES BELOW ARE WRITTEN AND DELIBERATELY NOT ARMED. They are kept
+       here, commented, because the reason they are not armed is a FACT that was
+       cheap to discover and expensive to rediscover, and because the next agent
+       to read the flip list will otherwise re-derive it from scratch.
+
+     The b353 flip commit was scoped as "add gold (and gems) to SERVER_OF_RECORD
+     — the record follows the writer, and the writer has moved". Every
+     server-side precondition for that is genuinely met: one payment choke point
+     with a terminating prediction lifecycle, absolute envelope writes through
+     one registered seam, `hr_load` carrying both columns.
+
+     What is NOT met is the READ side of the client, and it is not a detail.
+     Adding the two entries and running the suite produced, on the very first
+     boot:
+
+         Cold-load guard — 1 uncaught error: Cannot read properties of
+         undefined (reading 'toLocaleString')
+         ...and 6 of 22 browser arms red, the engine never booted.
+
+     The site is `src/legacy.js` in `updateTopbar`:
+     `document.getElementById('top-gold').textContent = G.gold.toLocaleString()`
+     — one of 359 `G.gold` reads in src/**, none of which has an UNKNOWN case.
+     That is what "the field is UNKNOWN until an envelope arrives" costs when
+     nothing renders unknown: not a blank balance, a client that does not start.
+     And it is WORSE in production than in the harness, because a player whose
+     `hr_load` is slow, rate-limited or offline stays in that state.
+
+     SO THE BLOCKER IS NAMED, AND IT IS NOT "wire more gold sites": it is **a
+     rendering contract for an UNKNOWN balance** — one accessor every read site
+     goes through, which answers a placeholder the player understands and which
+     can never be spent, saved or uploaded. That is presentation work with an
+     owner (Art Director) and it is the last thing standing between the gold
+     seam and the record.
+
+     `B353-3` in src/features/smoke-test.js is the guard that makes this
+     mechanical instead of remembered: every field on SERVER_OF_RECORD must
+     survive being UNKNOWN through a real render. Add either entry below without
+     the accessor and it goes red, by name, before a player sees it.
+
+  Object.freeze({ field: 'gold', from: 'gold', since: 'b3xx',
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+  Object.freeze({ field: 'gems', from: 'gems', since: 'b3xx',
+    decode: decodeBalance, fingerprint: fingerprintBalance }),
+
+     The decoders are LIVE below (not commented) and unit-tested, because they
+     are the half of this that was reviewed and is correct — a balance off the
+     wire is accepted only when it is certain, and `0` is never substituted for
+     an absent value.
+
+     ── the original rationale, kept verbatim for the day it is armed ─────────
+     THE RECORD FOLLOWS THE WRITER, AND THE WRITER HAS MOVED.
+     The ordering rule in the table above put these here and not earlier: a
+     field may move only once EVERY path that mutates it has moved. What
+     satisfies that rule is not "all ~44 client sites were rewritten" — 31 of
+     them are still `deferred` in src/net/gold-sites.js and say so by name. It
+     is that the ones that remain no longer AUTHOR a balance:
+
+       · every player gesture that moves gold goes through ONE choke point,
+         `HearthriseGold.settleCurrency`, and under the switch its local write
+         is a PREDICTION with a terminating lifecycle (gold.js's F1 block) —
+         not a record;
+       · every server envelope — away grant, activity collect, gold verb,
+         market verb — writes gold and gems ABSOLUTELY through
+         `applyEnvelopeState`, and retires/sweeps the predictions in the same
+         call through the one registered seam;
+       · so the only thing a client write can still do is be optimistic for the
+         length of a round trip. A deferred site is WRONG for that long and
+         then corrected, which is exactly what `flipBehaviourOf` documents per
+         row — it is no longer a second RECORD.
+
+     What this entry adds on top of that is the LOAD path, which the prediction
+     ledger cannot reach: a save blob is not a gesture, and `Object.assign(G,
+     blob)` would put a devtools-edited balance back into a live G every boot,
+     under the server's name. Stripping it is what makes "the snapshot is a
+     cache" true of money.
+
+     ⚠ THE COST, STATED PLAINLY BECAUSE IT IS PLAYER-VISIBLE. Between a load and
+       the first envelope, gold and gems are UNKNOWN — `G.gold` is absent, not
+       zero and not stale. That is the honest state and it is the safe one (a
+       substituted local number is the two-sources bug), but nothing renders
+       "unknown", so the balance reads blank for the width of one `hr_load`.
+       Making that an honest piece of UI is presentation work and is filed as
+       such; it is NOT a reason to leave a client-authored number in place.
+
+     `gems` rides with `gold` rather than following later for one reason: they
+     are ONE prediction (`settleCurrency` covers both fields so they cannot
+     acquire separate lifecycles) and one absolute write (`reconcilePredictions`
+     sets `G.gems` from every envelope). Moving one and not the other would give
+     two halves of one gesture two different records. */
 ]);
+
+/* ── A BALANCE OFF THE WIRE ──────────────────────────────────────────────────
+   Save-invariant #2's rule applied to a number: act only on CERTAINTY. `gold`
+   and `gems` are `bigint` columns, and PostgREST hands a bigint back as a JSON
+   NUMBER when it fits and as a STRING when it does not — so both are accepted
+   and anything that is not a finite non-negative integer is `null`, i.e.
+   UNKNOWN. A NaN would poison every later balance; a negative is not a balance
+   any invariant in this game permits; and `0` is never substituted for an
+   absent value, because "you have nothing" is a claim, not a default. */
+export function decodeBalance(v) {
+  if (v === null || typeof v === 'undefined') return null;
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+/* Never NaN and never empty, so `want === have` in recordValue is a real
+   comparison rather than two unknowns matching by accident — the same rule the
+   watermark's fingerprint follows. */
+export function fingerprintBalance(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? 'n=' + Math.floor(n) : 'absent';
+}
 
 export function serverOfRecordFields() { return SERVER_OF_RECORD.map((e) => e.field); }
 export function isServerOfRecord(field) { return serverOfRecordFields().indexOf(field) !== -1; }
@@ -555,6 +669,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseRecord = {
     SERVER_OF_RECORD, RECORD_OUTCOMES, REGISTRY_FIELDS,
     isRecordActive, serverOfRecordFields, isServerOfRecord, recordEntry, clientMayWrite,
+    decodeBalance, fingerprintBalance,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue,
     configureRecord, getRecordConfig, recordEndpoint,

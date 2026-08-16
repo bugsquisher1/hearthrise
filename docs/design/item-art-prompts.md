@@ -1,3 +1,13 @@
+> **ENCHANT-NEUTRALITY RULE (Tyler + Coordinator, 2026-08-16).** Base weapon and ammo icons
+> must stay ELEMENT-NEUTRAL: no red/ember tips, no frost-blue edges, no sickly-green venom
+> accents on unenchanted gear. Enchanted states render as a RUNTIME OVERLAY (element glow +
+> corner pip, theme tokens — zero per-variant art), so a warm accent baked into a base arrow
+> would read as a false "ember-enchanted" signal. Named unique enchanted items (the phase-two
+> elements/enchanting set) are the exception: their element IS their identity and gets baked
+> into dedicated icons using the two-signal colour language. The Hearthfire wrapper's warm
+> grip/trim accents are fine — the ban is on element-hue effects at the business end
+> (tips, blades, fletching, arrowheads).
+
 # Item Art Prompts — the full catalogue, ready to generate
 
 **Author:** Art Director · **Date:** 2026-08-16 · **Status:** production input, not a design doc.

@@ -447,7 +447,7 @@
           'nothing you have earned is lost either way.';
       } else {
         lead.textContent = creating
-          ? 'One account carries your name, your progress and your standing across every device you play on.'
+          ? 'Your account holds your name, your progress, and your place on the boards.'
           : 'Welcome back. Sign in to pick up where the realm left you.';
       }
     }
@@ -465,8 +465,8 @@
         foot.appendChild(document.createTextNode(
           ' Sign in and the save already on this browser is carried into your account. Nothing is erased.'));
       } else {
-        foot.textContent = 'Hearthrise is played online. Your account holds your progress, ' +
-          'your name, and your place on the boards.';
+        foot.textContent = 'Everything is saved to the cloud, so you can play on any ' +
+          'device and pick up right where you left off.';
       }
       // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
       // so a player who cannot sign in must still have a way to reach us.

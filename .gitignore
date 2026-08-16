@@ -74,3 +74,7 @@ hearthrise-map.html
 # tools/race-test.mjs. Response bodies from a real signed-in account — never commit.
 probe-intent-out.json
 race-out.txt
+
+# Hearthfire art pilot RAWS (1024px Recraft exports) — source only, never shipped.
+# The processed shipping copies live in assets/icons-bundle/hearthfire/.
+assets/art-pilot/

@@ -474,9 +474,14 @@ const TESTS = [
   }),
   () => tryRun('b186: painted gear icons wired to shipped paths', () => {
     const ip = window._itemPath || {};
+    /* The Hearthfire art pilot re-homes some of these ids from painted/gear/
+       to icons-bundle/hearthfire/. The property this test actually protects is
+       "wired to a SHIPPED folder", not "wired to that ONE folder" — so accept
+       either curated home and keep the unshipped-folder guard strict. */
     ['bronze_sword', 'rune_sword', 'steel_platebody', 'copper_ring'].forEach((id) => {
       const p = ip[id];
-      assert(p && /assets\/icons-bundle\/painted\/gear\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+      assert(p && /assets\/icons-bundle\/(painted\/gear|hearthfire)\//.test(p), 'gear icon missing/unshipped for ' + id + ': ' + p);
+      assert(!/raw-bundle|icons3|assets\/pixel/.test(p), id + ' icon references unshipped folder: ' + p);
     });
   }),
   () => tryRun('b193: painted consumables/drops/crops wired to shipped paths', () => {

@@ -4,6 +4,49 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-16 · Art Director · Hearthfire art pilot: what the 13 Recraft exports actually did in-game
+**Affected systems:** `applyLocalIcons()` in `src/legacy.js`, `assets/icons-bundle/`, the art-prompt specs.
+
+**1 · `items/oak_log.png` is a byte-for-byte duplicate of `weapons/bronze_sword.png`** (both md5
+`807eea02c0963e92643ba68859891b8e`). It depicts a sword. Withheld from the wiring; 12 of 13 shipped.
+The generic lesson: **hash the batch before wiring it.** A duplicate across two *different category
+folders* is invisible to a filename check and invisible to an alpha/size check — only a content hash
+or a human eye catches it, and at 426 files a human eye will not.
+→ REQUIRED ACTION: add a duplicate-hash gate to the batch QC before the full run.
+
+**2 · The exports come back ~3% translucent, and it is not deliberate.** Every one of the 13 has its
+SOLID interior sitting at alpha 240–254 (mean ≈ 247/255), not 255 — measured with a per-file alpha
+histogram, not sampled. Over the hearthlight dark surface that reads as a faint wash on every icon.
+The fix is one line and belongs in the pipeline, not in the prompt: lift `a >= 240` to 255 **on the
+1024 source, before the downscale**, so the resample interpolates already-correct values. The true
+anti-aliased edge ramp lives below 240 and must be left alone. `tools/art-pilot-process.mjs` does this.
+
+**3 · The arena portrait is a CIRCLE, and `monster-art-prompts.md` does not say so.** The spec's
+framing rule is "eyes and face inside the middle 70%", which `elk_king` satisfies — and its antlers,
+which are the entire silhouette read of the character, are still clipped, because `.arena-portrait` is
+a **92 px circular mask with `object-fit: cover`**. A 256 × 256 square loses its four corners there.
+→ REQUIRED ACTION: amend the monster spec — the whole readable silhouette must fit the **inscribed
+circle**, not the square. Horned / antlered / winged / haloed subjects are the ones this bites.
+
+**4 · 128 px long-edge for items ignores devicePixelRatio.** The figure in `item-art-prompts.md` was
+derived from the 64 px CSS box of the item-detail modal. At DPR 2 that box is 128 device px, so 128 px
+art is exactly 1:1 with zero headroom; on a DPR 3 phone it is upscaled. The pilot ships **256 px
+long-edge** (~120 KB/icon) to restore the intended 2×. Proposed amendment, not yet ratified.
+
+**5 · The pipeline needs no image dependency — Playwright's chromium is enough.** `sharp`/`jimp` are
+not installed and do not need to be. Canvas `drawImage` + `getImageData` does alpha stats, alpha-bbox
+auto-crop, high-quality downscale and RGBA re-encode; the PNG IHDR is then re-read from disk to *prove*
+dimensions and colour type 6 rather than trusting the encoder. See `tools/art-pilot-process.mjs`.
+
+**6 · How to screenshot any screen headlessly, for any agent.** `page.addInitScript` setting
+`window.__HR_TEST_HARNESS__ = true` clears the account wall; **also set
+`localStorage['hearthrise:ftue:completed'] = '1'`** or the 6-step welcome tour dims every capture, and
+expect the daily-reward modal on top of that. For an arena portrait, set `G.playerMaxHp`/`G.playerHp`
+high first — a dead champion drops the arena back to "Choose a foe" and there is nothing to photograph.
+Harness: `tools/art-pilot-shots.mjs`.
+
+---
+
 ### 2026-08-16 · Art Director · P1 · A `<span>` INSIDE A NUMERAL IS RESTYLED BY THIS CODEBASE, AND `|| 0` IS A FULL-BALANCE BUG WITH THE SIGN HIDDEN
 
 **Three findings from the UNKNOWN-balance sweep (b356), all measured, all of which will bite the next agent.**

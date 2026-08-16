@@ -993,23 +993,33 @@ async function run(mutate) {
        property is proven directly instead: plant a table with RLS on, no write
        policy and an authenticated INSERT grant, and demand the very same query
        NAMES it. That tests the predicate rather than the size of its output. */
-    await db.query('savepoint u14cls');
-    await db.query('create table public.hr__u14_probe (id int primary key)');
-    await db.query('alter table public.hr__u14_probe enable row level security');
-    await db.query('revoke all on public.hr__u14_probe from public, anon, authenticated, service_role');
-    await db.query('grant insert on public.hr__u14_probe to authenticated');
-    const clsProbe = (await db.query(`
-      select g.table_name || ':' || g.grantee as k
-        from information_schema.role_table_grants g
-        join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
-       where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
-         and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
-         and not exists (select 1 from pg_policies p
-                          where p.schemaname='public' and p.tablename = g.table_name
-                            and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
-       group by 1`)).rows.map((r) => r.k);
-    await db.query('rollback to savepoint u14cls');
-    await db.query('release savepoint u14cls').catch(() => {});
+    /* The probe plants a table and is thrown away with a rollback, so it never
+       reaches the C3a reality check below. It MUST run in its own transaction:
+       PGlite executes each db.query in autocommit, and a bare SAVEPOINT outside
+       a transaction block is a hard error ("SAVEPOINT can only be used in
+       transaction blocks"). This guard depended on ambient transaction state
+       that the boot chain never leaves behind, so it aborted the whole suite on
+       arrival — establish the transaction explicitly instead of assuming one. */
+    await db.query('begin');
+    let clsProbe;
+    try {
+      await db.query('create table public.hr__u14_probe (id int primary key)');
+      await db.query('alter table public.hr__u14_probe enable row level security');
+      await db.query('revoke all on public.hr__u14_probe from public, anon, authenticated, service_role');
+      await db.query('grant insert on public.hr__u14_probe to authenticated');
+      clsProbe = (await db.query(`
+        select g.table_name || ':' || g.grantee as k
+          from information_schema.role_table_grants g
+          join pg_class c on c.relname = g.table_name and c.relnamespace = 'public'::regnamespace
+         where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')
+           and g.privilege_type in ('INSERT','UPDATE','DELETE') and c.relrowsecurity
+           and not exists (select 1 from pg_policies p
+                            where p.schemaname='public' and p.tablename = g.table_name
+                              and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))
+         group by 1`)).rows.map((r) => r.k);
+    } finally {
+      await db.query('rollback');   // discards the probe table AND ends the transaction
+    }
     ok(clsProbe.includes('hr__u14_probe:authenticated'),
       'U14 CONTROL: the dead-grant class predicate did NOT name a freshly-created table with RLS '
       + 'on, no write policy and an authenticated INSERT grant. The predicate has gone blind, so '

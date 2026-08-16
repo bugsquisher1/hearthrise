@@ -36,6 +36,21 @@ MUST ship a companion revoke of clan_members/clans i/u/d grants or the now-sharp
 detector raises. Also open (bounded, dead): leaderboard_ranked matview i/u/d, and the
 supabase_admin/service_role platform default ACLs.
 
+**⚠ MARKET-V2 IS MERGED, NOT APPLIED — IT IS A CUTOVER-DAY MIGRATION.** Its §0 wipe-guard
+REFUSES to apply while market rows exist (proven live 2026-08-16: refused with 1 listing +
+6 sales standing). Freeze-day order: `set hearthrise.market_wipe_ok = 'yes'` in the SAME
+session → apply `2026-08-17-market-v2.sql` → apply `2026-08-17-market-buy-offers-lockdown.sql`
+→ deploy the Edge payload. **INCIDENT 2026-08-16 (~3 min, no player impact):** the lockdown
+was applied out of sequence via a chained command that kept running after market-v2's
+refusal crashed the runner — it revoked the LIVE client's buy-offer policies/grants with
+b352 clients still un-gated. Caught immediately (0 offer rows existed), reverted via
+`2026-08-12-market-offers-authority.sql` + grant restore, self-check green. TWO RULES from
+it: ONE apply per command, never chained with `&&`; and a migration tagged BLOCKING
+FLIP-ON is freeze-day work even when the file sits merged on main. Note the Edge payload
+guard runs RED on main until the cutover deploy (repo packs the market verb; deploying it
+early would 500 on the missing RPCs — the D3 confusion — so the RED is the honest state
+and is expected until freeze day).
+
 **IN FLIGHT AT SESSION END:** market-v2 (+ buy-offer lockdown + tax ceil, all 10 Security
 conditions closed + re-review CLEARED-TO-APPLY) is REBASING onto batch 5 and re-deriving
 its detector patch on batch 5's live body (md5 `3d9121ef…`) — do NOT hand-merge it; the

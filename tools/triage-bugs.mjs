@@ -54,8 +54,11 @@ const has = (name) => argv.includes(`--${name}`);
 function die(msg, code = 2) { console.error(msg); process.exit(code); }
 
 function token() {
+  /* Cloud-routine fallback: the scheduled triage agent runs in a fresh cloud
+     clone with no home-dir token files; its environment supplies the secret. */
+  if (process.env.SUPABASE_ACCESS_TOKEN) return process.env.SUPABASE_ACCESS_TOKEN.trim();
   try { return readFileSync(`${homedir()}/.supabase-token`, 'utf8').trim(); }
-  catch { die('no ~/.supabase-token — cannot reach the management API'); }
+  catch { die('no SUPABASE_ACCESS_TOKEN env and no ~/.supabase-token — cannot reach the management API'); }
 }
 
 async function q(query) {

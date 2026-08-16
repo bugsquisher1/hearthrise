@@ -1185,6 +1185,8 @@ const ENGINE = 'supabase/functions/hr-accrue/accrual.js';
 const INTENT = 'supabase/functions/hr-accrue/set-activity.js';
 const CORE = 'src/core/artisan-sim.js';
 const CLIENT = 'src/net/activity.js';
+const SWEEP = 'tests/accrual-engine.mjs';
+const BUDGET = 'supabase/migrations/2026-08-16-day-budget-artisan.sql';
 
 export const MUTATIONS = [
   ['M1  the input debit does not spend the bag', [
@@ -1250,6 +1252,36 @@ export const MUTATIONS = [
     [ENGINE, '  const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES',
       '  const stopped = summary.stoppedBy || summary.stoppedBy === ARTISAN_STOP.SUPPLIES'],
   ], "a clamp rejection ends the player's run as a side effect"],
+  /* ── THE FUSE-SIZING GUARD ITSELF (Security ruling 2026-08-16). Five ways to
+     make it stop meaning anything, each of which would leave a green suite. */
+  ['S1  the day-budget raise is reverted', [
+    [BUDGET, '  c_day_qty_budget  constant bigint := 70000000;',
+      '  c_day_qty_budget  constant bigint := 1000000;'],
+  ], 'the qty fuse fires on an ordinary fletching night'],
+  ['S2  the day-budget xp raise is reverted', [
+    [BUDGET, '  c_day_xp_budget   constant bigint := 120000000;',
+      '  c_day_xp_budget   constant bigint := 40000000;'],
+  ], 'the xp fuse sits at 87.8% of honest play'],
+  ['S3  the guard reads the FIRST budget migration, not the last', [
+    [SWEEP, '    if (Object.keys(b).length) found = { budgets: b, file: f };',
+      '    if (Object.keys(b).length && !found) found = { budgets: b, file: f };'],
+  ], 'the ceiling graded is one a later migration already superseded'],
+  ['S4  the blocking arm sweeps the 24h fuse ceiling again', [
+    [SWEEP, 'const REACHABLE_CAP_H = reachableCapHours();',
+      'const REACHABLE_CAP_H = 24;'],
+  ], 'the build fails on a span no character in production can hold'],
+  /* S5/S6 mutate the BASELINE rather than the assertion that reads it, and that
+     is the only form that proves anything: weakening a check nothing currently
+     violates stays green, so the mutation has to introduce the violation. Both
+     are shaped like the real regression — a yield that grew past what Security
+     measured, and a recipe that fell off the list. */
+  ['S5  an amnestied yield grows past what Security measured', [
+    [SWEEP, '  fletch_dawnpoint_arrows: 7670000,   // outputQty 1000',
+      '  fletch_dawnpoint_arrows: 7000000,   // outputQty 1000'],
+  ], 'the ratchet must fire — a worse yield pushes the ladder past MAX_DEGRADE and pays zero'],
+  ['S6  a recipe crosses the clamp with no amnesty', [
+    [SWEEP, '  fletch_bronze_arrows: 5273000,      // outputQty 500', '  // removed'],
+  ], 'a NEW recipe over the per-call clamp must be a new decision, not an inherited one'],
 ];
 
 const SEAM_PROBE = "import('./tests/activity-seam.mjs').then(async (m)=>{const p=await m.runAll();"
@@ -1288,6 +1320,16 @@ async function selftest() {
       }
       try { await run('node', ['-e', SEAM_PROBE], { maxBuffer: 1e8 }); }
       catch (e) { red.push('seam: ' + String(e.stdout || e.message).trim().slice(0, 150)); }
+      /* THE FUSE-SIZING SWEEP runs here too, because the S-series mutations
+         (the day-budget raise, the chain read, the reachable cap, the amnesty)
+         are only visible to it — and a mutation harness whose probes cannot see
+         the file being mutated reports SLIPPED for the right reason and
+         CAUGHT-by-accident for the wrong one. */
+      try { await run('node', ['tests/accrual-engine.mjs'], { maxBuffer: 1e8 }); }
+      catch (e) {
+        const first = String(e.stdout || '').split('\n').filter((l) => l.trim().startsWith('x '))[0];
+        red.push('accrual-engine: ' + (first || 'RED').trim().slice(0, 150));
+      }
     }
     for (const [file, orig] of originals) await writeFile(file, orig, 'utf8');
     if (bad) { console.log(`ANCHOR-FAIL ${name}: ${bad}`); slipped++; continue; }

@@ -34,6 +34,10 @@
 // ============================================================================
 
 import { readFile, readdir } from 'node:fs/promises';
+/* SYNC, deliberately: REACHABLE_CAP_H is a module-scope constant the sweep
+   tables below are built from, and an async read there would make it a promise
+   that every fixture silently compared against. */
+import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -1831,6 +1835,94 @@ async function autoEatDriftGuard() {
 // organised around.
 const HEADROOM = 0.60;
 
+/* ⚠ THE XP DIMENSION HAS ITS OWN LINE, AND IT IS AN ARGUED EXCEPTION RATHER
+   THAN A RELAXATION. (Security ruling 2026-08-16, "artisan flip re-review".)
+
+   Every other clamp in the table can be RAISED if honest play approaches it —
+   that is what the 60% line is for, and what the failure message tells you to
+   do. `c_max_xp_delta` cannot: xpForLevel(99) is 13,034,431, the clamp is
+   12,000,000, and the single property it still buys is that ONE apply cannot
+   carry a skill from 0 to the cap. There is no headroom to grant, only 1.03M
+   of theoretical room that the `< xpForLevel(99)` assertion above already
+   claims. So "keep honest play under 60% of it" is not an instruction anybody
+   could follow — the only lever left is the YIELD, which belongs to the Game
+   Designer.
+
+   The line is therefore set where it means something the engine CAN honour:
+   honest play must not EXCEED the clamp. At 95% the guard still fails before a
+   real player trips it, the degrade ladder covers the last 5%, and the failure
+   message points at the yield instead of at a constant that cannot move.
+
+   It is a SEPARATE named constant rather than a bump to HEADROOM because the
+   two say different things, and folding them would quietly move five other
+   dimensions' fuses at the same time. */
+const XP_HEADROOM = 0.95;
+
+/* ── THE SPAN THE BLOCKING ARM SWEEPS AT (Security ruling 2026-08-16) ───────
+   `hr_offline_cap_ms` is 12h base, +1h at clan level 4, +2h more at clan level
+   7 — a hard maximum of 15h — against its own `c_ceiling_ms` of 24h, which is
+   a FUSE and not a reachable cap ("the largest cap any legal combination of
+   sources could ever produce … so it can never clip an honest player").
+
+   Sweeping the blocking assertion at 24h therefore fails the build on a span no
+   character in production can have. That is not conservatism, it is a false
+   red: it makes the guard something to be argued with rather than something to
+   be believed, which is how a real one eventually gets relaxed.
+
+   So the BLOCKING arm sweeps the reachable cap and the 24h numbers stay, as a
+   NON-BLOCKING FORECAST line printed on every run — because the cap is a number
+   somebody will raise (the clan ladder already moves it), and the day it
+   becomes reachable the figure is already on the screen rather than discovered
+   by a player. `2026-08-16-day-budget-artisan.sql` records the specific
+   trigger: above ~17h, forge_slagheart_platebody crosses c_max_xp_delta and the
+   resolution has to be a yield change.
+
+   DERIVED from the migration, never typed here: a cap raise moves this in the
+   same commit that moves the cap, which is the whole reason the clamps
+   themselves are parsed rather than restated. */
+const REACHABLE_CAP_H = reachableCapHours();
+const FORECAST_CAP_H = 24;
+
+/* ── THE AMMUNITION LANE: A RULED-ON EXCEPTION, ENUMERATED AND RATCHETED ────
+   (Security ruling 2026-08-16, "artisan flip re-review".)
+
+   Eight crafting recipes fletch arrows at `outputQty` 500-1,000 per craft, so a
+   full night on one of them mints millions of UNITS of a low-value item. Seven
+   of the eight exceed `c_max_item_delta` (1,000,000) at the reachable cap.
+
+   Security HELD the clamp rather than raising it, and the reasoning is the part
+   worth keeping: a per-call clamp is a blast radius on ONE apply, and raising it
+   12x to accommodate eight rows would widen the blast radius of every
+   compromised apply in the game. The real defect is the yield — one tick
+   producing a thousand items — and that is the Game Designer's. Routed.
+
+   ⚠ SO THIS IS AN ACCEPTED RESIDUAL, NOT A PASS, AND IT IS WRITTEN DOWN THE WAY
+     THIS REPO WRITES DOWN ACCEPTED RESIDUALS: an enumerated baseline that
+     RATCHETS. The consequence is real and stated — a fletching night trips the
+     clamp, index.ts's degrade ladder halves the proposal until it fits, and the
+     player is paid roughly an eighth of the night with an incident recorded on
+     every rejected attempt.
+
+   The four properties this table buys, none of which a raised HEADROOM would:
+     1. a recipe NOT on this list that crosses the clamp still fails the build;
+     2. a recipe on it that gets WORSE still fails the build (the ratchet);
+     3. a recipe on it that stops overflowing is REPORTED, so a fixed yield
+        gets its amnesty removed instead of leaving a permanent hole;
+     4. the exception is eight named ids in a diff, not a number nobody can
+        attribute to a decision.
+
+   Values are the MEASURED maximum single-item movement at the reachable cap.
+   Re-measure with the same sweep if the pacing constants move. */
+const AMMO_CLAMP_BASELINE = Object.freeze({
+  fletch_dawnpoint_arrows: 7670000,   // outputQty 1000
+  fletch_bronze_arrows: 5273000,      // outputQty 500
+  fletch_barbed_arrows: 4963000,      // outputQty 500
+  fletch_steel_arrows: 4687500,       // outputQty 500
+  fletch_mithril_arrows: 4440500,     // outputQty 500
+  fletch_rune_arrows: 4218500,        // outputQty 500
+  fletch_emberhead_arrows: 4017500,   // outputQty 500
+});
+
 /* THE HONEST MAXIMUM IS A CHARACTER THAT DOES NOT DIE, AND `hp: 9999` IS NOT
    ONE. Until 2026-08-15 both headroom sweeps below used `hp/maxHp = 9999` with
    no auto-eat as a "never dies" proxy. It is not: it is a "dies after 9999
@@ -1942,6 +2034,37 @@ function artisanSupply(recipe) {
   return bag;
 }
 
+/**
+ * The largest offline cap a real character can hold, in hours, READ OUT OF
+ * `hr_offline_cap_ms` in supabase/migrations/2026-08-11-accrual.sql.
+ *
+ * The function is `c_base_h` plus a ladder of `v_hours := v_hours + N` bumps,
+ * every one of which a single character can hold at once (they are cumulative
+ * clan-level thresholds, not alternatives), then `least(c_ceiling_ms, …)`.
+ * So the reachable maximum is base + every bump, capped by the ceiling.
+ *
+ * ⚠ IT THROWS RATHER THAN GUESSING. A parse that quietly returned a default
+ *   would make both headroom sweeps run at a span nobody chose, and they would
+ *   still print a confident number — the always-null-probe shape. If this
+ *   throws, the cap function's spelling moved and somebody has to look.
+ */
+function reachableCapHours() {
+  const path = join(ROOT, 'supabase', 'migrations', '2026-08-11-accrual.sql');
+  const sql = readFileSync(path, 'utf8');
+  const body = sql.slice(sql.indexOf('function public.hr_offline_cap_ms'));
+  const base = body.match(/c_base_h\s+constant\s+int\s*:=\s*(\d+)/);
+  if (!base) throw new Error('reachableCapHours: could not read c_base_h out of hr_offline_cap_ms — '
+    + 'the cap function moved and both headroom sweeps would run at a span nobody chose');
+  const bumps = [...body.slice(0, body.indexOf('$$;') + 1)
+    .matchAll(/v_hours\s*:=\s*v_hours\s*\+\s*(\d+)/g)].map((m) => Number(m[1]));
+  if (!bumps.length) throw new Error('reachableCapHours: hr_offline_cap_ms has no `v_hours := '
+    + 'v_hours + N` bumps — either the ladder moved or the parse is blind, and a base-only answer '
+    + 'would understate the reachable cap');
+  const ceilMs = body.match(/c_ceiling_ms\s+constant\s+bigint\s*:=\s*(\d+)\s*\*\s*3600000/);
+  const ceilH = ceilMs ? Number(ceilMs[1]) : Infinity;
+  return Math.min(ceilH, Number(base[1]) + bumps.reduce((a, b) => a + b, 0));
+}
+
 function clampsFromMigration(sql) {
   const out = {};
   for (const m of sql.matchAll(/c_(max_[a-z_]+)\s+constant\s+(?:bigint|int)\s*:=\s*(\d+)/g)) {
@@ -1981,11 +2104,22 @@ async function clampGuard() {
      hr_offline_cap_ms ceiling and accrual.js's own ACCRUE_MAX_SPAN_MS), maxed
      skills and best-in-slot gear. "A new high-XP monster tightens it" is only
      true as a guard if the guard actually looks at the new monster. */
-  const worst = { max_xp_delta: [0, ''], max_gold_delta: [0, ''], max_item_delta: [0, ''],
-                  max_item_kinds: [0, ''], max_progress_add: [0, ''], max_progress_ops: [0, ''] };
-  const bump = (k, v, where) => { if (v > worst[k][0]) worst[k] = [v, where]; };
+  const blank = () => ({ max_xp_delta: [0, ''], max_gold_delta: [0, ''], max_item_delta: [0, ''],
+                         max_item_kinds: [0, ''], max_progress_add: [0, ''], max_progress_ops: [0, ''] });
+  /* TWO tables, and the split is the ruling: `worst` is what a real character
+     can reach and it FAILS THE BUILD; `forecast` is the 24h fuse ceiling and it
+     is PRINTED. Same sweep, same fixtures, different verdicts. */
+  const worst = blank();
+  const forecast = blank();
+  /* What each amnestied fletching recipe actually moved this run, for the
+     printed report — an accepted residual nobody can see the size of is an
+     accepted residual nobody re-examines. */
+  const ammoSeen = {};
+  let into = worst;
+  const bump = (k, v, where) => { if (v > into[k][0]) into[k] = [v, where]; };
 
-  for (const spanH of [15, 24]) {
+  for (const spanH of [REACHABLE_CAP_H, FORECAST_CAP_H]) {
+    into = spanH === REACHABLE_CAP_H ? worst : forecast;
     for (const id of Object.keys(MONSTERS)) {
       const r = computeAccrual({
         userId: '00000000-0000-4000-8000-000000000001', slot: 0,
@@ -2026,13 +2160,69 @@ async function clampGuard() {
        clamp is `abs(v_n) > c_max_item_delta` and a 20,000-ore debit trips it
        exactly as a 20,000-bar credit would. */
     for (const [where, d] of artisanSweep(spanH)) {
+      const recipeId = where.split(' ')[1];
       bump('max_xp_delta', Math.max(0, ...Object.values(d.xp || {})), where);
       bump('max_gold_delta', d.gold || 0, where);
-      bump('max_item_delta', Math.max(0, ...Object.values(d.items || {}).map(Math.abs)), where);
+      const units = Math.max(0, ...Object.values(d.items || {}).map(Math.abs));
+      /* THE AMMUNITION LANE IS HELD OUT OF THE BLOCKING MAXIMUM — and ONLY
+         those ids, and only against their own baselined value, and only at the
+         reachable cap. Everything else on this dimension still fails at 60%,
+         so a combat drop or a new bulk recipe crossing the clamp is caught
+         exactly as before. The held-out rows get their own assertions below. */
+      if (spanH === REACHABLE_CAP_H && Object.prototype.hasOwnProperty.call(AMMO_CLAMP_BASELINE, recipeId)) {
+        ammoSeen[recipeId] = units;
+      } else {
+        bump('max_item_delta', units, where);
+      }
       bump('max_item_kinds', Object.keys(d.items || {}).length, where);
       bump('max_progress_add', Math.max(0, ...(d.progress || []).map((p) => p.add)), where);
       bump('max_progress_ops', (d.progress || []).length, where);
     }
+  }
+
+  /* ── THE BASELINE'S FOUR PROPERTIES, ASSERTED ──────────────────────────── */
+  {
+    /* (1) NOTHING NEW MAY JOIN IT. Recomputed from the sweep rather than from
+       `worst`, because `worst` only remembers the single largest. */
+    const over = [];
+    for (const [where, d] of artisanSweep(REACHABLE_CAP_H)) {
+      const id = where.split(' ')[1];
+      const units = Math.max(0, ...Object.values(d.items || {}).map(Math.abs));
+      if (units > C.max_item_delta) over.push([id, units]);
+    }
+    for (const [id, units] of over) {
+      ok(Object.prototype.hasOwnProperty.call(AMMO_CLAMP_BASELINE, id),
+        `CLAMP BASELINE: '${id}' moves ${units} units of one item against c_max_item_delta = `
+        + `${C.max_item_delta} and is NOT on AMMO_CLAMP_BASELINE. Only the seven fletching recipes `
+        + 'Security ruled on 2026-08-16 are amnestied; a new recipe crossing the clamp is a new '
+        + 'decision, not an inherited one. Reduce the yield, or take it to Security.');
+      /* (2) THE RATCHET. An amnestied recipe may not get worse. */
+      const base = AMMO_CLAMP_BASELINE[id];
+      if (base !== undefined) {
+        ok(units <= base,
+          `CLAMP BASELINE RATCHET: '${id}' moves ${units} units, above its baselined ${base}. The `
+          + 'amnesty is for the yields Security measured, not for whatever they become — a balance '
+          + 'change that makes an already-over-clamp recipe worse pushes the degrade ladder past '
+          + 'MAX_DEGRADE and the player gets nothing at all.');
+      }
+    }
+    /* (3) A STALE AMNESTY IS REPORTED. An exception that no longer applies is a
+       hole nobody remembers leaving open. */
+    const stale = Object.keys(AMMO_CLAMP_BASELINE).filter((id) => !over.some(([o]) => o === id));
+    clampGuard.staleAmnesty = stale;
+    clampGuard.ammo = over.map(([id, units]) =>
+      `${id} ${units}/${C.max_item_delta} = ${(units / C.max_item_delta).toFixed(1)}x  `
+      + `→ ladder pays ~1/${2 ** Math.ceil(Math.log2(units / C.max_item_delta))} of the night`);
+    for (const id of stale) {
+      clampGuard.ammo.push(`${id} no longer overflows — REMOVE it from AMMO_CLAMP_BASELINE`);
+    }
+    /* (4) AND THE CONTROL: the sweep must still SEE the lane. A change that made
+       artisanSweep return nothing would satisfy (1) and (2) vacuously and this
+       whole block would pass while measuring an empty set. */
+    ok(over.length > 0 || stale.length === Object.keys(AMMO_CLAMP_BASELINE).length,
+      'CLAMP BASELINE CONTROL: the artisan sweep found NO clamp overflow at all and the baseline is '
+      + 'not fully stale either — the sweep is not seeing the ammunition lane, so (1) and (2) pass '
+      + 'against an empty set.');
   }
 
   /* ── THE OFFENDER LIST, PRINTED (b356) ────────────────────────────────────
@@ -2059,12 +2249,41 @@ async function clampGuard() {
     if (!C[k]) continue;
     const pct = v / C[k];
     clampGuard.report.push(`${k} ${v}/${C[k]} = ${(pct * 100).toFixed(1)}% (${where})`);
+    /* THE XP DIMENSION HAS ITS OWN LINE — see XP_HEADROOM. It is the one clamp
+       that cannot be raised, so the only honest instruction is about the yield. */
+    if (k === 'max_xp_delta') {
+      ok(pct < XP_HEADROOM,
+        `CLAMP HEADROOM: honest play reaches ${v} against c_max_xp_delta = ${C[k]} — `
+        + `${(pct * 100).toFixed(1)}%, over the ${XP_HEADROOM * 100}% line, at ${where}. `
+        + 'THIS CLAMP CANNOT BE RAISED: xpForLevel(99) is 13,034,431 and the only property it still '
+        + 'buys is that one apply cannot carry a skill from 0 to the cap (asserted above, and the '
+        + 'literal is pinned by 2026-08-15-gem-daily-budget.sql\'s §0). The lever is the YIELD, and '
+        + 'it is the Game Designer\'s. Until then the degrade ladder pays a fraction of the night '
+        + 'and records an incident on every attempt. '
+        + '(Line set by Security ruling 2026-08-16, "artisan flip re-review".)');
+      continue;
+    }
     ok(pct < HEADROOM,
       `CLAMP HEADROOM: honest play reaches ${v} against c_${k} = ${C[k]} — ${(pct * 100).toFixed(1)}%, `
       + `over the ${HEADROOM * 100}% line, at ${where}. A clamp that honest play can approach is a clamp that WILL `
       + `fire, and a fired clamp costs the player part of an absence (index.ts's degrade ladder) instead of `
       + `bricking it — but it is still an incident. Raise c_${k} in supabase/migrations/2026-08-11-apply-engine.sql `
       + `(and get it re-reviewed), or reduce the yield.`);
+  }
+
+  /* ── THE FORECAST. NOT AN ASSERTION, AND THAT IS DELIBERATE ─────────────
+     24h is `hr_offline_cap_ms`'s fuse ceiling, not a span any character can
+     hold (the reachable maximum is ${REACHABLE_CAP_H}h). Failing the build on
+     it would be a false red — the fastest way to teach everyone that this guard
+     can be argued with. Printing it costs nothing and means that on the day
+     somebody raises the cap, the number they need is already on the screen
+     rather than in a player's bug report. */
+  clampGuard.forecast = [];
+  for (const [k, [v, where]] of Object.entries(forecast)) {
+    if (!C[k] || !v) continue;
+    const pct = v / C[k];
+    clampGuard.forecast.push(
+      `${k} ${v}/${C[k]} = ${(pct * 100).toFixed(1)}% (${where})${pct >= 1 ? '  ⚠ OVER' : ''}`);
   }
 }
 
@@ -2098,15 +2317,44 @@ function dayBudgetsFromMigration(sql) {
   return out;
 }
 
+/* ── THE LIVE END OF THE CHAIN, NOT THE FIRST FILE ──────────────────────────
+   `hr_day_budget_limits` is a `create or replace` that FOUR migrations restate,
+   so the value production runs is the one in the LAST file that declares it —
+   filename order, which is how this repo's chain is applied. Reading
+   2026-08-11-daily-budget.sql (as this guard did until b356) graded a value
+   that a later migration may already have superseded: it happened to be right
+   only because every restatement so far kept the same numbers, i.e. the guard
+   was correct by coincidence and would have gone silently stale on the first
+   file that changed one. It went stale immediately when
+   2026-08-16-day-budget-artisan.sql raised two of them.
+
+   Returns { budgets, file } so a failure can name WHICH file it graded — "the
+   ceiling is 40M" is useless when four files declare a ceiling. */
+async function latestDayBudgets() {
+  const dir = join(ROOT, 'supabase', 'migrations');
+  const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+  let found = null;
+  for (const f of files) {
+    const b = dayBudgetsFromMigration(await readFile(join(dir, f), 'utf8'));
+    if (Object.keys(b).length) found = { budgets: b, file: f };
+  }
+  return found;
+}
+
 async function dayBudgetGuard() {
-  const sql = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-11-daily-budget.sql'), 'utf8');
-  const B = dayBudgetsFromMigration(sql);
+  const latest = await latestDayBudgets();
+  ok(!!latest,
+    'DAY BUDGET: no migration in the chain declares a c_day_*_budget constant — the guard is blind, '
+    + 'which is the always-null-probe failure this file exists to avoid.');
+  if (!latest) return;
+  const B = latest.budgets;
   for (const need of ['gold', 'xp', 'qty']) {
     ok(B[need] > 0,
-      `DAY BUDGET: could not read c_day_${need}_budget out of 2026-08-11-daily-budget.sql — `
-      + 'the guard would be vacuous, which is the always-null-probe failure this file exists to avoid.');
+      `DAY BUDGET: could not read c_day_${need}_budget out of ${latest.file} — the guard would be `
+      + 'vacuous, which is the always-null-probe failure this file exists to avoid.');
   }
   if (!B.xp) return;
+  dayBudgetGuard.source = latest.file;
 
   /* The per-call XP clamp must stay STRICTLY BELOW the day ceiling, or the day
      ceiling pre-empts it and c_max_xp_delta becomes a control that can never
@@ -2119,44 +2367,55 @@ async function dayBudgetGuard() {
     + `(${clamps.max_xp_delta}). The day ceiling would fire before the per-call clamp could, and a `
     + 'clamp that cannot fire is not a control.');
 
+  /* TWO tables, same rule as clampGuard: `worst` is what a real character can
+     reach at the REACHABLE offline cap and it FAILS THE BUILD; `forecast` is
+     the 24h fuse ceiling and it is PRINTED. Security ruling 2026-08-16. */
   const worst = { gold: [0, ''], xp: [0, ''], qty: [0, ''] };
-  const bump = (k, v, where) => { if (v > worst[k][0]) worst[k] = [v, where]; };
-  for (const id of Object.keys(MONSTERS)) {
-    const r = computeAccrual({
-      userId: '00000000-0000-4000-8000-000000000001', slot: 0,
-      nowMs: NOW_MS, accruedToMs: NOW_MS - 24 * 3600000, activeSinceMs: NOW_MS - 24 * 3600000,
-      activeKind: 'combat', activeId: id, capMs: 24 * 3600000, seed: SEED,
-      gold: 0, skills: MAXED, equipment: EQUIPMENT,
-      items: ITEMS, monsters: MONSTERS,
-      ...HONEST_SUSTAIN,
-    });
-    if (!r.accrued) continue;
-    const d = r.delta;
-    bump('gold', d.gold || 0, `24h ${id}`);
-    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), `24h ${id}`);
-    /* POSITIVE entries only. The budget's `qty` dimension is gross INFLOW, and
-       auto-eat now puts a negative in this map — summing it signed would let a
-       night of eating pay for a night of looting. */
-    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), `24h ${id}`);
-  }
-  /* Gathering, at the same span. It is the `qty` dimension's real worst case —
-     a night of chopping is one item kind in five figures, where a night of
-     fighting is a handful of drop rows. */
-  for (const [where, d] of gatherSweep(24)) {
-    bump('gold', d.gold || 0, where);
-    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
-    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);
-  }
-  /* Artisan, at the same span (b356). POSITIVE entries only, for the reason
-     stated above and doubly so here: this is the one path whose item map is
-     routinely negative, and summing it signed would let the consumed inputs pay
-     for the produced output — a night that mints 20,000 bars would score as
-     nearly zero gross inflow, which is precisely the dimension the budget
-     exists to bound. */
-  for (const [where, d] of artisanSweep(24)) {
-    bump('gold', d.gold || 0, where);
-    bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
-    bump('qty', Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0), where);
+  const forecast = { gold: [0, ''], xp: [0, ''], qty: [0, ''] };
+  let into = worst;
+  const bump = (k, v, where) => { if (v > into[k][0]) into[k] = [v, where]; };
+  const posQty = (d) => Object.values(d.items || {}).filter((v) => v > 0).reduce((a, b) => a + b, 0);
+
+  for (const spanH of [REACHABLE_CAP_H, FORECAST_CAP_H]) {
+    into = spanH === REACHABLE_CAP_H ? worst : forecast;
+    for (const id of Object.keys(MONSTERS)) {
+      const r = computeAccrual({
+        userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+        nowMs: NOW_MS, accruedToMs: NOW_MS - spanH * 3600000, activeSinceMs: NOW_MS - spanH * 3600000,
+        activeKind: 'combat', activeId: id, capMs: spanH * 3600000, seed: SEED,
+        gold: 0, skills: MAXED, equipment: EQUIPMENT,
+        items: ITEMS, monsters: MONSTERS,
+        ...HONEST_SUSTAIN,
+      });
+      if (!r.accrued) continue;
+      const d = r.delta;
+      bump('gold', d.gold || 0, `${spanH}h ${id}`);
+      bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), `${spanH}h ${id}`);
+      /* POSITIVE entries only. The budget's `qty` dimension is gross INFLOW, and
+         auto-eat now puts a negative in this map — summing it signed would let a
+         night of eating pay for a night of looting. */
+      bump('qty', posQty(d), `${spanH}h ${id}`);
+    }
+    /* Gathering, at the same span. It is the `qty` dimension's real worst case
+       among the pre-b356 kinds — a night of chopping is one item kind in five
+       figures, where a night of fighting is a handful of drop rows. */
+    for (const [where, d] of gatherSweep(spanH)) {
+      bump('gold', d.gold || 0, where);
+      bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
+      bump('qty', posQty(d), where);
+    }
+    /* Artisan (b356), and it is now the worst case in BOTH the qty and xp
+       dimensions by an order of magnitude. POSITIVE entries only, for the
+       reason stated above and doubly so here: this is the one path whose item
+       map is routinely negative, and summing it signed would let the consumed
+       inputs pay for the produced output — a night that mints 20,000 bars would
+       score as nearly zero gross inflow, which is precisely the dimension the
+       budget exists to bound. */
+    for (const [where, d] of artisanSweep(spanH)) {
+      bump('gold', d.gold || 0, where);
+      bump('xp', Object.values(d.xp || {}).reduce((a, b) => a + b, 0), where);
+      bump('qty', posQty(d), where);
+    }
   }
 
   dayBudgetGuard.report = [];
@@ -2169,7 +2428,22 @@ async function dayBudgetGuard() {
       + `${B[k]} — ${(pct * 100).toFixed(1)}%, over the ${DAY_HEADROOM * 100}% line, at ${where}. `
       + 'The daily budget is an ABUSE CEILING and must never clip a player; the per-absence offline '
       + 'cap (b307) is the pacing control and it WINS when the two conflict. Raise c_day_'
-      + `${k}_budget in supabase/migrations/2026-08-11-daily-budget.sql — do NOT let this fire.`);
+      + `${k}_budget in supabase/migrations/${latest.file} — do NOT let this fire. (The escalation `
+      + 'rule is the one 2026-08-11-daily-budget.sql states itself: "if a balance change ever makes honest play '
+      + 'approach these numbers, the correct response is to raise the budget, not to let it clip a '
+      + 'player.")');
+  }
+
+  /* THE FORECAST, printed and not asserted — same reason clampGuard keeps one.
+     24h is the cap function's FUSE ceiling, not a span any character can hold. */
+  dayBudgetGuard.forecast = [];
+  for (const [k, [v, where]] of Object.entries(forecast)) {
+    if (!v) continue;
+    const perDay = v * DAY_WINDOWS_PER_UTC_DAY;
+    const pct = perDay / B[k];
+    dayBudgetGuard.forecast.push(
+      `${k} ${perDay}/${B[k]} = ${(pct * 100).toFixed(1)}% (${where} x${DAY_WINDOWS_PER_UTC_DAY})`
+      + `${pct >= 1 ? '  ⚠ OVER' : ''}`);
   }
 }
 
@@ -2405,6 +2679,18 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
      number nobody notices tightening. */
   for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);
   for (const line of dayBudgetGuard.report || []) console.log(`  day-budget headroom: ${line}`);
+  /* ⚠ THE ACCEPTED RESIDUAL, PRINTED ON EVERY RUN. Security ruled the
+     ammunition lane may exceed c_max_item_delta pending a yield decision; a
+     residual nobody can see the size of is a residual nobody re-examines. */
+  for (const line of clampGuard.ammo || []) console.log(`  ⚠ ammo residual: ${line}`);
+  /* And the 24h FORECAST — not asserted (the reachable cap is
+     ${REACHABLE_CAP_H}h), printed so a cap raise starts from a number rather
+     than from a player's bug report. */
+  for (const line of clampGuard.forecast || []) console.log(`  forecast @24h: ${line}`);
+  for (const line of dayBudgetGuard.forecast || []) console.log(`  forecast @24h day-budget: ${line}`);
+  console.log(`  spans: blocking arm at the reachable cap ${REACHABLE_CAP_H}h `
+    + `(hr_offline_cap_ms base + every bump); forecast at ${FORECAST_CAP_H}h (its fuse ceiling). `
+    + `day budgets read from ${dayBudgetGuard.source}.`);
   for (const line of toolCarryContinuityGuard.report || []) console.log(`  ${line}`);
   /* The gather fixtures, printed. A parity number nobody sees is a number
      nobody notices moving — the same reason the clamp headroom is printed. */

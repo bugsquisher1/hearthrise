@@ -521,6 +521,44 @@
   cursor: pointer; line-height: 1;
 }
 .hr-room-x:hover { color: var(--scene-ink); border-color: var(--scene-gilt); }
+
+/* ── THE BUILD BAR (b354) ──────────────────────────────────────────────────
+ * The one control a room modal exists for, ABOVE the scrolling body.
+ *
+ * It used to be the last thing in `.hr-room-body`, under the flavour, the
+ * current bonuses and a five-rung ladder — which on a phone, and on a desktop
+ * card whose header is a 168px scene inside a 90vh frame, put Build below the
+ * fold. A player could open the Kitchen and see nothing they could press.
+ *
+ * `flex: 0 0 auto` in the wrap's column, so it takes its height out of the
+ * body's share rather than overlaying anything: the ladder simply scrolls
+ * under it. No `position: sticky` — the body is the scroll container and a
+ * sticky sibling of it would not stick to anything.
+ *
+ * Every colour is a token. The plate is the panel surface lifted by a whisper
+ * of the gilt already used for the title, so the bar reads as part of the frame
+ * in both themes rather than as a light strip pasted on a dark wall. */
+.hr-room-build {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--gold) 6%, var(--bg-1));
+}
+.hr-room-build .hr-cs-grow { min-width: 0; }
+.hr-room-build-lv {
+  font-family: var(--f-display, serif);
+  font-size: 13px; font-weight: 800; letter-spacing: .06em;
+  color: var(--gold);
+  margin-right: 8px;
+}
+.hr-room-build-cost { font-size: 13px; color: var(--ink-2); }
+.hr-room-build-cost.is-free { color: var(--ink-3); }
+.hr-room-build-why { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+/* The button must not be squeezed to an ellipsis by a long cost list — the
+ * label is what says whether this is a Build or an Upgrade. */
+.hr-room-build > .btn { flex: 0 0 auto; }
+
 .hr-room-body {
   flex: 1 1 auto; min-height: 0;
   overflow-y: auto;
@@ -682,10 +720,20 @@
   .hr-room-scene { height: 128px; }
   /* 30x30 close button was under the 44px tap floor on touch. */
   .hr-room-x { width: 40px; height: 40px; }
+  /* b354: on a phone the cost list and the label together are wider than the
+   * screen, so the bar wraps into two rows and the button spans the second at
+   * full width — a 44px tap target instead of a squeezed one. It stays ABOVE
+   * the body either way, which is the property that matters. */
+  .hr-room-build { flex-wrap: wrap; padding: 9px 12px; }
+  .hr-room-build .hr-cs-grow { flex: 1 1 100%; }
+  .hr-room-build > .btn { flex: 1 1 100%; min-height: 40px; }
 }
 /* Short viewports: shrink the scene so the body/ladder is not pushed off. */
 @media (max-height: 540px) {
   .hr-room-scene { height: 96px; }
+  /* A landscape phone is ~420px tall: the scene, the title and the bar are the
+   * whole visible frame, so the bar gets the tightest form it has. */
+  .hr-room-build { padding: 7px 12px; }
   .hr-room-scrim { padding: 0; align-items: stretch; }
   .hr-room-wrap { max-width: none; max-height: none; border-radius: 0; }
 }

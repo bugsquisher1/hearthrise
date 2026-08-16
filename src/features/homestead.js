@@ -769,17 +769,38 @@
     var buttons = [];
     if (d.next) {
       var label = (d.level === 0 ? 'Build ' : 'Upgrade to ') + d.next.name;
+      /* b354 — THE BUTTON RIDES ABOVE THE SCROLL, AND ITS PRICE RIDES WITH IT.
+         `pin` is read by the RoomModal seam, which lifts this one button out of
+         the scrolling body into the bar under the header. It stays in `actions`
+         in the DESCRIPTOR because the descriptor is also what the smoke suite
+         and any future consumer read: where a control is drawn is the
+         renderer's business, what controls exist is this function's.
+
+         The costs are the ladder's own next-rung triples — the same objects,
+         not a second derivation, so the bar and the ladder can never disagree
+         about what a rung costs. A gated or unaffordable rung is pinned TOO:
+         "you cannot do this yet, and here is what is short" is the answer the
+         player came for, and hiding it below three sections is what made the
+         screen feel like it had nothing to offer. */
+      var nextRow = null;
+      for (var li = 0; li < d.ladder.length; li++) if (d.ladder[li].next) nextRow = d.ladder[li];
+      var costs = nextRow ? nextRow.cost.map(function (c) {
+        return { have: c.have, need: c.need, label: c.label };
+      }) : null;
       if (d.next.gated) {
-        buttons.push({ label: label, action: 'noop', disabled: true, why: d.next.gateReason });
+        buttons.push({ label: label, action: 'noop', disabled: true, why: d.next.gateReason,
+                       pin: true, costs: costs, level: d.next.level });
       } else if (!d.next.affordable) {
         var short = d.next.missing.map(function (m) {
           var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
           return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (n + ' ×' + (m.need - m.have));
         }).join(', ');
         // b213's lesson as a rule: name what is short, never "not enough".
-        buttons.push({ label: label, action: 'noop', disabled: true, why: 'Missing ' + short });
+        buttons.push({ label: label, action: 'noop', disabled: true, why: 'Missing ' + short,
+                       pin: true, costs: costs, level: d.next.level });
       } else {
-        buttons.push({ label: label, action: 'build', data: { room: id }, primary: true });
+        buttons.push({ label: label, action: 'build', data: { room: id }, primary: true,
+                       pin: true, costs: costs, level: d.next.level });
       }
     }
     if (d.go) buttons.push({ label: d.go.label, action: 'go', data: { room: id } });

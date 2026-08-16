@@ -25,6 +25,24 @@ SCENARIOS RACED AND HELD, first attempt, no retries** — exactly-once payment, 
 confirmed interleaving (replayed / replayed / version_conflict), receipts == state in
 every scenario. Security's C6 is satisfied against the live engine.
 
+**✅ SECURITY POSTURE CLOSED BY CONSTRUCTION (batch 5 APPLIED 2026-08-15).** The dead-
+client-write-grant class is no longer a state that refills — it is a property: new tables
+are born fail-closed (default ACL revokes client writes; proven live — a fresh table gets
+SELECT only), MAINTAIN is swept schema-wide, and `hr_assert_grant_hygiene` check (4) moved
+off `information_schema` to `has_table_privilege` so MAINTAIN + matview grants are
+permanently visible. Batches 1-5 all applied; `hr_client_write_baseline` is empty; hygiene
+clean. FOLLOW-UP (loud, not silent): when `2026-08-12-clan-members-rls-drop.sql` lands it
+MUST ship a companion revoke of clan_members/clans i/u/d grants or the now-sharper nightly
+detector raises. Also open (bounded, dead): leaderboard_ranked matview i/u/d, and the
+supabase_admin/service_role platform default ACLs.
+
+**IN FLIGHT AT SESSION END:** market-v2 (+ buy-offer lockdown + tax ceil, all 10 Security
+conditions closed + re-review CLEARED-TO-APPLY) is REBASING onto batch 5 and re-deriving
+its detector patch on batch 5's live body (md5 `3d9121ef…`) — do NOT hand-merge it; the
+PART 1f-ii chain guard must prove market-v2 derives from batch 5, or it silently reverts
+the check-4 rewrite. The cutover import tool is Security-signed-off (F1 fixed) and staged,
+runs freeze-day only, and needs its own rebase onto main after market-v2.
+
 **WHAT REMAINS IS PURELY OPERATIONAL, in order:** (1) market-v2 revalidation + apply +
 client swap (the last unreviewed surface); (2) C6 — `tools/race-test.mjs` against the
 live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway first,

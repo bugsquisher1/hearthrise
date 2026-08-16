@@ -90,9 +90,17 @@ which the subject lines, not the wrapper, must answer.
 
 ## 0.5 · P-MONSTER — the creature bust
 
-> Creature bust, three-quarters to the viewer, filling a square frame with an even margin, horns,
-> antlers, ears and blades whole and never touching the edge, eyes near centre, chunky-heroic
-> exaggerated proportions,
+> Creature bust, three-quarters to the viewer, filling a square frame with an even margin, the
+> whole silhouette contained inside the frame and nothing cropped at any edge, eyes near centre,
+> chunky-heroic exaggerated proportions,
+
+> ⚠ **THE FEATURE-SUMMONING TRAP (proven live, 2026-08-17).** An earlier form of this clause read
+> "horns, antlers, ears and blades whole and never touching the edge" — intending *protect these
+> from cropping*. The model reads a named feature as a REQUEST: Tyler's first web-UI generation of
+> the `cutpurse` (a tier-1 HUMAN pickpocket) came back with antlers, horns, and pointed ears — a
+> demon-elk bandit. Never name an anatomical feature in a wrapper; only subject lines may name
+> features, because there they are always intentional. Framing rules must be stated
+> feature-neutrally ("whole silhouette", "nothing cropped").
 
 *(212 chars.)* **The framing rule changed on 2026-08-16 and this is the new one.** The old rule —
 "eyes inside the middle 70%" — existed because the arena portrait was a **circle** with

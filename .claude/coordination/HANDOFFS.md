@@ -983,3 +983,33 @@ a **seeded server coin flip** (`FNV-1a(weekKey + sorted tied ids) mod n`), journ
 **To Systems (taxonomy, when the roster is built).** `DEC-NEUT-01` is resolved: `neutral` is retired and
 `NEUTRAL_DROP_BONUS ×1.15` needs re-homing or an accepted nerf on 7 monsters. `DEC-ALIAS-01` is approved
 and **ships first, as its own commit** — a rename without `MONSTER_ALIAS` costs live Renown (measured).
+
+---
+
+**To Asset Director + Systems (2026-08-16, Art Director).** Three art-pipeline facts that change how a
+batch must be validated — full detail in `DISCOVERIES.md`, specs in `docs/design/item-art-prompts.md` §0
+and `docs/design/monster-art-prompts.md` §0.
+
+1. **Monster canvas is square-256, non-negotiable, and 30 of the 36 shipped monster files violate it
+   today** (128 px long-edge, non-square; `venom_spider.png` is 128 × 83). Two monster surfaces use
+   `object-fit: cover` on a square box, so those files are being cropped in production right now. The
+   "all 256 × 256" line in `itemization-and-art-pipeline.md` Appendix D is wrong — it sampled the 6 Hunt
+   bosses only. **Item** canvas stays 128 px long-edge with a free short edge, because items are
+   `contain` everywhere.
+2. **The existing smoke guard checks that an icon path *looks like* a shipped path, not that the file
+   exists.** Before any generated batch is wired, that guard needs an existence + case-sensitivity +
+   PNG-colour-type-6 + corner-alpha check. The QC checklist in `item-art-prompts.md` §4.3 separates
+   exactly which rows are scriptable and which need a human.
+3. **When a full 426-file set lands, delete `SLOT_ART` / `__mapGeneratedGearIcons` in the same commit.**
+   It becomes unreachable (`if (LOCAL_ITEM_ICON[id]) return;`) and leaving it in place re-arms the
+   duplicate-sprite bug for the next item anyone adds.
+
+**To Game Designer (2026-08-16, Art Director).** Three live item ids have no `ITEM_DESC` and names that
+do not determine what the object *is* — I wrote each to the most defensible reading and documented the
+assumption in `item-art-prompts.md` §6 rather than guessing silently: `riftmaw_husk` (assumed a shed
+carapace-shell, following its 🐚 icon field), `elderscale_heart` (assumed a **crystalline** heart, not a
+literal organ, following its 💠 icon field — **this one is a coin flip and worth one line from you**),
+`dungeon_scrip` (assumed a stamped brass token, for shelf consistency with the other currencies, though
+"scrip" means paper). Separately, the **84 leather + cloth armour pieces and the 9 artisan tools have no
+flavour text at all** — their subject lines are derived systematically from name + tier + slot, which is
+defensible but thinner evidence than the rest of the sheet.

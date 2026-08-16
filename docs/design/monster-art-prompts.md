@@ -12,42 +12,63 @@ working asap."*
 
 ## 0 · How to use this file
 
-Every line below is **the SUBJECT clause only**. Wrap it:
+Every line below is **the SUBJECT clause only**. It carries no style language — that is deliberate, so
+the art direction can be swapped without rewriting 85 lines. Wrap it:
 
 ```
-<STYLE PREFIX>  +  <the subject line for this monster>  +  <STYLE SUFFIX>
+<STYLE PREFIX — MONSTERS>  +  <the subject line for this monster>  +  <STYLE SUFFIX>
 ```
 
-### STYLE PREFIX — paste before every subject
-> Painted fantasy creature portrait in a warm cozy-medieval illustration style, head-and-shoulders bust,
-> subject centred and facing three-quarters toward the viewer, eyes inside the middle 70% of the frame,
+### Where the wrapper comes from — **REVISED 2026-08-16**
 
-### STYLE SUFFIX — paste after every subject
-> semi-realistic painterly rendering with visible soft brushwork, flat-toned shading rather than
-> photographic gradients, one warm rim-light from the upper left and a cool fill from the lower right,
-> warm slightly desaturated "Forge & Stone" palette (bronze, iron blue-grey, steel silver-blue, leather
-> brown, parchment cream, hearth-orange accents), fully transparent background, no background scenery,
-> no ground plane, no drop shadow, no border, no text, no watermark, no UI frame, square composition,
-> reads clearly at thumbnail size.
+> **The style wrapper that used to live here has been removed.** Tyler, 2026-08-16, binding:
+> *"I don't like any of our current art; I want to move in a different direction."* The old prefix/suffix
+> asked for a match to the shipped `painted/` set, and the old "style anchor = the existing 36-file set"
+> instruction pointed at art that is no longer the target. Both are retired. The warm-desaturated
+> "Forge & Stone" **palette** is likewise no longer a constraint — Forge & Stone survives as the
+> **world** (castle, hearth, iron, stone, leather, timber), not as a colour temperature.
+
+**Take the STYLE PREFIX — MONSTERS and the STYLE SUFFIX from the direction chosen in
+[`art-direction-picker.md`](./art-direction-picker.md).** Use the **MONSTERS** prefix (head-and-shoulders
+bust), not the ITEMS one. Items and monsters share one lane and one suffix on purpose — that shared
+suffix is the mechanism that makes the item shelf and the bestiary look like one game. **Do not mix
+lanes across a batch.**
 
 ### Output spec (hard requirements, checked before wiring)
 | Property | Value |
 |---|---|
 | Format | PNG-24, RGBA, **real alpha** (colour type 6) — not a flattened white background |
-| Canvas | **exactly 256 × 256** (house Style B; item icons are a different spec) |
+| Canvas | **exactly 256 × 256, square — non-negotiable, and the shipped set gets this wrong today (see below)** |
+| Framing | subject centred, eyes and face inside the middle **70%** of the frame |
 | Filename | the monster's **game id**, `snake_case`, e.g. `winter_wolf.png` |
 | Location | `assets/icons-bundle/painted/monsters/` — no new subfolders |
 | Wiring | one line in `LOCAL_MONSTER_ICON` inside `applyLocalIcons()` at the bottom of `src/legacy.js` |
-| Style anchor | the existing 36-file `painted/monsters/` set (e.g. `emberclad_tyrant.png`). **Do not** anchor on `wolf_pup.png`/`hawk.png` — they are a known style outlier |
+
+**Why square-and-256 is a hard rule, measured rather than assumed.** Monster art is rendered at
+**36 px** (bestiary row), **38 px** (monster row), **56–96 px** (arena portrait) and **120 px** (monster
+detail portrait) — and the bestiary row and the arena portrait both use **`object-fit: cover` on a square
+box**, which crops to fill instead of letterboxing. A non-square portrait therefore loses its edges on
+two of the game's four monster surfaces. **This is a live defect, not a hypothetical:** a header walk of
+all 36 shipped files found **30 of them are 128 px long-edge and non-square** — `venom_spider.png` is
+128 × 83, so roughly 35% of its width is cropped away in the arena today — and only the 6 Hunt bosses are
+256 × 256. (An earlier audit's claim that the whole set is 256 × 256 was based on sampling only those
+six.) 256 × 256 is a clean 2× of the 120 px detail portrait; the current 128 px files have no headroom at
+all. Item icons are the opposite case — `contain` everywhere, so they may be non-square. See
+`item-art-prompts.md`.
 
 **Two things the prompt cannot enforce, so a human must check them:** *identity* (this repo has shipped a
 boar labelled `bear.png` and a vampire labelled `dragon.png`) and *style fit*. Both need an Art Director
 pass before wiring. Everything else — alpha, canvas, case-correct filename — is automatable and should be.
 
-**Palette hooks are deliberate and load-bearing.** A monster's element weakness is supposed to be
-*legible from the art* (the Review Book's one-override rule). So Frost-resistant monsters get pale
-blue-white notes, Ember-resistant ones get char and ash, Poison-immune ones get bone and dry stone. If a
-generation comes back without its hook colour, it is wrong even if it is beautiful.
+**Palette hooks are deliberate and load-bearing — and they survive the style change.** A monster's
+element weakness is supposed to be *legible from the art* (the Review Book's one-override rule). That is
+a **design** rule, not a style rule, so it stays. Because the base palette is now whatever the chosen
+lane brings, the hooks are expressed as **relative notes against that lane's own palette**, not as fixed
+swatches: Frost-resistant monsters carry the palette's **coldest, palest** notes; Ember-resistant ones
+carry its **char and ash** notes; Poison-immune ones carry its **bone and dry-stone** notes. In a cool
+lane the frost hook reads as the lightest value in frame; in a warm lane it reads as the only cold thing
+in frame. Either way it must be the note that stands out. If a generation comes back without its hook, it
+is wrong even if it is beautiful.
 
 ---
 
@@ -189,8 +210,10 @@ generation comes back without its hook colour, it is wrong even if it is beautif
 
 ## 12 · Dungeon residents — The Long Night *(Library 5)*
 
-Same Style B spec. These four share one visual grammar: **a decaying manor's palette — wine red, dust,
-tarnished silver, candlelight — so the set reads as a household even at thumbnail size.**
+Same wrapper and same output spec as every other monster. These four share one visual grammar: **a
+decaying manor's palette — wine red, dust, tarnished silver, candlelight — so the set reads as a
+household even at thumbnail size.** Read those four notes as *relative* within the chosen lane (its
+deepest red, its dustiest neutral, its most tarnished metal, its warmest light), not as fixed swatches.
 
 | id | Name | Subject line |
 |---|---|---|
@@ -209,15 +232,56 @@ human sign-off.
 
 ---
 
-## 13 · Batch order (if the art budget is staged)
+## 13 · Batch order — **REVISED 2026-08-16**
 
-1. **T1–T2, every class (21 monsters).** Highest ratio of "players who see it" to "portraits painted" —
+The order below changed with the style change. Under the old plan the whole roster was new art on an
+empty shelf; now **every portrait generated is a replacement for something a player is looking at
+today**, so the 31 monsters that are actually live come first, ahead of every wave candidate.
+
+### Batch M0 — the 31 LIVE monsters (`src/data/monsters.js`)
+
+These 31 are in the game right now and 30 of them have a shipped portrait in the old style. Until all 31
+are regenerated, the bestiary is a **mixed shelf** — half new direction, half rejected direction — which
+looks worse than either style on its own. **Finish this batch before starting any candidate.**
+
+Within the batch, work up the tiers, because that is the order players meet them:
+
+| tier | ids |
+|---|---|
+| T1 | `slime` · `rat` · `goblin` · `weak_skeleton` · `small_wolf` |
+| T2 | `giant_bat` · `hobgoblin` · `wolf` · `skeleton` · `dark_wizard` |
+| T3 | `venom_spider` · `goblin_brute` · `dire_wolf` · `zombie` · `warlock` |
+| T4 | `plague_swarm` · `goblin_warlord` · `bear` · `wraith` · `lesser_demon` · `mountain_troll` |
+| T5 | `shadow_creeper` · `warband_captain` · `panther` · `death_knight` · `archmage` |
+| T6 | `void_parasite` · `war_king` · `ancient_bear` · `lich` · `dragon` |
+
+**Three of these 31 are not replacements but repairs, and they are the highest-value files in the whole
+monster program.** Do them first inside their tier, not last:
+
+- **`bear` / `ancient_bear`** — the shipped `bear.png` **is a wild boar** (tusked snout, hoofed legs, no
+  bear features). Both ids point at it.
+- **`dragon`** — the shipped `dragon.png` **is a pale humanoid vampire bust** with no draconic features
+  at all, and it is used by the game's own capstone Green Dragon.
+- **`mountain_troll`** — the one live monster with **no portrait at all**; it falls back to a glyph.
+
+Also note that all six Hunt bosses' portraits (`emberclad_tyrant`, `crownless_wyrm`, `hollow_regent`,
+`maw_below`, `sunken_choir`, `warden_long_dark`) live in the same folder and are on the same shelf — they
+are not in `monsters.js` and so are not in the 31, but they must be regenerated in the same style before
+the bestiary is coherent.
+
+### Batches M1+ — the wave candidates, by tier
+
+Only after M0 is complete.
+
+1. **T1–T2 candidates, every class (21).** Highest ratio of "players who see it" to "portraits painted" —
    every new character meets these in the first hour.
-2. **The eleven bosses.** They are what players screenshot, and the roster currently has two.
+2. **The eleven candidate bosses.** They are what players screenshot, and the live roster has two.
 3. **T3–T4 (23).**
 4. **T5–T6 non-boss (26).**
 5. **The four dungeon residents** — they can ship with the dungeon rather than with the roster.
 
-Plus the three standing identity fixes from the Asset Director's audit, which should ride along with any
-batch: a real dragon for `dragon`, a real bear for `bear`/`ancient_bear`, and the missing
-`mountain_troll` portrait.
+### Interleaving with the item batches
+
+The item sheet (`item-art-prompts.md` §4.1) runs ten batches. **Run monster batch M0 between item batch
+8 (uniques and boss loot) and item batch 9 (paperwork)** — the boss loot and the bosses that drop it are
+the same screenshot, and they should change style in the same sitting.

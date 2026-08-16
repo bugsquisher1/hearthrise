@@ -3,12 +3,99 @@
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
 ## Standing knowledge
-- Non-negotiables: 0 emoji as art; "Forge & Stone" medieval; hearthlight (dark) default; earned containment (no wall-of-cards); Alegreya Sans + Cinzel; locked colour roles; wide surface value-ladder.
+- Non-negotiables: 0 emoji as art; **"Forge & Stone" = the WORLD (castle, hearth, iron, stone, leather, timber) — as of 2026-08-16 it is a subject-matter rule, NOT a palette rule**; hearthlight (dark) default; earned containment (no wall-of-cards); Alegreya Sans + Cinzel; locked colour roles; wide surface value-ladder.
+- **Art direction is being reset (2026-08-16).** The shipped `assets/icons-bundle/painted/` set is retired as a style anchor — do not defend it, do not match it. Candidate directions live in `docs/design/art-direction-picker.md`; subject clauses (style-agnostic) in `item-art-prompts.md` + `monster-art-prompts.md`. **Item icons max out at 64×64 on screen; monster art must be square 256.**
 - Inspect RENDERED screens (preview `hearthrise-qa`, port 8123). Sticky cache — force-reload and confirm the build.
 - Apply the design-review standard before declaring done; verify desktop + mobile-landscape.
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-16 · the art-direction reset — picker + 512 subject lines (docs only)
+
+**The directive, and what it does and does not retire.** Tyler, binding: *"I don't like any of our
+current art; I want to move in a different direction and have that AI bot do all of the items
+tonight."* Then two corrections that arrived mid-task and both mattered: the warm **Forge & Stone
+palette is no longer a constraint** ("we've kind of veered off it a bit anyway"), but **Forge & Stone
+survives as the WORLD** ("I still like the idea of forge and stone in terms of castle and hearth etc").
+So the picker's intro now says the thing that keeps five lanes from becoming five games: **every lane
+depicts the same world — iron, stone, hearth, castle, leather, timber. What varies is how it is painted
+and what temperature it runs.** Without that sentence a five-lane picker drifts into sci-fi and chibi by
+lane three. **Update the standing-knowledge line above: "Forge & Stone medieval" is now a SUBJECT-MATTER
+non-negotiable, not a palette one.**
+
+**Three deliverables, all docs — I touched no `src/`, no `assets/`, no review book.**
+`docs/design/art-direction-picker.md` (five lanes), `docs/design/item-art-prompts.md` (512 subject
+lines), and a surgical revision to `docs/design/monster-art-prompts.md` (style wrapper replaced by a
+pointer to the picker; all 85 subject lines byte-untouched, verified by count).
+
+**The measurement that decided the recommendation, and it corrected a repo doc on the way.** I did not
+argue lanes from taste. I inlined the six real stylesheets into a 1440×900 same-origin iframe with real
+container markup under `body[data-theme="hearthlight"]` and measured every icon host. **No item icon in
+this game is ever displayed above 64 × 64.** The ladder is 15 → 22 → 30 → 34 → 36 → ~44 → ~54–68 → 64.
+`itemization-and-art-pipeline.md` cites a 96 px level-up icon as an item render size — **it is dead**:
+`legacy.css:2390` declares 96 px, `audit-overrides.css:128` overrides to `32px !important` and wins.
+That ceiling is the whole argument. Three of the four alternative lanes fix "the current art is
+unmemorable" by adding *subtlety*, and 64 px destroys subtlety before a player ever sees it. **Hearthfire
+(warm, high-contrast, hand-painted, Hearthstone-adjacent) fixes it by adding CONFIDENCE** — exaggerated
+proportions and a wide value range are thumbnail engineering, not decoration. Recommended it, with
+Guildmark named as the safe pick and Cold Iron as the second, and Chronicle argued against outright.
+
+**The most useful honest thing in the picker: Guildmark is the smallest step from what Tyler just
+rejected.** The shipped set is already a flat/cel hybrid with a thick near-black outline; the clean
+bold-icon lane is that set with higher saturation and cleaner geometry. It is objectively the best
+thumbnail performer and the most reproducible across 500 generations — and recommending it without
+saying it is a *refinement of the rejected direction* would have been the easy, wrong answer. Said it in
+the lane and again in the recommendation.
+
+**A monster defect found by header-walking rather than by trusting the audit.**
+`itemization-and-art-pipeline.md` Appendix D says `painted/monsters/` is all 256 × 256. It sampled six
+files. All 36 read: **30 are 128 px long-edge and NON-SQUARE** (`venom_spider.png` is 128 × 83), only the
+6 Hunt bosses are 256. That is live damage, not trivia — the bestiary row and the arena portrait both use
+**`object-fit: cover` on a square box**, so a 128 × 83 portrait is upscaled and loses ~35% of its width
+today. Items are the opposite: `contain` at every measured site plus an inline `object-fit:contain`
+written into `window._itemSVG`. **Hence the two specs genuinely differ — monsters square-256, items
+128-long-edge with a free short edge — and that asymmetry is now written down with its reason.**
+
+**Verified the item sheet by execution, not by reading it back.** Parsed my own 426 live rows out of the
+markdown and diffed against `Object.keys(ITEMS)` from a real import of `src/data/items.js` (with `?v=`
+stripped, so `GEAR_ITEMS` + `WAVE3_ITEMS` + `SLOT_ITEMS` merge exactly as the browser sees them):
+**426 rows, 426 unique, 0 missing, 0 invented, 0 filename-column mismatches.** That check caught nothing
+in the ids — but the same script caught **six wrong counts in my own section headers and batch table**
+(§2.16 said 15 rows and had 18; the batch table summed to 440 against a catalogue of 426). **A count you
+typed is a claim; a count you ran is a fact.** Batch table now sums to 512 = 426 + 86.
+
+**Design decision worth keeping: the subject sheets carry ZERO style language.** Prefix/suffix live only
+in the picker, and each lane ships **two** prefixes (ITEMS = single object, loot-icon angle; MONSTERS =
+head-and-shoulders bust) over **one shared suffix**. The shared suffix is the mechanism that makes the
+item shelf and the bestiary look like one game, and the split means the lane can be swapped without
+rewriting 512 lines. The monster doc's palette-hook rule survives the reset because it is *design*, not
+style — but it is now expressed **relatively** ("the palette's coldest, palest note") instead of as fixed
+Forge & Stone swatches, so it still works in a cool or high-saturation lane.
+
+**What I refused to guess.** Three live ids have no `ITEM_DESC` and names that do not determine what the
+object *is*: `riftmaw_husk`, `elderscale_heart`, `dungeon_scrip`. I wrote each to the most defensible
+reading — following the `icon` field, the only evidence in the repo — and put the assumption in §6 with
+the correction it would need, rather than burying a guess in 512 lines. `elderscale_heart` (crystalline
+vs. literal organ) is a genuine coin flip and is flagged to the Designer. Separately the **84 leather +
+cloth armour pieces and 9 artisan tools have no flavour text at all**; those 93 lines are derived
+systematically from the tier ladders in §1 and are the thinnest evidence in the sheet. Said so.
+
+**Known limitations — be honest.**
+- **I generated no images.** Every lane's thumbnail claim is a professional prediction from the measured
+  render sizes, not an observed result. **The five test prompts exist precisely so the prediction gets
+  tested before 512 generations are spent on it** — run all five on the iron longsword, view at 34 px on
+  both themes, then pick.
+- **No screenshots of the game itself.** The preview at :8123 was already running from another session
+  and sits behind the account gate, which needs a pre-navigation init script this session cannot set. All
+  render sizes are `getBoundingClientRect()` / `getComputedStyle()` measurements from the real
+  stylesheets in a real iframe — true geometry, not a picture.
+- **The 86 new-item lines are speculative content.** Those ids are Review Book ids; the `File` column
+  proposes a `snake_case` game id, and if the implementing agent picks a different one the file must be
+  renamed. Flagged in §3.
+- **I did not verify the picker's lanes against `style-lanes.html`'s three older lanes** beyond reading
+  their headings. That doc is pre-rejection history and treating it as constraint was explicitly out of
+  scope.
+
 ### 2026-08-16 · b356 — the UNKNOWN-balance sweep (branch `agent-aa23f5924255d1d3d`)
 
 **The brief, and the number in it was wrong in a way worth recording.** Handoff item (2) said "359

@@ -694,3 +694,32 @@ sub-assertions are not decoration.
 into `.github/workflows/smoke.yml`). **Adding an RPC that moves value without adding an op to the
 fuzz's table is how this stops being a proof.** Anyone editing the migrations must re-check the
 injection anchors — a stale anchor fails LOUD (exit 2) by design, not silently.
+
+---
+
+## 2026-08-16 · Art Director — three measured facts about how icons actually render
+
+**1 · No item icon in this game is ever displayed above 64 × 64 px.** Measured in-browser (six real
+stylesheets inlined into a 1440×900 same-origin iframe with real container markup under
+`body[data-theme="hearthlight"]`, every host read with `getBoundingClientRect()`). The ladder is
+15 px (cost chip) → 22 → 30 → 34 → 36 → ~44 (equip doll) → ~54–68 (inventory tile) → **64 (item detail
+modal, the maximum)**. `itemization-and-art-pipeline.md` cites a 96 px level-up celebration icon as an
+item render size: **it is dead.** `legacy.css:2390` declares `width:96px;height:96px`;
+`audit-overrides.css:128` overrides it to `32px !important` and wins. This is why 128 px long-edge is
+the correct source spec — a clean 2×, not a guess.
+
+**2 · The `painted/monsters/` set is NOT all 256 × 256, and 30 of its 36 files are being cropped in
+production.** A PNG header walk of all 36: **30 are 128 px long-edge and non-square** (as extreme as
+`venom_spider.png` at 128 × 83), only the 6 Hunt bosses are 256 × 256. `itemization-and-art-pipeline.md`
+Appendix D says the whole set is 256 × 256 — it sampled only those six. This matters because the
+**bestiary row and the arena portrait both use `object-fit: cover` on a SQUARE box**: a 128 × 83
+portrait is upscaled and has ~35% of its width cropped away today. Item icons are the opposite —
+`contain` at every measured site, plus an inline `object-fit:contain` written into `window._itemSVG` by
+`applyLocalIcons()` — so item icons may safely be non-square, and monsters may not.
+
+**3 · A complete item-art set makes `SLOT_ART` dead code, and that is the point.** The generated-gear
+fallback mapper in `applyLocalIcons()` opens with `if (LOCAL_ITEM_ICON[id]) return;`. Landing a file for
+every id therefore retires the mapper entirely — and with it the game's current worst art defect: nine
+different plate gauntlets spanning tiers 1–8, including the raid-boss unique `choirbone_gauntlets`, all
+rendering the identical `leather_gloves.png`. **Delete the mapper in the same pass** rather than leaving
+it as a silent trap for the next item added.

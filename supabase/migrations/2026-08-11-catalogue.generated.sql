@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: c9f3d5d17a9344b63a09dc7ee81c883808ea2fd4d280ccf6782e27cb54e17dd2
+--   catalogue digest: 23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25
 --   rows: 512 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities
@@ -289,7 +289,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('death_rune','Death Rune',true,'ammo',9,'magic',75,null,false),
   ('death_steel','Death Steel',true,null,550,null,null,null,false),
   ('deathsteel_bar','Deathsteel Ingot',true,null,1500,null,null,null,false),
-  ('deep_rune_blank','Deep Rune Blank',true,null,60,null,null,null,false),
+  ('deep_rune_blank','Deep Blank Rune',true,null,60,null,null,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false),
   ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false),
   ('dire_fang','Dire Fang',true,null,150,null,null,null,false),
@@ -343,7 +343,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false),
   ('field_ledger','Field Ledger',true,null,600,null,null,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false),
-  ('fine_rune_blank','Fine Rune Blank',true,null,28,null,null,null,false),
+  ('fine_rune_blank','Fine Blank Rune',true,null,28,null,null,null,false),
   ('fire_rune','Fire Rune',true,'ammo',4,'magic',45,null,false),
   ('forge_blueprint_t2','Forge Blueprint II',true,null,500,null,null,null,false),
   ('forge_blueprint_t3','Forge Blueprint III',true,null,2000,null,null,null,false),
@@ -475,7 +475,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_axe','Rune Axe',true,'tool',9000,null,null,null,false),
   ('rune_bar','Rune Bar',true,null,1200,null,null,null,false),
   ('rune_belt','Rune Belt',true,'armor',3600,'defense',60,null,false),
-  ('rune_blank','Rune Blank',true,null,5,null,null,null,false),
+  ('rune_blank','Blank Rune',true,null,5,null,null,null,false),
   ('rune_boots','Rune Boots',true,'armor',3600,'defense',60,null,false),
   ('rune_frag','Rune Fragment',true,null,30,null,null,null,false),
   ('rune_gauntlets','Rune Gauntlets',true,'armor',3150,'defense',60,null,false),
@@ -1485,7 +1485,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'c9f3d5d17a9344b63a09dc7ee81c883808ea2fd4d280ccf6782e27cb54e17dd2', now())
+  values (true, '23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1629,6 +1629,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest c9f3d5d17a9344b63a09dc7ee81c883808ea2fd4d280ccf6782e27cb54e17dd2',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 23670b845b67fc182908d248f2b2fd1830743f3168979d2f807f8637e37d9e25',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

@@ -2082,23 +2082,45 @@ body[data-theme] .bottom-nav .bn-btn.active {
 }
 body[data-theme] .bn-btn .ic { color: inherit; }
 
-/* ── 30. BRAND WORDMARK (b218) ───────────────────────────────────────────
- * Backlog #2 (asked ~10×). The old mark was a light-background crest asset:
- * its dark-brown "HEARTHRISE" wordmark sat at near-zero contrast on the dark
- * sidebar. Replaced with a real game-logo lockup — a compact rising-sun/hearth
- * emblem drawn to read on dark, beside a gilt Cinzel wordmark. Warm ember→gild
- * fill on the wordmark, small-caps tagline in the SC face. Pure CSS/type so it
- * is crisp at any DPI and needs no asset pipeline.
+/* ── 30. BRAND LOCKUP (b218 → rebuilt b361) ──────────────────────────────
+ * b218 drew the mark in SVG + CSS type because there was no approved asset.
+ * There is now: the heraldic crest and the drawn HEARTHRISE wordmark, both
+ * derived from Tyler's approved exports by `tools/brand-process.mjs`. This
+ * section styles those two images and nothing else — `.brand-title` and
+ * `.brand-tagline` are gone with the markup that carried them.
+ *
+ * HORIZONTAL, and the old comment here argued the opposite ("a horizontal
+ * lockup clips HEARTHRISE"). That was true of the b218 *type* lockup, which
+ * had a fixed 19.5px font-size and could only clip. A vector wordmark has no
+ * fixed size: it takes the width the rail can spare and sets its own height
+ * from the 5.98:1 aspect. Measured in the rail at every breakpoint the game
+ * ships — 170 / 180 / 220px — the lettering lands at 15.5–21px cap height,
+ * i.e. at or above the type lockup it replaces, with the crest beside it
+ * instead of stacked above it. Two rows of brand in a rail whose entire job
+ * is the nav list was always one row too many.
+ *
+ * Colour: none. Both assets are gilt-on-transparent, so they sit on the
+ * hearthlight sidebar and on cozy-light parchment unmodified — which is why
+ * the crest's flat export matte had to be keyed out rather than kept.
  * ---------------------------------------------------------------------- */
-/* Vertical, centred lockup — the sidebar is only 180px, so a horizontal
- * emblem+wordmark clips "HEARTHRISE". Emblem on top, wordmark beneath is the
- * classic crest layout and fits the rail cleanly. */
+/* BASE, deliberately unprefixed — and this one is load-bearing, not belt-and-
+ * braces. Every other rule in this sheet is scoped `body[data-theme]` so it can
+ * outrank legacy.css, but `<body>` carries no data-theme until theme-picker.js
+ * (an ESM module) runs, and the retired cozy-light state is literally "the
+ * attribute removed" (theme-picker.js applyTheme). With the b218 type lockup an
+ * unthemed frame cost nothing. With two <img> it would paint the crest at its
+ * intrinsic 415x512 inside a 180px rail. Size them without a theme first. */
+.brand-emblem { flex: 0 0 auto; display: block; width: auto; height: 36px; }
+.brand-word   { flex: 1 1 auto; display: block; min-width: 0; max-width: 100%; width: auto; height: auto; }
+@media (max-width: 1180px) { .brand-word { display: none; } }
+
 body[data-theme] .brand {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
-  padding: 12px 8px 15px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 11px 10px 13px;
   margin-bottom: 8px;
   border-bottom: 0;
   position: relative;
@@ -2111,55 +2133,34 @@ body[data-theme] .brand::after {
 }
 body[data-theme] .brand-emblem {
   flex: 0 0 auto;
-  width: 40px; height: 44px;
+  width: auto; height: 36px;
   display: block;
+  /* The crest is line-art with no ground of its own; a contact shadow is what
+     stops it reading as a sticker on the rail. */
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .55));
 }
-body[data-theme] .brand-emblem svg { width: 100%; height: 100%; display: block; }
 body[data-theme] .brand-word {
-  display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
-  text-align: center;
-}
-body[data-theme] .brand-title {
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size:calc(19.5px * var(--ui-scale, 1));
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  /* the last letter's tracking would push the optical centre left */
-  padding-left: .07em;
-  /* Gilt metal: warm ember highlight down to a deeper struck gold. */
-  background: linear-gradient(180deg, #f7d98f 0%, #e6b85e 45%, #c68f2e 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  /* A hair of ember glow + a dark contact edge so it reads on any dark value. */
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .55)) drop-shadow(0 0 8px rgba(224, 150, 80, .22));
-}
-body[data-theme] .brand-tagline {
-  font-family: var(--f-label);
-  font-weight: 600;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: .3em;
-  padding-left: .3em; /* balance the trailing tracking so the caps sit centred */
-  color: var(--gold);
-  opacity: .8;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* max-width, not width: the rail is 170px on Steam landscape and 220px
+     ultra-wide, and a fixed width would clip in one and float in the other.
+     The cap keeps the wordmark honest if any theme ever un-flexes .brand
+     (cozy-light's retired rule sets display:block on it). */
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5));
 }
 
-/* Cozy-light (retired secondary theme) — same lockup, ink tuned for parchment. */
-body[data-theme="cozy-light"] .brand-title {
-  background: linear-gradient(180deg, #b5791f 0%, #97611a 100%);
-  -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(0 1px 0 rgba(255, 250, 235, .5));
-}
-body[data-theme="cozy-light"] .brand-tagline { color: #8c5d1a; opacity: .9; }
+/* Cozy-light (retired secondary theme): the gilt reads on parchment as-is;
+   only the contact shadow has to change side — a black drop on cream is a
+   smudge, a pale one is an emboss. */
 body[data-theme="cozy-light"] .brand-emblem { filter: drop-shadow(0 1px 1px rgba(90, 60, 20, .25)); }
+body[data-theme="cozy-light"] .brand-word   { filter: drop-shadow(0 1px 0 rgba(255, 250, 235, .55)); }
 
-/* Icon-rail sidebar (<=1180px, --nav-w:64px): show the emblem only. */
+/* Icon-rail sidebar (<=1180px, --nav-w:64px): the crest alone, centred.
+   It is the half of the lockup that survives being 36px wide. */
 @media (max-width: 1180px) {
   body[data-theme] .brand { justify-content: center; padding: 10px 0 12px; gap: 0; }
   body[data-theme] .brand-word { display: none; }

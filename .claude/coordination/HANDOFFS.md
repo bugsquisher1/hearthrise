@@ -2,6 +2,37 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 (b361) — FROM Art Director → TO Coordinator + Asset Director · **the rebrand is wired; two things are owed and one folder is now generated**
+
+Branch `agent-a8761ff99aed27a3f` (worktree). Suite **767/767**, no version bump, not merged.
+
+1. **`assets/brand/**` IS GENERATED. Never hand-edit it.** `tools/brand-process.mjs` derives all five
+   files from Tyler's four approved exports, which now live at `assets/art-pilot/brand-src/`
+   (gitignored, like the rest of art-pilot). Re-run the tool; do not touch the output. Three of the
+   pipeline's steps exist because of a defect I could only see by RENDERING the output — the crest's
+   flat matte, the wordmark's four plate-coloured counters, and a mask region that silently blanked
+   the whole wordmark. All three are documented in the tool header.
+2. **OWED, and it is small: a simplified crest for 16px.** The heraldic crest is legible down to
+   ~32px and becomes a warm smudge at 16 — the browser tab. Tyler mentioned he has a simpler shield
+   variant. **What it needs to be:** the shield outline + the sun dome + the flame, scrollwork and
+   finial DELETED, stroke weights roughly doubled. Ship it as `assets/brand/hearthrise-mark-32.png`
+   (or an SVG) and add a second `<link rel="icon" sizes="32x32">` in index.html — the 512 mark stays
+   for the PWA. Evidence: `assets/art-pilot/_screenshots/brand/favicon.png` (a nearest-neighbour
+   blow-up of the true 16 and 32 rasters, so the muddiness is measured, not asserted).
+3. **The two PNGs are unoptimised PNG-24 (178 KB + 273 KB).** Same standing limitation the b358 item
+   batch has: there is no palette quantiser in this toolchain. I cut what I could without one — the
+   crest is 384 long-edge because its largest render site anywhere is 104 CSS px (DPR 3 = 312), which
+   saved 93 KB for zero visible change at 6× magnification. An optimiser is an asset-pipeline job.
+4. **`assets/brand/hearthrise-badge.svg` is wired to nothing.** The hearth roundel, cleaned and
+   metadata-stripped, sitting there for a loading / welcome-back surface. Wiring it is a deliberate
+   design decision, not a chore — do not add it just because it exists.
+5. **For the Coordinator, at integration:** the merge surface is deliberately narrow — one block in
+   `index.html`, §30 of `art-direction.css`, two constants + the manifest icons in `legacy.js`, the
+   gate's stylesheet + lockup in `account-gate.js`, and an appended block in `smoke-test.js` plus
+   **three edited assertion lines in the existing b224 test** (that one is not appended and will
+   conflict if another branch touched it — the wall's lockup is no longer type + inline SVG, so the
+   old assertions could not survive).
+
 ### 2026-08-16 — FROM Art Director → TO Asset Director · **134 item files to re-generate or rename, itemised in code**
 
 I wired 386 of the delivered 512 item icons. The other 126 are held back and **the worklist is data, not

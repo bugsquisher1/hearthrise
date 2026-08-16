@@ -11249,8 +11249,17 @@ const TESTS = [
       const modes = [...root.querySelectorAll('.hr-gate-mode')].map((b) => b.textContent);
       assert(modes.indexOf('Create account') !== -1 && modes.indexOf('Sign in') !== -1,
         'the wall must offer BOTH create-account and sign-in: ' + modes.join('/'));
-      assert(root.querySelector('.hr-gate-word').textContent === 'Hearthrise', 'the wordmark is missing');
-      assert(root.querySelector('.hr-gate-mark svg'), 'the crest is missing');
+      /* b361: the lockup is now the two approved brand assets, not type + an
+         inline SVG. The wordmark IS the word, so its alt carries it — that is
+         what a screen reader reads, and asserting the alt is asserting the
+         thing that actually reaches a player. */
+      const gword = root.querySelector('img.hr-gate-word');
+      assert(gword && gword.alt === 'Hearthrise', 'the wordmark is missing');
+      assert(/hearthrise-wordmark\.svg/.test(gword.getAttribute('src') || ''),
+        'the wordmark must be the approved brand asset');
+      const gcrest = root.querySelector('.hr-gate-mark img.hr-gate-crest');
+      assert(gcrest && /hearthrise-crest\.png/.test(gcrest.getAttribute('src') || ''),
+        'the crest is missing');
       // No escape hatch: an account-less way past the front door would make
       // the whole ruling decorative.
       const words = root.textContent.toLowerCase();
@@ -11263,9 +11272,14 @@ const TESTS = [
       // Forge & Stone means tokens, not literals, for the surface colours.
       const style = document.getElementById('hr-account-gate-style');
       assert(style, 'the wall injected no stylesheet');
+      /* b361: --f-display was the old CSS wordmark's face and left with it.
+         The token that replaced it in importance is the SCRIM — the wall now
+         sits on a painting, and the scrim is the only thing keeping the type
+         legible on it. Both scene-scrim roles are dark in cozy-light too,
+         which is why this is a token and not a literal. */
       assert(/var\(--bg-card/.test(style.textContent) && /var\(--line/.test(style.textContent) &&
-             /var\(--f-display/.test(style.textContent),
-        'the wall must draw its surface, lines and display face from theme tokens');
+             /var\(--scene-scrim-2/.test(style.textContent),
+        'the wall must draw its surface, lines and scrim from theme tokens');
     } finally {
       if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
     }
@@ -30926,6 +30940,140 @@ const TESTS = [
     assert(G.skills.attack === 1500, 'a named skill that is HIGHER must take the server value');
     assert(G.inventory.rune_bar === 9, 'a named item that is HIGHER must take the server value');
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b361 — THE BRAND. Three guards, and each one exists because the failure it
+     names is INVISIBLE in source.
+
+     The b218 lockup it replaces was hand-drawn CSS + type, so "is the brand
+     right" was answerable by reading a file. It is not any more: the mark is
+     two derived asset files, produced by tools/brand-process.mjs from Tyler's
+     approved exports. A brand can now break in ways no code review can see —
+     a 404 leaves an empty <img> box where the game's name should be, a
+     re-export that forgets the chroma-key pastes a brown rectangle onto the
+     sidebar, and a re-run of the pipeline that loses its geometry rule quietly
+     puts the redundant sun glyph back above the lettering.
+
+     So these assert the PIXELS AND THE ARTBOARD, not the markup: the files are
+     fetched and decoded, the crest's corner alpha is read out of a canvas, and
+     the wordmark's viewBox is checked to prove the sun cannot be inside it.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  // #1 The sidebar block: the approved lockup, and the tagline is gone.
+  () => tryRun('b361: the sidebar brand is the crest + wordmark lockup, with no "Idle Homestead" anywhere', () => {
+    const brand = document.querySelector('.sidebar .brand');
+    assert(brand, 'the sidebar brand block is missing');
+    assert(brand.getAttribute('aria-label') === 'Hearthrise',
+      'the brand block must announce itself as "Hearthrise": ' + brand.getAttribute('aria-label'));
+    const emblem = brand.querySelector('img.brand-emblem');
+    const word = brand.querySelector('img.brand-word');
+    assert(emblem && /assets\/brand\/hearthrise-crest\.png/.test(emblem.getAttribute('src') || ''),
+      'the crest image is missing from the sidebar lockup');
+    assert(word && /assets\/brand\/hearthrise-wordmark\.svg/.test(word.getAttribute('src') || ''),
+      'the wordmark image is missing from the sidebar lockup');
+    /* The retired strapline. Checked over the whole block AND the document
+       title/manifest below, because it lived in three places and a rename that
+       only clears one of them is the drift this repo keeps shipping. */
+    assert(!/idle\s*homestead/i.test(brand.textContent + ' ' + brand.innerHTML),
+      'the "Idle Homestead" tagline is back in the brand block');
+    assert(!/idle\s*homestead/i.test(document.title),
+      'the document title still says "Idle Homestead": ' + document.title);
+    // Project rule: zero emoji as art, anywhere.
+    assert(!brand.textContent.match(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu),
+      'the brand block renders emoji');
+    // It is a horizontal lockup — the emblem and the wordmark share a row.
+    const eb = emblem.getBoundingClientRect(), wb = word.getBoundingClientRect();
+    if (eb.width > 0 && wb.width > 0) {          // .brand-word is hidden in the 64px icon rail
+      assert(wb.left >= eb.right - 1, 'the wordmark must sit BESIDE the crest, not under it');
+      assert(eb.width > 12 && eb.height > 12, 'the crest collapsed: ' + eb.width + 'x' + eb.height);
+      assert(wb.width > 40, 'the wordmark collapsed to ' + wb.width + 'px wide');
+    }
+  }),
+
+  // #2 The assets themselves: they exist, they decode, and they are the
+  // PROCESSED ones — keyed matte on the crest, no sun on the wordmark.
+  () => tryRunAsync('b361: the brand assets resolve, the crest has a real cut-out, the wordmark has no sun glyph', async () => {
+    /* Bare paths on purpose: this asserts the FILES are on the deploy. The
+       cache-buster is a separate contract and bump-version.sh owns it — but a
+       reference that lost its ?v= would serve a stale brand for ~10 minutes
+       after a deploy, so check that too, on the reference the app really uses. */
+    const liveSrc = (document.querySelector('img.brand-emblem') || {}).getAttribute
+      ? document.querySelector('img.brand-emblem').getAttribute('src') : '';
+    assert(/\?v=\d+$/.test(liveSrc), 'the sidebar crest carries no cache-buster: ' + liveSrc);
+    const files = ['hearthrise-crest.png', 'hearthrise-mark.png', 'hearthrise-wordmark.svg', 'hearthrise-splash.jpg'];
+    const bodies = {};
+    for (const f of files) {
+      const res = await fetch('assets/brand/' + f, { cache: 'no-store' });
+      assert(res.ok, 'assets/brand/' + f + ' did not load (' + res.status + ') — the brand would render as an empty box');
+      const buf = await res.arrayBuffer();
+      assert(buf.byteLength > 1024, 'assets/brand/' + f + ' is ' + buf.byteLength + ' bytes — that is not the asset');
+      bodies[f] = buf;
+    }
+
+    /* The crest must carry a real alpha channel with its export matte keyed
+       OUT. Read the corner, not the header: a PNG can be colour-type 6 and
+       still be fully opaque, which is exactly the state this asset arrived
+       in. An opaque corner here means a dark-brown rectangle on the rail. */
+    const img = new Image();
+    img.src = 'assets/brand/hearthrise-crest.png';
+    await img.decode();
+    assert(img.naturalWidth > 200 && img.naturalHeight > 200,
+      'the crest decoded at ' + img.naturalWidth + 'x' + img.naturalHeight);
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0);
+    const corner = cx.getImageData(0, 0, 1, 1).data;
+    assert(corner[3] === 0,
+      'the crest corner is opaque (alpha ' + corner[3] + ') — its export matte was never keyed out');
+    // ...and it is not blank: something in the middle must actually be painted.
+    const mid = cx.getImageData((cv.width / 2) | 0, (cv.height * 0.42) | 0, 1, 1).data;
+    assert(mid[3] > 0, 'the crest is transparent in the middle — the key ate the drawing');
+
+    const svg = new TextDecoder().decode(bodies['hearthrise-wordmark.svg']);
+    const vb = (svg.match(/viewBox="([-\d.\s]+)"/) || [])[1];
+    assert(vb, 'the wordmark has no viewBox — it cannot be sized by width alone');
+    const [, vy, vw, vh] = vb.trim().split(/\s+/).map(Number);
+    /* The sun glyph occupies y 370.9–472.2 in the source's 1024 artboard and
+       the lettering starts at y 490.8. An artboard that begins below 480 is
+       therefore PROOF the sun is not in the file — a much harder thing to
+       regress than "the string <path> appears N times". */
+    assert(vy >= 480, 'the wordmark artboard starts at y=' + vy + ' — the redundant sun glyph is back');
+    assert(vw / vh > 5 && vw / vh < 7, 'the wordmark aspect is ' + (vw / vh).toFixed(2) + ':1, expected ~5.98:1');
+    assert(!/<metadata/.test(svg), 'the wordmark still carries its generator metadata blob');
+    assert(!/d="M0 0L1024 0L1024 1024L0 1024L0 0Z"/.test(svg),
+      'the wordmark still carries its full-canvas background plate — it will paint a dark box on parchment');
+    /* The four letterform counters are painted in the plate colour, so once
+       the plate is gone they MUST be a mask or they become black blobs on any
+       light surface. Caught by rendering, not by reading; guarded here. */
+    assert(/<mask[^>]+id="hr-wordmark-counters"/.test(svg) && /mask="url\(#hr-wordmark-counters\)"/.test(svg),
+      'the wordmark counters are not masked — they will render as dark blobs off a dark background');
+  }),
+
+  // #3 The name. Three surfaces carried "Idle Homestead"; all three must agree.
+  () => tryRunAsync('b361: title, favicon and PWA manifest all name the game "Hearthrise"', async () => {
+    assert(document.title === 'Hearthrise', 'the document title is "' + document.title + '"');
+    const icon = document.querySelector('link[rel="icon"]');
+    assert(icon && /assets\/brand\/hearthrise-mark\.png/.test(icon.getAttribute('href') || ''),
+      'the favicon is not the brand mark: ' + (icon && icon.getAttribute('href')));
+    assert(!document.querySelector('link[href*="hearthrise-logo.svg"]'),
+      'the retired hearthrise-logo.svg is still referenced');
+    /* installPwa() serialises the manifest into a blob: URL, which is exactly
+       what an installing browser reads — so fetch THAT, not the source string.
+       Reading the literal in legacy.js would pass against a manifest that
+       never got installed, which is the failure that actually costs a player
+       a home-screen icon. */
+    const man = document.querySelector('link[rel="manifest"]');
+    assert(man, 'the PWA manifest was never installed');
+    const j = await (await fetch(man.href)).json();
+    assert(j.name === 'Hearthrise', 'the installed app is named "' + j.name + '"');
+    assert(j.short_name === 'Hearthrise', 'the short name is "' + j.short_name + '"');
+    assert(Array.isArray(j.icons) && j.icons.length > 0, 'the manifest ships no icons');
+    j.icons.forEach((ic) => {
+      assert(/assets\/brand\/hearthrise-mark\.png/.test(ic.src),
+        'a manifest icon still points at a retired asset: ' + ic.src);
+    });
   }),
 
 ];

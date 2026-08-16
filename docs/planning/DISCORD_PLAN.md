@@ -169,7 +169,7 @@ Until then, manual role assignment for premium subscribers + occasional mileston
 ## Server polish checklist (next sessions)
 
 **Branding:**
-- [ ] Server icon — Hearthrise crest at 512×512 (use `assets/brand/hearthrise-logo.svg` rasterized)
+- [ ] Server icon — Hearthrise crest at 512×512 (use `assets/brand/hearthrise-mark.png`, already 512×512)
 - [ ] Server banner (Server Boost level 1+ required)
 - [ ] Custom invite splash (Boost level 1+)
 - [ ] Vanity URL `discord.gg/hearthrise` (Boost level 3 — far future)

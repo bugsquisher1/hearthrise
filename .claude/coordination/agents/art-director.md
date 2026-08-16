@@ -2,6 +2,78 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · b361 — the rebrand is wired. Every real decision in it came from LOOKING at the
+### output, and three of the four defects were invisible in the source file.
+
+Four approved Recraft exports → five shipped assets, a sidebar lockup, a login screen, a favicon,
+a PWA manifest and three guards. Suite **767/767**, no bump, not merged.
+
+**The one thing I would tell the next person: this pass had four defects and the source file
+predicted none of them.**
+- *The crest's field is a matte, not a drawing.* 46.9% of that canvas is exactly `rgb(42,34,32)` —
+  **and so is the shield's own interior.** So chroma-keying it does not just remove a rectangle, it
+  opens the shield, and the emblem becomes gilt linework that composites on dark chrome AND on
+  parchment. That is the whole reason the lockup needs no per-theme colour. I only knew the interior
+  matched the field because I sampled it.
+- *Four letterforms are painted in the plate colour, not cut out.* Delete the plate — which you must,
+  or the wordmark carries a dark box — and the TH ligature, the R bowls and the A counter stop being
+  invisible and start being **near-black blobs**. Harmless on hearthlight, obviously broken on
+  parchment. Found by rendering the first output on both surfaces side by side. They are a real
+  `<mask>` now.
+- *That mask then blanked the entire wordmark, and the first render was an empty rectangle.* A
+  `maskUnits="userSpaceOnUse"` mask defaults its REGION to -10%/120% of the viewport measured from the
+  user-space origin — and this artwork lives at y≈489–622, entirely outside that box. State the
+  region explicitly. I would not have found this by reading; it renders as nothing.
+- *The login painting stopped at 423px.* `.hr-gate` is `overflow:auto`; on a landscape phone the form
+  is taller than the viewport, and an `position:absolute; inset:0` backdrop resolves against the
+  padding box — so the scene stayed 423px tall while the content scrolled past it and the lower half
+  of the screen went flat black. **Invisible at 1440×900, obvious at 922×423.** `position:fixed` on
+  both pseudo-elements. Verified at scrollTop 0 AND 400.
+
+**I reversed the b218 ruling, and only because the reason it gave had expired.** That section says in
+so many words that a horizontal lockup "clips HEARTHRISE". True — of a *type* lockup with a fixed
+19.5px font-size. A vector wordmark has no fixed size; it takes the width the rail can spare. Measured
+at all three rail widths the game ships (170 / 180 / 220px): wordmark 16 / 17.7 / 24.4px tall, i.e. at
+or above the type it replaces, with the crest beside it rather than stacked above. Two rows of brand in
+a rail whose entire job is the nav list was always one row too many. **I did not take the directive on
+authority — I measured the claim it contradicted.**
+
+**The base-rule trap I nearly shipped.** Everything in art-direction.css §30 is scoped
+`body[data-theme]` so it can outrank legacy.css. But `<body>` carries no data-theme until
+theme-picker.js (an ESM module) runs, **and the retired cozy-light state is literally the attribute
+being removed** (`applyTheme` does `removeAttribute`). With the b218 type lockup an unthemed frame
+cost nothing. With two `<img>` it paints the crest at its intrinsic size inside a 180px rail. There
+are now unprefixed base rules, and I verified the un-attributed state directly (29×36 crest, 104px
+wordmark — correct). **Corollary worth keeping: "verify cozy-light" means REMOVE data-theme, not set
+it to `cozy-light`. `body[data-theme="cozy-light"]` can never match anything.** Setting it produced a
+stacked, overflowing lockup that no player can reach — I nearly filed that as a bug.
+
+**Sized from measurement, not from a round number.** The crest's largest appearance anywhere is the
+login lockup at 104 CSS px — 312 device px at DPR 3 — so it ships at 384 long edge, not 512. 178 KB
+instead of 271, indistinguishable in a 6× A/B. The MARK stays 512 because Android's installer wants a
+real 512 and apple-touch is consumed at 180×3.
+
+**Guards: three, and all three fail under mutation** (crest file removed + title reverted → 764/767,
+each named). They assert PIXELS AND THE ARTBOARD, not markup, because a brand can now break in ways
+review cannot see: the crest's **corner alpha is read out of a canvas** (a PNG can be colour-type 6 and
+still fully opaque — the state this asset arrived in), and the wordmark's **viewBox min-y ≥ 480** is
+proof the sun glyph is not in the file, since the sun occupies y 370.9–472.2 and the lettering starts
+at 490.8. I also had to edit three assertions in the existing b224 wall test rather than leave them —
+`--f-display` left with the CSS wordmark, so that clause lost its subject and now asserts the SCRIM,
+which is what actually keeps the wall legible now that it sits on a painting.
+
+**Known limitations, stated plainly.** The 16px favicon is a warm smudge — legible at 32, mush at 16;
+handoff filed with the exact simplification needed. The two PNGs are unoptimised PNG-24 (no quantiser
+in this toolchain — the same standing gap b358 recorded). The splash source is only 1024², so on a
+1920 desktop it upscales 1.9× — acceptable under a 78–92% scrim, and there is no larger source. And
+**the sidebar brand does not exist on a landscape phone at all**: at 922×423 `.sidebar` is
+`display:none` and `.bottom-nav` renders as the 64px left rail. Pre-existing, correct for a 423px
+viewport, and the reason the mobile-landscape brand verification is the LOGIN screen.
+
+**Verified in-browser, my own server rooted in my own worktree** (the launch.json trap my predecessor
+recorded — it serves the main checkout). 8 contexts × zero console errors, zero failed requests, zero
+HTTP ≥ 400. 23 captures in `assets/art-pilot/_screenshots/brand/`.
+
 ### 2026-08-16 · b360 — the 107 diagnosed by BASE RATE. One class confirmed and fixed; one
 ### hypothesis disconfirmed; NOT GENERATED — the spend was never authorised by Tyler to me.
 

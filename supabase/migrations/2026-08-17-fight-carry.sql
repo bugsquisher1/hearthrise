@@ -397,9 +397,19 @@ declare
   --   itself and deserves the same answer on the same key. Nothing is released
   --   that EXECUTED anything: a rejection rolled the protected block back, so a
   --   re-run is a first run.
+  --   ⚠ THE LIST ROTTED IN ONE DAY, exactly as predicted (b361 incident):
+  --   Stonemason shipped to clients minutes before its hr_skills row landed,
+  --   `unknown_skill` fired for two LIVE players, stored itself against their
+  --   accrue keys, and "Try again" replayed the stored refusal after the
+  --   catalogue was fixed — the F3 brick, second instance, severity incident.
+  --   `unknown_skill` / `unknown_item` / `unknown_activity` are all functions
+  --   of catalogue state (hr_skills / hr_items / hr_activities) and were
+  --   always in the property's scope; they are now in the list. If you add a
+  --   catalogue-validated refusal code to hr_apply, IT GOES HERE TOO.
   c_release_codes constant text[] := array[
     'version_conflict',
-    'bad_fight', 'bad_fight_hp', 'bad_fight_kills', 'unknown_monster'];
+    'bad_fight', 'bad_fight_hp', 'bad_fight_kills', 'unknown_monster',
+    'unknown_skill', 'unknown_item', 'unknown_activity'];
   c_ledger_kinds constant text[] := array[
     'accrue','craft','gather','combat','farm','trade','shop',
     'quest','equip','admin','iap','clan','raid'];

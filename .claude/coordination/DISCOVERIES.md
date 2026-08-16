@@ -4,6 +4,41 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-16 · Art Director · The ~600-image art batch is NO-GO. Three constraints nobody had measured.
+**Affected systems:** `tools/gen-art.mjs`, `tools/qc-art.mjs`, `docs/design/art-direction-picker.md` §0.10b (the full ruling + evidence), both prompt sheets, the whole art batch.
+
+**1 · Sending no style to Recraft is not "no style" — it is `realistic_image`.** `gen-art.mjs` omitted
+both `style` and `style_id` when `--style-id` was absent, so the "un-anchored control" was actually a
+fourth style, and it returned **photographs**: a photorealistic wolf in a snowy forest, a sword on a
+teal app-store tile, a log inside a badge with a pine forest in it. **There was never a control in the
+comparison.** The tool now refuses to run unless one of `--style`/`--style-id` is passed, and
+`--style`/`--substyle` were added.
+→ REQUIRED ACTION: never compare prompt variants across different style settings; pin the style first.
+
+**2 · A Recraft custom style transfers PALETTE, not just hand — and 4–5 seeds over-fit badly.** The
+same anchored prompt run twice gave a Hellhound (*char black, ember red*) as white-and-ice-blue then
+as a black-and-tan rottweiler, and a Winter Wolf (*snow white*) as char-black-with-ember-horns then as
+brown. The item anchor paints cold iron and neutral grey rock **salmon pink**, having generalised
+`wheat_bread` + `cooked_shrimp` into a palette. **The anchor defeats C-METAL and the neutral-material
+lock — the exact clauses it was built to reinforce.**
+→ REQUIRED ACTION: rebuild both anchors with many more, palette-spread seeds before any batch.
+
+**3 · Prompt bans do not survive Recraft v3; only the anchor holds composition.** Un-anchored and
+built-in generations ignored "no backdrop, scenery, ground, frame, text" wholesale — one came back as
+a **parchment infographic with callout lines and five labels of gibberish pseudo-text**. Every
+*anchored* generation was correctly isolated. So the anchor is both the problem (2) and the only thing
+holding the framing; it must be fixed, not removed.
+
+**4 · The QC warm% proxy scores the BACKDROP, not the subject** — it counts warm pixels over the whole
+opaque canvas, so an overcast sky scores 3% and "wins". It is documented as advisory in §0.11 check 6
+and was read as authority. **Second time this program has been misled by a number nobody looked
+behind (§0.2 was the first).**
+→ REQUIRED ACTION: no QC number is a verdict on art until the file has been opened.
+
+**5 · Colour type 6 ≠ has a cut-out, but corner alpha is NOT the detector.** Measured across 9 real
+files: none had opaque corners. A leaked backdrop survives as a **semi-transparent 16–249 band** (up
+to 83% of canvas), which `qc-art.mjs` check 1 already flags. Use that; don't write a corner check.
+
 ## 2026-08-16 · Art Director · Hearthfire art pilot: what the 13 Recraft exports actually did in-game
 **Affected systems:** `applyLocalIcons()` in `src/legacy.js`, `assets/icons-bundle/`, the art-prompt specs.
 

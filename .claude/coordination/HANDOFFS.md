@@ -2,6 +2,33 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 — FROM Art Director → TO Coordinator / Asset Director · **HOLD THE BATCH. NO-GO, both of them.**
+
+**Do not fire the 85-monster batch or the 512-item batch.** Full ruling and evidence:
+`docs/design/art-direction-picker.md` **§0.10b**. Short version, from looking at 16 real generations:
+
+- **The anchor-reversal finding is REVERSED BACK.** The "un-anchored is better" result came from
+  `gen-art.mjs` sending no style at all, which makes Recraft default to **`realistic_image`** — those
+  files are photographs, app-store tiles and a badge with a forest in it. The good warm% scores were
+  the *backdrop*. There was no control in that comparison. **The tool now refuses to run with neither
+  `--style` nor `--style-id`** (verified, exit 2), and `--style`/`--substyle` were added.
+- **The named-colour suppression is NOT the SUFFIX.** Isolated under a fixed style, old and new
+  suffix both produced vivid ember markings. **The SUFFIX is unchanged — I cut a replacement, measured
+  it to 383/393 chars, and then binned it because the evidence said it fixes nothing.**
+- **It IS the custom anchors.** They transfer palette, not just hand: the same anchored Hellhound
+  prompt gave white-and-ice-blue on one run and a black-and-tan rottweiler on the next; the item
+  anchor paints cold iron **salmon pink**. 4/4 monsters also lost their subject's structure.
+- **Do not "fix" this by dropping the anchor** — anchored output is the only output that respects
+  "no backdrop / ground / frame / text". Un-anchored, one item came back as a **parchment infographic
+  with gibberish labels.**
+
+**The unblock is (a) rebuild both anchors with many more, palette-spread seeds, or (b) if Recraft caps
+seeds at 5, seed them palette-NEUTRAL and put the hand words back in the wrapper — which means finding
+~150 characters under the 1000 cap.** Verify on Hellhound + Winter Wolf + an elemental; that is under
+$0.20. **Real root cause: the only configuration that ever produced correct art is the WEB UI at
+1141–1665 chars, and the API rejects anything over 1000.** ~$0.40 spent proving this; a GO would have
+burned ~$25–30 and a reviewer's day.
+
 ### 2026-08-16 — FROM Art Director → TO Asset Director / whoever fires the ~600-image batch (b357 + the ratified Hearthfire wrapper)
 
 **1 · The monster framing rule CHANGED. Do not use the old one.** Creature portraits are no longer

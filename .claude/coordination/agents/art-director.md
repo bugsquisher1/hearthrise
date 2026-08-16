@@ -38,6 +38,64 @@ obvious in the inventory grid.
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-16 · b357c — NO-GO on the batch. The QC proxy was scoring the backdrop.
+
+**I was handed two findings and reversed one of them by opening the files.** The brief said the style
+anchor was harmful and the un-anchored wrapper was the fix, on `qc-art.mjs` warm-percentages
+(`iron_ore` 38%→10%, Hellhound 18%→3%). Both numbers are real and both conclusions are wrong.
+**The un-anchored "best score in the batch" `iron_sword` is a smooth airbrushed sword on a teal-blue
+app-store TILE. The un-anchored Hellhound — the 3% — is a photorealistic 3-D wolf standing in a snowy
+forest. `oak_log` is a badge with a ring border and a pine forest inside it.** The proxy counts warm
+pixels over the whole opaque canvas and the majority of that canvas was a backdrop the prompt bans.
+A February sky scores 3%.
+
+**Mechanism, one line of code:** with no `--style-id`, `gen-art.mjs` sent neither `style` nor
+`style_id`, so Recraft applied its default — `realistic_image`. **"No anchor" was never a control; it
+was a fourth, worse style.** The tool now refuses to run when neither is passed (proved: exit 2), and
+`--style`/`--substyle` exist so a built-in can be chosen on purpose. The old "WARNING: no --style-id"
+line is gone — it was advisory about the wrong thing.
+
+**Finding 2 — the suffix is innocent, and I did not rewrite it.** I cut a re-phrased SUFFIX that
+leads with the permission rather than the ban, measured it to 383 chars against a 393 ceiling (the
+312-char Vampire Bride subject is the binding constraint), and then **the controlled test said not to
+ship it**: under a fixed built-in style the Hellhound came back with vivid red markings on the OLD
+suffix (`v2-C`) *and* the new one (`v2-A`). No observed failure behind the change, so no change. That
+is this document's own rule and it applies to me.
+
+**What is actually broken is the anchor, and it is worse than suppression.** Same anchor, same two
+prompts, run twice: Hellhound (*char black, ember red*) → white-and-ice-blue, then black-and-tan
+rottweiler. Winter Wolf (*snow white, pale ice blue*) → char black with ember-orange horns, then
+brown. **Four generations, four palettes, none of them the one its subject line names**, and run 1
+looks like the two seed images swapped onto the wrong prompts. **A 4–5 image Recraft custom style
+transfers PALETTE, not just hand.** The item anchor does the same, louder: cold iron and neutral grey
+rock come back SALMON PINK, because `wheat_bread` + `cooked_shrimp` generalised into a palette. The
+anchor defeats C-METAL and the neutral-material lock — the two clauses it was created to reinforce.
+
+**But dropping it is not the answer either, and this is the part I'd have got wrong from source.**
+Every ANCHORED generation is properly isolated — one object, no scenery, no ground, no frame, no
+text. Every un-anchored and built-in one ignores those bans wholesale; the low point is a built-in
+`iron_sword` that came back as a **parchment infographic with callout lines and five labels of
+gibberish pseudo-text.** **Prompt bans do not survive Recraft v3 — only the anchor holds composition.**
+So the anchor is simultaneously the only thing holding the framing and the thing destroying the
+colour. Neither "keep it" nor "drop it" is a ruling; rebuilding it is.
+
+**NO-GO on both batches** (85 monsters, 512 items). No variant tested produces a shippable item icon.
+Firing them would have cost ~$25–30 and a reviewer's day. **The only configuration that has ever
+produced correct output is the approved 13-image pilot: the Recraft WEB UI at 1141–1665 characters,
+which the API rejects at 1000.** That is the real blocker and it has now been mislabelled twice.
+
+**One guard I built, tested, and then DELETED.** I found that colour-type 6 is not the same as "has a
+cut-out" and wrote a from-scratch PNG decoder to check corner alpha. Then I ran it against all nine
+real files: **not one had opaque corners.** The backdrop leaks through as a semi-transparent 16–249
+band instead (the built-in `iron_ore` is 83% of canvas in that band), which `qc-art.mjs` check 1
+already catches. A guard with no observed failure behind it is dead weight I'd have to maintain, so I
+reverted it. Recording it because the *finding* — soft-alpha band, not corner alpha, is the backdrop
+detector — is worth keeping even though the code was not.
+
+**$0.40 spent, 10 images.** Suite **752/752, 0 runtime errors.** Tools + docs only, no `src/`, no
+version bump, no push. Ruling written up as `art-direction-picker.md` §0.10b, with §0.10's
+"always run with `--style-id`" paragraph explicitly marked superseded rather than quietly edited.
+
 ### 2026-08-16 · b357b — the wrapper was re-cut by an API limit, and the limit improved it
 
 **The blocker, found by execution.** The Coordinator built both style anchors and ran my own §0.10

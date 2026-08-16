@@ -18,7 +18,6 @@
 // ============================================================
 
 import { ITEMS as ESM_ITEMS } from '../data/items.js?v=356';
-import { MONSTERS as ESM_MONSTERS } from '../data/monsters.js?v=356';
 
 const RUN_DELAY_MS = 1500;        // wait for legacy.js to finish populating
 
@@ -47,9 +46,31 @@ function once() {
   const SETS = [
     { name: 'ITEMS',    legacy: legacyItems,                    esm: ESM_ITEMS,
       hint: 'Items defined in legacy.js but missing from src/data/items.js will be undefined at runtime after main.js runs Object.assign. Reconcile before next push.' },
-    { name: 'MONSTERS', legacy: window.__LEGACY_INLINE_MONSTERS, esm: ESM_MONSTERS,
-      hint: 'Monsters defined in legacy.js but missing from src/data/monsters.js are undefined for every ESM reader (combat-render imports the module directly).' },
   ];
+
+  /* b356: the MONSTERS set-comparison was REMOVED, and replaced with the
+     check below, because it could never fire. `__LEGACY_INLINE_MONSTERS` is
+     a REFERENCE to the object main.js merges the ESM data into — so this
+     module was comparing the merged roster against itself and reporting
+     "in sync ✓" unconditionally. (Same aliasing defect on the ITEMS side;
+     that one is left in place because reconciling the inline ITEMS literal
+     is its own change, and set-comparison there is at least not actively
+     misleading about a divergence it did once catch.)
+
+     legacy.js no longer declares a roster: `const MONSTERS={}` starts empty
+     and main.js fills it. The invariant worth guarding is therefore not
+     "the two copies agree" but "there is only one copy", and that is a
+     COUNT captured eagerly at publish time — a number, immune to the merge. */
+  const inlineMonsters = window.__LEGACY_INLINE_MONSTER_COUNT;
+  if (typeof inlineMonsters === 'number' && inlineMonsters > 0) {
+    const msg = 'legacy.js re-declared ' + inlineMonsters + ' monsters. '
+      + 'src/data/monsters.js is the only roster; a second copy silently drifts '
+      + '(b342 measured 14 of 31 entries diverged, deleting two live drops).';
+    console.warn('[data-integrity] MONSTERS double-copy: ' + msg);
+    if (typeof window.captureException === 'function') {
+      try { window.captureException(new Error('MONSTERS double-copy'), { source: 'data-integrity', count: inlineMonsters }); } catch (e) {}
+    }
+  }
 
   SETS.forEach(set => {
     if (!set.legacy || typeof set.legacy !== 'object') return;  // snapshot not published yet

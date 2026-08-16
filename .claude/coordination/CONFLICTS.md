@@ -223,3 +223,26 @@ So the consumable bought **50× the actions** and **48× the XP** it had earned,
 **Ruling (taxonomy §5.4):** the fish line KEEPS its buffs — `foodClass` governs what the *engine* may spend, not what stats an item has. Stripping +12% damage from Cooked Shark would be a combat-balance change smuggled in under a UI task, and it isn't needed: `maybeAutoEat()` heals and decrements, it never calls `applyBuff()`, so auto-eating a Provision grants no hidden power. Buffs are applied only by the deliberate Eat action.
 **Evidence that settled it:** the real defect was auto-eat's *selection*, which preferred items with no `buff` field — and since every cooked food has one, that meant raw ingredients: it picked Raw Shrimp (3 HP) over Cooked Shark (42 HP), then fell through to a Void Banquet once raws ran out. Now the pool is exactly Provisions and the pick is the best heal. Verified in-browser: with only Feasts in the bag at 8/100 HP `maybeAutoEat()` returns false and consumes nothing; with Provisions present it eats Cooked Shark (HP 8→50) and leaves the Void Banquet stack at 3. Regression tests: `b168/b220: auto-eat draws from Provisions, preserves Feasts` and `b220: auto-eat never consumes buff food`.
 
+
+
+### 2026-08-16 - SEMANTIC - Monster portrait folder: `painted/` vs `hearthfire/` (Systems -> Art/Asset)
+**The disagreement, surfaced rather than silently resolved.** `docs/design/monster-art-prompts.md` §0
+states new portraits land in `assets/icons-bundle/painted/monsters/` and says "no new subfolders".
+The shipped art pilot (branch `worktree-agent-a4e0fed55ec269eca`, commit `04ba415`) put them in
+`assets/icons-bundle/hearthfire/`. Both are shipped folders, so neither is wrong - but the
+81-portrait batch cannot be generated against two answers.
+**What I did:** followed the pilot (`hearthfire/`), because that is what exists on disk and it keeps
+the retired-direction `painted/` set visibly separate while batch M0 regenerates it. The choice is
+ONE constant - `HEARTHFIRE_DIR` in `src/data/monster-art.js`. Changing it re-points all 81 and the
+preflight re-verifies. **Art Director owns the ruling; say the word and it is a one-line change.**
+
+### 2026-08-16 - CODE - Pilot art wiring overlaps branch `worktree-agent-a4e0fed55ec269eca`
+That branch adds `assets/icons-bundle/hearthfire/monsters/{barn_rat,elk_king,grim_reaper,hellhound,winter_wolf}.png`
+(processed to 256x256) and parks three of them on borrowed live ids - `hellhound -> lesser_demon`,
+`grim_reaper -> wraith`, `elk_king -> bear` - marked PILOT PREVIEW ONLY.
+**Those three ids now EXIST.** `src/data/monster-art.js` binds each portrait to the monster it
+actually depicts and gives `lesser_demon` / `wraith` / `bear` their own files back, so **the parks are
+gone by construction**. On merge: take that branch's PNG bytes (this branch carries only the
+unprocessed 1024px sources under `assets/art-pilot/`, which I deliberately did NOT ship - 1.2 MB
+each), then add those five ids to `SHIPPED` in `monster-art.js`. `monsterArtPreflight` in
+`tests/run-smoke.mjs` fails the build if that second step is forgotten, so the merge cannot half-land.

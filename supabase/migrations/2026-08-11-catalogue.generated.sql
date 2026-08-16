@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: e31114d91454484cd8e0b05d3b6902d443a7c3cb4667d496dde55537cf887593
+--   catalogue digest: 18cf7e2746881f590246761968d57de689fd2f3782c491484c831e954770409e
 --   rows: 512 items (16 untradeable) ·
 --         278 item-slot pairs · 15 equip slots ·
---         15 skills · 9 crops · 364 activities
+--         15 skills · 9 crops · 444 activities
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
 --              → 2026-08-11-market-v2.sql
@@ -1277,36 +1277,116 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv) values
   ('artisan','tailor_trollhide_cape','crafting',50),
   ('artisan','tailor_woolen_cloak','crafting',12),
   ('artisan','weave_voidchitin','crafting',82),
+  ('combat','adept',null,null),
+  ('combat','air_elemental',null,null),
   ('combat','ancient_bear',null,null),
   ('combat','archmage',null,null),
+  ('combat','ashwing',null,null),
+  ('combat','astrologer',null,null),
+  ('combat','bandit_lord',null,null),
+  ('combat','barn_rat',null,null),
+  ('combat','barrow_knight',null,null),
   ('combat','bear',null,null),
+  ('combat','bog_vine',null,null),
+  ('combat','broodmother',null,null),
+  ('combat','carnivorous_plant',null,null),
+  ('combat','carrion_swarm',null,null),
+  ('combat','cave_wyrm',null,null),
+  ('combat','centipede',null,null),
+  ('combat','chained_demon',null,null),
+  ('combat','clay_golem',null,null),
+  ('combat','conjurer',null,null),
+  ('combat','cultist',null,null),
+  ('combat','cutpurse',null,null),
+  ('combat','cyclops',null,null),
   ('combat','dark_wizard',null,null),
   ('combat','death_knight',null,null),
+  ('combat','deserter',null,null),
   ('combat','dire_wolf',null,null),
+  ('combat','draconia',null,null),
   ('combat','dragon',null,null),
+  ('combat','drake',null,null),
+  ('combat','drowned_dead',null,null),
+  ('combat','dryad',null,null),
+  ('combat','earth_elemental',null,null),
+  ('combat','elder_cinder',null,null),
+  ('combat','elk_king',null,null),
+  ('combat','fire_devil',null,null),
+  ('combat','fire_elemental',null,null),
+  ('combat','frost_giant',null,null),
+  ('combat','fury',null,null),
+  ('combat','gargoyle',null,null),
+  ('combat','ghoul',null,null),
   ('combat','giant_bat',null,null),
+  ('combat','giant_boar',null,null),
+  ('combat','giant_spider',null,null),
+  ('combat','gnoll',null,null),
   ('combat','goblin',null,null),
   ('combat','goblin_brute',null,null),
   ('combat','goblin_warlord',null,null),
+  ('combat','grave_banshee',null,null),
+  ('combat','grim_reaper',null,null),
+  ('combat','hellhound',null,null),
+  ('combat','hive_wasp',null,null),
   ('combat','hobgoblin',null,null),
+  ('combat','ice_elemental',null,null),
+  ('combat','imp',null,null),
+  ('combat','iron_colossus',null,null),
+  ('combat','jackal',null,null),
+  ('combat','kobold',null,null),
   ('combat','lesser_demon',null,null),
   ('combat','lich',null,null),
+  ('combat','locust_swarm',null,null),
+  ('combat','lynx',null,null),
+  ('combat','magma_elemental',null,null),
+  ('combat','mammoth',null,null),
+  ('combat','mandrake',null,null),
+  ('combat','minotaur',null,null),
+  ('combat','mountain_ram',null,null),
   ('combat','mountain_troll',null,null),
+  ('combat','necromancer',null,null),
+  ('combat','nightmare',null,null),
+  ('combat','ogre',null,null),
+  ('combat','ooze',null,null),
   ('combat','panther',null,null),
   ('combat','plague_swarm',null,null),
   ('combat','rat',null,null),
+  ('combat','revenant',null,null),
+  ('combat','rock_troll',null,null),
+  ('combat','salamander',null,null),
+  ('combat','scarecrow',null,null),
   ('combat','shadow_creeper',null,null),
+  ('combat','shrieker',null,null),
   ('combat','skeleton',null,null),
   ('combat','slime',null,null),
   ('combat','small_wolf',null,null),
+  ('combat','stag',null,null),
+  ('combat','starhusk',null,null),
+  ('combat','stone_golem',null,null),
+  ('combat','stonejaw',null,null),
+  ('combat','storm_elemental',null,null),
+  ('combat','the_silence',null,null),
+  ('combat','the_unlit',null,null),
+  ('combat','treant',null,null),
+  ('combat','vampire_bride',null,null),
   ('combat','venom_spider',null,null),
+  ('combat','vharek',null,null),
+  ('combat','void_mote',null,null),
   ('combat','void_parasite',null,null),
   ('combat','war_king',null,null),
   ('combat','warband_captain',null,null),
   ('combat','warlock',null,null),
+  ('combat','watchknight',null,null),
+  ('combat','water_elemental',null,null),
   ('combat','weak_skeleton',null,null),
+  ('combat','wight',null,null),
+  ('combat','wild_boar',null,null),
+  ('combat','winter_wolf',null,null),
+  ('combat','witchs_apprentice',null,null),
   ('combat','wolf',null,null),
   ('combat','wraith',null,null),
+  ('combat','wyrmling',null,null),
+  ('combat','wyvern',null,null),
   ('combat','zombie',null,null),
   ('gather','coal_rock','mining',30),
   ('gather','copper_rock','mining',1),
@@ -1356,7 +1436,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'e31114d91454484cd8e0b05d3b6902d443a7c3cb4667d496dde55537cf887593', now())
+  values (true, '18cf7e2746881f590246761968d57de689fd2f3782c491484c831e954770409e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1390,7 +1470,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 16', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 364 then raise exception 'hr_activities has % rows, expected 364', v_n; end if;
+  if v_n <> 444 then raise exception 'hr_activities has % rows, expected 444', v_n; end if;
 
   -- AUTO-EATABLE. The count is asserted, so a re-apply against a database that
   -- created hr_items before the column existed cannot leave every row on the
@@ -1485,6 +1565,6 @@ begin
     raise exception 'hr_start_kit grants Hearth Tokens — the bond is IAP-only and must never be minted';
   end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, digest e31114d91454484cd8e0b05d3b6902d443a7c3cb4667d496dde55537cf887593',
+  raise notice 'CATALOGUES OK — % items, % activities, digest 18cf7e2746881f590246761968d57de689fd2f3782c491484c831e954770409e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities);
 end $$;

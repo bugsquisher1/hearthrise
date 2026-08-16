@@ -25,6 +25,8 @@
 // 1. Data — single source of truth
 import { SKILLS_DEF } from './data/skills.js?v=356';
 import { MONSTERS } from './data/monsters.js?v=356';
+import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster } from './data/monster-classes.js?v=356';
+import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=356';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=356';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=356';
 import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, isCastleGood } from './data/recipes.js?v=356';
@@ -83,6 +85,20 @@ function unifyArray(name, esmArr) {
   esmArr.forEach((entry) => legacyArr.push(entry));
   return legacyArr;
 }
+
+/* b356 — the monster taxonomy + portrait manifest.
+   `_monsterIcon` is seeded from `src/data/monster-art.js` rather than from a
+   literal in legacy.js. It is filtered to portraits that ACTUALLY EXIST, so
+   the 80 monsters still awaiting art fall through to the glyph atlas instead
+   of requesting a 404. legacy.js's applyLocalIcons() IIFE runs before this
+   module and now contributes no monster entries, so there is no race and no
+   second opinion about a path. */
+window.HearthriseMonsterClasses = {
+  CLASSES: MONSTER_CLASSES, ORDER: MONSTER_CLASS_ORDER,
+  profileOf: resolveMonsterProfile, audit: auditRoster,
+};
+window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
+window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 Object.assign(window, {
   SKILLS_DEF:      unifyObject('SKILLS_DEF', SKILLS_DEF),

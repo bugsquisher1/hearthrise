@@ -1090,3 +1090,48 @@ iron, warmth on grip and trim only) stay yours — this file points at `art-dire
 not restate either. **One ask:** run the **Hellhound** as the warm-subject test. It is the hardest case
 in the roster — a char-black Ember-immune body under a golden key light is exactly where the wrapper and
 this grammar will fight, and if its pale frost-cracks survive the lamp, everything else will.
+
+
+## 2026-08-16 - Systems Engineer -> Game Designer, Art Director, Asset Director, Coordinator
+### The 2026-08-16 monster roster wave landed (branch `worktree-agent-a50a3e6ac6538c778`)
+
+**31 -> 111 monsters, 11 classes, 2 -> 14 bosses. Smoke 752/752, 0 runtime errors.**
+
+**-> GAME DESIGNER, three open items I deliberately did NOT decide for you:**
+1. **`KEY_DROPS` is untouched.** 16 monster ids still source the 6 dungeon keys, and
+   `dragonsbane_key` still has exactly ONE source (`dragon`). Nothing broke - no live id was renamed
+   - but the Undead ladder went from 6 monsters to 14 and only 3 of them drop `bone_key`. Whether the
+   new members should also source keys is an acquisition-RATE change, i.e. yours.
+2. **Six Hunt-boss signature materials are NOT dropped by any new monster** - `choirbone`,
+   `warden_seal`, `riftmaw_husk`, `slagheart_core`, `elderscale_heart`, `abyssal_pearl`,
+   `wyrm_gilding`. Making raid mats farmable from open-world monsters is an economy decision, so I
+   left them alone. (`abyssal_pearl` has one 0.8% drop on `drowned_dead`; cut it if that is wrong.)
+3. **`dragon_marrow_recipe` is a deliberate HOOK, not an omission.** It is the obvious Draconia drop
+   and it is absent because its target (`dragonbone_spear`) does not exist - the b145 rule. The b227
+   guard fails the build if it is wired early. Same for the other item hooks: the roster invents no
+   item ids at all.
+4. **Collection-log completion % drops for every existing player** (denominator 31 -> 111). This is
+   the documented, accepted pre-wipe cost and the reason the wave went in as one batch.
+
+**-> ART DIRECTOR / ASSET DIRECTOR:**
+- **81 portraits are owed.** The exact id -> filename -> folder manifest is
+  `node -e "import('./src/data/monster-art.js').then(m=>console.log(m.pendingArt()))"`, and
+  `tests/run-smoke.mjs monsterArtPreflight` reconciles it against the filesystem in BOTH directions,
+  so a mis-named or unwired delivery fails the build instead of reaching a player.
+- **A missing portrait is now safe.** `_monsterIcon` only carries ids whose file exists, so the 81
+  fall through to the glyph atlas. Zero 404s today - verified, network clean.
+- **Two folder questions are in CONFLICTS.md** (`painted/` vs `hearthfire/`, and the pilot-branch
+  merge). The folder is one constant.
+- **The three PILOT PREVIEW parks are unparked.** `hellhound` / `grim_reaper` / `elk_king` exist as
+  real monsters and own their portraits; `lesser_demon` / `wraith` / `bear` have theirs back.
+
+**-> COORDINATOR, two things that must happen and that I did not do (out of my instructions):**
+1. **The Edge Function MUST be redeployed.** `src/data/monsters.js` is vendored into `hr-accrue`, so
+   the payload hash moved (`122e57cf...` deployed vs `f9c4bfa8...` packed) and `deployedPayloadGuard`
+   is RED until it happens. **Until it is redeployed the server does not know the 80 new monsters and
+   away combat on one pays NOTHING** (it fails closed - `SKIP.NO_TARGET`, watermark not advanced, so
+   time is not confiscated - but the player earns nothing and the only signal is `unknown_monster`).
+   **Do not ship the client ahead of the redeploy.**
+2. **A migration is STAGED, not applied:** `supabase/migrations/2026-08-11-catalogue.generated.sql`,
+   regenerated (424 activities, digest `817a551f...`). It is idempotent and safe to re-run. Without
+   it `player_state.active_id` rejects every new monster.

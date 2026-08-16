@@ -1777,3 +1777,77 @@ guard green including Edge payload parity. Runtime-verified in Chromium at 1280Ã
 (paione's landscape phone): Build fully in the viewport with the body genuinely scrolling under it,
 console clean, Auto-Eat at the top of the Bounty Shop at 100 marks. No new persistent state, so
 nothing to migrate. No push, no version bump, no deploy, no migration.
+
+
+---
+
+## 2026-08-16 - THE MONSTER ROSTER WAVE (b356) - branch `worktree-agent-a50a3e6ac6538c778`
+
+**Purpose.** Land the Tyler-approved 81-monster roster + 11-class taxonomy as DATA, ship the
+`MONSTER_ALIAS` prerequisite first, and update every consumer. **31 -> 111 monsters, 2 -> 14 bosses,
+6 families -> 11 classes.** Smoke **752/752, 0 runtime errors, three consecutive runs** (was 736).
+
+**The four architectural decisions, and why.**
+
+1. **The CLASS carries the weakness; a monster overrides AT MOST ONE AXIS.** `src/data/monster-classes.js`
+   is the whole taxonomy. Adding a monster is `cls:'undead'` and nothing else; a class-wide balance
+   change is one row, not 112 edits. `overrideAxisOf()` + `auditRoster()` make "a monster with two
+   overrides is rejected in review" mean *the test run rejects it*. 19 of 111 monsters override, all
+   single-axis.
+2. **The profile is MATERIALISED onto the row, not resolved at read time** (`applyClassProfiles`,
+   idempotent + pure, called once at the bottom of `monsters.js`). Twelve live consumers read
+   `monster.weaponWeak` as a plain field and two are shared with the Edge Function. A resolver-only
+   design would have meant touching all twelve AND leaving a permanent trap where any new reader that
+   forgets the resolver silently sees `undefined` and disables the weakness. This way the class table
+   stays the single authoring point and the row stays a plain, fully-specified object.
+3. **The tier curve is a TABLE, and it is measured, not invented.** `TIER_BANDS` is the literal
+   min/max of every stat of the 31 originals, per tier, reproduced by a one-liner in the file's own
+   header. All 80 new monsters were placed inside those bands by archetype. `auditRoster` fails the
+   build on a stat outside its band - so a future content drop cannot flatten the pacing curve, which
+   is the thing that actually breaks at 10x content.
+4. **Portrait paths became a MANIFEST** (`src/data/monster-art.js`). A hand-written map cannot express
+   "expected but not yet delivered" - only "404" or "silently missing". The manifest names all 111,
+   `SHIPPED` names the 30 that exist, `wiredIconMap()` is the intersection, and the FILENAME IS
+   DERIVED FROM THE ID so a mis-map is unrepresentable. `monsterArtPreflight` reconciles it against
+   the filesystem in both directions.
+
+**Debt paid down (not asked for, but it was the blocker).**
+- **legacy.js's second `MONSTERS` copy is DELETED** (`const MONSTERS={}`). b342 measured 14 of 31
+  entries diverging and two silently deleting a live drop. `MON-ONECOPY-1` keeps it gone.
+- **`data-integrity.js`'s MONSTERS check was BLIND** - it compared a *reference* to the merged object
+  against ESM, i.e. against itself. Replaced with a count captured eagerly (a number, immune to the
+  merge). **The ITEMS half is still blind** - see DISCOVERIES, it is now the top debt item.
+- **`remapItemIds` never walked `dropLog[mon].drops[item]`** (pre-existing since b244). Fixed.
+
+**Ruling I made and own: DEC-NEUT-01's open item.** Retiring `neutral` deletes the x1.15
+`NEUTRAL_DROP_BONUS` that 7 monsters - including the Green Dragon - were paid for opting out of the
+triangle. Re-homed as an explicit per-monster `dropBonus:1.15` on exactly those 7. Nobody is worse
+off, the engine loses a magic constant, and drop-rate identity becomes a data lever any monster can
+carry. `MON-NEUT-1` measures all 7 at exactly 1.15 and asserts `goblin` did not acquire one.
+
+**Files changed.** `src/data/monster-classes.js` (new), `src/data/monster-art.js` (new),
+`src/data/monsters.js`, `src/legacy.js`, `src/main.js`, `src/core/combat.js`, `src/core/bounty.js`,
+`src/core/botd.js`, `src/utils/data-integrity.js`, `src/features/smoke-test.js`,
+`tests/run-smoke.mjs`, `supabase/migrations/2026-08-11-catalogue.generated.sql` (regenerated).
+**Intentionally untouched:** `src/dungeons.js` KEY_DROPS (no live id renamed, so nothing broke;
+adding sources is an economy change -> Designer), `src/data/glyphs.js` (new monsters fall through to
+emoji, which is the existing last-resort fallback), `bosses.js` (Elderscale stays a raid boss - the
+review book names it only to unify vocabulary, so it is NOT a 111th... it is not a MONSTERS row).
+
+**Save migration.** No new persistent state. `MONSTER_ALIAS` ships empty-but-live (no live id was
+renamed - deliberately, because the layer did not exist yet). `FAMILY_ALIAS` is NOT empty and runs on
+every load: it folds `killsByFamily` so a veteran does not get a dead "Beast" row beside "Mammal".
+Mythic held two monsters and an aggregate cannot be split - **ruled: fold Mythic into Demon**, which
+keeps total kills exact at the cost of a small misattribution in one display-only stat.
+
+**Performance.** `applyClassProfiles` is one O(n) pass over 111 rows at module load. No new
+per-tick or per-frame work. `_monsterIcon` grew by 0 entries today (81 pending), so no new requests.
+
+**Known limitations.** (1) The Edge Function MUST be redeployed before this ships or away combat on
+the 80 new monsters pays nothing - it fails closed, so no time is confiscated, but the player earns
+nothing. (2) 81 portraits are owed; they degrade to glyphs until then. (3) Collection-log completion
+% drops for existing players (denominator 31 -> 111) - the accepted pre-wipe cost. (4) The element
+axis is DATA now but no combat term reads it yet; that is the enchanting/elements work, sequenced
+after this by Tyler's own ruling.
+
+**Not done, per instructions:** no version bump, no push, no migration applied, no Edge deploy.

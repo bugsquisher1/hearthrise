@@ -31,11 +31,24 @@ export const DAILY_POOL = [
   'plague_swarm', 'goblin_warlord', 'bear', 'wraith', 'lesser_demon', 'mountain_troll',
   'shadow_creeper', 'warband_captain', 'panther', 'death_knight', 'archmage',
   'void_parasite', 'war_king', 'ancient_bear', 'lich', 'dragon',
+  /* ── b356 roster wave, APPENDED (never inserted — see the header: order is
+     load-bearing, and reordering re-rolls every player's Boss-of-the-Day
+     history). One marquee mid/endgame monster per new class, so a week of
+     rotation now spans the whole taxonomy instead of six families. ── */
+  'minotaur', 'giant_spider', 'hellhound', 'wyvern', 'barrow_knight',
+  'winter_wolf', 'ice_elemental', 'watchknight', 'void_mote', 'carnivorous_plant',
+  'cyclops', 'frost_giant', 'grave_banshee', 'fury', 'drake',
+  'magma_elemental', 'gargoyle', 'starhusk', 'bandit_lord', 'mammoth',
+  'revenant', 'vampire_bride', 'storm_elemental', 'the_silence',
 ];
 
 /* The weekly boss — the apex end of the roster, on a 7-day clock. */
 export const WEEKLY_POOL = [
   'death_knight', 'archmage', 'war_king', 'ancient_bear', 'lich', 'dragon', 'void_parasite',
+  /* b356: APPEND ONLY. The eleven new capstone bosses — before this the game
+     had two bosses in MONSTERS and the weekly slot was mostly non-bosses. */
+  'elk_king', 'broodmother', 'treant', 'stonejaw', 'necromancer', 'grim_reaper',
+  'vharek', 'draconia', 'ashwing', 'elder_cinder', 'iron_colossus', 'the_unlit',
 ];
 
 export const DAILY_BONUS = Object.freeze({ dropMult: 1.5, xpMult: 1.25 });

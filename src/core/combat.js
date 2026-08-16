@@ -22,10 +22,15 @@ import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=356';
 
+/* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
+   as a WEAPON type — an unarmed/typeless loadout still has to render. */
 export const WEAPON_TYPES = {
   sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',
 };
 export const WEAKNESS_BONUS = { damage: 1.20, accuracy: 1.15 };
+/* The drop-rate the 7 formerly-`neutral` monsters were paid for opting out of
+   the triangle. Now a documented default carried per-row as `dropBonus`, not
+   a branch in `weaknessInfo`. See that function's header. */
 export const NEUTRAL_DROP_BONUS = 1.15;
 
 export const COMBAT_BALANCE = {
@@ -166,34 +171,49 @@ export function armorSetBonus(equipment, items) {
 /**
  * The one place a monster's defensive profile meets the player's loadout.
  *
- * TWO axes, both multiplicative into `damageMult`:
- *   1. WEAPON WEAKNESS — the live +20%/+15% for bringing the class's weak
- *      weapon type. Unchanged.
- *   2. BANE — a class multiplier carried by an ITEM (`item.bane`), clamped by
- *      `MAX_BANE_MULT` inside src/core/bane.js. It lives here rather than in
- *      `getBonus` precisely so that away accrual sees it; read that file's
- *      header before moving it.
+ * THREE concerns, merged in b356 from two workstreams that each rewrote this
+ * function. Read all three before touching it.
  *
- * The product is clamped to `MAX_COMBINED_DAMAGE_MULT` so the ceiling is a
- * property of this expression and not of the item table. `baneMult` and
- * `baneClass` are returned so the away card and the monster panel can SAY why
- * a night went the way it did without recomputing anything.
+ * 1. WEAPON WEAKNESS — the live +20%/+15% for bringing the class's weak
+ *    weapon type.
+ * 2. BANE — a class multiplier carried by an ITEM (`item.bane`), clamped by
+ *    `MAX_BANE_MULT` inside src/core/bane.js. It lives here rather than in
+ *    `getBonus` precisely so that away accrual sees it; read that file's
+ *    header before moving it. The product of (1) and (2) is clamped to
+ *    `MAX_COMBINED_DAMAGE_MULT`, so the ceiling is a property of THIS
+ *    expression and not of the item table.
+ * 3. `neutral` IS RETIRED (DEC-NEUT-01). Every monster in the taxonomy now
+ *    answers a real weapon, so `weaponWeak === 'neutral'` can no longer be
+ *    true. The 7 monsters that used to opt out were paid a x1.15 drop rate
+ *    for it; deleting `neutral` would have silently cut their drops 13% —
+ *    including the Green Dragon. The bonus is RE-HOMED as an explicit
+ *    per-monster `dropBonus` field on exactly those 7 rows, so drop identity
+ *    is DATA rather than a side effect of having no weakness.
+ *    `NEUTRAL_DROP_BONUS` stays exported as the documented default those
+ *    rows carry (core-bridge and the vendored server copy read the symbol).
+ *
+ * `weak` may still be falsy if a caller passes a monster from outside the
+ * roster — it then never matches, the safe direction (no bonus, not a free one).
+ *
+ * `baneMult`/`baneClass` are returned so the away card and the monster panel
+ * can SAY why a night went the way it did without recomputing anything.
  */
 export function weaknessInfo(monster, eq) {
-  const weak = (monster && monster.weaponWeak) || 'neutral';
-  const matched = weak !== 'neutral' && eq && eq.weaponType === weak;
+  const weak = (monster && monster.weaponWeak) || null;
+  const matched = !!(weak && eq && eq.weaponType === weak);
   const weaponMult = matched ? WEAKNESS_BONUS.damage : 1;
 
   const baneClass = classOfMonster(monster);
   const baneMult = baneMultFor(baneClass, eq && eq.bane);
   const damageMult = Math.min(weaponMult * baneMult, MAX_COMBINED_DAMAGE_MULT);
 
+  const bonus = Number(monster && monster.dropBonus);
   return {
     weak,
-    matched: !!matched,
+    matched,
     damageMult,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
-    dropMult: weak === 'neutral' ? NEUTRAL_DROP_BONUS : 1,
+    dropMult: Number.isFinite(bonus) && bonus > 0 ? bonus : 1,
     /* Bane readout — 1 and null when no bane gear applies. */
     baneClass: baneMult > 1 ? baneClass : null,
     baneMult,

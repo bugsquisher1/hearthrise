@@ -157,6 +157,34 @@ fired early and the client must treat it as a non-event (§3.4).
 | **reconnect** | on `online`, and on auth-token refresh | reuses the existing gate/backoff |
 | **cold load** | already exists (`processOffline` → `beginServerAccrual`) | unchanged |
 | **before any value-moving intent** | market/shop/claim | see §3.5 |
+| **rare drop / boss kill** | the client's prediction rolls a rare-band drop or a boss dies | see §3.6 — REQUIRED, Tyler 2026-08-17 |
+
+### 3.6 Event-triggered settlement (Tyler's disconnect question, 2026-08-17)
+
+Tyler: *"if a person loots a rare item from a boss and then disconnects 3 seconds
+after, they won't lose the item?"* Under interval-only settling the answer is
+"the span is re-paid honestly on return, but with the SERVER's dice" — fair, and
+still a terrible experience on a rare: the player SAW a drop that was never real.
+For ordinary loot a re-roll is invisible; for a rare it is a support ticket.
+
+So: when the client's prediction rolls a drop at or above the rare band, or a
+boss-class monster dies, the client settles IMMEDIATELY instead of waiting out
+the interval. The server's roll for that span then lands within seconds of the
+moment the player saw it, and the journal row makes it permanent. The residual
+window (a hard network cut in the 1–2 s before the settle returns) degrades to
+the interval-only behaviour — an honest server re-roll — which is the floor, not
+the norm.
+
+CONSTRAINT: `ACCRUE_MIN_MS` (60 s) refuses a span shorter than a minute, so an
+event-settle arriving 20 s after an interval-settle bounces today. The
+Designer's standing ruling (2026-08-15) already anticipated this — "the
+`ACCRUE_MIN_MS` floor becomes one action, gated on `hr_rate_gate` sizing" — so
+the event trigger ships WITH that floor change, and both go through Security as
+one reviewed unit (the gate at 30/min already absorbs the extra call volume;
+what Security must size is the abuse value of many tiny spans, which the
+per-call clamps and day budgets bound). Until that clears, the event trigger
+may ship in a degraded form: settle at the NEXT legal instant (when the span
+reaches 60 s), which still beats the 90 s interval by up to half a minute.
 
 ### 3.2 Why 90 s and not 60 s
 

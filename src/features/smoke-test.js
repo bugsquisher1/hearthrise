@@ -30627,6 +30627,87 @@ const TESTS = [
       'matching a weapon weakness must still pay');
   }),
 
+  /* ── BANE-1 (b358 QA). WRITTEN BECAUSE THE GATE DID NOT NOTICE.
+     Mutation-proved: with `baneMult` hard-wired to 1 in weaknessInfo — i.e.
+     bane gear deleted from the game outright — the suite passed 761/761. With
+     `baneMultFor`'s MAX_BANE_MULT ceiling removed — i.e. the fuse gone — it
+     passed 761/761 again. The whole b357 bane primitive, and the half of the
+     hand-merged `weaknessInfo` that carries it, shipped with ZERO coverage.
+
+     Four claims, each of which one of those mutations breaks:
+       (a) bane PAYS against the class it names;
+       (b) it pays NOTHING against every other class (the scope is the fuse);
+       (c) an oversized `mult` is clamped by the FORMULA, not by the item table
+           (src/core/bane.js's stated invariant — a magnitude in a data row is a
+           magnitude an author gets wrong);
+       (d) weapon-weakness x bane is clamped to MAX_COMBINED_DAMAGE_MULT, so a
+           third factor cannot quietly stack past the stated ceiling.
+     Read through `equipmentStats` + `weaknessInfo`, which is the ONE expression
+     the live tick and the Edge accrual both call — so this guards away nights
+     as well as awake ones. */
+  () => tryRun('BANE-1: bane gear pays its class, only its class, and never past the ceiling', () => {
+    const C = window.HearthriseCore && window.HearthriseCore.combat;
+    const B = window.HearthriseCore && window.HearthriseCore.bane;
+    assert(C && B, 'core must expose combat + bane');
+    const ITEMS = window.ITEMS; const MONSTERS = window.MONSTERS;
+
+    const baneIds = Object.keys(ITEMS).filter((id) => ITEMS[id].bane);
+    assert(baneIds.length >= 5, 'expected the approved bane weapons in the catalogue, got ' + baneIds.length);
+
+    const classOf = (m) => B.normalizeClass(m.class) || B.normalizeClass(m.family);
+
+    baneIds.forEach((id) => {
+      const named = B.normalizeClass((Array.isArray(ITEMS[id].bane) ? ITEMS[id].bane[0] : ITEMS[id].bane).class);
+      assert(named, id + ' names a class outside the eleven-class taxonomy');
+      const eq = C.equipmentStats({ weapon: id }, ITEMS);
+
+      const inClass = Object.keys(MONSTERS).filter((mid) => classOf(MONSTERS[mid]) === named);
+      assert(inClass.length > 0, id + ' names ' + named + ', which no monster belongs to');
+
+      // (a) it pays inside its class...
+      inClass.forEach((mid) => {
+        const info = C.weaknessInfo(MONSTERS[mid], eq);
+        assert(info.baneMult > 1, id + ' paid no bane against ' + mid + ' (' + named + ')');
+        assert(info.baneClass === named, id + ' vs ' + mid + ' reported baneClass ' + info.baneClass);
+      });
+
+      // (b) ...and nowhere else.
+      Object.keys(MONSTERS).forEach((mid) => {
+        if (classOf(MONSTERS[mid]) === named) return;
+        const info = C.weaknessInfo(MONSTERS[mid], eq);
+        assert(info.baneMult === 1 && info.baneClass === null,
+          id + ' leaked bane onto ' + mid + ' (' + classOf(MONSTERS[mid]) + '): ' + info.baneMult);
+      });
+    });
+
+    // (c) the ceiling is the FORMULA's, not the table's.
+    assert(B.baneMultFor('undead', { undead: 1e9 }) === B.MAX_BANE_MULT,
+      'a forged bane mult was not clamped to MAX_BANE_MULT');
+    // ...and five pieces naming one class are indexed, not multiplied.
+    const stacked = C.equipmentStats(
+      { weapon: baneIds[0], helmet: baneIds[0], body: baneIds[0], gloves: baneIds[0], boots: baneIds[0] }, ITEMS);
+    const oneClass = B.normalizeClass((Array.isArray(ITEMS[baneIds[0]].bane)
+      ? ITEMS[baneIds[0]].bane[0] : ITEMS[baneIds[0]].bane).class);
+    assert(B.baneMultFor(oneClass, stacked.bane) <= B.MAX_BANE_MULT,
+      'five bane pieces of one class compounded instead of taking the best');
+
+    // (d) weapon-weakness x bane is clamped to the combined ceiling, and the
+    //     intended best case (1.20 x 1.40) actually reaches it.
+    const forged = Object.assign({}, ITEMS);
+    forged.__qa_bane__ = { n: 'QA', weaponType: 'hammer', bane: [{ class: 'undead', mult: 1e9 }] };
+    const feq = C.equipmentStats({ weapon: '__qa_bane__' }, forged);
+    const undeadHammer = Object.keys(MONSTERS).find((mid) =>
+      classOf(MONSTERS[mid]) === 'undead' && MONSTERS[mid].weaponWeak === 'hammer');
+    assert(undeadHammer, 'expected at least one hammer-weak Undead to test the combined clamp');
+    const combo = C.weaknessInfo(MONSTERS[undeadHammer], feq);
+    assert(Math.abs(combo.damageMult - B.MAX_COMBINED_DAMAGE_MULT) < 1e-9,
+      'weapon-weakness x bane must clamp to MAX_COMBINED_DAMAGE_MULT, got ' + combo.damageMult);
+    // and an unarmed loadout is inert either way
+    const bare = C.weaknessInfo(MONSTERS[undeadHammer], C.equipmentStats({}, ITEMS));
+    assert(bare.baneMult === 1 && bare.damageMult === 1,
+      'an unarmed loadout must earn neither weakness nor bane');
+  }),
+
   () => tryRun('MON-ART-1: every wired portrait points at a real monster in a shipped folder', () => {
     const mi = window._monsterIcon || {};
     const ids = Object.keys(mi);

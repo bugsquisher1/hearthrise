@@ -637,30 +637,46 @@ body.in-combat #combat-area {
   margin: 0 14px 12px;
 }
 .arena-vs .arena-side { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* b357 — the portrait is a PLATE, not a locket.
+   It was a 96px circle with object-fit:cover, which is two problems wearing
+   one hat: `cover` on a non-square source crops (30 of the 36 shipped monster
+   files are 128px long-edge and NON-square — venom_spider is 128x83, so ~35%
+   of its width was being thrown away), and the circle then cropped the corners
+   of whatever survived. Corners are where a creature carries its silhouette:
+   antlers, horns, a scythe, a crest. It also forced every future generation to
+   compose inside an inscribed circle. Square mask + `contain` = the whole
+   subject, every time, and the frame does the designing instead of the crop. */
 .arena-vs .arena-portrait {
   width: 96px; height: 96px;
-  background: rgba(0,0,0,.4);
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(255,236,200,.075), transparent 68%),
+    var(--surf-sunken, rgba(0,0,0,.4));
   border: 2px solid var(--gold-2);
-  border-radius: 50%;
+  border-radius: var(--r-portrait, 6px);
+  box-shadow: var(--surf-sunken-edge, inset 0 1px 2px rgba(0,0,0,.65));
   display: flex; align-items: center; justify-content: center;
   font-size:calc(56px * var(--ui-scale, 1));
   overflow: visible !important;
   position: relative;
 }
 .arena-vs .arena-portrait img {
-  width: 100%; height: 100%; object-fit: cover;
-  border-radius: 50%;
+  width: 100%; height: 100%; object-fit: contain;
+  border-radius: calc(var(--r-portrait, 6px) - 2px);
+  /* The subject stands ON the plate rather than being pasted over it. */
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.7));
 }
-.arena-vs .arena-side.foe .arena-portrait { border-color: #e36161; }
+.arena-vs .arena-side.foe .arena-portrait { border-color: var(--red-line, var(--red)); }
 /* b278: the equipped pet perched beside the hero in the arena */
 .arena-vs .arena-side.player .arena-portrait .arena-pet {
   position: absolute; right: -8px; bottom: -6px;
-  width: 38px; height: 38px; border-radius: 50%;
+  width: 38px; height: 38px; border-radius: var(--r-portrait, 6px);
   background: rgba(0,0,0,.55); border: 2px solid var(--gold-2);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 3;
 }
-.arena-vs .arena-side.player .arena-portrait .arena-pet img { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 50%; }
+/* b357: a pet is a creature, so it takes the creature treatment — same square
+   plate, same `contain`. A circle here cropped a hawk's wings at 38px. */
+.arena-vs .arena-side.player .arena-portrait .arena-pet img { width: 100% !important; height: 100% !important; object-fit: contain; border-radius: calc(var(--r-portrait, 6px) - 2px); }
 @media (max-width:540px),(max-height:540px) and (max-width:1024px){ .arena-vs .arena-side.player .arena-portrait .arena-pet { width: 28px; height: 28px; } }
 .arena-vs .arena-name {
   font-family: var(--f-display); font-weight: 800; font-size:calc(17px * var(--ui-scale, 1));
@@ -793,7 +809,8 @@ body.in-combat #combat-area {
 .mp-close:hover { background: rgba(255,255,255,.12); color: var(--ink); }
 .mp-header { display: flex; align-items: center; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 18px; }
 .mp-portrait {
-  width: 120px; height: 120px; border-radius: 12px;
+  /* b357: on the shared portrait mask (was a 12px fillet of its own). */
+  width: 120px; height: 120px; border-radius: var(--r-portrait, 6px);
   background: radial-gradient(ellipse at center, rgba(227,97,97,.18), transparent 70%), rgba(0,0,0,.45);
   border: 2px solid rgba(227,97,97,.4);
   display: flex; align-items: center; justify-content: center;

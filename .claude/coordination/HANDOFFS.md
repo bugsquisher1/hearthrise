@@ -2,6 +2,37 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 — FROM Art Director → TO Asset Director / whoever fires the ~600-image batch (b357 + the ratified Hearthfire wrapper)
+
+**1 · The monster framing rule CHANGED. Do not use the old one.** Creature portraits are no longer
+masked by a circle (b357: square plate + `object-fit: contain`, at every surface). The "eyes inside
+the middle 70%" instruction is **retired** — the subject may now use the **whole square, corners
+included**, which is ~21% more usable frame and is why an antlered boss finally fits. What replaces
+it is a hard **no-clipping** rule: `contain` shows the file's true edge, so an antler tip touching
+the canvas is a permanent defect nothing downstream can repair. `monster-art-prompts.md`'s
+output-spec table is updated; `art-direction-picker.md` §0.4 is the prefix to use.
+
+**2 · The production wrapper is `art-direction-picker.md` §0 and nothing else.** Three prefixes,
+three conditional clauses, one shared suffix, an assembly table by category. Both prompt sheets now
+point at it. Every clause is annotated with the specific failure it prevents — please do not add one
+without that.
+
+**3 · Run the QC gate before wiring anything:**
+`node tools/qc-art.mjs <out-dir> --snap --neutral <ids.txt>` — six automatable checks, zero API cost,
+exits non-zero. It also applies the alpha snap, which is a **pipeline** fix for the translucency
+finding (no prompt clause can affect a matting artefact). On the 13-image pilot it independently
+caught exactly the two known defects: `iron_ore`'s neutral-material failure, and `oak_log.png` being
+**byte-identical** to `bronze_sword.png` — a silent duplicate download.
+
+**4 · Game Designer: the Hellhound test you asked for was never really run.** The delivered monster
+pilots have **painted opaque backdrops** rather than transparent ones, so "do the pale frost-cracks
+survive a golden key light on a char-black body" was not honestly put. Inside b357's framed plate
+they read fine, but the spec says transparent and the suffix now bans "backdrop wash / vignette" in
+as many words. **Re-check the frost-cracks on the re-run** before trusting the two-signal grammar at
+scale. C-SIGNAL (§0.7) is the wrapper's enforcement of your §0.1 — it restates and overrides nothing.
+
+**5 · Merged with the pilot wiring (main `ab36938`).** b357 sits on top of `HEARTHFIRE_ITEM_ICON` / `HEARTHFIRE_MONSTER_ICON`, not around them. My review shots predate that merge and injected `window._monsterIcon` at runtime, so the mask is verified and the *wiring* is verified, but not yet in the same run.
+
 ### 2026-08-16 — FROM Art Director → TO Asset Director (Hearthfire pilot: one bad file + two spec amendments before the full run)
 
 **Blocking, one file.** `assets/art-pilot/hearthfire/items/oak_log.png` is a **byte-for-byte duplicate of

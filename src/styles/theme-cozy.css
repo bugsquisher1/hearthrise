@@ -88,6 +88,10 @@ body[data-theme="cozy-light"] {
 
   --red:         #a04830;              /* rust red — danger/warn */
   --red-bg:      rgba(160,72,48,.14);
+  /* b357: the danger EDGE. --red is a fill value; a 2px ring drawn in it on a
+     near-black plate reads as a dark smudge, which is why the foe portrait had
+     a hardcoded #e36161 for years. One token, four themes, no literal. */
+  --red-line:    #a04830;
 
   --purple:      #7a5b9a;              /* dusty lavender */
   --purple-bg:   rgba(122,91,154,.14);
@@ -132,6 +136,7 @@ body[data-theme="cozy-dark"] {
 
   --red:         #d56a4f;
   --red-bg:      rgba(213,106,79,.18);
+  --red-line:    #e0836a;
 
   --purple:      #a685c4;
   --purple-bg:   rgba(166,133,196,.18);
@@ -175,6 +180,7 @@ body[data-theme="classic"] {
 
   --red:         #8b2e1f;
   --red-bg:      rgba(139,46,31,.18);
+  --red-line:    #b8452e;
 
   --purple:      #6a4a78;
   --purple-bg:   rgba(106,74,120,.18);
@@ -4104,6 +4110,7 @@ body[data-theme="hearthlight"] {
 
   --red:         #b23a2c;              /* oxblood — combat / danger */
   --red-bg:      rgba(178,58,44,.16);
+  --red-line:    #cf5340;              /* b357: danger EDGE — see the note in the cozy-light block */
 
   --aqua:        #5c8f89;              /* weathered teal — info */
   --aqua-2:      #a89a80;

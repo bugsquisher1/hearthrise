@@ -740,6 +740,45 @@ injection anchors — a stale anchor fails LOUD (exit 2) by design, not silently
 
 ---
 
+## 2026-08-16 · Art Director — b357: creature portraits are SQUARE, and four measured art-pipeline facts
+
+**1 · The arena portrait was cropping twice, and the second crop was invisible.** It was a 96 px
+**circle** with `object-fit: cover`. `cover` throws away the overflow of a non-square source — 30 of
+the 36 shipped monster files are 128 px long-edge and non-square — and the circle then took the
+corners off whatever survived. Corners are where a creature keeps the information a bestiary is read
+by: antlers, horns, a scythe, a crest. It also silently imposed a "compose inside an inscribed
+circle" rule on every future generation, which costs ~21% of a square frame, 600 times over.
+**Every creature-portrait surface is now a square plate with `contain`** — arena, bestiary row,
+monster row, preview modal, bounty notice, pet badge, companion badge — on one shared token
+`--r-portrait: 6px`. Guarded by smoke test `b357`. **The medallion (`.hr-med`) stays a circle
+deliberately: it is a struck coin holding a centred vector glyph at 60% size, so it never crops.**
+
+**2 · The delivered AI art is not opaque, and it is not a fringe.** Measured across all 13 Hearthfire
+pilots by canvas pixel read: only **0.3–2.0%** of pixels in any file are alpha 255. The modal interior
+alpha is **254**, with **50–80% of the canvas** sitting at 252–254. That is an artefact of Recraft's
+`removeBackground` matting, which runs after generation — **no prompt wording can affect it.** Fixed
+by `tools/qc-art.mjs --snap` (a>=250 -> 255, a<=16 -> 0, 17–249 untouched). Proven: opaque goes to
+16–64%, the soft band to 4–8%, and a second run changes 0 files.
+
+**3 · A duplicate download is completely silent, and one shipped.** `oak_log.png` and
+`bronze_sword.png` in the pilot are **byte-identical** (SHA-256 match). Nothing in the pipeline
+noticed. `tools/qc-art.mjs` now hashes the whole batch. **Any batch-download tool needs this check.**
+
+**4 · A warm key light repaints neutral materials.** `iron_ore` is specced as grey rock with rust
+streaks and came back polychrome red/violet — 38% of its opaque pixels warm-dominant, against 16% for
+the correctly-cold `iron_sword`. The cause is structural, not a bad line: **when a subject's material
+is a neutral (stone, ore, bone, ash, coal, plain iron, dressed masonry) the palette clause has
+nothing legitimate to land on, so it repaints the material.** The production wrapper now pins the
+palette to the LIGHT and to stated trim only.
+
+**Affected systems:** every monster/creature render surface; the whole art batch pipeline.
+**Required action (Asset Director + whoever runs the batch):** monster art must now be composed to
+the **full square with a small even margin and nothing touching the edge** — the old "eyes inside the
+middle 70%" rule is retired. Run `node tools/qc-art.mjs <dir> --snap --neutral <ids>` as the gate
+before wiring anything.
+
+---
+
 ## 2026-08-16 · Art Director — three measured facts about how icons actually render
 
 **1 · No item icon in this game is ever displayed above 64 × 64 px.** Measured in-browser (six real

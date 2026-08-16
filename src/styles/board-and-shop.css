@@ -317,9 +317,12 @@ body[data-theme] #panel-bounty .bb-notice * { color: var(--bb-ink) !important; }
 body[data-theme] #panel-bounty .bb-head { display: flex; gap: 11px; align-items: flex-start; }
 /* The painted portrait is PRINTED on the notice — desaturated to ink and
    multiplied into the paper — rather than pasted on top of it as a sticker. */
+/* b357: the cut is SQUARE now — a wanted notice carries a printed plate, not a
+   locket, and the circle was cropping the horns off the thing you are being
+   asked to identify. Same paper treatment, same rule, different mask. */
 body[data-theme] #panel-bounty .bb-cut {
   flex: 0 0 44px; width: 44px; height: 44px;
-  border-radius: 50%;
+  border-radius: var(--r-portrait, 6px);
   display: grid; place-items: center;
   overflow: hidden;
   border: 1.5px solid var(--bb-rule);
@@ -327,7 +330,7 @@ body[data-theme] #panel-bounty .bb-cut {
   background: radial-gradient(circle at 40% 32%, rgba(255,255,255,.34), rgba(120,92,48,.10));
 }
 body[data-theme] #panel-bounty .bb-cut img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   filter: grayscale(1) sepia(.45) brightness(1.14) contrast(1.14);
   mix-blend-mode: multiply;
 }

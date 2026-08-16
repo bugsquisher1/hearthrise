@@ -28,33 +28,52 @@ the art direction can be swapped without rewriting 85 lines. Wrap it:
 > "Forge & Stone" **palette** is likewise no longer a constraint — Forge & Stone survives as the
 > **world** (castle, hearth, iron, stone, leather, timber), not as a colour temperature.
 
-**Take the STYLE PREFIX — MONSTERS and the STYLE SUFFIX from the direction chosen in
-[`art-direction-picker.md`](./art-direction-picker.md).** Use the **MONSTERS** prefix (head-and-shoulders
-bust), not the ITEMS one. Items and monsters share one lane and one suffix on purpose — that shared
-suffix is the mechanism that makes the item shelf and the bestiary look like one game. **Do not mix
-lanes across a batch.**
+**RATIFIED 2026-08-16 — the lane is HEARTHFIRE and the production wrapper is
+[`art-direction-picker.md` §0](./art-direction-picker.md).** Assemble every monster prompt as
+
+```
+P-MONSTER (picker §0.4)  +  the subject line below  +  C-SIGNAL (picker §0.7)  +  SUFFIX (picker §0.8)
+```
+
+Use the **MONSTERS** prefix (head-and-shoulders bust), not the ITEMS one. Items and monsters share one
+suffix on purpose — that shared suffix is the mechanism that makes the item shelf and the bestiary look
+like one game. **Do not mix lanes across a batch.** `C-SIGNAL` is the wrapper's enforcement of §0.1–0.3
+below; it restates nothing and overrides nothing.
 
 ### Output spec (hard requirements, checked before wiring)
 | Property | Value |
 |---|---|
 | Format | PNG-24, RGBA, **real alpha** (colour type 6) — not a flattened white background |
 | Canvas | **exactly 256 × 256, square — non-negotiable, and the shipped set gets this wrong today (see below)** |
-| Framing | subject centred, eyes and face inside the middle **70%** of the frame |
+| Framing | **REVISED b357:** compose to the **whole square** — corners included — with a small even margin on all four sides; eyes within the central **60%**; horns, antlers, ears, crests and blades must be **complete and never touch the canvas edge**. (The old "middle 70%" rule was a circle-mask constraint and is retired — see below.) |
 | Filename | the monster's **game id**, `snake_case`, e.g. `winter_wolf.png` |
 | Location | `assets/icons-bundle/painted/monsters/` — no new subfolders |
 | Wiring | one line in `LOCAL_MONSTER_ICON` inside `applyLocalIcons()` at the bottom of `src/legacy.js` |
 
-**Why square-and-256 is a hard rule, measured rather than assumed.** Monster art is rendered at
-**36 px** (bestiary row), **38 px** (monster row), **56–96 px** (arena portrait) and **120 px** (monster
-detail portrait) — and the bestiary row and the arena portrait both use **`object-fit: cover` on a square
-box**, which crops to fill instead of letterboxing. A non-square portrait therefore loses its edges on
-two of the game's four monster surfaces. **This is a live defect, not a hypothetical:** a header walk of
-all 36 shipped files found **30 of them are 128 px long-edge and non-square** — `venom_spider.png` is
-128 × 83, so roughly 35% of its width is cropped away in the arena today — and only the 6 Hunt bosses are
-256 × 256. (An earlier audit's claim that the whole set is 256 × 256 was based on sampling only those
-six.) 256 × 256 is a clean 2× of the 120 px detail portrait; the current 128 px files have no headroom at
-all. Item icons are the opposite case — `contain` everywhere, so they may be non-square. See
-`item-art-prompts.md`.
+**Why square-and-256 is a hard rule — and why the framing rule changed under it (b357).** Monster art
+renders at **36 px** (bestiary row), **38 px** (monster row), **56–96 px** (arena portrait) and
+**120 px** (monster detail portrait). Until b357 the bestiary row and the arena portrait used
+**`object-fit: cover` on a square box** *and the arena box was a circle* — two crops stacked. That was a
+live defect: a header walk of all 36 shipped files found **30 are 128 px long-edge and non-square**
+(`venom_spider.png` is 128 × 83, so ~35% of its width was cropped away in the arena), and only the 6
+Hunt bosses are 256 × 256.
+
+**b357 fixed the client side of it:** every creature portrait in the game — arena, bestiary row, monster
+row, preview modal, bounty notice, pet badge — is now a **square plate with `object-fit: contain`**. Two
+consequences for this spec:
+
+- **The 256 × 256 square rule gets stronger, not weaker.** `contain` letterboxes rather than crops, so a
+  non-square file no longer loses its edges — it renders *smaller than its neighbours* inside the same
+  box, which makes a bestiary of mixed aspect ratios look ragged instead of cropped. Square is still
+  non-negotiable, now for a composition reason rather than a crop one.
+- **The framing constraint relaxes.** With no circle mask the corners are visible, so the subject may
+  use the full square — about 21% more usable frame than an inscribed circle — which is why an antlered
+  boss finally fits. What replaces it is a **hard no-clipping rule**: `contain` shows the file's true
+  edge, so an antler tip touching the canvas is a permanent defect nothing downstream can repair.
+
+256 × 256 is a clean 2× of the 120 px detail portrait; the current 128 px files have no headroom at all.
+Item icons remain the opposite case — `contain` everywhere and never cropped, so they may be non-square.
+See `item-art-prompts.md`.
 
 **Two things the prompt cannot enforce, so a human must check them:** *identity* (this repo has shipped a
 boar labelled `bear.png` and a vampire labelled `dragon.png`) and *style fit*. Both need an Art Director

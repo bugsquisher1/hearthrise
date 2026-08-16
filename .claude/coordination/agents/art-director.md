@@ -38,6 +38,117 @@ obvious in the inventory grid.
 - Icons = baked atlas `src/data/glyphs.js`. Theme rules must be scoped.
 
 ## Log
+### 2026-08-16 · b357 — the square portrait + the ratified Hearthfire batch wrapper
+
+**Job 1 — the mask.** Tyler: *"should we just not use a circle for the portraits instead?"* He is
+right and the reason is stronger than taste. The arena portrait was a 96 px **circle** with
+`object-fit: cover` — **two crops stacked.** `cover` discards the overflow of a non-square source and
+30 of the 36 shipped monster files are 128 px long-edge and non-square; the circle then removed the
+corners of what was left. **Corners are where a creature keeps its silhouette** — antlers, horns, a
+scythe, ears, a crest — which is exactly the information a bestiary is read by. And it was not just
+a display bug: an inscribed circle costs ~21% of a square frame and quietly imposes a "keep the
+subject inside the circle" composition rule on **every one of the ~600 generations still to come.**
+
+**I changed the mask, not the styling.** One shared token `--r-portrait: 6px` in art-direction.css
+§2 (the sheet's own shape language is 2/3/5 px — "stone and iron have arrises, not 16 px fillets" —
+so 6 px on a 96 px plate reads deliberately near-square), and the arena plate keeps its 2 px gilt
+border and gains a proper sunken plinth (`--surf-sunken` + `--surf-sunken-edge` + a soft radial) and
+a drop-shadow on the subject so it stands ON the plate instead of being pasted over it.
+
+**Every creature surface took the same treatment, because a mask that is square in one place and
+round in five is worse than either.** Arena portrait + the pet badge perched on it, bestiary row,
+monster row, mob-preview modal (120 px), monster detail portrait (128 px — it carried a 24 px fillet
+of its own), the bounty-board "printed cut" (a wanted notice carries a printed plate, not a locket),
+and `companionIconHtml`'s inline style. **Six of those also moved `cover` -> `contain`**, which is
+the crop that actually mattered. **The medallion `.hr-med` stays a circle on purpose** and I want
+that written down: it is a struck coin holding a centred vector glyph at 60% size — it cannot crop,
+and it is the game's "this is a thing in the world" affordance for skills and currencies too.
+
+**Two tokens, no literals.** The foe frame had a hardcoded `#e36161`. `--red` is oxblood `#b23a2c`
+and a 2 px ring in it goes to mud on near-black, so `--red-line` now exists in all four theme blocks
+(the `--green-line` precedent from b326) and the ring is `var(--red-line, var(--red))`.
+
+**Verified in-browser, which took three tries and each failure is worth keeping.** Headless Chromium
+against my own static server (the shared launch.json is rooted in the main checkout, so a
+`preview_start` server serves the WRONG tree — I lost twenty minutes debugging edits that were live
+on disk and absent from the page; the Browser pane still never composites in this session, so no
+`computer{screenshot}`). Then: **`element.screenshot()` waits for the element to be STABLE and the
+arena is never stable** — a one-shot kill plays the b297 death throe on a loop — so every capture
+goes through `page.screenshot({clip})` off a measured rect. And **`startCombat(sameId)` toggles the
+fight OFF**, which silently emptied the arena for the last capture in the loop.
+Measured: **96x96 desktop / 56x56 mobile-landscape, radius 6 px, `object-fit: contain`, border
+`rgb(207,83,64)`** on all five pilot monsters at both sizes. 20 captures in
+`assets/art-pilot/_screenshots/square/`, including a real before/after (the old declarations
+re-injected, not remembered) on the Elk King — the antler tips and the shoulder come back.
+
+**Job 2 — the wrapper, and the finding that changed it.** The brief listed the clauses to include;
+the measurement found the one nobody had. **`iron_ore` came back polychrome red/violet not because
+its subject line was bad — it is correct — but because when a subject's material is a NEUTRAL
+(stone, ore, bone, ash, coal, plain iron, masonry) the warm palette clause has nothing legitimate to
+land on and repaints the material itself.** Numbers, not impressions: 38% of its opaque pixels are
+warm-dominant against 16% for the correctly-cold `iron_sword`. **Every neutral-material icon in a
+600-image batch was exposed to that**, so the fix belongs in the shared SUFFIX — *the palette
+belongs to the LIGHT and to stated trim only* — and it is the single most valuable sentence in the
+document.
+
+**Ratified wrapper is `art-direction-picker.md` §0** (three prefixes, three conditional clauses, one
+shared suffix, an assembly table, and every clause annotated with the specific failure it prevents —
+a clause with no observed failure behind it was cut). Both prompt sheets now point at it instead of
+carrying style language.
+
+**Ruling: use a Recraft custom Style anchor, two of them.** Prompt text pins subject, composition and
+bans; it does not pin *hand*, and hand-drift across 600 generations is invisible per image and
+glaring on a shelf — which is the whole studio-quality property. **`bronze_sword` is deliberately
+excluded from the item anchor**: it is a beautiful, correct image, but bronze warmth is a per-item
+*subject* property and anchoring it risks bleeding warm metal back into the ~200 cold-metal icons
+that C-METAL exists to protect. **And I said the true thing about seeds:** Recraft's v3 generation
+endpoint exposes no seed in the call we make, so there is no seeding lever; contiguous family
+ordering is a **QC** lever, not a consistency one (generation is stateless — ordering changes what a
+reviewer sees side by side, not what the model produces). Inventing a seed strategy would have
+sounded better and been false.
+
+**Two sweeps of the item sheet, both driven by an observed failure.** 38 lines carried "a handful/
+pile/heap/stack/bundle of…" or "…on a wooden board" — the shrimp defect, generalised: at 34 px the
+board IS the silhouette. All rewritten to one oversized specimen (bowls and pots survive where the
+vessel IS the item). And the neutral-material lines got a local colour lock on top of the wrapper
+clause. **426 rows before, 426 after** — verified by count, ids untouched.
+
+**`tools/qc-art.mjs` is new and it is the deliverable I would defend hardest.** Six automatable
+checks over a whole batch, zero API cost, exits non-zero. On the 13-image pilot it independently
+caught **exactly the two known defects and nothing else**: `iron_ore`'s neutral failure, and
+`oak_log.png` being **byte-identical to `bronze_sword.png`** — a silent duplicate download that no
+part of the pipeline noticed. It also carries the alpha snap (a>=250 -> 255, a<=16 -> 0): measured,
+only **0.3–2.0%** of pixels in any delivered pilot are opaque, the modal interior alpha is **254**,
+and 50–80% of the canvas sits at 252–254. **That is a matting artefact and no prompt clause can
+touch it** — spending words on it would only dilute the clauses that work. After the snap: opaque
+16–64%, soft band 4–8%, and a re-run changes 0 files.
+
+**One live hazard fixed in `gen-art.mjs` while I was there:** a manifest that redefines an output
+file (the re-run block does exactly that) generated it **twice in one run**, and which prompt
+survived depended on which worker finished last. Last definition now wins, loudly.
+
+**Smoke 737/737, 0 runtime errors.** The `b357` guard builds the real nesting off-screen and asserts
+no circle + `contain` at the arena AND the bestiary row, plus that the mask is one shared token so a
+future screen cannot invent its own. No version bump.
+
+**Known limitations — be honest.**
+- **Merged with main `ab36938` mid-pass, and re-verified after it.** The brief said the pilot was
+  already on main; it was not at that moment (another worktree held it) and my first shoot
+  therefore injected `window._monsterIcon` at runtime. After merging I re-shot all ten captures
+  **through the real `applyLocalIcons` path** — sources now report `natural 256x256` from
+  `assets/icons-bundle/hearthfire/monsters/*`, plate 96x96 desktop / 56x56 landscape, radius 6 px,
+  `contain`. So the mask and the wiring are now verified in the same run.
+- **The monster pilots came back with painted backdrops**, not transparent — the elk sits on an
+  opaque dark-red tile. Inside a framed plate it happens to read fine, but it is a spec violation and
+  the batch's busts must not do it. The suffix now bans "backdrop wash / vignette" explicitly;
+  unproven until the re-run.
+- **I have not verified the Recraft `/v1/styles` file cap** (documented as 5) or that `style_id` is
+  accepted alongside our body — both need one cheap call before the batch, and §0.10 says so.
+- **`.hr-botd .botd-icon` has no size box** and its `<img>` is `width:100%;height:100%` — likely
+  resolving to intrinsic size. Spotted while walking monster render sites; out of scope, unmeasured.
+- Pre-existing red in the suite: the **Edge payload guard** fails (deployed `hr-accrue` hash !=
+  repo). Unrelated to this pass and present before it.
+
 ### 2026-08-16 · the art-direction reset — picker + 512 subject lines (docs only)
 
 **The directive, and what it does and does not retire.** Tyler, binding: *"I don't like any of our

@@ -2,6 +2,38 @@
 
 _Your private journal. Append what you learn, decide, and change (newest at top). The Coordinator and other agents read this to understand your domain. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+### 2026-08-16 · The Recraft unblock — both proposed levers FAIL; `controls.colors` is the one that works
+
+Ran the two unblock paths Tyler said "try both" to, plus a third I derived from what A proved.
+**27 generations, $1.09.** Full ruling in `docs/design/art-direction-picker.md` §0.10c. Short version:
+
+- **Seed cap is 5** (`400 … "Number of images must be between 0 and 5"`). "More seeds" was never available.
+- **A — palette-neutral (greyscale) anchor: NO-GO, and it disproves the premise.** True-greyscale seeds
+  produced **monochrome output**, 5/5, while composition and bans were flawless. So a Recraft custom
+  style transfers the seeds' **colour distribution**, not just their hand — "hand without palette" does
+  not exist by construction. Do not re-propose it.
+- **B — built-in style + HAND words + hardened bans: NO-GO.** Fits the cap (975/1000 worst case) and
+  changed nothing: a landscape painting with a sword leaning in it, a boulder on a grass disc, a
+  doberman in an ornate border with a forged artist's signature. **Hardening a ban does not make
+  Recraft v3 obey it, and naming the exact artefact does not help.**
+- **The lever: `controls: {colors:[{rgb}]}`, accepted alongside `style_id`** (verified by execution;
+  undocumented). It **overrides the anchor's palette** — the property nothing else in this programme
+  has had. `iron_sword` came back cold grey with a warm grip, `bronze_sword` warm, and **`iron_ore`
+  came back neutral grey with rust streaks: the defect that started this whole programme is fixed.**
+- **Items: CONDITIONAL GO** (blocker is a colour-name → RGB table so 512 palettes are derived, not
+  hand-authored). **Monsters: NO-GO** — on a bust the palette is spent as a **backdrop wash**, and an
+  explicit ban naming that exact artefact did not stop it across 4 rounds; the two-headed Hellhound
+  came back single-headed 7/7. Recommend Tyler hand-generates the 85 monsters in the web UI.
+
+**Standing lesson, third time in this programme.** The failing half is never the words. §0.2 blamed
+prompt length, §0.10b blamed the anchor, this pass was asked to blame seed spread — the actual levers
+have all been **API request fields**, not prose. Before re-cutting a wrapper again, ask which field is
+wrong.
+
+**Wired:** `tools/gen-art.mjs --colors <file.json>`, which refuses without `--style-id`. Judged every
+file by opening it at full size (never a warm%/clear% proxy, per §0.10b); contact sheets at
+`assets/art-pilot/_sheet.png` and `_sheetG.png`.
+
 ### 2026-08-16 · HEARTHFIRE ART PILOT wired + photographed (branch only — no bump, no push)
 
 Processed 13 Recraft 1024² exports, wired **12**, shot the game wearing them. Suite 736/736.

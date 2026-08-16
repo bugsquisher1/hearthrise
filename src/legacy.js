@@ -5844,10 +5844,13 @@ function upgradeRoom(id){
      the tier being built, it is now REQUIRED and consumed. Blueprints gate room
      tiers 2-3 only (never the initial build / skill unlock), so this deepens the
      dungeon→homestead loop without deadlocking core progression. */
-  let _bpId=null; const _unlockKey=id+'.'+(lv+1);
-  for(const _iid in ITEMS){ if(ITEMS[_iid] && ITEMS[_iid].unlocks===_unlockKey){ _bpId=_iid; break; } }
-  if(_bpId && (G.inventory[_bpId]||0) < 1){
-    notify('Requires a '+((ITEMS[_bpId]&&ITEMS[_bpId].n)||_bpId)+' — they drop from dungeons.','kill');
+  const _bp=roomRungItemGate(id,lv+1); const _bpId=_bp?_bp.id:null;
+  if(_bp && !_bp.ok){
+    /* The toast is now the LAST line of defence, not the first notice: the room
+       modal's ladder, its pinned build bar and the House card all state this
+       requirement inline before the player ever clicks (b355). Kept because
+       upgradeRoom is the authority and must refuse audibly on any path. */
+    notify('Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
     return false;
   }
   const missing=describeMissingCost(nx.cost);
@@ -5861,6 +5864,38 @@ function upgradeRoom(id){
   refreshAll();
   renderHouseSurfaces();
   return true;
+}
+
+/* ── THE ITEM GATE, AS A TOTAL FUNCTION (b355) ────────────────────────────
+   Tyler, live, on the Kitchen: "this doesn't tell me anywhere it requires a
+   blueprint or how to get a blueprint."
+
+   He was right and the cause was structural, not copy. The blueprint check
+   lived INSIDE upgradeRoom as a loop over ITEMS — reachable only by ACTING.
+   Every surface that shows a rung (the ladder, the pinned build bar, the House
+   card) could therefore only describe gold and materials, because the one
+   place that knew about blueprints answered a question you had to already have
+   committed to asking. A requirement that is only discoverable by failing is
+   not a requirement, it is a trap.
+
+   So the check becomes TOTAL — it answers for any rung, owned or not, built or
+   not — and is published. upgradeRoom still enforces with it (same function,
+   so a view can never disagree with the authority), but now every view can ASK.
+
+   Returns null when the rung has no item gate at all, else
+     { id, name, need, have, ok, source }
+   `source` is the real reverse-index line (window.itemSourceLine, b242) so a
+   blueprint that starts dropping somewhere new re-describes itself for free —
+   the old toast hardcoded "they drop from dungeons", which is prose, not data. */
+function roomRungItemGate(id,want){
+  const key=id+'.'+want;
+  let bid=null;
+  for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
+  if(!bid) return null;
+  const need=1, have=(G.inventory&&G.inventory[bid])||0;
+  let source='';
+  try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
+  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, ok:have>=need, source:source};
 }
 
 /* Is rung `want` (1-based) legal at the player's current property tier?
@@ -5893,6 +5928,7 @@ function renderHouseSurfaces(){
 }
 window.upgradeRoom=upgradeRoom;
 window.roomRungGate=roomRungGate;
+window.roomRungItemGate=roomRungItemGate;
 window.renderHouseSurfaces=renderHouseSurfaces;
 function buildPlot(id){
   const b=PLOT_BUILDINGS[id];const have=G.plotBuildings.filter(x=>x.id===id).length;if(have>=b.max)return;

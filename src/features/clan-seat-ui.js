@@ -1900,7 +1900,9 @@
             var b = s.buttons[j];
             if (!pin && b && b.pin) {
               pin = { label: b.label, action: b.action, data: b.data, disabled: !!b.disabled,
-                      why: b.why || '', costs: b.costs || null, level: b.level || null,
+                      why: b.why || '', whyCovered: !!b.whyCovered,
+                      costs: b.costs || null, gates: b.gates || null,
+                      level: b.level || null,
                       primary: b.primary !== false };
             } else keep.push(b);
           }
@@ -1916,7 +1918,8 @@
             if (pin || !r || !r.action || !r.action.pin) return r;
             var a = r.action;
             pin = { label: a.label, action: a.name, data: a.data, disabled: false,
-                    why: '', costs: r.costs || null, level: r.level == null ? null : r.level,
+                    why: '', costs: r.costs || null, gates: r.gates || null,
+                    level: r.level == null ? null : r.level,
                     primary: true };
             var copy = {}; for (var k in r) if (Object.prototype.hasOwnProperty.call(r, k)) copy[k] = r[k];
             copy.action = null;
@@ -1928,6 +1931,46 @@
         out.push(s);
       }
       return { pin: pin, sections: out };
+    }
+
+    /* ── THE THIRD REQUIREMENT CLASS (b355) ──────────────────────────────
+       Tyler, live, on the Kitchen: "this doesn't tell me anywhere it requires
+       a blueprint or how to get a blueprint."
+
+       A rung has three kinds of requirement and they are not the same kind of
+       problem for a player:
+         (a) an affordable cost           — a number, already met
+         (b) a short cost                 — a number, go grind it
+         (c) an ITEM GATE (blueprint, key) — a THING, and grinding will not get
+             it; you have to go to a SPECIFIC place
+       (a) and (b) are the same component with two states, which is correct.
+       Rendering (c) as a third cost chip ("0/1 Kitchen Blueprint II") was the
+       trap: it reads as one more plank when it is actually "you cannot start".
+       So a gate is its OWN line, and — because "where do I get one" is the
+       immediate next question and the toast used to answer it with hardcoded
+       prose — the line carries the item's real source from the reverse index.
+
+       `spent` is the owned-rung state: the requirement stays visible on a rung
+       you already built, so a player scanning the ladder sees that rungs 2 and
+       3 want blueprints BEFORE reaching one they cannot pay for. */
+    function gateLines(list) {
+      var g = (list || []).filter(Boolean);
+      if (!g.length) return '';
+      return '<div class="hr-room-gates">' + g.map(function (x) {
+        var cls = x.spent ? 'is-spent' : x.ok ? 'is-met' : 'is-need';
+        var state = x.spent ? 'Spent' : x.ok
+          ? ('In your bags' + (x.have > 1 ? ' (' + nfmt(x.have) + ')' : ''))
+          : 'You have none';
+        return '<div class="hr-room-gate ' + cls + '">' +
+          '<span class="hr-room-gate-hd">' +
+            '<span class="hr-room-gate-nm">' + esc(x.name || x.id) + '</span>' +
+            '<span class="hr-room-gate-st">' + esc(state) + '</span>' +
+          '</span>' +
+          /* No source line is better than an invented one — an item the index
+             has no route for says nothing rather than guessing "dungeons". */
+          (x.source ? '<span class="hr-room-gate-src">' + esc(x.source) + '</span>' : '') +
+        '</div>';
+      }).join('') + '</div>';
     }
 
     /* The bar itself. Everything in it is already-computed descriptor data —
@@ -1951,7 +1994,11 @@
           (p.level != null ? '<span class="hr-room-build-lv">Lv ' + esc(p.level) + '</span>' : '') +
           (chips ? '<span class="hr-room-build-cost">' + chips + '</span>'
                  : '<span class="hr-room-build-cost is-free">Ready to build</span>') +
-          (p.disabled && p.why ? '<div class="hr-room-build-why">' + esc(p.why) + '</div>' : '') +
+          (p.disabled && p.why && !p.whyCovered ? '<div class="hr-room-build-why">' + esc(p.why) + '</div>' : '') +
+          /* The gate rides in the PINNED bar, never in a toast: the bar is the
+             one strip of this modal that cannot be scrolled away from, so the
+             reason a Build button is dead is on screen the moment it opens. */
+          gateLines(p.gates) +
         '</div>' + btn +
       '</div>';
     }
@@ -2087,6 +2134,7 @@
                 (c.have != null ? nfmt(c.have) + '/' : '') + nfmt(c.need) + ' ' + esc(c.label) + '</span>';
             }).join(' &middot; ') + '</div>' : '') +
             (r.why ? '<div class="hr-cs-meta">' + esc(r.why) + '</div>' : '') +
+            gateLines(r.gates) +
           '</div>' +
           (r.action
             ? '<button class="btn btn-sm btn-primary" data-cs="' + esc(r.action.name) + '"' +

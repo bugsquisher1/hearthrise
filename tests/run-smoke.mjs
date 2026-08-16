@@ -22,6 +22,8 @@ import { perkChannelGuard } from './perk-channel.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
+import { marketV2Guard } from './market-v2.mjs';
+import { marketIntentGuard } from './market-intent.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
@@ -1226,6 +1228,52 @@ const run = async () => {
       console.log('\nUnlock purchase guard — a bought Kitchen rung reaches hr_perks_of and cooks a '
         + 'span with 0 burns; a double buy, a skipped rung, a replay and a stale version all refuse '
         + 'by name with gold measured.');
+    }
+
+    /* ── The market guard (market v2) ───────────────────────────────────
+       THE FIRST CROSS-PLAYER VALUE TRANSFER. Every other economy guard in this
+       suite measures ONE character, because every other verb touches one;
+       hr_market_buy is the first function that writes a row belonging to
+       somebody who is not the caller, so this one measures BOTH and states its
+       assertions as conservation identities (Σgold+Σtax, Σitems+Σescrow). The
+       whole migration chain replays here, so 2026-08-17-market-v2.sql's own
+       self-verifying blocks — §0's refuse-to-install with both scan controls
+       and §11's structural, source, cron and immutability checks — execute on
+       every suite run. `node tests/market-v2.mjs --selftest` plants seventeen
+       real defects; every one must read RED. */
+    const marketProblems = (await marketV2Guard()).failures;
+    if (marketProblems.length) {
+      console.log('\nMarket v2 guard (two-player transfer) — FAILED:');
+      for (const p of marketProblems) console.log(`  x ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nMarket v2 guard — a real list/buy moves gold and items between two real '
+        + 'characters exactly once; replay, stale version, self-trade, a stranger\'s cancel, a '
+        + 'double collect, a racing expiry and both per-day transfer fuses all refuse by name, '
+        + 'with BOTH sides measured and conservation held.');
+    }
+
+    /* ── The market's EDGE half (b355) ─────────────────────────────────
+       market-v2.mjs grades the AUTHORITY layer with well-formed SQL
+       parameters. Nobody hands the server well-formed SQL parameters — an
+       attacker hands it an HTTP BODY — and everything between the two
+       (parseIntent, the registry, the shape refusals, the argument lists) is
+       code no SQL test can see. This drives the REAL Edge modules with
+       genuinely hostile bodies and counts statements, so "refused before any
+       database work" is measured rather than read. The load-bearing one is
+       M-WIRE: hr_market_buy is bound exactly six parameters, none of them a
+       price. `node tests/market-intent.mjs --selftest` plants nine defects;
+       every one must read RED. */
+    const marketIntentProblems = (await marketIntentGuard()).failures;
+    if (marketIntentProblems.length) {
+      console.log('\nMarket intent guard (the Edge half) — FAILED:');
+      for (const p of marketIntentProblems) console.log(`  x ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nMarket intent guard — every hostile body (poisoned prototype, numeric-string '
+        + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
+        + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
+        + 'the envelope and no receipt.');
     }
 
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────

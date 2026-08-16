@@ -123,7 +123,30 @@ import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=352';
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
 export const CLAIM_REWARD_VERB = 'claim_reward';
-export const GOLD_VERBS = Object.freeze([SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB]);
+/* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT LEAVES THIS PLAYER AND
+   ARRIVES ON ANOTHER'S ROW. ─────────────────────────────────────────────────
+   They live in THIS module rather than in a `src/net/market.js` of their own,
+   and that is a decision with a reason: the prediction ledger is what makes a
+   value gesture safe (F1 — an orphaned prediction is a permanent additive
+   offset), there must be exactly ONE of it, and a second transport module would
+   either import this one's internals or grow a second ledger. The market's
+   gestures are gold gestures; they belong where the gold accounting is.
+
+   ⚠ AND THE HAZARD IS ONE STEP WORSE HERE THAN FOR shop_buy. A refused NPC
+     purchase costs the player a wasted tap. A market gesture that is locally
+     predicted and server-refused leaves the OTHER player's side untouched —
+     the counterparty ledger is server-side already — so the only thing that can
+     ever disagree is this client's own display, and the only way that becomes
+     permanent is an unretired prediction. Every market path below therefore
+     terminates its prediction exactly as the three gold verbs do, through the
+     same `settleVerdict` seam, and never through a second one. */
+export const MARKET_LIST_VERB = 'market_list';
+export const MARKET_CANCEL_VERB = 'market_cancel';
+export const MARKET_BUY_VERB = 'market_buy';
+export const MARKET_VERBS = Object.freeze(
+  [MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB]);
+export const GOLD_VERBS = Object.freeze([SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB,
+  ...MARKET_VERBS]);
 
 /** Mirrors `MAX_QTY` in supabase/functions/hr-accrue/request.js. A count above
  *  it is refused by the server with `bad_qty`; refusing it HERE means the
@@ -131,6 +154,14 @@ export const GOLD_VERBS = Object.freeze([SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_
  *  more importantly — the caller learns that this gesture has no server story
  *  at that size, which is a fact the ledger records rather than a surprise. */
 export const MAX_QTY = 1000;
+
+/** Mirrors `MAX_ASK` in supabase/functions/hr-accrue/request.js, which in turn
+ *  mirrors the `ask_each` CHECK constraint. Refused HERE for the same reason
+ *  MAX_QTY is: a price the database would reject is a wasted intent key and a
+ *  wasted rate slot, and — more to the point — a mistyped price is the one
+ *  input error in this whole surface that a player would rather be told about
+ *  before it becomes a public listing. */
+export const MAX_ASK = 1000000000;
 
 /* Deliberately the accrual switch itself, not a copy of the key. */
 export function isGoldIntentEnabled() { return isServerAccrualEnabled(); }
@@ -623,6 +654,22 @@ export function buildGoldRequest(opts) {
   else if (o.verb === CLAIM_REWARD_VERB) {
     body.reward = { kind: String(o.rewardKind), key: String(o.rewardKey) };
   }
+  /* ⚠ THE MARKET BRANCHES, AND THE ASYMMETRY IN THEM IS THE SECURITY PROPERTY.
+     `market_list` sends an `ask` — a seller naming a price about their own
+     goods, which becomes SERVER STATE the moment it is accepted. `market_buy`
+     sends a LISTING and a COUNT and has NO PRICE FIELD AT ALL: the server reads
+     `ask_each` off the row it locked. A price on the buy branch would be a
+     client value crossing to another player, which is the one thing that may
+     never happen — so if you are here to add one, read
+     supabase/migrations/2026-08-17-market-v2.sql §"THE ONE UNCOMFORTABLE
+     FIELD" first, and then do not. */
+  else if (o.verb === MARKET_LIST_VERB) {
+    body.item = String(o.item); body.qty = Number(o.qty); body.ask = Number(o.ask);
+  } else if (o.verb === MARKET_CANCEL_VERB) {
+    body.listing = String(o.listing);
+  } else if (o.verb === MARKET_BUY_VERB) {
+    body.listing = String(o.listing); body.qty = Number(o.qty);
+  }
   return { url: accrueEndpoint(o.url), init: { method: 'POST', headers, body: JSON.stringify(body) } };
 }
 
@@ -850,6 +897,76 @@ export function claimReward(kind, rkey, key) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   THE MARKET GESTURES (b355). Each returns a promise the caller does NOT await.
+   ══════════════════════════════════════════════════════════════════════════
+   Every one refuses LOCALLY on a shape the server would refuse anyway. That is
+   not duplication of the server's rules — none of these is a rule about the
+   GAME, they are all "this request is not readable" — and the win is the one
+   `sellItem` already documents: the gesture is honest about having no server
+   story at that shape instead of burning an intent key and a rate slot to be
+   told so. Every rule about a ROW (is it tradeable, is it still there, can you
+   afford it, is it yours) is left to the RPC, under the lock, where it can be
+   answered truthfully. */
+
+/** The listing id shape. Deliberately the SAME regexp the intent key uses, and
+ *  deliberately the strict canonical form: `readListing` on the server is strict
+ *  for the reason `readIntentId` is, and a client that sent `{…}` or the
+ *  undashed form would be refused with `bad_listing` for a listing that exists. */
+export function isListingId(id) { return typeof id === 'string' && UUID_RE.test(id); }
+
+/**
+ * LIST. Items leave the bag and become the escrow.
+ *
+ * ⚠ `ask` IS A PRICE AND IT IS SENT. See buildGoldRequest's market branches and
+ *   supabase/functions/hr-accrue/request.js's header. It is the seller's own
+ *   number about their own goods; it crosses to the SERVER, never to a buyer.
+ */
+export function listOnMarket(itemId, qty, ask, key) {
+  const id = String(itemId == null ? '' : itemId);
+  const n = Number(qty);
+  const a = Number(ask);
+  if (!ITEM_ID_RE.test(id)) {
+    return Promise.resolve(inert('unsendable', MARKET_LIST_VERB, 'bad_item', { item: id }, key));
+  }
+  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_QTY) {
+    return Promise.resolve(inert('unsendable', MARKET_LIST_VERB, 'qty_out_of_range',
+      { qty: n, max: MAX_QTY }, key));
+  }
+  if (!Number.isSafeInteger(a) || a < 1 || a > MAX_ASK) {
+    return Promise.resolve(inert('unsendable', MARKET_LIST_VERB, 'ask_out_of_range',
+      { ask: a, max: MAX_ASK }, key));
+  }
+  return sendGoldIntent({ verb: MARKET_LIST_VERB, item: id, qty: n, ask: a }, key);
+}
+
+/** CANCEL. The escrow comes back — exactly once, arbitrated server-side by the
+ *  DELETE itself, so a cancel racing the expiry sweep is the server's problem
+ *  and not a race this client has to model. */
+export function cancelMarketListing(listingId, key) {
+  const id = String(listingId == null ? '' : listingId);
+  if (!isListingId(id)) {
+    return Promise.resolve(inert('unsendable', MARKET_CANCEL_VERB, 'bad_listing', { listing: id }, key));
+  }
+  return sendGoldIntent({ verb: MARKET_CANCEL_VERB, listing: id }, key);
+}
+
+/** BUY. NO PRICE CROSSES. Two values leave this client — which listing, and how
+ *  many — and the gross, the tax and the seller's credit are all computed inside
+ *  the transaction that charges, off the row it locked. */
+export function buyMarketListing(listingId, qty, key) {
+  const id = String(listingId == null ? '' : listingId);
+  const n = Number(qty);
+  if (!isListingId(id)) {
+    return Promise.resolve(inert('unsendable', MARKET_BUY_VERB, 'bad_listing', { listing: id }, key));
+  }
+  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_QTY) {
+    return Promise.resolve(inert('unsendable', MARKET_BUY_VERB, 'qty_out_of_range',
+      { qty: n, max: MAX_QTY }, key));
+  }
+  return sendGoldIntent({ verb: MARKET_BUY_VERB, listing: id, qty: n }, key);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    THE BROWSER FACE — one object, so legacy.js (a classic script that cannot
    import ESM) reaches all of it through one name.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -877,6 +994,8 @@ if (typeof window !== 'undefined') {
 
   window.HearthriseGold = {
     GOLD_VERBS, SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB, GOLD_OUTCOMES,
+    MARKET_VERBS, MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB,
+    listOnMarket, cancelMarketListing, buyMarketListing, isListingId, MAX_ASK,
     MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS, PREDICTION_CARRY_MS, PREDICTED_FIELDS,
     PROVABLY_UNWRITTEN, isProvablyUnwritten,
     isGoldIntentEnabled, settle, settleCurrency, rollbackPrediction, abandonPrediction,

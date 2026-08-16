@@ -87,6 +87,63 @@
     try { localStorage.setItem(OFFERS_KEY, JSON.stringify(arr)); } catch(e){}
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     THE SERVER SEAM (b355) — market v2's client half, DARK behind the SAME
+     kill switch as accrual, activity, character, record and the gold verbs.
+     ══════════════════════════════════════════════════════════════════════
+     Three verbs — market_list / market_cancel / market_buy — reached through
+     `window.HearthriseGold`, exactly as the shop and vendor gestures are. The
+     gold half of a purchase goes through `window.goldSettleCurrency`, so the
+     prediction is recorded, retired and swept by the ONE ledger in
+     src/net/gold.js rather than by a second one written for the market.
+
+     ⚠ THE V1 BACKEND AND THE V2 VERBS ARE MUTUALLY EXCLUSIVE, AND THAT IS THE
+       WHOLE OF THE SWAP. `src/net/supabase-market-backend.js` writes
+       market_listings DIRECTLY from the browser. Under market v2 there is no
+       client write grant on that table at all, so those writes cannot land —
+       but if they COULD, running both would be two writers of one escrow with
+       two different sets of rules, which is the defect the migration's
+       supersession note is about. So every v1 push below is gated on the seam
+       being OFF, in one predicate (`serverMarketActive`), never per call site.
+
+     ⚠ THE SWITCH IS READ AT THE GESTURE, NOT CACHED. A flag that is sampled
+       once at load is a flag that disagrees with itself for the rest of the
+       session if it is flipped in devtools mid-play — which is exactly how it
+       gets flipped during a switch-on test. */
+  function marketApi(){
+    var S = window.HearthriseGold;
+    if(!S || typeof S.isGoldIntentEnabled !== 'function') return null;
+    try { return S.isGoldIntentEnabled() ? S : null; } catch(e){ return null; }
+  }
+  function serverMarketActive(){ return !!marketApi(); }
+  /** One key per attempt at a gesture, generated at the TAP so the prediction
+   *  and the request share one identity. Null when the seam is off. */
+  function marketIntentKey(){
+    if(typeof window.goldIntentKey !== 'function') return null;
+    try { return window.goldIntentKey(); } catch(e){ return null; }
+  }
+  /** A server row id is a uuid; a locally-created, not-yet-synced row is 'L…'.
+   *  Only the first can be named to the server, and naming the second would
+   *  earn a `bad_listing` for a listing that exists. */
+  function isServerListingId(id){
+    var S = window.HearthriseGold;
+    return !!(S && typeof S.isListingId === 'function' && S.isListingId(String(id)));
+  }
+  /** Adopt the SERVER's listing id onto the local mirror row, so a later cancel
+   *  or buy can name it. The id comes out of the server's own receipt — the
+   *  same object hr_market_list returned inside the transaction that wrote the
+   *  escrow — never out of anything this file computed. */
+  function adoptServerListingId(localId, verdict){
+    var r = verdict && verdict.body && verdict.body.receipt;
+    var serverId = r && r.listing_id;
+    if(!serverId) return;
+    var list = loadListings();
+    var idx = list.findIndex(function(l){ return l.id === localId; });
+    if(idx < 0) return;
+    list[idx].id = serverId;
+    saveListings(list);
+  }
+
   function recordSale(itemId, eachPrice, qty){
     var h = loadHistory();
     h[itemId] = h[itemId] || [];
@@ -307,12 +364,22 @@
   }
 
   function collectSaleProceeds(){
+    /* b355 — THERE IS NO COLLECT STEP UNDER MARKET V2, AND THIS IS WHERE THAT
+       BECOMES TRUE FOR THE CLIENT. hr_market_buy pays the seller INTO
+       player_state.gold AT SALE TIME, online or not: there is no `collected`
+       column, no second credit path, and nothing left for this function to
+       collect. Running it against a v2 database would pay the seller a SECOND
+       time locally for money the server already credited — the double-collect
+       the v1 model was built around, arriving from the client side. Gated
+       rather than deleted because the v1 backend is still the live path with
+       the switch off, and this commit does not remove it. */
+    if(serverMarketActive()) return;
     if(!backendActive() || typeof backend.collectSales !== 'function') return;
     backend.collectSales().then(function(sales){
       if(!sales || !sales.length) return;
       var total = 0;
       sales.forEach(function(s){
-        var net = Math.floor(s.goldTotal * (1 - HOUSE_TAX));   // house tax = gold sink
+        var net = s.goldTotal - Math.ceil(s.goldTotal * HOUSE_TAX);   // ceil tax = sink rounds UP, matching the server
         total += net;
         recordSale(s.itemId, Math.round(s.goldTotal / Math.max(1, s.qty)), s.qty);
       });
@@ -366,7 +433,19 @@
       revertBuy(itemId, qty, costPaid, out && out.error);
     }).catch(function(){ revertBuy(itemId, qty, costPaid, 'network'); });
   }
+  /* ⚠ b355 — THE V1 COMPENSATION, AND IT MUST NOT RUN UNDER THE SEAM. With the
+     switch on, a refused purchase is reversed by the PREDICTION LEDGER
+     (src/net/gold.js `rollbackPrediction`), and only for the three outcomes that
+     PROVE nothing was written — `refused`, `rate-limited`, `not-signed-in`. This
+     function reverses on a 5xx and on a network error too, which are precisely
+     the cases that do NOT prove non-write: a 502 after the transaction committed
+     describes a purchase that HAPPENED, and refunding it hands the player their
+     gold back for goods the server has already delivered. That is a mint, out of
+     the client, in the one file that moves value between two people. So the two
+     compensations are mutually exclusive, and the seam's — the narrower one —
+     wins. Reached only from pushBuyToBackend, which is itself gated. */
   function revertBuy(itemId, qty, costPaid, why){
+    if(serverMarketActive()) return;
     if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
     else if(window.G && window.G.inventory) window.G.inventory[itemId] = Math.max(0, (window.G.inventory[itemId]||0) - qty);
     window.G.gold = (window.G.gold || 0) + costPaid;
@@ -428,15 +507,35 @@
       postedAt: Date.now(),
     };
     list.push(newL);
-    // Try to auto-fill any matching open buy offers BEFORE we save —
-    // this drains the new listing's qty in-place if there are takers.
-    autoMatchAgainstOffers(newL);
+    /* Try to auto-fill any matching open buy offers BEFORE we save — this drains
+       the new listing's qty in-place if there are takers.
+       ⚠ b355 — NOT UNDER THE SEAM (Security M5/M6). Auto-match pays a LOCAL buy
+       offer out of a listing the SERVER now owns as escrow: it would deliver goods
+       and move gold the server never heard of, against a client-authored buy-offer
+       sub-market that market-v2 does not implement. Under the seam hr_market_list
+       owns the escrow and there is no buy-offer model to match against, so this is
+       skipped entirely — the listing goes to the server at its full qty. */
+    if(!serverMarketActive()) autoMatchAgainstOffers(newL);
     if(newL.qty <= 0){
       // Fully consumed by buy offers — drop the listing entirely.
       list.pop();
     }
     saveListings(list);
-    if(newL.qty > 0) pushListingToBackend(newL, item.n || itemId);   // b208: sync to server
+    /* b355 — THE SEAM. With it on, hr_market_list is the authority: it DELETEs
+       the goods out of player_inventory, writes the escrow, derives the seller
+       name from `profiles`, stamps the clock, bumps the version and returns the
+       envelope. The local escrow above is a PREDICTION of that, and the
+       server's absolute inventory is what settles it. With it off, the v1
+       backend push is byte-for-byte what shipped. Never both — see
+       serverMarketActive. */
+    var _lk = newL.qty > 0 ? marketIntentKey() : null;
+    var _lS = _lk && marketApi();
+    if(_lS){
+      var _lp = _lS.listOnMarket(itemId, newL.qty, askEach, _lk);
+      if(_lp && _lp.then) _lp.then(function(v){ adoptServerListingId(newL.id, v); }, function(){});
+    } else if(newL.qty > 0 && !serverMarketActive()){
+      pushListingToBackend(newL, item.n || itemId);                  // b208: sync to server
+    }
     if(typeof window.notify === 'function'){
       if(newL.qty > 0){
         window.notify('Listed ' + newL.qty + 'x ' + (item.n||itemId) + ' @ ' + askEach + 'g' + (qty !== newL.qty ? ' (' + (qty - newL.qty) + ' filled buy offers)' : ''), 'info');
@@ -459,8 +558,16 @@
     if(typeof window.addItem === 'function') window.addItem(l.itemId, l.qty);
     list.splice(idx, 1);
     saveListings(list);
-    // b208: mirror the cancel server-side (uuid ids are server rows)
-    if(backendActive() && String(l.id).indexOf('L') !== 0){
+    // b355: the seam owns the cancel when it is on — hr_market_cancel's DELETE
+    // is the arbiter that makes "the escrow comes back exactly once" true even
+    // against a racing expiry sweep, which no client-side check can be.
+    var _ck = isServerListingId(l.id) ? marketIntentKey() : null;
+    var _cS = _ck && marketApi();
+    if(_cS){
+      var _cp = _cS.cancelMarketListing(l.id, _ck);
+      if(_cp && _cp.catch) _cp.catch(function(){});
+    } else if(!serverMarketActive() && backendActive() && String(l.id).indexOf('L') !== 0){
+      // b208: mirror the cancel server-side (uuid ids are server rows)
       backend.cancelListing(l.id).catch(function(){});
     }
     if(typeof window.notify === 'function') window.notify('Listing cancelled — items returned', 'info');
@@ -480,12 +587,29 @@
     var totalCost = qtyWanted * l.askEach;
     if((window.G.gold||0) < totalCost) return { ok:false, reason:'Need ' + totalCost + ' gold' };
 
-    // Transfer (optimistic — the server RPC is the race arbiter; a refusal
-    // reverts this via pushBuyToBackend → revertBuy)
-    window.G.gold -= totalCost;
+    /* Transfer (optimistic — the server RPC is the race arbiter).
+       b355: the gold half goes through the ONE payment choke point, so the
+       spend is recorded as a PREDICTION keyed to the intent that is about to go
+       out, retired by that call's envelope and swept if the call never answers.
+       With the switch off `goldSettleCurrency` is `G.gold += -totalCost` and
+       nothing else — byte-for-byte the expression that used to be here. */
+    /* ⚠ THE KEY IS TAKEN ONLY WHEN A CALL WILL ACTUALLY GO OUT (F1). A
+       prediction recorded under a key nobody sends is an orphan, and an orphan
+       is re-added on top of every future envelope for the rest of the session —
+       a PERMANENT additive offset, which is the double-pay this seam exists to
+       make unspellable. A listing whose id is still local ('L…') has no server
+       row to name, so it gets NO key, and `settleCurrency` records nothing. */
+    var _bS = isServerListingId(l.id) ? marketApi() : null;
+    var _bk = _bS ? marketIntentKey() : null;
+    window.goldSettleCurrency({ gold: -totalCost }, 'market.buy', _bk);
     if(typeof window.addItem === 'function') window.addItem(l.itemId, qtyWanted);
     else window.G.inventory[l.itemId] = (window.G.inventory[l.itemId]||0) + qtyWanted;
-    pushBuyToBackend(l.id, l.itemId, qtyWanted, totalCost);          // b208
+    if(_bS && _bk){
+      var _bp = _bS.buyMarketListing(l.id, qtyWanted, _bk);
+      if(_bp && _bp.catch) _bp.catch(function(){});
+    } else if(!serverMarketActive()){
+      pushBuyToBackend(l.id, l.itemId, qtyWanted, totalCost);        // b208
+    }
 
     // Update listing
     l.qty -= qtyWanted;
@@ -497,7 +621,7 @@
     // Seller's gold credited net of house tax. NOTE: in dev mode the
     // seller is the same player on the same browser, so we just no-op.
     // In production this writes to the seller's account via Supabase.
-    var sellerNet = Math.floor(totalCost * (1 - HOUSE_TAX));
+    var sellerNet = totalCost - Math.ceil(totalCost * HOUSE_TAX);   // ceil tax, matching the server sink
     // (server-side: credit sellerId gold += sellerNet)
     void sellerNet;
 
@@ -547,10 +671,27 @@
       if(lIdx < 0) return;
       var take = Math.min(list[lIdx].qty, qty - bought);
       var cost = take * list[lIdx].askEach;
-      window.G.gold -= cost;
+      /* b355 — ONE INTENT PER LISTING, and that is not an inefficiency to be
+         optimised away later. A sweep across five sellers is five transfers to
+         five different people; a single call that moved all of them would be a
+         delta shape that writes five strangers' rows, which is the one thing
+         hr_apply is single-character BY CONSTRUCTION to prevent. Each leg gets
+         its own key, its own prediction and its own envelope.
+         THE COST, stated: the `shop` bucket is 30/min, so a sweep of more than
+         thirty listings rate-limits its own tail. The refused legs roll their
+         predictions back (429 is `PROVABLY_UNWRITTEN`), so the money is right;
+         the sweep is simply partial, which is what the residual already models. */
+      var _aS = isServerListingId(list[lIdx].id) ? marketApi() : null;
+      var _ak = _aS ? marketIntentKey() : null;
+      window.goldSettleCurrency({ gold: -cost }, 'market.buy_aggregated', _ak);
       if(typeof window.addItem === 'function') window.addItem(itemId, take);
       else window.G.inventory[itemId] = (window.G.inventory[itemId]||0) + take;
-      pushBuyToBackend(list[lIdx].id, itemId, take, cost);           // b208
+      if(_aS && _ak){
+        var _ap = _aS.buyMarketListing(list[lIdx].id, take, _ak);
+        if(_ap && _ap.catch) _ap.catch(function(){});
+      } else if(!serverMarketActive()){
+        pushBuyToBackend(list[lIdx].id, itemId, take, cost);         // b208
+      }
       recordSale(itemId, list[lIdx].askEach, take);
       list[lIdx].qty -= take;
       if(list[lIdx].qty <= 0) list.splice(lIdx, 1);
@@ -561,7 +702,10 @@
 
     var residual = qtyWanted - bought;
     var offerCreated = null;
-    if(residual > 0 && placeOffer){
+    /* b355 — the residual buy-offer is part of the client-authored sub-market and
+       is inert under the seam (placeBuyOffer refuses it anyway; this skips the
+       attempt so the residual reads as "not available" rather than a failed offer). */
+    if(residual > 0 && placeOffer && !serverMarketActive()){
       var r = placeBuyOffer(itemId, residual, maxEach);
       if(r.ok) offerCreated = r.offer;
     }
@@ -585,6 +729,16 @@
 
   // ── Buy offer operations ───────────────────────────────────
   function placeBuyOffer(itemId, qty, maxEach){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6). This is the client-authored
+       buy-offer sub-market: it escrows gold with a bare `G.gold -= totalEscrow`
+       that NO server verb reconciles (market-v2 implements SELL listings only,
+       and `market_buy_offers` has no RPC — see src/net/gold-sites.js
+       B.MARKET_BUY_OFFERS). Under the switch, applyEnvelopeState writes gold
+       ABSOLUTELY, so that local debit would be silently refunded at the next
+       envelope — a mint the seam exists to make unspellable. Refused BEFORE any
+       gold moves, so the site is provably inert under the flag; the row in the
+       gold census stays `deferred`, blocked on a server buy-offer model. */
+    if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
     if(qty <= 0 || maxEach <= 0) return { ok:false, reason:'Invalid amount' };
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return { ok:false, reason:'Unknown item' };
@@ -617,6 +771,13 @@
   }
 
   function cancelBuyOffer(offerId){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6). Cancelling refunds escrow
+       with a bare `G.gold += escrowed` — gold the server never saw leave, since
+       placeBuyOffer is itself gated off under the flag. Refunding it would be a
+       mint at the next absolute envelope. Refused before any gold moves; any local
+       offers left over from before the flip stay untouched and are wiped at
+       cutover with the rest of the beta. */
+    if(serverMarketActive()) return { ok:false, reason:'Buy offers are not available yet' };
     var offers = loadOffers();
     var idx = offers.findIndex(function(o){ return o.id === offerId; });
     if(idx < 0) return { ok:false, reason:'Offer not found' };
@@ -636,6 +797,11 @@
   // credits the buyer, and the seller still gets their gold elsewhere.
   // (For now: matches against ALL buyers' offers, not just mine.)
   function autoMatchAgainstOffers(newListing){
+    /* ⚠ b355 — INERT UNDER THE SEAM (Security M5/M6), defence in depth. listItem
+       already skips this call under the flag; guarding here too means a future
+       caller cannot reintroduce the client-authored fill (delivering goods and
+       moving gold the server never authorised) by wiring auto-match somewhere new. */
+    if(serverMarketActive()) return;
     var offers = loadOffers();
     if(!offers.length) return;
     var matches = offers
@@ -903,7 +1069,11 @@
         + '<div class="mk-action"><button class="mk-cancel-offer mk-cancel" data-cancel-offer="' + o.id + '">Cancel offer</button></div>'
         + '</div>';
     };
-    var offersBlock = myOffers.length
+    /* b355 — the buy-offer sub-market is HIDDEN under the seam (Security M5/M6):
+       it is client-authored and has no server story, so its UI is not shown when
+       server market authority is on. Any pre-flip local offers stay in storage,
+       untouched and unshown, and are wiped at cutover. */
+    var offersBlock = (myOffers.length && !serverMarketActive())
       ? ('<div class="mk-block"><h3>📥 Your buy offers (' + myOffers.length + ')</h3>'
         + myOffers.map(offerRow).join('')
         + '</div>')
@@ -1123,8 +1293,13 @@
       +       '</div>'
       +     '</div>'
       +     '<div class="bm-summary" id="bm-summary"></div>'
-      +     '<label class="bm-offer-toggle"><input type="checkbox" id="bm-offer" checked>'
-      +       '<span>If short, place a buy offer for the remainder at this price</span></label>'
+      /* b355 — the "place a buy offer for the remainder" toggle is part of the
+         client-authored buy-offer sub-market and is HIDDEN under the seam
+         (Security M5/M6). With it gone, a short buy simply fills what the market
+         has and reports the residual as unavailable. */
+      +     (serverMarketActive() ? ''
+        : ('<label class="bm-offer-toggle"><input type="checkbox" id="bm-offer" checked>'
+      +       '<span>If short, place a buy offer for the remainder at this price</span></label>'))
       +   '</div>'
       +   '<div class="bm-actions">'
       +     '<button class="btn" id="bm-cancel">Cancel</button>'
@@ -1135,8 +1310,11 @@
 
     var qtyEl     = modal.querySelector('#bm-qty');
     var summary   = modal.querySelector('#bm-summary');
-    var offerEl   = modal.querySelector('#bm-offer');
+    var offerEl   = modal.querySelector('#bm-offer');   // null under the seam (toggle hidden)
     var confirmEl = modal.querySelector('#bm-confirm');
+    /* b355 — the offer toggle is absent under the seam, so its checked-state is
+       read through one null-safe helper rather than off a possibly-missing node. */
+    var offerOn = function(){ return !!(offerEl && offerEl.checked); };
 
     function updateSummary(){
       var qWanted = Math.max(1, parseInt(qtyEl.value, 10) || 1);
@@ -1151,7 +1329,7 @@
       }
       var residual = qWanted - fillNow;
       var escrow = residual * atPrice;
-      var totalGold = spend + (offerEl.checked ? escrow : 0);
+      var totalGold = spend + (offerOn() ? escrow : 0);
       var canAfford = (window.G.gold||0) >= totalGold;
       var hasResidual = residual > 0;
       var lines = [];
@@ -1162,7 +1340,7 @@
           '</div>');
       }
       if(hasResidual){
-        if(offerEl.checked){
+        if(offerOn()){
           lines.push('<div class="bm-line offer">' +
             '<span>Buy offer (escrow): <b>' + residual.toLocaleString() + '</b> @ ' + atPrice.toLocaleString() + 'g</span>' +
             '<span class="num">' + escrow.toLocaleString() + 'g</span>' +
@@ -1177,15 +1355,15 @@
       lines.push('<div class="bm-line total"><span><b>Total</b></span>' +
         '<span class="num"><b>' + totalGold.toLocaleString() + 'g</b></span></div>');
       summary.innerHTML = lines.join('');
-      confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerEl.checked));
+      confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerOn()));
       confirmEl.textContent = canAfford
-        ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerEl.checked ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
+        ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerOn() ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
         : 'Not enough gold';
     }
     updateSummary();
 
     qtyEl.addEventListener('input', updateSummary);
-    offerEl.addEventListener('change', updateSummary);
+    if(offerEl) offerEl.addEventListener('change', updateSummary);   // absent under the seam
     modal.querySelectorAll('.bm-quick button').forEach(function(b){
       b.addEventListener('click', function(){
         var v = b.getAttribute('data-q');
@@ -1198,7 +1376,7 @@
     modal.querySelector('#bm-cancel').addEventListener('click', closeBuyModal);
     confirmEl.addEventListener('click', function(){
       var qWanted = Math.max(1, parseInt(qtyEl.value, 10) || 1);
-      var r = buyAggregated(itemId, qWanted, atPrice, offerEl.checked);
+      var r = buyAggregated(itemId, qWanted, atPrice, offerOn());
       if(!r.ok){
         if(typeof window.notify === 'function') window.notify(r.reason, 'kill');
         return;

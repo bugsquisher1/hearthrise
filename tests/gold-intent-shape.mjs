@@ -27,7 +27,12 @@ const MIGRATIONS = [
   ['daily-budget', MIG('2026-08-11-daily-budget.sql')],
   ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
   ['grant-hygiene', MIG('2026-08-11-grant-hygiene.sql')],
-  ['market-v2', MIG('2026-08-11-market-v2.sql')],
+  /* market-v2 LEFT THIS BUNDLE 2026-08-17. It never drove a market function
+     here — it was applied only so the bundle matched conservation-fuzz's — and
+     2026-08-17-market-v2.sql fails CLOSED without hr_utc_day_key,
+     hr_client_write_baseline and the four-file hr_apply chain, whose transitive
+     closure is the whole chain under another name. The market now has its own
+     guard on the REAL replayed chain: tests/market-v2.mjs. */
 ];
 
 const { PGlite } = await import('@electric-sql/pglite');

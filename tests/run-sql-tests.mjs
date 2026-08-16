@@ -31,7 +31,7 @@
 //       earlier revision of this header claimed it was, which was wrong in two
 //       specific ways that matter operationally:)
 //
-//       1. LOCKS. 2026-08-11-market-v2.sql does `drop table market_listings
+//       1. LOCKS. 2026-08-17-market-v2.sql does `drop table market_listings
 //          cascade` and `create table market_listings`, so it holds ACCESS
 //          EXCLUSIVE on the live market table for the ENTIRE run — every
 //          statement of four migrations plus twenty test sections. Against a
@@ -100,7 +100,18 @@ const BUNDLE = [
   // migration rather than a subtle degradation.
   '2026-08-11-daily-budget.sql',
   '2026-08-11-apply-engine.sql',
-  '2026-08-11-market-v2.sql',
+  /* ⚠ market-v2 LEFT THIS BUNDLE ON 2026-08-17, and it is a real narrowing, so
+     it is stated rather than quietly done. The 2026-08-11 file could be applied
+     on top of these four; 2026-08-17-market-v2.sql cannot, because its §0 fails
+     closed without hr_utc_day_key (clan-seat), hr_client_write_baseline
+     (client-write-grant-sweep) and an hr_apply carrying the b346 slot/mismatch/
+     key-release terms (the four-file hr_apply chain). Adding all of those to a
+     "foundation bundle" would make it the whole chain under another name.
+     WHAT REPLACED THE COVERAGE: tests/market-v2.mjs boots the REAL ordered
+     chain through tests/schema-replay.mjs `bootReplay()` and drives two real
+     characters through it — strictly more than a six-file subset could see. The
+     file is still in ALSO_LINTED, so every grant lint and PART 1d/1e/1f check
+     below still reads it. */
 ];
 // Shipped and reviewed separately, so these are linted but are not part of the
 // foundation bundle. Anything that creates a function in `public` belongs here:
@@ -180,10 +191,16 @@ const ALSO_LINTED = [
   '2026-08-16-client-write-grant-sweep.sql',
   /* b350 (Security batch 5) — the detector TAKEOVER. It `create or replace`s
      hr_assert_grant_hygiene to move check (4) onto has_table_privilege (so
-     MAINTAIN and matviews stop being blind spots), and is the CURRENT last
-     toucher of the detector. Listed so the grant lints see it AND so PART 1f-ii
-     can walk its derivation as a fourth link. */
+     MAINTAIN and matviews stop being blind spots). PART 1f-ii walks it as the
+     fourth link; market-v2 (below) then takes over as the fifth and last. */
   '2026-08-16-client-write-grant-sweep-5.sql',
+  /* market v2 — three SECURITY DEFINER functions that WRITE player state, one
+     of which writes a SECOND player's row, plus a `create or replace` of the
+     detector to record them (rebased onto batch 5's now-live body). It is the
+     CURRENT last toucher of hr_assert_grant_hygiene; PART 1f-ii pins that chain
+     as the fifth link. It is also the file PART 1e's destructive-migration
+     interlocks read. */
+  '2026-08-17-market-v2.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -276,6 +293,11 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // relkind), so MAINTAIN and matviews become permanently visible. Its removed
   // lines are the second non-empty entry in DECLARED_REMOVALS below.
   '2026-08-16-client-write-grant-sweep-5.sql',
+  // market v2 — link 5, rebased onto batch 5's now-live body: an INSERTION
+  // (three engine grants at the head of c_engine_allow) AND one REMOVAL (the
+  // stale market_expire(integer) entry, Security M7), so its declared-removals
+  // list below is NON-empty. It is the new last toucher of the detector.
+  '2026-08-17-market-v2.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -656,7 +678,7 @@ for (const [file, sql] of sources) {
 // lint is the only thing that notices when someone "simplifies" one away.
 say('── destructive-migration interlocks');
 {
-  const mv2 = sources.get('2026-08-11-market-v2.sql') || '';
+  const mv2 = sources.get('2026-08-17-market-v2.sql') || '';
   if (/hearthrise\.market_wipe_ok/.test(mv2) && /REFUSING TO WIPE THE MARKET/.test(mv2)) {
     pass('market-v2: drop is gated on hearthrise.market_wipe_ok, not on a comment');
   } else {
@@ -707,7 +729,7 @@ say('── destructive-migration interlocks');
 say('── retention policies are wired');
 {
   const ps = sources.get('2026-08-11-player-state.sql') || '';
-  const mv2 = sources.get('2026-08-11-market-v2.sql') || '';
+  const mv2 = sources.get('2026-08-17-market-v2.sql') || '';
   const all = ps + mv2;
   for (const job of ['hr-ledger-prune', 'hr-intents-prune', 'hr-progress-prune',
                      'hr-rejections-prune', 'hr-market-expire', 'hr-market-sales-prune']) {
@@ -886,6 +908,17 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       "                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))",
       '       and not exists (select 1 from public.hr_client_write_baseline b',
       '                        where b.table_name = g.table_name and b.grantee = g.grantee)',
+    ],
+
+    /* ── market v2, link 5 (Security M7), rebased onto batch 5's body ────────
+       An insertion (three engine grants at the head of c_engine_allow) PLUS one
+       removal: the stale `market_expire(integer)` entry, whose function was
+       renamed hr_market_expire and is asserted NOT engine-holdable. Its comment
+       line and its entry line are these two declared removals; anything else this
+       link drops is a silent regression. */
+    '2026-08-17-market-v2.sql': [
+      '    -- writes, but only the "return the lapsed seller\'s own goods" path, capped at 200',
+      "    'market_expire(integer)',",
     ],
   };
 

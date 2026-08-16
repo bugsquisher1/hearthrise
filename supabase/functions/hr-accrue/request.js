@@ -43,6 +43,10 @@
 //             is tolerant.
 //   reward    { kind, key } — WHICH claimable the player is claiming (b349).
 //             A NAME, in two allowlisted strings.
+//   listing   a market listing's uuid. A SELECTOR for a row the server owns —
+//             the server reads the item, the price, the seller and the escrow
+//             off it and the request has no field for any of them.
+//   ask       ⚠ THE ONE PRICE FIELD IN THIS FILE. See the block below.
 //
 // ⚠ THERE IS NO `period` FIELD, AND ITS ABSENCE IS THE WHOLE DESIGN. A daily
 //   reward is worth something exactly once per UTC day, and the thing that
@@ -58,6 +62,27 @@
 //   value transfer, it is bounded before it is used, and the thing it
 //   multiplies came out of src/data. That is the whole of the client's
 //   arithmetic authority over the economy.
+//
+// ⚠ …AND THEN THERE IS `ask`, WHICH IS A PRICE, AND WHICH IS NOT AN EXCEPTION
+//   TO THE SENTENCE ABOVE SO MUCH AS THE ONE PLACE THE SENTENCE HAS TO BE READ
+//   CAREFULLY. The argument is 2026-08-17-market-v2.sql's, §"THE ONE
+//   UNCOMFORTABLE FIELD", and it is repeated here rather than cross-referenced
+//   because the header a reader trusts is the one in the file they are reading:
+//     · A MARKET EXISTS TO LET A SELLER NAME A PRICE. There is no server-side
+//       answer to "what is this worth" that is not a price control.
+//     · It is authored about the seller's OWN goods and, the moment it is
+//       accepted, it becomes SERVER STATE. THE BUYER NEVER SUPPLIES A PRICE —
+//       `market_buy`'s wire is (listing, qty) and has no field for one;
+//       hr_market_buy reads `ask_each` off the listing row it locked. So no
+//       client value crosses to another player: the seller's number crosses to
+//       the SERVER, and the server's copy is what the buyer transacts against.
+//     · It cannot mint. The trade conserves gold (buyer −gross, seller +net,
+//       tax burned) and the buyer's balance is checked under the lock.
+//   It is bounded HERE anyway — a positive integer in [1, MAX_ASK] — for the
+//   reason `qty` is: an unbounded number that reaches a multiply is an overflow,
+//   and an overflow inside a value transfer is a 500 in the middle of one. The
+//   server re-checks the same bound and the PRODUCT bound this parser cannot
+//   state (it does not know the qty and the ask belong to one listing yet).
 //
 // PURE ESM, no I/O, no globals. Runs in Node and Deno unchanged.
 // ============================================================================
@@ -76,7 +101,14 @@ export const MAX_SLOT = 5;
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
 export const VERBS = Object.freeze(
-  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'claim_reward', 'unlock_buy']);
+  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'claim_reward', 'unlock_buy',
+    /* b355 — THE MARKET VERBS. Three, not one, and deliberately not collapsed
+       into a single `market` verb with a `mode` field: the three do different
+       things to different rows, and a dispatch table whose branch is a body
+       field is a dispatch table one typo away from performing a different
+       intent than the one asked for (the same reason an unknown verb is a hard
+       null below). */
+    'market_list', 'market_cancel', 'market_buy']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -138,8 +170,17 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     A test that hard-codes the field list cannot notice a field being ADDED,
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
-  ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward'],
+  ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
+    'listing', 'ask'],
 );
+
+/** The largest ask a seller may name, per unit. THE SAME NUMBER the migration's
+ *  `ask_each` CHECK constraint carries (1e9), stated here so a listing that the
+ *  database would refuse is refused one round trip earlier and by name. Two
+ *  copies of a bound is a drift risk and it is taken deliberately: the parser
+ *  cannot read a CHECK constraint, and a parser that admitted 1e18 would hand
+ *  `bad_price` back to every honest client that fat-fingered a price. */
+export const MAX_ASK = 1000000000;
 
 /**
  * Read the intent out of a parsed request body.
@@ -163,7 +204,46 @@ export function parseIntent(body) {
   out.item = readItem(body);
   out.qty = readQty(body);
   out.reward = readReward(body);
+  out.listing = readListing(body);
+  out.ask = readAsk(body);
   return out;
+}
+
+/**
+ * WHICH LISTING. A canonical uuid and nothing else — the same strictness, and
+ * the same reason, as `readIntentId`: Postgres would accept `{…}` and the
+ * undashed form too and normalise them on cast, and two spellings of one row id
+ * are two chances for a caller to believe it named two different listings.
+ *
+ * It does NOT check that the listing exists, is open, or belongs to anyone: all
+ * three are answers the RPC gives BY NAME under the lock (`gone`, `not_yours`,
+ * `expired`), and a parser that collapsed them into null would report
+ * "malformed request" for "somebody bought it first".
+ */
+export function readListing(body) {
+  const s = ownString(body, 'listing');
+  if (s === null || s.length !== 36) return null;
+  const low = s.toLowerCase();
+  return UUID_RE.test(low) ? low : null;
+}
+
+/**
+ * THE ASK, PER UNIT. See the header block for why a price is readable here at
+ * all and why that is not a hole.
+ *
+ * STRICT, exactly as `readQty` is strict and for the identical reason: a server
+ * that GUESSES a price has authored a number the player did not ask for, in
+ * both directions. An own property, a real JSON number (never a numeric string
+ * — `Number("1e9")` is a thousand-fold fat finger that parses), an integer, and
+ * inside [1, MAX_ASK]. Everything else is `null`, which market.js refuses BY
+ * NAME as `bad_ask` before any database work.
+ */
+export function readAsk(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'ask')) return null;
+  const v = body.ask;
+  if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
+  return v >= 1 && v <= MAX_ASK ? v : null;
 }
 
 /** An own string property, or null. The one place a raw body value is read. */

@@ -87,6 +87,21 @@ export const LINKS = [
     target: '2026-08-16-client-write-grant-sweep-5.sql',
     patchIds: ['client_write_full_vocab'],
   },
+  /* Link 5 — market v2. Rebased onto batch 5's NOW-LIVE body (sweep-5) rather
+     than the pre-batch-5 body it was first cut against: applied after batch 5,
+     an older base would silently REVERT check (4)'s has_table_privilege rewrite
+     (the MAINTAIN/matview visibility), the exact drift PART 1f-ii exists to
+     catch. It records THREE engine grants at once (an INSERTION at the head of
+     c_engine_allow) — the largest single widening since hr_apply — AND REMOVES
+     the stale `market_expire(integer)` entry (Security M7): the function was
+     renamed hr_market_expire and is asserted NOT engine-holdable (§11(e)), so
+     the old name pre-approves a function that no longer exists. Insertion +
+     removal only, so its declared-removals list is exactly those two lines. */
+  {
+    base: '2026-08-16-client-write-grant-sweep-5.sql',
+    target: '2026-08-17-market-v2.sql',
+    patchIds: ['market_v2', 'drop_market_expire'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -309,6 +324,82 @@ export const PATCHES = [
                         where bl.table_name = c.relname and bl.grantee = gg)
   ) x;
 `,
+    where: 'replace',
+  },
+  {
+    id: 'market_v2',
+    name: 'the c_engine_allow array head (link 5)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-08-17 — THE THREE MARKET WRITERS ─────────────────────
+    -- At the HEAD, an insertion, for the same reason as links 1 and 2: it
+    -- removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- ⚠ THE LARGEST SINGLE WIDENING SINCE hr_apply: three writers at once, and
+    -- ONE OF THEM MOVES VALUE BETWEEN TWO PLAYERS. The c_engine_allow claim is
+    -- "read-only or SELF-VALIDATING, and it accepts no target the caller is not
+    -- already authorised for". None of these is read-only, so the whole claim
+    -- rests on the other two clauses, re-derived rather than asserted:
+    --
+    --   SELF-VALIDATING. The entire caller-supplied surface of the three is a
+    --   character slot, an idempotency uuid, a version, and then: an ITEM ID +
+    --   COUNT + ASK (list), a LISTING ID (cancel), a LISTING ID + COUNT (buy).
+    --   No price crosses on a buy — ask_each is read off the listing row under
+    --   its own lock — no timestamp, no name, no fee rate, no counterparty. The
+    --   item must be \`tradeable\` in the generated, client-unwritable hr_items;
+    --   the tax rate and every ceiling come from hr_market_config; the seller
+    --   name is derived from profiles; every clock is now(). Each function
+    --   re-reads its listing FOR UPDATE and re-validates under hr_apply's own
+    --   advisory lock, refuses a stale version, and is clamped per call (a gross
+    --   ceiling) AND per DAY (list churn; gold sent; gold received) from the
+    --   append-only ledger — the dimension a rate limit does not bound.
+    --
+    --   THE TARGET CLAUSE, STATED HONESTLY (Security M2). The earlier draft
+    --   claimed "the engine cannot select a victim". That is FALSE and is the
+    --   correction: the engine holds hr_market_list(p_user, …) for ANY user, so a
+    --   compromised engine can open a listing FOR a victim it names and then
+    --   settle it to itself with hr_market_buy — it can choose both sides of a
+    --   trade. What admits these three is therefore NOT "no victim" but BOUNDED
+    --   BLAST RADIUS: every path is a CONSERVED transfer of TRADEABLE items
+    --   (buyer -gross, seller +net, tax burned — nothing minted, nothing an
+    --   honest player did not already own), the item must be \`tradeable\` in the
+    --   client-unwritable hr_items, BOTH SIDES ARE JOURNALLED (transfer +
+    --   self_trade in meta), and the flows are CLAMPED PER DAY off the
+    --   append-only ledger on three dimensions the engine cannot widen: escrowed
+    --   item quantity (list), gold sent (buy) and gold received (buy).
+    --   ⚠ THOSE CLAMPS ARE THE MARKET'S OWN, NOT hr_day_budget_check. A market
+    --   transfer is conserved, so it is deliberately absent from the mint
+    --   budget's qty dimension — charging a sale to the seller's daily inflow
+    --   would let a stranger drain their accrual (the griefing vector in
+    --   hr_market_buy's header). So the item-drain and gold-move ceilings live
+    --   here and only here. p_user is the parameter the engine already passes to
+    --   hr_apply.
+    --
+    --   WHY THE ENGINE NEEDS THEM: hr_apply is single-character by construction
+    --   — one lock, one version, one journal target — so a delta shape that
+    --   could move a second player's gold would be the most dangerous key in the
+    --   engine's vocabulary. Without these three, the only writer of a
+    --   cross-player transfer is the client, which is the hole this whole
+    --   program was opened to close.
+    'hr_market_list(uuid,integer,bigint,uuid,text,bigint,bigint)',
+    'hr_market_cancel(uuid,integer,bigint,uuid,uuid)',
+    'hr_market_buy(uuid,integer,bigint,uuid,uuid,bigint)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'drop_market_expire',
+    name: "the stale market_expire(integer) allowlist entry",
+    /* A REMOVAL (Security M7). `market_expire(integer)` was the pre-market-v2
+       name; the function is now hr_market_expire(int) and is asserted NOT
+       engine-holdable (§11(e) refuses it to hr_engine), so the old name
+       pre-approves a function that does not exist. Its two lines are the
+       declared removals for this link in tests/run-sql-tests.mjs PART 1f-ii. */
+    find: `    -- writes, but only the "return the lapsed seller's own goods" path, capped at 200
+    'market_expire(integer)',
+`,
+    add: '',
     where: 'replace',
   },
 ];

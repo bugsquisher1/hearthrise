@@ -16,6 +16,17 @@ economy flow through the review book; sequencing stays behind the monster rework
 
 ---
 
+### 2026-08-16 · REVIEW BOOK ROUND 2 — Tyler's full approval sweep (review-decisions.json, generatedAt 1786860824128)
+**Decision (Tyler, via the review book export — BINDING).**
+- **All 81 monsters APPROVED** (every MON-* card), including the Tibia-derived 11-class taxonomy, renames, and tier fill. DEC-NEUT-01/DEC-ALIAS-01/DEC-ELEM-04 (Poison) approved.
+- **All items APPROVED**: every ITEM-PLAN-* (1-10) and every surviving ITEM-NEW-* card. Rejected six stay rejected.
+- **Progression: PROG-01 (Bestiary Charms), PROG-02 (Diaries), PROG-03, PROG-08 APPROVED.** PROG-04/05/06/07/09/10 = maybe (parked, not rejected).
+- **Events: ALL FIVE EVT-* cards APPROVED** — the Kindling/Beacon ships as spec'd (rev 2, ember-over-vendor valuation, 50/50 seeded tie-break).
+- **DNG-VAMP-01**: Tyler requested the actual WWDITS cast names (Lazlo, Nadja, Nandor the Relentless, Gizmo, Colin Robinson) with named drops. **UNRESOLVED — Coordinator advised verbatim protected names/characters are an IP risk for a commercial launch; parody-distance alternates proposed to Tyler.** Do not wire real-cast names into src/data without a later explicit entry here.
+The exported file is committed at repo root (`review-decisions.json`). **Date:** 2026-08-16.
+
+---
+
 ### 2026-08-16 · THE KINDLING / THE BEACON — APPROVED by Tyler, enthusiastically
 **Decision (Tyler, direct: "I LOVE THE KINDLING AND BEACON IDEA").** The events rework's headline
 is approved: The Muster is replaced by **The Kindling** (daily donation pool) and **The Beacon**

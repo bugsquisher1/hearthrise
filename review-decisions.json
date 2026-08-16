@@ -1,5 +1,5 @@
 {
-  "generatedAt": 1786857297242,
+  "generatedAt": 1786860824128,
   "entries": [
     {
       "id": "REC-MONSTERS",
@@ -32,8 +32,48 @@
       "note": ""
     },
     {
+      "id": "MON-BEA-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-BEA-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
       "id": "MON-BEA-09",
-      "verdict": null,
+      "verdict": "approve",
       "note": "i dont like names that are this long"
     },
     {
@@ -47,7 +87,62 @@
       "note": ""
     },
     {
-      "id": "MON-HUM-01",
+      "id": "MON-VER-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-VER-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-PLA-06",
       "verdict": "approve",
       "note": ""
     },
@@ -57,17 +152,22 @@
       "note": ""
     },
     {
-      "id": "MON-HUM-03",
+      "id": "MON-HUM-11",
       "verdict": "approve",
       "note": ""
     },
     {
       "id": "MON-HUM-04",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Rock Troll"
     },
     {
       "id": "MON-HUM-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-HUM-10",
       "verdict": "approve",
       "note": ""
     },
@@ -77,7 +177,7 @@
       "note": ""
     },
     {
-      "id": "MON-HUM-07",
+      "id": "MON-HUM-09",
       "verdict": "approve",
       "note": ""
     },
@@ -85,6 +185,51 @@
       "id": "MON-HUM-08",
       "verdict": "approve",
       "note": "just Stonejaw"
+    },
+    {
+      "id": "MON-ARC-01",
+      "verdict": "approve",
+      "note": "Witch's Apprentice"
+    },
+    {
+      "id": "MON-HUM-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ARC-02",
+      "verdict": "approve",
+      "note": "Cultist"
+    },
+    {
+      "id": "MON-HUM-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ARC-03",
+      "verdict": "approve",
+      "note": "Adept"
+    },
+    {
+      "id": "MON-ARC-04",
+      "verdict": "approve",
+      "note": "Conjurer"
+    },
+    {
+      "id": "MON-ARC-05",
+      "verdict": "approve",
+      "note": "Astrologer"
+    },
+    {
+      "id": "MON-HUM-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ARC-06",
+      "verdict": "approve",
+      "note": "Necromancer"
     },
     {
       "id": "MON-UND-01",
@@ -118,38 +263,23 @@
     },
     {
       "id": "MON-UND-07",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Vampire Bride"
     },
     {
-      "id": "MON-ARC-01",
-      "verdict": null,
-      "note": "Witch's Apprentice"
-    },
-    {
-      "id": "MON-ARC-02",
+      "id": "MON-UND-08",
       "verdict": "approve",
-      "note": "Cultist"
+      "note": ""
     },
     {
-      "id": "MON-ARC-03",
+      "id": "MON-DEM-06",
       "verdict": "approve",
-      "note": "Adept"
+      "note": ""
     },
     {
-      "id": "MON-ARC-04",
-      "verdict": null,
-      "note": "Conjurer"
-    },
-    {
-      "id": "MON-ARC-05",
-      "verdict": null,
-      "note": "Astrologer"
-    },
-    {
-      "id": "MON-ARC-06",
-      "verdict": null,
-      "note": "Necromancer"
+      "id": "MON-DEM-07",
+      "verdict": "approve",
+      "note": ""
     },
     {
       "id": "MON-DEM-01",
@@ -173,8 +303,13 @@
     },
     {
       "id": "MON-DEM-05",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Vharek"
+    },
+    {
+      "id": "MON-DRA-08",
+      "verdict": "approve",
+      "note": ""
     },
     {
       "id": "MON-DRA-01",
@@ -198,7 +333,7 @@
     },
     {
       "id": "MON-DRA-05",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Draconia"
     },
     {
@@ -208,6 +343,76 @@
     },
     {
       "id": "MON-DRA-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-06",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-ELE-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-01",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-02",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-03",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-04",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-05",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "MON-CON-06",
       "verdict": "approve",
       "note": ""
     },
@@ -267,18 +472,33 @@
       "note": ""
     },
     {
-      "id": "ITEM-NEW-01",
-      "verdict": null,
-      "note": "no"
+      "id": "ITEM-PLAN-07",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-08",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-09",
+      "verdict": "approve",
+      "note": ""
+    },
+    {
+      "id": "ITEM-PLAN-10",
+      "verdict": "approve",
+      "note": ""
     },
     {
       "id": "ITEM-NEW-02",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Lazlo's Maul"
     },
     {
       "id": "ITEM-NEW-03",
-      "verdict": null,
+      "verdict": "approve",
       "note": "How about Dragon Rib Bow or something"
     },
     {
@@ -292,13 +512,8 @@
       "note": ""
     },
     {
-      "id": "ITEM-NEW-06",
-      "verdict": null,
-      "note": "no"
-    },
-    {
       "id": "ITEM-NEW-07",
-      "verdict": null,
+      "verdict": "approve",
       "note": "Rat Stick"
     },
     {
@@ -352,16 +567,6 @@
       "note": ""
     },
     {
-      "id": "ITEM-NEW-18",
-      "verdict": "reject",
-      "note": ""
-    },
-    {
-      "id": "ITEM-NEW-19",
-      "verdict": null,
-      "note": "no"
-    },
-    {
       "id": "ITEM-NEW-20",
       "verdict": "approve",
       "note": ""
@@ -369,11 +574,6 @@
     {
       "id": "ITEM-NEW-21",
       "verdict": "approve",
-      "note": ""
-    },
-    {
-      "id": "ITEM-NEW-22",
-      "verdict": "reject",
       "note": ""
     },
     {
@@ -394,11 +594,6 @@
     {
       "id": "ITEM-NEW-26",
       "verdict": "approve",
-      "note": ""
-    },
-    {
-      "id": "ITEM-NEW-27",
-      "verdict": "reject",
       "note": ""
     },
     {
@@ -517,6 +712,11 @@
       "note": ""
     },
     {
+      "id": "PROG-06",
+      "verdict": "maybe",
+      "note": ""
+    },
+    {
       "id": "PROG-07",
       "verdict": "maybe",
       "note": ""
@@ -543,8 +743,8 @@
     },
     {
       "id": "EVT-POOL",
-      "verdict": null,
-      "note": "read my other note and then adjust this"
+      "verdict": "approve",
+      "note": ""
     },
     {
       "id": "EVT-LIBRARY",
@@ -560,6 +760,11 @@
       "id": "EVT-RETIRE",
       "verdict": "approve",
       "note": ""
+    },
+    {
+      "id": "DNG-VAMP-01",
+      "verdict": null,
+      "note": "I want the names to be \"Lazlo, Nadja, Nandor the Relentless, Gizmo, Colin Robinson\" and each one drops a named item."
     }
   ]
 }

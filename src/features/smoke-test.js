@@ -15387,15 +15387,38 @@ const TESTS = [
     const t1 = tiered.filter(([, it]) => it.tier === 1);
     assert(t1.length > 0 && t1.every(([, it]) => it.ammoPerShot === 0),
       'the tier-1 ammo rung must be free to fire (ammoPerShot 0) — see the b343 ammo economics');
-    assert(tiered.filter(([, it]) => it.tier >= 2).every(([, it]) => it.ammoPerShot >= 1),
+    /* b356: the floor is "> 0", not ">= 1". When this was written the ammo slot
+       held arrows only, which burn one per shot. The approved whetstone ladder
+       (consumable-economy §6.3/§7.2) burns **0.02 per swing** — melee hones an
+       edge, it does not throw the stone away — and that number is derived from
+       the same anti-faucet inequality the arrow prices are. The contract the
+       test is actually protecting is "no rung above tier 1 is free", which is
+       what this asserts. */
+    assert(tiered.filter(([, it]) => it.tier >= 2).every(([, it]) => it.ammoPerShot > 0),
       'every ammo rung above tier 1 must actually be spent');
 
-    // Prices climb with the ladder — a cheaper better arrow is a free upgrade.
-    const sorted = tiered.slice().sort((a, b) => a[1].tier - b[1].tier);
-    for (let i = 1; i < sorted.length; i++) {
-      assert(sorted[i][1].v >= sorted[i - 1][1].v,
-        'ammo value must not go DOWN with tier: ' + sorted[i][0] + ' (' + sorted[i][1].v + ') <= ' + sorted[i - 1][0] + ' (' + sorted[i - 1][1].v + ')');
-    }
+    /* Prices climb with the ladder — a cheaper better arrow is a free upgrade.
+       b356: PER LANE, not across the whole slot. The ammo slot now holds three
+       ladders (arrows / runes / whetstones) and consumable-economy R7 is explicit
+       that they are priced to equalise GOLD-PER-HOUR, not item value: a whetstone
+       is ~30-50x the arrow at the same tier because melee burns 0.02 of one per
+       swing and ranged burns a whole arrow. Comparing a tier-2 arrow against a
+       tier-1 whetstone is comparing two different ladders and says nothing.
+       The lane is derived from the damage field the rung pays in, which IS the
+       thing that distinguishes the three. Ties are allowed (the elemental
+       variants of §11.3 are siblings at one tier, not rungs above each other). */
+    const laneOf = (it) => (it.rangeStrB || it.rangeAtkB ? 'arrows'
+      : it.magicStrB ? 'runes' : it.strB ? 'whetstones' : 'other');
+    const lanes = {};
+    tiered.forEach((e) => { (lanes[laneOf(e[1])] = lanes[laneOf(e[1])] || []).push(e); });
+    Object.entries(lanes).forEach(([lane, rows]) => {
+      const sorted = rows.slice().sort((a, b) => a[1].tier - b[1].tier);
+      for (let i = 1; i < sorted.length; i++) {
+        assert(sorted[i][1].v >= sorted[i - 1][1].v,
+          lane + ' value must not go DOWN with tier: ' + sorted[i][0] + ' (' + sorted[i][1].v + ') < '
+          + sorted[i - 1][0] + ' (' + sorted[i - 1][1].v + ')');
+      }
+    });
   }),
 
   () => tryRun('b343: the spdB speed budget is closed (the pacing anchor holds)', () => {
@@ -15554,7 +15577,22 @@ const TESTS = [
     // Exempt: currencies, companions, blueprints/keys (they drop), recipe scrolls,
     // and a few deliberately-spent-elsewhere odds. Everything else MUST be reachable.
     const EXEMPT = new Set(['muster_seal', 'hearth_token', 'burnt_food', 'dragon_relic', 'void_essence', 'farm_deed']);
-    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe; };
+    /* b356 — the two SELF-CLOSING hatches (src/data/item-effects.js header).
+       An item is allowed to be unreachable only while it is genuinely not
+       playable yet:
+         • `pendingSkill` — its skill is not in SKILLS_DEF, so nothing could
+           produce it;
+         • a declared `effects` kind that no engine reads, so it would be an
+           object that lies about itself.
+       Both exemptions EXPIRE automatically — the B356-4 guard below fails the
+       build the moment the skill or the engine lands, which is what makes this
+       a hatch rather than a hole. */
+    const KINDS = (window.HearthriseItemEffects || {}).EFFECT_KINDS || {};
+    const isDormant = (it) => {
+      if (it.pendingSkill && !(window.SKILLS_DEF || {})[it.pendingSkill]) return true;
+      return ((it.effects) || []).some((k) => !(KINDS[k] && KINDS[k].live));
+    };
+    const isExempt = (id) => { const it = ITEMS[id] || {}; return EXEMPT.has(id) || it.premium || it.rarity === 'currency' || it.type === 'companion' || it.unlocks || it.recipe || isDormant(it); };
     const dead = Object.keys(ITEMS).filter((id) => !reach.has(id) && !isExempt(id));
     assert(dead.length === 0, 'UNREACHABLE items (no obtainable source or broken recipe chain): ' + dead.join(', '));
   }),
@@ -29750,6 +29788,178 @@ const TESTS = [
         } finally { UI._reset(); }
       }
     } finally { restoreG(snap); RM.close(); }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     b356 — THE APPROVED REVIEW-BOOK CATALOGUE (Library 2)
+     src/data/library2-items.js · src/data/item-effects.js · src/core/bane.js
+     ══════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('B356-1: every new catalogue item is well-formed and its id is unique', () => {
+    const LIB = (window.HearthriseItemEffects || {}).LIB2_ICON_FILES || {};
+    const ids = Object.keys(LIB);
+    assert(ids.length >= 80, 'the approved catalogue should be ~86 rows, got ' + ids.length);
+    const seen = new Set();
+    ids.forEach((id) => {
+      assert(/^[a-z][a-z0-9_]*$/.test(id), 'item ids are snake_case save keys: "' + id + '"');
+      assert(!seen.has(id), 'duplicate id ' + id); seen.add(id);
+      const it = window.ITEMS[id];
+      assert(it, id + ' must be merged into the live ITEMS catalogue');
+      assert(typeof it.n === 'string' && it.n.length > 1, id + ' needs a name');
+      assert(typeof it.v === 'number' && it.v >= 0 && isFinite(it.v), id + ' needs a finite non-negative value, got ' + it.v);
+      assert(typeof it.icon === 'string' && it.icon.length > 0, id + ' needs a last-resort glyph');
+      assert(window.itemDesc(id) && window.itemDesc(id).length > 8, id + ' needs a flavour description');
+      if (it.type === 'armor' || it.type === 'weapon' || it.type === 'jewelry') {
+        assert(typeof it.slot === 'string' && it.slot, id + ' is equippable and needs a slot');
+      }
+    });
+  }),
+
+  () => tryRun('B356-2: bane multipliers are inside MAX_BANE_MULT and every target class is real', () => {
+    const B = window.HearthriseCore.bane;
+    assert(B && B.MAX_BANE_MULT === 1.40, 'MAX_BANE_MULT must be the published ceiling');
+    let count = 0;
+    Object.entries(window.ITEMS).forEach(([id, it]) => {
+      if (!it || !it.bane) return;
+      const list = Array.isArray(it.bane) ? it.bane : [it.bane];
+      list.forEach((b) => {
+        count++;
+        const cls = B.normalizeClass(b.class);
+        assert(cls, id + ' targets an unknown monster class "' + b.class + '"');
+        assert(B.MONSTER_CLASSES.indexOf(cls) >= 0, id + ' targets a class outside the taxonomy: ' + cls);
+        assert(b.mult > 1 && b.mult <= B.MAX_BANE_MULT,
+          id + ' bane multiplier ' + b.mult + ' is outside (1, ' + B.MAX_BANE_MULT + ']');
+      });
+    });
+    assert(count === 5, 'the five approved bane weapons must all carry a bane entry, found ' + count);
+  }),
+
+  () => tryRun('B356-3: bane is LIVE inside weaknessInfo, is class-scoped, and the ceiling is a property of the formula', () => {
+    const C = window.HearthriseCore.combat;
+    const items = window.ITEMS;
+    const eq = C.equipmentStats({ weapon: 'lazlos_maul' }, items);
+    assert(eq.bane && eq.bane.undead === 1.40, 'equipmentStats must surface the bane index');
+
+    // ON the class: weapon-weakness (hammer vs Undead) × bane = 1.20 × 1.40.
+    const undead = { family: 'Undead', weaponWeak: 'hammer' };
+    const on = C.weaknessInfo(undead, eq);
+    assert(Math.abs(on.damageMult - 1.68) < 1e-9, 'vs Undead the maul must reach 1.68, got ' + on.damageMult);
+    assert(on.baneClass === 'undead' && on.baneMult === 1.40, 'the readout must name the class it applied to');
+
+    // OFF the class: nothing at all. This is what `FUSE: scoped` means.
+    const mammal = { family: 'Mammal', weaponWeak: 'ranged' };
+    const off = C.weaknessInfo(mammal, eq);
+    assert(off.damageMult === 1 && off.baneMult === 1 && off.baneClass === null,
+      'bane must contribute NOTHING off its class, got ' + off.damageMult);
+
+    // Bare hands are untouched — no regression to the existing weakness axis.
+    const bare = C.equipmentStats({}, items);
+    assert(C.weaknessInfo(undead, bare).damageMult === 1, 'an unarmed player is unaffected');
+    assert(C.weaknessInfo({ weaponWeak: 'hammer' }, { weaponType: 'hammer' }).damageMult === 1.20,
+      'the plain weapon-weakness bonus must be unchanged when no bane applies');
+
+    // A FORGED item cannot exceed the ceiling: the clamp lives in the
+    // expression, not in the item table.
+    const forged = Object.assign({}, items.lazlos_maul, { bane: { class: 'undead', mult: 40 } });
+    const hostile = C.equipmentStats({ weapon: 'x' }, { x: forged });
+    assert(C.weaknessInfo(undead, hostile).damageMult <= 1.68 + 1e-9,
+      'a hostile bane value must be clamped by the formula, got ' + C.weaknessInfo(undead, hostile).damageMult);
+
+    // And it does not stack with itself across pieces.
+    const stacked = C.equipmentStats({ weapon: 'lazlos_maul', helmet: 'x' }, Object.assign({ x: forged }, items));
+    assert(stacked.bane.undead === 40, 'the index keeps the best raw value…');
+    assert(C.weaknessInfo(undead, stacked).damageMult <= 1.68 + 1e-9, '…and the read is still clamped');
+  }),
+
+  () => tryRun('B356-4: the two dormancy hatches are self-closing (an item never lies about itself)', () => {
+    const KINDS = (window.HearthriseItemEffects || {}).EFFECT_KINDS || {};
+    assert(Object.keys(KINDS).length > 5, 'the effect registry must be published');
+    const R = window.ARTISAN_RECIPES;
+    const produced = new Set();
+    Object.values(R).forEach((l) => (l || []).forEach((r) => { if (r.output) produced.add(r.output); }));
+    const dropped = new Set();
+    Object.values(window.MONSTERS || {}).forEach((m) => (m.drops || []).forEach((d) => dropped.add(d.id)));
+
+    Object.entries(window.ITEMS).forEach(([id, it]) => {
+      (it.effects || []).forEach((k) => {
+        assert(KINDS[k], id + ' declares effect kind "' + k + '" that is not in the registry');
+      });
+      // HATCH 1 — a skill that does not exist yet.
+      if (it.pendingSkill) {
+        assert(!(window.SKILLS_DEF || {})[it.pendingSkill],
+          id + ' is marked pendingSkill:"' + it.pendingSkill + '" but that skill now EXISTS. '
+          + 'Drop the flag and give it a real faucet — the exemption has expired.');
+      }
+      // HATCH 2 — an effect with no engine. Such an item must be unobtainable,
+      // because an item a player can hold must do what it says.
+      const dormant = (it.effects || []).filter((k) => !(KINDS[k] && KINDS[k].live));
+      if (dormant.length) {
+        assert(!produced.has(id) && !dropped.has(id),
+          id + ' has a faucet but its effect(s) [' + dormant.join(', ') + '] have no engine — '
+          + 'either build the engine or remove the faucet.');
+      }
+    });
+  }),
+
+  () => tryRun('B356-5: nothing in the new catalogue spends the permanent power fuse', () => {
+    /* docs/design/pacing-overhaul.md — the permanent stack is +52% and
+       power-budget.js clamps each governed key. The catalogue's whole claim is
+       that it consumes NONE of it: bane lives in weaknessInfo, armour carries
+       combat stats, tools carry toolSpeed. If a future row adds a `buff` on a
+       governed key, or a getBonus-shaped field, this goes red. */
+    const GOVERNED = ['allXP', 'combatXP', 'goldFind', 'gatherSpeed', 'cookSpeed',
+      'smithSpeed', 'craftSpeed', 'prayerSpeed', 'raidPower'];
+    const NORM = (s) => String(s || '').replace(/_/g, '').toLowerCase();
+    const gset = new Set(GOVERNED.map(NORM));
+    const ids = Object.keys((window.HearthriseItemEffects || {}).LIB2_ICON_FILES || {});
+    ids.forEach((id) => {
+      const it = window.ITEMS[id] || {};
+      if (it.buff) {
+        assert(!gset.has(NORM(it.buff.type)),
+          id + ' carries a buff on the governed key "' + it.buff.type + '" — that spends the fuse. '
+          + 'Its magnitude is the Designer\'s call on the day its engine ships.');
+      }
+      GOVERNED.forEach((k) => assert(it[k] === undefined, id + ' must not carry a raw bonus key ' + k));
+    });
+  }),
+
+  () => tryRun('B356-6: the art manifest is one <id>.png per item, and no icon path is wired before its file exists', () => {
+    const M = (window.HearthriseItemEffects || {}).LIB2_ICON_FILES || {};
+    const HAND = window.__LOCAL_ITEM_ICON || {};
+    Object.entries(M).forEach(([id, file]) => {
+      assert(file === id + '.png', 'the manifest must be <id>.png, got ' + id + ' → ' + file);
+      /* No HAND entry may point at a file the art batch has not produced. The
+         auto-mapper at the bottom of legacy.js is a different matter and is
+         allowed to claim a new tiered piece: it only ever assigns art that is
+         already shipped (it derives from SLOT_ART, which indexes existing
+         files), so a bow it adopts renders a real painting rather than a 404.
+         What would break is a hand-written path to `<id>.png` before the file
+         exists — that is what this forbids. */
+      assert(!HAND[id],
+        id + ' has a HAND-WIRED icon path but the art batch has not landed the file — '
+        + 'that renders a broken image where the emoji fallback would have worked.');
+    });
+  }),
+
+  () => tryRun('B356-7: the three ammo-slot ladders share ONE stat curve (consumable-economy R7)', () => {
+    const I = window.ITEMS;
+    const CURVE = [2, 3, 5, 8, 11, 14, 18];
+    const lanes = {
+      arrows: ['bronze_arrows', 'barbed_arrows', 'steel_arrows', 'mithril_arrows', 'rune_arrows', 'emberhead_arrows', 'dawnpoint_arrows'],
+      runes: ['air_rune', 'earth_rune', 'water_rune', 'fire_rune', 'chaos_rune', 'death_rune', 'blood_rune'],
+      whetstones: ['coarse_whetstone', 'copper_whetstone', 'iron_whetstone', 'steel_whetstone', 'mithril_whetstone', 'rune_whetstone', 'dawn_whetstone'],
+    };
+    Object.entries(lanes).forEach(([lane, ids]) => {
+      ids.forEach((id, i) => {
+        const it = I[id];
+        assert(it, lane + ' rung ' + id + ' must exist');
+        const dmg = it.rangeStrB || it.magicStrB || it.strB;
+        assert(dmg === CURVE[i], lane + '/' + id + ' must sit on the shared curve: expected ' + CURVE[i] + ', got ' + dmg);
+        assert(it.slot === 'ammo', id + ' must occupy the ammo slot');
+        assert(it.spdB === undefined && it.critB === undefined || lane === 'arrows',
+          id + ' must carry damage only — critB/spdB leak to every style through equipmentStats');
+      });
+    });
   }),
 
 ];

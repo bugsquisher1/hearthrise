@@ -18,6 +18,11 @@
 export * as rng from './rng.js?v=356';
 export * as xp from './xp.js?v=356';
 export * as combat from './combat.js?v=356';
+/* b356 — class-targeted weapon multipliers ("bane gear"). It is a SEPARATE
+   module from combat.js so that the one rule that matters — a bane is a
+   multiplier inside weaknessInfo and NEVER a getBonus key, because getBonus
+   reads as zero on the server — has a file header to live in. */
+export * as bane from './bane.js?v=356';
 export * as drops from './drops.js?v=356';
 export * as pacing from './pacing.js?v=356';
 export * as rested from './rested.js?v=356';

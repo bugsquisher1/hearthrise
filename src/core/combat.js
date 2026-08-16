@@ -18,6 +18,9 @@
 // ============================================================
 
 import { levelOf } from './xp.js?v=356';
+import {
+  baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
+} from './bane.js?v=356';
 
 export const WEAPON_TYPES = {
   sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',
@@ -81,7 +84,15 @@ export const STYLE_SPEED_MAX = 2.00;
 // ── Derived equipment state ──────────────────────────────────────────────
 
 export function equipmentStats(equipment, items) {
-  const s = { atkB: 0, strB: 0, defB: 0, critB: 0, xpB: 0, spdB: 0, weaponType: 'neutral' };
+  const s = {
+    atkB: 0, strB: 0, defB: 0, critB: 0, xpB: 0, spdB: 0, weaponType: 'neutral',
+    /* class → best bane multiplier, or null when no bane gear is worn. Derived
+       here (rather than in weaknessInfo) because this is the ONE function that
+       already walks the equipped set, and because both engines — the live tick
+       and the Edge accrual — take this object as their equipment input. See
+       src/core/bane.js for why a `getBonus` key would have read as zero away. */
+    bane: null,
+  };
   if (!equipment) return s;
   Object.entries(equipment).forEach(([slot, id]) => {
     const it = items && items[id];
@@ -90,6 +101,7 @@ export function equipmentStats(equipment, items) {
     s.critB += it.critB || 0; s.xpB += it.xpB || 0; s.spdB += it.spdB || 0;
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
+  s.bane = baneIndex(equipment, items);
   return s;
 }
 
@@ -151,15 +163,40 @@ export function armorSetBonus(equipment, items) {
   return null;
 }
 
+/**
+ * The one place a monster's defensive profile meets the player's loadout.
+ *
+ * TWO axes, both multiplicative into `damageMult`:
+ *   1. WEAPON WEAKNESS — the live +20%/+15% for bringing the class's weak
+ *      weapon type. Unchanged.
+ *   2. BANE — a class multiplier carried by an ITEM (`item.bane`), clamped by
+ *      `MAX_BANE_MULT` inside src/core/bane.js. It lives here rather than in
+ *      `getBonus` precisely so that away accrual sees it; read that file's
+ *      header before moving it.
+ *
+ * The product is clamped to `MAX_COMBINED_DAMAGE_MULT` so the ceiling is a
+ * property of this expression and not of the item table. `baneMult` and
+ * `baneClass` are returned so the away card and the monster panel can SAY why
+ * a night went the way it did without recomputing anything.
+ */
 export function weaknessInfo(monster, eq) {
   const weak = (monster && monster.weaponWeak) || 'neutral';
   const matched = weak !== 'neutral' && eq && eq.weaponType === weak;
+  const weaponMult = matched ? WEAKNESS_BONUS.damage : 1;
+
+  const baneClass = classOfMonster(monster);
+  const baneMult = baneMultFor(baneClass, eq && eq.bane);
+  const damageMult = Math.min(weaponMult * baneMult, MAX_COMBINED_DAMAGE_MULT);
+
   return {
     weak,
     matched: !!matched,
-    damageMult: matched ? WEAKNESS_BONUS.damage : 1,
+    damageMult,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
     dropMult: weak === 'neutral' ? NEUTRAL_DROP_BONUS : 1,
+    /* Bane readout — 1 and null when no bane gear applies. */
+    baneClass: baneMult > 1 ? baneClass : null,
+    baneMult,
   };
 }
 

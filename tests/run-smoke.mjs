@@ -924,6 +924,71 @@ async function landscapeGuard(browser, url) {
 // listable, deleted item ids stay valid — so drift fails the build here, in the
 // suite everyone already runs, rather than in a migration nobody re-applies.
 // Skipped only when the generator is absent (older checkouts), never on drift.
+// PREFLIGHT - the MONSTER ART MANIFEST must match the filesystem.
+//
+// src/data/monster-art.js carries `SHIPPED`, a hand-maintained list of the
+// monster ids whose portrait actually exists. It has to be hand-maintained
+// because the browser cannot stat a file - but a hand-maintained list of
+// what is on disk is exactly the kind of claim this repo has been burned by,
+// so it is not trusted: this walks both art folders in Node and fails in
+// BOTH directions.
+//
+//   * an id in SHIPPED with no file  -> a 404 and a broken image in the arena
+//   * a file on disk not in SHIPPED  -> art was delivered and never wired,
+//                                       which is how a portrait sits unused
+//   * a file whose name is not a monster id -> the mis-map class of defect
+//     (this repo shipped a boar named bear.png and a vampire named
+//     dragon.png), caught before a player sees it
+//
+// The six Hunt/raid boss portraits live in the same folder and are NOT in
+// MONSTERS, so they are allowlisted explicitly rather than by pattern.
+async function monsterArtPreflight() {
+  const mod = join(ROOT, 'src', 'data', 'monster-art.js');
+  try { await stat(mod); } catch { return 0; }
+  const { readdir } = await import('node:fs/promises');
+  const { pathToFileURL } = await import('node:url');
+  const art = await import(pathToFileURL(mod).href);
+  const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monsters.js')).href);
+
+  /* Portraits for bosses that live in src/data/bosses.js, not MONSTERS. */
+  const NON_ROSTER = new Set(['crownless_wyrm', 'emberclad_tyrant', 'hollow_regent',
+    'maw_below', 'sunken_choir', 'warden_long_dark']);
+
+  const onDisk = new Set();
+  for (const dir of [art.PAINTED_DIR, art.HEARTHFIRE_DIR]) {
+    let files = [];
+    try { files = await readdir(join(ROOT, dir)); } catch { continue; }
+    files.filter((f) => f.endsWith('.png')).forEach((f) => onDisk.add(f.slice(0, -4)));
+  }
+
+  const problems = [];
+  art.SHIPPED.forEach((id) => {
+    if (!MONSTERS[id]) problems.push(`SHIPPED lists "${id}", which is not a monster`);
+    else if (!onDisk.has(id)) problems.push(`SHIPPED lists "${id}" but ${art.pathFor(id)} does not exist (would 404)`);
+  });
+  const shipped = new Set(art.SHIPPED);
+  onDisk.forEach((id) => {
+    if (NON_ROSTER.has(id)) return;
+    if (!MONSTERS[id]) problems.push(`${id}.png is on disk but "${id}" is not a monster id (mis-named delivery?)`);
+    else if (!shipped.has(id)) problems.push(`${id}.png is on disk but "${id}" is not in SHIPPED — art delivered, never wired`);
+  });
+  /* Every wired path must point INTO the shipped icons-bundle. */
+  const wired = art.wiredIconMap();
+  Object.keys(wired).forEach((id) => {
+    if (!/^assets\/icons-bundle\//.test(wired[id])) problems.push(`${id} wired to an unshipped folder: ${wired[id]}`);
+  });
+
+  if (problems.length) {
+    const NL = String.fromCharCode(10);
+    console.error(NL + 'Monster art preflight FAILED (' + problems.length + '):' + NL
+      + '  ' + problems.join(NL + '  ') + NL);
+    return 1;
+  }
+  console.log(`Monster art preflight: ${art.SHIPPED.length} portraits wired, `
+    + `${art.pendingArt().length} awaiting the batch, 0 mismatches`);
+  return 0;
+}
+
 async function catalogueDriftPreflight() {
   const gen = join(ROOT, 'tools', 'gen-catalogues.mjs');
   try { await stat(gen); } catch { return 0; }
@@ -1056,6 +1121,7 @@ async function unlockModelPreflight() {
 }
 
 const run = async () => {
+  if (await monsterArtPreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
   if (await shopDriftPreflight()) process.exit(1);
   if (await perkDriftPreflight()) process.exit(1);

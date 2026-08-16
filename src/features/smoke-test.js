@@ -21105,7 +21105,19 @@ const TESTS = [
         pick: (t) => [M.eventFor(dayKey(t), 1).id, M.eventFor(dayKey(t), 13).id] },
       { name: 'boss of the day', members: botdPool('DAILY_POOL'),
         pick: (t) => C.botd.botdFor(t, mons).dailyId },
-      { name: 'boss of the week', members: botdPool('WEEKLY_POOL'),
+      /* b356: the weekly draw is sampled per DAY but keyed per WEEK, so 1461
+         days is only ~209 distinct draws — seven identical samples each. The
+         0.5 floor is a claim about a large sample and it was already only
+         *just* satisfiable at the historical 7-member pool (expected 29.9 per
+         member, sd 5.1, so a 3-sigma-low bin lands at ratio 0.49). The pool
+         is now 19 (every capstone boss gets a weekly slot): expected 11.0,
+         sd 3.2, 3-sigma-low = ratio 0.12. A constant 0.5 would therefore fail
+         on legitimate content rather than on skew.
+         0.25 is set BELOW that 3-sigma band and far ABOVE the 0.08 the b332
+         float-hash bug produced, so this row still catches the failure it
+         exists to catch — and `dead.length === 0` above, which is the real
+         unreachable-content assertion, is untouched and unweakened. */
+      { name: 'boss of the week', members: botdPool('WEEKLY_POOL'), minRatio: 0.25,
         pick: (t) => C.botd.botdFor(t, mons).weeklyId },
       /* The daily-task draw is hash-SEEDED rather than hash-INDEXED (an LCG
          Fisher-Yates runs on top), so its residual skew is the shuffle's, not
@@ -29750,6 +29762,293 @@ const TESTS = [
         } finally { UI._reset(); }
       }
     } finally { restoreG(snap); RM.close(); }
+  }),
+
+  // ══════════════════════════════════════════════════════════════════════
+  // b356 regression suite — THE MONSTER ROSTER WAVE
+  //
+  // Three things this wave could break silently, so each gets a test that
+  // fails without the fix rather than a comment claiming it is fine:
+  //   1. a monster id rename vaporising Renown / bounties / the chronicle
+  //   2. a content drop that does not fit the measured progression curve
+  //   3. a portrait mapped to a file that does not exist (404) or to the
+  //      wrong monster (the boar-named-bear class of defect)
+  // ══════════════════════════════════════════════════════════════════════
+
+  () => tryRun('MON-ALIAS-1: the monster alias seam exists and is applied on load', () => {
+    assert(typeof window.remapMonsterIds === 'function', 'remapMonsterIds must exist');
+    assert(window.MONSTER_ALIAS && typeof window.MONSTER_ALIAS === 'object',
+      'MONSTER_ALIAS must exist — it is the prerequisite for ever renaming a monster');
+    assert(typeof window.remapMonsterFamilies === 'function', 'remapMonsterFamilies must exist');
+  }),
+
+  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, bounty, chronicle, resume)', () => {
+    const G = window.G;
+    const snap = {
+      bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+      chronicle: G.chronicle, lastActivity: G.lastActivity, activeMonster: G.activeMonster,
+    };
+    const alias = window.MONSTER_ALIAS;
+    try {
+      /* Alias a REAL live id onto another REAL live id. `dragon` is the id the
+         b342 audit measured 200 Renown against. */
+      window.MONSTER_ALIAS = { old_wyrm_id: 'dragon' };
+      G.bestiary = { old_wyrm_id: { kills: 40, first: 5 }, dragon: { kills: 2, first: 9 } };
+      G.dropLog = { old_wyrm_id: { kills: 40, drops: { dragon_bones: 12 } } };
+      G.bountyHunter = {
+        board: [{ id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' }],
+        active: { id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' },
+      };
+      G.chronicle = { entries: [{ id: 'boss:old_wyrm_id', kind: 'boss', text: 'First kill — Green Dragon' }] };
+      G.lastActivity = { kind: 'monster', id: 'old_wyrm_id' };
+      G.activeMonster = 'old_wyrm_id';
+
+      window.remapMonsterIds(G);
+
+      assert(!G.bestiary.old_wyrm_id, 'the old bestiary key must be gone');
+      assert(G.bestiary.dragon && G.bestiary.dragon.kills === 42,
+        'bestiary kills must MERGE (40+2), not overwrite — got ' + JSON.stringify(G.bestiary.dragon));
+      assert(G.bestiary.dragon.first === 5, 'the earlier first-kill timestamp must win');
+      assert(G.dropLog.dragon && G.dropLog.dragon.drops.dragon_bones === 12, 'dropLog must fold');
+      assert(G.bountyHunter.board[0].target === 'dragon', 'the bounty target must fold');
+      assert(G.bountyHunter.board[0].id === 'cull_dragon_1700_42',
+        'the id STRING embeds the monster id — an accepted bounty can never complete otherwise; got '
+        + G.bountyHunter.board[0].id);
+      assert(G.bountyHunter.active.target === 'dragon', 'the active bounty must fold too');
+      assert(G.chronicle.entries[0].id === 'boss:dragon',
+        'the chronicle idempotency key embeds the id — a re-kill writes a SECOND "First kill" row otherwise');
+      assert(G.lastActivity && G.lastActivity.id === 'dragon', 'Resume must fold, not be dropped');
+      assert(G.activeMonster === 'dragon', 'the in-flight fight must fold');
+    } finally {
+      window.MONSTER_ALIAS = alias;
+      Object.assign(G, snap);
+    }
+  }),
+
+  () => tryRun('MON-ALIAS-3: a RETIRED id (aliased to null) is dropped, never left dangling', () => {
+    const G = window.G;
+    const snap = { bestiary: G.bestiary, bountyHunter: G.bountyHunter, activeMonster: G.activeMonster };
+    const alias = window.MONSTER_ALIAS;
+    try {
+      window.MONSTER_ALIAS = { cut_monster: null };
+      G.bestiary = { cut_monster: { kills: 9 }, slime: { kills: 1 } };
+      G.bountyHunter = { board: [{ id: 'cull_cut_monster_1_2', target: 'cut_monster' }], active: null };
+      G.activeMonster = 'cut_monster';
+      window.remapMonsterIds(G);
+      assert(!G.bestiary.cut_monster, 'a retired id must not survive in the bestiary');
+      assert(G.bestiary.slime, 'unrelated entries must be untouched');
+      assert(G.bountyHunter.board.length === 0, 'a bounty for a retired monster must be removed from the board');
+      assert(G.activeMonster === null, 'the fight against a retired monster must stop, not crash the loop');
+    } finally { window.MONSTER_ALIAS = alias; Object.assign(G, snap); }
+  }),
+
+  () => tryRun('MON-ALIAS-4: killsByFamily folds the taxonomy renames instead of stranding them', () => {
+    const G = window.G;
+    const snap = G.stats.killsByFamily;
+    try {
+      G.stats.killsByFamily = { Beast: 100, Goblinoid: 50, Mammal: 5, Vermin: 7 };
+      window.remapMonsterFamilies(G);
+      assert(!G.stats.killsByFamily.Beast, 'the retired "Beast" label must not linger beside "Mammal"');
+      assert(G.stats.killsByFamily.Mammal === 105, 'Beast must fold INTO Mammal (100+5), got '
+        + G.stats.killsByFamily.Mammal);
+      assert(G.stats.killsByFamily.Humanoid === 50, 'Goblinoid must fold into Humanoid');
+      assert(G.stats.killsByFamily.Vermin === 7, 'an unchanged family must be untouched');
+    } finally { G.stats.killsByFamily = snap; }
+  }),
+
+  () => tryRun('MON-ALIAS-5: remapItemIds also folds dropLog[monster].drops[item] (the b244 gap)', () => {
+    const G = window.G;
+    const snap = { dropLog: G.dropLog };
+    const alias = window.ITEM_ALIAS;
+    try {
+      window.ITEM_ALIAS = { old_pelt_id: 'wolf_pelt' };
+      G.dropLog = { wolf: { kills: 3, drops: { old_pelt_id: 4, wolf_pelt: 1 } } };
+      window.remapItemIds(G);
+      assert(!G.dropLog.wolf.drops.old_pelt_id, 'the renamed item must not stay in the drop log');
+      assert(G.dropLog.wolf.drops.wolf_pelt === 5,
+        'per-monster drop counts must MERGE (4+1), got ' + G.dropLog.wolf.drops.wolf_pelt);
+    } finally { window.ITEM_ALIAS = alias; Object.assign(G, snap); }
+  }),
+
+  () => tryRun('MON-TAX-1: every monster has a valid class and a resolvable weakness profile', () => {
+    const T = window.HearthriseMonsterClasses;
+    assert(T && typeof T.audit === 'function', 'the taxonomy must be published on window');
+    const problems = T.audit(window.MONSTERS);
+    assert(problems.length === 0, problems.length + ' taxonomy problems: ' + problems.slice(0, 5).join(' | '));
+  }),
+
+  () => tryRun('MON-TAX-2: `neutral` is retired — no monster opts out of the weapon triangle', () => {
+    const bad = Object.keys(window.MONSTERS)
+      .filter((id) => !window.MONSTERS[id].weaponWeak || window.MONSTERS[id].weaponWeak === 'neutral');
+    assert(bad.length === 0, 'monsters still without a real weapon weakness: ' + bad.join(', '));
+    /* And every one of the four weapon styles must have somewhere to go, or a
+       whole build is the wrong build. */
+    const axes = ['sword', 'hammer', 'ranged', 'magic'];
+    axes.forEach((w) => {
+      const n = Object.keys(window.MONSTERS).filter((id) => window.MONSTERS[id].weaponWeak === w).length;
+      assert(n >= 5, 'only ' + n + ' monsters answer ' + w + ' — that style has nowhere to go');
+    });
+  }),
+
+  () => tryRun('MON-TAX-3: no monster overrides more than ONE axis', () => {
+    const T = window.HearthriseMonsterClasses;
+    const bad = Object.keys(window.MONSTERS)
+      .filter((id) => (window.MONSTERS[id].overrideAxes || []).length > 1);
+    assert(bad.length === 0, 'two-override monsters (rejected in review): ' + bad.join(', '));
+    /* And the overrides must be REAL — a taxonomy where nothing ever diverges
+       teaches eleven sentences and no exceptions, which is the boring failure. */
+    const n = Object.keys(window.MONSTERS).filter((id) => (window.MONSTERS[id].overrideAxes || []).length).length;
+    assert(n >= 10, 'only ' + n + ' monsters teach an exception to their class rule');
+    assert(typeof T.profileOf === 'function', 'the profile resolver must be published');
+  }),
+
+  () => tryRun('MON-TAX-4: every tier band is populated from at least 8 classes', () => {
+    for (let t = 1; t <= 6; t++) {
+      const ids = Object.keys(window.MONSTERS).filter((id) => window.MONSTERS[id].tier === t);
+      assert(ids.length >= 8, 'tier ' + t + ' has only ' + ids.length + ' monsters');
+      const classes = new Set(ids.map((id) => window.MONSTERS[id].cls));
+      assert(classes.size >= 8, 'tier ' + t + ' draws from only ' + classes.size
+        + ' classes — a build can run out of somewhere to go');
+    }
+  }),
+
+  () => tryRun('MON-DROP-1: every drop references an item that exists', () => {
+    const bad = [];
+    Object.keys(window.MONSTERS).forEach((id) => {
+      (window.MONSTERS[id].drops || []).forEach((d) => {
+        if (!window.ITEMS[d.id]) bad.push(id + ' -> ' + d.id);
+        if (!(d.ch > 0 && d.ch <= 1)) bad.push(id + ' -> ' + d.id + ' chance ' + d.ch);
+      });
+    });
+    assert(bad.length === 0, 'broken drops: ' + bad.slice(0, 6).join(', '));
+    /* The currency guard, restated for the new rows: PvE must never mint the
+       IAP-only bond. */
+    const mints = Object.keys(window.MONSTERS).filter((id) =>
+      (window.MONSTERS[id].drops || []).some((d) => d.id === 'hearth_token' || d.id === 'muster_seal'));
+    assert(mints.length === 0, 'monsters minting a protected currency: ' + mints.join(', '));
+  }),
+
+  () => tryRun('MON-NEUT-1: the retired `neutral` drop bonus was re-homed, not deleted', () => {
+    const C = window.HearthriseCore && window.HearthriseCore.combat;
+    assert(C && typeof C.weaknessInfo === 'function', 'core combat must expose weaknessInfo');
+    /* The 7 monsters that used to be `neutral` must still pay x1.15, or this
+       change is a silent 13% drop nerf to the game's capstone. */
+    const GRANDFATHERED = ['slime', 'small_wolf', 'dark_wizard', 'warlock', 'archmage', 'lesser_demon', 'dragon'];
+    GRANDFATHERED.forEach((id) => {
+      const m = window.MONSTERS[id];
+      assert(m, id + ' must still exist');
+      const info = C.weaknessInfo(m, { weaponType: 'sword' });
+      assert(Math.abs(info.dropMult - 1.15) < 1e-9,
+        id + ' lost its drop bonus (got ' + info.dropMult + ') — that is a 13% nerf nobody asked for');
+    });
+    /* And a monster that never had it must not gain it. */
+    const plain = C.weaknessInfo(window.MONSTERS.goblin, { weaponType: 'magic' });
+    assert(plain.dropMult === 1, 'goblin must not have acquired a drop bonus');
+    /* Matching the weakness still pays damage + accuracy. */
+    const matched = C.weaknessInfo(window.MONSTERS.goblin, { weaponType: 'sword' });
+    assert(matched.matched === true && matched.damageMult > 1,
+      'matching a weapon weakness must still pay');
+  }),
+
+  () => tryRun('MON-ART-1: every wired portrait points at a real monster in a shipped folder', () => {
+    const mi = window._monsterIcon || {};
+    const ids = Object.keys(mi);
+    assert(ids.length >= 30, 'expected at least the 30 legacy portraits wired, got ' + ids.length);
+    const bad = [];
+    ids.forEach((id) => {
+      if (!window.MONSTERS[id]) bad.push(id + ' is not a monster');
+      if (mi[id].indexOf('assets/icons-bundle/') !== 0) bad.push(id + ' -> unshipped ' + mi[id]);
+      /* The filename must BE the id. This is the boar-named-bear guard. */
+      const file = mi[id].split('/').pop();
+      if (file !== id + '.png') bad.push(id + ' is wired to ' + file + ', not ' + id + '.png');
+    });
+    assert(bad.length === 0, bad.slice(0, 5).join('; '));
+  }),
+
+  () => tryRun('MON-ART-2: a monster awaiting art has NO icon entry (glyph fallback, not a 404)', () => {
+    const A = window.HearthriseMonsterArt;
+    assert(A && A.expected, 'the art manifest must be published');
+    assert(Object.keys(A.expected).length === Object.keys(window.MONSTERS).length,
+      'the manifest must name every monster, so the art batch has one worklist');
+    const mi = window._monsterIcon || {};
+    const pending = A.pending();
+    assert(pending.length > 0, 'this test is inert once every portrait ships — replace it then');
+    pending.forEach((p) => {
+      assert(!mi[p.id], p.id + ' has no portrait yet but is wired to ' + mi[p.id] + ' — that is a 404');
+    });
+    /* The three PILOT PREVIEW parks are unparked: each of those portraits is
+       bound to the monster it actually depicts, not to a borrowed id. */
+    [['hellhound', 'lesser_demon'], ['grim_reaper', 'wraith'], ['elk_king', 'bear']].forEach(([real, parked]) => {
+      assert(window.MONSTERS[real], real + ' must exist for the pilot art to be unparked onto');
+      assert(A.expected[real].indexOf('/' + real + '.png') > 0,
+        real + ' must expect its own file, not stay parked on ' + parked);
+      assert(A.expected[parked].indexOf('/' + parked + '.png') > 0,
+        parked + ' must have its own portrait back');
+    });
+  }),
+
+  () => tryRun('MON-ONECOPY-1: legacy.js declares no second roster', () => {
+    assert(window.__LEGACY_INLINE_MONSTER_COUNT === 0,
+      'legacy.js re-declared ' + window.__LEGACY_INLINE_MONSTER_COUNT + ' monsters. '
+      + 'A second copy silently drifts — b342 measured 14 of 31 entries diverging, '
+      + 'two of which deleted a live drop at runtime.');
+    assert(Object.keys(window.MONSTERS).length >= 100,
+      'the merged roster must still be the full one, got ' + Object.keys(window.MONSTERS).length);
+  }),
+
+  () => tryRun('MON-CONSUMER-1: the boss-of-the-day pools resolve, and were APPENDED not reordered', () => {
+    const B = window.HearthriseCore && window.HearthriseCore.botd;
+    if (!B || !B.DAILY_POOL) return;   // core not bridged in this harness
+    /* Order is load-bearing: the historical prefix must be byte-identical or
+       every player's Boss-of-the-Day history re-rolls. */
+    const HISTORIC_DAILY = ['dark_wizard', 'venom_spider', 'goblin_brute', 'zombie', 'warlock',
+      'plague_swarm', 'goblin_warlord', 'bear', 'wraith', 'lesser_demon', 'mountain_troll',
+      'shadow_creeper', 'warband_captain', 'panther', 'death_knight', 'archmage',
+      'void_parasite', 'war_king', 'ancient_bear', 'lich', 'dragon'];
+    HISTORIC_DAILY.forEach((id, i) => {
+      assert(B.DAILY_POOL[i] === id,
+        'DAILY_POOL index ' + i + ' changed (' + B.DAILY_POOL[i] + ' != ' + id
+        + ') — that re-rolls every player\'s boss history');
+    });
+    const dead = B.DAILY_POOL.concat(B.WEEKLY_POOL).filter((id) => !window.MONSTERS[id]);
+    assert(dead.length === 0, 'pool ids with no monster: ' + dead.join(', '));
+    /* The 5 historical non-bosses cannot be REMOVED (append-only), so the
+       assertion is that they are the only ones and that real bosses now
+       outnumber them — before this wave the game had 2 bosses in MONSTERS and
+       the weekly slot was mostly not a boss fight at all. */
+    const nonBoss = B.WEEKLY_POOL.filter((id) => window.MONSTERS[id] && !window.MONSTERS[id].boss);
+    const HISTORIC_NONBOSS = ['death_knight', 'archmage', 'war_king', 'ancient_bear', 'void_parasite'];
+    nonBoss.forEach((id) => assert(HISTORIC_NONBOSS.indexOf(id) >= 0,
+      'a NEW non-boss was added to the weekly slot: ' + id));
+    const bosses = B.WEEKLY_POOL.filter((id) => window.MONSTERS[id] && window.MONSTERS[id].boss);
+    assert(bosses.length > nonBoss.length,
+      'the weekly slot must now be mostly real bosses: ' + bosses.length + ' vs ' + nonBoss.length);
+  }),
+
+  () => tryRun('MON-CONSUMER-2: dungeon keys, bounties and muster all still resolve on the new roster', () => {
+    /* KEY_DROPS binds 16 monster ids to dungeon keys, and `dragonsbane_key`
+       has EXACTLY ONE source. If any of those ids stopped existing, a dungeon
+       becomes permanently unreachable. No id was renamed in this wave — this
+       asserts that stays true. */
+    ['weak_skeleton', 'skeleton', 'zombie', 'goblin', 'hobgoblin', 'goblin_brute', 'goblin_warlord',
+      'dark_wizard', 'warlock', 'archmage', 'death_knight', 'warband_captain',
+      'plague_swarm', 'void_parasite', 'dragon'].forEach((id) => {
+      assert(window.MONSTERS[id], 'KEY_DROPS source "' + id + '" vanished — a dungeon is now unreachable');
+    });
+    /* Muster contribution is 10 x tier, so a re-tier changes clan rates. */
+    Object.keys(window.MONSTERS).forEach((id) => {
+      const t = window.MONSTERS[id].tier;
+      assert(t >= 1 && t <= 6, id + ' has tier ' + t + ' — muster pays 10 x tier and would mis-price it');
+    });
+    /* Bounty generation must produce a real, completable weapon requirement
+       for every monster it can pick — `neutral` no longer exists to fall back on. */
+    const B = window.HearthriseCore && window.HearthriseCore.bounty;
+    if (B && B.makeBounty) {
+      const rng = { int: (a) => a, chance: () => false };
+      const b = B.makeBounty('weapon', 'goblin', 'normal', { monsters: window.MONSTERS, items: window.ITEMS, rng, now: 0 });
+      assert(b.requiredWeaponType === 'sword',
+        'a weapon bounty must name a real weapon type, got ' + b.requiredWeaponType);
+    }
   }),
 
 ];

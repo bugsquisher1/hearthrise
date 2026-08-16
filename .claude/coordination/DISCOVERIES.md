@@ -723,3 +723,50 @@ every id therefore retires the mapper entirely — and with it the game's curren
 different plate gauntlets spanning tiers 1–8, including the raid-boss unique `choirbone_gauntlets`, all
 rendering the identical `leather_gloves.png`. **Delete the mapper in the same pass** rather than leaving
 it as a silent trap for the next item added.
+
+
+## 2026-08-16 - Systems Engineer - findings from the monster roster wave
+
+### 1. `data-integrity.js` has been BLIND since b137, and completely so since b214
+`legacy.js` publishes `window.__LEGACY_INLINE_ITEMS = ITEMS` and
+`window.__LEGACY_INLINE_MONSTERS = MONSTERS`. Those are **references, not copies**, and `main.js`
+`unifyObject` merges the ESM data INTO those same objects. So by the time the check runs (1500 ms
+later) it compares the merged object against the ESM module - i.e. against itself - and prints
+"in sync" unconditionally. That is precisely the b137 bug the snapshot was added to prevent,
+reintroduced by aliasing, and it is why b342 could find 14 of 31 monster entries diverging (two of
+them silently deleting a live `troll_hide` drop) with a permanently green guard.
+**MONSTERS half: fixed at the source** - legacy.js declares no roster at all now
+(`const MONSTERS={}`), and an eagerly-evaluated COUNT (a number, immune to the merge) is what the
+guard asserts stays 0. Guarded by `MON-ONECOPY-1`.
+**ITEMS half: STILL BLIND.** `__LEGACY_INLINE_ITEMS` is still a reference to the object main.js
+merges into. Reconciling the inline ITEMS literal is its own change and I did not take it in this
+one. **Next Systems agent: this is the highest-value item on the debt list.**
+
+### 2. `remapItemIds` never walked `G.dropLog[monster].drops[item]` - fixed
+Pre-existing since b244 and flagged by b342. An item rename has always orphaned the per-monster drop
+history. Counts now merge rather than overwrite (a save can hold both ids either side of a deploy).
+Guarded by `MON-ALIAS-5`.
+
+### 3. A bounty id cannot be parsed positionally - monster ids contain underscores
+`makeBounty` builds `type_<monsterId>_<now>_<rand>`, and `weak_skeleton` / `dark_wizard` /
+`goblin_warlord` all contain `_`. The obvious `split('_')[1]` reads "weak", so the rewrite silently
+does nothing and an accepted bounty can never complete. Parse from BOTH ENDS instead. **My own test
+caught this before commit** - `MON-ALIAS-2` went red on exactly this, which is the mutation proof
+that the alias regression suite is not vacuous.
+
+### 4. The b332 pooled-selector fairness floor was fitted to the pools that existed
+The constant 0.5 is a large-sample claim. The weekly draw is sampled per DAY but keyed per WEEK, so
+1461 days is only ~209 distinct draws. At the historical 7-member pool that gives expected 29.9 per
+member, sd 5.1, so a 3-sigma-low bin already landed at ratio 0.49 - the floor was only *just*
+satisfiable, and ANY growth of the weekly pool would fail it on legitimate content rather than on
+skew. The weekly row now carries an explicit `minRatio: 0.25` with the arithmetic written out (the
+same pattern the daily-tasks row already used). It is still far above the 0.08 the b332 float-hash
+bug produced, and `dead.length === 0` - the actual unreachable-content assertion - is untouched.
+
+### 5. The `neutral` retirement was a hidden 13% drop nerf
+Deleting `neutral` deletes `weaknessInfo`'s only path to `NEUTRAL_DROP_BONUS`, which 7 monsters -
+including the Green Dragon, the game's capstone - were being paid for opting out of the triangle.
+**Ruling (DEC-NEUT-01 open item, closed):** re-homed as an explicit per-monster `dropBonus: 1.15` on
+exactly those 7 rows. Nobody is worse off, the engine loses a magic constant, and drop-rate identity
+becomes a data lever any monster can carry rather than a side effect of having no weakness. Guarded
+by `MON-NEUT-1`, which asserts all 7 still measure exactly 1.15 and that `goblin` did not acquire one.

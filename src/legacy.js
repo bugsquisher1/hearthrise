@@ -89,50 +89,26 @@ window.dropBand = dropBand;
 window.__DROP_SINK_EXEMPT = ['sticky_core', 'rat_tail', 'goblin_ear', 'goblin_totem'];
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
-const MONSTERS={
-  /* Tier 1 — local threats */
-  slime:{name:'Slime',icon:'🟢',tier:1,family:'Vermin',weaponWeak:'sword',hp:8,atk:2,def:0,xp:5,gp:[1,3],drops:[{id:'slime_gel',ch:.8},{id:'bones',ch:.25},{id:'sticky_core',ch:.02}]},
-  rat:{name:'Field Rat',icon:'🐀',tier:1,family:'Vermin',weaponWeak:'hammer',hp:9,atk:2,def:0,xp:6,gp:[1,4],drops:[{id:'rat_tail',ch:.65},{id:'small_fang',ch:.12},{id:'bones',ch:.35}]},
-  goblin:{name:'Goblin',icon:'👺',tier:1,family:'Goblinoid',weaponWeak:'ranged',hp:15,atk:4,def:1,xp:13,gp:[2,8],drops:[{id:'goblin_ear',ch:.5},{id:'bones',ch:1},{id:'bronze_sword',ch:.03},{id:'goblin_totem',ch:.01}]},
-  weak_skeleton:{name:'Weak Skeleton',icon:'💀',tier:1,family:'Undead',weaponWeak:'magic',hp:14,atk:3,def:2,xp:12,gp:[2,7],drops:[{id:'bones',ch:1},{id:'bone_chips',ch:.45},{id:'ancient_fragment',ch:.015}]},
-  small_wolf:{name:'Small Wolf',icon:'🐺',tier:1,family:'Beast',weaponWeak:'neutral',hp:16,atk:5,def:1,xp:14,gp:[3,9],drops:[{id:'wolf_pelt',ch:.32},{id:'small_fang',ch:.18},{id:'bones',ch:1}]},
+/* ══════════════════════════════════════════════════════════════════════
+   b356 — THE SECOND MONSTERS COPY IS GONE.
 
-  /* Tier 2 — wilderness threats */
-  giant_bat:{name:'Giant Bat',icon:'🦇',tier:2,family:'Vermin',weaponWeak:'ranged',hp:24,atk:7,def:1,xp:24,gp:[4,12],drops:[{id:'bat_wing',ch:.7},{id:'night_fang',ch:.025},{id:'bones',ch:.5}]},
-  hobgoblin:{name:'Hobgoblin',icon:'👹',tier:2,family:'Goblinoid',weaponWeak:'sword',hp:34,atk:9,def:4,xp:38,gp:[8,22],drops:[{id:'goblin_ear',ch:.65},{id:'iron_ore',ch:.12},{id:'iron_sword',ch:.012},{id:'goblin_totem',ch:.02}]},
-  wolf:{name:'Wolf',icon:'🐺',tier:2,family:'Beast',weaponWeak:'hammer',hp:30,atk:8,def:3,xp:30,gp:[5,15],drops:[{id:'wolf_pelt',ch:.7},{id:'small_fang',ch:.35},{id:'bones',ch:1}]},
-  skeleton:{name:'Skeleton',icon:'💀',tier:2,family:'Undead',weaponWeak:'magic',hp:35,atk:10,def:2,xp:45,gp:[8,20],drops:[{id:'bones',ch:1},{id:'bone_chips',ch:.6},{id:'iron_ore',ch:.15},{id:'ancient_fragment',ch:.025}]},
-  dark_wizard:{name:'Dark Wizard',icon:'🧙',tier:2,family:'Arcane',weaponWeak:'neutral',hp:28,atk:12,def:1,xp:55,gp:[10,25],drops:[{id:'magic_essence',ch:.4},{id:'rune_frag',ch:.2},{id:'dark_sigil',ch:.015}]},
+   This was a 31-entry literal, a full second copy of `src/data/monsters.js`.
+   main.js `unifyObject` merges the ESM module into THIS object (same
+   identity), ESM winning per key — so the copy was never read, it only
+   drifted. The b342 audit measured the drift: 14 of 31 entries diverged, and
+   two of them (`goblin_brute` and `bear` carrying `troll_hide`) were being
+   silently DELETED at runtime because a whole-entry Object.assign replaces
+   `drops` wholesale. `utils/data-integrity.js` compares key SETS, so it
+   could never see a field diverging inside an entry, which is why that sat
+   live and unnoticed.
 
-  /* Tier 3 — dangerous creatures */
-  venom_spider:{name:'Venom Spider',icon:'🕷️',tier:3,family:'Vermin',weaponWeak:'hammer',hp:52,atk:15,def:6,xp:82,gp:[14,34],drops:[{id:'venom_sac',ch:.55},{id:'silk_thread',ch:.3},{id:'spider_eye',ch:.035}]},
-  goblin_brute:{name:'Goblin Brute',icon:'👺',tier:3,family:'Goblinoid',weaponWeak:'sword',hp:68,atk:17,def:9,xp:105,gp:[18,42],drops:[{id:'goblin_ear',ch:.8},{id:'brute_plate',ch:.22},{id:'steel_sword',ch:.01},{id:'goblin_totem',ch:.04},{id:'troll_hide',ch:.08}]},
-  dire_wolf:{name:'Dire Wolf',icon:'🐺',tier:3,family:'Beast',weaponWeak:'ranged',hp:62,atk:19,def:7,xp:100,gp:[16,40],drops:[{id:'wolf_pelt',ch:.9},{id:'dire_fang',ch:.35},{id:'alpha_fang',ch:.015}]},
-  zombie:{name:'Zombie',icon:'🧟',tier:3,family:'Undead',weaponWeak:'magic',hp:78,atk:14,def:12,xp:115,gp:[18,45],drops:[{id:'grave_dust',ch:.65},{id:'big_bones',ch:.5},{id:'ancient_fragment',ch:.04}]},
-  warlock:{name:'Warlock',icon:'🧙',tier:3,family:'Arcane',weaponWeak:'neutral',hp:58,atk:24,def:5,xp:135,gp:[24,60],drops:[{id:'magic_essence',ch:.55},{id:'rune_frag',ch:.35},{id:'cracked_spellstone',ch:.025}]},
-
-  /* Tier 4 — elite monsters */
-  plague_swarm:{name:'Plague Swarm',icon:'🪰',tier:4,family:'Vermin',weaponWeak:'hammer',hp:100,atk:26,def:13,xp:210,gp:[38,82],drops:[{id:'plague_ichor',ch:.6},{id:'venom_sac',ch:.25},{id:'swarm_heart',ch:.018}]},
-  goblin_warlord:{name:'Goblin Warlord',icon:'👺',tier:4,family:'Goblinoid',weaponWeak:'sword',hp:125,atk:30,def:18,xp:250,gp:[45,100],drops:[{id:'brute_plate',ch:.5},{id:'warlord_badge',ch:.16},{id:'steel_helm',ch:.015}]},
-  bear:{name:'Bear',icon:'🐻',tier:4,family:'Beast',weaponWeak:'ranged',hp:140,atk:34,def:16,xp:275,gp:[42,95],drops:[{id:'bear_pelt',ch:.75},{id:'bear_claw',ch:.35},{id:'big_bones',ch:1},{id:'troll_hide',ch:.18}]},
-  wraith:{name:'Wraith',icon:'👻',tier:4,family:'Undead',weaponWeak:'magic',hp:112,atk:38,def:20,xp:310,gp:[55,115],drops:[{id:'grave_dust',ch:.7},{id:'wraith_veil',ch:.2},{id:'ancient_rune',ch:.04},{id:'vamp_dust',ch:.12}]},
-  lesser_demon:{name:'Lesser Demon',icon:'😈',tier:4,family:'Mythic',weaponWeak:'neutral',hp:150,atk:40,def:18,xp:340,gp:[60,140],drops:[{id:'demon_shard',ch:.4},{id:'rune_frag',ch:.3},{id:'hell_ember',ch:.025}]},
-  mountain_troll:{name:'Mountain Troll',icon:'🧌',tier:4,family:'Beast',weaponWeak:'ranged',hp:165,atk:36,def:22,xp:305,gp:[50,108],drops:[{id:'troll_hide',ch:.7},{id:'big_bones',ch:1},{id:'bear_pelt',ch:.18},{id:'iron_warhammer',ch:.012}]},
-
-  /* Tier 5 — mythic threats */
-  shadow_creeper:{name:'Shadow Creeper',icon:'🕸️',tier:5,family:'Vermin',weaponWeak:'magic',hp:190,atk:48,def:26,xp:475,gp:[90,190],drops:[{id:'shadow_thread',ch:.45},{id:'silk_thread',ch:.6},{id:'void_chitin',ch:.018}]},
-  warband_captain:{name:'Warband Captain',icon:'🛡️',tier:5,family:'Goblinoid',weaponWeak:'sword',hp:230,atk:54,def:34,xp:540,gp:[110,225],drops:[{id:'warlord_badge',ch:.4},{id:'captain_medal',ch:.12},{id:'rune_sword',ch:.006}]},
-  panther:{name:'Night Panther',icon:'🐈‍⬛',tier:5,family:'Beast',weaponWeak:'ranged',hp:205,atk:60,def:25,xp:520,gp:[100,210],drops:[{id:'shadow_pelt',ch:.65},{id:'razor_claw',ch:.3},{id:'ruby',ch:.03}]},
-  death_knight:{name:'Death Knight',icon:'☠️',tier:5,family:'Undead',weaponWeak:'hammer',hp:260,atk:58,def:40,xp:620,gp:[125,260],drops:[{id:'big_bones',ch:1},{id:'death_steel',ch:.25},{id:'captains_ribblade',ch:.012}]},
-  archmage:{name:'Archmage',icon:'🧙‍♂️',tier:5,family:'Arcane',weaponWeak:'neutral',hp:215,atk:72,def:22,xp:680,gp:[145,310],drops:[{id:'magic_essence',ch:.8},{id:'ancient_rune',ch:.22},{id:'hollow_sigil',ch:.018}]},
-
-  /* Tier 6 — legendary enemies */
-  void_parasite:{name:'Void Parasite',icon:'🪱',tier:6,family:'Vermin',weaponWeak:'hammer',hp:340,atk:82,def:42,xp:900,gp:[210,420],drops:[{id:'void_chitin',ch:.55},{id:'plague_ichor',ch:.35},{id:'void_core',ch:.015}]},
-  war_king:{name:'War King',icon:'👑',tier:6,family:'Goblinoid',weaponWeak:'sword',hp:420,atk:88,def:58,xp:1050,gp:[260,520],drops:[{id:'captain_medal',ch:.35},{id:'war_crown',ch:.08},{id:'chief_blade',ch:.012}]},
-  ancient_bear:{name:'Ancient Bear',icon:'🐻',tier:6,family:'Beast',weaponWeak:'ranged',hp:460,atk:94,def:54,xp:1100,gp:[250,500],drops:[{id:'bear_pelt',ch:1},{id:'ancient_claw',ch:.25},{id:'alpha_cloak',ch:.01}]},
-  lich:{name:'Ancient Lich',icon:'☠️',tier:6,family:'Undead',weaponWeak:'magic',hp:350,atk:55,def:30,xp:800,gp:[200,500],drops:[{id:'lich_soul',ch:.8},{id:'ancient_rune',ch:.3},{id:'hollow_sigil',ch:.025},{id:'vamp_dust',ch:.30}],boss:true},
-  dragon:{name:'Green Dragon',icon:'🐲',tier:6,family:'Mythic',weaponWeak:'neutral',hp:520,atk:105,def:62,xp:1250,gp:[320,700],drops:[{id:'dragon_bones',ch:1},{id:'dragon_scale',ch:.5},{id:'dragon_gem',ch:.02},{id:'ancient_claw',ch:.08}],boss:true},
-};
+   The binding must still EXIST — legacy.js is a classic script and reads
+   bare `MONSTERS[...]` in ~40 places, which would be a ReferenceError
+   without it — but it starts empty and main.js fills it. There is now
+   exactly one authored roster. Guarded by MON-ONECOPY-1: this object must
+   be empty at publish time, forever.
+   ══════════════════════════════════════════════════════════════════════ */
+const MONSTERS={};
 
 const ITEMS={
   bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
@@ -284,6 +260,19 @@ if (typeof window !== 'undefined') {
      against src/data/monsters.js (mountain_troll was legacy-only and no
      warning fired, because the check only ever looked at ITEMS). */
   try { window.__LEGACY_INLINE_MONSTERS = MONSTERS; } catch (e) {}
+  /* b356: the two lines above publish a REFERENCE, not a copy. main.js merges
+     the ESM data INTO these same objects, so by the time data-integrity.js
+     runs (1500 ms later) it compares the merged object against ESM — i.e.
+     against itself — and can never report a divergence. That is the exact
+     b137 bug the snapshot was introduced to prevent, reintroduced by aliasing.
+     It is why the b214 `troll_hide` divergence sat live and silent.
+
+     The MONSTERS half is now fixed at the source instead: legacy carries no
+     roster at all, and this eagerly-evaluated COUNT (a number, so it cannot
+     be mutated by the merge) is what data-integrity.js asserts stays 0. The
+     ITEMS half still has the aliasing defect — flagged, not fixed here,
+     because reconciling the inline ITEMS literal is its own change. */
+  try { window.__LEGACY_INLINE_MONSTER_COUNT = Object.keys(MONSTERS).length; } catch (e) {}
 }
 
 const TREES=[
@@ -880,8 +869,172 @@ function remapItemIds(G){
   if(G.autoActions && G.autoActions.eat && G.autoActions.eat.foodId){
     const nid=_aliasId(G.autoActions.eat.foodId); G.autoActions.eat.foodId=ok(nid)?nid:null;
   }
+  /* b356: PRE-EXISTING GAP, found by the b342 monster audit — `G.dropLog` is
+     keyed by monster id but its `.drops` sub-object is keyed by ITEM id, and
+     this function never walked it. So an item rename has ALWAYS orphaned the
+     per-monster drop history, silently, since b244. Counts merge rather than
+     overwrite for the same reason the monster layer merges: a save can hold
+     both ids either side of a deploy. */
+  if(G.dropLog && typeof G.dropLog==='object'){
+    for(const mid in G.dropLog){
+      const rec=G.dropLog[mid]; if(!rec || typeof rec.drops!=='object' || !rec.drops) continue;
+      const next={};
+      for(const iid in rec.drops){ const nid=_aliasId(iid); if(ok(nid)) next[nid]=(next[nid]||0)+(rec.drops[iid]||0); }
+      rec.drops=next;
+    }
+  }
 }
 window.remapItemIds = remapItemIds;
+
+/* ══════════════════════════════════════════════════════════════════════
+   b356 — THE MONSTER-ID ALIAS LAYER (DEC-ALIAS-01, approved 2026-08-16).
+
+   ITEM_ALIAS above has existed since b244. There was NO equivalent for
+   monsters, and the b342 audit measured what that costs: renaming ONE
+   monster id in the live game took a character from 412 Renown to 212.
+   412 -> 212 -> 412 when restored. `computeRenown` is fully derived, so the
+   loss is immediate and total; `renownHigh` protects the RANK but not the
+   progress toward the next one, and the leaderboard value drops with it.
+
+   A monster id is a SAVE KEY in nine places (agility-and-monster-foundation
+   §2.4). Two of them hide the id INSIDE a string:
+     • G.bountyHunter.*.id   is `type_monsterId_now_rand`
+     • G.chronicle.entries[].id is `'boss:' + monsterId`
+   Miss those two and an accepted bounty can never complete, and a re-kill
+   under a new id writes a SECOND "First kill" row because the idempotency
+   key it de-dupes on was orphaned.
+
+   THIS MAP IS DELIBERATELY EMPTY TODAY. The 2026-08-16 roster wave renamed
+   no live id precisely BECAUSE this layer did not exist yet; it ships first,
+   as its own change, so that the next rename is a one-line map edit instead
+   of surgery. Guarded by the MON-ALIAS-* regression tests, which populate it.
+   ══════════════════════════════════════════════════════════════════════ */
+window.MONSTER_ALIAS = window.MONSTER_ALIAS || {
+  /* oldId: 'newId'  (or oldId: null to retire). Aliases ACCUMULATE — a
+     veteran's save may carry any historical id, so entries are never removed. */
+};
+
+/* `family` is not an id, so the 2026-08-16 folds (Beast->Mammal,
+   Arcane->Human, Goblinoid->Humanoid, Mythic->Demon, and the two Vermin that
+   left for Extra Dimensional) were free — EXCEPT that `family` is also the
+   key of `G.stats.killsByFamily`, a displayed lifetime counter. Without this
+   fold a veteran sees a dead "Beast" row beside a new "Mammal" row forever.
+
+   Mythic held exactly two monsters, lesser_demon (now Demon) and dragon (now
+   Dragon), and an aggregate cannot be split. RULING: fold Mythic into Demon.
+   Total kills stay exact; a small historical misattribution lands in one
+   display-only stat, which is strictly better than stranding the count. */
+window.FAMILY_ALIAS = window.FAMILY_ALIAS || {
+  Beast: 'Mammal', Arcane: 'Human', Goblinoid: 'Humanoid', Mythic: 'Demon',
+};
+
+/* b356: the drop-rate note that used to read "neutral · +15% drops". The
+   bonus is now the per-monster `dropBonus` field (DEC-NEUT-01 re-home), so
+   the label follows the data instead of inferring it from a missing weakness. */
+function _hrDropBonusNote(m){
+  const b=m&&Number(m.dropBonus);
+  return (Number.isFinite(b)&&b>1) ? ' · +'+Math.round((b-1)*100)+'% drops' : '';
+}
+window._hrDropBonusNote=_hrDropBonusNote;
+
+function _monAliasId(id){ const a=window.MONSTER_ALIAS; return (a && (id in a)) ? a[id] : id; }
+
+/* A bounty's own id is `type_<monsterId>_<now>_<rand>` (src/core/bounty.js
+   makeBounty). MONSTER IDS CONTAIN UNDERSCORES — `weak_skeleton`,
+   `dark_wizard`, `goblin_warlord` — so `split('_')[1]` reads "weak", not the
+   id, and the rewrite silently does nothing. That is exactly the failure
+   MON-ALIAS-2 caught, and it is why the id is parsed from BOTH ENDS instead:
+   the type is a single word from a fixed list, and the last two segments are
+   a timestamp and a seeded int. Everything between them is the monster. */
+function _remapBountyId(str){
+  if(typeof str!=='string' || !str) return str;
+  const parts=str.split('_');
+  if(parts.length<4) return str;                 // not the expected shape — leave it alone
+  const mid=parts.slice(1,-2).join('_');
+  const nid=_monAliasId(mid);
+  if(!nid || nid===mid) return str;
+  return [parts[0], nid, parts[parts.length-2], parts[parts.length-1]].join('_');
+}
+
+/* The chronicle key is `'boss:' + monsterId`. Colons cannot appear in an id,
+   so this one really is a positional split. */
+function _remapChronicleId(str){
+  if(typeof str!=='string' || str.indexOf('boss:')!==0) return str;
+  const mid=str.slice(5);
+  const nid=_monAliasId(mid);
+  return (nid && nid!==mid) ? ('boss:'+nid) : str;
+}
+
+function remapMonsterIds(G){
+  const A=window.MONSTER_ALIAS; if(!A || !Object.keys(A).length || !G) return;
+  const live=(id)=>id && window.MONSTERS && window.MONSTERS[id];
+
+  /* bestiary + dropLog — keyed BY monster id. Counts MERGE rather than
+     overwrite: a save may legitimately hold both the old and the new id if a
+     player fought the monster either side of a deploy. */
+  /* Written as two explicit assignments rather than a `G[key]=` loop: the
+     b348 gold-site census scans for dynamic writes onto G and cannot tell a
+     bestiary rekey from a balance write. Naming the fields keeps that census
+     honest instead of teaching it an exception. */
+  const foldById=function(src){
+    if(!src || typeof src!=='object') return src;
+    const next={};
+    for(const id in src){
+      const nid=_monAliasId(id); if(!live(nid)) continue;
+      if(!next[nid]){ next[nid]=src[id]; continue; }
+      const a=next[nid], b=src[id];
+      if(a && b && typeof a==='object' && typeof b==='object'){
+        a.kills=(a.kills||0)+(b.kills||0);
+        if(b.drops){ a.drops=a.drops||{}; for(const it in b.drops) a.drops[it]=(a.drops[it]||0)+b.drops[it]; }
+        if(b.first && (!a.first || b.first<a.first)) a.first=b.first;
+      }
+    }
+    return next;
+  };
+  G.bestiary = foldById(G.bestiary);
+  G.dropLog  = foldById(G.dropLog);
+
+  /* bountyHunter — .target, .proofItem's owner, and the id STRING. */
+  const bh=G.bountyHunter;
+  if(bh && typeof bh==='object'){
+    const fix=(b)=>{
+      if(!b || typeof b!=='object') return b;
+      if(b.target){ const n=_monAliasId(b.target); b.target = n || b.target; }
+      if(b.id) b.id=_remapBountyId(b.id);
+      return b;
+    };
+    if(Array.isArray(bh.board)){ bh.board.forEach(fix); bh.board=bh.board.filter(b=>b&&live(b.target)); }
+    if(bh.active){ fix(bh.active); if(!live(bh.active.target)) bh.active=null; }
+  }
+
+  /* chronicle — the id is `'boss:' + monsterId` and it is the idempotency
+     key. The DISPLAY text stores the name at write time, so it survives. */
+  if(G.chronicle && Array.isArray(G.chronicle.entries)){
+    G.chronicle.entries.forEach(function(e){
+      if(e) e.id=_remapChronicleId(e.id);
+    });
+  }
+
+  /* lastActivity (the launchpad's Resume) + the in-flight fight. */
+  const la=G.lastActivity;
+  if(la && la.id && (la.kind==='monster' || la.kind==='combat')){
+    const n=_monAliasId(la.id);
+    if(n!==la.id) la.id = n || la.id;
+    if(!live(la.id)) G.lastActivity=null;   // Resume must never point at nothing
+  }
+  if(G.activeMonster){ const n=_monAliasId(G.activeMonster); G.activeMonster = live(n) ? n : null; }
+}
+window.remapMonsterIds = remapMonsterIds;
+
+/* Fold historical family labels. Unlike the id map this is NOT empty — the
+   2026-08-16 taxonomy renamed every family — so it runs on every load. */
+function remapMonsterFamilies(G){
+  const F=window.FAMILY_ALIAS; if(!F || !G || !G.stats || !G.stats.killsByFamily) return;
+  const src=G.stats.killsByFamily, next={};
+  for(const fam in src){ const nf=(fam in F)?F[fam]:fam; if(!nf) continue; next[nf]=(next[nf]||0)+(src[fam]||0); }
+  G.stats.killsByFamily=next;
+}
+window.remapMonsterFamilies = remapMonsterFamilies;
 
 /* ════════════════════════════════════════════════════════════════
    b340 — THE RECORD STRIP. See src/net/record.js.
@@ -971,6 +1124,8 @@ function loadLocal(){
      B340-3 now distinguishes the two (see __hrRecordStrip). */
   try{ if(serverAccrualActive()&&window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
   remapItemIds(G);   // b244: fold any renamed/retired item ids across every store
+  remapMonsterIds(G);       // b356: same, for monster ids (DEC-ALIAS-01)
+  remapMonsterFamilies(G);  // b356: fold the 2026-08-16 family renames in killsByFamily
   /* b246: grandfather gear already worn when wield-reqs went live — never strip
      anyone of what they're wearing, and let them re-wear it freely. */
   G.wieldGrandfather = G.wieldGrandfather || {};
@@ -3092,7 +3247,9 @@ function bountyLabel(b){
   const m=MONSTERS[b.target];
   if(!m)return 'Unknown Bounty';
   if(b.type==='proof')return `Collect ${b.required} ${ITEMS[b.proofItem]?.n||b.proofItem}`;
-  if(b.type==='weapon')return m.weaponWeak==='neutral'?`Defeat ${b.required} ${m.name}s with any weapon`:`Defeat ${b.required} ${m.name}s using ${WEAPON_TYPES[b.requiredWeaponType]}`;
+  /* b356: the `neutral` branch is gone — DEC-NEUT-01 retired it, so every
+     weapon bounty now names a real weapon type. */
+  if(b.type==='weapon')return `Defeat ${b.required} ${m.name}s using ${WEAPON_TYPES[b.requiredWeaponType]||'any weapon'}`;
   if(b.type==='streak')return `Defeat ${b.required} ${m.name}s without dying`;
   return `Defeat ${b.required} ${m.name}s`;
 }
@@ -3149,7 +3306,11 @@ function handleBountyKill(monsterId,m){
   }
   if(b.type==='weapon'){
     const eq=getEquipmentStats();
-    if(b.requiredWeaponType==='neutral'||eq.weaponType===b.requiredWeaponType)b.progress=(b.progress||0)+1;
+    /* b356: `neutral` is retired, but an IN-FLIGHT bounty accepted before this
+       build still carries requiredWeaponType:'neutral' — and a null one can
+       exist if a monster ever loses its weakness. Both mean "any weapon", so
+       an accepted bounty can never become uncompletable. */
+    if(!b.requiredWeaponType||b.requiredWeaponType==='neutral'||eq.weaponType===b.requiredWeaponType)b.progress=(b.progress||0)+1;
   }else if(b.type==='streak'){
     b.progress=(b.progress||0)+1;b.streak=(b.streak||0)+1;
   }else{
@@ -3362,7 +3523,7 @@ function renderBountyPanel(){
         </span>
       </header>
       <p class="bb-task">${bountyLabel(active)}</p>
-      <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${m?.weaponWeak==='neutral'?' · +15% drops':''}</p>
+      <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}</p>
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
       <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
       <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button><button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
@@ -3383,7 +3544,7 @@ function renderBountyPanel(){
           </span>
         </header>
         <p class="bb-task">${bountyLabel(b)}</p>
-        <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${m?.weaponWeak==='neutral'?' · neutral loot bonus':''}</p>
+        <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
         <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button></div>
       </article>`;
@@ -8253,8 +8414,11 @@ function openMonsterDetail(monsterId){
   const tags = [];
   if(m.tier) tags.push(`<span style="background:rgba(229,189,108,.10);color:#f3d181;border:1px solid rgba(229,189,108,.32)">Tier ${m.tier}</span>`);
   if(m.family) tags.push(`<span style="background:rgba(255,255,255,.05);color:var(--ink-2);border:1px solid var(--line-soft)">${m.family}</span>`);
-  if(m.weaponWeak && m.weaponWeak!=='neutral') tags.push(`<span class="weak-tag">${_hrGly(styleIcon[m.weaponWeak], 13)} weak: ${weaponLabel}</span>`);
-  if(m.weaponWeak==='neutral') tags.push(`<span class="weak-tag">${_hrGly('uiShield', 13)} neutral · +15% drops</span>`);
+  if(m.weaponWeak) tags.push(`<span class="weak-tag">${_hrGly(styleIcon[m.weaponWeak], 13)} weak: ${weaponLabel}</span>`);
+  /* b356: the `neutral · +15% drops` tag became a `dropBonus` tag. The bonus
+     is now a data field any monster may carry, not a consequence of having
+     no weakness — see weaknessInfo in src/core/combat.js. */
+  if(m.dropBonus>1) tags.push(`<span class="weak-tag">${_hrGly('uiShield', 13)} +${Math.round((m.dropBonus-1)*100)}% drops</span>`);
   if(m.resist) tags.push(`<span class="resist-tag">resists: ${m.resist}</span>`);
 
   /* Loot table — sort by chance descending; mark rare highlights for ≤5% drops */
@@ -16619,38 +16783,21 @@ window._monsterIcon = window._monsterIcon || {};
   // Reused/placeholder art flagged for later refinement: wolf/dire_wolf share
   // the one creature-pack wolf; bear/ancient_bear share the boar; dragon uses
   // a vampire-lord portrait (no painted dragon pack yet — grab one or AI-gen).
-  var LOCAL_MONSTER_ICON = {
-    slime:           'assets/icons-bundle/painted/monsters/slime.png',
-    rat:             'assets/icons-bundle/painted/monsters/rat.png',
-    goblin:          'assets/icons-bundle/painted/monsters/goblin.png',
-    weak_skeleton:   'assets/icons-bundle/painted/monsters/weak_skeleton.png',
-    small_wolf:      'assets/icons-bundle/painted/monsters/small_wolf.png',
-    giant_bat:       'assets/icons-bundle/painted/monsters/giant_bat.png',
-    hobgoblin:       'assets/icons-bundle/painted/monsters/hobgoblin.png',
-    wolf:            'assets/icons-bundle/painted/monsters/wolf.png',
-    skeleton:        'assets/icons-bundle/painted/monsters/skeleton.png',
-    dark_wizard:     'assets/icons-bundle/painted/monsters/dark_wizard.png',
-    venom_spider:    'assets/icons-bundle/painted/monsters/venom_spider.png',
-    goblin_brute:    'assets/icons-bundle/painted/monsters/goblin_brute.png',
-    dire_wolf:       'assets/icons-bundle/painted/monsters/dire_wolf.png',
-    zombie:          'assets/icons-bundle/painted/monsters/zombie.png',
-    warlock:         'assets/icons-bundle/painted/monsters/warlock.png',
-    plague_swarm:    'assets/icons-bundle/painted/monsters/plague_swarm.png',
-    goblin_warlord:  'assets/icons-bundle/painted/monsters/goblin_warlord.png',
-    bear:            'assets/icons-bundle/painted/monsters/bear.png',
-    wraith:          'assets/icons-bundle/painted/monsters/wraith.png',
-    lesser_demon:    'assets/icons-bundle/painted/monsters/lesser_demon.png',
-    shadow_creeper:  'assets/icons-bundle/painted/monsters/shadow_creeper.png',
-    warband_captain: 'assets/icons-bundle/painted/monsters/warband_captain.png',
-    panther:         'assets/icons-bundle/painted/monsters/panther.png',
-    death_knight:    'assets/icons-bundle/painted/monsters/death_knight.png',
-    archmage:        'assets/icons-bundle/painted/monsters/archmage.png',
-    void_parasite:   'assets/icons-bundle/painted/monsters/void_parasite.png',
-    war_king:        'assets/icons-bundle/painted/monsters/war_king.png',
-    ancient_bear:    'assets/icons-bundle/painted/monsters/ancient_bear.png',
-    lich:            'assets/icons-bundle/painted/monsters/lich.png',
-    dragon:          'assets/icons-bundle/painted/monsters/dragon.png',
-  };
+  /* b356: the 30-entry literal that used to live here MOVED to
+     `src/data/monster-art.js`, which is now the single source of truth for
+     monster portrait paths and is applied by main.js.
+
+     Why it moved rather than growing: the roster went from 31 to 111, and
+     80 of those have no portrait yet. A hand-written map cannot express
+     "expected but not yet delivered" — it can only be wrong in one of two
+     ways, a 404 for art that has not landed or a silent omission for art
+     that has. The manifest expresses both, DERIVES the filename from the id
+     (so the PNG name and the map can no longer disagree), and is reconciled
+     against the actual filesystem by tests/run-smoke.mjs.
+
+     Item/room/skill icon maps below are unchanged — this is scoped to
+     monsters, which is where the scale problem is. */
+  var LOCAL_MONSTER_ICON = {};
   window._monsterIcon = window._monsterIcon || {};
   Object.keys(LOCAL_MONSTER_ICON).forEach(function(k){
     window._monsterIcon[k] = LOCAL_MONSTER_ICON[k];

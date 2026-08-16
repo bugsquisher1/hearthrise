@@ -19,10 +19,15 @@
 
 import { levelOf } from './xp.js?v=356';
 
+/* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
+   as a WEAPON type — an unarmed/typeless loadout still has to render. */
 export const WEAPON_TYPES = {
   sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',
 };
 export const WEAKNESS_BONUS = { damage: 1.20, accuracy: 1.15 };
+/* The drop-rate the 7 formerly-`neutral` monsters were paid for opting out of
+   the triangle. Now a documented default carried per-row as `dropBonus`, not
+   a branch in `weaknessInfo`. See that function's header. */
 export const NEUTRAL_DROP_BONUS = 1.15;
 
 export const COMBAT_BALANCE = {
@@ -151,15 +156,34 @@ export function armorSetBonus(equipment, items) {
   return null;
 }
 
+/**
+ * b356 — `neutral` is RETIRED (DEC-NEUT-01). Every monster in the taxonomy
+ * answers a real weapon, so `weaponWeak === 'neutral'` can no longer be true.
+ *
+ * The 7 monsters that used to opt out of the triangle were paid a x1.15 drop
+ * rate for it. Deleting `neutral` would have silently cut their drops by 13%
+ * — including the Green Dragon, the game's capstone. So the bonus is RE-HOMED
+ * as an explicit per-monster `dropBonus` field on exactly those 7 rows:
+ * nobody is worse off, the engine loses a magic constant, and any monster can
+ * now carry a drop-rate identity as DATA rather than as a side effect of
+ * having no weakness. `NEUTRAL_DROP_BONUS` stays exported as the documented
+ * default those 7 rows carry (core-bridge and the vendored server copy both
+ * read the symbol).
+ *
+ * `weak` may still be a falsy/unknown value if a caller passes a monster from
+ * outside the roster — it then simply never matches, which is the safe
+ * direction (no bonus rather than a free one).
+ */
 export function weaknessInfo(monster, eq) {
-  const weak = (monster && monster.weaponWeak) || 'neutral';
-  const matched = weak !== 'neutral' && eq && eq.weaponType === weak;
+  const weak = (monster && monster.weaponWeak) || null;
+  const matched = !!(weak && eq && eq.weaponType === weak);
+  const bonus = Number(monster && monster.dropBonus);
   return {
     weak,
-    matched: !!matched,
+    matched,
     damageMult: matched ? WEAKNESS_BONUS.damage : 1,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
-    dropMult: weak === 'neutral' ? NEUTRAL_DROP_BONUS : 1,
+    dropMult: Number.isFinite(bonus) && bonus > 0 ? bonus : 1,
   };
 }
 

@@ -93,7 +93,16 @@ export function pickBountyMonster(tier, mode, avoid, monsters, rng) {
   const all = Object.keys(monsters || {}).map((id) => [id, monsters[id]]);
   let pool = all.filter((e) => tiers.indexOf(e[1].tier) >= 0 && !avoidSet.has(e[0]) && !e[1].boss);
   if (m === 'interesting') {
-    pool.sort((a, b) => ((b[1].weaponWeak === 'neutral') - (a[1].weaponWeak === 'neutral'))
+    /* b356: was `weaponWeak === 'neutral'` — the monsters that opted OUT of
+       the triangle. `neutral` is retired (DEC-NEUT-01), so that predicate is
+       now constant-false and the slot would have degraded to "highest tier".
+       The post-taxonomy definition of interesting is the monster that
+       DIVERGES from its class — the one whose fight teaches something the
+       eleven class sentences do not. `overrideAxes` is written by
+       applyClassProfiles, and `.length` on a missing field is guarded so a
+       monster from outside the roster still sorts. */
+    const teaches = (e) => ((e[1].overrideAxes || []).length ? 1 : 0);
+    pool.sort((a, b) => (teaches(b) - teaches(a))
       || ((b[1].tier || 0) - (a[1].tier || 0)));
     pool = pool.slice(0, Math.max(3, pool.length));
   }
@@ -156,7 +165,8 @@ export function makeBounty(type, monsterId, difficulty, ctx) {
     b.required = bountyCount('proof', tier, c.rng);
   } else if (type === 'weapon') {
     b.required = bountyCount('weapon', tier, c.rng);
-    b.requiredWeaponType = (m && m.weaponWeak === 'neutral') ? 'neutral' : (m && m.weaponWeak);
+    /* b356: `neutral` is retired — every monster answers a real weapon. */
+    b.requiredWeaponType = (m && m.weaponWeak) || null;
   } else if (type === 'streak') {
     b.required = bountyCount('streak', tier, c.rng);
     b.streak = 0;
@@ -200,7 +210,7 @@ export function generateBountyBoard(ctx) {
   if (thirdType === 'weapon') {
     /* Never offer "kill 60 of these with a mace" to someone who owns no mace. */
     const weak = (c.monsters || {})[m3] && (c.monsters || {})[m3].weaponWeak;
-    if (weak !== 'neutral' && !owned.has(weak)) thirdType = 'cull';
+    if (!weak || !owned.has(weak)) thirdType = 'cull';
   }
   board.push(makeBounty(thirdType, m3, types.indexOf('streak') >= 0 ? 'hard' : 'normal', c));
 

@@ -1706,16 +1706,34 @@ function applyServerEnvelope(res,opts){
   try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
   if(written.summary){
     const s=G.lastOfflineSummary||{};
-    /* Every number here was STATED by the server. The two sentences differ
-       because the two events differ: one is a night you were away for, the
-       other is a window that was settled the instant you changed your mind. */
-    if(s.source==='switch'){
-      notify('Collected '+fmtSince(s.awayMs||0)+' — +'+s.gainedGold+' gold, +'
-        +s.gainedXp+' XP, +'+s.gainedItems+' items','info');
-    } else {
-      notify('⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'
-        +s.gainedXp+' XP, +'+s.gainedGold+' gold','info');
-    }
+    /* Every number here was STATED by the server. THREE sentences, because
+       there are three genuinely different events sharing one receipt shape,
+       and b361 fixed the case where the third wore the second's words:
+         switch — you changed your mind and the pending window was settled;
+         sync   — a live settle, at the keyboard, of the last minute or two;
+         away   — a real absence.
+       The classifier is `HearthriseAccrual.receiptNotice` and it is the ONE
+       place the rule lives, so this toast and the Home away card cannot tell
+       different stories about one receipt. NOTHING here changes what was
+       credited — `written` is already applied by the time we get here. */
+    /* THE SALES LINE. Derived from rows the player can already read, keyed by
+       the receipt's own window — no new server state and no new save field.
+       Null whenever nothing sold, the ledger has not been read, or the receipt
+       names no usable window; never a "0 sold". */
+    var _sale=null;
+    try{
+      var _MH=window.HearthriseMarketHistory;
+      if(_MH){ _MH.refreshHistoryIfStale(); _sale=_MH.salesLineFor(s); }
+    }catch(e){}
+    var _A=window.HearthriseAccrual;
+    var _txt=(_A&&typeof _A.receiptSentence==='function')
+      ? _A.receiptSentence(s,{saleLine:_sale,spanLabel:fmtSince})
+      /* The fallback is the PRE-b361 sentence exactly. A missing accrual module
+         is a wiring break, not a licence to invent a third sentence here. */
+      : (s.source==='switch'
+          ? 'Collected '+fmtSince(s.awayMs||0)+' — +'+s.gainedGold+' gold, +'+s.gainedXp+' XP, +'+s.gainedItems+' items'
+          : '⏰ Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
+    if(_txt) notify(_txt,'info');
   }
   return written;
 }

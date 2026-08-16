@@ -827,6 +827,157 @@ export function summaryFromAway(away, res) {
   };
 }
 
+/* ── WHAT KIND OF RECEIPT IS THIS? (b361) ──────────────────────────────────
+   THE BUG, AS REPORTED: "⏳ Away 0h — the server credited +13 items, +104 XP,
+   +0 gold", fired while Tyler was sitting at the keyboard watching the fight.
+
+   The MECHANICS were right and are untouched here. Since the live-settlement
+   work (b356–b360) a span settled WHILE ONLINE goes through the same
+   `applyEnvelope` → `summaryFromAway` receipt as a genuine absence, because
+   there is deliberately only ONE payment path and only one receipt shape
+   (docs/design/live-settlement.md §0). What was wrong was the SENTENCE: the
+   only thing distinguishing "you were away all night" from "we just settled
+   the last ninety seconds you spent watching" was `source === 'switch'`, which
+   an accrue-triggered settle does not set. So every live settle claimed an
+   absence, and rounded it to "0h".
+
+   ── THE SIGNAL, AND WHY IT IS THE CREDITED SPAN AND NOT `document.hidden` ──
+   Two candidates were on the table. The credited span wins on three counts:
+
+     1. It is SERVER-STATED. `grantMs` is the window the server actually paid
+        for, arriving on the envelope. `document.hidden` is a client
+        observation, and this file's whole reason for existing is that a client
+        observation is not authority (see the header). A label derived from the
+        server's own number cannot disagree with the number beside it.
+     2. `document.hidden` IS NOT OBSERVABLE ACROSS THE CASE THAT MATTERS MOST.
+        The single most common real absence is closing the tab (or the browser,
+        or the laptop lid) — and a page that is not running never sees a
+        `visibilitychange`. On the next boot there is no "was hidden" flag to
+        read, only a fresh document that has been visible since millisecond
+        zero. A visibility-based rule would therefore label the biggest, most
+        important absence in the game a "sync". That is the same class of
+        defect as the one being fixed, pointed the other way, and it is worse:
+        under-claiming an eight-hour night is a bigger lie than over-claiming
+        ninety seconds. (Rule 5's `offlineBudget.at` watermark already only
+        advances while `document.hidden` is false — so the engine has a
+        visibility reader; the point is that it is a *budget* input, not a
+        *narration* input.)
+     3. It degrades honestly. A short span that WAS a real absence — a
+        four-minute walk to the kettle — gets "Synced — +N items", which is
+        true of a real absence too. The converse mislabel is not: "Away 0h"
+        is false of a live settle, and reads as a bug even to a player who
+        cannot name what is wrong with it.
+
+   THE THRESHOLD is 10 minutes, and it is a MAXIMUM SETTLE CADENCE plus
+   headroom rather than a taste call: §3.1 recommends a 90 s settle cadence,
+   §3.2 argues 90 s over 60 s, and the rate gate allows 30 accrue/min, so no
+   legitimate live settle is anywhere near ten minutes wide. Ten minutes is
+   also comfortably under the 0.1 h (6 min) liveness gate the Home away card
+   has used since b343, so the toast and the card cannot tell different
+   stories about one receipt — they now read the SAME classifier.
+
+   DEATH OVERRIDES THE SPAN, exactly as b343 ruled for the away card: the
+   absence that most needs explaining is the one that ended sixty seconds in,
+   and a receipt whose paid span rounds to nothing is precisely that receipt.
+   A death is never a quiet toast.
+
+   NOTHING HERE CHANGES WHAT IS CREDITED. These are pure functions of a receipt
+   that has already been written; no caller may use them to gate an apply. */
+
+/** The widest credited span that can honestly be called a live settle. */
+export const SYNC_MAX_MS = 10 * 60 * 1000;
+
+/** Did this receipt actually move anything? Pure; totals only, no formatting. */
+export function receiptCredit(summary) {
+  const s = summary || {};
+  const items = Number(s.gainedItems) || 0;
+  const xp = Number(s.gainedXp) || 0;
+  const gold = Number(s.gainedGold) || 0;
+  const kills = Number(s.gainedKills) || 0;
+  const levelUps = Array.isArray(s.levelUps) ? s.levelUps.length : 0;
+  return { items, xp, gold, kills, levelUps, any: (items + xp + gold + kills + levelUps) > 0 };
+}
+
+/** True when the receipt names a death, whoever wrote the flag. */
+export function receiptDied(summary) {
+  const s = summary || {};
+  return !!(s.died || (s.combat && s.combat.died));
+}
+
+/**
+ * 'switch' | 'sync' | 'away' — the three genuinely different events that share
+ * one receipt shape. Callers pick a sentence from this and nothing else.
+ */
+export function classifyReceipt(summary) {
+  const s = summary || {};
+  if (s.source === 'switch') return 'switch';
+  if (receiptDied(s)) return 'away';
+  /* `awayMs` is the credited span and is what every server receipt carries.
+     `hrs` is the SAME span, rounded, and is all a receipt written by an older
+     build (or by a fixture) has — so it is a fallback and never a preferred
+     reading. Falling back matters: a receipt with no span at all would
+     otherwise read as 0 ms and be silently downgraded to a sync, which is the
+     reported bug pointed the other way. */
+  const ms = Number(s.awayMs) || (Math.max(0, Number(s.hrs) || 0) * 3600000);
+  return ms < SYNC_MAX_MS ? 'sync' : 'away';
+}
+
+/**
+ * Should this receipt say anything at all, and if so which sentence?
+ * Returns { kind, credit, announce } — `announce:false` is the zero-value
+ * settle, which is the overwhelmingly common case at a 90 s cadence and must
+ * be silent or the game toasts at the player every minute and a half forever.
+ * A death always announces, even on a zero-value receipt: "you fell" is the
+ * one piece of news that is not measured in items.
+ */
+export function receiptNotice(summary) {
+  const kind = classifyReceipt(summary);
+  const credit = receiptCredit(summary);
+  const announce = credit.any || receiptDied(summary) || kind !== 'sync';
+  return { kind, credit, announce };
+}
+
+/**
+ * THE SENTENCE ITSELF, as a pure function — receipt (+ an optional market
+ * ledger line) in, the exact toast text or null out.
+ *
+ * It lives here rather than inline in `applyServerEnvelope` for one reason: a
+ * sentence that only exists inside a call site that needs a live envelope, a
+ * live session and a live server to reach is a sentence NO TEST CAN READ, and
+ * the reported bug was a sentence. Now the suite asserts the literal string,
+ * and "Away 0h" cannot come back without going red.
+ *
+ * `spanLabel` is injected because legacy.js's `fmtSince` is the game's one
+ * span formatter and this module cannot import a classic script. Callers pass
+ * it; without it the switch line simply says less, which is honest degradation
+ * rather than a second formatter that rounds differently.
+ */
+export function receiptSentence(summary, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const n = receiptNotice(s);
+  if (!n.announce) return null;
+  const tail = o.saleLine ? (' · ' + o.saleLine) : '';
+  const c = n.credit;
+  if (n.kind === 'switch') {
+    const span = (typeof o.spanLabel === 'function') ? o.spanLabel(Number(s.awayMs) || 0) : null;
+    return 'Collected' + (span ? (' ' + span) : '') + ' — +' + c.gold + ' gold, +'
+      + c.xp + ' XP, +' + c.items + ' items' + tail;
+  }
+  if (n.kind === 'sync') {
+    /* QUIET, AND IT NEVER CLAIMS AN ABSENCE. Only the channels that actually
+       moved are named: at a 90 s settle cadence a "+0 gold" on every toast is
+       exactly the noise that made the original sentence read as a bug. */
+    const parts = [];
+    if (c.items > 0) parts.push('+' + c.items + ' items');
+    if (c.xp > 0) parts.push('+' + c.xp + ' XP');
+    if (c.gold > 0) parts.push('+' + c.gold + ' gold');
+    return 'Synced' + (parts.length ? (' — ' + parts.join(', ')) : '') + tail;
+  }
+  return '⏰ Away ' + s.hrs + 'h — the server credited +' + c.items + ' items, +'
+    + c.xp + ' XP, +' + c.gold + ' gold' + tail;
+}
+
 /* ── THE HONESTY SHEET (b331's posture, not a rival modal) ──────────────────
    b331 owns "your session is broken"; b302 owns "you were signed out here".
    This owns a third, genuinely different sentence — "we could not find out what
@@ -1009,6 +1160,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, summaryFromAway,
+    SYNC_MAX_MS, receiptCredit, receiptDied, classifyReceipt, receiptNotice, receiptSentence,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet,
   };

@@ -382,6 +382,68 @@ const SupabaseMarketBackend = {
     return flipped.map(r => ({ id: r.id, itemId: r.item_id, qty: r.qty, goldTotal: +r.gold_total }));
   },
 
+  /* ── b361 · YOUR OWN TRADE LEDGER — READ-OWN, NO NEW SERVER SURFACE ───────
+     Since market-v2 a listing sells server-side and the gold simply arrives.
+     There was no player-visible record of it ANYWHERE, which is the worst
+     shape a server-authoritative economy can take: the server is right and the
+     player has no way to see that it is.
+
+     THE ACCESS PATH IS THE ONE THAT ALREADY EXISTS, and this was verified in
+     the migration rather than assumed (2026-08-17-market-v2.sql §2):
+
+       create policy "own sales readable" on public.market_sales
+         for select using (auth.uid() = seller_user_id or auth.uid() = buyer_user_id);
+       grant select on public.market_sales to authenticated, service_role;
+
+     So an authenticated player can already SELECT exactly their own rows —
+     both sides of the trade — and NOT anybody else's. This is a plain
+     PostgREST read under that policy: no RPC, no SECURITY DEFINER, no new
+     grant, nothing for Security to review. The `or=` filter below is a
+     convenience and a bandwidth saver, NOT the security boundary; RLS is, and
+     it would hold with the filter deleted. That is the property that makes
+     this safe to ship without a migration.
+
+     ⚠ THERE IS NO BUYER OR SELLER NAME IN v2, DELIBERATELY. S17 removed
+     `for select using (true)` from this table precisely because it published
+     both auth UUIDs and every player's complete trade history, and the
+     recreated table carries no denormalised name columns at all (unlike
+     market_listings, which keeps `seller_name`). Showing a counterparty name
+     would therefore need either a join to profiles through a new view or a new
+     definer function — i.e. exactly the new surface this build is not opening.
+     The panel names the ITEM and the GOLD and says nothing about who; that is
+     the honest render of what the server actually exposes.
+
+     RETURNS null, NOT [], when the answer is unknown (signed out, offline,
+     refused, or a pre-v2 schema). An empty array here would render as "you
+     have never traded", which is a claim this function is in no position to
+     make — the same absence-is-not-a-claim rule applyEnvelopeState follows. */
+  async fetchSalesHistory(opts) {
+    const cfg = getCfg();
+    const session = currentSession();
+    if (!cfg || !session || !session.user || !session.user.id) return null;
+    const limit = Math.max(1, Math.min(200, Number(opts && opts.limit) || 60));
+    const uid = encodeURIComponent(session.user.id);
+    const url = cfg.url + '/rest/v1/market_sales'
+      + '?select=id,listing_id,seller_user_id,seller_slot,buyer_user_id,buyer_slot,'
+      + 'item_id,qty,gold_gross,tax,gold_net,at'
+      + '&or=(seller_user_id.eq.' + uid + ',buyer_user_id.eq.' + uid + ')'
+      + '&order=at.desc&limit=' + limit;
+    let res = null;
+    try { res = await fetch(url, { headers: reqHeaders(cfg, session) }); }
+    catch (e) { return null; }
+    if (!res.ok) return null;
+    let rows = null;
+    try { rows = await res.json(); } catch (e) { return null; }
+    if (!Array.isArray(rows)) return null;
+    /* A 200 from this table with these columns is POSITIVE proof of v2 — the
+       v1 table had no gold_gross/gold_net at all — so the capability learns
+       from a read it was going to do anyway, exactly as collectSales() learns
+       from a 42703. Only claimed on a non-empty answer: an empty result set
+       proves nothing about the shape of the columns. */
+    if (rows.length && rows[0] && rows[0].gold_net !== undefined) noteAuthority(true);
+    return { rows, userId: session.user.id };
+  },
+
   // b208: realtime — nudge the market panel whenever listings change anywhere.
   subscribe(onChange) {
     const client = (window.HearthriseAuth && window.HearthriseAuth.getClient && window.HearthriseAuth.getClient());

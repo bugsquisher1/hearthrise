@@ -2,6 +2,35 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+### 2026-08-16 · CSS · The `#panel-market` theme sweep owns every colour on the market screen (Systems → Art Director)
+**Found while building the b361 trade-ledger panel, by measurement in a real browser rather than by
+reading the sheets.** `src/styles/art-direction.css` carries
+
+    body[data-theme="hearthlight"] #panel-market :not(.shops-tabs, .bb-board, .sc-scene, .sc-counter,
+      .iap-card, .hr-cs, .hr-room, …) { color: var(--ink); … }
+
+with **no escape hatch**. Its sibling rule (`body[data-theme="hearthlight"] .panel.active span:not(…)`)
+does ship four — `[class*="gold"|"pill"|"chip"|"badge"]` — but the `#panel-market` form does not, and
+an id beats anything `audit-overrides.css` can reasonably write. Measured consequence:
+
+- `.mk-qty` asks for `color: var(--gold-2)` and renders `var(--ink)` in Hearthlight. **Every gold badge
+  on the market screen has silently lost its gold** — the `×10` quantity pills, the ledger amounts, all
+  of them. This is pre-existing and predates b361.
+- I tried three ways to distinguish "money in" from "money out" on the ledger (colour, then background,
+  then border). **All three were overridden.** Verified by computed style, not assumed.
+
+**What I did, deliberately:** nothing. I did NOT win the specificity war. Escalating a component rule to
+out-rank a theme sweep is exactly how the cozy-light override stack got built and what the b214 audit is
+still paying down, and it would have left a rule that breaks the day the sweep is narrowed. The ledger
+carries direction in WORDS instead — an explicit `+`/`−` on the amount and "Sold"/"Bought" leading the
+meta line — which is legible in both themes, under the sweep, and to a player who cannot distinguish the
+two colours at all. The block therefore added **zero theme-fragile CSS**.
+
+**Art Director owns the ruling.** The cheap fix is to give the `#panel-market` form the same four
+`:not([class*=…])` opt-outs its `.panel.active span` sibling already has; that restores gold to every
+market badge in one line and I would then re-add the two-tone ledger amount. Not doing it unilaterally:
+it repaints a whole screen in one theme, which is your call and not mine.
+
 ## Conflict types to watch
 - **Code:** two agents editing overlapping lines/files.
 - **Semantic (the dangerous kind — no git conflict):** two agents holding incompatible models of how a system should behave. Example: Game Designer says "cooking should improve combat effectiveness"; Systems says "cooking currently only modifies XP." No merge conflict, but a real design/system conflict. Flag it.

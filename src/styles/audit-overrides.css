@@ -2097,6 +2097,53 @@ body.in-combat #combat-area {
 .mk-delta.high { color: #ff8c8c; background: rgba(227,97,97,.15); }   /* over-priced */
 .mk-delta.low  { color: #7f9a4f; background: rgba(127,154,79,.15); }   /* bargain */
 
+/* ─── Market: your trade ledger (b361) ───
+   TOKENS ONLY, and deliberately almost no new surface: the rows reuse
+   .mk-row/.mk-icon/.mk-info/.mk-qty wholesale, so the ledger inherits both
+   themes and the landscape-phone layout from the market screen it lives on
+   without a single new colour. The three rules below are the only things the
+   existing market vocabulary had no word for: a filter tab, its selected
+   state, and "this one cost you" as the opposite of the gold pill. */
+.mk-ledger-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 8px;
+  flex-wrap: wrap;
+}
+.mk-ledger-tab {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--ink-3);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: calc(14.5px * var(--ui-scale, 1));
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.mk-ledger-tab:hover { color: var(--ink-2); border-color: var(--ink-2); }
+.mk-ledger-tab.is-on { color: var(--gold-2); border-color: var(--gold-2); }
+.mk-ledger-totals { margin: 0 0 8px; }
+/* ── MONEY IN vs MONEY OUT IS SAID IN WORDS, NOT IN COLOUR, AND THAT IS A
+   MEASUREMENT RATHER THAN A PREFERENCE ────────────────────────────────────
+   The first draft of this block gave the two amounts a gold pill and a muted
+   outlined one. Checked in a real browser, all three of its declarations —
+   colour, background AND border — were overridden in Hearthlight by
+   `body[data-theme="hearthlight"] #panel-market :not(.shops-tabs, …)` in
+   art-direction.css, a sweep with no escape hatch that outranks anything this
+   file can reasonably write. (It is why plain `.mk-qty` badges already render
+   ink rather than the gold they ask for on this screen — pre-existing debt in
+   the Art Director's domain, flagged in CONFLICTS.md.)
+   Rather than win a specificity war — which is exactly how the cozy-light
+   override stack got built and the b214 audit is still paying it off — the
+   direction is carried by the row's own words: an explicit `+`/`−` on the
+   amount and "Sold"/"Bought" leading the meta line. Those are legible in both
+   themes, under the sweep, and to a player who cannot distinguish the two
+   colours anyway. No rule here, deliberately: the amount reuses `.mk-qty`
+   unmodified, so this block added no theme-fragile CSS at all. */
+
 /* ─── Market: top-movers analytics block ─── */
 .mk-movers {
   display: grid;

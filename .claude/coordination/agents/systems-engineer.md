@@ -1851,3 +1851,124 @@ axis is DATA now but no combat term reads it yet; that is the enchanting/element
 after this by Tyler's own ruling.
 
 **Not done, per instructions:** no version bump, no push, no migration applied, no Edge deploy.
+
+---
+
+## b361 — "AWAY 0h" DURING LIVE PLAY, AND THE TRADE LEDGER (2026-08-16, Systems Engineer)
+
+Two Tyler reports, one seam: **server events surfacing to the player.** Branch `agent-a8a3e731129bdbafc`.
+
+### TASK 1 — THE SENTENCE WAS WRONG, THE MECHANICS WERE NOT
+
+**Render sites found (all four, because "the toast" was only one of them):**
+- `src/legacy.js` `applyServerEnvelope()` — the toast. **This was the reported site.**
+- `src/features/home-dashboard.js` — the `While you were away` card + its `>= 0.1h` liveness gate.
+- `src/legacy.js:~10755` — the welcome-back modal's row list (already keys on `_fresh` + a real span).
+- `src/net/activity.js` — writes `source:'switch'`, the ONLY discriminator that existed.
+
+**The defect.** Since b356–b360 a span settled WHILE ONLINE goes through the same envelope, the same
+applier and the same `summaryFromAway` receipt as a genuine absence — by design, one payment path
+(`live-settlement.md` §0). The only thing telling the two apart was `source === 'switch'`, which an
+**accrue**-triggered settle never sets. So every live settle fell through to the absence branch and
+claimed "Away 0h". Nothing about what is credited was wrong, or is changed.
+
+**The signal chosen: THE CREDITED SPAN (`grantMs`), threshold 10 min. NOT `document.hidden`.**
+Three reasons, in order of weight:
+1. `grantMs` is **server-stated**; `document.hidden` is a client observation, and this whole module
+   exists because a client observation is not authority.
+2. **`document.hidden` cannot see the case that matters most.** The commonest real absence is closing
+   the tab; a page that is not running never fires `visibilitychange`, so on the next boot there is no
+   "was hidden" flag — only a document that has been visible since ms zero. A visibility rule would
+   label an eight-hour night a "sync". That is the same bug pointed the other way, and **worse**:
+   under-claiming a real night is a bigger lie than over-claiming ninety seconds.
+3. It degrades honestly. A four-minute kettle break rendering "Synced — +N items" is still true;
+   "Away 0h" on a live settle is not true of anything.
+
+10 min is derived, not taste: §3.1 recommends a 90 s settle cadence, the rate gate allows 30/min, so
+no legitimate settle is near it — and it is comfortably under the away card's own 0.1 h (6 min) gate,
+so **the toast and the card now read the same classifier and cannot drift** (the b342 failure).
+Death overrides the span, keeping b343's ruling verbatim.
+
+**Second, structural fix:** the sentence was inline in `applyServerEnvelope`, reachable only with a
+live envelope + session + server — i.e. **no test could read the string that was wrong.** It is now
+`accrue.js#receiptSentence`, pure, and `SYNC-4` asserts the literal reported text.
+
+### TASK 2 — THE TRADE LEDGER
+
+**Data access path: an EXISTING RLS read. No new surface, nothing for Security to review.**
+`2026-08-17-market-v2.sql` §2 already ships
+`create policy "own sales readable" on public.market_sales for select using (auth.uid() = seller_user_id or auth.uid() = buyer_user_id)`
+plus `grant select on public.market_sales to authenticated`. A plain PostgREST GET with an `or=` filter
+reads exactly the caller's own rows on both sides. **The `or=` filter is bandwidth, not the boundary —
+RLS is, and it holds with the filter deleted.** No RPC, no SECURITY DEFINER, no migration, no deploy.
+
+**⚠ NO COUNTERPARTY NAME, AND THAT IS THE SERVER'S ANSWER, NOT AN OMISSION.** market-v2 carries no
+denormalised name on `market_sales` (unlike `market_listings`, which keeps `seller_name`) — S17
+specifically stripped this table's public read because it published both auth UUIDs and every player's
+trade history. A name would need a new join/view or a definer function. The panel names the ITEM and
+the GOLD and stays silent about who; `LEDGER-3` asserts no auth UUID reaches the DOM.
+
+**Three states, and the middle one is load-bearing:** `unknown` (never read — say so) vs `ok`+empty
+(genuinely no trades) vs populated. A failed read rendering "you have never traded" would be the client
+asserting what it cannot know — the same absence-is-not-a-claim rule `applyEnvelopeState` follows.
+
+### SELF-CRITIQUE THAT CHANGED THE WORK
+- First draft of the sync toast duplicated the sentence logic in legacy.js. **Extracted** — an
+  untestable sentence is how the bug shipped.
+- First draft gave the ledger amounts a gold pill and a muted outlined pill. **Measured in a real
+  browser: colour, background AND border were all overridden** by `#panel-market`'s Hearthlight sweep.
+  I did not win the specificity war — direction is carried in words (`+`/`−`, "Sold"/"Bought"). Net
+  new theme-fragile CSS: **zero**. Logged in CONFLICTS.md for the Art Director, with the one-line fix.
+- The away card's gate now excludes `source:'switch'` receipts too. Deliberate — a switch is not an
+  absence — and a behaviour change worth naming rather than burying.
+
+### VERIFICATION
+- `node tests/run-smoke.mjs` **771/771, three consecutive runs, 0 runtime errors, 0 console errors.**
+  (Baseline 764; +7.) One run aborted on `ERR_MODULE_NOT_FOUND` when the shared `node_modules` was
+  wiped mid-run by something outside this worktree — external, retried clean.
+- **All 7 new tests mutation-proved**, 6 mutants: classifier→always-away, announce→always-true,
+  salesSince→count purchases, unknown→renders-empty, goldDelta→always-net, sync→always-name-gold.
+  Each turned exactly the intended tests red.
+- **Runtime, real browser, real renderers:** live settle → `Synced — +13 items, +104 XP` (no "Away",
+  no "+0 gold"); real night → full away receipt **+ ` · 2 listings sold · +340 gold`**; zero-value
+  settle → **`null`, silent**; away card → `Your market stall: 2 listings sold · +340 gold.`; live
+  settle draws NO card, an 8h night does. Console clean.
+- **Layout: 4 combinations** (desktop 1440×900 + landscape phone 852×339) × (hearthlight + cozy-light).
+  0 px document overflow, 0 overflowing rows even with a 1,200-qty / 342,000g row, tab selected-state
+  distinguishable by border in both themes, 14.5 px floor respected. Screenshots reviewed.
+
+### BLAST RADIUS / DEPENDENCIES
+Touches the ONE receipt every welcome-back surface reads, so the classifier is deliberately additive:
+every existing field keeps its meaning, `summaryFromAway` is unchanged, and every new function is pure
+and fails open to the pre-b361 sentence if `HearthriseAccrual` never published. `market-history.js` is
+imported eagerly (not lazily like the Supabase market backend) so its pure half exists in a build that
+was never signed in; it reaches the backend through `window` at call time, so no Supabase build is a
+hard dependency. Nothing in either task is consulted by a payment path.
+
+**Save migration: NONE, by construction.** The ledger cache is module scope, never `G`. The
+"since last seen" window is derived from the receipt the server already wrote
+(`windowFrom`/`windowTo`, falling back to `at - awayMs`), so there is no new save field and no new
+server state — a summary with its own watermark would be a second, drift-prone idea of "last here".
+
+**Performance.** The ledger read is coalesced (one in-flight request), TTL 60 s, capped at 200 rows
+server-side, and fires only from a market render or a receipt. It repaints the panel only while the
+market is the active tab. No new per-tick or per-frame work.
+
+### TECHNICAL DEBT
+Paid down: one untestable inline sentence became a pure tested function; the away card and the toast
+now share one classifier instead of two independently-drifting gates.
+Added: none intentionally — no new persistent state, no new server surface, 3 new CSS rules (tabs
+only), one new gold-site census row (declared, `false-positive`).
+
+### KNOWN LIMITATIONS
+1. **No counterparty name** — the server does not expose one (above). Not a client fix.
+2. The ledger shows the last 200 rows and does not paginate. At 10× content that is a "load more",
+   not a rewrite: the read already takes a `limit` and `market_sales_seller_idx (seller_user_id, at desc)`
+   makes a keyset page free.
+3. The away line counts **sales only**, not purchases — deliberate (a purchase was your own action),
+   but it means a player who bought while away via a buy offer sees nothing. Buy offers have no server
+   story at all yet (`MARKET_BUY_OFFERS` in gold-sites.js), so there is nothing to report.
+4. `.mk-qty` renders ink instead of gold on the market screen in Hearthlight — **pre-existing**, found
+   by this work, logged in CONFLICTS.md, Art Director's ruling.
+
+**Not done, per instructions:** no version bump, no push, no migration, no deploy. Imports at `?v=360`.

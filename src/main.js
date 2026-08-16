@@ -201,6 +201,15 @@ import './net/activity.js?v=360';
 // on: that helper THROWS rather than paying a client-authored number when this
 // module is absent, exactly as the b340 record strip does.
 import './net/gold.js?v=360';
+// b361 — YOUR OWN TRADE LEDGER. A pure reader over rows the player can already
+// SELECT under market-v2's existing `own sales readable` policy; it authors
+// nothing and no payment path consults it. Imported EAGERLY (not lazily, the
+// way the Supabase market backend is) because its pure half — the away
+// summary's "2 listings sold · +340 gold" line and the panel's arithmetic —
+// must exist in a build that was never signed in, including the smoke harness.
+// It reaches for the backend through `window` at call time, so no Supabase
+// build is a hard dependency.
+import './net/market-history.js?v=360';
 import './net/auth.js?v=360';
 import './net/supabase-bootstrap.js?v=360';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with

@@ -310,6 +310,15 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'balance. Declared rather than special-cased in the scanner: a scanner that skips receivers '
       + 'it has been taught to ignore is a scanner one rename away from skipping a real site.',
   },
+  'src/net/market-history.js#salesSince': {
+    kind: 'false-positive', status: 'none',
+    why: '`sum.gold += e.goldNet` TOTALS a read-only ledger for the "2 listings sold · +340 gold" '
+      + 'line. `sum` is a local tally built from `market_sales` rows the server already wrote and '
+      + 'already paid into `player_state.gold`; nothing here touches G, and deleting the whole '
+      + 'module changes zero balances. Declared rather than skipped for the same reason as the '
+      + 'accrue.js row above — a scanner taught to ignore a receiver name is one rename away from '
+      + 'ignoring a real site.',
+  },
 
   // ══ DEV SINKS — these must NEVER acquire a server path ════════════════════
   'src/admin.js#addGold': {

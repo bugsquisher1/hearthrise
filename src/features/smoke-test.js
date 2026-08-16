@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=358' directly.
+// modularised, will import { G } from '../state/game.js?v=359' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=358';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=358';
+import { on, snapshot } from '../net/events.js?v=359';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=359';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=358';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=359';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -23541,10 +23541,29 @@ const TESTS = [
 
       assert(G.gold === 1234, 'gold is ' + G.gold + ', not the server\'s 1234 — the client kept authoring it');
       assert(G.skills.attack === 5000, 'attack xp is ' + G.skills.attack + ', not the server\'s 5000');
-      assert(G.skills.woodcutting === undefined,
-        'a local skill the server does not know about survived — this is a MERGE, and a merge is not authority');
+      /* ═══ b359 — TWO ASSERTIONS HERE WERE INVERTED, AND THEY WERE THE BUG ═══
+         This test used to require `woodcutting === undefined` and
+         `forged_sword === undefined`, arguing "a merge is not authority". The
+         argument is sound for a field whose WRITER has moved to the server. It
+         was applied to `skills` and `inventory`, whose writers have NOT: there
+         is no kill/gather/craft intent verb, so live play still awards XP and
+         drops on the client and the server has never been told. Under that
+         truth, "absent from the envelope" means UNKNOWN, not zero — and this
+         assertion made deleting a real player's real progress the CONTRACT.
+         It cost a player 12 Dragon Scales and his Stonemason level on
+         2026-08-17 before he reported it.
+         What the test defends now is the property that actually holds today:
+         the server WINS EVERY CONTEST IT ENTERS, and forfeits none of them —
+         it simply cannot win a contest it never joined. Restore the old form
+         only in the commit that gives live play a server verb; at that point
+         the envelope names every key it owns and omission stops being
+         ambiguous. `src/net/record.js:119-144` is the ordering rule this
+         violated: a field moves only after every path that mutates it has. */
+      assert(G.skills.woodcutting === 88,
+        'a local skill the envelope OMITS must survive — the server never owned live XP; got ' + G.skills.woodcutting);
       assert(G.inventory.rat_tail === 3 && G.inventory.shrimp === 2, 'the server inventory did not land: ' + JSON.stringify(G.inventory));
-      assert(G.inventory.forged_sword === undefined, 'a locally-invented item survived the server envelope');
+      assert(G.inventory.forged_sword === 40,
+        'a local item the envelope OMITS must survive — got ' + G.inventory.forged_sword);
       assert(G.playerHp === 55 && G.playerMaxHp === 99, 'hp/maxHp were not taken from the server');
 
       const s = G.lastOfflineSummary;
@@ -23710,7 +23729,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=358');
+    const KIT = await import('../data/start-kit.js?v=359');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -24381,12 +24400,24 @@ const TESTS = [
       assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
         'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
 
-      // …and once acknowledged it applies, silently, forever after.
+      /* …and once acknowledged it applies, silently, forever after.
+         b359 — WHAT "APPLIES" MEANS NARROWED, AND THE OLD MEANING WAS THE P0.
+         This asserted `skills.woodcutting === 0` and `inventory.logs ===
+         undefined`: the envelope had to ZERO a veteran's live-earned skill and
+         DELETE his stack. That is the deletion a player reported on
+         2026-08-17. Live XP and drops have no server writer yet, so an
+         envelope that omits them is silent, not authoritative.
+         What still must hold — and is what the consent sheet is actually
+         warning about — is that the server's GOLD lands (its writer HAS
+         moved), and that a contest the server enters, it wins. The sheet's
+         own copy is asserted above and is unchanged. */
       A.acknowledgeReplacement(true);
       const G2 = veteran();
       const written = A.applyEnvelope(G2, envelope);
-      assert(written && G2.gold === 500 && G2.skills.woodcutting === 0 && G2.inventory.logs === undefined,
+      assert(written && G2.gold === 500,
         'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
+      assert(G2.skills.woodcutting === 5000000 && G2.inventory.logs === 400,
+        'live-earned XP/items the envelope omits must SURVIVE it — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
 
       /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
          that fires on every player is a gate nobody reads. */
@@ -28909,7 +28940,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=358');
+    const S = await import('../data/shops.js?v=359');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -30277,7 +30308,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=358');
+    const S = await import('../data/shops.js?v=359');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -30807,6 +30838,47 @@ const TESTS = [
       assert(b.requiredWeaponType === 'sword',
         'a weapon bounty must name a real weapon type, got ' + b.requiredWeaponType);
     }
+  }),
+
+  /* B359-1 — THE ENVELOPE MAY NOT DELETE WHAT IT DOES NOT MENTION.
+     The live P0 of 2026-08-17, reported by a player: `applyEnvelopeState`
+     REPLACED G.skills and G.inventory wholesale, so every server round trip
+     erased anything the server had not been told about. He farmed 14 Dragon
+     Scales and watched them decay 14 -> 2 -> 1, and Stonemason — shipped hours
+     earlier, so absent server-side by construction — reset to level 1 each time.
+     Live drops and XP are still client-authored, so "absent from the envelope"
+     means UNKNOWN, not zero.
+     This test fails against the replace in either direction: it proves omitted
+     keys SURVIVE, and it proves named keys still WIN, including downward, so a
+     future "fix" that simply stops trusting the server also goes red. */
+  () => tryRun('B359-1: an envelope overwrites the keys it names and preserves the ones it omits', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+    const G = {
+      gold: 5,
+      skills: { attack: 1000, stonemason: 4321 },      // stonemason: server has never heard of it
+      inventory: { dragon_scale: 14, ember_bar: 3, rune_bar: 7 },
+    };
+    A.applyEnvelopeState(G, {
+      state: { gold: 9 },
+      skills: { attack: { xp: 1500 } },                 // names attack, omits stonemason
+      inventory: { dragon_scale: 2, rune_bar: 9 },      // NAMES dragon_scale, LOWER; omits ember_bar
+    });
+    // Omitted -> preserved. Stonemason is the exact reported symptom.
+    assert(G.skills.stonemason === 4321,
+      'a skill the envelope omits must survive — got ' + G.skills.stonemason);
+    assert(G.inventory.ember_bar === 3,
+      'an item the envelope omits must survive — got ' + G.inventory.ember_bar);
+    /* NAMED BUT LOWER -> the client keeps its own. This is the clause that
+       actually saved the reporting player: dragon_scale WAS named, the server
+       held 2 from away accrual, and he had farmed 14 live. A "named wins"
+       rule would still have taken 12 of them. */
+    assert(G.inventory.dragon_scale === 14,
+      'a named item must NOT pull a live-earned stack down — got ' + G.inventory.dragon_scale);
+    // Named and higher -> the server's number wins, so away accrual still pays.
+    assert(G.skills.attack === 1500, 'a named skill that is HIGHER must take the server value');
+    assert(G.inventory.rune_bar === 9, 'a named item that is HIGHER must take the server value');
+    assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
   }),
 
 ];

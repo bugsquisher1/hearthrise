@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 359 — 2026-08-17 (Fix: items and skills were being taken back)
+
+- 🛠️ **Fixed a serious bug that erased progress you earned while playing.** Items you farmed and XP you trained at the keyboard could be silently reverted whenever the game synced with the server — a stack of 14 sliding back to 2, or a newly-trained skill dropping to level 1. The server had never been told about live gameplay, so anything it hadn't seen was treated as if it didn't exist.
+- ✅ The server still has the final word on anything it actually tracks — gold, away-time rewards, trades. What changed is that it no longer deletes what it was never told about.
+- 🙏 Thank you to Xarnathos for reporting it with exact numbers; that's what made it findable. If you lost items or a skill level to this, post in Discord with roughly when — every change to your account is recorded and we can look.
+
 ## v0.9.2-beta build 358 — 2026-08-17 (Two new skills)
 
 - ⚒️ **Stonemason.** Quarry your own stone from nothing, dress it into blocks, and cut the whetstones that keep a melee weapon sharp. It feeds the clan castle, and it needs no workbench — press one button at level 1 and you're a mason.

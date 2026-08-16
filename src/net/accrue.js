@@ -680,17 +680,64 @@ export function applyEnvelopeState(G, res, ownKey) {
   /* skills: {<id>:{xp,level}} on the wire, {<id>: xp} in G. The LEVEL is
      derived from xp everywhere in this client, so taking the server's xp and
      letting the existing derivation run keeps one source of that rule. */
-  const skills = {};
+  /* ══════════════════════════════════════════════════════════════════════
+     P0 FIX (b359) — THE ENVELOPE OVERWRITES WHAT IT NAMES, NOT WHAT IT OMITS.
+
+     This block used to REPLACE `G.skills` and `G.inventory` wholesale with the
+     envelope's copy. That is only safe if the server is the sole writer of both,
+     and it is not yet: LIVE play still awards drops and XP on the client, so
+     every envelope deleted whatever the server had not been told about.
+
+     Reported by a player, 2026-08-17: farmed 14 Dragon Scales, watched them
+     decay 14 -> 2 -> 1 as envelopes arrived, and saw Stonemason — a skill that
+     shipped hours earlier and therefore exists NOWHERE server-side — reset to
+     level 1 on every round trip. The `describeReplacement` "destructive" check
+     directly below already MEASURED this loss; nothing acted on it.
+
+     So: a key the envelope NAMES is authoritative and overwrites (the server
+     still wins every contest, including downward — that is the anti-forgery
+     property). A key the envelope OMITS is left alone, because "absent" from a
+     server that has never owned live drops means "unknown", not "zero". Absence
+     is not a claim.
+
+     THIS IS A DELIBERATE, TEMPORARY WEAKENING of server authority, authorised by
+     Tyler during the incident: a forged client-side item now survives a round
+     trip where before it was scrubbed. The beta already carries explicit amnesty
+     for pre-cutover forgery and the exposure is a closed friends-list, so losing
+     real players' real progress was judged the greater harm. It is NOT the end
+     state. It retires the moment live drops/XP are server-authored — at which
+     point the envelope names every key it owns, and omission stops being
+     ambiguous. Do not "tidy" this back into a replace before then; the guard
+     below fails the build if you do. */
+  const skills = (G.skills && typeof G.skills === 'object') ? { ...G.skills } : {};
   for (const k of Object.keys(res.skills || {})) {
     const xp = Number(res.skills[k] && res.skills[k].xp);
-    if (Number.isFinite(xp)) { skills[k] = xp; written.skills[k] = xp; }
+    /* MAX, not assignment. XP never legitimately decreases, so the higher of
+       the two is the true one whichever side earned it. */
+    if (Number.isFinite(xp)) {
+      const have = Number(skills[k]) || 0;
+      skills[k] = Math.max(have, xp);
+      written.skills[k] = skills[k];
+    }
   }
   G.skills = skills;
 
-  const inv = {};
+  const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   for (const k of Object.keys(res.inventory || {})) {
     const q = Number(res.inventory[k]);
-    if (Number.isFinite(q) && q > 0) inv[k] = q;
+    const have = Number(inv[k]) || 0;
+    /* MAX for a NAMED key too — and this is the clause that actually saved the
+       reporting player, so do not weaken it to a plain assignment. `dragon_scale`
+       WAS named (the server held 2 from away accrual); only taking the max keeps
+       the 14 he earned at the keyboard.
+       THE COST, STATED: an item the server legitimately CONSUMED while he was
+       away (a crafting input) will not be deducted from the client copy until a
+       live-write verb exists, so a determined player could double-spend that
+       input. That is a bounded duplication risk in a closed beta that already
+       carries forgery amnesty; it was traded knowingly against certain,
+       ongoing, irreversible loss of real progress. It retires with the same
+       commit that gives live play an intent verb. */
+    if (Number.isFinite(q) && q > 0) inv[k] = Math.max(have, q);
   }
   G.inventory = inv;
   written.inventory = Object.keys(inv).length;

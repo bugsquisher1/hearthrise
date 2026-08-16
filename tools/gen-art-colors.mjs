@@ -61,8 +61,22 @@ const MAX = Number(flag('max', '4'));
 // re-cutting achieves is invalidating the character-budget measurement.
 const P_ITEM = 'Game icon, ONE object, three-quarter top-down loot angle, centred, filling the frame, chunky-heroic exaggerated proportions, one oversized specimen — never a pile, handful or serving, never on a board, dish or cloth unless the object is the vessel,';
 const P_WEAPON = 'Game icon, ONE weapon flat to the screen in full profile on a diagonal, blade or head upper-left, grip lower-right, no foreshortening or tilt, centred, filling the frame, chunky-heroic exaggerated proportions, never a bundle, rack or pair,';
+// P-SHAFT — the bladeless weapons. See the b360 diagnosis in the Art Director
+// log: P-WEAPON's "blade or head upper-left" is a FEATURE-SUMMONING clause, the
+// third proven instance in this programme. Measured against the delivered batch,
+// objects that HAVE a blade or head (sword/axe/pickaxe/warhammer/knife) failed
+// 1/33 = 3%; objects that have NEITHER (staff, rod, arrow, needle) failed
+// 28/28 = 100%, every one of them by growing the blade the wrapper named.
+// So this variant names NO anatomy the object does not have: "tip" and "foot"
+// are true of a staff, a rod, an arrow and a needle alike, and of a bow's two
+// limbs. Nothing here is a re-wording for taste — §0.10b/§0.10c both proved
+// re-wording alone changes nothing. This removes a noun that was being drawn.
+const P_SHAFT = 'Game icon, ONE slender shafted object flat to the screen in full profile on a long diagonal, tip upper-left, foot lower-right, no foreshortening or tilt, centred, filling the frame, chunky-heroic exaggerated proportions, a single specimen, never a bundle, sheaf, rack or pair,';
 const C_METAL = 'iron, steel, mithril and dawnsteel read cold grey to silver-blue with no warm tint; bronze, copper and gold stay warm,';
 const C_ENCHANT = 'blade, point, arrowhead and fletching carry no elemental colour unless named above,';
+// Same reason as P-SHAFT: the bladed form of this clause says "blade" to objects
+// that have none. The property it enforces is identical.
+const C_ENCHANT_SHAFT = 'point, tip and fletching carry no elemental colour unless named above,';
 const SUFFIX = 'colour comes from the light, not the material — grey, black, bone and stone stay neutral, and only colours named above appear as local colour; silhouette-first, readable at 40px, no detail finer than a sixteenth of the frame; fully transparent background, no backdrop, vignette, scenery, ground, shadow, frame, text, watermark or UI.';
 const CAP = 1000;
 
@@ -97,11 +111,28 @@ const TOOL_WORDS = /\b(axe|pickaxe|fishing rod|rod|harpoon|sickle|chisel|hammer)
 // fixed weapon orientation is a per-OBJECT rule, and getting it wrong is the
 // difference between an armoury that reads as one shelf and one that does not.
 const WEAPON_NOUN = /\b(sword|blade|dagger|scimitar|axe|maul|mace|warhammer|hammer|spear|halberd|glaive|staff|staves|wand|rod|bow|crossbow|arrow|bolt|sling|scythe|whip|flail|cleaver|knife|pick|pickaxe|harpoon|sickle|chisel|censer|stick|club)\b/i;
+// The bladeless subset of WEAPON_NOUN — same folder, different prefix.
+// Deliberately EXCLUDES maul/mace/warhammer/hammer/club/censer: those DO carry a
+// head, P-WEAPON is true of them, and they shipped (stone_maul, lazlos_maul and
+// every warhammer are in SHIPPED). Only nouns with neither blade nor head.
+const SHAFT_NOUN = /\b(staff|staves|rod|wand|arrow|arrows|bolt|bolts|needle|bow|bows|crossbow|longbow|shortbow|recurve|sling|dart|darts)\b/i;
 
 function categorise(row) {
   if (row.monster) return { folder: 'monsters', prefix: null };
   const s = row.sec;
-  if (WEAPON_SEC.test(s) || TOOL_WORDS.test(row.name) || WEAPON_NOUN.test(row.name)) return { folder: 'weapons', prefix: 'weapon' };
+  if (WEAPON_SEC.test(s) || TOOL_WORDS.test(row.name) || WEAPON_NOUN.test(row.name)) {
+    return { folder: 'weapons', prefix: SHAFT_NOUN.test(row.name) ? 'shaft' : 'weapon' };
+  }
+  // A shafted object can also land OUTSIDE the weapons sections — the "uniques"
+  // tables put `demoncaller_staff`, `blight_arrows` and `frost_arrows` in items/,
+  // and all three failed exactly like their weapons/ siblings. The FOLDER is a
+  // filesystem fact and stays as it was (moving it would orphan the delivered
+  // raws); the PREFIX follows the object, which is what §0.4 actually rules on.
+  if (SHAFT_NOUN.test(row.name)) {
+    if (ARMOUR_SEC.test(s)) return { folder: 'armour', prefix: 'shaft' };
+    if (FOOD_SEC.test(s)) return { folder: 'food', prefix: 'shaft' };
+    return { folder: 'items', prefix: 'shaft' };
+  }
   if (ARMOUR_SEC.test(s)) return { folder: 'armour', prefix: 'item' };
   if (FOOD_SEC.test(s)) return { folder: 'food', prefix: 'item' };
   return { folder: 'items', prefix: 'item' };
@@ -111,10 +142,12 @@ const METAL_WORDS = /\b(bronze|iron|steel|mithril|rune|silvered|dawnsteel|heat-b
 
 function assemble(row) {
   const { prefix } = categorise(row);
-  const parts = [prefix === 'weapon' ? P_WEAPON : P_ITEM, row.subject];
+  const PRE = { weapon: P_WEAPON, shaft: P_SHAFT, item: P_ITEM };
+  const parts = [PRE[prefix] || P_ITEM, row.subject];
   const clauses = [];
   if (METAL_WORDS.test(row.subject)) clauses.push(C_METAL);
   if (prefix === 'weapon') clauses.push(C_ENCHANT);
+  else if (prefix === 'shaft') clauses.push(C_ENCHANT_SHAFT);
   return [parts.join(' '), ...clauses, SUFFIX].join(', ').replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim();
 }
 

@@ -173,10 +173,37 @@ const jobs = parseManifest(manifestPath)
   .filter(j => !fs.existsSync(path.join(OUT, j.file)))
   .slice(0, LIMIT);
 
+// ── THE PROMPT-LENGTH GATE ──────────────────────────────────────────────────
+// Recraft's generation endpoint rejects anything over 1000 characters:
+//   HTTP 400 invalid_request_parameter "prompt length should be in [1, 1000]"
+// The first cut of the Hearthfire wrapper assembled to a median of 1141 and a
+// max of 1665 — 15 of 16 prompts over the cap, i.e. a 600-image batch that
+// would have failed 100%. It was found by a four-image verification run rather
+// than by a batch, and cost $0.00 only because rejected requests are not
+// charged. This gate makes that luck unnecessary: the check runs BEFORE the
+// dry-run summary and before any spend, on every path.
+// See docs/design/art-direction-picker.md §0.2 and §0.13.
+const PROMPT_MAX = 1000;
+const tooLong = jobs.filter((j) => j.prompt.length > PROMPT_MAX);
+const empty = jobs.filter((j) => !j.prompt.trim().length);
+if (tooLong.length || empty.length) {
+  console.error(`\nREFUSING TO RUN — ${tooLong.length + empty.length} prompt(s) the API will reject:`);
+  for (const j of tooLong.sort((a, b) => b.prompt.length - a.prompt.length).slice(0, 20)) {
+    console.error(`  ✗ ${j.file}: ${j.prompt.length} chars (cap ${PROMPT_MAX}, over by ${j.prompt.length - PROMPT_MAX})`);
+  }
+  if (tooLong.length > 20) console.error(`  … and ${tooLong.length - 20} more`);
+  for (const j of empty) console.error(`  ✗ ${j.file}: empty prompt`);
+  console.error('\nShorten the wrapper or the subject line — do NOT raise the cap, it is the API\'s.');
+  process.exit(2);
+}
+const longest = jobs.reduce((m, j) => Math.max(m, j.prompt.length), 0);
+
 const estMax = (jobs.length * (COST_GEN + COST_RMBG)).toFixed(2);
 console.log(`manifest: ${manifestPath}`);
 console.log(`to generate: ${jobs.length} image(s) -> ${OUT}/  (existing files skipped)`);
 console.log(`cost: $${(jobs.length * COST_GEN).toFixed(2)} base, $${estMax} worst-case with bg-removal`);
+console.log(`prompt length: longest ${longest}/${PROMPT_MAX} chars — all within the API cap`);
+if (!STYLE_ID) console.log('WARNING: no --style-id. The wrapper no longer describes brushwork (the style anchor carries it),\n         so output will be markedly weaker than the pilot. See art-direction-picker.md §0.10.');
 
 if (!CONFIRM) {
   for (const j of jobs) console.log(`  would generate ${j.file}  (${j.prompt.slice(0, 60)}...)`);

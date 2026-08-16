@@ -32,13 +32,19 @@ the art direction can be swapped without rewriting 85 lines. Wrap it:
 [`art-direction-picker.md` §0](./art-direction-picker.md).** Assemble every monster prompt as
 
 ```
-P-MONSTER (picker §0.4)  +  the subject line below  +  C-SIGNAL (picker §0.7)  +  SUFFIX (picker §0.8)
+P-MONSTER (picker §0.5)  +  the subject line below  +  C-SIGNAL (picker §0.8)  +  SUFFIX (picker §0.9)
 ```
 
 Use the **MONSTERS** prefix (head-and-shoulders bust), not the ITEMS one. Items and monsters share one
 suffix on purpose — that shared suffix is the mechanism that makes the item shelf and the bestiary look
 like one game. **Do not mix lanes across a batch.** `C-SIGNAL` is the wrapper's enforcement of §0.1–0.3
 below; it restates nothing and overrides nothing.
+
+**Every prompt must assemble to ≤ 1000 characters** — Recraft's hard API cap, found by execution
+(picker §0.2). **This file holds the tightest budget in the program:** the monster subject lines are
+the longest anywhere (median 201, maximum 312 — MON-UND-07 Vampire Bride), and its assembled prompt
+is 944, the worst in the batch. **A monster subject line may not exceed ~318 characters.**
+`tools/gen-art.mjs` refuses to run if one does; re-run the dry run after any edit here.
 
 ### Output spec (hard requirements, checked before wiring)
 | Property | Value |

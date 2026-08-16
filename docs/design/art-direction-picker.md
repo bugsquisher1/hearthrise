@@ -23,127 +23,146 @@ behind it was cut. Long prompts dilute; this one is as short as the evidence all
 | Category | Prefix | Clauses (in this order) |
 |---|---|---|
 | Armour (plate / leather / cloth), jewellery, materials, ores, bars, logs, food, keys, scrolls, misc | **P-ITEM** | **C-METAL** if the object is metal |
-| Weapons, ammo, staves, bows, and the gathering tools (axe, pickaxe, rod, harpoon, sickle, chisel) | **P-WEAPON** | **C-METAL** if the object is metal, then **C-NEUTRAL** |
+| Weapons, ammo, staves, bows, and the gathering tools (axe, pickaxe, rod, harpoon, sickle, chisel) | **P-WEAPON** | **C-METAL** if the object is metal, then **C-ENCHANT** |
 | Monsters (all 85) | **P-MONSTER** | **C-SIGNAL** |
 
-Everything else — rendering, palette, thumbnail rule, bans — is in the single shared **SUFFIX**, and
-that shared suffix is the mechanism that makes the item shelf and the bestiary look like one game.
+The **STYLE ANCHOR carries the hand** — brushwork, edge darkness, bevel weight, value range, the
+lighting recipe and the palette temperature (§0.10). None of that is in the text any more, and that
+is the point: it is why every assembled prompt now fits under Recraft's 1000-character cap (§0.2).
+The shared **SUFFIX** carries what an anchor cannot — the bans and the legibility floor — and is the
+mechanism that makes the item shelf and the bestiary look like one game.
 **Do not vary it per category, per tier or per batch.**
 
-## 0.2 · P-ITEM — the item prefix
+**Measured over all 597 live subject lines: median 782 characters, maximum 944, none over 1000.**
+`tools/gen-art.mjs` refuses to run if that ever stops being true.
 
-> Stylized hand-painted fantasy game icon of one single object, three-quarter top-down loot-icon
-> angle, the object centred and filling the frame edge to edge, proportions deliberately exaggerated
-> and chunky-heroic for readability, shown as ONE oversized specimen — never a pile, heap, handful,
-> bundle, stack or serving — and never resting on a board, plate, bowl, cloth, table or ground unless
-> the object itself is the vessel,
+## 0.2 · THE 1000-CHARACTER CAP — the constraint that re-cut this wrapper
 
-*Why the second half exists.* The pilot's `cooked_shrimp` came back as five small shrimp arranged on
-a chopping board: at the 34 px shop row the board was the silhouette and the food was texture on it.
-An icon has one job at 34 px — be one recognisable shape. **One oversized specimen** is how every
-shipped idle-RPG solves this, and the ban on boards/plates/tables is the other half of the same fix:
-a serving surface is a second, larger, competing object in a frame that only has room for one.
+**Recraft's generation endpoint rejects any prompt over 1000 characters** —
+`HTTP 400 invalid_request_parameter: "prompt length should be in [1, 1000]"`. The first cut of this
+wrapper assembled to a **median of 1141 and a maximum of 1665** characters: **15 of 16 prompts were
+over the cap**, so the entire 600-image batch would have failed, every request, 100%.
 
-## 0.3 · P-WEAPON — weapons, ammo and long tools
+**It cost $0.00 to find, because the §0.10 step-4 verification ran four pilots through the real
+endpoint before the batch and rejected requests are not charged.** That step was written as
+"an anchor that changes the pilot will change everything"; it earned its place for a different
+reason entirely. **Keep a cheap end-to-end call in front of every funded batch** — the failure it
+catches is rarely the one you wrote it for.
 
-> Stylized hand-painted fantasy game icon of one single object, the weapon shown flat against the
-> screen in full profile at a diagonal, the blade or head pointing to the upper left and the grip or
-> butt at the lower right, no foreshortening, no perspective tilt, never angled toward or away from
-> the viewer, the object centred and filling the frame edge to edge, proportions deliberately
-> exaggerated and chunky-heroic for readability, shown as ONE oversized specimen — never a pile,
-> bundle, rack or pair — and never resting on a board, cloth, table or ground,
+**Why the re-cut is an improvement rather than a loss.** The clauses eating the character budget were
+brushwork, the lighting recipe, the value-range sentence and the palette enumeration — which is
+precisely the *hand*, and §0.10's whole argument is that **the style anchor carries the hand far more
+strongly than words ever did.** They were redundant the moment the anchors existed. What survives is
+exactly what an anchor cannot express: framing, composition, the hard bans, and the four rules that
+each exist to stop a specific observed failure.
 
-*Why the orientation is fixed and identical for all ~90 weapons.* A weapon foreshortened toward the
-viewer loses its length, which is the only thing that separates a dagger from a greatsword at 38 px.
-Fixing one diagonal also buys the shelf its rhythm: 90 weapons on one axis read as an armoury, 90
-weapons at 90 angles read as a stock-image dump. **The cost is real and is paid deliberately** — see
-§0.9 on silhouette collision, which is the failure this choice makes more likely and which the
-subject lines, not the wrapper, must answer.
+**Budgeted, not guessed.** Longest subject clause measured across both sheets: **312** characters
+(MON-UND-07 Vampire Bride); item maximum **200** (`iron_ore`). The wrapper was then sized to fit
+around them. Assembled over all **597** live subject lines: **median 782, maximum 944, zero over
+950, zero over 1000.** `tools/gen-art.mjs` now refuses to run if any assembled prompt exceeds 1000,
+so this can never again be discovered by spending money (§0.13).
 
-## 0.4 · P-MONSTER — the creature bust
+## 0.3 · P-ITEM — the item prefix
 
-> Stylized hand-painted fantasy creature portrait, head-and-shoulders bust, the subject centred and
-> facing three-quarters toward the viewer, composed to fill a square frame with a small even margin
-> on all four sides so that horns, antlers, ears, crests and weapon blades are complete and never
-> touch or run off the edge, the eyes within the central sixty percent of the frame, proportions
-> deliberately exaggerated and chunky-heroic for readability,
+> Game icon, ONE object, three-quarter top-down loot angle, centred, filling the frame, chunky-heroic
+> exaggerated proportions, one oversized specimen — never a pile, handful or serving, never on a
+> board, dish or cloth unless the object is the vessel,
 
-*The framing rule changed on 2026-08-16 and this is the new one.* The old rule — "eyes inside the
-middle 70%" — existed because the arena portrait was a **circle** with `object-fit: cover`, which
-threw away the corners of the frame, and the corners are exactly where a creature keeps the
-information a bestiary is read by. **b357 made every creature portrait a square plate with
-`contain`**, at the arena, the bestiary row, the monster row, the preview modal, the bounty notice
-and the pet badge. So: the subject may now **use the whole square, corners included** — that is a
-21% larger usable frame and it is why the Elk King's antlers survive — and the only remaining rule is
-a **small even margin**, because `contain` shows the file's true edge and an antler tip clipped by
-the canvas is a permanent defect no CSS can undo.
+*(248 chars.)* **Why the second half survived the cut.** The pilot's `cooked_shrimp` came back as five
+small shrimp on a chopping board: at the 34 px shop row the **board** is the silhouette and the food
+is texture on it. An icon has one job at 34 px — be one recognisable shape. The ban on serving
+surfaces is the other half of the same fix: a board is a second, larger, competing object in a frame
+with room for one. The anchor cannot express this; five of its own seed images are single objects,
+but "how many things are in frame" is a subject decision, not a style one.
 
-## 0.5 · C-METAL — the cold-iron clause (metal objects only)
+## 0.4 · P-WEAPON — weapons, ammo and long tools
 
-> all iron, steel, mithril and dawnsteel is cold metal — iron grey through steel silver-blue — with
-> no warm tint in the metal itself, warmth appearing only on leather, cord, wood, and brass or gold
-> fittings, and in the lighting; bronze, copper, brass and gold are warm metals and stay warm, and
-> rune-etched or emberforged metal keeps only the glow its subject names,
+> Game icon, ONE weapon flat to the screen in full profile on a diagonal, blade or head upper-left,
+> grip lower-right, no foreshortening or tilt, centred, filling the frame, chunky-heroic exaggerated
+> proportions, never a bundle, rack or pair,
 
-*Why.* Under a golden key light the model paints every metal as bronze, which collapses a seven-rung
-tier ladder — bronze → iron → steel → mithril → rune → emberforged → dawnsteel — into one warm mass.
-Hearthfire differentiates tiers by **material**, so the ladder *is* the itemization. The second half
-of the clause is not a hedge: bronze and gold are *supposed* to be warm, and a blanket "make metal
-cold" instruction would have made `bronze_sword` and `gold_bar` wrong instead.
+*(239 chars.)* **Why the orientation is fixed and identical for all ~90 weapons.** A weapon
+foreshortened toward the viewer loses its length, which is the only thing separating a dagger from a
+greatsword at 38 px. Fixing one diagonal also buys the shelf its rhythm: 90 weapons on one axis read
+as an armoury, 90 weapons at 90 angles read as a stock-image dump. **The cost is real and is paid
+deliberately** — see §0.9a on silhouette collision, the failure this choice makes *more* likely and
+which the subject lines, not the wrapper, must answer.
 
-## 0.6 · C-NEUTRAL — enchant-neutrality (weapons, ammo, tools)
+## 0.5 · P-MONSTER — the creature bust
 
-> the working end — blade, head, point, arrowhead, fletching, staff tip — carries no elemental
-> colour: no ember-red heat, no frost-blue chill and no venom-green sheen unless the subject names
-> it,
+> Creature bust, three-quarters to the viewer, filling a square frame with an even margin, horns,
+> antlers, ears and blades whole and never touching the edge, eyes near centre, chunky-heroic
+> exaggerated proportions,
 
-*Why.* Enchanted states render as a **runtime overlay** (element glow + corner pip, theme tokens,
-zero per-variant art). Warm colour baked into a base arrowhead is then indistinguishable from a real
-ember enchant — the icon would lie about an item's stats. Named unique enchanted items are the
-exception and their subject lines say so.
+*(212 chars.)* **The framing rule changed on 2026-08-16 and this is the new one.** The old rule —
+"eyes inside the middle 70%" — existed because the arena portrait was a **circle** with
+`object-fit: cover`, which threw away the corners of the frame, and the corners are exactly where a
+creature keeps the information a bestiary is read by. **b357 made every creature portrait a square
+plate with `contain`** — arena, bestiary row, monster row, preview modal, bounty notice, pet badge.
+So the subject may now **use the whole square, corners included** — a 21% larger usable frame, and
+why the Elk King's antlers survive. The only rule left is a **small even margin**, because `contain`
+shows the file's true edge and an antler tip clipped by the canvas is a permanent defect no CSS can
+undo.
 
-## 0.7 · C-SIGNAL — the two-signal enforcement clause (monsters)
+## 0.6 · C-METAL — the cold-iron clause (metal objects only)
 
-> any element accent named in the subject is matte pigment painted into the hide, bone, bark, chitin
-> or stone at the named place — small, slightly irregular, and no more than a few percent of the
-> visible surface — never a glow, sheen, highlight or bloom, and it must stay readable as a marking
-> under the key light,
+> iron, steel, mithril and dawnsteel read cold grey to silver-blue with no warm tint; bronze, copper
+> and gold stay warm,
 
-*Why, and it does not fork §0.1–0.3 of `monster-art-prompts.md` — it enforces them.* The Game
-Designer's grammar says a monster carries two facts: **resistance in the body** and **weakness as one
-small marking**. That grammar has exactly one failure mode, and it is caused by this wrapper: the
-Hearthfire suffix puts a warm key light on every subject, so *every* monster looks faintly
-fire-touched and a real Ember-weakness marking becomes indistinguishable from the lamp. This clause
-is the one sentence that keeps the marking a marking. **If a generation comes back without its hook,
-it is wrong even if it is beautiful.**
+*(118 chars.)* **Why.** Under a golden key light the model paints every metal as bronze, which
+collapses a seven-rung tier ladder — bronze → iron → steel → mithril → rune → emberforged →
+dawnsteel — into one warm mass. Hearthfire differentiates tiers by **material**, so the ladder *is*
+the itemization. The second half is not a hedge: bronze and gold are *supposed* to be warm, and a
+blanket "make metal cold" would have made `bronze_sword` and `gold_bar` wrong instead. The re-cut
+dropped the "warmth only on leather, cord, wood and brass fittings" half — the item anchor is seeded
+with **two cold-metal exemplars** (`iron_sword`, `iron_platebody`) that demonstrate it, and the
+neutral-material lock in the SUFFIX says it generally.
 
-## 0.8 · SUFFIX — shared by items and monsters, never varied
+## 0.7 · C-ENCHANT — enchant-neutrality (weapons, ammo, tools)
 
-> painted in confident thick brush strokes with heavy darkened edges instead of an inked outline,
-> bold beveled forms, a single dramatic warm key light from the upper left with a cool bounce fill
-> from the lower right and one hot specular highlight, a very wide value range from a bright lit edge
-> to a near-black shadow side; the warm palette of ember orange, hearth gold and deep umber with cool
-> steel-blue accents belongs to the LIGHT and to stated trim only and must never repaint the object's
-> own material — anything the subject calls grey, dark, plain, black, pale, bone or neutral stays
-> neutral, and only the colours the subject names may appear as local colour; silhouette-first design
-> that still reads at forty pixels, no detail finer than one-sixteenth of the frame; fully
-> transparent background with nothing painted behind or beneath the subject — no backdrop wash, no
-> vignette, no ground plane, no contact shadow, no cast shadow, no drop shadow — no frame or border,
-> no text, no lettering, no watermark, no signature, no UI chrome.
+> blade, point, arrowhead and fletching carry no elemental colour unless named above,
 
-**The material-honesty half of that sentence is new and it is the most important clause in this
-document.** The pilot's `iron_ore` is specced as *"a rough chunk of grey rock streaked with rusty
-red-brown iron ore"* and came back **polychrome red, orange and violet** — measured, not
-impressionistic: 38% of its opaque pixels are warm-dominant and its mean colour is `127,94,94`,
-against `108,103,101` for the correctly-cold `iron_sword`. At 40 px it reads as raw meat. The cause
-is structural rather than a bad line: **when a subject's material is a neutral — stone, ore, bone,
-ash, coal, plain iron, dressed masonry — the palette clause has nothing legitimate to land on, so it
-repaints the material itself.** Every neutral-material icon in the batch was exposed to this. Pinning
-the palette to *light and stated trim* fixes the whole class, and the same sentence is what stops the
-new transparency ban from being argued away — the pilot busts arrived with painted backdrops because
-"fully transparent background" alone does not stop a model from painting atmosphere behind a portrait.
+*(83 chars.)* **Why.** Enchanted states render as a **runtime overlay** (element glow + corner pip,
+theme tokens, zero per-variant art). Warm colour baked into a base arrowhead is then
+indistinguishable from a real ember enchant — the icon would **lie about an item's stats**. Named
+unique enchanted items are the exception and their subject lines say so.
 
-## 0.9 · The three failure modes we have NOT yet seen at scale
+## 0.8 · C-SIGNAL — the two-signal enforcement clause (monsters)
+
+> the element accent named above is matte pigment on the body, never a glow or sheen,
+
+*(83 chars.)* **Why, and it does not fork §0.1–0.3 of `monster-art-prompts.md` — it enforces them.**
+The Game Designer's grammar says a monster carries two facts: **resistance in the body** and
+**weakness as one small marking**. That grammar has exactly one failure mode and this wrapper causes
+it: a warm key light falls on every subject, so *every* monster looks faintly fire-touched and a real
+Ember-weakness marking becomes indistinguishable from the lamp. This is the one sentence that keeps
+the marking a marking. **If a generation comes back without its hook, it is wrong even if it is
+beautiful.**
+
+## 0.9 · SUFFIX — shared by items and monsters, never varied
+
+> colour comes from the light, not the material — grey, black, bone and stone stay neutral, and only
+> colours named above appear as local colour; silhouette-first, readable at 40px, no detail finer
+> than a sixteenth of the frame; fully transparent background, no backdrop, vignette, scenery,
+> ground, shadow, frame, text, watermark or UI.
+
+*(333 chars — the largest single piece, and every clause in it is a ban or a legibility rule, which
+is exactly what a style anchor cannot carry.)*
+
+**The neutral-material lock is the most important sentence in this document.** The pilot's `iron_ore`
+is specced as *"a rough chunk of grey rock streaked with rusty red-brown iron ore"* and came back
+**polychrome red, orange and violet** — measured, not impressionistic: 38% of its opaque pixels are
+warm-dominant and its mean colour is `127,94,94`, against `108,103,101` for the correctly-cold
+`iron_sword`. At 40 px it reads as raw meat. The cause is structural rather than a bad line:
+**when a subject's material is a neutral — stone, ore, bone, ash, coal, plain iron, dressed masonry —
+the palette clause has nothing legitimate to land on, so it repaints the material itself.** Every
+neutral-material icon in the batch was exposed. Pinning colour to the light fixes the whole class.
+
+**The transparency ban is also load-bearing and also comes from an observed failure:** the pilot busts
+arrived with painted backdrops, because "fully transparent background" alone does not stop a model
+from painting atmosphere behind a portrait. Hence "no backdrop, vignette, scenery" spelled out.
+
+## 0.9a · The three failure modes we have NOT yet seen at scale
 
 Named here because a 13-image pilot cannot show them and a 600-image batch will.
 
@@ -185,17 +204,33 @@ The same logic excludes `iron_ore` (defective) and `oak_log` (see §0.12).
 in `assets/icons-bundle/hearthfire/`.** More signal per image, and the processed set has been
 auto-cropped and resized, which is composition information the anchor should not learn.
 
-**Concrete steps.**
-1. `POST /v1/styles` with `style=digital_illustration` and the seed files as multipart `file`
-   uploads; keep the returned `id`. **Verify the accepted file count first with one call** — the
-   documented cap has been 5; if it is lower, drop `wheat_bread` from the item set and
-   `winter_wolf` from the monster set (each is the most redundant member of its group).
-2. Add `--style-id` to `tools/gen-art.mjs` and pass `style_id` on `/v1/images/generations`. When
-   `style_id` is sent, `style` must **not** be — Recraft rejects both together.
-3. **Keep the full wrapper text anyway.** The anchor and the words agree, so they reinforce; and if
-   style creation fails at run time the batch still produces the right look instead of 600 defaults.
-4. **Re-run the 13 pilots through the style first** (~$0.52) and diff them against the approved ones
-   before spending on 600. An anchor that changes the pilot is an anchor that will change everything.
+**BUILT AND CONFIRMED 2026-08-16 — record these so the batch is reproducible.**
+
+| Style | `style_id` |
+|---|---|
+| `hearthfire-items` | **`96fc6650-52e5-458f-855f-62da2757f065`** |
+| `hearthfire-monsters` | **`52693fa5-649f-4d7c-993b-5ce9e5b33f91`** |
+
+Both created with `POST /v1/styles`, `style=digital_illustration`, seed files as multipart `file`
+uploads. **Confirmed by execution, not by documentation:** the endpoint accepts **at least 5 files**,
+and costs **5 credits** per style. When `style_id` is sent, `style` must **not** be — Recraft rejects
+both together. `tools/gen-art.mjs --style-id <id>` is wired and working.
+
+**The remaining steps, in order.**
+1. **Re-run the 13 pilots through the style** (~$0.52) and diff them against the approved set before
+   spending on 600. An anchor that changes the pilot is an anchor that will change everything. This
+   step already paid for itself once — see §0.2; it is how the 1000-character cap was found for
+   $0.00 instead of for a whole batch.
+2. Generate **one full tier ladder** (seven rungs, contiguous) and read it as a strip before
+   committing to the rest. Ladder legibility is the failure that only shows up in a row (§0.9a).
+3. Then the batch, family by family, `--concurrency 3`.
+4. `node tools/qc-art.mjs <out> --snap --neutral <ids>` as the gate before any wiring.
+
+**On the wrapper text now that the anchors exist.** The style carries the hand and the text no longer
+repeats it — that is what bought the character budget (§0.2). The trade is real and worth stating:
+**if a `style_id` is ever omitted, the output will be far weaker than the pilot**, because the words
+that used to describe the brushwork are gone. `gen-art.mjs` should therefore always be run with
+`--style-id`, and a batch generated without one should be deleted rather than reviewed.
 
 **On seeds — say the true thing.** Recraft's v3 generation endpoint exposes no seed parameter in the
 call `gen-art.mjs` makes, so **there is no reproducibility lever from seeding** and any claim of one
@@ -286,6 +321,26 @@ post-pass can be re-run on any subset.
 non-zero on any §0.11 failure. On the 13-image pilot it independently caught both known defects and
 nothing else: the `iron_ore` neutral failure (38% warm) and `bronze_sword`/`oak_log` being
 byte-identical.
+
+
+## 0.13 · The guard, so this is never found by spending money again
+
+`tools/gen-art.mjs` now **refuses to run** — exit 2, before the dry-run summary and before any
+network call — if any assembled prompt is over 1000 characters or empty. It names every offender
+with its length and overage. It also prints `prompt length: longest N/1000` on every successful run,
+so the headroom is visible rather than assumed, and **warns when `--style-id` is missing**, because
+the re-cut wrapper deliberately no longer describes brushwork.
+
+**Mutation-proved four ways** (three synthetic, one real):
+| Mutation | Expected | Result |
+|---|---|---|
+| a 1001-character prompt | refused | `✗ items/a.png: 1001 chars (cap 1000, over by 1)`, exit 2 |
+| a prompt of **exactly** 1000 | **accepted** — an off-by-one guard is a broken guard | `longest 1000/1000 — all within the API cap`, exit 0 |
+| an empty/whitespace prompt | refused (the API's lower bound is 1) | `✗ items/a.png: empty prompt`, exit 2 |
+| **the real pre-re-cut pilot manifest** | refused | 6 offenders named, worst `monsters/grim_reaper.png: 1147`, exit 2 |
+
+That last row is the one that matters: the guard was proved against **the exact file that would have
+burned the batch**, not only against synthetic input.
 
 ---
 

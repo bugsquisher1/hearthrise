@@ -35,21 +35,26 @@ deliberate, so the art direction can be swapped without rewriting 512 lines. Wra
 [`art-direction-picker.md` §0](./art-direction-picker.md).** Assemble every item prompt as
 
 ```
-P-ITEM or P-WEAPON (picker §0.2/§0.3)  +  the subject line below
-   +  C-METAL if the object is metal (§0.5)  +  C-NEUTRAL if it is a weapon, ammo or tool (§0.6)
-   +  SUFFIX (§0.8)
+P-ITEM or P-WEAPON (picker §0.3/§0.4)  +  the subject line below
+   +  C-METAL if the object is metal (§0.6)  +  C-ENCHANT if it is a weapon, ammo or tool (§0.7)
+   +  SUFFIX (§0.9)
 ```
 
 Use the **ITEMS** prefix for everything except weapons, ammo, staves, bows and the gathering tools,
 which take the weapon prefix's fixed orientation. Do not mix lanes across a batch — the whole value of
 a single direction is that 426 icons sit on one shelf and look like one game.
 
+**Every prompt must assemble to ≤ 1000 characters** — Recraft's hard API cap, found by execution
+(picker §0.2). The longest subject line in this file is 200 characters (`iron_ore`) and the worst
+assembled item prompt is 929; `tools/gen-art.mjs` refuses to run if that ever stops being true.
+**If you lengthen a subject line, re-run the dry run.**
+
 **Two wrapper rules changed the subject lines in this file and you should know why before editing one.**
-1. **ONE OVERSIZED SPECIMEN** (§0.2). Every "a handful of…", "a pile of…", "a heap of…", "a stack of…",
+1. **ONE OVERSIZED SPECIMEN** (§0.3). Every "a handful of…", "a pile of…", "a heap of…", "a stack of…",
    "a bundle of…" and every "…on a wooden board" was rewritten to a single large object. The pilot's
    `cooked_shrimp` proved it: five small shrimp on a chopping board reads, at the 34 px shop row, as a
    board. **38 lines were affected.**
-2. **MATERIAL HONESTY** (§0.8). The warm palette belongs to the light, never to the object's own
+2. **MATERIAL HONESTY** (§0.9). The warm palette belongs to the light, never to the object's own
    material. The pilot's `iron_ore` — specced as grey rock with rust streaks — came back polychrome red
    and violet (38% of its opaque pixels warm-dominant, against 16% for the correctly-cold `iron_sword`).
    The wrapper now pins this for the whole batch, and the neutral-material lines below say it again
@@ -826,7 +831,7 @@ Only the plan groups whose members are actually named in the source specs are li
 **-08** (signature drops), **-09** (descriptions) and **-10** (seal sink) add no new item art.
 
 **ITEM-PLAN-02 — bound runes** (`consumable-economy.md` §6.2). Shared descriptors: *one large flat
-rune-stone chip carved with a single glyph — ONE chip, never a stack or handful (picker §0.2).*
+rune-stone chip carved with a single glyph — ONE chip, never a stack or handful (picker §0.3).*
 
 | review id | Name | Subject line | File |
 |---|---|---|---|

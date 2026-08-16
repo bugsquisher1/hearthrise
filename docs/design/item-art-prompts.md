@@ -166,7 +166,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | mithril_platebody | Mithril Platebody | a pale blue-silver mithril cuirass, unnaturally light, with fine seams down the flanks | `mithril_platebody.png` |
 | rune_platebody | Rune Platebody | a deep silvered rune breastplate with etched runes glowing faintly across the chest | `rune_platebody.png` |
 | ember_platebody | Emberforged Platebody | a dark heat-blued cuirass with glowing molten seams tracing the ribs | `ember_platebody.png` |
-| dawn_platebody | Dawnsteel Platebody | a near-white radiant steel breastplate with warm gold inlay along the collar, flawless | `dawn_platebody.png` |
+| dawn_platebody | Dawnsteel Platebody | an empty near-white radiant steel breastplate seen front-on, no wearer, warm gold inlay along the collar, flawless | `dawn_platebody.png` |
 | bronze_platelegs | Bronze Platelegs | ruddy cast-bronze legguards with plain overlapping thigh plates, pitted soft warm metal | `bronze_platelegs.png` |
 | iron_platelegs | Iron Platelegs | plain dark grey iron legguards, unadorned and heavy, faint rust at the straps | `iron_platelegs.png` |
 | steel_platelegs | Steel Platelegs | bright tempered steel legguards with clean bevelled thigh plates and a hard mirror finish | `steel_platelegs.png` |
@@ -179,7 +179,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | steel_boots | Steel Boots | bright tempered steel sabatons with clean bevelled bands and a hard mirror toe | `steel_boots.png` |
 | mithril_boots | Mithril Boots | pale blue-silver mithril sabatons, unnaturally light, with fine seams over the instep | `mithril_boots.png` |
 | rune_boots | Rune Boots | deep silvered rune sabatons with etched runes glowing faintly along the shin | `rune_boots.png` |
-| ember_boots | Emberforged Boots | dark heat-blued sabatons with glowing molten seams between the toe bands | `ember_boots.png` |
+| ember_boots | Emberforged Boots | a pair of empty dark heat-blued plate boots standing side by side, no wearer, glowing molten seams between the toe bands | `ember_boots.png` |
 | dawn_boots | Dawnsteel Boots | near-white radiant steel sabatons with warm gold inlay at the cuff, flawless | `dawn_boots.png` |
 | bronze_gauntlets | Bronze Gauntlets | a pair of ruddy cast-bronze gauntlets with plain banded fingers and pitted soft warm metal | `bronze_gauntlets.png` |
 | iron_gauntlets | Iron Gauntlets | a pair of plain dark grey iron gauntlets, unadorned, with faint rust at the knuckles | `iron_gauntlets.png` |
@@ -218,9 +218,9 @@ Every subject line below already uses this table; keep it if you edit them.
 | studded_pants | Studded Leather Chaps | dark brown leather chaps set with rows of iron studs down the thigh | `studded_pants.png` |
 | boarhide_pants | Boarhide Chaps | coarse ochre boarhide chaps with bristles still in the hide | `boarhide_pants.png` |
 | snakeskin_pants | Snakeskin Chaps | green scaled snakeskin chaps with a fine repeating pattern | `snakeskin_pants.png` |
-| wyvernhide_pants | Wyvernhide Chaps | slate blue-grey wyvern-scale chaps of hard overlapping plates | `wyvernhide_pants.png` |
+| wyvernhide_pants | Wyvernhide Chaps | a pair of empty slate blue-grey scaled leather leggings laid out flat side by side, no wearer, hard overlapping plates | `wyvernhide_pants.png` |
 | dragonhide_pants | Dragonhide Chaps | deep oxblood-red dragon-scale chaps, thick and glossy | `dragonhide_pants.png` |
-| voidhide_pants | Voidhide Chaps | black scaled chaps with a faint violet sheen at the knee | `voidhide_pants.png` |
+| voidhide_pants | Voidhide Chaps | a pair of empty black scaled leather leggings laid out flat side by side, no wearer, a faint violet sheen at the knee | `voidhide_pants.png` |
 | leather_boots | Leather Boots | plain tanned tan leather boots with simple stitching and a soft turned-down cuff | `leather_boots.png` |
 | studded_boots | Studded Leather Boots | dark brown leather boots set with rows of iron studs up the shin | `studded_boots.png` |
 | boarhide_boots | Boarhide Boots | coarse ochre boarhide boots with bristles still in the hide and a thick sole | `boarhide_boots.png` |
@@ -256,17 +256,17 @@ Every subject line below already uses this table; keep it if you edit them.
 | voidweave_helmet | Voidweave Hat | a black hood-hat woven with starless violet thread, hanging in soft folds | `voidweave_helmet.png` |
 | apprentice_body | Apprentice Robe Top | an undyed coarse linen robe top, plain and cheap, with a rope tie | `apprentice_body.png` |
 | adept_body | Adept Robe Top | a blue-grey wool robe top with simple braid trim at the cuffs | `adept_body.png` |
-| scholar_body | Scholar Robe Top | a deep green cloth robe top with brass clasps down the front | `scholar_body.png` |
-| warlock_body | Warlock Robe Top | a dark purple robe top with black leather bindings across the chest | `warlock_body.png` |
-| sorcerer_body | Sorcerer Robe Top | a midnight blue robe top with silver embroidery across the shoulders | `sorcerer_body.png` |
-| archmage_body | Archmage Robe Top | a white and gold robe top set with small gems along the collar | `archmage_body.png` |
-| voidweave_body | Voidweave Robe Top | a black robe top woven with starless violet thread, edges fading into shadow | `voidweave_body.png` |
+| scholar_body | Scholar Robe Top | an empty deep green cloth robe tunic laid out flat with its sleeves spread, no wearer, brass clasps down the front | `scholar_body.png` |
+| warlock_body | Warlock Robe Top | an empty dark purple robe tunic laid out flat with its sleeves spread, no wearer, black leather bindings across the front | `warlock_body.png` |
+| sorcerer_body | Sorcerer Robe Top | an empty midnight blue robe tunic laid out flat with its sleeves spread, no wearer, silver embroidery at the shoulders | `sorcerer_body.png` |
+| archmage_body | Archmage Robe Top | an empty white and gold robe tunic laid out flat with its sleeves spread, no wearer, small gems set along the collar | `archmage_body.png` |
+| voidweave_body | Voidweave Robe Top | an empty black robe tunic laid out flat with its sleeves spread, no wearer, starless violet thread woven through it | `voidweave_body.png` |
 | apprentice_pants | Apprentice Robe Bottom | an undyed coarse linen robe skirt, plain and cheap, hem uneven | `apprentice_pants.png` |
 | adept_pants | Adept Robe Bottom | a blue-grey wool robe skirt with simple braid trim at the hem | `adept_pants.png` |
 | scholar_pants | Scholar Robe Bottom | a deep green cloth robe skirt with brass hem weights | `scholar_pants.png` |
 | warlock_pants | Warlock Robe Bottom | a dark purple robe skirt with black leather binding at the waist | `warlock_pants.png` |
 | sorcerer_pants | Sorcerer Robe Bottom | a midnight blue robe skirt with silver embroidery along the hem | `sorcerer_pants.png` |
-| archmage_pants | Archmage Robe Bottom | a white and gold robe skirt set with small gems at the hem | `archmage_pants.png` |
+| archmage_pants | Archmage Robe Bottom | a pair of empty white and gold robe trousers laid out flat side by side, no wearer, small gems at the ankle hem | `archmage_pants.png` |
 | voidweave_pants | Voidweave Robe Bottom | a black robe skirt woven with starless violet thread, hem dissolving into dark | `voidweave_pants.png` |
 | apprentice_boots | Apprentice Slippers | a pair of undyed coarse linen slippers, plain, cheap and soft-soled | `apprentice_boots.png` |
 | adept_boots | Adept Slippers | a pair of blue-grey wool slippers with simple braid trim at the ankle | `adept_boots.png` |
@@ -284,11 +284,11 @@ Every subject line below already uses this table; keep it if you edit them.
 | voidweave_gloves | Voidweave Gloves | a pair of black gloves woven with starless violet thread | `voidweave_gloves.png` |
 | apprentice_belt | Apprentice Sash | a knotted undyed coarse linen sash, plain and cheap, ends frayed | `apprentice_belt.png` |
 | adept_belt | Adept Sash | a blue-grey wool sash with simple braid trim along its length | `adept_belt.png` |
-| scholar_belt | Scholar Sash | a deep green cloth sash with a brass clasp at the centre | `scholar_belt.png` |
+| scholar_belt | Scholar Sash | a single deep green cloth sash rolled and laid flat, no wearer, a brass clasp at its centre | `scholar_belt.png` |
 | warlock_belt | Warlock Sash | a dark purple sash bound with black leather cord | `warlock_belt.png` |
 | sorcerer_belt | Sorcerer Sash | a midnight blue sash with silver embroidery running its length | `sorcerer_belt.png` |
 | archmage_belt | Archmage Sash | a white and gold sash set with small gems along the centre | `archmage_belt.png` |
-| voidweave_belt | Voidweave Sash | a black sash woven with starless violet thread, ends trailing into shadow | `voidweave_belt.png` |
+| voidweave_belt | Voidweave Sash | a single black cloth sash rolled and laid flat, no wearer, woven with starless violet thread | `voidweave_belt.png` |
 
 ### 2.4 Weapons — the four generated families (28)
 
@@ -310,18 +310,18 @@ Every subject line below already uses this table; keep it if you edit them.
 | dawn_warhammer | Dawnsteel Warhammer | a near-white radiant steel warhammer with warm gold inlay on the head collar, flawless | `dawn_warhammer.png` |
 | shortbow | Shortbow | a small recurved shortbow of pale untreated softwood, roughly finished, with a plain hemp string | `shortbow.png` |
 | longbow | Longbow | a tall warm brown oak longbow, close-grained, with a leather-bound grip and a taut string | `longbow.png` |
-| willow_longbow | Willow Longbow | a tall pale supple willow longbow, slightly greenish, with a corded grip | `willow_longbow.png` |
+| willow_longbow | Willow Longbow | a tall longbow, one slender curved limb of pale supple willow, slightly greenish, with a corded grip at its middle | `willow_longbow.png` |
 | maple_bow | Maple Bow | a golden-honey maple bow with a rippled figure in the grain and horn nocks | `maple_bow.png` |
 | yew_bow | Yew Bow | a red-brown yew bow with a cream sapwood stripe along its back and horn nocks | `yew_bow.png` |
-| runewood_bow | Runewood Bow | a dark timber bow with glowing rune-veins running through the grain and a rune-etched grip | `runewood_bow.png` |
+| runewood_bow | Runewood Bow | a tall bow, one slender curved limb of dark timber with glowing rune-veins in the grain, a rune-etched grip at its middle | `runewood_bow.png` |
 | duskwood_bow | Duskwood Bow | a near-black duskwood bow with a cold silver sheen along the grain and a silvered string | `duskwood_bow.png` |
-| apprentice_staff | Apprentice Staff | a plain pale untreated softwood staff, roughly finished, with a natural knot at the head | `apprentice_staff.png` |
-| oak_staff | Oak Staff | a sturdy warm brown oak staff, close-grained, with an iron ferrule at the foot | `oak_staff.png` |
-| willow_staff | Willow Staff | a pale supple willow staff, slightly greenish, its head split around a small clear stone | `willow_staff.png` |
-| maple_staff | Maple Staff | a golden-honey maple staff with a rippled figure in the grain and a brass-caged head | `maple_staff.png` |
-| yew_staff | Yew Staff | a red-brown yew staff with a cream sapwood stripe and a carved head holding a pale gem | `yew_staff.png` |
-| runewood_staff | Runewood Staff | a dark timber staff with glowing rune-veins in the grain and a floating rune at the head | `runewood_staff.png` |
-| duskwood_staff | Duskwood Staff | a near-black duskwood staff with a cold silver sheen and a silent dark orb held at its head | `duskwood_staff.png` |
+| apprentice_staff | Apprentice Staff | a long plain pale untreated softwood pole, roughly finished and straight its whole length, with a natural knot in the grain near the upper tip | `apprentice_staff.png` |
+| oak_staff | Oak Staff | a long plain sturdy warm brown oak pole, close-grained, straight and smooth its whole length, with a thin iron band at the foot no wider than the pole | `oak_staff.png` |
+| willow_staff | Willow Staff | a long plain pale supple willow pole, slightly greenish, straight and smooth its whole length, the upper tip split around a small clear stone | `willow_staff.png` |
+| maple_staff | Maple Staff | a long plain golden-honey maple pole with a rippled figure in the grain, straight its whole length, bound with thin brass wire at the upper tip | `maple_staff.png` |
+| yew_staff | Yew Staff | a long plain red-brown yew pole with a cream sapwood stripe running its whole length, the upper tip carved to hold a small pale gem | `yew_staff.png` |
+| runewood_staff | Runewood Staff | a long plain dark timber pole with glowing rune-veins running through the grain, straight its whole length, a small rune floating just off the upper tip | `runewood_staff.png` |
+| duskwood_staff | Duskwood Staff | a long plain near-black duskwood pole with a cold silver sheen along the grain, straight its whole length, the upper tip closing around a small silent dark orb no wider than the pole | `duskwood_staff.png` |
 
 ### 2.5 Wave-3 uniques (14)
 
@@ -330,30 +330,30 @@ Every subject line below already uses this table; keep it if you edit them.
 | dragonrend_greatblade | Dragonrend | an enormous two-handed greatblade of grim dark death-steel, an ancient bear's claw bound at the crossguard and a red dragon heart-gem set in the pommel | `dragonrend_greatblade.png` |
 | crown_of_the_fallen_king | Crown of the Fallen King | a heavy war-crown of near-white dawnsteel with broken blackened spires and old dried blood in the engraving | `crown_of_the_fallen_king.png` |
 | emberfang_blade | Emberfang | a single-edged blade that runs visibly hot, a demon ember burning inside the fuller and insect-chitin scales along the spine | `emberfang_blade.png` |
-| demoncaller_staff | Demoncaller | a dark runewood staff crowned with a caged coal from the underworld that will not die, demonfire licking between the bars | `demoncaller_staff.png` |
+| demoncaller_staff | Demoncaller | a long plain dark runewood pole, straight its whole length, the upper tip caging a small undying coal with demonfire licking between thin bars | `demoncaller_staff.png` |
 | panthers_eye_pendant | Panther's Eye Pendant | a night panther's ruby eye set in blackened silver and strung on braided shadow-silk cord | `panthers_eye_pendant.png` |
 | wraithsilk_shroud | Wraithsilk Shroud | a hooded cowl of grey wraith-silk whose edges fade away into nothing, light seeming to drain into the weave | `wraithsilk_shroud.png` |
-| widows_fang | Widow's Fang | a slim envenomed dagger with a green-black sheen along the edge and a spider's unblinking eye set in the pommel | `widows_fang.png` |
+| widows_fang | Widow's Fang | a single slim dagger with a green-black sheen along its edge and a spider eye set in the pommel | `widows_fang.png` |
 | plaguewarden_greaves | Plaguewarden Greaves | pale blue-silver mithril legguards stained and cured with sickly green swarm-ichor that has hardened into the plates | `plaguewarden_greaves.png` |
 | hollow_sigil_ring | Hollow Sigil Ring | a heavy band of spent grey runes closed around a dark wizard's hollow black sigil | `hollow_sigil_ring.png` |
-| fangdart_recurve | Fangdart Recurve | a light recurve bow strung with braided dire-wolf sinew, torn fangs bound along its limbs and night-bone shot at the grip | `fangdart_recurve.png` |
-| alphaheart_longbow | Alphaheart Longbow | a tall longbow carved around a single enormous pack-alpha fang set into the riser, grey wolf-pelt wrapping the grip | `alphaheart_longbow.png` |
+| fangdart_recurve | Fangdart Recurve | a light recurve bow, one slender doubly-curved limb strung with braided sinew, torn fangs bound along the limb and night-bone at the grip | `fangdart_recurve.png` |
+| alphaheart_longbow | Alphaheart Longbow | a tall longbow, one slender curved limb of pale wood, a single large wolf fang set into the middle of the limb and grey wolf pelt wrapped around the grip there | `alphaheart_longbow.png` |
 | nightstalker_pelt | Nightstalker's Pelt | a body armour of black panther hide stitched with shadow-silk and fastened with hooked claw clasps | `nightstalker_pelt.png` |
-| warband_bulwark | Warband Bulwark | a heavy cape of shed bony brute-plating hammered over a riveted steel frame, scarred from use | `warband_bulwark.png` |
-| chitinweave_cloak | Chitinweave Cloak | a weightless cloak of overlapping black void-carapace plates sewn onto panther shadow, edges catching a faint violet sheen | `chitinweave_cloak.png` |
+| warband_bulwark | Warband Bulwark | an empty heavy shoulder cape hanging flat with no one wearing it, shed bony plating hammered over a riveted steel frame, scarred from use | `warband_bulwark.png` |
+| chitinweave_cloak | Chitinweave Cloak | an empty hooded cloak hanging flat with no one wearing it, sewn from overlapping small black shell plates over dark cloth, a faint violet sheen at the shoulders | `chitinweave_cloak.png` |
 
 ### 2.6 Ammo — the arrow ladder (8)
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| bronze_arrows | Bronze Arrows | a single oversized arrow with a blunt ruddy cast-bronze head, a plain pale shaft and grey goose fletching | `bronze_arrows.png` |
-| barbed_arrows | Barbed Arrows | a single oversized arrow with a dark iron head filed with a backward barb, a plain shaft and brown fletching | `barbed_arrows.png` |
-| steel_arrows | Steel Arrows | a single oversized arrow with a needle-ground bright steel point and neat white fletching | `steel_arrows.png` |
-| mithril_arrows | Mithril Arrows | a single oversized arrow with a pale blue-silver mithril head, a slender shaft and pale fletching | `mithril_arrows.png` |
-| rune_arrows | Rune Arrows | a single oversized arrow with a deep silvered rune-etched point glowing faintly at the tip | `rune_arrows.png` |
-| emberhead_arrows | Emberhead Arrows | a single oversized arrow with a dark heat-blued head still glowing faintly orange and scorched fletching | `emberhead_arrows.png` |
-| dawnpoint_arrows | Dawnpoint Arrows | a single oversized arrow with a near-white radiant dawnsteel point and a gold-banded shaft | `dawnpoint_arrows.png` |
-| iron_arrows | Iron Arrows | a single oversized arrow with a plain dark grey iron head, a straight shaft and brown fletching | `iron_arrows.png` |
+| bronze_arrows | Bronze Arrows | a single arrow: one long straight pale wooden shaft, three grey goose feather vanes at the lower end, and a small blunt ruddy cast-bronze point at the upper end | `bronze_arrows.png` |
+| barbed_arrows | Barbed Arrows | a single arrow: one long straight plain wooden shaft, three brown feather vanes at the lower end, and a small narrow dark iron point filed with one backward barb at the upper end | `barbed_arrows.png` |
+| steel_arrows | Steel Arrows | a single arrow: one long straight pale wooden shaft, three neat white feather vanes at the lower end, and a small needle-ground bright steel point at the upper end | `steel_arrows.png` |
+| mithril_arrows | Mithril Arrows | a single arrow: one long straight slender pale wooden shaft, three pale feather vanes at the lower end, and a small narrow pale blue-silver mithril point at the upper end | `mithril_arrows.png` |
+| rune_arrows | Rune Arrows | a single arrow: one long straight dark wooden shaft, three dark feather vanes at the lower end, and a small deep silvered rune-etched point glowing faintly at the upper end | `rune_arrows.png` |
+| emberhead_arrows | Emberhead Arrows | a single arrow: one long straight dark wooden shaft, three scorched feather vanes at the lower end, and a small dark heat-blued point glowing faintly orange at the upper end | `emberhead_arrows.png` |
+| dawnpoint_arrows | Dawnpoint Arrows | a single arrow: one long straight gold-banded wooden shaft, three pale feather vanes at the lower end, and a small near-white radiant dawnsteel point at the upper end | `dawnpoint_arrows.png` |
+| iron_arrows | Iron Arrows | a single arrow: one long straight brown wooden shaft, three brown feather vanes at the lower end, and a small narrow plain dark grey iron point at the upper end | `iron_arrows.png` |
 
 ### 2.7 Jewelry — earrings (6)
 
@@ -371,10 +371,10 @@ Every subject line below already uses this table; keep it if you edit them.
 | id | Name | Subject line | File |
 |---|---|---|---|
 | woolen_cloak | Woollen Cloak | a short honest undyed wool travelling cloak with a bone toggle and a weather-stained hem | `woolen_cloak.png` |
-| houndskin_cloak | Houndskin Cloak | a short hound-pelt cloak lined with dark bat-leather, cut high so it never catches | `houndskin_cloak.png` |
+| houndskin_cloak | Houndskin Cloak | an empty short hooded cloak hanging flat with no one wearing it, grey hound fur outside and dark leather lining, cut high at the hem | `houndskin_cloak.png` |
 | trollhide_cape | Trollhide Cape | a thick warty grey troll-hide cape backed with brown bear pelt, heavy and stiff | `trollhide_cape.png` |
-| shadowsilk_cape | Shadowsilk Cape | a black panther-shadow cape woven on a spider's loom, hanging perfectly still with no drape | `shadowsilk_cape.png` |
-| dawnlit_mantle | Dawnlit Mantle | a near-black duskwood-thread mantle shot through with dawnsteel so the hem glows with first light | `dawnlit_mantle.png` |
+| shadowsilk_cape | Shadowsilk Cape | an empty cape hanging flat with no one wearing it, black silk so dark it takes no fold, hanging perfectly still | `shadowsilk_cape.png` |
+| dawnlit_mantle | Dawnlit Mantle | an empty short shoulder mantle hanging flat with no one wearing it, near-black cloth shot through with dawnsteel thread so the hem glows with first light | `dawnlit_mantle.png` |
 | wolfbone_torc | Wolfbone Torc | an open neck torc of carved wolfbone bound at the ends with ruddy bronze caps, kill-notches cut along it | `wolfbone_torc.png` |
 | spidersilk_choker | Spidersilk Choker | a close-fitting choker of spider-silk drawn into a single gold thread with a small dark clasp | `spidersilk_choker.png` |
 | warlords_torc | Warlord's Torc | a heavy collar hammered from two melted warlord badges, mismatched metals fused at a visible seam | `warlords_torc.png` |
@@ -402,13 +402,13 @@ Every subject line below already uses this table; keep it if you edit them.
 | rune_pickaxe | Rune Pickaxe | a mining pick with a deep silvered rune-etched head glowing faintly at both points | `rune_pickaxe.png` |
 | ember_pickaxe | Emberforged Pickaxe | a mining pick with a dark heat-blued head and glowing molten seams through the points | `ember_pickaxe.png` |
 | dawn_pickaxe | Dawnsteel Pickaxe | a mining pick with a near-white radiant steel head and warm gold inlay at the collar | `dawn_pickaxe.png` |
-| willow_rod | Willow Rod | a slender pale supple willow fishing rod, slightly greenish, with a hemp line and a bone hook | `willow_rod.png` |
-| oak_rod | Oak Rod | a sturdy warm brown oak fishing rod, close-grained, with a corded grip and an iron hook | `oak_rod.png` |
-| maple_rod | Maple Rod | a golden-honey maple fishing rod with a rippled grain figure and a brass line guide | `maple_rod.png` |
-| yew_rod | Yew Rod | a red-brown yew fishing rod with a cream sapwood stripe and a leather-bound grip | `yew_rod.png` |
-| runewood_rod | Runewood Rod | a dark timber fishing rod with glowing rune-veins running through the grain | `runewood_rod.png` |
-| duskwood_rod | Duskwood Rod | a near-black duskwood fishing rod with a cold silver sheen along the grain and a silvered line | `duskwood_rod.png` |
-| dawnsteel_rod | Dawnsteel Rod | a fishing rod of near-white radiant steel with warm gold fittings and a fine bright line | `dawnsteel_rod.png` |
+| willow_rod | Willow Rod | a long slim tapering fishing pole of pale supple willow, slightly greenish, thick at the foot and whip-thin at the tip, a hemp line hanging from the tip | `willow_rod.png` |
+| oak_rod | Oak Rod | a long slim tapering fishing pole of warm brown close-grained oak, thick at the foot and whip-thin at the tip, a corded grip at the foot and a line hanging from the tip | `oak_rod.png` |
+| maple_rod | Maple Rod | a long slim tapering fishing pole of golden-honey maple with a rippled grain figure, thick at the foot and whip-thin at the tip, a fine line hanging from the tip | `maple_rod.png` |
+| yew_rod | Yew Rod | a long slim tapering fishing pole of red-brown yew with a cream sapwood stripe, thick at the foot and whip-thin at the tip, a leather-bound grip at the foot and a hemp line hanging from the tip | `yew_rod.png` |
+| runewood_rod | Runewood Rod | a long slim tapering fishing pole of dark timber with glowing rune-veins in the grain, thick at the foot and whip-thin at the tip, a line hanging from the tip | `runewood_rod.png` |
+| duskwood_rod | Duskwood Rod | a long slim tapering fishing pole of near-black duskwood with a cold silver sheen along the grain, thick at the foot and whip-thin at the tip, a silvered line hanging from the tip | `duskwood_rod.png` |
+| dawnsteel_rod | Dawnsteel Rod | a long slim tapering fishing pole of near-white radiant steel, thick at the foot and whip-thin at the tip, warm gold fittings and a fine bright line hanging from the tip | `dawnsteel_rod.png` |
 
 ### 2.10 Artisan tools (9)
 
@@ -417,12 +417,12 @@ Every subject line below already uses this table; keep it if you edit them.
 | bronze_hammer | Bronze Hammer | a smith's cross-peen hammer with a ruddy cast-bronze head, soft warm metal, on a short timber haft | `bronze_hammer.png` |
 | steel_hammer | Steel Hammer | a smith's cross-peen hammer with a bright tempered steel head and a leather-bound haft | `steel_hammer.png` |
 | rune_hammer | Rune Hammer | a smith's cross-peen hammer with a deep silvered rune-etched head glowing faintly at the face | `rune_hammer.png` |
-| bone_needle | Bone Needle | a long tailor's needle carved from pale bone, blunt-eyed, with a length of coarse thread through it | `bone_needle.png` |
-| steel_needle | Steel Needle | a long bright tempered steel tailor's needle with a fine polished eye and a length of good thread | `steel_needle.png` |
-| rune_needle | Rune Needle | a long deep silvered tailor's needle with runes etched down its shaft glowing faintly | `rune_needle.png` |
+| bone_needle | Bone Needle | a single long sewing needle carved from pale bone, slim and straight, a small eye at the blunt end with one length of coarse thread through it | `bone_needle.png` |
+| steel_needle | Steel Needle | a single long sewing needle of bright tempered steel, slim and straight, a small polished eye at the blunt end with one length of good thread through it | `steel_needle.png` |
+| rune_needle | Rune Needle | a single long sewing needle of deep silvered metal, slim and straight, runes etched down its length glowing faintly, a small eye at the blunt end | `rune_needle.png` |
 | bronze_knife | Bronze Knife | a short kitchen knife with a ruddy cast-bronze blade and a plain wooden handle | `bronze_knife.png` |
 | steel_knife | Steel Knife | a short kitchen knife with a bright tempered steel blade and a riveted wooden handle | `steel_knife.png` |
-| rune_knife | Rune Knife | a short kitchen knife with a deep silvered rune-etched blade glowing faintly along the edge | `rune_knife.png` |
+| rune_knife | Rune Knife | a single short kitchen paring knife, a deep silvered rune-etched blade glowing faintly along the edge and a plain wooden handle | `rune_knife.png` |
 
 ### 2.11 Monster drop materials (46)
 
@@ -430,16 +430,16 @@ Every subject line below already uses this table; keep it if you edit them.
 |---|---|---|---|
 | bones | Bones | one large bleached animal thigh bone, knuckled at both ends; the bone is neutral chalk white, never pink or gold | `bones.png` |
 | big_bones | Big Bones | one massive yellowed femur from a big brute, thick and heavy, cracked at one knuckle; aged ivory, never pink or gold | `big_bones.png` |
-| dragon_bones | Dragon Bones | a single enormous blackened dragon rib, dense and deeply curved, cracked along one edge | `dragon_bones.png` |
-| slime_gel | Slime Gel | a quivering blob of translucent green ooze holding a soft dome shape, glassy highlights | `slime_gel.png` |
+| dragon_bones | Dragon Bones | a single enormous blackened curved rib bone, dense and heavy, cracked along one edge | `dragon_bones.png` |
+| slime_gel | Slime Gel | a single quivering mound of translucent green ooze slumped into a soft dome, glassy highlights, no shell and no rim | `slime_gel.png` |
 | goblin_ear | Goblin Ear | a single severed pointed goblin ear, green-grey and notched, with a small brass hoop through it | `goblin_ear.png` |
 | bat_wing | Bat Wing | a single torn leathery bat wing, dark grey membrane stretched between thin finger bones | `bat_wing.png` |
-| wolf_pelt | Wolf Pelt | a rolled grey wolf pelt with the head still attached, tanned and tied with cord | `wolf_pelt.png` |
-| troll_hide | Troll Hide | a thick folded slab of warty green-grey troll hide, coarse and stiff | `troll_hide.png` |
+| wolf_pelt | Wolf Pelt | a single grey animal fur laid out flat fur-side up, the empty head skin at one end, tied across the middle with cord | `wolf_pelt.png` |
+| troll_hide | Troll Hide | a single thick folded slab of warty green-grey animal hide, coarse and stiff, laid flat with its cut edges showing | `troll_hide.png` |
 | vamp_dust | Vampire Dust | a torn cloth pouch tipped on its side, fine pale ash with a faint red glimmer spilling from its mouth | `vamp_dust.png` |
 | demon_shard | Demon Shard | a jagged shard of hardened dark red demon flesh, still hot, glowing along its cracks | `demon_shard.png` |
 | dragon_scale | Dragon Scale | a single large green dragon scale, thick and iridescent, one edge chipped | `dragon_scale.png` |
-| lich_soul | Lich Soul | a cold pale blue soul-wisp curling inside a cracked glass phial, murmuring light | `lich_soul.png` |
+| lich_soul | Lich Soul | a small cracked glass phial stoppered with wax, a cold pale blue wisp of light curling inside it | `lich_soul.png` |
 | magic_essence | Magic Essence | a floating mote of raw arcane light condensed into a glowing violet-white drop | `magic_essence.png` |
 | rune_frag | Rune Fragment | a chipped triangular fragment of grey runestone with part of a carved glyph still on it | `rune_frag.png` |
 | ancient_rune | Ancient Rune | a whole flat runestone tablet carved with an old-tongue glyph glowing steadily | `ancient_rune.png` |
@@ -456,8 +456,8 @@ Every subject line below already uses this table; keep it if you edit them.
 | venom_sac | Venom Sac | an intact translucent green venom gland, taut and glistening, tied off at one end | `venom_sac.png` |
 | silk_thread | Silk Thread | a neat skein of fine pale spider silk wound on a small wooden spool | `silk_thread.png` |
 | spider_eye | Spider Eye | a single glassy black spider eye the size of a plum, wet and reflective | `spider_eye.png` |
-| brute_plate | Brute Plate | a rough slab of shed bony plating from a brute, ridged and scarred at the edges | `brute_plate.png` |
-| dire_fang | Dire Fang | a long curved yellowed fang from a dire beast, heavier than a hand | `dire_fang.png` |
+| brute_plate | Brute Plate | a single rough flat slab of shed bony plating laid flat, ridged and scarred at its edges | `brute_plate.png` |
+| dire_fang | Dire Fang | a single long curved yellowed tooth, thick at the root and tapering to a sharp point | `dire_fang.png` |
 | alpha_fang | Alpha Fang | an enormous ivory pack-alpha fang, notched with old scars and bound with a leather thong | `alpha_fang.png` |
 | grave_dust | Grave Dust | a small mound of grey grave dust with a faint cold shimmer, spilling from a burlap pouch | `grave_dust.png` |
 | cracked_spellstone | Cracked Spellstone | a fractured violet spellstone leaking spent magic from the crack as a thin escaping glow | `cracked_spellstone.png` |
@@ -469,29 +469,29 @@ Every subject line below already uses this table; keep it if you edit them.
 | wraith_veil | Wraith Veil | a tattered grey spectral shroud hanging in still air, its lower edge fraying into nothing | `wraith_veil.png` |
 | hell_ember | Hell Ember | a fist-sized black coal burning white-hot from within, never cooling, cracks running orange | `hell_ember.png` |
 | shadow_thread | Shadow Thread | a skein of thread spun from living darkness on a black spool, the strands blurring at the edges | `shadow_thread.png` |
-| void_chitin | Void Chitin | a curved plate of black void-touched chitin with a faint violet sheen and a hairline crack | `void_chitin.png` |
+| void_chitin | Void Chitin | a single curved flat plate of black armour-shell laid flat, a faint violet sheen and one hairline crack across it | `void_chitin.png` |
 | captain_medal | Captain Medal | a heavy silver campaign medal on a torn crimson ribbon, edge nicked by a blade | `captain_medal.png` |
 | shadow_pelt | Shadow Pelt | a rolled lightless black shadow-cat pelt that swallows the highlight falling on it | `shadow_pelt.png` |
 | razor_claw | Razor Claw | a single wickedly thin curved claw honed to a mirror edge, pale and translucent at the tip | `razor_claw.png` |
-| death_steel | Death Steel | a rough dark ingot of grim corpse-forged steel, its surface pocked and faintly greasy | `death_steel.png` |
+| death_steel | Death Steel | a single solid rectangular brick-shaped block of dark cast steel, its faces pocked and faintly greasy | `death_steel.png` |
 
 ### 2.12 Boss / mid-tier drops and early equipment (14)
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| captains_ribblade | Captain's Ribblade | a wicked curved blade ground from a long rib bone, hilt wrapped in dark leather and bound with wire | `captains_ribblade.png` |
+| captains_ribblade | Captain's Ribblade | a single curved knife whose blade is ground from one long rib bone, the hilt wrapped in dark leather and bound with wire | `captains_ribblade.png` |
 | hollow_sigil | Hollow Sigil | a heavy ring-shaped sigil of dull grey metal with nothing in its centre, edges carved with silent glyphs | `hollow_sigil.png` |
 | void_core | Void Core | a dense dark sphere collapsed in on itself, thin violet light escaping the seams, humming | `void_core.png` |
 | war_crown | War Crown | a heavy iron warlord's crown with blunt spikes, gold plating half worn away, dented on one side | `war_crown.png` |
 | ancient_claw | Ancient Claw | a colossal grey-black claw longer than an arm, cracked and ridged with age | `ancient_claw.png` |
 | chief_blade | Chief's Blade | a crude vicious goblin chieftain's blade of beaten iron with a saw-toothed edge and a bound-rag grip | `chief_blade.png` |
 | alpha_cloak | Alpha Cloak | a cape of thick grey alpha-beast pelt fastened at the shoulder with a fang clasp, the head cowl hanging back | `alpha_cloak.png` |
-| traveler_cape | Traveler Cape | a worn road-stained brown travelling cape with a frayed hem and a plain iron pin | `traveler_cape.png` |
+| traveler_cape | Traveler Cape | an empty hooded travelling cape hanging flat with no one wearing it, worn road-stained brown wool, a frayed hem and a plain iron pin at the throat | `traveler_cape.png` |
 | copper_ring | Copper Ring | a plain unadorned copper band, slightly bent, with a faint green patina in the groove | `copper_ring.png` |
 | hunter_necklace | Hunter Necklace | a beaded hunter's necklace of carved wooden beads, small teeth and a single feather | `hunter_necklace.png` |
 | gold_ring | Gold Ring | a plain polished gold band, heavy and unset, with a soft warm sheen | `gold_ring.png` |
 | gold_amulet | Gold Amulet | a teardrop gold amulet on a fine gold chain, plain-faced and highly polished | `gold_amulet.png` |
-| fox_companion | Fox Companion | a small alert red fox sitting upright with its tail curled around its paws, ears forward | `fox_companion.png` |
+| fox_companion | Fox Companion | a single small red fox sitting upright with its tail curled around its paws and its ears forward | `fox_companion.png` |
 | farm_deed | Farmer's Deed | a rolled parchment land deed tied with twine, a red wax seal pressed at the fold | `farm_deed.png` |
 
 ### 2.13 Ores, logs and raw stone (10)
@@ -499,9 +499,9 @@ Every subject line below already uses this table; keep it if you edit them.
 | id | Name | Subject line | File |
 |---|---|---|---|
 | copper_ore | Copper Ore | a rough chunk of plain grey stone with narrow bright orange-green copper veins across one face; the stone itself stays neutral grey | `copper_ore.png` |
-| iron_ore | Iron Ore | a rough chunk of plain dark grey stone, matte and unpolished, with a few narrow rust-brown streaks of iron ore across two faces; the rock itself is neutral grey — no red, orange or violet in the stone | `iron_ore.png` |
+| iron_ore | Iron Ore | a rough jagged fist-sized chunk of broken dark grey rock, its fractured faces streaked with dull rust-brown iron | `iron_ore.png` |
 | coal | Coal | a single large lump of glossy black coal with sharp fractured faces; the coal is pure black and stays black | `coal.png` |
-| gold_ore | Gold Ore | a rough chunk of pale rock threaded with gleaming yellow gold | `gold_ore.png` |
+| gold_ore | Gold Ore | a rough jagged fist-sized chunk of broken pale grey rock, its fractured faces threaded with bright yellow gold veins | `gold_ore.png` |
 | mithril_ore | Mithril Ore | a rough chunk of plain dark grey stone shot through with cold blue-tinged pale mithril; the stone itself stays neutral grey | `mithril_ore.png` |
 | normal_log | Normal Log | a single short cut log of pale untreated softwood, bark on, sawn clean at both ends | `normal_log.png` |
 | oak_log | Oak Log | a single short cut log of warm brown oak with thick furrowed bark and a close-grained end | `oak_log.png` |
@@ -515,18 +515,18 @@ Every subject line below already uses this table; keep it if you edit them.
 |---|---|---|---|
 | copper_bar | Copper Bar | a single cast ingot of soft orange copper with rounded edges and a faint patina | `copper_bar.png` |
 | bronze_bar | Bronze Bar | a single cast ingot of ruddy warm bronze, slightly pitted on the top face | `bronze_bar.png` |
-| iron_bar | Iron Bar | a single cast ingot of plain dark grey iron with a rough scaled surface; the iron is cold neutral grey with no warm tint | `iron_bar.png` |
-| steel_bar | Steel Bar | a single cast ingot of bright tempered steel with clean edges and a hard sheen; the steel is cold silver-blue with no warm tint | `steel_bar.png` |
+| iron_bar | Iron Bar | a single solid rectangular brick-shaped block of cast dark grey iron with a rough scaled surface, plain and featureless; the iron is cold neutral grey with no warm tint | `iron_bar.png` |
+| steel_bar | Steel Bar | a single solid rectangular brick-shaped block of cast tempered steel, clean-edged, plain and featureless; the steel is cold silver-blue with no warm tint | `steel_bar.png` |
 | gold_bar | Gold Bar | a single cast ingot of gleaming yellow gold, mirror-bright on the top face | `gold_bar.png` |
-| mithril_bar | Mithril Bar | a single cast ingot of pale blue-silver mithril, unnaturally light, with fine seams | `mithril_bar.png` |
+| mithril_bar | Mithril Bar | a single solid rectangular brick-shaped block of cast pale blue-silver mithril, plain and featureless with fine seams | `mithril_bar.png` |
 | rune_bar | Rune Bar | a single cast ingot of deep silvered metal with runes glowing faintly across its face | `rune_bar.png` |
 | ember_bar | Emberforged Bar | a single cast ingot of dark heat-blued metal with glowing molten seams still cooling in it | `ember_bar.png` |
 | dawn_bar | Dawnsteel Bar | a single cast ingot of near-white radiant steel with warm gold light along its edges | `dawn_bar.png` |
 | normal_plank | Normal Plank | a single dressed plank of plain sawn softwood, pale and roughly finished, one end cut clean | `normal_plank.png` |
 | oak_plank | Oak Plank | a single dressed plank of warm brown oak, close-grained and cleanly dressed, one end cut clean | `oak_plank.png` |
-| willow_plank | Willow Plank | a single dressed plank of pale supple willow, slightly greenish, one end cut clean | `willow_plank.png` |
-| maple_plank | Maple Plank | a single dressed plank of golden-honey maple with a rippled figure in the grain | `maple_plank.png` |
-| yew_plank | Yew Plank | a single dressed plank of red-brown yew with a cream sapwood stripe along one edge | `yew_plank.png` |
+| willow_plank | Willow Plank | a single long flat sawn board of pale supple willow, rectangular, slightly greenish, one end cut clean | `willow_plank.png` |
+| maple_plank | Maple Plank | a single long flat sawn board of golden-honey maple, rectangular, its broad face showing a rippled grain figure | `maple_plank.png` |
+| yew_plank | Yew Plank | a single long flat sawn board of red-brown yew, rectangular, a cream sapwood stripe along one long edge | `yew_plank.png` |
 | runewood_plank | Runewood Plank | a single dressed dark plank with glowing rune-veins running through the grain | `runewood_plank.png` |
 | duskwood_plank | Duskwood Plank | a single dressed plank of near-black duskwood with a cold silver sheen along the grain | `duskwood_plank.png` |
 
@@ -546,7 +546,7 @@ Every subject line below already uses this table; keep it if you edit them.
 | turnip | Turnip | a single pale purple-and-white turnip with the leafy green top still attached and soil on the root | `turnip.png` |
 | carrot | Carrot | a single crisp orange carrot with a feathery green top and a little soil at the tip | `carrot.png` |
 | wheat | Wheat | a small tied sheaf of golden wheat with full ripe ears bending at the top | `wheat.png` |
-| potato | Potato | one large firm brown-skinned potato with soil still clinging to its eyes | `potato.png` |
+| potato | Potato | a single large firm oval brown-skinned potato with soil still clinging to its eyes | `potato.png` |
 | tomato | Tomato | a ripe red tomato on the vine with a green calyx and a bright highlight on its skin | `tomato.png` |
 | pumpkin | Pumpkin | a fat ribbed orange pumpkin with a thick curled green stem | `pumpkin.png` |
 | goldenroot | Goldenroot | a radiant amber tuber with translucent skin, glowing faintly, its fine roots trailing soil | `goldenroot.png` |
@@ -569,9 +569,9 @@ Every subject line below already uses this table; keep it if you edit them.
 | id | Name | Subject line | File |
 |---|---|---|---|
 | shrimp | Raw Shrimp | one oversized raw prawn, translucent pink shell, black eye, still wet | `shrimp.png` |
-| herring | Raw Herring | a single small silver baitfish, bony and raw, scales catching the light | `herring.png` |
+| herring | Raw Herring | a single small whole raw silver fish lying on its side, bony, its scales catching the light | `herring.png` |
 | trout | Raw Trout | a single speckled brown river trout, raw and slick, mouth slightly open | `trout.png` |
-| swordfish | Raw Swordfish | a single long-billed blue-grey swordfish, raw, its bill dominating the composition | `swordfish.png` |
+| swordfish | Raw Swordfish | a single whole raw blue-grey fish lying on its side with a very long pointed bill | `swordfish.png` |
 | lobster | Raw Lobster | a single heavy-clawed dark blue-brown lobster, raw and cold, claws forward | `lobster.png` |
 | frostfin | Raw Frostfin | a single pale ice-water fish, raw, frost crusting its fins and a chill haze on the scales | `frostfin.png` |
 | moonfish | Raw Moonfish | a single silver-scaled fish with a soft luminous sheen along its flank, raw and rare | `moonfish.png` |
@@ -628,13 +628,13 @@ Every subject line below already uses this table; keep it if you edit them.
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| chief_blade_recipe | Chief's Blade Recipe | a torn war-stained parchment scroll, half-unrolled, showing a crude blade drawn in charcoal | `chief_blade_recipe.png` |
+| chief_blade_recipe | Chief's Blade Recipe | a single torn parchment scroll half-unrolled, a crude blade drawn on it in charcoal | `chief_blade_recipe.png` |
 | captain_recipe | Captain's Ribblade Recipe | a rolled vellum scroll showing a bone blade sketched in ink with measurement marks | `captain_recipe.png` |
 | alpha_pattern | Alpha Cloak Pattern | a folded tailor's pattern of stitched hide panels with chalk lines and pinned thread | `alpha_pattern.png` |
-| spellstone_diagram | Spellstone Diagram | an arcane diagram inked on stiff parchment, concentric rings and a ring-setting drawn at the centre | `spellstone_diagram.png` |
+| spellstone_diagram | Spellstone Diagram | a single sheet of stiff parchment lying flat, an arcane diagram of concentric rings inked on it | `spellstone_diagram.png` |
 | dragon_marrow_recipe | Dragon Marrow Recipe | a grim set of loose notes on bloodstained parchment showing a spear-head drawn beside a bone | `dragon_marrow_recipe.png` |
 | gemcutter_note | Gemcutter's Note | a small folded note pinned to a scrap of leather, facet angles sketched around a split gem | `gemcutter_note.png` |
-| soul_recipe | Soul Recipe Scroll | a dread black-inked scroll with a sealed cord, a bowl and a wisp drawn on the open face | `soul_recipe.png` |
+| soul_recipe | Soul Recipe Scroll | a single rolled parchment scroll half-unrolled with a cord seal at one end, a bowl and a wisp drawn on the open face in black ink | `soul_recipe.png` |
 | marrow_cookbook | Marrow Cookbook | a thick leather-bound cookbook lying open, greasy fingerprints on the pages, a bone bookmark | `marrow_cookbook.png` |
 | field_cookbook | Field Cookbook | a small weather-beaten hunter's cookbook tied shut with cord, a feather tucked into it | `field_cookbook.png` |
 
@@ -676,21 +676,21 @@ Every subject line below already uses this table; keep it if you edit them.
 |---|---|---|---|
 | regent_helm | Hollow Regent Helm | a tall crowned great helm with an empty dark visor and no face behind it, blackened metal chased with worn gold | `regent_helm.png` |
 | slagheart_platebody | Slagheart Platebody | a massive cuirass forged around a still-glowing slag core set in the chest, black scorched plate with orange light bleeding from the seams | `slagheart_platebody.png` |
-| abyssal_greaves | Abyssal Greaves | legguards quenched in abyssal pearl, deep blue-green iridescence shifting across dark plate | `abyssal_greaves.png` |
+| abyssal_greaves | Abyssal Greaves | a pair of empty plate legguards laid out flat side by side, no wearer, dark plate with deep blue-green iridescence shifting across it | `abyssal_greaves.png` |
 | choirbone_gauntlets | Choirbone Gauntlets | a pair of gauntlets carved from pale singing bone, fine tuned grooves across the knuckles, faint sound-rings at the cuffs | `choirbone_gauntlets.png` |
-| warden_girdle | Warden's Girdle | a broad dark girdle closed with a bronze warden's seal-plate, chains and old wax hanging from it | `warden_girdle.png` |
-| wyrmgilt_mantle | Wyrmgilt Mantle | a heavy mantle of dark scale sheeted in radiant wyrm gilding, gold with an oil-slick shimmer at the shoulders | `wyrmgilt_mantle.png` |
+| warden_girdle | Warden's Girdle | a single broad dark leather belt laid out flat, no wearer, closed with a bronze seal-plate, small chains and old wax hanging from it | `warden_girdle.png` |
+| wyrmgilt_mantle | Wyrmgilt Mantle | an empty short shoulder mantle hanging flat with no one wearing it, dark scale sheeted in radiant gold with an oil-slick shimmer | `wyrmgilt_mantle.png` |
 
 ### 2.26 Dungeon boss signature loot (11)
 
 | id | Name | Subject line | File |
 |---|---|---|---|
-| warboss_standard | Warboss Standard | a crude battle standard on a notched spear-shaft, torn red banner nailed to a crossbar and hung with small skulls | `warboss_standard.png` |
+| warboss_standard | Warboss Standard | a single crude battle standard, a notched wooden pole with a torn red banner nailed to a short crossbar near the top and small skulls hung from it | `warboss_standard.png` |
 | wartusk_cleaver | Wartusk Cleaver | a broad heavy cleaver whose blade is a great broken boar tusk edged in beaten iron, grip bound in rawhide | `wartusk_cleaver.png` |
 | whispering_codex | Whispering Codex | a floating open grimoire with pale pages turning by themselves, faint whispering script lifting off the paper | `whispering_codex.png` |
-| lexarch_seal | Archivist Seal | a pale bone seal-matrix on a ribbon, its face cut with an archivist's cipher, ink still in the die | `lexarch_seal.png` |
+| lexarch_seal | Archivist Seal | a single pale bone seal-matrix on a short ribbon, its flat face cut with a cipher, dark ink still in the die | `lexarch_seal.png` |
 | ashcrown_greatsword | Ashcrown Greatsword | an enormous two-handed greatsword of black obsidian-veined steel, a smoking ash-crown wrought into the crossguard | `ashcrown_greatsword.png` |
-| voidmaw_scepter | Voidmaw Scepter | a long dark scepter whose head is a small open rift ringed with teeth, violet light dragging inward | `voidmaw_scepter.png` |
+| voidmaw_scepter | Voidmaw Scepter | a single short dark scepter, a plain rod topped with a small ring of teeth around a violet rift | `voidmaw_scepter.png` |
 | voidwoven_sigil | Voidwoven Sigil | a flat sigil woven from strands of void-dark thread that hold their shape in the air, violet light in the gaps | `voidwoven_sigil.png` |
 | riftmaw_husk | Riftmaw Husk | a large shed carapace-shell from a rift-beast, black and curved, the inner face still lit with dim violet | `riftmaw_husk.png` |
 | dragonfang_pike | Dragonfang Pike | a long two-handed pike whose head is an enormous dragon fang bound to a duskwood shaft with gold wire | `dragonfang_pike.png` |
@@ -733,8 +733,8 @@ the one to use;** if the implementing agent picks a different id, the file must 
 | ITEM-NEW-02 | Lazlo's Maul | a grave-robber's warhammer with a squat iron head cast from melted coffin-fittings, grip wrapped in shroud-cloth, pale grave dust in the pitting | `lazlos_maul.png` |
 | ITEM-NEW-03 | Dragonrib Bow | a tall bow whose limbs are a single curved dragon rib, sinew-strung, scale fragments still fused to the bone | `dragonrib_bow.png` |
 | ITEM-NEW-04 | Bramble Blade | a short cheap sword whose blade is chipped and green-stained from cutting roots, a living bramble creeping around the grip | `bramble_blade.png` |
-| ITEM-NEW-05 | Void Censer | a hanging brass censer on three chains, its vents leaking violet light instead of smoke, the bowl thin and rift-scarred | `void_censer.png` |
-| ITEM-NEW-07 | Rat Stick | a plain length of hard wood worn smooth at one end and bound with wire, notched dozens of times along its length | `rat_stick.png` |
+| ITEM-NEW-05 | Void Censer | a single small brass censer bowl hanging from three short chains, violet light leaking from its vents instead of smoke | `void_censer.png` |
+| ITEM-NEW-07 | Rat Stick | a long plain hardwood stick, straight and the same thickness its whole length, wire binding at the foot and dozens of small notches cut along it | `rat_stick.png` |
 
 ### 3.2 Charms and amulets — ITEM-NEW-08…13 (6)
 
@@ -742,7 +742,7 @@ the one to use;** if the implementing agent picks a different id, the file must 
 |---|---|---|---|
 | ITEM-NEW-08 | Hunter's Torc | an open neck torc of braided bronze wire ending in two carved stag heads, small pelts knotted at the back | `hunters_torc.png` |
 | ITEM-NEW-09 | Frost Locket | a small hinged silver locket rimed with permanent frost, a pale blue crystal visible through the gap | `frost_locket.png` |
-| ITEM-NEW-10 | Tally Ring | a plain iron band scored all round with dozens of small tally marks cut at different depths | `tally_ring.png` |
+| ITEM-NEW-10 | Tally Ring | a single plain iron finger ring, its band scored all round with dozens of small tally marks | `tally_ring.png` |
 | ITEM-NEW-11 | Bone Earrings | a matched pair of drop earrings, each a small carved bone charm hung on a thin bronze wire | `bone_earrings.png` |
 | ITEM-NEW-12 | Pathfinder Studs | a matched pair of stud earrings, each a tiny brass compass rose with a needle frozen off-north | `pathfinder_studs.png` |
 | ITEM-NEW-13 | Unlit Earrings | a matched pair of drop earrings of blackened metal holding two dead unlit lamps that give no light | `unlit_earrings.png` |
@@ -754,7 +754,7 @@ the one to use;** if the implementing agent picks a different id, the file must 
 | ITEM-NEW-14 | Hearthbread | a dense dark round loaf baked on a hearthstone, ash still on the base, torn open to show a soft crumb | `hearthbread.png` |
 | ITEM-NEW-15 | Traveller's Stew | a battered tin travelling pot of thick stew with the lid tipped back and a spoon standing in it | `travellers_stew.png` |
 | ITEM-NEW-16 | Winterdraught | a squat frosted glass bottle of pale blue draught, ice crystals climbing its shoulders | `winterdraught.png` |
-| ITEM-NEW-17 | Ratter's Bait | a small oilcloth bundle of pungent bait tied with twine, one greasy corner fallen open | `ratters_bait.png` |
+| ITEM-NEW-17 | Ratter's Bait | a single small oilcloth bundle tied with twine, one greasy corner fallen open showing dark bait inside | `ratters_bait.png` |
 | ITEM-NEW-20 | Grave Salt | a small horn jar of coarse grey salt with a bone scoop, salt spilling onto dark ground | `grave_salt.png` |
 | ITEM-NEW-21 | Kettle Tea | a small iron kettle with steam rising from the spout and a chipped enamel cup beside it | `kettle_tea.png` |
 
@@ -772,7 +772,7 @@ the one to use;** if the implementing agent picks a different id, the file must 
 | review id | Name | Subject line | File |
 |---|---|---|---|
 | ITEM-NEW-28 | Colossus Plate | an oversized slab-fronted breastplate built from riveted construct armour panels, one shoulder still bearing a maker's gear-mark | `colossus_plate.png` |
-| ITEM-NEW-29 | Heartwood Cape | a cape of overlapping living bark plates with green heartwood showing at the splits, small leaves still on the hem | `heartwood_cape.png` |
+| ITEM-NEW-29 | Heartwood Cape | an empty hooded cape hanging flat with no one wearing it, overlapping living bark plates with green heartwood showing at the splits and small leaves on the hem | `heartwood_cape.png` |
 | ITEM-NEW-30 | Draconia's Jaw | a helmet made from a dragon's lower jaw worn as an open faceguard, teeth framing the wearer's face | `draconias_jaw.png` |
 | ITEM-NEW-31 | Cutpurse Gloves | a pair of fingerless dark leather gloves worn thin at the fingertips, a small hooked blade sewn into one cuff | `cutpurse_gloves.png` |
 | ITEM-NEW-34 | Quiet Coat | a long muffled dark coat with a high collar and no buckles or fittings of any kind, hem hanging dead still | `quiet_coat.png` |
@@ -792,9 +792,9 @@ banded insect chitin, blue-black with rust-orange joint seams, lashed with silk 
 
 | review id | Name | Subject line | File |
 |---|---|---|---|
-| ITEM-NEW-32a | Chitinweave Helm | a close helm of banded blue-black insect chitin plates with rust-orange joint seams, lashed with silk cord | `chitinweave_helm.png` |
+| ITEM-NEW-32a | Chitinweave Helm | an empty close helm of banded blue-black shell plates with rust-orange joint seams, lashed with silk cord, no wearer | `chitinweave_helm.png` |
 | ITEM-NEW-32b | Chitinweave Body | a torso harness of overlapping blue-black insect chitin plates with rust-orange joint seams, silk-lashed | `chitinweave_body.png` |
-| ITEM-NEW-32c | Chitinweave Chaps | leg guards of segmented blue-black insect chitin with rust-orange joint seams, silk-lashed at the thigh | `chitinweave_chaps.png` |
+| ITEM-NEW-32c | Chitinweave Chaps | a pair of empty leg guards laid out flat side by side, no wearer, segmented blue-black shell plates with rust-orange joint seams silk-lashed at the thigh | `chitinweave_chaps.png` |
 | ITEM-NEW-32d | Chitinweave Boots | boots plated in blue-black insect chitin with rust-orange joint seams and clawed toe segments | `chitinweave_boots.png` |
 | ITEM-NEW-32e | Chitinweave Vambraces | vambraces of banded blue-black insect chitin with rust-orange joint seams, silk-lashed at the wrist | `chitinweave_vambraces.png` |
 | ITEM-NEW-32f | Chitinweave Belt | a belt of linked blue-black insect chitin segments with rust-orange joint seams and a mandible clasp | `chitinweave_belt.png` |
@@ -807,7 +807,7 @@ patinated bronze plate, sealed seams, small dark lenses set into each piece, sta
 | ITEM-NEW-33a | Watchknight Helm | a sealed great helm of dull grey-green patinated bronze with a narrow slit and a small dark lens above it | `watchknight_helm.png` |
 | ITEM-NEW-33b | Watchknight Cuirass | a heavy sealed cuirass of dull grey-green patinated bronze with a small dark lens set over the heart | `watchknight_cuirass.png` |
 | ITEM-NEW-33c | Watchknight Greaves | sealed legguards of dull grey-green patinated bronze with sealed joint seams and a small dark lens at the knee | `watchknight_greaves.png` |
-| ITEM-NEW-33d | Watchknight Sabatons | heavy sealed sabatons of dull grey-green patinated bronze, wide-based and immovable | `watchknight_sabatons.png` |
+| ITEM-NEW-33d | Watchknight Sabatons | a pair of empty heavy plate boots standing side by side, no wearer, dull grey-green patinated bronze, wide-based and immovable | `watchknight_sabatons.png` |
 | ITEM-NEW-33e | Watchknight Gauntlets | sealed gauntlets of dull grey-green patinated bronze with a small dark lens on each wrist | `watchknight_gauntlets.png` |
 | ITEM-NEW-33f | Watchknight Girdle | a broad sealed girdle of dull grey-green patinated bronze with a heavy latch and a small dark lens | `watchknight_girdle.png` |
 
@@ -819,10 +819,10 @@ patinated bronze plate, sealed seams, small dark lenses set into each piece, sta
 | ITEM-NEW-41b | Fletcher's Knife (T4) | a fine fletching knife with a pale blue-silver mithril blade and a shaped horn handle | `fletchers_knife_t4.png` |
 | ITEM-NEW-41c | Fletcher's Knife (T7) | a master's fletching knife with a near-white radiant dawnsteel blade and a gold-collared handle | `fletchers_knife_t7.png` |
 | ITEM-NEW-42a | Mason's Rule (T1) | a folding wooden mason's rule with worn brass hinges and chalk-dulled markings | `masons_rule_t1.png` |
-| ITEM-NEW-42b | Mason's Rule (T4) | a folding mason's rule of pale blue-silver mithril with crisp engraved graduations | `masons_rule_t4.png` |
-| ITEM-NEW-42c | Mason's Rule (T7) | a folding mason's rule of near-white radiant dawnsteel with gold hinges and glowing graduations | `masons_rule_t7.png` |
-| ITEM-NEW-43 | Deathsteel Ingot | a cast ingot of grim corpse-forged death-steel, dark and pocked, a faint greasy sheen on its faces | `deathsteel_ingot.png` |
-| ITEM-NEW-44 | Void-Chitin Weave | a folded sheet of woven black void-chitin strips with a faint violet sheen and a hot ember caught in the weave | `void_chitin_weave.png` |
+| ITEM-NEW-42b | Mason's Rule (T4) | a long slim folding measuring rule of pale blue-silver mithril, straight and flat, crisp engraved graduations down its length | `masons_rule_t4.png` |
+| ITEM-NEW-42c | Mason's Rule (T7) | a long slim folding measuring rule of near-white radiant dawnsteel, straight and flat, gold hinges and glowing graduations down its length | `masons_rule_t7.png` |
+| ITEM-NEW-43 | Deathsteel Ingot | a single solid rectangular brick-shaped block of grim corpse-forged dark steel, faces pocked with a faint greasy sheen | `deathsteel_ingot.png` |
+| ITEM-NEW-44 | Void-Chitin Weave | a single folded sheet of woven black shell strips laid flat, a faint violet sheen and one hot ember caught in the weave | `void_chitin_weave.png` |
 
 ### 3.8 ITEM-PLAN groups — the nameable ones (34)
 
@@ -852,30 +852,30 @@ corners, one face scored from use.*
 | ITEM-PLAN-03b | Copper Whetstone | a grey hand whetstone banded with a copper edge strip, one face worn glossy | `copper_whetstone.png` |
 | ITEM-PLAN-03c | Iron Whetstone | a dark grey hand whetstone set in a plain dark iron frame, one face worn hollow | `iron_whetstone.png` |
 | ITEM-PLAN-03d | Steel Whetstone | a fine grey hand whetstone in a bright tempered steel frame with clean bevelled edges | `steel_whetstone.png` |
-| ITEM-PLAN-03e | Mithril Whetstone | a pale hand whetstone bound in blue-silver mithril, unnaturally light, faintly translucent | `mithril_whetstone.png` |
+| ITEM-PLAN-03e | Mithril Whetstone | a pale rectangular hand whetstone bound in blue-silver mithril, chipped corners and a finely scored face | `mithril_whetstone.png` |
 | ITEM-PLAN-03f | Rune Whetstone | a dark hand whetstone bound in deep silvered metal with runes glowing faintly along its edge | `rune_whetstone.png` |
 | ITEM-PLAN-03g | Dawnsteel Whetstone | a pale hand whetstone bound in near-white radiant dawnsteel with warm gold at the corners | `dawn_whetstone.png` |
 
-**ITEM-PLAN-04 — stone raws, blocks and blank runes** (§8.4, §9.5)
+**ITEM-PLAN-04 — stone raws, blocks and rune blanks** (§8.4, §9.5)
 
 | review id | Name | Subject line | File |
 |---|---|---|---|
-| ITEM-PLAN-04a | Rubble | a loose heap of broken grey stone rubble, angular fragments and grit | `rubble.png` |
-| ITEM-PLAN-04b | Granite | two rough chunks of speckled pink-grey granite with a fresh fractured face | `granite.png` |
+| ITEM-PLAN-04a | Rubble | a low mound of small broken angular grey stone fragments and grit, nothing larger among them | `rubble.png` |
+| ITEM-PLAN-04b | Granite | a rough jagged fist-sized chunk of broken speckled pink-grey rock with one fresh fractured face | `granite.png` |
 | ITEM-PLAN-04c | Basalt | two rough chunks of dark columnar basalt with sharp hexagonal edges | `basalt.png` |
 | ITEM-PLAN-04d | Dressed Block | a single squared grey building block, faces flattened with visible chisel marks | `dressed_block.png` |
-| ITEM-PLAN-04e | Granite Block | a single squared speckled pink-grey granite block, faces dressed smooth | `granite_block.png` |
-| ITEM-PLAN-04f | Basalt Block | a single squared dark basalt block, faces dressed smooth with a dull sheen | `basalt_block.png` |
-| ITEM-PLAN-04g | Blank Rune | a small stack of blank uncarved flat grey stone chips with clean cut edges | `rune_blank.png` |
-| ITEM-PLAN-04h | Fine Blank Rune | a small stack of blank uncarved flat granite chips, faces polished smooth | `fine_rune_blank.png` |
-| ITEM-PLAN-04i | Deep Blank Rune | a small stack of blank uncarved flat basalt chips, faces polished to a dark mirror | `deep_rune_blank.png` |
+| ITEM-PLAN-04e | Granite Block | a single squared quarried block of speckled pink-grey stone, masonry-cut flat faces and sharp arrised edges | `granite_block.png` |
+| ITEM-PLAN-04f | Basalt Block | a single squared quarried block of dark grey stone, masonry-cut flat faces with visible chisel marks and sharp arrised edges | `basalt_block.png` |
+| ITEM-PLAN-04g | Rune Blank | a small stack of blank uncarved flat grey stone chips with clean cut edges | `rune_blank.png` |
+| ITEM-PLAN-04h | Fine Rune Blank | a small stack of blank uncarved flat granite chips, faces polished smooth | `fine_rune_blank.png` |
+| ITEM-PLAN-04i | Deep Rune Blank | a single small flat oval chip of dark polished stone, blank and uncarved, lying face up | `deep_rune_blank.png` |
 
 **ITEM-PLAN-05 — castle goods** (`keystone` is already live, §2.23)
 
 | review id | Name | Subject line | File |
 |---|---|---|---|
 | ITEM-PLAN-05a | Ashlar | a single precisely squared ashlar facing stone, faces ground flat, edges knife-sharp | `ashlar.png` |
-| ITEM-PLAN-05b | Vaultstone | a large curved vault voussoir of dark dressed stone with an iron lifting lewis set into its top | `vaultstone.png` |
+| ITEM-PLAN-05b | Vaultstone | a single wedge-shaped quarried building stone with curved upper and lower faces, an iron lifting ring set into the top face | `vaultstone.png` |
 
 **ITEM-PLAN-06 — phase-two elementals** (§11.2/§11.3). Shared descriptors per element: *frost = pale
 blue-white with rime; ember = hot orange with char; blight = sickly yellow-green.*
@@ -885,9 +885,9 @@ blue-white with rime; ember = hot orange with char; blight = sickly yellow-green
 | ITEM-PLAN-06a | Rune of Frost | a single large flat rune-stone carved with a frost glyph, rime creeping out from the cut | `rune_of_frost.png` |
 | ITEM-PLAN-06b | Rune of Ember | a single large flat rune-stone carved with an ember glyph, the cut glowing hot orange and char around it | `rune_of_ember.png` |
 | ITEM-PLAN-06c | Rune of Blight | a single large flat rune-stone carved with a blight glyph, sickly yellow-green weeping from the cut | `rune_of_blight.png` |
-| ITEM-PLAN-06d | Frost Arrows | a single oversized arrow with a pale blue-white head sheathed in rime, a straight shaft and frost-stiffened fletching | `frost_arrows.png` |
+| ITEM-PLAN-06d | Frost Arrows | a single arrow: one long straight pale wooden shaft, three frost-stiffened feather vanes at the lower end, and a small pale blue-white point sheathed in rime at the upper end | `frost_arrows.png` |
 | ITEM-PLAN-06e | Ember Arrows | a single oversized arrow with a hot orange glowing head, a straight shaft and scorched blackened fletching | `ember_arrows.png` |
-| ITEM-PLAN-06f | Blight Arrows | a single oversized arrow with a sickly yellow-green head beading with venom, a straight shaft and stained fletching | `blight_arrows.png` |
+| ITEM-PLAN-06f | Blight Arrows | a single arrow: one long straight stained wooden shaft, three stained feather vanes at the lower end, and a small sickly yellow-green point beading with venom at the upper end | `blight_arrows.png` |
 | ITEM-PLAN-06g | Frost Whetstone | a hand whetstone rimed pale blue-white, cold vapour sinking off its scored face | `frost_whetstone.png` |
 | ITEM-PLAN-06h | Ember Whetstone | a hand whetstone glowing hot orange through its cracks with char blackening its corners | `ember_whetstone.png` |
 | ITEM-PLAN-06i | Blight Whetstone | a hand whetstone slick with sickly yellow-green residue, its scored face pitted and stained | `blight_whetstone.png` |

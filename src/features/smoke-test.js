@@ -525,11 +525,32 @@ const TESTS = [
     assert(clobbered.length === 0,
       clobbered.length + ' hearthfire paintings were overwritten by generated slot art, e.g. ' + clobbered.slice(0, 3));
 
-    /* Control: the generated map must still be doing its job for ids the
-       batch did NOT cover, or the assertion above passes vacuously. */
-    const uncovered = Object.keys(window.ITEMS || {}).filter((id) => !wired[id] && /_(helm|platebody|sword)$/.test(id));
-    const painted = uncovered.filter((id) => /icons-bundle/.test((window._itemPath || {})[id] || ''));
-    assert(painted.length > 0, 'control failed: no un-covered gear id is painted by the generated map');
+    /* Control: the generated map must still be doing its job for ids the batch
+       did NOT cover, or the assertion above passes vacuously.
+       b361 — this control USED to pin the suffixes `_helm|_platebody|_sword`,
+       and it went vacuous the moment `dawn_platebody` was wired: every id it
+       could see was covered, so a control that was supposed to prove the mapper
+       still runs instead proved only that the list had been exhausted. A
+       control keyed to a hardcoded id shape has a shelf life, and this batch is
+       explicitly still growing. So it now asks the question directly: does the
+       generated mapper OWN a non-empty set of ids this batch does not cover?
+       That is the property the control was always trying to state, it is read
+       off real runtime state, and it goes red the moment the mapper stops
+       running — which no hardcoded id list can promise.
+       A clear-and-repaint MUTATION was written first and does not work, and the
+       reason is worth recording so nobody rebuilds it: `mapGeneratedGear` opens
+       with `if (LOCAL_ITEM_ICON[id]) return`, so it is idempotent by
+       short-circuit and will never repaint an id it has already painted. That
+       short-circuit is the very thing the assertion above depends on. */
+    /* Scoped to ids the generated mapper actually OWNS — it only paints an id
+       that has a `tier` and a slot suffix, and it paints it under painted/gear/.
+       Sampling any painted id at all was the first draft and it failed: most
+       painted ids come from the hand-written LOCAL_ITEM_ICON literal, which the
+       mapper never touches, so clearing them proved nothing. */
+    const paintedBefore = Object.keys(window.ITEMS || {}).filter((id) => !wired[id]
+      && (window.ITEMS[id] || {}).tier
+      && /icons-bundle\/painted\/gear\//.test((window._itemPath || {})[id] || ''));
+    assert(paintedBefore.length > 0, 'control failed: the generated map paints no un-covered id at all');
 
     /* Every wired path is inside the one shipped bundle, and none is an emoji. */
     ids.forEach((id) => {

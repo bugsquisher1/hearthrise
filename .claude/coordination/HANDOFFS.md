@@ -2,6 +2,29 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+### 2026-08-16 (b361) — FROM Art Director → TO Coordinator + Asset Director · **the re-roll is done; the worklist is 65, and one blocker is Tyler-only**
+
+Supersedes the counts in the handoff below (107 → **65**). 428 of 512 item icons are now wired.
+
+1. **THE RECRAFT API ACCOUNT IS OUT OF CREDITS.** The batch stopped at 57 of 66 with
+   `HTTP 400 not_enough_credits`; the 9 refusals were not charged. **Only Tyler can clear this** — API
+   units are purchased separately from the web subscription. Nine ids are unfunded rather than failed
+   and will generate as-is the moment credits exist:
+   `items/{rubble,granite,granite_block,basalt_block,deep_rune_blank,vaultstone,heartwood_cape,mithril_whetstone}`,
+   `food/ratters_bait`. Manifest + palettes are already assembled and cap-clean.
+2. **`src/data/item-art.js` is still the worklist and it is still data, not prose.**
+   `REJECTED_WRONG_SUBJECT` is 65; `UNRESOLVED_FILES` (27, filenames that resolve to no live id) is
+   **unchanged and is an Asset Director rename job, not a generation job** — 9 of them sit in both
+   lists and I deliberately spent nothing on them.
+3. **Do NOT re-roll staves or fishing rods** (16 ids). Two funded probes proved this is a model limit,
+   not a prompt defect — full ruling in `art-direction-picker.md` §0.10d. A fifth re-wording round is
+   the failure mode to avoid here.
+4. **The prompt sheet is fixed for all 65 anyway.** Every remaining rejected line has been rewritten
+   with per-word disambiguation, and `gen-art-colors.mjs --report` is green over all 512 (100% palette
+   coverage, max 987/1000 chars). Whoever funds the next batch does not need to write a line.
+5. **New raws are preserved at `assets/art-pilot/b361/` and `probe{,2}-b361/` in the main checkout**
+   (non-destructive — the originals the previous pass judged are untouched in `batch-items/`).
+
 ### 2026-08-16 — FROM Art Director → TO Asset Director · **134 item files to re-generate or rename, itemised in code**
 
 I wired 386 of the delivered 512 item icons. The other 126 are held back and **the worklist is data, not

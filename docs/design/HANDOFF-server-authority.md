@@ -70,7 +70,11 @@ runs freeze-day only, and needs its own rebase onto main after market-v2.
 **WHAT REMAINS IS PURELY OPERATIONAL, in order:** (1) market-v2 revalidation + apply +
 client swap (the last unreviewed surface); (2) C6 — `tools/race-test.mjs` against the
 live verbs incl. unlock_buy (needs Tyler's password; re-provision the throwaway first,
-it was wiped by the restore); (3) enable PITR-7 (~$105/mo, DECIDED, before the wipe);
+it was wiped by the restore); (3) enable PITR-7 (~$105/mo) — **AMENDED by Tyler at cutover 2026-08-16: deferred past the
+cutover itself, goes on "closer to launch." Accepted risk, stated: until then a DB disaster
+costs up to 24h of ALL server-side progress with no client re-upload path (post-flip the
+load-strip takes the server value). HARD LINE: PITR is ROUND-2-LAUNCH-BLOCKING — it must be
+enabled before invites go out;
 (4) TOTAL wipe; (5) flip `'artisan'` payable + `gold` into SERVER_OF_RECORD (the flip
 commit — needs its own Security look at the 33 deferred-site behaviours, each now
 declared); (6) switch-on. Security's own queue: the 21 baselined tables (starting

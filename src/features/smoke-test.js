@@ -31136,6 +31136,65 @@ const TESTS = [
     assert(G.gold === 9, 'gold remains absolutely authoritative — its writer HAS moved');
   }),
 
+  /* B362-DUPE-1 — EQUIPPING A WEAPON MUST NOT MINT A SECOND ONE.
+     The live P0 of 2026-08-18, reported by a T6 player who swaps weapons per
+     monster weakness: "every time I am using the corresponding weapon type it
+     gets duplicated when I equip it." Weapons are tradeable on the server
+     market, so this is an economy bug, one dupe per equip round trip.
+
+     THE MODEL, proved from the migrations, not assumed: BOTH sides hold gear
+     disjointly from the bag (hr_apply's equip op is a transfer; the bootstrap
+     asserts no starting item is in both), and NOTHING tells the server about a
+     client equip — there is no equip verb in src/net/*. So the server's
+     inventory figure still counts the worn copy, the client correctly counts
+     zero, and b359's max hands the stale figure back into the bag beside the
+     copy in the slot.
+
+     Fails in both directions: it proves the worn copy is not resurrected, AND
+     that the deduction is not applied twice when the server AGREES the item is
+     worn — a fix that blindly subtracted the local equipment would go red on
+     the second block, and reverting the fix goes red on the first. */
+  () => tryRun('B362-DUPE-1: an envelope may not resurrect a bag copy that is now equipped', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'applyEnvelopeState must be published');
+
+    /* 1. THE EXACT REPORTED SEQUENCE. One sword owned; the player equips it
+       (bag debited, slot filled); an envelope built before the equip arrives
+       still naming the sword at 1. Total owned must stay ONE. */
+    const G = { gold: 0, skills: {}, inventory: { iron_sword: 1 }, equipment: {} };
+    delete G.inventory.iron_sword; G.equipment.weapon = 'iron_sword';   // equipItem()
+    A.applyEnvelopeState(G, {
+      state: {}, skills: {}, inventory: { iron_sword: 1 }, equipment: {},
+    });
+    assert(!(Number(G.inventory.iron_sword) > 0),
+      'the worn copy must not come back to the bag — got ' + G.inventory.iron_sword + ' in the bag AND one equipped');
+    assert(G.equipment.weapon === 'iron_sword', 'the equipped copy must be untouched');
+
+    /* 2. NO DOUBLE DEDUCTION. When the envelope agrees the item is worn, its
+       inventory figure already excludes that copy, so a genuine spare in the
+       server's bag must still arrive. */
+    const G2 = { gold: 0, skills: {}, inventory: {}, equipment: { weapon: 'iron_sword' } };
+    A.applyEnvelopeState(G2, {
+      state: {}, skills: {}, inventory: { iron_sword: 2 },
+      equipment: { weapon: 'iron_sword' },
+    });
+    assert(G2.inventory.iron_sword === 2,
+      'a spare the server holds must survive when both sides agree the item is worn — got ' + G2.inventory.iron_sword);
+
+    /* 3. TWO SLOTS, ONE ITEM ID (rings). Counted by id, never by slot name,
+       because the client and server slot vocabularies are not the same list. */
+    const G3 = { gold: 0, skills: {}, inventory: { gold_ring: 1 },
+                 equipment: { ring1: 'gold_ring', ring2: 'gold_ring' } };
+    A.applyEnvelopeState(G3, { state: {}, skills: {}, inventory: { gold_ring: 3 }, equipment: {} });
+    assert(G3.inventory.gold_ring === 1,
+      'two worn rings must both be discounted from the server figure — got ' + G3.inventory.gold_ring);
+
+    /* 4. B359 IS NOT WEAKENED. Nothing equipped -> the max is untouched. */
+    const G4 = { gold: 0, skills: {}, inventory: { dragon_scale: 14 }, equipment: {} };
+    A.applyEnvelopeState(G4, { state: {}, skills: {}, inventory: { dragon_scale: 2 } });
+    assert(G4.inventory.dragon_scale === 14, 'b359: a named LOWER key must not pull a live stack down');
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b361 regression suite — "AWAY 0h" DURING LIVE PLAY (Tyler, screenshot)
      ══════════════════════════════════════════════════════════════════════

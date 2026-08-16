@@ -4,6 +4,47 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-08-18 · QA · P0 LIVE ITEM DUPLICATION ON EQUIP · accrue.js envelope merge / equip flow · FIXED in lane
+
+Reported by a T6 player: "every time I am using the corresponding weapon type it gets duplicated when
+I equip it." Weapons are tradeable on the server market, so this is economy-severity — one dupe per
+equip round trip. Severity P0. Fixed by QA (merge-site, `src/net/accrue.js`); no design/art impact.
+
+**Model, proved from the migrations rather than assumed.** Both sides hold gear DISJOINTLY from the
+bag: server-side `hr_apply`'s `equip` op is a transfer (2026-08-11-apply-engine.sql §EQUIPMENT debits
+`player_inventory`, inserts `player_equipment`) and `hr_create_character` explicitly asserts no
+starting item is in both; client-side `equipItem`/`equipToSlot`/`applyLoadout` all `removeItem(id,1)`
+and write `G.equipment[slot]`. **But nothing tells the server about a client equip — there is no
+equip verb anywhere in `src/net/*`.** So the server's inventory row is a stale view that still counts
+the worn copy, the client correctly counts zero, and b359's per-key MAX hands the stale figure back
+into the bag beside the copy in the slot.
+
+**Fix (minimal; b359 max-merge intact).** `applyEnvelopeState` subtracts, from a NAMED key's server
+figure, only the copies equipped locally that the envelope does NOT also show equipped
+(`unaccountedEquipped`, counted by item id, never by slot name). It can only lower the server figure,
+so the worst case is under-crediting a bag copy — which the next settle heals; a dupe never does.
+Regression `B362-DUPE-1` (4 blocks incl. no-double-deduction and two rings of one id);
+mutation-proved red on revert.
+
+**Sweep of the same class.** Market listing is SAFE — `market_list` deletes from `player_inventory`
+server-side (2026-08-17-market-v2.sql:838). The food slot is a POINTER, not a transfer (food stays in
+the bag until eaten). `G.tools` is vestigial (never debited). Seed planting, crafting, burying and
+vendor sales are CONSUMPTION, not transfers — they fall under b359's already-documented and accepted
+under-deduction (double-spend) risk, not the dupe class. Loadout apply routes through the same
+`G.equipment` transfer and is covered by the merge-site fix.
+
+**REQUIRED ACTION (Systems Engineer, not done here):** the real end state is an `equip` INTENT so the
+server learns about equips; this deduction retires with it, exactly as b359's max retires when live
+drops become server-authored.
+
+**Recoverability.** Existing dupes are identifiable only in principle: `player_ledger` records
+server-side grants and market moves, so an inventory count exceeding (ledger grants − ledger spends)
+for a gear item is a dupe candidate. But the extra copy only ever existed in the client snapshot and
+equips are unjournalled entirely, so no count can be attributed to a specific equip event. No cleanup
+action taken; the beta wipe at cutover subsumes it.
+
+---
+
 ### 2026-08-16 (b361) · Art Director · **An AI image model draws a garment correctly only if you tell it the garment is EMPTY — and a test control keyed to a hardcoded id list has a shelf life**
 
 **DISCOVERY 1 — the state, not the words.** Describing clothing as an *object at rest* ("an empty

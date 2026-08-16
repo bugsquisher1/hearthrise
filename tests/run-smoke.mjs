@@ -25,6 +25,7 @@ import { unlockBuyGuard } from './unlock-buy.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
+import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as goldCensusGuard } from './gold-site-census.mjs';
 import { runAll as deltaTransportGuards } from './delta-transport.mjs';
@@ -1315,6 +1316,28 @@ const run = async () => {
         + '17 remaining tables (MAINTAIN included), all 42 confirmed writers still write before AND '
         + 'after the revoke, clan_members/clans keep the live policies and grants they need, and '
         + 'the dead-grant baseline is now EMPTY.');
+    }
+
+    /* ── Client write sweep batch 5 (the state becomes a property) ────────
+       Three coupled pieces in one migration: (1) a FAIL-CLOSED default ACL so a
+       new table is not born client-writable; (2) a SCHEMA-WIDE MAINTAIN revoke
+       so nothing keeps the one privilege the detector could not see; (3) the
+       DETECTOR TAKEOVER — check (4) moves off information_schema (blind to
+       MAINTAIN and to matviews) onto has_table_privilege over pg_class. The
+       guard proves a fresh table is born SELECT-only, zero client MAINTAIN pairs
+       remain, and a re-granted MAINTAIN — on a table OR a matview — is named and
+       fatal, while clan_members/clans keep the live grants their policies use.
+       `--selftest` plants seven real defects; every one must read RED. */
+    const sweep5Problems = await clientWriteSweep5Guard();
+    if (sweep5Problems.length) {
+      console.log('\nClient write grant sweep batch 5 (fail-closed default ACL + MAINTAIN revoke + '
+        + 'detector takeover) — FAILED:');
+      for (const p of sweep5Problems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nClient write sweep batch 5 — the generator is fail-closed (a new table is born '
+        + 'SELECT-only), zero client MAINTAIN pairs remain across tables and matviews, and check (4) '
+        + 'now names and fails on a MAINTAIN grant permanently.');
     }
 
     /* ── The activity-seam guard (b348) ─────────────────────────────────

@@ -823,7 +823,10 @@ async function cronFixture(db) {
 
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run({ patches } = {}) {
-  const { db } = await bootReplay({ patches });
+  // upTo: MIG — validate the state AS OF batch 4, isolated from batch 5's global
+  // MAINTAIN sweep, which runs last and would silently correct (and hide) a
+  // MAINTAIN-left-behind mutation planted here.
+  const { db } = await bootReplay({ patches, upTo: MIG });
   await db.query('begin');
   const VOCAB = await vocabulary(db);
 
@@ -1034,11 +1037,17 @@ async function run({ patches } = {}) {
       + 'parser has stopped matching and the comparison below would be vacuous');
     for (const f of sweeps) {
       if (f === PRED1) continue;                 // batch 1 SEEDS; it declares no c_pairs
+      // A sweep that consumes NO baseline rows (batch 5: fail-closed default ACL,
+      // schema-wide MAINTAIN revoke, detector takeover) declares no c_pairs BY
+      // DESIGN. Requiring one would turn this guard red for a database in perfect
+      // order — the exact hazard this arm's header warns about. Gate on whether
+      // the file actually deletes baseline rows.
+      if (!/delete\s+from\s+public\.hr_client_write_baseline/i.test(await migrationSource(f))) continue;
       ok((await declaredPairs(f, 'c_pairs')).length > 0,
-        `C5 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that declares `
-        + 'no pairs contributes nothing to the expected baseline, so the comparison would demand '
-        + 'rows the database is right not to have — and BOTH predecessor guards build their '
-        + 'expected baseline the same way, so a batch that skips it turns them red too.');
+        `C5 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that DELETES `
+        + 'baseline rows but declares no pairs contributes nothing to the expected baseline, so the '
+        + 'comparison would demand rows the database is right not to have — and BOTH predecessor '
+        + 'guards build their expected baseline the same way, so a batch that skips it turns them red too.');
     }
     for (const t of T17) {
       for (const g of ['anon', 'authenticated']) {
@@ -1176,7 +1185,7 @@ async function run({ patches } = {}) {
       new Map([[sc.file, [[sc.anchor, `${sc.sql}\n${sc.anchor}`]]]]));
     let msg = null;
     try {
-      const boot = await bootReplay({ patches: p });
+      const boot = await bootReplay({ patches: p, upTo: MIG });
       await boot.db.close?.();
     } catch (e) {
       if (e.harness) throw e;

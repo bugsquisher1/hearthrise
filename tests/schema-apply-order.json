@@ -120,7 +120,8 @@
   "2026-08-16-client-write-grant-sweep.sql",
   "2026-08-16-client-write-grant-sweep-2.sql",
   "2026-08-16-client-write-grant-sweep-3.sql",
-  "2026-08-16-client-write-grant-sweep-4.sql"
+  "2026-08-16-client-write-grant-sweep-4.sql",
+  "2026-08-16-client-write-grant-sweep-5.sql"
  ],
  "_order_notes": {
   "2026-08-10-dr-beta-invites-base.sql": "Reconstruction of a production object with no migration file. Must precede authenticated-surface-lockdown (A9's retrofit list names claim_beta_invite(text) and fails closed on it) and live-market-rls (§3 reads public.beta_invites).",

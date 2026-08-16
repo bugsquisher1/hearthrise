@@ -313,7 +313,10 @@ async function clearGate(db) {
 
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run({ patches } = {}) {
-  const { db } = await bootReplay({ patches });
+  // upTo: MIG — validate the state AS OF batch 2, isolated from batch 5's global
+  // MAINTAIN sweep, which runs last and would silently correct (and hide) a
+  // MAINTAIN-left-behind mutation planted here.
+  const { db } = await bootReplay({ patches, upTo: MIG });
   await db.query('begin');
   await seedUsers(db);
 
@@ -517,15 +520,18 @@ async function run({ patches } = {}) {
        contribute at least one well-formed pair, whatever its size. */
     ok(sweeps.length > 0, 'C6 CONTROL: no sweep migration files were found at all');
     for (const f of sweeps) {
-      const n = (await pairsIn(
-        await (await import('node:fs/promises')).readFile(
-          (await import('node:path')).join(
-            (await import('./schema-replay.mjs')).ROOT, 'supabase', 'migrations', f), 'utf8'),
-        'c_pairs')).length;
-      ok(f === PRED || n > 0,
-        `C6 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that declares `
-        + 'no pairs contributes nothing to the expected baseline below, so the comparison would '
-        + 'demand rows the database is right not to have.');
+      const src = await (await import('node:fs/promises')).readFile(
+        (await import('node:path')).join(
+          (await import('./schema-replay.mjs')).ROOT, 'supabase', 'migrations', f), 'utf8');
+      const n = (await pairsIn(src, 'c_pairs')).length;
+      // A sweep that consumes NO baseline rows (batch 5 onward: default-ACL /
+      // MAINTAIN / detector changes) declares no c_pairs BY DESIGN — gate the
+      // requirement on whether the file actually deletes baseline rows.
+      const consumes = /delete\s+from\s+public\.hr_client_write_baseline/i.test(src);
+      ok(f === PRED || !consumes || n > 0,
+        `C6 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that DELETES `
+        + 'baseline rows but declares no pairs contributes nothing to the expected baseline below, so '
+        + 'the comparison would demand rows the database is right not to have.');
     }
     ok(eaten.every((k) => /^[a-z0-9_]+:(anon|authenticated)$/.test(k)),
       `C6 CONTROL: the parser produced a malformed pair: ${eaten.filter((k) => !/^[a-z0-9_]+:(anon|authenticated)$/.test(k)).join(', ')}`);
@@ -535,10 +541,30 @@ async function run({ patches } = {}) {
         `C6 CONTROL: ${k} is not among the pairs the sweep files declare they consume, so the `
         + 'derivation below is not reading THIS file\'s own c_pairs array.');
     }
-    const want = declared.filter((k) => !eaten.includes(k)).sort();
+    // ⚠ UP-TO-SELF. This guard boots the chain only THROUGH batch 2 (run()'s
+    // upTo, so batch 5's global MAINTAIN sweep cannot mask a mutation here), so
+    // the live baseline reflects what batches 1..2 consumed — not the whole
+    // programme. Compute the expected set the same way: subtract only the c_pairs
+    // of sweep files at or before this one in the apply order. The forward-looking
+    // "whole programme empties the baseline" check is owned by the LAST consuming
+    // batch's guard (batch 4) and by batch 5's guard.
+    const _fs = await import('node:fs/promises');
+    const _path = await import('node:path');
+    const { ROOT: _ROOT } = await import('./schema-replay.mjs');
+    const _order = JSON.parse(await _fs.readFile(
+      _path.join(_ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const _selfPos = _order.indexOf(MIG);
+    const _eatenSelf = new Set();
+    for (const f of sweeps) {
+      const pos = _order.indexOf(f);
+      if (pos < 0 || pos > _selfPos) continue;
+      const src = await _fs.readFile(_path.join(_ROOT, 'supabase', 'migrations', f), 'utf8');
+      for (const k of await pairsIn(src, 'c_pairs')) _eatenSelf.add(k);
+    }
+    const want = declared.filter((k) => !_eatenSelf.has(k)).sort();
     ok(JSON.stringify(based) === JSON.stringify(want),
-      `C6: the baseline is not "${PRED}'s declared class minus everything the sweep batches `
-      + `consume" (${sweeps.length} batch file(s)).\n    baseline only: `
+      `C6: the baseline is not "${PRED}'s declared class minus everything batches up to and `
+      + `including batch 2 consume" (of ${sweeps.length} sweep file(s) on disk).\n    baseline only: `
       + `${based.filter((k) => !want.includes(k)).join(', ') || '(none)'}\n    expected only: `
       + `${want.filter((k) => !based.includes(k)).join(', ') || '(none)'}`);
 
@@ -656,7 +682,7 @@ async function run({ patches } = {}) {
     const p = mergePatches(patches, new Map([[PRED, [[PRED_TAIL, `${sc.sql}\n${PRED_TAIL}`]]]]));
     let msg = null;
     try {
-      const boot = await bootReplay({ patches: p });
+      const boot = await bootReplay({ patches: p, upTo: MIG });
       await boot.db.close?.();
     } catch (e) {
       if (e.harness) throw e;

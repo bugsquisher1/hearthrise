@@ -176,9 +176,14 @@ const ALSO_LINTED = [
      defence against. */
   '2026-08-16-unlock-buy.sql',
   /* b354 / Security C3 — the dead-client-write-grant sweep. It revokes on six
-     content catalogues and `create or replace`s the detector to widen check (4);
-     it is the CURRENT last toucher of hr_assert_grant_hygiene. */
+     content catalogues and `create or replace`s the detector to widen check (4). */
   '2026-08-16-client-write-grant-sweep.sql',
+  /* b350 (Security batch 5) — the detector TAKEOVER. It `create or replace`s
+     hr_assert_grant_hygiene to move check (4) onto has_table_privilege (so
+     MAINTAIN and matviews stop being blind spots), and is the CURRENT last
+     toucher of the detector. Listed so the grant lints see it AND so PART 1f-ii
+     can walk its derivation as a fourth link. */
+  '2026-08-16-client-write-grant-sweep-5.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -265,6 +270,12 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // b354 / Security C3. The first link in this chain that REPLACES lines — see
   // DECLARED_REMOVALS below, which is this chain's first non-empty list.
   '2026-08-16-client-write-grant-sweep.sql',
+  // b350 / Security batch 5 — THE DETECTOR TAKEOVER, and the SECOND replacing
+  // link. It swaps check (4)'s whole information_schema query for a
+  // has_table_privilege query over pg_class (full PG17 vocabulary + every
+  // relkind), so MAINTAIN and matviews become permanently visible. Its removed
+  // lines are the second non-empty entry in DECLARED_REMOVALS below.
+  '2026-08-16-client-write-grant-sweep-5.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [
@@ -848,6 +859,33 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
       '    from information_schema.role_table_grants',
       "   where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')",
       "     and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER');",
+    ],
+
+    /* ── hr_assert_grant_hygiene's SECOND replacing link (b350, Security batch 5)
+       — THE DETECTOR TAKEOVER. Batch 1 could only widen the VERB LIST; it stayed
+       on information_schema, which reports SQL-standard privileges (no MAINTAIN)
+       and omits matviews. Batch 5 replaces the whole two-arm SELECT with a
+       has_table_privilege query over pg_class. The fifteen lines below are batch
+       1's information_schema query; the shared lines (`select coalesce(... into
+       v_client_trunc from (`, `union all`, `and c.relrowsecurity`, `) x;`)
+       survive into the new body and are correctly NOT listed. A sixteenth removal
+       would be a silent regression. */
+    '2026-08-16-client-write-grant-sweep-5.sql': [
+      '    select table_name as g',
+      '      from information_schema.role_table_grants',
+      "     where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')",
+      "       and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')",
+      "    select g.table_name || ':' || g.grantee || ':' || g.privilege_type",
+      '      from information_schema.role_table_grants g',
+      '      join pg_class c on c.relname = g.table_name',
+      "                     and c.relnamespace = 'public'::regnamespace",
+      "     where g.table_schema = 'public' and g.grantee in ('anon','authenticated','PUBLIC')",
+      "       and g.privilege_type in ('INSERT','UPDATE','DELETE')",
+      '       and not exists (select 1 from pg_policies p',
+      "                        where p.schemaname = 'public' and p.tablename = g.table_name",
+      "                          and p.cmd in ('INSERT','UPDATE','DELETE','ALL'))",
+      '       and not exists (select 1 from public.hr_client_write_baseline b',
+      '                        where b.table_name = g.table_name and b.grantee = g.grantee)',
     ],
   };
 

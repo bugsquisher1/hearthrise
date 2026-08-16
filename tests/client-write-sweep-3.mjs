@@ -430,7 +430,10 @@ async function seedHunt(db, week) {
 
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run({ patches } = {}) {
-  const { db } = await bootReplay({ patches });
+  // upTo: MIG — validate the state AS OF batch 3, isolated from batch 5's global
+  // MAINTAIN sweep, which runs last and would silently correct (and hide) a
+  // MAINTAIN-left-behind mutation planted here.
+  const { db } = await bootReplay({ patches, upTo: MIG });
   await db.query('begin');
   await seedUsers(db);
   const VOCAB = await vocabulary(db);
@@ -517,6 +520,10 @@ async function run({ patches } = {}) {
   // of the six and show the two instruments disagree: has_table_privilege sees
   // it, information_schema.role_table_grants does not, AND the live detector
   // (whose check (4) is still built on information_schema) stays green.
+  // ⚠ This arm boots the chain UP TO batch 3 (see run()'s upTo), so the live
+  //   detector here is batch 1's — the era this arm documents. Batch 5's takeover
+  //   (which makes the detector CATCH this MAINTAIN) is proven by batch 5's own
+  //   guard; the §8 residual this arm names is closed there, not here.
   try {
     await db.query('grant maintain on public.hr_castle_tiers to authenticated');
     const [{ h }] = (await db.query(
@@ -683,10 +690,18 @@ async function run({ patches } = {}) {
     ok(sweeps.length > 0, 'C5 CONTROL: no sweep migration files were found at all');
     for (const f of sweeps) {
       if (f === PRED1) continue;   // batch 1 SEEDS the class; it declares no c_pairs
+      // A sweep that consumes NO baseline rows (batch 5 onward: default-ACL /
+      // MAINTAIN / detector changes) declares no c_pairs BY DESIGN — gate the
+      // requirement on whether the file actually deletes baseline rows, or this
+      // arm goes red for a database in perfect order the day such a batch lands.
+      const src = await (await import('node:fs/promises')).readFile(
+        (await import('node:path')).join(
+          (await import('./schema-replay.mjs')).ROOT, 'supabase', 'migrations', f), 'utf8');
+      if (!/delete\s+from\s+public\.hr_client_write_baseline/i.test(src)) continue;
       ok((await declaredPairs(f, 'c_pairs')).length > 0,
-        `C5 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that declares `
-        + 'no pairs contributes nothing to the expected baseline below, so the comparison would '
-        + 'demand rows the database is right not to have.');
+        `C5 CONTROL: the c_pairs parser read ZERO pairs out of ${f}. A sweep batch that DELETES `
+        + 'baseline rows but declares no pairs contributes nothing to the expected baseline below, so '
+        + 'the comparison would demand rows the database is right not to have.');
     }
     ok(eaten.every((k) => /^[a-z0-9_]+:(anon|authenticated)$/.test(k)),
       `C5 CONTROL: the parser produced a malformed pair: ${eaten.filter((k) => !/^[a-z0-9_]+:(anon|authenticated)$/.test(k)).join(', ')}`);
@@ -697,10 +712,26 @@ async function run({ patches } = {}) {
           + "the derivation below is not reading THIS file's own c_pairs array.");
       }
     }
-    const want = declared.filter((k) => !eaten.includes(k)).sort();
+    // ⚠ UP-TO-SELF. This guard boots the chain only THROUGH batch 3 (run()'s
+    // upTo, so batch 5's global MAINTAIN sweep cannot mask a mutation here), so
+    // the live baseline reflects what batches 1..3 consumed — not the whole
+    // programme. Compute the expected set the same way: subtract only the c_pairs
+    // of sweep files at or before this one in the apply order. The forward-looking
+    // "the whole programme empties the baseline" check is owned by the LAST
+    // consuming batch's guard (batch 4) and by batch 5's guard.
+    const _order = JSON.parse(await (await import('node:fs/promises')).readFile(
+      (await import('node:path')).join((await import('./schema-replay.mjs')).ROOT,
+        'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const _selfPos = _order.indexOf(MIG);
+    const _eatenSelf = new Set();
+    for (const f of sweeps) {
+      const pos = _order.indexOf(f);
+      if (pos >= 0 && pos <= _selfPos) for (const k of await declaredPairs(f, 'c_pairs')) _eatenSelf.add(k);
+    }
+    const want = declared.filter((k) => !_eatenSelf.has(k)).sort();
     ok(JSON.stringify(based) === JSON.stringify(want),
-      `C5: the baseline is not "batch 1's declared class minus everything the ${sweeps.length} `
-      + `sweep batch(es) consume".\n`
+      `C5: the baseline is not "batch 1's declared class minus everything batches up to and `
+      + `including batch 3 consume" (of ${sweeps.length} sweep file(s) on disk).\n`
       + `    baseline only: ${based.filter((k) => !want.includes(k)).join(', ') || '(none)'}\n`
       + `    expected only: ${want.filter((k) => !based.includes(k)).join(', ') || '(none)'}`);
 
@@ -824,7 +855,7 @@ async function run({ patches } = {}) {
       new Map([[sc.file, [[sc.anchor, `${sc.sql}\n${sc.anchor}`]]]]));
     let msg = null;
     try {
-      const boot = await bootReplay({ patches: p });
+      const boot = await bootReplay({ patches: p, upTo: MIG });
       await boot.db.close?.();
     } catch (e) {
       if (e.harness) throw e;

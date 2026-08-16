@@ -152,9 +152,16 @@ alter table auth.users add column if not exists role text;
  *        that was never planted is decoration. Used by the mutation proof.
  * @param {boolean} [opts.tolerant] collect failures instead of throwing on the
  *        first one, so a diagnostic run reports the whole cascade.
+ * @param {string}  [opts.upTo] STOP after applying this migration filename
+ *        (inclusive). A batch's own guard uses this to validate the database as
+ *        of ITS migration, isolated from a LATER GLOBAL batch that would mask its
+ *        effect — e.g. 2026-08-16-client-write-grant-sweep-5.sql revokes MAINTAIN
+ *        schema-wide, which would silently correct (and hide) a MAINTAIN-left-
+ *        behind mutation planted in batch 2/3/4. Throws if the name is not in the
+ *        chain, so a stale upTo cannot silently boot the whole thing.
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
-export async function bootReplay({ patches, tolerant = false } = {}) {
+export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
   let PGlite;
   try { ({ PGlite } = await import('@electric-sql/pglite')); }
   catch {
@@ -208,6 +215,11 @@ export async function bootReplay({ patches, tolerant = false } = {}) {
   await db.exec(await readFile(join(ROOT, 'tests', 'sql', 'pglite-fixture.sql'), 'utf8'));
   await db.exec(SCAFFOLD);
 
+  if (upTo !== undefined && !files.some(([name]) => name === upTo)) {
+    const e = new Error(`bootReplay upTo names a file not in the chain: "${upTo}"`);
+    e.harness = true; throw e;
+  }
+
   const applied = [];
   const failures = [];
   for (const [name] of files) {
@@ -229,6 +241,7 @@ export async function bootReplay({ patches, tolerant = false } = {}) {
         e.replay = true; e.failures = failures; throw e;
       }
     }
+    if (name === upTo) break;   // validate the state AS OF this migration
   }
   return { db, applied, failures };
 }
